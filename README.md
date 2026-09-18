@@ -85,7 +85,7 @@ Ghost FTP provides real file-management and transfer operations rather than simu
 | --- | --- | --- |
 | **Windows** | Current release target | Universal Setup and Portable applications with x64, x86 and ARM64 payloads |
 | **Linux** | Current release target | Debian, Ubuntu and Fedora Installer + Portable bundles |
-| **Android** | Current release target | Installable CI debug-signed APK with FTP and strict explicit FTPS; no protected publisher key is claimed |
+| **Android** | Current release target | Installable temporary compatibility-signed APK with FTP and strict explicit FTPS; no protected publisher key is claimed |
 | **macOS** | Current release target | Universal arm64 + x86_64 AppKit validation package with ad-hoc signing; not Developer ID signed or notarized |
 | **Browser helpers** | Current release target | Chrome, Edge, Firefox and Opera local helper packages |
 
@@ -123,7 +123,7 @@ Distribution mode: **no-secret public release**
 Last actually published GitHub Release: **0.0.7**
 Prerelease: **false**
 
-The 0.0.8 no-secret publication contract contains **14 platform artifacts / 17 public files**. Windows is unsigned, Android is installable CI debug-signed, and macOS is ad-hoc signed without Apple notarization. These states are recorded in release metadata rather than presented as production signing.
+The 0.0.8 no-secret publication contract contains **14 platform artifacts / 17 public files**. Windows is unsigned, Android is installable temporary compatibility-signed, and macOS is ad-hoc signed without Apple notarization. These states are recorded in release metadata rather than presented as production signing.
 
 ### Windows
 
