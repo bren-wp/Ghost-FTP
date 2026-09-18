@@ -55,7 +55,7 @@ class WindowsModalKeyboardRuntimeContractTests(unittest.TestCase):
         self.assertIn("Dismiss button did not retain keyboard focus", source)
         self.assertIn("Could not post Enter", source)
         self.assertIn("Could not post Escape", source)
-        self.assertIn("Verify-ModalKeyboardContract -Main $main -Process $process -Command $siteManagerCommand -CloseControlId $siteManagerCloseControlId -Title 'Site Manager'", source)
+        self.assertIn("Verify-ModalKeyboardContract -Main $main -Process $process -Command $siteManagerCommand -CloseControlId $siteManagerCloseControlId -Title 'Connections'", source)
         self.assertIn("Verify-ModalKeyboardContract -Main $main -Process $process -Command $bookmarksCommand -CloseControlId $bookmarksCloseControlId -Title 'Bookmarks'", source)
         self.assertNotIn("Find-ChildWindowByText", source)
         self.assertNotIn("-Text 'Close'", source)
