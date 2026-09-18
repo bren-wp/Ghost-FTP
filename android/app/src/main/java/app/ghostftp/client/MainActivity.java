@@ -997,7 +997,7 @@ public final class MainActivity extends Activity {
 
     private void loadSelectedSite() {
         if (busy || session != null) {
-            setStatus("Disconnect before switching sites.");
+            setStatus("Disconnect before switching saved connections.");
             return;
         }
         int index = siteSpinner.getSelectedItemPosition() - 1;
@@ -1031,15 +1031,15 @@ public final class MainActivity extends Activity {
         if (!profile.localStartTreeUri.isEmpty()) {
             localStartUnavailable = !tryActivateLocalTree(
                     Uri.parse(profile.localStartTreeUri),
-                    "This site's local start folder is unavailable. Choose it again and update the site.",
+                    "This connection's local start folder is unavailable. Choose it again and update the connection.",
                     true);
         }
         renderSites();
         renderBookmarks();
         if (localStartUnavailable) {
-            setStatus("Site loaded, but its local start folder is unavailable. Choose it again and update the site.");
+            setStatus("Connection loaded, but its local start folder is unavailable. Choose it again and update the connection.");
         } else {
-            setStatus("Site loaded. Enter your password to connect.");
+            setStatus("Connection loaded. Enter your password to connect.");
         }
     }
 
@@ -1050,7 +1050,7 @@ public final class MainActivity extends Activity {
         }
         String name = profileName.getText().toString().trim();
         if (name.isEmpty()) {
-            setStatus("Site name is required.");
+            setStatus("Connection name is required.");
             return;
         }
         final int portValue;
@@ -1089,9 +1089,9 @@ public final class MainActivity extends Activity {
             renderSites();
             renderBookmarks();
             if (previous != null && !next.sameServerIdentity(previous)) {
-                setStatus("Site updated. Saved server paths and bookmarks were cleared because the connection details changed.");
+                setStatus("Connection updated. Saved server paths and bookmarks were cleared because the connection details changed.");
             } else {
-                setStatus(previous == null ? "Site saved. No password was stored." : "Site updated. No password was stored.");
+                setStatus(previous == null ? "Connection saved. No password was stored." : "Connection updated. No password was stored.");
             }
         } catch (IllegalArgumentException e) {
             setStatus(e.getMessage());
@@ -1100,12 +1100,12 @@ public final class MainActivity extends Activity {
 
     private void deleteActiveSite() {
         if (busy || session != null) {
-            setStatus("Disconnect before deleting a saved site.");
+            setStatus("Disconnect before deleting a saved connection.");
             return;
         }
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Load a saved site before deleting it.");
+            setStatus("Load a saved connection before deleting it.");
             return;
         }
         profiles.remove(profile);
@@ -1114,7 +1114,7 @@ public final class MainActivity extends Activity {
         profileName.setText("");
         renderSites();
         renderBookmarks();
-        setStatus("Saved site deleted.");
+        setStatus("Saved connection deleted.");
     }
 
     private void replaceProfile(SiteProfile next) {
@@ -1157,7 +1157,7 @@ public final class MainActivity extends Activity {
         SiteProfile profile = activeProfile();
         String identity = identityKey(protocol.getSelectedItem().toString(), hostValue, portValue, userValue);
         if (profile != null && !profile.identityKey().equals(identity)) {
-            setStatus("Connection details changed. Save the site or switch to Quick Connect before connecting.");
+            setStatus("Connection details changed. Save the connection or switch to Quick Connect before connecting.");
             return;
         }
         String requestedStart = profile == null ? null : profile.remoteStartPath;
@@ -1454,7 +1454,7 @@ public final class MainActivity extends Activity {
     private void removeRemoteBookmark() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Load a saved site before removing a server bookmark.");
+            setStatus("Load a saved connection before removing a server bookmark.");
             return;
         }
         int index = remoteBookmarkSpinner.getSelectedItemPosition();
@@ -1486,11 +1486,11 @@ public final class MainActivity extends Activity {
     private SiteProfile requireConnectedActiveProfile() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Load or save a site first.");
+            setStatus("Load or save a connection first.");
             return null;
         }
         if (session == null || connectedIdentityKey == null || !profile.identityKey().equals(connectedIdentityKey)) {
-            setStatus("Connect using this saved site before changing or opening its server paths.");
+            setStatus("Connect using this saved connection before changing or opening its server paths.");
             return null;
         }
         return profile;
@@ -2374,7 +2374,7 @@ public final class MainActivity extends Activity {
     private void setLocalStart() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Save or load a site before setting a start folder.");
+            setStatus("Save or load a connection before setting a start folder.");
             return;
         }
         String uri = persistedCurrentTreeUri();
@@ -2392,7 +2392,7 @@ public final class MainActivity extends Activity {
     private void addLocalBookmark() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Save or load a site before adding a local bookmark.");
+            setStatus("Save or load a connection before adding a local bookmark.");
             return;
         }
         String uri = persistedCurrentTreeUri();
@@ -2410,7 +2410,7 @@ public final class MainActivity extends Activity {
     private void removeLocalBookmark() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Load a saved site before removing a local bookmark.");
+            setStatus("Load a saved connection before removing a local bookmark.");
             return;
         }
         int index = localBookmarkSpinner.getSelectedItemPosition();
@@ -2431,7 +2431,7 @@ public final class MainActivity extends Activity {
     private void openLocalBookmark() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Load a saved site first.");
+            setStatus("Load a saved connection first.");
             return;
         }
         int index = localBookmarkSpinner.getSelectedItemPosition();
