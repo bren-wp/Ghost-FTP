@@ -1,6 +1,6 @@
 # Ghost FTP installation
 
-Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub release remains **0.0.6** until the protected 0.0.8 release workflow completes successfully. Root `VERSION` is the authoritative build/version source.
+Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub release remains **0.0.7** until the protected 0.0.8 release workflow completes successfully. Root `VERSION` is the authoritative build/version source.
 
 ## Canonical 0.0.8 release packages
 
