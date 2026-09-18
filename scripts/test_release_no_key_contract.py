@@ -15,7 +15,10 @@ class NoKeyReleaseContractTests(unittest.TestCase):
         self.assertIn("release/ghostftp-v0.0.8-no-key", workflow)
         self.assertNotIn("secrets.", workflow)
         self.assertIn("WINDOWS_AUTHENTICODE=unsigned-no-key-distribution", workflow)
-        self.assertIn("ANDROID_APK=debug-signed-no-secret", workflow)
+        self.assertIn("ANDROID_APK=temporary-compatibility-certificate", workflow)
+        self.assertIn("app-release-unsigned.apk", workflow)
+        self.assertIn("ghostftp-compatibility.jks", workflow)
+        self.assertIn("apksigner\" sign", workflow)
         self.assertIn("MACOS_SIGNING=adhoc-validation-no-notarization", workflow)
         self.assertIn("DISTRIBUTION_MODE=no-secret-public-release", workflow)
 
