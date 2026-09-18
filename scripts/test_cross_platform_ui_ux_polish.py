@@ -51,6 +51,35 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
             update,
         )
 
+    def test_windows_connection_manager_uses_master_navigation_name(self) -> None:
+        navigation = read("internal/desktop/navigation_windows.go")
+        manager = read("internal/desktop/site_manager_windows.go")
+        capture = read("scripts/capture_windows_screenshots.ps1")
+        runtime = read("scripts/test_windows_modal_keyboard_runtime.ps1")
+        self.assertIn("words[5] = labels.Connections", navigation)
+        self.assertNotIn("Site Manager control initialization failed", manager)
+        self.assertIn('TitleContains "Connections"', capture)
+        self.assertIn("-Title 'Connections'", runtime)
+
+    def test_macos_connection_surfaces_use_public_master_names(self) -> None:
+        manager = read("macos/Sources/GhostFTPApp/SiteManager.swift")
+        windows = read("macos/Sources/GhostFTPApp/ApplicationWindows.swift")
+        readme = read("macos/README.md")
+        parity = read("macos/PARITY.md")
+
+        self.assertIn('window.title = "Connections"', manager)
+        self.assertIn('nameColumn.title = "Saved profiles"', manager)
+        self.assertNotIn('window.title = "Site Manager"', manager)
+
+        diagnostics = windows[windows.index("final class DiagnosticsWindowController"):]
+        self.assertIn('window.title = "Connection info"', diagnostics)
+        self.assertIn('applicationLabel("Connection info"', diagnostics)
+        self.assertNotIn('window.title = "Diagnostics"', diagnostics)
+        self.assertNotIn("GhostFTPDiagnosticsRemotePath", diagnostics)
+        self.assertNotIn("Remote folder:", diagnostics)
+        self.assertIn("About and Connection info surfaces", readme)
+        self.assertIn("Connection info is intentionally compact and privacy-safe", parity)
+
     def test_android_hides_only_idle_phone_status_chrome(self) -> None:
         activity = read("android/app/src/main/java/app/ghostftp/client/MainActivity.java")
         build_start = activity.index("private LinearLayout buildMainColumn()")
