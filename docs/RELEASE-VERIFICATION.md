@@ -1,6 +1,6 @@
 # Ghost FTP release verification
 
-Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub Release remains **0.0.7** until the protected 0.0.8 release transaction succeeds.
+Ghost FTP **0.0.8** is the current release target. The user-requested publication mode is the exact-main **no-secret distribution**; the stricter protected production-signing transaction remains available separately.
 
 The canonical 0.0.8 publication contains **14 platform artifacts / 17 public files**.
 
@@ -58,9 +58,13 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-macOS is accepted into the public 17-file release only after real Developer ID signing, Apple notarization, stapling and Gatekeeper verification succeed.
+macOS is included as `Ghost-FTP-0.0.8-macOS.app.zip`, an ad-hoc signed universal validation app. It is explicitly not Developer ID signed and not Apple notarized.
 
-## Canonical release dispatch
+## No-secret release dispatch
+
+`.github/workflows/release-no-key.yml` publishes only from the dedicated `release/ghostftp-v0.0.8-no-key` branch and refuses publication unless that branch SHA equals exact current `main`. It reads no repository signing secrets and refuses to overwrite an existing tag or release.
+
+## Canonical protected release dispatch
 
 The canonical branch namespace is `release/ghostftp-vX.Y.Z`; the 0.0.8 release branch is `release/ghostftp-v0.0.8`. It must point to exact fully verified current `main`, and its version must match root `VERSION`.
 
@@ -78,9 +82,10 @@ Before publication:
 4. every required post-merge push workflow on the exact merge SHA is successful;
 5. authentic Windows/Linux/Android runtime evidence is bound to that exact source revision;
 6. release quality, Windows, Linux, Android and browser jobs succeed again from fresh source;
-7. official Windows Setup/Portable pass trusted Authenticode verification;
-8. the Android APK passes production signing verification and exact signer-fingerprint validation;
-9. the release contains exactly the canonical **16-file** set.
+7. Windows Setup/Portable are verified as intentionally unsigned and that state is recorded;
+8. the Android APK passes signature verification and its CI debug signer fingerprint is recorded without claiming a protected publisher identity;
+9. the macOS universal app passes ad-hoc codesign verification without claiming notarization;
+10. the release contains exactly the canonical **17-file** set.
 
 ## SHA-256 verification
 
@@ -99,12 +104,12 @@ WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned
 ```
 
 Architecture-specific staging executables are internal verified inputs and must never appear among public assets. `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` means current CI cross-builds and structurally verifies ARM64 but does not claim native Windows ARM64 execution.
 
-Official publication has no unsigned fallback. The protected production PFX/password must be available and both public EXEs must report a valid trusted Authenticode signature.
+The protected production workflow still has no unsigned fallback. The separate no-secret 0.0.8 workflow intentionally verifies that its Windows downloads do **not** contain an Authenticode signer and records that state.
 
 ## Linux verification
 
@@ -122,7 +127,7 @@ The verifier checks:
 
 ARM64 and i386 are build/package verified unless maintained native execution evidence is separately available.
 
-## Android production-signing verification
+## Android no-secret signing verification
 
 The public APK is:
 
@@ -130,19 +135,7 @@ The public APK is:
 Ghost-FTP-0.0.8-Android.apk
 ```
 
-The release job requires:
-
-```text
-GHOSTFTP_ANDROID_KEYSTORE_BASE64
-GHOSTFTP_ANDROID_KEYSTORE_PASSWORD
-GHOSTFTP_ANDROID_KEY_ALIAS
-GHOSTFTP_ANDROID_KEY_PASSWORD
-GHOSTFTP_ANDROID_CERT_SHA256
-```
-
-The workflow builds the unsigned release APK, signs it with the protected publisher keystore, runs `apksigner verify --verbose --print-certs`, normalizes the signer certificate SHA-256 digest and requires exact equality with `GHOSTFTP_ANDROID_CERT_SHA256`. The production workflow must not generate its own replacement publisher identity.
-
-The ordinary `Ghost-FTP-Android-dev.apk` and ephemeral CI signing identity prove only development/signing mechanics and are not accepted as the public APK.
+The no-secret workflow builds the installable Gradle debug APK, copies it to the canonical `Ghost-FTP-0.0.8-Android.apk` filename, verifies it with `apksigner verify --verbose --print-certs`, and records the observed certificate SHA-256 digest in `BUILD-METADATA.txt`. No protected Android publisher secret is read or claimed. A future APK signed with a different key may require uninstall/reinstall.
 
 Android SFTP remains hidden until strict maintained host-key verification/pinning exists and fails closed for unknown or mismatched hosts.
 
@@ -172,8 +165,8 @@ LINUX_UBUNTU_INSTALLER=universal-amd64-arm64-i386
 LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386
 LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386
 LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386
-ANDROID_APK=production-signed
-ANDROID_SIGNER_SHA256=<verified signer SHA-256>
+ANDROID_APK=debug-signed-no-secret
+ANDROID_SIGNER_SHA256=<verified CI debug signer SHA-256>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
 BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect
@@ -186,27 +179,19 @@ GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.8
 
 Exact-head UI evidence is source-bound. Maintained workflows capture real Windows, Linux and Android runtime surfaces and assemble a verified evidence bundle containing source SHA, filenames, byte counts and SHA-256 hashes. Mockups, image-generation output and manually composed approximations are not release evidence.
 
-The Windows evidence does not claim native ARM64 execution. macOS validation CI remains separate from production evidence; only the credentialed Developer ID + notarization release job is publication evidence.
+The Windows evidence does not claim native ARM64 execution. For this no-secret release, macOS evidence is limited to the ad-hoc validation build and does not claim Developer ID or notarization.
 
 ## Remote release readback
 
-The publish workflow requires the remote GitHub Release asset set to match the exact **16-file** allow-list immediately and after a delay. It requires `prerelease=false` and refuses to rewrite an existing tag/release.
+The publish workflow requires the remote GitHub Release asset set to match the exact **17-file** allow-list immediately and after a delay. It requires `prerelease=false` and refuses to rewrite an existing tag/release.
 
 The digest-readback verifier compares GitHub's per-asset SHA-256 digests with the exact source-workflow bundle and checks that `BUILD-METADATA.txt` binds `COMMIT` to the expected source SHA.
 
-## GitHub Packages readback
-
-```text
-ghcr.io/bren-wp/ghost-ftp:0.0.8
-```
-
-The exact-version package is verified after push. It is a distribution bundle, not a supported runtime container.
-
 ## Protected retention verification
 
-Only after the 0.0.8 transaction succeeds may retention delete superseded public releases/tags/branches/package versions. Retention independently verifies `ghostftp-v0.0.8` is non-draft/non-prerelease, has **16 assets** and points to exact current `main`. The published `ghostftp-v0.0.7` release/tag is a protected immutable baseline and must remain present and unchanged; an existing 0.0.7 GHCR package is preserved when present. `main` history is never rewritten.
+The no-secret 0.0.8 workflow does not perform destructive release/package retention. It verifies `ghostftp-v0.0.8` is non-draft/non-prerelease, has **17 assets** and points to exact current `main`. The published `ghostftp-v0.0.7` release/tag is a protected immutable baseline and must remain present and unchanged; an existing 0.0.7 GHCR package is preserved when present. `main` history is never rewritten.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Signing](SIGNING.md), [Packages](PACKAGES.md) and [Versioning](VERSIONING.md).
 
 
-Verified macOS asset: `Ghost-FTP-0.0.8-macOS-notarized.app.zip`.
+Verified no-secret macOS asset: `Ghost-FTP-0.0.8-macOS.app.zip`.
