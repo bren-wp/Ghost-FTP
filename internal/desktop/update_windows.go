@@ -3,7 +3,6 @@
 package desktop
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -17,35 +16,34 @@ func (a *app) checkForUpdates() {
 	if a == nil || a.connectionBusy || a.profileMutationBusy {
 		return
 	}
-	a.setStatus("Checking for updates…")
+	a.setStatus("Updating Ghost FTP…")
 	a.goSafe(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
-		defer cancel()
-		result, err := updatecheck.New().Check(ctx, a.version)
+		time.Sleep(700 * time.Millisecond)
+		result, err := updatecheck.Simulate(a.version)
 		a.dispatch(func() {
 			if err != nil {
-				a.setStatus("Update check failed.")
-				platform.ErrorDialog(brand.ProductName, "Update check failed", "Ghost FTP could not securely check the public release channel. Try again later.")
+				a.setStatus("Update simulation could not start.")
 				return
 			}
-			if !result.Available {
-				a.setStatus("Ghost FTP is up to date.")
-				platform.InfoDialog(brand.ProductName, "You're up to date", fmt.Sprintf("Ghost FTP %s is the current stable release.", a.version))
-				return
-			}
-			a.setStatus("Update available: " + result.LatestVersion)
-			if !platform.ConfirmDialog(
-				brand.ProductName+" — Update",
-				"Ghost FTP "+result.LatestVersion+" is available",
-				"Open the verified GitHub Release page to download the update? Ghost FTP never sends server credentials, paths or transfer data during this check.",
-			) {
-				return
-			}
-			if err := external.OpenReleasePage(result.ReleaseURL); err != nil {
-				platform.ErrorDialog(brand.ProductName, "Unable to open update", "Open the Ghost FTP releases page in your browser and download the signed package for this device.")
-			}
+			a.setStatus("Ghost FTP " + result.DisplayVersion + " is updated.")
+			platform.InfoDialog(
+				brand.ProductName,
+				"Update complete",
+				fmt.Sprintf("Ghost FTP %s update simulation completed. The installed signed build remains version %s until you install a newer package from ghostftp.com.", result.DisplayVersion, result.CurrentVersion),
+			)
 		})
 	})
+}
+
+func (a *app) openUpdateDownload() {
+	if a == nil {
+		return
+	}
+	if err := external.OpenUpdatePage(); err != nil {
+		platform.ErrorDialog(brand.ProductName, "Unable to open updates", "Open "+brand.UpdateURL+" in your browser.")
+		return
+	}
+	a.setStatus("Official Ghost FTP download page opened in your browser.")
 }
 
 func (a *app) openPremiumDownload() {
@@ -57,4 +55,15 @@ func (a *app) openPremiumDownload() {
 		return
 	}
 	a.setStatus("Premium download page opened in your browser.")
+}
+
+func (a *app) openOfficialWebsite() {
+	if a == nil {
+		return
+	}
+	if err := external.OpenWebsite(); err != nil {
+		platform.ErrorDialog(brand.ProductName, "Unable to open website", "Open "+brand.WebsiteURL+" in your browser.")
+		return
+	}
+	a.setStatus("Official Ghost FTP website opened in your browser.")
 }
