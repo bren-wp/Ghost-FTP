@@ -1,6 +1,6 @@
 # Ghost FTP installation
 
-Ghost FTP **0.0.8** is the current release target. The requested distribution is the no-secret 0.0.8 build; root `VERSION` remains authoritative. Root `VERSION` is the authoritative build/version source.
+Ghost FTP **0.0.8** is the current release target. The requested distribution is the no-secret 0.0.8 build; root `VERSION` remains authoritative. The existing **0.0.7** release remains the protected prior public baseline and is not rewritten. Root `VERSION` is the authoritative build/version source.
 
 ## Canonical 0.0.8 release packages
 
