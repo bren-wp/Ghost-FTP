@@ -211,10 +211,12 @@ def main() -> int:
         readme,
         "Current source version: **0.0.8**",
         "Last actually published GitHub Release: **0.0.7**",
-        "13 platform artifacts / 16 public files",
+        "14 platform artifacts / 17 public files",
         "Ghost-FTP-0.0.8-Linux-Debian-Installer.run",
         "Ghost-FTP-0.0.8-Linux-Fedora-Portable.tar.gz",
         "Ghost-FTP-0.0.8-Android.apk",
+        "Ghost-FTP-0.0.8-macOS-notarized.app.zip",
+        "Ghost-FTP-0.0.8-macOS-notarized.app.zip",
         "Ghost-FTP-0.0.8-Opera-Extension.zip",
         "GHOSTFTP_ANDROID_CERT_SHA256",
         "sanitized browser-to-desktop handoff",
@@ -230,7 +232,7 @@ def main() -> int:
         index,
         "Current source version: **0.0.8**",
         "Last actually published GitHub Release: **0.0.7**",
-        "13 platform artifacts / 16 public files",
+        "14 platform artifacts / 17 public files",
         "Chrome, Edge, Firefox and Opera",
         "proprietary commercial software",
         "../extensions/README.md",
@@ -241,7 +243,7 @@ def main() -> int:
         "installation",
         installation,
         "Ghost FTP **0.0.8** is the active release candidate",
-        "13 platform artifacts / 16 public files",
+        "14 platform artifacts / 17 public files",
         "Ghost-FTP-0.0.8-Linux-Debian-Installer.run",
         "Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz",
         "Ghost-FTP-0.0.8-Linux-Fedora-Installer.run",
@@ -258,10 +260,10 @@ def main() -> int:
         "Ghost FTP **0.0.8** is the active release candidate",
         "last actually published GitHub Release is **0.0.7**",
         "ghostftp-v0.0.8",
-        "13 platform artifacts / 16 public files",
+        "14 platform artifacts / 17 public files",
         "Ghost-FTP-0.0.8-Opera-Extension.zip",
-        "PUBLIC_PLATFORM_ARTIFACTS=13",
-        "PUBLIC_RELEASE_FILES=16",
+        "PUBLIC_PLATFORM_ARTIFACTS=14",
+        "PUBLIC_RELEASE_FILES=17",
         "release/ghostftp-vX.Y.Z",
         "does not publish a release directly",
     )
@@ -273,8 +275,8 @@ def main() -> int:
         "Ghost FTP **0.0.8** is the active release candidate",
         "VERSION=0.0.8",
         "TAG=ghostftp-v0.0.8",
-        "PUBLIC_PLATFORM_ARTIFACTS=13",
-        "PUBLIC_RELEASE_FILES=16",
+        "PUBLIC_PLATFORM_ARTIFACTS=14",
+        "PUBLIC_RELEASE_FILES=17",
         "Ghost-FTP-0.0.8-Opera-Extension.zip",
         "GHOSTFTP_ANDROID_CERT_SHA256",
         "release/ghostftp-vX.Y.Z",
@@ -328,16 +330,16 @@ def main() -> int:
         "Mockups, image-generation output and manually composed approximations are not accepted",
     )
 
-    print(f"DOCS_AUDIT=PASS ({version}; 13 platform artifacts / 16 public files)")
+    print(f"DOCS_AUDIT=PASS ({version}; 14 platform artifacts / 17 public files)")
     print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.7")
     print("NEXT_PUBLIC_RELEASE=0.0.8")
-    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER")
+    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS,BROWSER_HELPER")
     print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
     print("ACTIVE_WEB_SURFACE=NONE")
     print("ANDROID_SFTP=HIDDEN_UNTIL_STRICT_HOST_KEY_VERIFICATION")
     print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
     print("BROWSER_DESKTOP_HANDOFF=SANITIZED_GHOSTFTP_CONNECT_NO_AUTOCONNECT")
-    print("MACOS_PUBLIC_RELEASE=NO")
+    print("MACOS_PUBLIC_RELEASE=YES_DEVELOPER_ID_NOTARIZED")
     return 0
 
 
