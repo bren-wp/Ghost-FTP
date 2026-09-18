@@ -105,11 +105,16 @@ class MacOSApplicationParityContractTests(unittest.TestCase):
             "GhostFTPAboutVersion",
             "GhostFTPDiagnosticsConnected",
             "GhostFTPDiagnosticsProtocol",
-            "GhostFTPDiagnosticsRemotePath",
+            'window.title = "Connection info"',
+            'applicationLabel("Connection info"',
             "No telemetry or tracking.",
             "Saved profiles stay on this computer.",
         ):
             self.assertIn(marker, source)
+        diagnostics = source[source.index("final class DiagnosticsWindowController"):]
+        self.assertNotIn("GhostFTPDiagnosticsRemotePath", diagnostics)
+        self.assertNotIn("Remote folder:", diagnostics)
+        self.assertIn("does not expose server identity, connection secrets, saved paths", diagnostics)
         for forbidden in ("Password", "Passphrase", "PasswordBlob", "PassphraseBlob", "log dump", "credential"):
             self.assertNotIn(forbidden, source)
 
