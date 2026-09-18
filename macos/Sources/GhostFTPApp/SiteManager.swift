@@ -63,7 +63,7 @@ final class SiteManagerWindowController: NSWindowController, NSTableViewDataSour
             backing: .buffered,
             defer: false
         )
-        window.title = "Site Manager"
+        window.title = "Connections"
         window.minSize = NSSize(width: 760, height: 500)
         super.init(window: window)
         buildUI()
@@ -88,7 +88,7 @@ final class SiteManagerWindowController: NSWindowController, NSTableViewDataSour
         rememberFingerprintButton.state = .on
 
         let nameColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name"))
-        nameColumn.title = "Saved sites"
+        nameColumn.title = "Saved profiles"
         nameColumn.width = 220
         table.addTableColumn(nameColumn)
         table.headerView = nil
@@ -244,7 +244,7 @@ final class SiteManagerWindowController: NSWindowController, NSTableViewDataSour
             table.deselectAll(nil)
             clearEditor()
         }
-        statusLabel.stringValue = profiles.isEmpty ? "No saved sites yet." : "Saved sites: \(profiles.count)"
+        statusLabel.stringValue = profiles.isEmpty ? "No saved profiles yet." : "Saved profiles: \(profiles.count)"
     }
 
     private func clearEditor() {

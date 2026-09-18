@@ -541,7 +541,6 @@ final class AboutWindowController: NSWindowController {
 
 final class DiagnosticsWindowController: NSWindowController {
     private let connectionLabel = applicationLabel("")
-    private let pathLabel = applicationLabel("")
 
     init() {
         let window = NSWindow(
@@ -550,7 +549,7 @@ final class DiagnosticsWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "Diagnostics"
+        window.title = "Connection info"
         window.minSize = NSSize(width: 500, height: 330)
         super.init(window: window)
         buildUI()
@@ -573,15 +572,13 @@ final class DiagnosticsWindowController: NSWindowController {
         let actions = NSStackView(views: [refreshButton, closeButton])
         actions.orientation = .horizontal
         actions.spacing = 8
-        pathLabel.lineBreakMode = .byTruncatingMiddle
         let privacy = applicationLabel("No telemetry or tracking. Saved profiles stay on this computer.")
         privacy.textColor = .secondaryLabelColor
-        let note = applicationLabel("This view intentionally shows compact runtime status only. It does not expose connection secrets or raw diagnostic output.", size: 11)
+        let note = applicationLabel("This view intentionally shows compact runtime status only. It does not expose server identity, connection secrets, saved paths or raw diagnostic output.", size: 11)
         note.textColor = .secondaryLabelColor
         let stack = NSStackView(views: [
-            applicationLabel("Ghost FTP Diagnostics", size: 20, weight: .semibold),
+            applicationLabel("Connection info", size: 20, weight: .semibold),
             connectionLabel,
-            pathLabel,
             privacy,
             note,
             actions
@@ -603,9 +600,11 @@ final class DiagnosticsWindowController: NSWindowController {
     private func refreshStatus() {
         let connected = GhostFTPDiagnosticsConnected() == 1
         let proto = applicationBridgeString(GhostFTPDiagnosticsProtocol())
-        let remotePath = applicationBridgeString(GhostFTPDiagnosticsRemotePath())
-        connectionLabel.stringValue = connected ? "\(proto.isEmpty ? "Connection" : proto) · Connected" : "Not connected"
-        pathLabel.stringValue = connected && !remotePath.isEmpty ? "Remote folder: \(remotePath)" : "Remote folder: —"
+        if connected {
+            connectionLabel.stringValue = "State: Connected · Protocol: \(proto.isEmpty ? "—" : proto.uppercased())"
+        } else {
+            connectionLabel.stringValue = "State: Not connected · Protocol: —"
+        }
     }
 
     @objc private func refreshTapped() { refreshStatus() }
