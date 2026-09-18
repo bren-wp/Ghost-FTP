@@ -24,11 +24,11 @@ Windows Settings is one application-owned modal surface for appearance, concurre
 
 Linux modal overlays own only their bounded lifecycle. macOS uses native AppKit windows/sheets and must not create parallel engine state.
 
-## Site Manager and saved profiles
+## Connections and saved profiles
 
-![Ghost FTP 0.0.8 Site Manager](images/0.0.6/ghost-ftp-site-manager.png)
+![Ghost FTP 0.0.8 Connections](images/0.0.6/ghost-ftp-site-manager.png)
 
-Site Manager/profile workflows preserve explicit credential-consent and trust semantics. Windows and Linux save non-secret profile state independently from newly entered credentials; protected durable secret paths remain platform-specific.
+Connections/saved-profile workflows preserve explicit credential-consent and trust semantics. Windows and Linux save non-secret profile state independently from newly entered credentials; protected durable secret paths remain platform-specific.
 
 ## Main Workspace
 
@@ -87,7 +87,7 @@ The AppKit frontend uses the shared `internal/api.Engine` and a universal develo
 
 ## Browser helper boundary
 
-Chrome, Edge, Firefox and Opera helper packages are public 0.0.8 companions. They use one canonical shared runtime, request no broad browser/network permissions and have no supported browser-to-desktop launch/handoff.
+Chrome, Edge, Firefox and Opera helper packages are public 0.0.8 companions. They use one canonical shared runtime, request no broad browser/network permissions and use the explicit sanitized Windows `ghostftp://connect` handoff on supported installed builds; secrets, query data and fragments are excluded and the desktop never auto-connects.
 
 ## Settings and About evidence
 
