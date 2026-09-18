@@ -3,7 +3,6 @@
 package desktop
 
 import (
-	"context"
 	"time"
 
 	"github.com/bren-wp/Ghost-FTP/internal/external"
@@ -14,25 +13,15 @@ func (u *linuxDesktop) checkForUpdates() {
 	if u == nil || u.busy {
 		return
 	}
-	if u.pendingUpdateURL != "" {
-		if err := external.OpenReleasePage(u.pendingUpdateURL); err != nil {
-			u.setStatus("Unable to open the verified release page.")
-			return
-		}
-		u.setStatus("Update download page opened in your browser.")
-		return
-	}
-
-	u.setStatus("Checking for updates…")
+	u.setStatus("Updating Ghost FTP…")
 	u.startAction(linuxActionUpdateCheck, func() linuxUIResult {
-		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
-		defer cancel()
-		result, err := updatecheck.New().Check(ctx, u.version)
+		time.Sleep(700 * time.Millisecond)
+		result, err := updatecheck.Simulate(u.version)
 		return linuxUIResult{
 			err:             err,
-			updateLatest:    result.LatestVersion,
-			updateURL:       result.ReleaseURL,
-			updateAvailable: result.Available,
+			updateLatest:    result.DisplayVersion,
+			updateURL:       result.UpdateURL,
+			updateAvailable: result.Simulated,
 		}
 	})
 }
@@ -41,20 +30,23 @@ func (u *linuxDesktop) handleLinuxUpdateResult(result linuxUIResult) bool {
 	if result.action != linuxActionUpdateCheck {
 		return false
 	}
-	u.pendingUpdateURL = ""
-	u.pendingUpdateVersion = ""
 	if result.err != nil {
-		u.setStatus("Update check failed. Try again later.")
+		u.setStatus("Update simulation could not start.")
 		return true
 	}
-	if !result.updateAvailable {
-		u.setStatus("Ghost FTP " + u.version + " is the current stable release.")
-		return true
-	}
-	u.pendingUpdateURL = result.updateURL
-	u.pendingUpdateVersion = result.updateLatest
-	u.setStatus("Ghost FTP " + result.updateLatest + " is available. Click Check for updates again to open the verified release page.")
+	u.setStatus("Ghost FTP " + result.updateLatest + " is updated. Install a newer signed build from ghostftp.com when available.")
 	return true
+}
+
+func (u *linuxDesktop) openUpdateDownload() {
+	if u == nil || u.busy {
+		return
+	}
+	if err := external.OpenUpdatePage(); err != nil {
+		u.setStatus("Unable to open the official download page.")
+		return
+	}
+	u.setStatus("Official Ghost FTP download page opened in your browser.")
 }
 
 func (u *linuxDesktop) openPremiumDownload() {
@@ -66,4 +58,15 @@ func (u *linuxDesktop) openPremiumDownload() {
 		return
 	}
 	u.setStatus("Premium download page opened in your browser.")
+}
+
+func (u *linuxDesktop) openOfficialWebsite() {
+	if u == nil || u.busy {
+		return
+	}
+	if err := external.OpenWebsite(); err != nil {
+		u.setStatus("Unable to open the official website.")
+		return
+	}
+	u.setStatus("Official Ghost FTP website opened in your browser.")
 }
