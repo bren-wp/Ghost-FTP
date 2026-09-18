@@ -13,7 +13,6 @@ concurrency:
   group: ghostftp-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Diagnostics below print the canonical gofmt diff before failing.
 env:
   GOTOOLCHAIN: local
   GOPROXY: off
