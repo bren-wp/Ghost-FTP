@@ -26,7 +26,7 @@ The trigger snapshots existing workflow runs, dispatches `Publish Ghost FTP`, wa
 
 ## 0.0.8 public files
 
-Ghost FTP 0.0.8 publishes **13 platform artifacts / 16 public files**.
+Ghost FTP 0.0.8 publishes **14 platform artifacts / 17 public files**.
 
 Windows:
 
@@ -69,7 +69,7 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-macOS remains an active development/source surface and is not in the public 0.0.8 allow-list until real Developer ID signing and Apple notarization are proven.
+macOS is in the public 0.0.8 allow-list only as the verified `Ghost-FTP-0.0.8-macOS-notarized.app.zip` produced by real Developer ID signing and Apple notarization.
 
 ## Exact-head transaction
 
@@ -136,8 +136,8 @@ LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386
 ANDROID_APK=production-signed
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
 BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect
-PUBLIC_PLATFORM_ARTIFACTS=13
-PUBLIC_RELEASE_FILES=16
+PUBLIC_PLATFORM_ARTIFACTS=14
+PUBLIC_RELEASE_FILES=17
 ```
 
 The sorted remote GitHub Release asset set must match the exact 16-file allow-list immediately and after delayed readback. `Prerelease: false` remains part of the current-channel contract.
