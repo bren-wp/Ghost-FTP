@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/bren-wp/Ghost-FTP/internal/api"
 	"github.com/bren-wp/Ghost-FTP/internal/brand"
@@ -326,10 +328,33 @@ func (u *linuxDesktop) fieldValue(index int) string {
 	}
 }
 
-func (u *linuxDesktop) setFieldValue(index int, value string) {
-	if len(value) > 4096 {
-		value = value[:4096]
+func linuxTruncateUTF8Bytes(value string, maxBytes int) string {
+	if maxBytes < 0 {
+		maxBytes = 0
 	}
+	if len(value) <= maxBytes {
+		return value
+	}
+	end := maxBytes
+	for end > 0 && !utf8.ValidString(value[:end]) {
+		end--
+	}
+	return value[:end]
+}
+
+func linuxDeleteLastRune(value string) string {
+	if value == "" {
+		return ""
+	}
+	_, size := utf8.DecodeLastRuneInString(value)
+	if size <= 0 {
+		return ""
+	}
+	return value[:len(value)-size]
+}
+
+func (u *linuxDesktop) setFieldValue(index int, value string) {
+	value = linuxTruncateUTF8Bytes(value, 4096)
 	switch index {
 	case linuxFieldHost:
 		u.host = value
@@ -1142,11 +1167,220 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 	}
 }
 
-func linuxKeysymText(sym uint32) (string, bool) {
-	if sym >= 0x20 && sym <= 0x7e {
-		return string(rune(sym)), true
+func linuxLegacyKeysymRune(sym uint32) (rune, bool) {
+	// X11 Latin-2 keysyms still appear on Central European keyboard maps.
+	switch sym {
+	case 0x01a1:
+		return 'Ą', true
+	case 0x01a3:
+		return 'Ł', true
+	case 0x01a6:
+		return 'Ś', true
+	case 0x01a9:
+		return 'Š', true
+	case 0x01aa:
+		return 'Ş', true
+	case 0x01ab:
+		return 'Ť', true
+	case 0x01ac:
+		return 'Ź', true
+	case 0x01ae:
+		return 'Ž', true
+	case 0x01af:
+		return 'Ż', true
+	case 0x01b1:
+		return 'ą', true
+	case 0x01b3:
+		return 'ł', true
+	case 0x01b6:
+		return 'ś', true
+	case 0x01b9:
+		return 'š', true
+	case 0x01ba:
+		return 'ş', true
+	case 0x01bb:
+		return 'ť', true
+	case 0x01bc:
+		return 'ź', true
+	case 0x01be:
+		return 'ž', true
+	case 0x01bf:
+		return 'ż', true
+	case 0x01c3:
+		return 'Ă', true
+	case 0x01c6:
+		return 'Ć', true
+	case 0x01c8:
+		return 'Č', true
+	case 0x01ca:
+		return 'Ę', true
+	case 0x01cc:
+		return 'Ě', true
+	case 0x01cf:
+		return 'Ď', true
+	case 0x01d0:
+		return 'Đ', true
+	case 0x01d1:
+		return 'Ń', true
+	case 0x01d2:
+		return 'Ň', true
+	case 0x01d5:
+		return 'Ő', true
+	case 0x01d8:
+		return 'Ř', true
+	case 0x01d9:
+		return 'Ů', true
+	case 0x01db:
+		return 'Ű', true
+	case 0x01de:
+		return 'Ţ', true
+	case 0x01e3:
+		return 'ă', true
+	case 0x01e6:
+		return 'ć', true
+	case 0x01e8:
+		return 'č', true
+	case 0x01ea:
+		return 'ę', true
+	case 0x01ec:
+		return 'ě', true
+	case 0x01ef:
+		return 'ď', true
+	case 0x01f0:
+		return 'đ', true
+	case 0x01f1:
+		return 'ń', true
+	case 0x01f2:
+		return 'ň', true
+	case 0x01f5:
+		return 'ő', true
+	case 0x01f8:
+		return 'ř', true
+	case 0x01f9:
+		return 'ů', true
+	case 0x01fb:
+		return 'ű', true
+	case 0x01fe:
+		return 'ţ', true
+	case 0x02a9:
+		return 'İ', true
+	case 0x02ab:
+		return 'Ğ', true
+	case 0x02b9:
+		return 'ı', true
+	case 0x02bb:
+		return 'ğ', true
 	}
-	return "", false
+
+	// Russian/Ukrainian legacy keysyms. The standard Cyrillic letter blocks
+	// are contiguous and ordered identically for lowercase and uppercase.
+	if sym >= 0x06c0 && sym <= 0x06df {
+		return []rune("юабцдефгхийклмнопярстужвьызшэщчъ")[sym-0x06c0], true
+	}
+	if sym >= 0x06e0 && sym <= 0x06ff {
+		return []rune("ЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ")[sym-0x06e0], true
+	}
+	switch sym {
+	case 0x06a3:
+		return 'ё', true
+	case 0x06a4:
+		return 'є', true
+	case 0x06a6:
+		return 'і', true
+	case 0x06a7:
+		return 'ї', true
+	case 0x06ad:
+		return 'ґ', true
+	case 0x06b3:
+		return 'Ё', true
+	case 0x06b4:
+		return 'Є', true
+	case 0x06b6:
+		return 'І', true
+	case 0x06b7:
+		return 'Ї', true
+	case 0x06bd:
+		return 'Ґ', true
+	}
+
+	// Greek legacy keysyms use compact alphabet blocks plus explicit accent
+	// symbols. Preserve final sigma and the accented/diaeresis variants.
+	if sym >= 0x07c1 && sym <= 0x07d2 {
+		return []rune("ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣ")[sym-0x07c1], true
+	}
+	if sym >= 0x07d4 && sym <= 0x07d9 {
+		return []rune("ΤΥΦΧΨΩ")[sym-0x07d4], true
+	}
+	if sym >= 0x07e1 && sym <= 0x07f9 {
+		return []rune("αβγδεζηθικλμνξοπρσςτυφχψω")[sym-0x07e1], true
+	}
+	switch sym {
+	case 0x07a1:
+		return 'Ά', true
+	case 0x07a2:
+		return 'Έ', true
+	case 0x07a3:
+		return 'Ή', true
+	case 0x07a4:
+		return 'Ί', true
+	case 0x07a5:
+		return 'Ϊ', true
+	case 0x07a7:
+		return 'Ό', true
+	case 0x07a8:
+		return 'Ύ', true
+	case 0x07a9:
+		return 'Ϋ', true
+	case 0x07ab:
+		return 'Ώ', true
+	case 0x07b1:
+		return 'ά', true
+	case 0x07b2:
+		return 'έ', true
+	case 0x07b3:
+		return 'ή', true
+	case 0x07b4:
+		return 'ί', true
+	case 0x07b5:
+		return 'ϊ', true
+	case 0x07b6:
+		return 'ΐ', true
+	case 0x07b7:
+		return 'ό', true
+	case 0x07b8:
+		return 'ύ', true
+	case 0x07b9:
+		return 'ϋ', true
+	case 0x07ba:
+		return 'ΰ', true
+	case 0x07bb:
+		return 'ώ', true
+	}
+	return 0, false
+}
+
+func linuxKeysymText(sym uint32) (string, bool) {
+	var r rune
+	switch {
+	case sym >= 0x20 && sym <= 0x7e:
+		r = rune(sym)
+	case sym >= 0x00a0 && sym <= 0x00ff:
+		// Legacy X11 Latin-1 keysyms are their Unicode code points.
+		r = rune(sym)
+	case sym >= 0x01000100 && sym <= 0x0110ffff:
+		// Modern X11 Unicode keysyms use 0x01000000 | codepoint.
+		r = rune(sym & 0x00ffffff)
+	default:
+		legacy, ok := linuxLegacyKeysymRune(sym)
+		if !ok {
+			return "", false
+		}
+		r = legacy
+	}
+	if !utf8.ValidRune(r) || !unicode.IsGraphic(r) {
+		return "", false
+	}
+	return string(r), true
 }
 
 func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
@@ -1210,8 +1444,8 @@ func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
 			return true
 		}
 		value := u.fieldValue(u.focus)
-		if len(value) > 0 {
-			u.setFieldValue(u.focus, value[:len(value)-1])
+		if value != "" {
+			u.setFieldValue(u.focus, linuxDeleteLastRune(value))
 		}
 		return true
 	}
@@ -1219,7 +1453,7 @@ func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
 		return true
 	}
 	if text, ok := linuxKeysymText(sym); ok {
-		if u.focus == linuxFieldPort && (text[0] < '0' || text[0] > '9') {
+		if u.focus == linuxFieldPort && (len(text) != 1 || text[0] < '0' || text[0] > '9') {
 			return true
 		}
 		value := u.fieldValue(u.focus)
