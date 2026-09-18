@@ -21,7 +21,7 @@ The canonical release workflow requires protected Android signing credentials an
 - Native Android Java UI.
 - Canonical **Dark** appearance is the fresh-install default with charcoal/blue-black surfaces and gold/amber actions; a neutral gray **Light** appearance remains available in Settings.
 - Phone navigation uses a real left navigation drawer; wide/tablet layouts use the same destinations as a persistent sidebar.
-- Active destinations: **Files**, **Sites**, **Bookmarks**, **Transfers**, **Settings** and **About**.
+- Active destinations: **Files**, **Connections**, **Transfer Queue**, **Settings**, **Bookmarks**, **Connection info** and **About**.
 - Local vector assets; no remote fonts, tracking assets or emoji-as-navigation icons.
 - **FTP and explicit FTPS Quick Connect**.
 - FTPS uses the platform trust store and strict hostname verification on control and protected passive data channels; there is no trust-all fallback.
@@ -31,7 +31,8 @@ The canonical release workflow requires protected Android signing credentials an
 - Binary upload/download with staged same-directory/same-provider commit behavior and explicit cancellation ownership.
 - Local SAF create-directory, rename and delete operations.
 - Remote FTP/FTPS create-directory, rename, delete and `SITE CHMOD` operations with path/name validation, confirmation and fresh-list readback.
-- Saved sites/bookmarks persist only non-secret identity/navigation metadata; passwords remain memory-only.
+- Saved connections/bookmarks persist only non-secret identity/navigation metadata; passwords remain memory-only.
+- **Connection info** is privacy-safe runtime diagnostics: connection state, protocol/security mode and transfer state only; host, username, passwords, keys and saved paths are excluded.
 - No telemetry, analytics, ads, automatic crash-report upload or Ghost FTP relay/backend.
 
 See [`UI-UX.md`](UI-UX.md) for navigation and per-surface ownership.
@@ -68,9 +69,9 @@ During active data I/O, cancellation closes the active data/control sockets with
 
 Malformed EPSV/PASV replies, invalid passive ports, TCP data-connect failure or FTPS data-channel TLS failure close the FTP session and require reconnect. There is no fallback to an unprotected FTPS data channel and no disabled hostname verification.
 
-## Saved-site and bookmark boundary
+## Saved-connection and bookmark boundary
 
-Saved sites remain non-secret. Persisted identity/navigation state is bounded and tied to `(protocol, host, port, username)`. Changing that remote identity clears server-specific starts/bookmarks rather than carrying them to a different endpoint. Local starts/bookmarks require persisted SAF permission and a fresh provider query before becoming authoritative.
+Saved connections remain non-secret. Persisted identity/navigation state is bounded and tied to `(protocol, host, port, username)`. Changing that remote identity clears server-specific starts/bookmarks rather than carrying them to a different endpoint. Local starts/bookmarks require persisted SAF permission and a fresh provider query before becoming authoritative.
 
 ## Authentic Android screenshots
 
