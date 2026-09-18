@@ -105,7 +105,7 @@ Raw certificate/private-key/notary credentials must never be committed to the re
 - `APPLE_NOTARY_API_KEY_ID`
 - `APPLE_NOTARY_ISSUER_ID`
 
-The standalone `macos-production.yml` workflow remains the separate Developer ID/notarization path and destroys temporary signing material in an `always()` cleanup step. The canonical 0.0.8 compatibility `release.yml` instead publishes the exact-run `Ghost-FTP-0.0.8-macOS.app.zip` produced by `macos/BUILD.sh` with ad-hoc signing.
+The standalone `macos-production.yml` workflow remains the separate Developer ID and Apple notarization path, destroys temporary signing material in an `always()` cleanup step, and does **not** modify or upload to an existing public GitHub Release. The canonical 0.0.8 compatibility `release.yml` instead publishes the exact-run `Ghost-FTP-0.0.8-macOS.app.zip` produced by `macos/BUILD.sh` with ad-hoc signing.
 
 ## Release truthfulness
 
