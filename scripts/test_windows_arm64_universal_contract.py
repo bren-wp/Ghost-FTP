@@ -109,12 +109,12 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             "docs/RELEASE-VERIFICATION.md",
         ):
             text = read(rel)
-            self.assertIn("13 platform artifacts / 16 public files", text, rel)
+            self.assertIn("14 platform artifacts / 17 public files", text, rel)
             self.assertNotIn("18 platform artifacts / 21 public files", text, rel)
             self.assertIn("0.0.7", text, rel)
         release = read(".github/workflows/release.yml")
-        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=13", release)
-        self.assertIn("PUBLIC_RELEASE_FILES=16", release)
+        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=14", release)
+        self.assertIn("PUBLIC_RELEASE_FILES=17", release)
         self.assertIn("WINDOWS_PUBLIC_EXECUTABLES=2", read("BUILD-WINDOWS.ps1"))
 
 
