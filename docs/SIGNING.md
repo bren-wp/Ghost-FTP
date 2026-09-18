@@ -1,8 +1,6 @@
 # Ghost FTP signing
 
-Ghost FTP **0.0.8** separates production publisher trust from development signing. Official Windows, Android and macOS publication fail closed when their protected production identities are unavailable. Linux relies on exact-source/package/digest verification; macOS additionally requires the real Developer ID + Apple notarization path.
-
-The production workflow never creates its own long-lived publisher key.
+Ghost FTP **0.0.8** separates two distribution modes. The protected production workflow still fails closed when Windows/Android/macOS publisher identities are unavailable. The user-requested 0.0.8 **no-secret distribution** is a separate workflow that reads no repository secrets and truthfully records Windows as unsigned, Android as CI debug-signed and macOS as ad-hoc/not-notarized. Protocol security is unchanged.
 
 ## Windows production publication policy
 
@@ -25,12 +23,12 @@ WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_BOOTSTRAP_PE=x86
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned
 ```
 
 The PFX is decoded only into runner temporary storage and removed in an `always()` cleanup path. Private-key material must never be committed, logged, uploaded as an artifact or included in release/GHCR payloads.
 
-Local/ordinary CI Windows builds may remain unsigned, but they are not official release evidence. The CI signing smoke can create an ephemeral development certificate solely to test signing mechanics; that identity is never accepted by the production workflow.
+The no-secret 0.0.8 Windows downloads are intentionally unsigned and are release evidence only for the no-secret distribution mode; they are not evidence of trusted Authenticode publisher identity. The CI signing smoke can create an ephemeral development certificate solely to test signing mechanics; that identity is never accepted by the production workflow.
 
 ## Windows build/signing ordering
 
@@ -47,13 +45,13 @@ The outer executables are signed only after final byte mutation. `Get-Authentico
 
 ## Android production signing
 
-Ghost FTP 0.0.8 adds a **production-signed public Android release**:
+Ghost FTP 0.0.8 no-secret distribution publishes an **installable CI debug-signed Android APK**:
 
 ```text
 Ghost-FTP-0.0.8-Android.apk
 ```
 
-The canonical release workflow requires protected secrets:
+The separate protected production workflow requires protected secrets:
 
 ```text
 GHOSTFTP_ANDROID_KEYSTORE_BASE64
@@ -104,7 +102,7 @@ The public Chrome, Edge and Firefox ZIPs are deterministic source packages. Thei
 
 `macos/SIGN_AND_NOTARIZE.sh` is the separate fail-closed production-distribution path. It requires a real **Developer ID Application** identity, Hardened Runtime, secure timestamping, Apple notarization acceptance, ticket stapling and Gatekeeper verification. `.github/workflows/macos-production.yml` is the environment-gated CI path.
 
-A successful validation build does not prove production distribution readiness. The 0.0.8 public macOS artifact is admitted only when the credentialed Developer ID + Apple notarization path succeeds; otherwise the whole canonical release fails closed.
+A successful ad-hoc validation build does not prove production distribution readiness. The no-secret 0.0.8 release intentionally publishes that validation archive as `Ghost-FTP-0.0.8-macOS.app.zip` and marks `MACOS_NOTARIZATION=not-performed`. The protected Developer ID/notarization path remains separate.
 
 ## Release shape and metadata
 
@@ -112,13 +110,11 @@ The 0.0.8 release contains **14 platform artifacts / 17 public files**. `BUILD-M
 
 ```text
 WINDOWS_AUTHENTICODE=signed
-ANDROID_APK=production-signed
-ANDROID_SIGNER_SHA256=<verified public certificate fingerprint>
+ANDROID_APK=debug-signed-no-secret
+ANDROID_SIGNER_SHA256=<verified CI debug certificate fingerprint>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 PUBLIC_PLATFORM_ARTIFACTS=14
 PUBLIC_RELEASE_FILES=17
 ```
-
-The GHCR object contains already-built verified release files only. It never contains signing credentials and is a distribution bundle, not a runtime container.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Security](SECURITY.md), [GitHub Releases](GITHUB-RELEASES.md), [Packages](PACKAGES.md), [Versioning](VERSIONING.md) and the [macOS development/distribution contract](../macos/README.md).
