@@ -21,7 +21,7 @@ Linux public output is exactly six bundles: Installer + Portable for Debian/Ubun
 
 ## Android parity boundary
 
-Android is a public 0.0.6 application with Android-native Files, Sites, Bookmarks, Transfers, Settings and About surfaces. It uses Storage Access Framework local authority, FTP + strict explicit FTPS, bounded file/search/comparison/Remote Edit behavior and Android lifecycle ownership.
+Android 0.0.8 is a public-release target with Android-native Files, Connections, Bookmarks, Transfer Queue, Settings, Connection info and About surfaces. It uses Storage Access Framework local authority, FTP + strict explicit FTPS, bounded file/search/comparison/Remote Edit behavior and Android lifecycle ownership.
 
 Android SFTP remains hidden until strict native host-key identity verification exists. Production release packaging remains fail-closed on signing and does not weaken that protocol boundary.
 
@@ -53,6 +53,6 @@ The Ghost FTP 0.0.8 release contract is **13 platform artifacts / 16 public file
 - Browser helpers: 4;
 - release metadata: 3.
 
-macOS remains active source/build validation only and is not a public release artifact for 0.0.6. Retired web surfaces do not contribute release artifacts.
+macOS remains active source/build validation only and is not a public release artifact for 0.0.8. Retired web surfaces do not contribute release artifacts.
 
 See [Architecture](ARCHITECTURE.md), [Reference UI](REFERENCE-UI.md), [Testing](TESTING.md), [Signing](SIGNING.md) and [Security](SECURITY.md).
