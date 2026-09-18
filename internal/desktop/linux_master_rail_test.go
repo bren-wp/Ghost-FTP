@@ -34,19 +34,18 @@ func TestLinuxMasterRailPrimaryActionsAreOrderedAndSeparated(t *testing.T) {
 	}
 }
 
-func TestLinuxMasterRailUtilitiesStayInsideWindowAndAboveStatusBand(t *testing.T) {
+func TestLinuxMasterRailUsesPromoAndVersionInsteadOfDuplicateUtilities(t *testing.T) {
 	layout := buildLinuxMasterRailLayout(premiumMinWidth, premiumMinHeight)
 	for name, r := range map[string]linuxRect{
-		"bookmarks":   layout.bookmarks,
-		"diagnostics": layout.diagnostics,
-		"about":       layout.about,
+		"promo":   layout.promo,
+		"version": layout.version,
 	} {
 		if r.left < 0 || r.top < 0 || r.right > premiumMinWidth || r.bottom > premiumMinHeight {
 			t.Fatalf("%s outside minimum window: %+v", name, r)
 		}
 	}
-	if layout.about.bottom > premiumMinHeight-linuxMasterRailBottomInset {
-		t.Fatalf("utility controls overlap reserved status band: %+v", layout.about)
+	if layout.promo.bottom >= layout.version.top {
+		t.Fatalf("promo overlaps version: promo=%+v version=%+v", layout.promo, layout.version)
 	}
 }
 
@@ -159,5 +158,20 @@ func TestLinuxMasterRailUsesSharedLocalizedNavigationContract(t *testing.T) {
 	}
 	if croatian.Files != "Datoteke" || croatian.Connections != "Veze" || croatian.TransferQueue != "Red prijenosa" {
 		t.Fatalf("unexpected Croatian navigation labels: %+v", croatian)
+	}
+}
+
+func TestLinuxMasterMoreMenuFitsAndHasAllEngineBackedActions(t *testing.T) {
+	layout := buildLinuxMoreMenuLayout(1280, 820)
+	if layout.panel.left < 0 || layout.panel.top < 0 || layout.panel.right > 1280 || layout.panel.bottom > 820 {
+		t.Fatalf("More panel outside window: %+v", layout.panel)
+	}
+	for index, action := range layout.actions {
+		if action.left < layout.panel.left || action.top < layout.panel.top || action.right > layout.panel.right || action.bottom > layout.panel.bottom {
+			t.Fatalf("More action %d outside panel: %+v", index, action)
+		}
+	}
+	if layout.close.bottom > layout.panel.bottom {
+		t.Fatalf("More close button outside panel: %+v", layout.close)
 	}
 }
