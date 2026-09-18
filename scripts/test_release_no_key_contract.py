@@ -19,7 +19,8 @@ class NoKeyReleaseContractTests(unittest.TestCase):
         self.assertIn("app-release-unsigned.apk", workflow)
         self.assertIn("ghostftp-compatibility.jks", workflow)
         self.assertIn("apksigner\" sign", workflow)
-        self.assertIn("MACOS_SIGNING=adhoc-validation-no-notarization", workflow)
+        self.assertNotIn("macOS", workflow)
+        self.assertNotIn("MACOS_", workflow)
         self.assertIn("DISTRIBUTION_MODE=no-secret-public-release", workflow)
 
     def test_no_key_release_preserves_security_boundaries(self):
@@ -39,7 +40,7 @@ class NoKeyReleaseContractTests(unittest.TestCase):
         self.assertIn('test "$GITHUB_SHA" = "$main_sha"', workflow)
         self.assertIn("release already exists; refusing to rewrite published assets", workflow)
         self.assertIn("tag already exists; refusing to move release identity", workflow)
-        self.assertIn("test \"$(jq '.assets | length' <<< \"$json\")\" = '17'", workflow)
+        self.assertIn("test \"$(jq '.assets | length' <<< \"$json\")\" = '16'", workflow)
         self.assertIn('test "$tag_sha" = "$GITHUB_SHA"', workflow)
 
     def test_workflow_heredocs_remain_inside_yaml_block_scalar(self):
@@ -64,7 +65,6 @@ class NoKeyReleaseContractTests(unittest.TestCase):
             "Ghost-FTP-${version}-Setup.exe",
             "Ghost-FTP-${version}-Portable.exe",
             "Ghost-FTP-${version}-Android.apk",
-            "Ghost-FTP-${version}-macOS.app.zip",
             "Ghost-FTP-${version}-Linux-Debian-Installer.run",
             "Ghost-FTP-${version}-Linux-Debian-Portable.tar.gz",
             "Ghost-FTP-${version}-Linux-Ubuntu-Installer.run",
@@ -75,8 +75,8 @@ class NoKeyReleaseContractTests(unittest.TestCase):
             "Ghost-FTP-${version}-Edge-Extension.zip",
             "Ghost-FTP-${version}-Firefox-Extension.zip",
             "Ghost-FTP-${version}-Opera-Extension.zip",
-            "PUBLIC_PLATFORM_ARTIFACTS=14",
-            "PUBLIC_RELEASE_FILES=17",
+            "PUBLIC_PLATFORM_ARTIFACTS=13",
+            "PUBLIC_RELEASE_FILES=16",
         )
         for marker in expected:
             self.assertIn(marker, workflow)
