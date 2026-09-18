@@ -4,7 +4,7 @@ Ghost FTP **0.0.8** is the active release candidate. The last actually published
 
 ## Canonical 0.0.8 release packages
 
-The 0.0.8 publication contract contains **13 platform artifacts / 16 public files**: two Windows executables, six Linux bundles, one production-signed Android APK, four browser-helper ZIPs and three metadata/verification files.
+The 0.0.8 publication contract contains **14 platform artifacts / 17 public files**: two Windows executables, six Linux bundles, one production-signed Android APK, one Developer ID signed and Apple-notarized universal macOS app, four browser-helper ZIPs and three metadata/verification files.
 
 ### Windows
 
@@ -82,9 +82,9 @@ Ghost-FTP-0.0.8-Opera-Extension.zip
 
 Each package is built from the shared local-only helper runtime and a browser-specific manifest under `extensions/<browser>/`. Official packages request zero browser permissions and zero host permissions. They parse/sanitize user-entered FTP/FTPS/SFTP targets locally and support a sanitized browser-to-desktop handoff through the registered `ghostftp:` protocol on supported Windows installs; they never carry passwords, private-key passphrases, private keys, source query data or fragments, and they never auto-connect.
 
-### macOS development app
+### macOS
 
-macOS remains an active native development/source surface and is not part of the 16-file public 0.0.8 allow-list. Development build success or ad-hoc signing is not production evidence. Public macOS distribution requires a real Developer ID Application identity plus successful Apple notarization.
+The public macOS artifact is `Ghost-FTP-0.0.8-macOS-notarized.app.zip`. It is admitted to the 17-file release only after Developer ID Application signing, Hardened Runtime, secure timestamping, Apple notarization acceptance, ticket stapling and Gatekeeper verification. The ad-hoc validation build is not a public substitute.
 
 ## Windows Setup
 
