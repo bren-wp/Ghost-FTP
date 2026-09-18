@@ -471,7 +471,7 @@ public final class MainActivity extends Activity {
         button.setAllCaps(false);
         button.setTag(section);
         styleNavigationButton(button, false);
-        button.setTextSize(10);
+        button.setTextSize("Connections".equals(text) ? 9f : 10f);
         button.setSingleLine(false);
         button.setMaxLines(2);
         button.setGravity(Gravity.CENTER);
