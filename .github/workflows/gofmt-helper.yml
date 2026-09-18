@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - ui/windows-master-parity-0.0.9
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
