@@ -66,21 +66,22 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
 
         for marker in (
             'connectionCard.setBackground(GhostTheme.rounded(this, GhostTheme.PANEL, GhostTheme.BORDER, 14))',
-            'currentConnectionSummary = label("Not connected", 14, GhostTheme.TEXT)',
+            'currentConnectionTitle = label("No active connection", 15, GhostTheme.TEXT)',
+            'currentConnectionSummary = label("Open Connections", 12, GhostTheme.MUTED)',
             'connectionCard.setOnClickListener(v -> showSection(Section.SITES));',
             'quickActionsCard.setOrientation(LinearLayout.VERTICAL)',
-            'filesBack = button("Back")',
-            'filesForward = button("Forward")',
-            'Button refreshAll = button("Refresh")',
-            'Button newFolder = button("New Folder")',
-            'Button bookmarks = button("Bookmarks")',
-            'Button uploadQuick = primaryButton("Upload")',
-            'Button downloadQuick = primaryButton("Download")',
-            'Button more = button("More")',
+            'filesBack = iconButton("Back", R.drawable.ic_back)',
+            'filesForward = iconButton("Forward", R.drawable.ic_forward)',
+            'Button refreshAll = iconButton("Refresh", R.drawable.ic_refresh)',
+            'Button newFolder = iconButton("New Folder", R.drawable.ic_new_folder)',
+            'Button bookmarks = iconButton("Bookmarks", R.drawable.ic_bookmarks)',
+            'Button uploadQuick = primaryIconButton("Upload", R.drawable.ic_upload)',
+            'Button downloadQuick = primaryIconButton("Download", R.drawable.ic_download)',
+            'Button more = iconButton("More", R.drawable.ic_more)',
             'filesBack.setOnClickListener(v -> navigateFilesHistory(true));',
             'filesForward.setOnClickListener(v -> navigateFilesHistory(false));',
             'more.setOnClickListener(v -> showFilesMoreActions());',
-            'card("TRANSFER QUEUE"',
+            'workspaceCard("TRANSFER QUEUE", R.drawable.ic_transfers',
             'filesTransferStatus = label("No active transfer."',
             'transferCard.setOnClickListener(v -> showSection(Section.TRANSFERS));',
             "upload = uploadQuick;",
@@ -90,8 +91,8 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
 
         self.assertNotIn("fake", files.lower())
         self.assertNotIn("demo", files.lower())
-        self.assertIn('card("LOCAL FILES", tabletLayout', activity)
-        self.assertIn('card("REMOTE FILES", tabletLayout', activity)
+        self.assertIn('workspaceCard("LOCAL FILES", R.drawable.ic_local_files', activity)
+        self.assertIn('workspaceCard("REMOTE FILES", R.drawable.ic_remote_files', activity)
         self.assertIn("screenWidthDp >= 400", files)
         self.assertIn("brandIcon.setImageResource(R.drawable.ic_ghost_brand);", activity)
         self.assertIn("button.setTextSize(10);", activity)
