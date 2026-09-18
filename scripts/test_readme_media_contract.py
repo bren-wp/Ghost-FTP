@@ -67,8 +67,8 @@ class ReadmeMediaContractTests(unittest.TestCase):
 
     def test_docs_index_uses_versioned_local_media(self) -> None:
         sources = self._assert_local_existing_images("docs/README.md")
-        expected = {"../build/icon.png", "images/0.0.8/ghost-ftp-main-workspace.png", "images/0.0.8/ghost-ftp-site-manager.png", "images/0.0.8/ghost-ftp-linux-main-workspace.png", "images/0.0.6/ghost-ftp-linux-settings.png", "images/0.0.8/ghost-ftp-android-files.png", "images/0.0.6/ghost-ftp-android-transfers.png"}
-        self.assertEqual(sorted(expected - sources), [], "docs index is missing immutable 0.0.6 product media")
+        expected = {"../build/icon.png", "images/0.0.8/ghost-ftp-main-workspace.png", "images/0.0.8/ghost-ftp-site-manager.png", "images/0.0.8/ghost-ftp-linux-main-workspace.png", "images/0.0.8/ghost-ftp-linux-settings.png", "images/0.0.8/ghost-ftp-android-files.png", "images/0.0.8/ghost-ftp-android-transfer-queue.png"}
+        self.assertEqual(sorted(expected - sources), [], "docs index is missing immutable 0.0.8 product media")
 
     def test_readme_copy_keeps_cross_platform_authentic_media_provenance_explicit(self) -> None:
         root = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -85,9 +85,9 @@ class ReadmeMediaContractTests(unittest.TestCase):
         self.assertIn('dist\\internal\\ghost-ftp-$version-portable-x64.exe', workflow_lower)
         self.assertIn("missing verified native production executable", workflow_lower)
         self.assertIn("windows — 5 images", reference.lower())
-        self.assertIn("linux — 3 images", reference.lower())
-        self.assertIn("android — 7 images", reference.lower())
-        self.assertIn("exactly **15 runtime images**", reference.lower())
+        self.assertIn("linux — 5 images", reference.lower())
+        self.assertIn("android — 8 images", reference.lower())
+        self.assertIn("exactly **18 runtime images**", reference.lower())
         self.assertIn("authentic runtime evidence is maintained across windows, linux and android", docs.lower())
         self.assertNotIn("git push", workflow_lower)
         self.assertNotIn("github-actions[bot]", workflow_lower)
