@@ -99,7 +99,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("button.setMaxLines(2);", activity)
         self.assertIn("button.setMinWidth(dp(48));", activity)
         self.assertIn("button.setMinHeight(dp(56));", activity)
-        self.assertIn("button.setTextSize(8);", activity)
+        self.assertNotIn("button.setTextSize(8);", activity)
         self.assertIn("if (tabletLayout) card.addView(navigationActions, matchWrap());", activity)
         self.assertIn("private void showFilesMoreActions()", activity)
         self.assertIn("private void navigateFilesHistory(boolean back)", activity)
