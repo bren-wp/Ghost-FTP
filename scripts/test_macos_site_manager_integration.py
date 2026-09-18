@@ -84,6 +84,12 @@ class MacOSSiteManagerIntegrationTests(unittest.TestCase):
             self.assertIn(marker, main)
         self.assertNotIn("NSColor.controlAccentColor", main)
 
+    def test_macos_settings_present_dark_before_light(self) -> None:
+        windows = (ROOT / "macos" / "Sources" / "GhostFTPApp" / "ApplicationWindows.swift").read_text(encoding="utf-8")
+        self.assertIn('appearancePopup.addItems(withTitles: ["Dark", "Light"])', windows)
+        self.assertIn('GhostFTPSettingsAppearance()) == "dark" ? 0 : 1', windows)
+        self.assertIn('appearancePopup.indexOfSelectedItem == 0 ? "dark" : "light"', windows)
+
     def test_saved_ftp_runtime_secret_uses_darwin_broker_and_session_ownership(self) -> None:
         runtime_other = (ROOT / "internal" / "security" / "runtime_secret_other.go").read_text(encoding="utf-8")
         runtime_darwin = (ROOT / "internal" / "security" / "runtime_secret_darwin.go").read_text(encoding="utf-8")
