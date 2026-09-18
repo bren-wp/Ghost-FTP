@@ -239,20 +239,34 @@ class AndroidContractTests(_regressions.AndroidContractTests):
             'static final String APPEARANCE_LIGHT = "light";',
             'return value != null && APPEARANCE_LIGHT.equalsIgnoreCase(value.trim())',
             ': APPEARANCE_DARK;',
-            'ACCENT = Color.rgb(0xDF, 0xAF, 0x3E);',
-            'ACCENT_STRONG = Color.rgb(0xF6, 0xC8, 0x4F);',
-            'SELECTION = Color.rgb(0x2A, 0x24, 0x16);',
+            'ACCENT = Color.rgb(0xF6, 0xC4, 0x45);',
+            'ACCENT_STRONG = Color.rgb(0xFF, 0xD7, 0x68);',
+            'ON_ACCENT = Color.rgb(0x16, 0x13, 0x0B);',
+            'SELECTION = Color.rgb(0x2B, 0x25, 0x15);',
         ):
             self.assertIn(marker, theme)
+        palette = self.read("internal/uipalette/palette.go")
+        for marker in (
+            "Window:       RGB{0x0B, 0x0F, 0x17}",
+            "Panel:        RGB{0x12, 0x18, 0x24}",
+            "List:         RGB{0x16, 0x1D, 0x2A}",
+            "Border:       RGB{0x2C, 0x36, 0x48}",
+            "Accent:       RGB{0xF6, 0xC4, 0x45}",
+            "AccentStrong: RGB{0xFF, 0xD7, 0x68}",
+            "OnAccent:     RGB{0x16, 0x13, 0x0B}",
+            "Selection:    RGB{0x2B, 0x25, 0x15}",
+        ):
+            self.assertIn(marker, palette)
+
         self.assertNotIn("Configuration.UI_MODE_NIGHT", theme)
         disconnected = theme.index('value.contains("disconnected")')
         connected = theme.index('value.contains("completed") || value.contains("connected")')
         self.assertLess(disconnected, connected)
 
-        self.assertIn('<color name="ghost_window">#0A0D12</color>', colors)
-        self.assertIn('<color name="ghost_accent">#DFAF3E</color>', colors)
-        self.assertIn('<color name="ghost_window">#0A0D12</color>', night_colors)
-        self.assertIn('<color name="ghost_accent">#DFAF3E</color>', night_colors)
+        self.assertIn('<color name="ghost_window">#0B0F17</color>', colors)
+        self.assertIn('<color name="ghost_accent">#F6C445</color>', colors)
+        self.assertIn('<color name="ghost_window">#0B0F17</color>', night_colors)
+        self.assertIn('<color name="ghost_accent">#F6C445</color>', night_colors)
         self.assertNotIn("#5B7CFA", night_colors)
         self.assertIn('<item name="android:windowLightStatusBar">false</item>', styles)
 
