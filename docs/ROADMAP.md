@@ -1,8 +1,8 @@
 # Ghost FTP roadmap
 
-Ghost FTP **0.0.7** is the current source/release candidate. The roadmap prioritizes correctness, security, privacy, reliability and verifiable cross-platform behavior before new surface area.
+Ghost FTP **0.0.8** is the current source/release candidate. The roadmap prioritizes correctness, security, privacy, reliability and verifiable cross-platform behavior before new surface area.
 
-## Current 0.0.7 foundation
+## Current 0.0.8 foundation
 
 The current release gate includes:
 
@@ -22,39 +22,39 @@ The current release gate includes:
 - signed-only official Windows publication and protected production-signed Android publication;
 - exact GitHub Release/GHCR digest readback and latest-only retention.
 
-## 0.0.7 navigation work
+## 0.0.8 navigation work
 
-Ghost FTP 0.0.7 retains the **non-destructive current-folder filter** for maintained desktop panes. It filters only already-loaded entries, performs **no hidden filesystem/network scan**, preserves an authoritative unfiltered snapshot and composes with shared sorting.
+Ghost FTP 0.0.8 retains the **non-destructive current-folder filter** for maintained desktop panes. It filters only already-loaded entries, performs **no hidden filesystem/network scan**, preserves an authoritative unfiltered snapshot and composes with shared sorting.
 
-Ghost FTP 0.0.7 retains the **bounded recursive local/server search**, deliberately separate from current-folder filtering because it performs additional listing I/O. Search is cancellable, bounded by depth/item/result/time limits, avoids intentional symlink/reparse traversal and treats results as navigation hints that require fresh-list validation.
+Ghost FTP 0.0.8 retains the **bounded recursive local/server search**, deliberately separate from current-folder filtering because it performs additional listing I/O. Search is cancellable, bounded by depth/item/result/time limits, avoids intentional symlink/reparse traversal and treats results as navigation hints that require fresh-list validation.
 
-Ghost FTP 0.0.7 retains **conservative directory comparison and synchronized navigation**. Comparison is read-only and fail-closed for duplicate names, uncertain metadata, type mismatches and symlink-like entries. Synchronized navigation commits only after both target directories are freshly validated.
+Ghost FTP 0.0.8 retains **conservative directory comparison and synchronized navigation**. Comparison is read-only and fail-closed for duplicate names, uncertain metadata, type mismatches and symlink-like entries. Synchronized navigation commits only after both target directories are freshly validated.
 
-Ghost FTP 0.0.7 retains reusable **navigation bookmarks and profile start directories**. Remote navigation remains bound to protocol/host/port/username identity and is revalidated against the active session.
+Ghost FTP 0.0.8 retains reusable **navigation bookmarks and profile start directories**. Remote navigation remains bound to protocol/host/port/username identity and is revalidated against the active session.
 
 ## High-value power-user lane
 
 ### P0 — directory comparison and synchronized navigation
 
-**Status: implemented in Ghost FTP 0.0.7.** Windows and Linux expose shared conservative comparison states and Android exposes the maintained mobile comparison/navigation workflow without treating comparison as mutation authority.
+**Status: implemented in Ghost FTP 0.0.8.** Windows and Linux expose shared conservative comparison states and Android exposes the maintained mobile comparison/navigation workflow without treating comparison as mutation authority.
 
 ### P0 — bounded recursive local/server search
 
-**Status: implemented in Ghost FTP 0.0.7.** Current-folder filtering remains I/O-free; recursive search is a separate explicit bounded action with cancellation and fresh-list navigation.
+**Status: implemented in Ghost FTP 0.0.8.** Current-folder filtering remains I/O-free; recursive search is a separate explicit bounded action with cancellation and fresh-list navigation.
 
 ### P0 — bandwidth-aware transfer controls
 
-**Status: implemented in Ghost FTP 0.0.7.** Desktop upload/download limits are shared validated runtime policy using binary KiB/s with `0 = unlimited`, conservative aggregate directional scheduling and real transport enforcement.
+**Status: implemented in Ghost FTP 0.0.8.** Desktop upload/download limits are shared validated runtime policy using binary KiB/s with `0 = unlimited`, conservative aggregate directional scheduling and real transport enforcement.
 
 ### P0 — queue priority and reorder
 
-**Status: implemented in Ghost FTP 0.0.7.** A selected queued desktop transfer can move Top, Up, Down or Bottom without rewriting transfer identity, running/terminal history slots or connection ownership.
+**Status: implemented in Ghost FTP 0.0.8.** A selected queued desktop transfer can move Top, Up, Down or Bottom without rewriting transfer identity, running/terminal history slots or connection ownership.
 
 See [Queue priority and reordering](QUEUE-PRIORITY.md).
 
 ### P1 — navigation bookmarks and profile start directories
 
-**Status: implemented in Ghost FTP 0.0.7.** Bookmarks contain non-secret navigation metadata, local navigation is freshly validated and remote activation is account/session bound.
+**Status: implemented in Ghost FTP 0.0.8.** Bookmarks contain non-secret navigation metadata, local navigation is freshly validated and remote activation is account/session bound.
 
 See [Navigation bookmarks and profile start directories](NAVIGATION-BOOKMARKS.md).
 
@@ -96,7 +96,7 @@ Future work must preserve local path containment and symlink/reparse safety, fai
 
 The public sequence is `0.0.1`, `0.0.2`, `0.0.3`, `0.0.4`, `0.0.5`, `0.0.6`, and so on. `0.0.0` is reserved. A current release identity is never rewritten in place.
 
-The Ghost FTP 0.0.7 public contract is **13 platform artifacts / 16 public files**: Windows, Linux and production-signed Android application artifacts, four official browser helper packages and release metadata. macOS remains a separately validated development/source surface.
+The Ghost FTP 0.0.8 public contract is **13 platform artifacts / 16 public files**: Windows, Linux and production-signed Android application artifacts, four official browser helper packages and release metadata. macOS remains a separately validated development/source surface.
 
 ## Definition of roadmap completion
 
