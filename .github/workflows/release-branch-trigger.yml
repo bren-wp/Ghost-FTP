@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - 'release/ghostftp-v*'
+      - '!release/ghostftp-v*-no-key'
 
 permissions:
   contents: read
@@ -16,7 +17,9 @@ concurrency:
 
 jobs:
   dispatch:
-    if: ${{ (github.event_name == 'create' && github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/ghostftp-v')) || (github.event_name == 'push' && startsWith(github.ref_name, 'release/ghostftp-v')) }}
+    # The no-key publication branch is handled by release-no-key.yml. Do not
+    # route it through the canonical production release dispatcher.
+    if: ${{ (github.event_name == 'create' && github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/ghostftp-v') && !endsWith(github.event.ref, '-no-key')) || (github.event_name == 'push' && startsWith(github.ref_name, 'release/ghostftp-v') && !endsWith(github.ref_name, '-no-key')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
