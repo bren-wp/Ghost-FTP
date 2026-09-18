@@ -92,15 +92,16 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         self.assertIn("capture 'ghost-ftp-android-files.png'", android)
         self.assertIn("capture 'ghost-ftp-android-navigation.png'", android)
         for call in (
-            "capture_nav_surface 'Connections' 'Connections' 'connections'",
-            "capture_nav_surface 'Bookmarks' 'Bookmarks' 'bookmarks'",
-            "capture_nav_surface 'Transfer Queue' 'Transfer Queue' 'transfer-queue'",
-            "capture_nav_surface 'Settings' 'Settings' 'settings'",
-            "capture_nav_surface 'Connection info' 'Connection info' 'connection-info'",
-            "capture_nav_surface 'About' 'About' 'about'",
+            "capture_primary_surface 'Connections' 'Connections' 'connections'",
+            "capture_primary_surface 'Bookmarks' 'Bookmarks' 'bookmarks'",
+            "capture_primary_surface 'Transfer Queue' 'Transfer Queue' 'transfer-queue'",
+            "capture_primary_surface 'Settings' 'Settings' 'settings'",
+            "tap_nav_section 'Connection info' 'Connection info'",
+            "tap_nav_section 'About' 'About'",
         ):
             self.assertIn(call, android)
-        self.assertIn("capture_nav_surface() {", android)
+        self.assertIn("capture_primary_surface() {", android)
+        self.assertIn("open_utility_navigation()", android)
         self.assertIn("expected_pngs=(", android)
         self.assertIn("Android evidence count mismatch", android)
         self.assertNotIn("done <<'SURFACES'", android)
@@ -146,16 +147,27 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         self.assertIn("bash scripts/capture_android_screenshots.sh", workflow)
         self.assertIn('adb install -r "$APK_PATH"', capture)
         self.assertIn("uiautomator dump", capture)
-        self.assertIn("tap_ui 'Open navigation'", capture)
+        self.assertIn("tap_ui 'Open utility menu'", capture)
+        for marker in (
+            "wait_ui 'Navigate to Files'",
+            "wait_ui 'Navigate to Connections'",
+            "wait_ui 'Navigate to Bookmarks'",
+            "wait_ui 'Navigate to Transfer Queue'",
+            "wait_ui 'Navigate to Settings'",
+            "wait_ui 'Navigate to Connection info'",
+            "wait_ui 'Navigate to About'",
+        ):
+            self.assertIn(marker, capture)
         for call in (
-            "capture_nav_surface 'Connections' 'Connections' 'connections'",
-            "capture_nav_surface 'Bookmarks' 'Bookmarks' 'bookmarks'",
-            "capture_nav_surface 'Transfer Queue' 'Transfer Queue' 'transfer-queue'",
-            "capture_nav_surface 'Settings' 'Settings' 'settings'",
-            "capture_nav_surface 'Connection info' 'Connection info' 'connection-info'",
-            "capture_nav_surface 'About' 'About' 'about'",
+            "capture_primary_surface 'Connections' 'Connections' 'connections'",
+            "capture_primary_surface 'Bookmarks' 'Bookmarks' 'bookmarks'",
+            "capture_primary_surface 'Transfer Queue' 'Transfer Queue' 'transfer-queue'",
+            "capture_primary_surface 'Settings' 'Settings' 'settings'",
+            "tap_nav_section 'Connection info' 'Connection info'",
+            "tap_nav_section 'About' 'About'",
         ):
             self.assertIn(call, capture)
+        self.assertNotIn("tap_ui 'Open navigation'", capture)
         self.assertIn("expected_pngs=(", capture)
         self.assertIn("Android evidence count mismatch", capture)
         self.assertNotIn("done <<'SURFACES'", capture)
