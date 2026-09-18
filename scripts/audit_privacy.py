@@ -9,6 +9,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_ROOTS = (ROOT / "cmd", ROOT / "internal")
 FORBIDDEN_IMPORTS = {"net/http", "net/rpc", "net/smtp"}
+MANUAL_UPDATE_NETWORK_FILE = "internal/updatecheck/updatecheck.go"
+TRUSTED_FIXED_URL_FILE = "internal/brand/brand.go"
+TRUSTED_FIXED_URLS = {
+    "https://ghostftp.com/",
+    "https://ghostftp.com/premium/",
+    "https://github.com/bren-wp/Ghost-FTP/releases/latest",
+    "https://api.github.com/repos/bren-wp/Ghost-FTP/releases/latest",
+}
 FORBIDDEN_VENDOR_MARKERS = {
     "sentry.io",
     "google-analytics",
@@ -66,18 +74,57 @@ def audit_runtime_sources() -> None:
     for path in sorted(runtime_files):
         text = path.read_text(encoding="utf-8")
         rel = path.relative_to(ROOT)
+        rel_text = rel.as_posix()
         for imp in FORBIDDEN_IMPORTS:
-            if re.search(rf'["`]{re.escape(imp)}["`]', text):
-                fail(f"forbidden network import {imp!r} in {rel}")
+            if not re.search(rf'["`]{re.escape(imp)}["`]', text):
+                continue
+            if rel_text == MANUAL_UPDATE_NETWORK_FILE and imp == "net/http":
+                continue
+            fail(f"forbidden network import {imp!r} in {rel}")
         urls = sorted(set(URL_RE.findall(text)))
         if urls:
-            fail(f"fixed HTTP(S) URL found in runtime source {rel}: {urls[0]}")
+            if rel_text != TRUSTED_FIXED_URL_FILE:
+                fail(f"fixed HTTP(S) URL found in runtime source {rel}: {urls[0]}")
+            unexpected = set(urls) - TRUSTED_FIXED_URLS
+            missing = TRUSTED_FIXED_URLS - set(urls)
+            if unexpected or missing:
+                fail(
+                    "trusted public endpoint set drifted: "
+                    f"unexpected={sorted(unexpected)} missing={sorted(missing)}"
+                )
         lower = text.lower()
         for marker in FORBIDDEN_VENDOR_MARKERS:
             if marker in lower:
                 fail(f"telemetry/vendor marker {marker!r} found in {rel}")
         if rel.as_posix() != "internal/remote/util.go" and "toolError{" in text:
             fail(f"runtime toolError must be constructed through newToolError: {rel}")
+
+
+def audit_manual_update_boundary() -> None:
+    checker = require(
+        MANUAL_UPDATE_NETWORK_FILE,
+        (
+            "Timeout: 10 * time.Second",
+            "io.LimitReader(resp.Body, maxResponseBytes)",
+            "payload.Draft || payload.Prerelease",
+            'host != "github.com"',
+            '"/bren-wp/Ghost-FTP/releases/"',
+        ),
+    )
+    if "Password" in checker or "Passphrase" in checker or "LocalPath" in checker or "RemotePath" in checker:
+        fail("manual update checker must not accept transfer credentials or file paths")
+
+    external = require(
+        "internal/external/open.go",
+        (
+            'parsed.Scheme != "https"',
+            "parsed.User != nil",
+            "OpenReleasePage",
+            "OpenPremiumPage",
+        ),
+    )
+    if "http://" in external:
+        fail("external browser launcher must never permit plaintext HTTP")
 
 
 def audit_credentials_and_network_tools() -> None:
@@ -205,11 +252,13 @@ def audit_build_privacy() -> None:
 
 def main() -> None:
     audit_runtime_sources()
+    audit_manual_update_boundary()
     audit_credentials_and_network_tools()
     audit_build_privacy()
     print("PRIVACY_AUDIT=PASS")
     print("PRIVACY_AUDIT_RUNTIME_SCOPE=WINDOWS,LINUX")
-    print("FIXED_RUNTIME_HTTP_URLS=BLOCKED")
+    print("FIXED_RUNTIME_HTTP_URLS=BLOCKED_EXCEPT_EXPLICIT_TRUSTED_UPDATE_PREMIUM_ENDPOINTS")
+    print("MANUAL_UPDATE_NETWORK_BOUNDARY=EXPLICIT_USER_ACTION_ONLY")
     print("TELEMETRY_VENDOR_MARKERS=BLOCKED")
     print("RUNTIME_CREDENTIAL_FILES=BLOCKED")
     print("RAW_TOOL_DIAGNOSTICS_USER_SURFACE=BLOCKED")
