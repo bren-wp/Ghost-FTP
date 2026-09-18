@@ -82,6 +82,14 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
         self.assertIn('TitleContains "Connections"', capture)
         self.assertIn("-Title 'Connections'", runtime)
 
+    def test_windows_connections_security_heading_is_protocol_neutral(self) -> None:
+        source = read("internal/desktop/site_manager_windows.go")
+        self.assertIn("func cleanConnectionSecurityTitle", source)
+        self.assertIn('strings.ReplaceAll(value, "SFTP", "")', source)
+        self.assertIn('return "Security"', source)
+        self.assertIn('cleanConnectionSecurityTitle(parent.tr("sftp.security"))', source)
+        self.assertNotIn('cleanSFTPSecurityTitle(parent.tr("sftp.security"))', source)
+
     def test_macos_connection_surfaces_use_public_master_names(self) -> None:
         manager = read("macos/Sources/GhostFTPApp/SiteManager.swift")
         windows = read("macos/Sources/GhostFTPApp/ApplicationWindows.swift")
