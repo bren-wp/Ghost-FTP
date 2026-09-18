@@ -68,7 +68,7 @@ Browser helper packages:
 - Ghost-FTP-{version}-Edge-Extension.zip
 - Ghost-FTP-{version}-Firefox-Extension.zip
 - Ghost-FTP-{version}-Opera-Extension.zip
-- These are local parser/copy helpers and do not provide a supported browser-to-desktop launch/handoff.
+- These remain zero-permission local helpers. On supported Windows installs, the explicit Open in Ghost FTP action uses a sanitized ghostftp://connect handoff that excludes secrets, query data and fragments and never auto-connects.
 
 GitHub Packages
 ---------------
