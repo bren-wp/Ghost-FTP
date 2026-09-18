@@ -308,10 +308,11 @@ final class SettingsWindowController: NSWindowController {
     private let conflictPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let confirmDeleteButton = NSButton(checkboxWithTitle: "Confirm delete", target: nil, action: nil)
     private let statusLabel = NSTextField(labelWithString: "")
+    private let updateButton = NSButton(title: "Update", target: nil, action: nil)
 
     init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 650, height: 560),
+            contentRect: NSRect(x: 0, y: 0, width: 690, height: 650),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -356,6 +357,17 @@ final class SettingsWindowController: NSWindowController {
         grid.columnSpacing = 14
         grid.column(at: 0).xPlacement = .trailing
 
+        let productActions = NSStackView(views: [
+            updateButton,
+            NSButton(title: "Download latest", target: self, action: #selector(downloadLatestTapped)),
+            NSButton(title: "Premium", target: self, action: #selector(premiumTapped)),
+            NSButton(title: "Official website", target: self, action: #selector(websiteTapped))
+        ])
+        productActions.orientation = .horizontal
+        productActions.spacing = 8
+        updateButton.target = self
+        updateButton.action = #selector(updateTapped)
+
         let resetButton = NSButton(title: "Restore Defaults", target: self, action: #selector(restoreDefaultsTapped))
         let saveButton = NSButton(title: "Save", target: self, action: #selector(saveTapped))
         saveButton.keyEquivalent = "\r"
@@ -365,10 +377,10 @@ final class SettingsWindowController: NSWindowController {
         actions.spacing = 8
         statusLabel.textColor = .secondaryLabelColor
         statusLabel.maximumNumberOfLines = 2
-        let note = applicationLabel("Language is stored in the shared Ghost FTP settings used by all desktop surfaces.", size: 11)
+        let note = applicationLabel("Language is stored in Settings. Update simulation is local-only; downloads open only the official ghostftp.com website.", size: 11)
         note.textColor = .secondaryLabelColor
 
-        let stack = NSStackView(views: [applicationLabel("Ghost FTP Settings", size: 20, weight: .semibold), grid, note, actions, statusLabel])
+        let stack = NSStackView(views: [applicationLabel("Ghost FTP Settings", size: 20, weight: .semibold), grid, note, productActions, actions, statusLabel])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 14
@@ -477,6 +489,35 @@ final class SettingsWindowController: NSWindowController {
         onAppearanceChanged?(appearance)
     }
 
+    @objc private func updateTapped() {
+        updateButton.isEnabled = false
+        let version = applicationBridgeString(GhostFTPAboutVersion())
+        statusLabel.stringValue = "Updating Ghost FTP…"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+            guard let self else { return }
+            self.updateButton.isEnabled = true
+            self.statusLabel.stringValue = "Ghost FTP \(version) is updated. Install a newer signed build from ghostftp.com when available."
+        }
+    }
+
+    @objc private func downloadLatestTapped() {
+        statusLabel.stringValue = GhostFTPOpenUpdatePage() == 1
+            ? "Official Ghost FTP download page opened in your browser."
+            : "Unable to open the official download page."
+    }
+
+    @objc private func premiumTapped() {
+        statusLabel.stringValue = GhostFTPOpenPremiumPage() == 1
+            ? "Premium download page opened in your browser."
+            : "Unable to open the Premium download page."
+    }
+
+    @objc private func websiteTapped() {
+        statusLabel.stringValue = GhostFTPOpenWebsite() == 1
+            ? "Official Ghost FTP website opened in your browser."
+            : "Unable to open the official website."
+    }
+
     @objc private func restoreDefaultsTapped() {
         // Keep the explicitly chosen language while restoring the shared desktop
         // behavior defaults. Values are loaded into the draft only; Save remains
@@ -497,28 +538,9 @@ final class SettingsWindowController: NSWindowController {
 }
 
 final class AboutWindowController: NSWindowController {
-    private struct UpdatePayload: Decodable {
-        let currentVersion: String
-        let latestVersion: String
-        let releaseURL: String
-        let available: Bool
-
-        enum CodingKeys: String, CodingKey {
-            case currentVersion = "current_version"
-            case latestVersion = "latest_version"
-            case releaseURL = "release_url"
-            case available
-        }
-    }
-
-    private let updateQueue = DispatchQueue(label: "app.ghostftp.update-check", qos: .userInitiated)
-    private let statusLabel = applicationLabel("", size: 11)
-    private let checkUpdatesButton = NSButton(title: "Check for Updates", target: nil, action: nil)
-    private let premiumButton = NSButton(title: "Download Premium", target: nil, action: nil)
-
     init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 470),
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 390),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -531,7 +553,6 @@ final class AboutWindowController: NSWindowController {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func showAbout() {
-        statusLabel.stringValue = ""
         showWindow(nil)
         window?.center()
         window?.makeKeyAndOrderFront(nil)
@@ -557,30 +578,12 @@ final class AboutWindowController: NSWindowController {
             applicationLabel("No telemetry or tracking.")
         ]
         rows.last?.textColor = .secondaryLabelColor
-
-        checkUpdatesButton.target = self
-        checkUpdatesButton.action = #selector(checkUpdatesTapped)
-        premiumButton.target = self
-        premiumButton.action = #selector(premiumTapped)
-        premiumButton.bezelStyle = .rounded
         let closeButton = NSButton(title: "Close", target: self, action: #selector(closeTapped))
-        let actions = NSStackView(views: [checkUpdatesButton, premiumButton, closeButton])
-        actions.orientation = .horizontal
-        actions.spacing = 8
-
-        statusLabel.textColor = .secondaryLabelColor
-        statusLabel.maximumNumberOfLines = 2
-        let privacy = applicationLabel(
-            "Update and Premium network access occurs only after you click an action. Server credentials, paths and transfer data are never sent.",
-            size: 10
-        )
-        privacy.textColor = .secondaryLabelColor
-
-        let stack = NSStackView(views: rows + [privacy, actions, statusLabel])
+        let stack = NSStackView(views: rows + [closeButton])
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 11
-        stack.edgeInsets = NSEdgeInsets(top: 22, left: 24, bottom: 22, right: 24)
+        stack.spacing = 12
+        stack.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
         stack.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -589,57 +592,6 @@ final class AboutWindowController: NSWindowController {
             stack.topAnchor.constraint(equalTo: content.topAnchor),
             stack.bottomAnchor.constraint(equalTo: content.bottomAnchor)
         ])
-    }
-
-    @objc private func checkUpdatesTapped() {
-        checkUpdatesButton.isEnabled = false
-        premiumButton.isEnabled = false
-        statusLabel.stringValue = "Checking the stable Ghost FTP release channel…"
-
-        updateQueue.async { [weak self] in
-            let raw = applicationBridgeString(GhostFTPCheckForUpdates())
-            let payload: UpdatePayload?
-            if let data = raw.data(using: .utf8), !raw.isEmpty {
-                payload = try? JSONDecoder().decode(UpdatePayload.self, from: data)
-            } else {
-                payload = nil
-            }
-
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.checkUpdatesButton.isEnabled = true
-                self.premiumButton.isEnabled = true
-                guard let payload else {
-                    self.statusLabel.stringValue = "Update check failed. Try again later."
-                    return
-                }
-                guard payload.available else {
-                    self.statusLabel.stringValue = "Ghost FTP \(payload.currentVersion) is the current stable release."
-                    return
-                }
-
-                self.statusLabel.stringValue = "Ghost FTP \(payload.latestVersion) is available."
-                let alert = NSAlert()
-                alert.messageText = "Update available"
-                alert.informativeText = "Ghost FTP \(payload.latestVersion) is available. Open the verified GitHub Release page?"
-                alert.addButton(withTitle: "Open Download")
-                alert.addButton(withTitle: "Later")
-                if alert.runModal() == .alertFirstButtonReturn {
-                    let value = ApplicationCStringBox(payload.releaseURL)
-                    if GhostFTPOpenReleasePage(value.pointer) != 1 {
-                        self.statusLabel.stringValue = "Unable to open the verified release page."
-                    }
-                }
-            }
-        }
-    }
-
-    @objc private func premiumTapped() {
-        if GhostFTPOpenPremiumPage() == 1 {
-            statusLabel.stringValue = "Premium download page opened in your browser."
-        } else {
-            statusLabel.stringValue = "Unable to open the Premium download page."
-        }
     }
 
     @objc private func closeTapped() { close() }
