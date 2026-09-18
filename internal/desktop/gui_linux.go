@@ -580,7 +580,7 @@ func (u *linuxDesktop) renderItemRows(r linuxRect, items []model.Item, selected 
 }
 
 func (u *linuxDesktop) renderWorkspace() error {
-	leftPanel := linuxRect{left: premiumOuterGap - 6, top: u.layout.localPath.top - 30, right: u.layout.localList.right + 6, bottom: u.layout.upload.bottom + 8}
+	leftPanel := linuxRect{left: u.layout.localPath.left - 6, top: u.layout.localPath.top - 30, right: u.layout.localList.right + 6, bottom: u.layout.upload.bottom + 8}
 	rightPanel := linuxRect{left: u.layout.remotePath.left - 6, top: leftPanel.top, right: u.layout.remoteList.right + 6, bottom: leftPanel.bottom}
 	if err := u.drawPanel(leftPanel); err != nil {
 		return err
@@ -588,7 +588,7 @@ func (u *linuxDesktop) renderWorkspace() error {
 	if err := u.drawPanel(rightPanel); err != nil {
 		return err
 	}
-	if err := u.x.text(premiumOuterGap, leftPanel.top+20, strings.ToUpper(u.tr("section.local")), premiumTheme.Muted, premiumTheme.Panel); err != nil {
+	if err := u.x.text(u.layout.localPath.left, leftPanel.top+20, strings.ToUpper(u.tr("section.local")), premiumTheme.Muted, premiumTheme.Panel); err != nil {
 		return err
 	}
 	if err := u.x.text(u.layout.remotePath.left, leftPanel.top+20, strings.ToUpper(u.tr("section.remote")), premiumTheme.Muted, premiumTheme.Panel); err != nil {
@@ -653,7 +653,7 @@ func (u *linuxDesktop) renderWorkspace() error {
 
 func (u *linuxDesktop) renderQueue() error {
 	actions := u.linuxTransferActionState()
-	if err := u.x.text(premiumOuterGap, u.layout.pause.top+19, strings.ToUpper(u.tr("section.transfers")), premiumTheme.Muted, premiumTheme.Window); err != nil {
+	if err := u.x.text(u.layout.queue.left, u.layout.pause.top+19, strings.ToUpper(u.tr("section.transfers")), premiumTheme.Muted, premiumTheme.Window); err != nil {
 		return err
 	}
 	if err := u.drawButton(u.layout.pause, u.tr("transfer.pause"), actions.Pause && !u.busy, false); err != nil {
