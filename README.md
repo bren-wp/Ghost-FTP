@@ -85,8 +85,8 @@ Ghost FTP provides real file-management and transfer operations rather than simu
 | --- | --- | --- |
 | **Windows** | Current release target | Universal Setup and Portable applications with x64, x86 and ARM64 payloads |
 | **Linux** | Current release target | Debian, Ubuntu and Fedora Installer + Portable bundles |
-| **Android** | Current release target | Production-signed APK with FTP and strict explicit FTPS |
-| **macOS** | Current release target | Universal arm64 + x86_64 AppKit package; publication requires Developer ID signing, Apple notarization, stapling and Gatekeeper verification |
+| **Android** | Current release target | Installable APK; protected production signing when configured, otherwise an explicit one-run compatibility certificate |
+| **macOS** | Current release target | Universal arm64 + x86_64 AppKit compatibility archive with ad-hoc signing; not Developer ID signed or notarized |
 | **Browser helpers** | Current release target | Chrome, Edge, Firefox and Opera local helper packages |
 
 Browser helpers have zero browser permissions and zero host permissions. Windows installed builds support a **sanitized browser-to-desktop handoff** through the registered `ghostftp:` protocol. Only protocol, host, optional port, optional username and remote path are handed to the desktop app; passwords, private-key passphrases, private keys, query data and fragments are excluded. The helper never performs FTP/FTPS/SFTP transport itself and never auto-connects.
@@ -118,11 +118,11 @@ See [Reference UI](docs/REFERENCE-UI.md) for the complete 18-image 0.0.8 evidenc
 Current source version: **0.0.8**
 Release channel: **Current**
 Product status: **Current**
-Last actually published GitHub Release: **0.0.7**
-Next public release target: **ghostftp-v0.0.8**
+Protected baseline release: **0.0.7**
+Current public release target: **ghostftp-v0.0.8**
 Prerelease: **false**
 
-The 0.0.8 publication contract contains **14 platform artifacts / 17 public files**, including a production-signed and Apple-notarized universal macOS app.
+The 0.0.8 publication contract contains **14 platform artifacts / 17 public files**, including an ad-hoc signed universal macOS compatibility app; signing state is explicit in release metadata.
 
 ### Windows
 
@@ -157,10 +157,10 @@ Publication requires `apksigner` verification and an exact protected `GHOSTFTP_A
 ### macOS
 
 ```text
-Ghost-FTP-0.0.8-macOS-notarized.app.zip
+Ghost-FTP-0.0.8-macOS.app.zip
 ```
 
-Publication requires a real Developer ID Application identity, Hardened Runtime, secure timestamp, accepted Apple notarization, a stapled ticket and Gatekeeper verification. The ad-hoc validation build is never substituted for this public artifact.
+The 0.0.8 compatibility archive is built from the exact release source and ad-hoc signed on macOS CI. It is not Developer ID signed or Apple notarized; a future production-distribution path may add those credentials without changing the application security model.
 
 ### Browser helpers
 
@@ -184,8 +184,8 @@ Version 0.0.8 is published only after:
 - the exact final head SHA is merged to `main`;
 - the complete post-merge gate succeeds;
 - trusted Windows Authenticode signing succeeds;
-- the protected Android signing identity matches `GHOSTFTP_ANDROID_CERT_SHA256`;
-- the macOS app passes Developer ID signing, Apple notarization, stapling and Gatekeeper assessment;
+- Android is signed either by the configured protected publisher identity (and exact `GHOSTFTP_ANDROID_CERT_SHA256` match) or by a one-run compatibility certificate whose fingerprint is recorded;
+- the macOS compatibility archive passes universal-architecture and ad-hoc codesign verification, with no claim of Developer ID signing or notarization;
 - release assets are published successfully;
 - published assets pass readback verification without drift.
 
