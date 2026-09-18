@@ -10,116 +10,175 @@ def read(relative: str) -> str:
 
 
 class UpdateAndPremiumContractTests(unittest.TestCase):
-    def test_shared_update_checker_is_manual_bounded_and_fail_closed(self) -> None:
+    def test_shared_update_flow_is_local_only_and_official_site_only(self) -> None:
         brand = read("internal/brand/brand.go")
         checker = read("internal/updatecheck/updatecheck.go")
         external = read("internal/external/open.go")
 
         for marker in (
-            'ReleaseAPIURL     = "https://api.github.com/repos/bren-wp/Ghost-FTP/releases/latest"',
-            'ReleaseURL        = "https://github.com/bren-wp/Ghost-FTP/releases/latest"',
-            'PremiumURL        = "https://ghostftp.com/premium/"',
+            'WebsiteURL = "https://ghostftp.com/"',
+            'UpdateURL  = "https://ghostftp.com/#download"',
+            'PremiumURL = "https://ghostftp.com/premium/"',
         ):
             self.assertIn(marker, brand)
+        for forbidden in ("github.com", "api.github.com"):
+            self.assertNotIn(forbidden, brand)
 
         for marker in (
-            "Timeout: 10 * time.Second",
-            "io.LimitReader(resp.Body, maxResponseBytes)",
-            "payload.Draft || payload.Prerelease",
-            'host != "github.com"',
-            '"/bren-wp/Ghost-FTP/releases/"',
-            "parsed.RawQuery = \"\"",
-            "parsed.Fragment = \"\"",
+            "func Simulate(currentVersion string)",
+            "Simulated:      true",
+            "UpdateURL:      brand.UpdateURL",
         ):
             self.assertIn(marker, checker)
+        for forbidden in ("net/http", "http.Client", "api.github.com", "github.com/"):
+            self.assertNotIn(forbidden, checker)
 
         for marker in (
+            'officialHosts = []string{"ghostftp.com", "www.ghostftp.com"}',
             'parsed.Scheme != "https"',
             "parsed.User != nil",
-            'case "windows":',
-            'case "darwin":',
-            'case "linux":',
+            "OpenUpdatePage",
+            "OpenPremiumPage",
+            "OpenWebsite",
         ):
             self.assertIn(marker, external)
+        self.assertNotIn("github.com", external)
 
-    def test_windows_exposes_real_update_and_premium_commands(self) -> None:
-        navigation = read("internal/desktop/navigation_windows.go")
-        commands = read("internal/desktop/commands_windows.go")
+    def test_windows_keeps_language_and_product_actions_in_settings(self) -> None:
+        settings = read("internal/desktop/settings_windows.go")
+        dialog = read("internal/platform/settings_dialog_windows.go")
         rail = read("internal/desktop/sidebar_windows.go")
         update = read("internal/desktop/update_windows.go")
-        for marker in (
-            "idCheckUpdates     = 704",
-            "idPremiumDownload  = 705",
-        ):
-            self.assertIn(marker, navigation)
-        self.assertIn("a.checkForUpdates()", commands)
-        self.assertIn("a.openPremiumDownload()", commands)
-        self.assertIn('"Check for updates"', rail)
-        self.assertIn('"Premium"', rail)
-        self.assertIn("updatecheck.New().Check(ctx, a.version)", update)
-        self.assertIn("external.OpenReleasePage(result.ReleaseURL)", update)
-        self.assertIn("external.OpenPremiumPage()", update)
-        self.assertNotIn("checkForUpdates()", read("internal/desktop/windows.go"))
 
-    def test_linux_update_and_premium_are_user_initiated(self) -> None:
+        for marker in (
+            "LanguageOptions:   languageOptions",
+            'UpdateLabel:            "Update"',
+            'DownloadLabel:          "Download latest"',
+            'PremiumLabel:           "Premium"',
+            'WebsiteLabel:           "Official website"',
+            'case "update":',
+            "a.checkForUpdates()",
+            "a.openUpdateDownload()",
+            "a.openPremiumDownload()",
+            "a.openOfficialWebsite()",
+        ):
+            self.assertIn(marker, settings)
+        for marker in (
+            "settingsIDLanguage",
+            "settingsIDUpdate",
+            "settingsIDDownload",
+            "settingsIDPremium",
+            "settingsIDWebsite",
+            "LanguageIndex",
+        ):
+            self.assertIn(marker, dialog)
+        self.assertIn("showControls(false, a.languageCombo)", rail)
+        self.assertNotIn('a.setSidebarButtonVisual(updates', rail)
+        self.assertNotIn('a.setSidebarButtonVisual(premium', rail)
+
+        self.assertIn("updatecheck.Simulate(a.version)", update)
+        self.assertIn("external.OpenUpdatePage()", update)
+        self.assertIn("external.OpenPremiumPage()", update)
+        self.assertIn("external.OpenWebsite()", update)
+        self.assertNotIn("GitHub", update)
+
+    def test_linux_keeps_language_and_product_actions_in_settings(self) -> None:
         rail = read("internal/desktop/linux_master_rail.go")
+        settings = read("internal/desktop/gui_linux_settings.go")
         update = read("internal/desktop/update_linux.go")
         gui = read("internal/desktop/gui_linux.go")
-        self.assertIn('"Check for updates"', rail)
-        self.assertIn('"Premium"', rail)
-        self.assertIn("u.checkForUpdates()", rail)
-        self.assertIn("u.openPremiumDownload()", rail)
-        self.assertIn("linuxActionUpdateCheck", gui)
-        self.assertIn("updatecheck.New().Check(ctx, u.version)", update)
-        self.assertIn("external.OpenPremiumPage()", update)
-        constructor = gui[gui.index("func newLinuxDesktop("):gui.index("func linuxTrimForUI")]
-        self.assertNotIn("checkForUpdates()", constructor)
 
-    def test_android_update_is_explicit_and_does_not_include_connection_data(self) -> None:
+        self.assertNotIn("rail.language", rail)
+        self.assertNotIn("rail.updates", rail)
+        self.assertNotIn("rail.premium", rail)
+        for marker in (
+            "u.settingsRects.language",
+            "u.settingsRects.update",
+            "u.settingsRects.download",
+            "u.settingsRects.premium",
+            "u.settingsRects.website",
+            '"Update"',
+            '"Download latest"',
+            '"Premium"',
+            '"Official website"',
+        ):
+            self.assertIn(marker, settings)
+        self.assertIn("linuxActionUpdateCheck", gui)
+        self.assertIn("updatecheck.Simulate(u.version)", update)
+        self.assertIn("external.OpenUpdatePage()", update)
+        self.assertIn("external.OpenPremiumPage()", update)
+        self.assertIn("external.OpenWebsite()", update)
+        self.assertNotIn("GitHub", update)
+
+    def test_android_update_is_local_simulation_and_official_site_only(self) -> None:
         activity = read("android/app/src/main/java/app/ghostftp/client/MainActivity.java")
         settings = activity[activity.index("private View buildSettingsSurface()"):activity.index("private View buildConnectionInfoSurface()")]
+
         for marker in (
-            '"UPDATES & PREMIUM"',
-            'button("Check for updates")',
-            'primaryButton("Download Premium")',
-            "checkForUpdates()",
-            "openTrustedWebPage(PREMIUM_URL, \"ghostftp.com\")",
-            "connection.setConnectTimeout(8000)",
-            "connection.setReadTimeout(8000)",
-            "connection.setInstanceFollowRedirects(false)",
-            'path.startsWith("/bren-wp/Ghost-FTP/releases/")',
+            'private static final String WEBSITE_URL = "https://ghostftp.com/";',
+            'private static final String UPDATE_URL = "https://ghostftp.com/#download";',
+            'private static final String PREMIUM_URL = "https://ghostftp.com/premium/";',
+            'primaryButton("Update")',
+            'button("Download latest")',
+            'button("Download Premium")',
+            'button("Official website")',
+            "simulateUpdate()",
+            "openTrustedWebPage(UPDATE_URL)",
+            "openTrustedWebPage(PREMIUM_URL)",
+            "openTrustedWebPage(WEBSITE_URL)",
         ):
             self.assertIn(marker, activity)
-        self.assertIn("Credentials, paths and transfer data are never sent.", settings)
-        create = activity[activity.index("protected void onCreate(Bundle state)"):activity.index("protected void onDestroy()")]
-        self.assertNotIn("checkForUpdates()", create)
-        fetch_start = activity.index("private static UpdateInfo fetchLatestRelease()")
-        fetch = activity[fetch_start:activity.index("private static int[] parseVersion", fetch_start)]
-        for forbidden in ("host.getText()", "username.getText()", "password.getText()", "currentRemotePath", "currentDocumentId"):
-            self.assertNotIn(forbidden, fetch)
+        self.assertIn("Update simulation runs locally.", settings)
+        for forbidden in (
+            "api.github.com",
+            "github.com/",
+            "HttpURLConnection",
+            "fetchLatestRelease",
+            "JSONObject",
+        ):
+            self.assertNotIn(forbidden, activity)
 
-    def test_macos_update_and_premium_use_bridge_and_background_queue(self) -> None:
+    def test_macos_keeps_language_and_product_actions_in_settings(self) -> None:
         bridge = read("macos/Bridge/application.go")
         windows = read("macos/Sources/GhostFTPApp/ApplicationWindows.swift")
+
         for marker in (
-            "//export GhostFTPCheckForUpdates",
-            "updatecheck.New().Check(ctx, productVersion)",
-            "//export GhostFTPOpenReleasePage",
+            "//export GhostFTPOpenUpdatePage",
             "//export GhostFTPOpenPremiumPage",
-            "external.OpenReleasePage",
+            "//export GhostFTPOpenWebsite",
+            "external.OpenUpdatePage",
             "external.OpenPremiumPage",
+            "external.OpenWebsite",
         ):
             self.assertIn(marker, bridge)
-        about = windows[windows.index("final class AboutWindowController"):windows.index("final class DiagnosticsWindowController")]
+        self.assertNotIn("GhostFTPOpenReleasePage", bridge)
+        self.assertNotIn("updatecheck.New().Check", bridge)
+
+        settings = windows[windows.index("final class SettingsWindowController"):windows.index("final class AboutWindowController")]
         for marker in (
-            'NSButton(title: "Check for Updates"',
-            'NSButton(title: "Download Premium"',
-            'DispatchQueue(label: "app.ghostftp.update-check"',
-            "GhostFTPCheckForUpdates()",
-            "GhostFTPOpenReleasePage",
-            "GhostFTPOpenPremiumPage",
+            'NSButton(title: "Update"',
+            'NSButton(title: "Download latest"',
+            'NSButton(title: "Premium"',
+            'NSButton(title: "Official website"',
+            "GhostFTPOpenUpdatePage()",
+            "GhostFTPOpenPremiumPage()",
+            "GhostFTPOpenWebsite()",
+            "DispatchQueue.main.asyncAfter",
         ):
-            self.assertIn(marker, about)
+            self.assertIn(marker, settings)
+        about = windows[windows.index("final class AboutWindowController"):windows.index("final class DiagnosticsWindowController")]
+        self.assertNotIn("Check for Updates", about)
+        self.assertNotIn("Download Premium", about)
+
+    def test_android_brand_mark_matches_master_transfer_logo_family(self) -> None:
+        for relative in (
+            "android/app/src/main/res/drawable/ic_ghost_brand.xml",
+            "android/app/src/main/res/drawable/ic_ghostftp.xml",
+        ):
+            icon = read(relative)
+            for marker in ("#102038", "#1B2B43", "#46D6C8", "#5A86F7", "#E8F1FF"):
+                self.assertIn(marker, icon)
+            self.assertNotIn("#F6C445", icon)
 
     def test_public_release_requires_notarized_macos_and_17_files(self) -> None:
         release = read(".github/workflows/release.yml")
