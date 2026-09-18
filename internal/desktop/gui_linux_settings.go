@@ -21,7 +21,7 @@ type linuxSettingsRects struct {
 	delayMinus, delayPlus       linuxRect
 	timeoutMinus, timeoutPlus   linuxRect
 	conflict, confirmDelete     linuxRect
-	save, close                 linuxRect
+	reset, save, close          linuxRect
 }
 
 func linuxSettingsPanelWidth(windowWidth int) int {
@@ -245,6 +245,12 @@ func (u *linuxDesktop) handleSettingsMouse(x, y int) bool {
 		u.settingsDraft.ConfirmDelete = !u.settingsDraft.ConfirmDelete
 		return true
 	}
+	if r.reset.contains(x, y) {
+		defaults := config.DefaultSettings()
+		defaults.Language = i18n.Normalize(u.settingsDraft.Language)
+		u.settingsDraft = defaults
+		return true
+	}
 	if r.save.contains(x, y) {
 		u.saveSettings()
 		return true
@@ -384,8 +390,12 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 		return err
 	}
 
+	u.settingsRects.reset = linuxRectWH(left+24, top+height-48, min(220, max(150, width-470)), 30)
 	u.settingsRects.save = linuxRectWH(left+width-226, top+height-48, 98, 30)
 	u.settingsRects.close = linuxRectWH(left+width-118, top+height-48, 98, 30)
+	if err := u.drawButtonWithLimit(u.settingsRects.reset, settingsResetLabel(u.settingsDraft.Language), true, false, linuxButtonLabelLimit(u.settingsRects.reset)); err != nil {
+		return err
+	}
 	if err := u.drawButton(u.settingsRects.save, "OK", true, true); err != nil {
 		return err
 	}
