@@ -1,10 +1,10 @@
 # Ghost FTP installation
 
-Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub release remains **0.0.7** until the protected 0.0.8 release workflow completes successfully. Root `VERSION` is the authoritative build/version source.
+Ghost FTP **0.0.8** is the current release target. The immutable **0.0.7** release remains the protected baseline. Root `VERSION` is the authoritative build/version source, and the canonical release workflow records all compatibility-signing states explicitly.
 
 ## Canonical 0.0.8 release packages
 
-The 0.0.8 publication contract contains **14 platform artifacts / 17 public files**: two Windows executables, six Linux bundles, one production-signed Android APK, one Developer ID signed and Apple-notarized universal macOS app, four browser-helper ZIPs and three metadata/verification files.
+The 0.0.8 publication contract contains **14 platform artifacts / 17 public files**: two Windows executables, six Linux bundles, one installable Android APK, one ad-hoc signed universal macOS compatibility app, four browser-helper ZIPs and three metadata/verification files.
 
 ### Windows
 
@@ -22,7 +22,7 @@ WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned-or-signed
 ```
 
 `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` is an evidence boundary: ARM64 is cross-built and structurally verified, but the maintained Windows CI runner does not claim native ARM64 execution.
@@ -65,7 +65,7 @@ cd Ghost-FTP-0.0.8-Linux-Debian-Portable
 Ghost-FTP-0.0.8-Android.apk
 ```
 
-There is exactly one public Android APK. It is a **production-signed** release artifact. Publication requires the protected keystore/password/alias credentials and an exact signer-certificate SHA-256 match against `GHOSTFTP_ANDROID_CERT_SHA256`. The ordinary development artifact remains separately named `Ghost-FTP-Android-dev.apk` and is never substituted for production.
+There is exactly one public Android APK. If all protected Android signing values are configured, publication verifies the exact `GHOSTFTP_ANDROID_CERT_SHA256` fingerprint. If no production identity is configured, the workflow creates a temporary compatibility certificate for that release run, verifies the APK with `apksigner`, and records the actual signer SHA-256. A future production key may require reinstalling rather than an in-place upgrade.
 
 Android compatibility is defined by the application's maintained `minSdk`/target SDK and tested devices; no APK can truthfully support literally every historical Android version. Ghost FTP aims for the broadest safe compatibility supported by its Android APIs and dependencies.
 
@@ -84,13 +84,13 @@ Each package is built from the shared local-only helper runtime and a browser-sp
 
 ### macOS
 
-The public macOS artifact is `Ghost-FTP-0.0.8-macOS-notarized.app.zip`. It is admitted to the 17-file release only after Developer ID Application signing, Hardened Runtime, secure timestamping, Apple notarization acceptance, ticket stapling and Gatekeeper verification. The ad-hoc validation build is not a public substitute.
+The public macOS artifact is `Ghost-FTP-0.0.8-macOS.app.zip`. It is built as a universal arm64 + x86_64 AppKit archive and verified with ad-hoc code signing. It is **not** Developer ID signed or Apple notarized, and the release metadata says so explicitly.
 
 ## Windows Setup
 
 1. Download `Ghost-FTP-0.0.8-Setup.exe`.
 2. Verify SHA-256 against `SHA256.txt`.
-3. Require `WINDOWS_AUTHENTICODE=signed` in `BUILD-METADATA.txt` and a valid trusted Authenticode signature.
+3. Read `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`. For 0.0.8 compatibility publication it may be `unsigned`; when it is `signed`, verify the trusted Authenticode signature.
 4. Run Setup as the intended user.
 5. Uninstall through the integrated installed-application path.
 
@@ -118,10 +118,10 @@ Use the package for the target browser. Publication of the ZIPs does not imply C
 Before accepting an official 0.0.8 artifact:
 
 1. confirm `VERSION=0.0.8`, `TAG=ghostftp-v0.0.8`, `CHANNEL=Current` and `PRERELEASE=false`;
-2. verify the filename belongs to the canonical **16-file** set;
+2. verify the filename belongs to the canonical **17-file** set;
 3. verify SHA-256 against `SHA256.txt`;
 4. verify `BUILD-METADATA.txt` binds the bundle to the exact release-source commit;
-5. for Windows, require trusted Authenticode and `WINDOWS_AUTHENTICODE=signed`;
+5. for Windows, verify the declared Authenticode state matches the executable; unsigned compatibility files must report `NotSigned`;
 6. for Android, require the protected production certificate fingerprint;
 7. preserve documented evidence boundaries for Windows ARM64, Linux ARM64/i386, Android SFTP and macOS production signing.
 
