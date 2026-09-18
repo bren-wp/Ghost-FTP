@@ -244,8 +244,9 @@ type linuxDesktop struct {
 	settingsDraft        model.Settings
 	settingsRects        linuxSettingsRects
 	infoOverlay          linuxInfoOverlayKind
-	pendingUpdateURL         string
-	pendingUpdateVersion     string
+	pendingUpdateURL     string
+	pendingUpdateVersion string
+
 	masterConnectionsVisible bool
 	lastFilePaneRemote       bool
 	workspaceBackHistory     []linuxWorkspaceHistoryEntry
