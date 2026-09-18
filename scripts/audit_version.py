@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 GO_TOOLCHAIN = "1.27.1"
-RETIRED_ROOTS = ("ios", "GhostFTP WEB", "ekstenzije", "web", "web-ftp")
+RETIRED_ROOTS = ("ios", "macos", "GhostFTP WEB", "ekstenzije", "web", "web-ftp")
 CURRENT_LINE_DOCS = (
     "README.md",
     "CHANGELOG.md",
@@ -99,12 +99,12 @@ def main() -> int:
             "Last actually published GitHub Release: **0.0.8**",
             f"ghostftp-v{version}",
             "Prerelease: **false**",
-            "14 platform artifacts / 17 public files",
+            "13 platform artifacts / 16 public files",
             f"Ghost-FTP-{version}-Linux-Debian-Installer.run",
             f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
             f"Ghost-FTP-{version}-Android.apk",
-            f"Ghost-FTP-{version}-macOS.app.zip",
             f"Ghost-FTP-{version}-Opera-Extension.zip",
+            "**macOS is retired from active source and release support.**",
             "Distribution mode: **no-secret public release**",
             "The retired website and Web FTP implementation are intentionally not part of this repository or product runtime.",
         ),
@@ -221,20 +221,13 @@ def main() -> int:
         ".github/workflows/android-apk.yml",
     )
 
-    macos_build = read("macos/BUILD.sh")
-    require(
-        macos_build,
-        (
-            'VERSION="$(tr -d \'\\r\\n\' < "$SCRIPT_DIR/../VERSION")"',
-            "CFBundleShortVersionString",
-            "CFBundleVersion",
-            "app.ghostftp.client",
-            'Ghost-FTP-${VERSION}-macOS.app.zip',
-            "MACOS_SIGNING=adhoc-validation",
-        ),
-        "macos/BUILD.sh",
-    )
-    forbid(macos_build, ("adhoc-development", "MACOS_DEVELOPMENT_ARTIFACT"), "macos/BUILD.sh")
+    for retired_path in (
+        "macos",
+        ".github/workflows/macos-app.yml",
+        ".github/workflows/macos-production.yml",
+    ):
+        if (ROOT / retired_path).exists():
+            fail(f"retired macOS source/workflow must be removed: {retired_path}")
 
     extension_brand = read("extensions/BRAND.json")
     require(
@@ -273,11 +266,11 @@ def main() -> int:
         fail(f".github/workflows/release.yml does not pin Go {GO_TOOLCHAIN}")
     require(
         release_platform_workflow,
-        ("windows:", "linux:", "macos:", "bash linux/BUILD-DISTROS.sh", "bash macos/SIGN_AND_NOTARIZE.sh"),
+        ("windows:", "linux:", "android:", "browser:", "bash linux/BUILD-DISTROS.sh"),
         ".github/workflows/release.yml",
     )
     release_platform_lower = release_platform_workflow.lower()
-    for marker in ("ios/", "ghostftp web/"):
+    for marker in ("ios/", "ghostftp web/", "macos", "darwin", "developer id", "apple notar"):
         if marker in release_platform_lower:
             fail(f".github/workflows/release.yml references retired application marker: {marker}")
 
@@ -302,9 +295,6 @@ def main() -> int:
             "GHOSTFTP_ANDROID_KEYSTORE_BASE64",
             "GHOSTFTP_ANDROID_CERT_SHA256",
             "ANDROID_APK=production-signed",
-            "Developer ID signed notarized universal macOS app",
-            "Ghost-FTP-${VERSION}-macOS-notarized.app.zip",
-            "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
             "BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera",
             "BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect",
             "WINDOWS_SETUP=universal-x86-x64-arm64",
@@ -316,8 +306,8 @@ def main() -> int:
             "LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386",
             "LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386",
             "LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386",
-            "PUBLIC_PLATFORM_ARTIFACTS=14",
-            "PUBLIC_RELEASE_FILES=17",
+            "PUBLIC_PLATFORM_ARTIFACTS=13",
+            "PUBLIC_RELEASE_FILES=16",
         ),
         ".github/workflows/release.yml",
     )
@@ -336,10 +326,8 @@ def main() -> int:
             "DISTRIBUTION_MODE=no-secret-public-release",
             "WINDOWS_AUTHENTICODE=unsigned",
             "ANDROID_APK=temporary-compatibility-certificate",
-            "MACOS_SIGNING=adhoc-validation",
-            "MACOS_NOTARIZATION=not-performed",
-            "PUBLIC_PLATFORM_ARTIFACTS=14",
-            "PUBLIC_RELEASE_FILES=17",
+            "PUBLIC_PLATFORM_ARTIFACTS=13",
+            "PUBLIC_RELEASE_FILES=16",
             "release already exists; refusing to rewrite published assets",
             "tag already exists; refusing to move release identity",
         ),
@@ -347,7 +335,7 @@ def main() -> int:
     )
     forbid(
         no_key_workflow,
-        ("secrets.", "WINDOWS_AUTHENTICODE=signed", "ANDROID_APK=production-signed", "MACOS_NOTARIZATION=performed"),
+        ("secrets.", "WINDOWS_AUTHENTICODE=signed", "ANDROID_APK=production-signed", "MACOS_NOTARIZATION=performed", "MACOS_SIGNING="),
         ".github/workflows/release-no-key.yml",
     )
 
@@ -357,7 +345,7 @@ def main() -> int:
         (
             "Publish Ghost FTP",
             "test \"$release_prerelease\" = 'false'",
-            "test \"$asset_count\" -eq 17",
+            "test \"$asset_count\" -eq 16",
             "gh release delete",
             "--cleanup-tag",
             "packages/container/ghost-ftp/versions",
@@ -383,7 +371,6 @@ def main() -> int:
             "WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64",
             "LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386",
             "PROTECTED_RELEASE_ANDROID_ARTIFACT=PRODUCTION_SIGNED",
-            "PROTECTED_RELEASE_MACOS_ARTIFACT=DEVELOPER_ID_NOTARIZED",
             "BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA",
             "GHCR_CURRENT_BUNDLE=REQUIRED",
             "PROTECTED_RELEASE_WINDOWS_AUTHENTICODE_VERIFICATION=REQUIRED_AND_VERIFIED",
@@ -399,12 +386,12 @@ def main() -> int:
     print("NEXT_PUBLIC_RELEASE=0.0.9")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
-    print("PUBLIC_PLATFORM_ARTIFACTS=14")
-    print("PUBLIC_RELEASE_FILES=17")
+    print("PUBLIC_PLATFORM_ARTIFACTS=13")
+    print("PUBLIC_RELEASE_FILES=16")
     print("WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64")
     print("LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386")
     print("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_TEMPORARY_COMPATIBILITY_SIGNED")
-    print("MACOS_PUBLIC_RELEASE_ARTIFACT=YES_ADHOC_NOT_NOTARIZED")
+    print("MACOS_PUBLIC_RELEASE_ARTIFACT=RETIRED")
     print("WINDOWS_PUBLIC_RELEASE_SIGNING=UNSIGNED")
     print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
     print("PROTECTED_PRODUCTION_SIGNING_PATH=AVAILABLE_FAIL_CLOSED")
