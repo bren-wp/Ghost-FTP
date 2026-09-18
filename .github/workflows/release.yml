@@ -332,160 +332,6 @@ jobs:
           retention-days: 7
           path: dist/Ghost-FTP-*-Android.apk
 
-  macos:
-    name: Developer ID signed notarized universal macOS app
-    runs-on: macos-15
-    timeout-minutes: 45
-    environment: macos-production
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: '1.27.1'
-          check-latest: false
-          cache: false
-
-      - name: Confirm exact source and protected Apple credentials
-        shell: bash
-        env:
-          DEVELOPER_ID_P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
-          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
-          DEVELOPER_IDENTITY: ${{ secrets.MACOS_DEVELOPER_IDENTITY }}
-          NOTARY_API_KEY_P8: ${{ secrets.APPLE_NOTARY_API_KEY_P8 }}
-          NOTARY_API_KEY_ID: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
-          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          for value in             "$DEVELOPER_ID_P12_BASE64"             "$DEVELOPER_ID_P12_PASSWORD"             "$DEVELOPER_IDENTITY"             "$NOTARY_API_KEY_P8"             "$NOTARY_API_KEY_ID"             "$NOTARY_ISSUER_ID"; do
-            test -n "$value"
-          done
-          case "$DEVELOPER_IDENTITY" in
-            'Developer ID Application:'*) ;;
-            *) echo 'MACOS_RELEASE_FAILED: invalid Developer ID identity' >&2; exit 1 ;;
-          esac
-          go telemetry off
-          test "$(go telemetry)" = 'off'
-          python3 scripts/test_macos_windows_parity_contract.py
-          python3 scripts/test_macos_application_parity_contract.py
-          python3 scripts/test_macos_distribution_contract.py
-          python3 scripts/audit_security.py
-          python3 scripts/audit_privacy.py
-          bash -n macos/BUILD.sh
-          bash -n macos/SIGN_AND_NOTARIZE.sh
-
-      - name: Provision ephemeral signing and notarization keychain
-        id: macsign
-        shell: bash
-        env:
-          DEVELOPER_ID_P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
-          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
-          DEVELOPER_IDENTITY: ${{ secrets.MACOS_DEVELOPER_IDENTITY }}
-          NOTARY_API_KEY_P8: ${{ secrets.APPLE_NOTARY_API_KEY_P8 }}
-          NOTARY_API_KEY_ID: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
-          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
-        run: |
-          set -euo pipefail
-          command -v openssl >/dev/null 2>&1
-          work="$(mktemp -d)"
-          keychain="$work/ghostftp-release-signing.keychain-db"
-          protected_p12="$work/developer-id-protected.p12"
-          import_p12="$work/developer-id-import.p12"
-          api_key="$work/AuthKey.p8"
-          keychain_password="$(openssl rand -hex 32)"
-          profile="ghostftp-release-notary-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          {
-            echo "work=$work"
-            echo "keychain=$keychain"
-            echo "profile=$profile"
-          } >> "$GITHUB_OUTPUT"
-
-          cleanup_provisioning() {
-            status=$?
-            if [[ "$status" -ne 0 ]]; then
-              set +e
-              rm -f "$protected_p12" "$import_p12" "$api_key"
-              security delete-keychain "$keychain" >/dev/null 2>&1
-              rm -rf "$work"
-            fi
-            return "$status"
-          }
-          trap cleanup_provisioning EXIT
-
-          printf '%s' "$DEVELOPER_ID_P12_BASE64" | base64 -D > "$protected_p12"
-          printf '%s' "$NOTARY_API_KEY_P8" > "$api_key"
-          chmod 600 "$protected_p12" "$api_key"
-
-          openssl pkcs12             -in "$protected_p12"             -passin env:DEVELOPER_ID_P12_PASSWORD             -nodes |             openssl pkcs12               -export               -out "$import_p12"               -passout pass:
-          chmod 600 "$import_p12"
-          rm -f "$protected_p12"
-
-          security create-keychain -p "$keychain_password" "$keychain"
-          security set-keychain-settings -lut 21600 "$keychain"
-          security unlock-keychain -p "$keychain_password" "$keychain"
-          security import "$import_p12"             -k "$keychain"             -P ''             -x             -T /usr/bin/codesign             -T /usr/bin/security
-          rm -f "$import_p12"
-          security set-key-partition-list             -S apple-tool:,apple:,codesign:             -s             -k "$keychain_password"             "$keychain"
-          security list-keychains -d user -s "$keychain"
-          security default-keychain -d user -s "$keychain"
-          security find-identity -v -p codesigning "$keychain" | grep -F -- "$DEVELOPER_IDENTITY" >/dev/null
-
-          xcrun notarytool store-credentials "$profile"             --key "$api_key"             --key-id "$NOTARY_API_KEY_ID"             --issuer "$NOTARY_ISSUER_ID"
-          rm -f "$api_key"
-          trap - EXIT
-
-      - name: Build sign notarize staple and assess macOS release
-        shell: bash
-        env:
-          MACOS_DEVELOPER_IDENTITY: ${{ secrets.MACOS_DEVELOPER_IDENTITY }}
-          MACOS_NOTARY_KEYCHAIN_PROFILE: ${{ steps.macsign.outputs.profile }}
-        run: bash macos/SIGN_AND_NOTARIZE.sh
-
-      - name: Verify final notarized macOS artifact
-        shell: bash
-        env:
-          MACOS_DEVELOPER_IDENTITY: ${{ secrets.MACOS_DEVELOPER_IDENTITY }}
-        run: |
-          set -euo pipefail
-          version="$(tr -d '\r\n' < VERSION)"
-          archive="macos/dist/Ghost-FTP-${version}-macOS-notarized.app.zip"
-          test -s "$archive"
-          work="$(mktemp -d)"
-          trap 'rm -rf "$work"' EXIT
-          ditto -x -k "$archive" "$work"
-          app="$work/Ghost FTP.app"
-          codesign --verify --deep --strict --verbose=2 "$app"
-          xcrun stapler validate "$app"
-          spctl --assess --type execute --verbose=4 "$app"
-          codesign --display --verbose=4 "$app" 2>&1 | grep -F 'runtime'
-          codesign --display --verbose=4 "$app" 2>&1 | grep -F 'Timestamp='
-          codesign --display --verbose=4 "$app" 2>&1 | grep -F -- "$MACOS_DEVELOPER_IDENTITY"
-          echo 'MACOS_RELEASE_ARTIFACT_VERIFIED=PASS'
-
-      - name: Store notarized macOS release artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ghostftp-macos-release-stage
-          if-no-files-found: error
-          retention-days: 7
-          path: macos/dist/Ghost-FTP-*-macOS-notarized.app.zip
-
-      - name: Destroy ephemeral macOS signing keychain
-        if: always() && steps.macsign.outputs.work != ''
-        shell: bash
-        env:
-          SIGNING_KEYCHAIN: ${{ steps.macsign.outputs.keychain }}
-          SIGNING_WORK: ${{ steps.macsign.outputs.work }}
-        run: |
-          set +e
-          security delete-keychain "$SIGNING_KEYCHAIN" >/dev/null 2>&1
-          rm -rf "$SIGNING_WORK"
-
   browser:
     name: Chrome Edge Firefox Opera release packages
     runs-on: ubuntu-latest
@@ -525,7 +371,7 @@ jobs:
 
   publish:
     name: Assemble and publish verified cross-platform release
-    needs: [quality, windows, linux, android, macos, browser]
+    needs: [quality, windows, linux, android, browser]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -580,11 +426,6 @@ jobs:
         with:
           name: ghostftp-android-release-stage
           path: staging/android
-      - name: Download macOS
-        uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
-        with:
-          name: ghostftp-macos-release-stage
-          path: staging/macos
       - name: Download browser packages
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
         with:
@@ -602,7 +443,6 @@ jobs:
             cp "staging/linux/Ghost-FTP-${VERSION}-Linux-${distro}-Portable.tar.gz" "release/Ghost-FTP-${VERSION}-Linux-${distro}-Portable.tar.gz"
           done
           cp "staging/android/Ghost-FTP-${VERSION}-Android.apk" "release/Ghost-FTP-${VERSION}-Android.apk"
-          cp "staging/macos/Ghost-FTP-${VERSION}-macOS-notarized.app.zip" "release/Ghost-FTP-${VERSION}-macOS-notarized.app.zip"
           for browser in Chrome Edge Firefox Opera; do
             cp "staging/browser/Ghost-FTP-${VERSION}-${browser}-Extension.zip" "release/Ghost-FTP-${VERSION}-${browser}-Extension.zip"
           done
@@ -615,8 +455,8 @@ jobs:
           RELEASE_TAG=${RELEASE_TAG}
           RELEASE_CHANNEL=${RELEASE_CHANNEL}
           COMMIT=${GITHUB_SHA}
-          PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS,BROWSER_HELPER
-          ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS
+          PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER
+          ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID
           WINDOWS_SETUP=universal-x86-x64-arm64
           WINDOWS_PORTABLE=universal-x86-x64-arm64
           WINDOWS_BOOTSTRAP_PE=x86
@@ -634,15 +474,13 @@ jobs:
           ANDROID_APK=production-signed
           ANDROID_SIGNER_SHA256=${ANDROID_SIGNER_SHA256}
           ANDROID_SFTP=hidden-until-strict-host-key-verification
-          MACOS_APP=developer-id-signed-notarized-universal-arm64-x86_64
-          MACOS_SIGNING=developer-id-hardened-runtime-notarized-stapled
           BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
           BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect
           LANGUAGES=24
           DEFAULT_LANGUAGE=en
           TELEMETRY=disabled
-          PUBLIC_PLATFORM_ARTIFACTS=14
-          PUBLIC_RELEASE_FILES=17
+          PUBLIC_PLATFORM_ARTIFACTS=13
+          PUBLIC_RELEASE_FILES=16
           GITHUB_PACKAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ghost-ftp:${VERSION}
           EOF
           sed -i 's/^          //' release/BUILD-METADATA.txt
@@ -651,12 +489,11 @@ jobs:
             find . -maxdepth 1 -type f ! -name SHA256.txt -printf '%f\n' | LC_ALL=C sort | xargs sha256sum > SHA256.txt
           )
           count="$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')"
-          test "$count" = '17'
+          test "$count" = '16'
           test "$(find release -maxdepth 1 -type f -name '*.exe' | wc -l | tr -d ' ')" = '2'
           test "$(find release -maxdepth 1 -type f -name '*-Installer.run' | wc -l | tr -d ' ')" = '3'
           test "$(find release -maxdepth 1 -type f -name '*-Portable.tar.gz' | wc -l | tr -d ' ')" = '3'
           test "$(find release -maxdepth 1 -type f -name '*.apk' | wc -l | tr -d ' ')" = '1'
-          test "$(find release -maxdepth 1 -type f -name '*-macOS-notarized.app.zip' | wc -l | tr -d ' ')" = '1'
           test "$(find release -maxdepth 1 -type f -name '*-Extension.zip' | wc -l | tr -d ' ')" = '4'
           ! find release -maxdepth 1 -type f -name '*.exe' -print | grep -Eq -- '-(x64|x86|x32|arm64)\.exe$'
           ! find release -maxdepth 1 -type f \( -name '*.deb' -o -name '*.rpm' \) -print | grep .
@@ -677,7 +514,7 @@ jobs:
           ARG SOURCE
           ARG REVISION
           LABEL org.opencontainers.image.title="Ghost FTP verified release bundle"
-          LABEL org.opencontainers.image.description="Verified Ghost FTP release files for Windows, Linux, Android, macOS and browser helpers. Distribution bundle only; not a supported runtime container."
+          LABEL org.opencontainers.image.description="Verified Ghost FTP release files for Windows, Linux, Android and browser helpers. Distribution bundle only; not a supported runtime container."
           LABEL org.opencontainers.image.source="$SOURCE"
           LABEL org.opencontainers.image.version="$VERSION"
           LABEL org.opencontainers.image.revision="$REVISION"
@@ -728,7 +565,6 @@ jobs:
           expected_assets="$(cat <<EOF
           BUILD-METADATA.txt
           Ghost-FTP-${VERSION}-Android.apk
-          Ghost-FTP-${VERSION}-macOS-notarized.app.zip
           Ghost-FTP-${VERSION}-Chrome-Extension.zip
           Ghost-FTP-${VERSION}-Edge-Extension.zip
           Ghost-FTP-${VERSION}-Firefox-Extension.zip
