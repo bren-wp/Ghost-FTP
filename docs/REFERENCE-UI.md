@@ -18,7 +18,7 @@ Dark uses workspace `#0B0F17`, panel `#121824` and list `#161D2A`. Both palettes
 
 Ghost FTP-owned Windows dialogs visually belong to the active appearance and must not terminate the application message loop when they close. Only the main desktop window owns process-level `WM_QUIT`/`PostQuitMessage` lifecycle.
 
-Closing bounded dialogs such as **Nova mapa**, **Preimenuj**, **Postavke**, **Dijagnostika** or **O programu** closes only that dialog/session surface. Nested modal loops preserve a received process shutdown request instead of swallowing it.
+Closing bounded dialogs such as **New Folder**, **Rename**, **Settings**, **Connection info** or **About** closes only that dialog/session surface. Nested modal loops preserve a received process shutdown request instead of swallowing it.
 
 Windows Settings is one application-owned modal surface for appearance, concurrency, **independent upload/download bandwidth ceilings**, connection timeout, retry policy, destination conflict policy and delete confirmation. Bandwidth fields use `KiB/s` with `0 = unlimited`.
 
@@ -26,13 +26,13 @@ Linux modal overlays own only their bounded lifecycle. macOS uses native AppKit 
 
 ## Connections and saved profiles
 
-![Ghost FTP 0.0.8 Connections](images/0.0.6/ghost-ftp-site-manager.png)
+![Ghost FTP 0.0.8 Connections](images/0.0.8/ghost-ftp-site-manager.png)
 
 Connections/saved-profile workflows preserve explicit credential-consent and trust semantics. Windows and Linux save non-secret profile state independently from newly entered credentials; protected durable secret paths remain platform-specific.
 
 ## Main Workspace
 
-![Ghost FTP 0.0.8 Main Workspace](images/0.0.6/ghost-ftp-main-workspace.png)
+![Ghost FTP 0.0.8 Main Workspace](images/0.0.8/ghost-ftp-main-workspace.png)
 
 Actions are enabled from real state. Disabled operations remain disabled regardless of button, menu, list gesture or keyboard route. Stale async callbacks are rejected through connection/session identity.
 
@@ -42,7 +42,7 @@ Maintained desktop panes share sorting for Name, Type, Size and Modified plus re
 
 Pause/resume/cancel/retry/clear use the transfer manager. Queued **Top / Up / Down / Bottom** actions reorder queued scheduler slots only. Progress/speed/ETA are displayed only when backed by real state.
 
-0.0.6 retains Windows local/remote mutation re-entry guards and connection-generation binding so stale callbacks cannot update a replacement session.
+0.0.8 retains Windows local/remote mutation re-entry guards and connection-generation binding so stale callbacks cannot update a replacement session.
 
 ## Built-in Remote Editor
 
@@ -53,8 +53,8 @@ Remote Edit remains compact: Edit, Save, Reload, Close, dirty-state indication a
 The two public Windows downloads are:
 
 ```text
-Ghost-FTP-0.0.6-Setup.exe
-Ghost-FTP-0.0.6-Portable.exe
+Ghost-FTP-0.0.8-Setup.exe
+Ghost-FTP-0.0.8-Portable.exe
 ```
 
 They embed verified native **x64, x86 and ARM64** payloads. The x86 bootstrap selects the native processor through `GetNativeSystemInfo`, verifies staged bytes and performs no runtime architecture download.
@@ -69,13 +69,13 @@ Authentic Windows screenshots prove the UI on the maintained runner architecture
 
 ## Linux native workspace
 
-![Ghost FTP 0.0.8 Linux workspace](images/0.0.6/ghost-ftp-linux-main-workspace.png)
+![Ghost FTP 0.0.8 Linux workspace](images/0.0.8/ghost-ftp-linux-main-workspace.png)
 
 Linux uses the same typed engine and security/transfer contracts as Windows, with native X11/XWayland-compatible presentation. Canonical Debian/Ubuntu/Fedora/Portable packages retain package metadata, extraction and binary-parity gates; maintained native lifecycle evidence is x86-64 only.
 
 ## Android native workspace
 
-![Ghost FTP 0.0.8 Android Files](images/0.0.6/ghost-ftp-android-files.png)
+![Ghost FTP 0.0.8 Android Files](images/0.0.8/ghost-ftp-android-files.png)
 
 Android 0.0.8 is a public native application. The maintained exact-head UI exposes **Files**, **Connections**, **Transfer Queue**, **Settings**, **Bookmarks**, **Connection info** and **About** through semantic navigation. Small screens use a drawer and wider layouts a visible sidebar; system-bar insets keep controls outside reserved system UI.
 
@@ -91,9 +91,9 @@ Chrome, Edge, Firefox and Opera helper packages are public 0.0.8 companions. The
 
 ## Settings and About evidence
 
-![Ghost FTP 0.0.8 Settings](images/0.0.6/ghost-ftp-settings.png)
+![Ghost FTP 0.0.8 Settings](images/0.0.8/ghost-ftp-settings.png)
 
-![Ghost FTP 0.0.8 About](images/0.0.6/ghost-ftp-about.png)
+![Ghost FTP 0.0.8 About](images/0.0.8/ghost-ftp-about.png)
 
 About displays product/version identity generated from canonical build `VERSION`; the maintained current public identity is **Ghost FTP 0.0.8**.
 
@@ -101,16 +101,16 @@ About displays product/version identity generated from canonical build `VERSION`
 
 `.github/workflows/ui-screenshots.yml` captures real exact-head runtime UI. **Mockups, image-generation output and manually composed approximations are not accepted** as production UI evidence. The capture workflow does **not** commit or push screenshots; repository media is imported only from a separately verified evidence bundle.
 
-The immutable 0.0.6 evidence set stored in [`images/0.0.6/`](images/0.0.6/) contains exactly:
+The immutable 0.0.8 evidence set stored in [`images/0.0.8/`](images/0.0.8/) contains exactly **18 runtime images** captured from authentic application execution:
 
-- Windows — 5 images: Main Workspace, Site Manager, Bookmarks, Settings, About;
-- Linux — 3 images: Main Workspace, Bookmarks, Settings;
-- Android — 7 images: Files, Navigation, Sites, Bookmarks, Transfers, Settings, About.
+- Windows — 5 images: Main Workspace, Connections, Bookmarks, Settings, About;
+- Linux — 5 images: Main Workspace, Bookmarks, Settings, Connection info, About;
+- Android — 8 images: Files, Navigation, Connections, Bookmarks, Transfer Queue, Settings, Connection info, About.
 
-The stored [`UI-SCREENSHOT-PROVENANCE.json`](images/0.0.6/UI-SCREENSHOT-PROVENANCE.json) records workflow run `34863585111`, capture source SHA `9adace20030a300c39eb320a97482eb50dfdb9d8`, image byte counts and SHA-256 digests. [`SHA256.txt`](images/0.0.6/SHA256.txt) provides a compact digest allow-list for repository verification.
+The workflow publishes the verified read-only `ghostftp-authentic-ui-verified-bundle`; the stored [`UI-SCREENSHOT-PROVENANCE.json`](images/0.0.8/UI-SCREENSHOT-PROVENANCE.json) binds the repository copy to the capture workflow/source identity and records image byte counts plus SHA-256 digests. [`SHA256.txt`](images/0.0.8/SHA256.txt) provides the compact digest allow-list used for verification.
 
-The immutable 0.0.6 repository set above remains a historical evidence snapshot with exactly **15 runtime images**. The current exact-head capture contract adds Linux **Connection info** and **About** and Android **Connection info**, while Android's current runtime names are **Connections** and **Transfer Queue**. Current exact-head coverage is Windows — 5 images, Linux — 5 images and Android — 8 images. The live verifier now requires exactly **18 runtime images**: Windows 5, Linux 5 and Android 8. It verifies source/workflow identity, filenames, byte counts and SHA-256, and emits the read-only `ghostftp-authentic-ui-verified-bundle`. The repository copy is imported only after those checks pass and is not a substitute for the original workflow artifact.
+The current evidence contract deliberately does **not** claim a macOS runtime screenshot. macOS remains an AppKit source/build validation surface until maintained macOS runtime capture infrastructure can produce an authentic screenshot bundle tied to an exact commit SHA. The supplied master reference image must never be substituted for product evidence.
 
-Legacy unversioned documentation images may remain for historical links, but the **0.0.6 README and reference documentation must use `images/0.0.6/`** so later releases cannot silently replace the evidence presented for 0.0.6.
+Historical 0.0.6 evidence remains available only as a historical snapshot. Active 0.0.8 README/reference documentation must use the 0.0.8 evidence directory so an older release cannot be presented as the current UI.
 
 See [Settings](SETTINGS.md), [Platform parity](PLATFORM-PARITY.md), [Testing](TESTING.md), [Privacy](PRIVACY.md) and [`../macos/README.md`](../macos/README.md).

@@ -18,7 +18,7 @@ Ghost FTP 0.0.7 is the cumulative cleanup, polish and hardening release built fr
 
 - Consolidated the current public shape to **13 platform artifacts / 16 public files**: two universal Windows executables, six universal Linux bundles, one production-signed Android APK, four browser-helper ZIPs and three verification/metadata files.
 - Added the sanitized Windows `ghostftp:` browser-to-desktop handoff with transactional protocol registration/rollback and no secret transport or automatic connection.
-- Hardened Windows startup forwarding, Site Manager teardown/retry behavior, integrated uninstall/upgrade paths and exact-head regression coverage.
+- Hardened Windows startup forwarding, Connections teardown/retry behavior, integrated uninstall/upgrade paths and exact-head regression coverage.
 - Refined Android theme, navigation, profile, Remote Edit and lifecycle behavior while retaining strict FTPS and the Android SFTP host-key boundary.
 - Removed retired Web/Web FTP runtime surfaces from the maintained repository and aligned active documentation/audits with the current 0.0.7 contract.
 - Preserved macOS as a separately validated development/source frontend until real Developer ID Application signing and Apple notarization succeed.
@@ -107,4 +107,4 @@ Ghost FTP 0.0.1 started the current public release line with native Windows/Linu
 
 ## Public history retention policy
 
-Only the **latest public Ghost FTP version** is retained after successful publication and remote verification. Older releases, `ghostftp-v*` tags, superseded versioned release branches and obsolete package versions are removed by `.github/workflows/release-retention.yml` while current package/branch identities remain. Git commit history on `main` is not rewritten.
+The published **ghostftp-v0.0.7** release/tag is an immutable protected baseline and must never be deleted, rewritten or moved by `.github/workflows/release-retention.yml`. After successful 0.0.8 publication and remote verification, retention keeps both the protected 0.0.7 baseline and the current Ghost FTP release/tag. It may remove only other superseded `ghostftp-v*` releases/tags, obsolete canonical release branches and obsolete package versions. An existing 0.0.7 GHCR package is preserved when present. Git commit history on `main` is not rewritten.

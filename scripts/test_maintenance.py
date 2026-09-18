@@ -129,6 +129,20 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("gh release create", workflow)
         self.assertLess(workflow.index("main moved from release commit"), workflow.index("gh release create"))
 
+    def test_release_retention_preserves_immutable_007_baseline(self) -> None:
+        retention = read(".github/workflows/release-retention.yml")
+        self.assertIn('protected_tag="ghostftp-v0.0.7"', retention)
+        self.assertIn("keep_release_tag", retention)
+        self.assertIn("PROTECTED_RELEASE_TAG=ghostftp-v0.0.7", retention)
+        self.assertIn("PROTECTED_RELEASE_POLICY=PRESERVE_TAG_RELEASE_AND_EXISTING_PACKAGE", retention)
+        self.assertIn('if [[ "$tag" = "$version" || "$tag" = "$protected_version" ]]', retention)
+        self.assertNotIn("LATEST_ONLY_RELEASE_RETENTION=YES", retention)
+
+    def test_release_metadata_matches_sanitized_browser_handoff(self) -> None:
+        workflow = read(".github/workflows/release.yml")
+        self.assertIn("BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect", workflow)
+        self.assertNotIn("BROWSER_DESKTOP_HANDOFF=unsupported", workflow)
+
     def test_current_release_requires_protected_windows_and_android_signing(self) -> None:
         workflow = read(".github/workflows/release.yml")
         verifier = read("scripts/verify_release.py")
@@ -168,7 +182,8 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("13 platform artifacts / 16 public files", releases)
         self.assertIn(f"## {version}", changelog)
         self.assertIn(f"## {version}", history)
-        self.assertIn("latest public Ghost FTP version", history)
+        self.assertIn("immutable protected baseline", history)
+        self.assertIn("ghostftp-v0.0.7", history)
         self.assertIn("release-retention.yml", history)
         self.assertNotRegex(changelog, r"(?m)^##\s+1\.\d+\.\d+")
         self.assertNotRegex(history, r"(?m)^##\s+1\.\d+\.\d+")

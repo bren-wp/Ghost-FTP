@@ -73,12 +73,22 @@ CURRENT_VERSION_DOCS = (
 )
 VISUAL_ASSETS = (
     "build/icon.png",
-    "docs/images/0.0.6/ghost-ftp-main-workspace.png",
-    "docs/images/0.0.6/ghost-ftp-site-manager.png",
-    "docs/images/0.0.6/ghost-ftp-settings.png",
-    "docs/images/0.0.6/ghost-ftp-about.png",
-    "docs/images/0.0.6/ghost-ftp-linux-main-workspace.png",
-    "docs/images/0.0.6/ghost-ftp-android-files.png",
+    "docs/images/0.0.8/ghost-ftp-main-workspace.png",
+    "docs/images/0.0.8/ghost-ftp-site-manager.png",
+    "docs/images/0.0.8/ghost-ftp-settings.png",
+    "docs/images/0.0.8/ghost-ftp-about.png",
+    "docs/images/0.0.8/ghost-ftp-linux-main-workspace.png",
+    "docs/images/0.0.8/ghost-ftp-linux-settings.png",
+    "docs/images/0.0.8/ghost-ftp-linux-connection-info.png",
+    "docs/images/0.0.8/ghost-ftp-linux-about.png",
+    "docs/images/0.0.8/ghost-ftp-android-files.png",
+    "docs/images/0.0.8/ghost-ftp-android-navigation.png",
+    "docs/images/0.0.8/ghost-ftp-android-connections.png",
+    "docs/images/0.0.8/ghost-ftp-android-bookmarks.png",
+    "docs/images/0.0.8/ghost-ftp-android-transfer-queue.png",
+    "docs/images/0.0.8/ghost-ftp-android-settings.png",
+    "docs/images/0.0.8/ghost-ftp-android-connection-info.png",
+    "docs/images/0.0.8/ghost-ftp-android-about.png",
 )
 RETIRED_WEB_PATHS = (
     "web",
@@ -326,7 +336,7 @@ def main() -> int:
     print("ACTIVE_WEB_SURFACE=NONE")
     print("ANDROID_SFTP=HIDDEN_UNTIL_STRICT_HOST_KEY_VERIFICATION")
     print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
-    print("BROWSER_DESKTOP_HANDOFF=WINDOWS_SANITIZED_PROTOCOL")
+    print("BROWSER_DESKTOP_HANDOFF=SANITIZED_GHOSTFTP_CONNECT_NO_AUTOCONNECT")
     print("MACOS_PUBLIC_RELEASE=NO")
     return 0
 

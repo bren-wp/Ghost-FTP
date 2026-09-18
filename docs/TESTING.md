@@ -44,19 +44,20 @@ The canonical public release additionally requires a protected production keysto
 
 ## Browser package gate
 
-`.github/workflows/browser-extensions.yml` validates the canonical brand/privacy contract and deterministically builds exactly three packages:
+`.github/workflows/browser-extensions.yml` validates the canonical brand/privacy contract and deterministically builds exactly four packages:
 
 ```text
 Ghost-FTP-0.0.8-Chrome-Extension.zip
 Ghost-FTP-0.0.8-Edge-Extension.zip
 Ghost-FTP-0.0.8-Firefox-Extension.zip
+Ghost-FTP-0.0.8-Opera-Extension.zip
 ```
 
-The package contract rejects brand drift, manifest version drift, broad permissions, credential persistence, remote executable code and any unsupported desktop launch/handoff behavior.
+The package contract rejects brand drift, manifest version drift, broad permissions, credential persistence, remote executable code and unsafe desktop handoff behavior. The supported Windows handoff is the explicit sanitized `ghostftp://connect` flow; it excludes secrets, query data and fragments and never auto-connects.
 
 ## macOS development-app gate
 
-`.github/workflows/macos-app.yml` — **Ghost FTP macOS Validation App** — builds and validates the maintained universal native development frontend. This is source/build evidence only; it is not Developer ID-signed/notarized public-distribution evidence and does not enlarge the 21-file release.
+`.github/workflows/macos-app.yml` — **Ghost FTP macOS Validation App** — builds and validates the maintained universal native development frontend. This is source/build evidence only; it is not Developer ID-signed/notarized public-distribution evidence and does not enlarge the 16-file public release.
 
 ## Windows build and public signing gates
 
@@ -74,7 +75,7 @@ Ordinary CI exercises an Authenticode private-key pipeline smoke with developmen
 
 ## Linux production and distro gates
 
-Canonical Linux packaging is `linux/BUILD-DISTROS.sh` and `.github/workflows/linux-distro-packages.yml`, producing twelve Debian/Ubuntu/Fedora/Portable artifacts with metadata, extraction and byte-parity checks.
+Canonical Linux packaging is `linux/BUILD-DISTROS.sh` and `.github/workflows/linux-distro-packages.yml`, producing six user-facing universal bundles: Installer + Portable for Debian, Ubuntu and Fedora. Each bundle carries amd64, arm64 and i386 payloads with metadata, extraction and byte-parity checks.
 
 `.github/workflows/linux-distro-install.yml` verifies native installation/runtime/removal on Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64. Native lifecycle evidence is deliberately x86-64 only; additional architectures retain exact-head build/metadata/extraction/parity coverage.
 
@@ -82,7 +83,7 @@ Canonical Linux packaging is `linux/BUILD-DISTROS.sh` and `.github/workflows/lin
 
 `.github/workflows/ui-screenshots.yml` captures exact-head real runtime UI: Windows — Main Workspace, Connections, Bookmarks, Settings, About; Linux — Main Workspace, Bookmarks, Settings, Connection info, About; Android — Files, Navigation, Connections, Bookmarks, Transfer Queue, Settings, Connection info, About.
 
-The final read-only verifier assembles exactly 15 images into the immutable evidence bundle and validates source SHA, file set, sizes and SHA-256 hashes. Generated mockups are not accepted as runtime evidence.
+The final read-only verifier assembles exactly 18 images into the immutable evidence bundle — Windows 5, Linux 5 and Android 8 — and validates source SHA, workflow identity, file set, sizes and SHA-256 hashes. Generated mockups are not accepted as runtime evidence.
 
 ## Exact-head and post-merge rule
 
@@ -100,6 +101,6 @@ The release-branch trigger records prior run IDs, dispatches canonical publicati
 
 ## Retention validation
 
-Retention must leave only the current `ghostftp-v0.0.8` public release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded Ghost FTP release/tag/branch/package identities, and leave `main` history untouched.
+Retention must preserve the immutable published `ghostftp-v0.0.7` release/tag and the current `ghostftp-v0.0.8` release/tag. It retains the current canonical release branch, preserves an existing 0.0.7 GHCR package if present, keeps the exact current-version GHCR package, removes only other superseded Ghost FTP identities, and leaves `main` history untouched.
 
 See [Security](SECURITY.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [GitHub Releases](GITHUB-RELEASES.md) and [Versioning](VERSIONING.md).

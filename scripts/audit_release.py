@@ -106,6 +106,7 @@ def main() -> int:
         "LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386",
         "LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386",
         "BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera",
+        "BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect",
         f"PUBLIC_PLATFORM_ARTIFACTS={PUBLIC_PLATFORM_ARTIFACTS}",
         f"PUBLIC_RELEASE_FILES={PUBLIC_RELEASE_FILES}",
         f"test \"$count\" = '{PUBLIC_RELEASE_FILES}'",
@@ -157,12 +158,13 @@ def main() -> int:
 
     retention = require(
         ".github/workflows/release-retention.yml",
-        "name: Retain Latest Ghost FTP Release",
         "workflow_run:",
         "Publish Ghost FTP",
         "contents: write",
         "packages: write",
         "current_tag=\"ghostftp-v${version}\"",
+        "protected_tag=\"ghostftp-v0.0.7\"",
+        "keep_release_tag",
         "test \"$release_draft\" = 'false'",
         "test \"$release_prerelease\" = 'false'",
         f"test \"$asset_count\" -eq {PUBLIC_RELEASE_FILES}",
@@ -173,8 +175,9 @@ def main() -> int:
         "git/matching-refs/heads/release/ghostftp-v",
         "packages/container/ghost-ftp/versions",
         "GHOSTFTP_RELEASE_RETENTION=PASS",
-        "GHOSTFTP_PACKAGE_RETENTION=PASS (current=$version)",
-        "LATEST_ONLY_RELEASE_RETENTION=YES",
+        "preserves-0.0.7-if-present",
+        "PROTECTED_RELEASE_TAG=ghostftp-v0.0.7",
+        "PROTECTED_RELEASE_POLICY=PRESERVE_TAG_RELEASE_AND_EXISTING_PACKAGE",
     )
     for forbidden in ("push --force", "update-ref -d refs/heads/main", "delete main"):
         if forbidden in retention.lower():
@@ -279,7 +282,7 @@ def main() -> int:
     print("MINIMUM_PUBLIC_VERSION=0.0.1")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
-    print("LATEST_ONLY_RELEASE_RETENTION=YES")
+    print("PROTECTED_RELEASE_TAG=ghostftp-v0.0.7")
     print(f"PUBLIC_PLATFORM_ARTIFACTS={PUBLIC_PLATFORM_ARTIFACTS}")
     print(f"PUBLIC_RELEASE_FILES={PUBLIC_RELEASE_FILES}")
     print("WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64")

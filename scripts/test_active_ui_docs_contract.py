@@ -44,7 +44,7 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
         settings = read("docs/SETTINGS.md")
 
         self.assertIn("Only the main desktop window owns process-level `WM_QUIT`/`PostQuitMessage` lifecycle", reference)
-        self.assertIn("**Nova mapa**, **Preimenuj**, **Postavke**, **Dijagnostika** or **O programu**", reference)
+        self.assertIn("**New Folder**, **Rename**, **Settings**, **Connection info** or **About**", reference)
         self.assertIn("Windows Settings is one application-owned modal surface", reference)
         self.assertIn("independent upload/download bandwidth ceilings", reference)
         self.assertIn("`KiB/s`", reference)
@@ -59,9 +59,9 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
 
         for marker in (
             "Windows — 5 images",
-            "Linux — 3 images",
+            "Linux — 5 images",
             "Android — 8 images",
-            "The current exact-head capture contract adds Linux **Connection info** and **About** and Android **Connection info**",
+            "The immutable 0.0.8 evidence set",
             "exactly **18 runtime images**",
             "ghostftp-authentic-ui-verified-bundle",
             "does **not** commit or push screenshots",
