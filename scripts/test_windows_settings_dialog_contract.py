@@ -109,7 +109,7 @@ class WindowsSettingsDialogContractTests(unittest.TestCase):
         self.assertIn('36, footerSeparatorY, 688, 2', source)
         self.assertIn('36, footerY, 334, 38', source)
         self.assertIn('36, errorY, 334, 24', source)
-        self.assertIn('386, buttonY, 120, 38, settingsIDReset', source)
+        self.assertIn('286, buttonY, 220, 38, settingsIDReset', source)
         self.assertIn('516, buttonY, 98, 38', source)
         self.assertIn('624, buttonY, 100, 38', source)
         self.assertNotIn('36, 500, 688, 2', source)
