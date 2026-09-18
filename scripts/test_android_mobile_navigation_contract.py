@@ -23,12 +23,14 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             "BOOKMARKS,",
             "TRANSFERS,",
             "SETTINGS,",
+            "CONNECTION_INFO,",
             "ABOUT",
             'navButton("Files", R.drawable.ic_files, Section.FILES)',
-            'navButton("Sites", R.drawable.ic_sites, Section.SITES)',
-            'navButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS)',
-            'navButton("Transfers", R.drawable.ic_transfers, Section.TRANSFERS)',
+            'navButton("Connections", R.drawable.ic_sites, Section.SITES)',
+            'navButton("Transfer Queue", R.drawable.ic_transfers, Section.TRANSFERS)',
             'navButton("Settings", R.drawable.ic_settings, Section.SETTINGS)',
+            'navButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS)',
+            'navButton("Connection info", R.drawable.ic_connection_info, Section.CONNECTION_INFO)',
             'navButton("About", R.drawable.ic_about, Section.ABOUT)',
             "tabletLayout = getResources().getConfiguration().screenWidthDp >= TABLET_SIDEBAR_MIN_DP;",
             "menuToggle.setOnClickListener(v -> openNavigationDrawer());",
@@ -44,9 +46,72 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             "bookmarksSurface.setVisibility(section == Section.BOOKMARKS ? View.VISIBLE : View.GONE);",
             "transfersSurface.setVisibility(section == Section.TRANSFERS ? View.VISIBLE : View.GONE);",
             "settingsSurface.setVisibility(section == Section.SETTINGS ? View.VISIBLE : View.GONE);",
+            "connectionInfoSurface.setVisibility(section == Section.CONNECTION_INFO ? View.VISIBLE : View.GONE);",
             "aboutSurface.setVisibility(section == Section.ABOUT ? View.VISIBLE : View.GONE);",
         ):
             self.assertIn(marker, show)
+
+    def test_connection_info_is_runtime_owned_and_privacy_safe(self) -> None:
+        activity = self.read(ACTIVITY)
+        start = activity.index("private View buildConnectionInfoSurface()")
+        end = activity.index("private View buildAboutSurface()", start)
+        surface = activity[start:end]
+
+        for marker in (
+            'surfaceHeading(',
+            '"Connection info"',
+            'connectionInfoState = infoLine("State", "Disconnected")',
+            'connectionInfoProtocol = infoLine("Protocol", "—")',
+            'connectionInfoSecurity = infoLine("Security", "No active connection")',
+            'connectionInfoTransfer = infoLine("Transfer Queue", "No active transfer.")',
+            "refreshConnectionInfoSurface()",
+            'security = "Certificate and hostname verification enabled"',
+            'security = "Unencrypted compatibility connection"',
+        ):
+            self.assertIn(marker, surface)
+
+        for forbidden in (
+            'connectionInfoHost',
+            'connectionInfoUsername',
+            'connectionInfoPassword',
+            'privateKeyPath',
+            'password.getText()',
+            'host.getText()',
+            'username.getText()',
+        ):
+            self.assertNotIn(forbidden, surface)
+
+    def test_live_connection_protocol_identity_cannot_drift_with_form_edits(self) -> None:
+        activity = self.read(ACTIVITY)
+
+        self.assertIn("private String connectedProtocol;", activity)
+        connect_start = activity.index("private void connect()")
+        connect_end = activity.index("private void disconnect()", connect_start)
+        connect = activity[connect_start:connect_end]
+        self.assertIn("String protocolValue = protocol.getSelectedItem().toString();", connect)
+        self.assertIn('boolean secure = "FTPS".equals(protocolValue);', connect)
+        self.assertIn("String identity = identityKey(protocolValue, hostValue, portValue, userValue);", connect)
+        self.assertIn("connectedProtocol = protocolValue;", connect)
+
+        info_start = activity.index("private void refreshConnectionInfoSurface()")
+        info_end = activity.index("private View buildAboutSurface()", info_start)
+        info = activity[info_start:info_end]
+        self.assertIn(
+            'String selectedProtocol = connected && connectedProtocol != null ? connectedProtocol : "—";',
+            info,
+        )
+        self.assertNotIn("protocol.getSelectedItem()", info)
+
+        badge_start = activity.index("private void updateConnectionBadge(boolean connected)")
+        badge_end = activity.index("private void updateTransferSurface()", badge_start)
+        badge = activity[badge_start:badge_end]
+        self.assertIn('boolean secure = "FTPS".equals(connectedProtocol);', badge)
+        self.assertNotIn("protocol.getSelectedItem()", badge)
+
+        self.assertEqual(
+            activity.count("connectedIdentityKey = null;"),
+            activity.count("connectedProtocol = null;"),
+        )
 
     def test_navigation_uses_local_vector_assets_and_no_emoji_controls(self) -> None:
         for name in (
@@ -56,6 +121,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             "ic_bookmarks.xml",
             "ic_transfers.xml",
             "ic_settings.xml",
+            "ic_connection_info.xml",
             "ic_about.xml",
         ):
             content = self.read(DRAWABLES / name)
@@ -112,7 +178,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
     def test_settings_controls_have_runtime_owners(self) -> None:
         activity = self.read(ACTIVITY)
         settings_start = activity.index("private View buildSettingsSurface()")
-        settings_end = activity.index("private View buildAboutSurface()", settings_start)
+        settings_end = activity.index("private View buildConnectionInfoSurface()", settings_start)
         settings = activity[settings_start:settings_end]
         self.assertIn("rememberEndpointToggle.setOnClickListener", settings)
         self.assertIn("showFileSizesToggle.setOnClickListener", settings)
@@ -154,7 +220,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
     def test_android_docs_describe_the_same_surface_contract(self) -> None:
         readme = self.read(ANDROID_README)
         ui_doc = self.read(UI_DOC)
-        for marker in ("Files", "Sites", "Bookmarks", "Transfers", "Settings", "About"):
+        for marker in ("Files", "Connections", "Transfer Queue", "Settings", "Bookmarks", "Connection info", "About"):
             self.assertIn(marker, readme)
             self.assertIn(marker, ui_doc)
         self.assertIn("navigation drawer", readme.lower())
