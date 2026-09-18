@@ -56,7 +56,7 @@ The package contract rejects brand drift, manifest version drift, broad permissi
 
 ## macOS development-app gate
 
-`.github/workflows/macos-app.yml` — **Ghost FTP macOS Development App** — builds and validates the maintained universal native development frontend. This is source/build evidence only; it is not Developer ID-signed/notarized public-distribution evidence and does not enlarge the 21-file release.
+`.github/workflows/macos-app.yml` — **Ghost FTP macOS Validation App** — builds and validates the maintained universal native development frontend. This is source/build evidence only; it is not Developer ID-signed/notarized public-distribution evidence and does not enlarge the 21-file release.
 
 ## Windows build and public signing gates
 
@@ -80,7 +80,7 @@ Canonical Linux packaging is `linux/BUILD-DISTROS.sh` and `.github/workflows/lin
 
 ## Authentic runtime evidence
 
-`.github/workflows/ui-screenshots.yml` captures exact-head real runtime UI: Windows — Main Workspace, Site Manager, Bookmarks, Settings, About; Linux — Main Workspace, Bookmarks, Settings; Android — Files, Navigation, Sites, Bookmarks, Transfers, Settings, About.
+`.github/workflows/ui-screenshots.yml` captures exact-head real runtime UI: Windows — Main Workspace, Connections, Bookmarks, Settings, About; Linux — Main Workspace, Bookmarks, Settings, Connection info, About; Android — Files, Navigation, Connections, Bookmarks, Transfer Queue, Settings, Connection info, About.
 
 The final read-only verifier assembles exactly 15 images into the immutable evidence bundle and validates source SHA, file set, sizes and SHA-256 hashes. Generated mockups are not accepted as runtime evidence.
 
@@ -88,11 +88,11 @@ The final read-only verifier assembles exactly 15 images into the immutable evid
 
 **Exact-head and post-merge rule:** a PR is not merge-ready until every workflow triggered for its exact final head is `completed/success`. After merge, required push workflows are identified by the exact merge SHA and must also finish `completed/success` before release preparation continues. A green older SHA never satisfies a newer candidate.
 
-For 0.0.6, the broad gate set includes Ghost FTP CI, Android APK, Browser Extensions, macOS Development App, Linux Distro Packages, Linux Distro Install Matrix, Windows Modal Keyboard Runtime, Govulncheck, CodeQL and Authentic Cross-Platform UI Screenshots whenever path filters trigger them.
+For 0.0.8, the broad gate set includes Ghost FTP CI, Android APK, Browser Extensions, macOS Validation App, Linux Distro Packages, Linux Distro Install Matrix, Windows Modal Keyboard Runtime, Govulncheck, CodeQL and Authentic Cross-Platform UI Screenshots whenever path filters trigger them.
 
 ## Release publication gate
 
-0.0.6 publication requires exact current `main` release-branch validation, canonical quality/build jobs, trusted Authenticode on both public Windows executables, production Android signing plus exact signer SHA-256 verification, deterministic Chrome/Edge/Firefox packages, exact **18 platform artifacts / 21 public files** allow-list, `prerelease=false`, exact GitHub Release/SHA-256 readback, verified `ghcr.io/bren-wp/ghost-ftp:0.0.8` distribution bundle and successful release-integrity/latest-only retention chains.
+0.0.8 publication requires exact current `main` release-branch validation, canonical quality/build jobs, trusted Authenticode on both public Windows executables, production Android signing plus exact signer SHA-256 verification, deterministic Chrome/Edge/Firefox/Opera packages, exact **13 platform artifacts / 16 public files** allow-list, `prerelease=false`, exact GitHub Release/SHA-256 readback, verified `ghcr.io/bren-wp/ghost-ftp:0.0.8` distribution bundle and successful release-integrity/latest-only retention chains.
 
 ## Deterministic release-to-retention gate
 
