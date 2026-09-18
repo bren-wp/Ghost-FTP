@@ -1,7 +1,7 @@
 # Ghost FTP
 
 <p align="center">
-  <img src="build/icon.png" alt="Ghost FTP" width="148">
+  <img src="build/icon.png" alt="Ghost FTP canonical transfer logo" width="96">
 </p>
 
 <h3 align="center">Your servers. Your files. Your control.</h3>
@@ -32,7 +32,7 @@ A privacy-first FTP, FTPS and SFTP workspace for direct professional file transf
 <td width="33%" valign="top" align="center"><img src="docs/images/readme/privacy.svg" width="54" alt=""><br><strong>Privacy by architecture</strong><br><sub>No telemetry, ads, behavioral analytics, hidden sync service or mandatory Ghost FTP account.</sub></td>
 </tr>
 <tr>
-<td width="33%" valign="top" align="center"><img src="docs/images/readme/platforms.svg" width="54" alt=""><br><strong>Native platform surfaces</strong><br><sub>Windows, Linux, Android and maintained macOS source with platform-specific lifecycle ownership.</sub></td>
+<td width="33%" valign="top" align="center"><img src="docs/images/readme/platforms.svg" width="54" alt=""><br><strong>Native platform surfaces</strong><br><sub>Windows, Linux, Android and macOS with one canonical product identity and platform-specific lifecycle ownership.</sub></td>
 <td width="33%" valign="top" align="center"><img src="docs/images/readme/release.svg" width="54" alt=""><br><strong>Verified releases</strong><br><sub>Exact-head builds, checksums, Authenticode, protected Android signing and readback verification.</sub></td>
 <td width="33%" valign="top" align="center"><img src="docs/images/readme/docs.svg" width="54" alt=""><br><strong>Auditable documentation</strong><br><sub>Security, privacy, packaging, platform parity, release verification and runtime evidence stay version-bound.</sub></td>
 </tr>
@@ -40,7 +40,9 @@ A privacy-first FTP, FTPS and SFTP workspace for direct professional file transf
 
 ### What 0.0.8 changes
 
-Ghost FTP 0.0.8 consolidates the new master workspace across the maintained native applications: **Files, Connections, Transfer Queue and Settings**, with **Bookmarks, Connection info and About** as supporting surfaces. It also includes Dark/Light palette parity, tighter empty states, safer option defaults, Restore Defaults flows and refreshed runtime evidence.
+Ghost FTP 0.0.8 consolidates the supplied master workspace across Windows, Linux, Android and macOS: **Files, Connections, Transfer Queue and Settings**, with **Bookmarks, Connection info and About** as supporting surfaces. Language selection now lives in **Settings** rather than the main workspace. Settings also owns a local-only **Update** simulation plus **Download latest**, **Premium** and **Official website** actions; every external action is restricted to HTTPS on **ghostftp.com** and never sends FTP credentials, server paths or transfer data.
+
+The canonical transfer-mark logo shown above is the same product mark used by the desktop packaging and the Android app/launcher treatment. The Android-only Ghost Gold placeholder mark has been retired so the visible application identity matches the supplied 0.0.8 reference screenshots.
 
 ---
 
