@@ -107,6 +107,12 @@ func nextLinuxAppearance(current string) string {
 	return model.AppearanceDark
 }
 
+func linuxDefaultSettingsDraft(current model.Settings) model.Settings {
+	defaults := config.DefaultSettings()
+	defaults.Language = i18n.Normalize(current.Language)
+	return defaults
+}
+
 func (u *linuxDesktop) conflictPolicyLabel(policy string) string {
 	switch policy {
 	case model.ConflictPolicySkip:
@@ -246,9 +252,7 @@ func (u *linuxDesktop) handleSettingsMouse(x, y int) bool {
 		return true
 	}
 	if r.reset.contains(x, y) {
-		defaults := config.DefaultSettings()
-		defaults.Language = i18n.Normalize(u.settingsDraft.Language)
-		u.settingsDraft = defaults
+		u.settingsDraft = linuxDefaultSettingsDraft(u.settingsDraft)
 		return true
 	}
 	if r.save.contains(x, y) {
