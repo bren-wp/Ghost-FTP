@@ -112,6 +112,44 @@ func TestLinuxMasterLayoutTransformIsIdempotentAcrossRenderHooks(t *testing.T) {
 	}
 }
 
+func TestLinuxMasterToolbarMatchesReferenceHierarchy(t *testing.T) {
+	layout := buildLinuxMasterToolbarLayout(1280)
+	if layout.region.left != linuxMasterContentLeft || layout.region.top != 72 {
+		t.Fatalf("toolbar region = %+v", layout.region)
+	}
+	row := []linuxRect{
+		layout.back, layout.forward, layout.refresh, layout.newFolder,
+		layout.upload, layout.download, layout.bookmarks, layout.more,
+	}
+	for index := 1; index < len(row); index++ {
+		if row[index].left <= row[index-1].right {
+			t.Fatalf("toolbar controls overlap at %d: previous=%+v current=%+v", index, row[index-1], row[index])
+		}
+	}
+	if layout.connection.right >= layout.status.left || layout.status.right >= layout.quick.left {
+		t.Fatalf("connection row overlaps: connection=%+v status=%+v quick=%+v", layout.connection, layout.status, layout.quick)
+	}
+}
+
+func TestLinuxWorkspaceHistoryIsBoundedAndDeduplicated(t *testing.T) {
+	var history []linuxWorkspaceHistoryEntry
+	for i := 0; i < linuxWorkspaceHistoryLimit+8; i++ {
+		history = appendLinuxWorkspaceHistory(history, linuxWorkspaceHistoryEntry{Path: fmt.Sprintf("/tmp/%d", i)})
+	}
+	if len(history) != linuxWorkspaceHistoryLimit {
+		t.Fatalf("history length = %d, want %d", len(history), linuxWorkspaceHistoryLimit)
+	}
+	last := history[len(history)-1]
+	history = appendLinuxWorkspaceHistory(history, last)
+	if len(history) != linuxWorkspaceHistoryLimit {
+		t.Fatalf("duplicate history entry changed length: %d", len(history))
+	}
+	remote := normalizeLinuxWorkspaceHistoryEntry(linuxWorkspaceHistoryEntry{Remote: true, Path: "/var/www/../www/site"})
+	if remote.Path != "/var/www/site" {
+		t.Fatalf("remote history path = %q, want /var/www/site", remote.Path)
+	}
+}
+
 func TestLinuxMasterRailUsesSharedLocalizedNavigationContract(t *testing.T) {
 	english := navigationLabelsForLanguage("en")
 	croatian := navigationLabelsForLanguage("hr")
