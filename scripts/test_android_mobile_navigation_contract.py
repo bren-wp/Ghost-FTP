@@ -182,6 +182,9 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         settings = activity[settings_start:settings_end]
         self.assertIn("rememberEndpointToggle.setOnClickListener", settings)
         self.assertIn("showFileSizesToggle.setOnClickListener", settings)
+        self.assertIn("confirmDeleteToggle.setOnClickListener", settings)
+        self.assertIn('Button restoreDefaults = button("Restore app defaults")', settings)
+        self.assertIn("restoreDefaults.setOnClickListener(v -> restoreDefaultPreferences());", settings)
         self.assertIn("savePreferences();", settings)
         self.assertIn("renderLocal();", settings)
         self.assertIn("renderRemote();", settings)
@@ -194,6 +197,18 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             'infoLine("Privacy", "No telemetry, analytics, ads or Ghost FTP cloud")',
         ):
             self.assertIn(marker, settings)
+
+    def test_delete_confirmation_and_restore_defaults_have_real_runtime_owners(self) -> None:
+        activity = self.read(ACTIVITY)
+        self.assertIn('prefs.getBoolean("confirmDelete", true)', activity)
+        self.assertIn('.putBoolean("confirmDelete", confirmDelete)', activity)
+        self.assertIn("if (!confirmDelete) {", activity)
+        self.assertIn("action.run();", activity)
+        self.assertIn("private void restoreDefaultPreferences()", activity)
+        self.assertIn("rememberEndpoint = false;", activity)
+        self.assertIn("showFileSizes = true;", activity)
+        self.assertIn("confirmDelete = true;", activity)
+        self.assertIn("Saved connections and your selected local folder are kept.", activity)
 
     def test_about_uses_canonical_release_identity_without_dev_surface(self) -> None:
         activity = self.read(ACTIVITY)
