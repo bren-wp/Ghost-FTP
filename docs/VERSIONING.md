@@ -37,7 +37,7 @@ The repository may keep `VERSION` at the last published version while next-versi
 
 The current post-0.0.8 work is the development line for the next public release. A new release is not created until exact-head validation succeeds.
 
-## Required public-release trust boundary
+## required public-release trust boundary
 
 Official publication is fail-closed.
 
