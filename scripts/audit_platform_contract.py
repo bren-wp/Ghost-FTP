@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
-RETIRED_ROOTS = ("ios/", "macos/", "GhostFTP WEB/")
+RETIRED_ROOTS = ("ios/", "macos/", "GhostFTP WEB/", "extensions/", "ekstenzije/")
 RETIRED_WEB_ROOTS = ("web/", "web-ftp/", "webftp/", "pwa/", "ghostftp-web/")
 RETIRED_SCRIPTS = {
     "scripts/audit_android.py",
@@ -22,6 +22,12 @@ RETIRED_SCRIPTS = {
 }
 RETIRED_EXACT = {
     ".github/workflows/web.yml",
+    ".github/workflows/browser-extensions.yml",
+    ".github/workflows/release-no-key.yml",
+    "scripts/build_browser_extensions.py",
+    "scripts/test_browser_extensions_contract.py",
+    "scripts/test_browser_desktop_launch_contract.py",
+    "scripts/test_release_no_key_contract.py",
     "docs/WEB.md",
     "docs/prompts/GHOST-FTP-WEB-APP-PROMPT.md",
     "docs/prompts/GHOSTFTP-COM-DARK-THEME-REDESIGN-PROMPT.md",
@@ -42,34 +48,6 @@ ANDROID_REQUIRED = {
     ".github/workflows/android-apk.yml",
     "scripts/test_android_contract.py",
     "scripts/test_android_release_signing_contract.py",
-}
-BROWSER_REQUIRED = {
-    "extensions/BRAND.json",
-    "extensions/chrome/manifest.json",
-    "extensions/edge/manifest.json",
-    "extensions/firefox/manifest.json",
-    "extensions/opera/manifest.json",
-    "extensions/shared/core.js",
-    "extensions/shared/core.test.mjs",
-    "extensions/shared/popup.js",
-    "cmd/ghostftp/launch_init.go",
-    "cmd/ghostftp/launch_target.go",
-    "cmd/ghostftp/launch_target_test.go",
-    "cmd/ghostftp/uninstall_mode_windows.go",
-    "cmd/installer/protocol_registration.go",
-    "cmd/installer/protocol_registration_test.go",
-    "cmd/installer/registry_snapshot.go",
-    "cmd/installer/uninstall_registration_windows.go",
-    "internal/desktop/startup_target.go",
-    "internal/desktop/startup_target_test.go",
-    "internal/desktop/startup_target_windows.go",
-    "internal/desktop/startup_target_handoff_windows.go",
-    "internal/desktop/startup_target_handoff_other.go",
-    "internal/platform/browser_protocol_windows.go",
-    "scripts/build_browser_extensions.py",
-    "scripts/test_browser_extensions_contract.py",
-    "scripts/test_browser_desktop_launch_contract.py",
-    ".github/workflows/browser-extensions.yml",
 }
 LINUX_DISTRIBUTION_REQUIRED = {
     "linux/BUILD-DISTROS.sh",
@@ -110,14 +88,11 @@ def main() -> int:
             fail(f"retired application platform/surface is tracked: {path}")
         if normalized in RETIRED_SCRIPTS or normalized in RETIRED_EXACT:
             fail(f"retired platform tooling/surface is tracked: {path}")
-        if normalized.startswith("ekstenzije/"):
-            fail(f"retired non-English extension source root is tracked: {path}")
         if normalized.startswith(("linux/debian/", "linux/rpm/")):
             fail(f"retired architecture-specific Linux packaging source is tracked: {path}")
 
     for label, required in (
         ("Android", ANDROID_REQUIRED),
-        ("browser helper", BROWSER_REQUIRED),
         ("Linux distribution", LINUX_DISTRIBUTION_REQUIRED),
     ):
         missing = sorted(required - path_set)
@@ -167,20 +142,16 @@ def main() -> int:
         "windows:",
         "linux:",
         "android:",
-        "browser:",
         "Production signed Android APK",
-        "Chrome Edge Firefox Opera release packages",
         "Ghost-FTP-${VERSION}-Android.apk",
-        "Ghost-FTP-${VERSION}-Chrome-Extension.zip",
-        "Ghost-FTP-${VERSION}-Opera-Extension.zip",
         "Ghost-FTP-${VERSION}-Linux-Debian-Installer.run",
         "Ghost-FTP-${VERSION}-Linux-Debian-Portable.tar.gz",
         "Ghost-FTP-${VERSION}-Linux-Ubuntu-Installer.run",
         "Ghost-FTP-${VERSION}-Linux-Ubuntu-Portable.tar.gz",
         "Ghost-FTP-${VERSION}-Linux-Fedora-Installer.run",
         "Ghost-FTP-${VERSION}-Linux-Fedora-Portable.tar.gz",
-        "PUBLIC_PLATFORM_ARTIFACTS=13",
-        "PUBLIC_RELEASE_FILES=16",
+        "PUBLIC_PLATFORM_ARTIFACTS=9",
+        "PUBLIC_RELEASE_FILES=12",
     ):
         if marker not in release:
             fail(f"cross-platform public release contract is incomplete: missing {marker}")
@@ -192,7 +163,7 @@ def main() -> int:
         fail("active product baseline must not precede 0.0.1")
 
     print(f"PLATFORM_CONTRACT_AUDIT=PASS ({version})")
-    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER")
+    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID")
     print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID")
     print("ACTIVE_WEB_SURFACE=NONE")
     print("WINDOWS_PUBLIC_RELEASE_PACKAGES=SETUP,PORTABLE")
@@ -202,8 +173,7 @@ def main() -> int:
     print("ANDROID_RELEASE_BUILD_AND_SIGNING_SMOKE=ACTIVE")
     print("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_TEMPORARY_COMPATIBILITY_SIGNED")
     print("ANDROID_SFTP_PUBLIC_SUPPORT=NO_STRICT_HOST_KEY_BOUNDARY")
-    print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
-    print("BROWSER_DESKTOP_HANDOFF=WINDOWS_SANITIZED_PROTOCOL")
+    print("BROWSER_EXTENSION_SURFACE=RETIRED")
     print("MACOS_SOURCE_SURFACE=RETIRED")
     print("MACOS_PUBLIC_RELEASE_ARTIFACT=NO")
     print("RETIRED_APPLICATION_PLATFORMS=IOS,MACOS")

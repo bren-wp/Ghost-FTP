@@ -2,26 +2,26 @@
 
 Ghost FTP uses one canonical version source: the repository root `VERSION` file.
 
-Current source candidate: **0.0.8**
+Current source candidate: **0.0.9**
 
 ```text
-VERSION=0.0.8
-TAG=ghostftp-v0.0.8
+VERSION=0.0.9
+TAG=ghostftp-v0.0.9
 CHANNEL=Current
 PRERELEASE=false
 ```
 
 Current package identity:
 
-`ghcr.io/bren-wp/ghost-ftp:0.0.8`
+`ghcr.io/bren-wp/ghost-ftp:0.0.9`
 
-The current **latest public version** is 0.0.8. Semantic-version major version `0` does not imply prerelease status; prerelease state is explicit.
+The source release candidate is **0.0.9**. Semantic-version major version `0` does not imply prerelease status; prerelease state is explicit.
 
 ## Tag format
 
 `ghostftp-v<version>`
 
-Published tags and release assets are immutable. If application behavior, UI, release-facing documentation, packaging or security behavior changes after publication, the next publication uses a higher version. Existing 0.0.8 assets are never rewritten.
+Published tags and release assets are immutable. If application behavior, UI, release-facing documentation, packaging or security behavior changes after publication, the next publication uses a higher version. Existing published assets are never rewritten.
 
 ## Active source platforms
 
@@ -29,13 +29,13 @@ Published tags and release assets are immutable. If application behavior, UI, re
 WINDOWS,LINUX,ANDROID
 ```
 
-Browser helpers are companion packages and do not expand the native application-platform list.
+Browser extensions are retired and are not part of the active source or release surface.
 
 ## Development after a release
 
 The repository may keep `VERSION` at the last published version while next-version work is reviewed. Before a new public release, `VERSION`, package names, documentation, release metadata, checksums and runtime evidence must move together to the new version.
 
-The current post-0.0.8 work is the development line for the next public release. A new release is not created until exact-head validation succeeds.
+0.0.9 is published only from an exact verified main commit. After publication, every subsequent source, UI, behavior, documentation, packaging or release-metadata change advances the version again.
 
 ## required public-release trust boundary
 
@@ -47,7 +47,6 @@ WINDOWS_AUTHENTICODE=signed
 
 Absence of the production Authenticode identity is a release failure. The protected Android publisher identity and exact signer fingerprint are likewise required by the protected production workflow.
 
-The separate no-secret 0.0.8 distribution records its weaker signing state explicitly and is not treated as equivalent to protected production signing.
 
 ## Release retention
 

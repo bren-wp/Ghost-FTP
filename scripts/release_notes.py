@@ -30,7 +30,7 @@ def build_notes(version: str, section: str) -> str:
 
     return f"""Ghost FTP {version}
 
-Privacy-first FTP/FTPS/SFTP workspace with public Windows, Linux and Android applications plus privacy-minimal browser helper packages.
+Privacy-first FTP/FTPS/SFTP workspace for Windows, Linux and Android.
 Release channel: Current.
 GitHub prerelease flag: false.
 
@@ -63,12 +63,6 @@ Linux / Fedora:
 Android:
 - Ghost-FTP-{version}-Android.apk — one protected production-signed APK. Android SFTP remains hidden until strict maintained host-key verification exists.
 
-Browser helper packages:
-- Ghost-FTP-{version}-Chrome-Extension.zip
-- Ghost-FTP-{version}-Edge-Extension.zip
-- Ghost-FTP-{version}-Firefox-Extension.zip
-- Ghost-FTP-{version}-Opera-Extension.zip
-- These remain zero-permission local helpers. On supported Windows installs, the explicit Open in Ghost FTP action uses a sanitized ghostftp://connect handoff that excludes secrets, query data and fragments and never auto-connects.
 
 GitHub Packages
 ---------------
@@ -87,11 +81,10 @@ Verification files
 Release contract
 ----------------
 - Current Ghost FTP releases are not inferred to be prereleases from semantic-version major zero.
-- 13 platform artifacts.
-- 16 public release files total, including BUILD-METADATA.txt, RELEASE-NOTES.txt and SHA256.txt.
+- 9 platform artifacts.
+- 12 public release files total, including BUILD-METADATA.txt, RELEASE-NOTES.txt and SHA256.txt.
 - Public application platforms: Windows, Linux and Android.
-- Public browser-helper packages: Chrome, Edge, Firefox and Opera.
-- macOS remains a separately validated development/source frontend until real Developer ID signing and Apple notarization succeed.
+- macOS and browser extensions are retired and are not part of the active source or release surface.
 - Local language catalog: 24 selectable desktop languages with English default/fallback.
 - Application telemetry: disabled.
 - Each public Linux distro gets one Installer and one Portable archive. Both carry amd64, arm64 and i386 payloads and select the native payload locally; native CI runtime evidence is reported separately from build/package evidence.

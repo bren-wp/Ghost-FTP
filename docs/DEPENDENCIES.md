@@ -26,9 +26,6 @@ Linux build/package tooling is used only to produce validated Debian, Ubuntu and
 
 Android builds use the maintained Android/Gradle toolchain. The application does not silently inherit desktop-only dependencies.
 
-## Browser helpers
-
-Browser helpers use no FTP runtime library and do not perform FTP/FTPS/SFTP transport. They are local parser/copy helpers with a sanitized Windows desktop handoff.
 
 ## Build-time versus runtime
 

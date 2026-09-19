@@ -45,11 +45,11 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertTrue((ROOT / ".github/workflows/android-apk.yml").is_file())
         self.assertFalse((ROOT / "macos").exists())
         self.assertFalse((ROOT / ".github/workflows/macos-app.yml").exists())
-        self.assertTrue((ROOT / "extensions").is_dir())
+        self.assertFalse((ROOT / "extensions").exists())
         self.assertFalse((ROOT / "ekstenzije").exists())
-        for browser in ("chrome", "edge", "firefox", "opera"):
-            self.assertTrue((ROOT / "extensions" / browser / "manifest.json").is_file(), browser)
-        self.assertTrue((ROOT / ".github/workflows/browser-extensions.yml").is_file())
+        self.assertFalse((ROOT / ".github/workflows/browser-extensions.yml").exists())
+        self.assertFalse((ROOT / ".github/workflows/release-no-key.yml").exists())
+        self.assertFalse((ROOT / "scripts/build_browser_extensions.py").exists())
         for rel in (
             "ios",
             "GhostFTP WEB",
@@ -71,11 +71,9 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertNotIn("macos/", release)
         self.assertNotIn("runs-on: macos", release)
         self.assertIn("android/", release)
-        self.assertIn("build_browser_extensions.py", release)
-        self.assertIn("for browser in chrome edge firefox opera", release)
         self.assertIn("for distro in debian ubuntu fedora", release)
-        self.assertIn("public_platform_artifacts=13", release)
-        self.assertIn("public_release_files=16", release)
+        self.assertIn("public_platform_artifacts=9", release)
+        self.assertIn("public_release_files=12", release)
         self.assertNotIn(".deb\"", release)
         self.assertNotIn(".rpm\"", release)
 
@@ -84,15 +82,14 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn('RETIRED_ROOTS = ("ios/", "macos/", "GhostFTP WEB/")', audit)
         self.assertIn("ANDROID_REQUIRED", audit)
         self.assertNotIn("MACOS_REQUIRED", audit)
-        self.assertIn("BROWSER_REQUIRED", audit)
+        self.assertNotIn("BROWSER_REQUIRED", audit)
         self.assertIn("LINUX_DISTRIBUTION_REQUIRED", audit)
         self.assertIn('fail(f"active {label} source contract is incomplete:', audit)
         self.assertIn("retired application platform/surface is tracked", audit)
-        self.assertIn("retired non-English extension source root is tracked", audit)
-        self.assertIn("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER", audit)
+        self.assertIn("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID", audit)
         self.assertIn("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID", audit)
         self.assertIn("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_TEMPORARY_COMPATIBILITY_SIGNED", audit)
-        self.assertIn("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA", audit)
+        self.assertIn("BROWSER_EXTENSION_SURFACE=RETIRED", audit)
         self.assertIn("LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386", audit)
         self.assertIn("MACOS_PUBLIC_RELEASE_ARTIFACT=NO", audit)
         self.assertIn("RETIRED_APPLICATION_PLATFORMS=IOS,MACOS", audit)
@@ -138,10 +135,6 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn('if [[ "$tag" = "$version" || "$tag" = "$protected_version" ]]', retention)
         self.assertNotIn("LATEST_ONLY_RELEASE_RETENTION=YES", retention)
 
-    def test_release_metadata_matches_sanitized_browser_handoff(self) -> None:
-        workflow = read(".github/workflows/release.yml")
-        self.assertIn("BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect", workflow)
-        self.assertNotIn("BROWSER_DESKTOP_HANDOFF=unsupported", workflow)
 
     def test_current_release_requires_protected_windows_and_android_signing(self) -> None:
         workflow = read(".github/workflows/release.yml")

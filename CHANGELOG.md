@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.0.9 - 2026-09-19
+
+- Completes the active Windows, Linux and Android product line after retiring macOS and all browser-extension source, packaging, workflows and release artifacts.
+- Refines the Windows Files workspace toward the supplied master reference: one-row primary toolbar at normal widths, master-aligned Transfer Queue header, real File / Direction / Progress / Status / Speed / ETA columns, and engine-backed advanced queue actions in More.
+- Refines the Linux master workspace with a single connection/status hierarchy, real transfer-state chips, right-aligned Clear Completed and authentic exact-head runtime screenshot validation.
+- Aligns Android navigation terminology to Files / Sites / Bookmarks / Transfers / Settings and continues reference-driven mobile Files/connection/transfer composition without weakening FTP/FTPS security boundaries.
+- Reduces the public release surface to nine application artifacts and twelve total release files: Windows Setup + Portable, six Linux distro bundles, one Android APK, plus BUILD-METADATA.txt, RELEASE-NOTES.txt and SHA256.txt.
+- Reworks release, repository and platform audits so removed browser extensions cannot silently return.
+- Refreshes the marketing README and maintained documentation around the three-platform product, exact-head evidence, privacy, security and immutable versioning policy.
+- Every published source/UI/behavior/documentation/packaging change advances to a new version; published tags and assets are never rewritten.
+
 ## 0.0.8 - 2026-09-18
 
 ### Native UI/UX redesign and parity

@@ -2,11 +2,11 @@
 
 Ghost FTP releases are immutable, versioned and bound to exact source.
 
-Published baseline: **0.0.8**. The next-line release shape is **13 platform artifacts / 16 public files**.
+Current source release line: **0.0.9**. The active release shape is **9 platform artifacts / 12 public files**.
 
-Tag: ghostftp-v0.0.8
+Tag: ghostftp-v0.0.9
 
-Canonical Linux release names for the current source identity include `Ghost-FTP-0.0.8-Linux-Debian-Installer.run`, `Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz` and `Ghost-FTP-0.0.8-Linux-Fedora-Installer.run`.
+Canonical Linux release names for the current source identity include `Ghost-FTP-0.0.9-Linux-Debian-Installer.run`, `Ghost-FTP-0.0.9-Linux-Ubuntu-Portable.tar.gz` and `Ghost-FTP-0.0.9-Linux-Fedora-Installer.run`.
 
 ## Current application artifacts
 
@@ -18,12 +18,11 @@ A full supported release may contain:
 - Linux Ubuntu installer + portable
 - Linux Fedora installer + portable
 - Android APK
-- Chrome, Edge, Firefox and Opera browser-helper ZIPs
 - BUILD-METADATA.txt
 - RELEASE-NOTES.txt
 - SHA256.txt
 
-macOS artifacts are retired and must not be assembled or published by current workflows.
+macOS and browser-extension artifacts are retired and must not be assembled or published by current workflows.
 
 ## Release identity
 

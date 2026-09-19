@@ -27,8 +27,8 @@ def main() -> int:
         "Ghost-FTP-${VERSION}-Setup.exe",
         "Ghost-FTP-${VERSION}-Portable.exe",
         "Ghost-FTP-${VERSION}-Android.apk",
-        "PUBLIC_PLATFORM_ARTIFACTS=13",
-        "PUBLIC_RELEASE_FILES=16",
+        "PUBLIC_PLATFORM_ARTIFACTS=9",
+        "PUBLIC_RELEASE_FILES=12",
     ):
         if marker not in release:
             fail(f"release version contract missing {marker}")
