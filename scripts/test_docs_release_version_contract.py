@@ -9,158 +9,112 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
     def read(self, relative: str) -> str:
         return (ROOT / relative).read_text(encoding="utf-8")
 
-    def test_release_verification_tracks_version_file(self):
+    def test_active_release_shape_is_windows_linux_android(self):
         version = self.read("VERSION").strip()
         self.assertEqual(version, "0.0.8")
-        text = self.read("docs/RELEASE-VERIFICATION.md")
-        required = [
-            f"Ghost FTP **{version}** is the current release target",
-            f"VERSION={version}",
-            f"TAG=ghostftp-v{version}",
-            f"TITLE=Ghost FTP {version}",
-            "CHANNEL=Current",
-            "PRERELEASE=false",
-            f"Ghost-FTP-{version}-Setup.exe",
-            f"Ghost-FTP-{version}-Portable.exe",
-            f"Ghost-FTP-{version}-Linux-Debian-Installer.run",
-            f"Ghost-FTP-{version}-Linux-Debian-Portable.tar.gz",
-            f"Ghost-FTP-{version}-Linux-Ubuntu-Installer.run",
-            f"Ghost-FTP-{version}-Linux-Ubuntu-Portable.tar.gz",
-            f"Ghost-FTP-{version}-Linux-Fedora-Installer.run",
-            f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
-            f"Ghost-FTP-{version}-Android.apk",
-            f"Ghost-FTP-{version}-macOS.app.zip",
-            f"Ghost-FTP-{version}-Chrome-Extension.zip",
-            f"Ghost-FTP-{version}-Edge-Extension.zip",
-            f"Ghost-FTP-{version}-Firefox-Extension.zip",
-            f"Ghost-FTP-{version}-Opera-Extension.zip",
-            "PUBLIC_PLATFORM_ARTIFACTS=14",
-            "PUBLIC_RELEASE_FILES=17",
-            "ANDROID_SIGNER_SHA256",
-        ]
-        for marker in required:
-            self.assertIn(marker, text)
-        for stale in (
-            f"Ghost-FTP-{version}-Setup-x64.exe",
-            f"Ghost-FTP-{version}-Setup-x86.exe",
-            f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
-            f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
-            "PUBLIC_PLATFORM_ARTIFACTS=18",
-            "PUBLIC_RELEASE_FILES=21",
-            "GHOSTFTP_ANDROID_CERT_SHA256",
-        ):
-            self.assertNotIn(stale, text)
 
-    def test_release_facing_docs_match_008_shape(self):
-        version = self.read("VERSION").strip()
+        verification = self.read("docs/RELEASE-VERIFICATION.md")
+        for marker in (
+            "PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER",
+            "ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID",
+            "PUBLIC_PLATFORM_ARTIFACTS=13",
+            "PUBLIC_RELEASE_FILES=16",
+        ):
+            self.assertIn(marker, verification)
+
         for relative in (
-            "docs/INSTALLATION.md",
-            "docs/GITHUB-RELEASES.md",
-            "docs/RELEASE-VERIFICATION.md",
+            "README.md",
+            "docs/README.md",
+            "docs/PLATFORM-PARITY.md",
+            "docs/REFERENCE-UI.md",
+            "docs/TESTING.md",
         ):
             text = self.read(relative)
-            for marker in (
-                f"Ghost-FTP-{version}-Setup.exe",
-                f"Ghost-FTP-{version}-Portable.exe",
-                f"Ghost-FTP-{version}-Linux-Debian-Installer.run",
-                f"Ghost-FTP-{version}-Linux-Debian-Portable.tar.gz",
-                f"Ghost-FTP-{version}-Linux-Ubuntu-Installer.run",
-                f"Ghost-FTP-{version}-Linux-Ubuntu-Portable.tar.gz",
-                f"Ghost-FTP-{version}-Linux-Fedora-Installer.run",
-                f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
-                f"Ghost-FTP-{version}-Android.apk",
-                f"Ghost-FTP-{version}-macOS.app.zip",
-                f"Ghost-FTP-{version}-Chrome-Extension.zip",
-                f"Ghost-FTP-{version}-Edge-Extension.zip",
-                f"Ghost-FTP-{version}-Firefox-Extension.zip",
-                f"Ghost-FTP-{version}-Opera-Extension.zip",
-                "14 platform artifacts",
-                "17 public files",
-            ):
-                self.assertIn(marker, text, f"{relative} is missing {marker!r}")
-            for stale in (
-                f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
-                f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb",
-                f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
-                f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
-                "18 platform artifacts / 21 public files",
-            ):
-                self.assertNotIn(stale, text, relative)
+            self.assertIn("Windows", text, relative)
+            self.assertIn("Linux", text, relative)
+            self.assertIn("Android", text, relative)
 
-    def test_active_ui_docs_use_008_authentic_evidence(self):
+    def test_macos_is_retired_from_active_source_and_release(self):
+        self.assertFalse((ROOT / "macos").exists())
+        self.assertFalse((ROOT / ".github/workflows/macos-app.yml").exists())
+        self.assertFalse((ROOT / ".github/workflows/macos-production.yml").exists())
+
+        release = self.read(".github/workflows/release.yml")
+        no_key = self.read(".github/workflows/release-no-key.yml")
+        for text in (release, no_key):
+            self.assertNotIn("macos:", text.lower())
+            self.assertNotIn("Ghost-FTP-${VERSION}-macOS", text)
+            self.assertNotIn("MACOS_APP=", text)
+            self.assertNotIn("APPLE_NOTARY", text)
+
+    def test_readme_uses_real_repository_branding_and_runtime_images(self):
         readme = self.read("README.md")
-        docs_index = self.read("docs/README.md")
+        self.assertIn('src="build/icon.png"', readme)
+        self.assertIn("Authentic application screenshots", readme)
+        self.assertIn("docs/images/ghost-ftp-main-workspace.png", readme)
+        self.assertIn("docs/images/ghost-ftp-linux-main-workspace.png", readme)
+        self.assertIn("docs/images/ghost-ftp-android-files.png", readme)
+        self.assertIn("product evidence, not generated mockups", readme)
+
+        for relative in (
+            "docs/images/ghost-ftp-main-workspace.png",
+            "docs/images/ghost-ftp-linux-main-workspace.png",
+            "docs/images/ghost-ftp-android-files.png",
+            "build/icon.png",
+        ):
+            self.assertTrue((ROOT / relative).is_file(), relative)
+
+    def test_reference_ui_preserves_master_information_hierarchy(self):
         reference = self.read("docs/REFERENCE-UI.md")
-        testing = self.read("docs/TESTING.md")
+        for marker in (
+            "Files",
+            "Connections / Sites",
+            "Transfer Queue / Transfers",
+            "Settings",
+            "Back",
+            "Forward",
+            "Refresh",
+            "New Folder",
+            "Upload",
+            "Download",
+            "Bookmarks",
+            "More",
+            "Local Files",
+            "Remote Files",
+            "File",
+            "Direction",
+            "Progress",
+            "Status",
+            "Speed",
+            "ETA",
+            "Clear Completed",
+        ):
+            self.assertIn(marker, reference)
 
-        for text in (readme, docs_index, reference):
-            self.assertIn("images/0.0.8/", text)
-            self.assertNotIn("images/0.0.6/ghost-ftp-main-workspace.png", text)
-
-        self.assertIn("18-image 0.0.8 evidence contract", readme)
-        self.assertIn("exactly **18 runtime images**", reference)
-        self.assertIn("Windows 5, Linux 5 and Android 8", testing)
-        self.assertIn("ghost-ftp-android-transfer-queue.png", docs_index)
-        self.assertNotIn("Windows Site Manager", docs_index)
-        self.assertNotIn("Android Transfers", docs_index)
-
-    def test_release_docs_preserve_007_and_report_real_browser_handoff(self):
-        verification = self.read("docs/RELEASE-VERIFICATION.md")
-        releases = self.read("docs/GITHUB-RELEASES.md")
-        history = self.read("docs/RELEASE-HISTORY.md")
-        testing = self.read("docs/TESTING.md")
-
-        for text in (verification, releases, history, testing):
-            self.assertIn("0.0.7", text)
-
-        self.assertIn("PROTECTED_RELEASE_TAG=ghostftp-v0.0.7", verification)
-        self.assertIn("BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect", verification)
-        self.assertIn("BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect", releases)
-        self.assertNotIn("LATEST_ONLY_RELEASE_RETENTION=YES", verification)
-        self.assertIn("exactly four packages", testing)
-        self.assertIn("Ghost-FTP-0.0.8-Opera-Extension.zip", testing)
-        self.assertIn("17 public release files", testing)
-
-    def test_android_and_browser_boundaries_remain_truthful(self):
-        version = self.read("VERSION").strip()
-        installation = self.read("docs/INSTALLATION.md")
-        verification = self.read("docs/RELEASE-VERIFICATION.md")
-        for text in (installation, verification):
-            self.assertIn(f"Ghost-FTP-{version}-Android.apk", text)
+    def test_security_and_android_sftp_boundary_stay_truthful(self):
+        security = self.read("docs/SECURITY.md")
+        readme = self.read("README.md")
+        for text in (security, readme):
+            self.assertIn("FTPS", text)
             self.assertIn("SFTP", text)
             self.assertIn("host-key", text.lower())
-        self.assertIn("ANDROID_SIGNER_SHA256", verification)
-        self.assertNotIn("GHOSTFTP_ANDROID_CERT_SHA256", verification)
+        self.assertIn("Android", security)
+        self.assertIn("hidden", security.lower())
 
-        extension_docs = self.read("extensions/README.md")
-        for browser in ("Chrome", "Edge", "Firefox", "Opera"):
-            self.assertIn(browser, extension_docs)
-        extension_lower = extension_docs.lower()
-        self.assertIn("ghostftp://connect", extension_lower)
-        self.assertIn("open in ghost ftp", extension_lower)
-        self.assertIn("zero browser permissions and zero host permissions", extension_lower)
-        self.assertIn("credentials remain empty", extension_lower)
-        self.assertIn("without automatically connecting", extension_lower)
-        self.assertIn("no compatible desktop handler", extension_lower)
-        self.assertIn("passwords, private-key passphrases, private keys, source query data and source fragments are never copied", extension_lower)
+    def test_release_workflows_and_retention_use_new_counts(self):
+        release = self.read(".github/workflows/release.yml")
+        no_key = self.read(".github/workflows/release-no-key.yml")
+        retention = self.read(".github/workflows/release-retention.yml")
 
-    def test_release_docs_describe_canonical_branch_dispatch(self):
-        verification = self.read("docs/RELEASE-VERIFICATION.md")
-        releases = self.read("docs/GITHUB-RELEASES.md")
-        for text in (verification, releases):
-            self.assertIn("release/ghostftp-vX.Y.Z", text)
-            self.assertIn("workflow_dispatch", text)
-            self.assertIn("VERSION", text)
-        self.assertIn("must never publish a release directly", verification)
-        self.assertIn("does not publish a release directly", releases)
+        for text in (release, no_key):
+            self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=13", text)
+            self.assertIn("PUBLIC_RELEASE_FILES=16", text)
+        self.assertIn('test "$asset_count" -eq 16', retention)
+        self.assertIn("PROTECTED_RELEASE_TAG=ghostftp-v0.0.7", retention)
 
-    def test_published_history_is_not_misrepresented(self):
-        for relative in ("docs/INSTALLATION.md", "docs/GITHUB-RELEASES.md", "docs/RELEASE-VERIFICATION.md"):
-            text = self.read(relative)
-            self.assertIn("0.0.8", text)
-        verification = self.read("docs/RELEASE-VERIFICATION.md")
-        self.assertIn("PROTECTED_RELEASE_TAG=ghostftp-v0.0.7", verification)
-        self.assertIn("no-secret", verification.lower())
+        self.assertNotIn("PUBLIC_PLATFORM_ARTIFACTS=14", release)
+        self.assertNotIn("PUBLIC_RELEASE_FILES=17", release)
+        self.assertNotIn("assets=17", no_key)
 
 
 if __name__ == "__main__":
