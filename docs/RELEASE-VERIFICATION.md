@@ -2,6 +2,8 @@
 
 Ghost FTP release verification covers the active Windows, Linux and Android applications plus optional browser-helper packages.
 
+Published baseline: **0.0.8**. The next-line release shape is **13 platform artifacts / 16 public files**.
+
 ## Required boundaries
 
 1. release source SHA is exact and immutable;

@@ -181,23 +181,30 @@ class UpdateAndPremiumContractTests(unittest.TestCase):
             for retired in ("#46D6C8", "#5A86F7", "opposing transfer arrows"):
                 self.assertNotIn(retired, icon)
 
-    def test_public_release_requires_notarized_macos_and_17_files(self) -> None:
+    def test_public_release_excludes_retired_macos_and_uses_16_files(self) -> None:
         release = read(".github/workflows/release.yml")
         retention = read(".github/workflows/release-retention.yml")
         digest = read("scripts/verify_release_digest_readback.py")
         for marker in (
-            "needs: [quality, windows, linux, android, macos, browser]",
-            "environment: macos-production",
-            "bash macos/SIGN_AND_NOTARIZE.sh",
-            "Ghost-FTP-${VERSION}-macOS-notarized.app.zip",
-            "PUBLIC_PLATFORM_ARTIFACTS=14",
-            "PUBLIC_RELEASE_FILES=17",
-            "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
+            "needs: [quality, windows, linux, android, browser]",
+            "PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER",
+            "ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID",
+            "PUBLIC_PLATFORM_ARTIFACTS=13",
+            "PUBLIC_RELEASE_FILES=16",
         ):
             self.assertIn(marker, release)
-        self.assertIn('test "$asset_count" -eq 17', retention)
-        self.assertIn("EXPECTED_RELEASE_FILES = 17", digest)
-        self.assertIn('f"Ghost-FTP-{version}-macOS-notarized.app.zip"', digest)
+        for retired in (
+            "macos:",
+            "runs-on: macos",
+            "macos/SIGN_AND_NOTARIZE.sh",
+            "macOS-notarized.app.zip",
+            "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
+        ):
+            self.assertNotIn(retired, release)
+        self.assertIn('test "$asset_count" -eq 16', retention)
+        self.assertIn("EXPECTED_RELEASE_FILES = 16", digest)
+        self.assertIn("EXPECTED_PLATFORM_ARTIFACTS = 13", digest)
+        self.assertNotIn("macOS-notarized", digest)
 
 
 if __name__ == "__main__":

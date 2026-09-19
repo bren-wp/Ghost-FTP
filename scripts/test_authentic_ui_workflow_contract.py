@@ -92,9 +92,9 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         self.assertIn("capture 'ghost-ftp-android-files.png'", android)
         self.assertIn("capture 'ghost-ftp-android-navigation.png'", android)
         for call in (
-            "capture_primary_surface 'Connections' 'Connections' 'connections'",
+            "capture_primary_surface 'Sites' 'Connections' 'connections'",
             "capture_primary_surface 'Bookmarks' 'Bookmarks' 'bookmarks'",
-            "capture_primary_surface 'Transfer Queue' 'Transfer Queue' 'transfer-queue'",
+            "capture_primary_surface 'Transfers' 'Transfer Queue' 'transfer-queue'",
             "capture_primary_surface 'Settings' 'Settings' 'settings'",
             "tap_nav_section 'Connection info' 'Connection info'",
             "tap_nav_section 'About' 'About'",
@@ -150,18 +150,18 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         self.assertIn("tap_ui 'Open utility menu'", capture)
         for marker in (
             "wait_ui 'Navigate to Files'",
-            "wait_ui 'Navigate to Connections'",
+            "wait_ui 'Navigate to Sites'",
             "wait_ui 'Navigate to Bookmarks'",
-            "wait_ui 'Navigate to Transfer Queue'",
+            "wait_ui 'Navigate to Transfers'",
             "wait_ui 'Navigate to Settings'",
             "wait_ui 'Navigate to Connection info'",
             "wait_ui 'Navigate to About'",
         ):
             self.assertIn(marker, capture)
         for call in (
-            "capture_primary_surface 'Connections' 'Connections' 'connections'",
+            "capture_primary_surface 'Sites' 'Connections' 'connections'",
             "capture_primary_surface 'Bookmarks' 'Bookmarks' 'bookmarks'",
-            "capture_primary_surface 'Transfer Queue' 'Transfer Queue' 'transfer-queue'",
+            "capture_primary_surface 'Transfers' 'Transfer Queue' 'transfer-queue'",
             "capture_primary_surface 'Settings' 'Settings' 'settings'",
             "tap_nav_section 'Connection info' 'Connection info'",
             "tap_nav_section 'About' 'About'",
