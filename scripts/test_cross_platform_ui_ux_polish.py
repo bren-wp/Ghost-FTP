@@ -89,6 +89,22 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
         ):
             self.assertIn(marker, catalog)
 
+    def test_windows_master_toolbar_and_queue_follow_reference_hierarchy(self) -> None:
+        source = read("internal/desktop/master_workspace_windows.go")
+        self.assertIn("compactToolbar := contentWidth < 740", source)
+        self.assertIn("queueHeaderY := queueY - 38", source)
+        self.assertIn("a.move(a.clearQueue, contentRight-clearW, queueHeaderY, clearW, 31)", source)
+        self.assertIn("a.pauseTransfers()", source)
+        self.assertIn("a.resumeTransfers()", source)
+        self.assertIn("a.cancelSelectedTransfer()", source)
+        self.assertIn("a.retrySelectedTransfer()", source)
+        self.assertIn('"Transfer Queue: Pause"', source)
+        self.assertIn('"Transfer Queue: Resume"', source)
+        self.assertIn('"Transfer Queue: Cancel selected"', source)
+        self.assertIn('"Transfer Queue: Retry selected"', source)
+        self.assertIn("a.pauseQueue, a.resumeQueue, a.cancelJob, a.retryJob", source)
+        self.assertNotIn("queueButtonsY :=", source)
+
     def test_windows_connection_manager_uses_master_navigation_name(self) -> None:
         navigation = read("internal/desktop/navigation_windows.go")
         manager = read("internal/desktop/site_manager_windows.go")
