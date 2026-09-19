@@ -294,13 +294,13 @@ jobs:
           json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag")"
           test "$(jq -r .draft <<< "$json")" = 'false'
           test "$(jq -r .prerelease <<< "$json")" = 'false'
-          test "$(jq '.assets | length' <<< "$json")" = '17'
+          test "$(jq '.assets | length' <<< "$json")" = '16'
           remote_names="$(jq -r '.assets[].name' <<< "$json" | LC_ALL=C sort)"
           local_names="$(find release -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort)"
           test "$remote_names" = "$local_names"
           tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq .object.sha)"
           test "$tag_sha" = "$GITHUB_SHA"
-          echo "NO_KEY_RELEASE_READBACK=PASS tag=$tag assets=17 sha=$GITHUB_SHA"
+          echo "NO_KEY_RELEASE_READBACK=PASS tag=$tag assets=16 sha=$GITHUB_SHA"
       - name: Store exact release bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
