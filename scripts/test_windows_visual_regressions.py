@@ -88,7 +88,9 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn('setText(a.sectionTransfers, "Transfer Queue")', source)
         self.assertIn("sendMessageW.Call(a.sectionLocal, wmSetFont, a.font, 1)", source)
         self.assertIn("listY := pathY + 29 + 10", source)
-        self.assertIn("a.move(a.clearQueue, contentRight-clearW, queueButtonsY, clearW, 31)", source)
+        self.assertIn("queueHeaderY := queueY - 38", source)
+        self.assertIn("a.move(a.clearQueue, contentRight-clearW, queueHeaderY, clearW, 31)", source)
+        self.assertNotIn("queueButtonsY :=", source)
         self.assertNotIn("listY := actionY + 29 + 44", source)
 
     def test_queue_priority_controls_never_clip_past_master_row(self):
@@ -108,6 +110,10 @@ class WindowsVisualRegressionTests(unittest.TestCase):
             'appendItem(masterMoreRemotePermissions, "Remote: Permissions")',
             'appendItem(masterMoreRemoteEdit, "Remote Edit")',
             'appendItem(masterMoreCompare, "Compare local and remote folders")',
+            'appendItem(masterMorePauseQueue, "Transfer Queue: Pause")',
+            'appendItem(masterMoreResumeQueue, "Transfer Queue: Resume")',
+            'appendItem(masterMoreCancelTransfer, "Transfer Queue: Cancel selected")',
+            'appendItem(masterMoreRetryTransfer, "Transfer Queue: Retry selected")',
             'appendItem(masterMoreConnectionInfo, "Connection info")',
             'appendItem(masterMoreAbout, "About Ghost FTP")',
             "a.localFilterAction()",
@@ -117,6 +123,10 @@ class WindowsVisualRegressionTests(unittest.TestCase):
             "a.remoteChmodAction()",
             "a.remoteEditAction()",
             "a.directoryComparisonCommand()",
+            "a.pauseTransfers()",
+            "a.resumeTransfers()",
+            "a.cancelSelectedTransfer()",
+            "a.retrySelectedTransfer()",
             "a.showDiagnostics()",
             "a.openAbout()",
         ):
@@ -127,7 +137,7 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         master = self.read("internal/desktop/master_workspace_windows.go")
         buttons = self.read("internal/desktop/button_draw_windows.go")
         sidebar = self.read("internal/desktop/sidebar_windows.go")
-        self.assertIn("compactToolbar := contentWidth < 860", master)
+        self.assertIn("compactToolbar := contentWidth < 740", master)
         self.assertIn("buttonsPerRow = 4", master)
         self.assertIn("toolbarRows = 2", master)
         self.assertIn("row := index / buttonsPerRow", master)
