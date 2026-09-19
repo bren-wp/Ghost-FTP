@@ -722,15 +722,72 @@ func linuxTransferETALabel(job model.TransferJob) string {
 	return fmt.Sprintf("%d:%02d", minutes, seconds)
 }
 
+func linuxTransferStatusCounts(jobs []model.TransferJob) (active, completed, failed int) {
+	for _, job := range jobs {
+		switch job.Status {
+		case "queued", "running":
+			active++
+		case "done":
+			completed++
+		case "failed", "cancelled":
+			failed++
+		}
+	}
+	return
+}
+
+func (u *linuxDesktop) drawLinuxQueueChip(r linuxRect, label string, color RGB) error {
+	if err := u.x.fillRect(r.left, r.top, r.right-r.left, r.bottom-r.top, premiumTheme.List); err != nil {
+		return err
+	}
+	if err := u.x.strokeRect(r.left, r.top, r.right-r.left, r.bottom-r.top, color); err != nil {
+		return err
+	}
+	return u.x.text(r.left+10, r.top+19, linuxTrimForUI(label, 18), color, premiumTheme.List)
+}
+
 func (u *linuxDesktop) renderQueue() error {
 	actions := u.linuxTransferActionState()
 	title := u.tr("section.transfers")
 	if count := len(u.transferJobs); count > 0 {
 		title = fmt.Sprintf("%s (%d)", title, count)
 	}
-	if err := u.x.text(u.layout.queue.left+8, u.layout.pause.top+19, title, premiumTheme.Text, premiumTheme.Window); err != nil {
+
+	// Match the master queue header: one horizontal band with the title,
+	// truthful live status chips and Clear Completed anchored to the far right.
+	headerY := u.layout.queue.top - 36
+	clearW := 150
+	u.layout.clearQueue = linuxRectWH(u.layout.queue.right-clearW, headerY, clearW, 28)
+	if err := u.x.text(u.layout.queue.left+8, headerY+19, title, premiumTheme.Text, premiumTheme.Window); err != nil {
 		return err
 	}
+
+	activeCount, completedCount, failedCount := linuxTransferStatusCounts(u.transferJobs)
+	chipW, chipGap := 112, 7
+	chipX := u.layout.queue.left + 190
+	chips := []struct {
+		label string
+		count int
+		color RGB
+	}{
+		{"Active", activeCount, premiumTheme.Warn},
+		{"Completed", completedCount, premiumTheme.Success},
+		{"Failed", failedCount, premiumTheme.Danger},
+	}
+	for _, chip := range chips {
+		if chipX+chipW+chipGap >= u.layout.clearQueue.left {
+			break
+		}
+		if err := u.drawLinuxQueueChip(
+			linuxRectWH(chipX, headerY, chipW, 28),
+			fmt.Sprintf("%s %d", chip.label, chip.count),
+			chip.color,
+		); err != nil {
+			return err
+		}
+		chipX += chipW + chipGap
+	}
+
 	if err := u.drawButton(u.layout.clearQueue, u.tr("transfer.clear"), actions.Clear && !u.busy, false); err != nil {
 		return err
 	}
