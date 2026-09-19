@@ -29,3 +29,12 @@ UI evidence must be generated from the real application at the exact tested sour
 ## macOS retirement
 
 Current release verification contains no macOS application, Developer ID, notarization or macOS asset gate. Historical macOS artifacts are outside the active product contract.
+
+## Windows architecture evidence
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The public Windows Setup and Portable launchers carry x64, x86 and ARM64 native payloads. CI verifies the ARM64 payload structure and PE identity, but does not claim native ARM64 runtime execution; that limitation is recorded explicitly by `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`.
