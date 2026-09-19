@@ -1,4 +1,4 @@
-# Ghost FTP 0.0.6 engineering audit and production-hardening prompt
+# Ghost FTP 0.0.9 development line engineering audit and production-hardening prompt
 
 Use this prompt when handing the Ghost FTP repository to an engineering agent for a production-quality audit or implementation pass. The repository is authoritative. Inspect the exact current `main`, `VERSION`, workflows, documentation, tests, open pull requests and release contract before editing anything. Do not treat this prompt, a historical release, or a previous conversation as stronger evidence than the current repository.
 
@@ -10,15 +10,17 @@ Work directly in the canonical repository. Start by recording the exact `main` S
 
 The public product name is **Ghost FTP**. Preserve established technical and installed-application identities unless a separately approved migration explicitly changes them. The controlling proprietary/source-available terms are in `LICENSE`; public source visibility does not make the project open source.
 
-## 1. Current 0.0.6 platform contract
+## 1. Current 0.0.9 development line platform contract
 
-Treat the repository as the final source of truth, but the intended 0.0.6 shape currently is:
+Treat the repository as the final source of truth, but the intended 0.0.9 development line shape currently is:
 
 - **Windows — public production surface.** One Setup executable and one Portable executable. Each is a universal Windows package whose bootstrap can select x64, x86 or ARM64 payloads locally. Do not split the public release into architecture-specific Windows downloads unless the release contract is deliberately migrated.
 - **Linux — public production surface.** Six universal distro bundles: Debian Installer, Debian Portable, Ubuntu Installer, Ubuntu Portable, Fedora Installer and Fedora Portable. Each bundle carries amd64, arm64 and i386 payloads and selects the local architecture. Native runtime/install evidence must not be claimed for architectures that CI only builds or packages.
 - **Android — public production surface.** One canonical APK. The current Android build contract is `minSdk 26`, `targetSdk 35`; never claim support for every Android version. Local files use Android storage-access semantics. FTP and explicitly secure FTPS are maintained. **Android SFTP remains hidden/unsupported** until a maintained implementation provides strict host-key verification/pinning and fail-closed handling of unknown or mismatched keys. Never add trust-all SFTP or expose a placeholder SFTP option.
-- **Browser helper — public production surface.** Deterministic ZIPs for Chrome, Edge, Firefox and Opera. The official helper must retain **zero browser permissions and zero host permissions**, no telemetry, no cloud/backend, no FTP credential collection, no automatic network destination and no browser-to-desktop handoff. It is a local connection helper, not a browser FTP runtime.
-- **macOS — active development/source surface only.** Do not publish a production macOS artifact until a real Developer ID Application identity is used and Apple notarization succeeds. Ad-hoc or development signing is not production evidence.
+- **Browser helper — public production surface.** Deterministic ZIPs for Chrome, Edge, Firefox and Opera. The official helper must retain **zero browser permissions and zero host permissions**, no telemetry, no cloud/backend, no FTP credential collection and no automatic network destination; the maintained desktop handoff must stay sanitized, credential-free and non-autoconnecting. It is a local connection helper, not a browser FTP runtime.
+- **macOS — retired.** The AppKit application, Darwin-only support, dedicated workflows and macOS tests are intentionally removed. Do not reintroduce them as part of ordinary parity work.
+
+Published **0.0.8** is immutable. Keep root `VERSION` at 0.0.8 until the complete 0.0.9 release candidate is actually ready for the coordinated version bump.
 
 The current candidate release contract is **13 platform artifacts plus 3 metadata files = 16 public release files**. The three metadata files are `RELEASE-NOTES.txt`, `BUILD-METADATA.txt` and `SHA256.txt`. Re-read the release scripts/workflows before relying on these numbers; if the contract changes, migrate code, tests and documentation together.
 
@@ -43,7 +45,6 @@ Inspect concrete behavior and evidence before changing code. At minimum cover th
 - Linux universal bundle selection, dependency preflight, installation and uninstall;
 - Android SAF/document-provider semantics, activity lifecycle and transfer cancellation;
 - browser manifest permissions, deterministic packaging and brand identity;
-- macOS development-only signing/distribution boundary;
 - localization and long-string UI behavior;
 - diagnostics/error redaction;
 - dependency and supply-chain boundaries;
@@ -94,7 +95,7 @@ For Android, server-supplied names must never escape child-path semantics. SAF/d
 
 ### Windows
 
-The public 0.0.6 contract is one universal Setup and one universal Portable artifact. Validate embedded x64/x86/ARM64 payload selection and existing installer/uninstaller ownership protections. Production release signing uses the configured production PFX identity. A release must fail closed if required production signing material is unavailable, and trusted Authenticode verification must succeed.
+The public 0.0.9 development line contract is one universal Setup and one universal Portable artifact. Validate embedded x64/x86/ARM64 payload selection and existing installer/uninstaller ownership protections. Production release signing uses the configured production PFX identity. A release must fail closed if required production signing material is unavailable, and trusted Authenticode verification must succeed.
 
 ### Linux
 
@@ -108,13 +109,10 @@ The canonical public APK must be production signed. The release contract uses th
 
 Produce deterministic Chrome, Edge, Firefox and Opera ZIPs from the maintained extension source. Enforce official product/helper branding and permission-free manifests. Open-source-style fork assumptions must not be invented: follow the controlling `LICENSE` and official brand contract.
 
-### macOS
-
-Development builds may be produced for engineering validation. Do not call them public production artifacts. Public release requires real Developer ID Application signing and successful notarization; fail closed otherwise.
 
 ## 7. Release integrity
 
-For the current 0.0.6 candidate, validate the exact allow-list before publication: 13 platform artifacts and 3 metadata files. `SHA256.txt` must cover the intended public files according to the release verifier. Build metadata, release notes, artifact names, version and platform contract must agree.
+For the current 0.0.9 development line candidate, validate the exact allow-list before publication: 13 platform artifacts and 3 metadata files. `SHA256.txt` must cover the intended public files according to the release verifier. Build metadata, release notes, artifact names, version and platform contract must agree.
 
 A successful build is not a published release. A version bump is not publication. Never move/reuse an already published stable tag or overwrite an immutable historical release identity.
 
@@ -142,7 +140,6 @@ Use the repository's actual CI contract, not a hand-picked subset. Preserve and 
 - Debian/Ubuntu/Fedora installer GUI-smoke/uninstall lifecycle;
 - Android build, lint and signing-pipeline contract tests;
 - browser deterministic packaging/permission/brand checks;
-- macOS development app contract where triggered;
 - CodeQL and Govulncheck;
 - authentic UI evidence workflow when the changed paths trigger it.
 

@@ -1,68 +1,51 @@
 # Testing
 
-Ghost FTP uses exact-head validation for the maintained Windows, Linux and Android product surfaces.
+Ghost FTP testing covers the active Windows, Linux and Android applications plus shared engine, security and release behavior.
 
-## Core CI
+## Shared gates
 
-The main CI gate runs:
-
-- Go formatting;
-- Go tests with race detection where supported;
-- Go vet;
-- repository audits;
-- platform-contract audits;
-- localization audits;
-- security and privacy audits;
-- documentation and release audits;
-- Python regression tests.
+- Go formatting, tests and vet
+- security/privacy audits
+- localization/documentation contracts
+- CodeQL
+- Govulncheck
+- release/version integrity
 
 ## Windows
 
-Windows validation includes:
-
-- universal Setup + Portable builds;
-- x64 / x86 / ARM64 payload checks;
-- packaging integrity;
-- Authenticode pipeline smoke tests;
-- modal keyboard/runtime tests;
-- authentic runtime screenshots.
+Validation includes universal packaging, native runtime behavior, keyboard/modal tests and authentic runtime screenshots.
 
 ## Linux
 
-Linux validation includes:
-
-- Debian / Ubuntu / Fedora package generation;
-- amd64 / arm64 / i386 payload checks;
-- installer lifecycle tests;
-- portable bundle tests;
-- authentic X11 runtime screenshots.
+Validation includes Debian/Ubuntu/Fedora package generation, install lifecycle checks, native UI contracts and authentic runtime screenshots.
 
 ## Android
 
-Android validation includes:
+Validation includes native build/lint/signing contracts, navigation/UI contracts and authentic emulator screenshots.
 
-- lint;
-- debug / validation APK build;
-- release-signing contracts;
-- installability checks;
-- emulator runtime screenshots;
-- mobile navigation/readability contracts.
+## File filtering and bounded search
 
-## Security
+The current-folder filter and sorting regression contract verifies non-destructive filtering over already-loaded entries, including filtering and subsequent sorting. It is deliberately separate from bounded recursive search so the filter cannot silently trigger filesystem or network traversal.
 
-CodeQL and Govulncheck run independently of the normal feature tests.
+The bounded recursive search regression contract validates the explicit recursive-search path, its bounds and its cancellation/error behavior independently of the current-folder filter.
 
-## Runtime evidence
+## Authentic UI evidence
 
-The authentic screenshot workflow captures:
+Runtime screenshot workflows must launch the real application and capture real UI state from the exact tested source SHA. Generated artwork, design references or mockups are not accepted as release evidence.
 
-- Windows;
-- Linux;
-- Android.
+## macOS
 
-The workflow is read-only and tied to the exact tested source SHA. Reference/mockup images are never substituted for runtime proof.
+macOS-specific workflows and tests are retired and removed.
 
-## Retired tests
+## Merge rule
 
-macOS-specific application, packaging and signing tests were removed together with the retired macOS application. The active regression suite must not reference missing macOS source or workflows.
+Required checks and evidence must apply to the exact PR head being merged.
 
+## Windows architecture evidence
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The public Windows Setup and Portable launchers carry x64, x86 and ARM64 native payloads. CI verifies the ARM64 payload structure and PE identity, but does not claim native ARM64 runtime execution; that limitation is recorded explicitly by `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`.

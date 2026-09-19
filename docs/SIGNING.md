@@ -1,32 +1,34 @@
-# Signing and artifact trust
+# Signing
 
-Ghost FTP reports the trust state of each produced artifact explicitly.
+Ghost FTP separates product behavior from release signing.
 
 ## Windows
 
-Protected production publication requires trusted Authenticode signing. Development and no-secret validation paths may produce unsigned artifacts, but those artifacts must be labeled truthfully.
+Official Windows publication requires the configured trusted Authenticode signing boundary. Development/no-key artifacts must be identified truthfully when unsigned.
 
 ## Android
 
-Protected production publication requires the configured publisher keystore and exact signer fingerprint verification.
-
-A compatibility/debug-signed APK must never be described as production-signed.
+Official Android publication requires the protected publisher keystore and verification of the exact signer SHA-256 fingerprint. Compatibility/dev signing must never be described as the permanent publisher identity.
 
 ## Linux
 
-Linux installer and portable bundles are distributed with checksum verification. Platform package metadata must remain tied to the exact source commit.
+Linux installer/portable bundles are verified through exact-source build, packaging/install lifecycle checks and release SHA-256 metadata.
 
-## Retired macOS signing path
+## macOS
 
-The former Apple Developer ID / notarization pipeline has been removed together with the retired macOS application and is not part of current release policy.
+macOS support is retired. There is no current Developer ID, notarization, stapling or Gatekeeper publication path in the active repository.
 
-## Policy
+## Fail-closed rule
 
-- no false production-signing claims;
-- no hidden fallback from protected signing to weaker signing;
-- no embedded production private keys;
-- no publication when protected signing requirements fail;
-- checksum generation happens from the final exact-head release directory.
+If a protected signing identity is unavailable, the protected release workflow must fail instead of substituting a generated identity and presenting it as production signing.
 
-See [Release verification](RELEASE-VERIFICATION.md) and [Packages](PACKAGES.md).
+See [Release verification](RELEASE-VERIFICATION.md), [Security](SECURITY.md) and [Versioning](VERSIONING.md).
 
+## Windows architecture evidence
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The public Windows Setup and Portable launchers carry x64, x86 and ARM64 native payloads. CI verifies the ARM64 payload structure and PE identity, but does not claim native ARM64 runtime execution; that limitation is recorded explicitly by `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`.
