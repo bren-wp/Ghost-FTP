@@ -10,6 +10,8 @@ PUBLIC_PLATFORM_ARTIFACTS = 13
 PUBLIC_RELEASE_FILES = 16
 BROWSERS = ("Chrome", "Edge", "Firefox", "Opera")
 DISTROS = ("Debian", "Ubuntu", "Fedora")
+PROTECTED_RELEASE_TAG = "ghostftp-v0.0.7"
+PROTECTED_RELEASE_MARKER = "PROTECTED_RELEASE_TAG=ghostftp-v0.0.7"
 
 def fail(message: str) -> None:
     raise SystemExit("RELEASE_AUDIT_FAILED: " + message)
@@ -60,6 +62,12 @@ def main() -> int:
         if retired in release:
             fail(f"release.yml still references retired macOS surface: {retired}")
 
+    retention = read(".github/workflows/release-retention.yml")
+    if f'protected_tag="{PROTECTED_RELEASE_TAG}"' not in retention:
+        fail(f"release retention does not preserve {PROTECTED_RELEASE_TAG}")
+    if "test \"$asset_count\" -eq 16" not in retention:
+        fail("release retention still expects a stale public asset count")
+
     no_key = read(".github/workflows/release-no-key.yml")
     for retired in ("macos:", "MACOS_", "macOS", "macos/"):
         if retired in no_key:
@@ -69,6 +77,7 @@ def main() -> int:
             fail(f"release-no-key.yml missing {marker}")
 
     print(f"RELEASE_AUDIT=PASS ({version}; {PUBLIC_PLATFORM_ARTIFACTS} platform artifacts; {PUBLIC_RELEASE_FILES} public files)")
+    print(PROTECTED_RELEASE_MARKER)
     return 0
 
 if __name__ == "__main__":
