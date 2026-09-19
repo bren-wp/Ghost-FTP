@@ -56,3 +56,12 @@ The separate no-secret 0.0.8 distribution records its weaker signing state expli
 ## Retired platform
 
 macOS source/build identity is retired. Current version validation, active source-platform metadata and future artifact counts do not include macOS.
+
+## Windows architecture evidence
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The public Windows Setup and Portable launchers carry x64, x86 and ARM64 native payloads. CI verifies the ARM64 payload structure and PE identity, but does not claim native ARM64 runtime execution; that limitation is recorded explicitly by `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`.
