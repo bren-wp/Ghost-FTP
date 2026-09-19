@@ -371,7 +371,7 @@ jobs:
 
   publish:
     name: Assemble and publish verified cross-platform release
-    needs: [quality, windows, linux, android, macos, browser]
+    needs: [quality, windows, linux, android, browser]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -455,6 +455,8 @@ jobs:
           RELEASE_TAG=${RELEASE_TAG}
           RELEASE_CHANNEL=${RELEASE_CHANNEL}
           COMMIT=${GITHUB_SHA}
+          PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER
+          ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID
           WINDOWS_SETUP=universal-x86-x64-arm64
           WINDOWS_PORTABLE=universal-x86-x64-arm64
           WINDOWS_BOOTSTRAP_PE=x86
