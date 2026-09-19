@@ -24,3 +24,11 @@ Paths must be validated before mutation, local/remote ownership stays explicit, 
 Official releases use exact-source build artifacts, checksums and platform-appropriate signing gates. Missing signing credentials must fail the protected publication path rather than create a falsely trusted artifact.
 
 macOS signing/notarization is no longer part of the active product because macOS support is retired.
+
+## Windows architecture scope
+
+Windows universal Setup and Portable packages carry **x64, x86 and ARM64** native payloads. CI validates the ARM64 payload and PE structure without claiming native ARM64 execution:
+
+```text
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
