@@ -804,7 +804,7 @@ func (u *linuxDesktop) renderQueue() error {
 	statusX := u.layout.queue.left + width*57/100
 	speedX := u.layout.queue.left + width*78/100
 	etaX := u.layout.queue.left + width*91/100
-	headerY := u.layout.queue.top + 17
+	tableHeaderY := u.layout.queue.top + 17
 	headers := []struct {
 		x     int
 		label string
@@ -817,7 +817,7 @@ func (u *linuxDesktop) renderQueue() error {
 		{etaX, "ETA"},
 	}
 	for _, header := range headers {
-		if err := u.x.text(header.x, headerY, header.label, premiumTheme.Muted, premiumTheme.List); err != nil {
+		if err := u.x.text(header.x, tableHeaderY, header.label, premiumTheme.Muted, premiumTheme.List); err != nil {
 			return err
 		}
 	}
