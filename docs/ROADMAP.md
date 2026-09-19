@@ -30,3 +30,11 @@ macOS is removed from the active roadmap, source tree and release pipelines.
 ## Release discipline
 
 Published releases remain immutable. New source changes require a higher product version and fresh exact-source artifacts/checksums.
+
+## Windows architecture scope
+
+Windows universal Setup and Portable packages carry **x64, x86 and ARM64** native payloads. CI validates the ARM64 payload and PE structure without claiming native ARM64 execution:
+
+```text
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
