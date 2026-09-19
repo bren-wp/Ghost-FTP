@@ -160,8 +160,16 @@ func (a *app) applyColumnLanguage() {
 		a.setColumnTitle(list, 3, a.tr("column.modified"))
 	}
 	a.setColumnTitle(a.remoteList, 4, a.tr("common.permissions"))
-	for index, key := range []string{"column.direction", "column.local", "column.remote", "column.status", "column.progress"} {
-		a.setColumnTitle(a.transferList, index, a.tr(key))
+	transferLabels := a.masterTransferColumns()
+	for index, label := range []string{
+		transferLabels.File,
+		transferLabels.Direction,
+		transferLabels.Progress,
+		transferLabels.Status,
+		transferLabels.Speed,
+		transferLabels.ETA,
+	} {
+		a.setColumnTitle(a.transferList, index, label)
 	}
 }
 
