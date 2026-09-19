@@ -1,8 +1,8 @@
 # Release verification
 
-Ghost FTP release verification covers the active Windows, Linux and Android applications plus optional browser-helper packages.
+Ghost FTP release verification covers the active Windows, Linux and Android applications.
 
-Published baseline: **0.0.8**. The next-line release shape is **13 platform artifacts / 16 public files**.
+Published baseline: **0.0.8**. The next-line release shape is **9 platform artifacts / 12 public files**.
 
 Canonical Linux release names for the current source identity include `Ghost-FTP-0.0.8-Linux-Debian-Installer.run`, `Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz` and `Ghost-FTP-0.0.8-Linux-Fedora-Installer.run`.
 
@@ -13,14 +13,13 @@ Canonical Linux release names for the current source identity include `Ghost-FTP
 3. Windows signing state matches the publication mode;
 4. Android signer identity/fingerprint matches the publication mode;
 5. Linux packages pass exact-source build and install lifecycle checks;
-6. browser helper packages match the deterministic package contract;
 7. SHA-256 metadata verifies every public file;
 8. the public file set exactly matches the current allow-list.
 
 ## Current release metadata
 
 ```text
-PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER
+PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID
 ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID
 PUBLIC_PLATFORM_ARTIFACTS=13
 PUBLIC_RELEASE_FILES=16
