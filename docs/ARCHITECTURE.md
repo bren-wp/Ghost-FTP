@@ -1,105 +1,47 @@
-# Ghost FTP architecture
+# Architecture
 
-Ghost FTP **0.0.8** is a multi-platform file-transfer product built around a shared typed Go desktop engine, native Windows and Linux frontends, a native Android application, a native macOS source surface, and four privacy-minimal browser helper packages.
+Ghost FTP is a three-application file-transfer product built around shared typed Go engine logic and platform-native frontends for **Windows**, **Linux** and **Android**.
 
-The retired repository website and Web FTP runtime are not part of the supported product architecture and are intentionally absent from the source tree. The root `VERSION` file remains authoritative and stays at **0.0.8**.
+## Core engine
 
-## Release identity
+The shared engine owns protocol and transfer behavior. UI layers must not invent parallel protocol state.
 
-The current candidate identity is `ghostftp-v0.0.8`, Current channel, `prerelease=false`. Publication must originate from the exact verified `main` commit and must not rewrite an existing tag or release.
+Core responsibilities include:
 
-The canonical public release contains **13 platform artifacts / 16 public files**:
-
-- Windows: Setup and Portable.
-- Linux: Installer and Portable bundles for Debian, Ubuntu and Fedora.
-- Android: one production-signed APK.
-- Browser helpers: Chrome, Edge, Firefox and Opera packages.
-- Release integrity files required by the publication contract.
-
-macOS remains an active native source surface. It is not advertised as a public release artifact until the maintained release pipeline has real Developer ID signing, Apple notarization, stapling validation and Gatekeeper verification.
-
-## Shared desktop engine
-
-- `internal/api` — typed application engine and connection, navigation and file-operation orchestration.
-- `internal/remote` — FTP, FTPS and SFTP protocol execution, trust boundaries and remote staging semantics.
-- `internal/transfer` — transfer queue lifecycle, progress, retry, cancellation and priority ordering.
-- `internal/config` — profiles, settings and protected saved-secret references.
-- `internal/security` — host, path, fingerprint and secret validation plus destructive-operation guards.
-- `internal/desktop` — native Windows and Linux frontends over the shared engine.
-
-The desktop runtime has no product telemetry, advertising SDK, mandatory Ghost FTP account, hidden relay service or Ghost FTP cloud credential store.
+- connection profiles;
+- local and remote navigation;
+- FTP / FTPS / SFTP desktop transport;
+- transfer queue lifecycle;
+- bookmarks and start directories;
+- file mutations;
+- remote permissions;
+- Remote Edit;
+- directory comparison;
+- search and filtering;
+- settings and localization state.
 
 ## Windows
 
-Windows is the reference desktop UI. Public 0.0.8 output is exactly:
-
-```text
-Ghost-FTP-0.0.8-Setup.exe
-Ghost-FTP-0.0.8-Portable.exe
-```
-
-Each user-facing package embeds verified x64, x86 and ARM64 payloads. The bootstrap selects the local payload from native system architecture information and performs no architecture download. Official publication requires trusted Authenticode signing; isolated CI smoke identities never substitute for production signing.
-
-Canonical Windows evidence remains explicit:
-
-```text
-WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
-WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-```
-
-The ARM64 marker is intentionally conservative: cross-build, resource and package verification are not represented as native ARM64 runtime execution when maintained Windows CI does not run natively on ARM64.
-
-Installed Windows builds also own the `ghostftp:` custom protocol registration used by the official browser helpers. Setup registers an exact quoted command for the installed executable and uninstall removes the handler only when ownership can still be proven. Browser launch metadata is parsed through an allowlist before it reaches native connection controls; credentials and private-key material are outside this contract.
+Windows uses the native desktop frontend and universal packaging path. The maintained public artifacts are Setup and Portable executables carrying x64, x86 and ARM64 payloads.
 
 ## Linux
 
-`linux/BUILD-DISTROS.sh` builds amd64, arm64 and i386 payloads. Those payloads are bundled into exactly six user-facing 0.0.8 files: Installer and Portable for Debian, Ubuntu and Fedora. Each bundle selects the matching payload locally.
-
-Native installer, runtime and GUI evidence is maintained on supported amd64 runners. ARM64 and i386 remain cross-build/package evidence unless native runtime evidence is available.
+Linux uses the native desktop frontend and distro-specific universal bundles. Debian, Ubuntu and Fedora Installer + Portable packages carry amd64, arm64 and i386 payloads.
 
 ## Android
 
-Android 0.0.8 publishes one production-signed APK after the protected release transaction succeeds. The client uses Android Storage Access Framework capabilities, FTP plus strict explicit FTPS, bounded parsing, staged transfer semantics and lifecycle generation ownership.
+Android is a native application with Android lifecycle and storage-access constraints. It shares Ghost FTP product concepts, not desktop window ownership.
 
-Android SFTP is not exposed as a supported public capability until strict maintained host-key verification is implemented. Release validation is fail-closed: source contracts, tests, lint, APK structure and signing identity must pass before publication.
-
-## macOS
-
-The AppKit frontend is an active native source surface over the shared engine. It is maintained as production-quality source, but it is not represented as a public macOS distribution until the release pipeline has real Developer ID Application signing, Apple notarization, stapling and Gatekeeper assessment.
-
-CI validation artifacts are engineering evidence only and are never presented as public production-signed packages.
+Android exposes FTP and strict explicit FTPS. SFTP stays hidden until the Android transport has the same maintained strict host-key trust boundary as desktop.
 
 ## Browser helpers
 
-Chrome, Edge, Firefox and Opera packages are built from one shared local runtime plus browser-specific manifests. They request zero browser permissions and zero host permissions and perform local parsing only. On supported installed Windows builds, **Open in Ghost FTP** creates a sanitized `ghostftp://connect` launch request containing only protocol, host, optional port, optional username and optional remote path. Passwords, passphrases, private keys, source query values and fragments are never included, and the handoff does not auto-connect or introduce a hidden network relay.
+Browser packages are local helpers, not a second FTP engine. On supported Windows installs they may hand off a sanitized connection descriptor to the desktop application without secrets and without automatic connection.
 
-The helpers are release packages, not a replacement website and not a Web FTP client.
+## Retired platform
 
-## Transfer and Remote Edit integrity
+The former macOS application and its platform-specific source, build, signing and notarization pipeline were removed from the active repository surface.
 
-Core invariants include bounded and cancellable work, source/destination identity checks, staged activation, cleanup on failure, connection-generation ownership, truthful progress and bounded UTF-8/binary-safe Remote Edit behavior.
+## Privacy
 
-User-facing errors are sanitized so internal application paths, private storage locations, credentials and raw transport diagnostics are not exposed.
-
-## State and privacy
-
-Profiles, settings and bookmarks stay local to the relevant application platform. Ghost FTP has no product analytics backend. Credentials are not written to arbitrary runtime files, and platform-specific secret handling must follow the maintained security contract.
-
-Runtime transport connections are initiated for the destination explicitly configured by the user. There is no retired web proxy or Web FTP server in the supported source tree.
-
-## Release architecture
-
-The 0.0.8 publication sequence is:
-
-1. exact-head Go format, race tests and vet plus repository/platform/security/privacy/documentation/release audits;
-2. maintained regression and platform contract tests;
-3. trusted-signed Windows universal Setup and Portable packages;
-4. six Linux universal distro bundles;
-5. one production-signed Android APK with exact certificate fingerprint verification;
-6. four deterministic browser helper ZIPs;
-7. exact **13 platform artifacts / 16 public files** allow-list assembly and SHA-256 manifest;
-8. non-prerelease GitHub Release creation and exact remote asset/digest readback;
-9. exact-version GHCR distribution-bundle publication and readback;
-10. latest-only cleanup only after integrity success.
-
-See [Security](SECURITY.md), [Privacy](PRIVACY.md), [Platform parity](PLATFORM-PARITY.md), [Signing](SIGNING.md) and [Release verification](RELEASE-VERIFICATION.md).
+No maintained frontend may introduce analytics, telemetry, advertising, a mandatory product account or a hidden transfer proxy.
