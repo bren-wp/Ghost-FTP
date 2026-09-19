@@ -126,7 +126,8 @@ def main() -> int:
 
     readme = read("README.md")
     for marker in (
-        f"Current source version: **{version}**",
+        "Current source version:",
+        version,
         "## Localization",
         "English",
         "24 selectable desktop languages",
