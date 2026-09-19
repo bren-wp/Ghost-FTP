@@ -1,48 +1,51 @@
 # GitHub Releases
 
-Ghost FTP releases are immutable versioned publications built from the exact expected main commit.
+Ghost FTP releases are immutable, versioned and bound to exact source.
 
-## Current release
+Published baseline: **0.0.8**. The next-line release shape is **13 platform artifacts / 16 public files**.
 
-Current published version: **0.0.8**  
-Current development line: **0.0.9**
+Tag: ghostftp-v0.0.8
 
-## Public artifact shape
+Canonical Linux release names for the current source identity include `Ghost-FTP-0.0.8-Linux-Debian-Installer.run`, `Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz` and `Ghost-FTP-0.0.8-Linux-Fedora-Installer.run`.
 
-The active release shape contains **13 platform artifacts / 16 public files**:
+## Current application artifacts
 
-- Windows Setup;
-- Windows Portable;
-- Debian Installer + Portable;
-- Ubuntu Installer + Portable;
-- Fedora Installer + Portable;
-- Android APK;
-- Chrome helper;
-- Edge helper;
-- Firefox helper;
-- Opera helper;
-- RELEASE-NOTES.txt;
-- BUILD-METADATA.txt;
-- SHA256.txt.
+A full supported release may contain:
 
-## Canonical release dispatch
+- Windows Setup
+- Windows Portable
+- Linux Debian installer + portable
+- Linux Ubuntu installer + portable
+- Linux Fedora installer + portable
+- Android APK
+- Chrome, Edge, Firefox and Opera browser-helper ZIPs
+- BUILD-METADATA.txt
+- RELEASE-NOTES.txt
+- SHA256.txt
 
-A release branch follows the form:
+macOS artifacts are retired and must not be assembled or published by current workflows.
 
-`release/ghostftp-vX.Y.Z`
+## Release identity
 
-The branch trigger dispatches the protected release workflow. It does not publish a release directly.
+The root `VERSION` file is the canonical product version. The release tag format is:
 
-The release version must match root `VERSION`, and the source SHA must still match the expected main commit.
+`ghostftp-v<version>`
 
-## Trust
+A published tag or release asset set must never be rewritten. New source changes require a new version.
 
-Official Windows publication requires the configured trusted Authenticode identity.
+## Exact-head transaction
 
-Official Android publication requires the configured protected signing identity and exact signer fingerprint policy.
+Release publication is an exact-head transaction: build and verify the precise release commit, refuse tag rewrites, publish only the canonical allow-list, then read back release identity and digests before considering the release verified.
 
-Linux and browser-helper artifacts are covered by release checksums and exact-head metadata.
+## Verification
 
-## Retired platform
+Current release publication validates exact main/source identity, signing state where required, artifact counts, SHA-256 checksums and the expected allow-list before GitHub Release creation.
 
-No macOS artifact is part of the active release allow-list.
+## Windows architecture evidence
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The public Windows Setup and Portable launchers carry x64, x86 and ARM64 native payloads. CI verifies the ARM64 payload structure and PE identity, but does not claim native ARM64 runtime execution; that limitation is recorded explicitly by `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`.

@@ -1,31 +1,49 @@
 # Roadmap
 
-Ghost FTP is currently focused on three maintained native applications: **Windows, Linux and Android**.
+Ghost FTP development is focused on **Windows, Linux and Android**.
 
-## 0.0.9 development focus
+## Current priorities
 
-- finish Windows / Linux / Android visual parity against the supplied master references;
-- keep every visible action engine-backed;
-- remove developer-only labels and stale technical controls from product surfaces;
-- align popup, More, Settings, connection and transfer states;
-- improve readable labels, spacing and touch targets;
-- preserve strict desktop SFTP trust and FTPS certificate validation;
-- keep Android SFTP hidden until strict host-key verification is implemented there;
-- improve README and product documentation;
-- regenerate exact-head runtime evidence before release;
-- keep packaging and release metadata synchronized with the three maintained native applications.
+1. close visible deltas against the maintained Ghost FTP reference composition;
+2. keep every visible control engine-backed;
+3. improve text visibility, keyboard/touch usability and modal consistency;
+4. keep Windows/Linux behavior aligned without forcing identical platform internals;
+5. improve Android mobile ergonomics while preserving its stricter capability boundary;
+6. strengthen automated UI regression and authentic screenshot evidence;
+7. keep release/signing/security boundaries fail-closed.
 
-## Packaging
+## Implemented 0.0.8 baseline
 
-Windows remains Setup + Portable.
+Ghost FTP **0.0.8** is the published baseline while the 0.0.9 development line is being validated.
 
-Linux remains Debian / Ubuntu / Fedora Installer + Portable.
+- Navigation bookmarks and profile start directories — Status: implemented in Ghost FTP 0.0.8.
+- Queue priority/reordering — Status: implemented in Ghost FTP 0.0.8.
+- Non-destructive current-folder filter — Status: implemented in Ghost FTP 0.0.8.
+- P0 — bounded recursive local/server search — Status: implemented in Ghost FTP 0.0.8.
 
-Android remains an installable APK with explicit signer-state metadata.
+## Platform focus
 
-Browser helpers remain supporting local packages, not a separate FTP engine.
+### Windows
+Continue native UI/UX polish, packaging reliability, accessibility and keyboard/runtime validation.
 
-## Retired surface
+### Linux
+Continue master-layout polish, distro packaging/install lifecycle validation and native modal behavior.
 
-The former macOS application and distribution pipeline have been removed from the active repository surface.
+### Android
+Continue native workspace polish, SAF/lifecycle correctness, transfer usability and security-hardening work required before exposing SFTP.
 
+## Retired work
+
+macOS is removed from the active roadmap, source tree and release pipelines.
+
+## Release discipline
+
+Published releases remain immutable. New source changes require a higher product version and fresh exact-source artifacts/checksums.
+
+## Windows architecture scope
+
+Windows universal Setup and Portable packages carry **x64, x86 and ARM64** native payloads. CI validates the ARM64 payload and PE structure without claiming native ARM64 execution:
+
+```text
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```

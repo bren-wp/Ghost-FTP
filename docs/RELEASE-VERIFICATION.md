@@ -1,34 +1,23 @@
 # Release verification
 
-Ghost FTP release verification applies to the maintained Windows, Linux and Android applications plus browser helper packages.
+Ghost FTP release verification covers the active Windows, Linux and Android applications plus optional browser-helper packages.
 
-## Required platform artifacts
+Published baseline: **0.0.8**. The next-line release shape is **13 platform artifacts / 16 public files**.
 
-- Windows Setup
-- Windows Portable
-- Debian Installer
-- Debian Portable
-- Ubuntu Installer
-- Ubuntu Portable
-- Fedora Installer
-- Fedora Portable
-- Android APK
-- Chrome helper
-- Edge helper
-- Firefox helper
-- Opera helper
+Canonical Linux release names for the current source identity include `Ghost-FTP-0.0.8-Linux-Debian-Installer.run`, `Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz` and `Ghost-FTP-0.0.8-Linux-Fedora-Installer.run`.
 
-That is **13 platform artifacts**.
+## Required boundaries
 
-The release directory also contains:
+1. release source SHA is exact and immutable;
+2. root `VERSION` matches the intended tag;
+3. Windows signing state matches the publication mode;
+4. Android signer identity/fingerprint matches the publication mode;
+5. Linux packages pass exact-source build and install lifecycle checks;
+6. browser helper packages match the deterministic package contract;
+7. SHA-256 metadata verifies every public file;
+8. the public file set exactly matches the current allow-list.
 
-- RELEASE-NOTES.txt
-- BUILD-METADATA.txt
-- SHA256.txt
-
-for a total of **16 public files**.
-
-## Required metadata
+## Current release metadata
 
 ```text
 PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER
@@ -37,19 +26,19 @@ PUBLIC_PLATFORM_ARTIFACTS=13
 PUBLIC_RELEASE_FILES=16
 ```
 
-## Verification gates
+## Authentic UI evidence
 
-1. source VERSION matches the requested release version;
-2. release is built from the exact expected main SHA;
-3. Windows package structure passes;
-4. Linux package matrix passes;
-5. Android build and signing-state checks pass;
-6. browser helper packages are deterministic and sanitized;
-7. security/privacy audits pass;
-8. CodeQL and Govulncheck pass;
-9. authentic Windows/Linux/Android runtime screenshots are bound to the tested source SHA;
-10. every final file is covered by SHA256.txt;
-11. release readback confirms the uploaded assets match the assembled release directory.
+UI evidence must be generated from the real application at the exact tested source SHA. Reference artwork and generated mockups do not prove runtime behavior.
 
-The retired macOS application contributes no current artifact, signing gate or release count.
+## macOS retirement
 
+Current release verification contains no macOS application, Developer ID, notarization or macOS asset gate. Historical macOS artifacts are outside the active product contract.
+
+## Windows architecture evidence
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The public Windows Setup and Portable launchers carry x64, x86 and ARM64 native payloads. CI verifies the ARM64 payload structure and PE identity, but does not claim native ARM64 runtime execution; that limitation is recorded explicitly by `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`.

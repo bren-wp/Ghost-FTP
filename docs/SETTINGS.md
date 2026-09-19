@@ -1,44 +1,23 @@
 # Settings
 
-Ghost FTP Settings owns product configuration that does not belong in the Files workspace.
+Ghost FTP settings are platform-appropriate and must never fabricate unsupported controls.
 
 ## Windows and Linux
 
-Desktop settings include the maintained options for:
-
-- language;
-- appearance;
-- transfer parallelism;
-- upload/download limits;
-- conflict policy;
-- backup-before-overwrite;
-- delete confirmation;
-- retry behavior;
-- connection timeout.
-
-Language selection remains in Settings.
+Desktop settings cover maintained product options such as language, appearance and transfer behavior. The settings model is shared where the native surface implements the option.
 
 ## Android
 
-Android exposes platform-appropriate settings and does not fabricate unsupported desktop-only controls.
+Android exposes the settings appropriate to its mobile lifecycle/storage model. Desktop-only features are not shown merely for parity.
 
-## Product actions
+## Update actions
 
-Settings may expose:
+Update-related UI must be explicit about whether it is simulation, download navigation or actual installer behavior. A simulated progress surface must not claim that a binary was replaced when no installation occurred.
 
-- local update simulation;
-- Download latest;
-- Premium;
-- Official website.
+## Credential boundary
 
-The local update simulation must never rewrite the binary or claim a different installed version.
+Ordinary settings persistence is separate from secret persistence. Failure to load or protect secret state must fail closed.
 
-Real download/website actions open only the documented HTTPS product destinations and never append FTP credentials, remote paths or transfer data.
+English is the canonical default/fallback. Localized strings should remain complete and must not be mixed with developer placeholders in the shipping UI.
 
-## Persistence
-
-Non-secret settings persist separately from protected credentials.
-
-## Active platforms
-
-The maintained application targets are Windows, Linux and Android.
+macOS settings are retired with the removed macOS application.

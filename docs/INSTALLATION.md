@@ -1,55 +1,48 @@
 # Installation
 
-Ghost FTP maintains installation packages for Windows, Linux and Android.
+Ghost FTP currently supports **Windows, Linux and Android** application installs.
 
-Current published version: **0.0.8**.
+Published baseline: **0.0.8**. The next-line release shape is **13 platform artifacts / 16 public files**.
+
+Canonical Linux release names for the current source identity include `Ghost-FTP-0.0.8-Linux-Debian-Installer.run`, `Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz` and `Ghost-FTP-0.0.8-Linux-Fedora-Installer.run`.
 
 ## Windows
 
-Choose one:
+Published Windows builds provide:
 
-- `Ghost-FTP-0.0.8-Setup.exe`
-- `Ghost-FTP-0.0.8-Portable.exe`
+- Setup executable
+- Portable executable
 
-Setup installs the application and registers supported integration points. Portable runs without a traditional installation.
+The universal Windows package carries the maintained architecture payloads described by release metadata. Trust prompts depend on the signing state of the specific release.
 
 ## Linux
 
-Choose the bundle for your distro family:
-
-### Debian
-
-- `Ghost-FTP-0.0.8-Linux-Debian-Installer.run`
-- `Ghost-FTP-0.0.8-Linux-Debian-Portable.tar.gz`
-
-### Ubuntu
-
-- `Ghost-FTP-0.0.8-Linux-Ubuntu-Installer.run`
-- `Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz`
-
-### Fedora
-
-- `Ghost-FTP-0.0.8-Linux-Fedora-Installer.run`
-- `Ghost-FTP-0.0.8-Linux-Fedora-Portable.tar.gz`
-
-Each bundle carries amd64, arm64 and i386 payloads and selects the compatible payload locally.
+Linux distribution bundles are produced for Debian, Ubuntu and Fedora families as installer and portable packages. Release metadata records the packaged architectures and validation boundary.
 
 ## Android
 
-Install:
+Android distribution is an APK. The signing identity and signer SHA-256 are verified by the applicable release workflow. Android SFTP remains hidden until strict host-key verification is maintained.
 
-- `Ghost-FTP-0.0.8-Android.apk`
+## macOS
 
-Verify the documented signing state for the specific release before sideloading.
+There is no current macOS application or supported macOS package. The previous macOS source/build pipeline is retired and removed.
 
-Android exposes FTP and strict explicit FTPS. Android SFTP remains hidden until strict host-key verification is maintained.
+## Verification
 
-## Browser helpers
+For release assets:
 
-Optional local helper ZIPs are published for Chrome, Edge, Firefox and Opera.
+1. confirm the release tag/version;
+2. verify `SHA256.txt`;
+3. use only artifacts listed by the release metadata;
+4. respect the documented signing state instead of inferring trust from filenames.
 
-## Verify downloads
+See [Release verification](RELEASE-VERIFICATION.md) and [Signing](SIGNING.md).
 
-Always verify SHA-256 checksums from `SHA256.txt` and use the official GitHub release location.
+## Windows architecture evidence
 
-The active 0.0.8 packaging contract is **13 platform artifacts / 16 public files**. macOS is no longer an active application target.
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The public Windows Setup and Portable launchers carry x64, x86 and ARM64 native payloads. CI verifies the ARM64 payload structure and PE identity, but does not claim native ARM64 runtime execution; that limitation is recorded explicitly by `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`.

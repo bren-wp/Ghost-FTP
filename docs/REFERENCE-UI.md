@@ -1,51 +1,72 @@
 # Reference UI
 
-Ghost FTP uses supplied Windows, Linux and Android master references to define the visual target for the maintained applications.
+The current Ghost FTP reference contract covers **Windows, Linux and Android**.
 
-## Global design language
+## Canonical Files workspace
 
-- dark premium surfaces;
-- Ghost Gold accent;
-- clear green connected/completed state;
-- clear red failed state;
-- rounded cards and buttons;
-- consistent local icons;
-- readable labels without clipping;
-- no developer-only placeholder content.
+Primary navigation:
 
-## Desktop master hierarchy
+- Files
+- Connections / Sites
+- Transfer Queue / Transfers
+- Settings
 
-Windows and Linux use:
+Primary Files actions:
 
-1. Ghost FTP identity and four-item navigation rail;
-2. connection / Quick Connect row;
-3. Back, Forward, Refresh, New Folder, Upload, Download, Bookmarks, More;
-4. Local Files + Remote Files;
-5. Transfer Queue;
-6. bottom status bar.
+- Back
+- Forward
+- Refresh
+- New Folder
+- Upload
+- Download
+- Bookmarks
+- More
 
-The normal Files workspace avoids duplicate permanent technical rows. Secondary engine-backed operations belong in More or their dedicated modal surface.
+Desktop file panes:
 
-## Android hierarchy
+- **Local Files** — Name, Size, Modified
+- **Remote Files** — Name, Size, Modified, Permissions
 
-Android uses:
+Transfer Queue:
 
-1. app header + connection state;
-2. Production Server card;
-3. two-row action grid;
-4. Local Files + Remote Files;
-5. Transfer Queue;
-6. bottom navigation.
+- File
+- Direction
+- Progress
+- Status
+- Speed
+- ETA
+- Clear Completed
 
-Labels and touch targets must remain legible on supported phone widths.
+The status surface must reflect real connection/queue state and must never fabricate server identity, transfer rows or progress.
 
-## Runtime evidence
+## Windows
 
-Checked-in 0.0.8 screenshots are historical exact-head evidence for that release. The 0.0.9 development line requires new Windows / Linux / Android authentic runtime screenshots before publication.
+Use the supplied Windows reference for layout proportions, control order, text visibility, dark surface hierarchy and Ghost Gold accents while preserving native Windows behavior.
 
-Reference images guide implementation, but they are not runtime evidence and must never replace real captures from the application.
+## Linux
 
-## Retired platform
+Use the supplied Linux reference for the same application composition inside Linux window/system chrome. Linux-specific paths and lifecycle remain native.
 
-macOS is not part of the maintained reference UI contract.
+## Android
 
+Use the supplied Android reference for the mobile composition: branded app bar, current connection card, action rows, Local/Remote file cards, Transfer Queue and five-item bottom navigation.
+
+## Dialogs and More surfaces
+
+Quick Connect, connection editing, file mutation prompts, Settings, bookmarks, errors and More actions must use the same dark Ghost FTP design language. Dialogs must be backed by real actions and must not expose development/debug copy.
+
+## Text visibility
+
+No shipping label may be unintentionally clipped. Narrow surfaces may wrap labels where the design allows it; touch targets must remain usable.
+
+## Evidence rule
+
+Only authentic runtime screenshots are product evidence. Generated images and visual references are design targets, not proof of execution.
+
+## Windows architecture scope
+
+Windows universal Setup and Portable packages carry **x64, x86 and ARM64** native payloads. CI validates the ARM64 payload and PE structure without claiming native ARM64 execution:
+
+```text
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```

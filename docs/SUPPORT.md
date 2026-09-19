@@ -1,36 +1,31 @@
 # Support
 
-## Before reporting an issue
+When reporting a Ghost FTP issue, include the exact version or development commit SHA, platform, architecture/device, protocol involved and reproducible steps. Remove real credentials from screenshots and logs.
 
-Include:
+Ghost FTP **0.0.8** is the latest published release. Current source may contain post-0.0.8 development work for 0.0.9; that work does not rewrite the published 0.0.8 tag or assets.
 
-- Ghost FTP version;
-- Windows / Linux / Android platform;
-- operating-system version;
-- CPU architecture when relevant;
-- protocol;
-- exact action that failed;
-- a synthetic reproduction;
-- privacy-safe logs.
+Product website: https://ghostftp.com
 
-Do not include passwords, private keys, passphrases, production host keys, private server paths or signing credentials.
+## Windows
 
-## UI issues
+Include Windows version, Setup/Portable build type and whether the issue involves DPI, keyboard focus, packaging or a protocol operation.
 
-For visual/layout issues include:
+## Linux
 
-- screen/window dimensions;
-- scaling/DPI;
-- selected language;
-- which surface is affected;
-- whether text is clipped or controls overlap.
+Include distribution/version, desktop session, architecture and whether the issue reproduces in installer or portable packaging.
 
-Reference images can show the intended design, but runtime bugs should be demonstrated with a real application capture where possible.
+## Android
 
-## Transfers
+Include Android version/device, storage permission/SAF context and the affected native screen. Android SFTP is not an active supported capability until strict host-key verification is maintained.
 
-For queue issues include the lifecycle state: queued, running, completed, failed or cancelled.
+## Retired macOS reports
 
-## Retired platform
+macOS is no longer an active application target. Historical macOS artifacts are unsupported and should not be used as the basis for current Ghost FTP behavior.
 
-The former macOS application is no longer an active supported target.
+## Windows architecture scope
+
+Windows universal Setup and Portable packages carry **x64, x86 and ARM64** native payloads. CI validates the ARM64 payload and PE structure without claiming native ARM64 execution:
+
+```text
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
