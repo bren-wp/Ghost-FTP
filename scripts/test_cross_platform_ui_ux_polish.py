@@ -57,6 +57,18 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
         self.assertIn("if len(u.transferJobs) == 0 {", queue)
         self.assertIn('u.tr("transfer.summary", 0, 0, 0)', queue)
 
+    def test_linux_master_queue_header_uses_live_counts_and_right_aligned_clear(self) -> None:
+        source = read("internal/desktop/gui_linux.go")
+        self.assertIn("func linuxTransferStatusCounts(jobs []model.TransferJob)", source)
+        self.assertIn('case "queued", "running":', source)
+        self.assertIn('case "done":', source)
+        self.assertIn('case "failed", "cancelled":', source)
+        self.assertIn("u.layout.clearQueue = linuxRectWH(u.layout.queue.right-clearW, headerY, clearW, 28)", source)
+        self.assertIn('{"Active", activeCount, premiumTheme.Warn}', source)
+        self.assertIn('{"Completed", completedCount, premiumTheme.Success}', source)
+        self.assertIn('{"Failed", failedCount, premiumTheme.Danger}', source)
+        self.assertIn("drawLinuxQueueChip", source)
+
     def test_linux_master_rail_and_more_menu_match_reference_navigation(self) -> None:
         rail = read("internal/desktop/linux_master_rail.go")
         info = read("internal/desktop/linux_info_overlay.go")
@@ -72,6 +84,16 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
             "u.startDirectoryComparisonLinux()",
         ):
             self.assertIn(marker, info)
+
+    def test_linux_master_header_does_not_duplicate_page_or_connection_state(self) -> None:
+        rail = read("internal/desktop/linux_master_rail.go")
+        self.assertIn("brand.ProductName, premiumTheme.Text", rail)
+        self.assertIn("linuxTrimForUI(statusLabel, 18)", rail)
+        self.assertNotIn("strings.ToUpper(brand.ProductName)", rail)
+        self.assertNotIn("strings.ToUpper(linuxTrimForUI(statusLabel, 18))", rail)
+        self.assertNotIn("contentTitle :=", rail)
+        self.assertNotIn('badge+"  "+u.version', rail)
+        self.assertIn("let the real master toolbar own connection", rail)
 
     def test_primary_english_and_croatian_copy_uses_final_product_terminology(self) -> None:
         catalog = read("internal/i18n/catalogs.go")
