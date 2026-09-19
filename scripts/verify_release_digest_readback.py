@@ -10,6 +10,7 @@ from pathlib import Path
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 TAG_RE = re.compile(r"^ghostftp-v(\d+\.\d+\.\d+)$")
 EXPECTED_RELEASE_FILES = 16
+EXPECTED_PLATFORM_ARTIFACTS = 13
 
 
 def fail(message: str) -> None:
@@ -110,8 +111,11 @@ def verify_release(bundle_dir: Path, release_json_path: Path, expected_commit: s
         fail(f"BUILD-METADATA commit {commit!r} does not match source run {expected_commit!r}")
     if public_files != str(EXPECTED_RELEASE_FILES):
         fail(f"BUILD-METADATA PUBLIC_RELEASE_FILES={public_files!r}; expected {EXPECTED_RELEASE_FILES}")
-    if public_artifacts != "14":
-        fail(f"BUILD-METADATA PUBLIC_PLATFORM_ARTIFACTS={public_artifacts!r}; expected 14")
+    if public_artifacts != str(EXPECTED_PLATFORM_ARTIFACTS):
+        fail(
+            "BUILD-METADATA PUBLIC_PLATFORM_ARTIFACTS="
+            f"{public_artifacts!r}; expected {EXPECTED_PLATFORM_ARTIFACTS}"
+        )
 
     local_digests = {path.name: sha256_file(path) for path in files}
     manifest = parse_manifest(bundle_dir / "SHA256.txt")
