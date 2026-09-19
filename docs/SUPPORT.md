@@ -17,3 +17,11 @@ Include Android version/device, storage permission/SAF context and the affected 
 ## Retired macOS reports
 
 macOS is no longer an active application target. Historical macOS artifacts are unsupported and should not be used as the basis for current Ghost FTP behavior.
+
+## Windows architecture scope
+
+Windows universal Setup and Portable packages carry **x64, x86 and ARM64** native payloads. CI validates the ARM64 payload and PE structure without claiming native ARM64 execution:
+
+```text
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
