@@ -66,9 +66,9 @@ def main() -> int:
     release = read(".github/workflows/release.yml")
     for marker in (
         "windows:", "linux:", "android:", "browser:",
-        "Ghost-FTP-\${VERSION}-Setup.exe",
-        "Ghost-FTP-\${VERSION}-Portable.exe",
-        "Ghost-FTP-\${VERSION}-Android.apk",
+        "Ghost-FTP-${VERSION}-Setup.exe",
+        "Ghost-FTP-${VERSION}-Portable.exe",
+        "Ghost-FTP-${VERSION}-Android.apk",
         "PUBLIC_PLATFORM_ARTIFACTS=13",
         "PUBLIC_RELEASE_FILES=16",
     ):
