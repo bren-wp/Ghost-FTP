@@ -6,7 +6,13 @@ Ghost FTP keeps runtime dependencies narrow and explicit.
 
 The desktop applications use the Go standard/runtime dependencies already declared by the repository and operating-system facilities required by supported protocol paths.
 
-Desktop SFTP uses the maintained operating-system OpenSSH tooling and strict host-key trust logic.
+Desktop protocol transport intentionally relies on narrow operating-system executables instead of bundled third-party networking libraries:
+
+- `curl` for FTP/FTPS transport paths;
+- `ssh` for strict SSH/SFTP trust and remote execution boundaries where required;
+- `sftp` for SFTP file-transfer operations.
+
+Ghost FTP invokes these tools through maintained wrappers, validates their availability, preserves strict host-key/TLS verification, and does not replace them with trust-all fallbacks.
 
 ## Windows
 
