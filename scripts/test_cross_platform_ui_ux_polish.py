@@ -73,6 +73,16 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
         ):
             self.assertIn(marker, info)
 
+    def test_linux_master_header_does_not_duplicate_page_or_connection_state(self) -> None:
+        rail = read("internal/desktop/linux_master_rail.go")
+        self.assertIn("brand.ProductName, premiumTheme.Text", rail)
+        self.assertIn("linuxTrimForUI(statusLabel, 18)", rail)
+        self.assertNotIn("strings.ToUpper(brand.ProductName)", rail)
+        self.assertNotIn("strings.ToUpper(linuxTrimForUI(statusLabel, 18))", rail)
+        self.assertNotIn("contentTitle :=", rail)
+        self.assertNotIn('badge+"  "+u.version', rail)
+        self.assertIn("let the real master toolbar own connection", rail)
+
     def test_primary_english_and_croatian_copy_uses_final_product_terminology(self) -> None:
         catalog = read("internal/i18n/catalogs.go")
         for marker in (
