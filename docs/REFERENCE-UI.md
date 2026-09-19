@@ -62,3 +62,11 @@ No shipping label may be unintentionally clipped. Narrow surfaces may wrap label
 ## Evidence rule
 
 Only authentic runtime screenshots are product evidence. Generated images and visual references are design targets, not proof of execution.
+
+## Windows architecture scope
+
+Windows universal Setup and Portable packages carry **x64, x86 and ARM64** native payloads. CI validates the ARM64 payload and PE structure without claiming native ARM64 execution:
+
+```text
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
