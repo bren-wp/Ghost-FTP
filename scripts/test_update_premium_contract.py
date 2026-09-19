@@ -138,37 +138,11 @@ class UpdateAndPremiumContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, activity)
 
-    def test_macos_keeps_language_and_product_actions_in_settings(self) -> None:
-        bridge = read("macos/Bridge/application.go")
-        windows = read("macos/Sources/GhostFTPApp/ApplicationWindows.swift")
+    def test_retired_macos_settings_surface_is_absent(self) -> None:
+        self.assertFalse((ROOT / "macos").exists())
+        self.assertFalse((ROOT / ".github/workflows/macos-app.yml").exists())
+        self.assertFalse((ROOT / ".github/workflows/macos-production.yml").exists())
 
-        for marker in (
-            "//export GhostFTPOpenUpdatePage",
-            "//export GhostFTPOpenPremiumPage",
-            "//export GhostFTPOpenWebsite",
-            "external.OpenUpdatePage",
-            "external.OpenPremiumPage",
-            "external.OpenWebsite",
-        ):
-            self.assertIn(marker, bridge)
-        self.assertNotIn("GhostFTPOpenReleasePage", bridge)
-        self.assertNotIn("updatecheck.New().Check", bridge)
-
-        settings = windows[windows.index("final class SettingsWindowController"):windows.index("final class AboutWindowController")]
-        for marker in (
-            'NSButton(title: "Update"',
-            'NSButton(title: "Download latest"',
-            'NSButton(title: "Premium"',
-            'NSButton(title: "Official website"',
-            "GhostFTPOpenUpdatePage()",
-            "GhostFTPOpenPremiumPage()",
-            "GhostFTPOpenWebsite()",
-            "DispatchQueue.main.asyncAfter",
-        ):
-            self.assertIn(marker, settings)
-        about = windows[windows.index("final class AboutWindowController"):windows.index("final class DiagnosticsWindowController")]
-        self.assertNotIn("Check for Updates", about)
-        self.assertNotIn("Download Premium", about)
 
     def test_android_brand_mark_matches_reference_gold_ghost(self) -> None:
         for relative in (

@@ -4,6 +4,8 @@ Ghost FTP currently supports **Windows, Linux and Android** application installs
 
 Published baseline: **0.0.8**. The next-line release shape is **13 platform artifacts / 16 public files**.
 
+Canonical Linux release names for the current source identity include `Ghost-FTP-0.0.8-Linux-Debian-Installer.run`, `Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz` and `Ghost-FTP-0.0.8-Linux-Fedora-Installer.run`.
+
 ## Windows
 
 Published Windows builds provide:

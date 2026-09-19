@@ -157,7 +157,7 @@ Key documents:
 
 ## Commercial proprietary software
 
-Ghost FTP is proprietary, source-available software governed by the repository [`LICENSE`](LICENSE). Public source visibility does not grant open-source redistribution, rebranding, sublicensing or derivative-distribution rights beyond the license and applicable law.
+Ghost FTP is proprietary commercial software. It is not open-source software. The source is available for transparency and review under the controlling repository [`LICENSE`](LICENSE); public source visibility does not grant open-source redistribution, rebranding, sublicensing or derivative-distribution rights beyond the license and applicable law.
 
 ## Product rules
 

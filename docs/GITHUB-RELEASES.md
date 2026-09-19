@@ -4,6 +4,10 @@ Ghost FTP releases are immutable, versioned and bound to exact source.
 
 Published baseline: **0.0.8**. The next-line release shape is **13 platform artifacts / 16 public files**.
 
+Tag: ghostftp-v0.0.8
+
+Canonical Linux release names for the current source identity include `Ghost-FTP-0.0.8-Linux-Debian-Installer.run`, `Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz` and `Ghost-FTP-0.0.8-Linux-Fedora-Installer.run`.
+
 ## Current application artifacts
 
 A full supported release may contain:
@@ -28,6 +32,10 @@ The root `VERSION` file is the canonical product version. The release tag format
 `ghostftp-v<version>`
 
 A published tag or release asset set must never be rewritten. New source changes require a new version.
+
+## Exact-head transaction
+
+Release publication is an exact-head transaction: build and verify the precise release commit, refuse tag rewrites, publish only the canonical allow-list, then read back release identity and digests before considering the release verified.
 
 ## Verification
 
