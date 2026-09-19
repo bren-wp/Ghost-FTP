@@ -25,3 +25,11 @@ macOS is retired; do not reintroduce AppKit/Darwin-only source or macOS release 
 Run affected unit/contract tests, security/privacy audits and required platform workflows. UI changes require authentic exact-head runtime evidence where the repository provides it.
 
 Never merge because a different commit was green.
+
+## Windows architecture scope
+
+Windows universal Setup and Portable packages carry **x64, x86 and ARM64** native payloads. CI validates the ARM64 payload and PE structure without claiming native ARM64 execution:
+
+```text
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
