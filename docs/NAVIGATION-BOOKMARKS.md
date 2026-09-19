@@ -19,3 +19,7 @@ Android uses its native saved-site/bookmark model and mobile navigation. It does
 The main Files toolbar keeps **Back / Forward / Refresh / New Folder / Upload / Download / Bookmarks / More** in the canonical order where space permits.
 
 macOS navigation/bookmark behavior is no longer maintained.
+
+## Release boundary
+
+Navigation/bookmark support belongs to the active Windows, Linux and Android product line. The current release shape is **13 platform artifacts / 16 public files** including browser helpers and release metadata.
