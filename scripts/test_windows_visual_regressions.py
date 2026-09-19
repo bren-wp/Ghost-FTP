@@ -132,7 +132,7 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn("toolbarRows = 2", master)
         self.assertIn("row := index / buttonsPerRow", master)
         self.assertIn("case contentWidth >= a.scale(54):", buttons)
-        self.assertIn('setText(a.brandSubtitle, "One client.\\r\\nFive platforms.\\r\\nZero friction.")', sidebar)
+        self.assertIn('setText(a.brandSubtitle, "One client.\\r\\nThree platforms.\\r\\nZero friction.")', sidebar)
         self.assertIn("showControls(false, bookmarks, diagnostics, a.aboutBtn)", sidebar)
         self.assertIn("showControls(true, a.brandSubtitle)", sidebar)
 
