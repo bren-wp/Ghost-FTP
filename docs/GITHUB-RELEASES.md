@@ -30,3 +30,12 @@ A published tag or release asset set must never be rewritten. New source changes
 ## Verification
 
 Current release publication validates exact main/source identity, signing state where required, artifact counts, SHA-256 checksums and the expected allow-list before GitHub Release creation.
+
+## Windows architecture evidence
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The public Windows Setup and Portable launchers carry x64, x86 and ARM64 native payloads. CI verifies the ARM64 payload structure and PE identity, but does not claim native ARM64 runtime execution; that limitation is recorded explicitly by `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`.
