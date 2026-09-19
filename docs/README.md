@@ -4,10 +4,10 @@ This directory documents the active Ghost FTP product line: **Windows, Linux and
 
 The immutable published release is **0.0.8**. Current `main` may contain next-version development work; published tags and release assets are never rewritten.
 
-Current source version: **0.0.8**  
-Last actually published GitHub Release: **0.0.8**  
-Release channel: **Current**  
-Product status: **Current**  
+Current source version: **0.0.8**
+Last actually published GitHub Release: **0.0.8**
+Release channel: **Current**
+Product status: **Current**
 `PRERELEASE=false`
 
 The next-line distribution contract is **13 platform artifacts / 16 public files**.
