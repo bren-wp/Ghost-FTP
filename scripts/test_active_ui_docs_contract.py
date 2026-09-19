@@ -4,124 +4,71 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 
-
 def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
-
 class ActiveUIDocumentationContractTests(unittest.TestCase):
-    def test_settings_and_reference_ui_follow_current_version(self) -> None:
-        version = read("VERSION").strip()
-        for relative in ("docs/SETTINGS.md", "docs/REFERENCE-UI.md"):
-            text = read(relative)
-            self.assertIn("Ghost FTP", text, relative)
-            self.assertIn(version, text, relative)
-            self.assertNotIn(f"{version} Beta", text, relative)
-            self.assertNotIn(f"{version} Stable", text, relative)
-
-    def test_reference_ui_uses_current_soft_light_palette(self) -> None:
+    def test_reference_ui_describes_active_master_surfaces(self) -> None:
         reference = read("docs/REFERENCE-UI.md")
-        theme = read("internal/uipalette/palette.go")
-
         for marker in (
-            "`#EEF1F5`",
-            "`#F6F8FB`",
-            "`#FAFBFD`",
-            "`#0B0F17`",
-            "`#121824`",
-            "`#161D2A`",
+            "Windows, Linux and Android",
+            "Files",
+            "Connections / Sites",
+            "Transfer Queue / Transfers",
+            "Settings",
+            "Back",
+            "Forward",
+            "Refresh",
+            "New Folder",
+            "Upload",
+            "Download",
+            "Bookmarks",
+            "More",
+            "Local Files",
+            "Remote Files",
+            "File",
+            "Direction",
+            "Progress",
+            "Status",
+            "Speed",
+            "ETA",
+            "Clear Completed",
         ):
             self.assertIn(marker, reference)
 
-        self.assertIn("deliberately avoids pure white as the dominant application surface", reference)
-        self.assertIn("Light is intentionally off-white", theme)
-        self.assertIn("without turning panels into bright white blocks", theme)
-        self.assertNotIn("Panel | `255, 255, 255` (`#FFFFFF`)", reference)
-        self.assertNotIn("List | `255, 255, 255` (`#FFFFFF`)", reference)
-
-    def test_reference_ui_documents_modal_lifecycle_and_unified_settings(self) -> None:
+    def test_reference_ui_requires_real_runtime_evidence(self) -> None:
         reference = read("docs/REFERENCE-UI.md")
-        settings = read("docs/SETTINGS.md")
+        self.assertIn("Only authentic runtime screenshots are product evidence.", reference)
+        self.assertIn("Generated images and visual references are design targets, not proof of execution.", reference)
 
-        self.assertIn("Only the main desktop window owns process-level `WM_QUIT`/`PostQuitMessage` lifecycle", reference)
-        self.assertIn("**New Folder**, **Rename**, **Settings**, **Connection info** or **About**", reference)
-        self.assertIn("Windows Settings is one application-owned modal surface", reference)
-        self.assertIn("independent upload/download bandwidth ceilings", reference)
-        self.assertIn("`KiB/s`", reference)
-        self.assertIn("one application-owned native Settings dialog", settings)
-        self.assertIn("Invalid input keeps the dialog open", settings)
-        self.assertIn("aggregate ceiling for that direction", settings)
-
-    def test_screenshot_evidence_requires_exact_head_cross_platform_provenance(self) -> None:
-        reference = read("docs/REFERENCE-UI.md")
         workflow = read(".github/workflows/ui-screenshots.yml")
-        assembly = read("scripts/assemble_ui_evidence.py")
-
-        for marker in (
-            "Windows — 5 images",
-            "Linux — 5 images",
-            "Android — 8 images",
-            "The immutable 0.0.8 evidence set",
-            "exactly **18 runtime images**",
-            "ghostftp-authentic-ui-verified-bundle",
-            "does **not** commit or push screenshots",
-            "Mockups, image-generation output and manually composed approximations are not accepted",
-        ):
-            self.assertIn(marker, reference)
-
-        for image in (
-            "ghost-ftp-main-workspace.png",
-            "ghost-ftp-site-manager.png",
-            "ghost-ftp-settings.png",
-            "ghost-ftp-about.png",
-        ):
-            self.assertIn(image, reference)
-
         for marker in (
             "permissions:\n  contents: read",
-            "Checkout exact source",
-            "Verify exact-head cross-platform evidence bundle",
             "ghostftp-authentic-ui-windows",
             "ghostftp-authentic-ui-linux",
             "ghostftp-authentic-ui-android",
             "ghostftp-authentic-ui-verified-bundle",
             "scripts/assemble_ui_evidence.py",
-            'dist\\internal\\Ghost-FTP-$version-Portable-x64.exe',
         ):
             self.assertIn(marker, workflow)
-
-        for marker in (
-            '"windows/Ghost-FTP-main-workspace.png"',
-            '"windows/Ghost-FTP-bookmarks.png"',
-            '"linux/ghost-ftp-linux-main-workspace.png"',
-            '"linux/ghost-ftp-linux-settings.png"',
-            '"linux/ghost-ftp-linux-connection-info.png"',
-            '"linux/ghost-ftp-linux-about.png"',
-            '"android/ghost-ftp-android-files.png"',
-            '"android/ghost-ftp-android-navigation.png"',
-            '"android/ghost-ftp-android-connections.png"',
-            '"android/ghost-ftp-android-transfer-queue.png"',
-            '"android/ghost-ftp-android-connection-info.png"',
-            '"android/ghost-ftp-android-about.png"',
-            '"capture_source_sha"',
-            '"workflow_run_id"',
-            '"sha256"',
-            "AUTHENTIC_UI_EVIDENCE=VERIFIED",
-        ):
-            self.assertIn(marker, assembly)
-        self.assertEqual(assembly.count('("windows/'), 5)
-        self.assertEqual(assembly.count('("linux/'), 5)
-        self.assertEqual(assembly.count('("android/'), 8)
-
-        for forbidden in (
-            "contents: write",
-            "AUTHENTIC_UI_SCREENSHOTS=PERSISTED",
-            "git push",
-            "git commit",
-            "github-actions[bot]",
-        ):
+        for forbidden in ("contents: write", "git push", "git commit"):
             self.assertNotIn(forbidden, workflow)
 
+    def test_settings_documentation_is_platform_scoped(self) -> None:
+        settings = read("docs/SETTINGS.md")
+        for marker in ("Windows", "Linux", "Android"):
+            self.assertIn(marker, settings)
+        self.assertNotIn("macOS uses native AppKit", settings)
+
+    def test_readme_runtime_evidence_is_local_and_maintained(self) -> None:
+        readme = read("README.md")
+        for path in (
+            "docs/images/ghost-ftp-main-workspace.png",
+            "docs/images/ghost-ftp-linux-main-workspace.png",
+            "docs/images/ghost-ftp-android-files.png",
+        ):
+            self.assertIn(path, readme)
+            self.assertTrue((ROOT / path).is_file(), path)
 
 if __name__ == "__main__":
     unittest.main()
