@@ -4,7 +4,7 @@
   <img src="build/icon.png" alt="Ghost FTP" width="112">
 </p>
 
-<h2 align="center">Fast file transfer. Clear controls. No telemetry.</h2>
+<h2 align="center">One client. Three platforms. Zero friction.</h2>
 
 <p align="center">
   Ghost FTP is a privacy-first native file-transfer client for <strong>Windows</strong>, <strong>Linux</strong> and <strong>Android</strong>.
@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <strong>Current release: 0.0.8</strong> · 0.0.9 development line · 24 desktop languages · no telemetry
+  <strong>Current release: 0.0.8</strong> · Current source version: **0.0.8** · 0.0.9 development line · 24 desktop languages · no telemetry
 </p>
 
 ---
@@ -219,10 +219,14 @@ Key documents:
 
 ---
 
+## Localization
+
+English is the primary and fallback product language. Croatian is the secondary maintained language, and the desktop applications expose **24 selectable desktop languages** from the canonical localization registry. User-facing strings must use the shared localization catalogs instead of platform-specific hardcoded copies where localization is supported.
+
 ## Product identity
 
 **Ghost FTP**  
-**One client. Five platforms. Zero friction.**
+**One client. Three platforms. Zero friction.**
 
-The tagline is a brand line used in the application reference design; the maintained native application targets are Windows, Linux and Android.
+The maintained native application targets are Windows, Linux and Android. Browser helpers remain supporting packages rather than additional native applications.
 
