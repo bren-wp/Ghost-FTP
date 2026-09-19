@@ -249,7 +249,7 @@ func (u *linuxDesktop) renderLinuxMasterToolbar() error {
 	if err := u.x.strokeRect(layout.status.left, layout.status.top, layout.status.right-layout.status.left, layout.status.bottom-layout.status.top, premiumTheme.Border); err != nil {
 		return err
 	}
-	if err := u.x.text(layout.status.left+10, layout.status.top+22, strings.ToUpper(linuxTrimForUI(statusLabel, 18)), statusColor, premiumTheme.List); err != nil {
+	if err := u.x.text(layout.status.left+10, layout.status.top+22, linuxTrimForUI(statusLabel, 18), statusColor, premiumTheme.List); err != nil {
 		return err
 	}
 	quickLabel := "Quick Connect"
@@ -509,7 +509,7 @@ func (u *linuxDesktop) renderLinuxMasterRail() error {
 	if err := u.renderLinuxBrandMark(rail.brand); err != nil {
 		return err
 	}
-	if err := u.x.text(rail.brand.left+42, rail.brand.top+22, strings.ToUpper(brand.ProductName), premiumTheme.Text, premiumTheme.Panel); err != nil {
+	if err := u.x.text(rail.brand.left+42, rail.brand.top+22, brand.ProductName, premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
 	labels := navigationLabelsForLanguage(u.language)
@@ -548,30 +548,12 @@ func (u *linuxDesktop) renderLinuxMasterRail() error {
 		return err
 	}
 
-	// Replace the obsolete wide branding subtitle with a compact content title
-	// and truthful live connection state. The old header was already painted by
-	// renderHeader, so clearing this strip prevents stale subtitle fragments.
+	// The master reference does not duplicate a Files page title or a second
+	// connection badge above the connection row. Clear the baseline header
+	// painted by renderHeader and let the real master toolbar own connection
+	// identity/state. This preserves the master spacing without fake chrome.
 	contentHeader := linuxRect{left: linuxMasterContentLeft, top: 0, right: u.width, bottom: 72}
 	if err := u.x.fillRect(contentHeader.left, contentHeader.top, contentHeader.right-contentHeader.left, contentHeader.bottom-contentHeader.top, premiumTheme.Window); err != nil {
-		return err
-	}
-	contentTitle := labels.Files
-	if u.masterConnectionsVisible {
-		contentTitle = labels.Connections
-	}
-	if err := u.x.text(linuxMasterContentLeft+12, 31, strings.ToUpper(contentTitle), premiumTheme.Text, premiumTheme.Window); err != nil {
-		return err
-	}
-	badge := strings.ToUpper(u.tr("badge.disconnected"))
-	badgeColor := premiumTheme.Muted
-	if u.connected {
-		badge = strings.ToUpper(u.tr("badge.connected"))
-		badgeColor = premiumTheme.Success
-	} else if u.busy {
-		badge = strings.ToUpper(linuxTrimForUI(u.tr("connection.connecting", u.host), 24))
-		badgeColor = premiumTheme.Warn
-	}
-	if err := u.x.text(max(linuxMasterContentLeft+180, u.width-300), 31, badge+"  "+u.version, badgeColor, premiumTheme.Window); err != nil {
 		return err
 	}
 	return u.renderLinuxMasterToolbar()
