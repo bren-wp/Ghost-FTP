@@ -1,56 +1,44 @@
-# Ghost FTP settings
+# Settings
 
-Ghost FTP **0.0.8** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within shared bounds, and visible controls map to real engine/runtime behavior.
+Ghost FTP Settings owns product configuration that does not belong in the Files workspace.
 
-Windows and Linux share the desktop settings model. Android 0.0.8 is a public native application with platform-appropriate settings and SAF/lifecycle constraints; unsupported desktop-only controls are not fabricated. macOS is a maintained native AppKit frontend and public 0.0.8 release target; it consumes the shared model where the native surface implements the option.
+## Windows and Linux
 
-## Current shared desktop settings
+Desktop settings include the maintained options for:
 
-- `language` — local UI language; invalid state normalizes to English.
-- `appearance` — `dark` or `light`; fresh/invalid state resolves to Dark.
-- `parallelism` — concurrent transfers, **1–8**, default **2**.
-- `uploadLimitKiBPerSecond` — aggregate upload ceiling, **0–1,048,576 KiB/s**, default **0 = unlimited**.
-- `downloadLimitKiBPerSecond` — aggregate download ceiling, same range/default.
-- `connectionTimeoutSeconds` — **5–60 seconds**, default **15**.
-- `autoRetryCount` — **0–3**, default **0**.
-- `retryDelaySeconds` — **1–30 seconds**, default **3**.
-- `conflictPolicy` — canonical destination conflict behavior.
-- `confirmDelete` — confirmation for user-initiated destructive operations.
+- language;
+- appearance;
+- transfer parallelism;
+- upload/download limits;
+- conflict policy;
+- backup-before-overwrite;
+- delete confirmation;
+- retry behavior;
+- connection timeout.
 
-## Runtime ownership
+Language selection remains in Settings.
 
-A non-zero bandwidth value is the aggregate ceiling for that direction. The scheduler divides budgets conservatively across configured worker slots; running attempts snapshot their effective budget at start. FTP/FTPS use curl `limit-rate`; desktop SFTP uses OpenSSH `sftp -l` with conservative conversion.
+## Android
 
-Windows exposes **one application-owned native Settings dialog** for **language**, appearance, concurrency, independent upload/download bandwidth, timeout, retries, conflict policy and delete confirmation. Language is intentionally not shown in the main navigation rail. **Restore defaults** loads the canonical safe values into the dialog without saving them; Apply is still the persistence boundary. **Invalid input keeps the dialog open**; Cancel/X discards the pending candidate.
+Android exposes platform-appropriate settings and does not fabricate unsupported desktop-only controls.
 
-Linux exposes the same validated policy through the maintained native X11/XWayland-compatible overlay; language and product utility actions are kept inside Settings rather than the master rail. macOS uses native AppKit controls backed by the same typed settings model, including language, draft-only Restore Defaults and fail-closed delete confirmation when settings cannot be read.
+## Product actions
 
-## Update, download and Premium actions
+Settings may expose:
 
-Across Windows, Linux, Android and macOS, **Update** is an explicit local simulation. It may animate progress and report that the current build is updated, but it does not rewrite the installed binary, falsify the build version or contact a release API. Installing a genuinely newer signed build remains a separate download/install action.
+- local update simulation;
+- Download latest;
+- Premium;
+- Official website.
 
-**Download latest**, **Premium** and **Official website** open only fixed HTTPS destinations on `ghostftp.com`. There is no GitHub/user-facing release link, no passive startup update request and no transmission of FTP credentials, usernames, server paths, local file paths or transfer metadata.
+The local update simulation must never rewrite the binary or claim a different installed version.
 
-## Android settings boundary
+Real download/website actions open only the documented HTTPS product destinations and never append FTP credentials, remote paths or transfer data.
 
-Android 0.0.8 keeps native settings appropriate to its current public client: Dark/Light appearance, opt-in Quick Connect metadata persistence, file-size display, delete confirmation, Restore app defaults, local Update simulation and official-site Download/Premium/Website actions. Restore defaults clears remembered Quick Connect metadata while keeping saved connections and the user-selected SAF folder authority. Connection/storage choices preserve strict FTPS verification, Storage Access Framework authority, transfer/lifecycle ownership and local-only non-secret saved-site state. **SFTP remains hidden** until strict maintained native host-key verification exists.
+## Persistence
 
-## Appearance and localization
+Non-secret settings persist separately from protected credentials.
 
-Dark is the fresh/fallback desktop appearance and Light is a maintained secondary choice. Both are local source-defined palettes with no remote theme/font/style dependency. English is the default/fallback and the shared desktop registry contains **24 languages**.
+## Active platforms
 
-## Fresh connection and retry policy
-
-A fresh desktop quick connection starts on **explicit FTPS, port 21**. Plain FTP remains an explicit compatibility choice; failed FTPS is never silently retried as FTP. Desktop SFTP requires strict host-key verification/pinning.
-
-Canonical conflict values are `skip`, `replace` and `replace_backup`. Automatic retry applies only to retryable failures; trust, validation, unsafe-path and explicit-cancel failures do not become blind retry loops.
-
-## Credential persistence
-
-Credential persistence is separate from ordinary non-secret settings persistence. Windows uses its maintained current-user protected-secret boundary; Linux retains explicit persistence consent plus trusted AskPass provenance; macOS development profiles use the maintained Keychain-backed path; Android saved-site state remains intentionally non-secret.
-
-## 0.0.8 lifecycle note
-
-Ghost FTP 0.0.8 retains the Windows profile/file/Remote Edit in-flight guards and connection-generation ownership that prevent stale asynchronous completion from mutating replacement state. Android binds connection and transfer completion to Activity/session generations. These are runtime correctness guarantees rather than user-configurable toggles.
-
-See [Architecture](ARCHITECTURE.md), [Privacy](PRIVACY.md), [Security](SECURITY.md), [Testing](TESTING.md) and [Localization](LOCALIZATION.md).
+The maintained application targets are Windows, Linux and Android.
