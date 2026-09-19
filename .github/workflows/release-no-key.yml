@@ -181,45 +181,9 @@ jobs:
             dist/browser/Ghost-FTP-*-Firefox-Extension.zip
             dist/browser/Ghost-FTP-*-Opera-Extension.zip
 
-  macos:
-    name: macOS universal ad-hoc validation app
-    runs-on: macos-15
-    timeout-minutes: 35
-    steps:
-      - name: Checkout exact source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: '1.27.1'
-          check-latest: false
-          cache: false
-      - name: Build ad-hoc signed universal app
-        shell: bash
-        run: |
-          set -euo pipefail
-          go telemetry off
-          test "$(go telemetry)" = 'off'
-          bash macos/BUILD.sh
-          version="$(tr -d '\r\n' < VERSION)"
-          archive="macos/dist/Ghost-FTP-${version}-macOS.app.zip"
-          test -s "$archive"
-          work="$(mktemp -d)"
-          trap 'rm -rf "$work"' EXIT
-          ditto -x -k "$archive" "$work"
-          codesign --verify --deep --strict "$work/Ghost FTP.app"
-          echo 'MACOS_SIGNING=adhoc-validation-no-notarization'
-      - name: Store macOS validation artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ghostftp-no-key-macos
-          if-no-files-found: error
-          retention-days: 7
-          path: macos/dist/Ghost-FTP-*-macOS.app.zip
-
   publish:
     name: Publish verified no-key 0.0.8 release
-    needs: [quality, windows, portable, macos]
+    needs: [quality, windows, portable]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     permissions:
@@ -241,12 +205,7 @@ jobs:
         with:
           name: ghostftp-no-key-portable
           path: staging/portable
-      - name: Download macOS
-        uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
-        with:
-          name: ghostftp-no-key-macos
-          path: staging/macos
-      - name: Assemble exact 17-file release
+      - name: Assemble exact 16-file release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -268,19 +227,18 @@ jobs:
           RELEASE_CHANNEL=current
           COMMIT=${GITHUB_SHA}
           DISTRIBUTION_MODE=no-secret-public-release
+          PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER
+          ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID
           WINDOWS_SETUP=universal-x86-x64-arm64
           WINDOWS_PORTABLE=universal-x86-x64-arm64
           WINDOWS_AUTHENTICODE=unsigned
           ANDROID_APK=temporary-compatibility-certificate
           ANDROID_SIGNER_SHA256=${ANDROID_SIGNER_SHA256}
           ANDROID_SFTP=hidden-until-strict-host-key-verification
-          MACOS_APP=universal-arm64-x86_64
-          MACOS_SIGNING=adhoc-validation
-          MACOS_NOTARIZATION=not-performed
           LINUX_PAYLOADS=amd64,arm64,i386
           BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
-          PUBLIC_PLATFORM_ARTIFACTS=14
-          PUBLIC_RELEASE_FILES=17
+          PUBLIC_PLATFORM_ARTIFACTS=13
+          PUBLIC_RELEASE_FILES=16
           EOF
           cat > release/RELEASE-NOTES.txt <<EOF
           Ghost FTP 0.0.8
@@ -290,7 +248,6 @@ jobs:
           Trust/signing boundary:
           - Windows Setup and Portable are intentionally unsigned and may trigger Windows SmartScreen/Unknown Publisher warnings.
           - Android is an installable release APK signed with a temporary one-run compatibility certificate generated in CI without a protected publisher secret. A future permanent publisher identity may require reinstalling instead of an in-place update.
-          - macOS is an ad-hoc signed universal validation app. It is not Developer ID signed or Apple notarized.
           - Linux and browser helper artifacts are verified by exact-source build and SHA-256 checksums.
 
           Security/privacy behavior is unchanged: no telemetry, no ads, strict FTPS verification, desktop SFTP host-key trust, and Android SFTP remains hidden until strict host-key verification is maintained.
@@ -311,14 +268,13 @@ jobs:
           Ghost-FTP-${version}-Opera-Extension.zip
           Ghost-FTP-${version}-Portable.exe
           Ghost-FTP-${version}-Setup.exe
-          Ghost-FTP-${version}-macOS.app.zip
           RELEASE-NOTES.txt
           SHA256.txt
           EOF
           )
           actual="$(find release -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort)"
           test "$actual" = "$expected" || { diff -u <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") || true; exit 1; }
-          test "$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')" = '17'
+          test "$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')" = '16'
           (cd release && sha256sum -c SHA256.txt)
       - name: Publish GitHub Release
         shell: bash
@@ -340,13 +296,13 @@ jobs:
           json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag")"
           test "$(jq -r .draft <<< "$json")" = 'false'
           test "$(jq -r .prerelease <<< "$json")" = 'false'
-          test "$(jq '.assets | length' <<< "$json")" = '17'
+          test "$(jq '.assets | length' <<< "$json")" = '16'
           remote_names="$(jq -r '.assets[].name' <<< "$json" | LC_ALL=C sort)"
           local_names="$(find release -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort)"
           test "$remote_names" = "$local_names"
           tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq .object.sha)"
           test "$tag_sha" = "$GITHUB_SHA"
-          echo "NO_KEY_RELEASE_READBACK=PASS tag=$tag assets=17 sha=$GITHUB_SHA"
+          echo "NO_KEY_RELEASE_READBACK=PASS tag=$tag assets=16 sha=$GITHUB_SHA"
       - name: Store exact release bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
