@@ -23,3 +23,12 @@ macOS support is retired. There is no current Developer ID, notarization, stapli
 If a protected signing identity is unavailable, the protected release workflow must fail instead of substituting a generated identity and presenting it as production signing.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Security](SECURITY.md) and [Versioning](VERSIONING.md).
+
+## Windows architecture evidence
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The public Windows Setup and Portable launchers carry x64, x86 and ARM64 native payloads. CI verifies the ARM64 payload structure and PE identity, but does not claim native ARM64 runtime execution; that limitation is recorded explicitly by `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`.
