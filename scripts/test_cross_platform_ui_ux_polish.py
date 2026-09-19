@@ -60,7 +60,7 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
     def test_linux_master_rail_and_more_menu_match_reference_navigation(self) -> None:
         rail = read("internal/desktop/linux_master_rail.go")
         info = read("internal/desktop/linux_info_overlay.go")
-        self.assertIn('"One client.", "Five platforms.", "Zero friction."', rail)
+        self.assertIn('"One client.", "Three platforms.", "Zero friction."', rail)
         self.assertIn('"v"+u.version+" (Linux)"', rail)
         self.assertNotIn("u.drawButton(rail.bookmarks", rail)
         self.assertIn("linuxInfoOverlayMore", rail)

@@ -300,7 +300,7 @@ func (a *app) layoutSidebarRail(height int) {
 	// Connection info and About live in More, so duplicate utility buttons stay
 	// out of the main Files rail.
 	showControls(false, bookmarks, diagnostics, a.aboutBtn)
-	setText(a.brandSubtitle, "One client.\r\nFive platforms.\r\nZero friction.")
+	setText(a.brandSubtitle, "One client.\r\nThree platforms.\r\nZero friction.")
 	if a.smallFont != 0 {
 		sendMessageW.Call(a.brandSubtitle, wmSetFont, a.smallFont, 1)
 	}
