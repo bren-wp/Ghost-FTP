@@ -138,37 +138,11 @@ class UpdateAndPremiumContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, activity)
 
-    def test_macos_keeps_language_and_product_actions_in_settings(self) -> None:
-        bridge = read("macos/Bridge/application.go")
-        windows = read("macos/Sources/GhostFTPApp/ApplicationWindows.swift")
+    def test_retired_macos_settings_surface_is_absent(self) -> None:
+        self.assertFalse((ROOT / "macos").exists())
+        self.assertFalse((ROOT / ".github/workflows/macos-app.yml").exists())
+        self.assertFalse((ROOT / ".github/workflows/macos-production.yml").exists())
 
-        for marker in (
-            "//export GhostFTPOpenUpdatePage",
-            "//export GhostFTPOpenPremiumPage",
-            "//export GhostFTPOpenWebsite",
-            "external.OpenUpdatePage",
-            "external.OpenPremiumPage",
-            "external.OpenWebsite",
-        ):
-            self.assertIn(marker, bridge)
-        self.assertNotIn("GhostFTPOpenReleasePage", bridge)
-        self.assertNotIn("updatecheck.New().Check", bridge)
-
-        settings = windows[windows.index("final class SettingsWindowController"):windows.index("final class AboutWindowController")]
-        for marker in (
-            'NSButton(title: "Update"',
-            'NSButton(title: "Download latest"',
-            'NSButton(title: "Premium"',
-            'NSButton(title: "Official website"',
-            "GhostFTPOpenUpdatePage()",
-            "GhostFTPOpenPremiumPage()",
-            "GhostFTPOpenWebsite()",
-            "DispatchQueue.main.asyncAfter",
-        ):
-            self.assertIn(marker, settings)
-        about = windows[windows.index("final class AboutWindowController"):windows.index("final class DiagnosticsWindowController")]
-        self.assertNotIn("Check for Updates", about)
-        self.assertNotIn("Download Premium", about)
 
     def test_android_brand_mark_matches_reference_gold_ghost(self) -> None:
         for relative in (
@@ -181,23 +155,30 @@ class UpdateAndPremiumContractTests(unittest.TestCase):
             for retired in ("#46D6C8", "#5A86F7", "opposing transfer arrows"):
                 self.assertNotIn(retired, icon)
 
-    def test_public_release_requires_notarized_macos_and_17_files(self) -> None:
+    def test_public_release_excludes_retired_macos_and_uses_16_files(self) -> None:
         release = read(".github/workflows/release.yml")
         retention = read(".github/workflows/release-retention.yml")
         digest = read("scripts/verify_release_digest_readback.py")
         for marker in (
-            "needs: [quality, windows, linux, android, macos, browser]",
-            "environment: macos-production",
-            "bash macos/SIGN_AND_NOTARIZE.sh",
-            "Ghost-FTP-${VERSION}-macOS-notarized.app.zip",
-            "PUBLIC_PLATFORM_ARTIFACTS=14",
-            "PUBLIC_RELEASE_FILES=17",
-            "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
+            "needs: [quality, windows, linux, android, browser]",
+            "PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER",
+            "ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID",
+            "PUBLIC_PLATFORM_ARTIFACTS=13",
+            "PUBLIC_RELEASE_FILES=16",
         ):
             self.assertIn(marker, release)
-        self.assertIn('test "$asset_count" -eq 17', retention)
-        self.assertIn("EXPECTED_RELEASE_FILES = 17", digest)
-        self.assertIn('f"Ghost-FTP-{version}-macOS-notarized.app.zip"', digest)
+        for retired in (
+            "macos:",
+            "runs-on: macos",
+            "macos/SIGN_AND_NOTARIZE.sh",
+            "macOS-notarized.app.zip",
+            "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
+        ):
+            self.assertNotIn(retired, release)
+        self.assertIn('test "$asset_count" -eq 16', retention)
+        self.assertIn("EXPECTED_RELEASE_FILES = 16", digest)
+        self.assertIn("EXPECTED_PLATFORM_ARTIFACTS = 13", digest)
+        self.assertNotIn("macOS-notarized", digest)
 
 
 if __name__ == "__main__":

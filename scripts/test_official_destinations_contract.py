@@ -14,8 +14,8 @@ class OfficialDestinationsContractTests(unittest.TestCase):
     def test_support_current_release_follows_version(self) -> None:
         version = self.read("VERSION").strip()
         support = self.read("docs/SUPPORT.md")
-        self.assertIn(f"Ghost FTP **{version}** is the active release candidate", support)
-        self.assertIn("Ghost FTP **0.0.7** remains the current published release", support)
+        self.assertIn(f"Ghost FTP **{version}** is the latest published release", support)
+        self.assertIn("post-0.0.8 development work for 0.0.9", support)
 
     def test_generic_product_destinations_are_ghostftp_only(self) -> None:
         brand = self.read("internal/brand/brand.go")

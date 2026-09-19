@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-# The active release-candidate identity is intentionally pinned by VERSION and the 14/17 public contract below.
+# The active release-candidate identity is intentionally pinned by VERSION and the 13/16 public contract below.
 
 
 def read(relative: str) -> str:
@@ -63,11 +63,11 @@ class LinuxPackagingContractTests(unittest.TestCase):
         self.assertIn("LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386", workflow)
         self.assertIn("LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386", workflow)
         self.assertIn("LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386", workflow)
-        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=14", workflow)
-        self.assertIn("PUBLIC_RELEASE_FILES=17", workflow)
-        self.assertIn('test "$count" = \'17\'', workflow)
+        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=13", workflow)
+        self.assertIn("PUBLIC_RELEASE_FILES=16", workflow)
+        self.assertIn('test "$count" = \'16\'', workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Android.apk", workflow)
-        self.assertIn("Ghost-FTP-${VERSION}-macOS-notarized.app.zip", workflow)
+        self.assertNotIn("Ghost-FTP-${VERSION}-macOS-notarized.app.zip", workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Chrome-Extension.zip", workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Edge-Extension.zip", workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Firefox-Extension.zip", workflow)
@@ -84,15 +84,15 @@ class LinuxPackagingContractTests(unittest.TestCase):
             "docs/RELEASE-VERIFICATION.md",
         ):
             text = read(rel)
-            self.assertIn("14 platform artifacts", text, rel)
-            self.assertIn("17 public files", text, rel)
+            self.assertIn("13 platform artifacts", text, rel)
+            self.assertIn("16 public files", text, rel)
             self.assertIn(f"Ghost-FTP-{version}-Linux-Debian-Installer.run", text, rel)
             self.assertIn(f"Ghost-FTP-{version}-Linux-Ubuntu-Portable.tar.gz", text, rel)
             self.assertIn(f"Ghost-FTP-{version}-Linux-Fedora-Installer.run", text, rel)
             self.assertNotIn(f"Ghost-FTP-{version}-Linux-Debian-amd64.deb", text, rel)
             self.assertNotIn(f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm", text, rel)
-        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=14", read(".github/workflows/release.yml"))
-        self.assertIn("PUBLIC_RELEASE_FILES=17", read(".github/workflows/release.yml"))
+        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=13", read(".github/workflows/release.yml"))
+        self.assertIn("PUBLIC_RELEASE_FILES=16", read(".github/workflows/release.yml"))
 
 
 if __name__ == "__main__":
