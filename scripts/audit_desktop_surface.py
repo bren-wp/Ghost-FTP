@@ -78,7 +78,7 @@ def main() -> int:
         "Linux": {
             "linux/BUILD-DISTROS.sh",
             "internal/desktop/gui_linux.go",
-            ".github/workflows/linux-universal-distros.yml",
+            ".github/workflows/linux-distro-packages.yml",
         },
         "Android": {
             "android/app/build.gradle",
