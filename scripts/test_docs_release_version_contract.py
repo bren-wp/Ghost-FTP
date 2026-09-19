@@ -20,11 +20,14 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
     def test_readme_uses_authentic_windows_linux_android_evidence(self):
         readme = self.read("README.md")
         for marker in (
-            "docs/images/0.0.8/ghost-ftp-main-workspace.png",
-            "docs/images/0.0.8/ghost-ftp-linux-main-workspace.png",
-            "docs/images/0.0.8/ghost-ftp-android-files.png",
+            "docs/images/ghost-ftp-main-workspace.png",
+            "docs/images/ghost-ftp-linux-main-workspace.png",
+            "docs/images/ghost-ftp-android-files.png",
+            "product evidence, not generated mockups",
         ):
             self.assertIn(marker, readme)
+        self.assertTrue((ROOT / "docs/images/0.0.8/UI-SCREENSHOT-PROVENANCE.json").is_file())
+        self.assertTrue((ROOT / "docs/images/0.0.8/SHA256.txt").is_file())
 
     def test_retired_macos_source_is_absent(self):
         self.assertFalse((ROOT / "macos").exists())

@@ -18,20 +18,22 @@ class EngineeringPromptCurrentContractTests(unittest.TestCase):
             "Linux — public production surface",
             "Android — public production surface",
             "Browser helper — public production surface",
-            "macOS — active development/source surface only",
+            "macOS — retired",
+            "Do not reintroduce them as part of ordinary parity work.",
             "13 platform artifacts plus 3 metadata files = 16 public release files",
             "`minSdk 26`, `targetSdk 35`",
             "Android SFTP remains hidden/unsupported",
             "zero browser permissions and zero host permissions",
             "GHOSTFTP_ANDROID_CERT_SHA256",
-            "Developer ID Application",
-            "Apple notarization",
         ):
             self.assertIn(marker, self.engineering)
 
         self.assertNotIn("maintained application platforms are **Windows and Linux**", self.engineering)
         self.assertNotIn("18 platform artifacts", self.engineering)
         self.assertNotIn("21 public release files", self.engineering)
+        self.assertNotIn("Developer ID Application", self.engineering)
+        self.assertNotIn("Apple notarization", self.engineering)
+        self.assertNotIn("0.0.6", self.engineering)
 
     def test_retired_web_prompts_are_absent(self) -> None:
         self.assertFalse((PROMPTS / "GHOST-FTP-WEB-APP-PROMPT.md").exists())

@@ -1,47 +1,50 @@
 # Architecture
 
-Ghost FTP is a three-application file-transfer product built around shared typed Go engine logic and platform-native frontends for **Windows**, **Linux** and **Android**.
+Ghost FTP is a multi-platform file-transfer product with three active native applications: **Windows, Linux and Android**.
 
-## Core engine
+## Shared desktop engine
 
-The shared engine owns protocol and transfer behavior. UI layers must not invent parallel protocol state.
+Windows and Linux share typed Go application, model, transfer, profile and protocol boundaries. Native frontends own rendering and platform lifecycle; they do not implement separate protocol stacks.
 
-Core responsibilities include:
+The desktop architecture separates:
 
-- connection profiles;
-- local and remote navigation;
-- FTP / FTPS / SFTP desktop transport;
+- connection/profile state;
+- local/remote filesystem operations;
 - transfer queue lifecycle;
-- bookmarks and start directories;
-- file mutations;
-- remote permissions;
-- Remote Edit;
+- navigation/bookmarks;
+- file filters and recursive search;
 - directory comparison;
-- search and filtering;
-- settings and localization state.
+- remote permissions/editing;
+- settings and localization;
+- release/security verification.
 
 ## Windows
 
-Windows uses the native desktop frontend and universal packaging path. The maintained public artifacts are Setup and Portable executables carrying x64, x86 and ARM64 payloads.
+Windows uses the native desktop implementation under `internal/desktop` with Windows-specific files selected by build tags. The Files workspace follows the canonical Ghost FTP layout and preserves native keyboard, DPI, resize and accessibility semantics.
 
 ## Linux
 
-Linux uses the native desktop frontend and distro-specific universal bundles. Debian, Ubuntu and Fedora Installer + Portable packages carry amd64, arm64 and i386 payloads.
+Linux uses the maintained native X11/XWayland-compatible surface backed by the same shared engine contracts. The master Files layout exposes four primary rail destinations and keeps advanced file/connection tools behind the real **More** surface.
 
 ## Android
 
-Android is a native application with Android lifecycle and storage-access constraints. It shares Ghost FTP product concepts, not desktop window ownership.
+Android is a separate native mobile application under `android/`. It uses Android lifecycle/storage boundaries and does not pretend to have desktop-only capabilities. Android SFTP remains hidden until strict maintained host-key verification exists.
 
-Android exposes FTP and strict explicit FTPS. SFTP stays hidden until the Android transport has the same maintained strict host-key trust boundary as desktop.
+## Retired macOS implementation
 
-## Browser helpers
+macOS is no longer an active source or release platform. AppKit source, Darwin-only implementation files, macOS signing/build workflows and macOS-specific tests are removed from the current codebase.
 
-Browser packages are local helpers, not a second FTP engine. On supported Windows installs they may hand off a sanitized connection descriptor to the desktop application without secrets and without automatic connection.
+## Security architecture
 
-## Retired platform
+Protocol and credential boundaries are independent of UI parity work. Visual changes must not bypass TLS verification, SFTP host trust, credential protection, path safety or transfer ownership.
 
-The former macOS application and its platform-specific source, build, signing and notarization pipeline were removed from the active repository surface.
+See [Security](SECURITY.md), [Privacy](PRIVACY.md) and [Platform parity](PLATFORM-PARITY.md).
 
-## Privacy
+## Windows architecture evidence
 
-No maintained frontend may introduce analytics, telemetry, advertising, a mandatory product account or a hidden transfer proxy.
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The public Windows Setup and Portable launchers carry x64, x86 and ARM64 native payloads. CI verifies the ARM64 payload structure and PE identity, but does not claim native ARM64 runtime execution; that limitation is recorded explicitly by `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`.

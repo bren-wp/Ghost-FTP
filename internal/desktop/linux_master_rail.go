@@ -538,7 +538,7 @@ func (u *linuxDesktop) renderLinuxMasterRail() error {
 	if err := u.x.text(promoX, promoY, brand.ProductName, premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
-	for _, line := range []string{"One client.", "Five platforms.", "Zero friction."} {
+	for _, line := range []string{"One client.", "Three platforms.", "Zero friction."} {
 		promoY += 22
 		if err := u.x.text(promoX, promoY, line, premiumTheme.Muted, premiumTheme.Panel); err != nil {
 			return err

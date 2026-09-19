@@ -1,31 +1,33 @@
 # Navigation and bookmarks
 
-Ghost FTP **0.0.8** maintains navigation and bookmark behavior across Windows, Linux and Android.
+Ghost FTP maintains bounded navigation and bookmarks across its active product surfaces.
 
-## Windows and Linux
+## Desktop navigation
 
-The desktop Files workspace provides:
+Windows and Linux expose Back, Forward, current local/remote paths, Refresh and Bookmarks. Navigation history must not grow without bound or cross connection/profile ownership incorrectly.
 
-- Back;
-- Forward;
-- current local path;
-- current remote path;
-- bookmarks;
-- saved connection start directories;
-- More for secondary file/navigation operations.
+## Bookmarks
 
-Navigation history is bounded and must not duplicate entries indefinitely.
-
-Bookmarks use the shared engine/profile state and do not create a second protocol stack.
+Bookmarks are explicit user-created navigation targets. They must not contain hidden credentials or trigger an automatic connection without the normal connection decision path.
 
 ## Android
 
-Android exposes saved Sites and Bookmarks using platform-appropriate navigation and storage lifecycle behavior.
+Android uses its native saved-site/bookmark model and mobile navigation. It does not replace the desktop ownership/history contract.
 
-## Security
+## UI contract
 
-Bookmark and profile navigation must never embed plaintext passwords, private-key passphrases or secret query fragments into public handoff URLs or logs.
+The main Files toolbar keeps **Back / Forward / Refresh / New Folder / Upload / Download / Bookmarks / More** in the canonical order where space permits.
+
+macOS navigation/bookmark behavior is no longer maintained.
+
+## Current implementation contract
+
+Ghost FTP **0.0.8** includes navigation bookmarks and profile start directories.
+
+Bookmarks are non-secret metadata. Desktop ownership checks use `AccountMatches` before navigation, and `NavigateBookmark` performs the actual bounded navigation. Following a bookmark does **not** create a hidden persistent saved connection profile.
+
+Root `VERSION` is **0.0.8**. Release readiness for this behavior is tied to exact-head CI/native-build/authentic-runtime evidence rather than screenshots or documentation alone.
 
 ## Release boundary
 
-The active native applications are Windows, Linux and Android. The release contract is **13 platform artifacts / 16 public files**.
+Navigation/bookmark support belongs to the active Windows, Linux and Android product line. The current release shape is **13 platform artifacts / 16 public files** including browser helpers and release metadata.

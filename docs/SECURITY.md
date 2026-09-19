@@ -1,57 +1,34 @@
 # Security
 
-Ghost FTP security rules are intentionally fail-closed.
+Ghost FTP security policy applies to the active Windows, Linux and Android applications.
 
-## Protocols
+## Protocol trust
 
-### FTP
-
-FTP is an intentional compatibility protocol and is not encrypted.
-
-### Explicit FTPS
-
-FTPS must validate:
-
-- certificate trust;
-- hostname identity;
-- configured TLS behavior.
-
-### SFTP
-
-Windows and Linux desktop SFTP uses strict SSH host-key trust and pinning.
-
-Android SFTP remains hidden until the Android transport has maintained strict host-key verification.
+- FTPS must verify TLS certificates and hostnames.
+- Desktop SFTP must preserve strict host-key trust/pinning.
+- Android SFTP remains hidden until an equivalent maintained strict host-key verification boundary exists.
+- UI work must never disable or bypass protocol verification.
 
 ## Credentials
 
-Credential persistence is opt-in and platform-local.
+Credential persistence is opt-in and platform-local where implemented. Windows uses the maintained current-user protection boundary, Linux uses maintained protected-secret handling and provenance checks, and Android saved-site state remains intentionally non-secret.
 
-Never log plaintext passwords, private-key passphrases, private keys or production signing secrets.
+Secrets must not be embedded in screenshots, browser helpers, logs, release metadata or source control.
 
-## File operations
+## File and transfer safety
 
-Destructive actions must require explicit user intent and must respect the configured delete-confirmation policy.
-
-Remote permissions and Remote Edit operate through the active authenticated connection and may not fabricate local-only success states.
+Paths must be validated before mutation, local/remote ownership stays explicit, destructive operations fail closed, and transfer identity must remain stable across queue actions.
 
 ## Release security
 
-Protected production publication must fail when required publisher identities are unavailable.
+Official releases use exact-source build artifacts, checksums and platform-appropriate signing gates. Missing signing credentials must fail the protected publication path rather than create a falsely trusted artifact.
 
-No workflow may generate a replacement long-lived production identity and silently publish it as official.
+macOS signing/notarization is no longer part of the active product because macOS support is retired.
 
-## Privacy
+## Windows architecture scope
 
-Ghost FTP contains no application telemetry, advertising or hidden transfer proxy.
+Windows universal Setup and Portable packages carry **x64, x86 and ARM64** native payloads. CI validates the ARM64 payload and PE structure without claiming native ARM64 execution:
 
-## Reporting
-
-Provide:
-
-- Ghost FTP version;
-- platform;
-- protocol;
-- synthetic reproduction steps;
-- privacy-safe logs.
-
-Do not include real credentials or server-private data.
+```text
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```

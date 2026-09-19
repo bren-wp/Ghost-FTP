@@ -1,60 +1,49 @@
 # Platform parity
 
-Ghost FTP maintains one product language across **Windows, Linux and Android** while preserving platform-native lifecycle behavior.
+Ghost FTP parity is defined around shared product behavior, not identical platform internals.
 
-## Shared product hierarchy
+## Active platforms
 
-All maintained applications expose the same primary concepts:
+| Capability | Windows | Linux | Android |
+| --- | ---: | ---: | ---: |
+| Files workspace | Yes | Yes | Yes |
+| Connections / saved sites | Yes | Yes | Yes |
+| Transfer queue | Yes | Yes | Yes |
+| Settings | Yes | Yes | Yes |
+| Bookmarks | Yes | Yes | Yes |
+| FTP / FTPS | Yes | Yes | Yes |
+| SFTP | Yes | Yes | Hidden until strict host-key verification |
+| Remote permissions | Yes | Yes | Platform-appropriate only |
+| Remote Edit | Yes | Yes | No desktop-equivalence claim |
+| Recursive search / filters | Yes | Yes | Platform-appropriate only |
+| Directory comparison | Yes | Yes | No desktop-equivalence claim |
 
-- Files;
-- Connections / Sites;
-- Transfer Queue / Transfers;
-- Settings;
-- Bookmarks;
-- Quick Connect / connection state.
+## UI contract
 
-The Files workspace is reference-driven around:
+The supplied Ghost FTP reference composition defines the hierarchy for the primary Files surface:
 
-- Back / Forward / Refresh;
-- New Folder;
-- Upload / Download;
-- Local Files;
-- Remote Files;
-- Transfer Queue;
-- readable status, progress, speed and ETA;
-- More for secondary engine-backed actions.
+1. product branding and primary navigation;
+2. connection address/status/Quick Connect;
+3. Back, Forward, Refresh, New Folder, Upload, Download, Bookmarks and More;
+4. Local Files / Remote Files;
+5. Transfer Queue;
+6. connection/transfer status.
 
-## Windows
+Windows and Linux preserve this hierarchy with desktop-native interaction. Android preserves the same product nouns and state while adapting the layout for mobile.
 
-Windows is a primary desktop target. It publishes universal Setup and Portable applications with x64, x86 and ARM64 payloads.
+## Retired platform
 
-The maintained Files surface follows the desktop master layout and keeps secondary operations in native menus rather than permanently cluttering the workspace.
+macOS is removed from current source/release support and is not part of parity accounting.
 
-## Linux
+## Evidence
 
-Linux is a primary desktop target. It publishes Debian, Ubuntu and Fedora Installer + Portable bundles.
+Parity claims require exact-head automated tests and authentic runtime screenshots. Reference images and generated mockups can guide layout work but cannot substitute for runtime evidence.
 
-The Linux surface mirrors the Windows master hierarchy while retaining Linux window management and runtime behavior. The left rail is limited to Files, Connections, Transfer Queue and Settings. Bookmarks and secondary actions live in the master toolbar / More surface.
+## Windows architecture evidence
 
-## Android
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
 
-Android is a primary mobile target.
-
-The Android layout adapts the same concepts to touch:
-
-- Production Server / connection card;
-- Back / Forward / Refresh / New Folder / Upload / Download / Bookmarks / More;
-- Local Files and Remote Files cards;
-- Transfer Queue;
-- bottom navigation for Files, Sites, Bookmarks, Transfers and Settings.
-
-All touch targets and labels must remain readable and unclipped.
-
-## Retired platform boundary
-
-The former macOS application is no longer an active platform. Its app source, build scripts, signing/notarization workflows and dedicated regression tests have been removed from the maintained source tree.
-
-## Evidence rule
-
-A platform is not declared visually complete merely because a reference mockup exists. Runtime parity claims require authentic screenshots tied to the exact tested source SHA.
-
+The public Windows Setup and Portable launchers carry x64, x86 and ARM64 native payloads. CI verifies the ARM64 payload structure and PE identity, but does not claim native ARM64 runtime execution; that limitation is recorded explicitly by `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`.

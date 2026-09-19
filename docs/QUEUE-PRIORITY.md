@@ -1,37 +1,40 @@
 # Queue priority
 
-Ghost FTP **0.0.8** supports queue ordering on the maintained Windows and Linux desktop applications. Android exposes transfer lifecycle state with mobile-appropriate controls.
+Queue ordering and transfer lifecycle are maintained desktop capabilities.
 
-## Desktop behavior
+## Transfer lifecycle
 
-Priority changes are limited to queued work. They must not rewrite:
+The queue distinguishes **queued**, **running**, **completed**, **failed** and **cancelled** work. Reordering never rewrites a running or terminal transfer into another lifecycle state.
 
-- transfer identity;
-- connection ownership;
-- running job state;
-- completed/failed terminal state.
+## Rules
 
-Supported desktop operations include:
+- priority/reordering applies only where the queue implementation allows it;
+- queued work may be reordered without rewriting transfer identity;
+- running or terminal work must not be silently converted back to queued work;
+- UI buttons must reflect whether an action is currently valid;
+- controls may move into **More** or compact layouts, but underlying behavior must remain real.
 
-- move to top;
-- move up;
-- move down;
-- move to bottom;
-- pause / resume where supported;
-- retry failed jobs;
-- cancel;
-- clear completed.
+## Transfer Queue reference columns
 
-The normal Files workspace keeps queue detail readable without exposing unnecessary technical controls when width is constrained.
+- File
+- Direction
+- Progress
+- Status
+- Speed
+- ETA
 
-## Android
+The visible status must be derived from real transfer state.
 
-Android shows the transfer queue with status, progress and retry state while keeping touch targets readable.
+Windows and Linux expose maintained desktop queue capabilities. Android exposes mobile transfer controls appropriate to its implementation.
 
-## Runtime evidence
+macOS queue parity is retired with the removed macOS application.
 
-Windows, Linux and Android runtime evidence must be captured from the exact tested source SHA.
+## Current implementation contract
+
+Ghost FTP **0.0.8** includes queue priority/reordering. Desktop queue actions expose `MoveTransferTop(id)` and `MoveTransferBottom(id)` while preserving transfer identity and lifecycle safety. The connection binding map `jobConnections` is not rewritten by a reorder. Tree-transfer preparation must complete before `reservation.Commit()` so dependency preparation cannot be reordered behind queue publication.
+
+Root `VERSION` is **0.0.8**. This contract is validated by exact-head tests/builds before release claims are made.
 
 ## Release boundary
 
-The active native applications are Windows, Linux and Android. The active release shape is **13 platform artifacts / 16 public files**.
+Queue behavior belongs to the active Windows, Linux and Android product line. The current release shape is **13 platform artifacts / 16 public files** including browser helpers and release metadata.

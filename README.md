@@ -4,7 +4,7 @@
   <img src="build/icon.png" alt="Ghost FTP" width="112">
 </p>
 
-<h2 align="center">Fast file transfer. Clear controls. No telemetry.</h2>
+<h2 align="center">One client. Three platforms. Zero friction.</h2>
 
 <p align="center">
   Ghost FTP is a privacy-first native file-transfer client for <strong>Windows</strong>, <strong>Linux</strong> and <strong>Android</strong>.
@@ -19,8 +19,16 @@
 </p>
 
 <p align="center">
-  <strong>Current release: 0.0.8</strong> · 0.0.9 development line · 24 desktop languages · no telemetry
+  <strong>Current release: 0.0.8</strong> · Current source version: **0.0.8** · 0.0.9 development line · 24 desktop languages · no telemetry
 </p>
+
+> Last actually published GitHub Release: **0.0.8**
+>
+> Release channel: **Current** · Product status: **Current** · Prerelease: **false**
+>
+> Machine-readable release state: `PRERELEASE=false`
+>
+> Next-line distribution contract: **13 platform artifacts / 16 public files**
 
 ---
 
@@ -44,19 +52,23 @@ The Windows, Linux and Android interfaces are intentionally aligned with the sup
 
 ---
 
-## Product preview
+## Authentic application screenshots
 
 ### Windows
 
-![Ghost FTP Windows workspace](docs/images/0.0.8/ghost-ftp-main-workspace.png)
+![Ghost FTP Windows workspace](docs/images/ghost-ftp-main-workspace.png)
 
 ### Linux
 
-![Ghost FTP Linux workspace](docs/images/0.0.8/ghost-ftp-linux-main-workspace.png)
+![Ghost FTP Linux workspace](docs/images/ghost-ftp-linux-main-workspace.png)
 
 ### Android
 
-![Ghost FTP Android workspace](docs/images/0.0.8/ghost-ftp-android-files.png)
+![Ghost FTP Android workspace](docs/images/ghost-ftp-android-files.png)
+
+Windows · Linux · Android
+
+These repository-local captures are product evidence, not generated mockups. The version-bound 0.0.8 provenance set remains under `docs/images/0.0.8/`; current root-level captures track the maintained development UI and must come from the authentic screenshot workflow.
 
 More authentic runtime evidence is documented in [Reference UI](docs/REFERENCE-UI.md).
 
@@ -195,6 +207,15 @@ Ghost FTP CI validates:
 
 See [Testing](docs/TESTING.md), [Release verification](docs/RELEASE-VERIFICATION.md) and [Packages](docs/PACKAGES.md).
 
+Windows release metadata preserves the architecture evidence boundary:
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The universal Windows packages carry x64, x86 and ARM64 native payloads, while CI does not claim native ARM64 runtime execution without maintained ARM64 hardware/runner evidence.
+
 ---
 
 ## Documentation
@@ -219,10 +240,18 @@ Key documents:
 
 ---
 
+## Localization
+
+English is the primary and fallback product language. Croatian is the secondary maintained language, and the desktop applications expose **24 selectable desktop languages** from the canonical localization registry. User-facing strings must use the shared localization catalogs instead of platform-specific hardcoded copies where localization is supported.
+
+## Commercial proprietary software
+
+Ghost FTP is proprietary commercial software. It is not open-source software. The source is available for transparency and review under the controlling repository [`LICENSE`](LICENSE); public source visibility does not grant open-source redistribution, rebranding, sublicensing or derivative-distribution rights beyond the license and applicable law.
+
 ## Product identity
 
-**Ghost FTP**  
-**One client. Five platforms. Zero friction.**
+**Ghost FTP**
+**One client. Three platforms. Zero friction.**
 
-The tagline is a brand line used in the application reference design; the maintained native application targets are Windows, Linux and Android.
+The maintained native application targets are Windows, Linux and Android. Browser helpers remain supporting packages rather than additional native applications.
 

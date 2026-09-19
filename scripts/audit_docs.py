@@ -31,12 +31,24 @@ def main() -> int:
         read(rel)
 
     readme = read("README.md")
-    for marker in ("Windows", "Linux", "Android",
-                   "docs/images/0.0.8/ghost-ftp-main-workspace.png",
-                   "docs/images/0.0.8/ghost-ftp-linux-main-workspace.png",
-                   "docs/images/0.0.8/ghost-ftp-android-files.png"):
+    for marker in (
+        "Windows",
+        "Linux",
+        "Android",
+        "docs/images/ghost-ftp-main-workspace.png",
+        "docs/images/ghost-ftp-linux-main-workspace.png",
+        "docs/images/ghost-ftp-android-files.png",
+        "product evidence, not generated mockups",
+    ):
         if marker not in readme:
             fail(f"README missing {marker}")
+
+    for rel in (
+        "docs/images/0.0.8/UI-SCREENSHOT-PROVENANCE.json",
+        "docs/images/0.0.8/SHA256.txt",
+    ):
+        if not (ROOT / rel).is_file():
+            fail(f"historical 0.0.8 runtime evidence is missing: {rel}")
 
     for rel in ("docs/PACKAGES.md", "docs/PLATFORM-PARITY.md", "docs/RELEASE-VERIFICATION.md"):
         text = read(rel)
