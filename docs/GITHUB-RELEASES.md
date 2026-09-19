@@ -2,6 +2,8 @@
 
 Ghost FTP releases are immutable, versioned and bound to exact source.
 
+Published baseline: **0.0.8**. The next-line release shape is **13 platform artifacts / 16 public files**.
+
 ## Current application artifacts
 
 A full supported release may contain:

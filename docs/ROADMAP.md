@@ -12,6 +12,15 @@ Ghost FTP development is focused on **Windows, Linux and Android**.
 6. strengthen automated UI regression and authentic screenshot evidence;
 7. keep release/signing/security boundaries fail-closed.
 
+## Implemented 0.0.8 baseline
+
+Ghost FTP **0.0.8** is the published baseline while the 0.0.9 development line is being validated.
+
+- Navigation bookmarks and profile start directories — Status: implemented in Ghost FTP 0.0.8.
+- Queue priority/reordering — Status: implemented in Ghost FTP 0.0.8.
+- Non-destructive current-folder filter — Status: implemented in Ghost FTP 0.0.8.
+- P0 — bounded recursive local/server search — Status: implemented in Ghost FTP 0.0.8.
+
 ## Platform focus
 
 ### Windows

@@ -1,7 +1,8 @@
 <div align="center">
   <img src="build/icon.png" width="112" alt="Ghost FTP logo">
   <h1>Ghost FTP</h1>
-  <p><strong>Fast file transfer. Native desktop workflows. Zero telemetry.</strong></p>
+  <p><strong>One client. Three platforms. Zero friction.</strong></p>
+  <p>Fast, privacy-first file transfer with zero telemetry.</p>
   <p>Windows · Linux · Android</p>
 </div>
 
@@ -12,6 +13,8 @@ Ghost FTP is a privacy-first FTP/FTPS/SFTP client built around a focused dual-pa
 > **Development status:** the immutable published release remains **0.0.8**. Current `main` contains post-release work for the next version. Existing 0.0.8 tags and release assets are never rewritten.
 >
 > Release channel: **Current** · Product status: **Current** · Prerelease: **false**
+>
+> Machine-readable release state: `PRERELEASE=false`
 >
 > Next-line distribution contract: **13 platform artifacts / 16 public files** · Distribution mode: **no-secret public release**
 
@@ -151,6 +154,10 @@ Key documents:
 - [Versioning](docs/VERSIONING.md)
 - [Security](docs/SECURITY.md)
 - [Privacy](docs/PRIVACY.md)
+
+## Commercial proprietary software
+
+Ghost FTP is proprietary, source-available software governed by the repository [`LICENSE`](LICENSE). Public source visibility does not grant open-source redistribution, rebranding, sublicensing or derivative-distribution rights beyond the license and applicable law.
 
 ## Product rules
 

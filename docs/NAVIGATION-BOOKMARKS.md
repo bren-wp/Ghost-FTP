@@ -20,6 +20,14 @@ The main Files toolbar keeps **Back / Forward / Refresh / New Folder / Upload / 
 
 macOS navigation/bookmark behavior is no longer maintained.
 
+## Current implementation contract
+
+Ghost FTP **0.0.8** includes navigation bookmarks and profile start directories.
+
+Bookmarks are non-secret metadata. Desktop ownership checks use `AccountMatches` before navigation, and `NavigateBookmark` performs the actual bounded navigation. Following a bookmark does **not** create a hidden persistent saved connection profile.
+
+Root `VERSION` is **0.0.8**. Release readiness for this behavior is tied to exact-head CI/native-build/authentic-runtime evidence rather than screenshots or documentation alone.
+
 ## Release boundary
 
 Navigation/bookmark support belongs to the active Windows, Linux and Android product line. The current release shape is **13 platform artifacts / 16 public files** including browser helpers and release metadata.

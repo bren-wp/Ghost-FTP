@@ -2,6 +2,8 @@
 
 Ghost FTP currently supports **Windows, Linux and Android** application installs.
 
+Published baseline: **0.0.8**. The next-line release shape is **13 platform artifacts / 16 public files**.
+
 ## Windows
 
 Published Windows builds provide:

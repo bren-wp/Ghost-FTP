@@ -29,6 +29,12 @@ Windows and Linux expose maintained desktop queue capabilities. Android exposes 
 
 macOS queue parity is retired with the removed macOS application.
 
+## Current implementation contract
+
+Ghost FTP **0.0.8** includes queue priority/reordering. Desktop queue actions expose `MoveTransferTop(id)` and `MoveTransferBottom(id)` while preserving transfer identity and lifecycle safety. The connection binding map `jobConnections` is not rewritten by a reorder. Tree-transfer preparation must complete before `reservation.Commit()` so dependency preparation cannot be reordered behind queue publication.
+
+Root `VERSION` is **0.0.8**. This contract is validated by exact-head tests/builds before release claims are made.
+
 ## Release boundary
 
 Queue behavior belongs to the active Windows, Linux and Android product line. The current release shape is **13 platform artifacts / 16 public files** including browser helpers and release metadata.

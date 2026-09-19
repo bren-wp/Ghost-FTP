@@ -2,6 +2,10 @@
 
 When reporting a Ghost FTP issue, include the exact version or development commit SHA, platform, architecture/device, protocol involved and reproducible steps. Remove real credentials from screenshots and logs.
 
+Ghost FTP **0.0.8** is the latest published release. Current source may contain post-0.0.8 development work for 0.0.9; that work does not rewrite the published 0.0.8 tag or assets.
+
+Product website: https://ghostftp.com
+
 ## Windows
 
 Include Windows version, Setup/Portable build type and whether the issue involves DPI, keyboard focus, packaging or a protocol operation.
