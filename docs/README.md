@@ -1,16 +1,16 @@
 # Ghost FTP documentation
 
-This directory documents the active Ghost FTP product line: **Windows, Linux and Android**, plus optional local browser-helper packages.
+This directory documents the active Ghost FTP product line: **Windows, Linux and Android**.
 
 The immutable published release is **0.0.8**. Current `main` may contain next-version development work; published tags and release assets are never rewritten.
 
-Current source version: **0.0.8**
-Last actually published GitHub Release: **0.0.8**
+Current source version: **0.0.9**
+Publication status is verified from GitHub Releases; repository documentation does not rewrite a published release identity.
 Release channel: **Current**
 Product status: **Current**
 `PRERELEASE=false`
 
-The next-line distribution contract is **13 platform artifacts / 16 public files**.
+The next-line distribution contract is **9 platform artifacts / 12 public files**.
 
 ## Start here
 
