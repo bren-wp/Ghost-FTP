@@ -18,7 +18,7 @@ The historical 0.0.8 line previously carried a macOS validation surface. That ap
 
 ## 0.0.7
 
-0.0.7 remains an immutable protected baseline and historical tag/release identity where present. Retention automation must not rewrite that historical identity.
+0.0.7 remains an immutable protected baseline under tag `ghostftp-v0.0.7` where present. The `.github/workflows/release-retention.yml` policy preserves that historical tag/release identity and must not rewrite it.
 
 ## 0.0.6 and earlier
 

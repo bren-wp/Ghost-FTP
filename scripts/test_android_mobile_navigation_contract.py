@@ -38,9 +38,9 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             "drawerParams.gravity = Gravity.END;",
             "private LinearLayout buildBottomNavigation()",
             'bottomNavButton("Files", R.drawable.ic_files, Section.FILES)',
-            'bottomNavButton("Connections", R.drawable.ic_sites, Section.SITES)',
+            'bottomNavButton("Sites", R.drawable.ic_sites, Section.SITES)',
             'bottomNavButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS)',
-            'bottomNavButton("Transfer Queue", R.drawable.ic_transfers, Section.TRANSFERS)',
+            'bottomNavButton("Transfers", R.drawable.ic_transfers, Section.TRANSFERS)',
             'bottomNavButton("Settings", R.drawable.ic_settings, Section.SETTINGS)',
             "private void showSection(Section section)",
         ):
@@ -99,7 +99,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("connectionBadge.setMinHeight(dp(40));", activity)
         self.assertIn("connectionBadge.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0);", activity)
         self.assertIn("connectionBadge.setOnClickListener(v -> showSection(Section.SITES));", activity)
-        self.assertIn('button.setTextSize("Connections".equals(text) ? 9f : 10f);', activity)
+        self.assertIn("button.setTextSize(10f);", activity)
         self.assertIn("button.setSingleLine(false);", activity)
         self.assertIn("button.setMaxLines(2);", activity)
         self.assertIn("button.setMinWidth(dp(48));", activity)
@@ -219,12 +219,12 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("wait_ui 'Navigate to Connection info'", capture)
         self.assertIn("wait_ui 'Navigate to About'", capture)
         self.assertIn("wait_ui 'Navigate to Files'", capture)
-        self.assertIn("wait_ui 'Navigate to Connections'", capture)
+        self.assertIn("wait_ui 'Navigate to Sites'", capture)
         self.assertIn("wait_ui 'Navigate to Bookmarks'", capture)
-        self.assertIn("wait_ui 'Navigate to Transfer Queue'", capture)
+        self.assertIn("wait_ui 'Navigate to Transfers'", capture)
         self.assertIn("wait_ui 'Navigate to Settings'", capture)
-        self.assertIn("capture_primary_surface 'Connections'", capture)
-        self.assertIn("capture_primary_surface 'Transfer Queue'", capture)
+        self.assertIn("capture_primary_surface 'Sites' 'Connections'", capture)
+        self.assertIn("capture_primary_surface 'Transfers' 'Transfer Queue'", capture)
         self.assertNotIn("tap_ui 'Open navigation'", capture)
         self.assertNotIn("ANDROID_NAV_DRAWER=VISIBLE", capture)
 
