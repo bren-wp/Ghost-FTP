@@ -23,6 +23,10 @@ const (
 	masterMoreRemotePermissions
 	masterMoreRemoteEdit
 	masterMoreCompare
+	masterMorePauseQueue
+	masterMoreResumeQueue
+	masterMoreCancelTransfer
+	masterMoreRetryTransfer
 	masterMoreConnectionInfo
 	masterMoreAbout
 )
@@ -213,6 +217,12 @@ func (a *app) masterMoreAction() {
 	appendItem(masterMoreRemoteEdit, "Remote Edit")
 	appendSeparator()
 	appendItem(masterMoreCompare, "Compare local and remote folders")
+	appendSeparator()
+	appendItem(masterMorePauseQueue, "Transfer Queue: Pause")
+	appendItem(masterMoreResumeQueue, "Transfer Queue: Resume")
+	appendItem(masterMoreCancelTransfer, "Transfer Queue: Cancel selected")
+	appendItem(masterMoreRetryTransfer, "Transfer Queue: Retry selected")
+	appendSeparator()
 	appendItem(masterMoreConnectionInfo, "Connection info")
 	appendItem(masterMoreAbout, "About Ghost FTP")
 
@@ -259,6 +269,14 @@ func (a *app) masterMoreAction() {
 		a.remoteEditAction()
 	case masterMoreCompare:
 		a.directoryComparisonCommand()
+	case masterMorePauseQueue:
+		a.pauseTransfers()
+	case masterMoreResumeQueue:
+		a.resumeTransfers()
+	case masterMoreCancelTransfer:
+		a.cancelSelectedTransfer()
+	case masterMoreRetryTransfer:
+		a.retrySelectedTransfer()
 	case masterMoreConnectionInfo:
 		a.showDiagnostics()
 	case masterMoreAbout:
@@ -410,6 +428,7 @@ func (a *app) layoutMasterWorkspaceChrome() {
 		a.remoteUp, a.remoteRefresh,
 		a.remoteMkdir, a.remoteRename, a.remoteDelete, a.remoteChmod,
 		remoteEditButton(a),
+		a.pauseQueue, a.resumeQueue, a.cancelJob, a.retryJob,
 	)
 
 	topY, rowH, gap := 13, 34, 8
@@ -429,7 +448,11 @@ func (a *app) layoutMasterWorkspaceChrome() {
 		a.upload, a.download, a.masterBookmarks, a.masterMore,
 	}
 	toolbarGap := 7
-	compactToolbar := contentWidth < 860
+	// Keep the reference one-row desktop toolbar down to the point where
+	// eight labeled actions would actually become unreadable. The previous
+	// threshold forced a two-row toolbar on the authentic Windows runner even
+	// though every label still fit, which diverged from the master layout.
+	compactToolbar := contentWidth < 740
 	toolbarRows := 1
 	buttonsPerRow := len(controls)
 	if compactToolbar {
@@ -474,10 +497,9 @@ func (a *app) layoutMasterWorkspaceChrome() {
 	statusY, _ := statusBandGeometry(height)
 	queueH := clampInt(height/6, 105, 165)
 	queueY := statusY - queueH - 9
-	queueButtonsY := queueY - 38
-	queueLabelY := queueButtonsY - 23
+	queueHeaderY := queueY - 38
 	listY := pathY + 29 + 10
-	listBottom := queueLabelY - 10
+	listBottom := queueHeaderY - 10
 	listH := listBottom - listY
 	if listH < 120 {
 		listH = 120
@@ -485,16 +507,16 @@ func (a *app) layoutMasterWorkspaceChrome() {
 	a.move(a.localList, leftX, listY, paneW, listH)
 	a.move(a.remoteList, rightX, listY, paneW, listH)
 
-	a.move(a.sectionTransfers, contentLeft, queueLabelY-2, 190, 22)
-	a.move(a.transferSummary, contentLeft+190, queueLabelY, clampInt(contentWidth-190, 260, 620), 18)
-	qx := contentLeft
-	queueWidths := []int{104, 104, 96, 96}
-	for i, control := range []uintptr{a.pauseQueue, a.resumeQueue, a.cancelJob, a.retryJob} {
-		a.move(control, qx, queueButtonsY, queueWidths[i], 31)
-		qx += queueWidths[i] + 7
+	a.move(a.sectionTransfers, contentLeft, queueHeaderY+5, 178, 22)
+	a.move(a.transferSummary, contentLeft+178, queueHeaderY+7, clampInt(contentWidth-178-164, 220, 560), 18)
+
+	// Advanced queue mutation controls remain fully engine-backed through More
+	// instead of occupying a permanent row that is absent from the master.
+	for _, control := range []uintptr{a.pauseQueue, a.resumeQueue, a.cancelJob, a.retryJob} {
+		a.move(control, contentRight-1, queueHeaderY, 1, 1)
 	}
 	clearW := 150
-	a.move(a.clearQueue, contentRight-clearW, queueButtonsY, clearW, 31)
+	a.move(a.clearQueue, contentRight-clearW, queueHeaderY, clearW, 31)
 	a.move(a.transferList, contentLeft, queueY, contentWidth, queueH)
 	a.move(a.status, contentLeft, statusY, contentWidth-250, statusBandHeight)
 	a.move(a.statusVersion, contentRight-238, statusY, 238, statusBandHeight)
