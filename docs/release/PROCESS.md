@@ -13,16 +13,16 @@ This document describes the production release path. A successful compile is not
 7. Inspect generated artifacts and Windows native-window QA evidence when available.
 8. Merge only the tested source into `main`.
 9. The main native build produces release binaries.
-10. `Ghost FTP RC9 release` publishes only after a successful main native build and a successful quality run for the current production source.
+10. `Ghost FTP RC10 release` publishes only after a successful main native build and a successful quality run for the current production source.
 11. Generate/upload SHA-256 checksums with the release assets.
 12. Retain older releases.
 
-## Required RC9 assets
+## Required RC10 assets
 
 Windows x64:
 
-- `GhostFTP-Windows-x64-Portable-v2.1.1-RC9.exe`
-- `GhostFTP-Windows-x64-Setup-v2.1.1-RC9.exe`
+- `GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe`
+- `GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe`
 - Windows bundle ZIP
 
 Linux x86-64:
