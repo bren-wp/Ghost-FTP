@@ -46,3 +46,8 @@ This proves certificate validation is active rather than globally disabled.
 The workflow validates explicit FTPS because that is the FTPS mode implemented by the current native backend. It does not claim implicit FTPS support.
 
 The protocol job runs on changes to the native Rust source and can also be started manually. Normal unit tests remain hermetic: `tests/protocol_e2e.rs` exits successfully without touching the network unless `GHOSTFTP_PROTOCOL_E2E=1` is explicitly set by the dedicated workflow.
+
+
+## RC11 release gate
+
+A Ghost FTP RC11 release must not be published unless the real FTP, explicit FTPS and SFTP workflow completes successfully for the exact release source commit.

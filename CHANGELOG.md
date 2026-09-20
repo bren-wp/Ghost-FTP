@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.1-rc.11 — 20 September 2026
+
+- Rebuilt the production UI acceptance geometry from the supplied Ghost FTP references without using screenshots as runtime UI.
+- Fixed standalone About, Preferences, Site Manager and Transfer Center surfaces so the File Manager chrome is not rendered beneath them.
+- Fixed application menu dropdown layering so File/Edit/View/Transfer/Server/Bookmarks/Tools/Help menus overlay content instead of reflowing Quick Connect.
+- Rebalanced titlebar, menu, Quick Connect and toolbar heights for the 1290×852 reference geometry.
+- Removed the fixed New Connection height that produced the large dead region in the failed acceptance capture; the dialog now sizes to content with viewport-safe scrolling.
+- Tightened responsive compaction from 1120 px through 480 px while keeping key controls available through component-local scrolling.
+- Preserved real FTP/explicit-FTPS/SFTP behavior and the production rule that no demo servers or fake connection/transfer state are seeded.
+- Bumped desktop, Tauri, CLI, agent, compatibility tooling, updater preview and package naming consistently to RC11.
+- RC11 publication is gated on source quality, native Windows/Linux builds and real FTP/FTPS/SFTP E2E acceptance.
+
 ## 2.1.1-rc.10 — 20 September 2026
 
 - Closed the final RC9 Rust Clippy blockers in the Ghost FTP CLI.

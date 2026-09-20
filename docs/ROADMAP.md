@@ -1,6 +1,6 @@
 # Ghost FTP Roadmap
 
-This roadmap separates shipped RC10 work from future work. Items under Planned, Recommended and Long-term are not claims of implemented functionality.
+This roadmap separates shipped RC11 work from future work. Items under Planned, Recommended and Long-term are not claims of implemented functionality.
 
 ## Implemented
 
@@ -22,9 +22,9 @@ This roadmap separates shipped RC10 work from future work. Items under Planned, 
 
 These are release-candidate acceptance items and should not be presented as completed until evidence exists.
 
-- Real FTP end-to-end acceptance covering upload, download, rename, delete, overwrite, resume and reconnect.
-- Real FTPS certificate success/failure acceptance.
-- Real SFTP password/private-key/host-key acceptance.
+- Extend protocol E2E with explicit overwrite/resume/reconnect failure-injection scenarios.
+- Maintain explicit FTPS certificate identity and failure-path coverage in every release candidate.
+- Maintain SFTP password/private-key/host-key acceptance in every release candidate.
 - Windows 10/11 custom-titlebar screenshot acceptance for portable and installed builds.
 - Windows clean install, upgrade, reinstall and Apps & Features uninstall acceptance.
 - Responsive/pixel acceptance across all documented target sizes.

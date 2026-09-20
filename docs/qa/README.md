@@ -1,4 +1,4 @@
-# Ghost FTP QA Index — RC10
+# Ghost FTP QA Index — RC11
 
 This directory tracks the evidence required before Ghost FTP can move from release candidate to FINAL.
 
