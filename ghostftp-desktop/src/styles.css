@@ -2916,3 +2916,265 @@ button:active,
   transform: none !important;
   animation: none !important;
 }
+
+
+/* RC13 single-shell fidelity and overlap hardening. */
+.ghost-workspace-view {
+  position: relative !important;
+  inset: auto !important;
+  z-index: auto !important;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+  contain: layout paint;
+}
+
+.ghost-workspace-view > .ghost-site-manager,
+.ghost-workspace-view > .ghost-preferences,
+.ghost-workspace-view > .ghost-transfer-center,
+.ghost-workspace-view > .ghost-about {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ghost-transient-overlay {
+  isolation: isolate;
+  overscroll-behavior: contain;
+  backdrop-filter: none !important;
+}
+
+.ghost-mini-button,
+.ghost-primary-button,
+.ghost-tool-button,
+.ghost-row-action,
+.ghost-window-controls button {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.ghost-mini-button,
+.ghost-primary-button {
+  white-space: nowrap;
+}
+
+.ghost-title-left,
+.ghost-title-menu-wrap,
+.ghost-window-title-spacer,
+.ghost-title-actions,
+.ghost-language-menu,
+.ghost-quick-connect {
+  min-width: 0;
+}
+
+.ghost-window-controls {
+  flex: 0 0 auto;
+  min-width: 132px;
+}
+
+.ghost-title-actions {
+  flex: 0 0 auto;
+}
+
+.ghost-site-manager-hero,
+.ghost-transfer-center-heading {
+  gap: 10px !important;
+}
+
+.ghost-site-manager-hero > .relative {
+  min-width: 180px;
+}
+
+.ghost-site-manager-hero button,
+.ghost-transfer-center-heading button {
+  flex: 0 0 auto;
+}
+
+.ghost-site-manager-table,
+.ghost-site-manager-details,
+.ghost-transfer-center,
+.ghost-preferences-content,
+.ghost-about-content {
+  min-width: 0;
+}
+
+.ghost-new-connection-dialog,
+.ghost-properties-dialog {
+  transform: none !important;
+  animation: none !important;
+  backface-visibility: hidden;
+}
+
+.ghost-new-connection-head button,
+.ghost-properties-dialog button {
+  flex: 0 0 auto;
+}
+
+.ghost-new-connection-actions,
+.ghost-preferences-actions {
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.ghost-new-connection-actions::-webkit-scrollbar,
+.ghost-preferences-actions::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 1180px) {
+  .ghost-site-manager-workspace {
+    grid-template-columns: 196px minmax(420px, 1fr) 304px !important;
+    overflow-x: auto;
+  }
+
+  .ghost-site-manager-hero {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .ghost-site-manager-hero::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ghost-site-manager-hero > div:nth-child(2) {
+    min-width: 220px;
+  }
+
+  .ghost-transfer-center-heading {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .ghost-transfer-center-heading::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .ghost-site-manager-workspace {
+    grid-template-columns: 168px minmax(430px, 1fr) !important;
+    grid-template-rows: minmax(270px, 1fr) minmax(250px, auto);
+  }
+
+  .ghost-site-manager-nav {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    overflow-y: auto;
+  }
+
+  .ghost-site-manager-table {
+    grid-column: 2;
+    grid-row: 1;
+    overflow: auto;
+  }
+
+  .ghost-site-manager-details {
+    grid-column: 2;
+    grid-row: 2;
+    overflow: auto;
+    border-left: 0 !important;
+    border-top: 1px solid rgb(var(--border));
+  }
+
+  .ghost-preferences-content > .grid,
+  .ghost-about-grid,
+  .ghost-transfer-summary-grid,
+  .ghost-transfer-lower-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ghost-new-connection-dialog {
+    width: min(720px, calc(100vw - 12px)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .ghost-window-controls {
+    min-width: 120px;
+  }
+
+  .ghost-site-manager-hero {
+    height: auto !important;
+    min-height: 70px !important;
+    padding: 8px !important;
+  }
+
+  .ghost-site-manager-workspace {
+    display: flex !important;
+    min-width: 0;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .ghost-site-manager-nav {
+    display: flex;
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 0 0 auto;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgb(var(--border));
+  }
+
+  .ghost-site-manager-nav > * {
+    flex: 0 0 auto;
+  }
+
+  .ghost-site-manager-table {
+    flex: 1 1 auto;
+    min-height: 220px;
+    overflow: auto;
+  }
+
+  .ghost-site-manager-details {
+    flex: 0 0 min(44dvh, 320px);
+    max-height: min(44dvh, 320px) !important;
+    overflow: auto;
+  }
+
+  .ghost-transfer-center-heading {
+    min-height: 72px !important;
+  }
+
+  .ghost-preferences-actions .ghost-mini-button,
+  .ghost-preferences-actions .ghost-primary-button,
+  .ghost-new-connection-actions .ghost-mini-button,
+  .ghost-new-connection-actions .ghost-primary-button {
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 520px) {
+  .ghost-new-connection-dialog,
+  .ghost-properties-dialog {
+    width: calc(100vw - 8px) !important;
+    max-width: calc(100vw - 8px) !important;
+  }
+
+  .ghost-new-connection-body {
+    padding: 10px !important;
+  }
+
+  .ghost-new-connection-body .grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ghost-new-connection-actions {
+    padding: 8px 10px !important;
+  }
+
+  .ghost-properties-dialog {
+    max-height: calc(100dvh - 8px) !important;
+  }
+}
