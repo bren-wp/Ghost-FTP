@@ -276,10 +276,7 @@ fn join_remote(dir: &str, name: &str) -> String {
 }
 
 fn basename(path: &str) -> String {
-    path.rsplit(['/', '\\'])
-        .next()
-        .unwrap_or(path)
-        .to_string()
+    path.rsplit(['/', '\\']).next().unwrap_or(path).to_string()
 }
 
 /// Append _1, _2, … to the stem until a free local path is found.
