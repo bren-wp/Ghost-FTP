@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghostftp.com/updates/schema/latest.schema.json",
+  "title": "Ghost FTP Update Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["channel", "version", "notes", "pub_date", "minimum_supported_version", "platforms"],
+  "properties": {
+    "channel": { "enum": ["preview", "stable"] },
+    "version": { "type": "string", "minLength": 1 },
+    "notes": { "type": "string" },
+    "pub_date": { "type": "string", "format": "date-time" },
+    "minimum_supported_version": { "type": "string", "minLength": 1 },
+    "platforms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["windows-x86_64", "linux-x86_64"],
+      "properties": {
+        "windows-x86_64": { "$ref": "#/$defs/package" },
+        "linux-x86_64": { "$ref": "#/$defs/package" }
+      }
+    }
+  },
+  "$defs": {
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "signature"],
+      "properties": {
+        "url": { "type": "string", "pattern": "^https://" },
+        "signature": { "type": "string", "minLength": 16 }
+      }
+    }
+  }
+}
