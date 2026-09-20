@@ -1,10 +1,13 @@
 # Ghost FTP Documentation
 
-This directory is the documentation hub for Ghost FTP. The root README is the product landing page; detailed engineering, QA, security and release evidence lives here.
+This directory is the documentation hub for Ghost FTP. The root README is the product landing page; detailed engineering, QA, release and planning material lives here.
 
 ## Start here
 
-- [Build status](build/STATUS.md) — authoritative release/build state.
+- [Project status](PROJECT-STATUS.md) — what is finished, what is verified and what still blocks FINAL.
+- [Feature matrix](roadmap/FEATURE-MATRIX.md) — implemented options and current support status.
+- [Recommended roadmap](roadmap/ROADMAP.md) — improvements worth doing next, without presenting unfinished work as complete.
+- [Build status](build/STATUS.md) — authoritative build/release evidence.
 - [Installation](guides/INSTALLATION.md) — platform installation guidance.
 - [Uninstall](guides/UNINSTALL.md) — removal and cleanup.
 - [Update policy](guides/UPDATES.md) — signed update expectations.
@@ -43,10 +46,22 @@ This directory is the documentation hub for Ghost FTP. The root README is the pr
 
 ## Releases
 
-- [Ghost FTP 2.1.1 RC9](releases/2.1.1-rc.9.md) — current release-candidate notes.
-- Older release notes and checksums remain under [releases/](releases/).
+- [Ghost FTP 2.1.1 RC10](releases/2.1.1-rc.10.md) — current release candidate.
+- [Ghost FTP 2.1.1 RC9](releases/2.1.1-rc.9.md) — previous release candidate.
+- Older release notes are retained under `releases/archive/`.
 - GitHub Releases is the canonical location for downloadable binaries.
+
+## Repository naming
+
+Product-facing paths use GhostFTP names:
+
+- `ghostftp-desktop/`
+- `ghostftp-web/`
+- `ghostftp-runtime/`
+- `ghostftp-installer/`
+
+The internal `ghostftp-desktop/src-tauri/` folder is intentionally retained because the desktop framework expects that convention. It is treated as an implementation detail rather than a product-facing name.
 
 ## Visual references
 
-The images under `assets/screenshots/` are the approved Ghost FTP design/QA reference set. They are documentation and acceptance references only. Production UI must be implemented with real components and controls; screenshot-as-UI implementations are not accepted.
+Images under `assets/screenshots/` are the approved Ghost FTP design and QA reference set. They are documentation/acceptance references only. Production UI must be implemented with real controls and components; screenshot-as-UI implementations are not accepted.
