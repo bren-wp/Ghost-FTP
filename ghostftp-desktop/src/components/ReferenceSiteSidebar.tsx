@@ -11,7 +11,7 @@ import {
   Settings,
   ArrowUpDown,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useConnections } from "@/stores/connectionsStore";
 import { useLayout } from "@/stores/layoutStore";
 
@@ -129,7 +129,7 @@ function SidebarAction({
   onClick,
   active = false,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   onClick: () => void;
   active?: boolean;
