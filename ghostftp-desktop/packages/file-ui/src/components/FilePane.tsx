@@ -235,6 +235,7 @@ export function FilePane({
     items: MenuItem[];
   } | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
+  const [paneFocused, setPaneFocused] = useState(false);
   const dragCounter = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const typeBufRef = useRef("");
@@ -530,6 +531,26 @@ export function FilePane({
     if (items.length === 0) return;
     onTransfer?.(items);
   };
+
+  // Keep the shared application toolbar honest: publish only the capabilities
+  // of the pane the user is actually working in, so impossible actions are
+  // disabled instead of producing dead clicks or confusing no-ops.
+  useEffect(() => {
+    if (!paneFocused) return;
+    const selectedItems = visible.filter((entry) => selected.has(entry.path));
+    const activeItem = anchor
+      ? visible.find((entry) => entry.path === anchor) ?? selectedItems[0]
+      : selectedItems[0];
+    window.dispatchEvent(new CustomEvent("ghostftp:pane-action-state", {
+      detail: {
+        paneId,
+        selectedCount: selectedItems.length,
+        hasActiveItem: Boolean(activeItem),
+        hasSession: Boolean(sessionId),
+        canCreateDirectory: Boolean(sessionId && caps?.hasDirectories !== false),
+      },
+    }));
+  }, [paneFocused, paneId, visible, selected, anchor, sessionId, caps?.hasDirectories]);
 
   // Global toolbar bridge. The reference UI has one toolbar above both panes;
   // commands are routed to the focused pane (or to the explicit local/remote
@@ -964,6 +985,12 @@ export function FilePane({
       aria-label={`${title} directory listing`}
       aria-multiselectable="true"
       aria-activedescendant={activeDescId}
+      onFocus={() => setPaneFocused(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setPaneFocused(false);
+        }
+      }}
       onDragEnter={onPaneDragEnter}
       onDragOver={onPaneDragOver}
       onDragLeave={onPaneDragLeave}
