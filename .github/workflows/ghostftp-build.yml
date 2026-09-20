@@ -77,6 +77,7 @@ jobs:
           $exe = Join-Path $env:GITHUB_WORKSPACE 'ghostftp-desktop\src-tauri\target\release\ghostftp.exe'
           if (-not (Test-Path $exe)) { throw "Ghost FTP executable not found: $exe" }
 
+          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=9222"
           $proc = Start-Process -FilePath $exe -PassThru
           try {
             $handle = [IntPtr]::Zero
@@ -111,6 +112,13 @@ jobs:
             $height = $rect.Bottom - $rect.Top
             if ($width -lt 480 -or $height -lt 600) {
               throw "Unexpected Ghost FTP window size: ${width}x${height}"
+            }
+
+            Push-Location $env:GITHUB_WORKSPACE
+            try {
+              node ghostftp-desktop/scripts/native-runtime-diagnostics.mjs $qaDir
+            } finally {
+              Pop-Location
             }
 
             $bitmap = New-Object System.Drawing.Bitmap $width, $height
