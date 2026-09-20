@@ -354,10 +354,17 @@ export const useSettings = create<SettingsState>((set, get) => ({
       cur.includes(name) ? cur.filter((g) => g !== name) : [...cur, name]
     );
   },
-  setTerminalFontSize: (n) => mutate(set, get, "terminalFontSize", n),
+  setTerminalFontSize: (n) =>
+    mutate(set, get, "terminalFontSize", Math.max(8, Math.min(32, Math.round(n)))),
   setTerminalFontFamily: (s) => mutate(set, get, "terminalFontFamily", s),
   setTerminalTheme: (t) => mutate(set, get, "terminalTheme", t),
-  setTerminalScrollback: (n) => mutate(set, get, "terminalScrollback", n),
+  setTerminalScrollback: (n) =>
+    mutate(
+      set,
+      get,
+      "terminalScrollback",
+      Math.max(100, Math.min(100000, Math.round(n)))
+    ),
   setTerminalCopyOnSelect: (v) =>
     mutate(set, get, "terminalCopyOnSelect", v),
   setTerminalSuggestions: (v) =>
