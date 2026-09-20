@@ -3393,3 +3393,34 @@ button:active,
     height: 13px;
   }
 }
+
+
+/* RC13 sidebar overflow guard: preserve navigation with any site count. */
+.ghost-sites-list {
+  max-height: 228px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.ghost-sites-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ghost-file-nav {
+  position: relative;
+  z-index: 1;
+  background: #041526;
+}
+
+@media (max-height: 720px) {
+  .ghost-sites-list {
+    max-height: 170px;
+  }
+
+  .ghost-file-nav-row {
+    height: 30px;
+  }
+}
