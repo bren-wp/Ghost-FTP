@@ -397,8 +397,8 @@ mod tests {
     fn authorize_url_has_pkce_and_redirect() {
         let cfg = OAuthConfig {
             client_id: "abc123".into(),
-            auth_url: "https://example.com/oauth2/authorize".into(),
-            token_url: "https://example.com/oauth2/token".into(),
+            auth_url: "https://example.invalid/oauth2/authorize".into(),
+            token_url: "https://example.invalid/oauth2/token".into(),
             scopes: vec!["files.read".into(), "files.write".into()],
             extra_auth_params: vec![("token_access_type".into(), "offline".into())],
         };
