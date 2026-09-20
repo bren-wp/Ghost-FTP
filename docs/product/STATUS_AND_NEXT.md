@@ -2,7 +2,7 @@
 
 This document separates **what Ghost FTP provides now** from **recommended future product work**. It intentionally avoids unnecessary implementation detail.
 
-## Implemented and available in RC10
+## Implemented and available in RC11
 
 | Area | Implemented |
 |---|---|
@@ -20,7 +20,13 @@ This document separates **what Ghost FTP provides now** from **recommended futur
 
 Full details: [Implemented Features](FEATURES.md).
 
-## RC10 engineering work completed
+## RC11 engineering work completed
+
+- Fixed standalone-view stacking so Ghost FTP application chrome can no longer cover About, Preferences, Site Manager, Transfer Center or New Connection surfaces.
+- Fixed top-menu popovers so they float above the content instead of participating in normal layout flow.
+- Added real FTP/explicit-FTPS/SFTP E2E acceptance and binary-safe FTP/FTPS transfer mode.
+- Added isolated real backend connection probes for Quick Connect and Site Manager.
+- Transfer Center now uses real queue data and live transferred-byte sampling instead of simulated activity.
 
 - Repository reorganized into a clear product layout: `ghostftp-desktop/`, `website/`, `updates/`, `tools/` and `docs/`.
 - Public release naming standardized by product, platform, architecture, role and version.
