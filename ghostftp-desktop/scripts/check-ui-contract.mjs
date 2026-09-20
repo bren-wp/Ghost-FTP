@@ -109,7 +109,7 @@ for (const required of ["Import", "Export", "New Site", "Connect", "Test Connect
 }
 
 const transferCenter = read("src/components/TransferCenterDialog.tsx");
-for (const required of ["Add Transfer", "Pause All", "Clear Finished", "Retry"]) {
+for (const required of ["Add Transfer", "Schedule", "Clear Completed", "More", "Pause All", "Retry", "Paused", "All Directions", "Any Time"]) {
   if (!transferCenter.includes(required)) failures.push(`Transfer Center missing required action: ${required}`);
 }
 
