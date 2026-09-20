@@ -11,6 +11,12 @@
 - Removed an unused Rust agent-service constant and redundant default dark-theme token block.
 - Aligned the default Electric Blue and Ice White tokens more closely with the approved Ghost FTP palette.
 - Preserved the canonical 1290×852 1:1 shell geometry and adaptive smaller-window rules.
+- Fixed main transfer-queue terminal-state actions: completed rows no longer expose Cancel, skipped/canceled states are explicit, active queue filtering is accurate, and failed transfers can be retried in one action.
+- Replaced inline transfer-progress width styling with semantic progress controls and added reduced-motion handling.
+- Expanded Preferences with browser layout, hidden-file visibility, remote previews, transfer bandwidth limit, default download folder and default editor controls.
+- Added validation for negative transfer throttle values.
+- Replaced website glyph/emoji action icons with local Ghost FTP SVG icons and improved website markup, metadata, focus handling and reduced-motion behavior.
+- Fixed the website progress animation so its timer stops at completion instead of running indefinitely.
 - RC9 remains a pre-release pending final native Windows titlebar/pixel, installer lifecycle and real FTP/FTPS/SFTP acceptance evidence.
 
 
