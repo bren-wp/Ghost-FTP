@@ -27,12 +27,12 @@ export function ReferenceStatusBar() {
 
   return <footer className="ghost-reference-statusbar">
     <span className={`dot ${activeSessionId ? "online" : ""}`}/>
-    <span>{activeSessionId && profile ? `Connected to ${profile.host}` : "Ready"}</span>
+    <span>{activeSessionId && profile ? `Connected to ${profile.host} (${profile.protocol.toUpperCase()})` : "Ready"}</span>
     <span className="grow"/>
     <span><Server size={12}/> {metrics.active} transfer{metrics.active === 1 ? "" : "s"} active</span>
     <span className="up"><ArrowUp size={13}/>{formatSpeed(metrics.up)}</span>
     <span className="down"><ArrowDown size={13}/>{formatSpeed(metrics.down)}</span>
-    <span>Server time: {new Date(now).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false})}</span>
+    <span>Server time: {new Date(now).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false})}</span>
     <span className="encoding"><i className="dot online"/> UTF-8</span>
   </footer>;
 }
