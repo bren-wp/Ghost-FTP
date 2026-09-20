@@ -11,7 +11,6 @@
 // toast focuses the window (and, where it applies, opens the relevant panel).
 import {
   isPermissionGranted,
-  requestPermission,
   sendNotification,
   onAction,
 } from "@tauri-apps/plugin-notification";
@@ -25,13 +24,15 @@ import { useTransfers } from "@/stores/transfersStore";
 type Permission = "unknown" | "granted" | "denied";
 let permission: Permission = "unknown";
 
-/** Ask for notification permission once, lazily. Cached so we don't re-prompt. */
+/** Never request OS permission from a background event. A production file
+ * manager must not surprise the user with an operating-system popup. If the
+ * user has already granted permission, notifications work; otherwise the event
+ * is silently ignored until permission is explicitly granted outside this path. */
 async function ensurePermission(): Promise<boolean> {
   if (permission === "granted") return true;
   if (permission === "denied") return false;
   try {
-    let granted = await isPermissionGranted();
-    if (!granted) granted = (await requestPermission()) === "granted";
+    const granted = await isPermissionGranted();
     permission = granted ? "granted" : "denied";
     return granted;
   } catch {
