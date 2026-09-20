@@ -2140,6 +2140,15 @@ body::after { opacity: 0.018; }
   margin: auto;
 }
 
+.ghost-primary-button:disabled,
+.ghost-mini-button:disabled {
+  cursor: default !important;
+  opacity: .38 !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+
 @media (max-width: 640px) {
   .ghost-dropdown-menu {
     min-width: 176px;
