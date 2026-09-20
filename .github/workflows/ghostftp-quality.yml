@@ -158,6 +158,7 @@ jobs:
           npm ci
           npm audit --omit=dev --audit-level=high
           npm run check:i18n
+          npm run check:ui-actions
           npm run check
           npm run build
 
