@@ -92,6 +92,15 @@ jobs:
           cp "$DEB" dist/ghostftp_2.1.1~rc8_amd64.deb
           cp "$RPM" dist/ghostftp-2.1.1-rc8.x86_64.rpm
 
+          zip -j dist/Ghost-FTP-v2.1.1-RC8-Windows-NATIVE.zip \
+            dist/GhostFTP-Portable-2.1.1-RC8.exe \
+            dist/GhostFTP-Setup-2.1.1-RC8.exe
+          tar -C dist -czf dist/Ghost-FTP-v2.1.1-RC8-Linux-NATIVE.tar.gz \
+            GhostFTP-linux-x86_64-2.1.1-RC8 \
+            GhostFTP-linux-x86_64-2.1.1-RC8.AppImage \
+            ghostftp_2.1.1~rc8_amd64.deb \
+            ghostftp-2.1.1-rc8.x86_64.rpm
+
           rm -rf dist/native
 
       - name: Generate checksums
