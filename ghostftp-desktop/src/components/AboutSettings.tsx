@@ -18,8 +18,8 @@ import { useUpdater } from "@/stores/updaterStore";
 import type { PathStatus } from "@/lib/types";
 import { getVersion } from "@tauri-apps/api/app";
 import { cn } from "@/lib/cn";
+import { openOfficialUrl } from "@/lib/external";
 
-const RELEASES_URL = "https://ghostftp.com/download";
 
 /// Settings → About. The app's identity/version, plus the trust/UX fundamentals
 /// from Plan 16: the one-click "Add ghostftp-cli to PATH" row (Phase 4). The updater
@@ -146,7 +146,7 @@ function UpdaterCard() {
             </button>
           )}
           <button
-            onClick={() => window.open(RELEASES_URL, "_blank", "noopener,noreferrer")}
+            onClick={() => openOfficialUrl("/download")}
             className="rounded-md border border-border px-3 py-1.5 text-xs text-text-muted hover:bg-bg-hover hover:text-text"
           >
             Release notes
@@ -301,7 +301,7 @@ function PathRow() {
         ghostftp-cli on PATH
       </div>
       <p className="mb-2 text-xs text-text-muted">
-        将 <code className="text-text">ghostftp-cli</code> 命令加入 PATH，使其可在任意终端使用。仅对当前用户生效，无需管理员权限。
+        Add <code className="text-text">ghostftp-cli</code> to PATH so it is available in any terminal. This is per-user only and does not require administrator privileges.
       </p>
 
       <div className="rounded-lg border border-border bg-bg-subtle/50 p-3 text-sm">
