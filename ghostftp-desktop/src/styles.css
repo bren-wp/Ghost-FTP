@@ -3534,3 +3534,247 @@ button:active,
 .ghost-transfer-filters::-webkit-scrollbar {
   display: none;
 }
+
+
+/* RC13 final reference-pass: file panes and compact native-window geometry. */
+.ghost-pane-header {
+  flex: 0 0 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding-inline: 12px !important;
+  background: #071a2e !important;
+}
+
+.ghost-pane-title-icon {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  flex: 0 0 22px;
+  border-radius: 4px;
+  color: #65c8ff;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.ghost-pane-refresh {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  flex: 0 0 28px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #9cc9e7;
+}
+
+.ghost-pane-refresh:hover:not(:disabled),
+.ghost-pane-refresh:focus-visible {
+  background: #0a3150;
+  color: #fff;
+  outline: none;
+}
+
+.ghost-pane-refresh:disabled {
+  opacity: .35;
+}
+
+.ghost-pane-pathbar {
+  flex: 0 0 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 5px 8px !important;
+  background: #051929 !important;
+}
+
+.ghost-pane-nav-buttons {
+  height: 32px;
+  overflow: hidden;
+  border: 1px solid #255776;
+  border-radius: 6px;
+  background: #071d31;
+}
+
+.ghost-pane-nav-buttons button {
+  display: inline-grid;
+  width: 34px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-right: 1px solid #1a4564;
+  background: transparent;
+  color: #b9d9ed;
+}
+
+.ghost-pane-nav-buttons button:last-child {
+  border-right: 0;
+}
+
+.ghost-pane-nav-buttons button:hover:not(:disabled),
+.ghost-pane-nav-buttons button:focus-visible {
+  background: #0a3556;
+  color: #fff;
+  outline: none;
+}
+
+.ghost-pane-nav-buttons button:disabled {
+  opacity: .32;
+}
+
+.ghost-pane-address {
+  height: 32px;
+  min-height: 32px;
+  border: 1px solid #255776;
+  border-radius: 6px;
+  padding: 0 11px;
+  background: #061d31;
+  color: #d9efff;
+}
+
+button.ghost-pane-address:hover:not(:disabled),
+button.ghost-pane-address:focus-visible,
+input.ghost-pane-address:focus-visible {
+  border-color: #2b91d3;
+  background: #08233b;
+  outline: none;
+}
+
+.ghost-pane-filter {
+  height: 32px;
+  min-height: 32px;
+  border: 1px solid #255776;
+  border-radius: 6px;
+  background: #061d31;
+  color: #d9efff;
+}
+
+.ghost-pane-columns {
+  min-height: 32px;
+  background: #06182b !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-size: 10.5px !important;
+}
+
+.ghost-transfer-scheduler {
+  min-width: 0;
+}
+
+@media (min-width: 901px) and (max-width: 1120px) {
+  .ghost-quick-row {
+    display: flex !important;
+    height: 58px !important;
+    min-height: 58px !important;
+    gap: 7px !important;
+    padding: 8px 9px !important;
+    overflow-x: hidden !important;
+  }
+
+  .ghost-quick-row > label {
+    flex: 1 1 128px !important;
+    min-width: 112px !important;
+    max-width: none !important;
+  }
+
+  .ghost-quick-row > .ghost-port-field {
+    flex: 0 0 70px !important;
+    min-width: 70px !important;
+  }
+
+  .ghost-quick-connect {
+    flex: 0 0 132px !important;
+    width: 132px !important;
+    min-width: 132px !important;
+  }
+
+  .ghost-quick-actions {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    align-items: center;
+    gap: 6px !important;
+  }
+
+  .ghost-quick-actions .ghost-mini-button {
+    display: inline-flex !important;
+    width: auto !important;
+    min-width: 90px !important;
+    height: 36px !important;
+    padding-inline: 9px !important;
+    justify-content: center;
+  }
+
+  .ghost-quick-actions .ghost-mini-button span {
+    display: inline !important;
+  }
+
+  .ghost-quick-actions .ghost-language-menu {
+    min-width: 154px !important;
+    height: 36px !important;
+    padding-inline: 7px !important;
+  }
+
+  .ghost-quick-actions .ghost-language-menu select {
+    width: 116px !important;
+    min-width: 116px !important;
+    font-size: 10.5px !important;
+  }
+}
+
+@media (min-width: 901px) and (max-height: 760px) {
+  .ghost-app-header {
+    flex: 0 0 154px !important;
+    height: 154px !important;
+    min-height: 154px !important;
+  }
+
+  .ghost-title-row {
+    height: 50px !important;
+    min-height: 50px !important;
+  }
+
+  .ghost-quick-row {
+    height: 52px !important;
+    min-height: 52px !important;
+    padding-block: 6px !important;
+  }
+
+  .ghost-toolbar-row,
+  .ghost-tool-button {
+    height: 52px !important;
+    min-height: 52px !important;
+  }
+
+  .ghost-bottom-band {
+    flex: 0 0 148px !important;
+    height: 148px !important;
+    min-height: 148px !important;
+    max-height: 148px !important;
+  }
+
+  .ghost-reference-statusbar {
+    flex: 0 0 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  .ghost-transfer-rows {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .ghost-pane-pathbar {
+    gap: 4px !important;
+    padding-inline: 5px !important;
+  }
+
+  .ghost-pane-nav-buttons button {
+    width: 30px;
+  }
+
+  .ghost-pane-filter {
+    width: 72px !important;
+  }
+}
