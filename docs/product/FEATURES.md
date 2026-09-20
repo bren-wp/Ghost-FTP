@@ -1,6 +1,6 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 2.1.1 RC9 source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 2.1.1 RC10 source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Connection and profile management
 
@@ -51,7 +51,7 @@ Implemented:
 - Pause all / resume all.
 - Cancel active/queued transfers.
 - Retry failed transfers.
-- RC9 retry-all action for failed transfers.
+- RC10 retry-all action for failed transfers.
 - Queue, Failed and Completed views.
 - Correct Completed, Skipped, Canceled, Failed, Paused, Queued and Transferring labels.
 - Semantic progress controls and percent display.
@@ -168,9 +168,9 @@ Implemented architectural controls include:
 - Restricted developer compatibility API and mutation authorization.
 - No production dependency on a browser-host `127.0.0.1` GUI wrapper.
 
-## Current RC9 UX fixes
+## Current RC10 UX fixes
 
-RC9 specifically adds or fixes:
+RC10 specifically adds or fixes:
 
 - Terminal transfer rows no longer show a meaningless Cancel action after completion.
 - Skipped and canceled transfers have explicit labels.
