@@ -1,0 +1,5 @@
+1c3992442d1dc374efc22a4a556f70774fbdc9d9f0ac5a5f3129f9d0870a528d  release/windows/GhostFTP-Portable.exe
+bbc4a95ec5dc5ab66bcf9f1ab2ac1bd1104eece1555e32a5f88e208450fc4dc4  release/windows/GhostFTP-Setup.exe
+0715e82c30423452cc4fe18340f5afa85193fa7158397e991cc48316cc31cfd0  release/linux/GhostFTP-linux-x86_64
+846eab44b2e09061536b1ab884bf525cd5666d7cbd248bd180242ca8f84b6478  release/linux/ghostftp_2.1.0_amd64.deb
+4eca2bba715687426bdb0caf715dc000a475a0cfd9863792fc7a98b0266d9a47  release/linux/GhostFTP-linux-x86_64.tar.gz
