@@ -276,7 +276,7 @@ fn join_remote(dir: &str, name: &str) -> String {
 }
 
 fn basename(path: &str) -> String {
-    path.rsplit(|c| c == '/' || c == '\\')
+    path.rsplit(['/', '\\'])
         .next()
         .unwrap_or(path)
         .to_string()
