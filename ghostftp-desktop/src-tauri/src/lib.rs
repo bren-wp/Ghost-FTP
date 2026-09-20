@@ -103,42 +103,6 @@ fn build_settings_init_script(db: &db::Db) -> String {
     )
 }
 
-#[cfg(test)]
-mod init_script_tests {
-    use super::*;
-
-    #[test]
-    fn injects_theme_and_snapshot() {
-        let db = db::Db::open_in_memory().unwrap();
-        db.settings_set("appTheme", "\"nord\"").unwrap();
-        db.settings_set("terminalFontSize", "15").unwrap();
-        let script = build_settings_init_script(&db);
-        assert!(script.contains("window.__GHOSTFTP_SETTINGS__"));
-        assert!(script.contains("setAttribute('data-theme'"));
-        assert!(script.contains("\"appTheme\":\"nord\""));
-        assert!(script.contains("\"terminalFontSize\":15"));
-    }
-
-    #[test]
-    fn defaults_theme_to_dark_on_empty_db() {
-        let db = db::Db::open_in_memory().unwrap();
-        let script = build_settings_init_script(&db);
-        assert!(script.contains("\"appTheme\":\"dark\""));
-    }
-
-    #[test]
-    fn skips_corrupt_rows_without_breaking() {
-        let db = db::Db::open_in_memory().unwrap();
-        // A value that isn't valid JSON must be dropped, not emitted raw (which
-        // would break the whole object literal and leave the window unthemed).
-        db.settings_set("appTheme", "\"dracula\"").unwrap();
-        db.settings_set("broken", "not json").unwrap();
-        let script = build_settings_init_script(&db);
-        assert!(script.contains("\"appTheme\":\"dracula\""));
-        assert!(!script.contains("not json"));
-    }
-}
-
 fn open_db_resilient(path: &std::path::Path) -> anyhow::Result<db::Db> {
     match db::Db::open(path) {
         Ok(db) => Ok(db),
@@ -486,4 +450,40 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod init_script_tests {
+    use super::*;
+
+    #[test]
+    fn injects_theme_and_snapshot() {
+        let db = db::Db::open_in_memory().unwrap();
+        db.settings_set("appTheme", "\"nord\"").unwrap();
+        db.settings_set("terminalFontSize", "15").unwrap();
+        let script = build_settings_init_script(&db);
+        assert!(script.contains("window.__GHOSTFTP_SETTINGS__"));
+        assert!(script.contains("setAttribute('data-theme'"));
+        assert!(script.contains("\"appTheme\":\"nord\""));
+        assert!(script.contains("\"terminalFontSize\":15"));
+    }
+
+    #[test]
+    fn defaults_theme_to_dark_on_empty_db() {
+        let db = db::Db::open_in_memory().unwrap();
+        let script = build_settings_init_script(&db);
+        assert!(script.contains("\"appTheme\":\"dark\""));
+    }
+
+    #[test]
+    fn skips_corrupt_rows_without_breaking() {
+        let db = db::Db::open_in_memory().unwrap();
+        // A value that isn't valid JSON must be dropped, not emitted raw (which
+        // would break the whole object literal and leave the window unthemed).
+        db.settings_set("appTheme", "\"dracula\"").unwrap();
+        db.settings_set("broken", "not json").unwrap();
+        let script = build_settings_init_script(&db);
+        assert!(script.contains("\"appTheme\":\"dracula\""));
+        assert!(!script.contains("not json"));
+    }
 }
