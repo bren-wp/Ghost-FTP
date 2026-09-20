@@ -4,7 +4,6 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GhostWordmark } from "./GhostBrand";
 import { useLayout } from "@/stores/layoutStore";
 import { getLocale, setLocale } from "@/lib/i18n";
-import { openOfficialUrl } from "@/lib/external";
 import { PRODUCT_VERSION_BADGE } from "@/lib/release";
 
 type Item = { label: string; run: () => void; disabled?: boolean } | { separator: true };
