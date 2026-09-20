@@ -106,19 +106,19 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-modal flex items-center justify-center bg-black/72 p-4 backdrop-blur-md" onClick={onClose}>
-      <div ref={panelRef} role="dialog" aria-modal="true" className="ghost-new-connection-dialog anim-modal flex h-[min(628px,calc(100dvh-24px))] w-[min(752px,94vw)] flex-col overflow-hidden rounded-xl border border-accent/70 bg-[#061a2d] shadow-[0_0_0_1px_rgba(65,181,255,.08),0_30px_90px_rgba(0,0,0,.7),0_0_38px_rgba(31,149,255,.15)]" onClick={(e)=>e.stopPropagation()}>
-        <div className="flex shrink-0 items-center gap-3 border-b border-border px-5 py-4">
+      <div ref={panelRef} role="dialog" aria-modal="true" className="ghost-new-connection-dialog anim-modal flex w-[min(752px,94vw)] flex-col overflow-hidden rounded-xl border border-accent/70 bg-[#061a2d] shadow-[0_0_0_1px_rgba(65,181,255,.08),0_30px_90px_rgba(0,0,0,.7),0_0_38px_rgba(31,149,255,.15)]" onClick={(e)=>e.stopPropagation()}>
+        <div className="ghost-new-connection-head flex shrink-0 items-center gap-3 border-b border-border px-5 py-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0b3151]"><GhostMark size={34}/></div>
           <div><div className="text-[19px] font-semibold">New Connection</div><div className="text-[12px] text-text-muted">Quickly connect to your server or save it as a profile.</div></div>
           <div className="flex-1"/><button onClick={onClose} className="rounded-md p-2 text-text-muted hover:bg-bg-hover hover:text-white"><X size={18}/></button>
         </div>
 
-        <div className="grid shrink-0 grid-cols-2 gap-2 px-5 pt-4">
+        <div className="ghost-new-connection-mode grid shrink-0 grid-cols-2 gap-2 px-5 pt-4">
           <button className={`flex items-center justify-center gap-2 rounded-md border py-3 font-semibold ${mode==='quick'?'border-accent bg-accent-strong text-white shadow-[0_0_20px_rgba(34,154,255,.18)]':'border-border bg-[#071f35] text-text-muted'}`} onClick={()=>setMode('quick')}><Zap size={18}/> Quick Connect</button>
           <button className={`flex items-center justify-center gap-2 rounded-md border py-3 font-semibold ${mode==='profile'?'border-accent bg-accent-strong text-white':'border-border bg-[#071f35] text-text-muted'}`} onClick={()=>setMode('profile')}><Bookmark size={17}/> Save as Profile</button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        <div className="ghost-new-connection-body min-h-0 overflow-y-auto p-5">
           {mode === "profile" && <Field label="Profile name"><input value={name} onChange={(e)=>setName(e.target.value)} placeholder=""/></Field>}
           <div className="grid grid-cols-[1.1fr_1.7fr_.55fr] gap-3">
             <Field label="Protocol"><select value={protocol} onChange={(e)=>{const p=e.target.value as Protocol;setProtocol(p);setPort(PROTOCOL_DEFAULT_PORT[p]);}}><option value="sftp">SFTP (SSH File Transfer)</option><option value="ftp">FTP</option><option value="ftps">FTPS (FTP over TLS)</option></select></Field>
@@ -144,7 +144,7 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center border-t border-border bg-[#051929] px-5 py-4">
+        <div className="ghost-new-connection-actions flex shrink-0 items-center border-t border-border bg-[#051929] px-5 py-4">
           <button className="ghost-mini-button" onClick={onClose}>Cancel</button><div className="flex-1"/>
           {mode==='profile' && <button disabled={!canConnect||busy} className="ghost-mini-button mr-2" onClick={()=>void submit(false)}><Bookmark size={14}/> Save Profile</button>}
           <button disabled={!canConnect||busy} className="ghost-primary-button" onClick={()=>void submit(true)}><Link2 size={15}/> {busy?'Connecting…':'Connect'}</button>
