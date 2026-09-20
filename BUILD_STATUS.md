@@ -2,7 +2,7 @@
 
 ## Authoritative status
 
-**Ghost FTP 2.1.1 RC7 — native Tauri release-candidate hardening. NOT FINAL.**
+**Ghost FTP 2.1.1 RC8 — native Tauri release-candidate hardening. NOT FINAL.**
 
 Development continued from the existing full source tree. No new replacement project was created and no screenshot-runtime implementation was introduced.
 
@@ -13,9 +13,9 @@ Development continued from the existing full source tree. No new replacement pro
 - Frontend TypeScript/Vite compilation is required before every native bundle step.
 - Native bundle targets remain Windows NSIS/MSI and Linux DEB/RPM/AppImage.
 - The Go `runtime/` and `installer/` trees remain developer/compatibility tooling only and are **not** the production GUI release path.
-- Browser-shell compatibility executables were removed from the public RC7 release after QA showed a visible `127.0.0.1` Chromium/Edge app bar that cannot satisfy the 1:1 frameless requirement.
+- Browser-shell compatibility executables were removed from the public RC8 release after QA showed a visible `127.0.0.1` Chromium/Edge app bar that cannot satisfy the 1:1 frameless requirement.
 
-## RC7 source improvements
+## RC8 source improvements
 
 - Converted Site Manager, Preferences, Transfer Center and About into real full-window Ghost FTP application surfaces with shared custom window chrome instead of generic centered overlays.
 - Tightened reference geometry around the 1290×852 canonical desktop frame and added local-scroll adaptive rules instead of hiding critical controls at narrow sizes.
@@ -41,7 +41,7 @@ Development continued from the existing full source tree. No new replacement pro
 
 ## Public release artifact policy
 
-Production-facing Windows/Linux executables must come from the native Tauri build. Compatibility browser-host artifacts are not published as end-user RC7 binaries. The RC7 release is kept as a pre-release until native Windows/Linux bundles and the remaining OS acceptance gates pass.
+Production-facing Windows/Linux executables must come from the native Tauri build. Compatibility browser-host artifacts are not published as end-user RC8 binaries. The RC8 release is kept as a pre-release until native Windows/Linux bundles and the remaining OS acceptance gates pass.
 
 ## Executed QA in this pass
 
@@ -54,7 +54,7 @@ Production-facing Windows/Linux executables must come from the native Tauri buil
 - 14 website entry pages metadata/notranslate/language selector audit: PASS.
 - Native locale key parity: PASS — HR/DE/FR/ES/IT/PT/NL/PL/SL/SR/BS/MK/SQ each expose 185 keys.
 - Fallback runtime API: PASS for authorization rejection, mkdir, listing, SHA-256, duplicate and root-delete protection.
-- Linux fallback reports version `2.1.1-rc.7`: PASS.
+- Linux fallback reports version `2.1.1-rc.8`: PASS.
 - Windows outputs identify as PE32+ x64 GUI executables: PASS.
 - Linux output identifies as stripped static ELF x86-64: PASS.
 
