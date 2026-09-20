@@ -105,8 +105,8 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-modal flex items-center justify-center bg-black/76 p-4" onClick={onClose}>
-      <div ref={panelRef} role="dialog" aria-modal="true" className="ghost-new-connection-dialog flex w-[min(752px,94vw)] flex-col overflow-hidden rounded-xl border border-accent/70 bg-[#061a2d] shadow-[0_0_0_1px_rgba(65,181,255,.08),0_30px_90px_rgba(0,0,0,.7),0_0_38px_rgba(31,149,255,.15)]" onClick={(e)=>e.stopPropagation()}>
+    <div className="ghost-transient-overlay fixed inset-0 z-modal flex items-center justify-center bg-black/70 p-4">
+      <div ref={panelRef} role="dialog" aria-modal="true" className="ghost-new-connection-dialog flex w-[min(752px,94vw)] flex-col overflow-hidden rounded-xl border border-accent/70 bg-[#061a2d] shadow-[0_0_0_1px_rgba(65,181,255,.08),0_30px_90px_rgba(0,0,0,.7),0_0_38px_rgba(31,149,255,.15)]">
         <div className="ghost-new-connection-head flex shrink-0 items-center gap-3 border-b border-border px-5 py-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0b3151]"><GhostMark size={34}/></div>
           <div><div className="text-[19px] font-semibold">New Connection</div><div className="text-[12px] text-text-muted">Quickly connect to your server or save it as a profile.</div></div>
