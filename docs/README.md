@@ -1,23 +1,35 @@
 # Ghost FTP Documentation
 
-This directory is the documentation hub for Ghost FTP. The repository root stays intentionally product-focused; engineering evidence, audits, release notes and operational guidance live here.
+This directory is the documentation hub for **Ghost FTP**. The repository root is intentionally product-focused; detailed engineering evidence, release state, audits, QA and operational guidance live here.
 
-## Product
+## Start here
 
-- [Implemented features](product/FEATURES.md) — what currently exists in RC9.
-- [Recommended next work](product/ROADMAP.md) — what is worth adding or finishing next.
-- [UI / UX contract](product/UI_UX.md) — canonical geometry, interaction and pixel-parity rules.
+- [Project status & next work](product/STATUS_AND_NEXT.md) — what is implemented, what was improved in RC9, what still blocks FINAL, and what is recommended next.
+- [Implemented features](product/FEATURES.md) — current functionality only.
+- [Roadmap](product/ROADMAP.md) — recommended future improvements, clearly separated from implemented features.
+- [UI / UX contract](product/UI_UX.md) — canonical 1:1 geometry, interaction and responsive rules.
 
-## Architecture and repository
+## Repository architecture and naming
 
-- [Repository structure](architecture/STRUCTURE.md) — naming policy and why framework-required internal paths remain stable.
+- [Repository structure](architecture/STRUCTURE.md)
+- [GhostFTP naming policy](architecture/NAMING.md)
 
-## Build and release status
+The repository uses branded top-level source paths:
 
-- [Build status](build/STATUS.md) — authoritative build/release state.
-- [Reference runtime notes](build/REFERENCE_RUNTIME.md) — compatibility/runtime context.
-- [RC9 release notes](releases/2.1.1-rc.9.md) — current release candidate.
-- GitHub Releases is the canonical source for downloadable binaries.
+- `ghostftp-desktop/`
+- `ghostftp-runtime/`
+- `ghostftp-installer/`
+- `ghostftp-web/`
+- `ghostftp-updates/`
+
+Framework-specific terms remain only where technically required by the build ecosystem.
+
+## Build and release
+
+- [Build status](build/STATUS.md) — authoritative build and release state.
+- [Reference runtime notes](build/REFERENCE_RUNTIME.md)
+- [RC9 release notes](releases/2.1.1-rc.9.md)
+- GitHub Releases is the canonical source for published binaries and checksums.
 
 ## Guides
 
@@ -41,7 +53,7 @@ This directory is the documentation hub for Ghost FTP. The repository root stays
 - [Installer QA](qa/INSTALLER.md)
 - [Pixel parity](qa/PIXEL_PARITY.md)
 - [Responsive QA](qa/RESPONSIVE.md)
-- [Titlebar QA](qa/TITLEBAR.md)
+- [Native titlebar QA](qa/TITLEBAR.md)
 - [Transfer QA](qa/TRANSFERS.md)
 - [Reference checksums](qa/REFERENCE_SHA256.txt)
 
@@ -54,12 +66,24 @@ This directory is the documentation hub for Ghost FTP. The repository root stays
 
 ## Visual references
 
-The files under `assets/screenshots/` are the approved Ghost FTP design/QA reference set and are also used by the product README.
+The approved reference media under `assets/screenshots/` is used by the README and release QA.
 
-They are documentation and acceptance references only. Production UI must be implemented with real Ghost FTP components and controls; screenshot-as-UI or click-hotspot implementations are not accepted.
+Current branded reference filenames include:
 
-## Naming
+- `ghostftp-main-file-manager.webp`
+- `ghostftp-site-manager.webp`
+- `ghostftp-new-connection.webp`
+- `ghostftp-preferences.webp`
+- `ghostftp-transfer-center.webp`
+- `ghostftp-file-properties.webp`
+- `ghostftp-about.webp`
+- `ghostftp-platforms.webp`
+- `ghostftp-brand-board.webp`
 
-User-facing names use **Ghost FTP**. Filenames, package names and technical product identifiers use **GhostFTP**.
+These files are **documentation and acceptance references only**. Production UI is implemented with real Ghost FTP components and controls; screenshot-as-UI and click-hotspot implementations are not accepted.
 
-Framework-specific internal directory names are retained only where renaming would create unnecessary build risk. Public release archives and documentation use GhostFTP-first names.
+## Naming summary
+
+- **Ghost FTP** — user-facing product name.
+- **GhostFTP** — filenames, packages, archives and technical product identifiers.
+- Internal framework names remain only where technically required.
