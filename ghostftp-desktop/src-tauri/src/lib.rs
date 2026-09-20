@@ -118,10 +118,14 @@ fn open_external_url(url: String) -> Result<(), String> {
         .spawn();
 
     #[cfg(target_os = "linux")]
-    let result = std::process::Command::new("xdg-open").arg(parsed.as_str()).spawn();
+    let result = std::process::Command::new("xdg-open")
+        .arg(parsed.as_str())
+        .spawn();
 
     #[cfg(target_os = "macos")]
-    let result = std::process::Command::new("open").arg(parsed.as_str()).spawn();
+    let result = std::process::Command::new("open")
+        .arg(parsed.as_str())
+        .spawn();
 
     #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
     return Err("Opening external links is unsupported on this platform".to_string());
