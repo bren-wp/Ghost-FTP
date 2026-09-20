@@ -1613,7 +1613,7 @@ body::after { opacity: 0.018; }
   .ghost-quick-connect-menu { width: 32px; flex-basis: 32px; }
 }
 
-/* Ghost FTP RC7 — standalone reference views ---------------------------------
+/* Ghost FTP RC10 — standalone reference views ---------------------------------
    Site Manager, Preferences, Transfer Center and About are full application
    surfaces in the approved references. They intentionally do not render as
    generic centered web modals. */
@@ -1681,10 +1681,12 @@ body::after { opacity: 0.018; }
 /* Pixel-reference dialogs. */
 .ghost-new-connection-dialog {
   width: min(752px, calc(100vw - 24px)) !important;
+  height: min(628px, calc(100dvh - 24px)) !important;
   max-height: min(628px, calc(100dvh - 24px)) !important;
 }
 .ghost-properties-dialog {
   width: min(530px, calc(100vw - 20px)) !important;
+  height: min(770px, calc(100dvh - 20px)) !important;
   max-height: min(770px, calc(100dvh - 20px)) !important;
 }
 
@@ -1772,7 +1774,7 @@ body::after { opacity: 0.018; }
 }
 
 /* ========================================================================== */
-/* Ghost FTP RC7 — reference parity polish                                    */
+/* Ghost FTP RC10 — reference parity polish                                    */
 /* Keeps the measured 1290×852 geometry while tightening palette, glow,       */
 /* controls and standalone application surfaces to the approved references.   */
 /* ========================================================================== */
@@ -1845,8 +1847,6 @@ body::after { opacity: 0.018; }
   border:1px solid rgba(56,171,255,.92) !important;
   box-shadow:0 0 0 1px rgba(56,171,255,.12),0 0 26px rgba(31,155,255,.24),0 24px 70px rgba(0,0,0,.58) !important;
 }
-.ghost-new-connection-dialog { width:min(752px,calc(100vw - 24px)) !important; }
-.ghost-properties-dialog { width:min(530px,calc(100vw - 24px)) !important; }
 .ghost-standalone-view .ghost-window-controls button:hover { background:rgba(56,171,255,.12) !important; }
 .ghost-standalone-view .ghost-window-controls button:last-child:hover { background:#c42b3b !important; }
 @media (max-width: 1100px) {
