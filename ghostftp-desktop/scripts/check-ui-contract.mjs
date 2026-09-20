@@ -95,6 +95,9 @@ for (const required of ["Transfer Center", "File Manager", "Sync & Backup", "Clo
   if (!sidebar.includes(required)) failures.push(`Reference sidebar missing required navigation: ${required}`);
 }
 if (!sidebar.includes('openDialog("sync")')) failures.push("Sync & Backup must open the real in-app sync workspace.");
+for (const route of ['openDialog("cloudStorage")', 'openDialog("schedules")', 'openDialog("activityLogs")']) {
+  if (!sidebar.includes(route)) failures.push(`Sidebar must use purpose-specific in-app route: ${route}`);
+}
 
 const titleBar = read("src/components/TitleBar.tsx");
 if (titleBar.includes("openOfficialUrl")) failures.push("Top Help menu must stay inside the Ghost FTP app.");
