@@ -50,7 +50,7 @@ export function SyncSettings() {
             Keep folders in sync automatically
           </div>
           <div className="mt-1 text-xs text-text-dim">
-            在后台监视本地文件夹并将更改同步到服务器（或从服务器同步回来）。Ghost FTP 打开时每个同步对都会独立运行。
+            Watch local folders in the background and synchronize changes to or from your server. Each sync pair runs independently while Ghost FTP is open.
           </div>
         </div>
         {!adding && (
