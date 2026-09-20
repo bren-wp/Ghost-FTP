@@ -159,9 +159,13 @@ jobs:
           server.serve_forever(timeout=0.5, blocking=True)
           PY
 
+          FTP_HOME="$RUNNER_TEMP/ghostftp-ftp-home"
+          mkdir -p "$FTP_HOME"
+          chmod 700 "$FTP_HOME"
+
           export GHOSTFTP_SERVER_USERNAME="$USERNAME"
           export GHOSTFTP_SERVER_PASSWORD="$PASSWORD"
-          export GHOSTFTP_SERVER_HOME="/home/$USERNAME"
+          export GHOSTFTP_SERVER_HOME="$FTP_HOME"
           export GHOSTFTP_SERVER_CERT="$RUNNER_TEMP/ghostftp-e2e-server.crt"
           export GHOSTFTP_SERVER_KEY="$RUNNER_TEMP/ghostftp-e2e-server.key"
 
