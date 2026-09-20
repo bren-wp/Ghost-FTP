@@ -4,29 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root,
-[data-theme="dark"] {
-  --bg: 9 10 15;
-  --bg-panel: 17 19 28;
-  --bg-subtle: 24 27 40;
-  --bg-hover: 34 37 54;
-  --border: 38 43 58;
-  --border-subtle: 27 31 42;
-  --text: 234 236 242;
-  --text-muted: 153 161 178;
-  --text-dim: 128 137 156;
-  --accent: 104 79 255;
-  --accent-hover: 126 104 255;
-  --accent-strong: 86 62 235;
-  --accent-glow: 104 79 255;
-  --danger: 248 113 113;
-  --success: 52 211 153;
-  --warning: 251 191 36;
-  --info: 96 165 250;
-  --shadow: 0 0 0;
-  color-scheme: dark;
-}
-
 [data-theme="light"] {
   --bg: 250 250 252;
   --bg-panel: 255 255 255;
@@ -704,10 +681,10 @@ textarea:focus-visible:not(.xterm-helper-textarea),
   --bg-hover: 10 47 77;
   --border: 24 73 112;
   --border-subtle: 17 53 83;
-  --text: 232 246 255;
+  --text: 234 246 255;
   --text-muted: 170 204 229;
   --text-dim: 111 159 195;
-  --accent: 49 170 255;
+  --accent: 56 171 255;
   --accent-hover: 80 190 255;
   --accent-strong: 2 123 244;
   --accent-glow: 36 166 255;
@@ -1215,7 +1192,7 @@ body::after { opacity: 0.018; }
 }
 
 /* ========================================================================== */
-/* Ghost FTP v9 canonical desktop geometry — measured from the approved 1290×852 application frame. */
+/* Ghost FTP canonical desktop geometry — measured from the approved 1290×852 application frame. */
 /* ========================================================================== */
 
 .ghost-app-shell {
