@@ -17,6 +17,8 @@ export type AppDialog =
   | "agentBridge"
   | "grant";
 
+export type AboutTab = "about" | "updates" | "help";
+
 /** Seed for the grant consent dialog, parsed from a ghostftp://grant deep link. */
 export interface GrantPrefill {
   issuer: string;
@@ -38,6 +40,9 @@ interface LayoutState {
   view: AppView;
   openView: (view: AppView) => void;
   returnToFiles: () => void;
+  aboutTab: AboutTab;
+  openAbout: (tab?: AboutTab) => void;
+  setAboutTab: (tab: AboutTab) => void;
 
   dialog: AppDialog | null;
   openDialog: (d: AppDialog) => void;
@@ -99,6 +104,16 @@ export const useLayout = create<LayoutState>((set) => ({
       connectionPrefill: null,
       grantPrefill: null,
     }),
+  aboutTab: "about",
+  openAbout: (tab = "about") =>
+    set({
+      view: "about",
+      aboutTab: tab,
+      dialog: null,
+      connectionPrefill: null,
+      grantPrefill: null,
+    }),
+  setAboutTab: (aboutTab) => set({ aboutTab }),
 
   dialog: null,
   openDialog: (d) => set({ dialog: d }),
