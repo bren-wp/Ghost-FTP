@@ -4,8 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GhostWordmark } from "./GhostBrand";
 import { useLayout } from "@/stores/layoutStore";
 import { getLocale, setLocale } from "@/lib/i18n";
-
-const SITE = "https://ghostftp.com";
+import { openOfficialUrl } from "@/lib/external";
 
 type Item = { label: string; run: () => void } | { separator: true };
 
@@ -81,8 +80,8 @@ export function ReferenceMenuRow({ onClose }: { onClose?: () => void } = {}) {
     Bookmarks: [{ label: "Site Manager…", run: () => openDialog("siteManager") }],
     Tools: [{ label: "Preferences…", run: () => openDialog("settings") }],
     Help: [
-      { label: "Documentation", run: () => window.open(`${SITE}/docs/`, "_blank", "noopener,noreferrer") },
-      { label: "Support Center", run: () => window.open(`${SITE}/support/`, "_blank", "noopener,noreferrer") },
+      { label: "Documentation", run: () => openOfficialUrl("/docs/") },
+      { label: "Support Center", run: () => openOfficialUrl("/support/") },
       { separator: true },
       { label: "About Ghost FTP", run: () => openDialog("about") },
     ],
