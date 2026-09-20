@@ -169,7 +169,7 @@ pub async fn duplicate_profile(
             profile.protocol.to_uppercase()
         ));
     }
-    if matches!(profile.auth, AuthMethod::KeyRef { .. }) {
+    if matches!(&profile.auth, AuthMethod::KeyRef { .. }) {
         return Err(
             "Duplicate is not available for grant-managed key profiles. Import or grant a separate profile instead."
                 .to_string(),
@@ -184,7 +184,10 @@ pub async fn duplicate_profile(
     let base = format!("{} Copy", profile.name);
     let mut name = base.clone();
     let mut suffix = 2usize;
-    while existing.iter().any(|candidate| candidate.name.eq_ignore_ascii_case(&name)) {
+    while existing
+        .iter()
+        .any(|candidate| candidate.name.eq_ignore_ascii_case(&name))
+    {
         name = format!("{base} {suffix}");
         suffix += 1;
     }
