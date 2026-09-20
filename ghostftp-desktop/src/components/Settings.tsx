@@ -80,9 +80,6 @@ export function Settings({ onClose, initialSection = "general" }: Props) {
             <div className="mb-2 flex items-center gap-2"><GhostMark size={20}/><strong className="text-text">Ghost FTP</strong></div>
             <div>v{PRODUCT_VERSION_DISPLAY}</div><div>Built for Windows & Linux</div>
           </div>
-          <button className="ghost-mini-button mt-3 w-full justify-center" onClick={reset}>
-            <RotateCcw size={14}/> Reset to Defaults
-          </button>
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col">
@@ -105,7 +102,9 @@ export function Settings({ onClose, initialSection = "general" }: Props) {
             {section === "language" && <LanguagePanel locale={pendingLocale} setLocale={setPendingLocale}/>} 
             {section === "sync" && <div className="max-w-5xl"><SyncSettings/></div>}
           </div>
-          <div className="ghost-preferences-actions flex h-[58px] shrink-0 items-center justify-end border-t border-border bg-[#061a2d] px-4">
+          <div className="ghost-preferences-actions flex h-[58px] shrink-0 items-center border-t border-border bg-[#061a2d] px-4">
+            <button className="ghost-mini-button" onClick={reset}><RotateCcw size={14}/> Reset to Defaults</button>
+            <div className="flex-1"/>
             <button className="ghost-mini-button" onClick={cancel}>Cancel</button>
             <button className="ghost-primary-button ml-2" onClick={apply}>Apply</button>
           </div>
