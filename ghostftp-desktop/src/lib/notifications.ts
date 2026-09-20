@@ -192,7 +192,7 @@ export function initNotifications(): () => void {
           `${p.name}: ${p.lastError ?? "sync failed"}`,
           () => {
             try {
-              useLayout.getState().openDialog("settings");
+              useLayout.getState().openView("settings");
             } catch {
               /* ignore */
             }
