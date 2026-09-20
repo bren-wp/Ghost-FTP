@@ -55,3 +55,46 @@ select {
   }
 }
 
+/* Local Ghost FTP icon set -------------------------------------------------- */
+.action-icon,
+.feature > b {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  color: transparent;
+  font-size: 0 !important;
+}
+
+.action-card:nth-child(1) .action-icon {
+  background-image: url("icons/download.svg");
+}
+.action-card:nth-child(2) .action-icon {
+  background-image: url("icons/features.svg");
+}
+.action-card:nth-child(3) .action-icon {
+  background-image: url("icons/security.svg");
+}
+.action-card:nth-child(4) .action-icon {
+  background-image: url("icons/help.svg");
+}
+
+.footer .feature:nth-child(1) > b {
+  background-image: url("icons/security.svg");
+}
+.footer .feature:nth-child(2) > b {
+  background-image: url("icons/speed.svg");
+}
+.footer .feature:nth-child(3) > b {
+  background-image: url("icons/privacy.svg");
+}
+.footer .feature:nth-child(4) > b {
+  background-image: url("icons/globe.svg");
+}
+
+.feature > b {
+  width: 34px;
+  height: 34px;
+  display: block;
+  flex: 0 0 34px;
+}
+
