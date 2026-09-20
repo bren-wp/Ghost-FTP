@@ -24,7 +24,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat bootstrap/rc8/source.part.* > /tmp/ghostftp-source.tar.xz
+          cat bootstrap/rc8/source.part.*.b64 | base64 -d > /tmp/ghostftp-source.tar.xz
           echo "60bd016984e8646e6b1487b7af8f50366c7106da1ac1635b03b153ff725f8dbc  /tmp/ghostftp-source.tar.xz" | sha256sum -c -
       - name: Extract source
         shell: bash
