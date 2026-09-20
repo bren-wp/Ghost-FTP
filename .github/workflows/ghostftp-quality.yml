@@ -68,16 +68,21 @@ jobs:
             ghostftp-desktop/src ghostftp-desktop/src-tauri/src tools/ghostftp-runtime tools/ghostftp-installer \
             --exclude-dir=target
 
-      - name: UI stacking and menu regression guard
+      - name: UI single-shell, stacking and menu regression guard
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq 'z-index: 20;' ghostftp-desktop/src/styles.css
           grep -Fq '.ghost-menu-anchor {' ghostftp-desktop/src/styles.css
           grep -Fq '.ghost-menu-popover {' ghostftp-desktop/src/styles.css
           grep -Fq 'className="ghost-menu-popover"' ghostftp-desktop/src/components/TitleBar.tsx
-          grep -Fq '.fixed.inset-0.z-modal {' ghostftp-desktop/src/styles.css
+          grep -Fq '.ghost-workspace-view {' ghostftp-desktop/src/styles.css
+          grep -Fq '.ghost-transient-overlay {' ghostftp-desktop/src/styles.css
           ! grep -Fq 'className="ghost-dropdown-menu"' ghostftp-desktop/src/components/TitleBar.tsx
+          ! grep -RFn 'ghost-standalone-view fixed inset-0 z-modal' \
+            ghostftp-desktop/src/components/SiteManagerDialog.tsx \
+            ghostftp-desktop/src/components/TransferCenterDialog.tsx \
+            ghostftp-desktop/src/components/Settings.tsx \
+            ghostftp-desktop/src/components/AboutDialog.tsx
 
       - name: Runtime checks
         shell: bash
@@ -158,6 +163,7 @@ jobs:
           npm ci
           npm audit --omit=dev --audit-level=high
           npm run check:i18n
+          npm run check:ui
           npm run check
           npm run build
 
