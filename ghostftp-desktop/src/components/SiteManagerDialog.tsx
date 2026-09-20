@@ -731,41 +731,47 @@ function SiteRow({
   onFavorite: () => void;
 }) {
   const tag = profile.tags?.[0] || profile.group || "Sites";
+  const activateFromKeyboard = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onClick();
+    }
+  };
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
+      role="button"
+      tabIndex={0}
       aria-pressed={active}
-      className={`grid w-full grid-cols-[minmax(180px,1.4fr)_minmax(150px,1fr)_90px_120px_110px] items-center border-b border-border-subtle px-3 py-2.5 text-left text-[12px] ${
+      onClick={onClick}
+      onKeyDown={activateFromKeyboard}
+      className={`grid w-full cursor-pointer grid-cols-[minmax(180px,1.4fr)_minmax(150px,1fr)_90px_120px_110px] items-center border-b border-border-subtle px-3 py-2.5 text-left text-[12px] outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent ${
         active
           ? "bg-accent/15 outline outline-1 outline-accent/60"
           : "hover:bg-bg-hover/70"
       }`}
     >
       <span className="flex min-w-0 items-center gap-2">
-        <span
+        <button
+          type="button"
           onClick={(event) => {
             event.stopPropagation();
             onFavorite();
           }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              event.stopPropagation();
-              onFavorite();
-            }
-          }}
-          role="button"
-          tabIndex={0}
+          onKeyDown={(event) => event.stopPropagation()}
+          className="rounded p-0.5 text-text-dim outline-none hover:bg-bg-hover hover:text-warning focus-visible:ring-1 focus-visible:ring-accent"
           aria-label={favorite ? "Remove from favorites" : "Add to favorites"}
+          aria-pressed={favorite}
         >
           <Star
             size={14}
             className={
-              favorite ? "shrink-0 fill-warning text-warning" : "shrink-0 text-text-dim"
+              favorite
+                ? "shrink-0 fill-warning text-warning"
+                : "shrink-0 text-text-dim"
             }
           />
-        </span>
+        </button>
         <Server size={14} className="shrink-0 text-accent" />
         <span className="truncate font-medium">{profile.name}</span>
       </span>
@@ -779,7 +785,7 @@ function SiteRow({
       <span className={connected ? "text-success" : "text-text-dim"}>
         {connected ? "Connected" : formatLastUsed(profile.lastUsed)}
       </span>
-    </button>
+    </div>
   );
 }
 
