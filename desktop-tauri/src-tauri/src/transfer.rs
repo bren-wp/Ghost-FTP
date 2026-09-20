@@ -3683,7 +3683,7 @@ mod tests {
         use crate::session::{HttpSession, ObjectSession, WebdavSession};
 
         let client = reqwest::Client::new();
-        let base = url::Url::parse("https://example.com/dav/").unwrap();
+        let base = url::Url::parse("https://example.invalid/dav/").unwrap();
         let table: Vec<(&str, Session, bool)> = vec![
             (
                 "webdav",
