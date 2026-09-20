@@ -325,8 +325,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
     ipc.transferSetMaxRetries(clamped).catch(() => {});
   },
   setTransferThrottleKbps: (n) => {
-    mutate(set, get, "transferThrottleKbps", n);
-    ipc.transferSetThrottle(n).catch(() => {});
+    const clamped = Math.max(0, Math.round(n));
+    mutate(set, get, "transferThrottleKbps", clamped);
+    ipc.transferSetThrottle(clamped).catch(() => {});
   },
   setDeltaSync: (v) => {
     mutate(set, get, "deltaSync", v);
