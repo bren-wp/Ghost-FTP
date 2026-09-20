@@ -327,7 +327,7 @@ mod tests {
         let session = Arc::new(onedrive_connect(&profile).await.expect("connect"));
 
         // First API call uses STALE → 401 → force_refresh → succeeds.
-        assert_eq!(session.account_label().await.expect("account"), "tester@example.com");
+        assert_eq!(session.account_label().await.expect("account"), "tester@example.invalid");
 
         let fs = OneDriveFs::new(session.clone());
         fs.create_dir("/ghostftp-test").await.expect("mkdir");
