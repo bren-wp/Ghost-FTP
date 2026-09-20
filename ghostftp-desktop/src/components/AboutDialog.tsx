@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   CheckCircle2,
   ExternalLink,
@@ -24,6 +25,14 @@ function external(path = "") {
 export function AboutDialog({ onClose }: Props) {
   const tab = useLayout((state) => state.aboutTab);
   const setTab = useLayout((state) => state.setAboutTab);
+  // Escape returns from About/Updates/Help to the file workspace.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   return (
     <section className="ghost-app-view ghost-standalone-view bg-[#041425]" aria-label="About Ghost FTP">
       <div className="ghost-about flex h-full w-full flex-col overflow-hidden bg-bg-panel">
