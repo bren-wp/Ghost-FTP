@@ -118,6 +118,22 @@ export function FileBrowser() {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setUploadMenu({ x: r.left, y: r.bottom + 4 });
   };
+
+  // The global desktop toolbar routes Upload to the local pane in dual-pane
+  // mode. In this single-pane server view there is no local pane, so make the
+  // exact same toolbar button open the native file picker instead of becoming
+  // a silent no-op.
+  useEffect(() => {
+    if (browseLocal) return;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ action?: string }>).detail;
+      if (detail?.action !== "upload") return;
+      void pickAndUpload("files");
+    };
+    window.addEventListener("ghostftp:toolbar-action", handler as EventListener);
+    return () =>
+      window.removeEventListener("ghostftp:toolbar-action", handler as EventListener);
+  }, [browseLocal, serverSid, serverRemotePath]);
   const uploadMenuItems: MenuItem[] = [
     {
       label: "Upload files…",
