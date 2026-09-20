@@ -17,8 +17,8 @@ At the approved **1290×852** desktop frame the real Ghost FTP component shell t
 
 Reference modal envelopes:
 
-- New Connection: **752×628**
-- File Properties: **530×770**
+- New Connection: **640×496** at the canonical desktop frame
+- File Properties: **490×716** at the canonical desktop frame
 
 ## Visual system
 
@@ -78,3 +78,8 @@ At every documented viewport size:
 ## RC12 compositor hardening
 
 Menu and protocol popovers use explicit high stacking contexts and overflow-visible ancestors. Critical standalone/dialog surfaces do not use transform entrance animations, and press feedback no longer scales controls. These are source-level flicker mitigations; real Windows/Linux soak and screenshot comparison remain required before pixel-perfect acceptance.
+
+
+## Measured RC13 reference envelopes
+
+The current supplied 1672×941 artwork was measured directly rather than relying on the older nominal dialog dimensions. The New Connection border is approximately 639×496 px inside an approximately 1291 px wide application frame; File Properties is approximately 489×716 px. RC13 therefore targets 640×496 and 490×716 respectively at canonical desktop scale, with viewport-safe internal scrolling below that size.
