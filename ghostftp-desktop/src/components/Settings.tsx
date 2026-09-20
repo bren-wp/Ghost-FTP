@@ -27,6 +27,7 @@ import {
 } from "@/stores/settingsStore";
 import { getLocale, saveLocale } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
+import { requestDesktopNotificationPermission } from "@/lib/notifications";
 import { useUpdater } from "@/stores/updaterStore";
 import { PRODUCT_VERSION_DISPLAY } from "@/lib/release";
 import { GhostMark } from "./GhostBrand";
@@ -331,7 +332,14 @@ function ConnectionCard() {
       <ToggleRow
         label="Desktop notifications"
         checked={s.notifications.enabled}
-        onChange={(v) => s.setNotifications({ ...s.notifications, enabled: v })}
+        onChange={async (v) => {
+          if (!v) {
+            s.setNotifications({ ...s.notifications, enabled: false });
+            return;
+          }
+          const granted = await requestDesktopNotificationPermission();
+          s.setNotifications({ ...s.notifications, enabled: granted });
+        }}
       />
       <ToggleRow
         label="Notify only when unfocused"
@@ -368,7 +376,7 @@ function IntegrationsCard() {
     }finally{setShellBusy(false)}
   };
   return <Card icon={<Plug size={20}/>} title="Integrations" subtitle="Extend Ghost FTP with system integrations.">
-    <ToggleRow label="Desktop notifications" checked={s.notifications.enabled} onChange={(v)=>s.setNotifications({...s.notifications,enabled:v})}/>
+    <ToggleRow label="Desktop notifications" checked={s.notifications.enabled} onChange={async(v)=>{if(!v){s.setNotifications({...s.notifications,enabled:false});return}const granted=await requestDesktopNotificationPermission();s.setNotifications({...s.notifications,enabled:granted})}}/>
     <ToggleRow label="Shell integration" checked={s.shellIntegration} onChange={(v)=>void setShell(v)} locked={shellBusy}/>
     <div className="-mt-1 text-[10px] leading-4 text-text-dim">{shellDetail}</div>
     <ToggleRow label="File associations" checked={s.fileAssociations} onChange={s.setFileAssociations} locked/>
