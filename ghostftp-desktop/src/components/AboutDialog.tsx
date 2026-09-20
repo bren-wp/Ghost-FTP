@@ -13,6 +13,7 @@ import { GhostMark } from "./GhostBrand";
 import { ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
 import { useUpdater } from "@/stores/updaterStore";
 import { PRODUCT_BUILD, PRODUCT_RELEASE_DATE, PRODUCT_SITE, PRODUCT_VERSION } from "@/lib/release";
+import { useDialog } from "@/hooks/useDialog";
 
 interface Props { onClose: () => void }
 
@@ -23,10 +24,12 @@ function external(path = "") {
 export function AboutDialog({ onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<"about" | "updates" | "help">("about");
+  useDialog(panelRef, { onClose });
+
   return (
     <div className="ghost-standalone-view fixed inset-0 z-modal bg-[#041425]" role="dialog" aria-modal="true">
       <div ref={panelRef} className="ghost-about flex h-full w-full flex-col overflow-hidden bg-bg-panel">
-        <ReferenceWindowTitlebar />
+        <ReferenceWindowTitlebar onClose={onClose} />
         <div className="ghost-about-body flex min-h-0 flex-1">
         <aside className="ghost-about-nav w-[214px] shrink-0 border-r border-border bg-[#061a2d] p-3">
           <AboutNav active={tab === "about"} icon={<Globe2 size={17}/>} label="About" onClick={() => setTab("about")} />
