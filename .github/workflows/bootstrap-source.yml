@@ -40,7 +40,7 @@ jobs:
           tar -xJf /tmp/ghostftp-source.tar.xz
           rm -rf bootstrap
           rm -f LICENSE
-          rm -f .github/workflows/bootstrap-source.yml
+          git checkout HEAD -- .github/workflows
 
       - name: Validate imported source structure
         shell: bash
