@@ -1,13 +1,26 @@
-# Pixel-Perfect QA
+# Ghost FTP Pixel-Parity QA — RC9
 
-The ten Ghost FTP reference images under `docs/screenshots/` remain the visual specification and are not used as runtime backgrounds. Canonical desktop geometry remains centered on a 1290×852 application frame with the custom titlebar, menu, Quick Connect band, toolbar, sites rail, dual file panes, transfer/log band and status bar represented by real controls.
+The approved images under `docs/assets/screenshots/` are the visual specification. They are documentation/QA references only and are not loaded as application backgrounds or used as click maps.
 
-This pass preserved the canonical large-window rules while adding small-window overrides instead of scaling the whole screenshot. No claim of pixel-perfect completion is made without rendering the actual native app and comparing each target screen to its corresponding reference.
+## Canonical main-window geometry
 
-Before FINAL, capture native renders for Main, Site Manager, New Connection, Preferences, Transfer Center, File Properties and About at 100% scale; compare window bounds, row heights, dividers, radii, typography, icon offsets, focus/hover/selected states and modal geometry; iterate on measured deltas.
+At the approved 1290×852 desktop frame the real Ghost FTP component shell uses:
 
-## RC9 measured parity pass
+- 51 px custom titlebar;
+- 42 px application menu;
+- 50 px Quick Connect row;
+- 62 px toolbar;
+- 216 px Sites rail;
+- 416 px file workspace;
+- 191 px transfer/log band;
+- 40 px status bar.
 
-RC9 added a deterministic component-render harness and compared the real runtime surfaces at the canonical 1290×852 viewport. The main shell now follows the reference segmentation directly: 51 px custom titlebar, 42 px menu, 50 px Quick Connect row, 62 px toolbar, 216 px Sites rail, 416 px file workspace, 191 px transfer/log band and 40 px status bar. The New Connection surface is now measured at 752×628 px, matching the approved reference envelope. Site Manager, Preferences, Transfer Center and About render as full-window surfaces rather than generic web modals.
+These dimensions sum to the canonical 852 px application height. New Connection targets 752×628 px and File Properties targets 530×770 px while remaining viewport-constrained on smaller windows.
 
-The render harness confirms geometry and responsive containment for the compatibility UI. Final pixel acceptance of the native Tauri host, including OS font metrics and native window composition, remains a separate release gate.
+## Visual system
+
+The default dark surface uses the Ghost FTP navy hierarchy with the approved Electric Blue accent and Ice White primary text. RC9 removes a redundant older dark-token block so only the canonical Ghost FTP visual system controls the default theme.
+
+## Acceptance rule
+
+RC9 does not claim complete pixel-perfect acceptance yet. Before FINAL, capture native Windows renders for Main, Site Manager, New Connection, Preferences, Transfer Center, File Properties and About at 100% display scale and compare bounds, typography, icon placement, dividers, radii, selected/hover/focus states and custom-window chrome against the matching reference images.
