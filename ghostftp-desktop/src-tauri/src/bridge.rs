@@ -929,6 +929,8 @@ fn migrate_command_to_skill(c: &SavedCommand) -> Skill {
 /// Opt-in check → policy/approval gate. On success the caller proceeds; on
 /// failure it returns the contained `(status, json)` response. Denials are
 /// logged here so callers only log their own success/error paths.
+// These fields are deliberately kept explicit at the authorization boundary.
+#[allow(clippy::too_many_arguments)]
 async fn gate(
     app: &AppHandle,
     state: &Arc<BridgeState>,
@@ -4914,7 +4916,7 @@ async fn op_history(
     entries.reverse(); // newest-first
     let out: Vec<Value> = entries
         .into_iter()
-        .filter(|e| filter_id.as_deref().map_or(true, |id| e.session_id == id))
+        .filter(|e| filter_id.as_deref().is_none_or(|id| e.session_id == id))
         .take(limit)
         .map(|e| {
             json!({
