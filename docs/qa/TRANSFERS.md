@@ -1,10 +1,10 @@
-# Ghost FTP Transfer QA — RC9
+# Ghost FTP Transfer QA — RC10
 
 ## Implemented transfer engine scope
 
 The authoritative Ghost FTP desktop source contains real FTP, FTPS and SFTP session/transfer paths, queue state, retries, pause/resume controls, bandwidth throttling, conflict handling and synchronization support.
 
-RC9 also corrects transfer-state UI behavior:
+RC10 also corrects transfer-state UI behavior:
 
 - Completed rows do not expose Cancel.
 - Skipped and Canceled are explicit terminal states.
