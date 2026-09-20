@@ -759,7 +759,7 @@ pub async fn open_terminal(
         .sessions
         .get_ssh(&session_id)
         .await
-        .ok_or_else(|| format!("FTP sessions have no shell"))?;
+        .ok_or_else(|| "FTP sessions have no shell".to_string())?;
     state.ptys.open(&ssh, cols, rows, app).await.map_err(err)
 }
 
@@ -1744,7 +1744,7 @@ pub(crate) async fn execute_sync_plan(
 }
 
 fn parent_of(p: &str) -> String {
-    let last_slash = p.rfind(|c: char| c == '/' || c == '\\');
+    let last_slash = p.rfind(['/', '\\']);
     match last_slash {
         Some(0) => "/".to_string(),
         Some(i) => p[..i].to_string(),
@@ -2138,13 +2138,11 @@ pub async fn bridge_register_mcp(url: String, token: String) -> Result<String, S
     let mut last_err = String::new();
     for bin in candidates {
         let output = std::process::Command::new(bin)
-            .args(&args)
+            .args(args)
             .output()
             .map_err(|e| format!("couldn't run {bin}: {e}"))?;
         if output.status.success() {
-            return Ok(format!(
-                "Ghost FTP MCP server registered as 'ghostftp'. Claude Code can now use it."
-            ));
+            return Ok("Ghost FTP MCP server registered as 'ghostftp'. Claude Code can now use it.".to_string());
         }
         last_err = format!(
             "{} exited with {}: {}",
