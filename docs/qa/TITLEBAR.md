@@ -1,17 +1,28 @@
-# Ghost FTP Native Titlebar QA — RC9
+# Ghost FTP Titlebar QA — RC10
 
-The production Tauri window is created frameless with `decorations(false)`. The React titlebar is therefore the intended and only application titlebar. It contains Ghost FTP branding plus minimize, maximize/restore and close controls, a Tauri drag region and double-click maximize/restore behavior.
+The production desktop source creates the application as a frameless native WebView window and renders Ghost FTP's custom titlebar as the visible application chrome.
 
-The visible `127.0.0.1` Chromium/Edge bar reproduced in older compatibility executables was an architecture error in the fallback host, not the intended production UI. Those browser-host executables are excluded from the end-user release path.
+## Implemented
 
-## FINAL acceptance gate
+- custom Ghost FTP branding;
+- minimize;
+- maximize/restore;
+- close;
+- drag region;
+- titlebar double-click maximize/restore path;
+- canonical 51 px titlebar at the 1290×852 reference size.
 
-Capture native Windows 10/11 screenshots of both portable and installed RC9 builds and verify:
+Browser-host compatibility executables are not accepted as production GUI releases because visible browser/origin chrome breaks the approved design.
 
-- no browser/origin/address bar;
-- no extra black native caption above the Ghost FTP titlebar;
-- minimize, maximize/restore, close and drag behavior work;
-- maximized and restored states preserve the custom chrome cleanly;
-- 1290×852 restored geometry matches the approved reference composition.
+## Required FINAL evidence
 
-This gate remains open until those target-OS screenshots are attached as evidence.
+Capture Windows 10 and Windows 11 production builds and confirm:
+
+1. no `127.0.0.1` origin bar;
+2. no Chromium/Edge application bar;
+3. no second black native caption strip;
+4. Ghost FTP controls remain clickable after maximize/restore;
+5. dragging works across the intended titlebar area;
+6. DPI scaling does not introduce an extra caption or clipping.
+
+Until those screenshots are recorded, titlebar acceptance remains pending even when the native build compiles successfully.
