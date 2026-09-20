@@ -1,0 +1,42 @@
+name: Ghost FTP source audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reject legacy/demo branding
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -RniE 'Faro|example\.com|Production Server|Staging Server|Design Assets|Cloud Server|C:\\Users\\Alex' desktop-tauri/src desktop-tauri/src-tauri runtime installer website             --exclude-dir=node_modules --exclude-dir=target
+      - name: Runtime checks
+        shell: bash
+        run: |
+          cd runtime
+          go test ./...
+          go vet ./...
+          node --check site/app.js
+      - name: Installer checks
+        shell: bash
+        run: |
+          cd installer
+          go test ./...
+          go vet ./...
+          node --check site/setup.js
+      - name: Website syntax
+        run: node --check website/assets/site.js
