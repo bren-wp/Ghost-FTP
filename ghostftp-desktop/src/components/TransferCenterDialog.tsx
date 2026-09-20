@@ -38,7 +38,6 @@ interface Props {
 export function TransferCenterDialog({ onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const byId = useTransfers((state) => state.byId);
-  const clearFinished = useTransfers((state) => state.clearFinished);
   const clearCompleted = useTransfers((state) => state.clearCompleted);
   const pauseAll = useTransfers((state) => state.pauseAll);
   const resumeAll = useTransfers((state) => state.resumeAll);
