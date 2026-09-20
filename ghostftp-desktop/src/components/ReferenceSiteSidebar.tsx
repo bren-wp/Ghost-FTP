@@ -25,7 +25,7 @@ export function ReferenceSiteSidebar() {
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const [expanded, setExpanded] = useState(true);
 
-  const visibleProfiles = useMemo(() => profiles.slice(0, 9), [profiles]);
+  const visibleProfiles = useMemo(() => profiles, [profiles]);
 
   const activate = async (profileId: string) => {
     const live = sessions.find((s) => s.profileId === profileId);
