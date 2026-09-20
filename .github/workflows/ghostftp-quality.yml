@@ -1,4 +1,4 @@
-name: Ghost FTP source audit
+name: Ghost FTP quality
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ghostftp-source-audit-${{ github.ref }}
+  group: ghostftp-quality-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -101,6 +101,12 @@ jobs:
           if errors:
               raise SystemExit("\n".join(errors))
           PY
+
+      - name: Update-tool syntax
+        shell: bash
+        run: |
+          node --check updates/scripts/build-manifest.mjs
+          node --check updates/scripts/verify-manifest.mjs
 
       - name: Native frontend typecheck and production build
         working-directory: ghostftp-desktop
