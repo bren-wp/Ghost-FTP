@@ -1,4 +1,4 @@
-name: Ghost FTP source audit
+name: GhostFTP Quality Audit
 
 on:
   push:
@@ -9,12 +9,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: ghostftp-source-audit-${{ github.ref }}
+  group: ghostftp-quality-audit-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   web-and-go:
-    name: Web + compatibility tooling
+    name: Frontend + GhostFTP tools
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -27,44 +27,44 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: desktop-tauri/package-lock.json
+          cache-dependency-path: ghostftp-desktop/package-lock.json
 
       - name: Reject legacy/demo branding
         shell: bash
         run: |
           set -euo pipefail
           ! grep -RniE 'Faro|example\.com|Production Server|Staging Server|Design Assets|Cloud Server|C:\\Users\\Alex' \
-            desktop-tauri/src desktop-tauri/src-tauri runtime installer website \
+            ghostftp-desktop/src ghostftp-desktop/src-tauri ghostftp-runtime ghostftp-installer ghostftp-web \
             --exclude-dir=node_modules --exclude-dir=target
 
-      - name: Runtime checks
+      - name: GhostFTP runtime tooling checks
         shell: bash
         run: |
           set -euo pipefail
-          cd runtime
+          cd ghostftp-runtime
           go test ./...
           go vet ./...
           node --check site/app.js
 
-      - name: Installer checks
+      - name: GhostFTP setup tooling checks
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p installer/payload
-          : > installer/payload/GhostFTP.exe
-          cd installer
+          mkdir -p ghostftp-installer/payload
+          : > ghostftp-installer/payload/GhostFTP.exe
+          cd ghostftp-installer
           go test ./...
           go vet ./...
           node --check site/setup.js
 
-      - name: Website syntax
+      - name: GhostFTP web syntax
         shell: bash
         run: |
           set -euo pipefail
-          node --check website/assets/site.js
+          node --check ghostftp-web/assets/site.js
 
-      - name: Native frontend typecheck and production build
-        working-directory: desktop-tauri
+      - name: GhostFTP frontend typecheck and production build
+        working-directory: ghostftp-desktop
         shell: bash
         run: |
           set -euo pipefail
@@ -73,7 +73,7 @@ jobs:
           npm run build
 
   rust:
-    name: Rust workspace
+    name: GhostFTP Rust workspace
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -84,33 +84,33 @@ jobs:
 
       - uses: swatinem/rust-cache@v2
         with:
-          workspaces: desktop-tauri/src-tauri
+          workspaces: ghostftp-desktop/src-tauri
 
-      - name: Linux Tauri prerequisites
+      - name: Linux desktop prerequisites
         shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
-      - name: Prepare Tauri frontendDist for Rust checks
+      - name: Prepare GhostFTP frontend output for Rust checks
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p desktop-tauri/dist
-          printf '<!doctype html><html><body></body></html>\n' > desktop-tauri/dist/index.html
+          mkdir -p ghostftp-desktop/dist
+          printf '<!doctype html><html><body></body></html>\n' > ghostftp-desktop/dist/index.html
 
       - name: Rust formatting
-        working-directory: desktop-tauri/src-tauri
+        working-directory: ghostftp-desktop/src-tauri
         run: cargo fmt --all -- --check
 
       - name: Rust workspace check
-        working-directory: desktop-tauri/src-tauri
+        working-directory: ghostftp-desktop/src-tauri
         run: cargo check --workspace --all-targets
 
       - name: Rust workspace tests
-        working-directory: desktop-tauri/src-tauri
+        working-directory: ghostftp-desktop/src-tauri
         run: cargo test --workspace
 
       - name: Clippy
-        working-directory: desktop-tauri/src-tauri
+        working-directory: ghostftp-desktop/src-tauri
         run: cargo clippy --workspace --all-targets -- -D warnings
