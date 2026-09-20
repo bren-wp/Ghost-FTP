@@ -55,6 +55,7 @@ export function useCommands(): Command[] {
   const toggleTerminal = useLayout((s) => s.toggleTerminal);
   const terminalOpen = useLayout((s) => s.terminalOpen);
   const toggleConsole = useLayout((s) => s.toggleConsole);
+  const openView = useLayout((s) => s.openView);
   const openDialog = useLayout((s) => s.openDialog);
   const setShortcutsOpen = useLayout((s) => s.setShortcutsOpen);
   const openSkills = useSkills((s) => s.openPanel);
@@ -88,7 +89,21 @@ export function useCommands(): Command[] {
       group: "General",
       icon: <SettingsIcon size={14} />,
       combo: "mod+,",
-      run: () => openDialog("settings"),
+      run: () => openView("settings"),
+    },
+    {
+      id: "site-manager",
+      title: "Open Site Manager",
+      group: "General",
+      icon: <Plug size={14} />,
+      run: () => openView("siteManager"),
+    },
+    {
+      id: "transfer-center",
+      title: "Open Transfer Center",
+      group: "General",
+      icon: <ArrowDownUp size={14} />,
+      run: () => openView("transferCenter"),
     },
     {
       id: "shortcuts",
@@ -135,7 +150,7 @@ export function useCommands(): Command[] {
       title: "About Ghost FTP",
       group: "General",
       icon: <Info size={14} />,
-      run: () => openDialog("about"),
+      run: () => openView("about"),
     },
     {
       id: "reload",
