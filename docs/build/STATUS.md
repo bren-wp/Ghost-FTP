@@ -9,10 +9,10 @@ RC9 continues the existing Ghost FTP source and does not replace the project wit
 ## Repository and build organization
 
 - Production desktop source: `ghostftp-desktop/`
-- Developer runtime tooling: `ghostftp-runtime/`
-- Installer support tooling: `ghostftp-installer/`
-- Website source: `ghostftp-web/`
-- Update templates: `ghostftp-updates/`
+- Developer runtime tooling: `tools/ghostftp-runtime/`
+- Installer support tooling: `tools/ghostftp-installer/`
+- Website source: `website/`
+- Update templates: `updates/`
 - Native build workflow: `.github/workflows/ghostftp-build.yml`
 - Quality workflow: `.github/workflows/ghostftp-quality.yml`
 - Release workflow: `.github/workflows/ghostftp-release.yml`
