@@ -536,7 +536,6 @@ export function FilePane({
   // of the pane the user is actually working in, so impossible actions are
   // disabled instead of producing dead clicks or confusing no-ops.
   useEffect(() => {
-    if (!paneFocused) return;
     const selectedItems = visible.filter((entry) => selected.has(entry.path));
     const activeItem = anchor
       ? visible.find((entry) => entry.path === anchor) ?? selectedItems[0]
@@ -548,6 +547,7 @@ export function FilePane({
         hasActiveItem: Boolean(activeItem),
         hasSession: Boolean(sessionId),
         canCreateDirectory: Boolean(sessionId && caps?.hasDirectories !== false),
+        focused: paneFocused,
       },
     }));
   }, [paneFocused, paneId, visible, selected, anchor, sessionId, caps?.hasDirectories]);
