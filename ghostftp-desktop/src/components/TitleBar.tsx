@@ -139,13 +139,13 @@ export function TitleBar() {
       { label: "Preferences…", run: () => openDialog("settings") },
     ],
     View: [
-      { label: "Refresh", run: () => fileAction("refresh") },
+      { label: "Refresh", run: () => fileAction("refresh"), disabled: !paneState.hasSession },
       { label: "Transfer Center", run: () => openDialog("transferCenter") },
       { label: "Site Manager", run: () => openDialog("siteManager") },
     ],
     Transfer: [
-      { label: "Upload", run: () => fileAction("upload", "local") },
-      { label: "Download", run: () => fileAction("download", "remote"), disabled: !activeSessionId },
+      { label: "Upload", run: () => fileAction("upload", "local"), disabled: paneStates.local.selectedCount === 0 },
+      { label: "Download", run: () => fileAction("download", "remote"), disabled: !activeSessionId || paneStates.remote.selectedCount === 0 },
       { separator: true },
       { label: "Transfer Center", run: () => openDialog("transferCenter") },
     ],
@@ -166,7 +166,7 @@ export function TitleBar() {
       { separator: true },
       { label: "About Ghost FTP", run: () => openDialog("about") },
     ],
-  }), [activeSessionId, disconnect, openDialog, openNewConnection, paneState]);
+  }), [activeSessionId, disconnect, openDialog, openNewConnection, paneState, paneStates]);
 
   useEffect(() => {
     if (!menu) return;
