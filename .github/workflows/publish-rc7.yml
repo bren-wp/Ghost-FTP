@@ -59,6 +59,35 @@ jobs:
           gh run download "${{ github.event.workflow_run.id }}" -D dist/native
           find dist/native -type f -maxdepth 8 -print
 
+      - name: Normalize native artifact names
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          WIN_EXE="$(find dist/native -type f -iname 'ghostftp.exe' | head -n1 || true)"
+          WIN_SETUP="$(find dist/native -type f -iname '*setup.exe' | head -n1 || true)"
+          LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
+          APPIMAGE="$(find dist/native -type f -iname '*.AppImage' | head -n1 || true)"
+          DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
+          RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
+
+          test -n "$WIN_EXE"
+          test -n "$WIN_SETUP"
+          test -n "$LINUX_BIN"
+          test -n "$APPIMAGE"
+          test -n "$DEB"
+          test -n "$RPM"
+
+          cp "$WIN_EXE" dist/GhostFTP-Portable-2.1.1-RC7.exe
+          cp "$WIN_SETUP" dist/GhostFTP-Setup-2.1.1-RC7.exe
+          cp "$LINUX_BIN" dist/GhostFTP-linux-x86_64-2.1.1-RC7
+          chmod +x dist/GhostFTP-linux-x86_64-2.1.1-RC7
+          cp "$APPIMAGE" dist/GhostFTP-linux-x86_64-2.1.1-RC7.AppImage
+          cp "$DEB" dist/ghostftp_2.1.1~rc7_amd64.deb
+          cp "$RPM" dist/ghostftp-2.1.1-rc7.x86_64.rpm
+
+          rm -rf dist/native
+
       - name: Generate checksums
         shell: bash
         run: |
