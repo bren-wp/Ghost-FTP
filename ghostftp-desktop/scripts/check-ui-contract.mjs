@@ -53,7 +53,8 @@ for (const file of criticalFiles) {
     failures.push(`${file}: browser popup/new-tab navigation is not allowed in the production shell`);
   }
 
-  const buttons = source.match(/<button\b[\s\S]*?>/g) ?? [];
+  const tagSafeSource = source.replace(/=>/g, "__ARROW__");
+  const buttons = tagSafeSource.match(/<button\b[\s\S]*?>/g) ?? [];
   for (const tag of buttons) {
     const actionable =
       /onClick\s*=/.test(tag) ||
