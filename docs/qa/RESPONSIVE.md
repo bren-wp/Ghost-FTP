@@ -1,8 +1,8 @@
-# Ghost FTP Responsive QA — RC9
+# Ghost FTP Responsive QA — RC10
 
-The canonical desktop target remains 1290×852. Responsive behavior is adaptive rather than screenshot scaling: controls compact, sidebars narrow and dense horizontal regions use contained local scrolling instead of hiding essential actions.
+The 1290×852 desktop reference remains the exact large-window target. Smaller windows adapt rather than scaling a screenshot or removing essential actions.
 
-## Required viewport targets
+## Required viewport set
 
 - 1290×852
 - 1280×800
@@ -14,10 +14,28 @@ The canonical desktop target remains 1290×852. Responsive behavior is adaptive 
 - 540×720
 - 480×800
 
-## Source contract
+## RC10 source behavior
 
-Native CSS includes adaptive breakpoints around 1180, 1040, 980, 900, 760, 640, 540 and 480 px. The Tauri minimum window remains 480×600. Quick Connect, application menus and toolbars use contained scrolling at constrained widths; dialogs stay within the viewport and become internally scrollable where required.
+- menu and Quick Connect rows can use local horizontal scrolling where necessary;
+- toolbar actions remain available;
+- Sites rail compresses at smaller widths;
+- dialogs stay viewport-constrained and internally scrollable;
+- New Connection retains a 752×628 target envelope at canonical size;
+- File Properties retains a 530×770 target envelope at canonical size;
+- full-window secondary surfaces compress navigation widths before dropping content;
+- reduced-motion preferences are honored.
 
-## RC9 acceptance status
+## Still required before FINAL
 
-Source geometry and containment rules are in place. FINAL still requires native Windows/Linux render evidence at the required viewport sizes, with particular attention to text clipping, menu reachability, dialog containment, dual-pane usability and titlebar controls.
+The real native Windows/Linux build must be captured at every required viewport and reviewed for:
+
+- whole-window horizontal overflow;
+- clipped text;
+- inaccessible buttons;
+- off-screen dialogs;
+- focus visibility;
+- menu/dropdown placement;
+- long translations;
+- 125%, 150% and 200% Windows display scaling.
+
+Source rules are implemented, but final target-OS render evidence remains a release gate.
