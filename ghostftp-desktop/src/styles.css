@@ -1777,7 +1777,20 @@ body::after { opacity: 0.018; }
 }
 
 @media (max-width: 980px) {
-  .ghost-site-manager > .grid { grid-template-columns: 184px minmax(420px,1fr) 300px !important; overflow-x: auto; }
+  .ghost-site-manager-workspace {
+    grid-template-columns: 184px minmax(0, 1fr) !important;
+    grid-template-rows: minmax(260px, 1fr) minmax(280px, auto);
+    overflow: hidden;
+  }
+  .ghost-site-manager-nav { grid-column: 1; grid-row: 1 / span 2; overflow-y: auto; }
+  .ghost-site-manager-table { grid-column: 2; grid-row: 1; overflow: auto; }
+  .ghost-site-manager-details {
+    grid-column: 2;
+    grid-row: 2;
+    max-height: 46dvh;
+    border-left: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+  }
   .ghost-preferences-nav, .ghost-about-nav { width: 180px !important; min-width: 180px; }
   .ghost-preferences-content { padding: 12px !important; }
   .ghost-preferences-content > .grid { grid-template-columns: 1fr !important; }
@@ -1790,9 +1803,16 @@ body::after { opacity: 0.018; }
   .ghost-standalone-titlebar { height: 46px; min-height: 46px; }
   .ghost-standalone-suffix { font-size: 14px; }
   .ghost-standalone-menubar { height: 38px; min-height: 38px; padding-inline: 5px; }
-  .ghost-site-manager-hero { height: auto; min-height: 64px; overflow-x: auto; padding: 8px !important; }
-  .ghost-site-manager-hero > div:nth-child(2) { min-width: 240px; }
-  .ghost-site-manager > .grid { grid-template-columns: 150px minmax(390px,1fr) 270px !important; }
+  .ghost-site-manager-hero {
+    height: auto;
+    min-height: 64px;
+    flex-wrap: wrap;
+    padding: 8px !important;
+  }
+  .ghost-site-manager-hero > div:nth-child(2) { min-width: 220px; }
+  .ghost-site-manager-hero > .relative { flex: 1 1 220px; }
+  .ghost-site-manager-hero .ghost-ref-input { width: 100% !important; }
+  .ghost-site-manager-workspace { grid-template-columns: 150px minmax(0,1fr) !important; }
   .ghost-preferences-nav, .ghost-about-nav { width: 146px !important; min-width: 146px; padding: 8px !important; }
   .ghost-preferences-nav button, .ghost-about-nav button { gap: 7px !important; padding-inline: 8px !important; font-size: 11px; }
   .ghost-preferences-heading { height: 66px; min-height: 66px; padding-inline: 12px !important; }
@@ -1806,12 +1826,34 @@ body::after { opacity: 0.018; }
   .ghost-standalone-brand { padding-left: 8px; }
   .ghost-standalone-brand .ghost-wordmark span { font-size: 14px !important; }
   .ghost-standalone-suffix { max-width: 104px; overflow: hidden; text-overflow: ellipsis; }
-  .ghost-preferences-body, .ghost-about-body { overflow-x: auto; }
-  .ghost-preferences-nav, .ghost-about-nav { width: 124px !important; min-width: 124px; }
-  .ghost-preferences-nav button span, .ghost-about-nav button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ghost-preferences-content, .ghost-about-content { min-width: 390px; }
-  .ghost-preferences-actions { min-width: 390px; }
-  .ghost-site-manager > .grid { grid-template-columns: 124px minmax(360px,1fr) 260px !important; }
+  .ghost-preferences-body, .ghost-about-body {
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .ghost-preferences-nav, .ghost-about-nav {
+    width: 100% !important;
+    min-width: 0;
+    flex-direction: row !important;
+    overflow-x: auto;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgb(var(--border));
+    padding: 6px !important;
+    scrollbar-width: none;
+  }
+  .ghost-preferences-nav::-webkit-scrollbar,
+  .ghost-about-nav::-webkit-scrollbar { display: none; }
+  .ghost-preferences-nav button,
+  .ghost-about-nav button {
+    flex: 0 0 auto;
+    margin-bottom: 0 !important;
+    white-space: nowrap;
+  }
+  .ghost-preferences-nav > div.mt-auto { display: none; }
+  .ghost-preferences-content, .ghost-about-content { min-width: 0; }
+  .ghost-preferences-actions { min-width: 0; }
+  .ghost-site-manager-workspace { grid-template-columns: 112px minmax(0,1fr) !important; }
+  .ghost-site-manager-nav { padding: 6px !important; }
+  .ghost-site-manager-details { max-height: 50dvh; padding: 10px !important; }
 }
 
 /* Transfer Center uses its own one-row application header in the reference. */
