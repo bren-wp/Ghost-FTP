@@ -34,8 +34,22 @@ jobs:
           grep -q '"version": "2.1.1-rc.9"' desktop-tauri/package.json
           grep -q '"version": "2.1.1-rc.9"' desktop-tauri/src-tauri/tauri.conf.json
 
-          audit="$(gh run list --workflow 'Ghost FTP source audit' --commit "${{ github.event.workflow_run.head_sha }}" --limit 1 --json status,conclusion --jq '.[0] | (.status + ":" + (.conclusion // ""))')"
-          test "$audit" = "completed:success"
+          for attempt in $(seq 1 30); do
+            audit="$(gh run list --workflow 'Ghost FTP source audit' --commit "${{ github.event.workflow_run.head_sha }}" --limit 1 --json status,conclusion --jq '.[0] | (.status // "") + ":" + (.conclusion // "")' || true)"
+            echo "source audit: ${audit:-not-found}"
+            if [ "$audit" = "completed:success" ]; then
+              break
+            fi
+            if [[ "$audit" == completed:* ]] && [ "$audit" != "completed:success" ]; then
+              echo "Source audit did not pass."
+              exit 1
+            fi
+            if [ "$attempt" = "30" ]; then
+              echo "Timed out waiting for source audit."
+              exit 1
+            fi
+            sleep 20
+          done
 
       - name: Package source and documentation
         shell: bash
