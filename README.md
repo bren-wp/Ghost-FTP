@@ -118,8 +118,11 @@ Ghost-FTP-Premium/
 │   ├── assets/              Product screenshots and brand media
 │   ├── guides/              Installation, updates, support and uninstall
 │   ├── legal/               Privacy and notices
-│   ├── product/             Features, status, roadmap and UI/UX
-│   └── releases/            Release notes and checksums
+│   ├── product/             Features, status and UI/UX
+│   ├── development/         Source-build and contributor workflow
+│   ├── release/             Release process and gates
+│   ├── qa/                  Acceptance evidence and test records
+│   └── releases/            Versioned release notes and checksums
 ├── .github/workflows/       Quality, native build and release automation
 ├── README.md
 ├── CHANGELOG.md
@@ -137,7 +140,9 @@ Public documentation is intentionally product-focused. It documents supported fe
 - [Documentation](docs/README.md)
 - [Features](docs/product/FEATURES.md)
 - [Status & recommended next work](docs/product/STATUS_AND_NEXT.md)
-- [Roadmap](docs/product/ROADMAP.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Building from source](docs/development/BUILDING.md)
+- [Release process](docs/release/PROCESS.md)
 - [UI/UX principles](docs/product/UI_UX.md)
 - [Install](docs/guides/INSTALLATION.md)
 - [Updates](docs/guides/UPDATES.md)
