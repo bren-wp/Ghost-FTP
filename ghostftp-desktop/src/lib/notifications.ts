@@ -11,6 +11,7 @@
 // toast focuses the window (and, where it applies, opens the relevant panel).
 import {
   isPermissionGranted,
+  requestPermission,
   sendNotification,
   onAction,
 } from "@tauri-apps/plugin-notification";
@@ -33,6 +34,23 @@ async function ensurePermission(): Promise<boolean> {
   if (permission === "denied") return false;
   try {
     const granted = await isPermissionGranted();
+    permission = granted ? "granted" : "denied";
+    return granted;
+  } catch {
+    permission = "denied";
+    return false;
+  }
+}
+
+/** Explicit user-driven opt-in. This is the only path allowed to open the
+ * operating-system notification permission UI. */
+export async function requestDesktopNotificationPermission(): Promise<boolean> {
+  try {
+    if (await isPermissionGranted()) {
+      permission = "granted";
+      return true;
+    }
+    const granted = (await requestPermission()) === "granted";
     permission = granted ? "granted" : "denied";
     return granted;
   } catch {
