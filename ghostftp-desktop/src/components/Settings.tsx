@@ -56,6 +56,16 @@ export function Settings({ onClose }: Props) {
     setPendingLocale("en");
   };
 
+  // Escape cancels Preferences just like the reference close button: restore
+  // the captured settings snapshot and return to File Manager.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") cancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <section className="ghost-app-view ghost-standalone-view bg-[#041425]" aria-label="Preferences">
       <div className="ghost-preferences flex h-full w-full flex-col overflow-hidden bg-bg-panel">
