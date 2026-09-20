@@ -1,6 +1,6 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document separates **implemented functionality**, **verified engineering work**, **remaining release gates** and **recommended product improvements**.
+This document separates **what Ghost FTP provides now** from **recommended future product work**. It intentionally avoids unnecessary implementation detail.
 
 ## Implemented and available in RC9
 
@@ -22,7 +22,7 @@ Full details: [Implemented Features](FEATURES.md).
 
 ## RC9 engineering work completed
 
-- Repository reorganized around GhostFTP-branded top-level paths.
+- Repository reorganized into a clear product layout: `ghostftp-desktop/`, `website/`, `updates/`, `tools/` and `docs/`.
 - Public release naming standardized by product, platform, architecture, role and version.
 - Main README rebuilt as a marketing/product landing page with local Ghost FTP logo, icons and visual references.
 - Visual reference assets renamed with GhostFTP-first filenames.
@@ -31,10 +31,11 @@ Full details: [Implemented Features](FEATURES.md).
 - Retry All added for failed transfers.
 - Semantic transfer progress and reduced-motion handling added.
 - Preferences exposes previously hidden browser/transfer settings.
-- Website local SVG icon usage expanded and timer cleanup corrected.
+- Website expanded as the English-first product site with local Ghost FTP branding, screenshots and download/security/support content.
 - Corrupt profile/database recovery paths hardened.
 - PATH integration migration logic corrected so historical `Ghost FTP` and `GhostFTP` app directory aliases do not duplicate the managed entry.
-- Rust, Go, TypeScript and website checks remain CI-gated.
+- Preview/stable update channels, manifest schema and validation tooling are grouped under `updates/`.
+- Rust, Go, TypeScript, website and update-tool checks remain CI-gated.
 
 ## Release gates still required before FINAL
 
