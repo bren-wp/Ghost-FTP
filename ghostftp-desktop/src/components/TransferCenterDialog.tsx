@@ -35,6 +35,13 @@ type DirectionFilter = "all" | "upload" | "download";
 type TimeFilter = "all" | "hour" | "day";
 type BandwidthSample = { upload: number; download: number };
 
+function localDateInputValue(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 interface Props {
   onClose: () => void;
 }
@@ -63,7 +70,7 @@ export function TransferCenterDialog({ onClose }: Props) {
   const schedulerRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [scheduleMode, setScheduleMode] = useState<"off" | "once" | "daily" | "weekly">("off");
-  const [scheduleDate, setScheduleDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [scheduleDate, setScheduleDate] = useState(() => localDateInputValue());
   const [scheduleTime, setScheduleTime] = useState("13:00");
   const [scheduledTransferId, setScheduledTransferId] = useState<string | null>(null);
   const [scheduleArmed, setScheduleArmed] = useState(false);
