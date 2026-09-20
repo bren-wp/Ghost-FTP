@@ -34,14 +34,14 @@ jobs:
         run: |
           set -euo pipefail
           ! grep -RniE 'Faro|example\.com|Production Server|Staging Server|Design Assets|Cloud Server|C:\\Users\\Alex' \
-            ghostftp-desktop/src ghostftp-desktop/src-tauri runtime installer website \
+            ghostftp-desktop/src ghostftp-desktop/src-tauri ghostftp-runtime ghostftp-installer ghostftp-web \
             --exclude-dir=node_modules --exclude-dir=target
 
       - name: Runtime checks
         shell: bash
         run: |
           set -euo pipefail
-          cd runtime
+          cd ghostftp-runtime
           go test ./...
           go vet ./...
           node --check site/app.js
@@ -52,7 +52,7 @@ jobs:
           set -euo pipefail
           mkdir -p ghostftp-installer/payload
           : > ghostftp-installer/payload/GhostFTP.exe
-          cd installer
+          cd ghostftp-installer
           go test ./...
           go vet ./...
           node --check site/setup.js
@@ -80,7 +80,7 @@ jobs:
                   if tag == "script" and not attrs.get("src"):
                       errors.append(f"{self.path}: inline script block is not allowed")
 
-          for path in Path("website").rglob("*.html"):
+          for path in Path("ghostftp-web").rglob("*.html"):
               parser = AuditParser(path)
               parser.feed(path.read_text(encoding="utf-8"))
 
