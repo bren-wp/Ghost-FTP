@@ -79,6 +79,19 @@ for (const file of criticalFiles) {
 
 }
 
+const appShell = read("src/App.tsx");
+if (appShell.includes("openTerminalWindow(")) {
+  failures.push("src/App.tsx: terminal deep links must remain docked inside the single Ghost FTP window");
+}
+if (!appShell.includes("setTerminalOpen(true)")) {
+  failures.push("src/App.tsx: single-window terminal deep link must open the in-app terminal dock");
+}
+
+const sidebar = read("src/components/ReferenceSiteSidebar.tsx");
+for (const required of ["Transfer Center", "File Manager", "Sync & Backup", "Cloud Storage", "Schedules", "Activity Logs", "Settings"]) {
+  if (!sidebar.includes(required)) failures.push(`Reference sidebar missing required navigation: ${required}`);
+}
+
 const titleBar = read("src/components/TitleBar.tsx");
 for (const required of [
   "Quick Connect",
