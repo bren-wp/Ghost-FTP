@@ -155,9 +155,16 @@ export function TitleBar() {
     <div className="ghost-menu-row" ref={menuWrap}>
       <nav className="ghost-menu" aria-label="Application menu">
         {Object.keys(menus).map((name) => <div className="ghost-menu-anchor" key={name}>
-          <button className={menu === name ? "active" : ""} onClick={() => setMenu((v) => v === name ? null : name)}>{name}</button>
-          {menu === name && <div className="ghost-dropdown-menu">{menus[name].map((item, idx) =>
-            "separator" in item ? <div key={idx} className="ghost-menu-separator"/> : <button key={idx} disabled={item.disabled} onClick={() => { setMenu(null); item.run(); }}>{item.label}</button>)}</div>}
+          <button
+            className={menu === name ? "active" : ""}
+            aria-haspopup="menu"
+            aria-expanded={menu === name}
+            onClick={() => setMenu((v) => v === name ? null : name)}
+          >
+            {name}
+          </button>
+          {menu === name && <div className="ghost-menu-popover" role="menu">{menus[name].map((item, idx) =>
+            "separator" in item ? <div key={idx} className="ghost-menu-separator"/> : <button key={idx} role="menuitem" disabled={item.disabled} onClick={() => { setMenu(null); item.run(); }}>{item.label}</button>)}</div>}
         </div>)}
       </nav>
       <div className="ghost-title-actions">
