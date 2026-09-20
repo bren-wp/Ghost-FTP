@@ -1,11 +1,11 @@
-# Ghost FTP Installer QA — RC9
+# Ghost FTP Installer QA — RC10
 
 ## Production packaging
 
 Windows production packaging is generated from the authoritative Ghost FTP desktop build and publishes:
 
-- `GhostFTP-Windows-x64-Portable-v2.1.1-RC9.exe`
-- `GhostFTP-Windows-x64-Setup-v2.1.1-RC9.exe`
+- `GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe`
+- `GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe`
 
 The Setup package is generated as an NSIS bundle. MSI is intentionally omitted for prerelease versions because the prerelease version identifier is not accepted by the MSI/WiX version path used here.
 
