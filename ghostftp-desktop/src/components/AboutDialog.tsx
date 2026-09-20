@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   CheckCircle2,
   ExternalLink,
@@ -13,7 +13,6 @@ import { GhostMark } from "./GhostBrand";
 import { ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
 import { useUpdater } from "@/stores/updaterStore";
 import { PRODUCT_BUILD, PRODUCT_RELEASE_DATE, PRODUCT_VERSION } from "@/lib/release";
-import { useDialog } from "@/hooks/useDialog";
 import { openOfficialUrl } from "@/lib/external";
 
 interface Props { onClose: () => void }
@@ -23,13 +22,10 @@ function external(path = "") {
 }
 
 export function AboutDialog({ onClose }: Props) {
-  const panelRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<"about" | "updates" | "help">("about");
-  useDialog(panelRef, { onClose });
-
   return (
-    <div className="ghost-standalone-view fixed inset-0 z-modal bg-[#041425]" role="dialog" aria-modal="true">
-      <div ref={panelRef} className="ghost-about flex h-full w-full flex-col overflow-hidden bg-bg-panel">
+    <section className="ghost-app-view ghost-standalone-view bg-[#041425]" aria-label="About Ghost FTP">
+      <div className="ghost-about flex h-full w-full flex-col overflow-hidden bg-bg-panel">
         <ReferenceWindowTitlebar onClose={onClose} />
         <div className="ghost-about-body flex min-h-0 flex-1">
         <aside className="ghost-about-nav w-[214px] shrink-0 border-r border-border bg-[#061a2d] p-3">
@@ -54,7 +50,7 @@ export function AboutDialog({ onClose }: Props) {
         </main>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
