@@ -2,7 +2,7 @@
 
 ## Authoritative status
 
-**Ghost FTP 2.1.1 RC9 — native Tauri release-candidate hardening. NOT FINAL.**
+**Ghost FTP 2.1.1 RC9 — native Ghost FTP desktop release-candidate hardening. NOT FINAL.**
 
 Development continued from the existing full source tree. No new replacement project was created and no screenshot-runtime implementation was introduced.
 
@@ -35,13 +35,13 @@ Development continued from the existing full source tree. No new replacement pro
 - Preferences Cancel restores the complete settings snapshot; Reset re-applies native engine defaults.
 - Shell integration uses the real per-user Ghost FTP PATH integration command instead of a cosmetic toggle.
 - Native profile passwords/private-key passphrases remain OS-keychain-backed and are not persisted in profile JSON.
-- Native Tauri window remains frameless with `decorations(false)` and the 1290×852 reference geometry.
+- Ghost FTP desktop window remains frameless with `decorations(false)` and the 1290×852 reference geometry.
 - All 13 non-English native dictionaries now match the same 185-key canonical set used by Croatian coverage.
 - Website language switcher no longer uses inline JavaScript; 14 localized pages remain `notranslate` and responsive.
 
 ## Public release artifact policy
 
-Production-facing Windows/Linux executables come from the native Tauri build. Compatibility browser-host artifacts are not published as end-user RC9 binaries. The RC9 source is prepared for a fresh native Windows/Linux CI build and GitHub pre-release. Publication remains gated on a successful current-main native build plus a successful source audit.
+Production-facing Windows/Linux executables come from the native Ghost FTP desktop build. Compatibility browser-host artifacts are not published as end-user RC9 binaries. The RC9 source is prepared for a fresh native Windows/Linux CI build and GitHub pre-release. Publication remains gated on a successful current-main native build plus a successful source audit.
 
 ## Executed QA in this pass
 
