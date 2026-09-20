@@ -26,7 +26,6 @@ import { ReferenceWindowControls } from "./ReferenceWindowChrome";
 import { GhostMark } from "./GhostBrand";
 import { getLocale, setLocale } from "@/lib/i18n";
 import { useLayout } from "@/stores/layoutStore";
-import { useDialog } from "@/hooks/useDialog";
 
 type FilterTab = "all" | "upload" | "download" | "completed" | "failed";
 type BandwidthSample = { upload: number; download: number };
@@ -36,7 +35,6 @@ interface Props {
 }
 
 export function TransferCenterDialog({ onClose }: Props) {
-  const panelRef = useRef<HTMLDivElement>(null);
   const byId = useTransfers((state) => state.byId);
   const clearFinished = useTransfers((state) => state.clearFinished);
   const pauseAll = useTransfers((state) => state.pauseAll);
@@ -59,8 +57,6 @@ export function TransferCenterDialog({ onClose }: Props) {
     upload: 0,
     download: 0,
   });
-
-  useDialog(panelRef, { onClose });
 
   const transfers = useMemo(() => Object.values(byId), [byId]);
   const completed = transfers.filter(
@@ -160,16 +156,11 @@ export function TransferCenterDialog({ onClose }: Props) {
     selected?.status === "paused";
 
   return (
-    <div
-      className="ghost-standalone-view fixed inset-0 z-modal bg-[#041425]"
-      role="dialog"
-      aria-modal="true"
+    <section
+      className="ghost-app-view ghost-standalone-view bg-[#041425]"
       aria-label="Transfer Center"
     >
-      <div
-        ref={panelRef}
-        className="ghost-transfer-center flex h-full w-full flex-col overflow-hidden bg-[#061a2d]"
-      >
+      <div className="ghost-transfer-center flex h-full w-full flex-col overflow-hidden bg-[#061a2d]">
         <TransferCenterTitlebar onClose={onClose} />
 
         <div className="ghost-transfer-center-heading flex h-[78px] shrink-0 items-center gap-3 border-b border-border px-4">
@@ -440,7 +431,7 @@ export function TransferCenterDialog({ onClose }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
