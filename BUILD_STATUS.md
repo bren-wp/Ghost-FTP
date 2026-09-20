@@ -11,7 +11,7 @@ Development continued from the existing full source tree. No new replacement pro
 - GitHub Actions now provides the authoritative native build environment for Windows and Linux.
 - Node/npm, Rust/Cargo and Tauri platform prerequisites are installed by `.github/workflows/native-build.yml`.
 - Frontend TypeScript/Vite compilation is required before every native bundle step.
-- Native bundle targets remain Windows NSIS/MSI and Linux DEB/RPM/AppImage.
+- Native RC8 bundle targets are Windows NSIS + portable native EXE and Linux DEB/RPM/AppImage + native executable. MSI is intentionally omitted for prerelease versions because WiX/MSI rejects the `rc.8` prerelease identifier.
 - The Go `runtime/` and `installer/` trees remain developer/compatibility tooling only and are **not** the production GUI release path.
 - Browser-shell compatibility executables were removed from the public RC8 release after QA showed a visible `127.0.0.1` Chromium/Edge app bar that cannot satisfy the 1:1 frameless requirement.
 
@@ -41,7 +41,7 @@ Development continued from the existing full source tree. No new replacement pro
 
 ## Public release artifact policy
 
-Production-facing Windows/Linux executables must come from the native Tauri build. Compatibility browser-host artifacts are not published as end-user RC8 binaries. The RC8 release is kept as a pre-release until native Windows/Linux bundles and the remaining OS acceptance gates pass.
+Production-facing Windows/Linux executables come from the native Tauri build. Compatibility browser-host artifacts are not published as end-user RC8 binaries. The RC8 native Windows and Linux CI build completed successfully and its artifacts are published in the GitHub RC8 pre-release. The release remains a pre-release until the remaining OS acceptance gates pass.
 
 ## Executed QA in this pass
 
@@ -58,6 +58,18 @@ Production-facing Windows/Linux executables must come from the native Tauri buil
 - Windows outputs identify as PE32+ x64 GUI executables: PASS.
 - Linux output identifies as stripped static ELF x86-64: PASS.
 
+## Native RC8 build evidence
+
+- Windows native Tauri application build: PASS.
+- Windows NSIS setup bundle: PASS.
+- Windows native portable `ghostftp.exe`: PASS.
+- Linux native Tauri application build: PASS.
+- Linux DEB bundle: PASS.
+- Linux RPM bundle: PASS.
+- Linux AppImage bundle: PASS.
+- Native Windows/Linux workflow run: PASS.
+- GitHub RC8 pre-release publication: PASS.
+
 ## Gates still blocking FINAL
 
-FINAL still requires the native GitHub Actions Windows/Linux build to complete successfully, followed by actual FTP/FTPS/SFTP connection and transfer tests, Windows frameless-titlebar screenshots, Windows 10/11 install/upgrade/uninstall tests, native package verification and screenshot/pixel comparison at every required responsive size. These are not marked passed without evidence.
+FINAL still requires actual FTP/FTPS/SFTP end-to-end connection and transfer tests against test servers, a Windows 10/11 frameless-titlebar screenshot confirming the absence of any extra browser/OS title strip, Windows install/upgrade/uninstall acceptance tests, and final pixel/responsive comparison at every required reference size. These are not marked passed without evidence.
