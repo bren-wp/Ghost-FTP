@@ -1,4 +1,4 @@
-# Ghost FTP Audit Index — RC9
+# Ghost FTP Audit Index — RC10
 
 Ghost FTP separates audits by concern so findings stay actionable and release claims remain traceable.
 
