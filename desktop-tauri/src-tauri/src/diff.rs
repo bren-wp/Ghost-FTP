@@ -124,7 +124,13 @@ impl DiffEntry {
         }
     }
 
-    fn both(rel: &str, a: &ScanEntry, b: &ScanEntry, class: DiffClass, reason: Option<DiffReason>) -> Self {
+    fn both(
+        rel: &str,
+        a: &ScanEntry,
+        b: &ScanEntry,
+        class: DiffClass,
+        reason: Option<DiffReason>,
+    ) -> Self {
         DiffEntry {
             relative: rel.to_string(),
             class,
@@ -198,7 +204,10 @@ pub fn classify(tree_a: &ScanTree, tree_b: &ScanTree) -> Vec<DiffEntry> {
 
 /// Fold entries into class counts.
 pub fn summarize(entries: &[DiffEntry]) -> DiffSummary {
-    let mut s = DiffSummary { total: entries.len(), ..Default::default() };
+    let mut s = DiffSummary {
+        total: entries.len(),
+        ..Default::default()
+    };
     for e in entries {
         match e.class {
             DiffClass::OnlyInA => s.only_in_a += 1,
@@ -227,7 +236,8 @@ pub async fn hash_pass(
 ) {
     for e in entries.iter_mut() {
         // Only pairs the size check couldn't separate need a content check.
-        let (Some(a), Some(b)) = (tree_a.files.get(&e.relative), tree_b.files.get(&e.relative)) else {
+        let (Some(a), Some(b)) = (tree_a.files.get(&e.relative), tree_b.files.get(&e.relative))
+        else {
             continue;
         };
         if a.size != b.size {
@@ -570,7 +580,9 @@ fn now_ts() -> i64 {
 
 impl DiffManager {
     pub fn new() -> Self {
-        Self { runs: Mutex::new(HashMap::new()) }
+        Self {
+            runs: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Kick off a diff of two sides. Each side is a `RemoteFs` (for the walk) and
@@ -612,7 +624,10 @@ impl DiffManager {
             run_diff(task_info, fs_a, sess_a, fs_b, sess_b, hash, app).await;
         });
 
-        self.runs.lock().await.insert(id.clone(), DiffHandle { info, task });
+        self.runs
+            .lock()
+            .await
+            .insert(id.clone(), DiffHandle { info, task });
         id
     }
 
@@ -707,7 +722,14 @@ async fn run_diff(
     if hash {
         info.set_phase(DiffPhase::Hashing);
         emit_diff_progress(&info, &app);
-        hash_pass(&mut entries, &tree_a, &tree_b, sess_a.as_deref(), sess_b.as_deref()).await;
+        hash_pass(
+            &mut entries,
+            &tree_a,
+            &tree_b,
+            sess_a.as_deref(),
+            sess_b.as_deref(),
+        )
+        .await;
         if info.cancel.is_cancelled() {
             return settle_canceled(&info, &app);
         }
@@ -778,7 +800,10 @@ pub async fn diff_start(
 }
 
 #[tauri::command]
-pub async fn diff_status(diff_id: String, state: State<'_, AppState>) -> Result<DiffSnapshot, String> {
+pub async fn diff_status(
+    diff_id: String,
+    state: State<'_, AppState>,
+) -> Result<DiffSnapshot, String> {
     state
         .diff
         .snapshot(&diff_id)
@@ -788,7 +813,10 @@ pub async fn diff_status(diff_id: String, state: State<'_, AppState>) -> Result<
 
 /// Full snapshot including the `result` (present once the diff is done).
 #[tauri::command]
-pub async fn diff_result(diff_id: String, state: State<'_, AppState>) -> Result<DiffSnapshot, String> {
+pub async fn diff_result(
+    diff_id: String,
+    state: State<'_, AppState>,
+) -> Result<DiffSnapshot, String> {
     state
         .diff
         .snapshot(&diff_id)
@@ -814,7 +842,12 @@ mod tests {
     use crate::scan::{ScanEntry, ScanTree};
 
     fn entry(abs: &str, size: u64, modified: i64) -> ScanEntry {
-        ScanEntry { absolute: abs.into(), size, modified, etag: None }
+        ScanEntry {
+            absolute: abs.into(),
+            size,
+            modified,
+            etag: None,
+        }
     }
 
     fn tree(files: &[(&str, ScanEntry)]) -> ScanTree {
@@ -843,7 +876,10 @@ mod tests {
 
         // Sorted by relative path.
         assert_eq!(
-            entries.iter().map(|e| e.relative.as_str()).collect::<Vec<_>>(),
+            entries
+                .iter()
+                .map(|e| e.relative.as_str())
+                .collect::<Vec<_>>(),
             vec!["both_diff.txt", "both_same.txt", "only_a.txt", "only_b.txt"]
         );
 

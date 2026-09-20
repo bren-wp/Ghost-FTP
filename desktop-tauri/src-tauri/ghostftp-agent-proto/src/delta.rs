@@ -155,8 +155,7 @@ pub fn plan_delta(
         index.entry(key).or_default().push((c.offset, c.len));
     }
 
-    let file =
-        File::open(new_file).with_context(|| format!("open {}", new_file.display()))?;
+    let file = File::open(new_file).with_context(|| format!("open {}", new_file.display()))?;
     let reader = BufReader::with_capacity(IO_BUF, file);
     let chunker = StreamCDC::new(reader, CHUNK_MIN, CHUNK_AVG, CHUNK_MAX);
     let mut whole = blake3::Hasher::new();
@@ -168,25 +167,34 @@ pub fn plan_delta(
         let chunk = chunk.with_context(|| format!("chunk {}", new_file.display()))?;
         whole.update(&chunk.data);
         let len = chunk.data.len() as u64;
-        match index.get(blake3::hash(&chunk.data).as_bytes()).and_then(|v| v.first()) {
+        match index
+            .get(blake3::hash(&chunk.data).as_bytes())
+            .and_then(|v| v.first())
+        {
             Some(&(basis_offset, basis_len)) => {
                 debug_assert_eq!(basis_len as u64, len); // same hash ⇒ same bytes ⇒ same len
                 reused_bytes += len;
                 match recipe.last_mut() {
-                    Some(RecipeOp::Copy { basis_offset: prev_off, len: prev_len })
-                        if *prev_off + *prev_len == basis_offset =>
-                    {
+                    Some(RecipeOp::Copy {
+                        basis_offset: prev_off,
+                        len: prev_len,
+                    }) if *prev_off + *prev_len == basis_offset => {
                         *prev_len += len;
                     }
                     _ => recipe.push(RecipeOp::Copy { basis_offset, len }),
                 }
             }
             None => {
-                patch_out.write_all(&chunk.data).context("write patch chunk")?;
+                patch_out
+                    .write_all(&chunk.data)
+                    .context("write patch chunk")?;
                 literal_bytes += len;
                 match recipe.last_mut() {
                     Some(RecipeOp::Literal { len: prev_len, .. }) => *prev_len += len,
-                    _ => recipe.push(RecipeOp::Literal { patch_offset: patch_len, len }),
+                    _ => recipe.push(RecipeOp::Literal {
+                        patch_offset: patch_len,
+                        len,
+                    }),
                 }
                 patch_len += len;
             }
@@ -244,8 +252,8 @@ fn apply_delta_inner(
     for op in recipe {
         match *op {
             RecipeOp::Copy { basis_offset, len } => {
-                let blen = basis_len
-                    .ok_or_else(|| anyhow!("recipe has Copy ops but no basis file"))?;
+                let blen =
+                    basis_len.ok_or_else(|| anyhow!("recipe has Copy ops but no basis file"))?;
                 let end = basis_offset
                     .checked_add(len)
                     .ok_or_else(|| anyhow!("Copy range overflows u64"))?;
@@ -283,7 +291,13 @@ fn apply_delta_inner(
                 copy_range(f, basis_offset, len, &mut out_writer, &mut buf)?;
             }
             RecipeOp::Literal { patch_offset, len } => {
-                copy_range(&mut patch_file, patch_offset, len, &mut out_writer, &mut buf)?;
+                copy_range(
+                    &mut patch_file,
+                    patch_offset,
+                    len,
+                    &mut out_writer,
+                    &mut buf,
+                )?;
             }
         }
     }
@@ -313,7 +327,8 @@ fn copy_range<R: Read + Seek>(
     from.seek(SeekFrom::Start(offset)).context("seek")?;
     while len > 0 {
         let n = std::cmp::min(len, buf.len() as u64) as usize;
-        from.read_exact(&mut buf[..n]).context("read source range")?;
+        from.read_exact(&mut buf[..n])
+            .context("read source range")?;
         out.write_all(&buf[..n]).context("write output")?;
         len -= n as u64;
     }
@@ -359,9 +374,10 @@ pub fn plan_download(
                 debug_assert_eq!(basis_len as u64, len); // same hash ⇒ same bytes ⇒ same len
                 reused_bytes += len;
                 match recipe.last_mut() {
-                    Some(RecipeOp::Copy { basis_offset: prev_off, len: prev_len })
-                        if *prev_off + *prev_len == basis_offset =>
-                    {
+                    Some(RecipeOp::Copy {
+                        basis_offset: prev_off,
+                        len: prev_len,
+                    }) if *prev_off + *prev_len == basis_offset => {
                         *prev_len += len;
                     }
                     _ => recipe.push(RecipeOp::Copy { basis_offset, len }),
@@ -371,13 +387,18 @@ pub fn plan_download(
                 literal_bytes += len;
                 match recipe.last_mut() {
                     Some(RecipeOp::Literal { len: prev_len, .. }) => *prev_len += len,
-                    _ => recipe.push(RecipeOp::Literal { patch_offset: patch_len, len }),
+                    _ => recipe.push(RecipeOp::Literal {
+                        patch_offset: patch_len,
+                        len,
+                    }),
                 }
                 patch_len += len;
                 // Coalesce the fetch range with the previous miss when adjacent
                 // and under the cap.
                 match needed.last_mut() {
-                    Some((off, rlen)) if *off + *rlen == chunk.offset && *rlen < DOWNLOAD_FETCH_MAX => {
+                    Some((off, rlen))
+                        if *off + *rlen == chunk.offset && *rlen < DOWNLOAD_FETCH_MAX =>
+                    {
                         *rlen = (*rlen + len).min(DOWNLOAD_FETCH_MAX);
                         if *off + *rlen < chunk.offset + len {
                             // The cap split this chunk's tail into a new range.
@@ -482,9 +503,19 @@ mod tests {
         let plan = plan_delta(&sig, &new_p, File::create(&patch_p).unwrap()).unwrap();
         assert_eq!(plan.whole_hash, encode_hash(&blake3::hash(new)));
         assert_eq!(plan.literal_bytes + plan.reused_bytes, new.len() as u64);
-        assert_eq!(std::fs::metadata(&patch_p).unwrap().len(), plan.literal_bytes);
+        assert_eq!(
+            std::fs::metadata(&patch_p).unwrap().len(),
+            plan.literal_bytes
+        );
 
-        apply_delta(Some(&base_p), &patch_p, &plan.recipe, &out_p, &plan.whole_hash).unwrap();
+        apply_delta(
+            Some(&base_p),
+            &patch_p,
+            &plan.recipe,
+            &out_p,
+            &plan.whole_hash,
+        )
+        .unwrap();
         assert_eq!(std::fs::read(&out_p).unwrap(), new);
 
         let _ = std::fs::remove_dir_all(&dir);
@@ -637,7 +668,14 @@ mod tests {
         assert_eq!(plan.reused_bytes, 0);
         assert_eq!(plan.whole_hash, sig.whole_hash);
         let out_p = dir.join("out.bin");
-        apply_delta(Some(&empty_p), &patch_p, &plan.recipe, &out_p, &plan.whole_hash).unwrap();
+        apply_delta(
+            Some(&empty_p),
+            &patch_p,
+            &plan.recipe,
+            &out_p,
+            &plan.whole_hash,
+        )
+        .unwrap();
         assert_eq!(std::fs::read(&out_p).unwrap(), b"");
         // No basis at all with an empty recipe also works.
         let out2_p = dir.join("out2.bin");
@@ -679,7 +717,10 @@ mod tests {
         let r = apply_delta(
             Some(&basis_p),
             &patch_p,
-            &[RecipeOp::Copy { basis_offset: 5, len: 6 }],
+            &[RecipeOp::Copy {
+                basis_offset: 5,
+                len: 6,
+            }],
             &out_p,
             &dummy_hash,
         );
@@ -690,7 +731,10 @@ mod tests {
         let r = apply_delta(
             None,
             &patch_p,
-            &[RecipeOp::Copy { basis_offset: 0, len: 1 }],
+            &[RecipeOp::Copy {
+                basis_offset: 0,
+                len: 1,
+            }],
             &out_p,
             &dummy_hash,
         );
@@ -701,7 +745,10 @@ mod tests {
         let r = apply_delta(
             Some(&basis_p),
             &patch_p,
-            &[RecipeOp::Literal { patch_offset: 9, len: 2 }],
+            &[RecipeOp::Literal {
+                patch_offset: 9,
+                len: 2,
+            }],
             &out_p,
             &dummy_hash,
         );
@@ -712,7 +759,10 @@ mod tests {
         let r = apply_delta(
             Some(&basis_p),
             &patch_p,
-            &[RecipeOp::Copy { basis_offset: u64::MAX, len: 2 }],
+            &[RecipeOp::Copy {
+                basis_offset: u64::MAX,
+                len: 2,
+            }],
             &out_p,
             &dummy_hash,
         );
@@ -730,7 +780,10 @@ mod tests {
         let out_p = dir.join("out.bin");
         std::fs::write(&basis_p, b"hello delta world").unwrap();
         std::fs::write(&patch_p, b"").unwrap();
-        let recipe = [RecipeOp::Copy { basis_offset: 0, len: 17 }];
+        let recipe = [RecipeOp::Copy {
+            basis_offset: 0,
+            len: 17,
+        }];
         let wrong_hash = encode_hash(&blake3::hash(b"not the right content"));
 
         let r = apply_delta(Some(&basis_p), &patch_p, &recipe, &out_p, &wrong_hash);
@@ -802,13 +855,19 @@ mod tests {
 
     #[test]
     fn wire_types_serde_round_trip() {
-        let op = RecipeOp::Copy { basis_offset: 7, len: 99 };
+        let op = RecipeOp::Copy {
+            basis_offset: 7,
+            len: 99,
+        };
         let json = serde_json::to_string(&op).unwrap();
         assert!(json.contains("\"type\":\"copy\""));
         let back: RecipeOp = serde_json::from_str(&json).unwrap();
         assert_eq!(back, op);
 
-        let op = RecipeOp::Literal { patch_offset: 3, len: 4 };
+        let op = RecipeOp::Literal {
+            patch_offset: 3,
+            len: 4,
+        };
         let json = serde_json::to_string(&op).unwrap();
         assert!(json.contains("\"type\":\"literal\""));
         assert_eq!(serde_json::from_str::<RecipeOp>(&json).unwrap(), op);
@@ -818,7 +877,11 @@ mod tests {
             min: CHUNK_MIN,
             avg: CHUNK_AVG,
             max: CHUNK_MAX,
-            chunks: vec![ChunkEntry { offset: 0, len: 3, hash: encode_hash(&blake3::hash(b"abc")) }],
+            chunks: vec![ChunkEntry {
+                offset: 0,
+                len: 3,
+                hash: encode_hash(&blake3::hash(b"abc")),
+            }],
             whole_hash: encode_hash(&blake3::hash(b"abc")),
         };
         let json = serde_json::to_string(&sig).unwrap();
@@ -867,7 +930,9 @@ mod tests {
             {
                 let mut patch = File::create(&patch_p).unwrap();
                 for &(off, len) in &needed {
-                    patch.write_all(&new[off as usize..(off + len) as usize]).unwrap();
+                    patch
+                        .write_all(&new[off as usize..(off + len) as usize])
+                        .unwrap();
                 }
             }
             assert_eq!(
@@ -877,7 +942,14 @@ mod tests {
             );
 
             let out_p = dir.join("out.bin");
-            apply_delta(Some(&base_p), &patch_p, &plan.recipe, &out_p, &plan.whole_hash).unwrap();
+            apply_delta(
+                Some(&base_p),
+                &patch_p,
+                &plan.recipe,
+                &out_p,
+                &plan.whole_hash,
+            )
+            .unwrap();
             assert_eq!(std::fs::read(&out_p).unwrap(), new);
             let _ = std::fs::remove_dir_all(&dir);
         }
@@ -916,7 +988,10 @@ mod tests {
         let (plan, needed) = plan_download(&empty_basis, &target).unwrap();
         assert_eq!(needed, vec![(0, 3 * CHUNK_MIN as u64)]);
         assert_eq!(plan.literal_bytes, 3 * CHUNK_MIN as u64);
-        assert!(plan.recipe.iter().all(|op| matches!(op, RecipeOp::Literal { .. })));
+        assert!(plan
+            .recipe
+            .iter()
+            .all(|op| matches!(op, RecipeOp::Literal { .. })));
 
         // Miss, hit, miss → two ranges. (The hit references chunk "1" present
         // in the basis.)

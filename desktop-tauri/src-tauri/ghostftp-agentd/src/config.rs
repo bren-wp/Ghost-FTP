@@ -27,7 +27,10 @@ impl Default for Policy {
         // Pairing (code + pin) is the consent gate, so a freshly-paired daemon is
         // useful out of the box. Lock it down with `--read-only` or by editing
         // the config; a read-only daemon still browses + reads + reports.
-        Self { allow_exec: true, allow_write: true }
+        Self {
+            allow_exec: true,
+            allow_write: true,
+        }
     }
 }
 

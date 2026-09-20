@@ -87,7 +87,10 @@ impl BoxSession {
         let mut attempt = 0;
         loop {
             let token = self.token.access_token().await?;
-            let mut rb = self.client.request(method.clone(), &full).bearer_auth(&token);
+            let mut rb = self
+                .client
+                .request(method.clone(), &full)
+                .bearer_auth(&token);
             if let Some(b) = body {
                 rb = rb.json(b);
             }
@@ -127,7 +130,11 @@ impl BoxSession {
     pub async fn account_label(&self) -> Result<String> {
         let v = self.rpc(Method::GET, "/users/me", None).await?;
         for key in ["login", "name"] {
-            if let Some(s) = v.get(key).and_then(|x| x.as_str()).filter(|s| !s.is_empty()) {
+            if let Some(s) = v
+                .get(key)
+                .and_then(|x| x.as_str())
+                .filter(|s| !s.is_empty())
+            {
                 return Ok(s.to_string());
             }
         }
@@ -150,7 +157,10 @@ impl BoxSession {
                 .unwrap_or_default();
             let n = entries.len() as u64;
             out.extend(entries);
-            let total = v.get("total_count").and_then(|t| t.as_u64()).unwrap_or(out.len() as u64);
+            let total = v
+                .get("total_count")
+                .and_then(|t| t.as_u64())
+                .unwrap_or(out.len() as u64);
             offset += n;
             if n == 0 || offset >= total {
                 break;
@@ -163,7 +173,11 @@ impl BoxSession {
     pub async fn find_child(&self, parent_id: &str, name: &str) -> Result<Option<(String, bool)>> {
         for e in self.folder_items(parent_id).await? {
             if e.get("name").and_then(|n| n.as_str()) == Some(name) {
-                let id = e.get("id").and_then(|x| x.as_str()).unwrap_or("").to_string();
+                let id = e
+                    .get("id")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_string();
                 let is_folder = e.get("type").and_then(|t| t.as_str()) == Some("folder");
                 return Ok(Some((id, is_folder)));
             }

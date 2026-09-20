@@ -82,7 +82,10 @@ pub struct ScanOptions {
 
 impl Default for ScanOptions {
     fn default() -> Self {
-        Self { concurrency: DEFAULT_CONCURRENCY, cancel: CancelToken::new() }
+        Self {
+            concurrency: DEFAULT_CONCURRENCY,
+            cancel: CancelToken::new(),
+        }
     }
 }
 
@@ -152,7 +155,11 @@ pub async fn walk<F: FnMut(ScanProgress)>(
                 }
             }
         }
-        on_progress(ScanProgress { dirs_scanned, files_found: tree.files.len(), bytes_found });
+        on_progress(ScanProgress {
+            dirs_scanned,
+            files_found: tree.files.len(),
+            bytes_found,
+        });
     }
 
     Ok(tree)

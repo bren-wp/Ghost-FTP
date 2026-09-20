@@ -226,7 +226,10 @@ mod index_tests {
     fn scratch(tag: &str) -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
         let mut d = std::env::temp_dir();
-        d.push(format!("ghostftp_idx_test_{}_{tag}_{n}", std::process::id()));
+        d.push(format!(
+            "ghostftp_idx_test_{}_{tag}_{n}",
+            std::process::id()
+        ));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
@@ -236,7 +239,8 @@ mod index_tests {
     /// write access to the handle, which is why we reopen it writable.
     fn set_mtime(p: &Path, secs: u64) {
         let f = std::fs::OpenOptions::new().write(true).open(p).unwrap();
-        f.set_modified(UNIX_EPOCH + Duration::from_secs(secs)).unwrap();
+        f.set_modified(UNIX_EPOCH + Duration::from_secs(secs))
+            .unwrap();
     }
 
     async fn plan_stateless(src: &Path, dst: &Path) -> SyncPlan {

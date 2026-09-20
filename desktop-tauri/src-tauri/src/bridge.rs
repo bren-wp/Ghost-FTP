@@ -364,13 +364,57 @@ fn is_read_only_command(cmd: &str) -> bool {
     // only flags/args (no shell metacharacters) — e.g. `env CMD`, `ip netns
     // exec <ns> CMD`, `date -s`, `dmesg -C`. These can never be auto-approved.
     const NEVER_SAFE: &[&str] = &[
-        "env", "sudo", "doas", "su", "xargs", "watch", "timeout", "nohup",
-        "nice", "ionice", "time", "ssh", "scp", "rsync", "sh", "bash", "zsh",
-        "dash", "ksh", "fish", "perl", "python", "python3", "ruby", "node",
-        "php", "lua", "eval", "exec", "find", "ip", "ifconfig", "iptables",
-        "nft", "date", "hostname", "hostnamectl", "dmesg", "ss", "systemctl",
-        "service", "kill", "pkill", "killall", "mount", "umount", "modprobe",
-        "sysctl", "tee", "dd", "crontab",
+        "env",
+        "sudo",
+        "doas",
+        "su",
+        "xargs",
+        "watch",
+        "timeout",
+        "nohup",
+        "nice",
+        "ionice",
+        "time",
+        "ssh",
+        "scp",
+        "rsync",
+        "sh",
+        "bash",
+        "zsh",
+        "dash",
+        "ksh",
+        "fish",
+        "perl",
+        "python",
+        "python3",
+        "ruby",
+        "node",
+        "php",
+        "lua",
+        "eval",
+        "exec",
+        "find",
+        "ip",
+        "ifconfig",
+        "iptables",
+        "nft",
+        "date",
+        "hostname",
+        "hostnamectl",
+        "dmesg",
+        "ss",
+        "systemctl",
+        "service",
+        "kill",
+        "pkill",
+        "killall",
+        "mount",
+        "umount",
+        "modprobe",
+        "sysctl",
+        "tee",
+        "dd",
+        "crontab",
     ];
     if NEVER_SAFE.contains(&bin) {
         return false;
@@ -379,12 +423,51 @@ fn is_read_only_command(cmd: &str) -> bool {
     // their normal invocations. Deliberately excludes find/sed/awk/sort/uniq
     // (write/exec/-i/-o flags) and anything in NEVER_SAFE.
     const READ_ONLY: &[&str] = &[
-        "ls", "cat", "pwd", "whoami", "id", "uname", "uptime", "df", "du",
-        "free", "ps", "stat", "head", "tail", "wc", "file", "echo", "printenv",
-        "which", "type", "tree", "readlink", "realpath", "dirname", "basename",
-        "lsblk", "lscpu", "netstat", "cut", "grep", "egrep", "fgrep", "md5sum",
-        "sha1sum", "sha256sum", "groups", "getent", "lsof", "nproc", "vmstat",
-        "cal", "arch", "lsusb", "lspci", "uptime",
+        "ls",
+        "cat",
+        "pwd",
+        "whoami",
+        "id",
+        "uname",
+        "uptime",
+        "df",
+        "du",
+        "free",
+        "ps",
+        "stat",
+        "head",
+        "tail",
+        "wc",
+        "file",
+        "echo",
+        "printenv",
+        "which",
+        "type",
+        "tree",
+        "readlink",
+        "realpath",
+        "dirname",
+        "basename",
+        "lsblk",
+        "lscpu",
+        "netstat",
+        "cut",
+        "grep",
+        "egrep",
+        "fgrep",
+        "md5sum",
+        "sha1sum",
+        "sha256sum",
+        "groups",
+        "getent",
+        "lsof",
+        "nproc",
+        "vmstat",
+        "cal",
+        "arch",
+        "lsusb",
+        "lspci",
+        "uptime",
     ];
     READ_ONLY.contains(&bin)
 }
@@ -857,12 +940,15 @@ async fn gate(
     exec_cmd: Option<&str>,
 ) -> Result<(), (u16, Value)> {
     if !state.is_enabled(session_id).await {
-        return Err((403, json!({
-            "error": format!(
-                "connection '{}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.",
-                session_name
-            )
-        })));
+        return Err((
+            403,
+            json!({
+                "error": format!(
+                    "connection '{}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.",
+                    session_name
+                )
+            }),
+        ));
     }
     // Proactively heal a transport that died while the session sat idle, so the
     // op below runs on a live connection instead of eating the first failure.
@@ -880,9 +966,15 @@ async fn gate(
         Ok(())
     } else {
         state
-            .log(app, activity("denied", session_id, summary.to_string(), false))
+            .log(
+                app,
+                activity("denied", session_id, summary.to_string(), false),
+            )
             .await;
-        Err((403, json!({"error": "the user denied or did not respond to the approval prompt in Ghost FTP. Ask before trying again."})))
+        Err((
+            403,
+            json!({"error": "the user denied or did not respond to the approval prompt in Ghost FTP. Ask before trying again."}),
+        ))
     }
 }
 
@@ -1096,7 +1188,10 @@ async fn handle_sessions(app: &AppHandle, state: &Arc<BridgeState>) -> (u16, Val
 }
 
 fn body_str(v: &Value, key: &str) -> String {
-    v.get(key).and_then(|x| x.as_str()).unwrap_or("").to_string()
+    v.get(key)
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .to_string()
 }
 
 fn parse_body(body: &[u8]) -> Result<Value, (u16, Value)> {
@@ -1113,10 +1208,17 @@ async fn handle_exec(app: &AppHandle, state: &Arc<BridgeState>, body: &[u8]) -> 
     if session_id.is_empty() || command.is_empty() {
         return (400, json!({"error": "sessionId and command are required"}));
     }
-    let dry_run = parsed.get("dryRun").and_then(|v| v.as_bool()).unwrap_or(false);
+    let dry_run = parsed
+        .get("dryRun")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let timeout_ms = parsed.get("timeoutMs").and_then(|v| v.as_u64());
     // A detached exec returns a job id at once instead of blocking (Plan 10 Phase 4).
-    if parsed.get("detach").and_then(|v| v.as_bool()).unwrap_or(false) {
+    if parsed
+        .get("detach")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
         return op_exec_detached(app, state, &session_id, &command, dry_run).await;
     }
     exec_on(app, state, &session_id, &command, dry_run, timeout_ms).await
@@ -1151,7 +1253,11 @@ async fn handle_jobs(app: &AppHandle, state: &Arc<BridgeState>, body: &[u8]) -> 
 /// the script as base64 (`script`) so any bytes survive the JSON/HTTP hop
 /// untouched; `label` is a friendly name for the console/audit (e.g. the source
 /// filename). Decodes, then runs it verbatim via `exec_script_on`.
-async fn handle_exec_script(app: &AppHandle, state: &Arc<BridgeState>, body: &[u8]) -> (u16, Value) {
+async fn handle_exec_script(
+    app: &AppHandle,
+    state: &Arc<BridgeState>,
+    body: &[u8],
+) -> (u16, Value) {
     use base64::Engine as _;
     let parsed = match parse_body(body) {
         Ok(v) => v,
@@ -1160,7 +1266,10 @@ async fn handle_exec_script(app: &AppHandle, state: &Arc<BridgeState>, body: &[u
     let session_id = body_str(&parsed, "sessionId");
     let script_b64 = body_str(&parsed, "script");
     if session_id.is_empty() || script_b64.is_empty() {
-        return (400, json!({"error": "sessionId and script (base64) are required"}));
+        return (
+            400,
+            json!({"error": "sessionId and script (base64) are required"}),
+        );
     }
     let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(script_b64.as_bytes()) else {
         return (400, json!({"error": "script must be valid base64"}));
@@ -1172,9 +1281,21 @@ async fn handle_exec_script(app: &AppHandle, state: &Arc<BridgeState>, body: &[u
     if label.is_empty() {
         label = "a script".to_string();
     }
-    let dry_run = parsed.get("dryRun").and_then(|v| v.as_bool()).unwrap_or(false);
+    let dry_run = parsed
+        .get("dryRun")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let timeout_ms = parsed.get("timeoutMs").and_then(|v| v.as_u64());
-    exec_script_on(app, state, &session_id, &script, &label, dry_run, timeout_ms).await
+    exec_script_on(
+        app,
+        state,
+        &session_id,
+        &script,
+        &label,
+        dry_run,
+        timeout_ms,
+    )
+    .await
 }
 
 /// `/write` — drop text/bytes straight into a remote file (Plan 10 Phase 2). The
@@ -1197,7 +1318,10 @@ async fn handle_write(app: &AppHandle, state: &Arc<BridgeState>, body: &[u8]) ->
     let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(content_b64.as_bytes()) else {
         return (400, json!({"error": "content must be valid base64"}));
     };
-    let overwrite = parsed.get("overwrite").and_then(|v| v.as_bool()).unwrap_or(false);
+    let overwrite = parsed
+        .get("overwrite")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     op_write(app, state, &session_id, &path, &bytes, overwrite).await
 }
 
@@ -1211,7 +1335,10 @@ async fn handle_delete(app: &AppHandle, state: &Arc<BridgeState>, body: &[u8]) -
     if session_id.is_empty() || path.is_empty() {
         return (400, json!({"error": "sessionId and path are required"}));
     }
-    let recursive = parsed.get("recursive").and_then(|v| v.as_bool()).unwrap_or(false);
+    let recursive = parsed
+        .get("recursive")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     op_delete(app, state, &session_id, &path, recursive).await
 }
 
@@ -1252,7 +1379,10 @@ async fn handle_run(app: &AppHandle, state: &Arc<BridgeState>, body: &[u8]) -> (
     if session_id.is_empty() || name.is_empty() {
         return (400, json!({"error": "sessionId and name are required"}));
     }
-    let dry_run = parsed.get("dryRun").and_then(|v| v.as_bool()).unwrap_or(false);
+    let dry_run = parsed
+        .get("dryRun")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let timeout_ms = parsed.get("timeoutMs").and_then(|v| v.as_u64());
     op_run_command(app, state, &session_id, &name, dry_run, timeout_ms).await
 }
@@ -1299,7 +1429,10 @@ async fn handle_skill_run(app: &AppHandle, state: &Arc<BridgeState>, body: &[u8]
     }
     let params = params_from_value(parsed.get("params"));
     let targets = str_array(parsed.get("targets"));
-    let dry_run = parsed.get("dryRun").and_then(|v| v.as_bool()).unwrap_or(false);
+    let dry_run = parsed
+        .get("dryRun")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     op_run_skill(app, state, &name, params, targets, dry_run).await
 }
 
@@ -1364,7 +1497,10 @@ async fn handle_upload(app: &AppHandle, state: &Arc<BridgeState>, body: &[u8]) -
             json!({"error": "sessionId, localPath and remoteDir are required"}),
         );
     }
-    let overwrite = parsed.get("overwrite").and_then(|v| v.as_bool()).unwrap_or(false);
+    let overwrite = parsed
+        .get("overwrite")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     op_upload(app, state, &session_id, &local_path, &remote_dir, overwrite).await
 }
 
@@ -1382,7 +1518,10 @@ async fn handle_upload_dir(app: &AppHandle, state: &Arc<BridgeState>, body: &[u8
             json!({"error": "sessionId, localDir and remoteDir are required"}),
         );
     }
-    let overwrite = parsed.get("overwrite").and_then(|v| v.as_bool()).unwrap_or(false);
+    let overwrite = parsed
+        .get("overwrite")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     op_upload_dir(app, state, &session_id, &local_dir, &remote_dir, overwrite).await
 }
 
@@ -1400,14 +1539,26 @@ async fn handle_sync(app: &AppHandle, state: &Arc<BridgeState>, body: &[u8]) -> 
             json!({"error": "sessionId, localDir and remoteDir are required"}),
         );
     }
-    let (direction, strategy) =
-        match parse_sync_args(&body_str(&parsed, "direction"), &body_str(&parsed, "strategy")) {
-            Ok(v) => v,
-            Err(msg) => return (400, json!({ "error": msg })),
-        };
-    let dry_run = parsed.get("dryRun").and_then(|v| v.as_bool()).unwrap_or(false);
+    let (direction, strategy) = match parse_sync_args(
+        &body_str(&parsed, "direction"),
+        &body_str(&parsed, "strategy"),
+    ) {
+        Ok(v) => v,
+        Err(msg) => return (400, json!({ "error": msg })),
+    };
+    let dry_run = parsed
+        .get("dryRun")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     op_sync(
-        app, state, &session_id, &local_dir, &remote_dir, direction, strategy, dry_run,
+        app,
+        state,
+        &session_id,
+        &local_dir,
+        &remote_dir,
+        direction,
+        strategy,
+        dry_run,
     )
     .await
 }
@@ -1423,9 +1574,18 @@ async fn handle_diff(app: &AppHandle, state: &Arc<BridgeState>, body: &[u8]) -> 
         return (400, json!({"error": "pathA and pathB are required"}));
     }
     // An omitted / empty session means the local filesystem.
-    let side_a = parsed.get("sessionA").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
-    let side_b = parsed.get("sessionB").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
-    let hash = parsed.get("hash").and_then(|v| v.as_bool()).unwrap_or(false);
+    let side_a = parsed
+        .get("sessionA")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty());
+    let side_b = parsed
+        .get("sessionB")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty());
+    let hash = parsed
+        .get("hash")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     op_diff(app, state, side_a, &path_a, side_b, &path_b, hash).await
 }
 
@@ -1447,11 +1607,7 @@ async fn handle_search(app: &AppHandle, state: &Arc<BridgeState>, body: &[u8]) -
     op_search(app, state, &session_id, &root, &query).await
 }
 
-async fn handle_read_batch(
-    app: &AppHandle,
-    state: &Arc<BridgeState>,
-    body: &[u8],
-) -> (u16, Value) {
+async fn handle_read_batch(app: &AppHandle, state: &Arc<BridgeState>, body: &[u8]) -> (u16, Value) {
     let parsed = match parse_body(body) {
         Ok(v) => v,
         Err(e) => return e,
@@ -1574,16 +1730,20 @@ pub(crate) async fn exec_on(
     };
 
     if !state.is_enabled(session_id).await {
-        return (403, json!({
-            "error": format!(
-                "connection '{}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.",
-                session_name
-            )
-        }));
+        return (
+            403,
+            json!({
+                "error": format!(
+                    "connection '{}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.",
+                    session_name
+                )
+            }),
+        );
     }
 
     let policy = *state.policy.lock().await;
-    let would_auto_approve = policy.allow_all || (policy.auto_safe_exec && is_read_only_command(command));
+    let would_auto_approve =
+        policy.allow_all || (policy.auto_safe_exec && is_read_only_command(command));
     if dry_run {
         return (
             200,
@@ -1621,13 +1781,32 @@ pub(crate) async fn exec_on(
         let Some(agent) = manager.get_agent(session_id).await else {
             return (400, json!({"error": "session went away"}));
         };
-        exec_core_agent(app, state, &agent, session_id, &session_name, command, command, timeout)
-            .await
+        exec_core_agent(
+            app,
+            state,
+            &agent,
+            session_id,
+            &session_name,
+            command,
+            command,
+            timeout,
+        )
+        .await
     } else {
         let Some(ssh) = manager.get_ssh(session_id).await else {
             return (400, json!({"error": "session went away"}));
         };
-        exec_core(app, state, &ssh, session_id, &session_name, command, command, timeout).await
+        exec_core(
+            app,
+            state,
+            &ssh,
+            session_id,
+            &session_name,
+            command,
+            command,
+            timeout,
+        )
+        .await
     }
 }
 
@@ -1663,12 +1842,15 @@ async fn exec_script_on(
     };
 
     if !state.is_enabled(session_id).await {
-        return (403, json!({
-            "error": format!(
-                "connection '{}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.",
-                session_name
-            )
-        }));
+        return (
+            403,
+            json!({
+                "error": format!(
+                    "connection '{}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.",
+                    session_name
+                )
+            }),
+        );
     }
 
     if dry_run {
@@ -1713,12 +1895,32 @@ async fn exec_script_on(
         let Some(agent) = manager.get_agent(session_id).await else {
             return (400, json!({"error": "session went away"}));
         };
-        exec_core_agent(app, state, &agent, session_id, &session_name, script, label, timeout).await
+        exec_core_agent(
+            app,
+            state,
+            &agent,
+            session_id,
+            &session_name,
+            script,
+            label,
+            timeout,
+        )
+        .await
     } else {
         let Some(ssh) = manager.get_ssh(session_id).await else {
             return (400, json!({"error": "session went away"}));
         };
-        exec_core(app, state, &ssh, session_id, &session_name, script, label, timeout).await
+        exec_core(
+            app,
+            state,
+            &ssh,
+            session_id,
+            &session_name,
+            script,
+            label,
+            timeout,
+        )
+        .await
     }
 }
 
@@ -1727,7 +1929,11 @@ async fn exec_script_on(
 /// the prompt — the user still sees the head and the total size).
 fn script_approval_summary(label: &str, script: &str) -> String {
     const CAP: usize = 4096;
-    let header = format!("Run {label} ({} bytes, {} lines):", script.len(), script.lines().count());
+    let header = format!(
+        "Run {label} ({} bytes, {} lines):",
+        script.len(),
+        script.lines().count()
+    );
     if script.len() <= CAP {
         format!("{header}\n{script}")
     } else {
@@ -1946,21 +2152,30 @@ async fn op_exec_detached(
         return op_exec_detached_agent(app, state, &agent, session_id, command, dry_run).await;
     }
     let Some(ssh) = manager.get_ssh(session_id).await else {
-        return (400, json!({"error": "detached exec needs an SSH/SFTP or Ghost FTP Agent connection."}));
+        return (
+            400,
+            json!({"error": "detached exec needs an SSH/SFTP or Ghost FTP Agent connection."}),
+        );
     };
     let session_name = ssh.profile.name.clone();
     if !state.is_enabled(session_id).await {
-        return (403, json!({
-            "error": format!("connection '{session_name}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.")
-        }));
+        return (
+            403,
+            json!({
+                "error": format!("connection '{session_name}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.")
+            }),
+        );
     }
     if dry_run {
         let policy = *state.policy.lock().await;
-        return (200, json!({
-            "wouldRun": command,
-            "detach": true,
-            "needsApproval": !policy.allow_all,
-        }));
+        return (
+            200,
+            json!({
+                "wouldRun": command,
+                "detach": true,
+                "needsApproval": !policy.allow_all,
+            }),
+        );
     }
     if let Err(resp) = gate(
         app,
@@ -1977,11 +2192,25 @@ async fn op_exec_detached(
         return resp;
     }
     let job_id = Uuid::new_v4().to_string();
-    let script = job_launch_script(&job_id, &base64::engine::general_purpose::STANDARD.encode(command));
-    match ssh.exec_bounded(&script, 64 * 1024, Duration::from_secs(20), None).await {
+    let script = job_launch_script(
+        &job_id,
+        &base64::engine::general_purpose::STANDARD.encode(command),
+    );
+    match ssh
+        .exec_bounded(&script, 64 * 1024, Duration::from_secs(20), None)
+        .await
+    {
         Ok(out) if out.exit_code == Some(0) => {
             state
-                .log(app, activity("exec", session_id, format!("detached job {job_id}: {command}"), true))
+                .log(
+                    app,
+                    activity(
+                        "exec",
+                        session_id,
+                        format!("detached job {job_id}: {command}"),
+                        true,
+                    ),
+                )
                 .await;
             (200, json!({ "jobId": job_id, "status": "started" }))
         }
@@ -2006,17 +2235,23 @@ async fn op_exec_detached_agent(
 ) -> (u16, Value) {
     let session_name = agent.profile.name.clone();
     if !state.is_enabled(session_id).await {
-        return (403, json!({
-            "error": format!("connection '{session_name}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.")
-        }));
+        return (
+            403,
+            json!({
+                "error": format!("connection '{session_name}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.")
+            }),
+        );
     }
     if dry_run {
         let policy = *state.policy.lock().await;
-        return (200, json!({
-            "wouldRun": command,
-            "detach": true,
-            "needsApproval": !policy.allow_all,
-        }));
+        return (
+            200,
+            json!({
+                "wouldRun": command,
+                "detach": true,
+                "needsApproval": !policy.allow_all,
+            }),
+        );
     }
     if let Err(resp) = gate(
         app,
@@ -2037,7 +2272,15 @@ async fn op_exec_detached_agent(
     match agent.exec_start(&job_id, command, 512 * 1024).await {
         Ok(id) => {
             state
-                .log(app, activity("exec", session_id, format!("detached job {id}: {command}"), true))
+                .log(
+                    app,
+                    activity(
+                        "exec",
+                        session_id,
+                        format!("detached job {id}: {command}"),
+                        true,
+                    ),
+                )
                 .await;
             (200, json!({ "jobId": id, "status": "started" }))
         }
@@ -2069,9 +2312,17 @@ fn parse_job_poll(text: &str) -> Value {
                 exit = v.parse().ok();
             }
         } else if let Some(v) = line.strip_prefix("out=") {
-            stdout = b64.decode(v.trim()).ok().map(|b| String::from_utf8_lossy(&b).to_string()).unwrap_or_default();
+            stdout = b64
+                .decode(v.trim())
+                .ok()
+                .map(|b| String::from_utf8_lossy(&b).to_string())
+                .unwrap_or_default();
         } else if let Some(v) = line.strip_prefix("err=") {
-            stderr = b64.decode(v.trim()).ok().map(|b| String::from_utf8_lossy(&b).to_string()).unwrap_or_default();
+            stderr = b64
+                .decode(v.trim())
+                .ok()
+                .map(|b| String::from_utf8_lossy(&b).to_string())
+                .unwrap_or_default();
         }
     }
     if nojob {
@@ -2091,8 +2342,17 @@ async fn op_job(
     // Ghost FTP Agent target: poll via the daemon's ExecPoll (Plan 10 Phase 4).
     if let Some(agent) = manager.get_agent(session_id).await {
         let name = agent.profile.name.clone();
-        if let Err(resp) =
-            gate(app, state, session_id, &name, OpClass::Read, "job", &format!("read job {job_id}"), None).await
+        if let Err(resp) = gate(
+            app,
+            state,
+            session_id,
+            &name,
+            OpClass::Read,
+            "job",
+            &format!("read job {job_id}"),
+            None,
+        )
+        .await
         {
             return resp;
         }
@@ -2109,24 +2369,53 @@ async fn op_job(
         };
     }
     let Some(ssh) = manager.get_ssh(session_id).await else {
-        return (400, json!({"error": "detached jobs need an SSH/SFTP or Ghost FTP Agent connection."}));
+        return (
+            400,
+            json!({"error": "detached jobs need an SSH/SFTP or Ghost FTP Agent connection."}),
+        );
     };
     let name = ssh.profile.name.clone();
-    if let Err(resp) = gate(app, state, session_id, &name, OpClass::Read, "job", &format!("read job {job_id}"), None).await {
+    if let Err(resp) = gate(
+        app,
+        state,
+        session_id,
+        &name,
+        OpClass::Read,
+        "job",
+        &format!("read job {job_id}"),
+        None,
+    )
+    .await
+    {
         return resp;
     }
     // A job id is a UUID we generated; reject anything else so it can't be used
     // to smuggle shell into the path.
-    if !job_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+    if !job_id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-')
+    {
         return (400, json!({"error": "invalid job id"}));
     }
-    match ssh.exec_bounded(&job_poll_script(job_id), 1024 * 1024, Duration::from_secs(15), None).await {
+    match ssh
+        .exec_bounded(
+            &job_poll_script(job_id),
+            1024 * 1024,
+            Duration::from_secs(15),
+            None,
+        )
+        .await
+    {
         Ok(out) => {
             let mut body = parse_job_poll(&out.stdout);
             if let Some(obj) = body.as_object_mut() {
                 obj.insert("jobId".into(), json!(job_id));
             }
-            let status = if body.get("error").is_some() { 404 } else { 200 };
+            let status = if body.get("error").is_some() {
+                404
+            } else {
+                200
+            };
             (status, body)
         }
         Err(e) => (500, json!({"error": e.to_string()})),
@@ -2140,10 +2429,29 @@ async fn op_jobs(app: &AppHandle, state: &Arc<BridgeState>, session_id: &str) ->
         return (400, json!({"error": "jobs are SSH-only for now."}));
     };
     let name = ssh.profile.name.clone();
-    if let Err(resp) = gate(app, state, session_id, &name, OpClass::Read, "jobs", "list background jobs", None).await {
+    if let Err(resp) = gate(
+        app,
+        state,
+        session_id,
+        &name,
+        OpClass::Read,
+        "jobs",
+        "list background jobs",
+        None,
+    )
+    .await
+    {
         return resp;
     }
-    match ssh.exec_bounded(&job_list_script(), 256 * 1024, Duration::from_secs(15), None).await {
+    match ssh
+        .exec_bounded(
+            &job_list_script(),
+            256 * 1024,
+            Duration::from_secs(15),
+            None,
+        )
+        .await
+    {
         Ok(out) => {
             let jobs: Vec<Value> = out
                 .stdout
@@ -2189,16 +2497,22 @@ pub(crate) async fn op_run_command(
         );
     };
     let Some(cmd) = state.find_command(name).await else {
-        return (404, json!({"error": format!("no saved command named '{name}'")}));
+        return (
+            404,
+            json!({"error": format!("no saved command named '{name}'")}),
+        );
     };
     // Opt-in is still required (a saved command is pre-approved, not un-gated):
     if !state.is_enabled(session_id).await {
-        return (403, json!({
-            "error": format!(
-                "connection '{}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.",
-                ssh.profile.name
-            )
-        }));
+        return (
+            403,
+            json!({
+                "error": format!(
+                    "connection '{}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.",
+                    ssh.profile.name
+                )
+            }),
+        );
     }
     let session_name = ssh.profile.name.clone();
     let label = format!("[{}] {}", cmd.name, cmd.command);
@@ -2213,7 +2527,17 @@ pub(crate) async fn op_run_command(
         );
     }
     let timeout = exec_timeout_from(timeout_ms);
-    exec_core(app, state, &ssh, session_id, &session_name, &cmd.command, &label, timeout).await
+    exec_core(
+        app,
+        state,
+        &ssh,
+        session_id,
+        &session_name,
+        &cmd.command,
+        &label,
+        timeout,
+    )
+    .await
 }
 
 /// Shared exec body used by `exec_on` (after the approval gate) and
@@ -2341,7 +2665,10 @@ pub(crate) async fn op_list_dir(
 ) -> (u16, Value) {
     let manager = app.state::<AppState>().sessions.clone();
     let Some(sess) = manager.get(session_id).await else {
-        return (400, json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}));
+        return (
+            400,
+            json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}),
+        );
     };
     let name = sess.profile().name.clone();
     if let Err(resp) = gate(
@@ -2402,7 +2729,10 @@ pub(crate) async fn op_delete(
 ) -> (u16, Value) {
     let manager = app.state::<AppState>().sessions.clone();
     let Some(sess) = manager.get(session_id).await else {
-        return (400, json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}));
+        return (
+            400,
+            json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}),
+        );
     };
     let name = sess.profile().name.clone();
     if let Err(resp) = gate(
@@ -2414,7 +2744,11 @@ pub(crate) async fn op_delete(
         "delete",
         &format!(
             "DELETE {name}:{path}{}",
-            if recursive { " and everything inside it" } else { "" }
+            if recursive {
+                " and everything inside it"
+            } else {
+                ""
+            }
         ),
         None,
     )
@@ -2426,13 +2760,19 @@ pub(crate) async fn op_delete(
     match fs.delete(path, recursive).await {
         Ok(()) => {
             state
-                .log(app, activity("delete", session_id, format!("delete {path}"), true))
+                .log(
+                    app,
+                    activity("delete", session_id, format!("delete {path}"), true),
+                )
                 .await;
             (200, json!({ "path": path, "status": "deleted" }))
         }
         Err(e) => {
             state
-                .log(app, activity("error", session_id, format!("delete {path} — {e}"), false))
+                .log(
+                    app,
+                    activity("error", session_id, format!("delete {path} — {e}"), false),
+                )
                 .await;
             (500, json!({"error": e.to_string()}))
         }
@@ -2451,10 +2791,16 @@ pub(crate) async fn op_rename(
 ) -> (u16, Value) {
     let manager = app.state::<AppState>().sessions.clone();
     let Some(sess) = manager.get(session_id).await else {
-        return (400, json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}));
+        return (
+            400,
+            json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}),
+        );
     };
     let name = sess.profile().name.clone();
-    if !crate::commands::fs_for_session(&sess).capabilities().can_rename {
+    if !crate::commands::fs_for_session(&sess)
+        .capabilities()
+        .can_rename
+    {
         return (
             400,
             json!({"error": format!("{name} ({}) has no rename operation", sess.profile().protocol)}),
@@ -2478,7 +2824,10 @@ pub(crate) async fn op_rename(
     match fs.rename(from, to).await {
         Ok(()) => {
             state
-                .log(app, activity("rename", session_id, format!("rename {from} → {to}"), true))
+                .log(
+                    app,
+                    activity("rename", session_id, format!("rename {from} → {to}"), true),
+                )
                 .await;
             (200, json!({ "from": from, "to": to, "status": "renamed" }))
         }
@@ -2486,7 +2835,12 @@ pub(crate) async fn op_rename(
             state
                 .log(
                     app,
-                    activity("error", session_id, format!("rename {from} → {to} — {e}"), false),
+                    activity(
+                        "error",
+                        session_id,
+                        format!("rename {from} → {to} — {e}"),
+                        false,
+                    ),
                 )
                 .await;
             (500, json!({"error": e.to_string()}))
@@ -2503,7 +2857,10 @@ pub(crate) async fn op_mkdir(
 ) -> (u16, Value) {
     let manager = app.state::<AppState>().sessions.clone();
     let Some(sess) = manager.get(session_id).await else {
-        return (400, json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}));
+        return (
+            400,
+            json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}),
+        );
     };
     let name = sess.profile().name.clone();
     if let Err(resp) = gate(
@@ -2524,13 +2881,19 @@ pub(crate) async fn op_mkdir(
     match fs.create_dir(path).await {
         Ok(()) => {
             state
-                .log(app, activity("mkdir", session_id, format!("mkdir {path}"), true))
+                .log(
+                    app,
+                    activity("mkdir", session_id, format!("mkdir {path}"), true),
+                )
                 .await;
             (200, json!({ "path": path, "status": "created" }))
         }
         Err(e) => {
             state
-                .log(app, activity("error", session_id, format!("mkdir {path} — {e}"), false))
+                .log(
+                    app,
+                    activity("error", session_id, format!("mkdir {path} — {e}"), false),
+                )
                 .await;
             (500, json!({"error": e.to_string()}))
         }
@@ -2549,10 +2912,17 @@ async fn op_read_file_agent(
     use base64::Engine as _;
     use ghostftp_agent_proto::msg::{Request, Response};
     let resp = agent
-        .request(Request::ReadFile { path: path.to_string(), max_bytes: MAX_READ_FILE as u64 })
+        .request(Request::ReadFile {
+            path: path.to_string(),
+            max_bytes: MAX_READ_FILE as u64,
+        })
         .await;
     match resp {
-        Ok(Response::File { data, bytes, truncated }) => {
+        Ok(Response::File {
+            data,
+            bytes,
+            truncated,
+        }) => {
             let decoded = base64::engine::general_purpose::STANDARD
                 .decode(&data)
                 .unwrap_or_default();
@@ -2560,21 +2930,43 @@ async fn op_read_file_agent(
             state
                 .log(
                     app,
-                    activity("read", session_id, format!("read {path} ({bytes} bytes)"), true),
+                    activity(
+                        "read",
+                        session_id,
+                        format!("read {path} ({bytes} bytes)"),
+                        true,
+                    ),
                 )
                 .await;
-            (200, json!({ "content": content, "bytes": bytes, "truncated": truncated }))
+            (
+                200,
+                json!({ "content": content, "bytes": bytes, "truncated": truncated }),
+            )
         }
         Ok(Response::Error { message, .. }) => {
             state
-                .log(app, activity("error", session_id, format!("read {path} — {message}"), false))
+                .log(
+                    app,
+                    activity(
+                        "error",
+                        session_id,
+                        format!("read {path} — {message}"),
+                        false,
+                    ),
+                )
                 .await;
             (500, json!({"error": message}))
         }
-        Ok(other) => (500, json!({"error": format!("unexpected reply: {other:?}")})),
+        Ok(other) => (
+            500,
+            json!({"error": format!("unexpected reply: {other:?}")}),
+        ),
         Err(e) => {
             state
-                .log(app, activity("error", session_id, format!("read {path} — {e}"), false))
+                .log(
+                    app,
+                    activity("error", session_id, format!("read {path} — {e}"), false),
+                )
                 .await;
             (500, json!({"error": e.to_string()}))
         }
@@ -2628,7 +3020,14 @@ async fn op_read_file_fetch(
 ) -> (u16, Value) {
     let name = sess.profile().name.clone();
     if let Err(resp) = gate(
-        app, state, session_id, &name, OpClass::Read, "read", &format!("read {path}"), None,
+        app,
+        state,
+        session_id,
+        &name,
+        OpClass::Read,
+        "read",
+        &format!("read {path}"),
+        None,
     )
     .await
     {
@@ -2647,7 +3046,12 @@ async fn op_read_file_fetch(
             state
                 .log(
                     app,
-                    activity("read", session_id, format!("read {path} ({bytes} bytes)"), true),
+                    activity(
+                        "read",
+                        session_id,
+                        format!("read {path} ({bytes} bytes)"),
+                        true,
+                    ),
                 )
                 .await;
             (
@@ -2661,7 +3065,10 @@ async fn op_read_file_fetch(
         }
         Err(e) => {
             state
-                .log(app, activity("error", session_id, format!("read {path} — {e}"), false))
+                .log(
+                    app,
+                    activity("error", session_id, format!("read {path} — {e}"), false),
+                )
                 .await;
             (500, json!({"error": e.to_string()}))
         }
@@ -2681,7 +3088,14 @@ pub(crate) async fn op_read_file(
     if let Some(agent) = manager.get_agent(session_id).await {
         let name = agent.profile.name.clone();
         if let Err(resp) = gate(
-            app, state, session_id, &name, OpClass::Read, "read", &format!("read {path}"), None,
+            app,
+            state,
+            session_id,
+            &name,
+            OpClass::Read,
+            "read",
+            &format!("read {path}"),
+            None,
         )
         .await
         {
@@ -2693,7 +3107,10 @@ pub(crate) async fn op_read_file(
     let Some(ssh) = manager.get_ssh(session_id).await else {
         // Every other protocol fetches the head of the file instead (below).
         let Some(sess) = manager.get(session_id).await else {
-            return (400, json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}));
+            return (
+                400,
+                json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}),
+            );
         };
         return op_read_file_fetch(app, state, &sess, session_id, path).await;
     };
@@ -2722,7 +3139,9 @@ pub(crate) async fn op_read_file(
             // is independent of the SFTP guard — see transfer.rs).
             let mut file = {
                 let sftp = sftp_cell.lock().await;
-                sftp.open(path).await.with_context(|| format!("open {path}"))?
+                sftp.open(path)
+                    .await
+                    .with_context(|| format!("open {path}"))?
             };
             let mut buf: Vec<u8> = Vec::new();
             let mut chunk = vec![0u8; 64 * 1024];
@@ -2750,7 +3169,12 @@ pub(crate) async fn op_read_file(
             state
                 .log(
                     app,
-                    activity("read", session_id, format!("read {path} ({bytes} bytes)"), true),
+                    activity(
+                        "read",
+                        session_id,
+                        format!("read {path} ({bytes} bytes)"),
+                        true,
+                    ),
                 )
                 .await;
             (
@@ -2776,7 +3200,9 @@ async fn read_one_file(ssh: &Arc<crate::session::SshSession>, path: &str) -> Res
     ssh.with_sftp(|sftp_cell| async move {
         let mut file = {
             let sftp = sftp_cell.lock().await;
-            sftp.open(path).await.with_context(|| format!("open {path}"))?
+            sftp.open(path)
+                .await
+                .with_context(|| format!("open {path}"))?
         };
         let mut buf: Vec<u8> = Vec::new();
         let mut chunk = vec![0u8; 64 * 1024];
@@ -2829,7 +3255,10 @@ pub(crate) async fn op_read_file_batch(
 ) -> (u16, Value) {
     let manager = app.state::<AppState>().sessions.clone();
     let Some(sess) = manager.get(session_id).await else {
-        return (400, json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}));
+        return (
+            400,
+            json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}),
+        );
     };
     let name = sess.profile().name.clone();
     if paths.is_empty() {
@@ -2845,7 +3274,11 @@ pub(crate) async fn op_read_file_batch(
         &name,
         OpClass::Read,
         "read_batch",
-        &format!("read {} files (e.g. {})", paths.len(), paths.first().cloned().unwrap_or_default()),
+        &format!(
+            "read {} files (e.g. {})",
+            paths.len(),
+            paths.first().cloned().unwrap_or_default()
+        ),
         None,
     )
     .await
@@ -2892,10 +3325,7 @@ pub(crate) async fn op_read_file_batch(
             ),
         )
         .await;
-    (
-        200,
-        json!({ "files": files }),
-    )
+    (200, json!({ "files": files }))
 }
 
 /// Find files/directories matching a glob-like pattern. SSH uses `find`;
@@ -2937,9 +3367,13 @@ pub(crate) async fn op_glob(
         SEARCH_MAX_DEPTH,
         pattern.replace('\\', "\\\\").replace('\'', "'\"'\"'")
     );
-    match ssh.exec_bounded(&cmd, 256 * 1024, Duration::from_secs(30), None).await {
+    match ssh
+        .exec_bounded(&cmd, 256 * 1024, Duration::from_secs(30), None)
+        .await
+    {
         Ok(out) => {
-            let paths: Vec<String> = out.stdout
+            let paths: Vec<String> = out
+                .stdout
                 .lines()
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
@@ -2957,7 +3391,12 @@ pub(crate) async fn op_glob(
             state
                 .log(
                     app,
-                    activity("error", session_id, format!("glob {root}/{pattern} — {e}"), false),
+                    activity(
+                        "error",
+                        session_id,
+                        format!("glob {root}/{pattern} — {e}"),
+                        false,
+                    ),
                 )
                 .await;
             (500, json!({"error": e.to_string()}))
@@ -3095,7 +3534,10 @@ async fn op_download(
 ) -> (u16, Value) {
     let manager = app.state::<AppState>().sessions.clone();
     let Some(sess) = manager.get(session_id).await else {
-        return (400, json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}));
+        return (
+            400,
+            json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}),
+        );
     };
     let name = sess.profile().name.clone();
     let local_dir = local_dir.unwrap_or_else(|| default_download_dir(app));
@@ -3236,7 +3678,10 @@ async fn op_write(
 
     let manager = app.state::<AppState>().sessions.clone();
     let Some(sess) = manager.get(session_id).await else {
-        return (400, json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}));
+        return (
+            400,
+            json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}),
+        );
     };
     let session_name = sess.profile().name.clone();
     let is_agent = matches!(&*sess, Session::Agent(_));
@@ -3268,8 +3713,11 @@ async fn op_write(
         // Existence check (unless overwriting): a successful Stat means it's there.
         async {
             if !overwrite {
-                if let Ok(Response::Stat { .. }) =
-                    agent.request(Request::Stat { path: remote_path.to_string() }).await
+                if let Ok(Response::Stat { .. }) = agent
+                    .request(Request::Stat {
+                        path: remote_path.to_string(),
+                    })
+                    .await
                 {
                     anyhow::bail!("{remote_path} already exists; pass overwrite to replace it");
                 }
@@ -3287,7 +3735,11 @@ async fn op_write(
             {
                 Response::Written { .. } => Ok(()),
                 Response::Error { message, denied } => {
-                    anyhow::bail!(if denied { format!("denied: {message}") } else { message })
+                    anyhow::bail!(if denied {
+                        format!("denied: {message}")
+                    } else {
+                        message
+                    })
                 }
                 other => anyhow::bail!("unexpected write reply: {other:?}"),
             }
@@ -3334,13 +3786,21 @@ async fn op_write(
                     ),
                 )
                 .await;
-            (200, json!({ "path": remote_path, "bytes": bytes.len(), "status": "written" }))
+            (
+                200,
+                json!({ "path": remote_path, "bytes": bytes.len(), "status": "written" }),
+            )
         }
         Err(e) => {
             state
                 .log(
                     app,
-                    activity("error", session_id, format!("write {remote_path} — {e}"), false),
+                    activity(
+                        "error",
+                        session_id,
+                        format!("write {remote_path} — {e}"),
+                        false,
+                    ),
                 )
                 .await;
             (500, json!({"error": e.to_string()}))
@@ -3363,7 +3823,10 @@ async fn op_upload(
 ) -> (u16, Value) {
     let manager = app.state::<AppState>().sessions.clone();
     let Some(sess) = manager.get(session_id).await else {
-        return (400, json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}));
+        return (
+            400,
+            json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}),
+        );
     };
     let name = sess.profile().name.clone();
     if let Err(resp) = gate(
@@ -3375,7 +3838,11 @@ async fn op_upload(
         "upload",
         &format!(
             "upload {local_path} → {remote_dir}{}",
-            if overwrite { " (replacing any file of the same name)" } else { "" }
+            if overwrite {
+                " (replacing any file of the same name)"
+            } else {
+                ""
+            }
         ),
         None,
     )
@@ -3389,7 +3856,11 @@ async fn op_upload(
             sess.clone(),
             local_path.to_string(),
             remote_dir.to_string(),
-            if overwrite { OverwritePolicy::Overwrite } else { OverwritePolicy::Rename },
+            if overwrite {
+                OverwritePolicy::Overwrite
+            } else {
+                OverwritePolicy::Rename
+            },
             app.clone(),
         )
         .await
@@ -3507,7 +3978,10 @@ async fn op_upload_dir(
 ) -> (u16, Value) {
     let manager = app.state::<AppState>().sessions.clone();
     let Some(sess) = manager.get(session_id).await else {
-        return (400, json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}));
+        return (
+            400,
+            json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}),
+        );
     };
     let name = sess.profile().name.clone();
 
@@ -3534,7 +4008,14 @@ async fn op_upload_dir(
         Err(e) => return (500, json!({"error": format!("walking {local_dir}: {e}")})),
     };
 
-    let summary = upload_dir_summary(local_dir, &name, remote_dir, file_count, total_bytes, overwrite);
+    let summary = upload_dir_summary(
+        local_dir,
+        &name,
+        remote_dir,
+        file_count,
+        total_bytes,
+        overwrite,
+    );
     if let Err(resp) = gate(
         app,
         state,
@@ -3626,7 +4107,11 @@ fn parse_sync_args(
     let d = match direction {
         "" | "push" => SyncDirection::LocalToRemote,
         "pull" => SyncDirection::RemoteToLocal,
-        other => return Err(format!("direction must be \"push\" or \"pull\" (got \"{other}\")")),
+        other => {
+            return Err(format!(
+                "direction must be \"push\" or \"pull\" (got \"{other}\")"
+            ))
+        }
     };
     let s = match strategy {
         "" | "additive" => SyncStrategy::Additive,
@@ -3706,19 +4191,25 @@ async fn op_sync(
 ) -> (u16, Value) {
     let manager = app.state::<AppState>().sessions.clone();
     let Some(sess) = manager.get(session_id).await else {
-        return (400, json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}));
+        return (
+            400,
+            json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}),
+        );
     };
     let name = sess.profile().name.clone();
 
     // Opt-in check before ANY I/O: even planning walks the remote tree.
     // (The gate below re-checks; this just refuses earlier.)
     if !state.is_enabled(session_id).await {
-        return (403, json!({
-            "error": format!(
-                "connection '{}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.",
-                name
-            )
-        }));
+        return (
+            403,
+            json!({
+                "error": format!(
+                    "connection '{}' has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it.",
+                    name
+                )
+            }),
+        );
     }
 
     // For a push the local side is the source and must exist; for a pull it's
@@ -4014,7 +4505,10 @@ async fn op_diff(
     // session, and that's what `ghostftp-cli diff` is for.
     let gate_side = side_a.as_ref().or(side_b.as_ref());
     let Some((gate_id, gate_name, _)) = gate_side else {
-        return (400, json!({"error": "ghostftp_diff needs at least one connected server side (a local↔local diff has no session to authorize); use the `ghostftp-cli diff` command for two local folders."}));
+        return (
+            400,
+            json!({"error": "ghostftp_diff needs at least one connected server side (a local↔local diff has no session to authorize); use the `ghostftp-cli diff` command for two local folders."}),
+        );
     };
     let gate_id = gate_id.clone();
     let gate_name = gate_name.clone();
@@ -4064,7 +4558,12 @@ async fn op_diff(
             state
                 .log(
                     app,
-                    activity("error", &gate_id, format!("diff {label_a} ↔ {label_b} — {e}"), false),
+                    activity(
+                        "error",
+                        &gate_id,
+                        format!("diff {label_a} ↔ {label_b} — {e}"),
+                        false,
+                    ),
                 )
                 .await;
             return (500, json!({"error": format!("{e:#}")}));
@@ -4143,7 +4642,10 @@ async fn op_dedupe(
         Err(msg) => return (400, json!({ "error": msg })),
     };
     let Some((gate_id, gate_name, sess)) = side else {
-        return (400, json!({"error": "ghostftp_dedupe needs a connected server (a local-only scan has no session to authorize); use the `ghostftp-cli dedupe` command for local folders."}));
+        return (
+            400,
+            json!({"error": "ghostftp_dedupe needs a connected server (a local-only scan has no session to authorize); use the `ghostftp-cli dedupe` command for local folders."}),
+        );
     };
     let summary_text = format!(
         "Dedupe scan of {gate_name}:{path}{}",
@@ -4175,7 +4677,10 @@ async fn op_dedupe(
             Ok(r) => r,
             Err(e) => {
                 state
-                    .log(app, activity("error", &gate_id, format!("{summary_text} — {e}"), false))
+                    .log(
+                        app,
+                        activity("error", &gate_id, format!("{summary_text} — {e}"), false),
+                    )
                     .await;
                 return (500, json!({"error": format!("{e:#}")}));
             }
@@ -4231,7 +4736,11 @@ pub(crate) fn build_search_query(v: &Value, pattern: String) -> crate::search::S
     let str_arr = |key: &str| {
         v.get(key)
             .and_then(|a| a.as_array())
-            .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect::<Vec<_>>())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|x| x.as_str().map(String::from))
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default()
     };
     let max = v
@@ -4241,12 +4750,22 @@ pub(crate) fn build_search_query(v: &Value, pattern: String) -> crate::search::S
         .unwrap_or(SEARCH_MAX_RESULTS);
     SearchQuery {
         pattern,
-        kind: if content { SearchKind::Content } else { SearchKind::Name },
+        kind: if content {
+            SearchKind::Content
+        } else {
+            SearchKind::Name
+        },
         regex,
-        case_sensitive: v.get("caseSensitive").and_then(|x| x.as_bool()).unwrap_or(false),
+        case_sensitive: v
+            .get("caseSensitive")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false),
         include_globs: str_arr("include"),
         exclude_globs: str_arr("exclude"),
-        content_remote: v.get("contentRemote").and_then(|x| x.as_bool()).unwrap_or(false),
+        content_remote: v
+            .get("contentRemote")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false),
         max_results: max,
         max_file_bytes: DEFAULT_MAX_FILE_BYTES,
     }
@@ -4267,7 +4786,10 @@ pub(crate) async fn op_search(
     use crate::search::SearchKind;
     let manager = app.state::<AppState>().sessions.clone();
     let Some(sess) = manager.get(session_id).await else {
-        return (400, json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}));
+        return (
+            400,
+            json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}),
+        );
     };
     let name = sess.profile().name.clone();
     let kind_label = match query.kind {
@@ -4275,19 +4797,38 @@ pub(crate) async fn op_search(
         SearchKind::Content => "content",
     };
     let summary = format!("{kind_label} search \"{}\" in {root}", query.pattern);
-    if let Err(resp) = gate(app, state, session_id, &name, OpClass::Read, "search", &summary, None).await {
+    if let Err(resp) = gate(
+        app,
+        state,
+        session_id,
+        &name,
+        OpClass::Read,
+        "search",
+        &summary,
+        None,
+    )
+    .await
+    {
         return resp;
     }
 
     let fs = crate::commands::fs_for_session(&sess);
     match crate::search::search(fs.as_ref(), Some(sess.as_ref()), root, query).await {
         Ok(result) => {
-            let matches: Vec<Value> =
-                result.hits.iter().filter_map(|h| serde_json::to_value(h).ok()).collect();
+            let matches: Vec<Value> = result
+                .hits
+                .iter()
+                .filter_map(|h| serde_json::to_value(h).ok())
+                .collect();
             state
                 .log(
                     app,
-                    activity("search", session_id, format!("{summary} ({} hits)", matches.len()), true),
+                    activity(
+                        "search",
+                        session_id,
+                        format!("{summary} ({} hits)", matches.len()),
+                        true,
+                    ),
                 )
                 .await;
             (
@@ -4303,7 +4844,10 @@ pub(crate) async fn op_search(
         }
         Err(e) => {
             state
-                .log(app, activity("error", session_id, format!("{summary} — {e}"), false))
+                .log(
+                    app,
+                    activity("error", session_id, format!("{summary} — {e}"), false),
+                )
                 .await;
             (400, json!({"error": format!("{e:#}")}))
         }
@@ -4328,7 +4872,10 @@ async fn op_transfer_status(app: &AppHandle, transfer_id: &str) -> (u16, Value) 
                 "error": t.error,
             }),
         ),
-        None => (404, json!({"error": "no transfer with that id (it may have been cleared)"})),
+        None => (
+            404,
+            json!({"error": "no transfer with that id (it may have been cleared)"}),
+        ),
     }
 }
 
@@ -4348,9 +4895,12 @@ async fn op_history(
         match resolve_session(app, state, Some(arg), SessionNeed::Any).await {
             Ok(id) => {
                 if !state.is_enabled(&id).await {
-                    return (403, json!({
-                        "error": "that connection has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it."
-                    }));
+                    return (
+                        403,
+                        json!({
+                            "error": "that connection has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it."
+                        }),
+                    );
                 }
                 Some(id)
             }
@@ -4442,13 +4992,19 @@ pub(crate) async fn op_server_info(
     session_id: &str,
 ) -> (u16, Value) {
     if !state.is_enabled(session_id).await {
-        return (403, json!({
-            "error": "that connection has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it."
-        }));
+        return (
+            403,
+            json!({
+                "error": "that connection has not granted agent access. Ask the user to open Ghost FTP → Agent Bridge and toggle 'Allow agent access' for it."
+            }),
+        );
     }
     let manager = app.state::<AppState>().sessions.clone();
     let Some(sess) = manager.get(session_id).await else {
-        return (400, json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}));
+        return (
+            400,
+            json!({"error": "no enabled connection matches that id or name. Call ghostftp_context or ghostftp_list_sessions to see what's available, and make sure the connection has granted agent access."}),
+        );
     };
     let p = sess.profile();
     let can_exec = matches!(&*sess, Session::Ssh(_) | Session::Agent(_));
@@ -4645,7 +5201,10 @@ async fn resolve_skill_targets(
                 Some(is_agent) => runnable.push((id.clone(), name.clone(), is_agent)),
                 None => skipped.push((name.clone(), "not exec-capable (read-only backend)".into())),
             },
-            None => skipped.push((t.clone(), "no connection with agent access matches this name/id".into())),
+            None => skipped.push((
+                t.clone(),
+                "no connection with agent access matches this name/id".into(),
+            )),
         }
     }
     // A name could resolve to the same session twice — dedupe by id.
@@ -4657,10 +5216,19 @@ async fn resolve_skill_targets(
 /// Summarize one finished step into `(ok, json)`. `ok` folds exit code + timeout;
 /// output streams are clipped for the aggregate (the live console keeps the full
 /// text).
-fn summarize_step(n: usize, label: &str, command: &str, status: u16, body: &Value) -> (bool, Value) {
+fn summarize_step(
+    n: usize,
+    label: &str,
+    command: &str,
+    status: u16,
+    body: &Value,
+) -> (bool, Value) {
     if status == 200 {
         let exit = body.get("exitCode").and_then(|v| v.as_i64());
-        let timed_out = body.get("timedOut").and_then(|v| v.as_bool()).unwrap_or(false);
+        let timed_out = body
+            .get("timedOut")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         let ok = !timed_out && exit.unwrap_or(0) == 0;
         (
             ok,
@@ -4716,14 +5284,34 @@ async fn run_skill_on_target(
         let (status, body) = if is_agent {
             match manager.get_agent(&session_id).await {
                 Some(agent) => {
-                    exec_core_agent(&app, &state, &agent, &session_id, &session_name, command, &console_label, timeout).await
+                    exec_core_agent(
+                        &app,
+                        &state,
+                        &agent,
+                        &session_id,
+                        &session_name,
+                        command,
+                        &console_label,
+                        timeout,
+                    )
+                    .await
                 }
                 None => (500, json!({"error": "session went away"})),
             }
         } else {
             match manager.get_ssh(&session_id).await {
                 Some(ssh) => {
-                    exec_core(&app, &state, &ssh, &session_id, &session_name, command, &console_label, timeout).await
+                    exec_core(
+                        &app,
+                        &state,
+                        &ssh,
+                        &session_id,
+                        &session_name,
+                        command,
+                        &console_label,
+                        timeout,
+                    )
+                    .await
                 }
                 None => (500, json!({"error": "session went away"})),
             }
@@ -4759,7 +5347,10 @@ pub(crate) async fn op_run_skill(
     dry_run: bool,
 ) -> (u16, Value) {
     let Some(skill) = state.find_skill(skill_ref).await else {
-        return (404, json!({"error": format!("no skill named '{skill_ref}'")}));
+        return (
+            404,
+            json!({"error": format!("no skill named '{skill_ref}'")}),
+        );
     };
 
     let param_map = match build_param_map(&skill, &params) {
@@ -4784,7 +5375,11 @@ pub(crate) async fn op_run_skill(
         .iter()
         .map(|s| {
             let cmd = substitute(&s.command, &param_map);
-            let label = if s.name.trim().is_empty() { cmd.clone() } else { s.name.clone() };
+            let label = if s.name.trim().is_empty() {
+                cmd.clone()
+            } else {
+                s.name.clone()
+            };
             (label, cmd)
         })
         .collect();
@@ -4883,7 +5478,15 @@ pub(crate) async fn op_run_skill(
         set.spawn(async move {
             let _permit = sem.acquire().await;
             run_skill_on_target(
-                app, state, id, name, is_agent, skill_name, steps, stop_on_error, timeout,
+                app,
+                state,
+                id,
+                name,
+                is_agent,
+                skill_name,
+                steps,
+                stop_on_error,
+                timeout,
             )
             .await
         });
@@ -5465,7 +6068,13 @@ fn skill_tool_name(name: &str) -> String {
     let slug: String = name
         .trim()
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
         .collect();
     format!("skill_{}", slug.trim_matches('_'))
 }
@@ -5542,13 +6151,20 @@ fn mcp_wrap(res: (u16, Value)) -> Value {
     if status == 200 {
         tool_text(serde_json::to_string_pretty(&body).unwrap_or_default())
     } else {
-        tool_error(body.get("error").and_then(|v| v.as_str()).unwrap_or("error"))
+        tool_error(
+            body.get("error")
+                .and_then(|v| v.as_str())
+                .unwrap_or("error"),
+        )
     }
 }
 
 async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Value) -> Value {
     let name = params.get("name").and_then(|v| v.as_str()).unwrap_or("");
-    let args = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
+    let args = params
+        .get("arguments")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let session_arg = args.get("session").and_then(|v| v.as_str());
 
     // Tools that don't need a session.
@@ -5567,7 +6183,9 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
         return tool_text(serde_json::to_string_pretty(&body).unwrap_or_default());
     }
     if name == "ghostftp_list_skills" {
-        return tool_text(serde_json::to_string_pretty(&skills_overview(state).await).unwrap_or_default());
+        return tool_text(
+            serde_json::to_string_pretty(&skills_overview(state).await).unwrap_or_default(),
+        );
     }
 
     match name {
@@ -5575,13 +6193,17 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
             let Some(cmd_name) = arg_str(&args, "name") else {
                 return tool_error("`name` is required");
             };
-            let dry_run = args.get("dryRun").and_then(|v| v.as_bool()).unwrap_or(false);
+            let dry_run = args
+                .get("dryRun")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let timeout_ms = args.get("timeoutMs").and_then(|v| v.as_u64());
             // Saved commands run through the SSH exec path only.
-            let session_id = match resolve_session(app, state, session_arg, SessionNeed::SshOnly).await {
-                Ok(id) => id,
-                Err(msg) => return tool_error(&msg),
-            };
+            let session_id =
+                match resolve_session(app, state, session_arg, SessionNeed::SshOnly).await {
+                    Ok(id) => id,
+                    Err(msg) => return tool_error(&msg),
+                };
             let (status, body) =
                 op_run_command(app, state, &session_id, &cmd_name, dry_run, timeout_ms).await;
             if status == 200 {
@@ -5591,18 +6213,29 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
                     tool_text(format_exec_result(&body))
                 }
             } else {
-                tool_error(body.get("error").and_then(|v| v.as_str()).unwrap_or("error"))
+                tool_error(
+                    body.get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("error"),
+                )
             }
         }
         "ghostftp_exec" => {
             let Some(command) = arg_str(&args, "command") else {
                 return tool_error("`command` is required");
             };
-            let dry_run = args.get("dryRun").and_then(|v| v.as_bool()).unwrap_or(false);
+            let dry_run = args
+                .get("dryRun")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let timeout_ms = args.get("timeoutMs").and_then(|v| v.as_u64());
-            let detach = args.get("detach").and_then(|v| v.as_bool()).unwrap_or(false);
+            let detach = args
+                .get("detach")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             // Exec works on SSH servers and paired Ghost FTP Agent machines alike.
-            let session_id = match resolve_session(app, state, session_arg, SessionNeed::Exec).await {
+            let session_id = match resolve_session(app, state, session_arg, SessionNeed::Exec).await
+            {
                 Ok(id) => id,
                 Err(msg) => return tool_error(&msg),
             };
@@ -5618,7 +6251,11 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
                     tool_text(format_exec_result(&body))
                 }
             } else {
-                tool_error(body.get("error").and_then(|v| v.as_str()).unwrap_or("error"))
+                tool_error(
+                    body.get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("error"),
+                )
             }
         }
         "ghostftp_job" => {
@@ -5626,7 +6263,8 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
                 return tool_error("`jobId` is required");
             };
             // SSH servers and Ghost FTP Agent machines both run detached jobs now.
-            let session_id = match resolve_session(app, state, session_arg, SessionNeed::Exec).await {
+            let session_id = match resolve_session(app, state, session_arg, SessionNeed::Exec).await
+            {
                 Ok(id) => id,
                 Err(msg) => return tool_error(&msg),
             };
@@ -5636,17 +6274,29 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
             let Some(script) = arg_str(&args, "script") else {
                 return tool_error("`script` is required");
             };
-            let dry_run = args.get("dryRun").and_then(|v| v.as_bool()).unwrap_or(false);
+            let dry_run = args
+                .get("dryRun")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let timeout_ms = args.get("timeoutMs").and_then(|v| v.as_u64());
             let label = arg_str(&args, "label")
                 .filter(|s| !s.trim().is_empty())
                 .unwrap_or_else(|| "a script".to_string());
-            let session_id = match resolve_session(app, state, session_arg, SessionNeed::Exec).await {
+            let session_id = match resolve_session(app, state, session_arg, SessionNeed::Exec).await
+            {
                 Ok(id) => id,
                 Err(msg) => return tool_error(&msg),
             };
-            let (status, body) =
-                exec_script_on(app, state, &session_id, &script, &label, dry_run, timeout_ms).await;
+            let (status, body) = exec_script_on(
+                app,
+                state,
+                &session_id,
+                &script,
+                &label,
+                dry_run,
+                timeout_ms,
+            )
+            .await;
             if status == 200 {
                 if dry_run {
                     tool_text(serde_json::to_string_pretty(&body).unwrap_or_default())
@@ -5654,13 +6304,19 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
                     tool_text(format_exec_result(&body))
                 }
             } else {
-                tool_error(body.get("error").and_then(|v| v.as_str()).unwrap_or("error"))
+                tool_error(
+                    body.get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("error"),
+                )
             }
         }
-        "ghostftp_server_info" => match resolve_session(app, state, session_arg, SessionNeed::Any).await {
-            Ok(id) => mcp_wrap(op_server_info(app, state, &id).await),
-            Err(msg) => tool_error(&msg),
-        },
+        "ghostftp_server_info" => {
+            match resolve_session(app, state, session_arg, SessionNeed::Any).await {
+                Ok(id) => mcp_wrap(op_server_info(app, state, &id).await),
+                Err(msg) => tool_error(&msg),
+            }
+        }
         "ghostftp_list_dir" => {
             let path = arg_str(&args, "path").unwrap_or_else(|| ".".to_string());
             match resolve_session(app, state, session_arg, SessionNeed::Any).await {
@@ -5746,7 +6402,10 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
             else {
                 return tool_error("`localPath` and `remoteDir` are required");
             };
-            let overwrite = args.get("overwrite").and_then(|v| v.as_bool()).unwrap_or(false);
+            let overwrite = args
+                .get("overwrite")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             match resolve_session(app, state, session_arg, SessionNeed::Any).await {
                 Ok(id) => {
                     mcp_wrap(op_upload(app, state, &id, &local_path, &remote_dir, overwrite).await)
@@ -5758,7 +6417,10 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
             let Some(path) = arg_str(&args, "path") else {
                 return tool_error("`path` is required");
             };
-            let recursive = args.get("recursive").and_then(|v| v.as_bool()).unwrap_or(false);
+            let recursive = args
+                .get("recursive")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             match resolve_session(app, state, session_arg, SessionNeed::Any).await {
                 Ok(id) => mcp_wrap(op_delete(app, state, &id, &path, recursive).await),
                 Err(msg) => tool_error(&msg),
@@ -5787,11 +6449,16 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
             else {
                 return tool_error("`path` and `content` are required");
             };
-            let overwrite = args.get("overwrite").and_then(|v| v.as_bool()).unwrap_or(false);
+            let overwrite = args
+                .get("overwrite")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             // SSH writes via SFTP, a Ghost FTP Agent via WriteChunk, everything else
             // through a staged in-place upload — so any protocol qualifies.
             match resolve_session(app, state, session_arg, SessionNeed::Any).await {
-                Ok(id) => mcp_wrap(op_write(app, state, &id, &path, content.as_bytes(), overwrite).await),
+                Ok(id) => {
+                    mcp_wrap(op_write(app, state, &id, &path, content.as_bytes(), overwrite).await)
+                }
                 Err(msg) => tool_error(&msg),
             }
         }
@@ -5801,11 +6468,14 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
             else {
                 return tool_error("`localDir` and `remoteDir` are required");
             };
-            let overwrite = args.get("overwrite").and_then(|v| v.as_bool()).unwrap_or(false);
+            let overwrite = args
+                .get("overwrite")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             match resolve_session(app, state, session_arg, SessionNeed::Any).await {
-                Ok(id) => {
-                    mcp_wrap(op_upload_dir(app, state, &id, &local_dir, &remote_dir, overwrite).await)
-                }
+                Ok(id) => mcp_wrap(
+                    op_upload_dir(app, state, &id, &local_dir, &remote_dir, overwrite).await,
+                ),
                 Err(msg) => tool_error(&msg),
             }
         }
@@ -5822,11 +6492,21 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
                 Ok(v) => v,
                 Err(msg) => return tool_error(&msg),
             };
-            let dry_run = args.get("dryRun").and_then(|v| v.as_bool()).unwrap_or(false);
+            let dry_run = args
+                .get("dryRun")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             match resolve_session(app, state, session_arg, SessionNeed::Any).await {
                 Ok(id) => mcp_wrap(
                     op_sync(
-                        app, state, &id, &local_dir, &remote_dir, direction, strategy, dry_run,
+                        app,
+                        state,
+                        &id,
+                        &local_dir,
+                        &remote_dir,
+                        direction,
+                        strategy,
+                        dry_run,
                     )
                     .await,
                 ),
@@ -5880,7 +6560,10 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
             };
             let params = params_from_value(args.get("params"));
             let targets = str_array(args.get("targets"));
-            let dry_run = args.get("dryRun").and_then(|v| v.as_bool()).unwrap_or(false);
+            let dry_run = args
+                .get("dryRun")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             mcp_wrap(op_run_skill(app, state, &skill_name, params, targets, dry_run).await)
         }
         "ghostftp_save_skill" => match serde_json::from_value::<Skill>(args.clone()) {
@@ -5918,7 +6601,10 @@ async fn mcp_tools_call(app: &AppHandle, state: &Arc<BridgeState>, params: &Valu
                 }
             }
             let targets = str_array(args.get("targets"));
-            let dry_run = args.get("dryRun").and_then(|v| v.as_bool()).unwrap_or(false);
+            let dry_run = args
+                .get("dryRun")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             mcp_wrap(op_run_skill(app, state, &skill.name, params, targets, dry_run).await)
         }
         other => tool_error(&format!("unknown tool: {other}")),
@@ -6089,8 +6775,14 @@ fn format_exec_result(body: &Value) -> String {
     let stdout = body.get("stdout").and_then(|v| v.as_str()).unwrap_or("");
     let stderr = body.get("stderr").and_then(|v| v.as_str()).unwrap_or("");
     let code = body.get("exitCode").and_then(|v| v.as_i64());
-    let truncated = body.get("truncated").and_then(|v| v.as_bool()).unwrap_or(false);
-    let timed_out = body.get("timedOut").and_then(|v| v.as_bool()).unwrap_or(false);
+    let truncated = body
+        .get("truncated")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let timed_out = body
+        .get("timedOut")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let mut out = format!(
         "exit code: {}\n",
         code.map(|c| c.to_string())
@@ -6178,7 +6870,10 @@ mod tests {
     fn script_summary_has_header_and_survives_multibyte_truncation() {
         // Short script → header + full body.
         let s = script_approval_summary("script foo.sh", "echo hi\necho bye");
-        assert!(s.starts_with("Run script foo.sh (16 bytes, 2 lines):"), "got: {s}");
+        assert!(
+            s.starts_with("Run script foo.sh (16 bytes, 2 lines):"),
+            "got: {s}"
+        );
         assert!(s.contains("echo bye"));
         // Long script with a multibyte char straddling the 4 KiB cap must not
         // panic on a char-boundary split.

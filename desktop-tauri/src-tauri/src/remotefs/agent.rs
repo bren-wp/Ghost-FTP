@@ -7,9 +7,7 @@ use super::{Capabilities, ChangeSignal, DirEntry, FileKind, RemoteFs};
 use crate::session::AgentSession;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use ghostftp_agent_proto::msg::{
-    DirEntry as ProtoEntry, FileKind as ProtoKind, Request, Response,
-};
+use ghostftp_agent_proto::msg::{DirEntry as ProtoEntry, FileKind as ProtoKind, Request, Response};
 use std::sync::Arc;
 
 pub struct AgentFs {
@@ -60,7 +58,13 @@ fn as_err(resp: Response, ctx: &str) -> anyhow::Error {
 #[async_trait]
 impl RemoteFs for AgentFs {
     async fn list_dir(&self, path: &str) -> Result<Vec<DirEntry>> {
-        match self.session.request(Request::ListDir { path: path.to_string() }).await? {
+        match self
+            .session
+            .request(Request::ListDir {
+                path: path.to_string(),
+            })
+            .await?
+        {
             Response::Dir { entries } => Ok(entries.into_iter().map(convert).collect()),
             other => Err(as_err(other, &format!("list {path}"))),
         }
@@ -69,7 +73,10 @@ impl RemoteFs for AgentFs {
     async fn rename(&self, from: &str, to: &str) -> Result<()> {
         match self
             .session
-            .request(Request::Rename { from: from.to_string(), to: to.to_string() })
+            .request(Request::Rename {
+                from: from.to_string(),
+                to: to.to_string(),
+            })
             .await?
         {
             Response::Ok => Ok(()),
@@ -80,7 +87,10 @@ impl RemoteFs for AgentFs {
     async fn delete(&self, path: &str, recursive: bool) -> Result<()> {
         match self
             .session
-            .request(Request::Delete { path: path.to_string(), recursive })
+            .request(Request::Delete {
+                path: path.to_string(),
+                recursive,
+            })
             .await?
         {
             Response::Ok => Ok(()),
@@ -89,14 +99,27 @@ impl RemoteFs for AgentFs {
     }
 
     async fn create_dir(&self, path: &str) -> Result<()> {
-        match self.session.request(Request::CreateDir { path: path.to_string() }).await? {
+        match self
+            .session
+            .request(Request::CreateDir {
+                path: path.to_string(),
+            })
+            .await?
+        {
             Response::Ok => Ok(()),
             other => Err(as_err(other, &format!("mkdir {path}"))),
         }
     }
 
     async fn chmod(&self, path: &str, mode: u32) -> Result<()> {
-        match self.session.request(Request::Chmod { path: path.to_string(), mode }).await? {
+        match self
+            .session
+            .request(Request::Chmod {
+                path: path.to_string(),
+                mode,
+            })
+            .await?
+        {
             Response::Ok => Ok(()),
             other => Err(as_err(other, &format!("chmod {path}"))),
         }

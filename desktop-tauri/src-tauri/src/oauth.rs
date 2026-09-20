@@ -227,7 +227,10 @@ pub async fn exchange_code(
     let status = resp.status();
     let text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(anyhow!("token exchange failed ({}): {text}", status.as_u16()));
+        return Err(anyhow!(
+            "token exchange failed ({}): {text}",
+            status.as_u16()
+        ));
     }
     serde_json::from_str(&text).context("parse token response")
 }
@@ -249,7 +252,10 @@ pub async fn refresh(config: &OAuthConfig, refresh_token: &str) -> Result<TokenS
     let status = resp.status();
     let text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(anyhow!("token refresh failed ({}): {text}", status.as_u16()));
+        return Err(anyhow!(
+            "token refresh failed ({}): {text}",
+            status.as_u16()
+        ));
     }
     let raw: serde_json::Value = serde_json::from_str(&text).context("parse refresh response")?;
     let mut set = token_set_from(&raw)?;
@@ -302,7 +308,9 @@ fn open_url(url: &str) -> Result<()> {
 pub fn store_tokens(service: &str, profile_id: &str, tokens: &TokenSet) -> Result<()> {
     let entry = keyring::Entry::new(service, profile_id).context("open keychain entry")?;
     let json = serde_json::to_string(tokens).context("serialize tokens")?;
-    entry.set_password(&json).context("write tokens to keychain")?;
+    entry
+        .set_password(&json)
+        .context("write tokens to keychain")?;
     Ok(())
 }
 
@@ -310,7 +318,9 @@ pub fn store_tokens(service: &str, profile_id: &str, tokens: &TokenSet) -> Resul
 pub fn load_tokens(service: &str, profile_id: &str) -> Result<Option<TokenSet>> {
     let entry = keyring::Entry::new(service, profile_id).context("open keychain entry")?;
     match entry.get_password() {
-        Ok(json) => Ok(Some(serde_json::from_str(&json).context("parse stored tokens")?)),
+        Ok(json) => Ok(Some(
+            serde_json::from_str(&json).context("parse stored tokens")?,
+        )),
         Err(keyring::Error::NoEntry) => Ok(None),
         Err(e) => Err(anyhow!("read tokens from keychain: {e}")),
     }

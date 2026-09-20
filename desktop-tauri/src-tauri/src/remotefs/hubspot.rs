@@ -195,7 +195,9 @@ pub async fn read_file(session: &HubSpotSession, ghostftp_path: &str) -> Result<
     }
     let (env, path) = split_path(ghostftp_path)?;
     if path.is_empty() {
-        return Err(anyhow!("{ghostftp_path} is a design environment, not a file"));
+        return Err(anyhow!(
+            "{ghostftp_path} is a design environment, not a file"
+        ));
     }
     session.content_get(env, &path).await
 }
@@ -370,7 +372,9 @@ impl RemoteFs for HubSpotFs {
             ));
         }
         if from_path.is_empty() || to_path.is_empty() {
-            return Err(anyhow!("design environments can't be renamed from Ghost FTP"));
+            return Err(anyhow!(
+                "design environments can't be renamed from Ghost FTP"
+            ));
         }
         let node = self.session.metadata(env, &from_path).await?;
         if !node.folder {
@@ -407,7 +411,9 @@ impl RemoteFs for HubSpotFs {
         }
         let (env, inner) = split_path(path)?;
         if inner.is_empty() {
-            return Err(anyhow!("design environments can't be deleted from Ghost FTP"));
+            return Err(anyhow!(
+                "design environments can't be deleted from Ghost FTP"
+            ));
         }
         let node = self.session.metadata(env, &inner).await?;
         if !node.folder {
@@ -581,7 +587,10 @@ mod tests {
     #[test]
     fn hubdb_csv_serialization() {
         use crate::session::hubspot::{hubdb_to_csv, HubDbRow};
-        let columns: Vec<String> = ["plan", "price", "notes"].iter().map(|s| s.to_string()).collect();
+        let columns: Vec<String> = ["plan", "price", "notes"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         let row = |id: &str, values: serde_json::Map<String, serde_json::Value>| HubDbRow {
             id: id.to_string(),
             values,
@@ -589,7 +598,10 @@ mod tests {
 
         // Quoting: commas, double quotes and embedded newlines; nulls empty.
         let mut values = serde_json::Map::new();
-        values.insert("plan".into(), serde_json::Value::from("Pro, \"annual\"\nplan"));
+        values.insert(
+            "plan".into(),
+            serde_json::Value::from("Pro, \"annual\"\nplan"),
+        );
         values.insert("price".into(), serde_json::json!(49.5));
         values.insert("notes".into(), serde_json::Value::Null);
         // A row with missing keys renders empty cells.
@@ -612,7 +624,10 @@ mod tests {
         let mut values = serde_json::Map::new();
         values.insert("notes".into(), serde_json::json!(["a", "b"]));
         let csv = String::from_utf8(hubdb_to_csv(&columns, &[row("7", values)])).expect("utf-8");
-        assert_eq!(csv, "id,plan,price,notes\r\n7,,,\"[\"\"a\"\",\"\"b\"\"]\"\r\n");
+        assert_eq!(
+            csv,
+            "id,plan,price,notes\r\n7,,,\"[\"\"a\"\",\"\"b\"\"]\"\r\n"
+        );
 
         // An empty table is header-only.
         let csv = String::from_utf8(hubdb_to_csv(&columns, &[])).expect("utf-8");
@@ -957,8 +972,10 @@ mod tests {
         write_file(&session, report, b"quarterly numbers")
             .await
             .expect("upload");
-        assert_eq!(read_file(&session, report).await.expect("read back"),
-            b"quarterly numbers");
+        assert_eq!(
+            read_file(&session, report).await.expect("read back"),
+            b"quarterly numbers"
+        );
         assert_eq!(file_size(&session, report).await, 17);
         assert!(file_exists(&session, report).await);
 

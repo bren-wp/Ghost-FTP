@@ -10,9 +10,7 @@
 
 use anyhow::{bail, Context, Result};
 use ghostftp_agent_proto::identity::Identity;
-use ghostftp_agentd::{
-    config_path, discovery::Advertisement, identity_path, ops, Config, Daemon,
-};
+use ghostftp_agentd::{config_path, discovery::Advertisement, identity_path, ops, Config, Daemon};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -37,7 +35,10 @@ pub struct HostSettings {
 
 impl Default for HostSettings {
     fn default() -> Self {
-        Self { enabled: false, port: 8722 }
+        Self {
+            enabled: false,
+            port: 8722,
+        }
     }
 }
 
@@ -61,7 +62,10 @@ pub struct AgentHost {
 impl AgentHost {
     /// Load persisted settings (missing file → defaults, host off).
     pub fn load(app: &AppHandle) -> Result<Self> {
-        let dir = app.path().app_data_dir().context("resolving app_data_dir")?;
+        let dir = app
+            .path()
+            .app_data_dir()
+            .context("resolving app_data_dir")?;
         std::fs::create_dir_all(&dir).ok();
         let settings_path = dir.join("agent-host.json");
         let settings: HostSettings = std::fs::read(&settings_path)
@@ -142,7 +146,12 @@ impl AgentHost {
             }
         });
 
-        *running = Some(Running { daemon, port, advert, accept_task });
+        *running = Some(Running {
+            daemon,
+            port,
+            advert,
+            accept_task,
+        });
         Ok(())
     }
 
@@ -166,16 +175,24 @@ impl AgentHost {
         let (is_running, port, config, pairing) = match &*running {
             Some(r) => {
                 let cfg = r.daemon.config.lock().await.clone();
-                let pairing = match (r.daemon.pairing_code().await, r.daemon.pairing_remaining().await)
-                {
-                    (Some(code), Some(left)) => {
-                        Some(PairingView { code, remaining_secs: left.as_secs() })
-                    }
+                let pairing = match (
+                    r.daemon.pairing_code().await,
+                    r.daemon.pairing_remaining().await,
+                ) {
+                    (Some(code), Some(left)) => Some(PairingView {
+                        code,
+                        remaining_secs: left.as_secs(),
+                    }),
                     _ => None,
                 };
                 (true, r.port, cfg, pairing)
             }
-            None => (false, settings.port, Config::load(&config_path(&dir))?, None),
+            None => (
+                false,
+                settings.port,
+                Config::load(&config_path(&dir))?,
+                None,
+            ),
         };
 
         Ok(HostStatus {

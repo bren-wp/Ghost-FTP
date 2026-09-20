@@ -225,7 +225,11 @@ impl ShopifySession {
             }
         }
         let v = self
-            .rpc(Method::GET, &format!("/themes/{theme_id}/assets.json"), None)
+            .rpc(
+                Method::GET,
+                &format!("/themes/{theme_id}/assets.json"),
+                None,
+            )
             .await?;
         let mut out = Vec::new();
         if let Some(arr) = v.get("assets").and_then(|a| a.as_array()) {

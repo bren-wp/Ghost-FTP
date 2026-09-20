@@ -65,7 +65,10 @@ pub struct CliStatus {
 
 impl CliUpdater {
     pub fn load(app: &AppHandle) -> Result<Self> {
-        let dir = app.path().app_data_dir().context("resolving app_data_dir")?;
+        let dir = app
+            .path()
+            .app_data_dir()
+            .context("resolving app_data_dir")?;
         std::fs::create_dir_all(&dir).ok();
         let settings_path = dir.join("cli-updater.json");
         let settings: Settings = std::fs::read(&settings_path)
@@ -162,7 +165,10 @@ impl CliUpdater {
 
 /// Run `ghostftp-cli --version` and pull the `X.Y.Z` out of `ghostftp-cli X.Y.Z`.
 fn read_cli_version(path: &std::path::Path) -> Option<String> {
-    let out = std::process::Command::new(path).arg("--version").output().ok()?;
+    let out = std::process::Command::new(path)
+        .arg("--version")
+        .output()
+        .ok()?;
     if !out.status.success() {
         return None;
     }
@@ -173,7 +179,11 @@ fn read_cli_version(path: &std::path::Path) -> Option<String> {
 /// Find an installed `ghostftp-cli`: a sidecar next to the app executable first
 /// (the bundled copy, if any), then the first hit on PATH (`where`/`which`).
 fn locate_cli() -> Option<PathBuf> {
-    let exe_name = if cfg!(windows) { "ghostftp-cli.exe" } else { "ghostftp-cli" };
+    let exe_name = if cfg!(windows) {
+        "ghostftp-cli.exe"
+    } else {
+        "ghostftp-cli"
+    };
     // 1) Sidecar next to the running app.
     if let Ok(app_exe) = std::env::current_exe() {
         if let Some(dir) = app_exe.parent() {
@@ -185,7 +195,10 @@ fn locate_cli() -> Option<PathBuf> {
     }
     // 2) On PATH.
     let finder = if cfg!(windows) { "where" } else { "which" };
-    let out = std::process::Command::new(finder).arg("ghostftp-cli").output().ok()?;
+    let out = std::process::Command::new(finder)
+        .arg("ghostftp-cli")
+        .output()
+        .ok()?;
     if !out.status.success() {
         return None;
     }
@@ -213,7 +226,10 @@ async fn run_self_update(path: &std::path::Path) -> Result<String, String> {
             .unwrap_or("ghostftp-cli updated")
             .to_string())
     } else {
-        Err(format!("ghostftp-cli self-update failed: {}", stderr.trim()))
+        Err(format!(
+            "ghostftp-cli self-update failed: {}",
+            stderr.trim()
+        ))
     }
 }
 
@@ -252,7 +268,11 @@ async fn install_missing(app: &AppHandle) -> Result<String, String> {
         .map_err(|e| format!("resolve app_data_dir: {e}"))?
         .join("bin");
     std::fs::create_dir_all(&dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
-    let name = if cfg!(windows) { "ghostftp-cli.exe" } else { "ghostftp-cli" };
+    let name = if cfg!(windows) {
+        "ghostftp-cli.exe"
+    } else {
+        "ghostftp-cli"
+    };
     let dest = dir.join(name);
     std::fs::write(&dest, &bytes).map_err(|e| format!("write {}: {e}", dest.display()))?;
     #[cfg(unix)]
@@ -260,7 +280,10 @@ async fn install_missing(app: &AppHandle) -> Result<String, String> {
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(&dest, std::fs::Permissions::from_mode(0o755));
     }
-    Ok(format!("installed ghostftp-cli to {} (add it to your PATH)", dest.display()))
+    Ok(format!(
+        "installed ghostftp-cli to {} (add it to your PATH)",
+        dest.display()
+    ))
 }
 
 /// Parse `MAJOR.MINOR.PATCH` (ignoring pre-release/build metadata) into a

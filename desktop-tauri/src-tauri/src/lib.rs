@@ -5,19 +5,19 @@ use tauri::Manager;
 // crate, so they need to be `pub` rather than `mod`. None of them expose
 // secrets directly — credentials live in profiles::ConnectionProfile, which
 // the CLI deliberately redacts in `profiles show`.
+mod agent_host;
 pub mod backup;
 pub mod bridge;
-pub mod commands;
-mod agent_host;
 mod cli_updater;
+pub mod commands;
 pub mod credentials;
 pub mod db;
-mod deeplink;
 pub mod dedupe;
+mod deeplink;
 pub mod diff;
-pub mod error;
 mod diskscan;
 mod editor;
+pub mod error;
 mod foldersync;
 pub mod grant;
 pub mod importers;
@@ -139,7 +139,6 @@ mod init_script_tests {
     }
 }
 
-
 fn open_db_resilient(path: &std::path::Path) -> anyhow::Result<db::Db> {
     match db::Db::open(path) {
         Ok(db) => Ok(db),
@@ -154,7 +153,12 @@ fn open_db_resilient(path: &std::path::Path) -> anyhow::Result<db::Db> {
             for suffix in ["", "-wal", "-shm"] {
                 let candidate = std::path::PathBuf::from(format!("{}{}", path.display(), suffix));
                 if candidate.exists() {
-                    let quarantine = std::path::PathBuf::from(format!("{}.corrupt.{}{}", path.display(), stamp, suffix));
+                    let quarantine = std::path::PathBuf::from(format!(
+                        "{}.corrupt.{}{}",
+                        path.display(),
+                        stamp,
+                        suffix
+                    ));
                     let _ = std::fs::rename(&candidate, quarantine);
                 }
             }
@@ -244,21 +248,11 @@ pub fn run() {
                 profiles: profile_store,
                 transfers: Arc::new(transfer::TransferManager::new()),
                 editors: Arc::new(editor::EditManager::new()),
-                bridge: Arc::new(
-                    bridge::BridgeState::load_or_create(&handle).unwrap_or_default(),
-                ),
-                agent_host: Arc::new(
-                    agent_host::AgentHost::load(&handle)?,
-                ),
-                cli_updater: Arc::new(
-                    cli_updater::CliUpdater::load(&handle)?,
-                ),
-                foldersync: Arc::new(
-                    foldersync::FolderSync::load(&handle)?,
-                ),
-                virtualfs: Arc::new(
-                    virtualfs::VirtualFs::load(&handle)?,
-                ),
+                bridge: Arc::new(bridge::BridgeState::load_or_create(&handle).unwrap_or_default()),
+                agent_host: Arc::new(agent_host::AgentHost::load(&handle)?),
+                cli_updater: Arc::new(cli_updater::CliUpdater::load(&handle)?),
+                foldersync: Arc::new(foldersync::FolderSync::load(&handle)?),
+                virtualfs: Arc::new(virtualfs::VirtualFs::load(&handle)?),
                 diskscan: Arc::new(diskscan::ScanManager::new()),
                 diff: Arc::new(diff::DiffManager::new()),
                 dedupe: Arc::new(dedupe::DedupeManager::new()),

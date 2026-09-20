@@ -99,7 +99,9 @@ fn ensure_writable(r: &WebResource, op: &str) -> Result<()> {
 pub async fn read_file(session: &DynamicsSession, ghostftp_path: &str) -> Result<Vec<u8>> {
     let name = name_of(ghostftp_path);
     if name.is_empty() {
-        return Err(anyhow!("{ghostftp_path} is the web-resource root, not a file"));
+        return Err(anyhow!(
+            "{ghostftp_path} is the web-resource root, not a file"
+        ));
     }
     let r = find(session, &name)
         .await?
@@ -112,7 +114,9 @@ pub async fn read_file(session: &DynamicsSession, ghostftp_path: &str) -> Result
 pub async fn write_file(session: &DynamicsSession, ghostftp_path: &str, data: &[u8]) -> Result<()> {
     let name = name_of(ghostftp_path);
     if name.is_empty() {
-        return Err(anyhow!("cannot write {ghostftp_path}: it is the web-resource root"));
+        return Err(anyhow!(
+            "cannot write {ghostftp_path}: it is the web-resource root"
+        ));
     }
     if data.len() > MAX_WRITE_BYTES {
         return Err(anyhow!(
@@ -209,7 +213,9 @@ impl RemoteFs for DynamicsFs {
         let from_name = name_of(from);
         let to_name = name_of(to);
         if from_name.is_empty() || to_name.is_empty() {
-            return Err(anyhow!("the web-resource root can't be renamed from Ghost FTP"));
+            return Err(anyhow!(
+                "the web-resource root can't be renamed from Ghost FTP"
+            ));
         }
         let resources = self.session.webresources().await?;
         if let Some(r) = resources.iter().find(|r| r.name == from_name) {
@@ -218,7 +224,10 @@ impl RemoteFs for DynamicsFs {
             ensure_writable(r, "renamed")?;
             let res_type = check_type(&to_name)?;
             let data = self.session.content_get(&r.id, &r.name).await?;
-            let id = self.session.resource_create(&to_name, res_type, &data).await?;
+            let id = self
+                .session
+                .resource_create(&to_name, res_type, &data)
+                .await?;
             self.session.publish(&[id]).await?;
             self.session
                 .resource_delete(&r.id, &r.name)
@@ -260,7 +269,9 @@ impl RemoteFs for DynamicsFs {
     async fn delete(&self, path: &str, recursive: bool) -> Result<()> {
         let name = name_of(path);
         if name.is_empty() {
-            return Err(anyhow!("the web-resource root can't be deleted from Ghost FTP"));
+            return Err(anyhow!(
+                "the web-resource root can't be deleted from Ghost FTP"
+            ));
         }
         let resources = self.session.webresources().await?;
         if let Some(r) = resources.iter().find(|r| r.name == name) {
@@ -516,10 +527,7 @@ mod tests {
 
         // Managed rows are listed with the read-only mode flag.
         let lib = children("/amp_", "amp_/", &resources, no_sizes);
-        let managed = lib
-            .iter()
-            .find(|e| e.name == "lib")
-            .expect("lib dir");
+        let managed = lib.iter().find(|e| e.name == "lib").expect("lib dir");
         assert_eq!(managed.kind, FileKind::Directory);
         let rows = children("/amp_/lib", "amp_/lib/", &resources, no_sizes);
         assert_eq!(rows.len(), 1);
@@ -537,10 +545,7 @@ mod tests {
         // Cached sizes flow into entries.
         let with_sizes = &|n: &str| (n == "new_/js/form.js").then_some(15);
         let files = children("/new_/js", "new_/js/", &resources, with_sizes);
-        let form = files
-            .iter()
-            .find(|e| e.name == "form.js")
-            .expect("form.js");
+        let form = files.iter().find(|e| e.name == "form.js").expect("form.js");
         assert_eq!(form.size, 15);
         assert_eq!(form.path, "/new_/js/form.js");
         assert_eq!(form.mode, None);
@@ -563,7 +568,10 @@ mod tests {
             eprintln!("skip: GHOSTFTP_DYNAMICS_MOCK_URL unset");
             return;
         };
-        std::env::set_var("GHOSTFTP_DYNAMICS_API_BASE", format!("{mock}/api/data/v9.2"));
+        std::env::set_var(
+            "GHOSTFTP_DYNAMICS_API_BASE",
+            format!("{mock}/api/data/v9.2"),
+        );
         std::env::set_var(
             "GHOSTFTP_DYNAMICS_TOKEN_URL",
             format!("{mock}/mock-tenant/oauth2/v2.0/token"),
@@ -673,12 +681,16 @@ mod tests {
             .expect("update");
         assert_eq!(publishes().await, baseline + 2, "update published");
         assert_eq!(
-            read_file(&session, "/new_/js/rl429.js").await.expect("re-read"),
+            read_file(&session, "/new_/js/rl429.js")
+                .await
+                .expect("re-read"),
             b"console.log(2);"
         );
 
         // Unsupported extensions fail client-side before any POST.
-        assert!(write_file(&session, "/new_/js/notes.txt", b"x").await.is_err());
+        assert!(write_file(&session, "/new_/js/notes.txt", b"x")
+            .await
+            .is_err());
 
         // Rename = create-new + publish + delete-old.
         fs.rename("/new_/js/rl429.js", "/new_/js/moved.js")
@@ -694,14 +706,21 @@ mod tests {
         fs.create_dir("/new_/js/ghostftp-dir").await.expect("mkdir");
         let js2 = fs.list_dir("/new_/js").await.expect("relist");
         assert!(js2.iter().any(|e| e.name == "ghostftp-dir"));
-        let empty = fs.list_dir("/new_/js/ghostftp-dir").await.expect("list keep dir");
+        let empty = fs
+            .list_dir("/new_/js/ghostftp-dir")
+            .await
+            .expect("list keep dir");
         assert!(empty.is_empty(), "placeholder hidden from listing");
-        fs.delete("/new_/js/ghostftp-dir", true).await.expect("rmdir");
+        fs.delete("/new_/js/ghostftp-dir", true)
+            .await
+            .expect("rmdir");
         assert!(!file_exists(&session, "/new_/js/ghostftp-dir").await);
 
         // Managed resources refuse every mutation, client-side.
         for err in [
-            write_file(&session, "/amp_/lib/managed.js", b"x").await.unwrap_err(),
+            write_file(&session, "/amp_/lib/managed.js", b"x")
+                .await
+                .unwrap_err(),
             fs.delete("/amp_/lib/managed.js", false).await.unwrap_err(),
             fs.rename("/amp_/lib/managed.js", "/amp_/lib/x.js")
                 .await

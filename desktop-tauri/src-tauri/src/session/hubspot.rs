@@ -421,8 +421,7 @@ impl HubSpotSession {
         folder_id: Option<&str>,
     ) -> Result<Vec<FileEntry>> {
         {
-            if let Some((fetched, entries)) = self.files_listings.lock().unwrap().get(folder_path)
-            {
+            if let Some((fetched, entries)) = self.files_listings.lock().unwrap().get(folder_path) {
                 if fetched.elapsed() < METADATA_TTL {
                     return Ok(entries.as_ref().clone());
                 }
@@ -472,7 +471,11 @@ impl HubSpotSession {
             let v: Value =
                 serde_json::from_str(&text).with_context(|| format!("parse hubspot {api_path}"))?;
             if let Some(results) = v.get("results").and_then(|r| r.as_array()) {
-                out.extend(results.iter().filter_map(|r| file_entry_from_json(r, folder)));
+                out.extend(
+                    results
+                        .iter()
+                        .filter_map(|r| file_entry_from_json(r, folder)),
+                );
             }
             match v
                 .get("paging")
@@ -642,7 +645,11 @@ impl HubSpotSession {
     pub async fn files_rename_folder(&self, id: &str, new_name: &str) -> Result<()> {
         let body = serde_json::json!({"name": new_name});
         let resp = self
-            .send(Method::PATCH, &format!("/files/v3/folders/{id}"), Some(&body))
+            .send(
+                Method::PATCH,
+                &format!("/files/v3/folders/{id}"),
+                Some(&body),
+            )
             .await?;
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
@@ -824,9 +831,7 @@ impl HubSpotSession {
         let name = file_name
             .strip_suffix(".csv")
             .filter(|n| !n.is_empty() && !n.contains('/'))
-            .ok_or_else(|| {
-                anyhow!("hubspot /hubdb/{file_name}: not a table (flat .csv list)")
-            })?;
+            .ok_or_else(|| anyhow!("hubspot /hubdb/{file_name}: not a table (flat .csv list)"))?;
         let detail = self
             .get_json(&format!("/cms/v3/hubdb/tables/{}/draft", urlenc_path(name)))
             .await
@@ -977,9 +982,11 @@ pub fn node_from_json(v: &Value) -> Option<NodeMeta> {
 /// display name is the basename of `path` because a file's `name` field
 /// excludes its extension.
 pub fn file_entry_from_json(v: &Value, folder: bool) -> Option<FileEntry> {
-    let id = v
-        .get("id")
-        .and_then(|x| x.as_str().map(str::to_string).or_else(|| x.as_i64().map(|n| n.to_string())))?;
+    let id = v.get("id").and_then(|x| {
+        x.as_str()
+            .map(str::to_string)
+            .or_else(|| x.as_i64().map(|n| n.to_string()))
+    })?;
     let path = v.get("path").and_then(|p| p.as_str())?.to_string();
     let name = path.trim_matches('/').rsplit('/').next()?.to_string();
     Some(FileEntry {
@@ -993,7 +1000,8 @@ pub fn file_entry_from_json(v: &Value, folder: bool) -> Option<FileEntry> {
             .and_then(|a| a.as_str())
             .unwrap_or("PUBLIC_INDEXABLE")
             .to_string(),
-        url: v.get("defaultHostingUrl")
+        url: v
+            .get("defaultHostingUrl")
             .and_then(|u| u.as_str())
             .or_else(|| v.get("url").and_then(|u| u.as_str()))
             .map(str::to_string),
@@ -1028,9 +1036,11 @@ pub fn parse_timestamp(v: &Value) -> Option<i64> {
 /// Parse one HubDB table summary/detail. v3 ids may come back as numbers or
 /// strings; `columns` (schema order) only appears on the detail response.
 pub fn hubdb_table_from_json(v: &Value) -> Option<HubDbTable> {
-    let id = v
-        .get("id")
-        .and_then(|x| x.as_str().map(str::to_string).or_else(|| x.as_i64().map(|n| n.to_string())))?;
+    let id = v.get("id").and_then(|x| {
+        x.as_str()
+            .map(str::to_string)
+            .or_else(|| x.as_i64().map(|n| n.to_string()))
+    })?;
     let name = v.get("name").and_then(|n| n.as_str())?.to_string();
     let columns = v
         .get("columns")
@@ -1051,9 +1061,11 @@ pub fn hubdb_table_from_json(v: &Value) -> Option<HubDbTable> {
 
 /// Parse one HubDB row (`{id, values}`), tolerating numeric ids.
 pub fn hubdb_row_from_json(v: &Value) -> Option<HubDbRow> {
-    let id = v
-        .get("id")
-        .and_then(|x| x.as_str().map(str::to_string).or_else(|| x.as_i64().map(|n| n.to_string())))?;
+    let id = v.get("id").and_then(|x| {
+        x.as_str()
+            .map(str::to_string)
+            .or_else(|| x.as_i64().map(|n| n.to_string()))
+    })?;
     let values = v
         .get("values")
         .and_then(|x| x.as_object())

@@ -65,9 +65,7 @@ pub struct PathStatus {
 /// surrounding whitespace, drop a trailing slash/backslash, and lowercase
 /// (Windows paths are case-insensitive). Storage always keeps the original bytes.
 fn normalize_entry(e: &str) -> String {
-    e.trim()
-        .trim_end_matches(['\\', '/'])
-        .to_ascii_lowercase()
+    e.trim().trim_end_matches(['\\', '/']).to_ascii_lowercase()
 }
 
 /// Is `dir` already present as one of the ';'-separated entries in `value`?
@@ -324,12 +322,17 @@ mod platform {
             // Read it back through our decoder: value + type must survive.
             let (read, vtype) = read_path(&key);
             assert_eq!(read, original);
-            assert_eq!(vtype, RegType::REG_EXPAND_SZ, "type must stay REG_EXPAND_SZ");
+            assert_eq!(
+                vtype,
+                RegType::REG_EXPAND_SZ,
+                "type must stay REG_EXPAND_SZ"
+            );
 
             // Add our bin dir, write with the SAME type, read back.
             let bin = r"C:\Ghost FTP\bin";
             let added = super::super::add_dir(&read, bin);
-            key.set_raw_value("Path", &make_value(&added, vtype)).unwrap();
+            key.set_raw_value("Path", &make_value(&added, vtype))
+                .unwrap();
             let (after_add, vtype2) = read_path(&key);
             assert_eq!(after_add, format!("{original};{bin}"));
             assert_eq!(vtype2, RegType::REG_EXPAND_SZ, "type preserved after add");
@@ -340,7 +343,8 @@ mod platform {
 
             // Remove restores the value byte-for-byte, still expand-string.
             let removed = super::super::remove_dir(&after_add, bin);
-            key.set_raw_value("Path", &make_value(&removed, vtype2)).unwrap();
+            key.set_raw_value("Path", &make_value(&removed, vtype2))
+                .unwrap();
             let (after_remove, vtype3) = read_path(&key);
             assert_eq!(after_remove, original, "remove is byte-identical");
             assert_eq!(vtype3, RegType::REG_EXPAND_SZ);
@@ -621,7 +625,10 @@ mod tests {
         let v = r"C:\Windows;C:\Users\me\AppData\Local\Ghost FTP\bin";
         assert!(contains_dir(v, r"c:\users\me\appdata\local\ghostftp\bin"));
         assert!(contains_dir(v, r"C:\Users\me\AppData\Local\Ghost FTP\bin\")); // trailing slash
-        assert!(!contains_dir(v, r"C:\Users\me\AppData\Local\Ghost FTP\bin2"));
+        assert!(!contains_dir(
+            v,
+            r"C:\Users\me\AppData\Local\Ghost FTP\bin2"
+        ));
         assert!(!contains_dir("", r"C:\x"));
     }
 

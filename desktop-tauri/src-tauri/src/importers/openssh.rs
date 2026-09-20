@@ -16,8 +16,8 @@ pub fn default_path() -> Option<PathBuf> {
 /// Include/Match etc. are deliberately out of scope — most desktop users
 /// have flat config files and that's the case we want to cover.
 pub fn parse_file(path: &PathBuf) -> Result<Vec<ProfilePreview>> {
-    let text = std::fs::read_to_string(path)
-        .with_context(|| format!("reading {}", path.display()))?;
+    let text =
+        std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     Ok(parse(&text, path.display().to_string()))
 }
 

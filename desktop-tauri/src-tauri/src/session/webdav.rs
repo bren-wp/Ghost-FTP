@@ -102,7 +102,10 @@ pub async fn webdav_connect(profile: &ConnectionProfile) -> Result<WebdavSession
     };
     let base = Url::parse(&with_slash).with_context(|| format!("parse WebDAV URL {raw}"))?;
     if !matches!(base.scheme(), "http" | "https") {
-        return Err(anyhow!("WebDAV URL must be http or https, got {}", base.scheme()));
+        return Err(anyhow!(
+            "WebDAV URL must be http or https, got {}",
+            base.scheme()
+        ));
     }
 
     let password = match &profile.auth {

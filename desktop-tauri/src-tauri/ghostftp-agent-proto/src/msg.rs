@@ -54,10 +54,10 @@ pub struct DirEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemInfo {
-    pub os: String,       // "windows" | "linux"
+    pub os: String, // "windows" | "linux"
     pub hostname: String,
     pub arch: String,
-    pub shell: String,    // the shell exec uses: "powershell" | "sh" | ...
+    pub shell: String, // the shell exec uses: "powershell" | "sh" | ...
     pub username: String,
     pub home_dir: String,
     pub agentd_version: String,
@@ -245,12 +245,18 @@ pub enum Response {
 impl Response {
     /// Convenience for daemon handlers: an operational failure.
     pub fn error(message: impl Into<String>) -> Self {
-        Response::Error { message: message.into(), denied: false }
+        Response::Error {
+            message: message.into(),
+            denied: false,
+        }
     }
 
     /// Convenience for daemon handlers: a policy refusal.
     pub fn denied(message: impl Into<String>) -> Self {
-        Response::Error { message: message.into(), denied: true }
+        Response::Error {
+            message: message.into(),
+            denied: true,
+        }
     }
 }
 
@@ -261,7 +267,9 @@ mod tests {
 
     #[test]
     fn delta_variants_serde_round_trip() {
-        let req = Request::Signature { path: "/tmp/f.bin".to_string() };
+        let req = Request::Signature {
+            path: "/tmp/f.bin".to_string(),
+        };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("\"op\":\"signature\""), "{json}");
         match serde_json::from_str::<Request>(&json).unwrap() {
@@ -273,8 +281,14 @@ mod tests {
             basis: Some("/tmp/f.bin".to_string()),
             patch: "/tmp/f.bin.ghostftp-patch-1".to_string(),
             recipe: vec![
-                RecipeOp::Copy { basis_offset: 0, len: 65_536 },
-                RecipeOp::Literal { patch_offset: 0, len: 1_024 },
+                RecipeOp::Copy {
+                    basis_offset: 0,
+                    len: 65_536,
+                },
+                RecipeOp::Literal {
+                    patch_offset: 0,
+                    len: 1_024,
+                },
             ],
             dest: "/tmp/f.bin".to_string(),
             expected_hash: "aGFzaA==".to_string(),
@@ -285,7 +299,13 @@ mod tests {
         // fields stay snake_case — same as the existing Exec.timeout_ms etc.
         assert!(json.contains("\"expected_hash\""), "{json}");
         match serde_json::from_str::<Request>(&json).unwrap() {
-            Request::DeltaAssemble { basis, patch, recipe, dest, expected_hash } => {
+            Request::DeltaAssemble {
+                basis,
+                patch,
+                recipe,
+                dest,
+                expected_hash,
+            } => {
                 assert_eq!(basis.as_deref(), Some("/tmp/f.bin"));
                 assert_eq!(patch, "/tmp/f.bin.ghostftp-patch-1");
                 assert_eq!(recipe.len(), 2);
@@ -300,14 +320,23 @@ mod tests {
             min: crate::delta::CHUNK_MIN,
             avg: crate::delta::CHUNK_AVG,
             max: crate::delta::CHUNK_MAX,
-            chunks: vec![ChunkEntry { offset: 0, len: 3, hash: "aABiAGM=".to_string() }],
+            chunks: vec![ChunkEntry {
+                offset: 0,
+                len: 3,
+                hash: "aABiAGM=".to_string(),
+            }],
             whole_hash: "d2hvbGU=".to_string(),
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("\"result\":\"signature\""), "{json}");
         assert!(json.contains("\"whole_hash\""), "{json}");
         match serde_json::from_str::<Response>(&json).unwrap() {
-            Response::Signature { size, chunks, whole_hash, .. } => {
+            Response::Signature {
+                size,
+                chunks,
+                whole_hash,
+                ..
+            } => {
                 assert_eq!(size, 3);
                 assert_eq!(chunks.len(), 1);
                 assert_eq!(whole_hash, "d2hvbGU=");
@@ -315,12 +344,18 @@ mod tests {
             other => panic!("wrong variant: {other:?}"),
         }
 
-        let resp = Response::DeltaDone { bytes_reused: 65_536, bytes_written: 66_560 };
+        let resp = Response::DeltaDone {
+            bytes_reused: 65_536,
+            bytes_written: 66_560,
+        };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("\"result\":\"deltaDone\""), "{json}");
         assert!(json.contains("\"bytes_reused\":65536"), "{json}");
         match serde_json::from_str::<Response>(&json).unwrap() {
-            Response::DeltaDone { bytes_reused, bytes_written } => {
+            Response::DeltaDone {
+                bytes_reused,
+                bytes_written,
+            } => {
                 assert_eq!(bytes_reused, 65_536);
                 assert_eq!(bytes_written, 66_560);
             }
@@ -342,7 +377,11 @@ mod tests {
         #[serde(tag = "op", rename_all = "camelCase")]
         enum OldRequest {
             Ping,
-            ReadChunk { path: String, offset: u64, len: u64 },
+            ReadChunk {
+                path: String,
+                offset: u64,
+                len: u64,
+            },
             WriteChunk {
                 path: String,
                 offset: u64,
@@ -365,7 +404,9 @@ mod tests {
         // The new ops do NOT parse under the old shape — one request errors,
         // which is what triggers the controller's whole-file fallback.
         for req in [
-            Request::Signature { path: "/x".to_string() },
+            Request::Signature {
+                path: "/x".to_string(),
+            },
             Request::DeltaAssemble {
                 basis: None,
                 patch: "/p".to_string(),

@@ -67,7 +67,10 @@ pub fn parse(raw: &str) -> Option<DeepLink> {
         _ => url.path().trim_start_matches('/').to_string(),
     };
 
-    let mut dl = DeepLink { action: action.to_lowercase(), ..Default::default() };
+    let mut dl = DeepLink {
+        action: action.to_lowercase(),
+        ..Default::default()
+    };
     for (k, v) in url.query_pairs() {
         let v = v.to_string();
         if v.is_empty() {
@@ -117,7 +120,10 @@ pub fn handle_urls(app: &AppHandle, urls: &[url::Url]) {
                     let _ = win.set_focus();
                 }
             }
-            Some(dl) => tracing::info!("ignoring ghostftp:// link with unknown action '{}'", dl.action),
+            Some(dl) => tracing::info!(
+                "ignoring ghostftp:// link with unknown action '{}'",
+                dl.action
+            ),
             None => tracing::info!("ignoring unparseable ghostftp:// link"),
         }
     }
@@ -185,7 +191,8 @@ mod tests {
 
     #[test]
     fn grant_link_keeps_token_and_issuer_separate() {
-        let dl = parse("ghostftp://grant?issuer=https://panel.example&token=abcDEF_123-xyz456").unwrap();
+        let dl =
+            parse("ghostftp://grant?issuer=https://panel.example&token=abcDEF_123-xyz456").unwrap();
         assert_eq!(dl.issuer.as_deref(), Some("https://panel.example"));
         assert_eq!(dl.token.as_deref(), Some("abcDEF_123-xyz456"));
         // Neither param leaks into the host/code fields of other actions.

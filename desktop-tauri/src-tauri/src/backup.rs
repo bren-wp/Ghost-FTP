@@ -132,9 +132,7 @@ pub fn export(dir: &Path, db: &Db, password: &str, dest: &Path) -> Result<Backup
     let db_bytes = std::fs::read(&tmp).context("read ghostftp.db snapshot")?;
     let _ = std::fs::remove_file(&tmp);
 
-    let read_opt = |name: &str| -> Option<String> {
-        std::fs::read_to_string(dir.join(name)).ok()
-    };
+    let read_opt = |name: &str| -> Option<String> { std::fs::read_to_string(dir.join(name)).ok() };
 
     let archive = Archive {
         created_ms: crate::db::now_ms(),
@@ -159,7 +157,13 @@ pub fn export(dir: &Path, db: &Db, password: &str, dest: &Path) -> Result<Backup
     let key = derive_key(password, &salt)?;
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
     let ciphertext = cipher
-        .encrypt(Nonce::from_slice(&nonce), Payload { msg: &gz, aad: &header })
+        .encrypt(
+            Nonce::from_slice(&nonce),
+            Payload {
+                msg: &gz,
+                aad: &header,
+            },
+        )
         .map_err(|_| anyhow!("encryption failed"))?;
 
     let mut out = header;
@@ -286,7 +290,13 @@ fn decrypt(password: &str, src: &Path) -> Result<Archive> {
     let key = derive_key(password, salt)?;
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
     let gz = cipher
-        .decrypt(Nonce::from_slice(nonce), Payload { msg: ciphertext, aad: header })
+        .decrypt(
+            Nonce::from_slice(nonce),
+            Payload {
+                msg: ciphertext,
+                aad: header,
+            },
+        )
         .map_err(|_| anyhow!("wrong password, or the backup is corrupt"))?;
     let plaintext = gunzip(&gz).context("gunzip archive")?;
     serde_json::from_slice(&plaintext).context("parse archive")
@@ -377,7 +387,11 @@ mod tests {
         std::fs::create_dir_all(&dst_dir).unwrap();
 
         // Seed a source app-data dir with configs + a real ghostftp.db.
-        write(&src_dir, "profiles.json", r#"[{"id":"p1","name":"Box A","protocol":"sftp","host":"h","port":22,"username":"u","auth":{"kind":"agent"}}]"#);
+        write(
+            &src_dir,
+            "profiles.json",
+            r#"[{"id":"p1","name":"Box A","protocol":"sftp","host":"h","port":22,"username":"u","auth":{"kind":"agent"}}]"#,
+        );
         write(&src_dir, "bridge.json", r#"{"enabled":true}"#);
         write(&src_dir, "foldersync.json", r#"{"pairs":[]}"#);
         {
@@ -386,7 +400,8 @@ mod tests {
             db.upsert_snippet("s1", "List", "ls -la", None).unwrap();
         }
 
-        let backup = std::env::temp_dir().join(format!("ghostftp_bak_{}.ghostftpbak", std::process::id()));
+        let backup =
+            std::env::temp_dir().join(format!("ghostftp_bak_{}.ghostftpbak", std::process::id()));
         let _ = std::fs::remove_file(&backup);
         let db = Db::open(&src_dir.join("ghostftp.db")).unwrap();
         let summary = export(&src_dir, &db, "correct horse", &backup).unwrap();
@@ -413,7 +428,10 @@ mod tests {
         );
         // The restored DB carries the seeded settings + snippet.
         let rdb = Db::open(&dst_dir.join("ghostftp.db")).unwrap();
-        assert_eq!(rdb.settings_get("appTheme").unwrap().as_deref(), Some("\"nord\""));
+        assert_eq!(
+            rdb.settings_get("appTheme").unwrap().as_deref(),
+            Some("\"nord\"")
+        );
         assert_eq!(rdb.list_snippets().unwrap().len(), 1);
 
         drop(rdb);
@@ -425,7 +443,11 @@ mod tests {
     #[test]
     fn rejects_non_backup_and_bad_magic() {
         let f = std::env::temp_dir().join(format!("ghostftp_notbak_{}.bin", std::process::id()));
-        std::fs::write(&f, b"this is not a ghostftp backup at all, just some bytes here").unwrap();
+        std::fs::write(
+            &f,
+            b"this is not a ghostftp backup at all, just some bytes here",
+        )
+        .unwrap();
         assert!(inspect("pw", &f).is_err());
         let _ = std::fs::remove_file(&f);
     }

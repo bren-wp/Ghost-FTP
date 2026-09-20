@@ -151,10 +151,7 @@ fn entry_from_json(e: &serde_json::Value) -> Option<DirEntry> {
         .get("server_modified")
         .and_then(|m| m.as_str())
         .and_then(parse_iso8601);
-    let etag = e
-        .get("rev")
-        .and_then(|r| r.as_str())
-        .map(|s| s.to_string());
+    let etag = e.get("rev").and_then(|r| r.as_str()).map(|s| s.to_string());
     Some(DirEntry {
         name,
         path,
@@ -276,7 +273,10 @@ mod tests {
 
         // Seed a deliberately-stale-but-unexpired access token so the very first
         // API call 401s and drives the force-refresh retry path.
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
         let pid = "dropbox-mock-test";
         oauth::store_tokens(
             DROPBOX_SERVICE,
@@ -297,7 +297,9 @@ mod tests {
             host: "dropbox.com".into(),
             port: 443,
             username: String::new(),
-            auth: AuthMethod::Password { password: String::new() },
+            auth: AuthMethod::Password {
+                password: String::new(),
+            },
             default_remote_path: None,
             color: None,
             auto_connect: None,
@@ -345,7 +347,10 @@ mod tests {
 
         // List sees it with the right size.
         let entries = fs.list_dir("/ghostftp-test").await.expect("list");
-        let hello = entries.iter().find(|e| e.name == "hello.txt").expect("hello");
+        let hello = entries
+            .iter()
+            .find(|e| e.name == "hello.txt")
+            .expect("hello");
         assert_eq!(hello.kind, FileKind::File);
         assert_eq!(hello.size, 13);
 

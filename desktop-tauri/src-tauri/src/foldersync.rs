@@ -142,7 +142,12 @@ struct RuntimeStatus {
 
 impl Default for RuntimeStatus {
     fn default() -> Self {
-        Self { state: PairState::Idle, in_flight: 0, last_synced: None, last_error: None }
+        Self {
+            state: PairState::Idle,
+            in_flight: 0,
+            last_synced: None,
+            last_error: None,
+        }
     }
 }
 
@@ -178,7 +183,10 @@ pub struct FolderSync {
 
 impl FolderSync {
     pub fn load(app: &AppHandle) -> Result<Self> {
-        let dir = app.path().app_data_dir().context("resolving app_data_dir")?;
+        let dir = app
+            .path()
+            .app_data_dir()
+            .context("resolving app_data_dir")?;
         std::fs::create_dir_all(&dir).ok();
         let settings_path = dir.join("foldersync.json");
         let settings: Settings = std::fs::read(&settings_path)
@@ -400,7 +408,12 @@ impl FolderSync {
 
         running.insert(
             pair.id.clone(),
-            Running { task, trigger, _watcher: watcher, status },
+            Running {
+                task,
+                trigger,
+                _watcher: watcher,
+                status,
+            },
         );
         Ok(())
     }
@@ -484,8 +497,7 @@ async fn reconcile_inner(
     // Ensure a live session for this pair's connection.
     let session = ensure_session(app, state, pair, session_id).await?;
 
-    let local_fs: Box<dyn crate::remotefs::RemoteFs> =
-        Box::new(crate::remotefs::local::LocalFs);
+    let local_fs: Box<dyn crate::remotefs::RemoteFs> = Box::new(crate::remotefs::local::LocalFs);
     let remote_fs = crate::commands::fs_for_session(&session);
 
     // The index tracks the *source* side (authoritative for one-way sync); its
@@ -657,7 +669,9 @@ async fn wait_for_transfers(state: &AppState, ids: Vec<String>) {
         for id in &ids {
             if let Some(t) = state.transfers.snapshot(id).await {
                 match t.status {
-                    TransferStatus::Queued | TransferStatus::Transferring | TransferStatus::Paused => remaining += 1,
+                    TransferStatus::Queued
+                    | TransferStatus::Transferring
+                    | TransferStatus::Paused => remaining += 1,
                     _ => {}
                 }
             }
@@ -698,8 +712,10 @@ fn apply_safety(plan: &mut SyncPlan, pair: &SyncPair, source_available: bool) ->
     // Excludes: drop matching files from BOTH copies and deletes, so an excluded
     // path is neither uploaded nor (under Mirror) deleted on the far side.
     if !pair.exclude.is_empty() {
-        plan.copies.retain(|c| !is_excluded(&c.relative, &pair.exclude));
-        plan.deletes.retain(|d| !is_excluded(&d.relative, &pair.exclude));
+        plan.copies
+            .retain(|c| !is_excluded(&c.relative, &pair.exclude));
+        plan.deletes
+            .retain(|d| !is_excluded(&d.relative, &pair.exclude));
         plan.total_bytes = plan.copies.iter().map(|c| c.size).sum();
     }
 
@@ -781,7 +797,11 @@ fn glob_rec(p: &[u8], t: &[u8]) -> bool {
     match p[0] {
         b'*' if p.len() >= 2 && p[1] == b'*' => {
             // `**` — optionally followed by `/`; matches any run including `/`.
-            let rest = if p.len() >= 3 && p[2] == b'/' { &p[3..] } else { &p[2..] };
+            let rest = if p.len() >= 3 && p[2] == b'/' {
+                &p[3..]
+            } else {
+                &p[2..]
+            };
             if glob_rec(rest, t) {
                 return true;
             }
@@ -876,7 +896,11 @@ mod tests {
 
         // Age the three stale temps past the 24 h cutoff.
         let old = SystemTime::now() - Duration::from_secs(48 * 60 * 60);
-        for rel in ["sub/.ghostftp-patch-abc", "file.bin.ghostftp-new-123-4", ".ghostftp-delta-xyz.tmp"] {
+        for rel in [
+            "sub/.ghostftp-patch-abc",
+            "file.bin.ghostftp-new-123-4",
+            ".ghostftp-delta-xyz.tmp",
+        ] {
             std::fs::File::options()
                 .write(true)
                 .open(root.join(rel))
@@ -887,10 +911,22 @@ mod tests {
 
         sweep_delta_temps(&root);
 
-        assert!(!root.join("sub/.ghostftp-patch-abc").exists(), "stale nested patch swept");
-        assert!(!root.join("file.bin.ghostftp-new-123-4").exists(), "stale assemble temp swept");
-        assert!(!root.join(".ghostftp-delta-xyz.tmp").exists(), "stale download temp swept");
-        assert!(root.join("fresh.ghostftp-patch-def").exists(), "fresh temp survives");
+        assert!(
+            !root.join("sub/.ghostftp-patch-abc").exists(),
+            "stale nested patch swept"
+        );
+        assert!(
+            !root.join("file.bin.ghostftp-new-123-4").exists(),
+            "stale assemble temp swept"
+        );
+        assert!(
+            !root.join(".ghostftp-delta-xyz.tmp").exists(),
+            "stale download temp swept"
+        );
+        assert!(
+            root.join("fresh.ghostftp-patch-def").exists(),
+            "fresh temp survives"
+        );
         assert!(root.join("normal.txt").exists(), "normal file survives");
 
         let _ = std::fs::remove_dir_all(&root);
@@ -1025,7 +1061,11 @@ pub async fn foldersync_set_enabled(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Vec<PairView>, String> {
-    state.foldersync.set_enabled(&app, &id, enabled).await.map_err(err)?;
+    state
+        .foldersync
+        .set_enabled(&app, &id, enabled)
+        .await
+        .map_err(err)?;
     Ok(state.foldersync.views().await)
 }
 

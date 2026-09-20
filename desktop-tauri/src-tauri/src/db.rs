@@ -157,7 +157,9 @@ impl Db {
         conn.pragma_update(None, "journal_mode", "WAL").ok();
         conn.pragma_update(None, "foreign_keys", "ON").ok();
         migrate(&conn).context("running ghostftp.db migrations")?;
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     /// Open an in-memory database (tests).
@@ -165,7 +167,9 @@ impl Db {
     pub fn open_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
         migrate(&conn)?;
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     /// Load every remembered file for a pair, keyed by relative path.
@@ -215,7 +219,14 @@ impl Db {
                  remote_signal = excluded.remote_signal,
                  last_synced_ms = excluded.last_synced_ms,
                  state = 'synced'",
-            rusqlite::params![pair_id, rel_path, size as i64, mtime, remote_signal, last_synced_ms],
+            rusqlite::params![
+                pair_id,
+                rel_path,
+                size as i64,
+                mtime,
+                remote_signal,
+                last_synced_ms
+            ],
         )?;
         Ok(())
     }
@@ -259,7 +270,8 @@ impl Db {
                 updated_ms: r.get(6)?,
             })
         })?;
-        rows.collect::<rusqlite::Result<Vec<_>>>().map_err(Into::into)
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
     }
 
     /// Insert or update a snippet. An update preserves `use_count`/`created_ms`
@@ -340,7 +352,8 @@ impl Db {
         let mut stmt = conn
             .prepare("SELECT service, account FROM keychain_manifest ORDER BY service, account")?;
         let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
-        rows.collect::<rusqlite::Result<Vec<_>>>().map_err(Into::into)
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
     }
 
     // ---- Settings (Plan 12 Phase 2) ----
@@ -473,8 +486,10 @@ impl Db {
             rusqlite::params![key, session_id, bytes as i64, now],
         )?;
 
-        let total: i64 = conn
-            .query_row("SELECT COALESCE(SUM(bytes), 0) FROM thumb_cache", [], |r| r.get(0))?;
+        let total: i64 =
+            conn.query_row("SELECT COALESCE(SUM(bytes), 0) FROM thumb_cache", [], |r| {
+                r.get(0)
+            })?;
         if (total as u64) <= budget_bytes {
             return Ok(Vec::new());
         }
@@ -482,9 +497,8 @@ impl Db {
         // Evict oldest-used first, but never the row we just wrote.
         let mut over = total as u64 - budget_bytes;
         let mut evicted = Vec::new();
-        let mut stmt = conn.prepare(
-            "SELECT key, bytes FROM thumb_cache WHERE key != ?1 ORDER BY used_ms ASC",
-        )?;
+        let mut stmt = conn
+            .prepare("SELECT key, bytes FROM thumb_cache WHERE key != ?1 ORDER BY used_ms ASC")?;
         let victims: Vec<(String, i64)> = stmt
             .query_map([key], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?
             .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -505,14 +519,16 @@ impl Db {
     pub fn thumb_clear_session(&self, session_id: &str) -> Result<Vec<String>> {
         let conn = self.conn.lock().unwrap();
         let keys: Vec<String> = {
-            let mut stmt =
-                conn.prepare("SELECT key FROM thumb_cache WHERE session_id = ?1")?;
+            let mut stmt = conn.prepare("SELECT key FROM thumb_cache WHERE session_id = ?1")?;
             let rows = stmt
                 .query_map([session_id], |r| r.get::<_, String>(0))?
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             rows
         };
-        conn.execute("DELETE FROM thumb_cache WHERE session_id = ?1", [session_id])?;
+        conn.execute(
+            "DELETE FROM thumb_cache WHERE session_id = ?1",
+            [session_id],
+        )?;
         Ok(keys)
     }
 
@@ -557,7 +573,8 @@ mod tests {
 
         db.upsert_sync_state("p1", "a/b.txt", 42, 1000, Some("etag-1"), 5000)
             .unwrap();
-        db.upsert_sync_state("p1", "c.txt", 7, 2000, None, 5001).unwrap();
+        db.upsert_sync_state("p1", "c.txt", 7, 2000, None, 5001)
+            .unwrap();
         db.upsert_sync_state("p2", "a/b.txt", 99, 3000, None, 5002)
             .unwrap();
 
@@ -680,11 +697,17 @@ mod tests {
 
         db.settings_set("appTheme", "\"dracula\"").unwrap();
         db.settings_set("terminalFontSize", "13").unwrap();
-        assert_eq!(db.settings_get("appTheme").unwrap().as_deref(), Some("\"dracula\""));
+        assert_eq!(
+            db.settings_get("appTheme").unwrap().as_deref(),
+            Some("\"dracula\"")
+        );
 
         // Upsert replaces in place.
         db.settings_set("appTheme", "\"nord\"").unwrap();
-        assert_eq!(db.settings_get("appTheme").unwrap().as_deref(), Some("\"nord\""));
+        assert_eq!(
+            db.settings_get("appTheme").unwrap().as_deref(),
+            Some("\"nord\"")
+        );
 
         // Bulk import merges/overwrites.
         db.settings_set_many(&[
@@ -718,7 +741,11 @@ mod tests {
         assert!(db.thumb_touch("k1").unwrap());
         gap();
         let evicted = db.thumb_record("k3", "s1", 40, 100).unwrap();
-        assert_eq!(evicted, vec!["k2".to_string()], "least-recently-used is evicted first");
+        assert_eq!(
+            evicted,
+            vec!["k2".to_string()],
+            "least-recently-used is evicted first"
+        );
         // The just-written row is never a victim.
         assert!(db.thumb_touch("k3").unwrap());
         assert!(db.thumb_touch("k1").unwrap());
@@ -741,8 +768,12 @@ mod tests {
             .unwrap();
         // A second capture (after Ghost FTP already modified PATH) must NOT overwrite —
         // the backup has to stay the true pre-Ghost FTP value.
-        db.env_backup_set_once("windows_user_path", Some("C:\\A;C:\\B;C:\\Ghost FTP\\bin"), 2)
-            .unwrap();
+        db.env_backup_set_once(
+            "windows_user_path",
+            Some("C:\\A;C:\\B;C:\\Ghost FTP\\bin"),
+            2,
+        )
+        .unwrap();
 
         let (val, vtype) = db.env_backup_get("windows_user_path").unwrap().unwrap();
         assert_eq!(val.as_deref(), Some("C:\\A;C:\\B"));
@@ -761,7 +792,9 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         migrate(&conn).unwrap();
         migrate(&conn).unwrap();
-        let v: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0)).unwrap();
+        let v: i64 = conn
+            .query_row("PRAGMA user_version", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(v as usize, MIGRATIONS.len());
     }
 }

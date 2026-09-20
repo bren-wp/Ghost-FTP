@@ -65,25 +65,21 @@ impl FtpStreamKind {
             Self::Tls(s) => s.size(path).map_err(into_anyhow),
         }
     }
-    pub fn retr_to_writer<W: std::io::Write>(
-        &mut self,
-        path: &str,
-        mut sink: W,
-    ) -> Result<u64> {
+    pub fn retr_to_writer<W: std::io::Write>(&mut self, path: &str, mut sink: W) -> Result<u64> {
         match self {
             Self::Plain(s) => s
-                .retr(path, |r| std::io::copy(r, &mut sink).map_err(suppaftp::FtpError::ConnectionError))
+                .retr(path, |r| {
+                    std::io::copy(r, &mut sink).map_err(suppaftp::FtpError::ConnectionError)
+                })
                 .map_err(into_anyhow),
             Self::Tls(s) => s
-                .retr(path, |r| std::io::copy(r, &mut sink).map_err(suppaftp::FtpError::ConnectionError))
+                .retr(path, |r| {
+                    std::io::copy(r, &mut sink).map_err(suppaftp::FtpError::ConnectionError)
+                })
                 .map_err(into_anyhow),
         }
     }
-    pub fn put_from_reader<R: std::io::Read>(
-        &mut self,
-        path: &str,
-        reader: &mut R,
-    ) -> Result<u64> {
+    pub fn put_from_reader<R: std::io::Read>(&mut self, path: &str, reader: &mut R) -> Result<u64> {
         match self {
             Self::Plain(s) => s.put_file(path, reader).map_err(into_anyhow),
             Self::Tls(s) => s.put_file(path, reader).map_err(into_anyhow),
@@ -116,7 +112,9 @@ impl FtpSession {
     {
         let inner = self.inner.clone();
         tokio::task::spawn_blocking(move || {
-            let mut g = inner.lock().map_err(|_| anyhow!("FTP stream lock poisoned"))?;
+            let mut g = inner
+                .lock()
+                .map_err(|_| anyhow!("FTP stream lock poisoned"))?;
             f(&mut g)
         })
         .await
@@ -159,20 +157,15 @@ pub async fn ftp_connect(profile: &ConnectionProfile) -> Result<FtpSession> {
             // generic instantiations, so the type has to be picked up front.
             let s = NativeTlsFtpStream::connect(&addr)
                 .with_context(|| format!("FTP connect {addr}"))?;
-            let tls_connector = TlsConnector::new()
-                .map_err(|e| anyhow!("TLS init: {e}"))?;
+            let tls_connector = TlsConnector::new().map_err(|e| anyhow!("TLS init: {e}"))?;
             let secured = s
-                .into_secure(
-                    NativeTlsConnector::from(tls_connector),
-                    &host_for_blocking,
-                )
+                .into_secure(NativeTlsConnector::from(tls_connector), &host_for_blocking)
                 .map_err(|e| anyhow!("FTPS AUTH TLS: {e}"))?;
             let mut tls = FtpStreamKind::Tls(secured);
             login(&mut tls, &username, &password)?;
             Ok(tls)
         } else {
-            let s = FtpStream::connect(&addr)
-                .with_context(|| format!("FTP connect {addr}"))?;
+            let s = FtpStream::connect(&addr).with_context(|| format!("FTP connect {addr}"))?;
             let mut plain = FtpStreamKind::Plain(s);
             login(&mut plain, &username, &password)?;
             Ok(plain)

@@ -98,7 +98,10 @@ impl GDriveSession {
         let mut attempt = 0;
         loop {
             let token = self.token.access_token().await?;
-            let mut rb = self.client.request(method.clone(), &full).bearer_auth(&token);
+            let mut rb = self
+                .client
+                .request(method.clone(), &full)
+                .bearer_auth(&token);
             if let Some(b) = body {
                 rb = rb.json(b);
             }
@@ -167,7 +170,11 @@ impl GDriveSession {
             .and_then(|f| f.as_array())
             .and_then(|a| a.first());
         Ok(first.map(|f| {
-            let id = f.get("id").and_then(|x| x.as_str()).unwrap_or("").to_string();
+            let id = f
+                .get("id")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_string();
             let is_folder = f.get("mimeType").and_then(|m| m.as_str()) == Some(FOLDER_MIME);
             (id, is_folder)
         }))
@@ -197,7 +204,10 @@ impl GDriveSession {
                     if !is_folder {
                         return Err(anyhow!("{acc} is a file, not a folder"));
                     }
-                    self.cache.lock().unwrap().insert(acc.clone(), child_id.clone());
+                    self.cache
+                        .lock()
+                        .unwrap()
+                        .insert(acc.clone(), child_id.clone());
                     child_id
                 }
             };

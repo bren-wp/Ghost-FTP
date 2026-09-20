@@ -338,7 +338,9 @@ impl AutoTrustVerifier {
     /// reconnects: a matching key never reaches `decide()`; an unknown/changed
     /// one is rejected loudly instead of being trusted without the user.
     pub fn reject_unknown() -> Self {
-        Self { reject_unknown: true }
+        Self {
+            reject_unknown: true,
+        }
     }
 }
 
@@ -727,7 +729,9 @@ impl SshSession {
 
         let collect = async {
             loop {
-                let Some(msg) = channel.wait().await else { break };
+                let Some(msg) = channel.wait().await else {
+                    break;
+                };
                 match msg {
                     ChannelMsg::Data { ref data } => {
                         let total = stdout.len() + stderr.len();
@@ -755,7 +759,11 @@ impl SshSession {
                                 if !rest.is_empty() {
                                     let total = stdout.len() + stderr.len();
                                     append_capped(
-                                        &mut stderr, &rest, max_bytes, total, &mut truncated,
+                                        &mut stderr,
+                                        &rest,
+                                        max_bytes,
+                                        total,
+                                        &mut truncated,
                                     );
                                     if let Some(s) = stream {
                                         emit_chunk(s, "stderr", &rest);
@@ -896,7 +904,10 @@ impl SshSession {
             status: JobStatus::Running,
             exit_code: None,
         };
-        self.jobs.lock().await.insert(op_id.to_string(), job.clone());
+        self.jobs
+            .lock()
+            .await
+            .insert(op_id.to_string(), job.clone());
         emit_job(app, &job);
     }
 
@@ -987,7 +998,9 @@ impl SshSession {
 
         let collect = async {
             loop {
-                let Some(msg) = channel.wait().await else { break };
+                let Some(msg) = channel.wait().await else {
+                    break;
+                };
                 match msg {
                     ChannelMsg::Data { ref data } | ChannelMsg::ExtendedData { ref data, .. } => {
                         let total = out.len();
@@ -1144,7 +1157,13 @@ fn emit_chunk(s: &ExecStream, stream: &str, data: &[u8]) {
 
 /// Append `data` to `buf`, but never let `buf+other` exceed `max_bytes`. Sets
 /// `truncated` if anything was dropped.
-fn append_capped(buf: &mut Vec<u8>, data: &[u8], max_bytes: usize, total: usize, truncated: &mut bool) {
+fn append_capped(
+    buf: &mut Vec<u8>,
+    data: &[u8],
+    max_bytes: usize,
+    total: usize,
+    truncated: &mut bool,
+) {
     if total >= max_bytes {
         *truncated = true;
         return;
@@ -1251,9 +1270,7 @@ async fn open_agent(
     // First try OpenSSH-for-Windows (shipped with Win10/11) which listens
     // on a fixed pipe when the 'OpenSSH Authentication Agent' service runs.
     const OPENSSH_PIPE: &str = r"\\.\pipe\openssh-ssh-agent";
-    if let Ok(stream) =
-        tokio::net::windows::named_pipe::ClientOptions::new().open(OPENSSH_PIPE)
-    {
+    if let Ok(stream) = tokio::net::windows::named_pipe::ClientOptions::new().open(OPENSSH_PIPE) {
         return Ok(russh_keys::agent::client::AgentClient::connect(stream));
     }
 
@@ -1262,9 +1279,7 @@ async fn open_agent(
     // so we enumerate `\\.\pipe\` and try each pageant.* entry. Older
     // Pageant (file-mapping IPC) is not supported.
     if let Some(pipe) = find_pageant_pipe() {
-        if let Ok(stream) =
-            tokio::net::windows::named_pipe::ClientOptions::new().open(&pipe)
-        {
+        if let Ok(stream) = tokio::net::windows::named_pipe::ClientOptions::new().open(&pipe) {
             return Ok(russh_keys::agent::client::AgentClient::connect(stream));
         }
     }
@@ -1367,20 +1382,19 @@ pub async fn ssh_connect(
             port: jump_port,
             verifier: verifier.clone(),
         };
-        let mut jump = client::connect(config.clone(), (jump_host.as_str(), jump_port), jump_handler)
-            .await
-            .with_context(|| format!("connect to jump host {jump_host}:{jump_port}"))?;
+        let mut jump = client::connect(
+            config.clone(),
+            (jump_host.as_str(), jump_port),
+            jump_handler,
+        )
+        .await
+        .with_context(|| format!("connect to jump host {jump_host}:{jump_port}"))?;
         authenticate(&mut jump, profile, &jump_username, &prompter)
             .await
             .with_context(|| format!("authenticate on jump host {jump_host}"))?;
 
         let channel = jump
-            .channel_open_direct_tcpip(
-                profile.host.clone(),
-                profile.port as u32,
-                "127.0.0.1",
-                0,
-            )
+            .channel_open_direct_tcpip(profile.host.clone(), profile.port as u32, "127.0.0.1", 0)
             .await
             .with_context(|| {
                 format!(
@@ -1645,11 +1659,7 @@ impl SessionManager {
         }
     }
 
-    pub async fn connect(
-        &self,
-        profile: ConnectionProfile,
-        app: AppHandle,
-    ) -> Result<String> {
+    pub async fn connect(&self, profile: ConnectionProfile, app: AppHandle) -> Result<String> {
         let verifier: Arc<dyn HostKeyVerifier> =
             Arc::new(TauriHostKeyVerifier::new(app.clone(), self.prompts.clone()));
         let prompter: Arc<dyn AuthPrompter> = Arc::new(TauriAuthPrompter::new(

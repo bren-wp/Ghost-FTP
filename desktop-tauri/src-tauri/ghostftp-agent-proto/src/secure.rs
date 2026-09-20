@@ -92,7 +92,10 @@ where
             .ok_or_else(|| anyhow!("handshake produced no remote static key"))?
             .to_vec();
 
-        if let Auth::Paired { expect_remote: Some(expected) } = &auth {
+        if let Auth::Paired {
+            expect_remote: Some(expected),
+        } = &auth
+        {
             if &remote_static != expected {
                 bail!(
                     "peer identity mismatch — expected pinned key {}, got {}. \
@@ -104,7 +107,11 @@ where
         }
 
         let noise = hs.into_transport_mode().context("enter transport mode")?;
-        Ok(Self { stream, noise, remote_static })
+        Ok(Self {
+            stream,
+            noise,
+            remote_static,
+        })
     }
 
     /// The peer's static public key (raw 32 bytes). After a pairing handshake
@@ -260,7 +267,9 @@ mod tests {
                     s,
                     Role::Responder,
                     &sk,
-                    Auth::Paired { expect_remote: None },
+                    Auth::Paired {
+                        expect_remote: None,
+                    },
                 )
                 .await;
             });
@@ -269,7 +278,9 @@ mod tests {
                 c,
                 Role::Initiator,
                 &ck,
-                Auth::Paired { expect_remote: Some(server_pub.clone()) },
+                Auth::Paired {
+                    expect_remote: Some(server_pub.clone()),
+                },
             )
             .await;
             assert!(ch.is_ok(), "correct pin should connect");
@@ -285,7 +296,9 @@ mod tests {
                     s,
                     Role::Responder,
                     &sk,
-                    Auth::Paired { expect_remote: None },
+                    Auth::Paired {
+                        expect_remote: None,
+                    },
                 )
                 .await;
             });
@@ -294,7 +307,9 @@ mod tests {
                 c,
                 Role::Initiator,
                 &ck,
-                Auth::Paired { expect_remote: Some(wrong) },
+                Auth::Paired {
+                    expect_remote: Some(wrong),
+                },
             )
             .await;
             assert!(ch.is_err(), "wrong pin must be refused");
@@ -327,9 +342,13 @@ mod tests {
         let mut ch = SecureChannel::establish(c, Role::Initiator, &ck, Auth::Pairing { psk })
             .await
             .unwrap();
-        ch.send(&Response::File { data: big, bytes: 200_000, truncated: false })
-            .await
-            .unwrap();
+        ch.send(&Response::File {
+            data: big,
+            bytes: 200_000,
+            truncated: false,
+        })
+        .await
+        .unwrap();
         server.await.unwrap();
     }
 }

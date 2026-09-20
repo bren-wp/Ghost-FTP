@@ -109,7 +109,10 @@ impl RemoteFs for BoxFs {
 }
 
 /// Parse a Box item into `(DirEntry, id, is_folder)`.
-fn entry_from_json(item: &serde_json::Value, request_path: &str) -> Option<(DirEntry, String, bool)> {
+fn entry_from_json(
+    item: &serde_json::Value,
+    request_path: &str,
+) -> Option<(DirEntry, String, bool)> {
     let id = item.get("id").and_then(|x| x.as_str())?.to_string();
     let name = item.get("name").and_then(|x| x.as_str())?.to_string();
     let is_folder = item.get("type").and_then(|t| t.as_str()) == Some("folder");
@@ -163,7 +166,10 @@ mod tests {
               "modified_at": "2024-07-15T09:30:00-07:00", "sha1": "deadbeef" }
         ]);
         let arr = items.as_array().unwrap();
-        let parsed: Vec<_> = arr.iter().filter_map(|i| entry_from_json(i, "/docs")).collect();
+        let parsed: Vec<_> = arr
+            .iter()
+            .filter_map(|i| entry_from_json(i, "/docs"))
+            .collect();
         assert_eq!(parsed.len(), 2);
 
         let (dir, id, is_dir) = parsed.iter().find(|(e, _, _)| e.name == "Photos").unwrap();
@@ -172,7 +178,10 @@ mod tests {
         assert_eq!(dir.kind, FileKind::Directory);
         assert_eq!(dir.path, "/docs/Photos");
 
-        let (file, _, _) = parsed.iter().find(|(e, _, _)| e.name == "report.pdf").unwrap();
+        let (file, _, _) = parsed
+            .iter()
+            .find(|(e, _, _)| e.name == "report.pdf")
+            .unwrap();
         assert_eq!(file.kind, FileKind::File);
         assert_eq!(file.size, 2048);
         assert_eq!(file.etag.as_deref(), Some("deadbeef"));
@@ -206,7 +215,10 @@ mod tests {
             .expect("exchange");
         assert_eq!(ex["access_token"], "ACCESS1");
 
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
         let pid = "box-mock-test";
         oauth::store_tokens(
             BOX_SERVICE,
@@ -227,7 +239,9 @@ mod tests {
             host: "box.com".into(),
             port: 443,
             username: String::new(),
-            auth: AuthMethod::Password { password: String::new() },
+            auth: AuthMethod::Password {
+                password: String::new(),
+            },
             default_remote_path: None,
             color: None,
             auto_connect: None,
@@ -249,14 +263,20 @@ mod tests {
         let session = Arc::new(box_connect(&profile).await.expect("connect"));
 
         // First call uses STALE → 401 → refresh → succeeds.
-        assert_eq!(session.account_label().await.expect("account"), "tester@example.invalid");
+        assert_eq!(
+            session.account_label().await.expect("account"),
+            "tester@example.invalid"
+        );
 
         let fs = BoxFs::new(session.clone());
         fs.create_dir("/ghostftp-test").await.expect("mkdir1");
         fs.create_dir("/ghostftp-test/sub").await.expect("mkdir2");
 
         // Upload into the nested folder (multipart create, as the transfer path does).
-        let parent = session.folder_id("/ghostftp-test/sub").await.expect("resolve parent");
+        let parent = session
+            .folder_id("/ghostftp-test/sub")
+            .await
+            .expect("resolve parent");
         let token = session.access_token().await.unwrap();
         let attrs = serde_json::json!({ "name": "hello.txt", "parent": { "id": parent } });
         let part = reqwest::multipart::Part::bytes(b"hi box".to_vec()).file_name("hello.txt");
@@ -275,7 +295,10 @@ mod tests {
         session.clear_cache();
 
         let entries = fs.list_dir("/ghostftp-test/sub").await.expect("list");
-        let hello = entries.iter().find(|e| e.name == "hello.txt").expect("hello");
+        let hello = entries
+            .iter()
+            .find(|e| e.name == "hello.txt")
+            .expect("hello");
         assert_eq!(hello.kind, FileKind::File);
         assert_eq!(hello.size, 6);
         assert!(hello.etag.is_some(), "sha1 change token");

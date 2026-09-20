@@ -90,7 +90,10 @@ pub async fn http_connect(profile: &ConnectionProfile) -> Result<HttpSession> {
     };
     let parsed = Url::parse(&with_scheme).with_context(|| format!("parse HTTP URL {raw}"))?;
     if !matches!(parsed.scheme(), "http" | "https") {
-        return Err(anyhow!("HTTP URL must be http or https, got {}", parsed.scheme()));
+        return Err(anyhow!(
+            "HTTP URL must be http or https, got {}",
+            parsed.scheme()
+        ));
     }
 
     // Mode: trailing slash → listing; a final segment with an extension → single

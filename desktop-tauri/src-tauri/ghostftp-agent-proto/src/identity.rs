@@ -70,7 +70,9 @@ impl Identity {
 
     /// Raw 32-byte private key, for feeding into a Noise builder.
     pub fn private_bytes(&self) -> Result<Vec<u8>> {
-        b64().decode(&self.private_key).context("decode private key")
+        b64()
+            .decode(&self.private_key)
+            .context("decode private key")
     }
 
     /// Raw 32-byte public key.
@@ -121,7 +123,10 @@ mod tests {
         assert_eq!(id.private_bytes().unwrap().len(), 32);
         assert_eq!(id.public_bytes().unwrap().len(), 32);
         // Fingerprint is deterministic for a given key and formatted xx:xx:...
-        assert_eq!(id.fingerprint(), fingerprint_of(&id.public_bytes().unwrap()));
+        assert_eq!(
+            id.fingerprint(),
+            fingerprint_of(&id.public_bytes().unwrap())
+        );
         assert_eq!(id.fingerprint().split(':').count(), 8);
     }
 

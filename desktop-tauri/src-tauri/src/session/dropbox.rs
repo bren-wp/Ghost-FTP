@@ -66,10 +66,9 @@ impl DropboxSession {
     pub async fn access_token(&self) -> Result<String> {
         let mut guard = self.tokens.lock().await;
         if oauth::is_expired(&guard) {
-            let rt = guard
-                .refresh_token
-                .clone()
-                .ok_or_else(|| anyhow!("no refresh token — re-authorize this Dropbox connection"))?;
+            let rt = guard.refresh_token.clone().ok_or_else(|| {
+                anyhow!("no refresh token — re-authorize this Dropbox connection")
+            })?;
             let fresh = oauth::refresh(&self.config, &rt).await?;
             *guard = fresh;
             oauth::store_tokens(DROPBOX_SERVICE, &self.profile.id, &guard)?;

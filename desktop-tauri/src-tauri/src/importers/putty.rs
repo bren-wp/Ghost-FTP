@@ -82,12 +82,7 @@ pub fn parse_default() -> Result<Vec<ProfilePreview>> {
         let Ok(text) = std::fs::read_to_string(entry.path()) else {
             continue;
         };
-        let display_name = decode_session_name(
-            entry
-                .file_name()
-                .to_string_lossy()
-                .as_ref(),
-        );
+        let display_name = decode_session_name(entry.file_name().to_string_lossy().as_ref());
         let mut host = None;
         let mut user = None;
         let mut port: u32 = 22;

@@ -37,10 +37,7 @@ pub fn expand_tilde(path: &str) -> PathBuf {
         if let Some(home) = dirs::home_dir() {
             return home;
         }
-    } else if let Some(rest) = path
-        .strip_prefix("~/")
-        .or_else(|| path.strip_prefix("~\\"))
-    {
+    } else if let Some(rest) = path.strip_prefix("~/").or_else(|| path.strip_prefix("~\\")) {
         if let Some(home) = dirs::home_dir() {
             return home.join(rest);
         }
@@ -378,7 +375,10 @@ mod tests {
         let keypair = russh_keys::decode_secret_key(&pem, None).expect("decode");
         let derived = keypair.clone_public_key().expect("public key");
         let body = |line: &str| line.split(' ').take(2).collect::<Vec<_>>().join(" ");
-        assert_eq!(body(&pub_line), format!("ssh-ed25519 {}", derived.public_key_base64()));
+        assert_eq!(
+            body(&pub_line),
+            format!("ssh-ed25519 {}", derived.public_key_base64())
+        );
     }
 
     /// Real-world interop: OpenSSH's own `ssh-keygen` must accept the private key

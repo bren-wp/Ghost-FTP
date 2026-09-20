@@ -141,7 +141,11 @@ impl EditManager {
                 }
                 // Only react to events touching our specific file, in case
                 // the editor wrote sibling .swp / lockfiles.
-                if !event.paths.iter().any(|p| p.file_name() == Some(&target_file)) {
+                if !event
+                    .paths
+                    .iter()
+                    .any(|p| p.file_name() == Some(&target_file))
+                {
                     continue;
                 }
 
@@ -427,7 +431,9 @@ async fn download_to(
                 .resolve_item(remote_path)
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("{remote_path}: not found"))?;
-            let resp = gd.get_stream(&format!("/files/{file_id}?alt=media")).await?;
+            let resp = gd
+                .get_stream(&format!("/files/{file_id}?alt=media"))
+                .await?;
             let mut file = tokio::fs::File::create(local_path).await?;
             let mut stream = resp.bytes_stream();
             while let Some(chunk) = stream.next().await {
@@ -476,14 +482,20 @@ async fn download_to(
             let mut offset: u64 = 0;
             loop {
                 let resp = agent
-                    .request(Request::ReadChunk { path: remote_path.to_string(), offset, len: 0 })
+                    .request(Request::ReadChunk {
+                        path: remote_path.to_string(),
+                        offset,
+                        len: 0,
+                    })
                     .await?;
                 let (data, eof) = match resp {
                     Response::Chunk { data, eof } => (data, eof),
                     Response::Error { message, .. } => {
                         return Err(anyhow::anyhow!("read {remote_path}: {message}"))
                     }
-                    other => return Err(anyhow::anyhow!("read {remote_path}: unexpected {other:?}")),
+                    other => {
+                        return Err(anyhow::anyhow!("read {remote_path}: unexpected {other:?}"))
+                    }
                 };
                 let bytes = base64::engine::general_purpose::STANDARD.decode(&data)?;
                 if !bytes.is_empty() {
@@ -540,8 +552,8 @@ pub(crate) async fn upload_from(
             let remote = remote_path.to_string();
             let src = local.clone();
             ftp.with_stream(move |stream| {
-                let file = std::fs::File::open(&src)
-                    .with_context(|| format!("open {}", src.display()))?;
+                let file =
+                    std::fs::File::open(&src).with_context(|| format!("open {}", src.display()))?;
                 let mut reader = std::io::BufReader::new(file);
                 stream.put_from_reader(&remote, &mut reader)?;
                 Ok(())
@@ -606,7 +618,9 @@ pub(crate) async fn upload_from(
             if !resp.status().is_success() {
                 let code = resp.status().as_u16();
                 let text = resp.text().await.unwrap_or_default();
-                return Err(anyhow::anyhow!("dropbox upload {remote_path} ({code}): {text}"));
+                return Err(anyhow::anyhow!(
+                    "dropbox upload {remote_path} ({code}): {text}"
+                ));
             }
         }
         Session::OneDrive(od) => {
@@ -630,7 +644,9 @@ pub(crate) async fn upload_from(
             if !resp.status().is_success() {
                 let code = resp.status().as_u16();
                 let text = resp.text().await.unwrap_or_default();
-                return Err(anyhow::anyhow!("onedrive upload {remote_path} ({code}): {text}"));
+                return Err(anyhow::anyhow!(
+                    "onedrive upload {remote_path} ({code}): {text}"
+                ));
             }
         }
         Session::GDrive(gd) => {
@@ -643,7 +659,10 @@ pub(crate) async fn upload_from(
             let bytes = tokio::fs::read(&local).await?;
             let resp = gd
                 .client
-                .patch(format!("{}/files/{file_id}?uploadType=media", gd.upload_base))
+                .patch(format!(
+                    "{}/files/{file_id}?uploadType=media",
+                    gd.upload_base
+                ))
                 .bearer_auth(&token)
                 .header(reqwest::header::CONTENT_TYPE, "application/octet-stream")
                 .body(bytes)
@@ -653,7 +672,9 @@ pub(crate) async fn upload_from(
             if !resp.status().is_success() {
                 let code = resp.status().as_u16();
                 let text = resp.text().await.unwrap_or_default();
-                return Err(anyhow::anyhow!("gdrive upload {remote_path} ({code}): {text}"));
+                return Err(anyhow::anyhow!(
+                    "gdrive upload {remote_path} ({code}): {text}"
+                ));
             }
         }
         Session::Box(bx) => {
@@ -724,7 +745,9 @@ pub(crate) async fn upload_from(
                     Response::Error { message, .. } => {
                         return Err(anyhow::anyhow!("write {remote_path}: {message}"))
                     }
-                    other => return Err(anyhow::anyhow!("write {remote_path}: unexpected {other:?}")),
+                    other => {
+                        return Err(anyhow::anyhow!("write {remote_path}: unexpected {other:?}"))
+                    }
                 }
                 offset += n as u64;
                 first = false;
@@ -733,4 +756,3 @@ pub(crate) async fn upload_from(
     }
     Ok(size)
 }
-

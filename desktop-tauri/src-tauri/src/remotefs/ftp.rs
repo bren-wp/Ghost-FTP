@@ -19,7 +19,11 @@ fn join(base: &str, name: &str) -> String {
     if base.is_empty() || base == "/" {
         format!("/{}", name.trim_start_matches('/'))
     } else {
-        format!("{}/{}", base.trim_end_matches('/'), name.trim_start_matches('/'))
+        format!(
+            "{}/{}",
+            base.trim_end_matches('/'),
+            name.trim_start_matches('/')
+        )
     }
 }
 
@@ -89,7 +93,11 @@ impl RemoteFs for FtpFs {
         let parent_for_entries = path_owned.clone();
         self.session
             .with_stream(move |stream| {
-                let target = if path_owned.is_empty() { "." } else { &path_owned };
+                let target = if path_owned.is_empty() {
+                    "."
+                } else {
+                    &path_owned
+                };
                 let listing = list_lines(stream, target)?;
                 let mut out = Vec::with_capacity(listing.len());
                 for line in listing {
@@ -160,9 +168,7 @@ impl RemoteFs for FtpFs {
         self.session
             .with_stream(move |stream| {
                 let cmd = format!("SITE CHMOD {:o} {}", mode, path);
-                stream
-                    .site(&cmd)
-                    .with_context(|| format!("FTP {cmd}"))?;
+                stream.site(&cmd).with_context(|| format!("FTP {cmd}"))?;
                 Ok(())
             })
             .await
@@ -214,7 +220,11 @@ async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> 
     session
         .with_stream(move |stream| {
             for (p, is_dir) in to_delete.iter().rev() {
-                let res = if *is_dir { stream.rmdir(p) } else { stream.rm(p) };
+                let res = if *is_dir {
+                    stream.rmdir(p)
+                } else {
+                    stream.rm(p)
+                };
                 res.with_context(|| format!("FTP delete {p}"))?;
             }
             stream

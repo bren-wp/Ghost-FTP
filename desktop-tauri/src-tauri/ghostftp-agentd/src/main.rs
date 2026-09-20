@@ -176,7 +176,12 @@ async fn run(args: Args, dir: PathBuf, identity: Identity, config: Config) -> Re
     let listener = bind_port(args.port).await?;
     let port = listener.local_addr()?.port();
 
-    println!("ghostftp-agentd {} on {} ({})", env!("CARGO_PKG_VERSION"), info.hostname, info.os);
+    println!(
+        "ghostftp-agentd {} on {} ({})",
+        env!("CARGO_PKG_VERSION"),
+        info.hostname,
+        info.os
+    );
     println!("  identity : {fingerprint}");
     println!("  listening: 0.0.0.0:{port}");
     println!("  peers    : {peers} paired");
@@ -293,7 +298,10 @@ async fn pair(args: Args, dir: PathBuf, identity: Identity, config: Config) -> R
 fn info(dir: PathBuf, identity: Identity, config: Config) -> Result<()> {
     let info = ops::system_info();
     println!("ghostftp-agentd {}", env!("CARGO_PKG_VERSION"));
-    println!("  machine    : {} ({}, {})", info.hostname, info.os, info.arch);
+    println!(
+        "  machine    : {} ({}, {})",
+        info.hostname, info.os, info.arch
+    );
     println!("  config dir : {}", dir.display());
     println!("  identity   : {}", identity.fingerprint());
     println!("  public key : {}", identity.public_b64());

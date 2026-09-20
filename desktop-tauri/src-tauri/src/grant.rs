@@ -312,12 +312,11 @@ pub async fn accept_grant(
     validate_manifest(&manifest)?;
 
     // Keygen is CPU work — keep it off the async runtime.
-    let (public_key, pem) = tokio::task::spawn_blocking(|| {
-        crate::keys::generate_ed25519_in_memory("ghostftp-grant")
-    })
-    .await
-    .map_err(|e| GhostFTPError::other(format!("grant keygen task: {e}")))?
-    .map_err(GhostFTPError::from)?;
+    let (public_key, pem) =
+        tokio::task::spawn_blocking(|| crate::keys::generate_ed25519_in_memory("ghostftp-grant"))
+            .await
+            .map_err(|e| GhostFTPError::other(format!("grant keygen task: {e}")))?
+            .map_err(GhostFTPError::from)?;
 
     // Upload ONLY the public key. The private half never leaves the machine.
     let url = format!("{base}/.well-known/ghostftp-grant/{token}/key");
@@ -344,13 +343,9 @@ pub async fn accept_grant(
         .unwrap_or_else(|| manifest.issuer.clone());
 
     // Which connections the issuer installed the key on. Absent = all.
-    let installed: Vec<String> = reply.installed.unwrap_or_else(|| {
-        manifest
-            .connections
-            .iter()
-            .map(connection_label)
-            .collect()
-    });
+    let installed: Vec<String> = reply
+        .installed
+        .unwrap_or_else(|| manifest.connections.iter().map(connection_label).collect());
     let mut failed: Vec<GrantImportFailure> = reply
         .failed
         .into_iter()
@@ -578,7 +573,10 @@ mod tests {
     fn rejects_wrong_auth_type() {
         let mut m = good_manifest();
         m.auth.kind = "password".into();
-        assert_eq!(validate_manifest(&m).unwrap_err().kind, ErrorKind::Unsupported);
+        assert_eq!(
+            validate_manifest(&m).unwrap_err().kind,
+            ErrorKind::Unsupported
+        );
     }
 
     #[test]
@@ -602,7 +600,10 @@ mod tests {
     fn rejects_non_sftp_protocol() {
         let mut m = good_manifest();
         m.connections[0].protocol = "ftp".into();
-        assert_eq!(validate_manifest(&m).unwrap_err().kind, ErrorKind::Unsupported);
+        assert_eq!(
+            validate_manifest(&m).unwrap_err().kind,
+            ErrorKind::Unsupported
+        );
     }
 
     #[test]

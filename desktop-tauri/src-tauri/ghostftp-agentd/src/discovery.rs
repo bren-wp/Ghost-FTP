@@ -54,7 +54,10 @@ impl Advertisement {
             ("os".to_string(), self.os.clone()),
             ("host".to_string(), host.clone()),
             ("v".to_string(), env!("CARGO_PKG_VERSION").to_string()),
-            ("pairable".to_string(), if pairable { "1" } else { "0" }.to_string()),
+            (
+                "pairable".to_string(),
+                if pairable { "1" } else { "0" }.to_string(),
+            ),
         ];
         // Let mdns-sd resolve our addresses (empty host_ipv4 + auto-addr).
         let service = ServiceInfo::new(
@@ -84,6 +87,12 @@ impl Drop for Advertisement {
 /// mDNS instance names can't contain dots; replace anything awkward.
 fn sanitize(name: &str) -> String {
     name.chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect()
 }

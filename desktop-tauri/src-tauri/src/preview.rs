@@ -153,9 +153,7 @@ impl PreviewManager {
     /// Write `bytes` to `dest` via a uniquely-named temp file + rename, so two
     /// concurrent fetches of the same key can't half-write each other's file.
     async fn write_atomic(&self, dest: &Path, bytes: &[u8]) -> Result<()> {
-        let tmp = self
-            .cache_dir
-            .join(format!("{}.tmp", uuid::Uuid::new_v4()));
+        let tmp = self.cache_dir.join(format!("{}.tmp", uuid::Uuid::new_v4()));
         tokio::fs::write(&tmp, bytes)
             .await
             .with_context(|| format!("write thumb temp {}", tmp.display()))?;
@@ -242,8 +240,16 @@ pub(crate) async fn read_head(session: Option<&Session>, path: &str, max: u64) -
         Some(Session::Object(obj)) => {
             let key = path.trim_start_matches('/');
             let p = object_store::path::Path::from(key);
-            let get = obj.store.get(&p).await.with_context(|| format!("get {key}"))?;
-            collect_capped(get.into_stream().map(|r| r.map_err(anyhow::Error::from)), max).await
+            let get = obj
+                .store
+                .get(&p)
+                .await
+                .with_context(|| format!("get {key}"))?;
+            collect_capped(
+                get.into_stream().map(|r| r.map_err(anyhow::Error::from)),
+                max,
+            )
+            .await
         }
         Some(Session::Ftp(ftp)) => {
             let path = path.to_string();
@@ -268,7 +274,11 @@ pub(crate) async fn read_head(session: Option<&Session>, path: &str, max: u64) -
                 .with_context(|| format!("GET {path} over WebDAV"))?
                 .error_for_status()
                 .with_context(|| format!("GET {path} over WebDAV"))?;
-            collect_capped(resp.bytes_stream().map(|r| r.map_err(anyhow::Error::from)), max).await
+            collect_capped(
+                resp.bytes_stream().map(|r| r.map_err(anyhow::Error::from)),
+                max,
+            )
+            .await
         }
         Some(Session::Http(http)) => {
             let url = http.url_for(path, false);
@@ -280,7 +290,11 @@ pub(crate) async fn read_head(session: Option<&Session>, path: &str, max: u64) -
                 .with_context(|| format!("GET {path}"))?
                 .error_for_status()
                 .with_context(|| format!("GET {path}"))?;
-            collect_capped(resp.bytes_stream().map(|r| r.map_err(anyhow::Error::from)), max).await
+            collect_capped(
+                resp.bytes_stream().map(|r| r.map_err(anyhow::Error::from)),
+                max,
+            )
+            .await
         }
         Some(Session::Agent(agent)) => read_agent(agent, path, max).await,
         Some(Session::Shopify(sh)) => {
@@ -307,21 +321,35 @@ pub(crate) async fn read_head(session: Option<&Session>, path: &str, max: u64) -
             })
             .to_string();
             let resp = dbx.content_get("/2/files/download", &arg).await?;
-            collect_capped(resp.bytes_stream().map(|r| r.map_err(anyhow::Error::from)), max).await
+            collect_capped(
+                resp.bytes_stream().map(|r| r.map_err(anyhow::Error::from)),
+                max,
+            )
+            .await
         }
         Some(Session::OneDrive(od)) => {
             let resp = od
                 .get_stream(&crate::remotefs::onedrive::content_ref(path))
                 .await?;
-            collect_capped(resp.bytes_stream().map(|r| r.map_err(anyhow::Error::from)), max).await
+            collect_capped(
+                resp.bytes_stream().map(|r| r.map_err(anyhow::Error::from)),
+                max,
+            )
+            .await
         }
         Some(Session::GDrive(gd)) => {
             let (file_id, _) = gd
                 .resolve_item(path)
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("{path}: not found"))?;
-            let resp = gd.get_stream(&format!("/files/{file_id}?alt=media")).await?;
-            collect_capped(resp.bytes_stream().map(|r| r.map_err(anyhow::Error::from)), max).await
+            let resp = gd
+                .get_stream(&format!("/files/{file_id}?alt=media"))
+                .await?;
+            collect_capped(
+                resp.bytes_stream().map(|r| r.map_err(anyhow::Error::from)),
+                max,
+            )
+            .await
         }
         Some(Session::Box(bx)) => {
             let (file_id, _) = bx
@@ -329,7 +357,11 @@ pub(crate) async fn read_head(session: Option<&Session>, path: &str, max: u64) -
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("{path}: not found"))?;
             let resp = bx.get_stream(&format!("/files/{file_id}/content")).await?;
-            collect_capped(resp.bytes_stream().map(|r| r.map_err(anyhow::Error::from)), max).await
+            collect_capped(
+                resp.bytes_stream().map(|r| r.map_err(anyhow::Error::from)),
+                max,
+            )
+            .await
         }
     }
 }
@@ -511,7 +543,11 @@ mod tests {
         let c = cache_key("s1", "/b.png", 160, "etag-1");
         assert_ne!(a, b, "a changed etag must re-key");
         assert_ne!(a, c, "a different path must re-key");
-        assert_eq!(a, cache_key("s1", "/a.png", 160, "etag-1"), "stable inputs → stable key");
+        assert_eq!(
+            a,
+            cache_key("s1", "/a.png", 160, "etag-1"),
+            "stable inputs → stable key"
+        );
         assert_eq!(a.len(), 64, "hex sha-256");
     }
 
@@ -532,8 +568,13 @@ mod tests {
             .thumbnail(&db, None, "local", &path, tiny_png().len() as u64, "sig-1")
             .await
             .unwrap();
-        let bytes = base64::engine::general_purpose::STANDARD.decode(&b64).unwrap();
-        assert!(image::load_from_memory(&bytes).is_ok(), "returns a decodable PNG");
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(&b64)
+            .unwrap();
+        assert!(
+            image::load_from_memory(&bytes).is_ok(),
+            "returns a decodable PNG"
+        );
 
         // Second call is a cache hit (index touched, file present) and matches.
         let key = cache_key("local", &path, THUMB_MAX_EDGE, "sig-1");
@@ -546,7 +587,14 @@ mod tests {
 
         // Oversized files are refused before any read.
         assert!(mgr
-            .thumbnail(&db, None, "local", &path, MAX_PREVIEW_FILE_BYTES + 1, "sig-1")
+            .thumbnail(
+                &db,
+                None,
+                "local",
+                &path,
+                MAX_PREVIEW_FILE_BYTES + 1,
+                "sig-1"
+            )
             .await
             .is_err());
 

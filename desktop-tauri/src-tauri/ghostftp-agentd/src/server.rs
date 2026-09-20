@@ -169,10 +169,16 @@ pub async fn handle_paired(stream: TcpStream, daemon: Daemon) -> Result<()> {
     let sk = daemon.identity.private_bytes()?;
     // We don't know *which* pinned peer is dialing until the handshake reveals
     // their static key, so accept any well-formed XX handshake, then authorise.
-    let mut channel =
-        SecureChannel::establish(stream, Role::Responder, &sk, Auth::Paired { expect_remote: None })
-            .await
-            .context("paired handshake")?;
+    let mut channel = SecureChannel::establish(
+        stream,
+        Role::Responder,
+        &sk,
+        Auth::Paired {
+            expect_remote: None,
+        },
+    )
+    .await
+    .context("paired handshake")?;
 
     let peer_key = channel.remote_static_b64();
     let peer_name = {
@@ -187,7 +193,9 @@ pub async fn handle_paired(stream: TcpStream, daemon: Daemon) -> Result<()> {
                 .await;
             anyhow::bail!("rejected unpinned peer {peer_key}");
         }
-        cfg.peer_name(&peer_key).unwrap_or("paired peer").to_string()
+        cfg.peer_name(&peer_key)
+            .unwrap_or("paired peer")
+            .to_string()
     };
 
     // First message must be a Hello with a compatible protocol version.
@@ -240,13 +248,15 @@ pub async fn pair_handshake(
 ) -> Result<(SecureChannel<TcpStream>, String, String)> {
     let sk = daemon.identity.private_bytes()?;
     let psk = pairing::psk_from_code(code);
-    let mut channel =
-        SecureChannel::establish(stream, Role::Responder, &sk, Auth::Pairing { psk })
-            .await
-            .context("pairing handshake (wrong code?)")?;
+    let mut channel = SecureChannel::establish(stream, Role::Responder, &sk, Auth::Pairing { psk })
+        .await
+        .context("pairing handshake (wrong code?)")?;
 
     let peer_key = channel.remote_static_b64();
-    let hello: Hello = channel.recv().await.context("expected hello during pairing")?;
+    let hello: Hello = channel
+        .recv()
+        .await
+        .context("expected hello during pairing")?;
     if hello.protocol_version != PROTOCOL_VERSION {
         let _ = channel
             .send(&Response::error(format!(
@@ -304,7 +314,9 @@ fn describe(req: &Request) -> String {
         Request::Rename { from, to } => format!("rename {from} -> {to}"),
         Request::Chmod { path, mode } => format!("chmod {path} {mode:o}"),
         Request::Exec { command, .. } => format!("exec: {command}"),
-        Request::ExecStart { job_id, command, .. } => format!("exec-start {job_id}: {command}"),
+        Request::ExecStart {
+            job_id, command, ..
+        } => format!("exec-start {job_id}: {command}"),
         Request::ExecPoll { job_id } => format!("exec-poll {job_id}"),
         Request::ExecKill { job_id } => format!("exec-kill {job_id}"),
     }
@@ -312,10 +324,16 @@ fn describe(req: &Request) -> String {
 
 fn log_op(peer: &str, summary: &str, resp: &Response) {
     match resp {
-        Response::Error { message, denied: true } => {
+        Response::Error {
+            message,
+            denied: true,
+        } => {
             tracing::warn!(%peer, "DENIED {summary} — {message}")
         }
-        Response::Error { message, denied: false } => {
+        Response::Error {
+            message,
+            denied: false,
+        } => {
             tracing::warn!(%peer, "FAILED {summary} — {message}")
         }
         _ => tracing::info!(%peer, "{summary}"),

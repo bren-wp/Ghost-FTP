@@ -46,7 +46,8 @@ fn enc(seg: &str) -> String {
 
 /// Percent-encode a Ghost FTP path's segments, keeping the slashes.
 fn enc_path(ghostftp: &str) -> String {
-    ghostftp.trim_matches('/')
+    ghostftp
+        .trim_matches('/')
         .split('/')
         .filter(|s| !s.is_empty())
         .map(enc)
@@ -274,7 +275,10 @@ mod tests {
             return;
         };
         std::env::set_var("GHOSTFTP_ONEDRIVE_CLIENT_ID", "test-client");
-        std::env::set_var("GHOSTFTP_ONEDRIVE_TOKEN_URL", format!("{mock}/oauth2/token"));
+        std::env::set_var(
+            "GHOSTFTP_ONEDRIVE_TOKEN_URL",
+            format!("{mock}/oauth2/token"),
+        );
         std::env::set_var("GHOSTFTP_ONEDRIVE_GRAPH_BASE", &mock);
 
         // Real token exchange against the mock.
@@ -284,7 +288,10 @@ mod tests {
         assert_eq!(ex["access_token"], "ACCESS1");
 
         // Seed a stale-but-unexpired token so the first call 401s → force refresh.
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
         let pid = "onedrive-mock-test";
         oauth::store_tokens(
             ONEDRIVE_SERVICE,
@@ -305,7 +312,9 @@ mod tests {
             host: "onedrive.com".into(),
             port: 443,
             username: String::new(),
-            auth: AuthMethod::Password { password: String::new() },
+            auth: AuthMethod::Password {
+                password: String::new(),
+            },
             default_remote_path: None,
             color: None,
             auto_connect: None,
@@ -327,7 +336,10 @@ mod tests {
         let session = Arc::new(onedrive_connect(&profile).await.expect("connect"));
 
         // First API call uses STALE → 401 → force_refresh → succeeds.
-        assert_eq!(session.account_label().await.expect("account"), "tester@example.invalid");
+        assert_eq!(
+            session.account_label().await.expect("account"),
+            "tester@example.invalid"
+        );
 
         let fs = OneDriveFs::new(session.clone());
         fs.create_dir("/ghostftp-test").await.expect("mkdir");
@@ -336,7 +348,11 @@ mod tests {
         let token = session.access_token().await.unwrap();
         let put = session
             .client
-            .put(format!("{}{}", session.graph_base, content_ref("/ghostftp-test/hello.txt")))
+            .put(format!(
+                "{}{}",
+                session.graph_base,
+                content_ref("/ghostftp-test/hello.txt")
+            ))
             .bearer_auth(&token)
             .header(reqwest::header::CONTENT_TYPE, "application/octet-stream")
             .body("hi onedrive")
@@ -346,7 +362,10 @@ mod tests {
         assert!(put.status().is_success(), "upload {}", put.status());
 
         let entries = fs.list_dir("/ghostftp-test").await.expect("list");
-        let hello = entries.iter().find(|e| e.name == "hello.txt").expect("hello");
+        let hello = entries
+            .iter()
+            .find(|e| e.name == "hello.txt")
+            .expect("hello");
         assert_eq!(hello.kind, FileKind::File);
         assert_eq!(hello.size, 11);
 

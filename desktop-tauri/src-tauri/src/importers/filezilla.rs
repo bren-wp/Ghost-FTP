@@ -12,7 +12,11 @@ use std::path::PathBuf;
 pub fn default_path() -> Option<PathBuf> {
     if cfg!(target_os = "windows") {
         if let Some(appdata) = std::env::var_os("APPDATA") {
-            return Some(PathBuf::from(appdata).join("FileZilla").join("sitemanager.xml"));
+            return Some(
+                PathBuf::from(appdata)
+                    .join("FileZilla")
+                    .join("sitemanager.xml"),
+            );
         }
     }
     // Linux + fallback
@@ -32,8 +36,8 @@ pub fn default_path() -> Option<PathBuf> {
 }
 
 pub fn parse_file(path: &PathBuf) -> Result<Vec<ProfilePreview>> {
-    let text = std::fs::read_to_string(path)
-        .with_context(|| format!("reading {}", path.display()))?;
+    let text =
+        std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     parse(&text)
 }
 

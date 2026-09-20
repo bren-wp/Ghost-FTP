@@ -46,12 +46,20 @@ pub async fn handle(req: Request, policy: Policy, jobs: &JobStore) -> Response {
         {
             Response::denied("this machine is read-only for remote agents (writes disabled)")
         }
-        Request::WriteChunk { path, offset, data, truncate, done } => {
-            write_chunk(&path, offset, &data, truncate, done).await
-        }
-        Request::DeltaAssemble { basis, patch, recipe, dest, expected_hash } => {
-            delta_assemble(basis, patch, recipe, dest, expected_hash).await
-        }
+        Request::WriteChunk {
+            path,
+            offset,
+            data,
+            truncate,
+            done,
+        } => write_chunk(&path, offset, &data, truncate, done).await,
+        Request::DeltaAssemble {
+            basis,
+            patch,
+            recipe,
+            dest,
+            expected_hash,
+        } => delta_assemble(basis, patch, recipe, dest, expected_hash).await,
         Request::Delete { path, recursive } => delete(&path, recursive).await,
         Request::CreateDir { path } => create_dir(&path).await,
         Request::Rename { from, to } => rename(&from, &to).await,
@@ -61,9 +69,11 @@ pub async fn handle(req: Request, policy: Policy, jobs: &JobStore) -> Response {
         Request::Exec { .. } if !policy.allow_exec => {
             Response::denied("command execution is disabled on this machine")
         }
-        Request::Exec { command, timeout_ms, max_bytes } => {
-            exec(&command, timeout_ms, max_bytes).await
-        }
+        Request::Exec {
+            command,
+            timeout_ms,
+            max_bytes,
+        } => exec(&command, timeout_ms, max_bytes).await,
 
         // --- detached background jobs (gated like exec) ---
         Request::ExecStart { .. } | Request::ExecPoll { .. } | Request::ExecKill { .. }
@@ -71,9 +81,11 @@ pub async fn handle(req: Request, policy: Policy, jobs: &JobStore) -> Response {
         {
             Response::denied("command execution is disabled on this machine")
         }
-        Request::ExecStart { job_id, command, max_bytes } => {
-            exec_start(jobs, &job_id, &command, max_bytes)
-        }
+        Request::ExecStart {
+            job_id,
+            command,
+            max_bytes,
+        } => exec_start(jobs, &job_id, &command, max_bytes),
         Request::ExecPoll { job_id } => exec_poll(jobs, &job_id),
         Request::ExecKill { job_id } => exec_kill(jobs, &job_id),
     }
@@ -85,7 +97,9 @@ pub async fn handle(req: Request, policy: Policy, jobs: &JobStore) -> Response {
 fn exec_start(jobs: &JobStore, job_id: &str, command: &str, max_bytes: u64) -> Response {
     let cap = max_bytes.clamp(1, 4 * 1024 * 1024) as usize;
     match jobs.start(job_id, command, cap) {
-        Ok(()) => Response::ExecStarted { job_id: job_id.to_string() },
+        Ok(()) => Response::ExecStarted {
+            job_id: job_id.to_string(),
+        },
         Err(e) => Response::error(format!("spawn background job: {e}")),
     }
 }
@@ -174,7 +188,11 @@ async fn list_dir(path: &str) -> Response {
             Ok(Some(entry)) => {
                 let full = entry.path();
                 match entry.metadata().await {
-                    Ok(md) => entries.push(dir_entry(&full, entry.file_name().to_string_lossy().as_ref(), &md)),
+                    Ok(md) => entries.push(dir_entry(
+                        &full,
+                        entry.file_name().to_string_lossy().as_ref(),
+                        &md,
+                    )),
                     // A dangling symlink etc. — surface the name with Other kind.
                     Err(_) => entries.push(DirEntry {
                         name: entry.file_name().to_string_lossy().to_string(),
@@ -201,7 +219,9 @@ async fn stat(path: &str) -> Response {
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| path.to_string());
-            Response::Stat { entry: dir_entry(p, &name, &md) }
+            Response::Stat {
+                entry: dir_entry(p, &name, &md),
+            }
         }
         Err(e) => Response::error(format!("stat {path}: {e}")),
     }
@@ -274,7 +294,11 @@ async fn read_file(path: &str, max_bytes: u64) -> Response {
 }
 
 async fn read_chunk(path: &str, offset: u64, len: u64) -> Response {
-    let want = if len == 0 { MAX_CHUNK } else { len.min(MAX_CHUNK) };
+    let want = if len == 0 {
+        MAX_CHUNK
+    } else {
+        len.min(MAX_CHUNK)
+    };
     let mut file = match tokio::fs::File::open(path).await {
         Ok(f) => f,
         Err(e) => return Response::error(format!("open {path}: {e}")),
@@ -299,10 +323,19 @@ async fn read_chunk(path: &str, offset: u64, len: u64) -> Response {
     buf.truncate(filled);
     // EOF when we read fewer bytes than a full requested chunk.
     let eof = filled < want as usize;
-    Response::Chunk { data: b64().encode(&buf), eof }
+    Response::Chunk {
+        data: b64().encode(&buf),
+        eof,
+    }
 }
 
-async fn write_chunk(path: &str, offset: u64, data_b64: &str, truncate: bool, _done: bool) -> Response {
+async fn write_chunk(
+    path: &str,
+    offset: u64,
+    data_b64: &str,
+    truncate: bool,
+    _done: bool,
+) -> Response {
     let data = match b64().decode(data_b64) {
         Ok(d) => d,
         Err(e) => return Response::error(format!("decode chunk: {e}")),
@@ -325,7 +358,9 @@ async fn write_chunk(path: &str, offset: u64, data_b64: &str, truncate: bool, _d
     if let Err(e) = file.flush().await {
         return Response::error(format!("flush {path}: {e}"));
     }
-    Response::Written { bytes: data.len() as u64 }
+    Response::Written {
+        bytes: data.len() as u64,
+    }
 }
 
 /// Upper bound on a [`Request::DeltaAssemble`] recipe — far above any honest
@@ -429,7 +464,10 @@ async fn delta_assemble(
         return Response::error(format!("rename delta result over {dest}: {e}"));
     }
     let _ = tokio::fs::remove_file(&patch).await;
-    Response::DeltaDone { bytes_reused, bytes_written }
+    Response::DeltaDone {
+        bytes_reused,
+        bytes_written,
+    }
 }
 
 async fn delete(path: &str, recursive: bool) -> Response {
@@ -506,12 +544,7 @@ async fn exec(command: &str, timeout_ms: u64, max_bytes: u64) -> Response {
     let output = tokio::time::timeout(dur, child.wait_with_output()).await;
 
     let (mut stdout, mut stderr, exit_code, timed_out) = match output {
-        Ok(Ok(out)) => (
-            out.stdout,
-            out.stderr,
-            out.status.code(),
-            false,
-        ),
+        Ok(Ok(out)) => (out.stdout, out.stderr, out.status.code(), false),
         Ok(Err(e)) => return Response::error(format!("run command: {e}")),
         // Timed out — the child is dropped, killing it (kill_on_drop below).
         Err(_) => (Vec::new(), b"[timed out]".to_vec(), None, true),
@@ -559,21 +592,38 @@ mod tests {
     use ghostftp_agent_proto::delta::{self, FileSignature};
 
     fn write_all_policy() -> Policy {
-        Policy { allow_exec: true, allow_write: true }
+        Policy {
+            allow_exec: true,
+            allow_write: true,
+        }
     }
 
     /// Drive `Request::Signature` and rebuild the engine-side signature struct.
     async fn request_signature(path: &Path) -> FileSignature {
         let resp = handle(
-            Request::Signature { path: path.to_string_lossy().into_owned() },
+            Request::Signature {
+                path: path.to_string_lossy().into_owned(),
+            },
             write_all_policy(),
             &JobStore::new(),
         )
         .await;
         match resp {
-            Response::Signature { size, min, avg, max, chunks, whole_hash } => {
-                FileSignature { size, min, avg, max, chunks, whole_hash }
-            }
+            Response::Signature {
+                size,
+                min,
+                avg,
+                max,
+                chunks,
+                whole_hash,
+            } => FileSignature {
+                size,
+                min,
+                avg,
+                max,
+                chunks,
+                whole_hash,
+            },
             other => panic!("expected Signature response, got {other:?}"),
         }
     }
@@ -606,15 +656,17 @@ mod tests {
 
         // Mutate: overwrite 4 KiB in the middle.
         let mut new = old.clone();
-        new[1024 * 1024..1024 * 1024 + 4096]
-            .copy_from_slice(&deterministic_bytes(0x2222, 4096));
+        new[1024 * 1024..1024 * 1024 + 4096].copy_from_slice(&deterministic_bytes(0x2222, 4096));
 
         let new_file = dir.path().join("new.bin");
         std::fs::write(&new_file, &new).unwrap();
         let patch = dir.path().join("file.bin.ghostftp-patch-test");
-        let plan = delta::plan_delta(&sig, &new_file, std::fs::File::create(&patch).unwrap())
-            .unwrap();
-        assert!(plan.literal_bytes * 10 < new.len() as u64, "small edit should be mostly reuse");
+        let plan =
+            delta::plan_delta(&sig, &new_file, std::fs::File::create(&patch).unwrap()).unwrap();
+        assert!(
+            plan.literal_bytes * 10 < new.len() as u64,
+            "small edit should be mostly reuse"
+        );
 
         let resp = handle(
             Request::DeltaAssemble {
@@ -630,7 +682,10 @@ mod tests {
         .await;
 
         match resp {
-            Response::DeltaDone { bytes_reused, bytes_written } => {
+            Response::DeltaDone {
+                bytes_reused,
+                bytes_written,
+            } => {
                 assert_eq!(bytes_written, new.len() as u64);
                 assert!(bytes_reused > 0);
             }
@@ -666,7 +721,10 @@ mod tests {
             Request::DeltaAssemble {
                 basis: None,
                 patch: patch.to_string_lossy().into_owned(),
-                recipe: vec![ghostftp_agent_proto::delta::RecipeOp::Literal { patch_offset: 0, len: 18 }],
+                recipe: vec![ghostftp_agent_proto::delta::RecipeOp::Literal {
+                    patch_offset: 0,
+                    len: 18,
+                }],
                 dest: dest.to_string_lossy().into_owned(),
                 expected_hash: wrong_hash,
             },
@@ -685,7 +743,10 @@ mod tests {
             .filter_map(|e| e.ok())
             .filter(|e| e.file_name().to_string_lossy().contains(".ghostftp-new-"))
             .collect();
-        assert!(leftovers.is_empty(), "partial temp must be deleted: {leftovers:?}");
+        assert!(
+            leftovers.is_empty(),
+            "partial temp must be deleted: {leftovers:?}"
+        );
     }
 
     // Write-gating: DeltaAssemble is refused under a read-only policy (like
@@ -695,7 +756,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let dest = dir.path().join("file.bin");
         std::fs::write(&dest, b"some bytes").unwrap();
-        let read_only = Policy { allow_exec: false, allow_write: false };
+        let read_only = Policy {
+            allow_exec: false,
+            allow_write: false,
+        };
 
         let resp = handle(
             Request::DeltaAssemble {
@@ -715,7 +779,9 @@ mod tests {
         }
 
         match handle(
-            Request::Signature { path: dest.to_string_lossy().into_owned() },
+            Request::Signature {
+                path: dest.to_string_lossy().into_owned(),
+            },
             read_only,
             &JobStore::new(),
         )
@@ -729,7 +795,9 @@ mod tests {
     #[tokio::test]
     async fn signature_missing_file_errors() {
         let resp = handle(
-            Request::Signature { path: "/no/such/file-anywhere.bin".into() },
+            Request::Signature {
+                path: "/no/such/file-anywhere.bin".into(),
+            },
             write_all_policy(),
             &JobStore::new(),
         )
@@ -747,7 +815,10 @@ mod tests {
         // only if cheap — the guard is a simple length check, so exercise it
         // via a direct call with a crafted oversize vector of cheap ops.
         let recipe = vec![
-            ghostftp_agent_proto::delta::RecipeOp::Literal { patch_offset: 0, len: 0 };
+            ghostftp_agent_proto::delta::RecipeOp::Literal {
+                patch_offset: 0,
+                len: 0
+            };
             MAX_RECIPE_OPS + 1
         ];
         let resp = handle(
@@ -777,9 +848,15 @@ mod tests {
         // A 12-min request survives past the old 10-min cap.
         assert_eq!(clamp_exec_timeout(720_000), Duration::from_millis(720_000));
         // Above the ceiling is clamped down to 15 min, not lower.
-        assert_eq!(clamp_exec_timeout(3_600_000), Duration::from_millis(EXEC_TIMEOUT_MS_MAX));
+        assert_eq!(
+            clamp_exec_timeout(3_600_000),
+            Duration::from_millis(EXEC_TIMEOUT_MS_MAX)
+        );
         // Floor still protects against a `1` typo.
-        assert_eq!(clamp_exec_timeout(0), Duration::from_millis(EXEC_TIMEOUT_MS_MIN));
+        assert_eq!(
+            clamp_exec_timeout(0),
+            Duration::from_millis(EXEC_TIMEOUT_MS_MIN)
+        );
     }
 
     // Plan 10 Phase 1: a multi-line script with nested quotes must run VERBATIM
@@ -788,7 +865,10 @@ mod tests {
     // boundary). This is what `/exec_script` relies on for agent targets.
     #[tokio::test]
     async fn multiline_script_runs_verbatim() {
-        let policy = Policy { allow_exec: true, allow_write: true };
+        let policy = Policy {
+            allow_exec: true,
+            allow_write: true,
+        };
 
         #[cfg(windows)]
         let script = "$msg = \"hello 'world'\"\nWrite-Output $msg\nWrite-Output \"line2\"";
@@ -796,18 +876,30 @@ mod tests {
         let script = "cat <<'EOF'\nhello 'world'\nline2\nEOF";
 
         let resp = handle(
-            Request::Exec { command: script.to_string(), timeout_ms: 30_000, max_bytes: 65_536 },
+            Request::Exec {
+                command: script.to_string(),
+                timeout_ms: 30_000,
+                max_bytes: 65_536,
+            },
             policy,
             &JobStore::new(),
         )
         .await;
 
         match resp {
-            Response::Exec { stdout, exit_code, timed_out, .. } => {
+            Response::Exec {
+                stdout,
+                exit_code,
+                timed_out,
+                ..
+            } => {
                 assert!(!timed_out, "script timed out");
                 assert_eq!(exit_code, Some(0), "non-zero exit");
                 // Both lines survive, and the nested single-quotes are intact.
-                assert!(stdout.contains("hello 'world'"), "quotes mangled: {stdout:?}");
+                assert!(
+                    stdout.contains("hello 'world'"),
+                    "quotes mangled: {stdout:?}"
+                );
                 assert!(stdout.contains("line2"), "second line missing: {stdout:?}");
             }
             other => panic!("expected Exec response, got {other:?}"),

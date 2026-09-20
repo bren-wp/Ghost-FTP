@@ -146,7 +146,10 @@ impl Provider {
             .connect(&local_root, filter)
             .map_err(|e| anyhow!("connect sync root {}: {e:?}", local_root.display()))?;
 
-        Ok(Provider { connection, local_root })
+        Ok(Provider {
+            connection,
+            local_root,
+        })
     }
 
     /// Explorer-style "Free up space": mark every hydrated placeholder Unpinned,
@@ -212,11 +215,19 @@ async fn seed_top_level(local_root: &Path, remote_root: &str, hydrator: &dyn Hyd
 }
 
 fn metadata_for(is_dir: bool, size: u64, modified: Option<i64>) -> Metadata {
-    let mut m = if is_dir { Metadata::directory() } else { Metadata::file() };
+    let mut m = if is_dir {
+        Metadata::directory()
+    } else {
+        Metadata::file()
+    };
     m = m.size(size);
     if let Some(raw) = modified {
         // Ghost FTP reports mtime in ms on some backends, seconds on others — detect.
-        let secs = if raw > 1_000_000_000_000 { raw / 1000 } else { raw };
+        let secs = if raw > 1_000_000_000_000 {
+            raw / 1000
+        } else {
+            raw
+        };
         if let Ok(ft) = FileTime::from_unix_time(secs) {
             m = m.written(ft);
         }
@@ -227,14 +238,19 @@ fn metadata_for(is_dir: bool, size: u64, modified: Option<i64>) -> Metadata {
 /// Recursively mark files Unpinned (request dehydration). Returns the count.
 fn dehydrate_tree(dir: &Path) -> u32 {
     let mut n = 0;
-    let Ok(rd) = std::fs::read_dir(dir) else { return 0 };
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return 0;
+    };
     for entry in rd.flatten() {
         let path = entry.path();
         match entry.file_type() {
             Ok(ft) if ft.is_dir() => n += dehydrate_tree(&path),
             Ok(ft) if ft.is_file() => {
                 if let Ok(mut ph) = Placeholder::open(&path) {
-                    if ph.mark_pin(PinState::Unpinned, PinOptions::default()).is_ok() {
+                    if ph
+                        .mark_pin(PinState::Unpinned, PinOptions::default())
+                        .is_ok()
+                    {
                         n += 1;
                     }
                 }
@@ -393,13 +409,23 @@ impl SyncFilter for GhostFTPFilter {
 
     /// On-demand folders are a live view of the remote: a local delete removes
     /// only the placeholder, never the backend file. Allow the local op.
-    fn delete(&self, _request: Request, ticket: ticket::Delete, _info: info::Delete) -> CResult<()> {
+    fn delete(
+        &self,
+        _request: Request,
+        ticket: ticket::Delete,
+        _info: info::Delete,
+    ) -> CResult<()> {
         ticket.pass().map_err(|_| CloudErrorKind::InvalidRequest)?;
         Ok(())
     }
 
     /// Likewise a local rename stays local — we don't mutate the backend.
-    fn rename(&self, _request: Request, ticket: ticket::Rename, _info: info::Rename) -> CResult<()> {
+    fn rename(
+        &self,
+        _request: Request,
+        ticket: ticket::Rename,
+        _info: info::Rename,
+    ) -> CResult<()> {
         ticket.pass().map_err(|_| CloudErrorKind::InvalidRequest)?;
         Ok(())
     }
@@ -418,7 +444,10 @@ mod tests {
     /// Explorer. Full hydration still needs manual Explorer testing.
     #[test]
     fn sync_root_register_unregister_round_trips() {
-        assert!(supported(), "Cloud Filter API should be present on this box");
+        assert!(
+            supported(),
+            "Cloud Filter API should be present on this box"
+        );
 
         let dir = std::env::temp_dir().join(format!("ghostftp-vfs-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -437,7 +466,13 @@ mod tests {
         let still_registered = is_registered(&dir);
         let _ = std::fs::remove_dir_all(&dir);
 
-        assert!(was_registered, "register should have taken effect (CfGetSyncRootInfoByPath)");
-        assert!(!still_registered, "unregister should have cleared it — no orphan");
+        assert!(
+            was_registered,
+            "register should have taken effect (CfGetSyncRootInfoByPath)"
+        );
+        assert!(
+            !still_registered,
+            "unregister should have cleared it — no orphan"
+        );
     }
 }

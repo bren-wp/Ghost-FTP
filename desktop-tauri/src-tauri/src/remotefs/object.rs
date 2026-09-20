@@ -78,8 +78,7 @@ impl RemoteFs for ObjectFs {
             .await
             .with_context(|| format!("list {}/{prefix}", self.session.container))?;
 
-        let mut out =
-            Vec::with_capacity(listing.objects.len() + listing.common_prefixes.len());
+        let mut out = Vec::with_capacity(listing.objects.len() + listing.common_prefixes.len());
         for cp in listing.common_prefixes {
             out.push(entry_for_prefix(cp.as_ref()));
         }

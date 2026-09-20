@@ -60,7 +60,10 @@ mod linux {
         let is_root = unsafe { libc_geteuid() } == 0;
         let unit = unit_file(&exe, extra);
         let (path, user_flag) = if is_root {
-            (PathBuf::from("/etc/systemd/system/ghostftp-agentd.service"), false)
+            (
+                PathBuf::from("/etc/systemd/system/ghostftp-agentd.service"),
+                false,
+            )
         } else {
             let dir = dirs::config_dir()
                 .context("no user config dir")?
@@ -85,7 +88,10 @@ mod linux {
         scope(&["daemon-reload"])?;
         scope(&["enable", "--now", "ghostftp-agentd.service"])?;
 
-        println!("Installed {} systemd service.", if user_flag { "user" } else { "system" });
+        println!(
+            "Installed {} systemd service.",
+            if user_flag { "user" } else { "system" }
+        );
         println!("  unit  : {}", path.display());
         println!(
             "  status: systemctl {}status ghostftp-agentd",
@@ -103,7 +109,10 @@ mod linux {
     pub fn uninstall() -> Result<()> {
         let is_root = unsafe { libc_geteuid() } == 0;
         let (path, user_flag) = if is_root {
-            (PathBuf::from("/etc/systemd/system/ghostftp-agentd.service"), false)
+            (
+                PathBuf::from("/etc/systemd/system/ghostftp-agentd.service"),
+                false,
+            )
         } else {
             (
                 dirs::config_dir()
@@ -116,7 +125,9 @@ mod linux {
         if user_flag {
             c.arg("--user");
         }
-        let _ = c.args(["disable", "--now", "ghostftp-agentd.service"]).status();
+        let _ = c
+            .args(["disable", "--now", "ghostftp-agentd.service"])
+            .status();
         std::fs::remove_file(&path).ok();
         let mut c = Command::new("systemctl");
         if user_flag {
@@ -154,7 +165,6 @@ mod linux {
     }
 }
 
-
 #[cfg(target_os = "windows")]
 mod windows {
     use super::*;
@@ -175,14 +185,18 @@ mod windows {
             bail!("schtasks failed to create the task");
         }
         // Start it now so the user doesn't have to log out/in first.
-        let _ = Command::new("schtasks").args(["/run", "/tn", TASK_NAME]).status();
+        let _ = Command::new("schtasks")
+            .args(["/run", "/tn", TASK_NAME])
+            .status();
         println!("Installed logon task '{TASK_NAME}'. It starts ghostftp-agentd at every sign-in.");
         println!("  remove: ghostftp-agentd uninstall");
         Ok(())
     }
 
     pub fn uninstall() -> Result<()> {
-        let _ = Command::new("schtasks").args(["/end", "/tn", TASK_NAME]).status();
+        let _ = Command::new("schtasks")
+            .args(["/end", "/tn", TASK_NAME])
+            .status();
         let status = Command::new("schtasks")
             .args(["/delete", "/f", "/tn", TASK_NAME])
             .status()

@@ -47,7 +47,10 @@ pub struct GhostFTPError {
 
 impl GhostFTPError {
     pub fn new(kind: ErrorKind, message: impl Into<String>) -> Self {
-        Self { kind, message: message.into() }
+        Self {
+            kind,
+            message: message.into(),
+        }
     }
 
     /// An uncategorised error with an explicit message.
@@ -67,7 +70,10 @@ impl std::error::Error for GhostFTPError {}
 impl From<anyhow::Error> for GhostFTPError {
     fn from(e: anyhow::Error) -> Self {
         let kind = classify_chain(&e, &e.to_string());
-        GhostFTPError { kind, message: e.to_string() }
+        GhostFTPError {
+            kind,
+            message: e.to_string(),
+        }
     }
 }
 
@@ -122,7 +128,13 @@ pub(crate) fn classify_message(message: &str) -> ErrorKind {
     let has = |needles: &[&str]| needles.iter().any(|n| s.contains(n));
 
     // Order matters: check the more specific categories first.
-    if has(&["permission denied", "access is denied", "eacces", "forbidden", "403"]) {
+    if has(&[
+        "permission denied",
+        "access is denied",
+        "eacces",
+        "forbidden",
+        "403",
+    ]) {
         return ErrorKind::Permission;
     }
     if has(&[
@@ -138,7 +150,13 @@ pub(crate) fn classify_message(message: &str) -> ErrorKind {
     ]) {
         return ErrorKind::Auth;
     }
-    if has(&["no such file", "not found", "does not exist", "enoent", "404"]) {
+    if has(&[
+        "no such file",
+        "not found",
+        "does not exist",
+        "enoent",
+        "404",
+    ]) {
         return ErrorKind::NotFound;
     }
     if has(&["timed out", "timeout"]) {
@@ -160,7 +178,13 @@ pub(crate) fn classify_message(message: &str) -> ErrorKind {
     if has(&["already exists", "conflict", "eexist"]) {
         return ErrorKind::Conflict;
     }
-    if has(&["unsupported", "not supported", "capability", "read-only", "not implemented"]) {
+    if has(&[
+        "unsupported",
+        "not supported",
+        "capability",
+        "read-only",
+        "not implemented",
+    ]) {
         return ErrorKind::Unsupported;
     }
     ErrorKind::Other
@@ -179,14 +203,29 @@ mod tests {
 
     #[test]
     fn classifies_message_keywords() {
-        assert_eq!(classify_message("Permission denied (os error 13)"), ErrorKind::Permission);
-        assert_eq!(classify_message("No such file or directory"), ErrorKind::NotFound);
-        assert_eq!(classify_message("Authentication failed for user"), ErrorKind::Auth);
+        assert_eq!(
+            classify_message("Permission denied (os error 13)"),
+            ErrorKind::Permission
+        );
+        assert_eq!(
+            classify_message("No such file or directory"),
+            ErrorKind::NotFound
+        );
+        assert_eq!(
+            classify_message("Authentication failed for user"),
+            ErrorKind::Auth
+        );
         assert_eq!(classify_message("operation timed out"), ErrorKind::Timeout);
         assert_eq!(classify_message("Connection refused"), ErrorKind::Network);
         assert_eq!(classify_message("file already exists"), ErrorKind::Conflict);
-        assert_eq!(classify_message("chmod is unsupported on this backend"), ErrorKind::Unsupported);
-        assert_eq!(classify_message("something weird happened"), ErrorKind::Other);
+        assert_eq!(
+            classify_message("chmod is unsupported on this backend"),
+            ErrorKind::Unsupported
+        );
+        assert_eq!(
+            classify_message("something weird happened"),
+            ErrorKind::Other
+        );
     }
 
     #[test]

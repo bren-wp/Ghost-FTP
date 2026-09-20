@@ -37,7 +37,11 @@ struct CappedBuf {
 
 impl CappedBuf {
     fn new(cap: usize) -> Self {
-        Self { data: Vec::new(), cap, truncated: false }
+        Self {
+            data: Vec::new(),
+            cap,
+            truncated: false,
+        }
     }
     fn push(&mut self, bytes: &[u8]) {
         if self.data.len() >= self.cap {
@@ -103,7 +107,11 @@ impl JobStore {
 
         let stdout = Arc::new(Mutex::new(CappedBuf::new(max_bytes)));
         let stderr = Arc::new(Mutex::new(CappedBuf::new(max_bytes)));
-        let state = Arc::new(Mutex::new(JobState { running: true, exit_code: None, finished_at: None }));
+        let state = Arc::new(Mutex::new(JobState {
+            running: true,
+            exit_code: None,
+            finished_at: None,
+        }));
 
         // Drain each pipe into its capped buffer; the tasks end when the child
         // closes the stream (i.e. on exit), so joining them means "all output
@@ -146,7 +154,12 @@ impl JobStore {
         Self::prune(&mut jobs);
         jobs.insert(
             job_id.to_string(),
-            Job { stdout, stderr, state, kill: Mutex::new(Some(kill_tx)) },
+            Job {
+                stdout,
+                stderr,
+                state,
+                kill: Mutex::new(Some(kill_tx)),
+            },
         );
         Ok(())
     }
@@ -246,7 +259,11 @@ mod tests {
         }
         let s = status.expect("job finished");
         assert_eq!(s.exit_code, Some(0));
-        assert!(s.stdout.contains("hello-detached"), "stdout: {:?}", s.stdout);
+        assert!(
+            s.stdout.contains("hello-detached"),
+            "stdout: {:?}",
+            s.stdout
+        );
     }
 
     // An unknown id polls as None (the bridge maps this to `not_found`).

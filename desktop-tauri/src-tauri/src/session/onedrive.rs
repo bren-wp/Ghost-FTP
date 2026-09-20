@@ -10,8 +10,7 @@ use uuid::Uuid;
 pub const ONEDRIVE_SERVICE: &str = "ghostftp-onedrive";
 
 const DEFAULT_GRAPH_BASE: &str = "https://graph.microsoft.com/v1.0";
-const DEFAULT_AUTH_URL: &str =
-    "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
+const DEFAULT_AUTH_URL: &str = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
 const DEFAULT_TOKEN_URL: &str = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 
 /// OneDrive (Microsoft) app client id. Register an app at
@@ -80,7 +79,10 @@ impl OneDriveSession {
         let mut attempt = 0;
         loop {
             let token = self.token.access_token().await?;
-            let mut rb = self.client.request(method.clone(), &url).bearer_auth(&token);
+            let mut rb = self
+                .client
+                .request(method.clone(), &url)
+                .bearer_auth(&token);
             if let Some(b) = body {
                 rb = rb.json(b);
             }
@@ -124,7 +126,11 @@ impl OneDriveSession {
     pub async fn account_label(&self) -> Result<String> {
         let v = self.rpc(Method::GET, "/me", None).await?;
         for key in ["userPrincipalName", "mail", "displayName"] {
-            if let Some(s) = v.get(key).and_then(|x| x.as_str()).filter(|s| !s.is_empty()) {
+            if let Some(s) = v
+                .get(key)
+                .and_then(|x| x.as_str())
+                .filter(|s| !s.is_empty())
+            {
                 return Ok(s.to_string());
             }
         }

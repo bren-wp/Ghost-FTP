@@ -211,7 +211,10 @@ mod tests {
         assert_eq!(dir.kind, FileKind::Directory);
         assert_eq!(dir.path, "/docs/Photos");
 
-        let (file, _, _) = parsed.iter().find(|(e, _, _)| e.name == "report.pdf").unwrap();
+        let (file, _, _) = parsed
+            .iter()
+            .find(|(e, _, _)| e.name == "report.pdf")
+            .unwrap();
         assert_eq!(file.kind, FileKind::File);
         assert_eq!(file.size, 2048);
         assert_eq!(file.etag.as_deref(), Some("abc123"));
@@ -245,7 +248,10 @@ mod tests {
             .expect("exchange");
         assert_eq!(ex["access_token"], "ACCESS1");
 
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
         let pid = "gdrive-mock-test";
         oauth::store_tokens(
             GDRIVE_SERVICE,
@@ -266,7 +272,9 @@ mod tests {
             host: "drive.google.com".into(),
             port: 443,
             username: String::new(),
-            auth: AuthMethod::Password { password: String::new() },
+            auth: AuthMethod::Password {
+                password: String::new(),
+            },
             default_remote_path: None,
             color: None,
             auto_connect: None,
@@ -288,7 +296,10 @@ mod tests {
         let session = Arc::new(gdrive_connect(&profile).await.expect("connect"));
 
         // First call uses STALE → 401 → refresh → succeeds.
-        assert_eq!(session.account_label().await.expect("account"), "tester@example.invalid");
+        assert_eq!(
+            session.account_label().await.expect("account"),
+            "tester@example.invalid"
+        );
 
         let fs = GDriveFs::new(session.clone());
         // Nested folders exercise the resolver descending two levels.
@@ -296,7 +307,10 @@ mod tests {
         fs.create_dir("/ghostftp-test/sub").await.expect("mkdir2");
 
         // Upload into the nested folder (multipart create, same as the transfer path).
-        let parent = session.folder_id("/ghostftp-test/sub").await.expect("resolve parent");
+        let parent = session
+            .folder_id("/ghostftp-test/sub")
+            .await
+            .expect("resolve parent");
         let token = session.access_token().await.unwrap();
         let boundary = "ghostftpTESTboundary";
         let metaj = serde_json::json!({ "name": "hello.txt", "parents": [parent] });
@@ -310,7 +324,10 @@ mod tests {
         body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
         let put = session
             .client
-            .post(format!("{}/files?uploadType=multipart", session.upload_base))
+            .post(format!(
+                "{}/files?uploadType=multipart",
+                session.upload_base
+            ))
             .bearer_auth(&token)
             .header(
                 reqwest::header::CONTENT_TYPE,
@@ -324,7 +341,10 @@ mod tests {
         session.clear_cache();
 
         let entries = fs.list_dir("/ghostftp-test/sub").await.expect("list");
-        let hello = entries.iter().find(|e| e.name == "hello.txt").expect("hello");
+        let hello = entries
+            .iter()
+            .find(|e| e.name == "hello.txt")
+            .expect("hello");
         assert_eq!(hello.kind, FileKind::File);
         assert_eq!(hello.size, 8);
         assert!(hello.etag.is_some(), "md5 change token");

@@ -30,7 +30,9 @@ async fn connect_paired(
         stream,
         Role::Initiator,
         &ck,
-        Auth::Paired { expect_remote: Some(server_pub) },
+        Auth::Paired {
+            expect_remote: Some(server_pub),
+        },
     )
     .await
     .unwrap();
@@ -79,7 +81,10 @@ async fn pair_then_exec_and_transfer() {
     .await
     .unwrap();
     let ack: Response = pch.recv().await.unwrap();
-    assert!(matches!(ack, Response::Ok), "pairing should be acknowledged");
+    assert!(
+        matches!(ack, Response::Ok),
+        "pairing should be acknowledged"
+    );
 
     // The real controller asks for SystemInfo on the pairing channel right after
     // the ack (to name the machine in its confirmation UI) — the daemon must keep
@@ -113,7 +118,10 @@ async fn pair_then_exec_and_transfer() {
 
     // Ping
     ch.send(&Request::Ping).await.unwrap();
-    assert!(matches!(ch.recv::<Response>().await.unwrap(), Response::Pong));
+    assert!(matches!(
+        ch.recv::<Response>().await.unwrap(),
+        Response::Pong
+    ));
 
     // SystemInfo
     ch.send(&Request::SystemInfo).await.unwrap();
@@ -132,11 +140,20 @@ async fn pair_then_exec_and_transfer() {
     } else {
         format!("echo {token}")
     };
-    ch.send(&Request::Exec { command, timeout_ms: 15_000, max_bytes: 65536 })
-        .await
-        .unwrap();
+    ch.send(&Request::Exec {
+        command,
+        timeout_ms: 15_000,
+        max_bytes: 65536,
+    })
+    .await
+    .unwrap();
     match ch.recv::<Response>().await.unwrap() {
-        Response::Exec { stdout, exit_code, timed_out, .. } => {
+        Response::Exec {
+            stdout,
+            exit_code,
+            timed_out,
+            ..
+        } => {
             assert!(!timed_out, "command timed out");
             assert_eq!(exit_code, Some(0));
             assert!(stdout.contains(token), "stdout was {stdout:?}");
@@ -162,9 +179,13 @@ async fn pair_then_exec_and_transfer() {
         other => panic!("expected written, got {other:?}"),
     }
 
-    ch.send(&Request::ReadChunk { path: file_path.clone(), offset: 0, len: 0 })
-        .await
-        .unwrap();
+    ch.send(&Request::ReadChunk {
+        path: file_path.clone(),
+        offset: 0,
+        len: 0,
+    })
+    .await
+    .unwrap();
     match ch.recv::<Response>().await.unwrap() {
         Response::Chunk { data, eof } => {
             assert!(eof);
@@ -174,9 +195,11 @@ async fn pair_then_exec_and_transfer() {
     }
 
     // ListDir should include the file we wrote.
-    ch.send(&Request::ListDir { path: tmp.path().to_string_lossy().to_string() })
-        .await
-        .unwrap();
+    ch.send(&Request::ListDir {
+        path: tmp.path().to_string_lossy().to_string(),
+    })
+    .await
+    .unwrap();
     match ch.recv::<Response>().await.unwrap() {
         Response::Dir { entries } => {
             assert!(entries.iter().any(|e| e.name == "hello.txt"));
@@ -210,18 +233,24 @@ async fn read_only_policy_denies_exec_and_writes() {
     let mut ch = connect_paired(addr, &client_id, server_pub).await;
 
     // Exec denied
-    ch.send(&Request::Exec { command: "echo hi".into(), timeout_ms: 5000, max_bytes: 1024 })
-        .await
-        .unwrap();
+    ch.send(&Request::Exec {
+        command: "echo hi".into(),
+        timeout_ms: 5000,
+        max_bytes: 1024,
+    })
+    .await
+    .unwrap();
     match ch.recv::<Response>().await.unwrap() {
         Response::Error { denied, .. } => assert!(denied, "exec should be policy-denied"),
         other => panic!("expected denial, got {other:?}"),
     }
 
     // Write denied
-    ch.send(&Request::CreateDir { path: "/tmp/should-not-happen".into() })
-        .await
-        .unwrap();
+    ch.send(&Request::CreateDir {
+        path: "/tmp/should-not-happen".into(),
+    })
+    .await
+    .unwrap();
     match ch.recv::<Response>().await.unwrap() {
         Response::Error { denied, .. } => assert!(denied, "write should be policy-denied"),
         other => panic!("expected denial, got {other:?}"),
@@ -229,7 +258,10 @@ async fn read_only_policy_denies_exec_and_writes() {
 
     // Reads still allowed
     ch.send(&Request::SystemInfo).await.unwrap();
-    assert!(matches!(ch.recv::<Response>().await.unwrap(), Response::SystemInfo(_)));
+    assert!(matches!(
+        ch.recv::<Response>().await.unwrap(),
+        Response::SystemInfo(_)
+    ));
 }
 
 #[tokio::test]
@@ -253,7 +285,9 @@ async fn unpinned_peer_is_refused() {
         stream,
         Role::Initiator,
         &ck,
-        Auth::Paired { expect_remote: Some(server_pub) },
+        Auth::Paired {
+            expect_remote: Some(server_pub),
+        },
     )
     .await
     .unwrap();
@@ -291,26 +325,34 @@ async fn unified_serve_pairs_and_serves_on_one_port() {
     let psk = ghostftp_agent_proto::pairing::psk_from_code("246802");
     let stream = TcpStream::connect(addr).await.unwrap();
     let ck = client_id.private_bytes().unwrap();
-    let mut pch =
-        SecureChannel::establish(stream, Role::Initiator, &ck, Auth::Pairing { psk })
-            .await
-            .unwrap();
+    let mut pch = SecureChannel::establish(stream, Role::Initiator, &ck, Auth::Pairing { psk })
+        .await
+        .unwrap();
     pch.send(&Hello {
         protocol_version: PROTOCOL_VERSION,
         client_name: "test-controller".into(),
     })
     .await
     .unwrap();
-    assert!(matches!(pch.recv::<Response>().await.unwrap(), Response::Ok));
+    assert!(matches!(
+        pch.recv::<Response>().await.unwrap(),
+        Response::Ok
+    ));
     // Served immediately on the pairing channel.
     pch.send(&Request::Ping).await.unwrap();
-    assert!(matches!(pch.recv::<Response>().await.unwrap(), Response::Pong));
+    assert!(matches!(
+        pch.recv::<Response>().await.unwrap(),
+        Response::Pong
+    ));
     drop(pch);
 
     // A normal paired connection works on the same port, no restart needed.
     let mut ch = connect_paired(addr, &client_id, server_pub).await;
     ch.send(&Request::Ping).await.unwrap();
-    assert!(matches!(ch.recv::<Response>().await.unwrap(), Response::Pong));
+    assert!(matches!(
+        ch.recv::<Response>().await.unwrap(),
+        Response::Pong
+    ));
 }
 
 /// With no pairing window open, a pairing handshake is refused outright while
@@ -338,14 +380,16 @@ async fn pairing_refused_without_window() {
     let psk = ghostftp_agent_proto::pairing::psk_from_code("111111");
     let stream = TcpStream::connect(addr).await.unwrap();
     let sk = stranger.private_bytes().unwrap();
-    let res =
-        SecureChannel::establish(stream, Role::Initiator, &sk, Auth::Pairing { psk }).await;
+    let res = SecureChannel::establish(stream, Role::Initiator, &sk, Auth::Pairing { psk }).await;
     assert!(res.is_err(), "pairing without a window must fail");
 
     // Paired connection on the same listener: still fine.
     let mut ch = connect_paired(addr, &client_id, server_pub).await;
     ch.send(&Request::Ping).await.unwrap();
-    assert!(matches!(ch.recv::<Response>().await.unwrap(), Response::Pong));
+    assert!(matches!(
+        ch.recv::<Response>().await.unwrap(),
+        Response::Pong
+    ));
 }
 
 /// An expired window refuses pairing without any background timer.
@@ -356,7 +400,10 @@ async fn pairing_window_expires() {
         .open_pairing("135791".into(), std::time::Duration::from_millis(1))
         .await;
     tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    assert!(daemon.pairing_code().await.is_none(), "expired window must clear");
+    assert!(
+        daemon.pairing_code().await.is_none(),
+        "expired window must clear"
+    );
 }
 
 /// Detached background jobs over the real channel (Plan 10 Phase 4, agent arm):
@@ -391,9 +438,13 @@ async fn detached_job_start_poll_and_unknown() {
     } else {
         format!("echo {token}")
     };
-    ch.send(&Request::ExecStart { job_id: "job-e2e".into(), command, max_bytes: 65536 })
-        .await
-        .unwrap();
+    ch.send(&Request::ExecStart {
+        job_id: "job-e2e".into(),
+        command,
+        max_bytes: 65536,
+    })
+    .await
+    .unwrap();
     match ch.recv::<Response>().await.unwrap() {
         Response::ExecStarted { job_id } => assert_eq!(job_id, "job-e2e"),
         other => panic!("expected exec-started, got {other:?}"),
@@ -402,9 +453,19 @@ async fn detached_job_start_poll_and_unknown() {
     // Poll until it finishes (bounded so a hang fails instead of spinning).
     let mut finished: Option<(Option<i32>, String)> = None;
     for _ in 0..100 {
-        ch.send(&Request::ExecPoll { job_id: "job-e2e".into() }).await.unwrap();
+        ch.send(&Request::ExecPoll {
+            job_id: "job-e2e".into(),
+        })
+        .await
+        .unwrap();
         match ch.recv::<Response>().await.unwrap() {
-            Response::ExecStatus { running: false, exit_code, stdout, not_found, .. } => {
+            Response::ExecStatus {
+                running: false,
+                exit_code,
+                stdout,
+                not_found,
+                ..
+            } => {
                 assert!(!not_found, "a started job must not report not_found");
                 finished = Some((exit_code, stdout));
                 break;
@@ -420,7 +481,11 @@ async fn detached_job_start_poll_and_unknown() {
     assert!(stdout.contains(token), "stdout was {stdout:?}");
 
     // An unknown id polls as not_found (the bridge maps this to a 404).
-    ch.send(&Request::ExecPoll { job_id: "no-such-job".into() }).await.unwrap();
+    ch.send(&Request::ExecPoll {
+        job_id: "no-such-job".into(),
+    })
+    .await
+    .unwrap();
     match ch.recv::<Response>().await.unwrap() {
         Response::ExecStatus { not_found, .. } => assert!(not_found),
         other => panic!("expected exec-status not_found, got {other:?}"),

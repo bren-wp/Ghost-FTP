@@ -43,9 +43,15 @@ pub fn check(host: &str, port: u16, key: &PublicKey) -> HostKeyStatus {
             continue;
         }
         let mut parts = line.split_whitespace();
-        let Some(hosts_field) = parts.next() else { continue };
-        let Some(_keytype) = parts.next() else { continue };
-        let Some(stored_b64) = parts.next() else { continue };
+        let Some(hosts_field) = parts.next() else {
+            continue;
+        };
+        let Some(_keytype) = parts.next() else {
+            continue;
+        };
+        let Some(stored_b64) = parts.next() else {
+            continue;
+        };
 
         if hosts_field.starts_with("|1|") {
             // Hashed host entry — out of scope for v0.3.
@@ -66,7 +72,9 @@ pub fn check(host: &str, port: u16, key: &PublicKey) -> HostKeyStatus {
     }
 
     match stored_fp {
-        Some(fp) => HostKeyStatus::Mismatch { stored_fingerprint: fp },
+        Some(fp) => HostKeyStatus::Mismatch {
+            stored_fingerprint: fp,
+        },
         None => HostKeyStatus::Unknown,
     }
 }
@@ -89,11 +97,7 @@ pub fn append(host: &str, port: u16, key: &PublicKey) -> Result<()> {
     } else {
         format!("[{host}]:{port}")
     };
-    let line = format!(
-        "{host_field} {} {}\n",
-        key.name(),
-        key.public_key_base64()
-    );
+    let line = format!("{host_field} {} {}\n", key.name(), key.public_key_base64());
 
     let mut file = OpenOptions::new()
         .create(true)

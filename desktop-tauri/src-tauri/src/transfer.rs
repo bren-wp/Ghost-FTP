@@ -306,17 +306,12 @@ fn resolve_local_rename(path: &Path) -> PathBuf {
 }
 
 /// Same idea for a remote path. Uses sftp.metadata to probe existence.
-async fn resolve_remote_rename(
-    sftp: &russh_sftp::client::SftpSession,
-    path: &str,
-) -> String {
+async fn resolve_remote_rename(sftp: &russh_sftp::client::SftpSession, path: &str) -> String {
     if sftp.metadata(path).await.is_err() {
         return path.to_string();
     }
     let (stem, ext) = match path.rfind('.') {
-        Some(dot) if dot > path.rfind('/').unwrap_or(0) => {
-            (&path[..dot], &path[dot..])
-        }
+        Some(dot) if dot > path.rfind('/').unwrap_or(0) => (&path[..dot], &path[dot..]),
         _ => (path, ""),
     };
     for i in 1..=999 {
@@ -664,7 +659,8 @@ impl TransferManager {
     /// Phase 3). Takes effect on the next transfer decision; `GHOSTFTP_DELTA=0`
     /// still force-disables regardless.
     pub fn set_max_auto_retries(&self, attempts: usize) {
-        self.max_auto_retries.store(attempts.min(8), Ordering::Relaxed);
+        self.max_auto_retries
+            .store(attempts.min(8), Ordering::Relaxed);
     }
 
     pub fn set_delta_enabled(&self, enabled: bool) {
@@ -761,7 +757,10 @@ impl TransferManager {
             },
         );
         self.waiting.lock().await.push_back(id.clone());
-        self.pauses.lock().await.insert(id.clone(), PauseGate::new());
+        self.pauses
+            .lock()
+            .await
+            .insert(id.clone(), PauseGate::new());
         self.bump_queue(&app).await;
 
         let mgr = Arc::clone(self);
@@ -794,7 +793,8 @@ impl TransferManager {
     ) -> Result<()> {
         use base64::Engine as _;
         use ghostftp_agent_proto::msg::{Request, Response};
-        self.update(id, |t| t.status = TransferStatus::Transferring).await;
+        self.update(id, |t| t.status = TransferStatus::Transferring)
+            .await;
 
         let mut local_file = tokio::fs::File::create(local_path)
             .await
@@ -803,14 +803,22 @@ impl TransferManager {
         let mut last_emit = Instant::now();
         loop {
             let resp = session
-                .request(Request::ReadChunk { path: remote_path.to_string(), offset, len: 0 })
+                .request(Request::ReadChunk {
+                    path: remote_path.to_string(),
+                    offset,
+                    len: 0,
+                })
                 .await?;
             let (data_b64, eof) = match resp {
                 Response::Chunk { data, eof } => (data, eof),
                 Response::Error { message, .. } => {
                     return Err(anyhow::anyhow!("download {remote_path}: {message}"))
                 }
-                other => return Err(anyhow::anyhow!("download {remote_path}: unexpected {other:?}")),
+                other => {
+                    return Err(anyhow::anyhow!(
+                        "download {remote_path}: unexpected {other:?}"
+                    ))
+                }
             };
             let bytes = base64::engine::general_purpose::STANDARD
                 .decode(&data_b64)
@@ -941,7 +949,10 @@ impl TransferManager {
             },
         );
         self.waiting.lock().await.push_back(id.clone());
-        self.pauses.lock().await.insert(id.clone(), PauseGate::new());
+        self.pauses
+            .lock()
+            .await
+            .insert(id.clone(), PauseGate::new());
         self.bump_queue(&app).await;
 
         let mgr = Arc::clone(self);
@@ -972,7 +983,8 @@ impl TransferManager {
     ) -> Result<()> {
         use base64::Engine as _;
         use ghostftp_agent_proto::msg::{Request, Response};
-        self.update(id, |t| t.status = TransferStatus::Transferring).await;
+        self.update(id, |t| t.status = TransferStatus::Transferring)
+            .await;
 
         let mut local_file = tokio::fs::File::open(local_path)
             .await
@@ -1004,7 +1016,11 @@ impl TransferManager {
                 Response::Error { message, .. } => {
                     return Err(anyhow::anyhow!("upload {remote_path}: {message}"))
                 }
-                other => return Err(anyhow::anyhow!("upload {remote_path}: unexpected {other:?}")),
+                other => {
+                    return Err(anyhow::anyhow!(
+                        "upload {remote_path}: unexpected {other:?}"
+                    ))
+                }
             }
             offset += n as u64;
             first = false;
@@ -1047,9 +1063,13 @@ impl TransferManager {
         remote_path: &str,
         app: Option<&AppHandle>,
     ) -> Result<()> {
-        let size = tokio::fs::metadata(local_path).await.map(|m| m.len()).unwrap_or(0);
+        let size = tokio::fs::metadata(local_path)
+            .await
+            .map(|m| m.len())
+            .unwrap_or(0);
         let (_basis_size, basis_exists) = agent_stat(session, remote_path).await;
-        if self.delta_enabled() && ghostftp_agent_proto::delta::should_attempt_delta(size, basis_exists, true)
+        if self.delta_enabled()
+            && ghostftp_agent_proto::delta::should_attempt_delta(size, basis_exists, true)
         {
             match self
                 .agent_delta_upload_core(id, session, local_path, remote_path, app)
@@ -1088,12 +1108,26 @@ impl TransferManager {
         // 1. The remote (old) file's chunk signature. A pre-delta daemon fails
         // this request, which sends the caller down the whole-file path.
         let remote_sig = match session
-            .request(Request::Signature { path: remote_path.to_string() })
+            .request(Request::Signature {
+                path: remote_path.to_string(),
+            })
             .await?
         {
-            Response::Signature { size, min, avg, max, chunks, whole_hash } => {
-                delta::FileSignature { size, min, avg, max, chunks, whole_hash }
-            }
+            Response::Signature {
+                size,
+                min,
+                avg,
+                max,
+                chunks,
+                whole_hash,
+            } => delta::FileSignature {
+                size,
+                min,
+                avg,
+                max,
+                chunks,
+                whole_hash,
+            },
             Response::Error { message, .. } => {
                 anyhow::bail!("signature {remote_path}: {message}")
             }
@@ -1206,7 +1240,10 @@ impl TransferManager {
         .await;
         if result.is_err() {
             let _ = session
-                .request(Request::Delete { path: remote_patch.clone(), recursive: false })
+                .request(Request::Delete {
+                    path: remote_patch.clone(),
+                    recursive: false,
+                })
                 .await;
         }
         let _ = tokio::fs::remove_file(&local_patch).await;
@@ -1221,7 +1258,10 @@ impl TransferManager {
         );
         self.update(id, |t| {
             t.transferred = t.size;
-            t.delta = Some(DeltaStats { sent: plan.literal_bytes, reused: plan.reused_bytes });
+            t.delta = Some(DeltaStats {
+                sent: plan.literal_bytes,
+                reused: plan.reused_bytes,
+            });
         })
         .await;
         if let Some(app) = app {
@@ -1298,12 +1338,26 @@ impl TransferManager {
 
         // 1. The remote (new) file's chunk signature.
         let target_sig = match session
-            .request(Request::Signature { path: remote_path.to_string() })
+            .request(Request::Signature {
+                path: remote_path.to_string(),
+            })
             .await?
         {
-            Response::Signature { size, min, avg, max, chunks, whole_hash } => {
-                delta::FileSignature { size, min, avg, max, chunks, whole_hash }
-            }
+            Response::Signature {
+                size,
+                min,
+                avg,
+                max,
+                chunks,
+                whole_hash,
+            } => delta::FileSignature {
+                size,
+                min,
+                avg,
+                max,
+                chunks,
+                whole_hash,
+            },
             Response::Error { message, .. } => {
                 anyhow::bail!("signature {remote_path}: {message}")
             }
@@ -1320,10 +1374,8 @@ impl TransferManager {
         let basis_sig = match tokio::fs::metadata(local_path).await {
             Ok(_) => {
                 let basis_owned = local_path.to_path_buf();
-                match tokio::task::spawn_blocking(move || {
-                    delta::signature_of_file(&basis_owned)
-                })
-                .await
+                match tokio::task::spawn_blocking(move || delta::signature_of_file(&basis_owned))
+                    .await
                 {
                     Ok(Ok(sig)) => {
                         has_basis = true;
@@ -1452,7 +1504,10 @@ impl TransferManager {
         );
         self.update(id, |t| {
             t.transferred = t.size;
-            t.delta = Some(DeltaStats { sent: plan.literal_bytes, reused: plan.reused_bytes });
+            t.delta = Some(DeltaStats {
+                sent: plan.literal_bytes,
+                reused: plan.reused_bytes,
+            });
         })
         .await;
         if let Some(app) = app {
@@ -1533,7 +1588,10 @@ impl TransferManager {
         let mut files: Vec<(String, PathBuf)> = Vec::new();
 
         while let Some(d) = dirs_to_visit.pop() {
-            let entries = fs.list_dir(&d).await.with_context(|| format!("read_dir {d}"))?;
+            let entries = fs
+                .list_dir(&d)
+                .await
+                .with_context(|| format!("read_dir {d}"))?;
             for entry in entries {
                 let remote_child = entry.path.clone();
                 let rel = remote_child
@@ -1679,8 +1737,7 @@ impl TransferManager {
             .with_stream(move |stream| {
                 let file = std::fs::File::create(&final_path)
                     .with_context(|| format!("create {}", final_path.display()))?;
-                let written = stream
-                    .retr_to_writer(&path, std::io::BufWriter::new(file))?;
+                let written = stream.retr_to_writer(&path, std::io::BufWriter::new(file))?;
                 Ok(written)
             })
             .await;
@@ -2113,7 +2170,9 @@ impl TransferManager {
             if !resp.status().is_success() {
                 let code = resp.status().as_u16();
                 let text = resp.text().await.unwrap_or_default();
-                return Err(anyhow::anyhow!("upload {remote_path} failed ({code}): {text}"));
+                return Err(anyhow::anyhow!(
+                    "upload {remote_path} failed ({code}): {text}"
+                ));
             }
             break;
         }
@@ -2383,7 +2442,9 @@ impl TransferManager {
             if !resp.status().is_success() {
                 let code = resp.status().as_u16();
                 let text = resp.text().await.unwrap_or_default();
-                return Err(anyhow::anyhow!("upload {remote_path} failed ({code}): {text}"));
+                return Err(anyhow::anyhow!(
+                    "upload {remote_path} failed ({code}): {text}"
+                ));
             }
             return Ok(());
         }
@@ -2449,7 +2510,9 @@ impl TransferManager {
             if !resp.status().is_success() {
                 let code = resp.status().as_u16();
                 let text = resp.text().await.unwrap_or_default();
-                return Err(anyhow::anyhow!("upload {remote_path} chunk failed ({code}): {text}"));
+                return Err(anyhow::anyhow!(
+                    "upload {remote_path} chunk failed ({code}): {text}"
+                ));
             }
             offset += filled as u64;
             if last_emit.elapsed() > Duration::from_millis(100) {
@@ -2585,7 +2648,9 @@ impl TransferManager {
         if !resp.status().is_success() {
             let code = resp.status().as_u16();
             let text = resp.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!("upload {remote_path} failed ({code}): {text}"));
+            return Err(anyhow::anyhow!(
+                "upload {remote_path} failed ({code}): {text}"
+            ));
         }
         session.clear_cache();
         self.update(id, |t| t.transferred = size).await;
@@ -2694,7 +2759,9 @@ impl TransferManager {
         if !resp.status().is_success() {
             let code = resp.status().as_u16();
             let text = resp.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!("upload {remote_path} failed ({code}): {text}"));
+            return Err(anyhow::anyhow!(
+                "upload {remote_path} failed ({code}): {text}"
+            ));
         }
         session.clear_cache();
         self.update(id, |t| t.transferred = size).await;
@@ -2707,9 +2774,7 @@ fn fs_for_session(session: &Arc<Session>) -> Box<dyn crate::remotefs::RemoteFs> 
     match &**session {
         Session::Ssh(ssh) => Box::new(crate::remotefs::sftp::SftpFs::new(ssh.clone())),
         Session::Ftp(ftp) => Box::new(crate::remotefs::ftp::FtpFs::new(ftp.clone())),
-        Session::Object(obj) => {
-            Box::new(crate::remotefs::object::ObjectFs::new(obj.clone()))
-        }
+        Session::Object(obj) => Box::new(crate::remotefs::object::ObjectFs::new(obj.clone())),
         Session::Webdav(dav) => Box::new(crate::remotefs::webdav::WebdavFs::new(dav.clone())),
         Session::Http(http) => Box::new(crate::remotefs::http::HttpFs::new(http.clone())),
         Session::Dropbox(dbx) => Box::new(crate::remotefs::dropbox::DropboxFs::new(dbx.clone())),
@@ -2718,7 +2783,9 @@ fn fs_for_session(session: &Arc<Session>) -> Box<dyn crate::remotefs::RemoteFs> 
         Session::Box(bx) => Box::new(crate::remotefs::boxdrive::BoxFs::new(bx.clone())),
         Session::Shopify(sh) => Box::new(crate::remotefs::shopify::ShopifyFs::new(sh.clone())),
         Session::HubSpot(hs) => Box::new(crate::remotefs::hubspot::HubSpotFs::new(hs.clone())),
-        Session::Dynamics(dynm) => Box::new(crate::remotefs::dynamics::DynamicsFs::new(dynm.clone())),
+        Session::Dynamics(dynm) => {
+            Box::new(crate::remotefs::dynamics::DynamicsFs::new(dynm.clone()))
+        }
         Session::Agent(agent) => Box::new(crate::remotefs::agent::AgentFs::new(agent.clone())),
     }
 }
@@ -2766,12 +2833,14 @@ fn supports_delta(session: &Session) -> bool {
 }
 
 /// Stat a path on a Ghost FTP Agent daemon, returning its size and whether it exists.
-async fn agent_stat(
-    session: &Arc<crate::session::AgentSession>,
-    path: &str,
-) -> (u64, bool) {
+async fn agent_stat(session: &Arc<crate::session::AgentSession>, path: &str) -> (u64, bool) {
     use ghostftp_agent_proto::msg::{Request, Response};
-    match session.request(Request::Stat { path: path.to_string() }).await {
+    match session
+        .request(Request::Stat {
+            path: path.to_string(),
+        })
+        .await
+    {
         Ok(Response::Stat { entry }) => (entry.size, true),
         _ => (0, false),
     }
@@ -2807,9 +2876,9 @@ pub(crate) async fn remote_size(session: &Arc<Session>, path: &str) -> Result<u6
         }
         Session::Webdav(dav) => Ok(webdav_head(dav, path).await.0),
         Session::Http(http) => Ok(http_size(http, path).await),
-        Session::Dropbox(dbx) => {
-            Ok(dbx.size(&crate::remotefs::dropbox::dropbox_api_path(path)).await)
-        }
+        Session::Dropbox(dbx) => Ok(dbx
+            .size(&crate::remotefs::dropbox::dropbox_api_path(path))
+            .await),
         Session::OneDrive(od) => Ok(od.size(&crate::remotefs::onedrive::item_ref(path)).await),
         Session::GDrive(gd) => Ok(gd.size(path).await),
         Session::Box(bx) => Ok(bx.size(path).await),
@@ -2936,7 +3005,9 @@ async fn remote_resolve(
             })
         }
         Session::OneDrive(od) => {
-            let exists = od.exists(&crate::remotefs::onedrive::item_ref(initial_remote)).await;
+            let exists = od
+                .exists(&crate::remotefs::onedrive::item_ref(initial_remote))
+                .await;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
@@ -3116,7 +3187,11 @@ async fn run_download_task(
             }
             Err(e) if auto_retries < max_auto_retries && is_transient(&e) => {
                 auto_retries += 1;
-                let delay = match auto_retries { 1 => 5, 2 => 20, _ => 60 };
+                let delay = match auto_retries {
+                    1 => 5,
+                    2 => 20,
+                    _ => 60,
+                };
                 mgr.update(&id, |t| {
                     t.transferred = 0;
                     t.retry_attempt = Some(auto_retries);
@@ -3164,7 +3239,11 @@ async fn run_upload_task(
             }
             Err(e) if auto_retries < max_auto_retries && is_transient(&e) => {
                 auto_retries += 1;
-                let delay = match auto_retries { 1 => 5, 2 => 20, _ => 60 };
+                let delay = match auto_retries {
+                    1 => 5,
+                    2 => 20,
+                    _ => 60,
+                };
                 mgr.update(&id, |t| {
                     t.transferred = 0;
                     t.retry_attempt = Some(auto_retries);
@@ -3321,12 +3400,7 @@ async fn dispatch_upload(
     }
 }
 
-async fn finalize(
-    mgr: &Arc<TransferManager>,
-    id: &str,
-    app: &AppHandle,
-    result: Result<()>,
-) {
+async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result: Result<()>) {
     match result {
         Ok(()) => {
             mgr.update(id, |t| {
@@ -3366,8 +3440,14 @@ mod tests {
         // 1 MiB at 512 KiB/s must take ~2s of (virtual) time, charged in full.
         bucket.acquire(1024 * 1024).await;
         let elapsed = start.elapsed();
-        assert!(elapsed >= Duration::from_millis(1900), "too fast: {elapsed:?}");
-        assert!(elapsed <= Duration::from_millis(2600), "too slow: {elapsed:?}");
+        assert!(
+            elapsed >= Duration::from_millis(1900),
+            "too fast: {elapsed:?}"
+        );
+        assert!(
+            elapsed <= Duration::from_millis(2600),
+            "too slow: {elapsed:?}"
+        );
     }
 
     #[tokio::test(start_paused = true)]
@@ -3406,7 +3486,10 @@ mod tests {
     #[tokio::test]
     async fn checkpoint_parks_then_signals_restart() {
         let mgr = Arc::new(TransferManager::new());
-        mgr.pauses.lock().await.insert("t1".into(), PauseGate::new());
+        mgr.pauses
+            .lock()
+            .await
+            .insert("t1".into(), PauseGate::new());
         // Not paused → passes straight through.
         mgr.checkpoint("t1", 128).await.unwrap();
 
@@ -3540,20 +3623,26 @@ mod tests {
         let daemon_pub = daemon_id.public_bytes().unwrap();
         tokio::spawn(async move {
             loop {
-                let Ok((stream, _)) = listener.accept().await else { break };
+                let Ok((stream, _)) = listener.accept().await else {
+                    break;
+                };
                 let sk = match daemon_id.private_bytes() {
                     Ok(sk) => sk,
                     Err(_) => break,
                 };
                 tokio::spawn(async move {
                     let jobs = ghostftp_agentd::jobs::JobStore::new();
-                    let policy =
-                        ghostftp_agentd::Policy { allow_exec: false, allow_write: true };
+                    let policy = ghostftp_agentd::Policy {
+                        allow_exec: false,
+                        allow_write: true,
+                    };
                     let mut ch = SecureChannel::establish(
                         stream,
                         Role::Responder,
                         &sk,
-                        Auth::Paired { expect_remote: None },
+                        Auth::Paired {
+                            expect_remote: None,
+                        },
                     )
                     .await?;
                     let _hello: Hello = ch.recv().await?;
@@ -3562,9 +3651,7 @@ mod tests {
                             Ok(r) => r,
                             Err(_) => break,
                         };
-                        let resp = if reject_signature
-                            && matches!(req, Request::Signature { .. })
-                        {
+                        let resp = if reject_signature && matches!(req, Request::Signature { .. }) {
                             Response::error("unknown op")
                         } else {
                             ghostftp_agentd::ops::handle(req, policy, &jobs).await
@@ -3584,7 +3671,9 @@ mod tests {
             stream,
             Role::Initiator,
             &ctrl_id.private_bytes().unwrap(),
-            Auth::Paired { expect_remote: Some(daemon_pub) },
+            Auth::Paired {
+                expect_remote: Some(daemon_pub),
+            },
         )
         .await
         .unwrap();
@@ -3743,12 +3832,25 @@ mod tests {
 
         let session = delta_test_session(false).await;
         // First upload: no remote basis → whole-file.
-        let mgr = delta_test_manager("t", TransferKind::Upload, &local.to_string_lossy(), &remote_s, size as u64).await;
+        let mgr = delta_test_manager(
+            "t",
+            TransferKind::Upload,
+            &local.to_string_lossy(),
+            &remote_s,
+            size as u64,
+        )
+        .await;
         mgr.agent_upload_with_delta_core("t", &session, &local, &remote_s, None)
             .await
             .unwrap();
-        assert_eq!(std::fs::read(&remote).unwrap(), std::fs::read(&local).unwrap());
-        assert!(mgr.get("t").await.unwrap().delta.is_none(), "no basis → whole-file");
+        assert_eq!(
+            std::fs::read(&remote).unwrap(),
+            std::fs::read(&local).unwrap()
+        );
+        assert!(
+            mgr.get("t").await.unwrap().delta.is_none(),
+            "no basis → whole-file"
+        );
 
         // Mutate 1 KiB in the middle and upload again → delta.
         let mut content = std::fs::read(&local).unwrap();
@@ -3776,7 +3878,9 @@ mod tests {
                 .filter_map(|e| e.ok())
                 .filter(|e| {
                     let n = e.file_name().to_string_lossy().into_owned();
-                    n.contains(".ghostftp-patch-") || n.contains(".ghostftp-new-") || n.contains(".ghostftp-delta-")
+                    n.contains(".ghostftp-patch-")
+                        || n.contains(".ghostftp-new-")
+                        || n.contains(".ghostftp-delta-")
                 })
                 .collect();
             assert!(litter.is_empty(), "{side} litter: {litter:?}");
@@ -3796,17 +3900,26 @@ mod tests {
 
         let session = delta_test_session(false).await;
         // First download: no local basis → whole-file.
-        let mgr = delta_test_manager("t", TransferKind::Download, &remote_s, &local.to_string_lossy(), size as u64).await;
+        let mgr = delta_test_manager(
+            "t",
+            TransferKind::Download,
+            &remote_s,
+            &local.to_string_lossy(),
+            size as u64,
+        )
+        .await;
         mgr.agent_download_with_delta_core("t", &session, &remote_s, &local, None)
             .await
             .unwrap();
-        assert_eq!(std::fs::read(&local).unwrap(), std::fs::read(&remote).unwrap());
+        assert_eq!(
+            std::fs::read(&local).unwrap(),
+            std::fs::read(&remote).unwrap()
+        );
         assert!(mgr.get("t").await.unwrap().delta.is_none());
 
         // Mutate 1 KiB remotely and download again → delta.
         let mut content = std::fs::read(&remote).unwrap();
-        content[5 * 1024 * 1024..5 * 1024 * 1024 + 1024]
-            .copy_from_slice(&det_bytes(0xDDDD, 1024));
+        content[5 * 1024 * 1024..5 * 1024 * 1024 + 1024].copy_from_slice(&det_bytes(0xDDDD, 1024));
         std::fs::write(&remote, &content).unwrap();
         mgr.update("t", |t| t.transferred = 0).await;
         mgr.agent_download_with_delta_core("t", &session, &remote_s, &local, None)
@@ -3838,22 +3951,39 @@ mod tests {
         std::fs::write(&local, std::fs::read(&remote).unwrap()).unwrap();
 
         let session = delta_test_session(true).await; // Signature → error
-        // Upload direction: remote basis exists and file is big enough, so the
-        // delta is attempted, fails at Signature, and falls back.
+                                                      // Upload direction: remote basis exists and file is big enough, so the
+                                                      // delta is attempted, fails at Signature, and falls back.
         let mut content = std::fs::read(&local).unwrap();
         content[1024..2048].copy_from_slice(&det_bytes(0xFFFF, 1024));
         std::fs::write(&local, &content).unwrap();
-        let mgr = delta_test_manager("u", TransferKind::Upload, &local.to_string_lossy(), &remote_s, size as u64).await;
+        let mgr = delta_test_manager(
+            "u",
+            TransferKind::Upload,
+            &local.to_string_lossy(),
+            &remote_s,
+            size as u64,
+        )
+        .await;
         mgr.agent_upload_with_delta_core("u", &session, &local, &remote_s, None)
             .await
             .unwrap();
         assert_eq!(std::fs::read(&remote).unwrap(), content);
-        assert!(mgr.get("u").await.unwrap().delta.is_none(), "fallback → no delta stats");
+        assert!(
+            mgr.get("u").await.unwrap().delta.is_none(),
+            "fallback → no delta stats"
+        );
 
         // Download direction.
         content[4096..5120].copy_from_slice(&det_bytes(0x1234, 1024));
         std::fs::write(&remote, &content).unwrap();
-        let mgr = delta_test_manager("d", TransferKind::Download, &remote_s, &local.to_string_lossy(), size as u64).await;
+        let mgr = delta_test_manager(
+            "d",
+            TransferKind::Download,
+            &remote_s,
+            &local.to_string_lossy(),
+            size as u64,
+        )
+        .await;
         mgr.agent_download_with_delta_core("d", &session, &remote_s, &local, None)
             .await
             .unwrap();
@@ -3877,20 +4007,43 @@ mod tests {
         std::fs::write(&local, det_bytes(0x8888, size)).unwrap();
 
         let session = delta_test_session(false).await;
-        let mgr = delta_test_manager("u", TransferKind::Upload, &local.to_string_lossy(), &remote_s, size as u64).await;
+        let mgr = delta_test_manager(
+            "u",
+            TransferKind::Upload,
+            &local.to_string_lossy(),
+            &remote_s,
+            size as u64,
+        )
+        .await;
         mgr.agent_upload_with_delta_core("u", &session, &local, &remote_s, None)
             .await
             .unwrap();
-        assert_eq!(std::fs::read(&remote).unwrap(), std::fs::read(&local).unwrap());
-        assert!(mgr.get("u").await.unwrap().delta.is_none(), "≥60% literal → whole-file");
+        assert_eq!(
+            std::fs::read(&remote).unwrap(),
+            std::fs::read(&local).unwrap()
+        );
+        assert!(
+            mgr.get("u").await.unwrap().delta.is_none(),
+            "≥60% literal → whole-file"
+        );
 
         // Download direction, same setup reversed.
         std::fs::write(&remote, det_bytes(0x9999, size)).unwrap();
-        let mgr = delta_test_manager("d", TransferKind::Download, &remote_s, &local.to_string_lossy(), size as u64).await;
+        let mgr = delta_test_manager(
+            "d",
+            TransferKind::Download,
+            &remote_s,
+            &local.to_string_lossy(),
+            size as u64,
+        )
+        .await;
         mgr.agent_download_with_delta_core("d", &session, &remote_s, &local, None)
             .await
             .unwrap();
-        assert_eq!(std::fs::read(&local).unwrap(), std::fs::read(&remote).unwrap());
+        assert_eq!(
+            std::fs::read(&local).unwrap(),
+            std::fs::read(&remote).unwrap()
+        );
         assert!(mgr.get("d").await.unwrap().delta.is_none());
         let _ = std::fs::remove_dir_all(&dir);
     }

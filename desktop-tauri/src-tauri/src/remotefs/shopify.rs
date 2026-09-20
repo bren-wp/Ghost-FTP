@@ -173,7 +173,9 @@ impl RemoteFs for ShopifyFs {
             self.session
                 .asset_delete(theme.id, &from_key)
                 .await
-                .with_context(|| format!("rename {from}: new key written, old key delete failed"))?;
+                .with_context(|| {
+                    format!("rename {from}: new key written, old key delete failed")
+                })?;
             return Ok(());
         }
         // Directory rename: every key under the prefix.
@@ -395,9 +397,7 @@ mod tests {
         ];
         let root = children("/Dawn", "", &assets);
         assert_eq!(root.len(), 3);
-        assert!(root
-            .iter()
-            .all(|e| e.kind == FileKind::Directory));
+        assert!(root.iter().all(|e| e.kind == FileKind::Directory));
         // A placeholder alone still materializes its directory.
         assert!(root.iter().any(|e| e.name == "templates"));
 
@@ -428,7 +428,10 @@ mod tests {
             return;
         };
         std::env::set_var("GHOSTFTP_SHOPIFY_API_BASE", &mock);
-        std::env::set_var("GHOSTFTP_SHOPIFY_TOKEN_URL", format!("{mock}/admin/oauth/access_token"));
+        std::env::set_var(
+            "GHOSTFTP_SHOPIFY_TOKEN_URL",
+            format!("{mock}/admin/oauth/access_token"),
+        );
 
         let mk_profile = |pid: &str| ConnectionProfile {
             icon: None,
@@ -438,7 +441,9 @@ mod tests {
             host: "test-shop.myshopify.com".into(),
             port: 443,
             username: String::new(),
-            auth: AuthMethod::Password { password: String::new() },
+            auth: AuthMethod::Password {
+                password: String::new(),
+            },
             default_remote_path: None,
             color: None,
             auto_connect: None,
@@ -462,11 +467,7 @@ mod tests {
         let pid = "shopify-mock-test";
         crate::credentials::set_secret(&credential_key(pid), "test-client:test-secret")
             .expect("seed secret");
-        let session = Arc::new(
-            shopify_connect(&mk_profile(pid))
-                .await
-                .expect("connect"),
-        );
+        let session = Arc::new(shopify_connect(&mk_profile(pid)).await.expect("connect"));
         assert_eq!(
             session.account_label().await.expect("label"),
             "test-shop.myshopify.com"
@@ -506,7 +507,9 @@ mod tests {
         assert!(!asset_exists(&session, "/Draft/assets/moved.txt").await);
 
         // mkdir materializes a hidden placeholder; recursive delete walks it.
-        fs.create_dir("/Draft/snippets/ghostftp-dir").await.expect("mkdir");
+        fs.create_dir("/Draft/snippets/ghostftp-dir")
+            .await
+            .expect("mkdir");
         let snip = fs.list_dir("/Draft/snippets").await.expect("list snippets");
         assert!(snip.iter().any(|e| e.name == "ghostftp-dir"));
         let empty = fs
@@ -525,7 +528,10 @@ mod tests {
         let static_session = shopify_connect(&mk_profile(pid2))
             .await
             .expect("connect static");
-        assert_eq!(static_session.token().await.expect("static token"), "shpat_test");
+        assert_eq!(
+            static_session.token().await.expect("static token"),
+            "shpat_test"
+        );
 
         crate::credentials::delete_secret(&credential_key(pid));
         crate::credentials::delete_secret(&credential_key(pid2));

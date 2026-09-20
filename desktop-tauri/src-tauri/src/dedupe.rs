@@ -253,7 +253,13 @@ pub fn group_by_name(tree: &ScanTree, root: &str) -> DedupeResult {
                 return None;
             }
             let keep = pick_keep(&files);
-            Some(DedupeGroup { key, size: files[0].size, hash: None, files, keep })
+            Some(DedupeGroup {
+                key,
+                size: files[0].size,
+                hash: None,
+                files,
+                keep,
+            })
         })
         .collect();
     build_result(root, DedupeMode::Name, tree.files.len(), 0, groups)
@@ -305,10 +311,22 @@ pub async fn group_by_hash(
             }
             let keep = pick_keep(&files);
             let key = format!("{}…", &h[..12]);
-            Some(DedupeGroup { key, size: files[0].size, hash: Some(h), files, keep })
+            Some(DedupeGroup {
+                key,
+                size: files[0].size,
+                hash: Some(h),
+                files,
+                keep,
+            })
         })
         .collect();
-    build_result(root, DedupeMode::Hash, tree.files.len(), hash_errors, groups)
+    build_result(
+        root,
+        DedupeMode::Hash,
+        tree.files.len(),
+        hash_errors,
+        groups,
+    )
 }
 
 /// Walk `root` and group its duplicates. The one-shot entry point for
@@ -463,7 +481,9 @@ fn now_ts() -> i64 {
 
 impl DedupeManager {
     pub fn new() -> Self {
-        Self { runs: Mutex::new(std::collections::HashMap::new()) }
+        Self {
+            runs: Mutex::new(std::collections::HashMap::new()),
+        }
     }
 
     /// Kick off a duplicate scan of one side. Returns the run id immediately;
@@ -497,7 +517,10 @@ impl DedupeManager {
             run_dedupe(task_info, fs, sess, app).await;
         });
 
-        self.runs.lock().await.insert(id.clone(), DedupeHandle { info, task });
+        self.runs
+            .lock()
+            .await
+            .insert(id.clone(), DedupeHandle { info, task });
         id
     }
 
@@ -614,7 +637,11 @@ pub async fn dedupe_start(
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     let (fs, sess) = crate::diff::resolve_diff_side(&session_id, &state).await?;
-    let mode = if hash { DedupeMode::Hash } else { DedupeMode::Name };
+    let mode = if hash {
+        DedupeMode::Hash
+    } else {
+        DedupeMode::Name
+    };
     let mgr = Arc::clone(&state.dedupe);
     Ok(mgr.start(session_id, path, mode, fs, sess, app).await)
 }
@@ -680,7 +707,12 @@ mod tests {
     use crate::scan::ScanEntry;
 
     fn entry(abs: &str, size: u64, modified: i64) -> ScanEntry {
-        ScanEntry { absolute: abs.into(), size, modified, etag: None }
+        ScanEntry {
+            absolute: abs.into(),
+            size,
+            modified,
+            etag: None,
+        }
     }
 
     fn tree(files: &[(&str, ScanEntry)]) -> ScanTree {
@@ -746,13 +778,29 @@ mod tests {
     #[test]
     fn pick_keep_prefers_unsuffixed_then_oldest() {
         let files = vec![
-            DedupeFile { path: "/r/a_1.txt".into(), size: 1, modified: 50 },
-            DedupeFile { path: "/r/a.txt".into(), size: 1, modified: 999 },
+            DedupeFile {
+                path: "/r/a_1.txt".into(),
+                size: 1,
+                modified: 50,
+            },
+            DedupeFile {
+                path: "/r/a.txt".into(),
+                size: 1,
+                modified: 999,
+            },
         ];
         assert_eq!(pick_keep(&files), 1); // unsuffixed beats older
         let all_suffixed = vec![
-            DedupeFile { path: "/r/a_2.txt".into(), size: 1, modified: 60 },
-            DedupeFile { path: "/r/a_1.txt".into(), size: 1, modified: 50 },
+            DedupeFile {
+                path: "/r/a_2.txt".into(),
+                size: 1,
+                modified: 60,
+            },
+            DedupeFile {
+                path: "/r/a_1.txt".into(),
+                size: 1,
+                modified: 50,
+            },
         ];
         assert_eq!(pick_keep(&all_suffixed), 1); // oldest wins
     }
@@ -783,7 +831,14 @@ mod tests {
         let tree = scan::walk_tree(&crate::remotefs::local::LocalFs, base.to_str().unwrap())
             .await
             .unwrap();
-        let r = group_by_hash(&tree, base.to_str().unwrap(), None, &CancelToken::new(), |_| {}).await;
+        let r = group_by_hash(
+            &tree,
+            base.to_str().unwrap(),
+            None,
+            &CancelToken::new(),
+            |_| {},
+        )
+        .await;
 
         assert_eq!(r.groups.len(), 1);
         let g = &r.groups[0];

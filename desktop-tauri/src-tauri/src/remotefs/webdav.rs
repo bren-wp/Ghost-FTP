@@ -289,7 +289,9 @@ fn href_to_path(href: &str, base_path: &str) -> Option<(String, String)> {
         href
     };
 
-    let decoded_href = percent_decode_str(path_part).decode_utf8_lossy().into_owned();
+    let decoded_href = percent_decode_str(path_part)
+        .decode_utf8_lossy()
+        .into_owned();
     let decoded_base = percent_decode_str(base_path)
         .decode_utf8_lossy()
         .into_owned();
@@ -588,7 +590,10 @@ mod tests {
         fs.rename("/ghostftp-test/hello.txt", "/ghostftp-test/renamed.txt")
             .await
             .expect("move");
-        let entries = fs.list_dir("/ghostftp-test").await.expect("list after move");
+        let entries = fs
+            .list_dir("/ghostftp-test")
+            .await
+            .expect("list after move");
         assert!(entries.iter().any(|e| e.name == "renamed.txt"));
         assert!(!entries.iter().any(|e| e.name == "hello.txt"));
 

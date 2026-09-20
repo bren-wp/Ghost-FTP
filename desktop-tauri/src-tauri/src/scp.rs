@@ -118,7 +118,12 @@ where
     // hide the actual reason from the user.
     expect_ok(stream).await?;
 
-    let record = format!("C{:04o} {} {}\n", header.mode & 0o7777, header.size, header.name);
+    let record = format!(
+        "C{:04o} {} {}\n",
+        header.mode & 0o7777,
+        header.size,
+        header.name
+    );
     stream
         .write_all(record.as_bytes())
         .await
@@ -129,7 +134,10 @@ where
     copy_exact(data, stream, header.size).await?;
 
     // A zero byte terminates the file content.
-    stream.write_all(&[0]).await.context("write scp end-of-file")?;
+    stream
+        .write_all(&[0])
+        .await
+        .context("write scp end-of-file")?;
     stream.flush().await?;
     expect_ok(stream).await?;
     Ok(())
@@ -194,9 +202,11 @@ fn parse_c_record(line: &str) -> Result<ScpHeader> {
     let mode_s = it.next().context("scp C record missing mode")?;
     let size_s = it.next().context("scp C record missing size")?;
     let name = it.next().context("scp C record missing name")?.to_string();
-    let mode = u32::from_str_radix(mode_s, 8)
-        .with_context(|| format!("parse scp mode {mode_s:?}"))?;
-    let size: u64 = size_s.parse().with_context(|| format!("parse scp size {size_s:?}"))?;
+    let mode =
+        u32::from_str_radix(mode_s, 8).with_context(|| format!("parse scp mode {mode_s:?}"))?;
+    let size: u64 = size_s
+        .parse()
+        .with_context(|| format!("parse scp size {size_s:?}"))?;
     Ok(ScpHeader { mode, size, name })
 }
 
@@ -214,7 +224,9 @@ where
         if read == 0 {
             bail!("scp stream ended {remaining} bytes early");
         }
-        dst.write_all(&buf[..read]).await.context("write scp body")?;
+        dst.write_all(&buf[..read])
+            .await
+            .context("write scp body")?;
         remaining -= read as u64;
     }
     dst.flush().await?;
@@ -239,7 +251,14 @@ mod tests {
     #[test]
     fn parses_c_records() {
         let h = parse_c_record("C0644 1234 photo.png").unwrap();
-        assert_eq!(h, ScpHeader { mode: 0o644, size: 1234, name: "photo.png".into() });
+        assert_eq!(
+            h,
+            ScpHeader {
+                mode: 0o644,
+                size: 1234,
+                name: "photo.png".into()
+            }
+        );
         // Names may contain spaces (splitn(3) keeps the tail intact).
         let h = parse_c_record("C0755 7 my file").unwrap();
         assert_eq!(h.name, "my file");
@@ -291,7 +310,11 @@ mod tests {
     #[tokio::test]
     async fn download_round_trips_a_file() {
         let (mut client, mut server) = tokio::io::duplex(4096);
-        let header = ScpHeader { mode: 0o644, size: 13, name: "hello.txt".into() };
+        let header = ScpHeader {
+            mode: 0o644,
+            size: 13,
+            name: "hello.txt".into(),
+        };
         let body = b"hello, world!".to_vec();
 
         let server_task = {
@@ -316,7 +339,10 @@ mod tests {
         let body = b"data".to_vec();
         let server_task = tokio::spawn(async move {
             assert_eq!(server.read_u8().await.unwrap(), 0);
-            server.write_all(b"T1700000000 0 1700000000 0\n").await.unwrap();
+            server
+                .write_all(b"T1700000000 0 1700000000 0\n")
+                .await
+                .unwrap();
             server.flush().await.unwrap();
             assert_eq!(server.read_u8().await.unwrap(), 0); // ack the T
             server.write_all(b"C0600 4 f\n").await.unwrap();
@@ -341,7 +367,10 @@ mod tests {
             assert_eq!(server.read_u8().await.unwrap(), 0);
             // 0x01 warning marker + message.
             server.write_all(&[1]).await.unwrap();
-            server.write_all(b"scp: /nope: No such file or directory\n").await.unwrap();
+            server
+                .write_all(b"scp: /nope: No such file or directory\n")
+                .await
+                .unwrap();
             server.flush().await.unwrap();
         });
         let mut out = Vec::new();
@@ -352,13 +381,19 @@ mod tests {
     #[tokio::test]
     async fn upload_round_trips_a_file() {
         let (mut client, mut server) = tokio::io::duplex(4096);
-        let header = ScpHeader { mode: 0o644, size: 5, name: "up.bin".into() };
+        let header = ScpHeader {
+            mode: 0o644,
+            size: 5,
+            name: "up.bin".into(),
+        };
         let data = b"12345".to_vec();
 
         let server_task = tokio::spawn(async move { serve_sink(&mut server).await });
 
         let mut reader = Cursor::new(data.clone());
-        upload_from(&mut client, &header, &mut reader).await.unwrap();
+        upload_from(&mut client, &header, &mut reader)
+            .await
+            .unwrap();
         let (got_header, got_body) = server_task.await.unwrap();
 
         assert_eq!(got_header.size, 5);
@@ -375,12 +410,21 @@ mod tests {
             let _ = super::read_record_line(&mut server).await.unwrap();
             // Reject with a fatal status + message.
             server.write_all(&[2]).await.unwrap();
-            server.write_all(b"scp: /ro/up.bin: Permission denied\n").await.unwrap();
+            server
+                .write_all(b"scp: /ro/up.bin: Permission denied\n")
+                .await
+                .unwrap();
             server.flush().await.unwrap();
         });
-        let header = ScpHeader { mode: 0o644, size: 3, name: "up.bin".into() };
+        let header = ScpHeader {
+            mode: 0o644,
+            size: 3,
+            name: "up.bin".into(),
+        };
         let mut reader = Cursor::new(b"abc".to_vec());
-        let err = upload_from(&mut client, &header, &mut reader).await.unwrap_err();
+        let err = upload_from(&mut client, &header, &mut reader)
+            .await
+            .unwrap_err();
         assert!(err.to_string().contains("Permission denied"), "{err}");
     }
 }

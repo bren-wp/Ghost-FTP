@@ -362,7 +362,9 @@ mod tests {
         let e = parse_autoindex_html(APACHE_HTML, "/files");
         // Sort link + Parent Directory dropped; docs + readme.md + big.iso remain.
         assert_eq!(e.len(), 3, "got {e:?}");
-        assert!(e.iter().any(|x| x.name == "docs" && x.kind == FileKind::Directory));
+        assert!(e
+            .iter()
+            .any(|x| x.name == "docs" && x.kind == FileKind::Directory));
         let readme = e.iter().find(|x| x.name == "readme.md").unwrap();
         assert_eq!(readme.size, (1.2 * 1024.0) as u64);
         let iso = e.iter().find(|x| x.name == "big.iso").unwrap();
@@ -416,7 +418,9 @@ mod tests {
             host: "127.0.0.1".into(),
             port: 443,
             username: String::new(),
-            auth: AuthMethod::Password { password: String::new() },
+            auth: AuthMethod::Password {
+                password: String::new(),
+            },
             default_remote_path: None,
             color: None,
             auto_connect: None,

@@ -14,13 +14,13 @@
 use anyhow::{anyhow, bail, Context, Result};
 use async_trait::async_trait;
 use clap::{Parser, Subcommand};
+use futures::StreamExt;
 use ghostftp_lib::profiles::{ConnectionProfile, ProfileStore};
 use ghostftp_lib::remotefs::{DirEntry, FileKind, RemoteFs};
 use ghostftp_lib::session::{
     open_session as ghostftp_open_session, FtpSession, HostDecision, HostKeyVerifier,
     HostPromptKind, ObjectSession, Session,
 };
-use futures::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -63,10 +63,7 @@ enum Cmd {
     },
 
     /// Copy a file from one location to another.
-    Cp {
-        source: String,
-        destination: String,
-    },
+    Cp { source: String, destination: String },
 
     /// Rename / move a file (must be within a single backend).
     Mv { source: String, destination: String },
@@ -618,8 +615,14 @@ async fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Cmd::Ls { target, bytes } => cmd_ls(&store, &target, bytes).await,
         Cmd::Exec { profile, command } => cmd_exec(&store, &profile, &command).await,
-        Cmd::Cp { source, destination } => cmd_cp(&store, &source, &destination).await,
-        Cmd::Mv { source, destination } => cmd_mv(&store, &source, &destination).await,
+        Cmd::Cp {
+            source,
+            destination,
+        } => cmd_cp(&store, &source, &destination).await,
+        Cmd::Mv {
+            source,
+            destination,
+        } => cmd_mv(&store, &source, &destination).await,
         Cmd::Rm { target, recursive } => cmd_rm(&store, &target, recursive).await,
         Cmd::Mkdir { target } => cmd_mkdir(&store, &target).await,
         Cmd::Sync {
@@ -629,10 +632,20 @@ async fn run(cli: Cli) -> Result<()> {
             mirror,
             dry_run,
         } => cmd_sync(&store, &local, &remote, direction, mirror, dry_run).await,
-        Cmd::Diff { a, b, hash, json, all } => cmd_diff(&store, &a, &b, hash, json, all).await,
-        Cmd::Dedupe { target, hash, json, delete, yes } => {
-            cmd_dedupe(&store, &target, hash, json, delete, yes).await
-        }
+        Cmd::Diff {
+            a,
+            b,
+            hash,
+            json,
+            all,
+        } => cmd_diff(&store, &a, &b, hash, json, all).await,
+        Cmd::Dedupe {
+            target,
+            hash,
+            json,
+            delete,
+            yes,
+        } => cmd_dedupe(&store, &target, hash, json, delete, yes).await,
         Cmd::Search {
             target,
             pattern,
@@ -646,8 +659,17 @@ async fn run(cli: Cli) -> Result<()> {
             json,
         } => {
             cmd_search(
-                &store, &target, &pattern, content, regex, case_sensitive, include, exclude,
-                content_remote, max, json,
+                &store,
+                &target,
+                &pattern,
+                content,
+                regex,
+                case_sensitive,
+                include,
+                exclude,
+                content_remote,
+                max,
+                json,
             )
             .await
         }
@@ -777,9 +799,7 @@ async fn find_profile(store: &ProfileStore, name: &str) -> Result<ConnectionProf
     {
         return Ok(p.clone());
     }
-    bail!(
-        "no profile named `{name}`. List available with `ghostftp-cli profiles list`."
-    );
+    bail!("no profile named `{name}`. List available with `ghostftp-cli profiles list`.");
 }
 
 // ---- Session opening ---------------------------------------------------
@@ -798,18 +818,30 @@ fn fs_for(session: &Session) -> Box<dyn RemoteFs> {
         Session::Object(obj) => {
             Box::new(ghostftp_lib::remotefs::object::ObjectFs::new(obj.clone()))
         }
-        Session::Webdav(dav) => Box::new(ghostftp_lib::remotefs::webdav::WebdavFs::new(dav.clone())),
+        Session::Webdav(dav) => {
+            Box::new(ghostftp_lib::remotefs::webdav::WebdavFs::new(dav.clone()))
+        }
         Session::Http(http) => Box::new(ghostftp_lib::remotefs::http::HttpFs::new(http.clone())),
-        Session::Dropbox(dbx) => Box::new(ghostftp_lib::remotefs::dropbox::DropboxFs::new(dbx.clone())),
-        Session::OneDrive(od) => Box::new(ghostftp_lib::remotefs::onedrive::OneDriveFs::new(od.clone())),
+        Session::Dropbox(dbx) => {
+            Box::new(ghostftp_lib::remotefs::dropbox::DropboxFs::new(dbx.clone()))
+        }
+        Session::OneDrive(od) => Box::new(ghostftp_lib::remotefs::onedrive::OneDriveFs::new(
+            od.clone(),
+        )),
         Session::GDrive(gd) => Box::new(ghostftp_lib::remotefs::gdrive::GDriveFs::new(gd.clone())),
         Session::Box(bx) => Box::new(ghostftp_lib::remotefs::boxdrive::BoxFs::new(bx.clone())),
-        Session::Shopify(sh) => Box::new(ghostftp_lib::remotefs::shopify::ShopifyFs::new(sh.clone())),
-        Session::HubSpot(hs) => Box::new(ghostftp_lib::remotefs::hubspot::HubSpotFs::new(hs.clone())),
-        Session::Dynamics(dynm) => {
-            Box::new(ghostftp_lib::remotefs::dynamics::DynamicsFs::new(dynm.clone()))
+        Session::Shopify(sh) => {
+            Box::new(ghostftp_lib::remotefs::shopify::ShopifyFs::new(sh.clone()))
         }
-        Session::Agent(agent) => Box::new(ghostftp_lib::remotefs::agent::AgentFs::new(agent.clone())),
+        Session::HubSpot(hs) => {
+            Box::new(ghostftp_lib::remotefs::hubspot::HubSpotFs::new(hs.clone()))
+        }
+        Session::Dynamics(dynm) => Box::new(ghostftp_lib::remotefs::dynamics::DynamicsFs::new(
+            dynm.clone(),
+        )),
+        Session::Agent(agent) => {
+            Box::new(ghostftp_lib::remotefs::agent::AgentFs::new(agent.clone()))
+        }
     }
 }
 
@@ -912,10 +944,7 @@ fn print_entry(e: &DirEntry, bytes: bool) {
         .mode
         .map(|m| format!("{:o}", m & 0o777))
         .unwrap_or_else(|| "---".into());
-    println!(
-        "{kind} {mode:>4}  {size:>10}  {name}",
-        name = e.name
-    );
+    println!("{kind} {mode:>4}  {size:>10}  {name}", name = e.name);
     let _ = e.modified;
 }
 
@@ -960,7 +989,13 @@ async fn cmd_cp(store: &ProfileStore, src: &str, dst: &str) -> Result<()> {
             println!("Copied {} ({})", d, fmt_bytes(bytes));
         }
         // upload: local → remote
-        (Target::Local(local_path), Target::Remote { profile_name, path: dest }) => {
+        (
+            Target::Local(local_path),
+            Target::Remote {
+                profile_name,
+                path: dest,
+            },
+        ) => {
             let profile = find_profile(store, &profile_name).await?;
             let session = open_session(&profile).await?;
             let dest_parent = parent_of(&dest);
@@ -968,7 +1003,13 @@ async fn cmd_cp(store: &ProfileStore, src: &str, dst: &str) -> Result<()> {
             upload_file(&session, &local_path, &dest_parent, &local_name).await?;
         }
         // download: remote → local
-        (Target::Remote { profile_name, path: src }, Target::Local(local_dir)) => {
+        (
+            Target::Remote {
+                profile_name,
+                path: src,
+            },
+            Target::Local(local_dir),
+        ) => {
             let profile = find_profile(store, &profile_name).await?;
             let session = open_session(&profile).await?;
             download_file(&session, &src, &local_dir).await?;
@@ -991,8 +1032,14 @@ async fn cmd_mv(store: &ProfileStore, src: &str, dst: &str) -> Result<()> {
                 .with_context(|| format!("rename {s} -> {d}"))?;
         }
         (
-            Target::Remote { profile_name: s_p, path: s_path },
-            Target::Remote { profile_name: d_p, path: d_path },
+            Target::Remote {
+                profile_name: s_p,
+                path: s_path,
+            },
+            Target::Remote {
+                profile_name: d_p,
+                path: d_path,
+            },
         ) if s_p == d_p => {
             let profile = find_profile(store, &s_p).await?;
             let session = open_session(&profile).await?;
@@ -1006,7 +1053,9 @@ async fn cmd_mv(store: &ProfileStore, src: &str, dst: &str) -> Result<()> {
 async fn cmd_rm(store: &ProfileStore, raw: &str, recursive: bool) -> Result<()> {
     match parse_target(raw) {
         Target::Local(p) => {
-            ghostftp_lib::remotefs::local::LocalFs.delete(&p, recursive).await?;
+            ghostftp_lib::remotefs::local::LocalFs
+                .delete(&p, recursive)
+                .await?;
         }
         Target::Remote { profile_name, path } => {
             let profile = find_profile(store, &profile_name).await?;
@@ -1020,7 +1069,9 @@ async fn cmd_rm(store: &ProfileStore, raw: &str, recursive: bool) -> Result<()> 
 async fn cmd_mkdir(store: &ProfileStore, raw: &str) -> Result<()> {
     match parse_target(raw) {
         Target::Local(p) => {
-            ghostftp_lib::remotefs::local::LocalFs.create_dir(&p).await?;
+            ghostftp_lib::remotefs::local::LocalFs
+                .create_dir(&p)
+                .await?;
         }
         Target::Remote { profile_name, path } => {
             let profile = find_profile(store, &profile_name).await?;
@@ -1107,16 +1158,20 @@ async fn cmd_sync(
 
     let bar = ProgressBar::new(plan.copies.len() as u64);
     bar.set_style(
-        ProgressStyle::with_template("{bar:30.cyan/blue} {pos:>3}/{len:3} {msg}")
-            .unwrap(),
+        ProgressStyle::with_template("{bar:30.cyan/blue} {pos:>3}/{len:3} {msg}").unwrap(),
     );
     for c in &plan.copies {
         bar.set_message(c.relative.clone());
         match direction {
             Dir::Push => {
                 let dest_parent = parent_of(&c.destination_path);
-                upload_file(&session, &c.source_path, &dest_parent, &basename(&c.source_path))
-                    .await?;
+                upload_file(
+                    &session,
+                    &c.source_path,
+                    &dest_parent,
+                    &basename(&c.source_path),
+                )
+                .await?;
             }
             Dir::Pull => {
                 let dest_parent = parent_of(&c.destination_path);
@@ -1317,17 +1372,22 @@ async fn cmd_dedupe(
 
     // Resolve the target to a RemoteFs + optional live session (local = None).
     // parse_diff_target also honors the explicit `local:` prefix.
-    let (fs, session, root): (Box<dyn RemoteFs>, Option<Session>, String) = match parse_diff_target(target) {
-        Target::Local(p) => (Box::new(ghostftp_lib::remotefs::local::LocalFs), None, p),
-        Target::Remote { profile_name, path } => {
-            let profile = find_profile(store, &profile_name).await?;
-            let session = open_session(&profile).await?;
-            let root = path.clone();
-            (fs_for(&session), Some(session), root)
-        }
-    };
+    let (fs, session, root): (Box<dyn RemoteFs>, Option<Session>, String) =
+        match parse_diff_target(target) {
+            Target::Local(p) => (Box::new(ghostftp_lib::remotefs::local::LocalFs), None, p),
+            Target::Remote { profile_name, path } => {
+                let profile = find_profile(store, &profile_name).await?;
+                let session = open_session(&profile).await?;
+                let root = path.clone();
+                (fs_for(&session), Some(session), root)
+            }
+        };
 
-    let mode = if hash { DedupeMode::Hash } else { DedupeMode::Name };
+    let mode = if hash {
+        DedupeMode::Hash
+    } else {
+        DedupeMode::Name
+    };
     if !json {
         eprintln!(
             "{}",
@@ -1373,7 +1433,11 @@ async fn cmd_dedupe(
                 "Deleted {} of {} duplicates{}.",
                 paths.len() - failed,
                 paths.len(),
-                if failed > 0 { format!(" ({failed} failed)") } else { String::new() }
+                if failed > 0 {
+                    format!(" ({failed} failed)")
+                } else {
+                    String::new()
+                }
             ))
         );
         if failed > 0 {
@@ -1417,8 +1481,16 @@ fn print_dedupe_human(result: &ghostftp_lib::dedupe::DedupeResult) {
             s.duplicate_files,
             fmt_bytes(s.wasted_bytes),
             s.files_scanned,
-            if result.mode == ghostftp_lib::dedupe::DedupeMode::Hash { " · hashed" } else { "" },
-            if s.hash_errors > 0 { format!(" · {} hash errors", s.hash_errors) } else { String::new() }
+            if result.mode == ghostftp_lib::dedupe::DedupeMode::Hash {
+                " · hashed"
+            } else {
+                ""
+            },
+            if s.hash_errors > 0 {
+                format!(" · {} hash errors", s.hash_errors)
+            } else {
+                String::new()
+            }
         ))
     );
 }
@@ -1439,26 +1511,37 @@ async fn cmd_search(
     max: Option<usize>,
     json: bool,
 ) -> Result<()> {
-    use ghostftp_lib::search::{SearchKind, SearchQuery, DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_RESULTS};
+    use ghostftp_lib::search::{
+        SearchKind, SearchQuery, DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_RESULTS,
+    };
 
     // Resolve the target to a RemoteFs + optional live session (local = None).
-    let (fs, session, root): (Box<dyn RemoteFs>, Option<Session>, String) = match parse_target(target) {
-        Target::Local(p) => (Box::new(ghostftp_lib::remotefs::local::LocalFs), None, p),
-        Target::Remote { profile_name, path } => {
-            let profile = find_profile(store, &profile_name).await?;
-            let session = open_session(&profile).await?;
-            let fs = fs_for(&session);
-            (fs, Some(session), path)
-        }
+    let (fs, session, root): (Box<dyn RemoteFs>, Option<Session>, String) =
+        match parse_target(target) {
+            Target::Local(p) => (Box::new(ghostftp_lib::remotefs::local::LocalFs), None, p),
+            Target::Remote { profile_name, path } => {
+                let profile = find_profile(store, &profile_name).await?;
+                let session = open_session(&profile).await?;
+                let fs = fs_for(&session);
+                (fs, Some(session), path)
+            }
+        };
+    let root = if root.trim().is_empty() {
+        ".".to_string()
+    } else {
+        root
     };
-    let root = if root.trim().is_empty() { ".".to_string() } else { root };
 
     // `--regex` implies content search (a regex over names is unusual; the plan
     // scopes regex to content grep).
     let content = content || regex;
     let query = SearchQuery {
         pattern: pattern.to_string(),
-        kind: if content { SearchKind::Content } else { SearchKind::Name },
+        kind: if content {
+            SearchKind::Content
+        } else {
+            SearchKind::Name
+        },
         regex,
         case_sensitive,
         include_globs: include,
@@ -1560,7 +1643,9 @@ async fn cmd_fetch(store: &ProfileStore, url_str: &str, profile_opt: Option<Stri
                 .into_iter()
                 .filter(|p| {
                     (p.protocol == "http" || p.protocol == "https")
-                        && profile_host(p).as_deref().map(|h| h.eq_ignore_ascii_case(host))
+                        && profile_host(p)
+                            .as_deref()
+                            .map(|h| h.eq_ignore_ascii_case(host))
                             .unwrap_or(false)
                 })
                 .collect();
@@ -1607,7 +1692,10 @@ fn profile_host(p: &ConnectionProfile) -> Option<String> {
     } else {
         format!("https://{raw}")
     };
-    reqwest::Url::parse(&with_scheme).ok()?.host_str().map(|h| h.to_string())
+    reqwest::Url::parse(&with_scheme)
+        .ok()?
+        .host_str()
+        .map(|h| h.to_string())
 }
 
 async fn cmd_profiles_list(store: &ProfileStore) -> Result<()> {
@@ -1618,11 +1706,7 @@ async fn cmd_profiles_list(store: &ProfileStore) -> Result<()> {
     }
     for p in profiles {
         let suffix = match p.protocol.as_str() {
-            "s3" | "azure" => format!(
-                "{}://{}",
-                p.protocol,
-                p.bucket.as_deref().unwrap_or("?")
-            ),
+            "s3" | "azure" => format!("{}://{}", p.protocol, p.bucket.as_deref().unwrap_or("?")),
             _ => format!("{}@{}:{}", p.username, p.host, p.port),
         };
         println!("{:<24} {:<6} {}", p.name, p.protocol, suffix);
@@ -1835,8 +1919,9 @@ fn read_endpoint() -> Result<Endpoint> {
              Bridge (the master switch at the top of the Bridge panel)."
         )
     })?;
-    let v: serde_json::Value = serde_json::from_slice(&bytes)
-        .context("agent-endpoint.json is corrupt; toggle the Agent Bridge off and on in Ghost FTP")?;
+    let v: serde_json::Value = serde_json::from_slice(&bytes).context(
+        "agent-endpoint.json is corrupt; toggle the Agent Bridge off and on in Ghost FTP",
+    )?;
     let url = v
         .get("url")
         .and_then(|x| x.as_str())
@@ -1847,11 +1932,12 @@ fn read_endpoint() -> Result<Endpoint> {
         .and_then(|x| x.as_str())
         .ok_or_else(|| anyhow!("agent-endpoint.json is missing `token`"))?
         .to_string();
-    let app_version = v
-        .get("version")
-        .and_then(|x| x.as_str())
-        .map(String::from);
-    Ok(Endpoint { url, token, app_version })
+    let app_version = v.get("version").and_then(|x| x.as_str()).map(String::from);
+    Ok(Endpoint {
+        url,
+        token,
+        app_version,
+    })
 }
 
 /// This CLI binary's build version.
@@ -1958,7 +2044,9 @@ fn resolve_server(ep: &Endpoint, name: &str) -> Result<String> {
         .cloned()
         .unwrap_or_default();
     if sessions.is_empty() {
-        bail!("no server has granted agent access yet — enable one in Ghost FTP's Agent Bridge panel");
+        bail!(
+            "no server has granted agent access yet — enable one in Ghost FTP's Agent Bridge panel"
+        );
     }
     if sessions
         .iter()
@@ -2102,7 +2190,10 @@ fn run_agent_script(
     }
     let body = http_post(ep, "/exec_script", req)?;
     if dry_run {
-        println!("{}", serde_json::to_string_pretty(&body).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&body).unwrap_or_default()
+        );
         return Ok(());
     }
     print_exec_output_and_exit(&body)
@@ -2124,7 +2215,11 @@ fn print_exec_output_and_exit(body: &serde_json::Value) -> Result<()> {
             se.flush().ok();
         }
     }
-    if body.get("timedOut").and_then(|v| v.as_bool()).unwrap_or(false) {
+    if body
+        .get("timedOut")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
         eprintln!("{}", warn("command timed out before finishing"));
     }
     // exitCode is a number or null on the wire; null => 0, like cmd_exec.
@@ -2138,7 +2233,10 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
     match action {
         AgentCmd::Context => {
             let body = http_get(&ep, "/context")?;
-            println!("{}", serde_json::to_string_pretty(&body).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&body).unwrap_or_default()
+            );
             Ok(())
         }
         AgentCmd::Sessions => {
@@ -2162,7 +2260,15 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
             }
             Ok(())
         }
-        AgentCmd::Exec { server, dry_run, timeout_ms, file, stdin, detach, command } => {
+        AgentCmd::Exec {
+            server,
+            dry_run,
+            timeout_ms,
+            file,
+            stdin,
+            detach,
+            command,
+        } => {
             let id = resolve_server(&ep, &server)?;
             // --file / --stdin ship a script verbatim; otherwise run the joined
             // command line. Exactly one source must be given.
@@ -2196,16 +2302,26 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
                 return Ok(());
             }
             if dry_run {
-                println!("{}", serde_json::to_string_pretty(&body).unwrap_or_default());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&body).unwrap_or_default()
+                );
                 return Ok(());
             }
             print_exec_output_and_exit(&body)
         }
         AgentCmd::Job { server, job_id } => {
             let id = resolve_server(&ep, &server)?;
-            let body = http_post(&ep, "/job", serde_json::json!({ "sessionId": id, "jobId": job_id }))?;
+            let body = http_post(
+                &ep,
+                "/job",
+                serde_json::json!({ "sessionId": id, "jobId": job_id }),
+            )?;
             print_job(&body);
-            let running = body.get("running").and_then(|v| v.as_bool()).unwrap_or(false);
+            let running = body
+                .get("running")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             // Mirror the job's exit code once it's finished, like a foreground exec.
             if !running {
                 if let Some(code) = body.get("exitCode").and_then(|v| v.as_i64()) {
@@ -2217,7 +2333,11 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
         AgentCmd::Jobs { server } => {
             let id = resolve_server(&ep, &server)?;
             let body = http_post(&ep, "/jobs", serde_json::json!({ "sessionId": id }))?;
-            let jobs = body.get("jobs").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+            let jobs = body
+                .get("jobs")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
             if jobs.is_empty() {
                 eprintln!("No background jobs on {server}.");
             }
@@ -2228,13 +2348,21 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
                 let state = if running {
                     "running".to_string()
                 } else {
-                    format!("done (exit {})", code.map(|c| c.to_string()).unwrap_or_else(|| "?".into()))
+                    format!(
+                        "done (exit {})",
+                        code.map(|c| c.to_string()).unwrap_or_else(|| "?".into())
+                    )
                 };
                 println!("{jid}  {state}");
             }
             Ok(())
         }
-        AgentCmd::Script { server, file, dry_run, timeout_ms } => {
+        AgentCmd::Script {
+            server,
+            file,
+            dry_run,
+            timeout_ms,
+        } => {
             let id = resolve_server(&ep, &server)?;
             let (bytes, label) = read_script_source(Some(&file), false)?;
             run_agent_script(&ep, &id, &bytes, &label, dry_run, timeout_ms)
@@ -2251,13 +2379,21 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
         }
         AgentCmd::Read { server, path } => {
             let id = resolve_server(&ep, &server)?;
-            let body = http_post(&ep, "/read", serde_json::json!({ "sessionId": id, "path": path }))?;
+            let body = http_post(
+                &ep,
+                "/read",
+                serde_json::json!({ "sessionId": id, "path": path }),
+            )?;
             if let Some(content) = body.get("content").and_then(|v| v.as_str()) {
                 let mut so = io::stdout();
                 so.write_all(content.as_bytes()).ok();
                 so.flush().ok();
             }
-            if body.get("truncated").and_then(|v| v.as_bool()).unwrap_or(false) {
+            if body
+                .get("truncated")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
                 eprintln!("\n{}", warn("output truncated at 256 KiB"));
             }
             Ok(())
@@ -2269,10 +2405,17 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
                 "/read_batch",
                 serde_json::json!({ "sessionId": id, "paths": paths }),
             )?;
-            println!("{}", serde_json::to_string_pretty(&body).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&body).unwrap_or_default()
+            );
             Ok(())
         }
-        AgentCmd::Glob { server, path, pattern } => {
+        AgentCmd::Glob {
+            server,
+            path,
+            pattern,
+        } => {
             let id = resolve_server(&ep, &server)?;
             let mut req = serde_json::json!({ "sessionId": id, "pattern": pattern });
             if let Some(p) = path {
@@ -2321,9 +2464,7 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
                     if is_content {
                         let line = m.get("line").and_then(|v| v.as_u64()).unwrap_or(0);
                         let preview = m.get("preview").and_then(|v| v.as_str()).unwrap_or("");
-                        println!(
-                            "\x1b[36m{path}\x1b[0m:\x1b[33m{line}\x1b[0m: {preview}"
-                        );
+                        println!("\x1b[36m{path}\x1b[0m:\x1b[33m{line}\x1b[0m: {preview}");
                     } else if m.get("isDir").and_then(|v| v.as_bool()).unwrap_or(false) {
                         println!("{path}/");
                     } else {
@@ -2334,12 +2475,20 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
             if let Some(note) = body.get("note").and_then(|v| v.as_str()) {
                 eprintln!("{}", dim(note));
             }
-            if body.get("truncated").and_then(|v| v.as_bool()).unwrap_or(false) {
+            if body
+                .get("truncated")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
                 eprintln!("{}", warn("results truncated (cap reached)"));
             }
             Ok(())
         }
-        AgentCmd::Download { server, remote_path, local_dir } => {
+        AgentCmd::Download {
+            server,
+            remote_path,
+            local_dir,
+        } => {
             let id = resolve_server(&ep, &server)?;
             guard_mangled_remote_path(&ep, &id, &remote_path)?;
             let mut req = serde_json::json!({ "sessionId": id, "path": remote_path });
@@ -2350,7 +2499,14 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
             print_transfer_started(&body);
             Ok(())
         }
-        AgentCmd::Write { server, remote_path, from_file, stdin, content, overwrite } => {
+        AgentCmd::Write {
+            server,
+            remote_path,
+            from_file,
+            stdin,
+            content,
+            overwrite,
+        } => {
             let id = resolve_server(&ep, &server)?;
             guard_mangled_remote_path(&ep, &id, &remote_path)?;
             // Exactly one content source.
@@ -2361,12 +2517,16 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
                 (None, true, None) => {
                     use std::io::Read as _;
                     let mut buf = Vec::new();
-                    io::stdin().read_to_end(&mut buf).context("read content from stdin")?;
+                    io::stdin()
+                        .read_to_end(&mut buf)
+                        .context("read content from stdin")?;
                     buf
                 }
                 (None, false, Some(text)) => text.into_bytes(),
                 (None, false, None) => {
-                    bail!("no content — give one of --from-file <path>, --stdin, or --content <text>")
+                    bail!(
+                        "no content — give one of --from-file <path>, --stdin, or --content <text>"
+                    )
                 }
                 _ => bail!("give exactly one of --from-file / --stdin / --content"),
             };
@@ -2382,12 +2542,23 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
                     "overwrite": overwrite,
                 }),
             )?;
-            let n = body.get("bytes").and_then(|v| v.as_u64()).unwrap_or(bytes.len() as u64);
-            let p = body.get("path").and_then(|v| v.as_str()).unwrap_or(&remote_path);
+            let n = body
+                .get("bytes")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(bytes.len() as u64);
+            let p = body
+                .get("path")
+                .and_then(|v| v.as_str())
+                .unwrap_or(&remote_path);
             println!("wrote {} to {p}", fmt_bytes(n));
             Ok(())
         }
-        AgentCmd::Upload { server, local_path, remote_dir, overwrite } => {
+        AgentCmd::Upload {
+            server,
+            local_path,
+            remote_dir,
+            overwrite,
+        } => {
             let id = resolve_server(&ep, &server)?;
             guard_mangled_remote_path(&ep, &id, &remote_dir)?;
             let body = http_post(
@@ -2403,7 +2574,11 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
             print_transfer_started(&body);
             Ok(())
         }
-        AgentCmd::Rm { server, path, recursive } => {
+        AgentCmd::Rm {
+            server,
+            path,
+            recursive,
+        } => {
             let id = resolve_server(&ep, &server)?;
             guard_mangled_remote_path(&ep, &id, &path)?;
             http_post(
@@ -2429,11 +2604,20 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
         AgentCmd::Mkdir { server, path } => {
             let id = resolve_server(&ep, &server)?;
             guard_mangled_remote_path(&ep, &id, &path)?;
-            http_post(&ep, "/mkdir", serde_json::json!({ "sessionId": id, "path": &path }))?;
+            http_post(
+                &ep,
+                "/mkdir",
+                serde_json::json!({ "sessionId": id, "path": &path }),
+            )?;
             println!("created {path}");
             Ok(())
         }
-        AgentCmd::UploadDir { server, local_dir, remote_dir, overwrite } => {
+        AgentCmd::UploadDir {
+            server,
+            local_dir,
+            remote_dir,
+            overwrite,
+        } => {
             let id = resolve_server(&ep, &server)?;
             guard_mangled_remote_path(&ep, &id, &remote_dir)?;
             let body = http_post(
@@ -2452,7 +2636,10 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
                 .cloned()
                 .unwrap_or_default();
             let total = body.get("totalBytes").and_then(|v| v.as_u64()).unwrap_or(0);
-            let root = body.get("remoteRoot").and_then(|v| v.as_str()).unwrap_or("?");
+            let root = body
+                .get("remoteRoot")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
             println!(
                 "queued {} file uploads ({}) → {}",
                 ids.len(),
@@ -2464,7 +2651,14 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
             }
             Ok(())
         }
-        AgentCmd::Sync { server, local_dir, remote_dir, direction, mirror, dry_run } => {
+        AgentCmd::Sync {
+            server,
+            local_dir,
+            remote_dir,
+            direction,
+            mirror,
+            dry_run,
+        } => {
             let id = resolve_server(&ep, &server)?;
             let dir_word = match direction {
                 Dir::Push => "push",
@@ -2484,7 +2678,10 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
                 }),
             )?;
             let copies = body.get("copyCount").and_then(|v| v.as_u64()).unwrap_or(0);
-            let deletes = body.get("deleteCount").and_then(|v| v.as_u64()).unwrap_or(0);
+            let deletes = body
+                .get("deleteCount")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
             let bytes = body.get("totalBytes").and_then(|v| v.as_u64()).unwrap_or(0);
             eprintln!(
                 "\n{}\n  copies   {}\n  deletes  {}\n  bytes    {}",
@@ -2546,18 +2743,32 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
             }
             let body = http_post(&ep, "/diff", req)?;
             if json {
-                println!("{}", serde_json::to_string_pretty(&body).unwrap_or_default());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&body).unwrap_or_default()
+                );
             } else {
                 print_agent_diff(&body);
             }
             Ok(())
         }
         AgentCmd::Transfer { transfer_id } => {
-            let body = http_post(&ep, "/transfer", serde_json::json!({ "transferId": transfer_id }))?;
-            println!("{}", serde_json::to_string_pretty(&body).unwrap_or_default());
+            let body = http_post(
+                &ep,
+                "/transfer",
+                serde_json::json!({ "transferId": transfer_id }),
+            )?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&body).unwrap_or_default()
+            );
             Ok(())
         }
-        AgentCmd::Tail { server, path, lines } => {
+        AgentCmd::Tail {
+            server,
+            path,
+            lines,
+        } => {
             let id = resolve_server(&ep, &server)?;
             let body = http_post(
                 &ep,
@@ -2569,7 +2780,11 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
                 so.write_all(out.as_bytes()).ok();
                 so.flush().ok();
             }
-            if body.get("timedOut").and_then(|v| v.as_bool()).unwrap_or(false) {
+            if body
+                .get("timedOut")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
                 eprintln!("{}", warn("tail stream timed out after 30s"));
             }
             Ok(())
@@ -2577,7 +2792,10 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
         AgentCmd::Info { server } => {
             let id = resolve_server(&ep, &server)?;
             let body = http_post(&ep, "/info", serde_json::json!({ "sessionId": id }))?;
-            println!("{}", serde_json::to_string_pretty(&body).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&body).unwrap_or_default()
+            );
             Ok(())
         }
         AgentCmd::History { server, limit } => {
@@ -2598,9 +2816,17 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
             }
             Ok(())
         }
-        AgentCmd::Run { server, dry_run, name } => {
+        AgentCmd::Run {
+            server,
+            dry_run,
+            name,
+        } => {
             let id = resolve_server(&ep, &server)?;
-            let body = http_post(&ep, "/run", serde_json::json!({ "sessionId": id, "name": name, "dryRun": dry_run }))?;
+            let body = http_post(
+                &ep,
+                "/run",
+                serde_json::json!({ "sessionId": id, "name": name, "dryRun": dry_run }),
+            )?;
             if let Some(out) = body.get("stdout").and_then(|v| v.as_str()) {
                 let mut so = io::stdout();
                 so.write_all(out.as_bytes()).ok();
@@ -2613,7 +2839,11 @@ fn cmd_agent(action: AgentCmd) -> Result<()> {
                     se.flush().ok();
                 }
             }
-            if body.get("timedOut").and_then(|v| v.as_bool()).unwrap_or(false) {
+            if body
+                .get("timedOut")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
                 eprintln!("{}", warn("command timed out before finishing"));
             }
             let code = body.get("exitCode").and_then(|v| v.as_i64()).unwrap_or(0);
@@ -2652,7 +2882,10 @@ fn cmd_skill(action: SkillCmd) -> Result<()> {
         SkillCmd::List { json } => {
             let body = http_get(&ep, "/skills")?;
             if json {
-                println!("{}", serde_json::to_string_pretty(&body).unwrap_or_default());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&body).unwrap_or_default()
+                );
                 return Ok(());
             }
             let skills = body
@@ -2669,7 +2902,11 @@ fn cmd_skill(action: SkillCmd) -> Result<()> {
             for s in &skills {
                 let name = s.get("name").and_then(|v| v.as_str()).unwrap_or("?");
                 let desc = s.get("description").and_then(|v| v.as_str()).unwrap_or("");
-                let steps = s.get("steps").and_then(|v| v.as_array()).map(|a| a.len()).unwrap_or(0);
+                let steps = s
+                    .get("steps")
+                    .and_then(|v| v.as_array())
+                    .map(|a| a.len())
+                    .unwrap_or(0);
                 let params = s
                     .get("params")
                     .and_then(|v| v.as_array())
@@ -2694,18 +2931,31 @@ fn cmd_skill(action: SkillCmd) -> Result<()> {
                     println!("{:<20} {}", "", dim(desc));
                 }
                 if skill_status(s) == "proposed" {
-                    println!("{:<20} {}", "", warn("proposal — approve in Ghost FTP before running"));
+                    println!(
+                        "{:<20} {}",
+                        "",
+                        warn("proposal — approve in Ghost FTP before running")
+                    );
                 }
             }
             Ok(())
         }
-        SkillCmd::Run { name, target, param, dry_run, json } => {
+        SkillCmd::Run {
+            name,
+            target,
+            param,
+            dry_run,
+            json,
+        } => {
             let mut params = serde_json::Map::new();
             for p in &param {
                 let Some((k, v)) = p.split_once('=') else {
                     bail!("--param must be key=value (got '{p}')");
                 };
-                params.insert(k.trim().to_string(), serde_json::Value::String(v.to_string()));
+                params.insert(
+                    k.trim().to_string(),
+                    serde_json::Value::String(v.to_string()),
+                );
             }
             let mut req = serde_json::json!({
                 "name": name,
@@ -2717,7 +2967,10 @@ fn cmd_skill(action: SkillCmd) -> Result<()> {
             }
             let body = http_post(&ep, "/skill_run", req)?;
             if json {
-                println!("{}", serde_json::to_string_pretty(&body).unwrap_or_default());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&body).unwrap_or_default()
+                );
                 return Ok(());
             }
             if dry_run {
@@ -2734,19 +2987,29 @@ fn cmd_skill(action: SkillCmd) -> Result<()> {
 }
 
 fn skill_status(s: &serde_json::Value) -> &str {
-    s.get("status").and_then(|v| v.as_str()).unwrap_or("approved")
+    s.get("status")
+        .and_then(|v| v.as_str())
+        .unwrap_or("approved")
 }
 
 /// One-line summary of a skill's default target selector for `skill list`.
 fn describe_skill_targets(s: &serde_json::Value) -> String {
     let t = s.get("targets");
-    if t.and_then(|v| v.get("all")).and_then(|v| v.as_bool()).unwrap_or(false) {
+    if t.and_then(|v| v.get("all"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
         return "all servers".to_string();
     }
     let sessions = t
         .and_then(|v| v.get("sessions"))
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>().join(", "))
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
         .unwrap_or_default();
     if sessions.is_empty() {
         "no default targets".to_string()
@@ -2757,7 +3020,11 @@ fn describe_skill_targets(s: &serde_json::Value) -> String {
 
 /// Print any targets the bridge couldn't run (never silently dropped).
 fn print_skill_skipped(body: &serde_json::Value) {
-    let skipped = body.get("skipped").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let skipped = body
+        .get("skipped")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     for s in &skipped {
         let t = s.get("target").and_then(|v| v.as_str()).unwrap_or("?");
         let reason = s.get("reason").and_then(|v| v.as_str()).unwrap_or("");
@@ -2768,21 +3035,36 @@ fn print_skill_skipped(body: &serde_json::Value) {
 fn print_skill_dry_run(body: &serde_json::Value) {
     let name = body.get("skill").and_then(|v| v.as_str()).unwrap_or("");
     println!("Dry run — skill \x1b[1m{name}\x1b[0m:");
-    let targets = body.get("targets").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let targets = body
+        .get("targets")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     if targets.is_empty() {
         println!("  {}", warn("no runnable targets"));
     }
     for t in &targets {
         let tn = t.get("sessionName").and_then(|v| v.as_str()).unwrap_or("?");
         println!("\n  ▸ \x1b[1m{tn}\x1b[0m");
-        let cmds = t.get("commands").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+        let cmds = t
+            .get("commands")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
         for (i, c) in cmds.iter().enumerate() {
             println!("    {}. {}", i + 1, c.as_str().unwrap_or(""));
         }
     }
     print_skill_skipped(body);
-    if body.get("needsApproval").and_then(|v| v.as_bool()).unwrap_or(false) {
-        println!("\n{}", dim("A real run will ask for approval in Ghost FTP."));
+    if body
+        .get("needsApproval")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
+        println!(
+            "\n{}",
+            dim("A real run will ask for approval in Ghost FTP.")
+        );
     }
 }
 
@@ -2790,13 +3072,25 @@ fn print_skill_dry_run(body: &serde_json::Value) {
 fn print_skill_run(body: &serde_json::Value) -> u64 {
     let succeeded = body.get("succeeded").and_then(|v| v.as_u64()).unwrap_or(0);
     let failed = body.get("failed").and_then(|v| v.as_u64()).unwrap_or(0);
-    let results = body.get("results").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let results = body
+        .get("results")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     for r in &results {
         let tn = r.get("sessionName").and_then(|v| v.as_str()).unwrap_or("?");
         let ok = r.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
-        let marker = if ok { "\x1b[32m✓\x1b[0m" } else { "\x1b[31m✗\x1b[0m" };
+        let marker = if ok {
+            "\x1b[32m✓\x1b[0m"
+        } else {
+            "\x1b[31m✗\x1b[0m"
+        };
         println!("{marker} \x1b[1m{tn}\x1b[0m");
-        let steps = r.get("steps").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+        let steps = r
+            .get("steps")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
         for st in &steps {
             let sok = st.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
             let n = st.get("step").and_then(|v| v.as_u64()).unwrap_or(0);
@@ -2810,7 +3104,11 @@ fn print_skill_run(body: &serde_json::Value) -> u64 {
                 .and_then(|v| v.as_i64())
                 .map(|c| c.to_string())
                 .unwrap_or_else(|| "?".to_string());
-            let dot = if sok { "\x1b[32m·\x1b[0m" } else { "\x1b[31m✗\x1b[0m" };
+            let dot = if sok {
+                "\x1b[32m·\x1b[0m"
+            } else {
+                "\x1b[31m✗\x1b[0m"
+            };
             println!("  {dot} step {n} (exit {code}) {}", dim(label));
             if !sok {
                 if let Some(se) = st.get("stderr").and_then(|v| v.as_str()) {
@@ -2867,15 +3165,25 @@ fn split_agent_diff_side(raw: &str) -> (Option<String>, String) {
 /// Render the Agent Bridge `/diff` response (only differing entries are sent;
 /// the summary counts the rest).
 fn print_agent_diff(body: &serde_json::Value) {
-    let entries = body.get("entries").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let entries = body
+        .get("entries")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     for e in &entries {
         let rel = e.get("relative").and_then(|v| v.as_str()).unwrap_or("");
         let class = e.get("class").and_then(|v| v.as_str()).unwrap_or("");
         let a_size = e.get("aSize").and_then(|v| v.as_u64());
         let b_size = e.get("bSize").and_then(|v| v.as_u64());
         let (marker, detail) = match class {
-            "onlyInA" => ("\x1b[36mA only\x1b[0m", a_size.map(fmt_bytes).unwrap_or_default()),
-            "onlyInB" => ("\x1b[35mB only\x1b[0m", b_size.map(fmt_bytes).unwrap_or_default()),
+            "onlyInA" => (
+                "\x1b[36mA only\x1b[0m",
+                a_size.map(fmt_bytes).unwrap_or_default(),
+            ),
+            "onlyInB" => (
+                "\x1b[35mB only\x1b[0m",
+                b_size.map(fmt_bytes).unwrap_or_default(),
+            ),
             "different" => {
                 let why = match e.get("reason").and_then(|v| v.as_str()) {
                     Some("size") => format!(
@@ -2903,7 +3211,10 @@ fn print_agent_diff(body: &serde_json::Value) {
     }
     if let Some(s) = body.get("summary") {
         let g = |k: &str| s.get(k).and_then(|v| v.as_u64()).unwrap_or(0);
-        let hashed = body.get("hashed").and_then(|v| v.as_bool()).unwrap_or(false);
+        let hashed = body
+            .get("hashed")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         eprintln!(
             "\n{}",
             dim(&format!(
@@ -2916,8 +3227,15 @@ fn print_agent_diff(body: &serde_json::Value) {
             ))
         );
     }
-    if body.get("listTruncated").and_then(|v| v.as_bool()).unwrap_or(false) {
-        eprintln!("{}", warn("entry list truncated — use --json for the full result"));
+    if body
+        .get("listTruncated")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
+        eprintln!(
+            "{}",
+            warn("entry list truncated — use --json for the full result")
+        );
     }
 }
 
@@ -2939,7 +3257,10 @@ fn print_job(body: &serde_json::Value) {
             se.flush().ok();
         }
     }
-    let running = body.get("running").and_then(|v| v.as_bool()).unwrap_or(false);
+    let running = body
+        .get("running")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     if running {
         eprintln!("\n{}", dim("job still running — poll again"));
     } else {
@@ -2953,7 +3274,10 @@ fn print_job(body: &serde_json::Value) {
 }
 
 fn print_transfer_started(body: &serde_json::Value) {
-    let id = body.get("transferId").and_then(|v| v.as_str()).unwrap_or("?");
+    let id = body
+        .get("transferId")
+        .and_then(|v| v.as_str())
+        .unwrap_or("?");
     println!("transfer started: {id}");
     if let Some(dir) = body.get("localDir").and_then(|v| v.as_str()) {
         println!("  → {dir}");
@@ -3000,10 +3324,10 @@ async fn upload_file(
             }
             remote.flush().await?;
         }
-        Session::Ftp(ftp) => upload_ftp(ftp.clone(), local_path.to_string(), remote_path.clone()).await?,
-        Session::Object(obj) => {
-            upload_object(obj.clone(), local_path, &remote_path, &bar).await?
+        Session::Ftp(ftp) => {
+            upload_ftp(ftp.clone(), local_path.to_string(), remote_path.clone()).await?
         }
+        Session::Object(obj) => upload_object(obj.clone(), local_path, &remote_path, &bar).await?,
         Session::Webdav(_)
         | Session::Http(_)
         | Session::Dropbox(_)
@@ -3015,21 +3339,19 @@ async fn upload_file(
         | Session::Dynamics(_) => {
             anyhow::bail!("uploads to this connection type are not yet supported in the CLI")
         }
-        Session::Agent(_) => anyhow::bail!("ghostftp-agent connections are not supported in the CLI"),
+        Session::Agent(_) => {
+            anyhow::bail!("ghostftp-agent connections are not supported in the CLI")
+        }
     }
 
     bar.finish_with_message(format!("uploaded {name}"));
     Ok(())
 }
 
-async fn upload_ftp(
-    ftp: Arc<FtpSession>,
-    local_path: String,
-    remote_path: String,
-) -> Result<()> {
+async fn upload_ftp(ftp: Arc<FtpSession>, local_path: String, remote_path: String) -> Result<()> {
     ftp.with_stream(move |stream| {
-        let file = std::fs::File::open(&local_path)
-            .with_context(|| format!("open {local_path}"))?;
+        let file =
+            std::fs::File::open(&local_path).with_context(|| format!("open {local_path}"))?;
         let mut reader = std::io::BufReader::new(file);
         stream.put_from_reader(&remote_path, &mut reader)?;
         Ok(())
@@ -3149,7 +3471,9 @@ async fn download_file(session: &Session, remote_path: &str, local_dir: &str) ->
         | Session::Dynamics(_) => {
             anyhow::bail!("downloads from this connection type are not yet supported in the CLI")
         }
-        Session::Agent(_) => anyhow::bail!("ghostftp-agent connections are not supported in the CLI"),
+        Session::Agent(_) => {
+            anyhow::bail!("ghostftp-agent connections are not supported in the CLI")
+        }
     }
 
     bar.finish_with_message(format!("downloaded {name}"));

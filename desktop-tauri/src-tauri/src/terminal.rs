@@ -134,10 +134,7 @@ impl PtyManager {
             );
         });
 
-        self.ptys
-            .lock()
-            .await
-            .insert(id.clone(), PtyHandle { tx });
+        self.ptys.lock().await.insert(id.clone(), PtyHandle { tx });
         Ok(id)
     }
 

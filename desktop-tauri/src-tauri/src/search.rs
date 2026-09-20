@@ -142,10 +142,25 @@ pub struct SearchHit {
 
 impl SearchHit {
     fn name(path: String, relative: String, is_dir: bool, size: u64) -> Self {
-        SearchHit { path, relative, is_dir, size, line: None, column: None, preview: None }
+        SearchHit {
+            path,
+            relative,
+            is_dir,
+            size,
+            line: None,
+            column: None,
+            preview: None,
+        }
     }
 
-    fn content(path: String, relative: String, size: u64, line: u64, column: u64, preview: String) -> Self {
+    fn content(
+        path: String,
+        relative: String,
+        size: u64,
+        line: u64,
+        column: u64,
+        preview: String,
+    ) -> Self {
         SearchHit {
             path,
             relative,
@@ -212,7 +227,12 @@ pub struct HitSink<'a> {
 
 impl<'a> HitSink<'a> {
     pub fn new(max: usize, on_hit: &'a mut (dyn FnMut(SearchHit) + Send)) -> Self {
-        Self { on_hit, count: 0, max: max.max(1), truncated: false }
+        Self {
+            on_hit,
+            count: 0,
+            max: max.max(1),
+            truncated: false,
+        }
     }
 
     /// Record a hit. Returns `true` while the caller should keep producing hits,
@@ -258,13 +278,20 @@ impl Compiled {
             SearchKind::Name => (Some(NameMatcher::compile(q)?), None),
             SearchKind::Content => (None, Some(ContentMatcher::compile(q)?)),
         };
-        Ok(Self { name, content, filters: Filters::compile(q)? })
+        Ok(Self {
+            name,
+            content,
+            filters: Filters::compile(q)?,
+        })
     }
 }
 
 /// Content grep matcher: a literal substring or a compiled regex.
 enum ContentMatcher {
-    Literal { needle: String, case_sensitive: bool },
+    Literal {
+        needle: String,
+        case_sensitive: bool,
+    },
     Regex(regex::Regex),
 }
 
@@ -277,9 +304,15 @@ impl ContentMatcher {
                 .with_context(|| format!("invalid regex: {}", q.pattern))?;
             Ok(Self::Regex(re))
         } else if q.case_sensitive {
-            Ok(Self::Literal { needle: q.pattern.clone(), case_sensitive: true })
+            Ok(Self::Literal {
+                needle: q.pattern.clone(),
+                case_sensitive: true,
+            })
         } else {
-            Ok(Self::Literal { needle: q.pattern.to_lowercase(), case_sensitive: false })
+            Ok(Self::Literal {
+                needle: q.pattern.to_lowercase(),
+                case_sensitive: false,
+            })
         }
     }
 
@@ -287,7 +320,10 @@ impl ContentMatcher {
     fn find(&self, line: &str) -> Option<usize> {
         match self {
             Self::Regex(re) => re.find(line).map(|m| m.start()),
-            Self::Literal { needle, case_sensitive } => {
+            Self::Literal {
+                needle,
+                case_sensitive,
+            } => {
                 if *case_sensitive {
                     line.find(needle.as_str())
                 } else {
@@ -302,7 +338,10 @@ impl ContentMatcher {
 
 /// Name matcher: a glob (pattern has `*`/`?`) or a plain substring.
 enum NameMatcher {
-    Substring { needle: String, case_sensitive: bool },
+    Substring {
+        needle: String,
+        case_sensitive: bool,
+    },
     Glob(regex::Regex),
 }
 
@@ -316,16 +355,25 @@ impl NameMatcher {
                 .with_context(|| format!("invalid name pattern: {}", q.pattern))?;
             Ok(Self::Glob(re))
         } else if q.case_sensitive {
-            Ok(Self::Substring { needle: q.pattern.clone(), case_sensitive: true })
+            Ok(Self::Substring {
+                needle: q.pattern.clone(),
+                case_sensitive: true,
+            })
         } else {
-            Ok(Self::Substring { needle: q.pattern.to_lowercase(), case_sensitive: false })
+            Ok(Self::Substring {
+                needle: q.pattern.to_lowercase(),
+                case_sensitive: false,
+            })
         }
     }
 
     fn matches(&self, name: &str) -> bool {
         match self {
             Self::Glob(re) => re.is_match(name),
-            Self::Substring { needle, case_sensitive } => {
+            Self::Substring {
+                needle,
+                case_sensitive,
+            } => {
                 if *case_sensitive {
                     name.contains(needle.as_str())
                 } else {
@@ -424,8 +472,18 @@ pub async fn run_search(
     }
 }
 
-fn stats(strategy: SearchStrategy, sink: &HitSink<'_>, scanned: usize, note: Option<String>) -> SearchStats {
-    SearchStats { strategy, truncated: sink.truncated, scanned, note }
+fn stats(
+    strategy: SearchStrategy,
+    sink: &HitSink<'_>,
+    scanned: usize,
+    note: Option<String>,
+) -> SearchStats {
+    SearchStats {
+        strategy,
+        truncated: sink.truncated,
+        scanned,
+        note,
+    }
 }
 
 /// Drain a fully-parsed fast-path result into the sink, stopping at the cap.
@@ -461,9 +519,18 @@ async fn run_name(
     sink: &mut HitSink<'_>,
 ) -> Result<SearchStats> {
     let fast = match session {
-        Some(Session::Object(obj)) => Some((SearchStrategy::ObjectFlat, name_object(obj, root, query, compiled, cancel).await)),
-        Some(Session::Ssh(ssh)) => Some((SearchStrategy::Shell, name_exec_ssh(ssh, root, query, compiled).await)),
-        Some(Session::Agent(agent)) => Some((SearchStrategy::Shell, name_exec_agent(agent, root, query, compiled).await)),
+        Some(Session::Object(obj)) => Some((
+            SearchStrategy::ObjectFlat,
+            name_object(obj, root, query, compiled, cancel).await,
+        )),
+        Some(Session::Ssh(ssh)) => Some((
+            SearchStrategy::Shell,
+            name_exec_ssh(ssh, root, query, compiled).await,
+        )),
+        Some(Session::Agent(agent)) => Some((
+            SearchStrategy::Shell,
+            name_exec_agent(agent, root, query, compiled).await,
+        )),
         _ => None,
     };
     let mut note = None;
@@ -542,7 +609,12 @@ pub async fn search(
         let mut sink = HitSink::new(query.max_results, &mut push);
         stats = run_search(fs, session, root, query, &cancel, &mut sink).await?;
     }
-    Ok(SearchResult { root: root.to_string(), kind: query.kind, hits, stats })
+    Ok(SearchResult {
+        root: root.to_string(),
+        kind: query.kind,
+        hits,
+        stats,
+    })
 }
 
 // ---------- Generic name walk (files + dirs, streaming) ----------
@@ -558,7 +630,10 @@ async fn name_walk(
     cancel: &CancelToken,
     sink: &mut HitSink<'_>,
 ) -> usize {
-    let matcher = compiled.name.as_ref().expect("name search compiles a name matcher");
+    let matcher = compiled
+        .name
+        .as_ref()
+        .expect("name search compiles a name matcher");
     let normalized_root = root.trim_end_matches('/').to_string();
     let limit = scan::DEFAULT_CONCURRENCY;
 
@@ -625,8 +700,14 @@ async fn content_walk(
     cancel: &CancelToken,
     sink: &mut HitSink<'_>,
 ) -> Result<usize> {
-    let matcher = compiled.content.as_ref().expect("content search compiles a content matcher");
-    let opts = ScanOptions { concurrency: scan::DEFAULT_CONCURRENCY, cancel: cancel.clone() };
+    let matcher = compiled
+        .content
+        .as_ref()
+        .expect("content search compiles a content matcher");
+    let opts = ScanOptions {
+        concurrency: scan::DEFAULT_CONCURRENCY,
+        cancel: cancel.clone(),
+    };
     let tree = scan::walk(fs, root, &opts, |_| {})
         .await
         .with_context(|| format!("walking {root}"))?;
@@ -731,7 +812,9 @@ fn needs_content_optin(session: Option<&Session>) -> bool {
 }
 
 fn proto_label(session: Option<&Session>) -> String {
-    session.map(|s| s.protocol().to_string()).unwrap_or_else(|| "local".to_string())
+    session
+        .map(|s| s.protocol().to_string())
+        .unwrap_or_else(|| "local".to_string())
 }
 
 // ---------- Object-store flat name search ----------
@@ -747,7 +830,10 @@ async fn name_object(
     compiled: &Compiled,
     cancel: &CancelToken,
 ) -> Result<Vec<SearchHit>> {
-    let matcher = compiled.name.as_ref().expect("name search compiles a name matcher");
+    let matcher = compiled
+        .name
+        .as_ref()
+        .expect("name search compiles a name matcher");
     let prefix_raw = root.trim().trim_matches('/');
     let prefix = if prefix_raw.is_empty() || prefix_raw == "." {
         String::new()
@@ -767,7 +853,10 @@ async fn name_object(
         let rel = if prefix.is_empty() {
             key.clone()
         } else {
-            key.strip_prefix(&prefix).unwrap_or(&key).trim_start_matches('/').to_string()
+            key.strip_prefix(&prefix)
+                .unwrap_or(&key)
+                .trim_start_matches('/')
+                .to_string()
         };
         if rel.is_empty() {
             continue;
@@ -776,7 +865,12 @@ async fn name_object(
         if !matcher.matches(name) || !compiled.filters.passes(name) {
             continue;
         }
-        hits.push(SearchHit::name(format!("/{key}"), rel, false, meta.size as u64));
+        hits.push(SearchHit::name(
+            format!("/{key}"),
+            rel,
+            false,
+            meta.size as u64,
+        ));
     }
     Ok(hits)
 }
@@ -802,7 +896,11 @@ fn find_name_glob(query: &SearchQuery) -> String {
 /// `find <root> \( -type f -o -type d \) -iname '<glob>' -printf '%y\t%s\t%p\n'`
 /// — one line per matching file/dir: type char, byte size, absolute path.
 fn find_name_command(root: &str, query: &SearchQuery) -> String {
-    let name_flag = if query.case_sensitive { "-name" } else { "-iname" };
+    let name_flag = if query.case_sensitive {
+        "-name"
+    } else {
+        "-iname"
+    };
     format!(
         "find {} \\( -type f -o -type d \\) {} {} -printf '%y\\t%s\\t%p\\n' 2>/dev/null",
         sh_quote(root),
@@ -826,7 +924,8 @@ fn parse_find_names(root: &str, out: &str, compiled: &Compiled, max: usize) -> V
             continue;
         }
         let mut parts = line.splitn(3, '\t');
-        let (Some(ty), Some(size_s), Some(path)) = (parts.next(), parts.next(), parts.next()) else {
+        let (Some(ty), Some(size_s), Some(path)) = (parts.next(), parts.next(), parts.next())
+        else {
             continue;
         };
         let is_dir = ty == "d";
@@ -852,7 +951,10 @@ fn parse_find_names(root: &str, out: &str, compiled: &Compiled, max: usize) -> V
 /// walk's per-file cap; `-F` is literal, `-i` case-insensitive; `-g`/`-g !` carry
 /// the include/exclude globs to the server.
 fn rg_command(root: &str, query: &SearchQuery) -> String {
-    let mut cmd = format!("rg --json --no-ignore --hidden --max-filesize {}", query.max_file_bytes);
+    let mut cmd = format!(
+        "rg --json --no-ignore --hidden --max-filesize {}",
+        query.max_file_bytes
+    );
     if !query.case_sensitive {
         cmd.push_str(" -i");
     }
@@ -865,7 +967,11 @@ fn rg_command(root: &str, query: &SearchQuery) -> String {
     for g in query.exclude_globs.iter().filter(|g| !g.trim().is_empty()) {
         cmd.push_str(&format!(" -g {}", sh_quote(&format!("!{g}"))));
     }
-    cmd.push_str(&format!(" -e {} -- {}", sh_quote(&query.pattern), sh_quote(root)));
+    cmd.push_str(&format!(
+        " -e {} -- {}",
+        sh_quote(&query.pattern),
+        sh_quote(root)
+    ));
     cmd
 }
 
@@ -893,7 +999,14 @@ fn parse_rg_json(root: &str, out: &str, max: usize) -> Vec<SearchHit> {
         let text = data["lines"]["text"].as_str().unwrap_or("");
         let col = data["submatches"][0]["start"].as_u64().unwrap_or(0);
         let rel = scan::relative_of(normalized_root, path);
-        hits.push(SearchHit::content(path.to_string(), rel, 0, lineno, col, preview(text)));
+        hits.push(SearchHit::content(
+            path.to_string(),
+            rel,
+            0,
+            lineno,
+            col,
+            preview(text),
+        ));
     }
     hits
 }
@@ -913,7 +1026,11 @@ fn grep_command(root: &str, query: &SearchQuery) -> String {
     for g in query.exclude_globs.iter().filter(|g| !g.trim().is_empty()) {
         cmd.push_str(&format!(" --exclude={}", sh_quote(g)));
     }
-    cmd.push_str(&format!(" -e {} -- {} 2>/dev/null", sh_quote(&query.pattern), sh_quote(root)));
+    cmd.push_str(&format!(
+        " -e {} -- {} 2>/dev/null",
+        sh_quote(&query.pattern),
+        sh_quote(root)
+    ));
     cmd
 }
 
@@ -939,7 +1056,14 @@ fn parse_grep(root: &str, out: &str, compiled: &Compiled, max: usize) -> Vec<Sea
         };
         let rel = scan::relative_of(normalized_root, path);
         let col = matcher.and_then(|m| m.find(text)).unwrap_or(0) as u64;
-        hits.push(SearchHit::content(path.to_string(), rel, 0, lineno, col, preview(text)));
+        hits.push(SearchHit::content(
+            path.to_string(),
+            rel,
+            0,
+            lineno,
+            col,
+            preview(text),
+        ));
     }
     hits
 }
@@ -954,13 +1078,21 @@ async fn content_exec_ssh(
     query: &SearchQuery,
     compiled: &Compiled,
 ) -> Result<Vec<SearchHit>> {
-    if let Ok(out) = ssh.exec_bounded(&rg_command(root, query), MAX_EXEC_BYTES, EXEC_TIMEOUT, None).await {
+    if let Ok(out) = ssh
+        .exec_bounded(&rg_command(root, query), MAX_EXEC_BYTES, EXEC_TIMEOUT, None)
+        .await
+    {
         if !out.truncated && matches!(out.exit_code, Some(0) | Some(1)) {
             return Ok(parse_rg_json(root, &out.stdout, query.max_results));
         }
     }
     let out = ssh
-        .exec_bounded(&grep_command(root, query), MAX_EXEC_BYTES, EXEC_TIMEOUT, None)
+        .exec_bounded(
+            &grep_command(root, query),
+            MAX_EXEC_BYTES,
+            EXEC_TIMEOUT,
+            None,
+        )
         .await
         .context("run grep over SSH")?;
     if out.truncated {
@@ -979,12 +1111,17 @@ async fn content_exec_agent(
     query: &SearchQuery,
     compiled: &Compiled,
 ) -> Result<Vec<SearchHit>> {
-    if let Ok(out) = agent.exec(&rg_command(root, query), MAX_EXEC_BYTES, EXEC_TIMEOUT_MS).await {
+    if let Ok(out) = agent
+        .exec(&rg_command(root, query), MAX_EXEC_BYTES, EXEC_TIMEOUT_MS)
+        .await
+    {
         if !out.truncated && !out.timed_out && matches!(out.exit_code, Some(0) | Some(1)) {
             return Ok(parse_rg_json(root, &out.stdout, query.max_results));
         }
     }
-    let out = agent.exec(&grep_command(root, query), MAX_EXEC_BYTES, EXEC_TIMEOUT_MS).await?;
+    let out = agent
+        .exec(&grep_command(root, query), MAX_EXEC_BYTES, EXEC_TIMEOUT_MS)
+        .await?;
     if out.truncated || out.timed_out {
         bail!("grep output too large or timed out");
     }
@@ -1004,7 +1141,12 @@ async fn name_exec_ssh(
     compiled: &Compiled,
 ) -> Result<Vec<SearchHit>> {
     let out = ssh
-        .exec_bounded(&find_name_command(root, query), MAX_EXEC_BYTES, EXEC_TIMEOUT, None)
+        .exec_bounded(
+            &find_name_command(root, query),
+            MAX_EXEC_BYTES,
+            EXEC_TIMEOUT,
+            None,
+        )
         .await
         .context("run find over SSH")?;
     if out.truncated {
@@ -1024,7 +1166,13 @@ async fn name_exec_agent(
     query: &SearchQuery,
     compiled: &Compiled,
 ) -> Result<Vec<SearchHit>> {
-    let out = agent.exec(&find_name_command(root, query), MAX_EXEC_BYTES, EXEC_TIMEOUT_MS).await?;
+    let out = agent
+        .exec(
+            &find_name_command(root, query),
+            MAX_EXEC_BYTES,
+            EXEC_TIMEOUT_MS,
+        )
+        .await?;
     if out.truncated || out.timed_out {
         bail!("find output too large or timed out");
     }
@@ -1053,7 +1201,9 @@ async fn read_capped(session: Option<&Session>, path: &str, max: u64) -> Result<
 
 async fn read_local(path: &str, max: u64) -> Result<Vec<u8>> {
     use tokio::io::AsyncReadExt;
-    let file = tokio::fs::File::open(path).await.with_context(|| format!("open {path}"))?;
+    let file = tokio::fs::File::open(path)
+        .await
+        .with_context(|| format!("open {path}"))?;
     let mut buf = Vec::new();
     file.take(max).read_to_end(&mut buf).await?;
     Ok(buf)
@@ -1063,7 +1213,10 @@ async fn read_ssh(ssh: &SshSession, path: &str, max: u64) -> Result<Vec<u8>> {
     use tokio::io::AsyncReadExt;
     let cell = ssh.ensure_sftp().await?;
     let sftp = cell.lock().await;
-    let remote = sftp.open(path).await.with_context(|| format!("open {path} over SFTP"))?;
+    let remote = sftp
+        .open(path)
+        .await
+        .with_context(|| format!("open {path} over SFTP"))?;
     let mut buf = Vec::new();
     remote.take(max).read_to_end(&mut buf).await?;
     Ok(buf)
@@ -1072,7 +1225,11 @@ async fn read_ssh(ssh: &SshSession, path: &str, max: u64) -> Result<Vec<u8>> {
 async fn read_object(obj: &ObjectSession, path: &str, max: u64) -> Result<Vec<u8>> {
     let key = path.trim_start_matches('/');
     let p = object_store::path::Path::from(key);
-    let get = obj.store.get(&p).await.with_context(|| format!("get {key}"))?;
+    let get = obj
+        .store
+        .get(&p)
+        .await
+        .with_context(|| format!("get {key}"))?;
     let mut stream = get.into_stream();
     let mut buf = Vec::new();
     while let Some(chunk) = stream.next().await {
@@ -1104,7 +1261,10 @@ async fn read_ftp(ftp: &FtpSession, path: &str, max: u64) -> Result<Vec<u8>> {
     let path = path.to_string();
     let max = max as usize;
     ftp.with_stream(move |stream| {
-        let mut sink = CapSink { buf: Vec::new(), max };
+        let mut sink = CapSink {
+            buf: Vec::new(),
+            max,
+        };
         stream.retr_to_writer(&path, &mut sink)?;
         Ok(sink.buf)
     })
@@ -1216,7 +1376,8 @@ impl SearchRun {
             SearchOutcome::Error(e) => (SearchRunState::Error, Some(e.clone())),
             SearchOutcome::Canceled => (SearchRunState::Canceled, None),
         };
-        let hits = (with_hits && state == SearchRunState::Done).then(|| self.hits.lock().unwrap().clone());
+        let hits =
+            (with_hits && state == SearchRunState::Done).then(|| self.hits.lock().unwrap().clone());
         SearchSnapshot {
             id: self.id.clone(),
             session_id: self.session_id.clone(),
@@ -1251,12 +1412,17 @@ impl Default for SearchManager {
 }
 
 fn now_ts() -> i64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 impl SearchManager {
     pub fn new() -> Self {
-        Self { runs: Mutex::new(HashMap::new()) }
+        Self {
+            runs: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Kick off a search of `root` on `fs`. `session` (absent for the local FS)
@@ -1294,12 +1460,19 @@ impl SearchManager {
             run_search_task(task_info, query, fs, session, app).await;
         });
 
-        self.runs.lock().await.insert(id.clone(), SearchHandle { info, task });
+        self.runs
+            .lock()
+            .await
+            .insert(id.clone(), SearchHandle { info, task });
         id
     }
 
     pub async fn snapshot(&self, id: &str, with_hits: bool) -> Option<SearchSnapshot> {
-        self.runs.lock().await.get(id).map(|h| h.info.snapshot(with_hits))
+        self.runs
+            .lock()
+            .await
+            .get(id)
+            .map(|h| h.info.snapshot(with_hits))
     }
 
     pub async fn cancel(&self, id: &str) {
@@ -1352,24 +1525,45 @@ async fn run_search_task(
                 info.hit_count.fetch_add(1, Ordering::Relaxed);
                 let mut p = pending.lock().unwrap();
                 p.push(h);
-                let due = p.len() >= HIT_BATCH || last.lock().unwrap().elapsed() >= Duration::from_millis(120);
+                let due = p.len() >= HIT_BATCH
+                    || last.lock().unwrap().elapsed() >= Duration::from_millis(120);
                 if due {
                     let batch = std::mem::take(&mut *p);
                     *last.lock().unwrap() = Instant::now();
                     drop(p);
-                    let _ = app.emit("search://hit", SearchHitEvent { id: id.clone(), hits: batch });
+                    let _ = app.emit(
+                        "search://hit",
+                        SearchHitEvent {
+                            id: id.clone(),
+                            hits: batch,
+                        },
+                    );
                     emit_search_progress(&info, &app);
                 }
             }
         };
         let mut sink = HitSink::new(query.max_results, &mut on_hit);
-        run_search(fs.as_ref(), session.as_deref(), &info.root, &query, &info.cancel, &mut sink).await
+        run_search(
+            fs.as_ref(),
+            session.as_deref(),
+            &info.root,
+            &query,
+            &info.cancel,
+            &mut sink,
+        )
+        .await
     };
 
     // Flush any hits left in the last (sub-threshold) batch.
     let leftover = std::mem::take(&mut *pending.lock().unwrap());
     if !leftover.is_empty() {
-        let _ = app.emit("search://hit", SearchHitEvent { id: info.id.clone(), hits: leftover });
+        let _ = app.emit(
+            "search://hit",
+            SearchHitEvent {
+                id: info.id.clone(),
+                hits: leftover,
+            },
+        );
     }
 
     // Cancellation wins even if a strategy returned a partial Ok.
@@ -1424,7 +1618,10 @@ pub async fn search_start(
 }
 
 #[tauri::command]
-pub async fn search_status(search_id: String, state: State<'_, AppState>) -> Result<SearchSnapshot, String> {
+pub async fn search_status(
+    search_id: String,
+    state: State<'_, AppState>,
+) -> Result<SearchSnapshot, String> {
     state
         .search
         .snapshot(&search_id, false)
@@ -1434,7 +1631,10 @@ pub async fn search_status(search_id: String, state: State<'_, AppState>) -> Res
 
 /// Full snapshot including the `hits` (present once the search is done).
 #[tauri::command]
-pub async fn search_result(search_id: String, state: State<'_, AppState>) -> Result<SearchSnapshot, String> {
+pub async fn search_result(
+    search_id: String,
+    state: State<'_, AppState>,
+) -> Result<SearchSnapshot, String> {
     state
         .search
         .snapshot(&search_id, true)
@@ -1459,7 +1659,11 @@ mod tests {
     use super::*;
 
     fn q(pattern: &str, kind: SearchKind) -> SearchQuery {
-        SearchQuery { pattern: pattern.to_string(), kind, ..Default::default() }
+        SearchQuery {
+            pattern: pattern.to_string(),
+            kind,
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -1584,7 +1788,8 @@ mod tests {
     #[tokio::test]
     async fn name_search_over_a_real_directory() {
         use crate::remotefs::local::LocalFs;
-        let base = std::env::temp_dir().join(format!("ghostftp_search_name_{}", std::process::id()));
+        let base =
+            std::env::temp_dir().join(format!("ghostftp_search_name_{}", std::process::id()));
         let sub = base.join("logs");
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(&sub).unwrap();
@@ -1593,7 +1798,9 @@ mod tests {
         std::fs::write(sub.join("access.log"), "x").unwrap();
 
         let root = base.to_string_lossy().to_string();
-        let result = search(&LocalFs, None, &root, &q("*.log", SearchKind::Name)).await.unwrap();
+        let result = search(&LocalFs, None, &root, &q("*.log", SearchKind::Name))
+            .await
+            .unwrap();
         let mut rels: Vec<String> = result.hits.iter().map(|h| h.relative.clone()).collect();
         rels.sort();
         assert_eq!(rels, vec!["logs/access.log", "logs/nginx.log"]);
@@ -1607,14 +1814,17 @@ mod tests {
     #[tokio::test]
     async fn content_search_over_a_real_directory() {
         use crate::remotefs::local::LocalFs;
-        let base = std::env::temp_dir().join(format!("ghostftp_search_content_{}", std::process::id()));
+        let base =
+            std::env::temp_dir().join(format!("ghostftp_search_content_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(&base).unwrap();
         std::fs::write(base.join("a.txt"), "hello\nneedle here\nbye\n").unwrap();
         std::fs::write(base.join("b.txt"), "nothing to see").unwrap();
 
         let root = base.to_string_lossy().to_string();
-        let result = search(&LocalFs, None, &root, &q("needle", SearchKind::Content)).await.unwrap();
+        let result = search(&LocalFs, None, &root, &q("needle", SearchKind::Content))
+            .await
+            .unwrap();
         assert_eq!(result.hits.len(), 1);
         assert_eq!(result.hits[0].relative, "a.txt");
         assert_eq!(result.hits[0].line, Some(2));
@@ -1629,7 +1839,8 @@ mod tests {
     #[tokio::test]
     async fn run_search_streams_and_honors_cancel() {
         use crate::remotefs::local::LocalFs;
-        let base = std::env::temp_dir().join(format!("ghostftp_search_stream_{}", std::process::id()));
+        let base =
+            std::env::temp_dir().join(format!("ghostftp_search_stream_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(&base).unwrap();
         for i in 0..5 {
@@ -1643,9 +1854,16 @@ mod tests {
         let stats = {
             let mut push = |h: SearchHit| streamed.push(h.relative.clone());
             let mut sink = HitSink::new(1000, &mut push);
-            run_search(&LocalFs, None, &root, &q("*.log", SearchKind::Name), &cancel, &mut sink)
-                .await
-                .unwrap()
+            run_search(
+                &LocalFs,
+                None,
+                &root,
+                &q("*.log", SearchKind::Name),
+                &cancel,
+                &mut sink,
+            )
+            .await
+            .unwrap()
         };
         assert_eq!(streamed.len(), 5);
         assert_eq!(stats.strategy, SearchStrategy::Generic);
@@ -1658,7 +1876,15 @@ mod tests {
         {
             let mut push = |h: SearchHit| none.push(h);
             let mut sink = HitSink::new(1000, &mut push);
-            let _ = run_search(&LocalFs, None, &root, &q("*.log", SearchKind::Name), &cancelled, &mut sink).await;
+            let _ = run_search(
+                &LocalFs,
+                None,
+                &root,
+                &q("*.log", SearchKind::Name),
+                &cancelled,
+                &mut sink,
+            )
+            .await;
         }
         assert!(none.is_empty());
 

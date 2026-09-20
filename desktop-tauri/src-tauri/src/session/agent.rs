@@ -95,7 +95,11 @@ pub async fn agent_pair(host: &str, port: u16, code: &str) -> Result<PairOutcome
         agentd_version: String::new(),
     });
 
-    Ok(PairOutcome { server_key, fingerprint, system_info })
+    Ok(PairOutcome {
+        server_key,
+        fingerprint,
+        system_info,
+    })
 }
 
 /// One live, paired connection to a `ghostftp-agentd`.
@@ -114,10 +118,9 @@ impl AgentSession {
     /// Open a paired session from a profile. Requires the profile to carry the
     /// daemon's pinned key (i.e. it has been paired already).
     pub async fn connect(profile: ConnectionProfile) -> Result<Self> {
-        let server_key = profile
-            .agent_key
-            .clone()
-            .ok_or_else(|| anyhow!("this Ghost FTP Agent connection isn't paired yet — pair with a code first"))?;
+        let server_key = profile.agent_key.clone().ok_or_else(|| {
+            anyhow!("this Ghost FTP Agent connection isn't paired yet — pair with a code first")
+        })?;
         let mut channel = Self::dial(&profile, &server_key).await?;
         let system_info = fetch_system_info(&mut channel).await?;
         Ok(Self {
@@ -131,7 +134,10 @@ impl AgentSession {
 
     /// Establish + handshake a fresh channel, verifying the pinned key and
     /// sending the protocol Hello. Shared by connect and reconnect.
-    async fn dial(profile: &ConnectionProfile, server_key: &str) -> Result<SecureChannel<TcpStream>> {
+    async fn dial(
+        profile: &ConnectionProfile,
+        server_key: &str,
+    ) -> Result<SecureChannel<TcpStream>> {
         let identity = controller_identity()?;
         let sk = identity.private_bytes()?;
         let expect = ghostftp_agent_proto::decode_public(server_key)?;
@@ -142,7 +148,9 @@ impl AgentSession {
             stream,
             Role::Initiator,
             &sk,
-            Auth::Paired { expect_remote: Some(expect) },
+            Auth::Paired {
+                expect_remote: Some(expect),
+            },
         )
         .await
         .with_context(|| {
@@ -262,12 +270,24 @@ impl AgentSession {
             })
             .await?
         {
-            Response::Exec { stdout, stderr, exit_code, truncated, timed_out } => {
-                Ok(AgentExecOutput { stdout, stderr, exit_code, truncated, timed_out })
-            }
-            Response::Error { message, denied } => {
-                Err(anyhow!(if denied { format!("denied: {message}") } else { message }))
-            }
+            Response::Exec {
+                stdout,
+                stderr,
+                exit_code,
+                truncated,
+                timed_out,
+            } => Ok(AgentExecOutput {
+                stdout,
+                stderr,
+                exit_code,
+                truncated,
+                timed_out,
+            }),
+            Response::Error { message, denied } => Err(anyhow!(if denied {
+                format!("denied: {message}")
+            } else {
+                message
+            })),
             other => Err(anyhow!("unexpected exec reply: {other:?}")),
         }
     }
@@ -277,7 +297,12 @@ impl AgentSession {
     /// [`AgentSession::exec_poll`]. A pre-Plan-10 daemon doesn't know this op, so
     /// the request fails at the transport — the bridge phrases that as "update
     /// the agent".
-    pub async fn exec_start(&self, job_id: &str, command: &str, max_bytes: usize) -> Result<String> {
+    pub async fn exec_start(
+        &self,
+        job_id: &str,
+        command: &str,
+        max_bytes: usize,
+    ) -> Result<String> {
         match self
             .request(Request::ExecStart {
                 job_id: job_id.to_string(),
@@ -287,22 +312,43 @@ impl AgentSession {
             .await?
         {
             Response::ExecStarted { job_id } => Ok(job_id),
-            Response::Error { message, denied } => {
-                Err(anyhow!(if denied { format!("denied: {message}") } else { message }))
-            }
+            Response::Error { message, denied } => Err(anyhow!(if denied {
+                format!("denied: {message}")
+            } else {
+                message
+            })),
             other => Err(anyhow!("unexpected exec-start reply: {other:?}")),
         }
     }
 
     /// Poll a detached job's captured output + status.
     pub async fn exec_poll(&self, job_id: &str) -> Result<AgentJobStatus> {
-        match self.request(Request::ExecPoll { job_id: job_id.to_string() }).await? {
-            Response::ExecStatus { running, exit_code, stdout, stderr, truncated, not_found } => {
-                Ok(AgentJobStatus { running, exit_code, stdout, stderr, truncated, not_found })
-            }
-            Response::Error { message, denied } => {
-                Err(anyhow!(if denied { format!("denied: {message}") } else { message }))
-            }
+        match self
+            .request(Request::ExecPoll {
+                job_id: job_id.to_string(),
+            })
+            .await?
+        {
+            Response::ExecStatus {
+                running,
+                exit_code,
+                stdout,
+                stderr,
+                truncated,
+                not_found,
+            } => Ok(AgentJobStatus {
+                running,
+                exit_code,
+                stdout,
+                stderr,
+                truncated,
+                not_found,
+            }),
+            Response::Error { message, denied } => Err(anyhow!(if denied {
+                format!("denied: {message}")
+            } else {
+                message
+            })),
             other => Err(anyhow!("unexpected exec-poll reply: {other:?}")),
         }
     }
@@ -389,7 +435,8 @@ pub mod discovery {
         let Ok(receiver) = daemon.browse(SERVICE_TYPE) else {
             return Vec::new();
         };
-        let mut found: std::collections::HashMap<String, Discovered> = std::collections::HashMap::new();
+        let mut found: std::collections::HashMap<String, Discovered> =
+            std::collections::HashMap::new();
         let deadline = tokio::time::Instant::now() + timeout;
         loop {
             let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
@@ -415,9 +462,7 @@ pub mod discovery {
                         fingerprint: get("fp"),
                         os: get("os"),
                         version: get("v"),
-                        pairable: info
-                            .get_property_val_str("pairable")
-                            .map(|v| v == "1"),
+                        pairable: info.get_property_val_str("pairable").map(|v| v == "1"),
                     };
                     found.insert(info.get_fullname().to_string(), d);
                 }

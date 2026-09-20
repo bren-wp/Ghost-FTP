@@ -182,7 +182,9 @@ fn now_ts() -> i64 {
 
 impl ScanManager {
     pub fn new() -> Self {
-        Self { scans: Mutex::new(HashMap::new()) }
+        Self {
+            scans: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Kick off a scan of `root` on `fs`. `session` (absent for the local FS)
@@ -332,7 +334,10 @@ async fn generic_walk(
     root: &str,
     app: &AppHandle,
 ) -> Result<scan::ScanTree, anyhow::Error> {
-    let opts = ScanOptions { concurrency: scan::DEFAULT_CONCURRENCY, cancel: info.cancel.clone() };
+    let opts = ScanOptions {
+        concurrency: scan::DEFAULT_CONCURRENCY,
+        cancel: info.cancel.clone(),
+    };
     let mut last_emit = Instant::now();
     let ev_info = Arc::clone(info);
     let ev_app = app.clone();
@@ -405,7 +410,12 @@ fn parse_find(root: &str, out: &str) -> scan::ScanTree {
         }
         tree.files.insert(
             rel,
-            scan::ScanEntry { absolute: path.to_string(), size, modified: 0, etag: None },
+            scan::ScanEntry {
+                absolute: path.to_string(),
+                size,
+                modified: 0,
+                etag: None,
+            },
         );
     }
     tree
@@ -425,7 +435,10 @@ async fn scan_shell_ssh(
     info: &ScanInfo,
     app: &AppHandle,
 ) -> Result<scan::ScanTree> {
-    let out = ssh.exec(&find_command(root)).await.context("run find over SSH")?;
+    let out = ssh
+        .exec(&find_command(root))
+        .await
+        .context("run find over SSH")?;
     let tree = parse_find(root, &out.stdout);
     // `find` exits non-zero when *some* subdir was unreadable, yet still lists the
     // rest — accept a non-empty result. Only a truly empty non-zero run is a real
@@ -578,7 +591,10 @@ fn normalize_root(root: &str) -> String {
 
 /// Fold the flat file list into a nested, size-aggregated tree.
 fn build_tree(root: &str, tree: &scan::ScanTree) -> DuNode {
-    let mut builder = Build { is_dir: true, ..Default::default() };
+    let mut builder = Build {
+        is_dir: true,
+        ..Default::default()
+    };
     for (rel, entry) in &tree.files {
         let segments: Vec<&str> = rel.split('/').filter(|s| !s.is_empty()).collect();
         if segments.is_empty() {
@@ -587,7 +603,12 @@ fn build_tree(root: &str, tree: &scan::ScanTree) -> DuNode {
         builder.size += entry.size;
         insert_path(&mut builder, &segments, entry.size);
     }
-    convert(basename(root), normalize_root(root), FileKind::Directory, builder)
+    convert(
+        basename(root),
+        normalize_root(root),
+        FileKind::Directory,
+        builder,
+    )
 }
 
 fn insert_path(node: &mut Build, segments: &[&str], size: u64) {
@@ -614,13 +635,23 @@ fn convert(name: String, path: String, kind: FileKind, build: Build) -> DuNode {
             } else {
                 format!("{path}/{seg}")
             };
-            let child_kind = if child.is_dir { FileKind::Directory } else { FileKind::File };
+            let child_kind = if child.is_dir {
+                FileKind::Directory
+            } else {
+                FileKind::File
+            };
             convert(seg, child_path, child_kind, child)
         })
         .collect();
     // Largest-first: the biggest offenders lead in both the treemap and the list.
     children.sort_by(|a, b| b.size.cmp(&a.size).then_with(|| a.name.cmp(&b.name)));
-    DuNode { name, path, kind, size: build.size, children }
+    DuNode {
+        name,
+        path,
+        kind,
+        size: build.size,
+        children,
+    }
 }
 
 // ---------- Tauri commands ----------
@@ -699,7 +730,12 @@ mod tests {
     use crate::scan::{ScanEntry, ScanTree};
 
     fn entry(size: u64) -> ScanEntry {
-        ScanEntry { absolute: String::new(), size, modified: 0, etag: None }
+        ScanEntry {
+            absolute: String::new(),
+            size,
+            modified: 0,
+            etag: None,
+        }
     }
 
     #[test]
@@ -753,7 +789,8 @@ mod tests {
         let mut tree = ScanTree::default();
         // `scan::relative_of` already hands us `/`-separated relatives; only the
         // root prefix (as the local Windows backend reports it) has backslashes.
-        tree.files.insert("Projects/Ghost FTP/x.txt".into(), entry(3));
+        tree.files
+            .insert("Projects/Ghost FTP/x.txt".into(), entry(3));
         let root = build_tree("C:\\Users\\User\\Documents", &tree);
         assert_eq!(root.path, "C:/Users/User/Documents");
         assert_eq!(root.children[0].path, "C:/Users/User/Documents/Projects");
@@ -798,8 +835,8 @@ mod tests {
     #[tokio::test]
     async fn walks_a_real_directory_into_a_size_tree() {
         use crate::remotefs::local::LocalFs;
-        let base = std::env::temp_dir()
-            .join(format!("ghostftp_diskscan_walk_{}", std::process::id()));
+        let base =
+            std::env::temp_dir().join(format!("ghostftp_diskscan_walk_{}", std::process::id()));
         let sub = base.join("sub");
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(&sub).unwrap();

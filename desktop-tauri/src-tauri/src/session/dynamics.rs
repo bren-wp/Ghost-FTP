@@ -206,10 +206,7 @@ impl DynamicsSession {
                     .and_then(|t| t.as_str())
                     .ok_or_else(|| anyhow!("dynamics token exchange returned no access_token"))?
                     .to_string();
-                let expires_in = v
-                    .get("expires_in")
-                    .and_then(|e| e.as_u64())
-                    .unwrap_or(3599);
+                let expires_in = v.get("expires_in").and_then(|e| e.as_u64()).unwrap_or(3599);
                 *cache.lock().unwrap() = Some((
                     token.clone(),
                     Instant::now() + Duration::from_secs(expires_in),
@@ -337,8 +334,7 @@ impl DynamicsSession {
             urlenc(&escaped)
         );
         let v = self.rpc(Method::GET, &path, None).await?;
-        Ok(v
-            .get("value")
+        Ok(v.get("value")
             .and_then(|a| a.as_array())
             .and_then(|a| a.first())
             .and_then(resource_from_json))
@@ -350,7 +346,11 @@ impl DynamicsSession {
     pub async fn content_get(&self, id: &str, name: &str) -> Result<Vec<u8>> {
         use base64::Engine as _;
         let v = self
-            .rpc(Method::GET, &format!("/webresourceset({id})?$select=content"), None)
+            .rpc(
+                Method::GET,
+                &format!("/webresourceset({id})?$select=content"),
+                None,
+            )
             .await?;
         let b64 = v
             .get("content")
@@ -386,7 +386,9 @@ impl DynamicsSession {
             "webresourcetype": res_type,
             "content": base64::engine::general_purpose::STANDARD.encode(data),
         });
-        let resp = self.send(Method::POST, "/webresourceset", Some(&body)).await?;
+        let resp = self
+            .send(Method::POST, "/webresourceset", Some(&body))
+            .await?;
         let status = resp.status();
         if !status.is_success() {
             let code = status.as_u16();
@@ -419,7 +421,11 @@ impl DynamicsSession {
             "content": base64::engine::general_purpose::STANDARD.encode(data),
         });
         let resp = self
-            .send(Method::PATCH, &format!("/webresourceset({id})"), Some(&body))
+            .send(
+                Method::PATCH,
+                &format!("/webresourceset({id})"),
+                Some(&body),
+            )
             .await?;
         let status = resp.status();
         if !status.is_success() {
@@ -526,24 +532,21 @@ pub async fn dynamics_connect(profile: &ConnectionProfile) -> Result<DynamicsSes
         // still parses.
         Some(blob) => {
             let mut parts = blob.splitn(3, ':');
-            let (tenant, client_id, client_secret) = match (
-                parts.next(),
-                parts.next(),
-                parts.next(),
-            ) {
-                (Some(t), Some(c), Some(s))
-                    if !t.trim().is_empty() && !c.trim().is_empty() && !s.is_empty() =>
-                {
-                    (t.trim().to_string(), c.trim().to_string(), s.to_string())
-                }
-                _ => {
-                    return Err(anyhow!(
-                        "This Dynamics connection's saved credential is malformed. Open it in \
+            let (tenant, client_id, client_secret) =
+                match (parts.next(), parts.next(), parts.next()) {
+                    (Some(t), Some(c), Some(s))
+                        if !t.trim().is_empty() && !c.trim().is_empty() && !s.is_empty() =>
+                    {
+                        (t.trim().to_string(), c.trim().to_string(), s.to_string())
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "This Dynamics connection's saved credential is malformed. Open it in \
                          the connection editor and fill in the tenant id, client id and client \
                          secret (stored as tenant:client_id:client_secret)."
-                    ))
-                }
-            };
+                        ))
+                    }
+                };
             (
                 Auth::ClientCredentials {
                     client_id,
@@ -555,14 +558,15 @@ pub async fn dynamics_connect(profile: &ConnectionProfile) -> Result<DynamicsSes
         }
         // Delegated (interactive "Sign in with Microsoft").
         None => {
-            let tokens = oauth::load_tokens(DYNAMICS_TOKEN_SERVICE, &profile.id)?.ok_or_else(|| {
-                anyhow!(
-                    "This Dynamics connection has no saved credential. Open it in the \
+            let tokens =
+                oauth::load_tokens(DYNAMICS_TOKEN_SERVICE, &profile.id)?.ok_or_else(|| {
+                    anyhow!(
+                        "This Dynamics connection has no saved credential. Open it in the \
                      connection editor and either fill in the client credentials (tenant id, \
                      client id, client secret) or click “Sign in with Microsoft” (delegated \
                      mode)."
-                )
-            })?;
+                    )
+                })?;
             (
                 Auth::Delegated(RefreshingToken::new(
                     DYNAMICS_TOKEN_SERVICE,

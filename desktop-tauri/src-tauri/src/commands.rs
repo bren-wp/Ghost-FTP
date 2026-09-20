@@ -32,14 +32,20 @@ fn profile_key_passphrase_key(id: &str) -> String {
 /// written to profiles.json. The JSON retains only non-secret connection
 /// metadata; empty password/passphrase fields are hydrated inside Rust at
 /// connect time and are never returned to the frontend as saved values.
-fn protect_profile_secrets(profile: &mut ConnectionProfile, state: &AppState) -> Result<bool, String> {
+fn protect_profile_secrets(
+    profile: &mut ConnectionProfile,
+    state: &AppState,
+) -> Result<bool, String> {
     let mut changed = false;
     let profile_id = profile.id.clone();
     match &mut profile.auth {
         AuthMethod::Password { password } if !password.is_empty() => {
             let key = profile_password_key(&profile_id);
             crate::credentials::set_secret(&key, password).map_err(err)?;
-            state.db.record_keychain(crate::credentials::SERVICE, &key).map_err(err)?;
+            state
+                .db
+                .record_keychain(crate::credentials::SERVICE, &key)
+                .map_err(err)?;
             password.clear();
             changed = true;
         }
@@ -47,7 +53,10 @@ fn protect_profile_secrets(profile: &mut ConnectionProfile, state: &AppState) ->
             if let Some(value) = passphrase.as_ref().filter(|value| !value.is_empty()) {
                 let key = profile_key_passphrase_key(&profile_id);
                 crate::credentials::set_secret(&key, value).map_err(err)?;
-                state.db.record_keychain(crate::credentials::SERVICE, &key).map_err(err)?;
+                state
+                    .db
+                    .record_keychain(crate::credentials::SERVICE, &key)
+                    .map_err(err)?;
                 *passphrase = None;
                 changed = true;
             }
@@ -68,8 +77,9 @@ fn hydrate_profile_secrets(profile: &mut ConnectionProfile) -> Result<(), GhostF
             }
         }
         AuthMethod::Key { passphrase, .. } if passphrase.is_none() => {
-            if let Some(value) = crate::credentials::get_secret(&profile_key_passphrase_key(&profile_id))
-                .map_err(GhostFTPError::from)?
+            if let Some(value) =
+                crate::credentials::get_secret(&profile_key_passphrase_key(&profile_id))
+                    .map_err(GhostFTPError::from)?
             {
                 *passphrase = Some(value);
             }
@@ -87,9 +97,7 @@ fn delete_profile_secret(key: &str, state: &AppState) {
 // ---------- Profiles ----------
 
 #[tauri::command]
-pub async fn list_profiles(
-    state: State<'_, AppState>,
-) -> Result<Vec<ConnectionProfile>, String> {
+pub async fn list_profiles(state: State<'_, AppState>) -> Result<Vec<ConnectionProfile>, String> {
     let profiles = state.profiles.list().await.map_err(err)?;
     let mut sanitized = Vec::with_capacity(profiles.len());
     for mut profile in profiles {
@@ -109,7 +117,14 @@ pub async fn save_profile(
     // If a key file changed and the editor intentionally supplied no new
     // passphrase, do not accidentally reuse the previous key's passphrase.
     if let Some(existing) = state.profiles.get(&profile.id).await.map_err(err)? {
-        if let (AuthMethod::Key { path: old_path, .. }, AuthMethod::Key { path: new_path, passphrase: None }) = (&existing.auth, &profile.auth) {
+        if let (
+            AuthMethod::Key { path: old_path, .. },
+            AuthMethod::Key {
+                path: new_path,
+                passphrase: None,
+            },
+        ) = (&existing.auth, &profile.auth)
+        {
             if old_path != new_path {
                 delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
             }
@@ -117,7 +132,9 @@ pub async fn save_profile(
     }
     protect_profile_secrets(&mut profile, &state)?;
     match &profile.auth {
-        AuthMethod::Password { .. } => delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state),
+        AuthMethod::Password { .. } => {
+            delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state)
+        }
         AuthMethod::Key { .. } => delete_profile_secret(&profile_password_key(&profile.id), &state),
         AuthMethod::Agent | AuthMethod::KeyRef { .. } => {
             delete_profile_secret(&profile_password_key(&profile.id), &state);
@@ -130,38 +147,26 @@ pub async fn save_profile(
 /// Persist the rail's drag-and-drop order: `ids` is every profile id in the
 /// desired display order; each gets `sort_order` = its index in one write.
 #[tauri::command]
-pub async fn reorder_profiles(
-    ids: Vec<String>,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn reorder_profiles(ids: Vec<String>, state: State<'_, AppState>) -> Result<(), String> {
     state.profiles.reorder(&ids).await.map_err(err)
 }
 
 #[tauri::command]
-pub async fn delete_profile(
-    id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn delete_profile(id: String, state: State<'_, AppState>) -> Result<(), String> {
     // Clean up any keychain-stored OAuth tokens for this profile.
     if let Ok(Some(p)) = state.profiles.get(&id).await {
         match p.protocol.as_str() {
-            "dropbox" => {
-                crate::oauth::delete_tokens(crate::session::dropbox::DROPBOX_SERVICE, &id)
-            }
+            "dropbox" => crate::oauth::delete_tokens(crate::session::dropbox::DROPBOX_SERVICE, &id),
             "onedrive" => {
                 crate::oauth::delete_tokens(crate::session::onedrive::ONEDRIVE_SERVICE, &id)
             }
-            "gdrive" => {
-                crate::oauth::delete_tokens(crate::session::gdrive::GDRIVE_SERVICE, &id)
-            }
+            "gdrive" => crate::oauth::delete_tokens(crate::session::gdrive::GDRIVE_SERVICE, &id),
             "box" => crate::oauth::delete_tokens(crate::session::boxdrive::BOX_SERVICE, &id),
             "shopify" => {
                 // Keychain-stored Admin credential (never in profiles.json).
                 let key = crate::session::shopify::credential_key(&id);
                 crate::credentials::delete_secret(&key);
-                let _ = state
-                    .db
-                    .forget_keychain(crate::credentials::SERVICE, &key);
+                let _ = state.db.forget_keychain(crate::credentials::SERVICE, &key);
             }
             _ => {}
         }
@@ -210,12 +215,10 @@ pub async fn ssh_public_key_for(
     path: String,
     passphrase: Option<String>,
 ) -> Result<crate::keys::GeneratedKey, String> {
-    tokio::task::spawn_blocking(move || {
-        crate::keys::public_key_for(&path, passphrase.as_deref())
-    })
-    .await
-    .map_err(err)?
-    .map_err(err)
+    tokio::task::spawn_blocking(move || crate::keys::public_key_for(&path, passphrase.as_deref()))
+        .await
+        .map_err(err)?
+        .map_err(err)
 }
 
 // ---------- Sessions ----------
@@ -232,7 +235,10 @@ pub async fn connect(
         .await
         .map_err(GhostFTPError::from)?
         .ok_or_else(|| {
-            GhostFTPError::new(ErrorKind::NotFound, format!("profile {profile_id} not found"))
+            GhostFTPError::new(
+                ErrorKind::NotFound,
+                format!("profile {profile_id} not found"),
+            )
         })?;
     // Record recency on the persisted, secret-free profile before credentials
     // are hydrated from the OS keychain, so secrets can never leak to disk.
@@ -240,7 +246,11 @@ pub async fn connect(
         .duration_since(std::time::UNIX_EPOCH)
         .ok()
         .map(|duration| duration.as_secs());
-    state.profiles.upsert(profile.clone()).await.map_err(GhostFTPError::from)?;
+    state
+        .profiles
+        .upsert(profile.clone())
+        .await
+        .map_err(GhostFTPError::from)?;
     hydrate_profile_secrets(&mut profile)?;
     let session_id = state
         .sessions
@@ -278,10 +288,7 @@ pub async fn connect_ephemeral(
 }
 
 #[tauri::command]
-pub async fn disconnect(
-    session_id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn disconnect(session_id: String, state: State<'_, AppState>) -> Result<(), String> {
     state.sessions.disconnect(&session_id).await.map_err(err)
 }
 
@@ -301,9 +308,7 @@ pub struct DiscoveredAgent {
 /// Discover `ghostftp-agentd` daemons on the local network over mDNS. Best-effort;
 /// returns an empty list on a network without multicast rather than erroring.
 #[tauri::command]
-pub async fn discover_agents(
-    state: State<'_, AppState>,
-) -> Result<Vec<DiscoveredAgent>, String> {
+pub async fn discover_agents(state: State<'_, AppState>) -> Result<Vec<DiscoveredAgent>, String> {
     let found = crate::session::agent::discovery::browse(Duration::from_millis(1500)).await;
     // Map the pinned keys of saved profiles to the fingerprints daemons advertise.
     let mut fp_to_profile = std::collections::HashMap::new();
@@ -374,7 +379,9 @@ pub struct DropboxAuthResult {
 #[tauri::command]
 pub async fn dropbox_authorize(profile_id: String) -> Result<DropboxAuthResult, String> {
     let config = crate::session::dropbox::dropbox_config();
-    let (tokens, _raw) = crate::oauth::authorize_loopback(&config).await.map_err(err)?;
+    let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
+        .await
+        .map_err(err)?;
     crate::oauth::store_tokens(
         crate::session::dropbox::DROPBOX_SERVICE,
         &profile_id,
@@ -390,7 +397,9 @@ pub async fn dropbox_authorize(profile_id: String) -> Result<DropboxAuthResult, 
         host: "dropbox.com".into(),
         port: 443,
         username: String::new(),
-        auth: AuthMethod::Password { password: String::new() },
+        auth: AuthMethod::Password {
+            password: String::new(),
+        },
         default_remote_path: None,
         color: None,
         auto_connect: None,
@@ -422,7 +431,9 @@ pub async fn dropbox_authorize(profile_id: String) -> Result<DropboxAuthResult, 
 #[tauri::command]
 pub async fn onedrive_authorize(profile_id: String) -> Result<DropboxAuthResult, String> {
     let config = crate::session::onedrive::onedrive_config();
-    let (tokens, _raw) = crate::oauth::authorize_loopback(&config).await.map_err(err)?;
+    let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
+        .await
+        .map_err(err)?;
     crate::oauth::store_tokens(
         crate::session::onedrive::ONEDRIVE_SERVICE,
         &profile_id,
@@ -437,7 +448,9 @@ pub async fn onedrive_authorize(profile_id: String) -> Result<DropboxAuthResult,
         host: "onedrive.com".into(),
         port: 443,
         username: String::new(),
-        auth: AuthMethod::Password { password: String::new() },
+        auth: AuthMethod::Password {
+            password: String::new(),
+        },
         default_remote_path: None,
         color: None,
         auto_connect: None,
@@ -480,7 +493,9 @@ pub async fn dynamics_authorize(
         .trim_end_matches('/')
         .to_string();
     let config = crate::session::dynamics::dynamics_config(&host);
-    let (tokens, _raw) = crate::oauth::authorize_loopback(&config).await.map_err(err)?;
+    let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
+        .await
+        .map_err(err)?;
     crate::oauth::store_tokens(
         crate::session::dynamics::DYNAMICS_TOKEN_SERVICE,
         &profile_id,
@@ -495,7 +510,9 @@ pub async fn dynamics_authorize(
         host: host.clone(),
         port: 443,
         username: String::new(),
-        auth: AuthMethod::Password { password: String::new() },
+        auth: AuthMethod::Password {
+            password: String::new(),
+        },
         default_remote_path: None,
         color: None,
         auto_connect: None,
@@ -526,7 +543,9 @@ pub async fn dynamics_authorize(
 #[tauri::command]
 pub async fn gdrive_authorize(profile_id: String) -> Result<DropboxAuthResult, String> {
     let config = crate::session::gdrive::gdrive_config();
-    let (tokens, _raw) = crate::oauth::authorize_loopback(&config).await.map_err(err)?;
+    let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
+        .await
+        .map_err(err)?;
     crate::oauth::store_tokens(crate::session::gdrive::GDRIVE_SERVICE, &profile_id, &tokens)
         .map_err(err)?;
 
@@ -537,7 +556,9 @@ pub async fn gdrive_authorize(profile_id: String) -> Result<DropboxAuthResult, S
         host: "drive.google.com".into(),
         port: 443,
         username: String::new(),
-        auth: AuthMethod::Password { password: String::new() },
+        auth: AuthMethod::Password {
+            password: String::new(),
+        },
         default_remote_path: None,
         color: None,
         auto_connect: None,
@@ -568,7 +589,9 @@ pub async fn gdrive_authorize(profile_id: String) -> Result<DropboxAuthResult, S
 #[tauri::command]
 pub async fn box_authorize(profile_id: String) -> Result<DropboxAuthResult, String> {
     let config = crate::session::boxdrive::box_config();
-    let (tokens, _raw) = crate::oauth::authorize_loopback(&config).await.map_err(err)?;
+    let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
+        .await
+        .map_err(err)?;
     crate::oauth::store_tokens(crate::session::boxdrive::BOX_SERVICE, &profile_id, &tokens)
         .map_err(err)?;
 
@@ -579,7 +602,9 @@ pub async fn box_authorize(profile_id: String) -> Result<DropboxAuthResult, Stri
         host: "box.com".into(),
         port: 443,
         username: String::new(),
-        auth: AuthMethod::Password { password: String::new() },
+        auth: AuthMethod::Password {
+            password: String::new(),
+        },
         default_remote_path: None,
         color: None,
         auto_connect: None,
@@ -697,10 +722,7 @@ const MAX_PREVIEW_BYTES: u64 = 4 * 1024 * 1024; // 4 MiB
 /// the `RemoteFs` trait doesn't expose yet — the frontend treats an error here
 /// as "no preview" and shows the icon.
 #[tauri::command]
-pub async fn read_file_preview(
-    session_id: String,
-    path: String,
-) -> Result<String, String> {
+pub async fn read_file_preview(session_id: String, path: String) -> Result<String, String> {
     if session_id != LOCAL_SESSION {
         return Err("preview is only supported for local files".into());
     }
@@ -738,11 +760,7 @@ pub async fn open_terminal(
         .get_ssh(&session_id)
         .await
         .ok_or_else(|| format!("FTP sessions have no shell"))?;
-    state
-        .ptys
-        .open(&ssh, cols, rows, app)
-        .await
-        .map_err(err)
+    state.ptys.open(&ssh, cols, rows, app).await.map_err(err)
 }
 
 #[tauri::command]
@@ -769,10 +787,7 @@ pub async fn terminal_resize(
 }
 
 #[tauri::command]
-pub async fn close_terminal(
-    terminal_id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn close_terminal(terminal_id: String, state: State<'_, AppState>) -> Result<(), String> {
     state.ptys.close(&terminal_id).await.map_err(err)
 }
 
@@ -785,9 +800,7 @@ pub async fn close_terminal(
 // stays in lockstep — the same shape the saved-commands / skills IPC uses.
 
 #[tauri::command]
-pub async fn snippet_list(
-    state: State<'_, AppState>,
-) -> Result<Vec<crate::db::Snippet>, String> {
+pub async fn snippet_list(state: State<'_, AppState>) -> Result<Vec<crate::db::Snippet>, String> {
     state.db.list_snippets().map_err(err)
 }
 
@@ -947,19 +960,13 @@ pub async fn transfer_move(
 
 /// Pause admission of new transfers; running ones keep going.
 #[tauri::command]
-pub async fn transfer_pause_all(
-    app: AppHandle,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn transfer_pause_all(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     state.transfers.pause_all(&app).await;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn transfer_resume_all(
-    app: AppHandle,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn transfer_resume_all(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     state.transfers.resume_all(&app).await;
     Ok(())
 }
@@ -987,10 +994,7 @@ pub async fn transfer_set_max_retries(
 /// Live-adjust the global bandwidth cap in KiB/s (0 = unlimited). Takes
 /// effect on the next chunk of every active transfer (Plan 17 Phase 4).
 #[tauri::command]
-pub async fn transfer_set_throttle(
-    kbps: u64,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn transfer_set_throttle(kbps: u64, state: State<'_, AppState>) -> Result<(), String> {
     state.transfers.set_throttle_kbps(kbps);
     Ok(())
 }
@@ -1016,9 +1020,7 @@ pub async fn transfer_queue_state(
 }
 
 #[tauri::command]
-pub async fn list_transfers(
-    state: State<'_, AppState>,
-) -> Result<Vec<Transfer>, String> {
+pub async fn list_transfers(state: State<'_, AppState>) -> Result<Vec<Transfer>, String> {
     Ok(state.transfers.list().await)
 }
 
@@ -1081,10 +1083,7 @@ pub async fn start_directory_upload(
 // Polymorphic dispatch on session type. The UI doesn't need to know whether
 // it's talking to SFTP or FTP — RemoteFs hides that.
 
-async fn fs_for(
-    session_id: &str,
-    state: &AppState,
-) -> Result<Box<dyn RemoteFs>, String> {
+async fn fs_for(session_id: &str, state: &AppState) -> Result<Box<dyn RemoteFs>, String> {
     if session_id == LOCAL_SESSION {
         return Ok(Box::new(crate::remotefs::local::LocalFs));
     }
@@ -1109,9 +1108,7 @@ pub fn fs_for_session(session: &Arc<Session>) -> Box<dyn RemoteFs> {
     match &**session {
         Session::Ssh(ssh) => Box::new(crate::remotefs::sftp::SftpFs::new(ssh.clone())),
         Session::Ftp(ftp) => Box::new(crate::remotefs::ftp::FtpFs::new(ftp.clone())),
-        Session::Object(obj) => {
-            Box::new(crate::remotefs::object::ObjectFs::new(obj.clone()))
-        }
+        Session::Object(obj) => Box::new(crate::remotefs::object::ObjectFs::new(obj.clone())),
         Session::Webdav(dav) => Box::new(crate::remotefs::webdav::WebdavFs::new(dav.clone())),
         Session::Http(http) => Box::new(crate::remotefs::http::HttpFs::new(http.clone())),
         Session::Dropbox(dbx) => Box::new(crate::remotefs::dropbox::DropboxFs::new(dbx.clone())),
@@ -1120,7 +1117,9 @@ pub fn fs_for_session(session: &Arc<Session>) -> Box<dyn RemoteFs> {
         Session::Box(bx) => Box::new(crate::remotefs::boxdrive::BoxFs::new(bx.clone())),
         Session::Shopify(sh) => Box::new(crate::remotefs::shopify::ShopifyFs::new(sh.clone())),
         Session::HubSpot(hs) => Box::new(crate::remotefs::hubspot::HubSpotFs::new(hs.clone())),
-        Session::Dynamics(dynm) => Box::new(crate::remotefs::dynamics::DynamicsFs::new(dynm.clone())),
+        Session::Dynamics(dynm) => {
+            Box::new(crate::remotefs::dynamics::DynamicsFs::new(dynm.clone()))
+        }
         Session::Agent(agent) => Box::new(crate::remotefs::agent::AgentFs::new(agent.clone())),
     }
 }
@@ -1144,7 +1143,9 @@ pub async fn delete_path(
     state: State<'_, AppState>,
 ) -> Result<(), GhostFTPError> {
     let fs = fs_for(&session_id, &state).await?;
-    fs.delete(&path, recursive).await.map_err(GhostFTPError::from)
+    fs.delete(&path, recursive)
+        .await
+        .map_err(GhostFTPError::from)
 }
 
 #[tauri::command]
@@ -1168,7 +1169,6 @@ pub async fn chmod_path(
     fs.chmod(&path, mode).await.map_err(GhostFTPError::from)
 }
 
-
 /// Apply chmod recursively when the backend can guarantee safe recursive
 /// semantics. Local paths use walkdir; SSH/SFTP uses the remote chmod command.
 /// Other protocols return an explicit unsupported error instead of pretending
@@ -1184,7 +1184,9 @@ pub async fn chmod_path_recursive(
         let path_for_task = path.clone();
         return tokio::task::spawn_blocking(move || -> Result<(), String> {
             let root = Path::new(&path_for_task);
-            if !root.exists() { return Err(format!("{path_for_task} does not exist")); }
+            if !root.exists() {
+                return Err(format!("{path_for_task} does not exist"));
+            }
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -1193,7 +1195,10 @@ pub async fn chmod_path_recursive(
                     permissions.set_mode(mode);
                     std::fs::set_permissions(candidate, permissions).map_err(err)
                 };
-                fn recurse(path: &Path, apply: &dyn Fn(&Path) -> Result<(), String>) -> Result<(), String> {
+                fn recurse(
+                    path: &Path,
+                    apply: &dyn Fn(&Path) -> Result<(), String>,
+                ) -> Result<(), String> {
                     apply(path)?;
                     if path.is_dir() {
                         for child in std::fs::read_dir(path).map_err(err)? {
@@ -1211,22 +1216,44 @@ pub async fn chmod_path_recursive(
                 recurse(root, &apply)
             }
             #[cfg(not(unix))]
-            { Err("Recursive POSIX permissions are not supported on this local platform".into()) }
-        }).await.map_err(err)?;
+            {
+                Err("Recursive POSIX permissions are not supported on this local platform".into())
+            }
+        })
+        .await
+        .map_err(err)?;
     }
 
-    let session = state.sessions.get(&session_id).await
+    let session = state
+        .sessions
+        .get(&session_id)
+        .await
         .ok_or_else(|| format!("session {session_id} not found"))?;
     match &*session {
         Session::Ssh(ssh) => {
-            let out = ssh.exec(&format!("chmod -R {:o} -- {}", mode & 0o777, sh_quote(&path))).await.map_err(err)?;
-            if out.exit_code == Some(0) { Ok(()) }
-            else {
+            let out = ssh
+                .exec(&format!(
+                    "chmod -R {:o} -- {}",
+                    mode & 0o777,
+                    sh_quote(&path)
+                ))
+                .await
+                .map_err(err)?;
+            if out.exit_code == Some(0) {
+                Ok(())
+            } else {
                 let message = out.stderr.trim();
-                Err(if message.is_empty() { "recursive chmod failed".into() } else { message.into() })
+                Err(if message.is_empty() {
+                    "recursive chmod failed".into()
+                } else {
+                    message.into()
+                })
             }
         }
-        _ => Err("Recursive permissions are supported only for local files and SFTP/SSH connections".into()),
+        _ => Err(
+            "Recursive permissions are supported only for local files and SFTP/SSH connections"
+                .into(),
+        ),
     }
 }
 
@@ -1243,27 +1270,46 @@ pub async fn checksum_path(
         return tokio::task::spawn_blocking(move || -> Result<String, String> {
             use std::io::Read;
             let mut file = std::fs::File::open(&path).map_err(err)?;
-            if file.metadata().map_err(err)?.is_dir() { return Err("Checksums are available for files only".into()); }
+            if file.metadata().map_err(err)?.is_dir() {
+                return Err("Checksums are available for files only".into());
+            }
             let mut hasher = Sha256::new();
             let mut buffer = [0u8; 1024 * 128];
             loop {
                 let n = file.read(&mut buffer).map_err(err)?;
-                if n == 0 { break; }
+                if n == 0 {
+                    break;
+                }
                 hasher.update(&buffer[..n]);
             }
             Ok(format!("{:x}", hasher.finalize()))
-        }).await.map_err(err)?;
+        })
+        .await
+        .map_err(err)?;
     }
-    let session = state.sessions.get(&session_id).await
+    let session = state
+        .sessions
+        .get(&session_id)
+        .await
         .ok_or_else(|| format!("session {session_id} not found"))?;
     match &*session {
         Session::Ssh(ssh) => {
-            let out = ssh.exec(&format!("sha256sum -b -- {}", sh_quote(&path))).await.map_err(err)?;
+            let out = ssh
+                .exec(&format!("sha256sum -b -- {}", sh_quote(&path)))
+                .await
+                .map_err(err)?;
             if out.exit_code != Some(0) {
                 let message = out.stderr.trim();
-                return Err(if message.is_empty() { "checksum failed".into() } else { message.into() });
+                return Err(if message.is_empty() {
+                    "checksum failed".into()
+                } else {
+                    message.into()
+                });
             }
-            out.stdout.split_whitespace().next().map(str::to_string)
+            out.stdout
+                .split_whitespace()
+                .next()
+                .map(str::to_string)
                 .filter(|value| value.len() == 64)
                 .ok_or_else(|| "server returned an invalid SHA-256 result".to_string())
         }
@@ -1368,11 +1414,7 @@ async fn duplicate_ssh(ssh: &Arc<SshSession>, path: &str) -> Result<(), String> 
         }
     };
     let out = ssh
-        .exec(&format!(
-            "cp -a -- {} {}",
-            sh_quote(path),
-            sh_quote(&dst)
-        ))
+        .exec(&format!("cp -a -- {} {}", sh_quote(path), sh_quote(&dst)))
         .await
         .map_err(err)?;
     if out.exit_code != Some(0) {
@@ -1471,13 +1513,12 @@ pub async fn start_archive_download(
     if out.exit_code != Some(0) {
         let _ = ssh.exec(&format!("rm -rf {}", sh_quote(&tmp_dir))).await;
         let stderr = out.stderr.trim();
-        let hint = if is_zip
-            && (stderr.contains("not found") || stderr.contains("command not found"))
-        {
-            "  (the `zip` command may not be installed on the server — try .tar.gz)"
-        } else {
-            ""
-        };
+        let hint =
+            if is_zip && (stderr.contains("not found") || stderr.contains("command not found")) {
+                "  (the `zip` command may not be installed on the server — try .tar.gz)"
+            } else {
+                ""
+            };
         return Err(format!(
             "Archive failed: {}{}",
             if stderr.is_empty() {
@@ -1499,7 +1540,13 @@ pub async fn start_archive_download(
 
     let id = state
         .transfers
-        .start_download(session, tmp.clone(), local_dir, OverwritePolicy::Rename, app)
+        .start_download(
+            session,
+            tmp.clone(),
+            local_dir,
+            OverwritePolicy::Rename,
+            app,
+        )
         .await
         .map_err(err)?;
 
@@ -1728,16 +1775,15 @@ pub async fn start_edit(
 }
 
 #[tauri::command]
-pub async fn stop_edit(
-    edit_id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn stop_edit(edit_id: String, state: State<'_, AppState>) -> Result<(), String> {
     state.editors.stop(&edit_id).await.map_err(err)
 }
 
 // ---------- Agent Bridge ----------
 
-use crate::bridge::{ActivityEntry, ApprovalDecision, ApprovalPolicy, BridgeStatus, SavedCommand, Skill};
+use crate::bridge::{
+    ActivityEntry, ApprovalDecision, ApprovalPolicy, BridgeStatus, SavedCommand, Skill,
+};
 
 #[tauri::command]
 pub async fn bridge_start(
@@ -1803,9 +1849,7 @@ pub async fn respond_to_bridge_approval(
 }
 
 #[tauri::command]
-pub async fn bridge_activity(
-    state: State<'_, AppState>,
-) -> Result<Vec<ActivityEntry>, String> {
+pub async fn bridge_activity(state: State<'_, AppState>) -> Result<Vec<ActivityEntry>, String> {
     Ok(state.bridge.recent_activity().await)
 }
 
@@ -1818,9 +1862,7 @@ pub async fn bridge_clear_activity(state: State<'_, AppState>) -> Result<(), Str
 // ---------- Saved commands (pre-approved; local-UI managed only) ----------
 
 #[tauri::command]
-pub async fn bridge_list_commands(
-    state: State<'_, AppState>,
-) -> Result<Vec<SavedCommand>, String> {
+pub async fn bridge_list_commands(state: State<'_, AppState>) -> Result<Vec<SavedCommand>, String> {
     Ok(state.bridge.list_commands().await)
 }
 
@@ -2012,10 +2054,7 @@ pub async fn settings_set(
 
 /// Delete one setting row (reset-to-default for shortcut overrides & friends).
 #[tauri::command]
-pub async fn settings_delete(
-    key: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn settings_delete(key: String, state: State<'_, AppState>) -> Result<(), String> {
     state.db.settings_delete(&key).map_err(err)
 }
 

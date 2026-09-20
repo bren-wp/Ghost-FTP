@@ -1,18 +1,20 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::sync::Arc;
 #[cfg(unix)]
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum AuthMethod {
-    Password { password: String },
+    Password {
+        password: String,
+    },
     Key {
         path: String,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -23,7 +25,9 @@ pub enum AuthMethod {
     /// `key_ref`, e.g. `grant-key:<profile-id>`), never on disk. The connect
     /// path resolves it via `credentials::get_secret` at connect time.
     #[serde(rename_all = "camelCase")]
-    KeyRef { key_ref: String },
+    KeyRef {
+        key_ref: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -113,8 +117,7 @@ impl ProfileStore {
     /// the CLI binary, which doesn't have a Tauri AppHandle. Resolves to the
     /// same on-disk path the GUI uses — see `default_data_dir`.
     pub fn from_dir(dir: &Path) -> Result<Self> {
-        std::fs::create_dir_all(dir)
-            .with_context(|| format!("creating {}", dir.display()))?;
+        std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
         #[cfg(unix)]
         {
             // Connection metadata contains server names and usernames even after
@@ -125,8 +128,8 @@ impl ProfileStore {
         let path = dir.join("profiles.json");
         let backup = dir.join("profiles.json.bak");
         let profiles: Vec<ConnectionProfile> = if path.exists() {
-            let bytes = std::fs::read(&path)
-                .with_context(|| format!("reading {}", path.display()))?;
+            let bytes =
+                std::fs::read(&path).with_context(|| format!("reading {}", path.display()))?;
             match serde_json::from_slice(&bytes) {
                 Ok(v) => v,
                 Err(_main_err) => {

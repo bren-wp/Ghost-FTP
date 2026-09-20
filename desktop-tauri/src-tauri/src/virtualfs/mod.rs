@@ -116,7 +116,10 @@ pub struct VirtualFs {
 
 impl VirtualFs {
     pub fn load(app: &AppHandle) -> Result<Self> {
-        let dir = app.path().app_data_dir().context("resolving app_data_dir")?;
+        let dir = app
+            .path()
+            .app_data_dir()
+            .context("resolving app_data_dir")?;
         std::fs::create_dir_all(&dir).ok();
         let settings_path = dir.join("virtualfs.json");
         let settings: Settings = std::fs::read(&settings_path)
@@ -150,7 +153,10 @@ impl VirtualFs {
     pub async fn reconcile(&self, app: &AppHandle, pairs: Vec<OnDemandPair>) {
         let persisted: Vec<RegisteredRoot> = self.settings.lock().await.registered.clone();
         let live_ids: Vec<String> = pairs.iter().map(|p| p.id.clone()).collect();
-        let Plan { to_unregister, to_start } = plan_reconcile(&persisted, &live_ids);
+        let Plan {
+            to_unregister,
+            to_start,
+        } = plan_reconcile(&persisted, &live_ids);
 
         // 1) Tear down orphans first — the safety-critical half.
         for pair_id in &to_unregister {
@@ -165,7 +171,10 @@ impl VirtualFs {
         for pair in pairs.iter().filter(|p| to_start.contains(&p.id)) {
             if let Err(e) = self.start_pair(app, pair).await {
                 tracing::warn!("virtualfs '{}': {e:#}", pair.name);
-                self.errors.lock().await.insert(pair.id.clone(), format!("{e:#}"));
+                self.errors
+                    .lock()
+                    .await
+                    .insert(pair.id.clone(), format!("{e:#}"));
             }
         }
 
@@ -174,7 +183,10 @@ impl VirtualFs {
             let mut s = self.settings.lock().await;
             s.registered = pairs
                 .iter()
-                .map(|p| RegisteredRoot { pair_id: p.id.clone(), local_root: p.local_root.clone() })
+                .map(|p| RegisteredRoot {
+                    pair_id: p.id.clone(),
+                    local_root: p.local_root.clone(),
+                })
                 .collect();
         }
         let _ = self.persist().await;
@@ -267,7 +279,10 @@ fn plan_reconcile(persisted: &[RegisteredRoot], live_ids: &[String]) -> Plan {
     // Every live pair is a (re)start candidate; start_pair is a no-op if it's
     // already running.
     let to_start = live_ids.to_vec();
-    Plan { to_unregister, to_start }
+    Plan {
+        to_unregister,
+        to_start,
+    }
 }
 
 // ---------- Hydrator over a live Session ----------
@@ -286,7 +301,11 @@ pub struct SessionHydrator {
 #[allow(dead_code)]
 impl SessionHydrator {
     pub fn new(app: AppHandle, profile_id: String) -> Self {
-        Self { app, profile_id, session_id: Mutex::new(None) }
+        Self {
+            app,
+            profile_id,
+            session_id: Mutex::new(None),
+        }
     }
 
     async fn session(&self) -> Result<Arc<crate::session::Session>> {
@@ -304,7 +323,9 @@ impl SessionHydrator {
             .get(&self.profile_id)
             .await
             .context("loading the on-demand connection")?
-            .ok_or_else(|| anyhow::anyhow!("connection for this on-demand folder no longer exists"))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!("connection for this on-demand folder no longer exists")
+            })?;
         let id = state
             .sessions
             .connect(profile, self.app.clone())
@@ -357,7 +378,9 @@ impl Hydrator for SessionHydrator {
                         anyhow::bail!("hydration download failed: {}", t.error.unwrap_or_default())
                     }
                     TransferStatus::Canceled => anyhow::bail!("hydration download canceled"),
-                    TransferStatus::Queued | TransferStatus::Transferring | TransferStatus::Paused => {
+                    TransferStatus::Queued
+                    | TransferStatus::Transferring
+                    | TransferStatus::Paused => {
                         tokio::time::sleep(std::time::Duration::from_millis(120)).await;
                     }
                 },
@@ -397,7 +420,10 @@ mod tests {
     use super::*;
 
     fn root(id: &str) -> RegisteredRoot {
-        RegisteredRoot { pair_id: id.into(), local_root: format!("C:/x/{id}") }
+        RegisteredRoot {
+            pair_id: id.into(),
+            local_root: format!("C:/x/{id}"),
+        }
     }
 
     #[test]
