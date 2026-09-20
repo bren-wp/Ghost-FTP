@@ -12,6 +12,8 @@ import {
   Pause,
   Play,
   Plus,
+  MoreHorizontal,
+  Clock3,
   RotateCcw,
   Search,
   Server,
@@ -28,7 +30,9 @@ import { getLocale, setLocale } from "@/lib/i18n";
 import { useLayout } from "@/stores/layoutStore";
 import { useDialog } from "@/hooks/useDialog";
 
-type FilterTab = "all" | "upload" | "download" | "completed" | "failed";
+type FilterTab = "all" | "upload" | "download" | "completed" | "failed" | "paused";
+type DirectionFilter = "all" | "upload" | "download";
+type TimeFilter = "all" | "hour" | "day";
 type BandwidthSample = { upload: number; download: number };
 
 interface Props {
@@ -51,6 +55,10 @@ export function TransferCenterDialog({ onClose }: Props) {
 
   const [tab, setTab] = useState<FilterTab>("all");
   const [query, setQuery] = useState("");
+  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>("all");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [logClearedAt, setLogClearedAt] = useState(0);
   const [bandwidthHistory, setBandwidthHistory] = useState<BandwidthSample[]>([]);
@@ -62,11 +70,28 @@ export function TransferCenterDialog({ onClose }: Props) {
 
   useDialog(panelRef, { onClose });
 
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (event: MouseEvent) => {
+      if (!moreRef.current?.contains(event.target as Node)) setMoreOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMoreOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [moreOpen]);
+
   const transfers = useMemo(() => Object.values(byId), [byId]);
   const completed = transfers.filter(
     (transfer) => transfer.status === "done" || transfer.status === "skipped"
   ).length;
   const failed = transfers.filter((transfer) => transfer.status === "error").length;
+  const paused = transfers.filter((transfer) => transfer.status === "paused").length;
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -77,14 +102,22 @@ export function TransferCenterDialog({ onClose }: Props) {
         (tab === "download" && transfer.kind === "download") ||
         (tab === "completed" &&
           (transfer.status === "done" || transfer.status === "skipped")) ||
-        (tab === "failed" && transfer.status === "error");
+        (tab === "failed" && transfer.status === "error") ||
+        (tab === "paused" && transfer.status === "paused");
       if (!tabMatch) return false;
+
+      if (directionFilter !== "all" && transfer.kind !== directionFilter) return false;
+
+      const now = Date.now() / 1000;
+      if (timeFilter === "hour" && transfer.startedAt < now - 3600) return false;
+      if (timeFilter === "day" && transfer.startedAt < now - 86400) return false;
+
       if (!normalizedQuery) return true;
       return `${transfer.source} ${transfer.destination} ${transfer.status}`
         .toLowerCase()
         .includes(normalizedQuery);
     });
-  }, [transfers, tab, query]);
+  }, [transfers, tab, query, directionFilter, timeFilter]);
 
   const selected = selectedId
     ? filtered.find((transfer) => transfer.id === selectedId) ?? null
@@ -185,20 +218,46 @@ export function TransferCenterDialog({ onClose }: Props) {
           <button
             type="button"
             className="ghost-mini-button"
-            disabled={activeCount === 0 && !pausedAll}
-            onClick={() => void (pausedAll ? resumeAll() : pauseAll())}
+            disabled
+            title="Persistent transfer scheduling is not exposed until the native scheduler is available; Ghost FTP does not simulate scheduled transfers."
           >
-            {pausedAll ? <Play size={14} /> : <Pause size={14} />}
-            {pausedAll ? "Resume All" : "Pause All"}
+            <Clock3 size={14} /> Schedule
           </button>
           <button
             type="button"
             className="ghost-mini-button"
-            disabled={completed === 0 && failed === 0}
+            disabled={completed === 0}
             onClick={clearCompleted}
           >
             <Trash2 size={14} /> Clear Completed
           </button>
+          <div className="relative" ref={moreRef}>
+            <button
+              type="button"
+              className="ghost-mini-button"
+              aria-haspopup="menu"
+              aria-expanded={moreOpen}
+              onClick={() => setMoreOpen((value) => !value)}
+            >
+              <MoreHorizontal size={15}/> More
+            </button>
+            {moreOpen && (
+              <div className="ghost-transfer-more-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={activeCount === 0 && !pausedAll}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    void (pausedAll ? resumeAll() : pauseAll());
+                  }}
+                >
+                  {pausedAll ? <Play size={14}/> : <Pause size={14}/>}
+                  <span>{pausedAll ? "Resume All" : "Pause All"}</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="ghost-transfer-filters flex items-center gap-2 border-b border-border px-4 py-3 text-[12px]">
@@ -231,6 +290,12 @@ export function TransferCenterDialog({ onClose }: Props) {
             label={`Failed (${failed})`}
             icon={<XCircle size={14} />}
           />
+          <Tab
+            active={tab === "paused"}
+            onClick={() => setTab("paused")}
+            label={`Paused (${paused})`}
+            icon={<Pause size={14} />}
+          />
           <div className="flex-1" />
           <div className="relative">
             <Search
@@ -247,15 +312,36 @@ export function TransferCenterDialog({ onClose }: Props) {
           </div>
           <select
             className="ghost-ref-input h-8 w-32"
-            aria-label="Transfer filter"
+            aria-label="Transfer status filter"
             value={tab}
             onChange={(event) => setTab(event.target.value as FilterTab)}
           >
-            <option value="all">All Status</option>
+            <option value="all">All Statuses</option>
             <option value="completed">Completed</option>
             <option value="failed">Failed</option>
+            <option value="paused">Paused</option>
             <option value="upload">Uploads</option>
             <option value="download">Downloads</option>
+          </select>
+          <select
+            className="ghost-ref-input h-8 w-32"
+            aria-label="Transfer direction filter"
+            value={directionFilter}
+            onChange={(event) => setDirectionFilter(event.target.value as DirectionFilter)}
+          >
+            <option value="all">All Directions</option>
+            <option value="upload">Uploads</option>
+            <option value="download">Downloads</option>
+          </select>
+          <select
+            className="ghost-ref-input h-8 w-28"
+            aria-label="Transfer time filter"
+            value={timeFilter}
+            onChange={(event) => setTimeFilter(event.target.value as TimeFilter)}
+          >
+            <option value="all">Any Time</option>
+            <option value="hour">Last Hour</option>
+            <option value="day">Last 24h</option>
           </select>
         </div>
 
