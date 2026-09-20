@@ -117,7 +117,6 @@ function GeneralGrid({ locale, setLocale }: { locale: string; setLocale: (value:
       <AppearanceCard/>
       <PerformanceCard/>
       <TransfersCard/>
-      <TerminalCard/>
       <ConnectionCard/>
       <SecurityCard/>
       <UpdatesCard/>
