@@ -38,10 +38,14 @@ export function AboutDialog({ onClose }: Props) {
         </aside>
 
         <main className="ghost-about-content min-w-0 flex-1 overflow-y-auto p-4">
-          <div className="mb-3">
-            <div className="text-lg font-semibold">{tab === "about" ? "About Ghost FTP" : tab === "updates" ? "Ghost FTP Updates" : "Ghost FTP Help Center"}</div>
-            <div className="text-[12px] text-text-muted">Files move forward.</div>
-          </div>
+          {tab !== "about" && (
+            <div className="mb-3">
+              <div className="text-lg font-semibold">
+                {tab === "updates" ? "Ghost FTP Updates" : "Ghost FTP Help Center"}
+              </div>
+              <div className="text-[12px] text-text-muted">Files move forward.</div>
+            </div>
+          )}
 
           {tab === "about" && <AboutContent />}
           {tab === "updates" && <UpdatesContent />}
@@ -95,6 +99,7 @@ function AboutContent() {
           <LinkRow icon={<FileText size={18}/>} title="Documentation" subtitle="Guides and tutorials" onClick={() => external("/docs")}/>
           <LinkRow icon={<LifeBuoy size={18}/>} title="Support Center" subtitle="Get help from our team" onClick={() => external("/support")}/>
           <LinkRow icon={<ShieldCheck size={18}/>} title="Privacy Policy" subtitle="Your privacy matters" onClick={() => external("/privacy")}/>
+          <LinkRow icon={<FileText size={18}/>} title="Changelog" subtitle="See what's new" onClick={() => external("/changelog")}/>
         </div>
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
           <div className="text-[15px] font-semibold">Platforms & Language</div>

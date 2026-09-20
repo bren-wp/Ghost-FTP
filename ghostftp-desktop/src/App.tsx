@@ -116,6 +116,11 @@ export default function App() {
     ).length
   );
   const [editsMenuOpen, setEditsMenuOpen] = useState(false);
+  const standaloneDialog =
+    dialog === "settings" ||
+    dialog === "siteManager" ||
+    dialog === "transferCenter" ||
+    dialog === "about";
 
   useShortcuts();
 
@@ -154,7 +159,7 @@ export default function App() {
 
   return (
       <div className="ghost-app-shell flex h-full w-full flex-col">
-      <TitleBar />
+      {!standaloneDialog && <TitleBar />}
       <DeepLinkListener />
       <Suspense fallback={<DialogLoading />}>
         {dialog === "settings" && <Settings onClose={closeDialog} />}
@@ -186,6 +191,8 @@ export default function App() {
       <SnippetsHost />
       <CommandPalette />
       <KeyboardShortcutsDialog />
+      {!standaloneDialog && (
+      <>
       <div className="ghost-main-workspace flex min-h-0 flex-1 overflow-hidden">
         <ReferenceSiteSidebar />
         <div className="flex min-w-0 flex-1 flex-col">
@@ -217,6 +224,8 @@ export default function App() {
       <UpdatePrompt />
       <CliUpdatePrompt />
       <ReferenceStatusBar />
+      </>
+      )}
       </div>
   );
 }
