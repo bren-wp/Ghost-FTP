@@ -1,10 +1,6 @@
 name: Publish Ghost FTP 2.1.1 RC7
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.release/RC7'
   workflow_run:
     workflows: ["Ghost FTP native build"]
     types: [completed]
@@ -19,16 +15,13 @@ concurrency:
 
 jobs:
   publish:
-    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.23.x'
 
       - name: Verify source audit prerequisites
         shell: bash
@@ -37,79 +30,15 @@ jobs:
           ! grep -RniE 'Faro|example\.com|Production Server|Staging Server|Design Assets|Cloud Server|C:\\Users\\Alex' \
             desktop-tauri/src desktop-tauri/src-tauri runtime installer website \
             --exclude-dir=node_modules --exclude-dir=target
-          (cd runtime && go test ./... && go vet ./...)
-          mkdir -p installer/payload
-          : > installer/payload/GhostFTP.exe
-          (cd installer && go test ./... && go vet ./...)
           node --check runtime/site/app.js
           node --check installer/site/setup.js
           node --check website/assets/site.js
 
-      - name: Build compatibility artifacts
+      - name: Package full source, native source, web and documentation
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf dist
-          mkdir -p dist installer/payload
-
-          (
-            cd runtime
-            GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -H=windowsgui" \
-              -o ../dist/GhostFTP-Portable-2.1.1-RC7.exe .
-            GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \
-              -o ../dist/GhostFTP-linux-x86_64-2.1.1-RC7 .
-          )
-
-          cp dist/GhostFTP-Portable-2.1.1-RC7.exe installer/payload/GhostFTP.exe
-          (
-            cd installer
-            GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -H=windowsgui" \
-              -o ../dist/GhostFTP-Setup-2.1.1-RC7.exe .
-          )
-
-          chmod +x dist/GhostFTP-linux-x86_64-2.1.1-RC7
-          tar -C dist -czf dist/GhostFTP-linux-x86_64-2.1.1-RC7.tar.gz \
-            GhostFTP-linux-x86_64-2.1.1-RC7
-
-      - name: Build compatibility Debian package
-        shell: bash
-        run: |
-          set -euo pipefail
-          PKG="$RUNNER_TEMP/ghostftp-deb"
-          rm -rf "$PKG"
-          mkdir -p "$PKG/DEBIAN" "$PKG/usr/bin" "$PKG/usr/share/applications" \
-                   "$PKG/usr/share/icons/hicolor/scalable/apps"
-          install -m 0755 dist/GhostFTP-linux-x86_64-2.1.1-RC7 "$PKG/usr/bin/ghostftp"
-          install -m 0644 runtime/site/assets/ghostftp-symbol.svg \
-            "$PKG/usr/share/icons/hicolor/scalable/apps/ghostftp.svg"
-          cat > "$PKG/DEBIAN/control" <<'EOF'
-          Package: ghostftp
-          Version: 2.1.1~rc7
-          Section: net
-          Priority: optional
-          Architecture: amd64
-          Maintainer: Brendigo <info@brendigo.com>
-          Description: Ghost FTP compatibility desktop file-transfer client
-           Ghost FTP RC7 compatibility runtime for Windows and Linux.
-          EOF
-          sed -i 's/^          //' "$PKG/DEBIAN/control"
-          cat > "$PKG/usr/share/applications/ghostftp.desktop" <<'EOF'
-          [Desktop Entry]
-          Type=Application
-          Name=Ghost FTP
-          Comment=Secure file transfer client
-          Exec=/usr/bin/ghostftp
-          Icon=ghostftp
-          Terminal=false
-          Categories=Network;FileTransfer;
-          EOF
-          sed -i 's/^          //' "$PKG/usr/share/applications/ghostftp.desktop"
-          dpkg-deb --build --root-owner-group "$PKG" dist/ghostftp_2.1.1~rc7_amd64.deb
-
-      - name: Package source, web and documentation
-        shell: bash
-        run: |
-          set -euo pipefail
+          mkdir -p dist
           git archive --format=zip --output=dist/Ghost-FTP-v2.1.1-RC7-FULL-SOURCE.zip HEAD
           zip -qr dist/Ghost-FTP-v2.1.1-RC7-Tauri-NATIVE-SOURCE.zip desktop-tauri
           zip -qr dist/Ghost-FTP-v2.1.1-RC7-WEB.zip website
@@ -120,21 +49,15 @@ jobs:
             TITLEBAR_QA.md TRANSFER_QA.md UNINSTALL.md UPDATE_POLICY.md LICENSE.txt EULA.txt \
             RELEASE_NOTES_RC7.md
 
-      - name: Download latest successful native Windows/Linux artifacts
+      - name: Download this successful native Windows/Linux build
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          RUN_ID="$(gh run list --workflow native-build.yml --branch main --status success --limit 1 \
-            --json databaseId --jq '.[0].databaseId // empty')"
-          if [ -n "$RUN_ID" ]; then
-            echo "Using native build run $RUN_ID"
-            mkdir -p dist/native
-            gh run download "$RUN_ID" -D dist/native
-          else
-            echo "No successful native build is available yet; publishing source and compatibility artifacts only."
-          fi
+          mkdir -p dist/native
+          gh run download "${{ github.event.workflow_run.id }}" -D dist/native
+          find dist/native -type f -maxdepth 8 -print
 
       - name: Generate checksums
         shell: bash
@@ -145,22 +68,27 @@ jobs:
             find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum
           ) > dist/SHA256SUMS.txt
 
-      - name: Publish GitHub pre-release
+      - name: Replace RC7 release with native artifacts only
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           TAG="v2.1.1-rc.7"
+
           if gh release view "$TAG" >/dev/null 2>&1; then
+            for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
+              gh release delete-asset "$TAG" "$asset" -y || true
+            done
             gh release edit "$TAG" \
-              --title "Ghost FTP 2.1.1 RC7" \
+              --target "${{ github.event.workflow_run.head_sha }}" \
+              --title "Ghost FTP 2.1.1 RC7 — Native" \
               --notes-file RELEASE_NOTES_RC7.md \
               --prerelease
           else
             gh release create "$TAG" \
-              --target "$GITHUB_SHA" \
-              --title "Ghost FTP 2.1.1 RC7" \
+              --target "${{ github.event.workflow_run.head_sha }}" \
+              --title "Ghost FTP 2.1.1 RC7 — Native" \
               --notes-file RELEASE_NOTES_RC7.md \
               --prerelease
           fi
@@ -169,4 +97,4 @@ jobs:
             gh release upload "$TAG" "$file" --clobber
           done < <(find dist -type f -print0)
 
-          gh release view "$TAG" --json url,tagName,name,isPrerelease
+          gh release view "$TAG" --json url,tagName,name,isPrerelease,assets
