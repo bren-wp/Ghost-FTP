@@ -15,7 +15,10 @@ export type AppDialog =
   | "transferCenter"
   | "sync"
   | "help"
-  | "updates";
+  | "updates"
+  | "cloudStorage"
+  | "schedules"
+  | "activityLogs";
 
 /** Seed for the grant consent dialog, parsed from a ghostftp://grant deep link. */
 export interface GrantPrefill {
