@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Plus, Server } from "lucide-react";
+import { ArrowDownUp, ChevronDown, ChevronRight, Files, Info, Plus, Server, Settings } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useConnections } from "@/stores/connectionsStore";
 import { useLayout } from "@/stores/layoutStore";
@@ -9,7 +9,7 @@ export function ReferenceSiteSidebar() {
   const sessions = useConnections((s) => s.sessions);
   const connect = useConnections((s) => s.connect);
   const setActiveSession = useConnections((s) => s.setActiveSession);
-  const openDialog = useLayout((s) => s.openDialog);
+  const openView = useLayout((s) => s.openView);
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const [expanded, setExpanded] = useState(true);
 
@@ -44,6 +44,23 @@ export function ReferenceSiteSidebar() {
           );
         })}
       </div>}
+      <div className="ghost-sidebar-nav" aria-label="Workspace navigation">
+        <button className="ghost-sidebar-nav-item active" aria-current="page">
+          <Files size={14}/><span>File Manager</span>
+        </button>
+        <button className="ghost-sidebar-nav-item" onClick={() => openView("transferCenter")}>
+          <ArrowDownUp size={14}/><span>Transfer Center</span>
+        </button>
+        <button className="ghost-sidebar-nav-item" onClick={() => openView("siteManager")}>
+          <Server size={14}/><span>Site Manager</span>
+        </button>
+        <button className="ghost-sidebar-nav-item" onClick={() => openView("settings")}>
+          <Settings size={14}/><span>Settings</span>
+        </button>
+        <button className="ghost-sidebar-nav-item" onClick={() => openView("about")}>
+          <Info size={14}/><span>About</span>
+        </button>
+      </div>
       <div className="ghost-sites-spacer"/>
     </aside>
   );
