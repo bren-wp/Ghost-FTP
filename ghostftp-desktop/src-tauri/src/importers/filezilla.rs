@@ -7,8 +7,8 @@ use std::path::PathBuf;
 /// Locate FileZilla's `sitemanager.xml` for the current user. FileZilla
 /// stores its config under platform-conventional config dirs:
 ///   - Windows: %APPDATA%\FileZilla\sitemanager.xml
-///   - Linux:   ~/.config/filezilla/sitemanager.xml (or ~/.filezilla/ on
-///              older installs — we check both)
+/// - Linux: ~/.config/filezilla/sitemanager.xml (or ~/.filezilla/ on
+///   older installs — we check both)
 pub fn default_path() -> Option<PathBuf> {
     if cfg!(target_os = "windows") {
         if let Some(appdata) = std::env::var_os("APPDATA") {
