@@ -61,7 +61,8 @@ export function ReferenceWindowTitlebar({
 }
 
 function ReferenceMenuNav({ onClose }: { onClose?: () => void }) {
-  const openDialog = useLayout((s) => s.openDialog);
+  const openView = useLayout((s) => s.openView);
+  const returnToFiles = useLayout((s) => s.returnToFiles);
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const [open, setOpen] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -69,26 +70,26 @@ function ReferenceMenuNav({ onClose }: { onClose?: () => void }) {
   const menus = useMemo<Record<string, Item[]>>(() => ({
     File: [
       { label: "New Connection…", run: () => openNewConnection() },
-      { label: "Site Manager…", run: () => openDialog("siteManager") },
+      { label: "Site Manager…", run: () => openView("siteManager") },
       { separator: true },
-      { label: "Close view", run: () => onClose ? onClose() : useLayout.getState().closeDialog() },
+      { label: "Close view", run: () => onClose ? onClose() : returnToFiles() },
     ],
-    Edit: [{ label: "Preferences…", run: () => openDialog("settings") }],
+    Edit: [{ label: "Preferences…", run: () => openView("settings") }],
     View: [
-      { label: "Transfer Center", run: () => openDialog("transferCenter") },
-      { label: "Site Manager", run: () => openDialog("siteManager") },
+      { label: "Transfer Center", run: () => openView("transferCenter") },
+      { label: "Site Manager", run: () => openView("siteManager") },
     ],
-    Transfer: [{ label: "Transfer Center", run: () => openDialog("transferCenter") }],
+    Transfer: [{ label: "Transfer Center", run: () => openView("transferCenter") }],
     Server: [{ label: "New Connection…", run: () => openNewConnection() }],
-    Bookmarks: [{ label: "Site Manager…", run: () => openDialog("siteManager") }],
-    Tools: [{ label: "Preferences…", run: () => openDialog("settings") }],
+    Bookmarks: [{ label: "Site Manager…", run: () => openView("siteManager") }],
+    Tools: [{ label: "Preferences…", run: () => openView("settings") }],
     Help: [
       { label: "Documentation", run: () => openOfficialUrl("/docs/") },
       { label: "Support Center", run: () => openOfficialUrl("/support/") },
       { separator: true },
-      { label: "About Ghost FTP", run: () => openDialog("about") },
+      { label: "About Ghost FTP", run: () => openView("about") },
     ],
-  }), [onClose, openDialog, openNewConnection]);
+  }), [onClose, openNewConnection, openView, returnToFiles]);
 
   useEffect(() => {
     if (!open) return;
@@ -197,13 +198,13 @@ export function ReferenceMenuTitlebar({ onClose }: { onClose?: () => void } = {}
 }
 
 export function ReferenceActionRow() {
-  const openDialog = useLayout((s) => s.openDialog);
+  const openView = useLayout((s) => s.openView);
   const locale = getLocale();
   return (
     <div className="ghost-standalone-action-row">
       <div className="flex-1" />
       <div className="ghost-title-actions">
-        <button className="ghost-mini-button" onClick={() => openDialog("settings")}><Settings size={14}/><span>Settings</span></button>
+        <button className="ghost-mini-button" onClick={() => openView("settings")}><Settings size={14}/><span>Settings</span></button>
         <label className="ghost-language-menu">
           <Languages size={14}/>
           <select aria-label="Language" value={locale} onChange={(event) => setLocale(event.target.value as any)}>
