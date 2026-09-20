@@ -17,7 +17,6 @@ import {
 } from "@/lib/terminalRegistry";
 import { noteTerminalFocus } from "@/lib/termInput";
 import { useSettings, TERMINAL_THEMES } from "@/stores/settingsStore";
-import { useConnections } from "@/stores/connectionsStore";
 import { useSnippets } from "@/stores/snippetsStore";
 import {
   useTerminals,
