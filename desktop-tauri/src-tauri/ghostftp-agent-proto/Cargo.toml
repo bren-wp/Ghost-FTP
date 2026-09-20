@@ -1,6 +1,6 @@
 [package]
 name = "ghostftp-agent-proto"
-version = "2.1.1-rc.8"
+version = "2.1.1-rc.9"
 edition = "2021"
 license = "MIT"
 description = "Wire protocol + encrypted channel for Ghost FTP's remote-agent (Ghost FTP-to-Ghost FTP) bridge."
