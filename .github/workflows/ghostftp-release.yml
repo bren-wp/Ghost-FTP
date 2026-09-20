@@ -1,4 +1,4 @@
-name: Ghost FTP RC12 release
+name: Ghost FTP RC13 release
 
 on:
   workflow_run:
@@ -10,7 +10,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: ghostftp-rc12-release
+  group: ghostftp-rc13-release
   cancel-in-progress: true
 
 jobs:
@@ -48,20 +48,20 @@ jobs:
           fi
 
           git checkout --detach "$MAIN_SHA"
-          grep -q '"version": "2.1.1-rc.12"' ghostftp-desktop/package.json
-          grep -q '"version": "2.1.1-rc.12"' ghostftp-desktop/package-lock.json
-          grep -q '^version = "2.1.1-rc.12"$' ghostftp-desktop/src-tauri/Cargo.toml
-          grep -q '^version = "2.1.1-rc.12"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
-          grep -q '^version = "2.1.1-rc.12"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
-          grep -q '^version = "2.1.1-rc.12"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
-          grep -q '"version": "2.1.1-rc.12"' ghostftp-desktop/src-tauri/tauri.conf.json
-          grep -q 'PRODUCT_VERSION = "2.1.1-rc.12"' ghostftp-desktop/src/lib/release.ts
-          grep -q 'const version = "2.1.1-rc.12"' tools/ghostftp-runtime/main.go
-          grep -q 'const version = "2.1.1-rc.12"' tools/ghostftp-installer/main.go
-          grep -q '"version": "2.1.1-rc.12"' updates/channels/preview.template.json
-          grep -q '"version": "2.1.1-rc.12"' updates/latest.template.json
-          grep -q '"build": "2026.09.20.12"' updates/latest.template.json
-          test -f docs/releases/2.1.1-rc.12.md
+          grep -q '"version": "2.1.1-rc.13"' ghostftp-desktop/package.json
+          grep -q '"version": "2.1.1-rc.13"' ghostftp-desktop/package-lock.json
+          grep -q '^version = "2.1.1-rc.13"$' ghostftp-desktop/src-tauri/Cargo.toml
+          grep -q '^version = "2.1.1-rc.13"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
+          grep -q '^version = "2.1.1-rc.13"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
+          grep -q '^version = "2.1.1-rc.13"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
+          grep -q '"version": "2.1.1-rc.13"' ghostftp-desktop/src-tauri/tauri.conf.json
+          grep -q 'PRODUCT_VERSION = "2.1.1-rc.13"' ghostftp-desktop/src/lib/release.ts
+          grep -q 'const version = "2.1.1-rc.13"' tools/ghostftp-runtime/main.go
+          grep -q 'const version = "2.1.1-rc.13"' tools/ghostftp-installer/main.go
+          grep -q '"version": "2.1.1-rc.13"' updates/channels/preview.template.json
+          grep -q '"version": "2.1.1-rc.13"' updates/latest.template.json
+          grep -q '"build": "2026.09.21.13"' updates/latest.template.json
+          test -f docs/releases/2.1.1-rc.13.md
 
           wait_for_gate() {
             local workflow="$1"
@@ -94,11 +94,11 @@ jobs:
           set -euo pipefail
           mkdir -p dist/native
 
-          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC12-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-RC12-Desktop-Source.zip ghostftp-desktop
-          zip -qr dist/GhostFTP-v2.1.1-RC12-Website.zip website
-          zip -qr dist/GhostFTP-v2.1.1-RC12-Updates.zip updates
-          zip -qr dist/GhostFTP-v2.1.1-RC12-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC13-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC13-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC13-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC13-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC13-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
 
       - name: Download successful native build artifacts
         env:
@@ -120,8 +120,8 @@ jobs:
           APPIMAGE="$(find dist/native -type f -iname '*.AppImage' | head -n1 || true)"
           DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
           RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
-          WIN_QA_PNG="$(find dist/native -type f -iname '*RC12-Native-Window.png' | head -n1 || true)"
-          WIN_QA_TXT="$(find dist/native -type f -iname '*RC12-Native-Window.txt' | head -n1 || true)"
+          WIN_QA_PNG="$(find dist/native -type f -iname '*RC13-Native-Window.png' | head -n1 || true)"
+          WIN_QA_TXT="$(find dist/native -type f -iname '*RC13-Native-Window.txt' | head -n1 || true)"
 
           test -n "$WIN_EXE"
           test -n "$WIN_SETUP"
@@ -132,20 +132,20 @@ jobs:
           test -n "$WIN_QA_PNG"
           test -n "$WIN_QA_TXT"
 
-          cp "$WIN_EXE" dist/GhostFTP-Windows-x64-Portable-v2.1.1-RC12.exe
-          cp "$WIN_SETUP" dist/GhostFTP-Windows-x64-Setup-v2.1.1-RC12.exe
-          cp "$LINUX_BIN" dist/GhostFTP-Linux-x86_64-v2.1.1-RC12
-          chmod +x dist/GhostFTP-Linux-x86_64-v2.1.1-RC12
-          cp "$APPIMAGE" dist/GhostFTP-Linux-x86_64-v2.1.1-RC12.AppImage
-          cp "$DEB" dist/GhostFTP-Linux-amd64-v2.1.1-RC12.deb
-          cp "$RPM" dist/GhostFTP-Linux-x86_64-v2.1.1-RC12.rpm
-          cp "$WIN_QA_PNG" dist/GhostFTP-Windows-x64-v2.1.1-RC12-Native-Window.png
-          cp "$WIN_QA_TXT" dist/GhostFTP-Windows-x64-v2.1.1-RC12-Native-Window.txt
+          cp "$WIN_EXE" dist/GhostFTP-Windows-x64-Portable-v2.1.1-RC13.exe
+          cp "$WIN_SETUP" dist/GhostFTP-Windows-x64-Setup-v2.1.1-RC13.exe
+          cp "$LINUX_BIN" dist/GhostFTP-Linux-x86_64-v2.1.1-RC13
+          chmod +x dist/GhostFTP-Linux-x86_64-v2.1.1-RC13
+          cp "$APPIMAGE" dist/GhostFTP-Linux-x86_64-v2.1.1-RC13.AppImage
+          cp "$DEB" dist/GhostFTP-Linux-amd64-v2.1.1-RC13.deb
+          cp "$RPM" dist/GhostFTP-Linux-x86_64-v2.1.1-RC13.rpm
+          cp "$WIN_QA_PNG" dist/GhostFTP-Windows-x64-v2.1.1-RC13-Native-Window.png
+          cp "$WIN_QA_TXT" dist/GhostFTP-Windows-x64-v2.1.1-RC13-Native-Window.txt
 
           (
             cd dist
-            zip -q GhostFTP-Windows-x64-v2.1.1-RC12.zip               GhostFTP-Windows-x64-Portable-v2.1.1-RC12.exe               GhostFTP-Windows-x64-Setup-v2.1.1-RC12.exe
-            tar -czf GhostFTP-Linux-x86_64-v2.1.1-RC12.tar.gz               GhostFTP-Linux-x86_64-v2.1.1-RC12               GhostFTP-Linux-x86_64-v2.1.1-RC12.AppImage               GhostFTP-Linux-amd64-v2.1.1-RC12.deb               GhostFTP-Linux-x86_64-v2.1.1-RC12.rpm
+            zip -q GhostFTP-Windows-x64-v2.1.1-RC13.zip               GhostFTP-Windows-x64-Portable-v2.1.1-RC13.exe               GhostFTP-Windows-x64-Setup-v2.1.1-RC13.exe
+            tar -czf GhostFTP-Linux-x86_64-v2.1.1-RC13.tar.gz               GhostFTP-Linux-x86_64-v2.1.1-RC13               GhostFTP-Linux-x86_64-v2.1.1-RC13.AppImage               GhostFTP-Linux-amd64-v2.1.1-RC13.deb               GhostFTP-Linux-x86_64-v2.1.1-RC13.rpm
           )
 
           rm -rf dist/native
@@ -156,27 +156,27 @@ jobs:
           set -euo pipefail
           (
             cd dist
-            find . -maxdepth 1 -type f ! -name 'GhostFTP-v2.1.1-RC12-SHA256SUMS.txt' -printf '%f\0' |
+            find . -maxdepth 1 -type f ! -name 'GhostFTP-v2.1.1-RC13-SHA256SUMS.txt' -printf '%f\0' |
               sort -z |
               xargs -0 sha256sum
-          ) > dist/GhostFTP-v2.1.1-RC12-SHA256SUMS.txt
+          ) > dist/GhostFTP-v2.1.1-RC13-SHA256SUMS.txt
 
-      - name: Publish RC12 pre-release and retain older releases
+      - name: Publish RC13 pre-release and retain older releases
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="v2.1.1-rc.12"
+          TAG="v2.1.1-rc.13"
           MAIN_SHA="${MAIN_SHA:-$(git rev-parse HEAD)}"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
               gh release delete-asset "$TAG" "$asset" -y || true
             done
-            gh release edit "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC12"               --notes-file docs/releases/2.1.1-rc.12.md               --prerelease
+            gh release edit "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC13"               --notes-file docs/releases/2.1.1-rc.13.md               --prerelease
           else
-            gh release create "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC12 — Native"               --notes-file docs/releases/2.1.1-rc.12.md               --prerelease
+            gh release create "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC13 — Native"               --notes-file docs/releases/2.1.1-rc.13.md               --prerelease
           fi
 
           gh release upload "$TAG" dist/* --clobber
