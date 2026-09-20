@@ -1856,3 +1856,68 @@ body::after { opacity: 0.018; }
   .ghost-site-manager > .grid { grid-template-columns: 132px minmax(390px,1fr) 276px !important; }
   .ghost-new-connection-dialog,.ghost-properties-dialog { width:calc(100vw - 12px) !important; }
 }
+
+/* Ghost FTP RC9 — transfer queue semantics and accessibility ---------------- */
+.ghost-transfer-row .progress {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(56px, 1fr) 36px;
+  align-items: center;
+  gap: 7px;
+}
+.ghost-transfer-progress {
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(56, 171, 255, .32);
+  border-radius: 999px;
+  background: #041525;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.ghost-transfer-progress::-webkit-progress-bar {
+  background: #041525;
+  border-radius: 999px;
+}
+.ghost-transfer-progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0a7ee9, #38abff);
+  box-shadow: 0 0 10px rgba(56, 171, 255, .3);
+}
+.ghost-transfer-progress::-moz-progress-bar {
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0a7ee9, #38abff);
+  box-shadow: 0 0 10px rgba(56, 171, 255, .3);
+}
+.ghost-transfer-row .status.skipped {
+  color: #f6c86b;
+}
+.ghost-transfer-row .status.canceled {
+  color: #9eb2c3;
+}
+.ghost-transfer-tabs button:disabled,
+.ghost-log-head button:disabled,
+.ghost-transfer-row .actions button:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+}
+.ghost-transfer-tabs button:focus-visible,
+.ghost-log-head button:focus-visible,
+.ghost-transfer-row .actions button:focus-visible,
+.ghost-window-controls button:focus-visible,
+.ghost-menu button:focus-visible {
+  outline: 2px solid rgba(56, 171, 255, .82);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
