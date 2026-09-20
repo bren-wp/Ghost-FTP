@@ -1,7 +1,7 @@
 {
   "name": "ghost-ftp",
   "private": true,
-  "version": "2.1.1-rc.8",
+  "version": "2.1.1-rc.9",
   "type": "module",
   "workspaces": [
     "packages/*"
