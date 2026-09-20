@@ -1,12 +1,14 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 2.1.1 RC10 source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 2.1.1 RC11 source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Connection and profile management
 
 Implemented:
 
-- FTP, FTPS and SFTP connection profiles.
+- FTP, explicit FTPS and SFTP connection profiles.
+- Real CI acceptance for FTP/FTPS/SFTP round trips, TLS hostname verification and SFTP host-key/authentication behavior.
+- Binary transfer mode for FTP/FTPS data integrity.
 - Quick Connect for temporary sessions without creating a permanent Site Manager entry.
 - Saved profiles with host, port, username, remote path and connection metadata.
 - Site Manager favorites, folders, tags, bookmarks and recent-server metadata.
@@ -51,7 +53,7 @@ Implemented:
 - Pause all / resume all.
 - Cancel active/queued transfers.
 - Retry failed transfers.
-- RC10 retry-all action for failed transfers.
+- RC11 retry-all action for failed transfers.
 - Queue, Failed and Completed views.
 - Correct Completed, Skipped, Canceled, Failed, Paused, Queued and Transferring labels.
 - Semantic progress controls and percent display.
@@ -168,9 +170,9 @@ Implemented architectural controls include:
 - Restricted developer compatibility API and mutation authorization.
 - No production dependency on a browser-host `127.0.0.1` GUI wrapper.
 
-## Current RC10 UX fixes
+## Current RC11 UX fixes
 
-RC10 specifically adds or fixes:
+RC11 specifically adds or fixes:
 
 - Terminal transfer rows no longer show a meaningless Cancel action after completion.
 - Skipped and canceled transfers have explicit labels.
