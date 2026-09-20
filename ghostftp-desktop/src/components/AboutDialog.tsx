@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   CheckCircle2,
   ExternalLink,
@@ -14,6 +13,7 @@ import { ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
 import { useUpdater } from "@/stores/updaterStore";
 import { PRODUCT_BUILD, PRODUCT_RELEASE_DATE, PRODUCT_VERSION } from "@/lib/release";
 import { openOfficialUrl } from "@/lib/external";
+import { useLayout } from "@/stores/layoutStore";
 
 interface Props { onClose: () => void }
 
@@ -22,7 +22,8 @@ function external(path = "") {
 }
 
 export function AboutDialog({ onClose }: Props) {
-  const [tab, setTab] = useState<"about" | "updates" | "help">("about");
+  const tab = useLayout((state) => state.aboutTab);
+  const setTab = useLayout((state) => state.setAboutTab);
   return (
     <section className="ghost-app-view ghost-standalone-view bg-[#041425]" aria-label="About Ghost FTP">
       <div className="ghost-about flex h-full w-full flex-col overflow-hidden bg-bg-panel">
