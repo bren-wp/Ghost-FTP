@@ -2287,3 +2287,40 @@ body::after { opacity: 0.018; }
     min-height: 191px !important;
   }
 }
+
+
+/* RC11 production render stability -----------------------------------------
+   WebView2 can repaint blend-mode grain and backdrop filters during native
+   resize/move/composition. The approved Ghost FTP reference does not require
+   those effects, so production uses deterministic flat composition instead. */
+body::after {
+  content: none !important;
+  display: none !important;
+}
+
+.backdrop-blur-sm,
+.backdrop-blur-md,
+.backdrop-blur-lg,
+.backdrop-blur-xl {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.animate-ping,
+.animate-pulse {
+  animation: none !important;
+}
+
+/* Menus/dialogs should appear in-place, never flash the whole shell. */
+.ghost-menu-popover,
+.ghost-dropdown-menu,
+.ghost-new-connection-dialog,
+.ghost-properties-dialog,
+.ghost-standalone-view {
+  will-change: auto !important;
+  backface-visibility: hidden;
+}
+
+.ghost-app-shell {
+  contain: layout paint;
+}
