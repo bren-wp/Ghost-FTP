@@ -23,10 +23,10 @@ Use **GhostFTP** for:
 
 Examples:
 
-- `GhostFTP-Windows-x64-Portable-v2.1.1-RC9.exe`
-- `GhostFTP-Windows-x64-Setup-v2.1.1-RC9.exe`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC9.AppImage`
-- `GhostFTP-v2.1.1-RC9-Desktop-Source.zip`
+- `GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe`
+- `GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC10.AppImage`
+- `GhostFTP-v2.1.1-RC10-Desktop-Source.zip`
 
 ## Branded top-level source paths
 
