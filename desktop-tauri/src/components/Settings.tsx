@@ -112,10 +112,151 @@ function Card({ icon, title, subtitle, children }: { icon: React.ReactNode; titl
 }
 
 function LanguageCard({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }) { const options = [['en','English (English)'],['hr','Hrvatski (Croatian)'],['de','Deutsch (German)'],['fr','Français (French)'],['es','Español (Spanish)'],['it','Italiano (Italian)'],['pt','Português (Portuguese)'],['nl','Nederlands (Dutch)'],['pl','Polski (Polish)'],['sl','Slovenščina (Slovenian)'],['sr','Srpski (Serbian)'],['bs','Bosanski (Bosnian)'],['mk','Македонски (Macedonian)'],['sq','Shqip (Albanian)']] as [string,string][]; return <Card icon={<Globe2 size={20}/>} title="Language" subtitle="Choose your preferred application language."><SelectRow label="Primary Language" value={locale} onChange={setLocale} options={options}/><div className="text-[10px] text-text-dim">English is the primary language. Changes take effect after restart.</div></Card> }
-function AppearanceCard() { const s=useSettings(); return <Card icon={<Monitor size={20}/>} title="Appearance" subtitle="Personalize the look and feel of Ghost FTP."><SelectRow label="Theme" value={s.appTheme} onChange={(v)=>s.setAppTheme(v as typeof s.appTheme)} options={[['dark','Dark (Default)'],['light','Light'],['tokyo','Tokyo Night'],['nord','Nord'],['onedark','One Dark']]}/><SelectRow label="Interface Density" value={s.paneDensity} onChange={(v)=>s.setPaneDensity(v as 'comfortable'|'compact')} options={[['comfortable','Comfortable'],['compact','Compact']]}/><ToggleRow label="Show thumbnails" checked={s.remoteImagePreviews==='on'} onChange={(v)=>s.setRemoteImagePreviews(v?'on':'off')}/></Card> }
-function PerformanceCard() { const s=useSettings(); return <Card icon={<Sparkles size={20}/>} title="Performance" subtitle="Adjust performance settings for optimal experience."><RangeRow label="Concurrent Transfers" value={s.transferConcurrency} min={1} max={12} onChange={s.setTransferConcurrency}/><RangeRow label="Max Retry Attempts" value={s.maxRetryAttempts} min={0} max={8} onChange={s.setMaxRetryAttempts}/><ToggleRow label="Delta synchronization" checked={s.deltaSync} onChange={s.setDeltaSync}/></Card> }
-function TransfersCard() { const s=useSettings(); return <Card icon={<ArrowDownUp size={20}/>} title="Transfers" subtitle="Set default options for file transfers."><SelectRow label="Overwrite Behavior" value={s.overwritePolicy} onChange={(v)=>s.setOverwritePolicy(v as 'overwrite'|'skip'|'rename')} options={[['overwrite','Ask me / Overwrite'],['rename','Rename duplicate'],['skip','Skip existing']]}/><ToggleRow label="Open transfer queue automatically" checked={s.autoOpenTransferPanel} onChange={s.setAutoOpenTransferPanel}/><ToggleRow label="Prompt before overwrite" checked={s.promptOnOverwrite} onChange={s.setPromptOnOverwrite}/></Card> }
-function ConnectionCard() { const s=useSettings(); return <Card icon={<Wifi size={20}/>} title="Connection" subtitle="Configure connection behavior and reliability."><NumberRow label="Default SFTP port" value={s.defaultPort} onChange={s.setDefaultPort}/><ToggleRow label="Notifications" checked={s.notifications.enabled} onChange={(v)=>s.setNotifications({...s.notifications,enabled:v})}/><ToggleRow label="Notify only when unfocused" checked={s.notifications.unfocusedOnly} onChange={(v)=>s.setNotifications({...s.notifications,unfocusedOnly:v})}/></Card> }
+function AppearanceCard() {
+  const s = useSettings();
+  return (
+    <Card icon={<Monitor size={20}/>} title="Appearance" subtitle="Personalize the look and feel of Ghost FTP.">
+      <SelectRow
+        label="Theme"
+        value={s.appTheme}
+        onChange={(v) => s.setAppTheme(v as typeof s.appTheme)}
+        options={[
+          ["dark", "Dark (Default)"],
+          ["light", "Light"],
+          ["tokyo", "Tokyo Night"],
+          ["nord", "Nord"],
+          ["onedark", "One Dark"],
+        ]}
+      />
+      <SelectRow
+        label="Interface Density"
+        value={s.paneDensity}
+        onChange={(v) => s.setPaneDensity(v as "comfortable" | "compact")}
+        options={[
+          ["comfortable", "Comfortable"],
+          ["compact", "Compact"],
+        ]}
+      />
+      <SelectRow
+        label="File Browser"
+        value={s.browserLayout}
+        onChange={(v) => s.setBrowserLayout(v as "single" | "dual")}
+        options={[
+          ["dual", "Local + Remote (Dual Pane)"],
+          ["single", "Server Focused"],
+        ]}
+      />
+      <ToggleRow
+        label="Show hidden files"
+        checked={s.showHiddenFiles}
+        onChange={s.setShowHiddenFiles}
+      />
+      <ToggleRow
+        label="Remote image previews"
+        checked={s.remoteImagePreviews === "on"}
+        onChange={(v) => s.setRemoteImagePreviews(v ? "on" : "off")}
+      />
+    </Card>
+  );
+}
+function PerformanceCard() {
+  const s = useSettings();
+  return (
+    <Card icon={<Sparkles size={20}/>} title="Performance" subtitle="Adjust transfer performance and resilience.">
+      <RangeRow
+        label="Concurrent Transfers"
+        value={s.transferConcurrency}
+        min={1}
+        max={12}
+        onChange={s.setTransferConcurrency}
+      />
+      <RangeRow
+        label="Max Retry Attempts"
+        value={s.maxRetryAttempts}
+        min={0}
+        max={8}
+        onChange={s.setMaxRetryAttempts}
+      />
+      <NumberRow
+        label="Speed Limit (KiB/s)"
+        value={s.transferThrottleKbps}
+        min={0}
+        fallback={0}
+        onChange={s.setTransferThrottleKbps}
+      />
+      <div className="-mt-1 text-[10px] text-text-dim">Use 0 for unlimited bandwidth.</div>
+      <ToggleRow
+        label="Delta synchronization"
+        checked={s.deltaSync}
+        onChange={s.setDeltaSync}
+      />
+    </Card>
+  );
+}
+function TransfersCard() {
+  const s = useSettings();
+  return (
+    <Card icon={<ArrowDownUp size={20}/>} title="Transfers" subtitle="Set default file-transfer behavior.">
+      <SelectRow
+        label="Overwrite Behavior"
+        value={s.overwritePolicy}
+        onChange={(v) => s.setOverwritePolicy(v as "overwrite" | "skip" | "rename")}
+        options={[
+          ["overwrite", "Overwrite"],
+          ["rename", "Rename duplicate"],
+          ["skip", "Skip existing"],
+        ]}
+      />
+      <ToggleRow
+        label="Prompt before overwrite"
+        checked={s.promptOnOverwrite}
+        onChange={s.setPromptOnOverwrite}
+      />
+      <ToggleRow
+        label="Open transfer queue automatically"
+        checked={s.autoOpenTransferPanel}
+        onChange={s.setAutoOpenTransferPanel}
+      />
+      <TextRow
+        label="Download Folder"
+        value={s.defaultDownloadFolder}
+        placeholder="System Downloads folder"
+        onChange={s.setDefaultDownloadFolder}
+      />
+      <TextRow
+        label="Default Editor"
+        value={s.defaultEditor}
+        placeholder="System default application"
+        onChange={s.setDefaultEditor}
+      />
+    </Card>
+  );
+}
+function ConnectionCard() {
+  const s = useSettings();
+  return (
+    <Card icon={<Wifi size={20}/>} title="Connection" subtitle="Configure connection behavior and notifications.">
+      <NumberRow
+        label="Default SFTP Port"
+        value={s.defaultPort}
+        min={1}
+        max={65535}
+        fallback={22}
+        onChange={s.setDefaultPort}
+      />
+      <ToggleRow
+        label="Desktop notifications"
+        checked={s.notifications.enabled}
+        onChange={(v) => s.setNotifications({ ...s.notifications, enabled: v })}
+      />
+      <ToggleRow
+        label="Notify only when unfocused"
+        checked={s.notifications.unfocusedOnly}
+        onChange={(v) => s.setNotifications({ ...s.notifications, unfocusedOnly: v })}
+      />
+    </Card>
+  );
+}
 function SecurityCard() { return <Card icon={<ShieldCheck size={20}/>} title="Security & Privacy" subtitle="Protect your data and control your privacy."><ToggleRow label="No tracking" checked onChange={()=>{}} locked/><ToggleRow label="No analytics or telemetry" checked onChange={()=>{}} locked/><ToggleRow label="Store credentials in OS keychain" checked onChange={()=>{}} locked/></Card> }
 function UpdatesCard() { const status=useUpdater((x)=>x.status); const version=useUpdater((x)=>x.version); const error=useUpdater((x)=>x.error); const check=useUpdater((x)=>x.check); const download=useUpdater((x)=>x.downloadAndInstall); const restart=useUpdater((x)=>x.restart); const busy=status==='checking'||status==='downloading'; const label=status==='checking'?'Checking for updates…':status==='available'?`Ghost FTP ${version ?? 'update'} is available.`:status==='downloading'?'Downloading and verifying update…':status==='ready'?'Update ready — restart to finish.':status==='error'?(error??'Update check failed.'):'Ready to check the official Ghost FTP update service.'; return <Card icon={<RefreshCw size={20}/>} title="Updates" subtitle="Choose how Ghost FTP updates itself."><div className="grid grid-cols-[150px_1fr] items-center gap-3 text-[12px]"><span className="text-text-muted">Update Channel</span><div className="rounded-md border border-border bg-[#051929] px-3 py-2 text-text">Stable (Recommended)</div></div><div className="text-[11px] text-text-muted" aria-live="polite">{label}</div><div className="flex flex-wrap gap-2"><button className="ghost-mini-button" disabled={busy} onClick={()=>void check(false)}><RefreshCw size={13}/> Check for Updates</button>{status==='available'&&<button className="ghost-mini-button" onClick={()=>void download()}>Download &amp; install</button>}{status==='ready'&&<button className="ghost-mini-button" onClick={()=>void restart()}>Restart now</button>}</div></Card> }
 function IntegrationsCard() {
@@ -160,9 +301,168 @@ function IntegrationsPanel(){return <div className="max-w-3xl"><IntegrationsCard
 function LanguagePanel({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }){return <div className="max-w-3xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
 function ShortcutsPanel(){return <Card icon={<Keyboard size={20}/>} title="Keyboard Shortcuts" subtitle="Core Ghost FTP shortcuts."><div className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-[12px]"><span>New connection</span><kbd>Ctrl + N</kbd><span>Settings</span><kbd>Ctrl + ,</kbd><span>Transfer queue</span><kbd>Ctrl + Shift + T</kbd><span>Command palette</span><kbd>Ctrl + K</kbd></div></Card>}
 
-function Nav({section,current,set,icon,label}:{section:Section;current:Section;set:(v:Section)=>void;icon:React.ReactNode;label:string}){return <button onClick={()=>set(section)} className={`mb-1 flex items-center gap-3 rounded-md border px-3 py-2.5 text-left ${current===section?'border-accent/45 bg-accent/15 text-white':'border-transparent text-text-muted hover:bg-bg-hover hover:text-white'}`}><span className="[&>svg]:h-[18px] [&>svg]:w-[18px]">{icon}</span><span>{label}</span></button>}
-function SelectRow({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:[string,string][]}){return <label className="grid grid-cols-[150px_1fr] items-center gap-3 text-[12px]"><span className="text-text-muted">{label}</span><span className="relative"><select className="w-full appearance-none rounded-md border border-border bg-[#051929] px-3 py-2 pr-8" value={value} onChange={e=>onChange(e.target.value)}>{options.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select><ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-2.5 text-text-dim"/></span></label>}
-function ToggleRow({label,checked,onChange,locked=false}:{label:string;checked:boolean;onChange:(v:boolean)=>void;locked?:boolean}){return <label className="flex items-center justify-between gap-4 text-[12px]"><span className="text-text-muted">{label}</span><button type="button" disabled={locked} aria-pressed={checked} onClick={()=>onChange(!checked)} className={`relative h-5 w-9 rounded-full border ${checked?'border-accent bg-accent-strong':'border-border bg-[#041522]'}`}><span className={`absolute top-[2px] h-3.5 w-3.5 rounded-full bg-white transition-all ${checked?'left-[18px]':'left-[2px]'}`}/></button></label>}
-function RangeRow({label,value,min,max,onChange}:{label:string;value:number;min:number;max:number;onChange:(v:number)=>void}){return <label className="grid grid-cols-[150px_1fr_24px] items-center gap-3 text-[12px]"><span className="text-text-muted">{label}</span><input type="range" min={min} max={max} value={value} onChange={e=>onChange(Number(e.target.value))}/><strong>{value}</strong></label>}
-function NumberRow({label,value,onChange}:{label:string;value:number;onChange:(v:number)=>void}){return <label className="grid grid-cols-[150px_1fr] items-center gap-3 text-[12px]"><span className="text-text-muted">{label}</span><input className="rounded-md border border-border bg-[#051929] px-3 py-2" type="number" value={value} onChange={e=>onChange(Number(e.target.value)||22)}/></label>}
+function Nav({
+  section,
+  current,
+  set,
+  icon,
+  label,
+}: {
+  section: Section;
+  current: Section;
+  set: (v: Section) => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  const active = current === section;
+  return (
+    <button
+      type="button"
+      aria-current={active ? "page" : undefined}
+      onClick={() => set(section)}
+      className={`mb-1 flex items-center gap-3 rounded-md border px-3 py-2.5 text-left ${active ? "border-accent/45 bg-accent/15 text-white" : "border-transparent text-text-muted hover:bg-bg-hover hover:text-white"}`}
+    >
+      <span className="[&>svg]:h-[18px] [&>svg]:w-[18px]">{icon}</span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function SelectRow({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: [string, string][];
+}) {
+  return (
+    <label className="grid grid-cols-[150px_1fr] items-center gap-3 text-[12px]">
+      <span className="text-text-muted">{label}</span>
+      <span className="relative">
+        <select
+          className="w-full appearance-none rounded-md border border-border bg-[#051929] px-3 py-2 pr-8"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          {options.map(([optionValue, optionLabel]) => (
+            <option key={optionValue} value={optionValue}>{optionLabel}</option>
+          ))}
+        </select>
+        <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-2.5 text-text-dim"/>
+      </span>
+    </label>
+  );
+}
+
+function ToggleRow({
+  label,
+  checked,
+  onChange,
+  locked = false,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  locked?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 text-[12px]">
+      <span className="text-text-muted">{label}</span>
+      <button
+        type="button"
+        disabled={locked}
+        aria-label={label}
+        aria-pressed={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative h-5 w-9 rounded-full border ${checked ? "border-accent bg-accent-strong" : "border-border bg-[#041522]"}`}
+      >
+        <span className={`absolute top-[2px] h-3.5 w-3.5 rounded-full bg-white transition-all ${checked ? "left-[18px]" : "left-[2px]"}`}/>
+      </button>
+    </div>
+  );
+}
+
+function RangeRow({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="grid grid-cols-[150px_1fr_28px] items-center gap-3 text-[12px]">
+      <span className="text-text-muted">{label}</span>
+      <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))}/>
+      <strong>{value}</strong>
+    </label>
+  );
+}
+
+function NumberRow({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  fallback,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  fallback: number;
+}) {
+  return (
+    <label className="grid grid-cols-[150px_1fr] items-center gap-3 text-[12px]">
+      <span className="text-text-muted">{label}</span>
+      <input
+        className="rounded-md border border-border bg-[#051929] px-3 py-2"
+        type="number"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => {
+          const parsed = Number(e.target.value);
+          onChange(Number.isFinite(parsed) ? parsed : fallback);
+        }}
+      />
+    </label>
+  );
+}
+
+function TextRow({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="grid grid-cols-[150px_1fr] items-center gap-3 text-[12px]">
+      <span className="text-text-muted">{label}</span>
+      <input
+        className="min-w-0 rounded-md border border-border bg-[#051929] px-3 py-2"
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </label>
+  );
+}
 
