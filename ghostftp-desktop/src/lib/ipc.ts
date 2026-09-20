@@ -97,6 +97,9 @@ export const ipc = {
   testProfileConnection: (profileId: string) =>
     invoke<void>("test_profile_connection", { profileId }),
 
+  testEphemeralConnection: (profile: ConnectionProfile) =>
+    invoke<void>("test_ephemeral_connection", { profile }),
+
   connect: (profileId: string) =>
     invoke<SessionId>("connect", { profileId }),
 
