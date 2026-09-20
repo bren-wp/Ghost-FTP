@@ -191,34 +191,38 @@ export default function App() {
       <KeyboardShortcutsDialog />
       {!standaloneDialog && (
       <>
-      <div className="ghost-main-workspace flex min-h-0 flex-1 overflow-hidden">
+      <div className="ghost-file-manager-body flex min-h-0 flex-1 overflow-hidden">
         <ReferenceSiteSidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <FileUiBridge>
-              {browserLayout === "dual" ? <DualPaneBrowser /> : <FileBrowser />}
-            </FileUiBridge>
-          </div>
-          {consoleOpen && (
-            <div className="h-64 border-t border-border">
-              <AgentConsoleDock />
+        <div className="ghost-file-manager-right flex min-w-0 flex-1 flex-col">
+          <div className="ghost-main-workspace flex min-h-0 flex-1 overflow-hidden">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <FileUiBridge>
+                  {browserLayout === "dual" ? <DualPaneBrowser /> : <FileBrowser />}
+                </FileUiBridge>
+              </div>
+              {consoleOpen && (
+                <div className="h-64 border-t border-border">
+                  <AgentConsoleDock />
+                </div>
+              )}
+              {/* The terminal dock stays mounted even when hidden so background
+                  shells survive connection-tab switches and toggling it closed. */}
+              <div
+                className={cn(
+                  terminalVisible ? "h-72 border-t border-border" : "h-0 overflow-hidden"
+                )}
+              >
+                <TerminalDock
+                  sessionId={supportsTerminal ? activeSessionId : null}
+                  visible={terminalVisible}
+                />
+              </div>
             </div>
-          )}
-          {/* The terminal dock stays mounted even when hidden so background
-              shells survive connection-tab switches and toggling it closed. */}
-          <div
-            className={cn(
-              terminalVisible ? "h-72 border-t border-border" : "h-0 overflow-hidden"
-            )}
-          >
-            <TerminalDock
-              sessionId={supportsTerminal ? activeSessionId : null}
-              visible={terminalVisible}
-            />
           </div>
+          <TransferQueue />
         </div>
       </div>
-      <TransferQueue />
       <ReferenceStatusBar />
       </>
       )}
