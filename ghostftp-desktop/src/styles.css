@@ -1762,6 +1762,11 @@ body::after { opacity: 0.018; }
 .ghost-about-body { min-height: 0; }
 .ghost-about-nav { width: 214px !important; min-width: 214px; padding-top: 18px !important; }
 .ghost-about-content { scrollbar-gutter: stable; }
+.ghost-about-hero-glow {
+  background:
+    radial-gradient(circle at 65% 35%, #1a78b8 0, transparent 45%),
+    linear-gradient(135deg, #0a2c49, #071826);
+}
 
 .ghost-transfer-center-heading { height: 78px; min-height: 78px; }
 .ghost-transfer-center > .min-h-0.flex-1 { scrollbar-gutter: stable; }
