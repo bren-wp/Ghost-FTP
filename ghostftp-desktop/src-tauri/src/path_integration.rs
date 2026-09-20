@@ -65,7 +65,6 @@ pub struct PathStatus {
 /// Normalize one entry for *comparison only* (never for storage): trim
 /// surrounding whitespace, drop a trailing slash/backslash, and lowercase
 /// (Windows paths are case-insensitive). Storage always keeps the original bytes.
-#[cfg(any(windows, test))]
 fn normalize_entry(e: &str) -> String {
     // Windows is case-insensitive. Ghost FTP previously used both "Ghost FTP"
     // and "GhostFTP" for its own app directory. Canonicalize only that product
