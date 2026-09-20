@@ -64,7 +64,7 @@ The canonical desktop reference is **1290×852**. Smaller windows adapt through 
 
 **Control.** Use permissions, checksums, sync, terminal, search, duplicate detection and diagnostics from the same product.
 
-## Implemented in RC11
+## Implemented in current RC12 source
 
 - FTP, explicit FTPS and SFTP Quick Connect and saved profiles with real protocol E2E acceptance.
 - Site Manager with folders, favorites, tags, bookmarks and recent-server metadata.
@@ -80,9 +80,11 @@ The canonical desktop reference is **1290×852**. Smaller windows adapt through 
 
 See [Features](docs/product/FEATURES.md) and [Project status](docs/product/STATUS_AND_NEXT.md).
 
-## Downloads — Ghost FTP 2.1.1 RC11
+## Downloads — latest published Ghost FTP 2.1.1 RC11
 
 Published versions are kept available in GitHub Releases when newer versions are added.
+
+RC12 is currently being hardened on the production-fidelity branch and is not listed here as a download until its exact source revision passes the required release gates.
 
 **Windows x64**
 - `GhostFTP-Windows-x64-Portable-v2.1.1-RC11.exe`
