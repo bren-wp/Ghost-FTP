@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - '.release/RC7'
+  workflow_run:
+    workflows: ["Ghost FTP native build"]
+    types: [completed]
 
 permissions:
   contents: write
@@ -16,6 +19,7 @@ concurrency:
 
 jobs:
   publish:
+    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
