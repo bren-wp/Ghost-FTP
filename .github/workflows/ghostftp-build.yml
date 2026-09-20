@@ -152,6 +152,7 @@ jobs:
           name: ${{ matrix.artifact }}
           path: |
             ghostftp-desktop/src-tauri/target/release/bundle/**
+            ghostftp-desktop/src-tauri/Cargo.lock
             ghostftp-desktop/src-tauri/target/release/ghostftp.exe
             ghostftp-desktop/src-tauri/target/release/ghostftp
           if-no-files-found: error
