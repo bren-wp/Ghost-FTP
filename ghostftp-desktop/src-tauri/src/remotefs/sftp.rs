@@ -139,8 +139,10 @@ impl RemoteFs for SftpFs {
     async fn chmod(&self, path: &str, mode: u32) -> Result<()> {
         let sftp_cell = self.session.ensure_sftp().await?;
         let sftp = sftp_cell.lock().await;
-        let mut attrs = FileAttributes::default();
-        attrs.permissions = Some(mode);
+        let attrs = FileAttributes {
+            permissions: Some(mode),
+            ..Default::default()
+        };
         sftp.set_metadata(path, attrs)
             .await
             .with_context(|| format!("sftp chmod {path}"))?;
