@@ -1,18 +1,21 @@
 import { create } from "zustand";
 import type { ConnectionProfile } from "@/lib/types";
 
-// Which app-level modal is open (mutually exclusive). Centralized here so the
-// command palette, keyboard shortcuts and title-bar menus can all open them
-// without prop-threading through App.
-export type AppDialog =
+// Primary application destinations live inside one Ghost FTP window.
+// They are not modal popups and therefore never stack over each other.
+export type AppView =
+  | "files"
+  | "siteManager"
+  | "transferCenter"
   | "settings"
+  | "about";
+
+// Only short, contextual tasks remain modal.
+export type AppDialog =
   | "newConnection"
   | "import"
-  | "about"
   | "agentBridge"
-  | "grant"
-  | "siteManager"
-  | "transferCenter";
+  | "grant";
 
 /** Seed for the grant consent dialog, parsed from a ghostftp://grant deep link. */
 export interface GrantPrefill {
@@ -31,6 +34,10 @@ interface LayoutState {
   consoleOpen: boolean;
   setConsoleOpen: (open: boolean) => void;
   toggleConsole: () => void;
+
+  view: AppView;
+  openView: (view: AppView) => void;
+  returnToFiles: () => void;
 
   dialog: AppDialog | null;
   openDialog: (d: AppDialog) => void;
@@ -76,6 +83,22 @@ export const useLayout = create<LayoutState>((set) => ({
   consoleOpen: false,
   setConsoleOpen: (open) => set({ consoleOpen: open }),
   toggleConsole: () => set((s) => ({ consoleOpen: !s.consoleOpen })),
+
+  view: "files",
+  openView: (view) =>
+    set({
+      view,
+      dialog: null,
+      connectionPrefill: null,
+      grantPrefill: null,
+    }),
+  returnToFiles: () =>
+    set({
+      view: "files",
+      dialog: null,
+      connectionPrefill: null,
+      grantPrefill: null,
+    }),
 
   dialog: null,
   openDialog: (d) => set({ dialog: d }),
