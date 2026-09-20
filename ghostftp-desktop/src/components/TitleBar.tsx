@@ -31,6 +31,7 @@ function safeWindowAction(action: "minimize" | "maximize" | "close") {
 }
 
 export function TitleBar() {
+  const openView = useLayout((s) => s.openView);
   const openDialog = useLayout((s) => s.openDialog);
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const activeSessionId = useConnections((s) => s.activeSessionId);
@@ -94,7 +95,7 @@ export function TitleBar() {
   const menus = useMemo<Record<string, MenuItem[]>>(() => ({
     File: [
       { label: "New Connection…", run: () => openNewConnection() },
-      { label: "Site Manager…", run: () => openDialog("siteManager") },
+      { label: "Site Manager…", run: () => openView("siteManager") },
       { label: "Import Sites…", run: () => openDialog("import") },
       { separator: true },
       { label: "Exit", run: () => safeWindowAction("close") },
@@ -104,37 +105,37 @@ export function TitleBar() {
       { label: "Delete", run: () => fileAction("delete") },
       { label: "Properties", run: () => fileAction("properties") },
       { separator: true },
-      { label: "Preferences…", run: () => openDialog("settings") },
+      { label: "Preferences…", run: () => openView("settings") },
     ],
     View: [
       { label: "Refresh", run: () => fileAction("refresh") },
-      { label: "Transfer Center", run: () => openDialog("transferCenter") },
-      { label: "Site Manager", run: () => openDialog("siteManager") },
+      { label: "Transfer Center", run: () => openView("transferCenter") },
+      { label: "Site Manager", run: () => openView("siteManager") },
     ],
     Transfer: [
       { label: "Upload", run: () => fileAction("upload", "local") },
       { label: "Download", run: () => fileAction("download", "remote"), disabled: !activeSessionId },
       { separator: true },
-      { label: "Transfer Center", run: () => openDialog("transferCenter") },
+      { label: "Transfer Center", run: () => openView("transferCenter") },
     ],
     Server: [
       { label: "Connect…", run: () => openNewConnection() },
       { label: "Disconnect", run: () => void disconnect(), disabled: !activeSessionId },
       { label: "Refresh", run: () => fileAction("refresh", "remote"), disabled: !activeSessionId },
     ],
-    Bookmarks: [{ label: "Site Manager…", run: () => openDialog("siteManager") }],
+    Bookmarks: [{ label: "Site Manager…", run: () => openView("siteManager") }],
     Tools: [
-      { label: "Transfer Center", run: () => openDialog("transferCenter") },
-      { label: "Preferences…", run: () => openDialog("settings") },
+      { label: "Transfer Center", run: () => openView("transferCenter") },
+      { label: "Preferences…", run: () => openView("settings") },
     ],
     Help: [
       { label: "Help Center", run: () => openOfficialUrl("/support/") },
       { label: "Documentation", run: () => openOfficialUrl("/docs/") },
-      { label: "Check for Updates", run: () => openDialog("about") },
+      { label: "Check for Updates", run: () => openView("about") },
       { separator: true },
-      { label: "About Ghost FTP", run: () => openDialog("about") },
+      { label: "About Ghost FTP", run: () => openView("about") },
     ],
-  }), [activeSessionId, disconnect, openDialog, openNewConnection]);
+  }), [activeSessionId, disconnect, openDialog, openNewConnection, openView]);
 
   useEffect(() => {
     if (!menu) return;
@@ -259,17 +260,17 @@ export function TitleBar() {
         </div>}
       </div>
       <div className="ghost-title-actions ghost-quick-actions">
-        <button className="ghost-mini-button" aria-label="Settings" title="Settings" onClick={() => openDialog("settings")}><Settings size={14}/><span>Settings</span></button>
+        <button className="ghost-mini-button" aria-label="Settings" title="Settings" onClick={() => openView("settings")}><Settings size={14}/><span>Settings</span></button>
         <div className="ghost-language-menu"><Languages size={14}/><select aria-label="Language" value={locale} onChange={(e) => setLocale(e.target.value as any)}><option value="en">English (English)</option><option value="hr">Hrvatski (Croatian)</option><option value="de">Deutsch (German)</option><option value="fr">Français (French)</option><option value="es">Español (Spanish)</option><option value="it">Italiano (Italian)</option><option value="pt">Português (Portuguese)</option><option value="nl">Nederlands (Dutch)</option><option value="pl">Polski (Polish)</option><option value="sl">Slovenščina (Slovenian)</option><option value="sr">Srpski (Serbian)</option><option value="bs">Bosanski (Bosnian)</option><option value="mk">Македонски (Macedonian)</option><option value="sq">Shqip (Albanian)</option></select><ChevronDown size={12}/></div>
       </div>
     </div>
 
     <div className="ghost-toolbar-row">
       <div className="ghost-sites-toolbar-head">
-        <button className="ghost-sites-toolbar-title" onClick={() => openDialog("siteManager")}><span className="ghost-sites-ring">◉</span><span>Sites</span></button>
+        <button className="ghost-sites-toolbar-title" onClick={() => openView("siteManager")}><span className="ghost-sites-ring">◉</span><span>Sites</span></button>
         <span/>
         <button aria-label="New site" title="New site" onClick={() => openNewConnection()}>＋</button>
-        <button aria-label="Open Site Manager" title="Open Site Manager" onClick={() => openDialog("siteManager")}><ChevronDown size={14}/></button>
+        <button aria-label="Open Site Manager" title="Open Site Manager" onClick={() => openView("siteManager")}><ChevronDown size={14}/></button>
       </div>
       <Tool icon={<Link2 size={17}/>} label="Connect" onClick={() => openNewConnection()}/>
       <Tool icon={<X size={17}/>} label="Disconnect" disabled={!activeSessionId} onClick={() => void disconnect()}/>
