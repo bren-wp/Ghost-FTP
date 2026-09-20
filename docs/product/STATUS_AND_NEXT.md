@@ -1,0 +1,111 @@
+# Ghost FTP — Project Status & Recommended Next Work
+
+This document separates **implemented functionality**, **verified engineering work**, **remaining release gates** and **recommended product improvements**.
+
+## Implemented and available in RC9
+
+| Area | Implemented |
+|---|---|
+| Connections | FTP, FTPS, SFTP, Quick Connect, saved profiles, private-key paths, host-key/TLS verification |
+| Site Manager | Favorites, folders, tags, bookmarks, recent-server metadata |
+| File browser | Dual panes, upload/download, folder operations, rename, delete, duplicate, hidden files, multiple views |
+| File properties | SHA-256, supported chmod/permission workflows, owner/group display where available |
+| Transfers | Concurrent queue, pause/resume, retry, Retry All, cancel, bandwidth control, conflict handling |
+| Sync & analysis | Folder sync, directory compare, duplicate detection, disk analysis |
+| Productivity | Integrated terminal, command palette, snippets, shortcuts, shell integration |
+| Preferences | Themes, density, previews, transfer limits, download folder, editor, notifications, privacy controls |
+| Security | OS credential storage where supported, CSP, signed update path, secret separation from profile JSON |
+| Platforms | Windows portable/Setup; Linux binary/AppImage/DEB/RPM build targets |
+| Languages | 14-language selector coverage |
+
+Full details: [Implemented Features](FEATURES.md).
+
+## RC9 engineering work completed
+
+- Repository reorganized around GhostFTP-branded top-level paths.
+- Public release naming standardized by product, platform, architecture, role and version.
+- Main README rebuilt as a marketing/product landing page with local Ghost FTP logo, icons and visual references.
+- Visual reference assets renamed with GhostFTP-first filenames.
+- Obsolete browser-host production path excluded from end-user releases.
+- Transfer Queue terminal-state actions corrected.
+- Retry All added for failed transfers.
+- Semantic transfer progress and reduced-motion handling added.
+- Preferences exposes previously hidden browser/transfer settings.
+- Website local SVG icon usage expanded and timer cleanup corrected.
+- Corrupt profile/database recovery paths hardened.
+- PATH integration migration logic corrected so historical `Ghost FTP` and `GhostFTP` app directory aliases do not duplicate the managed entry.
+- Rust, Go, TypeScript and website checks remain CI-gated.
+
+## Release gates still required before FINAL
+
+These are not marked complete without real target-OS evidence:
+
+1. Windows 10/11 native screenshot comparison for Main, Site Manager, New Connection, Preferences, Transfer Center, File Properties and About.
+2. Confirmation that only the Ghost FTP custom titlebar is visible in installed and portable Windows builds.
+3. Real FTP upload/download/rename/delete/resume acceptance.
+4. Real FTPS certificate and failure-path acceptance.
+5. Real SFTP password/private-key and host-key acceptance.
+6. Windows clean install, upgrade, reinstall and uninstall lifecycle QA.
+7. Final responsive acceptance at all documented viewport sizes.
+8. Production code-signing decision and signing validation.
+
+## Recommended high-value improvements
+
+### Transfers
+
+- Persistent scheduled transfers.
+- Per-transfer priority.
+- Per-profile bandwidth limits.
+- Rolling transfer-speed calculation.
+- Optional verify-after-transfer checksum.
+- Transfer-history export.
+
+### Connections
+
+- Per-profile reconnect/keep-alive policy.
+- Connection-health indicator.
+- Visible reconnect countdown.
+- SOCKS/HTTP proxy workflows if demanded by users.
+
+### File workflow
+
+- Batch rename.
+- Configurable double-click behavior.
+- Safe-delete/trash integration for local files.
+- Remote edit conflict detection.
+- Better archive preview/extract workflows.
+
+### Site Manager
+
+- Encrypted selected-profile export/import.
+- Duplicate profile detection.
+- Profile templates.
+- Richer search by host, username, tag and note.
+- Optional profile color/icon.
+
+### UI / UX
+
+- Persisted column widths.
+- Optional compact toolbar labels.
+- User-configurable panel visibility.
+- Full keyboard navigation audit.
+- Screen-reader audit.
+- High-contrast acceptance.
+- Windows 11 snap-layout acceptance.
+
+### Security and release engineering
+
+- Production Windows code signing.
+- SBOM generation.
+- Dependency vulnerability scanning.
+- Secret scanning.
+- Reproducible-build documentation.
+- Signed Linux repository metadata if package repositories are introduced.
+
+## Recommended repository rules
+
+- Keep product-facing paths and artifacts GhostFTP-branded.
+- Keep framework-required internal names only where technically necessary.
+- Keep implemented features separate from planned work.
+- Never publish a compatibility/browser-host executable as the production desktop GUI.
+- Never call a build FINAL until its required release evidence exists.
