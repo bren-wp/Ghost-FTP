@@ -142,7 +142,7 @@ export function SiteManagerDialog({ onClose }: Props) {
     }
     setSelectedId(selected.id);
     setDraft({ ...selected });
-  }, [selected?.id, selected?.name, selected?.host, selected?.port, editing]);
+  }, [selected, editing]);
 
   const select = (id: string) => {
     const profile = profiles.find((item) => item.id === id) ?? null;
@@ -258,7 +258,7 @@ export function SiteManagerDialog({ onClose }: Props) {
         className="ghost-site-manager flex h-full w-full flex-col overflow-hidden bg-[#061a2d]"
       >
         <ReferenceWindowTitlebar onClose={onClose} />
-        <ReferenceMenuRow />
+        <ReferenceMenuRow onClose={onClose} />
 
         <div className="ghost-site-manager-hero flex items-center gap-3 border-b border-border px-5">
           <div className="ghost-dialog-icon">
