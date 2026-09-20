@@ -245,7 +245,7 @@ const DEFAULTS: PersistedSettings = {
   defaultPort: 22,
   shellIntegration: false,
   fileAssociations: false,
-  notifications: { enabled: true, unfocusedOnly: true },
+  notifications: { enabled: false, unfocusedOnly: true },
 };
 
 // The persisted setting keys, in one place — also the authoritative allow-list

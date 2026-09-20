@@ -1,6 +1,6 @@
 {
-  "version": "2.1.1-rc.4",
-  "build": "2026.09.20.4",
+  "version": "2.1.1-rc.12",
+  "build": "2026.09.20.12",
   "notes": "REPLACE_WITH_RELEASE_NOTES",
   "pub_date": "REPLACE_WITH_RFC3339",
   "platforms": {

@@ -12,13 +12,14 @@ import {
 import { GhostMark } from "./GhostBrand";
 import { ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
 import { useUpdater } from "@/stores/updaterStore";
-import { PRODUCT_BUILD, PRODUCT_RELEASE_DATE, PRODUCT_SITE, PRODUCT_VERSION } from "@/lib/release";
+import { PRODUCT_BUILD, PRODUCT_RELEASE_DATE, PRODUCT_VERSION } from "@/lib/release";
 import { useDialog } from "@/hooks/useDialog";
+import { openOfficialUrl } from "@/lib/external";
 
 interface Props { onClose: () => void }
 
 function external(path = "") {
-  window.open(`${PRODUCT_SITE}${path}`, "_blank", "noopener,noreferrer");
+  openOfficialUrl(path);
 }
 
 export function AboutDialog({ onClose }: Props) {

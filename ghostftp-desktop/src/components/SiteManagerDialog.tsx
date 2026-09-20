@@ -19,7 +19,7 @@ import { useConnections } from "@/stores/connectionsStore";
 import { useLayout } from "@/stores/layoutStore";
 import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
-import { ReferenceMenuRow, ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
+import { ReferenceActionRow, ReferenceMenuTitlebar } from "./ReferenceWindowChrome";
 import { ConfirmModal } from "./ConfirmModal";
 import { ipc } from "@/lib/ipc";
 import { toast } from "@/stores/toastStore";
@@ -257,8 +257,8 @@ export function SiteManagerDialog({ onClose }: Props) {
         ref={panelRef}
         className="ghost-site-manager flex h-full w-full flex-col overflow-hidden bg-[#061a2d]"
       >
-        <ReferenceWindowTitlebar onClose={onClose} />
-        <ReferenceMenuRow onClose={onClose} />
+        <ReferenceMenuTitlebar onClose={onClose} />
+        <ReferenceActionRow />
 
         <div className="ghost-site-manager-hero flex items-center gap-3 border-b border-border px-5">
           <div className="ghost-dialog-icon">

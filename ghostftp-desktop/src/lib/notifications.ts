@@ -6,8 +6,8 @@
 // The events are decided and gated *here* rather than in the Rust backend
 // because the frontend already tracks all of this state (the transfer stream,
 // the sync store, the editor error event) and can cheaply check window focus.
-// Everything is behind the `notifications` setting (default on, unfocused-only),
-// permission is requested lazily on the first eligible event, and clicking a
+// Everything is behind the `notifications` setting (opt-in, unfocused-only),
+// permission is never requested by a background event; Preferences owns the explicit opt-in, and clicking a
 // toast focuses the window (and, where it applies, opens the relevant panel).
 import {
   isPermissionGranted,
@@ -25,10 +25,22 @@ import { useTransfers } from "@/stores/transfersStore";
 type Permission = "unknown" | "granted" | "denied";
 let permission: Permission = "unknown";
 
-/** Ask for notification permission once, lazily. Cached so we don't re-prompt. */
+/** Passive permission probe used by background notification events. */
 async function ensurePermission(): Promise<boolean> {
   if (permission === "granted") return true;
   if (permission === "denied") return false;
+  try {
+    const granted = await isPermissionGranted();
+    permission = granted ? "granted" : "denied";
+    return granted;
+  } catch {
+    permission = "denied";
+    return false;
+  }
+}
+
+/** Explicit Preferences action. This is the only path allowed to trigger an OS permission prompt. */
+export async function requestDesktopNotificationPermission(): Promise<boolean> {
   try {
     let granted = await isPermissionGranted();
     if (!granted) granted = (await requestPermission()) === "granted";

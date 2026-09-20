@@ -1,4 +1,4 @@
-# Ghost FTP Security Audit — RC10
+# Ghost FTP Security Audit — RC12
 
 Native saved-profile secrets are kept outside ordinary profile metadata and use the OS credential/keychain layer where supported. Ephemeral Quick Connect bypasses saved-profile persistence rather than briefly writing a profile and deleting it later.
 
@@ -10,7 +10,7 @@ The native Tauri application keeps a restrictive CSP, avoids analytics/telemetry
 
 The updater public key remains embedded in `ghostftp-desktop/src-tauri/tauri.conf.json`; unsigned or invalidly signed updates are not accepted by the updater path.
 
-## RC10 hardening verified in source
+## RC12 hardening verified in source
 
 - Saved secrets remain separate from normal profile JSON.
 - Ephemeral Quick Connect does not save a site automatically.
@@ -18,7 +18,7 @@ The updater public key remains embedded in `ghostftp-desktop/src-tauri/tauri.con
 - Failed SQLite startup quarantines the database and WAL/SHM sidecars before recreating a working store.
 - The production release path excludes the old browser-host GUI.
 - Native release publication is gated on the current quality workflow and successful Windows/Linux native build.
-- RC10 release validation now checks the version in `package.json`, `package-lock.json`, `Cargo.toml` and `tauri.conf.json`.
+- RC12 release validation now checks the version in `package.json`, `package-lock.json`, `Cargo.toml` and `tauri.conf.json`.
 
 ## Historical compatibility verification — 20 September 2026
 
@@ -38,4 +38,4 @@ The updater public key remains embedded in `ghostftp-desktop/src-tauri/tauri.con
 - Target-OS signed-update/install acceptance.
 - Production Windows code-signing decision and validation.
 
-Status: **RC10 source security controls are present; target-OS protocol/update/signing acceptance remains open before FINAL.**
+Status: **RC12 source security controls are present; target-OS protocol/update/signing acceptance remains open before FINAL.**

@@ -1,4 +1,4 @@
-# Ghost FTP Click / Interaction QA — RC10
+# Ghost FTP Click / Interaction QA — RC12
 
 ## Verified in source and CI
 
@@ -8,7 +8,7 @@ Current automated checks verify that the frontend typechecks and builds successf
 
 The production UI is built from real components. Reference screenshots are never used as runtime backgrounds or click maps.
 
-## Interaction areas that exist in RC10
+## Interaction areas that exist in RC12
 
 - Main menu and toolbar.
 - Quick Connect.

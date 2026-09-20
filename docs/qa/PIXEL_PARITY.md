@@ -1,4 +1,4 @@
-# Ghost FTP Pixel-Parity QA — RC11
+# Ghost FTP Pixel-Parity QA — RC12
 
 The approved images under `docs/assets/screenshots/` are the visual specification. They are documentation/QA references only and are never loaded as application backgrounds or used as click maps.
 
@@ -6,14 +6,14 @@ The approved images under `docs/assets/screenshots/` are the visual specificatio
 
 At the approved **1290×852** desktop frame the real Ghost FTP component shell targets:
 
-- 51 px custom titlebar;
-- 42 px application menu;
-- 50 px Quick Connect row;
-- 62 px toolbar;
+- 52 px integrated custom titlebar + application menubar;
+- 72 px Quick Connect row;
+- 60 px toolbar;
 - 216 px Sites rail;
 - 416 px file workspace;
-- 191 px transfer/log band;
-- 40 px status bar.
+- 210 px transfer/log band;
+- 40 px status bar;
+- thin separators/borders consume the remaining pixels of the 852 px native inner frame.
 
 Reference modal envelopes:
 
@@ -47,7 +47,7 @@ Current branded reference files cover:
 
 ## Acceptance rule
 
-RC11 does **not** claim pixel-perfect FINAL acceptance yet.
+RC12 does **not** claim pixel-perfect FINAL acceptance yet.
 
 Before FINAL, capture real native Windows renders at 100% display scale and compare:
 
@@ -73,3 +73,8 @@ At every documented viewport size:
 - no titlebar, Quick Connect row or toolbar control may paint above a modal/standalone surface;
 - top application menus must float over the Quick Connect row without changing row height, pushing content or clipping;
 - screenshots used for comparison are specifications only; production UI must remain real React/Tauri controls.
+
+
+## RC12 compositor hardening
+
+Menu and protocol popovers use explicit high stacking contexts and overflow-visible ancestors. Critical standalone/dialog surfaces do not use transform entrance animations, and press feedback no longer scales controls. These are source-level flicker mitigations; real Windows/Linux soak and screenshot comparison remain required before pixel-perfect acceptance.

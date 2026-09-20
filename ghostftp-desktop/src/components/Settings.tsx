@@ -32,6 +32,7 @@ import { PRODUCT_VERSION_DISPLAY } from "@/lib/release";
 import { GhostMark } from "./GhostBrand";
 import { ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
 import { useDialog } from "@/hooks/useDialog";
+import { requestDesktopNotificationPermission } from "@/lib/notifications";
 
 interface Props { onClose: () => void }
 type Section = "general" | "appearance" | "transfers" | "connection" | "security" | "updates" | "integrations" | "shortcuts" | "language";
@@ -316,6 +317,26 @@ function TerminalCard() {
   );
 }
 
+function DesktopNotificationsToggle() {
+  const s = useSettings();
+  const [busy, setBusy] = useState(false);
+  const setEnabled = async (enabled: boolean) => {
+    if (!enabled) {
+      s.setNotifications({ ...s.notifications, enabled: false });
+      return;
+    }
+    if (busy) return;
+    setBusy(true);
+    try {
+      const granted = await requestDesktopNotificationPermission();
+      s.setNotifications({ ...s.notifications, enabled: granted });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <ToggleRow label={busy ? "Waiting for notification permission…" : "Desktop notifications"} checked={s.notifications.enabled} onChange={(v)=>void setEnabled(v)} locked={busy}/>;
+}
+
 function ConnectionCard() {
   const s = useSettings();
   return (
@@ -328,11 +349,7 @@ function ConnectionCard() {
         fallback={22}
         onChange={s.setDefaultPort}
       />
-      <ToggleRow
-        label="Desktop notifications"
-        checked={s.notifications.enabled}
-        onChange={(v) => s.setNotifications({ ...s.notifications, enabled: v })}
-      />
+      <DesktopNotificationsToggle />
       <ToggleRow
         label="Notify only when unfocused"
         checked={s.notifications.unfocusedOnly}
@@ -368,7 +385,7 @@ function IntegrationsCard() {
     }finally{setShellBusy(false)}
   };
   return <Card icon={<Plug size={20}/>} title="Integrations" subtitle="Extend Ghost FTP with system integrations.">
-    <ToggleRow label="Desktop notifications" checked={s.notifications.enabled} onChange={(v)=>s.setNotifications({...s.notifications,enabled:v})}/>
+    <DesktopNotificationsToggle/>
     <ToggleRow label="Shell integration" checked={s.shellIntegration} onChange={(v)=>void setShell(v)} locked={shellBusy}/>
     <div className="-mt-1 text-[10px] leading-4 text-text-dim">{shellDetail}</div>
     <ToggleRow label="File associations" checked={s.fileAssociations} onChange={s.setFileAssociations} locked/>

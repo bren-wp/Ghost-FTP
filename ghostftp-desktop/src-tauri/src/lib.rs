@@ -103,6 +103,39 @@ fn build_settings_init_script(db: &db::Db) -> String {
     )
 }
 
+#[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    let parsed = url::Url::parse(&url).map_err(|_| "Invalid external URL".to_string())?;
+    let host = parsed.host_str().unwrap_or_default().to_ascii_lowercase();
+    if parsed.scheme() != "https" || !(host == "ghostftp.com" || host.ends_with(".ghostftp.com")) {
+        return Err("Ghost FTP only opens approved ghostftp.com HTTPS links".to_string());
+    }
+
+    #[cfg(windows)]
+    let result = std::process::Command::new("rundll32.exe")
+        .arg("url.dll,FileProtocolHandler")
+        .arg(parsed.as_str())
+        .spawn();
+
+    #[cfg(target_os = "linux")]
+    let result = std::process::Command::new("xdg-open")
+        .arg(parsed.as_str())
+        .spawn();
+
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open")
+        .arg(parsed.as_str())
+        .spawn();
+
+    #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
+    return Err("Opening external links is unsupported on this platform".to_string());
+
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
+    result
+        .map(|_| ())
+        .map_err(|error| format!("Could not open the default browser: {error}"))
+}
+
 fn open_db_resilient(path: &std::path::Path) -> anyhow::Result<db::Db> {
     match db::Db::open(path) {
         Ok(db) => Ok(db),
@@ -306,6 +339,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            open_external_url,
             commands::list_profiles,
             commands::save_profile,
             commands::reorder_profiles,
