@@ -3,6 +3,8 @@ import {
   CopyPlus,
   Download,
   Edit3,
+  Eye,
+  EyeOff,
   Folder,
   Link2,
   Plus,
@@ -72,6 +74,7 @@ export function SiteManagerDialog({ onClose }: Props) {
   );
   const [action, setAction] = useState<Action>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useDialog(panelRef, { onClose, initialFocus: searchRef });
 
@@ -342,7 +345,7 @@ export function SiteManagerDialog({ onClose }: Props) {
             <div className="my-3 border-t border-border" />
             <div className="mb-2 flex items-center justify-between px-2 text-[11px] font-semibold text-accent">
               <span>Tags</span>
-              <Tag size={13} />
+              <Plus size={13} />
             </div>
             {tags.length === 0 && (
               <div className="px-2 py-2 text-[11px] text-text-dim">No tags yet</div>
@@ -361,7 +364,7 @@ export function SiteManagerDialog({ onClose }: Props) {
             <div className="my-3 border-t border-border" />
             <div className="mb-2 flex items-center justify-between px-2 text-[11px] font-semibold text-accent">
               <span>Folders</span>
-              <Folder size={13} />
+              <Plus size={13} />
             </div>
             <SideItem
               active={view === "all"}
@@ -417,23 +420,18 @@ export function SiteManagerDialog({ onClose }: Props) {
                 }
               />
             ))}
+            <div className="ghost-site-table-footer sticky bottom-0 mt-1 flex h-8 items-center border-t border-border bg-[#051929] px-3 text-[10px] text-text-muted">
+              <span>{profiles.length} sites total</span>
+              <span className="mx-2 text-text-dim">|</span>
+              <span>{selected ? `1 selected (${selected.name})` : "0 selected"}</span>
+            </div>
           </section>
 
           <aside className="ghost-site-manager-details border-l border-border bg-[#071f35] p-4 overflow-y-auto">
             {selected && draft ? (
               <>
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent-strong text-white">
-                    <Server size={24} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="truncate text-[17px] font-semibold">
-                      {selected.name}
-                    </div>
-                    <div className="text-[11px] text-text-muted">
-                      {selected.group || "Saved connection"}
-                    </div>
-                  </div>
+                <div className="ghost-site-details-title mb-3 flex min-h-9 items-center border-b border-border pb-2">
+                  <strong className="text-[14px] text-accent">Connection Details</strong>
                   <div className="flex-1" />
                   <button
                     type="button"
@@ -449,6 +447,20 @@ export function SiteManagerDialog({ onClose }: Props) {
                     {editing ? <Save size={13} /> : <Edit3 size={13} />}
                     {action === "save" ? "Saving…" : editing ? "Save" : "Edit"}
                   </button>
+                </div>
+
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent-strong text-white">
+                    <Server size={24} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-[17px] font-semibold">
+                      {selected.name}
+                    </div>
+                    <div className="text-[11px] text-text-muted">
+                      {selected.group || "Saved connection"}
+                    </div>
+                  </div>
                 </div>
 
                 {!canDirectEdit && (
@@ -513,6 +525,32 @@ export function SiteManagerDialog({ onClose }: Props) {
                       }
                     />
                   </EditField>
+                  {draft.auth.kind === "password" && (
+                    <EditField label="Password" editing={editing}>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={draft.auth.password}
+                          readOnly={!editing}
+                          onChange={(event) =>
+                            setDraft({
+                              ...draft,
+                              auth: { kind: "password", password: event.target.value },
+                            })
+                          }
+                          className="pr-9"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-text-dim hover:text-white"
+                          onClick={() => setShowPassword((value) => !value)}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? <EyeOff size={14}/> : <Eye size={14}/>}
+                        </button>
+                      </div>
+                    </EditField>
+                  )}
                   <EditField label="Remote Path" editing={editing}>
                     <input
                       value={draft.defaultRemotePath || ""}
@@ -650,21 +688,6 @@ export function SiteManagerDialog({ onClose }: Props) {
           </aside>
         </div>
 
-        <div className="flex h-10 min-h-10 items-center border-t border-border bg-[#051929] px-4 text-[11px] text-text-muted">
-          <span className="mr-2 h-2 w-2 rounded-full bg-success" />
-          {action === "test"
-            ? "Testing connection…"
-            : action === "save"
-              ? "Saving site…"
-              : action === "duplicate"
-                ? "Duplicating site…"
-                : action === "delete"
-                  ? "Deleting site…"
-                  : "Ready"}
-          <div className="flex-1" />
-          <Server size={13} className="mr-1" />
-          {profiles.length} sites
-        </div>
       </div>
 
       {confirmDelete && selected && (
