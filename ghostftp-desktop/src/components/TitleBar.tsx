@@ -32,6 +32,7 @@ function safeWindowAction(action: "minimize" | "maximize" | "close") {
 
 export function TitleBar() {
   const openView = useLayout((s) => s.openView);
+  const openAbout = useLayout((s) => s.openAbout);
   const openDialog = useLayout((s) => s.openDialog);
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const activeSessionId = useConnections((s) => s.activeSessionId);
@@ -129,13 +130,13 @@ export function TitleBar() {
       { label: "Preferences…", run: () => openView("settings") },
     ],
     Help: [
-      { label: "Help Center", run: () => openOfficialUrl("/support/") },
-      { label: "Documentation", run: () => openOfficialUrl("/docs/") },
-      { label: "Check for Updates", run: () => openView("about") },
+      { label: "Help Center", run: () => openAbout("help") },
+      { label: "Documentation", run: () => openAbout("help") },
+      { label: "Check for Updates", run: () => openAbout("updates") },
       { separator: true },
-      { label: "About Ghost FTP", run: () => openView("about") },
+      { label: "About Ghost FTP", run: () => openAbout("about") },
     ],
-  }), [activeSessionId, disconnect, openDialog, openNewConnection, openView]);
+  }), [activeSessionId, disconnect, openAbout, openDialog, openNewConnection, openView]);
 
   useEffect(() => {
     if (!menu) return;
