@@ -1,26 +1,51 @@
-# Ghost FTP Pixel-Parity QA — RC9
+# Ghost FTP Pixel-Parity QA — RC10
 
-The approved images under `docs/assets/screenshots/` are the visual specification. They are documentation/QA references only and are not loaded as application backgrounds or used as click maps.
+The approved Ghost FTP images in `docs/assets/screenshots/` are the visual specification. They are not runtime backgrounds or click maps.
 
-## Canonical main-window geometry
+## Canonical desktop target
 
-At the approved 1290×852 desktop frame the real Ghost FTP component shell uses:
+The main desktop frame is **1290 × 852**.
 
-- 51 px custom titlebar;
-- 42 px application menu;
-- 50 px Quick Connect row;
-- 62 px toolbar;
-- 216 px Sites rail;
-- 416 px file workspace;
-- 191 px transfer/log band;
-- 40 px status bar.
+Measured target segmentation:
 
-These dimensions sum to the canonical 852 px application height. New Connection targets 752×628 px and File Properties targets 530×770 px while remaining viewport-constrained on smaller windows.
+- 51 px custom titlebar
+- 42 px application menu
+- 50 px Quick Connect row
+- 62 px toolbar
+- 216 px Sites rail
+- 416 px file workspace
+- 191 px transfer/log band
+- 40 px status bar
 
-## Visual system
+Reference dialogs:
 
-The default dark surface uses the Ghost FTP navy hierarchy with the approved Electric Blue accent and Ice White primary text. RC9 removes a redundant older dark-token block so only the canonical Ghost FTP visual system controls the default theme.
+- New Connection: **752 × 628**
+- File Properties: **530 × 770**
 
-## Acceptance rule
+RC10 makes both dialog heights explicit at the canonical viewport and removes later duplicate width overrides so one canonical rule controls their primary geometry.
 
-RC9 does not claim complete pixel-perfect acceptance yet. Before FINAL, capture native Windows renders for Main, Site Manager, New Connection, Preferences, Transfer Center, File Properties and About at 100% display scale and compare bounds, typography, icon placement, dividers, radii, selected/hover/focus states and custom-window chrome against the matching reference images.
+## Secondary application surfaces
+
+Site Manager, Preferences, Transfer Center and About are full Ghost FTP application surfaces rather than generic centered browser dialogs. Their chrome, dividers, panel treatment, spacing and color system are maintained as real components.
+
+## Color contract
+
+- Electric Blue: `#38ABFF`
+- Deep Navy: `#0B1E36`
+- Slate Blue: `#132D52`
+- Ice White: `#EAF6FF`
+
+## FINAL acceptance still required
+
+A source-level geometry match is not enough to claim exact pixel parity. Before FINAL, capture the real native Windows build at 100% scaling and compare:
+
+- window bounds;
+- typography/font metrics;
+- icon size and offsets;
+- row heights and divider positions;
+- radii and shadows;
+- selected/hover/focus states;
+- menu/dropdown positioning;
+- all seven primary reference screens.
+
+Any measured deltas should be corrected before the build is labelled FINAL.
