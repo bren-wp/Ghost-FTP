@@ -2,42 +2,67 @@
 
 ## Scope
 
-RC9 continues the existing Ghost FTP production source. The production GUI remains the React + Tauri + Rust application in `ghostftp-desktop/`; compatibility Go hosts are retained only as developer/tooling surfaces and are not shipped as the production desktop UI.
+RC9 continues the existing Ghost FTP production source. The authoritative desktop application now lives in `ghostftp-desktop/`. The Go-based `ghostftp-runtime/` and `ghostftp-installer/` trees are retained only as developer/compatibility tooling and are not shipped as the production desktop GUI.
 
 ## Corrected and hardened
 
 - Removed the old save-connect-delete workaround for temporary Quick Connect sessions; ephemeral profiles remain memory-only.
 - Persisted Site Manager favorites, bookmarks, tags, folders and last-used metadata.
-- Re-applied persisted transfer concurrency, retry, throttle and delta-sync settings to the native engine at startup.
-- Preferences Cancel restores the captured settings snapshot; Reset reapplies native defaults.
-- Shell Integration is wired to the real per-user PATH integration path.
-- Corrupt profile metadata and SQLite state are preserved/quarantined instead of crashing startup.
-- Passwords and SSH passphrases remain outside profile JSON and use OS-protected credential storage where supported.
+- Re-applied transfer concurrency, retry, throttle and delta-sync settings to the native engine at startup.
+- Preferences Cancel restores the captured settings snapshot; Reset reapplies Ghost FTP defaults.
+- Shell integration is wired to the real per-user PATH integration path.
+- Corrected the managed PATH comparison so historical `Ghost FTP` and `GhostFTP` app-directory aliases are treated as the same Ghost FTP-owned segment without stripping spaces from unrelated Windows paths.
+- Corrupt profile metadata and SQLite state are preserved/quarantined instead of causing a startup crash.
+- Passwords and SSH passphrases remain outside ordinary profile JSON and use OS-protected credential storage where supported.
 - File Properties uses real SHA-256 and permission operations where the active backend supports them; unsupported operations return explicit errors.
 - Removed an unused Rust agent-service constant.
-- Removed a redundant earlier dark-theme token block that was fully overridden by the canonical Ghost FTP visual-system block.
-- Kept release-critical source paths stable while improving documentation and downloadable artifact naming to avoid breaking imports, build scripts or Tauri configuration.
-- Corrected Transfer Queue UX/state bugs around completed, skipped and canceled transfers.
-- Replaced dynamic inline-width transfer progress with a semantic `progress` element and centralized CSS styling.
-- Validated transfer throttle input before persisting/applying it.
-- Exposed previously implemented but hidden file-browser/transfer preferences in the Preferences UI.
-- Website timer cleanup now stops background interval work after reaching its final state and respects reduced-motion preferences.
+- Removed a redundant dark-theme token block that was fully overridden by the canonical Ghost FTP visual-system block.
+- Corrected Transfer Queue UX/state behavior around completed, skipped and canceled transfers.
+- Completed transfers no longer expose a meaningless Cancel action.
+- Added Retry All for failed transfers.
+- Replaced dynamic inline-width transfer progress with semantic progress controls and centralized CSS.
+- Validated transfer-throttle input before applying it.
+- Exposed existing browser-layout, hidden-file, preview, download-folder and editor settings in Preferences.
+- Website timer cleanup stops background interval work after completion and respects reduced-motion preferences.
+- Removed the browser-host GUI from the production release path after the visible `127.0.0.1` chrome regression was reproduced.
+- Reorganized source roots under GhostFTP-branded directories without changing migration-sensitive product identifiers.
 
+## Repository naming hardening
 
-## CI quality gates
+Product-facing source roots are now:
 
-The source audit runs:
+- `ghostftp-desktop/`
+- `ghostftp-runtime/`
+- `ghostftp-installer/`
+- `ghostftp-web/`
+- `ghostftp-updates/`
 
-- Go tests and `go vet` for ghostftp-runtime/installer tooling;
-- JavaScript syntax checks for runtime, installer and website;
-- `npm ci`, TypeScript typecheck and production Vite build;
-- Rust `cargo fmt --check`, workspace check, tests and Clippy with warnings denied;
-- legacy/demo-branding scan across production source surfaces.
-
-## Naming policy
-
-Runtime-critical paths, Rust crate/package names and Tauri identifiers are not renamed casually. Human-facing release artifacts use a clearer convention instead:
+Public artifacts follow:
 
 `GhostFTP-<Platform>-<Arch>-<Role>-v<Version>.<ext>`
 
-This gives cleaner downloads without destabilizing source imports or ghostftp-installer/update identifiers.
+Internal framework-required names remain only where the build ecosystem consumes them directly.
+
+## CI quality gates
+
+`.github/workflows/ghostftp-quality.yml` runs:
+
+- Go tests and `go vet` for GhostFTP runtime/installer tooling;
+- JavaScript syntax checks for runtime, installer and website;
+- website markup policy checks;
+- `npm ci`, TypeScript typecheck and production Vite build;
+- Rust formatting check;
+- Rust workspace check;
+- Rust workspace tests;
+- Clippy with warnings denied;
+- legacy/demo-branding scans across production source surfaces.
+
+`.github/workflows/ghostftp-build.yml` separately produces the Windows and Linux production bundles used for release publication.
+
+## Current quality truth
+
+The earlier RC9 quality run exposed two failing PATH-integration tests. The failure was not hidden: the managed-path normalization has been corrected in source and the current RC9 quality run is required to pass before release publication.
+
+## Remaining engineering validation
+
+Code-level CI does not replace target-OS acceptance. FINAL still requires real Windows visual/titlebar acceptance, installer lifecycle acceptance and real FTP/FTPS/SFTP integration tests.
