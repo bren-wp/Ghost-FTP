@@ -26,10 +26,10 @@ jobs:
         include:
           - os: windows-latest
             args: '--bundles nsis'
-            artifact: 'GhostFTP-Windows-x64'
+            artifact: 'GhostFTP-Windows-x64-RC9'
           - os: ubuntu-22.04
             args: '--bundles deb,rpm,appimage'
-            artifact: 'GhostFTP-Linux-x86_64'
+            artifact: 'GhostFTP-Linux-x86_64-RC9'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
