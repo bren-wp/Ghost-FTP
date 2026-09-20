@@ -76,6 +76,22 @@ jobs:
           grep -Fq '.fixed.inset-0.z-modal {' ghostftp-desktop/src/styles.css
           ! grep -Fq 'className="ghost-dropdown-menu"' ghostftp-desktop/src/components/TitleBar.tsx
 
+      - name: Production UI stability guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Fq '<UpdatePrompt />' ghostftp-desktop/src/App.tsx
+          ! grep -Fq '<CliUpdatePrompt />' ghostftp-desktop/src/App.tsx
+          ! grep -Fq 'fallback={<DialogLoading />}' ghostftp-desktop/src/App.tsx
+          ! grep -Fq 'animate-ping' ghostftp-desktop/src/App.tsx
+          ! grep -Fq 'animate-pulse text-warning' ghostftp-desktop/src/App.tsx
+          grep -Fq 'notifications: { enabled: false, unfocusedOnly: true }' ghostftp-desktop/src/stores/settingsStore.ts
+          grep -Fq 'requestDesktopNotificationPermission' ghostftp-desktop/src/components/Settings.tsx
+          grep -Fq 'content: none !important;' ghostftp-desktop/src/styles.css
+          grep -Fq 'backdrop-filter: none !important;' ghostftp-desktop/src/styles.css
+          grep -Fq 'ghost-rc-badge' ghostftp-desktop/src/components/TitleBar.tsx
+          grep -Fq 'ghost-quick-actions' ghostftp-desktop/src/components/TitleBar.tsx
+
       - name: Runtime checks
         shell: bash
         run: |
