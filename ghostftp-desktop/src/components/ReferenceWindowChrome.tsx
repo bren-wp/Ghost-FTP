@@ -55,7 +55,7 @@ export function ReferenceWindowTitlebar({
   );
 }
 
-export function ReferenceMenuRow() {
+export function ReferenceMenuRow({ onClose }: { onClose?: () => void } = {}) {
   const openDialog = useLayout((s) => s.openDialog);
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const [open, setOpen] = useState<string | null>(null);
@@ -66,7 +66,10 @@ export function ReferenceMenuRow() {
       { label: "New Connection…", run: () => openNewConnection() },
       { label: "Site Manager…", run: () => openDialog("siteManager") },
       { separator: true },
-      { label: "Close view", run: () => useLayout.getState().closeDialog() },
+      {
+        label: "Close view",
+        run: () => onClose ? onClose() : useLayout.getState().closeDialog(),
+      },
     ],
     Edit: [{ label: "Preferences…", run: () => openDialog("settings") }],
     View: [
