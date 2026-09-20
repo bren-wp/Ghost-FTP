@@ -46,9 +46,13 @@ export function TransferQueue() {
   }, [initListeners, loadInitial]);
 
   useEffect(() => {
+    const hasRunningTransfer = Object.values(byId).some(
+      (t) => t.status === "transferring" || t.status === "queued"
+    );
+    if (!panelOpen || !hasRunningTransfer) return;
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [byId, panelOpen]);
 
   const transfers = useMemo(
     () => Object.values(byId).sort((a, b) => b.startedAt - a.startedAt),
