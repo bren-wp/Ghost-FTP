@@ -43,7 +43,9 @@ This directory is the documentation hub for Ghost FTP. The root README is the pr
 
 ## Releases
 
-Archived release notes and checksums are under [releases/](releases/). GitHub Releases remains the canonical location for downloadable binaries.
+- [Ghost FTP 2.1.1 RC9](releases/2.1.1-rc.9.md) — current release-candidate notes.
+- Older release notes and checksums remain under [releases/](releases/).
+- GitHub Releases is the canonical location for downloadable binaries.
 
 ## Visual references
 
