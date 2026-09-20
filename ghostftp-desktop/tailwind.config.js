@@ -78,15 +78,15 @@ export default {
       // Security gates (host-key, agent approval) sit ABOVE toasts so a toast can
       // never obscure a decision; tooltips are the topmost interactive layer.
       zIndex: {
-        sticky: "10", // sticky table/list headers inside a scroll area
-        raised: "20", // floating in-content controls (the Sync pill)
-        dropdown: "30", // status-bar popovers (notifications, live edits)
-        menu: "40", // title-bar menus, right-click context menus
-        modal: "50", // standard dialogs + their backdrops
-        palette: "60", // command palette, keyboard-shortcuts overlay
-        toast: "70", // transient toasts — above dialogs so feedback shows
-        secure: "80", // security gates (host-key, agent approval) — above toasts
-        tooltip: "90", // topmost interactive layer
+        sticky: "10",
+        raised: "20",
+        dropdown: "120",
+        menu: "140",
+        modal: "200",
+        palette: "220",
+        toast: "240",
+        secure: "260",
+        tooltip: "300",
       },
     },
   },
