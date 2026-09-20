@@ -352,6 +352,26 @@ pub async fn connect(
 }
 
 #[tauri::command]
+pub async fn test_ephemeral_connection(
+    profile: ConnectionProfile,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), GhostFTPError> {
+    let session_id = state
+        .sessions
+        .connect(profile, app)
+        .await
+        .map_err(GhostFTPError::from)?;
+
+    state
+        .sessions
+        .disconnect(&session_id)
+        .await
+        .map_err(GhostFTPError::from)?;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn connect_ephemeral(
     profile: ConnectionProfile,
     app: AppHandle,
