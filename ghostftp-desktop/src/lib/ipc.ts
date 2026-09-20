@@ -66,6 +66,8 @@ import type {
 // the #[tauri::command] handlers registered in src-tauri/src/commands.rs.
 
 export const ipc = {
+  openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
+
   listProfiles: () => invoke<ConnectionProfile[]>("list_profiles"),
 
   saveProfile: (profile: ConnectionProfile) =>
