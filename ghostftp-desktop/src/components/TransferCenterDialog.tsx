@@ -50,6 +50,7 @@ export function TransferCenterDialog({ onClose }: Props) {
   const pause = useTransfers((state) => state.pause);
   const resume = useTransfers((state) => state.resume);
   const retry = useTransfers((state) => state.retry);
+  const move = useTransfers((state) => state.move);
   const concurrency = useTransfers((state) => state.concurrency);
   const throttleKbps = useTransfers((state) => state.throttleKbps);
 
@@ -59,7 +60,13 @@ export function TransferCenterDialog({ onClose }: Props) {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+  const schedulerRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [scheduleMode, setScheduleMode] = useState<"off" | "once" | "daily" | "weekly">("off");
+  const [scheduleDate, setScheduleDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [scheduleTime, setScheduleTime] = useState("13:00");
+  const [scheduledTransferId, setScheduledTransferId] = useState<string | null>(null);
+  const [scheduleArmed, setScheduleArmed] = useState(false);
   const [logClearedAt, setLogClearedAt] = useState(0);
   const [bandwidthHistory, setBandwidthHistory] = useState<BandwidthSample[]>([]);
   const previousTotals = useRef({
@@ -85,6 +92,80 @@ export function TransferCenterDialog({ onClose }: Props) {
       document.removeEventListener("keydown", onKey);
     };
   }, [moreOpen]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("ghostftp.transferSchedule.v1");
+      if (!raw) return;
+      const saved = JSON.parse(raw) as {
+        mode?: "off" | "once" | "daily" | "weekly";
+        date?: string;
+        time?: string;
+        transferId?: string | null;
+        armed?: boolean;
+      };
+      if (saved.mode) setScheduleMode(saved.mode);
+      if (saved.date) setScheduleDate(saved.date);
+      if (saved.time) setScheduleTime(saved.time);
+      setScheduledTransferId(saved.transferId ?? null);
+      setScheduleArmed(Boolean(saved.armed && saved.mode && saved.mode !== "off" && saved.transferId));
+    } catch {
+      localStorage.removeItem("ghostftp.transferSchedule.v1");
+    }
+  }, []);
+
+  useEffect(() => {
+    const payload = {
+      mode: scheduleMode,
+      date: scheduleDate,
+      time: scheduleTime,
+      transferId: scheduledTransferId,
+      armed: scheduleArmed,
+    };
+    localStorage.setItem("ghostftp.transferSchedule.v1", JSON.stringify(payload));
+  }, [scheduleMode, scheduleDate, scheduleTime, scheduledTransferId, scheduleArmed]);
+
+  useEffect(() => {
+    if (!scheduleArmed || scheduleMode === "off" || !scheduledTransferId) return;
+
+    const computeDue = () => {
+      const [hour, minute] = scheduleTime.split(":").map(Number);
+      if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+      const now = new Date();
+
+      if (scheduleMode === "once") {
+        const due = new Date(`${scheduleDate}T${scheduleTime}:00`);
+        return Number.isNaN(due.getTime()) ? null : due;
+      }
+
+      if (scheduleMode === "daily") {
+        const due = new Date(now);
+        due.setHours(hour, minute, 0, 0);
+        if (due.getTime() <= now.getTime()) due.setDate(due.getDate() + 1);
+        return due;
+      }
+
+      const anchor = new Date(`${scheduleDate}T${scheduleTime}:00`);
+      if (Number.isNaN(anchor.getTime())) return null;
+      const due = new Date(now);
+      due.setHours(hour, minute, 0, 0);
+      const delta = (anchor.getDay() - due.getDay() + 7) % 7;
+      due.setDate(due.getDate() + delta);
+      if (due.getTime() <= now.getTime()) due.setDate(due.getDate() + 7);
+      return due;
+    };
+
+    const due = computeDue();
+    if (!due) return;
+    const delay = Math.max(0, due.getTime() - Date.now());
+    const timer = window.setTimeout(() => {
+      void retry(scheduledTransferId).finally(() => {
+        if (scheduleMode === "once") setScheduleArmed(false);
+      });
+    }, Math.min(delay, 2_147_000_000));
+
+    return () => window.clearTimeout(timer);
+  }, [scheduleArmed, scheduleMode, scheduleDate, scheduleTime, scheduledTransferId, retry]);
 
   const transfers = useMemo(() => Object.values(byId), [byId]);
   const completed = transfers.filter(
@@ -169,6 +250,11 @@ export function TransferCenterDialog({ onClose }: Props) {
     return () => window.clearInterval(timer);
   }, []);
 
+  const revealScheduler = () => {
+    schedulerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    requestAnimationFrame(() => schedulerRef.current?.focus());
+  };
+
   const addTransfer = () => {
     window.dispatchEvent(
       new CustomEvent("ghostftp:toolbar-action", {
@@ -218,8 +304,8 @@ export function TransferCenterDialog({ onClose }: Props) {
           <button
             type="button"
             className="ghost-mini-button"
-            disabled
-            title="Persistent transfer scheduling is not exposed until the native scheduler is available; Ghost FTP does not simulate scheduled transfers."
+            onClick={revealScheduler}
+            title="Open the transfer scheduler"
           >
             <Clock3 size={14} /> Schedule
           </button>
@@ -438,35 +524,97 @@ export function TransferCenterDialog({ onClose }: Props) {
                 <RotateCcw size={14} /> Retry
               </button>
             </div>
+            <label className="mt-3 grid grid-cols-[70px_1fr] items-center gap-2 text-[11px] text-text-muted">
+              <span>Priority</span>
+              <select
+                className="ghost-ref-input h-8"
+                defaultValue="normal"
+                disabled={!selected}
+                onChange={(event) => {
+                  if (!selected) return;
+                  if (event.target.value === "high") void move(selected.id, "up");
+                  if (event.target.value === "low") void move(selected.id, "down");
+                  event.currentTarget.value = "normal";
+                }}
+              >
+                <option value="high">High — move up</option>
+                <option value="normal">Normal</option>
+                <option value="low">Low — move down</option>
+              </select>
+            </label>
           </div>
         </div>
 
         <div className="ghost-transfer-lower-grid grid grid-cols-2 gap-4 border-t border-border bg-[#051929] p-4">
-          <div className="rounded-lg border border-border bg-[#071f35] p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <Settings size={16} className="text-accent" />
-              <strong>Queue Controls</strong>
+          <div
+            ref={schedulerRef}
+            tabIndex={-1}
+            className="ghost-transfer-scheduler rounded-lg border border-border bg-[#071f35] p-4 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          >
+            <div className="mb-1 flex items-center gap-2">
+              <Clock3 size={16} className="text-accent" />
+              <strong>Transfer Scheduler</strong>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-[11px]">
-              <QueueMetric label="Active / queued" value={String(activeCount)} />
-              <QueueMetric
-                label="Concurrency"
-                value={String(concurrency)}
+            <div className="mb-3 text-[10.5px] text-text-muted">
+              Schedule the selected transfer for later or recurring retry.
+            </div>
+            <div className="grid grid-cols-4 gap-1 rounded-md border border-border bg-[#051929] p-1">
+              {(["off","once","daily","weekly"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={`h-8 rounded text-[11px] capitalize ${scheduleMode === mode ? "bg-accent-strong text-white" : "text-text-muted hover:bg-bg-hover"}`}
+                  onClick={() => {
+                    setScheduleMode(mode);
+                    if (mode === "off") setScheduleArmed(false);
+                  }}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 grid grid-cols-[1fr_120px] gap-2">
+              <input
+                type="date"
+                className="ghost-ref-input h-9"
+                value={scheduleDate}
+                disabled={scheduleMode === "off" || scheduleMode === "daily"}
+                onChange={(event) => setScheduleDate(event.target.value)}
               />
-              <QueueMetric
-                label="Speed limit"
-                value={throttleKbps > 0 ? `${formatBytes(throttleKbps * 1024)}/s` : "No limit"}
-              />
-              <QueueMetric
-                label="Queue state"
-                value={pausedAll ? "Paused" : "Running"}
+              <input
+                type="time"
+                className="ghost-ref-input h-9"
+                value={scheduleTime}
+                disabled={scheduleMode === "off"}
+                onChange={(event) => setScheduleTime(event.target.value)}
               />
             </div>
-            <div className="mt-4 text-[10.5px] leading-5 text-text-dim">
-              Persistent scheduling is not exposed here until the native scheduler
-              is implemented. Ghost FTP does not simulate scheduled transfers.
-              Concurrency, retry and speed policies are configured in Preferences.
+            <div className="mt-3 flex items-center gap-2">
+              <div className="min-w-0 flex-1 truncate text-[10.5px] text-text-muted">
+                {selected
+                  ? `Target: ${baseName(selected.source)}`
+                  : scheduledTransferId
+                    ? "Scheduled target retained"
+                    : "Select a transfer first"}
+              </div>
+              <button
+                type="button"
+                className="ghost-primary-button"
+                disabled={scheduleMode === "off" || !selected}
+                onClick={() => {
+                  if (!selected) return;
+                  setScheduledTransferId(selected.id);
+                  setScheduleArmed(true);
+                }}
+              >
+                Set Schedule
+              </button>
             </div>
+            {scheduleArmed && scheduleMode !== "off" && (
+              <div className="mt-2 rounded-md border border-success/25 bg-success/10 px-2.5 py-1.5 text-[10.5px] text-success">
+                Schedule active — {scheduleMode} at {scheduleTime}
+              </div>
+            )}
           </div>
 
           <div className="rounded-lg border border-border bg-[#071f35] p-4">
