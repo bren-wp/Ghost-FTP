@@ -195,9 +195,9 @@ export function TransferCenterDialog({ onClose }: Props) {
             type="button"
             className="ghost-mini-button"
             disabled={completed === 0 && failed === 0}
-            onClick={clearFinished}
+            onClick={clearCompleted}
           >
-            <Trash2 size={14} /> Clear Finished
+            <Trash2 size={14} /> Clear Completed
           </button>
         </div>
 
