@@ -1,67 +1,201 @@
-# Ghost FTP 2.1.1 RC8
-
 <p align="center">
-  <img src="docs/screenshots/09-brand-board.png" alt="Ghost FTP brand identity" width="100%">
+  <img src="desktop-tauri/branding/ghostftp-logo.svg" alt="Ghost FTP" width="460">
 </p>
 
-**Ghost FTP** is a privacy-first desktop file-transfer client for Windows and Linux, built around a native React + Tauri + Rust implementation with FTP, FTPS and SFTP support. The approved UI target is the Ghost FTP visual system in `docs/screenshots/`, with a canonical 1290 × 852 desktop frame and adaptive layouts for smaller windows.
+<h1 align="center">Ghost FTP</h1>
 
-Official product site: **https://ghostftp.com/**  
-Publisher: **Brendigo LTD** and **Brendigo, obrt za programiranje**
+<p align="center"><strong>More Than Transfer. Total Control.</strong></p>
 
 <p align="center">
-  <img src="docs/screenshots/01-main-file-manager.png" alt="Ghost FTP main file manager" width="100%">
+  A privacy-first, native desktop file-transfer client for Windows and Linux.<br>
+  FTP, FTPS and SFTP in one focused interface built for people who manage real servers every day.
 </p>
 
-## Product scope
+<p align="center">
+  <a href="https://github.com/bren-wp/Ghost-FTP-Premium/actions/workflows/native-build.yml"><img alt="Native build" src="https://github.com/bren-wp/Ghost-FTP-Premium/actions/workflows/native-build.yml/badge.svg"></a>
+  <a href="https://github.com/bren-wp/Ghost-FTP-Premium/actions/workflows/source-audit.yml"><img alt="Source audit" src="https://github.com/bren-wp/Ghost-FTP-Premium/actions/workflows/source-audit.yml/badge.svg"></a>
+  <a href="https://github.com/bren-wp/Ghost-FTP-Premium/releases"><img alt="Release" src="https://img.shields.io/github/v/release/bren-wp/Ghost-FTP-Premium?include_prereleases&label=release"></a>
+  <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-38ABFF">
+  <img alt="Protocols" src="https://img.shields.io/badge/protocols-FTP%20%7C%20FTPS%20%7C%20SFTP-132D52">
+  <img alt="Privacy" src="https://img.shields.io/badge/telemetry-none-0B1E36">
+</p>
 
-Ghost FTP includes saved connection profiles, Quick Connect, Site Manager, local/remote file browsing, upload and download queues, pause/resume/cancel/retry paths, file operations, permissions where supported, checksum tools, transfer history, preferences, update integration, accessibility hooks and Windows/Linux distribution targets. The native Tauri window is frameless (`decorations(false)`) so the Ghost FTP custom titlebar is the only application titlebar.
+<p align="center">
+  <a href="https://ghostftp.com/">Website</a> ·
+  <a href="https://github.com/bren-wp/Ghost-FTP-Premium/releases">Downloads</a> ·
+  <a href="docs/README.md">Documentation</a> ·
+  <a href="SECURITY.md">Security</a>
+</p>
 
-The production desktop application is `desktop-tauri/`. The `runtime/` and `installer/` directories are developer/compatibility tooling only and are not accepted as production GUI releases. Browser-host compatibility executables are deliberately excluded from the public GUI release because visible browser/origin chrome breaks the required frameless 1:1 Ghost FTP presentation.
+---
 
-### RC8 engineering pass
+<p align="center">
+  <img src="docs/assets/screenshots/main.webp" alt="Ghost FTP main file manager" width="100%">
+</p>
 
-RC8 continues the existing production source and concentrates on visual parity, responsive behavior and truthful file-operation features. Site Manager, Preferences, Transfer Center and About now use dedicated full-window application surfaces instead of generic centered dialogs; New Connection and File Properties retain reference-sized modal geometry. The shared custom Ghost FTP titlebar remains the only intended native titlebar. File Properties now includes real General/Checksums tabs, real SHA-256 support where the active backend supports it, numeric chmod controls and recursive chmod for local/SFTP paths. The compatibility host mirrors the same full-window structure so fallback QA does not drift into a separate visual product.
+## Built for fast, controlled server work
 
-## Design references
+Ghost FTP combines a dual-pane file manager, saved server profiles, Quick Connect, transfer queues, permissions, checksums, synchronization-oriented tooling and detailed connection state in one native desktop application. The production GUI is built with **React + Tauri + Rust**; end-user Windows/Linux releases do not use the old browser-host compatibility shell.
 
-The ten retained QA references cover Main File Manager, Site Manager, New Connection, Preferences, Transfer Center, File Properties, About/Updates/Help, Windows/Linux setup, brand identity and web loading. They are QA/design inputs only; production runtime code does not use a full reference screenshot as an application background or click map.
+**Why Ghost FTP:**
 
-## Security and privacy
+- **Native desktop experience** — frameless Ghost FTP window, custom titlebar and no visible browser/origin chrome.
+- **FTP, FTPS and SFTP** — one workflow for the protocols administrators and creators actually use.
+- **Dual-pane file management** — local and remote files stay visible together, with clear transfer direction and state.
+- **Transfer control** — queues, pause/resume/cancel/retry flows, progress, speed and status feedback.
+- **Server organization** — Site Manager, favorites, tags, folders, bookmarks and recent servers.
+- **Integrity and permissions** — SHA-256 where supported, chmod controls and protocol-aware file operations.
+- **Privacy-first** — no required analytics or telemetry; credentials use OS-protected storage where supported.
+- **Windows + Linux** — native Windows executable/NSIS installer and Linux executable/AppImage/DEB/RPM targets.
+- **14 interface languages** — English plus Hrvatski, Deutsch, Français, Español, Italiano, Português, Nederlands, Polski, Slovenščina, Srpski, Bosanski, Македонски and Shqip.
 
-Ghost FTP is configured around local profile/settings storage, OS-protected credential facilities where supported, normal TLS/SSH identity verification paths in the native engine, signed update verification through the Tauri updater, masked credential fields, and no required analytics/telemetry. Sensitive credentials must not be written to application logs. See `SECURITY.md` and `PRIVACY.md`.
+## Interface
 
-## Update system
+The Ghost FTP design system uses **Electric Blue**, **Deep Navy**, **Slate Blue** and **Ice White** with a dense, professional server-management layout. The canonical desktop reference is **1290 × 852**; smaller windows use adaptive layout, local scrolling and compact controls rather than hiding essential actions.
 
-The native updater is configured for `https://ghostftp.com/updates/latest.json`. The Tauri updater plugin verifies the signed update artifact before installation. A failed update must not replace the currently working installation. See `UPDATE_POLICY.md` and `desktop-tauri/src/stores/updaterStore.ts`.
+### Site Manager
 
-## Windows and Linux
+<p align="center">
+  <img src="docs/assets/screenshots/site-manager.webp" alt="Ghost FTP Site Manager" width="100%">
+</p>
 
-RC8 native bundle targets are Windows NSIS + portable native EXE and Linux DEB/RPM/AppImage + native executable. GitHub Actions is the authoritative native build path and installs the Rust/Cargo, Node/npm and platform prerequisites required by Tauri. End-user releases must use those native bundles; compatibility browser-host binaries are not an acceptable substitute. See `BUILD_STATUS.md`.
+Profiles are organized around real operational context: favorites, recent servers, bookmarks, tags, folders and detailed connection settings.
 
-## Languages
+### New Connection
 
-English is the primary language. The selector exposes English, Hrvatski, Deutsch, Français, Español, Italiano, Português, Nederlands, Polski, Slovenščina, Srpski, Bosanski, Македонски and Shqip. Browser auto-translation is disabled on embedded/web runtime surfaces. The native non-English dictionaries now share the same 185-key canonical coverage set. Translation terminology/clipping is still reviewed during target-OS visual QA; details are tracked in `LANGUAGE_AUDIT.md`.
+<p align="center">
+  <img src="docs/assets/screenshots/new-connection.webp" alt="Ghost FTP New Connection" width="100%">
+</p>
 
-## Installation and removal
+Quick Connect and saved profiles expose protocol, host, port, username, credentials, passive mode and SSH-key options without pushing the user through unnecessary setup screens.
 
-Windows production packages are generated by the native Tauri bundle pipeline. The project still keeps its installer/EULA requirements and no-separate-`uninstall.exe` rule, but public Windows GUI builds must not be the browser-host compatibility runtime. Linux production packages are generated as native Tauri DEB/RPM/AppImage bundles. See `INSTALLATION.md` and `UNINSTALL.md`.
+### Transfer Center
 
-## Build and QA truth
+<p align="center">
+  <img src="docs/assets/screenshots/transfer-center.webp" alt="Ghost FTP Transfer Center" width="100%">
+</p>
 
-`BUILD_STATUS.md` is authoritative. It records which artifacts were actually built, which checks were executed, and which release gates remain blocked. GitHub Actions now successfully builds the native Windows and Linux application bundles, including Windows NSIS/portable EXE and Linux DEB/RPM/AppImage. The remaining unclaimed gates are Windows frameless-titlebar screenshot verification, real protocol integration tests, Windows install/upgrade/uninstall acceptance and final pixel/responsive comparison.
+Transfers are visible as work, not hidden as background activity: direction, progress, speed, ETA, result, actions, bandwidth and logs remain easy to inspect.
+
+### Preferences
+
+<p align="center">
+  <img src="docs/assets/screenshots/preferences.webp" alt="Ghost FTP Preferences" width="100%">
+</p>
+
+Language, appearance, transfer behavior, connection reliability, security/privacy, updates and integrations are grouped into predictable, reversible settings.
+
+### File Properties & Permissions
+
+<p align="center">
+  <img src="docs/assets/screenshots/file-properties.webp" alt="Ghost FTP File Properties and Permissions" width="100%">
+</p>
+
+Properties expose real metadata, checksums and permission controls where the active backend supports them. Unsupported protocol features return explicit errors instead of fabricated values.
+
+### About, updates and support
+
+<p align="center">
+  <img src="docs/assets/screenshots/about.webp" alt="Ghost FTP About and updates" width="100%">
+</p>
+
+Version/build information, update state, changelog and support links stay inside the same visual system.
+
+## One app. Every platform.
+
+<p align="center">
+  <img src="docs/assets/screenshots/platforms.webp" alt="Ghost FTP Windows and Linux" width="100%">
+</p>
+
+| Platform | RC9 distribution targets |
+| --- | --- |
+| Windows x64 | Native portable EXE, NSIS Setup EXE |
+| Linux x86-64 | Native executable, AppImage, DEB, RPM |
+
+GitHub Actions is the authoritative release build path. A release is published only after the native Windows/Linux build and source audit complete successfully.
+
+## Brand system
+
+<p align="center">
+  <img src="docs/assets/screenshots/brand-board.webp" alt="Ghost FTP brand identity board" width="100%">
+</p>
+
+The product source includes the approved Ghost FTP symbol and horizontal logo in `desktop-tauri/branding/`. Reference screenshots in `docs/assets/screenshots/` are retained as **visual QA specifications**; the application is implemented with real controls and must not use screenshots as interactive UI backgrounds.
+
+## Repository map
+
+```text
+Ghost-FTP-Premium/
+├── desktop-tauri/        # Production React + Tauri + Rust desktop app
+│   ├── branding/         # Approved Ghost FTP logo/symbol
+│   ├── packages/         # Shared UI packages
+│   ├── src/              # React application
+│   └── src-tauri/        # Rust backend and native packaging
+├── website/              # Product/web source
+├── runtime/              # Developer/compatibility tooling — not production GUI
+├── installer/            # Compatibility/installer tooling — not production GUI
+├── docs/
+│   ├── assets/           # README + visual QA media
+│   ├── audits/           # Code, branding, language and security audits
+│   ├── build/            # Build status and runtime reference
+│   ├── guides/           # Install, uninstall, update and support docs
+│   ├── legal/            # Privacy and third-party notices
+│   ├── qa/               # Pixel, responsive, titlebar, transfer and click QA
+│   └── releases/         # Archived release notes/checksums
+└── .github/workflows/    # Audit, native build and release automation
+```
+
+## Build from source
+
+Requirements: Node.js 22+, npm, stable Rust/Cargo and the Tauri prerequisites for your operating system.
+
+```bash
+cd desktop-tauri
+npm ci
+npm run check
+npm run build
+npm run tauri build
+```
+
+For production artifacts, use the repository's native build workflow rather than the compatibility runtime.
+
+## Quality gates
+
+RC9 strengthens CI around both the frontend and native workspace:
+
+- `npm ci`, TypeScript typecheck and production Vite build;
+- Go tests/vet for compatibility tooling;
+- JavaScript syntax checks for runtime/installer/website;
+- Rust `cargo fmt --check`, workspace check, tests and Clippy;
+- legacy/demo-branding scan;
+- native Windows/Linux Tauri bundle build;
+- release publication only after a successful native build.
+
+The project does **not** call a build FINAL until the remaining OS-level acceptance evidence is complete. See [build status](docs/build/STATUS.md), [pixel parity](docs/qa/PIXEL_PARITY.md), [responsive QA](docs/qa/RESPONSIVE.md) and [titlebar QA](docs/qa/TITLEBAR.md).
+
+## Security & privacy
+
+Ghost FTP is designed around local configuration, OS-protected credential facilities where supported, TLS/SSH identity verification paths and signed-update verification. Sensitive credentials must not be written to logs.
+
+Read:
+
+- [Security](SECURITY.md)
+- [Privacy](docs/legal/PRIVACY.md)
+- [Update policy](docs/guides/UPDATES.md)
+- [Security audit](docs/audits/SECURITY.md)
 
 ## Documentation
 
-- `LICENSE.txt` / `EULA.txt` — commercial software licence agreement.
-- `PRIVACY.md` — privacy and local-data model.
-- `SECURITY.md` — security architecture and reporting guidance.
-- `UPDATE_POLICY.md` — signed update flow and rollback expectations.
-- `INSTALLATION.md` / `UNINSTALL.md` — platform deployment and removal.
-- `SUPPORT.md` — support routes and diagnostic guidance.
-- `CHANGELOG.md` — release history.
-- `THIRD_PARTY_NOTICES.md` — interoperability and third-party notice policy.
-- `CLICK_QA.md`, `TRANSFER_QA.md`, `INSTALLER_QA.md`, `RESPONSIVE_QA.md`, `PIXEL_QA.md`, `TITLEBAR_QA.md` — release-gate evidence.
-- `BRANDING_AUDIT.md`, `CODE_AUDIT.md`, `SECURITY_AUDIT.md`, `LANGUAGE_AUDIT.md` — source audits.
+Start at **[docs/README.md](docs/README.md)** for the complete documentation map.
 
-Copyright © 2026 Brendigo LTD and Brendigo, obrt za programiranje. All rights reserved.
+## Release status
+
+**Current development line: Ghost FTP 2.1.1 RC9.** RC means release candidate. Native Windows/Linux builds may be production-shaped artifacts, but FINAL remains gated on documented Windows titlebar/pixel verification, installer upgrade/uninstall acceptance and real FTP/FTPS/SFTP end-to-end transfer evidence.
+
+---
+
+<p align="center">
+  <img src="desktop-tauri/branding/ghostftp-symbol.svg" alt="Ghost FTP symbol" width="72"><br>
+  <strong>Ghost FTP — Files Move Forward.</strong><br>
+  <sub>© 2026 Brendigo LTD and Brendigo, obrt za programiranje. All rights reserved.</sub>
+</p>
