@@ -1,17 +1,34 @@
 # Ghost FTP Native Titlebar QA — RC9
 
-The production Tauri window is created frameless with `decorations(false)`. The React titlebar is therefore the intended and only application titlebar. It contains Ghost FTP branding plus minimize, maximize/restore and close controls, a Tauri drag region and double-click maximize/restore behavior.
+## Required product behavior
 
-The visible `127.0.0.1` Chromium/Edge bar reproduced in older compatibility executables was an architecture error in the fallback host, not the intended production UI. Those browser-host executables are excluded from the end-user release path.
+Ghost FTP uses its own custom application titlebar. The desktop window is configured frameless with native decorations disabled, and the React titlebar provides:
 
-## FINAL acceptance gate
+- Ghost FTP branding;
+- minimize;
+- maximize/restore;
+- close;
+- draggable title region;
+- double-click maximize/restore.
 
-Capture native Windows 10/11 screenshots of both portable and installed RC9 builds and verify:
+The old browser-host compatibility build that exposed a visible `127.0.0.1` address/origin strip is not part of the production release path.
+
+## Acceptance criteria
+
+For both the portable and installed Windows builds:
 
 - no browser/origin/address bar;
-- no extra black native caption above the Ghost FTP titlebar;
-- minimize, maximize/restore, close and drag behavior work;
-- maximized and restored states preserve the custom chrome cleanly;
-- 1290×852 restored geometry matches the approved reference composition.
+- no duplicate black/native caption above the Ghost FTP titlebar;
+- minimize works;
+- maximize/restore works;
+- close works;
+- drag works;
+- double-click titlebar maximize/restore works;
+- restored 1290×852 geometry matches the approved reference composition;
+- maximized layout preserves clean custom chrome.
 
-This gate remains open until those target-OS screenshots are attached as evidence.
+## Remaining FINAL evidence
+
+Native Windows 10/11 screenshots of the actual RC9 executable are still required before a pixel-perfect/FINAL claim is made.
+
+Status: **source/build architecture is correct; Windows screenshot acceptance remains open.**
