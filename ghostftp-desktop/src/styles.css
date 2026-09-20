@@ -3178,3 +3178,218 @@ button:active,
     max-height: calc(100dvh - 8px) !important;
   }
 }
+
+
+/* RC13 reference-frame geometry: File Manager structure and sidebar fidelity. */
+.ghost-app-header {
+  flex: 0 0 170px !important;
+  height: 170px !important;
+  min-height: 170px !important;
+}
+
+.ghost-title-row {
+  height: 50px !important;
+  min-height: 50px !important;
+}
+
+.ghost-quick-row {
+  height: 60px !important;
+  min-height: 60px !important;
+  padding: 9px 14px !important;
+}
+
+.ghost-toolbar-row {
+  height: 60px !important;
+  min-height: 60px !important;
+}
+
+.ghost-file-manager-body,
+.ghost-file-manager-right {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ghost-file-manager-right {
+  background: #041526;
+}
+
+.ghost-file-manager-body > .ghost-sites-panel {
+  width: 214px !important;
+  min-width: 214px !important;
+  flex: 0 0 214px !important;
+}
+
+.ghost-main-workspace {
+  flex: 1 1 auto !important;
+  width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  background: #041526 !important;
+}
+
+.ghost-dual-browser {
+  border: 0 !important;
+  background: #041526;
+}
+
+.ghost-dual-browser > .ghost-file-pane {
+  border-radius: 0 !important;
+}
+
+.ghost-dual-browser > .ghost-file-pane:first-child {
+  border-left: 0 !important;
+}
+
+.ghost-dual-browser > .ghost-file-pane:last-child {
+  border-right: 0 !important;
+}
+
+.ghost-pane-separator {
+  width: 1px;
+  min-width: 1px;
+  flex: 0 0 1px;
+  background: #23577d;
+}
+
+.ghost-sites-panel {
+  overflow: hidden;
+}
+
+.ghost-sites-list {
+  flex: 0 0 auto;
+  padding: 0 8px 8px 12px !important;
+}
+
+.ghost-file-nav {
+  flex: 0 0 auto;
+  border-top: 1px solid #1a4c6e;
+  padding: 7px 8px 8px;
+}
+
+.ghost-file-nav-row {
+  display: flex;
+  width: 100%;
+  height: 34px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 0 10px;
+  background: transparent;
+  color: #b8d3e7;
+  font-size: 12px;
+  line-height: 1;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ghost-file-nav-row svg {
+  flex: 0 0 auto;
+  color: #a8d7f7;
+}
+
+.ghost-file-nav-row:hover,
+.ghost-file-nav-row:focus-visible {
+  border-color: rgba(43, 143, 216, .36);
+  background: #0a2c49;
+  color: #fff;
+  outline: none;
+}
+
+.ghost-file-nav-row.active {
+  border-color: #166fc5;
+  background: linear-gradient(90deg,#0b4f98,#0b3767);
+  color: #fff;
+  box-shadow: inset 2px 0 #24a8ff;
+}
+
+.ghost-sites-spacer {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.ghost-bottom-band {
+  width: 100%;
+  flex: 0 0 210px !important;
+  height: 210px !important;
+  min-height: 210px !important;
+  max-height: 210px !important;
+  padding-left: 4px !important;
+}
+
+.ghost-reference-statusbar {
+  flex: 0 0 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+}
+
+@media (max-width: 1120px) {
+  .ghost-app-header {
+    flex-basis: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .ghost-file-manager-body > .ghost-sites-panel {
+    width: 184px !important;
+    min-width: 184px !important;
+    flex-basis: 184px !important;
+  }
+
+  .ghost-file-nav-row {
+    padding-inline: 8px;
+    gap: 8px;
+  }
+
+  .ghost-bottom-band {
+    flex-basis: 190px !important;
+    height: 190px !important;
+    min-height: 190px !important;
+    max-height: 190px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .ghost-file-manager-body > .ghost-sites-panel {
+    width: 132px !important;
+    min-width: 132px !important;
+    flex-basis: 132px !important;
+  }
+
+  .ghost-file-nav {
+    padding-inline: 5px;
+  }
+
+  .ghost-file-nav-row {
+    height: 32px;
+    gap: 6px;
+    padding-inline: 6px;
+    font-size: 10px;
+  }
+
+  .ghost-bottom-band {
+    flex-basis: min(190px, 31dvh) !important;
+    height: min(190px, 31dvh) !important;
+    min-height: 150px !important;
+  }
+}
+
+@media (max-width: 540px) {
+  .ghost-file-manager-body > .ghost-sites-panel {
+    width: 108px !important;
+    min-width: 108px !important;
+    flex-basis: 108px !important;
+  }
+
+  .ghost-file-nav-row {
+    gap: 5px;
+    padding-inline: 4px;
+    font-size: 9px;
+  }
+
+  .ghost-file-nav-row svg {
+    width: 13px;
+    height: 13px;
+  }
+}
