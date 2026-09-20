@@ -3778,3 +3778,74 @@ input.ghost-pane-address:focus-visible {
     width: 72px !important;
   }
 }
+
+
+/* RC13 Site Manager inline organization controls. */
+.ghost-site-meta-add {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: #a7d9f9;
+}
+
+.ghost-site-meta-add:hover:not(:disabled),
+.ghost-site-meta-add:focus-visible {
+  border-color: #286a96;
+  background: #0a3150;
+  color: #fff;
+  outline: none;
+}
+
+.ghost-site-meta-add:disabled {
+  opacity: .35;
+}
+
+.ghost-site-meta-editor {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto auto;
+  gap: 4px;
+  padding-inline: 4px;
+}
+
+.ghost-site-meta-editor input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #255776;
+  border-radius: 5px;
+  padding: 0 7px;
+  background: #061d31;
+  color: #d9efff;
+  font-size: 10.5px;
+  outline: none;
+}
+
+.ghost-site-meta-editor input:focus {
+  border-color: #2e9ee9;
+}
+
+.ghost-site-meta-editor button {
+  min-width: 30px;
+  height: 30px;
+  border: 1px solid #255776;
+  border-radius: 5px;
+  padding-inline: 6px;
+  background: #071f35;
+  color: #b9d9ed;
+  font-size: 10px;
+}
+
+.ghost-site-meta-editor button:hover:not(:disabled),
+.ghost-site-meta-editor button:focus-visible {
+  border-color: #2e9ee9;
+  background: #0a3150;
+  color: #fff;
+  outline: none;
+}
+
+.ghost-site-meta-editor button:disabled {
+  opacity: .35;
+}
