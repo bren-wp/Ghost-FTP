@@ -38,6 +38,11 @@ Development continued from the existing full source tree. No new replacement pro
 - Ghost FTP desktop window remains frameless with `decorations(false)` and the 1290×852 reference geometry.
 - All 13 non-English native dictionaries now match the same 185-key canonical set used by Croatian coverage.
 - Website language switcher no longer uses inline JavaScript; 14 localized pages remain `notranslate` and responsive.
+- Main transfer queue now separates active/failed/completed states correctly, removes terminal-state Cancel actions, supports Retry All, and uses semantic progress controls.
+- Preferences now expose existing browser-layout, hidden-file, remote-preview, speed-limit, download-folder and editor settings instead of leaving those capabilities hidden.
+- Transfer throttle input is clamped to a valid non-negative value before being applied to the native queue.
+- Website action/footer icons now use local Ghost FTP SVG assets; shared website JavaScript stops its progress timer when complete and honors reduced-motion preferences.
+
 
 ## Public release artifact policy
 
