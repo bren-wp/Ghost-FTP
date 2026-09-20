@@ -895,10 +895,10 @@ body::after { opacity: 0.018; }
 
 /* App-level modal restyle shared by legacy/advanced dialogs. */
 .fixed.inset-0.z-modal {
-  z-index: 50 !important;
+  z-index: 200 !important;
 }
 .ghost-standalone-view.fixed.inset-0.z-modal {
-  z-index: 50 !important;
+  z-index: 200 !important;
 }
 .fixed.inset-0.z-modal > [role="dialog"] {
   border-color: rgb(48 167 244 / .72) !important;
@@ -972,7 +972,7 @@ body::after { opacity: 0.018; }
   position: absolute;
   top: calc(100% - 3px);
   left: 0;
-  z-index: 40;
+  z-index: 140;
   min-width: 190px;
   padding: 5px;
   border: 1px solid rgb(42 116 169 / .9);
@@ -2068,3 +2068,189 @@ body::after { opacity: 0.018; }
   }
 }
 
+
+
+/* ========================================================================== */
+/* Ghost FTP RC11 — production visual parity / layering hotfix                */
+/* Fixes real screenshots where menus and standalone surfaces were rendered   */
+/* underneath the primary application chrome.                                */
+/* ========================================================================== */
+
+.ghost-app-header {
+  overflow: visible !important;
+}
+
+.ghost-menu-row,
+.ghost-standalone-menubar,
+.ghost-menu,
+.ghost-menu-anchor {
+  overflow: visible !important;
+}
+
+.ghost-menu-anchor {
+  position: relative !important;
+  flex: 0 0 auto;
+}
+
+.ghost-menu-popover,
+.ghost-dropdown-menu {
+  position: absolute !important;
+  top: calc(100% + 2px) !important;
+  left: 0 !important;
+  z-index: 140 !important;
+  display: flex !important;
+  min-width: 196px !important;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  flex-direction: column !important;
+  gap: 2px;
+  padding: 6px !important;
+  overflow: hidden;
+  border: 1px solid rgba(56,171,255,.62) !important;
+  border-radius: 8px !important;
+  background: #061c30 !important;
+  box-shadow:
+    0 18px 48px rgba(0,0,0,.58),
+    0 0 24px rgba(56,171,255,.12) !important;
+  white-space: nowrap;
+}
+
+.ghost-menu-popover button,
+.ghost-dropdown-menu button {
+  display: flex !important;
+  width: 100% !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding: 0 10px !important;
+  border: 0 !important;
+  border-radius: 5px !important;
+  background: transparent !important;
+  color: #d8eefc !important;
+  font-size: 12px !important;
+  text-align: left !important;
+}
+
+.ghost-menu-popover button:hover:not(:disabled),
+.ghost-dropdown-menu button:hover:not(:disabled) {
+  background: #0c3557 !important;
+  color: #fff !important;
+}
+
+.ghost-menu-separator {
+  width: 100%;
+  height: 1px;
+  margin: 3px 0;
+  background: rgba(56,171,255,.20);
+}
+
+/* Standard dialogs and full-application surfaces must always cover the main
+   title/menu/quick-connect/toolbar stack. */
+.fixed.inset-0.z-modal,
+.ghost-standalone-view.fixed.inset-0.z-modal {
+  z-index: 200 !important;
+}
+
+.ghost-standalone-view {
+  inset: 0 !important;
+  overflow: hidden !important;
+  background:
+    radial-gradient(circle at 50% -18%, rgba(31,126,194,.13), transparent 42%),
+    linear-gradient(180deg,#06182b 0%,#041323 100%) !important;
+}
+
+.ghost-standalone-view > div {
+  position: relative;
+  z-index: 1;
+}
+
+.ghost-new-connection-dialog {
+  width: min(752px, calc(100vw - 32px)) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: min(628px, calc(100dvh - 32px)) !important;
+}
+
+.ghost-new-connection-dialog > .min-h-0.flex-1 {
+  flex: 0 1 auto !important;
+  max-height: calc(100dvh - 210px);
+}
+
+.ghost-properties-dialog {
+  width: min(530px, calc(100vw - 28px)) !important;
+  height: auto !important;
+  max-height: min(770px, calc(100dvh - 28px)) !important;
+}
+
+/* Transfer Center: preserve the reference structure while allowing an honest
+   empty state when there are no real transfers. */
+.ghost-transfer-center {
+  min-width: 0;
+  min-height: 0;
+  background: linear-gradient(180deg,#06182b 0%,#041323 100%) !important;
+}
+
+.ghost-transfer-center-heading,
+.ghost-transfer-filters {
+  position: relative;
+  z-index: 2;
+}
+
+.ghost-transfer-summary-grid,
+.ghost-transfer-lower-grid {
+  min-width: 0;
+}
+
+.ghost-transfer-summary-grid > *,
+.ghost-transfer-lower-grid > * {
+  min-width: 0;
+}
+
+/* About / Preferences should never inherit the main shell's fixed measured
+   heights or be clipped by it. */
+.ghost-about,
+.ghost-preferences,
+.ghost-site-manager,
+.ghost-transfer-center {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.ghost-about-content,
+.ghost-preferences-content {
+  min-height: 0;
+  overflow-y: auto !important;
+}
+
+/* Keep app menus usable at narrow widths without allowing them to push the
+   quick-connect row or toolbar down. */
+@media (max-width: 900px) {
+  .ghost-menu-popover,
+  .ghost-dropdown-menu {
+    position: fixed !important;
+    top: 88px !important;
+    left: 8px !important;
+    right: auto !important;
+    max-height: calc(100dvh - 104px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .ghost-new-connection-dialog,
+  .ghost-properties-dialog {
+    width: calc(100vw - 12px) !important;
+    max-height: calc(100dvh - 12px) !important;
+    border-radius: 9px !important;
+  }
+
+  .ghost-new-connection-dialog > .min-h-0.flex-1 {
+    max-height: none;
+  }
+}
