@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.1-rc.12 — 20 September 2026
+
+- Continued the existing native Ghost FTP React/TypeScript/Tauri/Rust source after RC11 instead of replacing the project.
+- Hardened File/Edit/View/Transfer/Server/Bookmarks/Tools/Help popovers with stable overlay stacking and desktop-style menu switching.
+- Replaced the misleading Sites toolbar × glyph with an explicit Site Manager affordance.
+- Stabilized New Connection at the 752×628 reference envelope with viewport-safe internal scrolling.
+- Removed press/entrance transforms from critical production surfaces to reduce WebView2/GTK text/raster flicker under repeated clicks.
+- Kept desktop notification permission opt-in and wired the explicit OS permission request to the Preferences enable action.
+- Corrected Rust formatting in the native external-link path after the RC12 quality gate exposed it.
+- Aligned preview/latest updater templates and release metadata with RC12.
+- Preserved real FTP/explicit-FTPS/SFTP behavior, real transfer telemetry and the no-fake-data production policy.
+- RC12 remains a pre-release until current quality, protocol, native Windows/Linux build, screenshot and packaging gates are verified.
+
 ## 2.1.1-rc.11 — 20 September 2026
 
 - Rebuilt the production UI acceptance geometry from the supplied Ghost FTP references without using screenshots as runtime UI.
