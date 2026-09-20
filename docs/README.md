@@ -17,10 +17,10 @@ This directory is the documentation hub for **Ghost FTP**. The repository root i
 The repository uses branded top-level source paths:
 
 - `ghostftp-desktop/`
-- `ghostftp-runtime/`
-- `ghostftp-installer/`
-- `ghostftp-web/`
-- `ghostftp-updates/`
+- `tools/ghostftp-runtime/`
+- `tools/ghostftp-installer/`
+- `website/`
+- `updates/`
 
 Framework-specific terms remain only where technically required by the build ecosystem.
 
