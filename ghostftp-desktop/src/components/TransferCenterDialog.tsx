@@ -547,12 +547,12 @@ function Tab({
 
 function Empty() {
   return (
-    <div className="grid min-h-56 place-items-center text-text-muted">
-      <div className="text-center">
-        <ArrowUp size={30} className="mx-auto mb-3 text-accent" />
-        <div className="font-semibold text-text">No matching transfers</div>
-        <div className="mt-1 text-[12px]">
-          Start an upload or download, or change the current filters.
+    <div className="grid min-h-48 place-items-center px-6 py-8 text-text-muted">
+      <div className="w-full max-w-md rounded-xl border border-border bg-[#071f35] px-6 py-7 text-center shadow-[inset_0_1px_0_rgba(255,255,255,.02)]">
+        <Activity size={28} className="mx-auto mb-3 text-accent" />
+        <div className="font-semibold text-text">No transfers in this view</div>
+        <div className="mx-auto mt-1 max-w-sm text-[12px] leading-5">
+          Start a real upload or download from File Manager, or change the active filters.
         </div>
       </div>
     </div>
@@ -661,12 +661,13 @@ function BandwidthChart({ history }: { history: BandwidthSample[] }) {
           { upload: 0, download: 0 },
           { upload: 0, download: 0 },
         ];
-  const max = Math.max(1, ...data.flatMap((sample) => [sample.upload, sample.download]));
+  const peak = Math.max(0, ...data.flatMap((sample) => [sample.upload, sample.download]));
+  const scaleMax = Math.max(1, peak);
   const points = (key: keyof BandwidthSample) =>
     data
       .map((sample, index) => {
         const x = data.length === 1 ? 0 : (index / (data.length - 1)) * 600;
-        const y = 110 - (sample[key] / max) * 92;
+        const y = 110 - (sample[key] / scaleMax) * 92;
         return `${x.toFixed(1)},${y.toFixed(1)}`;
       })
       .join(" ");
@@ -681,7 +682,7 @@ function BandwidthChart({ history }: { history: BandwidthSample[] }) {
         <span>
           <span className="text-success">↓</span> Download {formatRate(latest.download)}
         </span>
-        <span className="ml-auto">Peak {formatRate(max)}</span>
+        <span className="ml-auto">Peak {formatRate(peak)}</span>
       </div>
       <div className="relative h-28 overflow-hidden rounded border border-border-subtle bg-[#041522]">
         <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent_0_27px,rgba(31,80,115,.36)_28px)]" />
