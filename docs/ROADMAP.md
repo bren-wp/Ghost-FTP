@@ -1,6 +1,6 @@
 # Ghost FTP Roadmap
 
-This roadmap separates shipped RC9 work from future work. Items under Planned, Recommended and Long-term are not claims of implemented functionality.
+This roadmap separates shipped RC10 work from future work. Items under Planned, Recommended and Long-term are not claims of implemented functionality.
 
 ## Implemented
 
