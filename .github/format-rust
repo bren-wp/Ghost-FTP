@@ -1,1 +1,1 @@
-run cargo fmt --all
+run cargo fmt --all — retry
