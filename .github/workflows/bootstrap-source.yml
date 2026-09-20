@@ -1,4 +1,4 @@
-name: Bootstrap Ghost FTP RC8 source
+name: Bootstrap Ghost FTP RC7 source
 
 on:
   push:
@@ -20,20 +20,44 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Reassemble and verify source archive
+
+      - name: Reassemble and verify RC7 source archive
         shell: bash
         run: |
           set -euo pipefail
-          cat bootstrap/rc8/source.part.*.b64 | base64 -d > /tmp/ghostftp-source.tar.xz
-          echo "60bd016984e8646e6b1487b7af8f50366c7106da1ac1635b03b153ff725f8dbc  /tmp/ghostftp-source.tar.xz" | sha256sum -c -
-      - name: Extract source
+          : > /tmp/ghostftp-source.b64
+          for part in bootstrap/rc7/source.chunk.*.b64; do
+            cat "$part" >> /tmp/ghostftp-source.b64
+            printf '\n' >> /tmp/ghostftp-source.b64
+          done
+          base64 -d /tmp/ghostftp-source.b64 > /tmp/ghostftp-source.tar.xz
+          echo "146c5d0a467c3789c9bb87273879950ed219b1f66616357cbf5e4aed127d8ac0  /tmp/ghostftp-source.tar.xz" | sha256sum -c -
+
+      - name: Extract full Ghost FTP source
         shell: bash
         run: |
           set -euo pipefail
           tar -xJf /tmp/ghostftp-source.tar.xz
           rm -rf bootstrap
+          rm -f LICENSE
           rm -f .github/workflows/bootstrap-source.yml
-      - name: Commit reconstructed source
+
+      - name: Validate imported source structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f README.md
+          test -f LICENSE.txt
+          test -d desktop-tauri
+          test -d runtime
+          test -d installer
+          test -d website
+          test -f .github/workflows/native-build.yml
+          test -f .github/workflows/source-audit.yml
+          ! grep -RniE 'faro|example\.com|Production Server|Staging Server|Design Assets|Cloud Server|C:\\Users\\Alex' \
+              desktop-tauri runtime installer website --exclude-dir=node_modules
+
+      - name: Commit reconstructed RC7 source
         shell: bash
         run: |
           set -euo pipefail
@@ -41,5 +65,5 @@ jobs:
           git config user.email "info@brendigo.com"
           git add -A
           git diff --cached --quiet && exit 0
-          git commit -m "Import Ghost FTP 2.1.1 RC8 full source"
+          git commit -m "Import Ghost FTP 2.1.1 RC7 full source"
           git push
