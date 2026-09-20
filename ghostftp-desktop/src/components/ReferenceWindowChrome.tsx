@@ -62,6 +62,7 @@ export function ReferenceWindowTitlebar({
 
 function ReferenceMenuNav({ onClose }: { onClose?: () => void }) {
   const openView = useLayout((s) => s.openView);
+  const openAbout = useLayout((s) => s.openAbout);
   const returnToFiles = useLayout((s) => s.returnToFiles);
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const [open, setOpen] = useState<string | null>(null);
@@ -84,12 +85,12 @@ function ReferenceMenuNav({ onClose }: { onClose?: () => void }) {
     Bookmarks: [{ label: "Site Manager…", run: () => openView("siteManager") }],
     Tools: [{ label: "Preferences…", run: () => openView("settings") }],
     Help: [
-      { label: "Documentation", run: () => openOfficialUrl("/docs/") },
-      { label: "Support Center", run: () => openOfficialUrl("/support/") },
+      { label: "Documentation", run: () => openAbout("help") },
+      { label: "Support Center", run: () => openAbout("help") },
       { separator: true },
-      { label: "About Ghost FTP", run: () => openView("about") },
+      { label: "About Ghost FTP", run: () => openAbout("about") },
     ],
-  }), [onClose, openNewConnection, openView, returnToFiles]);
+  }), [onClose, openAbout, openNewConnection, openView, returnToFiles]);
 
   useEffect(() => {
     if (!open) return;
