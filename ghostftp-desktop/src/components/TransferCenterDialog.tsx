@@ -743,7 +743,7 @@ function TransferCenterTitlebar({ onClose }: { onClose: () => void }) {
         {item("Bookmarks", <Bookmark size={15} />, () => openDialog("siteManager"))}
         {item("Tools", <Wrench size={15} />, () => openDialog("settings"))}
         {item("Settings", <Settings size={15} />, () => openDialog("settings"))}
-        {item("Help", <HelpCircle size={15} />, () => openDialog("about"))}
+        {item("Help", <HelpCircle size={15} />, () => openDialog("help"))}
       </nav>
       <label className="ghost-transfer-language">
         <Languages size={14} />
