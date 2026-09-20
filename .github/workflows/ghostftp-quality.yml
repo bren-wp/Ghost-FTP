@@ -61,7 +61,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --check ghostftp-web/assets/site.js
+          node --check website/assets/site.js
           python - <<'PY'
           from html.parser import HTMLParser
           from pathlib import Path
@@ -85,14 +85,14 @@ jobs:
               parser.feed(path.read_text(encoding="utf-8"))
 
           required = [
-              Path("ghostftp-web/assets/ghostftp-symbol.svg"),
-              Path("ghostftp-web/assets/icons/download.svg"),
-              Path("ghostftp-web/assets/icons/features.svg"),
-              Path("ghostftp-web/assets/icons/security.svg"),
-              Path("ghostftp-web/assets/icons/help.svg"),
-              Path("ghostftp-web/assets/icons/speed.svg"),
-              Path("ghostftp-web/assets/icons/privacy.svg"),
-              Path("ghostftp-web/assets/icons/globe.svg"),
+              Path("website/assets/ghostftp-symbol.svg"),
+              Path("website/assets/icons/download.svg"),
+              Path("website/assets/icons/features.svg"),
+              Path("website/assets/icons/security.svg"),
+              Path("website/assets/icons/help.svg"),
+              Path("website/assets/icons/speed.svg"),
+              Path("website/assets/icons/privacy.svg"),
+              Path("website/assets/icons/globe.svg"),
           ]
           for path in required:
               if not path.is_file() or path.stat().st_size == 0:
