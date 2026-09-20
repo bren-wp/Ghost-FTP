@@ -6,8 +6,6 @@ import { FileBrowser } from "./components/FileBrowser";
 import { FileUiBridge } from "./components/FileUiBridge";
 import { TerminalDock } from "./components/Terminal";
 import { TransferQueue } from "./components/TransferQueue";
-import { CliUpdatePrompt } from "./components/CliUpdatePrompt";
-import { UpdatePrompt } from "./components/UpdatePrompt";
 import { HostKeyModal } from "./components/HostKeyModal";
 import { AuthPromptModal } from "./components/AuthPromptModal";
 import { TitleBar } from "./components/TitleBar";
@@ -221,8 +219,6 @@ export default function App() {
         </div>
       </div>
       <TransferQueue />
-      <UpdatePrompt />
-      <CliUpdatePrompt />
       <ReferenceStatusBar />
       </>
       )}
@@ -325,10 +321,6 @@ function StatusBar({
           <div className="relative">
             <div
               className="h-1.5 w-1.5 rounded-full"
-              style={{ background: profile.color || "rgb(var(--accent))" }}
-            />
-            <div
-              className="absolute inset-0 h-1.5 w-1.5 animate-ping rounded-full opacity-50"
               style={{ background: profile.color || "rgb(var(--accent))" }}
             />
           </div>
