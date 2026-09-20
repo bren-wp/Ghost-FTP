@@ -2,23 +2,18 @@
 
 ## Authoritative status
 
-**Ghost FTP 2.1.1 RC7 — visual-parity/native-source hardening + newly rebuilt compatibility fallback packages. NOT FINAL.**
+**Ghost FTP 2.1.1 RC7 — native Tauri release-candidate hardening. NOT FINAL.**
 
 Development continued from the existing full source tree. No new replacement project was created and no screenshot-runtime implementation was introduced.
 
-## Environment truth
+## Build environment truth
 
-- Node: v22.16.0
-- npm: 10.9.2
-- Go: 1.23.2
-- TypeScript compiler: 5.8.3
-- Rust/Cargo: **not installed**
-- Complete `node_modules`: **not present** and external package fetch is unavailable
-- `dpkg-deb`: available
-- RPM/AppImage native packaging tools: **not available**
-- Connected Windows test host: **offline** during this pass
-
-Because Rust/Cargo and the complete frontend dependency tree are unavailable, this environment cannot truthfully compile or execute the native Tauri/Rust application. The native source is retained as the production implementation; the runnable Go binaries are explicitly compatibility fallbacks.
+- GitHub Actions now provides the authoritative native build environment for Windows and Linux.
+- Node/npm, Rust/Cargo and Tauri platform prerequisites are installed by `.github/workflows/native-build.yml`.
+- Frontend TypeScript/Vite compilation is required before every native bundle step.
+- Native bundle targets remain Windows NSIS/MSI and Linux DEB/RPM/AppImage.
+- The Go `runtime/` and `installer/` trees remain developer/compatibility tooling only and are **not** the production GUI release path.
+- Browser-shell compatibility executables were removed from the public RC7 release after QA showed a visible `127.0.0.1` Chromium/Edge app bar that cannot satisfy the 1:1 frameless requirement.
 
 ## RC7 source improvements
 
@@ -44,15 +39,9 @@ Because Rust/Cargo and the complete frontend dependency tree are unavailable, th
 - All 13 non-English native dictionaries now match the same 185-key canonical set used by Croatian coverage.
 - Website language switcher no longer uses inline JavaScript; 14 localized pages remain `notranslate` and responsive.
 
-## Rebuilt compatibility artifacts
+## Public release artifact policy
 
-- `release/rc7/GhostFTP-Portable-2.1.1-RC7.exe` — Windows x64 PE GUI fallback.
-- `release/rc7/GhostFTP-Setup-2.1.1-RC7.exe` — Windows x64 PE GUI fallback installer.
-- `release/rc7/GhostFTP-linux-x86_64-2.1.1-RC7` — static Linux x86_64 fallback.
-- `release/rc7/GhostFTP-linux-x86_64-2.1.1-RC7.tar.gz` — portable Linux fallback bundle.
-- `release/rc7/ghostftp_2.1.1~rc7_amd64.deb` — Debian fallback package.
-
-The fallback runtime reports `kind=compatibility-fallback` and `nativeProtocols=false`; it is not advertised as the production FTP/FTPS/SFTP engine.
+Production-facing Windows/Linux executables must come from the native Tauri build. Compatibility browser-host artifacts are not published as end-user RC7 binaries. The RC7 release is kept as a pre-release until native Windows/Linux bundles and the remaining OS acceptance gates pass.
 
 ## Executed QA in this pass
 
@@ -71,4 +60,4 @@ The fallback runtime reports `kind=compatibility-fallback` and `nativeProtocols=
 
 ## Gates still blocking FINAL
 
-FINAL still requires a machine with the native toolchain and target OS coverage to execute: native Tauri Windows/Linux compilation; frontend dependency build; actual FTP/FTPS/SFTP connection and transfer tests; Windows Setup/Portable/native frameless-titlebar screenshots; Windows 10/11 install/upgrade/uninstall tests; native DEB/RPM/AppImage generation; and screenshot/pixel comparison at every required responsive size. These are not marked passed without evidence.
+FINAL still requires the native GitHub Actions Windows/Linux build to complete successfully, followed by actual FTP/FTPS/SFTP connection and transfer tests, Windows frameless-titlebar screenshots, Windows 10/11 install/upgrade/uninstall tests, native package verification and screenshot/pixel comparison at every required responsive size. These are not marked passed without evidence.
