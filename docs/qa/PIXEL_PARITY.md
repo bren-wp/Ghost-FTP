@@ -1,4 +1,4 @@
-# Ghost FTP Pixel-Parity QA — RC9
+# Ghost FTP Pixel-Parity QA — RC10
 
 The approved images under `docs/assets/screenshots/` are the visual specification. They are documentation/QA references only and are never loaded as application backgrounds or used as click maps.
 
@@ -47,7 +47,7 @@ Current branded reference files cover:
 
 ## Acceptance rule
 
-RC9 does **not** claim pixel-perfect FINAL acceptance yet.
+RC10 does **not** claim pixel-perfect FINAL acceptance yet.
 
 Before FINAL, capture real native Windows renders at 100% display scale and compare:
 
