@@ -114,6 +114,7 @@ jobs:
         run: |
           set -euo pipefail
           npm ci
+          npm run check:i18n
           npm run check
           npm run build
 
