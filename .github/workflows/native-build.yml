@@ -18,9 +18,9 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            args: ''
+            args: '--bundles nsis'
           - os: ubuntu-22.04
-            args: ''
+            args: '--bundles deb,rpm,appimage'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -57,4 +57,6 @@ jobs:
           name: ghostftp-native-${{ runner.os }}
           path: |
             desktop-tauri/src-tauri/target/release/bundle/**
+            desktop-tauri/src-tauri/target/release/ghostftp.exe
+            desktop-tauri/src-tauri/target/release/ghostftp
           if-no-files-found: error
