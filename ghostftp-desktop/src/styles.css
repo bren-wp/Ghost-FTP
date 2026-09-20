@@ -2802,3 +2802,101 @@ body,
   cursor: default;
   opacity: .32;
 }
+
+
+/* RC12 screenshot-acceptance hardening: stable compositor + floating menus. */
+.ghost-app-header,
+.ghost-title-row,
+.ghost-title-menu-wrap,
+.ghost-menu,
+.ghost-menu-anchor {
+  overflow: visible !important;
+}
+
+.ghost-app-header {
+  position: relative;
+  z-index: 200 !important;
+}
+
+.ghost-title-row {
+  position: relative;
+  z-index: 220 !important;
+}
+
+.ghost-title-menu-wrap,
+.ghost-menu-anchor {
+  z-index: 230 !important;
+}
+
+.ghost-menu-popover {
+  z-index: 1000 !important;
+  top: calc(100% - 1px) !important;
+  transform: none !important;
+  animation: none !important;
+  contain: paint;
+}
+
+.ghost-quick-row {
+  position: relative;
+  z-index: 180;
+}
+
+.ghost-quick-connect {
+  position: relative;
+  z-index: 190;
+}
+
+.ghost-quick-protocol-menu {
+  z-index: 1000 !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+.ghost-new-connection-dialog {
+  height: min(628px, calc(100dvh - 24px)) !important;
+  min-height: 0 !important;
+  transform: none !important;
+  animation: none !important;
+  contain: layout paint;
+}
+
+.ghost-new-connection-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+.ghost-new-connection-head,
+.ghost-new-connection-mode,
+.ghost-new-connection-actions {
+  flex: 0 0 auto;
+}
+
+.ghost-standalone-view,
+.ghost-settings-shell,
+.ghost-site-manager,
+.ghost-transfer-center,
+.ghost-about-view {
+  transform: none !important;
+  animation: none !important;
+}
+
+/* Scale-on-press causes text/raster jitter in WebView2/GTK during rapid clicking.
+   Keep interaction feedback purely color/border based for production stability. */
+button:active,
+[role="button"]:active {
+  transform: none !important;
+}
+
+@media (max-height: 660px) {
+  .ghost-new-connection-dialog {
+    height: calc(100dvh - 12px) !important;
+    max-height: calc(100dvh - 12px) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .ghost-menu-popover {
+    max-width: calc(100vw - 12px);
+  }
+}
