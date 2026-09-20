@@ -143,6 +143,7 @@ function GeneralGrid({ locale, setLocale }: { locale: string; setLocale: (value:
 
       <GeneralCard icon={<Monitor size={20}/>} title="Appearance" subtitle="Personalize the look and feel of Ghost FTP.">
         <SelectRow label="Theme" value={s.appTheme} onChange={(v)=>s.setAppTheme(v as typeof s.appTheme)} options={themeOptions}/>
+        <AccentRow value={s.accentColor} onChange={s.setAccentColor}/>
         <SelectRow label="Interface Density" value={s.paneDensity} onChange={(v)=>s.setPaneDensity(v as "comfortable"|"compact")} options={[["comfortable","Comfortable"],["compact","Compact"]]}/>
         <ToggleRow label="Image previews" checked={s.remoteImagePreviews === "on"} onChange={(v)=>s.setRemoteImagePreviews(v ? "on" : "off")}/>
       </GeneralCard>
