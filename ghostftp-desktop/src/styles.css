@@ -3470,3 +3470,14 @@ button:active,
     max-height: calc(100dvh - 12px) !important;
   }
 }
+
+
+/* RC13 measured sidebar width from the supplied main 1290px application reference. */
+@media (min-width: 1121px) {
+  .ghost-file-manager-body > .ghost-sites-panel,
+  .ghost-sites-toolbar-head {
+    width: 204px !important;
+    min-width: 204px !important;
+    flex-basis: 204px !important;
+  }
+}
