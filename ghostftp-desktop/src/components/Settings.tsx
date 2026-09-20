@@ -113,12 +113,12 @@ function GeneralGrid({ locale, setLocale }: { locale: string; setLocale: (value:
     <div className="grid grid-cols-2 gap-4">
       <LanguageCard locale={locale} setLocale={setLocale}/>
       <AppearanceCard/>
+      <PerformanceCard/>
       <TransfersCard/>
       <ConnectionCard/>
       <SecurityCard/>
       <UpdatesCard/>
       <IntegrationsCard/>
-      <ShortcutsPanel/>
     </div>
   );
 }

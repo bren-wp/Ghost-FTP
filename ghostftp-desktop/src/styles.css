@@ -709,7 +709,7 @@ body::after { opacity: 0.018; }
 .ghost-app-header {
   flex: 0 0 auto;
   position: relative;
-  z-index: 55;
+  z-index: 20;
   border-bottom: 1px solid rgb(47 130 190 / 0.35);
   background:
     linear-gradient(180deg, rgb(7 30 52 / 0.99), rgb(4 22 39 / 0.995));
@@ -894,6 +894,12 @@ body::after { opacity: 0.018; }
 .text-accent { color: rgb(var(--accent)) !important; }
 
 /* App-level modal restyle shared by legacy/advanced dialogs. */
+.fixed.inset-0.z-modal {
+  z-index: 50 !important;
+}
+.ghost-standalone-view.fixed.inset-0.z-modal {
+  z-index: 50 !important;
+}
 .fixed.inset-0.z-modal > [role="dialog"] {
   border-color: rgb(48 167 244 / .72) !important;
   background: linear-gradient(180deg, rgb(7 31 53 / .995), rgb(4 22 39 / .995)) !important;
@@ -954,13 +960,19 @@ body::after { opacity: 0.018; }
   border-bottom: 1px solid rgb(36 82 119 / .47);
   background: #051728;
 }
-.ghost-menu-wrap { position: relative; height: 100%; display: flex; align-items: center; }
+.ghost-menu-wrap,
+.ghost-menu-anchor {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
 .ghost-menu button.active { background: rgb(22 76 116 / .72); color: #fff; }
 .ghost-menu-popover {
   position: absolute;
-  top: 35px;
+  top: calc(100% - 3px);
   left: 0;
-  z-index: 120;
+  z-index: 40;
   min-width: 190px;
   padding: 5px;
   border: 1px solid rgb(42 116 169 / .9);

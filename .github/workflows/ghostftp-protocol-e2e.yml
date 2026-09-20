@@ -3,14 +3,8 @@ name: Ghost FTP protocol E2E
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - 'ghostftp-desktop/src-tauri/**'
-      - '.github/workflows/ghostftp-protocol-e2e.yml'
   push:
     branches: [main]
-    paths:
-      - 'ghostftp-desktop/src-tauri/**'
-      - '.github/workflows/ghostftp-protocol-e2e.yml'
 
 permissions:
   contents: read
