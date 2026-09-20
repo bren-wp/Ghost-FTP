@@ -101,6 +101,7 @@ impl JobStore {
         cmd.stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .stdin(std::process::Stdio::null());
+        configure_process_tree(&mut cmd);
         let mut child = cmd.spawn()?;
         let out_pipe = child.stdout.take();
         let err_pipe = child.stderr.take();
@@ -131,7 +132,7 @@ impl JobStore {
             let status = tokio::select! {
                 s = child.wait() => s,
                 _ = kill_rx => {
-                    let _ = child.start_kill();
+                    terminate_process_tree(&mut child).await;
                     child.wait().await
                 }
             };
@@ -215,6 +216,42 @@ impl JobStore {
             }
         }
     }
+}
+
+#[cfg(unix)]
+fn configure_process_tree(cmd: &mut tokio::process::Command) {
+    use std::os::unix::process::CommandExt;
+    cmd.as_std_mut().process_group(0);
+}
+
+#[cfg(windows)]
+fn configure_process_tree(_cmd: &mut tokio::process::Command) {}
+
+#[cfg(unix)]
+async fn terminate_process_tree(child: &mut tokio::process::Child) {
+    if let Some(pid) = child.id() {
+        // The child is the leader of the process group created above. Killing
+        // the group prevents shell-spawned descendants from keeping pipes open
+        // and continuing after the user has cancelled the job.
+        let rc = unsafe { libc::kill(-(pid as i32), libc::SIGKILL) };
+        if rc == 0 {
+            return;
+        }
+    }
+    let _ = child.start_kill();
+}
+
+#[cfg(windows)]
+async fn terminate_process_tree(child: &mut tokio::process::Child) {
+    if let Some(pid) = child.id() {
+        let _ = tokio::process::Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .await;
+    }
+    let _ = child.start_kill();
 }
 
 /// Copy a child pipe into its capped buffer until EOF (the child exits) or a
