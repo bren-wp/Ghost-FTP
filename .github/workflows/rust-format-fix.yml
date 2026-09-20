@@ -1,0 +1,41 @@
+name: Ghost FTP Rust format fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/format-rust'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ghostftp-rust-format
+  cancel-in-progress: true
+
+jobs:
+  format:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Apply cargo fmt
+        working-directory: desktop-tauri/src-tauri
+        run: cargo fmt --all
+      - name: Commit formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/format-rust
+          git config user.name "Brendigo"
+          git config user.email "info@brendigo.com"
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Apply cargo fmt across Ghost FTP Rust workspace"
+          git push
