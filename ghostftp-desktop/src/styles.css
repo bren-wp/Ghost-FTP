@@ -3481,3 +3481,56 @@ button:active,
     flex-basis: 204px !important;
   }
 }
+
+
+/* RC13 Transfer Center reference controls. */
+.ghost-transfer-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 500;
+  min-width: 154px;
+  overflow: hidden;
+  border: 1px solid #255d84;
+  border-radius: 7px;
+  padding: 5px;
+  background: #061a2d;
+  box-shadow: 0 18px 44px rgba(0,0,0,.48);
+}
+
+.ghost-transfer-more-menu button {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 5px;
+  padding: 0 9px;
+  background: transparent;
+  color: #c9e4f6;
+  font-size: 11px;
+  text-align: left;
+}
+
+.ghost-transfer-more-menu button:hover:not(:disabled),
+.ghost-transfer-more-menu button:focus-visible {
+  background: #0a3150;
+  color: white;
+  outline: none;
+}
+
+.ghost-transfer-more-menu button:disabled {
+  opacity: .42;
+}
+
+.ghost-transfer-filters {
+  min-height: 52px;
+  overflow-x: auto;
+  overflow-y: visible !important;
+  scrollbar-width: none;
+}
+
+.ghost-transfer-filters::-webkit-scrollbar {
+  display: none;
+}
