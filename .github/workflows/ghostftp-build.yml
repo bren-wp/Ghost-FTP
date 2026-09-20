@@ -1,7 +1,7 @@
 name: Ghost FTP native build
 
-# RC9 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
-# RC9 release build stamp: 2026-09-20.10
+# RC10 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
+# RC10 release build stamp: 2026-09-20.11
 
 on:
   workflow_dispatch:
@@ -31,10 +31,10 @@ jobs:
         include:
           - os: windows-latest
             args: '--bundles nsis'
-            artifact: 'GhostFTP-Windows-x64-RC9'
+            artifact: 'GhostFTP-Windows-x64-RC10'
           - os: ubuntu-22.04
             args: '--bundles deb,rpm,appimage'
-            artifact: 'GhostFTP-Linux-x86_64-RC9'
+            artifact: 'GhostFTP-Linux-x86_64-RC10'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -68,7 +68,6 @@ jobs:
           args: ${{ matrix.args }}
       - name: Capture Windows native-window QA evidence
         if: runner.os == 'Windows'
-        continue-on-error: true
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -90,6 +89,7 @@ jobs:
               }
             }
             if ($handle -eq [IntPtr]::Zero) { throw "Ghost FTP did not expose a native main-window handle" }
+            if ($proc.MainWindowTitle -ne 'Ghost FTP') { throw "Unexpected Ghost FTP window title: $($proc.MainWindowTitle)" }
 
             Add-Type -AssemblyName System.Drawing
             Add-Type @"
@@ -117,7 +117,7 @@ jobs:
             $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
             try {
               $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, $bitmap.Size)
-              $bitmap.Save((Join-Path $qaDir 'GhostFTP-Windows-RC9-Native-Window.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+              $bitmap.Save((Join-Path $qaDir 'GhostFTP-Windows-RC10-Native-Window.png'), [System.Drawing.Imaging.ImageFormat]::Png)
             } finally {
               $graphics.Dispose()
               $bitmap.Dispose()
@@ -128,7 +128,7 @@ jobs:
               "WindowTitle=$($proc.MainWindowTitle)"
               "WindowBounds=${width}x${height}"
               "Executable=$exe"
-            ) | Set-Content -Encoding UTF8 (Join-Path $qaDir 'GhostFTP-Windows-RC9-Native-Window.txt')
+            ) | Set-Content -Encoding UTF8 (Join-Path $qaDir 'GhostFTP-Windows-RC10-Native-Window.txt')
           } finally {
             if (-not $proc.HasExited) {
               $null = $proc.CloseMainWindow()
@@ -141,7 +141,7 @@ jobs:
         if: runner.os == 'Windows' && always()
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-Windows-x64-RC9-QA
+          name: GhostFTP-Windows-x64-RC10-QA
           path: qa/*
           if-no-files-found: warn
           retention-days: 14
@@ -157,24 +157,24 @@ jobs:
           if-no-files-found: error
 
   source-packages:
-    name: RC9 source packages
+    name: RC10 source packages
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Package RC9 source and documentation
+      - name: Package RC10 source and documentation
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist
-          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC9-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-RC9-Desktop-Source.zip ghostftp-desktop
-          zip -qr dist/GhostFTP-v2.1.1-RC9-Website.zip website
-          zip -qr dist/GhostFTP-v2.1.1-RC9-Updates.zip updates
-          zip -qr dist/GhostFTP-v2.1.1-RC9-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
-      - name: Upload RC9 source packages
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC10-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+      - name: Upload RC10 source packages
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-RC9-Source-Packages
+          name: GhostFTP-RC10-Source-Packages
           path: dist/*
           if-no-files-found: error
           retention-days: 14
