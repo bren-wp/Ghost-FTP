@@ -30,27 +30,27 @@ The production desktop source lives in **`ghostftp-desktop/`**. Public binaries,
 
 <table>
 <tr>
-<td width="50"><img src="ghostftp-web/assets/icons/security.svg" width="30" alt=""></td>
+<td width="50"><img src="website/assets/icons/security.svg" width="30" alt=""></td>
 <td><strong>Secure connections</strong><br>FTP, FTPS and SFTP with native TLS/SSH verification paths and protected credential storage where supported.</td>
 </tr>
 <tr>
-<td><img src="ghostftp-web/assets/icons/speed.svg" width="30" alt=""></td>
+<td><img src="website/assets/icons/speed.svg" width="30" alt=""></td>
 <td><strong>Fast transfers</strong><br>Concurrent queues, pause/resume, retries, bandwidth controls, conflict handling and clear transfer states.</td>
 </tr>
 <tr>
-<td><img src="ghostftp-web/assets/icons/features.svg" width="30" alt=""></td>
+<td><img src="website/assets/icons/features.svg" width="30" alt=""></td>
 <td><strong>Modern workflow</strong><br>Dual local/remote panes, Site Manager, bookmarks, tags, permissions, checksums, duplicate tools, sync and terminal features.</td>
 </tr>
 <tr>
-<td><img src="ghostftp-web/assets/icons/privacy.svg" width="30" alt=""></td>
+<td><img src="website/assets/icons/privacy.svg" width="30" alt=""></td>
 <td><strong>Privacy first</strong><br>No required analytics or telemetry. Sensitive profile secrets stay outside ordinary profile JSON.</td>
 </tr>
 <tr>
-<td><img src="ghostftp-web/assets/icons/globe.svg" width="30" alt=""></td>
+<td><img src="website/assets/icons/globe.svg" width="30" alt=""></td>
 <td><strong>14 languages</strong><br>English, Hrvatski, Deutsch, Français, Español, Italiano, Português, Nederlands, Polski, Slovenščina, Srpski, Bosanski, Македонски and Shqip.</td>
 </tr>
 <tr>
-<td><img src="ghostftp-web/assets/icons/download.svg" width="30" alt=""></td>
+<td><img src="website/assets/icons/download.svg" width="30" alt=""></td>
 <td><strong>Windows + Linux</strong><br>Windows portable EXE and Setup plus Linux native binary, AppImage, DEB and RPM packages.</td>
 </tr>
 </table>
@@ -160,10 +160,11 @@ All published release files are accompanied by SHA-256 checksums.
 ```text
 Ghost-FTP-Premium/
 ├── ghostftp-desktop/      Production Ghost FTP desktop application
-├── ghostftp-runtime/      Developer / compatibility runtime tooling
-├── ghostftp-installer/    Installer support and compatibility tooling
-├── ghostftp-web/          ghostftp.com website source
-├── ghostftp-updates/      Update manifest templates
+├── tools/
+│   ├── ghostftp-runtime/    Developer / compatibility runtime tooling
+│   └── ghostftp-installer/  Installer support / compatibility tooling
+├── website/                  ghostftp.com website source
+├── updates/                  Update manifest templates
 ├── docs/
 │   ├── assets/            Brand and visual QA media
 │   ├── architecture/      Repository and naming architecture
