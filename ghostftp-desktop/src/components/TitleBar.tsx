@@ -161,9 +161,9 @@ export function TitleBar() {
       { label: "Preferences…", run: () => openDialog("settings") },
     ],
     Help: [
-      { label: "Help Center", run: () => openOfficialUrl("/support/") },
-      { label: "Documentation", run: () => openOfficialUrl("/docs/") },
-      { label: "Check for Updates", run: () => openDialog("about") },
+      { label: "Help Center", run: () => openDialog("help") },
+      { label: "Documentation", run: () => openDialog("help") },
+      { label: "Check for Updates", run: () => openDialog("updates") },
       { separator: true },
       { label: "About Ghost FTP", run: () => openDialog("about") },
     ],
