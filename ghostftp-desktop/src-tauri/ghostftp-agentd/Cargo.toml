@@ -1,6 +1,6 @@
 [package]
 name = "ghostftp-agentd"
-version = "2.1.1-rc.9"
+version = "2.1.1-rc.10"
 edition = "2021"
 license = "MIT"
 description = "Ghost FTP remote-agent daemon — run on a machine to control it from Ghost FTP over an encrypted, paired connection."
@@ -21,6 +21,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 gethostname = "0.4"
 mdns-sd = "0.11"
+libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3"

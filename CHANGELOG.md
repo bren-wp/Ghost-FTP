@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.1-rc.10 — 20 September 2026
+
+- Closed the final RC9 Rust Clippy blockers in the Ghost FTP CLI.
+- Fixed the native Transfer Queue / Server Log desktop layout found by Windows screenshot evidence.
+- Added explicit transfer-grid sizing, overflow, truncation, action alignment and log row layout.
+- Made Windows native-window screenshot capture a required native-build gate and validated the expected `Ghost FTP` window title.
+- Bumped desktop, CLI, agent, compatibility-tool, updater-preview and release packaging versions consistently to RC10.
+
 ## 2.1.1-rc.9 — 20 September 2026
 
 - Reorganized repository documentation under `docs/` and removed duplicate root copies while preserving stable runtime source paths.
@@ -17,6 +25,10 @@
 - Added validation for negative transfer throttle values.
 - Replaced website glyph/emoji action icons with local Ghost FTP SVG icons and improved website markup, metadata, focus handling and reduced-motion behavior.
 - Fixed the website progress animation so its timer stops at completion instead of running indefinitely.
+- Made Quick Connect ephemeral by default so a one-off connection is not automatically saved as a Site Manager profile.
+- Added an optional SFTP private-key passphrase input to New Connection using the existing native key-auth path.
+- Removed the inert FTP Active/Auto selector; FTP/FTPS now truthfully show the native passive data mode instead of presenting a non-functional option.
+- Added automated locale-key parity gating and Windows native-window screenshot evidence capture to the RC9 CI path.
 - RC9 remains a pre-release pending final native Windows titlebar/pixel, installer lifecycle and real FTP/FTPS/SFTP acceptance evidence.
 
 

@@ -1379,48 +1379,136 @@ body::after { opacity: 0.018; }
 }
 
 .ghost-bottom-band {
+  display: grid !important;
   flex: 0 0 191px !important;
   height: 191px !important;
   min-height: 191px !important;
+  min-width: 0;
   grid-template-columns: minmax(0,2.17fr) minmax(300px,1fr) !important;
+  align-items: stretch;
   gap: 6px !important;
   padding: 0 4px 3px 4px !important;
+  overflow: hidden;
   background: #041526 !important;
 }
 .ghost-transfer-box,
 .ghost-server-log {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  flex-direction: column;
+  border: 1px solid #23577d;
   border-color: #23577d !important;
   border-radius: 7px !important;
+  background: #061a2d;
 }
 .ghost-transfer-tabs,
 .ghost-log-head {
+  display: flex;
+  flex: 0 0 42px;
+  align-items: center;
   height: 42px !important;
   min-height: 42px !important;
+  overflow: hidden;
   background: #08223a !important;
+  border-bottom: 1px solid #23577d;
   border-bottom-color: #23577d !important;
 }
+.ghost-transfer-tabs > span,
+.ghost-log-head > span { flex: 1 1 auto; min-width: 0; }
+.ghost-log-head strong { padding-left: 12px; white-space: nowrap; }
 .ghost-transfer-tabs button,
 .ghost-log-head button {
   padding: 0 14px !important;
   font-size: 12px !important;
 }
+.ghost-transfer-head,
+.ghost-transfer-row {
+  display: grid;
+  grid-template-columns:
+    minmax(138px, 2fr)
+    minmax(76px, .82fr)
+    minmax(138px, 1.55fr)
+    minmax(66px, .72fr)
+    minmax(82px, .82fr)
+    minmax(74px, .72fr)
+    minmax(50px, .52fr)
+    58px;
+  align-items: center;
+}
 .ghost-transfer-head {
+  flex: 0 0 35px;
   height: 35px !important;
   min-height: 35px !important;
   background: #071c30 !important;
+  border-bottom: 1px solid #164566;
+  color: #93b6cf;
   font-size: 12px !important;
+  font-weight: 650;
+}
+.ghost-transfer-head > span,
+.ghost-transfer-row > span {
+  min-width: 0;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ghost-transfer-row {
   height: 34px !important;
   min-height: 34px !important;
+  border-bottom: 1px solid #0f3855;
   font-size: 12px !important;
 }
-.ghost-transfer-rows { height: calc(100% - 77px) !important; }
+.ghost-transfer-row .actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+}
+.ghost-transfer-row .actions button {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #9bc9e8;
+}
+.ghost-transfer-row .actions button:hover:not(:disabled) { background: #0c3557; color: #fff; }
+.ghost-transfer-rows {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto !important;
+  overflow: auto;
+}
+.ghost-transfer-empty {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  padding: 0 10px;
+  color: #91aec3;
+  font-size: 12px;
+}
 .ghost-log-lines {
-  height: calc(100% - 42px) !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto !important;
+  overflow: auto;
   padding: 8px 10px !important;
   font: 11px/1.42 Consolas,"Cascadia Mono",monospace !important;
 }
+.ghost-log-lines > div {
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+.ghost-log-lines time { color: #6da4c9; font-variant-numeric: tabular-nums; }
+.ghost-log-lines span { min-width: 0; overflow-wrap: anywhere; }
+.ghost-log-lines .accent { color: #66c6ff; }
 .ghost-reference-statusbar {
   flex: 0 0 40px !important;
   height: 40px !important;
@@ -1857,7 +1945,7 @@ body::after { opacity: 0.018; }
   .ghost-new-connection-dialog,.ghost-properties-dialog { width:calc(100vw - 12px) !important; }
 }
 
-/* Ghost FTP RC9 — transfer queue semantics and accessibility ---------------- */
+/* Ghost FTP RC10 — transfer queue semantics, layout and accessibility -------- */
 .ghost-transfer-row .progress {
   min-width: 0;
   display: grid;

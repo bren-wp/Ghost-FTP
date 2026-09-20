@@ -28,6 +28,7 @@ use tauri::{AppHandle, Manager, State};
 use crate::AppState;
 
 /// The `ghostftp.db` env-backup key for the Windows per-user `Path`.
+#[cfg(windows)]
 const WIN_PATH_BACKUP_KEY: &str = "windows_user_path";
 
 /// What the Settings → About PATH row renders. Reports both whether `ghostftp-cli`
@@ -88,6 +89,7 @@ fn normalize_entry(e: &str) -> String {
 }
 
 /// Is `dir` already present as one of the ';'-separated entries in `value`?
+#[cfg(any(windows, test))]
 fn contains_dir(value: &str, dir: &str) -> bool {
     let target = normalize_entry(dir);
     !target.is_empty() && value.split(';').any(|e| normalize_entry(e) == target)
@@ -95,6 +97,7 @@ fn contains_dir(value: &str, dir: &str) -> bool {
 
 /// Append `dir` as a new entry unless it's already present. Preserves every
 /// existing entry (and any empty ones) verbatim.
+#[cfg(any(windows, test))]
 fn add_dir(value: &str, dir: &str) -> String {
     if contains_dir(value, dir) {
         return value.to_string();
@@ -108,6 +111,7 @@ fn add_dir(value: &str, dir: &str) -> String {
 }
 
 /// Remove every entry equal to `dir` (normalized), leaving all others byte-identical.
+#[cfg(any(windows, test))]
 fn remove_dir(value: &str, dir: &str) -> String {
     let target = normalize_entry(dir);
     value

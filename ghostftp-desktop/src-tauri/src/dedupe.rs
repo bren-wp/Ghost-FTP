@@ -194,7 +194,7 @@ pub fn pick_keep(files: &[DedupeFile]) -> usize {
         let (_, suffixed) = strip_copy_suffixes(stem);
         // Lower is better: unsuffixed (false) first, then oldest, then name.
         let score = (suffixed, f.modified, f.path.as_str());
-        if best_score.map_or(true, |b| score < b) {
+        if best_score.is_none_or(|b| score < b) {
             best_score = Some(score);
             best = i;
         }
@@ -843,7 +843,7 @@ mod tests {
         assert_eq!(r.groups.len(), 1);
         let g = &r.groups[0];
         assert_eq!(g.files.len(), 2);
-        assert!(g.hash.as_deref().map_or(false, |h| h.len() == 64));
+        assert!(g.hash.as_deref().is_some_and(|h| h.len() == 64));
         assert_eq!(r.summary.hash_errors, 0);
         assert_eq!(r.summary.wasted_bytes, 5);
 

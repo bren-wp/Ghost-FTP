@@ -1,4 +1,4 @@
-# Ghost FTP Responsive QA — RC9
+# Ghost FTP Responsive QA — RC10
 
 The canonical desktop target remains **1290×852**. Ghost FTP adapts controls rather than globally scaling the reference composition like an image.
 
@@ -48,6 +48,6 @@ The 530×770 reference envelope becomes internally scrollable when vertical spac
 
 These are full application surfaces and must remain navigable without clipped primary actions.
 
-## RC9 acceptance status
+## RC10 acceptance status
 
 Source geometry and containment rules are implemented. FINAL still requires native Windows/Linux render evidence for every target size, including text clipping, toolbar reachability, dialog containment, dual-pane usability and custom titlebar controls.

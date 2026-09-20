@@ -168,7 +168,5 @@ pub async fn walk<F: FnMut(ScanProgress)>(
 /// The path of `full` relative to `root`, POSIX-normalised. Shared with `sync.rs`.
 pub fn relative_of(root: &str, full: &str) -> String {
     let stripped = full.strip_prefix(root).unwrap_or(full);
-    stripped
-        .trim_start_matches(|c| c == '/' || c == '\\')
-        .replace('\\', "/")
+    stripped.trim_start_matches(['/', '\\']).replace('\\', "/")
 }

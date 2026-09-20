@@ -64,7 +64,7 @@ The canonical desktop reference is **1290×852**. Smaller windows adapt through 
 
 **Control.** Use permissions, checksums, sync, terminal, search, duplicate detection and diagnostics from the same product.
 
-## Implemented in RC9
+## Implemented in RC10
 
 - FTP, FTPS and SFTP Quick Connect and saved profiles.
 - Site Manager with folders, favorites, tags, bookmarks and recent-server metadata.
@@ -80,29 +80,30 @@ The canonical desktop reference is **1290×852**. Smaller windows adapt through 
 
 See [Features](docs/product/FEATURES.md) and [Project status](docs/product/STATUS_AND_NEXT.md).
 
-## Downloads — Ghost FTP 2.1.1 RC9
+## Downloads — Ghost FTP 2.1.1 RC10
 
 Published versions are kept available in GitHub Releases when newer versions are added.
 
 **Windows x64**
-- `GhostFTP-Windows-x64-Portable-v2.1.1-RC9.exe`
-- `GhostFTP-Windows-x64-Setup-v2.1.1-RC9.exe`
-- `GhostFTP-Windows-x64-v2.1.1-RC9.zip`
+- `GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe`
+- `GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe`
+- `GhostFTP-Windows-x64-v2.1.1-RC10.zip`
+- `GhostFTP-Windows-x64-v2.1.1-RC10-Native-Window.png` (CI native-window QA evidence)
 
 **Linux x86-64**
-- `GhostFTP-Linux-x86_64-v2.1.1-RC9`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC9.AppImage`
-- `GhostFTP-Linux-amd64-v2.1.1-RC9.deb`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC9.rpm`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC9.tar.gz`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC10`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC10.AppImage`
+- `GhostFTP-Linux-amd64-v2.1.1-RC10.deb`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC10.rpm`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC10.tar.gz`
 
 **Source**
-- `GhostFTP-v2.1.1-RC9-Source.zip`
-- `GhostFTP-v2.1.1-RC9-Desktop-Source.zip`
-- `GhostFTP-v2.1.1-RC9-Website.zip`
-- `GhostFTP-v2.1.1-RC9-Updates.zip`
-- `GhostFTP-v2.1.1-RC9-Documentation.zip`
-- `GhostFTP-v2.1.1-RC9-SHA256SUMS.txt`
+- `GhostFTP-v2.1.1-RC10-Source.zip`
+- `GhostFTP-v2.1.1-RC10-Desktop-Source.zip`
+- `GhostFTP-v2.1.1-RC10-Website.zip`
+- `GhostFTP-v2.1.1-RC10-Updates.zip`
+- `GhostFTP-v2.1.1-RC10-Documentation.zip`
+- `GhostFTP-v2.1.1-RC10-SHA256SUMS.txt`
 
 ## Repository layout
 
@@ -118,8 +119,11 @@ Ghost-FTP-Premium/
 │   ├── assets/              Product screenshots and brand media
 │   ├── guides/              Installation, updates, support and uninstall
 │   ├── legal/               Privacy and notices
-│   ├── product/             Features, status, roadmap and UI/UX
-│   └── releases/            Release notes and checksums
+│   ├── product/             Features, status and UI/UX
+│   ├── development/         Source-build and contributor workflow
+│   ├── release/             Release process and gates
+│   ├── qa/                  Acceptance evidence and test records
+│   └── releases/            Versioned release notes and checksums
 ├── .github/workflows/       Quality, native build and release automation
 ├── README.md
 ├── CHANGELOG.md
@@ -137,7 +141,9 @@ Public documentation is intentionally product-focused. It documents supported fe
 - [Documentation](docs/README.md)
 - [Features](docs/product/FEATURES.md)
 - [Status & recommended next work](docs/product/STATUS_AND_NEXT.md)
-- [Roadmap](docs/product/ROADMAP.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Building from source](docs/development/BUILDING.md)
+- [Release process](docs/release/PROCESS.md)
 - [UI/UX principles](docs/product/UI_UX.md)
 - [Install](docs/guides/INSTALLATION.md)
 - [Updates](docs/guides/UPDATES.md)

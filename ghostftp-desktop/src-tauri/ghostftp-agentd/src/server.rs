@@ -33,6 +33,8 @@ const XXPSK3_FIRST_FRAME: u32 = 48;
 /// How long `dispatch` waits for a first frame before dropping a silent peer.
 const SNIFF_TIMEOUT: Duration = Duration::from_secs(10);
 
+type PairedHook = Arc<dyn Fn(&str, &str) + Send + Sync>;
+
 /// An open pairing window: while unexpired, pairing handshakes that prove
 /// `code` are accepted and pinned.
 pub struct PairingWindow {
@@ -53,7 +55,7 @@ pub struct Daemon {
     /// connection so a job started on one channel is pollable after a re-dial.
     jobs: Arc<JobStore>,
     /// Invoked the moment a controller is pinned: `(name, public_key_b64)`.
-    on_paired: Arc<dyn Fn(&str, &str) + Send + Sync>,
+    on_paired: PairedHook,
 }
 
 impl Daemon {

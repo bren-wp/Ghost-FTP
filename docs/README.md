@@ -6,8 +6,15 @@ Ghost FTP is a commercial desktop product. Public documentation is intentionally
 
 - [Features](product/FEATURES.md)
 - [Project status & recommended next work](product/STATUS_AND_NEXT.md)
-- [Roadmap](product/ROADMAP.md)
+- [Roadmap](ROADMAP.md)
+- [Detailed product backlog](product/ROADMAP.md)
 - [UI / UX principles](product/UI_UX.md)
+
+## Development and release
+
+- [Building from source](development/BUILDING.md)
+- [Release process](release/PROCESS.md)
+- [QA evidence index](qa/README.md)
 
 ## Guides
 

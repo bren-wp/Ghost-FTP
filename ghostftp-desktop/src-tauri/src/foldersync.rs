@@ -874,7 +874,7 @@ mod tests {
         d
     }
 
-    fn write(root: &PathBuf, rel: &str, body: &str) {
+    fn write(root: &std::path::Path, rel: &str, body: &str) {
         let p = root.join(rel);
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
         std::fs::write(p, body).unwrap();
@@ -949,7 +949,7 @@ mod tests {
         }
     }
 
-    async fn plan_dirs(src: &PathBuf, dst: &PathBuf) -> sync::SyncPlan {
+    async fn plan_dirs(src: &std::path::Path, dst: &std::path::Path) -> sync::SyncPlan {
         let fs = crate::remotefs::local::LocalFs;
         sync::plan(
             &fs,

@@ -7,7 +7,8 @@ export function ReferenceStatusBar() {
   const activeSessionId = useConnections((s) => s.activeSessionId);
   const activeProfileId = useConnections((s) => s.activeProfileId);
   const profiles = useConnections((s) => s.profiles);
-  const transfers = useTransfers((s) => Object.values(s.byId));
+  const transfersById = useTransfers((s) => s.byId);
+  const transfers = useMemo(() => Object.values(transfersById), [transfersById]);
   const profile = profiles.find((p) => p.id === activeProfileId);
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);

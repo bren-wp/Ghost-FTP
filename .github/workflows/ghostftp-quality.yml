@@ -29,6 +29,22 @@ jobs:
           cache: npm
           cache-dependency-path: ghostftp-desktop/package-lock.json
 
+      - name: Version consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '"version": "2.1.1-rc.10"' ghostftp-desktop/package.json
+          grep -q '"version": "2.1.1-rc.10"' ghostftp-desktop/package-lock.json
+          grep -q '^version = "2.1.1-rc.10"$' ghostftp-desktop/src-tauri/Cargo.toml
+          grep -q '^version = "2.1.1-rc.10"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
+          grep -q '^version = "2.1.1-rc.10"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
+          grep -q '^version = "2.1.1-rc.10"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
+          grep -q '"version": "2.1.1-rc.10"' ghostftp-desktop/src-tauri/tauri.conf.json
+          grep -q 'PRODUCT_VERSION = "2.1.1-rc.10"' ghostftp-desktop/src/lib/release.ts
+          grep -q 'const version = "2.1.1-rc.10"' tools/ghostftp-runtime/main.go
+          grep -q 'const version = "2.1.1-rc.10"' tools/ghostftp-installer/main.go
+          grep -q '"version": "2.1.1-rc.10"' updates/channels/preview.template.json
+
       - name: Reject legacy/demo branding
         shell: bash
         run: |
@@ -114,6 +130,7 @@ jobs:
         run: |
           set -euo pipefail
           npm ci
+          npm run check:i18n
           npm run check
           npm run build
 

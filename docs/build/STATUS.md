@@ -2,9 +2,9 @@
 
 ## Authoritative status
 
-**Ghost FTP 2.1.1 RC9 — native Ghost FTP desktop release candidate. NOT FINAL.**
+**Ghost FTP 2.1.1 RC10 — native Ghost FTP desktop release candidate. NOT FINAL.**
 
-RC9 continues the existing Ghost FTP source and does not replace the project with a new implementation or screenshot-driven runtime.
+RC10 continues the existing Ghost FTP source and does not replace the project with a new implementation or screenshot-driven runtime.
 
 ## Repository and build organization
 
@@ -19,7 +19,7 @@ RC9 continues the existing Ghost FTP source and does not replace the project wit
 
 A small number of internal framework-required names remain inside `ghostftp-desktop/` because renaming them would create unnecessary build risk.
 
-## RC9 source improvements
+## RC10 source improvements
 
 - Reorganized the repository around GhostFTP-branded top-level source paths.
 - Standardized release filenames by platform, architecture, role and version.
@@ -40,7 +40,7 @@ A small number of internal framework-required names remain inside `ghostftp-desk
 
 ## Quality gates
 
-The RC9 quality workflow requires:
+The RC10 quality workflow requires:
 
 - Go tests and `go vet` for GhostFTP runtime/installer tooling;
 - JavaScript syntax checks;
@@ -53,9 +53,9 @@ The RC9 quality workflow requires:
 - Clippy with warnings denied;
 - legacy/demo-branding rejection.
 
-The earlier RC9 run correctly exposed two PATH-integration test failures. Source was corrected and release publication is gated on a successful current quality run.
+An earlier RC9 quality run correctly exposed PATH-integration failures, and a later RC9 run narrowed the remaining gate to two CLI Clippy findings. RC10 carries the corrected PATH logic and CLI lint fixes; publication remains gated on a fully successful current quality run.
 
-## Native RC9 build targets
+## Native RC10 build targets
 
 ### Windows x64
 
@@ -69,7 +69,7 @@ The earlier RC9 run correctly exposed two PATH-integration test failures. Source
 - DEB;
 - RPM.
 
-MSI is intentionally omitted from prerelease builds because the current MSI version path rejects prerelease identifiers such as `rc.9`.
+MSI is intentionally omitted from prerelease builds because the current MSI version path rejects prerelease identifiers such as `rc.10`.
 
 ## Public release artifact policy
 
@@ -89,4 +89,4 @@ FINAL remains blocked until documented evidence exists for:
 6. Final responsive and pixel comparison at every required reference size.
 7. Production signing decision/validation.
 
-Build and packaging success alone does not convert RC9 into FINAL.
+Build and packaging success alone does not convert RC10 into FINAL.

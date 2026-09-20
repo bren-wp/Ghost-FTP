@@ -181,11 +181,7 @@ async fn read_record_line<S: AsyncRead + Unpin>(stream: &mut S) -> Result<String
 /// Read a message terminated by `\n` (the text after a non-zero status byte).
 async fn read_message<S: AsyncRead + Unpin>(stream: &mut S) -> Result<String> {
     let mut bytes = Vec::new();
-    loop {
-        let b = match stream.read_u8().await {
-            Ok(b) => b,
-            Err(_) => break,
-        };
+    while let Ok(b) = stream.read_u8().await {
         if b == b'\n' {
             break;
         }
