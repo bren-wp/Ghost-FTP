@@ -118,6 +118,8 @@ export default function App() {
     dialog === "siteManager" ||
     dialog === "transferCenter" ||
     dialog === "sync" ||
+    dialog === "help" ||
+    dialog === "updates" ||
     dialog === "about";
 
   useShortcuts();
@@ -174,7 +176,9 @@ export default function App() {
         )}
         {dialog === "import" && <ImportDialog onClose={closeDialog} />}
         {dialog === "grant" && <GrantDialog onClose={closeDialog} />}
-        {dialog === "about" && <AboutDialog onClose={closeDialog} />}
+        {dialog === "about" && <AboutDialog onClose={closeDialog} initialTab="about" />}
+        {dialog === "help" && <AboutDialog onClose={closeDialog} initialTab="help" />}
+        {dialog === "updates" && <AboutDialog onClose={closeDialog} initialTab="updates" />}
       </Suspense>
       {dialog === "agentBridge" && <AgentBridge onClose={closeDialog} />}
       <HostKeyModal />
