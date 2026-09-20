@@ -16,15 +16,15 @@ import { PRODUCT_BUILD, PRODUCT_RELEASE_DATE, PRODUCT_VERSION } from "@/lib/rele
 import { useDialog } from "@/hooks/useDialog";
 import { openOfficialUrl } from "@/lib/external";
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; initialTab?: "about" | "updates" | "help" }
 
 function external(path = "") {
   openOfficialUrl(path);
 }
 
-export function AboutDialog({ onClose }: Props) {
+export function AboutDialog({ onClose, initialTab = "about" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [tab, setTab] = useState<"about" | "updates" | "help">("about");
+  const [tab, setTab] = useState<"about" | "updates" | "help">(initialTab);
   useDialog(panelRef, { onClose });
 
   return (
