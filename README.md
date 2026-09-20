@@ -1,4 +1,4 @@
-# Ghost FTP 2.1.1 RC7
+# Ghost FTP 2.1.1 RC8
 
 <p align="center">
   <img src="docs/screenshots/09-brand-board.png" alt="Ghost FTP brand identity" width="100%">
@@ -19,9 +19,9 @@ Ghost FTP includes saved connection profiles, Quick Connect, Site Manager, local
 
 The production desktop application is `desktop-tauri/`. The `runtime/` and `installer/` directories are developer/compatibility tooling only and are not accepted as production GUI releases. Browser-host compatibility executables are deliberately excluded from the public GUI release because visible browser/origin chrome breaks the required frameless 1:1 Ghost FTP presentation.
 
-### RC7 engineering pass
+### RC8 engineering pass
 
-RC7 continues the existing production source and concentrates on visual parity, responsive behavior and truthful file-operation features. Site Manager, Preferences, Transfer Center and About now use dedicated full-window application surfaces instead of generic centered dialogs; New Connection and File Properties retain reference-sized modal geometry. The shared custom Ghost FTP titlebar remains the only intended native titlebar. File Properties now includes real General/Checksums tabs, real SHA-256 support where the active backend supports it, numeric chmod controls and recursive chmod for local/SFTP paths. The compatibility host mirrors the same full-window structure so fallback QA does not drift into a separate visual product.
+RC8 continues the existing production source and concentrates on visual parity, responsive behavior and truthful file-operation features. Site Manager, Preferences, Transfer Center and About now use dedicated full-window application surfaces instead of generic centered dialogs; New Connection and File Properties retain reference-sized modal geometry. The shared custom Ghost FTP titlebar remains the only intended native titlebar. File Properties now includes real General/Checksums tabs, real SHA-256 support where the active backend supports it, numeric chmod controls and recursive chmod for local/SFTP paths. The compatibility host mirrors the same full-window structure so fallback QA does not drift into a separate visual product.
 
 ## Design references
 
