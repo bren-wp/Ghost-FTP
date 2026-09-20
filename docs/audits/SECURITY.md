@@ -1,18 +1,41 @@
-# Ghost FTP Security Audit — RC3
+# Ghost FTP Security Audit — RC9
 
-Native saved-profile secrets are moved into the OS credential/keychain layer before profile metadata is written. Ephemeral Quick Connect now bypasses profile persistence entirely rather than briefly writing a profile and deleting it later.
+Native saved-profile secrets are kept outside ordinary profile metadata and use the OS credential/keychain layer where supported. Ephemeral Quick Connect bypasses saved-profile persistence rather than briefly writing a profile and deleting it later.
 
-The compatibility runtime uses a cryptographically random per-process 256-bit token for mutation requests, constant-time token comparison, same-origin checks, 1 MiB JSON limits, strict unknown-field rejection, loopback-only listening, security headers/CSP, protected-root destructive-operation guards and no persisted password/passphrase fields.
+The developer compatibility runtime uses a cryptographically random per-process mutation token, same-origin checks, bounded JSON input, strict field validation, protected-root destructive-operation guards and no persisted password/passphrase fields. It is not the production desktop GUI.
 
-Executed fallback tests confirmed an unauthenticated mutation returns HTTP 401, SHA-256 is correct, normal local operations succeed with the session token, and deletion of `/` is refused.
+The native Tauri application keeps a restrictive CSP, avoids analytics/telemetry SDKs by default, and uses signed Tauri updater verification. The current updater endpoint in the production configuration is:
 
-The native update configuration remains pinned to `https://ghostftp.com/ghostftp-updates/latest.json` with Tauri updater signature verification. A final security sign-off still requires compiling the exact native release artifacts, dependency/security scanning of that resolved dependency graph and target-OS update/install testing.
+`https://ghostftp.com/updates/latest.json`
 
-## RC4 verification — 20 September 2026
+The updater public key remains embedded in `ghostftp-desktop/src-tauri/tauri.conf.json`; unsigned or invalidly signed updates are not accepted by the updater path.
+
+## RC9 hardening verified in source
+
+- Saved secrets remain separate from normal profile JSON.
+- Ephemeral Quick Connect does not save a site automatically.
+- Corrupt profile metadata is preserved/recovered instead of causing an unconditional startup panic.
+- Failed SQLite startup quarantines the database and WAL/SHM sidecars before recreating a working store.
+- The production release path excludes the old browser-host GUI.
+- Native release publication is gated on the current quality workflow and successful Windows/Linux native build.
+- RC9 release validation now checks the version in `package.json`, `package-lock.json`, `Cargo.toml` and `tauri.conf.json`.
+
+## Historical compatibility verification — 20 September 2026
 
 - Local compatibility API mutation without the session token returned HTTP 401.
 - Authenticated state write returned HTTP 200.
 - Attempt to persist a `password` field returned HTTP 400 and was not written.
 - HTTP surface returned CSP, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` and `Referrer-Policy: no-referrer`.
-- Native profile-store recovery now preserves malformed primary/backup JSON and starts safely with an empty store rather than panicking.
-- Native SQLite startup now quarantines a failed `ghostftp.db` plus WAL/SHM sidecars before recreating a working database.
+- Native profile-store recovery preserves malformed primary/backup JSON and starts safely with an empty store.
+- Native SQLite startup quarantines a failed `ghostftp.db` plus WAL/SHM sidecars before recreating a working database.
+
+## Remaining security gates before FINAL
+
+- Compile and retain the exact Windows/Linux release artifacts.
+- Dependency/security scan of the resolved release dependency graph.
+- Real FTPS certificate-failure acceptance.
+- Real SFTP unknown/changed host-key acceptance.
+- Target-OS signed-update/install acceptance.
+- Production Windows code-signing decision and validation.
+
+Status: **RC9 source security controls are present; target-OS protocol/update/signing acceptance remains open before FINAL.**
