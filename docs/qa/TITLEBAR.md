@@ -1,7 +1,17 @@
-# Titlebar QA
+# Ghost FTP Native Titlebar QA — RC9
 
-Native Tauri source constructs the main window with `decorations(false)` and a 1290×852 initial size. The React titlebar contains Ghost FTP branding plus minimize, maximize/restore and close controls, uses a Tauri drag region, and now explicitly handles titlebar double-click through the same maximize/restore path.
+The production Tauri window is created frameless with `decorations(false)`. The React titlebar is therefore the intended and only application titlebar. It contains Ghost FTP branding plus minimize, maximize/restore and close controls, a Tauri drag region and double-click maximize/restore behavior.
 
-The Windows Go compatibility host also strips `WS_CAPTION`, retains the resize frame and implements minimize/maximize/restore/close plus Win32 `WM_NCLBUTTONDOWN/HTCAPTION` dragging. This is fallback hardening only; it is not evidence that Edge/Chromium will never show an extra bar on every Windows configuration.
+The visible `127.0.0.1` Chromium/Edge bar reproduced in older compatibility executables was an architecture error in the fallback host, not the intended production UI. Those browser-host executables are excluded from the end-user release path.
 
-The required acceptance screenshot — showing **only** the Ghost FTP custom titlebar and no Chromium/Edge/native black caption — cannot be captured in this Linux sandbox. Windows Setup, Windows Portable and native Linux titlebar checks remain **BLOCKED**, so this release is not FINAL.
+## FINAL acceptance gate
+
+Capture native Windows 10/11 screenshots of both portable and installed RC9 builds and verify:
+
+- no browser/origin/address bar;
+- no extra black native caption above the Ghost FTP titlebar;
+- minimize, maximize/restore, close and drag behavior work;
+- maximized and restored states preserve the custom chrome cleanly;
+- 1290×852 restored geometry matches the approved reference composition.
+
+This gate remains open until those target-OS screenshots are attached as evidence.
