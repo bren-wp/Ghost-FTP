@@ -373,6 +373,7 @@ mod tests {
     fn old_daemon_fails_to_parse_delta_ops() {
         /// The Request shape a pre-delta-sync daemon was built with (trimmed to
         /// a representative subset — the point is: no delta variants).
+        #[allow(dead_code)]
         #[derive(Debug, Deserialize)]
         #[serde(tag = "op", rename_all = "camelCase")]
         enum OldRequest {
