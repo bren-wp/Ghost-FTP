@@ -280,6 +280,7 @@ function StatusBar({
   const syncPairs = useSync((s) => s.pairs);
   const syncRunning = syncPairs.filter((p) => p.running).length;
   const syncActive = syncPairs.filter((p) => p.state === "syncing").length;
+  const openView = useLayout((s) => s.openView);
   const openDialog = useLayout((s) => s.openDialog);
   const bridgeDialogOpen = useLayout((s) => s.dialog === "agentBridge");
   const consoleOpen = useLayout((s) => s.consoleOpen);
@@ -458,7 +459,7 @@ function StatusBar({
         )}
       </div>
       <PillButton
-        onClick={() => openDialog("settings")}
+        onClick={() => openView("settings")}
         icon={
           <FolderSync
             size={11}
