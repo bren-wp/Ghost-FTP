@@ -16,6 +16,13 @@ import { PRODUCT_VERSION_BADGE } from "@/lib/release";
 type PaneTarget = "local" | "remote" | "active";
 type FileAction = "refresh" | "upload" | "download" | "newFolder" | "delete" | "rename" | "properties";
 type MenuItem = { label: string; run: () => void; disabled?: boolean } | { separator: true };
+type PaneActionState = {
+  paneId: "local" | "remote";
+  selectedCount: number;
+  hasActiveItem: boolean;
+  hasSession: boolean;
+  canCreateDirectory: boolean;
+};
 
 function fileAction(action: FileAction, pane: PaneTarget = "active") {
   const target = pane === "active" ? undefined : pane;
@@ -44,9 +51,25 @@ export function TitleBar() {
   const [menu, setMenu] = useState<string | null>(null);
   const [protocolMenu, setProtocolMenu] = useState(false);
   const [quickBusy, setQuickBusy] = useState(false);
+  const [paneState, setPaneState] = useState<PaneActionState>({
+    paneId: "local",
+    selectedCount: 0,
+    hasActiveItem: false,
+    hasSession: true,
+    canCreateDirectory: true,
+  });
   const menuWrap = useRef<HTMLDivElement>(null);
   const quickConnectRef = useRef<HTMLDivElement>(null);
   const locale = getLocale();
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const custom = event as CustomEvent<PaneActionState>;
+      if (custom.detail) setPaneState(custom.detail);
+    };
+    window.addEventListener("ghostftp:pane-action-state", handler as EventListener);
+    return () => window.removeEventListener("ghostftp:pane-action-state", handler as EventListener);
+  }, []);
 
   const quickConnect = async () => {
     if (quickBusy) return;
@@ -100,9 +123,9 @@ export function TitleBar() {
       { label: "Exit", run: () => safeWindowAction("close") },
     ],
     Edit: [
-      { label: "Rename", run: () => fileAction("rename") },
-      { label: "Delete", run: () => fileAction("delete") },
-      { label: "Properties", run: () => fileAction("properties") },
+      { label: "Rename", run: () => fileAction("rename"), disabled: !paneState.hasActiveItem },
+      { label: "Delete", run: () => fileAction("delete"), disabled: paneState.selectedCount === 0 },
+      { label: "Properties", run: () => fileAction("properties"), disabled: !paneState.hasActiveItem },
       { separator: true },
       { label: "Preferences…", run: () => openDialog("settings") },
     ],
@@ -134,7 +157,7 @@ export function TitleBar() {
       { separator: true },
       { label: "About Ghost FTP", run: () => openDialog("about") },
     ],
-  }), [activeSessionId, disconnect, openDialog, openNewConnection]);
+  }), [activeSessionId, disconnect, openDialog, openNewConnection, paneState]);
 
   useEffect(() => {
     if (!menu) return;
@@ -276,10 +299,10 @@ export function TitleBar() {
       <Tool icon={<RefreshCw size={17}/>} label="Refresh" onClick={() => fileAction("refresh")}/>
       <Tool icon={<Upload size={17}/>} label="Upload" onClick={() => fileAction("upload", "local")}/>
       <Tool icon={<Download size={17}/>} label="Download" disabled={!activeSessionId} onClick={() => fileAction("download", "remote")}/>
-      <Tool icon={<FolderPlus size={17}/>} label="New Folder" onClick={() => fileAction("newFolder")}/>
-      <Tool icon={<Trash2 size={17}/>} label="Delete" onClick={() => fileAction("delete")}/>
-      <Tool icon={<Pencil size={17}/>} label="Rename" onClick={() => fileAction("rename")}/>
-      <Tool icon={<Info size={17}/>} label="Properties" onClick={() => fileAction("properties")}/>
+      <Tool icon={<FolderPlus size={17}/>} label="New Folder" disabled={!paneState.canCreateDirectory} onClick={() => fileAction("newFolder")}/>
+      <Tool icon={<Trash2 size={17}/>} label="Delete" disabled={paneState.selectedCount === 0} onClick={() => fileAction("delete")}/>
+      <Tool icon={<Pencil size={17}/>} label="Rename" disabled={!paneState.hasActiveItem} onClick={() => fileAction("rename")}/>
+      <Tool icon={<Info size={17}/>} label="Properties" disabled={!paneState.hasActiveItem} onClick={() => fileAction("properties")}/>
       <div className="ghost-toolbar-spacer"/>
     </div>
   </header>;
