@@ -1,7 +1,38 @@
-# Language Audit
+# Ghost FTP Language Audit — RC9
 
-The UI selector exposes 14 locales: English, Hrvatski, Deutsch, Français, Español, Italiano, Português, Nederlands, Polski, Slovenščina, Srpski, Bosanski, Македонски and Shqip. Embedded/web surfaces use `translate="no"` / `notranslate` and the browser runtime is launched with Chromium Translate UI disabled.
+The UI selector exposes 14 locales: English, Hrvatski, Deutsch, Français, Español, Italiano, Português, Nederlands, Polski, Slovenščina, Srpski, Bosanski, Македонски and Shqip. Embedded/web surfaces use `translate="no"` / `notranslate` where appropriate rather than relying on browser auto-translation.
 
-The current native dictionary has broader Croatian coverage than the other non-English dictionaries: the Croatian map contains 170 explicit keys, while each of the 12 `OTHER` locale maps currently contains 76 explicit keys. Because the requirement is that no advertised locale remain half-translated, this is an **open release blocker** and this package does not claim full 14-language parity.
+## Dictionary parity
 
-Before FINAL, extract every visible English UI string (including buttons, tooltips, placeholders, errors, setup steps, statuses and accessibility labels), generate a canonical key set, require every non-English dictionary to cover that exact set, then manually review terminology and clipping in the target UI.
+The current native dictionary defines a 185-key canonical non-English UI set. Source inspection on RC9 confirms that every advertised non-English locale contains the same 185 keys:
+
+- Hrvatski
+- Deutsch
+- Français
+- Español
+- Italiano
+- Português
+- Nederlands
+- Polski
+- Slovenščina
+- Srpski
+- Bosanski
+- Македонски
+- Shqip
+
+No locale is currently missing or adding keys relative to the canonical set.
+
+RC9 now includes `npm run check:i18n`, and the quality workflow executes it before TypeScript/build validation. This prevents a future locale from silently drifting to partial key coverage.
+
+## Remaining language QA before FINAL
+
+Key parity is not the same as linguistic acceptance. FINAL still requires manual review of:
+
+- terminology and grammar;
+- buttons, menus, tooltips, placeholders and accessibility labels;
+- long translations and clipping;
+- narrow-window layouts;
+- dialogs and dropdown widths;
+- protocol/security terminology.
+
+Status: **source key parity is complete and CI-gated; visual/linguistic target-OS acceptance remains open before FINAL.**
