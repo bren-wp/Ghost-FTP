@@ -1002,138 +1002,70 @@ export function FilePane({
         isDropTarget && "ring-2 ring-inset ring-accent/60 bg-accent/5"
       )}
     >
-      <div className="ghost-pane-header flex min-w-0 items-center gap-1 border-b border-border bg-bg-subtle px-2 py-1.5">
+      <div className="ghost-pane-header flex min-w-0 items-center gap-2 border-b border-border bg-bg-subtle px-3">
+        <span className="ghost-pane-title-icon" aria-hidden="true">
+          {sessionId === LOCAL_SESSION ? "▣" : "▤"}
+        </span>
         <span
           title={title}
-          className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider text-text-muted"
+          className="min-w-0 truncate text-[14px] font-semibold text-[#d9efff]"
         >
           {title}
         </span>
         {selectionCount > 0 && (
-          <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+          <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[9.5px] font-medium text-accent">
             {selectionCount} selected
           </span>
         )}
         {isDropTarget && (
-          <span className="rounded bg-accent-strong px-1.5 py-0.5 text-[10px] font-medium text-white">
+          <span className="rounded bg-accent-strong px-1.5 py-0.5 text-[9.5px] font-medium text-white">
             drop to {transferLabel.toLowerCase()}
           </span>
         )}
         <div className="flex-1" />
-        {selectionCount > 0 && onTransfer && (
-          <button
-            onClick={transferSelection}
-            className="flex items-center gap-1 rounded bg-accent-strong px-2 py-0.5 text-[11px] font-medium text-white hover:brightness-110"
-            title={`${transferLabel} ${selectionCount} item(s)`}
-          >
-            {transferLabel === "Upload" ? (
-              <Upload size={11} />
-            ) : (
-              <Download size={11} />
-            )}
-            {transferLabel} {selectionCount}
-          </button>
-        )}
-        {onUpload && (
-          <button
-            onClick={onUpload}
-            disabled={!sessionId}
-            className="flex items-center gap-1 rounded border border-accent/40 bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent hover:bg-accent/20 disabled:opacity-40"
-            title="Upload files or a folder to this directory"
-          >
-            <Upload size={11} /> Upload
-          </button>
-        )}
-        {fs.analyzeDiskUsage && (
-          <button
-            onClick={() =>
-              sessionId &&
-              fs
-                .analyzeDiskUsage!(sessionId, path)
-                .catch((e) => setError(errorText(e)))
-            }
-            disabled={!sessionId}
-            className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
-            title="Analyze disk usage in this folder"
-          >
-            <PieChart size={13} />
-          </button>
-        )}
-        {fs.searchDirectory && (
-          <button
-            onClick={() =>
-              sessionId &&
-              fs
-                .searchDirectory!(sessionId, path)
-                .catch((e) => setError(errorText(e)))
-            }
-            disabled={!sessionId}
-            className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
-            title="Search this folder by name or content"
-          >
-            <Search size={13} />
-          </button>
-        )}
-        {fs.findDuplicates && (
-          <button
-            onClick={() =>
-              sessionId &&
-              fs
-                .findDuplicates!(sessionId, path)
-                .catch((e) => setError(errorText(e)))
-            }
-            disabled={!sessionId}
-            className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
-            title="Find duplicate files in this folder"
-          >
-            <CopyX size={13} />
-          </button>
-        )}
-        {caps?.hasDirectories !== false && (
-          <button
-            onClick={() => setModal({ type: "mkdir" })}
-            disabled={!sessionId}
-            className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
-            title="New folder"
-          >
-            <FolderPlus size={13} />
-          </button>
-        )}
         <button
-          onClick={history.back}
-          disabled={!sessionId || !history.canBack}
-          className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-30"
-          title="Back"
-        >
-          <ArrowLeft size={13} />
-        </button>
-        <button
-          onClick={history.forward}
-          disabled={!sessionId || !history.canForward}
-          className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-30"
-          title="Forward"
-        >
-          <ArrowRight size={13} />
-        </button>
-        <button
-          onClick={goUp}
-          disabled={!sessionId}
-          className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
-          title="Up (Backspace)"
-        >
-          <ArrowUp size={13} />
-        </button>
-        <button
+          type="button"
           onClick={() => load(path)}
           disabled={!sessionId}
-          className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
+          className="ghost-pane-refresh"
           title="Refresh"
+          aria-label={`Refresh ${title}`}
         >
-          <RefreshCw size={13} />
+          <RefreshCw size={14} />
         </button>
       </div>
 
-      <div className="ghost-pane-pathbar flex items-center gap-1.5 border-b border-border px-2 py-1">
+      <div className="ghost-pane-pathbar flex min-w-0 items-center gap-1 border-b border-border px-2">
+        <div className="ghost-pane-nav-buttons flex shrink-0 items-center">
+          <button
+            type="button"
+            onClick={history.back}
+            disabled={!sessionId || !history.canBack}
+            title="Back"
+            aria-label="Back"
+          >
+            <ArrowLeft size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={history.forward}
+            disabled={!sessionId || !history.canForward}
+            title="Forward"
+            aria-label="Forward"
+          >
+            <ArrowRight size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={goUp}
+            disabled={!sessionId}
+            title="Up"
+            aria-label="Up one folder"
+          >
+            <ArrowUp size={14} />
+          </button>
+        </div>
+
         {editingPath ? (
           <input
             autoFocus
@@ -1145,123 +1077,24 @@ export function FilePane({
             }}
             onBlur={commitPath}
             disabled={!sessionId}
-            className="min-w-0 flex-1 rounded border border-accent bg-bg-subtle px-2 py-1 font-mono text-xs outline-none disabled:opacity-50"
+            className="ghost-pane-address min-w-0 flex-1 font-mono text-xs outline-none disabled:opacity-50"
             placeholder="/"
           />
         ) : (
-          <div className="flex min-w-0 flex-1 items-center overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {segments.map((seg, i) => {
-              const last = i === segments.length - 1;
-              return (
-                <span key={seg.path + i} className="flex items-center">
-                  {i > 0 && <span className="px-0.5 text-text-dim">/</span>}
-                  <button
-                    onClick={() => !last && sessionId && onPathChange(seg.path)}
-                    disabled={!sessionId || last}
-                    className={cn(
-                      "max-w-[12rem] truncate rounded px-1 py-0.5 font-mono text-xs",
-                      last
-                        ? "font-medium text-text"
-                        : "text-text-muted hover:bg-bg-hover hover:text-text"
-                    )}
-                    title={seg.path}
-                  >
-                    {seg.label}
-                  </button>
-                </span>
-              );
-            })}
-          </div>
-        )}
-        <div className="flex shrink-0 items-center gap-0.5">
           <button
-            onClick={() => setPaneViewMode("list")}
-            className={cn(
-              "rounded p-1 hover:bg-bg-hover",
-              paneViewMode === "list"
-                ? "text-accent"
-                : "text-text-dim hover:text-text"
-            )}
-            title="List view"
-          >
-            <List size={13} />
-          </button>
-          <button
-            onClick={() => setPaneViewMode("details")}
-            className={cn(
-              "rounded p-1 hover:bg-bg-hover",
-              paneViewMode === "details"
-                ? "text-accent"
-                : "text-text-dim hover:text-text"
-            )}
-            title="Details view"
-          >
-            <Table2 size={13} />
-          </button>
-          <button
-            onClick={() => setPaneViewMode("grid")}
-            className={cn(
-              "rounded p-1 hover:bg-bg-hover",
-              paneViewMode === "grid"
-                ? "text-accent"
-                : "text-text-dim hover:text-text"
-            )}
-            title="Grid view"
-          >
-            <LayoutGrid size={13} />
-          </button>
-          <button
-            onClick={() =>
-              setPaneDensity(paneDensity === "compact" ? "comfortable" : "compact")
-            }
-            className={cn(
-              "rounded p-1 hover:bg-bg-hover",
-              paneDensity === "compact"
-                ? "text-accent"
-                : "text-text-dim hover:text-text"
-            )}
-            title={
-              paneDensity === "compact"
-                ? "Compact rows — click for comfortable"
-                : "Comfortable rows — click for compact"
-            }
-          >
-            <AlignJustify size={13} />
-          </button>
-          {sessionId &&
-            sessionId !== LOCAL_SESSION &&
-            setRemoteImagePreviews && (
-              <button
-                onClick={() => setRemoteImagePreviews(!remoteImagePreviews)}
-                className={cn(
-                  "rounded p-1 hover:bg-bg-hover",
-                  remoteImagePreviews
-                    ? "text-accent"
-                    : "text-text-dim hover:text-text"
-                )}
-                title={
-                  remoteImagePreviews
-                    ? "Image previews on — click to turn off (fetches images to thumbnail them)"
-                    : "Image previews off — click to show remote image thumbnails"
-                }
-              >
-                <ImageIcon size={13} />
-              </button>
-            )}
-        </div>
-        {!editingPath && (
-          <button
+            type="button"
+            className="ghost-pane-address min-w-0 flex-1 truncate text-left font-mono text-[11.5px]"
             onClick={() => {
               setDraftPath(path);
               setEditingPath(true);
             }}
             disabled={!sessionId}
-            className="shrink-0 rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
-            title="Edit path"
+            title={path}
           >
-            <Pencil size={12} />
+            {path}
           </button>
         )}
+
         <div className="relative shrink-0">
           <Search
             size={12}
@@ -1272,13 +1105,16 @@ export function FilePane({
             onChange={(e) => setFilter(e.target.value)}
             disabled={!sessionId}
             placeholder="Filter"
-            className="w-32 rounded border border-border bg-bg-subtle py-1 pl-7 pr-6 text-xs outline-none focus:border-accent disabled:opacity-50"
+            aria-label={`Filter ${title}`}
+            className="ghost-pane-filter w-24 py-1 pl-7 pr-6 text-xs outline-none disabled:opacity-50"
           />
           {filter && (
             <button
+              type="button"
               onClick={() => setFilter("")}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-text-dim hover:text-text"
+              className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-text-dim hover:text-text"
               title="Clear filter"
+              aria-label="Clear filter"
             >
               <X size={11} />
             </button>
