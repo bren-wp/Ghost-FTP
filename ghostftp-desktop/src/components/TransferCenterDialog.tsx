@@ -161,9 +161,8 @@ export function TransferCenterDialog({ onClose }: Props) {
 
   return (
     <div
-      className="ghost-standalone-view fixed inset-0 z-modal bg-[#041425]"
-      role="dialog"
-      aria-modal="true"
+      className="ghost-workspace-view ghost-standalone-view bg-[#041425]"
+      role="region"
       aria-label="Transfer Center"
     >
       <div
