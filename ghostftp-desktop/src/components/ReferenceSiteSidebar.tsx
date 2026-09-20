@@ -96,17 +96,17 @@ export function ReferenceSiteSidebar() {
         <SidebarAction
           icon={<Cloud size={15}/>}
           label="Cloud Storage"
-          onClick={() => openDialog("siteManager")}
+          onClick={() => openDialog("cloudStorage")}
         />
         <SidebarAction
           icon={<Clock3 size={15}/>}
           label="Schedules"
-          onClick={() => openDialog("transferCenter")}
+          onClick={() => openDialog("schedules")}
         />
         <SidebarAction
           icon={<ScrollText size={15}/>}
           label="Activity Logs"
-          onClick={() => openDialog("transferCenter")}
+          onClick={() => openDialog("activityLogs")}
         />
         <SidebarAction
           icon={<Settings size={15}/>}
