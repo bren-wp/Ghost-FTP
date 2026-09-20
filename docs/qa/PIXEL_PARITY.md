@@ -6,14 +6,14 @@ The approved images under `docs/assets/screenshots/` are the visual specificatio
 
 At the approved **1290×852** desktop frame the real Ghost FTP component shell targets:
 
-- 51 px custom titlebar;
-- 42 px application menu;
-- 50 px Quick Connect row;
-- 62 px toolbar;
+- 52 px integrated custom titlebar + application menubar;
+- 72 px Quick Connect row;
+- 60 px toolbar;
 - 216 px Sites rail;
 - 416 px file workspace;
-- 191 px transfer/log band;
-- 40 px status bar.
+- 210 px transfer/log band;
+- 40 px status bar;
+- thin separators/borders consume the remaining pixels of the 852 px native inner frame.
 
 Reference modal envelopes:
 
