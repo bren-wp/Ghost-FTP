@@ -437,6 +437,7 @@ export function TransferCenterDialog({ onClose }: Props) {
 
 function TransferCenterTitlebar({ onClose }: { onClose: () => void }) {
   const openView = useLayout((state) => state.openView);
+  const openAbout = useLayout((state) => state.openAbout);
   const locale = getLocale();
 
   const item = (
@@ -485,7 +486,7 @@ function TransferCenterTitlebar({ onClose }: { onClose: () => void }) {
         {item("Bookmarks", <Bookmark size={15} />, () => openView("siteManager"))}
         {item("Tools", <Wrench size={15} />, () => openView("settings"))}
         {item("Settings", <Settings size={15} />, () => openView("settings"))}
-        {item("Help", <HelpCircle size={15} />, () => openView("about"))}
+        {item("Help", <HelpCircle size={15} />, () => openAbout("help"))}
       </nav>
       <label className="ghost-transfer-language">
         <Languages size={14} />
