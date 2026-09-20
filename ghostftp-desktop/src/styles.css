@@ -412,26 +412,6 @@ button:active,
   transform: scale(0.97);
 }
 
-/* Subtle film grain on the whole window. Sits above all panels via fixed +
-   blend so the grain shows on every surface. The user almost can't see it —
-   it just makes flat panels feel slightly less plastic. */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  /* Above the tooltip layer (90) so the texture sits over every surface;
-     pointer-events:none keeps it from blocking anything. */
-  z-index: 100;
-  opacity: 0.035;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-  background-size: 256px 256px;
-}
-[data-theme="light"] body::after,
-[data-theme="ghost-ice"] body::after {
-  opacity: 0.06;
-}
 
 /* The whole app is chrome by default — no accidental text selection when
    clicking-and-dragging on buttons, headers, rows, etc. Selection is
@@ -704,7 +684,6 @@ body,
     linear-gradient(180deg, #061b2e 0%, #04111e 100%);
 }
 
-body::after { opacity: 0.018; }
 
 .ghost-app-header {
   flex: 0 0 auto;
@@ -2580,4 +2559,19 @@ body::after { opacity: 0.018; }
   .ghost-new-connection-body .grid {
     grid-template-columns: 1fr !important;
   }
+}
+
+/* RC12: real floating overlays without compositor-heavy background effects. */
+.ghost-menu-popover,
+.ghost-dropdown-menu,
+.ghost-quick-protocol-menu {
+  z-index: 160 !important;
+}
+.fixed.inset-0.z-modal,
+.ghost-standalone-view {
+  z-index: 1000 !important;
+}
+.ghost-new-connection-dialog {
+  animation: none !important;
+  contain: layout paint;
 }
