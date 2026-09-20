@@ -3502,10 +3502,7 @@ fn make_bar(total: u64, name: &str) -> ProgressBar {
 }
 
 fn basename(path: &str) -> String {
-    path.rsplit(['/', '\\'])
-        .next()
-        .unwrap_or(path)
-        .to_string()
+    path.rsplit(['/', '\\']).next().unwrap_or(path).to_string()
 }
 
 fn parent_of(path: &str) -> String {
