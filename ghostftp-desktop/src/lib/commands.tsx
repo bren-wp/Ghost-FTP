@@ -56,6 +56,7 @@ export function useCommands(): Command[] {
   const terminalOpen = useLayout((s) => s.terminalOpen);
   const toggleConsole = useLayout((s) => s.toggleConsole);
   const openView = useLayout((s) => s.openView);
+  const openAbout = useLayout((s) => s.openAbout);
   const openDialog = useLayout((s) => s.openDialog);
   const setShortcutsOpen = useLayout((s) => s.setShortcutsOpen);
   const openSkills = useSkills((s) => s.openPanel);
@@ -150,7 +151,7 @@ export function useCommands(): Command[] {
       title: "About Ghost FTP",
       group: "General",
       icon: <Info size={14} />,
-      run: () => openView("about"),
+      run: () => openAbout("about"),
     },
     {
       id: "reload",
