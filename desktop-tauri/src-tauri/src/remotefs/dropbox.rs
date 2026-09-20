@@ -320,7 +320,7 @@ mod tests {
 
         // First API call uses the STALE token → 401 → force_refresh → succeeds.
         let label = session.account_label().await.expect("account");
-        assert_eq!(label, "tester@example.com");
+        assert_eq!(label, "tester@example.invalid");
 
         let fs = DropboxFs::new(session.clone());
         fs.create_dir("/ghostftp-test").await.expect("mkdir");
