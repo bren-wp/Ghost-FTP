@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.1-rc.8 — 20 September 2026
+
+- Removed browser-shell compatibility executables from the end-user release path after the visible 127.0.0.1 Chromium/Edge bar regression was reproduced.
+- Production GUI releases now come only from the native Tauri/WebView pipeline.
+- Fixed encrypted-backup magic-header length compilation error in the Rust backend.
+- Fixed Windows RC packaging by using NSIS for prerelease builds instead of invalid MSI prerelease metadata.
+- Native build pipeline now emits Windows native portable EXE + NSIS setup and Linux native binary + DEB/RPM/AppImage artifacts.
+- Public release publishing is gated on a successful native Windows/Linux build.
+- Kept the frameless custom Ghost FTP window, 1290×852 reference geometry and adaptive smaller-window rules.
+
+
 ## 2.1.1-rc.7 — 20 September 2026
 
 - Reworked Site Manager, Preferences, Transfer Center and About into reference-style full application surfaces instead of generic modal cards.
