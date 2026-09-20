@@ -90,6 +90,9 @@ export default function App() {
     dialog === "sync" ||
     dialog === "help" ||
     dialog === "updates" ||
+    dialog === "cloudStorage" ||
+    dialog === "schedules" ||
+    dialog === "activityLogs" ||
     dialog === "about";
 
   useShortcuts();
@@ -141,9 +144,10 @@ export default function App() {
           />
         )}
         {dialog === "siteManager" && <SiteManagerDialog onClose={closeDialog} />}
-        {dialog === "transferCenter" && (
-          <TransferCenterDialog onClose={closeDialog} />
-        )}
+        {dialog === "cloudStorage" && <SiteManagerDialog onClose={closeDialog} initialView="cloud" />}
+        {dialog === "transferCenter" && <TransferCenterDialog onClose={closeDialog} />}
+        {dialog === "schedules" && <TransferCenterDialog onClose={closeDialog} initialFocus="scheduler" />}
+        {dialog === "activityLogs" && <TransferCenterDialog onClose={closeDialog} initialFocus="log" />}
         {dialog === "import" && <ImportDialog onClose={closeDialog} />}
         {dialog === "grant" && <GrantDialog onClose={closeDialog} />}
         {dialog === "about" && <AboutDialog onClose={closeDialog} initialTab="about" />}
