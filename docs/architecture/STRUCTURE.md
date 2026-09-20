@@ -7,10 +7,11 @@ Ghost FTP keeps the repository product-oriented and easy to scan. Public/source-
 ```text
 Ghost-FTP-Premium/
 ├── ghostftp-desktop/      Production desktop application source
-├── ghostftp-runtime/      Developer / compatibility runtime tooling
-├── ghostftp-installer/    Installer support and compatibility tooling
-├── ghostftp-web/          ghostftp.com website source
-├── ghostftp-updates/      Update-manifest templates
+├── tools/
+│   ├── ghostftp-runtime/    Developer / compatibility runtime tooling
+│   └── ghostftp-installer/  Installer support / compatibility tooling
+├── website/                  ghostftp.com website source
+├── updates/                  Update-manifest templates
 ├── docs/                  Product, QA, build, legal and audit documentation
 ├── .github/workflows/     GhostFTP quality, build and release automation
 ├── README.md
@@ -26,19 +27,19 @@ Ghost-FTP-Premium/
 
 Authoritative production GUI and protocol engine. It contains the React/TypeScript interface, Rust backend, file-transfer engine, native window integration, updater, credential handling, agent components and packaging configuration.
 
-### `ghostftp-runtime/`
+### `tools/ghostftp-runtime/`
 
 Developer and compatibility tooling. It is not accepted as the production desktop GUI and must never replace the native Ghost FTP release path.
 
-### `ghostftp-installer/`
+### `tools/ghostftp-installer/`
 
 Installer support / compatibility tooling retained for development and historical flows. Public Windows production packaging is generated from the authoritative desktop build.
 
-### `ghostftp-web/`
+### `website/`
 
 Static ghostftp.com website source and local website icon assets.
 
-### `ghostftp-updates/`
+### `updates/`
 
 Update-manifest templates and release update metadata helpers.
 
