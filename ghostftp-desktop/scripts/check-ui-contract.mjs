@@ -58,6 +58,9 @@ const criticalFiles = [
 
 for (const file of walkSource("src")) {
   const source = read(file);
+  if (/[\u3400-\u9fff]/u.test(source)) {
+    failures.push(`${file}: unexpected CJK text found in the production English/Balkan source UI`);
+  }
   if (/window\.open\s*\(/.test(source) || /target\s*=\s*["']_blank["']/.test(source)) {
     failures.push(`${file}: popup/new-tab navigation is not allowed inside Ghost FTP`);
   }
@@ -112,6 +115,12 @@ const transferCenter = read("src/components/TransferCenterDialog.tsx");
 for (const required of ["Add Transfer", "Schedule", "Clear Completed", "More", "Pause All", "Retry", "Paused", "All Directions", "Any Time"]) {
   if (!transferCenter.includes(required)) failures.push(`Transfer Center missing required action: ${required}`);
 }
+
+const sidebar = read("src/components/ReferenceSiteSidebar.tsx");
+for (const required of ["Transfer Center", "File Manager", "Sync & Backup", "Cloud Storage", "Schedules", "Activity Logs", "Settings"]) {
+  if (!sidebar.includes(required)) failures.push(`Sidebar missing required navigation action: ${required}`);
+}
+if (!sidebar.includes('openDialog("sync")')) failures.push("Sync & Backup must open the real in-app sync workspace.");
 
 const settings = read("src/components/Settings.tsx");
 for (const required of ["Reset to Defaults", "Cancel", "Apply"]) {
