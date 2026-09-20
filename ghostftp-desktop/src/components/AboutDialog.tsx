@@ -83,10 +83,11 @@ function AboutContent() {
           <div className="rounded-md border border-border-subtle bg-[#051929] p-4">
             <div className="mb-2 font-semibold">Version {PRODUCT_VERSION}</div>
             <ul className="space-y-1.5 text-[12px] text-text-muted">
-              <li>• Redesigned Windows and Linux interface based on the Ghost FTP visual system.</li>
-              <li>• Faster transfer workflows with a clearer queue, progress and server activity log.</li>
-              <li>• English primary interface with complete Croatian language support.</li>
-              <li>• Privacy-first defaults, no telemetry and Ghost FTP-only branding.</li>
+              <li>• Production UI parity pass for the Ghost FTP desktop visual system.</li>
+              <li>• Real FTP, explicit FTPS and SFTP protocol acceptance in CI.</li>
+              <li>• Binary-safe FTP/FTPS transfers with corrected TYPE I handling.</li>
+              <li>• Isolated Site Manager and Quick Connect connection testing.</li>
+              <li>• Faster startup through lazy-loaded secondary application views.</li>
             </ul>
           </div>
         </div>
@@ -99,6 +100,7 @@ function AboutContent() {
           <LinkRow icon={<FileText size={18}/>} title="Documentation" subtitle="Guides and tutorials" onClick={() => external("/docs")}/>
           <LinkRow icon={<LifeBuoy size={18}/>} title="Support Center" subtitle="Get help from our team" onClick={() => external("/support")}/>
           <LinkRow icon={<ShieldCheck size={18}/>} title="Privacy Policy" subtitle="Your privacy matters" onClick={() => external("/privacy")}/>
+          <LinkRow icon={<FileText size={18}/>} title="Changelog" subtitle="See what's new" onClick={() => external("/changelog")}/>
         </div>
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
           <div className="text-[15px] font-semibold">Platforms & Language</div>
