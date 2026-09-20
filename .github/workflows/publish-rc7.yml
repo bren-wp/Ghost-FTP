@@ -127,11 +127,14 @@ jobs:
         run: |
           set -euo pipefail
           RUN_ID="$(gh run list --workflow native-build.yml --branch main --status success --limit 1 \
-            --json databaseId --jq '.[0].databaseId')"
-          test -n "$RUN_ID"
-          echo "Using native build run $RUN_ID"
-          mkdir -p dist/native
-          gh run download "$RUN_ID" -D dist/native
+            --json databaseId --jq '.[0].databaseId // empty')"
+          if [ -n "$RUN_ID" ]; then
+            echo "Using native build run $RUN_ID"
+            mkdir -p dist/native
+            gh run download "$RUN_ID" -D dist/native
+          else
+            echo "No successful native build is available yet; publishing source and compatibility artifacts only."
+          fi
 
       - name: Generate checksums
         shell: bash
