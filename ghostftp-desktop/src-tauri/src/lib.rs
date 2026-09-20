@@ -309,6 +309,7 @@ pub fn run() {
             commands::list_profiles,
             commands::save_profile,
             commands::reorder_profiles,
+            commands::duplicate_profile,
             commands::delete_profile,
             commands::ssh_key_defaults,
             commands::generate_ssh_key,
