@@ -2,9 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use ghostftp_lib::profiles::{AuthMethod, ConnectionProfile};
 use ghostftp_lib::remotefs::{ftp::FtpFs, sftp::SftpFs, RemoteFs};
-use ghostftp_lib::session::{
-    open_session, HostDecision, HostKeyVerifier, HostPromptKind, Session,
-};
+use ghostftp_lib::session::{open_session, HostDecision, HostKeyVerifier, HostPromptKind, Session};
 use std::io::Cursor;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -122,9 +120,7 @@ async fn ftp_roundtrip(
         return Err(anyhow!("{protocol} LIST did not return upload.txt"));
     }
 
-    fs.rename(&upload, &renamed)
-        .await
-        .context("FTP rename")?;
+    fs.rename(&upload, &renamed).await.context("FTP rename")?;
 
     let download_path = renamed.clone();
     let downloaded = ftp
@@ -139,8 +135,12 @@ async fn ftp_roundtrip(
         return Err(anyhow!("{protocol} download content mismatch"));
     }
 
-    fs.delete(&renamed, false).await.context("FTP delete file")?;
-    fs.delete(&base, false).await.context("FTP delete directory")?;
+    fs.delete(&renamed, false)
+        .await
+        .context("FTP delete file")?;
+    fs.delete(&base, false)
+        .await
+        .context("FTP delete directory")?;
 
     ftp.with_stream(|stream| {
         stream.quit();
@@ -170,7 +170,9 @@ async fn sftp_password_roundtrip(
     // Unknown host keys must really pass through the verifier.
     let rejected = open_session(&p, Arc::new(FixedVerifier(HostDecision::Reject))).await;
     if rejected.is_ok() {
-        return Err(anyhow!("SFTP unknown host key was accepted after explicit rejection"));
+        return Err(anyhow!(
+            "SFTP unknown host key was accepted after explicit rejection"
+        ));
     }
 
     let session = open_session(&p, Arc::new(FixedVerifier(HostDecision::Accept)))
@@ -202,9 +204,7 @@ async fn sftp_password_roundtrip(
     }
 
     fs.chmod(&upload, 0o640).await.context("SFTP chmod")?;
-    fs.rename(&upload, &renamed)
-        .await
-        .context("SFTP rename")?;
+    fs.rename(&upload, &renamed).await.context("SFTP rename")?;
 
     let cell = ssh.ensure_sftp().await?;
     let (mut remote, mode) = {
@@ -220,7 +220,9 @@ async fn sftp_password_roundtrip(
         (file, mode)
     };
     if mode != 0o640 {
-        return Err(anyhow!("SFTP chmod mismatch: expected 0640, got {mode:04o}"));
+        return Err(anyhow!(
+            "SFTP chmod mismatch: expected 0640, got {mode:04o}"
+        ));
     }
 
     let mut downloaded = Vec::new();
@@ -232,7 +234,9 @@ async fn sftp_password_roundtrip(
         return Err(anyhow!("SFTP download content mismatch"));
     }
 
-    fs.delete(&renamed, false).await.context("SFTP delete file")?;
+    fs.delete(&renamed, false)
+        .await
+        .context("SFTP delete file")?;
     fs.delete(&base, false)
         .await
         .context("SFTP delete directory")?;
@@ -303,12 +307,9 @@ async fn real_ftp_ftps_sftp_roundtrips() -> Result<()> {
             password: password.clone(),
         },
     );
-    if open_session(
-        &bad_ftps,
-        Arc::new(FixedVerifier(HostDecision::Accept)),
-    )
-    .await
-    .is_ok()
+    if open_session(&bad_ftps, Arc::new(FixedVerifier(HostDecision::Accept)))
+        .await
+        .is_ok()
     {
         return Err(anyhow!(
             "FTPS accepted a certificate whose identity does not match 127.0.0.1"
@@ -316,13 +317,7 @@ async fn real_ftp_ftps_sftp_roundtrips() -> Result<()> {
     }
 
     let sftp_port = port("GHOSTFTP_E2E_SFTP_PORT")?;
-    sftp_password_roundtrip(
-        "127.0.0.1",
-        sftp_port,
-        &username,
-        &password,
-    )
-    .await?;
+    sftp_password_roundtrip("127.0.0.1", sftp_port, &username, &password).await?;
 
     sftp_key_auth(
         "127.0.0.1",
