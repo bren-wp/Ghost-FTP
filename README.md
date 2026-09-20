@@ -64,46 +64,46 @@ The canonical desktop reference is **1290×852**. Smaller windows adapt through 
 
 **Control.** Use permissions, checksums, sync, terminal, search, duplicate detection and diagnostics from the same product.
 
-## Implemented in RC10
+## Implemented in RC11
 
-- FTP, FTPS and SFTP Quick Connect and saved profiles.
+- FTP, explicit FTPS and SFTP Quick Connect and saved profiles with real protocol E2E acceptance.
 - Site Manager with folders, favorites, tags, bookmarks and recent-server metadata.
 - Dual-pane file browsing and normal file operations.
-- Upload/download queues with pause, resume, retry, cancel and bandwidth controls.
+- Binary-safe FTP/FTPS transfers plus upload/download queues with pause, resume, retry, cancel and bandwidth controls.
 - SHA-256 and supported permission/chmod workflows.
 - Folder sync, directory comparison, duplicate discovery and disk analysis.
 - Integrated terminal, command palette, snippets and keyboard shortcuts.
 - Protected credential handling where supported by the operating system.
-- Native Windows and Linux packaging.
+- Native Windows and Linux packaging with frameless Tauri window acceptance evidence.
 - Branded preview/stable update-channel structure.
 - English-first interface with 13 additional selectable languages.
 
 See [Features](docs/product/FEATURES.md) and [Project status](docs/product/STATUS_AND_NEXT.md).
 
-## Downloads — Ghost FTP 2.1.1 RC10
+## Downloads — Ghost FTP 2.1.1 RC11
 
 Published versions are kept available in GitHub Releases when newer versions are added.
 
 **Windows x64**
-- `GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe`
-- `GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe`
-- `GhostFTP-Windows-x64-v2.1.1-RC10.zip`
-- `GhostFTP-Windows-x64-v2.1.1-RC10-Native-Window.png` (CI native-window QA evidence)
+- `GhostFTP-Windows-x64-Portable-v2.1.1-RC11.exe`
+- `GhostFTP-Windows-x64-Setup-v2.1.1-RC11.exe`
+- `GhostFTP-Windows-x64-v2.1.1-RC11.zip`
+- `GhostFTP-Windows-x64-v2.1.1-RC11-Native-Window.png` (CI native-window QA evidence)
 
 **Linux x86-64**
-- `GhostFTP-Linux-x86_64-v2.1.1-RC10`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC10.AppImage`
-- `GhostFTP-Linux-amd64-v2.1.1-RC10.deb`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC10.rpm`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC10.tar.gz`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC11`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC11.AppImage`
+- `GhostFTP-Linux-amd64-v2.1.1-RC11.deb`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC11.rpm`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC11.tar.gz`
 
 **Source**
-- `GhostFTP-v2.1.1-RC10-Source.zip`
-- `GhostFTP-v2.1.1-RC10-Desktop-Source.zip`
-- `GhostFTP-v2.1.1-RC10-Website.zip`
-- `GhostFTP-v2.1.1-RC10-Updates.zip`
-- `GhostFTP-v2.1.1-RC10-Documentation.zip`
-- `GhostFTP-v2.1.1-RC10-SHA256SUMS.txt`
+- `GhostFTP-v2.1.1-RC11-Source.zip`
+- `GhostFTP-v2.1.1-RC11-Desktop-Source.zip`
+- `GhostFTP-v2.1.1-RC11-Website.zip`
+- `GhostFTP-v2.1.1-RC11-Updates.zip`
+- `GhostFTP-v2.1.1-RC11-Documentation.zip`
+- `GhostFTP-v2.1.1-RC11-SHA256SUMS.txt`
 
 ## Repository layout
 
