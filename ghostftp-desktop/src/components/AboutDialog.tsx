@@ -28,7 +28,7 @@ export function AboutDialog({ onClose }: Props) {
   useDialog(panelRef, { onClose });
 
   return (
-    <div className="ghost-workspace-view ghost-standalone-view bg-[#041425]" role="region" aria-label="Ghost FTP Preferences">
+    <div className="ghost-workspace-view ghost-standalone-view bg-[#041425]" role="region" aria-label="About Ghost FTP">
       <div ref={panelRef} className="ghost-about flex h-full w-full flex-col overflow-hidden bg-bg-panel">
         <ReferenceWindowTitlebar onClose={onClose} />
         <div className="ghost-about-body flex min-h-0 flex-1">
