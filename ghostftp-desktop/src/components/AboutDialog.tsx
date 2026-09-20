@@ -38,10 +38,14 @@ export function AboutDialog({ onClose }: Props) {
         </aside>
 
         <main className="ghost-about-content min-w-0 flex-1 overflow-y-auto p-4">
-          <div className="mb-3">
-            <div className="text-lg font-semibold">{tab === "about" ? "About Ghost FTP" : tab === "updates" ? "Ghost FTP Updates" : "Ghost FTP Help Center"}</div>
-            <div className="text-[12px] text-text-muted">Files move forward.</div>
-          </div>
+          {tab !== "about" && (
+            <div className="mb-3">
+              <div className="text-lg font-semibold">
+                {tab === "updates" ? "Ghost FTP Updates" : "Ghost FTP Help Center"}
+              </div>
+              <div className="text-[12px] text-text-muted">Files move forward.</div>
+            </div>
+          )}
 
           {tab === "about" && <AboutContent />}
           {tab === "updates" && <UpdatesContent />}
