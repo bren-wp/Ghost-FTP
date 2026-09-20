@@ -2,7 +2,7 @@
 
 ## Scope
 
-RC9 continues the existing Ghost FTP production source. The production GUI remains the React + Tauri + Rust application in `desktop-tauri/`; compatibility Go hosts are retained only as developer/tooling surfaces and are not shipped as the production desktop UI.
+RC9 continues the existing Ghost FTP production source. The production GUI remains the React + Tauri + Rust application in `ghostftp-desktop/`; compatibility Go hosts are retained only as developer/tooling surfaces and are not shipped as the production desktop UI.
 
 ## Corrected and hardened
 
@@ -28,7 +28,7 @@ RC9 continues the existing Ghost FTP production source. The production GUI remai
 
 The source audit runs:
 
-- Go tests and `go vet` for runtime/installer tooling;
+- Go tests and `go vet` for ghostftp-runtime/installer tooling;
 - JavaScript syntax checks for runtime, installer and website;
 - `npm ci`, TypeScript typecheck and production Vite build;
 - Rust `cargo fmt --check`, workspace check, tests and Clippy with warnings denied;
@@ -40,4 +40,4 @@ Runtime-critical paths, Rust crate/package names and Tauri identifiers are not r
 
 `GhostFTP-<Platform>-<Arch>-<Role>-v<Version>.<ext>`
 
-This gives cleaner downloads without destabilizing source imports or installer/update identifiers.
+This gives cleaner downloads without destabilizing source imports or ghostftp-installer/update identifiers.
