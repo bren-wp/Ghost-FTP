@@ -15,7 +15,6 @@
 use anyhow::{bail, Context, Result};
 use std::path::PathBuf;
 
-const SERVICE_NAME: &str = "ghostftp-agentd";
 const TASK_NAME: &str = "Ghost FTPAgent";
 
 /// Absolute path to the running executable, for the service definition.
