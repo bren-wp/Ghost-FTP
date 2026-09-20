@@ -63,3 +63,13 @@ Before FINAL, capture real native Windows renders at 100% display scale and comp
 - spacing and alignment.
 
 Measured differences must be accepted or corrected before the release is described as 1:1 / pixel-perfect FINAL.
+
+
+## Stacking acceptance
+
+At every documented viewport size:
+
+- opening New Connection, Site Manager, Preferences, Transfer Center or About must fully cover the underlying application chrome;
+- no titlebar, Quick Connect row or toolbar control may paint above a modal/standalone surface;
+- top application menus must float over the Quick Connect row without changing row height, pushing content or clipping;
+- screenshots used for comparison are specifications only; production UI must remain real React/Tauri controls.
