@@ -41,7 +41,7 @@ Development continued from the existing full source tree. No new replacement pro
 
 ## Public release artifact policy
 
-Production-facing Windows/Linux executables come from the native Tauri build. Compatibility browser-host artifacts are not published as end-user RC9 binaries. The RC9 native Windows and Linux CI build completed successfully and its artifacts are published in the GitHub RC9 pre-release. The release remains a pre-release until the remaining OS acceptance gates pass.
+Production-facing Windows/Linux executables come from the native Tauri build. Compatibility browser-host artifacts are not published as end-user RC9 binaries. The RC9 source is prepared for a fresh native Windows/Linux CI build and GitHub pre-release. Publication remains gated on a successful current-main native build plus a successful source audit.
 
 ## Executed QA in this pass
 
@@ -60,15 +60,15 @@ Production-facing Windows/Linux executables come from the native Tauri build. Co
 
 ## Native RC9 build evidence
 
-- Windows native Tauri application build: PASS.
-- Windows NSIS setup bundle: PASS.
-- Windows native portable `ghostftp.exe`: PASS.
-- Linux native Tauri application build: PASS.
-- Linux DEB bundle: PASS.
-- Linux RPM bundle: PASS.
-- Linux AppImage bundle: PASS.
-- Native Windows/Linux workflow run: PASS.
-- GitHub RC9 pre-release publication: PASS.
+- Windows native Tauri application build: PENDING current RC9 CI.
+- Windows NSIS setup bundle: PENDING current RC9 CI.
+- Windows native portable `ghostftp.exe`: PENDING current RC9 CI.
+- Linux native Tauri application build: PENDING current RC9 CI.
+- Linux DEB bundle: PENDING current RC9 CI.
+- Linux RPM bundle: PENDING current RC9 CI.
+- Linux AppImage bundle: PENDING current RC9 CI.
+- Native Windows/Linux workflow run: PENDING current RC9 CI.
+- GitHub RC9 pre-release publication: PENDING current RC9 CI.
 
 ## Gates still blocking FINAL
 
