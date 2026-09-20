@@ -2916,3 +2916,453 @@ button:active,
   transform: none !important;
   animation: none !important;
 }
+
+
+/* RC13 integrated-workspace fidelity pass.
+   Primary screens are destinations inside one native Ghost FTP window.
+   Only short contextual tasks (connect/import/confirm/properties) may overlay. */
+.ghost-app-view {
+  position: relative;
+  z-index: 1 !important;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #041425;
+  isolation: isolate;
+}
+
+.ghost-app-view.ghost-standalone-view {
+  position: relative !important;
+  inset: auto !important;
+  width: 100%;
+  height: auto;
+  flex: 1 1 auto;
+  z-index: 1 !important;
+}
+
+.ghost-app-view > .ghost-site-manager,
+.ghost-app-view > .ghost-preferences,
+.ghost-app-view > .ghost-transfer-center,
+.ghost-app-view > .ghost-about {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.fixed.inset-0.z-modal {
+  z-index: 1200 !important;
+}
+
+/* Keep WebView rasterization stable while clicking repeatedly. */
+button,
+[role="button"] {
+  transition:
+    background-color var(--dur-fast) var(--ease-out-quart),
+    color var(--dur-fast) var(--ease-out-quart),
+    border-color var(--dur-fast) var(--ease-out-quart),
+    filter var(--dur-fast) var(--ease-out-quart),
+    box-shadow var(--dur-fast) var(--ease-out-quart) !important;
+}
+button:active,
+[role="button"]:active {
+  transform: none !important;
+}
+
+/* Canonical reference shell. The supplied concepts use a compact titlebar,
+   one compact Quick Connect strip, a 60px action toolbar and a dense dual pane. */
+.ghost-title-row,
+.ghost-standalone-titlebar {
+  height: 52px !important;
+  min-height: 52px !important;
+}
+
+.ghost-quick-row {
+  display: grid !important;
+  grid-template-columns:
+    minmax(190px, 1.25fr)
+    minmax(170px, 1fr)
+    minmax(180px, 1fr)
+    88px
+    154px
+    94px
+    172px !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  gap: 9px !important;
+  padding: 8px 14px !important;
+  align-items: center;
+  overflow: visible !important;
+}
+
+.ghost-quick-row > label {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px !important;
+  min-width: 0;
+  max-width: none !important;
+  font-size: 11.5px;
+}
+
+.ghost-quick-row input,
+.ghost-quick-row select,
+.ghost-quick-actions .ghost-mini-button,
+.ghost-quick-actions .ghost-language-menu {
+  height: 34px !important;
+  min-height: 34px !important;
+}
+
+.ghost-port-field {
+  grid-template-columns: auto 1fr !important;
+}
+.ghost-port-field input {
+  width: 56px !important;
+  min-width: 56px !important;
+}
+
+.ghost-quick-connect {
+  width: 154px !important;
+  min-width: 154px !important;
+  height: 34px !important;
+  margin: 0 !important;
+}
+.ghost-quick-connect-main,
+.ghost-quick-connect-menu {
+  height: 34px !important;
+}
+
+.ghost-quick-actions {
+  display: contents !important;
+}
+.ghost-quick-actions .ghost-mini-button {
+  min-width: 94px !important;
+  justify-content: center;
+}
+.ghost-quick-actions .ghost-language-menu {
+  min-width: 172px !important;
+}
+.ghost-quick-actions .ghost-language-menu select {
+  width: 132px !important;
+  min-width: 132px !important;
+}
+
+.ghost-toolbar-row {
+  height: 60px !important;
+  min-height: 60px !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none;
+}
+.ghost-toolbar-row::-webkit-scrollbar { display: none; }
+
+.ghost-tool-button {
+  width: 76px !important;
+  min-width: 76px !important;
+  flex: 0 0 76px !important;
+  height: 60px !important;
+  border-radius: 0 !important;
+}
+.ghost-sites-toolbar-head {
+  width: 216px !important;
+  min-width: 216px !important;
+  flex: 0 0 216px !important;
+  height: 60px !important;
+}
+
+.ghost-main-workspace {
+  flex: 1 1 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+.ghost-bottom-band {
+  flex: 0 0 210px !important;
+  height: 210px !important;
+  min-height: 210px !important;
+  max-height: 210px !important;
+}
+
+.ghost-reference-statusbar {
+  flex: 0 0 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+}
+
+/* Reference-style workspace navigation below saved sites. Every item routes
+   to a real in-app destination; there are no dead decorative buttons. */
+.ghost-sites-panel {
+  display: flex !important;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ghost-sites-list {
+  flex: 0 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+.ghost-sidebar-nav {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 2px;
+  margin: 8px 8px 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(56, 171, 255, .22);
+}
+.ghost-sidebar-nav-item {
+  display: flex;
+  height: 32px;
+  width: 100%;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 0 9px;
+  background: transparent;
+  color: #c2dff3;
+  font-size: 11.5px;
+  text-align: left;
+}
+.ghost-sidebar-nav-item svg { color: #8ed0ff; }
+.ghost-sidebar-nav-item:hover {
+  border-color: rgba(56,171,255,.25);
+  background: #0a2c49;
+  color: #fff;
+}
+.ghost-sidebar-nav-item.active {
+  border-color: rgba(56,171,255,.48);
+  background: linear-gradient(180deg,#0a4c86,#083966);
+  color: #fff;
+}
+
+/* Full-screen destinations share the same inner-window geometry and never
+   layer over another primary screen. */
+.ghost-site-manager,
+.ghost-preferences,
+.ghost-transfer-center,
+.ghost-about {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ghost-site-manager-workspace,
+.ghost-preferences-body,
+.ghost-about-body {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ghost-site-manager-table,
+.ghost-site-manager-details,
+.ghost-preferences-content,
+.ghost-about-content {
+  scrollbar-gutter: stable;
+}
+
+.ghost-site-manager-hero {
+  min-height: 74px !important;
+}
+.ghost-site-manager-workspace {
+  grid-template-columns: 228px minmax(0, 1fr) 348px !important;
+}
+.ghost-site-manager-details {
+  min-width: 0;
+}
+
+.ghost-preferences-nav {
+  width: 214px !important;
+  min-width: 214px !important;
+}
+.ghost-preferences-content > .grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.ghost-about-nav {
+  width: 214px !important;
+  min-width: 214px !important;
+}
+.ghost-about-grid {
+  width: min(100%, 1080px);
+}
+
+.ghost-transfer-center-heading {
+  min-height: 76px !important;
+}
+.ghost-transfer-filters {
+  min-height: 50px;
+}
+.ghost-transfer-summary-grid {
+  min-height: 178px;
+}
+.ghost-transfer-lower-grid {
+  min-height: 150px;
+}
+
+/* True contextual dialogs remain inside the current workspace. They use a
+   calm backdrop and fixed reference envelopes, never extra native windows. */
+.fixed.inset-0.z-modal {
+  background: rgba(1, 10, 18, .72) !important;
+  backdrop-filter: none !important;
+}
+.ghost-new-connection-dialog {
+  width: min(752px, calc(100vw - 24px)) !important;
+  height: min(628px, calc(100dvh - 24px)) !important;
+  max-height: min(628px, calc(100dvh - 24px)) !important;
+}
+.ghost-properties-dialog {
+  width: min(530px, calc(100vw - 20px)) !important;
+  max-height: min(770px, calc(100dvh - 20px)) !important;
+}
+
+/* 1024-class native windows: never overlap controls. Dense rows scroll inside
+   their own strip instead of widening the app or painting over neighbours. */
+@media (max-width: 1120px) {
+  .ghost-title-menu-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    scrollbar-width: none;
+  }
+  .ghost-title-menu-wrap::-webkit-scrollbar { display:none; }
+  .ghost-title-menu-wrap .ghost-menu-anchor > button {
+    padding-inline: 7px !important;
+    font-size: 11px !important;
+  }
+
+  .ghost-quick-row {
+    display: flex !important;
+    height: 58px !important;
+    min-height: 58px !important;
+    gap: 8px !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    padding: 8px 10px !important;
+    scrollbar-width: thin;
+  }
+  .ghost-quick-row > label {
+    flex: 0 0 154px !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 2px !important;
+    font-size: 9.5px;
+  }
+  .ghost-quick-row > .ghost-port-field {
+    flex-basis: 72px !important;
+  }
+  .ghost-port-field input {
+    width: 68px !important;
+  }
+  .ghost-quick-connect {
+    flex: 0 0 140px !important;
+    width: 140px !important;
+    min-width: 140px !important;
+    align-self: end;
+  }
+  .ghost-quick-actions {
+    display: flex !important;
+    flex: 0 0 auto;
+    align-items: end;
+    gap: 8px;
+  }
+  .ghost-quick-actions .ghost-mini-button {
+    min-width: 36px !important;
+  }
+
+  .ghost-sites-toolbar-head {
+    width: 190px !important;
+    min-width: 190px !important;
+    flex-basis: 190px !important;
+  }
+  .ghost-tool-button {
+    width: 70px !important;
+    min-width: 70px !important;
+    flex-basis: 70px !important;
+  }
+
+  .ghost-bottom-band {
+    flex-basis: 190px !important;
+    height: 190px !important;
+    min-height: 190px !important;
+    max-height: 190px !important;
+  }
+  .ghost-reference-statusbar {
+    flex-basis: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+  }
+
+  .ghost-site-manager-hero {
+    height: auto !important;
+    flex-wrap: wrap;
+    padding: 8px 12px !important;
+  }
+  .ghost-site-manager-workspace {
+    grid-template-columns: 190px minmax(440px, 1fr) 310px !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .ghost-site-manager-table {
+    min-width: 440px;
+  }
+
+  .ghost-transfer-center-heading {
+    height: auto !important;
+    min-height: 72px !important;
+    flex-wrap: wrap;
+    padding-block: 8px;
+  }
+}
+
+@media (max-width: 760px) {
+  .ghost-bottom-band {
+    flex-basis: 174px !important;
+    height: 174px !important;
+    min-height: 174px !important;
+    max-height: 174px !important;
+  }
+
+  .ghost-preferences-body,
+  .ghost-about-body {
+    flex-direction: column;
+  }
+  .ghost-preferences-nav,
+  .ghost-about-nav {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 0 0 auto;
+    flex-direction: row !important;
+    overflow-x: auto;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgba(56,171,255,.25);
+    padding: 6px !important;
+    scrollbar-width: none;
+  }
+  .ghost-preferences-nav::-webkit-scrollbar,
+  .ghost-about-nav::-webkit-scrollbar { display:none; }
+  .ghost-preferences-nav button,
+  .ghost-about-nav button {
+    flex: 0 0 auto;
+    margin-bottom: 0 !important;
+    white-space: nowrap;
+  }
+  .ghost-preferences-nav > .mt-auto {
+    display: none;
+  }
+  .ghost-preferences-content > .grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ghost-transfer-summary-grid,
+  .ghost-transfer-lower-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
