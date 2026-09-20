@@ -76,7 +76,13 @@ fn normalize_entry(e: &str) -> String {
 
     normalized
         .split('\\')
-        .map(|segment| if segment == "ghost ftp" { "ghostftp" } else { segment })
+        .map(|segment| {
+            if segment == "ghost ftp" {
+                "ghostftp"
+            } else {
+                segment
+            }
+        })
         .collect::<Vec<_>>()
         .join("\\")
 }
