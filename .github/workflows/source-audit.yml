@@ -57,11 +57,50 @@ jobs:
           go vet ./...
           node --check site/setup.js
 
-      - name: Website syntax
+      - name: Website syntax and markup policy
         shell: bash
         run: |
           set -euo pipefail
           node --check website/assets/site.js
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          errors = []
+
+          class AuditParser(HTMLParser):
+              def __init__(self, path):
+                  super().__init__(convert_charrefs=True)
+                  self.path = path
+
+              def handle_starttag(self, tag, attrs):
+                  attrs = dict(attrs)
+                  if "style" in attrs:
+                      errors.append(f"{self.path}: inline style attribute is not allowed")
+                  if tag == "script" and not attrs.get("src"):
+                      errors.append(f"{self.path}: inline script block is not allowed")
+
+          for path in Path("website").rglob("*.html"):
+              parser = AuditParser(path)
+              parser.feed(path.read_text(encoding="utf-8"))
+
+          required = [
+              Path("website/assets/ghostftp-symbol.svg"),
+              Path("website/assets/icons/download.svg"),
+              Path("website/assets/icons/features.svg"),
+              Path("website/assets/icons/security.svg"),
+              Path("website/assets/icons/help.svg"),
+              Path("website/assets/icons/speed.svg"),
+              Path("website/assets/icons/privacy.svg"),
+              Path("website/assets/icons/globe.svg"),
+          ]
+          for path in required:
+              if not path.is_file() or path.stat().st_size == 0:
+                  errors.append(f"missing website asset: {path}")
+
+          if errors:
+              raise SystemExit("\n".join(errors))
+          PY
 
       - name: Native frontend typecheck and production build
         working-directory: desktop-tauri
@@ -86,13 +125,13 @@ jobs:
         with:
           workspaces: desktop-tauri/src-tauri
 
-      - name: Linux Tauri prerequisites
+      - name: Linux desktop prerequisites
         shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
-      - name: Prepare Tauri frontendDist for Rust checks
+      - name: Prepare desktop frontendDist for Rust checks
         shell: bash
         run: |
           set -euo pipefail
