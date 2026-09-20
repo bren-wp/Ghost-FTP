@@ -161,12 +161,13 @@ function ReferenceMenuNav({ onClose }: { onClose?: () => void }) {
                   moveTop(name, event.key === "ArrowRight" ? 1 : -1);
                 }
               }}
+              onPointerEnter={() => { if (open && open !== name) setOpen(name); }}
               onClick={() => setOpen((value) => value === name ? null : name)}
             >
               {name}
             </button>
             {open === name && (
-              <div className="ghost-dropdown-menu" role="menu" onKeyDown={(event) => onListKeyDown(event, name)}>
+              <div className="ghost-menu-popover" role="menu" onKeyDown={(event) => onListKeyDown(event, name)}>
                 {menus[name].map((item, index) =>
                   "separator" in item
                     ? <div className="ghost-menu-separator" key={index}/>
