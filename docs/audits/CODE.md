@@ -1,37 +1,44 @@
-# Ghost FTP Code Audit — RC9
+# Ghost FTP Code Audit — RC10
 
 ## Scope
 
-RC9 continues the existing Ghost FTP production source. The production GUI remains the React + Tauri + Rust application in `desktop-tauri/`; compatibility Go hosts are retained only as developer/tooling surfaces and are not shipped as the production desktop UI.
+RC10 focuses on source organization, build reliability, naming consistency, visual-parity rules and removal of avoidable duplication without changing stable protocol behavior unnecessarily.
 
-## Corrected and hardened
+## Changes made
 
-- Removed the old save-connect-delete workaround for temporary Quick Connect sessions; ephemeral profiles remain memory-only.
-- Persisted Site Manager favorites, bookmarks, tags, folders and last-used metadata.
-- Re-applied persisted transfer concurrency, retry, throttle and delta-sync settings to the native engine at startup.
-- Preferences Cancel restores the captured settings snapshot; Reset reapplies native defaults.
-- Shell Integration is wired to the real per-user PATH integration path.
-- Corrupt profile metadata and SQLite state are preserved/quarantined instead of crashing startup.
-- Passwords and SSH passphrases remain outside profile JSON and use OS-protected credential storage where supported.
-- File Properties uses real SHA-256 and permission operations where the active backend supports them; unsupported operations return explicit errors.
-- Removed an unused Rust agent-service constant.
-- Removed a redundant earlier dark-theme token block that was fully overridden by the canonical Ghost FTP visual-system block.
-- Kept release-critical source paths stable while improving documentation and downloadable artifact naming to avoid breaking imports, build scripts or Tauri configuration.
+- Renamed product-facing top-level source directories to GhostFTP names:
+  - `ghostftp-desktop/`
+  - `ghostftp-web/`
+  - `ghostftp-runtime/`
+  - `ghostftp-installer/`
+- Updated build, audit and release workflows to the new paths.
+- Kept the nested `src-tauri/` folder because it is a framework build convention and renaming it would add avoidable build risk.
+- Standardized release artifact naming.
+- Removed an unused Rust service constant.
+- Preserved platform-gated imports/constants to avoid warnings-as-errors failures.
+- Preserved `cargo fmt --check`, workspace check/tests and Clippy `-D warnings`.
+- Preserved TypeScript typecheck/build and Go test/vet checks.
+- Removed duplicated New Connection/File Properties width overrides from the final visual-polish CSS block.
+- Made both reference dialog heights explicit at the canonical viewport.
+- Browser-host compatibility binaries remain excluded from end-user desktop releases.
 
-## CI quality gates
+## Existing hardening retained
 
-The source audit runs:
+- ephemeral Quick Connect sessions;
+- persisted Site Manager metadata;
+- configurable retry/transfer settings;
+- complete Preferences cancel/reset semantics;
+- OS-protected credential storage where supported;
+- profile JSON recovery;
+- SQLite recovery/quarantine;
+- protocol-aware unsupported errors rather than fabricated data;
+- SHA-256 and recursive chmod paths where supported;
+- signed update configuration.
 
-- Go tests and `go vet` for runtime/installer tooling;
-- JavaScript syntax checks for runtime, installer and website;
-- `npm ci`, TypeScript typecheck and production Vite build;
-- Rust `cargo fmt --check`, workspace check, tests and Clippy with warnings denied;
-- legacy/demo-branding scan across production source surfaces.
+## Quality policy
 
-## Naming policy
+Warnings in production Rust code are treated as errors by CI. Demo/legacy branding is rejected by source audit. Release publication requires both the quality audit and native desktop build to succeed for the same main commit.
 
-Runtime-critical paths, Rust crate/package names and Tauri identifiers are not renamed casually. Human-facing release artifacts use a clearer convention instead:
+## Known work that remains
 
-`GhostFTP-<Platform>-<Arch>-<Role>-v<Version>.<ext>`
-
-This gives cleaner downloads without destabilizing source imports or installer/update identifiers.
+See `docs/PROJECT-STATUS.md` and `docs/roadmap/ROADMAP.md`. The remaining blockers are primarily target-OS visual/installer acceptance and real-server FTP/FTPS/SFTP end-to-end verification, not claimed completed functionality.
