@@ -96,6 +96,7 @@ for (const required of ["Transfer Center", "File Manager", "Sync & Backup", "Clo
 }
 
 const titleBar = read("src/components/TitleBar.tsx");
+if (titleBar.includes("openOfficialUrl")) failures.push("Top Help menu must stay inside the Ghost FTP app.");
 for (const required of [
   "Quick Connect",
   "Site Manager",
@@ -104,6 +105,9 @@ for (const required of [
   "Settings",
 ]) {
   if (!titleBar.includes(required)) failures.push(`TitleBar missing required action: ${required}`);
+}
+for (const route of ['openDialog("help")', 'openDialog("updates")', 'openDialog("about")']) {
+  if (!titleBar.includes(route)) failures.push(`TitleBar must use in-app workspace route: ${route}`);
 }
 
 const siteManager = read("src/components/SiteManagerDialog.tsx");
