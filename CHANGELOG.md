@@ -50,7 +50,7 @@
 - Persisted Site Manager favorites, bookmarks, tags, folders and last-used metadata.
 - Made native transfer retry count configurable and re-applied persisted engine settings at startup.
 - Corrected Preferences Cancel/Reset semantics and wired Shell Integration to the real per-user PATH integration.
-- Centralized React release metadata in the RC3 line; current RC7 metadata is 2.1.1-rc.7 / build 2026.09.20.6.
+- Centralized React release metadata in the RC3 line so later release candidates can update version/build data from one source.
 - Reached 185-key parity across every advertised non-English native dictionary.
 - Removed inline language-switch JavaScript from all 14 localized website pages.
 - Rebuilt Windows/Linux compatibility fallback artifacts and the Debian fallback package.
@@ -68,7 +68,7 @@
 - Hardened setup ordering so future steps cannot be clicked, embedded the full commercial EULA, added custom installation-folder selection/validation, improved upgrade rollback and corrected publisher metadata.
 - Added/updated release, security, privacy, installation, uninstall, support and QA documentation.
 
-This package is **not labelled FINAL** because a native Tauri build, Windows titlebar screenshot verification, native protocol end-to-end tests, full 14-language parity and native AppImage/RPM production packages could not all be executed in this environment.
+At that point, the package was **not labelled FINAL** because the native Tauri build and several platform acceptance gates had not yet been completed.
 
 ### RC7 parity and delivery pass
 - Matched the compatibility New Connection surface to the measured 752×628 reference envelope.
