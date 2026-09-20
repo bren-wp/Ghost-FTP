@@ -1,11 +1,12 @@
 # Ghost FTP Roadmap
 
-This roadmap separates shipped RC10 work from future work. Items under Planned, Recommended and Long-term are not claims of implemented functionality.
+This roadmap separates shipped RC11 work from future work. Items under Planned, Recommended and Long-term are not claims of implemented functionality.
 
 ## Implemented
 
 - Native React + TypeScript + Tauri + Rust desktop application for Windows and Linux.
 - FTP, explicit FTPS and SFTP connection paths.
+- Real CI protocol acceptance for FTP, explicit FTPS and SFTP with live local servers, including byte-for-byte transfer checks, TLS identity rejection and SSH host-key/authentication checks.
 - SFTP password and private-key authentication, including optional key passphrase input.
 - Ephemeral Quick Connect by default; saved profiles remain an explicit choice.
 - Site Manager with favorites, recent metadata, bookmarks, tags, folders, import/export and connection testing.
@@ -22,9 +23,7 @@ This roadmap separates shipped RC10 work from future work. Items under Planned, 
 
 These are release-candidate acceptance items and should not be presented as completed until evidence exists.
 
-- Real FTP end-to-end acceptance covering upload, download, rename, delete, overwrite, resume and reconnect.
-- Real FTPS certificate success/failure acceptance.
-- Real SFTP password/private-key/host-key acceptance.
+- Extend protocol E2E coverage with explicit overwrite, resume and reconnect failure-injection scenarios.
 - Windows 10/11 custom-titlebar screenshot acceptance for portable and installed builds.
 - Windows clean install, upgrade, reinstall and Apps & Features uninstall acceptance.
 - Responsive/pixel acceptance across all documented target sizes.
