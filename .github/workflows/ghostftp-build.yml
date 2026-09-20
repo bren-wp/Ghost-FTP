@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'desktop-tauri/**'
+      - 'ghostftp-desktop/**'
       - '.github/workflows/native-build.yml'
 
 permissions:
@@ -37,11 +37,11 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: desktop-tauri/package-lock.json
+          cache-dependency-path: ghostftp-desktop/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
         with:
-          workspaces: desktop-tauri/src-tauri
+          workspaces: ghostftp-desktop/src-tauri
       - name: Linux dependencies
         if: runner.os == 'Linux'
         shell: bash
@@ -49,24 +49,24 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
       - name: Install frontend dependencies
-        working-directory: desktop-tauri
+        working-directory: ghostftp-desktop
         run: npm ci
       - name: TypeScript/frontend build
-        working-directory: desktop-tauri
+        working-directory: ghostftp-desktop
         run: npm run build
       - name: Build Ghost FTP desktop bundle
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: desktop-tauri
+          projectPath: ghostftp-desktop
           args: ${{ matrix.args }}
       - name: Upload native bundles
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: |
-            desktop-tauri/src-tauri/target/release/bundle/**
-            desktop-tauri/src-tauri/target/release/ghostftp.exe
-            desktop-tauri/src-tauri/target/release/ghostftp
+            ghostftp-desktop/src-tauri/target/release/bundle/**
+            ghostftp-desktop/src-tauri/target/release/ghostftp.exe
+            ghostftp-desktop/src-tauri/target/release/ghostftp
           if-no-files-found: error
