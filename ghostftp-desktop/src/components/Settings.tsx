@@ -31,14 +31,12 @@ import { useUpdater } from "@/stores/updaterStore";
 import { PRODUCT_VERSION_DISPLAY } from "@/lib/release";
 import { GhostMark } from "./GhostBrand";
 import { ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
-import { useDialog } from "@/hooks/useDialog";
 import { requestDesktopNotificationPermission } from "@/lib/notifications";
 
 interface Props { onClose: () => void }
 type Section = "general" | "appearance" | "transfers" | "connection" | "security" | "updates" | "integrations" | "shortcuts" | "language";
 
 export function Settings({ onClose }: Props) {
-  const panelRef = useRef<HTMLDivElement>(null);
   const [section, setSection] = useState<Section>("general");
   const [pendingLocale, setPendingLocale] = useState(getLocale());
   const initialSettings = useRef(captureSettingsSnapshot());
@@ -58,11 +56,9 @@ export function Settings({ onClose }: Props) {
     setPendingLocale("en");
   };
 
-  useDialog(panelRef, { onClose: cancel });
-
   return (
-    <div className="ghost-standalone-view fixed inset-0 z-modal bg-[#041425]" role="dialog" aria-modal="true">
-      <div ref={panelRef} className="ghost-preferences flex h-full w-full flex-col overflow-hidden bg-bg-panel">
+    <section className="ghost-app-view ghost-standalone-view bg-[#041425]" aria-label="Preferences">
+      <div className="ghost-preferences flex h-full w-full flex-col overflow-hidden bg-bg-panel">
         <ReferenceWindowTitlebar suffix="Preferences" onClose={cancel} />
         <div className="ghost-preferences-body flex min-h-0 flex-1">
         <aside className="ghost-preferences-nav flex w-[214px] shrink-0 flex-col border-r border-border bg-[#061a2d] p-3">
@@ -105,7 +101,7 @@ export function Settings({ onClose }: Props) {
         </main>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
