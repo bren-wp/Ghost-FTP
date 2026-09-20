@@ -71,6 +71,15 @@ export function SiteManagerDialog({ onClose }: Props) {
   const [action, setAction] = useState<Action>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // Escape returns to File Manager when no contextual modal owns the event.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !confirmDelete) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmDelete, onClose]);
+
   const folders = useMemo(
     () =>
       Array.from(
