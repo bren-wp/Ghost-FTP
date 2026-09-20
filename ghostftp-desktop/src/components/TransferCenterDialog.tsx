@@ -155,16 +155,32 @@ export function TransferCenterDialog({ onClose }: Props) {
       return due;
     };
 
-    const due = computeDue();
-    if (!due) return;
-    const delay = Math.max(0, due.getTime() - Date.now());
-    const timer = window.setTimeout(() => {
-      void retry(scheduledTransferId).finally(() => {
-        if (scheduleMode === "once") setScheduleArmed(false);
-      });
-    }, Math.min(delay, 2_147_000_000));
+    let timer: number | undefined;
+    let cancelled = false;
+    const arm = () => {
+      if (cancelled) return;
+      const due = computeDue();
+      if (!due) return;
+      const delay = Math.max(0, due.getTime() - Date.now());
+      const maxDelay = 2_147_000_000;
+      if (delay > maxDelay) {
+        timer = window.setTimeout(arm, maxDelay);
+        return;
+      }
+      timer = window.setTimeout(() => {
+        if (cancelled) return;
+        void retry(scheduledTransferId).finally(() => {
+          if (scheduleMode === "once") setScheduleArmed(false);
+          else arm();
+        });
+      }, delay);
+    };
+    arm();
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
   }, [scheduleArmed, scheduleMode, scheduleDate, scheduleTime, scheduledTransferId, retry]);
 
   const transfers = useMemo(() => Object.values(byId), [byId]);
