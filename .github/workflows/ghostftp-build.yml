@@ -66,6 +66,86 @@ jobs:
         with:
           projectPath: ghostftp-desktop
           args: ${{ matrix.args }}
+      - name: Capture Windows native-window QA evidence
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $qaDir = Join-Path $env:GITHUB_WORKSPACE 'qa'
+          New-Item -ItemType Directory -Force $qaDir | Out-Null
+          $exe = Join-Path $env:GITHUB_WORKSPACE 'ghostftp-desktop\src-tauri\target\release\ghostftp.exe'
+          if (-not (Test-Path $exe)) { throw "Ghost FTP executable not found: $exe" }
+
+          $proc = Start-Process -FilePath $exe -PassThru
+          try {
+            $handle = [IntPtr]::Zero
+            for ($i = 0; $i -lt 15; $i++) {
+              Start-Sleep -Seconds 1
+              $proc.Refresh()
+              if ($proc.HasExited) { throw "Ghost FTP exited before the QA capture" }
+              if ($proc.MainWindowHandle -ne 0) {
+                $handle = $proc.MainWindowHandle
+                break
+              }
+            }
+            if ($handle -eq [IntPtr]::Zero) { throw "Ghost FTP did not expose a native main-window handle" }
+
+            Add-Type -AssemblyName System.Drawing
+            Add-Type @"
+          using System;
+          using System.Runtime.InteropServices;
+          public static class GhostFtpWindowCapture {
+            [StructLayout(LayoutKind.Sequential)]
+            public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+            [DllImport("user32.dll")]
+            public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+          }
+          "@
+
+            $rect = New-Object GhostFtpWindowCapture+RECT
+            if (-not [GhostFtpWindowCapture]::GetWindowRect($handle, [ref]$rect)) {
+              throw "GetWindowRect failed"
+            }
+            $width = $rect.Right - $rect.Left
+            $height = $rect.Bottom - $rect.Top
+            if ($width -lt 480 -or $height -lt 600) {
+              throw "Unexpected Ghost FTP window size: ${width}x${height}"
+            }
+
+            $bitmap = New-Object System.Drawing.Bitmap $width, $height
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+            try {
+              $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, $bitmap.Size)
+              $bitmap.Save((Join-Path $qaDir 'GhostFTP-Windows-RC9-Native-Window.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+            } finally {
+              $graphics.Dispose()
+              $bitmap.Dispose()
+            }
+
+            @(
+              "ProcessId=$($proc.Id)"
+              "WindowTitle=$($proc.MainWindowTitle)"
+              "WindowBounds=${width}x${height}"
+              "Executable=$exe"
+            ) | Set-Content -Encoding UTF8 (Join-Path $qaDir 'GhostFTP-Windows-RC9-Native-Window.txt')
+          } finally {
+            if (-not $proc.HasExited) {
+              $null = $proc.CloseMainWindow()
+              Start-Sleep -Seconds 1
+              if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+            }
+          }
+
+      - name: Upload Windows native-window QA evidence
+        if: runner.os == 'Windows' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GhostFTP-Windows-x64-RC9-QA
+          path: qa/*
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload native bundles
         uses: actions/upload-artifact@v4
         with:
