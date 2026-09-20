@@ -167,11 +167,7 @@ function GeneralGrid({ locale, setLocale }: { locale: string; setLocale: (value:
 
       <GeneralUpdatesCard/>
 
-      <GeneralCard icon={<Plug size={20}/>} title="Integrations" subtitle="Extend Ghost FTP with system integrations.">
-        <ToggleRow label="Shell integration" checked={s.shellIntegration} onChange={s.setShellIntegration}/>
-        <ToggleRow label="File associations" checked={s.fileAssociations} onChange={s.setFileAssociations} locked/>
-        <DesktopNotificationsToggle/>
-      </GeneralCard>
+      <GeneralIntegrationsCard/>
 
       <GeneralCard icon={<Keyboard size={20}/>} title="Shortcuts" subtitle="Keyboard shortcuts for common actions.">
         <div className="grid grid-cols-[1fr_auto] gap-x-5 gap-y-2 text-[11px]">
@@ -196,6 +192,38 @@ function GeneralCard({ icon, title, subtitle, children }: { icon: React.ReactNod
       </div>
       <div className="space-y-2">{children}</div>
     </section>
+  );
+}
+
+function GeneralIntegrationsCard() {
+  const s=useSettings();
+  const [busy,setBusy]=useState(false);
+
+  useEffect(()=>{
+    let active=true;
+    void ipc.pathStatus().then((status)=>{
+      if(active) s.setShellIntegration(status.managed);
+    }).catch(()=>{});
+    return()=>{ active=false; };
+  },[]);
+
+  const setShell=async(enabled:boolean)=>{
+    if(busy)return;
+    setBusy(true);
+    try{
+      const status=enabled?await ipc.pathAdd():await ipc.pathRemove();
+      s.setShellIntegration(status.managed);
+    }finally{
+      setBusy(false);
+    }
+  };
+
+  return (
+    <GeneralCard icon={<Plug size={20}/>} title="Integrations" subtitle="Extend Ghost FTP with system integrations.">
+      <ToggleRow label="Shell integration" checked={s.shellIntegration} onChange={(v)=>void setShell(v)} locked={busy}/>
+      <ToggleRow label="File associations" checked={s.fileAssociations} onChange={s.setFileAssociations} locked/>
+      <DesktopNotificationsToggle/>
+    </GeneralCard>
   );
 }
 
