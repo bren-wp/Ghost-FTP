@@ -143,17 +143,12 @@ export function TitleBar() {
   }, [menu]);
 
   return <header className="ghost-app-header">
-    <div className="ghost-title-row" data-tauri-drag-region onDoubleClick={() => safeWindowAction("maximize")}>
-      <div className="ghost-title-left" data-tauri-drag-region><GhostWordmark compact /></div>
-      <div className="ghost-window-controls">
-        <button aria-label="Minimize" onClick={() => safeWindowAction("minimize")}><Minus size={14}/></button>
-        <button aria-label="Maximize" onClick={() => safeWindowAction("maximize")}><Square size={12}/></button>
-        <button className="danger" aria-label="Close" onClick={() => safeWindowAction("close")}><X size={15}/></button>
+    <div className="ghost-title-row" ref={menuWrap} data-tauri-drag-region onDoubleClick={() => safeWindowAction("maximize")}>
+      <div className="ghost-title-left" data-tauri-drag-region>
+        <GhostWordmark compact />
+        <span className="ghost-rc-badge">RC11</span>
       </div>
-    </div>
-
-    <div className="ghost-menu-row" ref={menuWrap}>
-      <nav className="ghost-menu" aria-label="Application menu">
+      <nav className="ghost-menu ghost-title-menu" aria-label="Application menu">
         {Object.keys(menus).map((name) => <div className="ghost-menu-anchor" key={name}>
           <button
             className={menu === name ? "active" : ""}
@@ -167,9 +162,11 @@ export function TitleBar() {
             "separator" in item ? <div key={idx} className="ghost-menu-separator"/> : <button key={idx} role="menuitem" disabled={item.disabled} onClick={() => { setMenu(null); item.run(); }}>{item.label}</button>)}</div>}
         </div>)}
       </nav>
-      <div className="ghost-title-actions">
-        <button className="ghost-mini-button" aria-label="Settings" title="Settings" onClick={() => openDialog("settings")}><Settings size={14}/><span>Settings</span></button>
-        <div className="ghost-language-menu"><Languages size={14}/><select aria-label="Language" value={locale} onChange={(e) => setLocale(e.target.value as any)}><option value="en">English (English)</option><option value="hr">Hrvatski (Croatian)</option><option value="de">Deutsch (German)</option><option value="fr">Français (French)</option><option value="es">Español (Spanish)</option><option value="it">Italiano (Italian)</option><option value="pt">Português (Portuguese)</option><option value="nl">Nederlands (Dutch)</option><option value="pl">Polski (Polish)</option><option value="sl">Slovenščina (Slovenian)</option><option value="sr">Srpski (Serbian)</option><option value="bs">Bosanski (Bosnian)</option><option value="mk">Македонски (Macedonian)</option><option value="sq">Shqip (Albanian)</option></select><ChevronDown size={12}/></div>
+      <div className="ghost-window-title-spacer" data-tauri-drag-region />
+      <div className="ghost-window-controls">
+        <button aria-label="Minimize" onClick={() => safeWindowAction("minimize")}><Minus size={14}/></button>
+        <button aria-label="Maximize" onClick={() => safeWindowAction("maximize")}><Square size={12}/></button>
+        <button className="danger" aria-label="Close" onClick={() => safeWindowAction("close")}><X size={15}/></button>
       </div>
     </div>
 
@@ -184,6 +181,10 @@ export function TitleBar() {
         {protocolMenu && <div className="ghost-quick-protocol-menu" role="menu">
           {(["ftp", "ftps", "sftp"] as Protocol[]).map((item) => <button key={item} role="menuitem" className={item === protocol ? "active" : ""} onClick={() => chooseQuickProtocol(item)}>{item.toUpperCase()} <span>{PROTOCOL_DEFAULT_PORT[item]}</span></button>)}
         </div>}
+      </div>
+      <div className="ghost-quick-actions">
+        <button className="ghost-mini-button" aria-label="Settings" title="Settings" onClick={() => openDialog("settings")}><Settings size={14}/><span>Settings</span></button>
+        <div className="ghost-language-menu"><Languages size={14}/><select aria-label="Language" value={locale} onChange={(e) => setLocale(e.target.value as any)}><option value="en">English (English)</option><option value="hr">Hrvatski (Croatian)</option><option value="de">Deutsch (German)</option><option value="fr">Français (French)</option><option value="es">Español (Spanish)</option><option value="it">Italiano (Italian)</option><option value="pt">Português (Portuguese)</option><option value="nl">Nederlands (Dutch)</option><option value="pl">Polski (Polish)</option><option value="sl">Slovenščina (Slovenian)</option><option value="sr">Srpski (Serbian)</option><option value="bs">Bosanski (Bosnian)</option><option value="mk">Македонски (Macedonian)</option><option value="sq">Shqip (Albanian)</option></select><ChevronDown size={12}/></div>
       </div>
     </div>
 
