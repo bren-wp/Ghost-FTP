@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.1.1-rc.9 — 20 September 2026
+
+- Reorganized repository documentation under `docs/` and removed duplicate root copies while preserving stable runtime source paths.
+- Rewrote the main README as a product/marketing landing page with Ghost FTP branding and visual reference screenshots.
+- Added the approved reference imagery to `docs/assets/screenshots/` for README and pixel QA use only.
+- Removed obsolete RC7/RC8 release workflows and consolidated publication into a single native RC9 workflow.
+- Improved release artifact naming with platform, architecture, role and version encoded consistently.
+- Added stronger CI checks for frontend, Go and Rust workspace quality, including formatting, tests and Clippy.
+- Removed an unused Rust agent-service constant and redundant default dark-theme token block.
+- Aligned the default Electric Blue and Ice White tokens more closely with the approved Ghost FTP palette.
+- Preserved the canonical 1290×852 1:1 shell geometry and adaptive smaller-window rules.
+- RC9 remains a pre-release pending final native Windows titlebar/pixel, installer lifecycle and real FTP/FTPS/SFTP acceptance evidence.
+
+
 ## 2.1.1-rc.8 — 20 September 2026
 
 - Removed browser-shell compatibility executables from the end-user release path after the visible 127.0.0.1 Chromium/Edge bar regression was reproduced.
