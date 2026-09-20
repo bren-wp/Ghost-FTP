@@ -591,8 +591,9 @@ function PillButton({
 /// opens the New Connection editor prefilled. Never auto-connects — the user
 /// reviews the target and clicks Connect / Pair, because any web page can fire
 /// a protocol handler. `ghostftp://terminal` is the one shortcut: if the named
-/// server is ALREADY connected it opens a standalone terminal window for it
-/// (no new connection is ever made), otherwise it falls back to the editor.
+/// server is ALREADY connected it focuses that session and opens the integrated
+/// terminal dock (no secondary native window and no new connection is made);
+/// otherwise it falls back to the editor.
 function DeepLinkListener() {
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const openGrant = useLayout((s) => s.openGrant);
@@ -642,7 +643,7 @@ function DeepLinkListener() {
         openNewConnection(deepLinkToPrefill(dl));
         toast.warning(
           "Server not connected",
-          "Connect it first, then the terminal link can open a shell."
+          "Connect it first, then the terminal link can open the integrated shell."
         );
         return;
       }
