@@ -314,6 +314,7 @@ pub fn run() {
             commands::ssh_key_defaults,
             commands::generate_ssh_key,
             commands::ssh_public_key_for,
+            commands::test_profile_connection,
             commands::connect,
             commands::connect_ephemeral,
             commands::disconnect,
