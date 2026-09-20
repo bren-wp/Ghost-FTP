@@ -6,7 +6,7 @@ The compatibility runtime uses a cryptographically random per-process 256-bit to
 
 Executed fallback tests confirmed an unauthenticated mutation returns HTTP 401, SHA-256 is correct, normal local operations succeed with the session token, and deletion of `/` is refused.
 
-The native update configuration remains pinned to `https://ghostftp.com/updates/latest.json` with Tauri updater signature verification. A final security sign-off still requires compiling the exact native release artifacts, dependency/security scanning of that resolved dependency graph and target-OS update/install testing.
+The native update configuration remains pinned to `https://ghostftp.com/ghostftp-updates/latest.json` with Tauri updater signature verification. A final security sign-off still requires compiling the exact native release artifacts, dependency/security scanning of that resolved dependency graph and target-OS update/install testing.
 
 ## RC4 verification — 20 September 2026
 
