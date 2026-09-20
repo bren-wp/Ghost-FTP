@@ -21,7 +21,13 @@ export function ReferenceSiteSidebar() {
       setActiveSession(live.sessionId);
       return;
     }
-    await connect(profileId);
+    try {
+      await connect(profileId);
+    } catch {
+      // The connection store presents the structured error to the user.
+      // Swallow here so a failed server login never becomes an unhandled
+      // promise rejection at the application root.
+    }
   };
 
   return (
