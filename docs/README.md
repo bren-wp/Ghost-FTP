@@ -1,15 +1,26 @@
 # Ghost FTP Documentation
 
-This directory is the documentation hub for Ghost FTP. The root README is the product landing page; detailed engineering, QA, security and release evidence lives here.
+This directory is the documentation hub for Ghost FTP. The repository root stays intentionally product-focused; engineering evidence, audits, release notes and operational guidance live here.
 
-## Start here
+## Product
 
-- [Build status](build/STATUS.md) — authoritative release/build state.
-- [Installation](guides/INSTALLATION.md) — platform installation guidance.
-- [Uninstall](guides/UNINSTALL.md) — removal and cleanup.
-- [Update policy](guides/UPDATES.md) — signed update expectations.
-- [Support](guides/SUPPORT.md) — diagnostics and support routes.
-- [Privacy](legal/PRIVACY.md) — local-data and privacy model.
+- [Implemented features](product/FEATURES.md) — what currently exists in RC9.
+- [Recommended next work](product/ROADMAP.md) — what is worth adding or finishing next.
+- [UI / UX contract](product/UI_UX.md) — canonical geometry, interaction and pixel-parity rules.
+
+## Build and release status
+
+- [Build status](build/STATUS.md) — authoritative build/release state.
+- [Reference runtime notes](build/REFERENCE_RUNTIME.md) — compatibility/runtime context.
+- [RC9 release notes](releases/2.1.1-rc.9.md) — current release candidate.
+- GitHub Releases is the canonical source for downloadable binaries.
+
+## Guides
+
+- [Installation](guides/INSTALLATION.md)
+- [Uninstall](guides/UNINSTALL.md)
+- [Update policy](guides/UPDATES.md)
+- [Support](guides/SUPPORT.md)
 
 ## Audits
 
@@ -30,23 +41,21 @@ This directory is the documentation hub for Ghost FTP. The root README is the pr
 - [Transfer QA](qa/TRANSFERS.md)
 - [Reference checksums](qa/REFERENCE_SHA256.txt)
 
-## Build and architecture
-
-- [Build status](build/STATUS.md)
-- [Reference runtime notes](build/REFERENCE_RUNTIME.md)
-
 ## Legal and notices
 
 - [Privacy](legal/PRIVACY.md)
 - [Third-party notices](legal/THIRD_PARTY_NOTICES.md)
 - Commercial license/EULA remain at repository root as `LICENSE.txt` and `EULA.txt`.
-
-## Releases
-
-- [Ghost FTP 2.1.1 RC9](releases/2.1.1-rc.9.md) — current release-candidate notes.
-- Older release notes and checksums remain under [releases/](releases/).
-- GitHub Releases is the canonical location for downloadable binaries.
+- `SECURITY.md` remains at repository root for GitHub security discovery.
 
 ## Visual references
 
-The images under `assets/screenshots/` are the approved Ghost FTP design/QA reference set. They are documentation and acceptance references only. Production UI must be implemented with real components and controls; screenshot-as-UI implementations are not accepted.
+The files under `assets/screenshots/` are the approved Ghost FTP design/QA reference set and are also used by the product README.
+
+They are documentation and acceptance references only. Production UI must be implemented with real Ghost FTP components and controls; screenshot-as-UI or click-hotspot implementations are not accepted.
+
+## Naming
+
+User-facing names use **Ghost FTP**. Filenames, package names and technical product identifiers use **GhostFTP**.
+
+Framework-specific internal directory names are retained only where renaming would create unnecessary build risk. Public release archives and documentation use GhostFTP-first names.
