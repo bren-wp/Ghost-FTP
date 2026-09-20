@@ -2,9 +2,9 @@
 
 ## Authoritative status
 
-**Ghost FTP 2.1.1 RC10 — native Ghost FTP desktop release candidate. NOT FINAL.**
+**Ghost FTP 2.1.1 RC12 — native Ghost FTP desktop release candidate. NOT FINAL.**
 
-RC10 continues the existing Ghost FTP source and does not replace the project with a new implementation or screenshot-driven runtime.
+RC12 continues the existing Ghost FTP source and does not replace the project with a new implementation or screenshot-driven runtime.
 
 ## Repository and build organization
 
@@ -19,7 +19,7 @@ RC10 continues the existing Ghost FTP source and does not replace the project wi
 
 A small number of internal framework-required names remain inside `ghostftp-desktop/` because renaming them would create unnecessary build risk.
 
-## RC10 source improvements
+## RC12 source improvements
 
 - Reorganized the repository around GhostFTP-branded top-level source paths.
 - Standardized release filenames by platform, architecture, role and version.
@@ -53,9 +53,9 @@ The RC10 quality workflow requires:
 - Clippy with warnings denied;
 - legacy/demo-branding rejection.
 
-An earlier RC9 quality run correctly exposed PATH-integration failures, and a later RC9 run narrowed the remaining gate to two CLI Clippy findings. RC10 carries the corrected PATH logic and CLI lint fixes; publication remains gated on a fully successful current quality run.
+An earlier RC9 quality run correctly exposed PATH-integration failures, and a later RC9 run narrowed the remaining gate to two CLI Clippy findings. RC12 retains the corrected PATH logic and CLI lint fixes. Current publication remains gated on a fully successful quality run for the exact RC12 source revision.
 
-## Native RC10 build targets
+## Native RC12 build targets
 
 ### Windows x64
 
@@ -69,7 +69,7 @@ An earlier RC9 quality run correctly exposed PATH-integration failures, and a la
 - DEB;
 - RPM.
 
-MSI is intentionally omitted from prerelease builds because the current MSI version path rejects prerelease identifiers such as `rc.10`.
+MSI is intentionally omitted from prerelease builds because the current MSI version path rejects prerelease identifiers such as `rc.12`.
 
 ## Public release artifact policy
 
@@ -90,3 +90,8 @@ FINAL remains blocked until documented evidence exists for:
 7. Production signing decision/validation.
 
 Build and packaging success alone does not convert RC10 into FINAL.
+
+
+## RC12 fidelity/stability pass
+
+The RC12 branch additionally hardens menu stacking, reference dialog geometry, external-link handling and explicit notification permission flow. Real FTP/FTPS/SFTP workflow evidence exists for an earlier RC12 head, but release status must be reevaluated on the final RC12 commit; native screenshot and installer lifecycle acceptance remain separate gates.
