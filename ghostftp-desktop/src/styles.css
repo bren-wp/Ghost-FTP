@@ -2575,3 +2575,208 @@ body,
   animation: none !important;
   contain: layout paint;
 }
+
+/* RC12 reference chrome: menus share the native titlebar; Settings/language stay in the context row. */
+.ghost-title-row,
+.ghost-standalone-titlebar {
+  height: 52px !important;
+  min-height: 52px !important;
+}
+.ghost-title-row {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 0 14px !important;
+  overflow: visible !important;
+  border-bottom: 1px solid #174767;
+  background: linear-gradient(180deg,#071d33 0%,#06182a 100%);
+}
+.ghost-title-left,
+.ghost-standalone-brand {
+  flex: 0 0 auto !important;
+  min-width: 0;
+  gap: 8px;
+}
+.ghost-version-badge {
+  display: inline-flex;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #188ee9;
+  border-radius: 6px;
+  padding: 0 9px;
+  background: #0a3155;
+  color: #dff4ff;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .02em;
+}
+.ghost-title-menu-wrap {
+  position: relative;
+  z-index: 80;
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  align-items: stretch;
+  overflow: visible;
+}
+.ghost-title-menu-wrap .ghost-menu {
+  display: flex !important;
+  min-width: 0;
+  height: 100%;
+  align-items: stretch;
+  overflow: visible !important;
+}
+.ghost-title-menu-wrap .ghost-menu-anchor > button {
+  height: 100% !important;
+  padding: 0 10px !important;
+  border-radius: 0 !important;
+  font-size: 12.5px !important;
+}
+.ghost-window-title-spacer {
+  min-width: 10px;
+  flex: 1 1 auto;
+  align-self: stretch;
+}
+.ghost-title-row .ghost-window-controls,
+.ghost-standalone-titlebar .ghost-window-controls {
+  height: 52px !important;
+}
+.ghost-title-row .ghost-window-controls button,
+.ghost-standalone-titlebar .ghost-window-controls button {
+  height: 52px !important;
+}
+
+.ghost-quick-row {
+  grid-template-columns:
+    minmax(180px,1.2fr)
+    minmax(160px,1fr)
+    minmax(170px,1fr)
+    minmax(82px,.44fr)
+    152px
+    auto
+    170px !important;
+  height: 72px !important;
+  min-height: 72px !important;
+  column-gap: 10px !important;
+  padding: 12px 14px !important;
+}
+.ghost-quick-actions {
+  display: contents !important;
+  margin-left: 0 !important;
+}
+.ghost-quick-actions .ghost-mini-button {
+  height: 36px !important;
+  min-width: 88px;
+  align-self: center;
+}
+.ghost-quick-actions .ghost-language-menu {
+  height: 36px !important;
+  min-width: 160px;
+  align-self: center;
+}
+.ghost-quick-actions .ghost-language-menu select {
+  width: 128px !important;
+  min-width: 128px !important;
+}
+
+.ghost-standalone-action-row {
+  display: flex;
+  height: 34px;
+  min-height: 34px;
+  align-items: center;
+  border-bottom: 1px solid #174767;
+  padding: 0 10px;
+  background: #06182b;
+}
+.ghost-standalone-action-row .ghost-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ghost-menu-titlebar .ghost-title-menu-wrap {
+  margin-left: 8px;
+}
+
+@media (min-width: 1290px) and (min-height: 852px) {
+  .ghost-main-workspace {
+    flex: 0 0 416px !important;
+    height: 416px !important;
+    min-height: 416px !important;
+  }
+  .ghost-bottom-band {
+    flex: 0 0 210px !important;
+    height: 210px !important;
+    min-height: 210px !important;
+    max-height: 210px !important;
+  }
+  .ghost-reference-statusbar {
+    flex: 0 0 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+}
+
+@media (max-width: 1120px) {
+  .ghost-title-menu-wrap {
+    overflow-x: auto;
+    overflow-y: visible;
+    scrollbar-width: none;
+  }
+  .ghost-title-menu-wrap::-webkit-scrollbar { display: none; }
+  .ghost-title-menu-wrap .ghost-menu-anchor > button {
+    padding-inline: 7px !important;
+    font-size: 11px !important;
+  }
+  .ghost-quick-row {
+    display: flex !important;
+    height: 64px !important;
+    min-height: 64px !important;
+    gap: 8px !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    scrollbar-width: thin;
+  }
+  .ghost-quick-row > label {
+    flex: 0 0 160px !important;
+  }
+  .ghost-quick-row > .ghost-port-field {
+    flex-basis: 86px !important;
+  }
+  .ghost-quick-connect {
+    flex: 0 0 142px !important;
+    width: 142px !important;
+    min-width: 142px !important;
+  }
+  .ghost-quick-actions {
+    display: flex !important;
+    flex: 0 0 auto;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 760px) {
+  .ghost-title-row,
+  .ghost-standalone-titlebar {
+    height: 48px !important;
+    min-height: 48px !important;
+  }
+  .ghost-title-row .ghost-window-controls,
+  .ghost-standalone-titlebar .ghost-window-controls,
+  .ghost-title-row .ghost-window-controls button,
+  .ghost-standalone-titlebar .ghost-window-controls button {
+    height: 48px !important;
+  }
+  .ghost-version-badge {
+    height: 22px;
+    padding-inline: 6px;
+    font-size: 9.5px;
+  }
+  .ghost-title-menu-wrap {
+    flex: 1 1 auto;
+  }
+  .ghost-standalone-action-row {
+    height: 32px;
+    min-height: 32px;
+  }
+}
