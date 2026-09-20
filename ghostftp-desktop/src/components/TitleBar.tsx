@@ -48,8 +48,19 @@ export function TitleBar() {
 
   const quickConnect = async () => {
     if (quickBusy) return;
-    if (!host.trim()) {
-      openNewConnection({ protocol, host, username, port, auth: { kind: "password", password }, name: host || "New server" });
+    const normalizedPort =
+      Number.isInteger(port) && port >= 1 && port <= 65535
+        ? port
+        : PROTOCOL_DEFAULT_PORT[protocol];
+    if (!host.trim() || !username.trim()) {
+      openNewConnection({
+        protocol,
+        host,
+        username,
+        port: normalizedPort,
+        auth: { kind: "password", password },
+        name: host || "New server",
+      });
       return;
     }
     const profile: ConnectionProfile = {
@@ -57,7 +68,7 @@ export function TitleBar() {
       name: host.trim(),
       protocol,
       host: host.trim(),
-      port: Math.max(1, Math.min(65535, port || PROTOCOL_DEFAULT_PORT[protocol])),
+      port: normalizedPort,
       username: username.trim(),
       auth: { kind: "password", password },
       defaultRemotePath: ".",
@@ -159,7 +170,7 @@ export function TitleBar() {
       <label>Host<input value={host} onChange={(e) => setHost(e.target.value)} placeholder=""/></label>
       <label>Username<input value={username} onChange={(e) => setUsername(e.target.value)} placeholder=""/></label>
       <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"/></label>
-      <label className="ghost-port-field">Port<input type="number" value={port} onChange={(e) => setPort(Number(e.target.value) || 21)}/></label>
+      <label className="ghost-port-field">Port<input type="number" min={1} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value) || PROTOCOL_DEFAULT_PORT[protocol])}/></label>
       <div className="ghost-quick-connect">
         <button className="ghost-quick-connect-main" disabled={quickBusy} onClick={() => void quickConnect()}>{quickBusy ? "Connecting…" : "Quick Connect"}</button>
         <button className="ghost-quick-connect-menu" aria-label="Quick Connect protocol" aria-expanded={protocolMenu} onClick={() => setProtocolMenu((v) => !v)}><ChevronDown size={13}/></button>
