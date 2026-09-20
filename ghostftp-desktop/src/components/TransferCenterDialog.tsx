@@ -58,6 +58,16 @@ export function TransferCenterDialog({ onClose }: Props) {
     download: 0,
   });
 
+  // Escape returns from the integrated Transfer Center without spawning or
+  // closing a second native window.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const transfers = useMemo(() => Object.values(byId), [byId]);
   const completed = transfers.filter(
     (transfer) => transfer.status === "done" || transfer.status === "skipped"
