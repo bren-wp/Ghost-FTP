@@ -44,9 +44,10 @@ function localDateInputValue(date = new Date()) {
 
 interface Props {
   onClose: () => void;
+  initialFocus?: "scheduler" | "log";
 }
 
-export function TransferCenterDialog({ onClose }: Props) {
+export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const byId = useTransfers((state) => state.byId);
   const clearCompleted = useTransfers((state) => state.clearCompleted);
@@ -68,6 +69,7 @@ export function TransferCenterDialog({ onClose }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   const schedulerRef = useRef<HTMLDivElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [scheduleMode, setScheduleMode] = useState<"off" | "once" | "daily" | "weekly">("off");
   const [scheduleDate, setScheduleDate] = useState(() => localDateInputValue());
@@ -83,6 +85,16 @@ export function TransferCenterDialog({ onClose }: Props) {
   });
 
   useDialog(panelRef, { onClose });
+
+  useEffect(() => {
+    if (!initialFocus) return;
+    const timer = window.setTimeout(() => {
+      const target = initialFocus === "scheduler" ? schedulerRef.current : logRef.current;
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [initialFocus]);
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -640,7 +652,11 @@ export function TransferCenterDialog({ onClose }: Props) {
             )}
           </div>
 
-          <div className="rounded-lg border border-border bg-[#071f35] p-4">
+          <div
+            ref={logRef}
+            tabIndex={-1}
+            className="rounded-lg border border-border bg-[#071f35] p-4 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          >
             <div className="mb-3 flex items-center">
               <strong>Transfer Log</strong>
               <div className="flex-1" />
