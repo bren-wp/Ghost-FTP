@@ -20,17 +20,29 @@ function windowAction(action: "minimize" | "maximize" | "close") {
   }
 }
 
-export function ReferenceWindowControls() {
+export function ReferenceWindowControls({ onClose }: { onClose?: () => void }) {
   return (
     <div className="ghost-window-controls">
       <button aria-label="Minimize" onClick={() => windowAction("minimize")}><Minus size={14}/></button>
       <button aria-label="Maximize or restore" onClick={() => windowAction("maximize")}><Square size={12}/></button>
-      <button className="danger" aria-label="Close" onClick={() => windowAction("close")}><X size={15}/></button>
+      <button
+        className="danger"
+        aria-label={onClose ? "Close view" : "Close Ghost FTP"}
+        onClick={() => onClose ? onClose() : windowAction("close")}
+      >
+        <X size={15}/>
+      </button>
     </div>
   );
 }
 
-export function ReferenceWindowTitlebar({ suffix }: { suffix?: string }) {
+export function ReferenceWindowTitlebar({
+  suffix,
+  onClose,
+}: {
+  suffix?: string;
+  onClose?: () => void;
+}) {
   return (
     <div className="ghost-standalone-titlebar" data-tauri-drag-region onDoubleClick={() => windowAction("maximize")}>
       <div className="ghost-standalone-brand" data-tauri-drag-region>
@@ -38,7 +50,7 @@ export function ReferenceWindowTitlebar({ suffix }: { suffix?: string }) {
         {suffix ? <span className="ghost-standalone-suffix">— {suffix}</span> : null}
       </div>
       <div className="ghost-window-title-spacer" data-tauri-drag-region />
-      <ReferenceWindowControls />
+      <ReferenceWindowControls onClose={onClose} />
     </div>
   );
 }
