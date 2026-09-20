@@ -48,7 +48,7 @@ export function AboutDialog({ onClose, initialTab = "about" }: Props) {
             </div>
           )}
 
-          {tab === "about" && <AboutContent />}
+          {tab === "about" && <AboutContent onNavigate={setTab} />}
           {tab === "updates" && <UpdatesContent />}
           {tab === "help" && <HelpContent />}
         </main>
@@ -58,7 +58,7 @@ export function AboutDialog({ onClose, initialTab = "about" }: Props) {
   );
 }
 
-function AboutContent() {
+function AboutContent({ onNavigate }: { onNavigate: (tab: "about" | "updates" | "help") => void }) {
   return (
     <div className="ghost-about-grid grid grid-cols-[minmax(0,1.55fr)_minmax(280px,.85fr)] gap-4">
       <section className="space-y-4">
@@ -80,7 +80,7 @@ function AboutContent() {
         </div>
 
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
-          <div className="mb-3 flex items-center gap-2"><FileText className="text-accent" size={22}/><div><div className="text-[16px] font-semibold">What's New</div><div className="text-[12px] text-text-muted">Highlights from the latest release</div></div><div className="flex-1"/><button onClick={() => external("/changelog")} className="text-[12px] text-accent hover:underline">View Full Changelog</button></div>
+          <div className="mb-3 flex items-center gap-2"><FileText className="text-accent" size={22}/><div><div className="text-[16px] font-semibold">What's New</div><div className="text-[12px] text-text-muted">Highlights from the latest release</div></div><div className="flex-1"/><button onClick={() => onNavigate("updates")} className="text-[12px] text-accent hover:underline">View Full Changelog</button></div>
           <div className="rounded-md border border-border-subtle bg-[#051929] p-4">
             <div className="mb-2 font-semibold">Version {PRODUCT_VERSION}</div>
             <ul className="space-y-1.5 text-[12px] text-text-muted">
@@ -97,10 +97,10 @@ function AboutContent() {
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
           <div className="mb-4 flex items-center gap-3"><HelpCircle size={34} className="text-accent"/><div><div className="text-[16px] font-semibold">Get Help</div><div className="text-[12px] text-text-muted">Resources, documentation and support.</div></div></div>
           <LinkRow icon={<Globe2 size={18}/>} title="Visit ghostftp.com" subtitle="Official website" onClick={() => external()}/>
-          <LinkRow icon={<FileText size={18}/>} title="Documentation" subtitle="Guides and tutorials" onClick={() => external("/docs")}/>
-          <LinkRow icon={<LifeBuoy size={18}/>} title="Support Center" subtitle="Get help from our team" onClick={() => external("/support")}/>
+          <LinkRow icon={<FileText size={18}/>} title="Documentation" subtitle="Guides and tutorials" onClick={() => onNavigate("help")}/>
+          <LinkRow icon={<LifeBuoy size={18}/>} title="Support Center" subtitle="Get help from our team" onClick={() => onNavigate("help")}/>
           <LinkRow icon={<ShieldCheck size={18}/>} title="Privacy Policy" subtitle="Your privacy matters" onClick={() => external("/privacy")}/>
-          <LinkRow icon={<FileText size={18}/>} title="Changelog" subtitle="See what's new" onClick={() => external("/changelog")}/>
+          <LinkRow icon={<FileText size={18}/>} title="Changelog" subtitle="See what's new" onClick={() => onNavigate("updates")}/>
         </div>
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
           <div className="text-[15px] font-semibold">Platforms & Language</div>
