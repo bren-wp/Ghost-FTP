@@ -13,7 +13,9 @@ export type AppDialog =
   | "grant"
   | "siteManager"
   | "transferCenter"
-  | "sync";
+  | "sync"
+  | "help"
+  | "updates";
 
 /** Seed for the grant consent dialog, parsed from a ghostftp://grant deep link. */
 export interface GrantPrefill {
