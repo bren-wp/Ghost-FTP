@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.1.1-rc.11 — 20 September 2026
+
+- Fixed the native UI stacking regression that allowed the main header/toolbar to cover standalone dialogs and application surfaces.
+- Fixed File/Edit/View/Transfer/Server/Bookmarks/Tools/Help menus to render as positioned floating popovers instead of in-flow content.
+- Re-aligned About and Preferences structure with the current Ghost FTP desktop references.
+- Added real FTP, explicit FTPS and SFTP end-to-end CI acceptance using live local protocol servers.
+- Fixed FTP/FTPS byte integrity by forcing binary transfer mode (TYPE I) after login.
+- Added isolated real backend connection probes for Quick Connect and Site Manager tests.
+- Hardened Site Manager duplicate/delete/busy-state and credential handling.
+- Reworked Transfer Center around real queue state and live transferred-byte sampling.
+- Expanded Preferences while keeping the General dashboard reference-aligned.
+- Added production dependency audit and native undecorated-window architecture gates.
+- Reduced the primary JavaScript bundle from roughly 2.29 MB to roughly 571 KB before gzip through code splitting and lazy loading.
+- Bumped desktop, CLI, agent, compatibility tooling, updater preview and release packaging consistently to RC11.
+
 ## 2.1.1-rc.10 — 20 September 2026
 
 - Closed the final RC9 Rust Clippy blockers in the Ghost FTP CLI.
