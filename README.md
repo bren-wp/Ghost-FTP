@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="desktop-tauri/branding/ghostftp-logo.svg" alt="Ghost FTP" width="420">
+<img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="420">
 
 ### More Than Transfer. Total Control.
 
@@ -15,7 +15,7 @@
 </div>
 
 <p align="center">
-  <img src="docs/assets/screenshots/main.webp" alt="Ghost FTP main file manager" width="100%">
+  <img src="docs/assets/screenshots/ghostftp-main-file-manager.webp" alt="Ghost FTP main file manager" width="100%">
 </p>
 
 ## Ghost FTP
@@ -24,7 +24,7 @@ Ghost FTP is a privacy-first desktop file-transfer client designed for people wh
 
 It combines a native desktop shell, a modern dual-pane file manager, saved server profiles, transfer queues, terminal and server tools, synchronization features, checksum and permissions workflows, secure credential storage, and a consistent Ghost FTP interface across Windows and Linux.
 
-The production desktop application is built from the Ghost FTP desktop source in `desktop-tauri/`. That internal directory keeps the framework-compatible layout required by the build system; public release files, documentation and product-facing names use **GhostFTP** naming so users do not need to care which framework is underneath.
+The production desktop application is built from the Ghost FTP desktop source in `ghostftp-desktop/`. That internal directory keeps the framework-compatible layout required by the build system; public release files, documentation and product-facing names use **GhostFTP** naming so users do not need to care which framework is underneath.
 
 ## What makes Ghost FTP different
 
@@ -45,13 +45,13 @@ The production desktop application is built from the Ghost FTP desktop source in
 Ghost FTP uses a single visual language across the file manager, Site Manager, connection flow, Preferences, Transfer Center, File Properties and About surfaces.
 
 <p align="center">
-  <img src="docs/assets/screenshots/site-manager.webp" alt="Ghost FTP Site Manager" width="49%">
-  <img src="docs/assets/screenshots/new-connection.webp" alt="Ghost FTP New Connection" width="49%">
+  <img src="docs/assets/screenshots/ghostftp-site-manager.webp" alt="Ghost FTP Site Manager" width="49%">
+  <img src="docs/assets/screenshots/ghostftp-new-connection.webp" alt="Ghost FTP New Connection" width="49%">
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshots/preferences.webp" alt="Ghost FTP Preferences" width="49%">
-  <img src="docs/assets/screenshots/transfer-center.webp" alt="Ghost FTP Transfer Center" width="49%">
+  <img src="docs/assets/screenshots/ghostftp-preferences.webp" alt="Ghost FTP Preferences" width="49%">
+  <img src="docs/assets/screenshots/ghostftp-transfer-center.webp" alt="Ghost FTP Transfer Center" width="49%">
 </p>
 
 The approved desktop reference frame is **1290×852**. RC9 keeps that geometry as the canonical layout while adapting controls at smaller window sizes instead of hiding critical actions. The reference images under `docs/assets/screenshots/` are QA targets only — the running application is built from real components and controls, never from screenshot backgrounds or click hotspots.
@@ -106,10 +106,10 @@ All published release assets include SHA-256 checksums.
 
 ```text
 Ghost-FTP-Premium/
-├── desktop-tauri/          Ghost FTP desktop application source
-├── runtime/                Developer/compatibility tooling
-├── installer/              Installer development/support tooling
-├── website/                ghostftp.com static website source
+├── ghostftp-desktop/          Ghost FTP desktop application source
+├── ghostftp-runtime/                Developer/compatibility tooling
+├── ghostftp-installer/              Installer development/support tooling
+├── ghostftp-web/                ghostftp.com static website source
 ├── docs/
 │   ├── assets/             Brand/reference media used by documentation and QA
 │   ├── audits/             Code, security, language and branding audits
@@ -152,7 +152,7 @@ Compatibility/browser-host tooling is not a substitute for the production GUI.
 ## Brand
 
 <p align="center">
-  <img src="docs/assets/screenshots/brand-board.webp" alt="Ghost FTP brand identity board" width="100%">
+  <img src="docs/assets/screenshots/ghostftp-brand-board.webp" alt="Ghost FTP brand identity board" width="100%">
 </p>
 
 **Ghost FTP**  
