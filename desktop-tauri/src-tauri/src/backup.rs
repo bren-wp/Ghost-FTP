@@ -10,7 +10,7 @@
 //!
 //! ```text
 //! ┌───────────────────────────────────────────────────────────────┐
-//! │ MAGIC   8 bytes  b"GHOSTFTPBAK\x01"                                 │
+//! │ MAGIC   12 bytes  b"GHOSTFTPBAK\x01"                                 │
 //! │ VERSION 1 byte   schema version (1)                            │  ── AEAD
 //! │ SALT    16 bytes Argon2id salt                                 │   associated
 //! │ NONCE   12 bytes AES-GCM nonce                                 │   data (AAD)
@@ -51,7 +51,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::Db;
 
-const MAGIC: &[u8; 8] = b"GHOSTFTPBAK\x01";
+const MAGIC: &[u8; 12] = b"GHOSTFTPBAK\x01";
 const VERSION: u8 = 1;
 const SALT_LEN: usize = 16;
 const NONCE_LEN: usize = 12;
