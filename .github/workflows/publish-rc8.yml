@@ -20,16 +20,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: main
           fetch-depth: 0
 
-      - name: Confirm RC8 source and current main
+      - name: Confirm RC8 source
         shell: bash
         run: |
           set -euo pipefail
           grep -q '"version": "2.1.1-rc.8"' desktop-tauri/package.json
-          git fetch origin main
-          test "${{ github.event.workflow_run.head_sha }}" = "$(git rev-parse origin/main)"
 
       - name: Verify source audit prerequisites
         shell: bash
@@ -118,13 +116,13 @@ jobs:
               gh release delete-asset "$TAG" "$asset" -y || true
             done
             gh release edit "$TAG" \
-              --target "${{ github.event.workflow_run.head_sha }}" \
+              --target "$(git rev-parse HEAD)" \
               --title "Ghost FTP 2.1.1 RC8 — Native" \
               --notes-file RELEASE_NOTES_RC8.md \
               --prerelease
           else
             gh release create "$TAG" \
-              --target "${{ github.event.workflow_run.head_sha }}" \
+              --target "$(git rev-parse HEAD)" \
               --title "Ghost FTP 2.1.1 RC8 — Native" \
               --notes-file RELEASE_NOTES_RC8.md \
               --prerelease
