@@ -15,7 +15,7 @@
 use anyhow::{bail, Context, Result};
 use std::path::PathBuf;
 
-const TASK_NAME: &str = "Ghost FTPAgent";
+#[cfg(target_os = "windows")]\nconst TASK_NAME: &str = "Ghost FTPAgent";
 
 /// Absolute path to the running executable, for the service definition.
 fn exe_path() -> Result<PathBuf> {
