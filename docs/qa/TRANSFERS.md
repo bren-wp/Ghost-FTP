@@ -1,9 +1,39 @@
-# Transfer QA
+# Ghost FTP Transfer QA — RC9
 
-The native source contains real FTP/FTPS/SFTP session and transfer paths and transfer-state stores. However, no native Rust/Tauri executable can be compiled in this sandbox, and no external test server is reachable from this isolated environment.
+## Implemented transfer engine scope
 
-The Go compatibility fallback intentionally does **not** simulate uploads/downloads. Its former fake progress timer and fake "connected" success path were removed. Network Test Connection in that fallback is TCP reachability only.
+The authoritative Ghost FTP desktop source contains real FTP, FTPS and SFTP session/transfer paths, queue state, retries, pause/resume controls, bandwidth throttling, conflict handling and synchronization support.
 
-Before FINAL, execute protocol-specific upload/download tests for FTP, explicit/implicit FTPS as supported, and SFTP; test pause/resume, cancel, retry-after-cancel, reconnect/resume where supported, overwrite/conflict behavior, timestamp preservation, checksum verification, concurrent-transfer limits, bandwidth limits, timeout/backoff and error recovery.
+RC9 also corrects transfer-state UI behavior:
 
-Status: **native transfer QA blocked; no false pass recorded.**
+- Completed rows do not expose Cancel.
+- Skipped and Canceled are explicit terminal states.
+- Retry All is available for failed transfers.
+- Active queue filtering no longer duplicates terminal history.
+- Progress is represented semantically.
+
+## CI truth
+
+Rust workspace tests and frontend production builds are release quality gates. Compatibility tooling does not simulate successful file transfers and is not used as proof of protocol correctness.
+
+## Real-server acceptance still required
+
+Before FINAL, execute against controlled test servers:
+
+- FTP upload/download/rename/delete.
+- FTP interrupted-transfer recovery/resume where supported.
+- Explicit FTPS.
+- Implicit FTPS where supported.
+- Invalid/expired TLS certificate behavior.
+- SFTP password authentication.
+- SFTP private-key authentication.
+- Unknown/changed host-key refusal and acceptance flows.
+- Large-file transfer.
+- Pause/resume/cancel/retry.
+- Concurrent-transfer limits.
+- Bandwidth limits.
+- Overwrite/skip/rename conflict behavior.
+- Timestamp preservation where supported.
+- Optional checksum verification where both sides can calculate it.
+
+Status: **production transfer implementation exists; real FTP/FTPS/SFTP end-to-end acceptance remains open before FINAL.**
