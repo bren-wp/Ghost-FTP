@@ -107,6 +107,8 @@ pub async fn plan(
 /// the file is re-copied as [`SyncReason::Edited`] — this catches same-size edits
 /// the stateless diff misses. Returns the plan plus the walked **source** tree so
 /// the caller can snapshot it back into the index without a second walk.
+// The planner deliberately receives both roots, direction, strategy and index metadata explicitly.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn plan_indexed(
     local_fs: &dyn RemoteFs,
     remote_fs: &dyn RemoteFs,
