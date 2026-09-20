@@ -1,8 +1,8 @@
-# Ghost FTP Code Audit — RC9
+# Ghost FTP Code Audit — RC10
 
 ## Scope
 
-RC9 continues the existing Ghost FTP production source. The authoritative desktop application now lives in `ghostftp-desktop/`. The Go-based `tools/ghostftp-runtime/` and `tools/ghostftp-installer/` trees are retained only as developer/compatibility tooling and are not shipped as the production desktop GUI.
+RC10 continues the existing Ghost FTP production source. The authoritative desktop application now lives in `ghostftp-desktop/`. The Go-based `tools/ghostftp-runtime/` and `tools/ghostftp-installer/` trees are retained only as developer/compatibility tooling and are not shipped as the production desktop GUI.
 
 ## Corrected and hardened
 
@@ -61,7 +61,7 @@ Internal framework-required names remain only where the build ecosystem consumes
 
 ## Current quality truth
 
-The earlier RC9 quality run exposed two failing PATH-integration tests. The failure was not hidden: the managed-path normalization has been corrected in source and the current RC9 quality run is required to pass before release publication.
+An earlier RC9 quality run exposed PATH-integration failures and later RC9 validation narrowed the remaining gate to two CLI Clippy findings. RC10 contains both corrections and still requires a fully successful current quality run before publication.
 
 ## Remaining engineering validation
 
