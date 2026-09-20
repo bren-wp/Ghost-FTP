@@ -16,6 +16,10 @@ Ghost FTP 2.1.1 RC7 is a release-candidate build of the Ghost FTP desktop file-t
 - Windows setup flow without a separate uninstall.exe.
 - Source audit, branding guard and native Windows/Linux CI.
 
+## Browser-shell compatibility fix
+
+Earlier RC7 compatibility executables launched the UI through a local Chromium/Edge app window, which exposed a visible `127.0.0.1` origin bar and could not satisfy the required frameless 1:1 Ghost FTP design. Those executable assets were removed from the public release. End-user Windows/Linux GUI binaries are now published only from the native Tauri build pipeline.
+
 ## Release status
 
 RC7 is a **pre-release**, not the final production designation. The source audit passes in GitHub Actions. Native Windows/Linux artifacts are attached only when the corresponding native Tauri build completes successfully.
