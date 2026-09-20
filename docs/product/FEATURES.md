@@ -61,6 +61,8 @@ Implemented:
 - Overwrite / skip / rename conflict policies.
 - Per-file conflict prompts with optional remembered behavior.
 - Automatic transfer-panel opening.
+- Preferences UI for browser layout, hidden files, remote previews, transfer speed limit, default download folder and default editor.
+
 - Desktop completion/failure notifications.
 - Delta synchronization support on compatible Ghost FTP Agent paths.
 - Transfer engine settings restored at startup.
