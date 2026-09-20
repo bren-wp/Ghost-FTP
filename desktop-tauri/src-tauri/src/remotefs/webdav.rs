@@ -475,7 +475,7 @@ mod tests {
     #[test]
     fn full_url_hrefs_resolve() {
         let xml = r#"<multistatus xmlns="DAV:">
-<response><href>https://dav.example.com/dav/photo.jpg</href>
+<response><href>https://dav.example.invalid/dav/photo.jpg</href>
 <propstat><prop><resourcetype/><getcontentlength>9</getcontentlength></prop>
 <status>HTTP/1.1 200 OK</status></propstat></response></multistatus>"#;
         let entries = parse_multistatus(xml, "/dav/", "/");
