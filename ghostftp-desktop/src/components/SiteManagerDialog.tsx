@@ -30,6 +30,7 @@ import { useDialog } from "@/hooks/useDialog";
 
 interface Props {
   onClose: () => void;
+  initialView?: View;
 }
 
 type View = "all" | "favorites" | "recent" | "bookmarks" | string;
@@ -37,7 +38,7 @@ type Action = "save" | "test" | "duplicate" | "delete" | null;
 
 const DIRECT_EDIT_PROTOCOLS = new Set<Protocol>(["sftp", "ftp", "ftps"]);
 
-export function SiteManagerDialog({ onClose }: Props) {
+export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const allProfiles = useConnections((s) => s.profiles);
@@ -67,7 +68,7 @@ export function SiteManagerDialog({ onClose }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(
     profiles[0]?.id ?? null
   );
-  const [view, setView] = useState<View>("all");
+  const [view, setView] = useState<View>(initialView);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<ConnectionProfile | null>(
     profiles[0] ? { ...profiles[0] } : null
@@ -104,6 +105,10 @@ export function SiteManagerDialog({ onClose }: Props) {
           if (view === "favorites" && !profile.favorite) return false;
           if (view === "recent" && !profile.lastUsed) return false;
           if (view === "bookmarks" && !profile.bookmarked) return false;
+          if (
+            view === "cloud" &&
+            !["s3", "azure", "gcs", "webdav", "dropbox", "onedrive", "gdrive", "box"].includes(profile.protocol)
+          ) return false;
           if (
             view.startsWith("tag:") &&
             !(profile.tags ?? []).includes(view.slice(4))
