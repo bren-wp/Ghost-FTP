@@ -117,3 +117,13 @@ Minimum supported native window target remains 480×600, with 480×800 used in t
 ## Acceptance rule
 
 A release is not described as pixel-perfect/FINAL until the real native Windows/Linux render is compared against the approved references at the documented sizes and the measured differences are accepted.
+
+
+## RC11 production-fidelity acceptance
+
+- The supplied Ghost FTP reference screenshots are treated as visual acceptance specifications, never as runtime backgrounds.
+- File Manager chrome is isolated from standalone Site Manager, Preferences, Transfer Center and About surfaces.
+- Menu dropdowns are overlay layers and must never push Quick Connect or toolbars out of position.
+- New Connection sizes to real content with a 752 px reference width and viewport-safe maximum height; dead vertical filler regions are rejected.
+- The 1290×852 reference geometry is primary while 1024×768 through 480×800 use component-local scrolling and compaction rather than whole-window overflow.
+- No production UI may seed example.com, Production Server, Staging Server or other demo records.
