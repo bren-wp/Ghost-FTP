@@ -1,0 +1,27 @@
+[package]
+name = "ghostftp-agent-proto"
+version = "2.1.1-rc.7"
+edition = "2021"
+license = "MIT"
+description = "Wire protocol + encrypted channel for Ghost FTP's remote-agent (Ghost FTP-to-Ghost FTP) bridge."
+
+# Deliberately Tauri-free and dependency-light so `ghostftp-agentd` can link it
+# without pulling in the GUI stack (and the compile-time `../dist` check).
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+thiserror = "1"
+tokio = { version = "1", features = ["io-util", "net", "macros", "rt", "time"] }
+snow = "0.9"
+base64 = "0.22"
+sha2 = "0.10"
+rand = "0.8"
+# Delta sync (block-level differential transfer): FastCDC v2020 content-defined
+# chunking + BLAKE3 chunk/whole-file hashes, used by `delta.rs`. Living here keeps
+# the app and the daemon on the identical algorithm/constants.
+fastcdc = "3"
+blake3 = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Ghost FTP — Secure File Transfers. Privacy First.</title>
+  <meta name="description" content="Ghost FTP is a privacy-first FTP, FTPS and SFTP client for Windows and Linux.">
+  <meta name="theme-color" content="#021427">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <link rel="canonical" href="https://ghostftp.com/">
+  <link rel="alternate" hreflang="en" href="https://ghostftp.com/">
+  <link rel="alternate" hreflang="hr" href="https://ghostftp.com/hr/">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <div class="scene" aria-hidden="true"><div class="scene-left"></div><div class="scene-right"></div><div class="scene-bottom"></div></div>
+  <header class="topbar">
+    <a class="brand" href="https://ghostftp.com/" aria-label="Ghost FTP home">
+      <img src="assets/ghostftp-symbol.svg" alt="" width="56" height="56">
+      <span><strong>Ghost FTP</strong><small>More Than Transfer.<br>Total Control.</small></span>
+    </a>
+    <nav class="nav" aria-label="Primary navigation">
+      <a class="active" href="https://ghostftp.com/">Home</a>
+      <a href="https://ghostftp.com/#features">Features</a>
+      <a href="https://ghostftp.com/security/">Security</a>
+      <a href="https://ghostftp.com/download/">Download</a>
+      <a href="https://ghostftp.com/support/">Help</a>
+    </nav>
+    <div class="locale-switcher">
+      <a class="locale active" href="https://ghostftp.com/" hreflang="en"><span>🇬🇧</span> English (English)</a>
+      <a class="locale" href="https://ghostftp.com/hr/" hreflang="hr"><span>🇭🇷</span> Hrvatski (Croatian)</a>
+    </div>
+  </header>
+
+  <main class="hero">
+    <div class="hero-logo-wrap"><img src="assets/ghostftp-symbol.svg" alt="Ghost FTP" class="hero-logo"></div>
+    <h1>Ghost FTP</h1>
+    <p class="lead">Secure File Transfers. Privacy First.</p>
+    <p class="sublead">Fast. Reliable. In Your Control.</p>
+
+    <section class="loader" aria-live="polite">
+      <strong>Loading Ghost FTP…</strong>
+      <div class="progress"><span></span></div>
+      <div class="progress-meta"><span>Connecting a more open, secure world.</span><b id="progressText">78%</b></div>
+    </section>
+
+    <section class="action-grid" aria-label="Ghost FTP links">
+      <a href="https://ghostftp.com/download/" class="action-card"><span class="action-icon">⇩</span><strong>Download</strong><small>Get Ghost FTP</small></a>
+      <a href="https://ghostftp.com/#features" class="action-card"><span class="action-icon">☷</span><strong>Features</strong><small>See What's Possible</small></a>
+      <a href="https://ghostftp.com/security/" class="action-card"><span class="action-icon">♢</span><strong>Security</strong><small>Built for Your Privacy</small></a>
+      <a href="https://ghostftp.com/support/" class="action-card"><span class="action-icon">?</span><strong>Help</strong><small>Guides &amp; Support</small></a>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="feature"><b>▣</b><span><strong>Secure Connections</strong><small>Encrypted Transfers</small></span></div>
+    <div class="feature"><b>ϟ</b><span><strong>Fast Transfers</strong><small>Optimized Performance</small></span></div>
+    <div class="feature"><b>♢</b><span><strong>Privacy First</strong><small>Your Data, Your Control</small></span></div>
+    <div class="feature"><b>♟</b><span><strong>Trusted Worldwide</strong><small>Individuals &amp; Teams</small></span></div>
+    <a class="official" href="https://ghostftp.com/">ghostftp.com ↗</a>
+    <span class="motto">FILES MOVE FORWARD</span>
+  </footer>
+  <script>
+    (() => {
+      const bar = document.querySelector('.progress span');
+      const text = document.getElementById('progressText');
+      let value = 78;
+      const tick = () => {
+        value += value < 92 ? 1 : 0;
+        bar.style.width = value + '%';
+        text.textContent = value + '%';
+      };
+      setInterval(tick, 1100);
+    })();
+  </script>
+</body>
+</html>

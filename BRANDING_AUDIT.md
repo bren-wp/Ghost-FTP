@@ -1,9 +1,12 @@
-# Ghost FTP Branding Audit — RC7
+# Branding Audit
 
-Product: **Ghost FTP**  
-Official website: **https://ghostftp.com/**  
-Publisher: **Brendigo LTD** and **Brendigo, obrt za programiranje**
+Scope: full source tree, runtime, installer, website, release-facing docs and generated binaries/source strings where inspectable.
 
-The active native/runtime/installer/website source was re-scanned after the RC7 parity pass. It contains no Faro identifiers, `example.com`, fake Production/Staging/Design Assets/Cloud Server profiles, or Alex placeholder paths. Parser/unit-test examples use reserved `.invalid` hosts.
+- Product name, public host, bundle identifier and deep-link scheme are Ghost FTP / ghostftp.com / `com.ghostftp.desktop` / `ghostftp://` in the native source.
+- Full-tree text scan found no legacy product identifier from the previous codebase in executable/source code.
+- Product-facing runtime/site/setup pages contain no `example.com`, demo user, Production Server, Staging Server, Design Assets or Cloud Server seed profile.
+- Site Manager initializes from actual stored profiles and is empty for a new profile store.
+- Third-party names retained in native source are interoperability/import references (for example FileZilla/PuTTY) rather than product branding.
+- Official public navigation in audited product-facing code targets ghostftp.com.
 
-Reference screenshots remain design/QA inputs only and are not used as the runtime UI surface.
+Status: **source branding audit passed for the scanned tree; binary GUI visual verification still requires target-OS execution.**

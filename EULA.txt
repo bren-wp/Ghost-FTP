@@ -1,0 +1,141 @@
+GHOST FTP COMMERCIAL SOFTWARE LICENSE AGREEMENT
+Version 1.0 — Effective 19 September 2026
+
+IMPORTANT — READ CAREFULLY BEFORE INSTALLING OR USING GHOST FTP.
+
+This Commercial Software License Agreement (the “Agreement”) is a legally binding agreement governing the installation, access to, and use of the Ghost FTP desktop application, installers, updates, documentation, associated command-line components, and related materials (collectively, the “Software”).
+
+LICENSOR
+“Licensor” means Brendigo LTD and Brendigo, obrt za programiranje, acting individually or together as applicable to the order, invoice, subscription, licence key, distribution channel, or other commercial arrangement under which the Software is supplied. The entity identified on the applicable commercial document is the contracting licensor. Where no entity is identified, Brendigo LTD and Brendigo, obrt za programiranje jointly administer the licence for the Ghost FTP product.
+
+Ghost FTP is an official Ghost FTP product. Official product information, downloads, support information and policies are published through https://ghostftp.com/.
+
+1. ACCEPTANCE
+1.1 By selecting “I accept”, installing, copying, accessing, activating, or using the Software, you confirm that you have read and understood this Agreement and agree to be bound by it.
+1.2 If you install or use the Software for an organisation, you represent that you have authority to bind that organisation. In that case, “you” and “your” include that organisation and its authorised users.
+1.3 If you do not agree to this Agreement, do not install, access, or use the Software and remove any copies in your possession or control.
+
+2. COMMERCIAL LICENCE GRANT
+2.1 Subject to payment of all applicable fees and continued compliance with this Agreement, Licensor grants you a limited, non-exclusive, non-sublicensable, non-transferable licence to install and use the Software during the applicable licence term and within the quantity, user, device, site, organisation, or subscription limits stated in your order, invoice, licence entitlement, or subscription record.
+2.2 Unless the applicable commercial terms expressly state otherwise, a licence is for use by the licensed customer and its authorised personnel for legitimate internal business or professional file-transfer activities.
+2.3 You may create a reasonable number of backup copies solely for disaster recovery or archival purposes. Every backup remains subject to this Agreement and must preserve proprietary notices.
+2.4 Virtual desktop, remote desktop, virtual machine, server-hosted, terminal-services, or shared-device use is permitted only to the extent that the number of users or devices accessing the Software does not exceed the purchased entitlement.
+2.5 No right is granted by implication, estoppel, exhaustion beyond mandatory law, or otherwise. All rights not expressly granted are reserved.
+
+3. PERMITTED USE
+3.1 The Software may be used to connect to FTP, FTPS, SFTP, and other supported endpoints for which you are authorised to access the relevant systems and data.
+3.2 You are responsible for obtaining permission to access every server, account, directory, file, credential, key, certificate, network, and service used with the Software.
+3.3 You are responsible for maintaining appropriate backups, access controls, credential hygiene, server security, and operational procedures. File-transfer software can overwrite, move, rename, alter permissions, or delete data when instructed to do so.
+
+4. RESTRICTIONS
+Except to the extent a restriction is prohibited by mandatory law, you must not, and must not permit any third party to:
+(a) sell, rent, lease, lend, sublicense, timeshare, distribute, publish, or commercially host the Software for third parties without written authorisation from Licensor;
+(b) copy the Software except as expressly permitted by this Agreement;
+(c) modify, adapt, translate, merge, or create derivative works of proprietary portions of the Software except with written authorisation;
+(d) reverse engineer, decompile, disassemble, decode, or otherwise attempt to derive source code, trade secrets, authentication mechanisms, or non-public protocols, except to the limited extent expressly permitted by mandatory law after first requesting necessary interoperability information from Licensor where required by law;
+(e) remove, obscure, alter, or replace Ghost FTP, Brendigo, copyright, trademark, licence, attribution, security, or proprietary notices;
+(f) bypass, disable, defeat, or interfere with licence enforcement, update validation, security controls, usage limits, or technical protection measures;
+(g) use the Software to gain unauthorised access, deploy malware, exfiltrate data without permission, infringe intellectual property, violate privacy rights, or otherwise break applicable law;
+(h) represent that you own the Software or that Ghost FTP is your product; or
+(i) use the Software or its output to build or train a directly competing product by systematic copying of protected user-interface assets, documentation, source code, or proprietary implementation details, except where such restriction is unenforceable under mandatory law.
+
+5. OWNERSHIP AND INTELLECTUAL PROPERTY
+5.1 The Software is licensed, not sold. Licensor and its licensors retain all title, ownership, intellectual-property rights, and other rights in and to the Software, Ghost FTP branding, user-interface artwork, documentation, updates, and proprietary materials.
+5.2 “Ghost FTP”, the Ghost FTP logo, associated product appearance, and related brand assets are proprietary product identifiers. No trademark licence is granted except the limited right necessary to use an authorised copy of the Software.
+5.3 Feedback, suggestions, or error reports voluntarily submitted to Licensor may be used to improve Ghost FTP without payment or restriction, provided that Licensor does not thereby obtain ownership of your confidential data or files.
+
+6. THIRD-PARTY COMPONENTS
+6.1 The Software may include or interoperate with third-party software, libraries, operating-system components, command-line utilities, network services, or open-source components.
+6.2 Third-party components may be governed by separate licence terms. Those separate terms apply to the relevant component and are not replaced by this Agreement.
+6.3 Third-party product names and trademarks remain the property of their respective owners and do not imply endorsement.
+
+7. CREDENTIALS, FILES, PRIVACY, AND TELEMETRY
+7.1 Ghost FTP is designed so that connection profiles and application settings can be stored locally on the user’s device. Where supported, credentials should be stored using operating-system credential facilities or equivalent protected storage.
+7.2 The Software does not grant Licensor ownership of files, credentials, server content, connection profiles, or other customer data processed through the Software.
+7.3 Analytics and telemetry are disabled by default in the Ghost FTP product configuration supplied under this Agreement unless a user or administrator expressly enables an optional feature that states otherwise.
+7.4 Network connections initiated by the Software may necessarily disclose technical information to the destination server, certificate authority, update service, operating-system service, or other endpoint involved in performing the requested function.
+7.5 Privacy practices for Licensor-operated online services are described in the privacy information published at https://ghostftp.com/privacy/.
+
+8. SECURITY
+8.1 You must protect passwords, SSH keys, certificates, tokens, recovery data, and other credentials used with the Software.
+8.2 You are responsible for verifying server identities, SSH host keys, TLS certificates, paths, permissions, and transfer destinations before approving sensitive operations.
+8.3 You must promptly install security updates that are designated as important or critical where reasonably practicable.
+8.4 No software can be guaranteed to be completely free of vulnerabilities. Security reports should be submitted using the official Ghost FTP support or security contact published at https://ghostftp.com/.
+
+9. UPDATES, UPGRADES, AND CHANGES
+9.1 Licensor may provide maintenance releases, security fixes, compatibility updates, or feature updates. An update may replace or modify earlier Software components.
+9.2 Unless stated otherwise in the applicable commercial terms, your right to use updates is subject to a valid licence or subscription covering the relevant version.
+9.3 Licensor may change or discontinue features when reasonably necessary for security, compatibility, legal compliance, third-party dependency changes, or product development. Material changes will be documented where commercially reasonable.
+9.4 You may choose whether to install non-mandatory feature updates unless an update is required to address a material security or compatibility issue under your managed deployment terms.
+
+10. SUPPORT AND MAINTENANCE
+10.1 Support, response times, maintenance periods, and service levels are provided only to the extent stated in the applicable order, subscription, invoice, support plan, or published Ghost FTP support terms.
+10.2 Unless a separate service-level agreement applies, support is provided on a commercially reasonable-efforts basis and is not guaranteed to resolve every configuration, hosting-provider, firewall, server, or third-party compatibility issue.
+
+11. FEES, TAXES, AND LICENCE VERIFICATION
+11.1 Fees, billing periods, renewal terms, taxes, refund rights, and purchased quantities are governed by the applicable commercial document or storefront terms.
+11.2 You must maintain sufficient records to demonstrate compliance with purchased licence quantities. For business licences, Licensor may request a reasonable written certification of compliance no more often than reasonably necessary, unless there is evidence of material non-compliance.
+11.3 Any technical licence verification implemented by the Software must be used only for legitimate licence administration, fraud prevention, security, or entitlement management and remains subject to applicable privacy law.
+
+12. CONFIDENTIALITY
+12.1 Non-public licence keys, private builds, security information, technical documentation marked confidential, and non-public commercial information supplied by Licensor must be protected using reasonable care and used only for the purpose for which it was supplied.
+12.2 This clause does not restrict information that is public through no breach of duty, independently developed without use of confidential information, lawfully obtained from a third party, or required to be disclosed by law.
+
+13. TERM AND TERMINATION
+13.1 This Agreement begins when you first accept, install, or use the Software and continues for the applicable perpetual or subscription term.
+13.2 Licensor may terminate the licence for material breach if the breach is not cured within a reasonable written cure period, where a cure is possible. A licence may be terminated immediately for deliberate licence circumvention, unlawful distribution, or malicious use that creates a material security risk.
+13.3 On termination or expiry of a time-limited entitlement, you must stop using and delete copies of the Software except copies retained solely where required by law or standard immutable backup processes.
+13.4 Sections that by their nature should survive termination, including ownership, restrictions, confidentiality, warranty limitations, liability limitations, and governing-law provisions, survive termination.
+
+14. LIMITED WARRANTY
+14.1 If a separate written warranty is provided in the applicable commercial terms, that warranty controls to the extent of any conflict.
+14.2 Otherwise, Licensor warrants for thirty (30) days from initial commercial delivery that the unmodified Software will substantially conform to its then-current published documentation when used on a supported system. Your exclusive remedy for breach of this limited warranty is, at Licensor’s option, correction, replacement, or refund of the licence fee paid for the affected Software.
+14.3 The warranty does not cover problems caused by unsupported environments, third-party services, network failures, server configuration, user error, unauthorised modification, malware, hardware failure, or use contrary to documentation.
+14.4 TO THE MAXIMUM EXTENT PERMITTED BY LAW, EXCEPT FOR THE EXPRESS LIMITED WARRANTY ABOVE, THE SOFTWARE IS PROVIDED “AS IS” AND “AS AVAILABLE” WITHOUT OTHER WARRANTIES, INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, AVAILABILITY, OR ERROR-FREE OPERATION.
+14.5 Nothing in this Agreement excludes rights or warranties that cannot lawfully be excluded, including mandatory consumer rights where applicable.
+
+15. LIMITATION OF LIABILITY
+15.1 Nothing in this Agreement excludes or limits liability that cannot legally be excluded or limited, including liability for fraud, fraudulent misrepresentation, or other liability that applicable law requires to remain unlimited.
+15.2 TO THE MAXIMUM EXTENT PERMITTED BY LAW, LICENSOR WILL NOT BE LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, PUNITIVE, OR CONSEQUENTIAL DAMAGES, OR FOR LOSS OF PROFITS, REVENUE, BUSINESS, GOODWILL, ANTICIPATED SAVINGS, DATA, CREDENTIALS, OR BUSINESS INTERRUPTION, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH LOSS.
+15.3 TO THE MAXIMUM EXTENT PERMITTED BY LAW, LICENSOR’S AGGREGATE LIABILITY ARISING OUT OF OR RELATING TO THE SOFTWARE OR THIS AGREEMENT WILL NOT EXCEED THE AMOUNT PAID OR PAYABLE FOR THE AFFECTED GHOST FTP LICENCE DURING THE TWELVE (12) MONTHS PRECEDING THE EVENT GIVING RISE TO THE CLAIM, OR, FOR A PERPETUAL LICENCE WITH NO PAYMENT IN THAT PERIOD, THE PRICE PAID FOR THAT LICENCE.
+15.4 The limitations in this section allocate commercial risk and form an essential basis of the licence price.
+
+16. INDEMNITY FOR UNAUTHORISED OR UNLAWFUL USE
+For business and professional users, to the extent permitted by law, you will defend and indemnify Licensor against third-party claims, damages, and reasonable costs arising directly from your deliberate unlawful use of the Software, your unauthorised access to third-party systems, or your distribution of the Software in breach of this Agreement. This clause does not apply to the extent a claim was caused by Licensor’s own breach, negligence, or wilful misconduct.
+
+17. EXPORT, SANCTIONS, AND COMPLIANCE
+You must comply with applicable export-control, sanctions, anti-corruption, data-protection, cybersecurity, and computer-misuse laws. You may not use, export, re-export, transfer, or provide the Software where prohibited by applicable law.
+
+18. GOVERNMENT AND REGULATED USERS
+Any government, public-sector, defence, healthcare, financial, or other regulated user is responsible for determining whether the Software and its configuration meet its procurement, records, security, data-residency, accessibility, or sector-specific obligations. Additional written terms may be required for regulated deployments.
+
+19. ASSIGNMENT
+You may not assign or transfer this Agreement or the Software except with Licensor’s prior written consent or as part of a bona fide transfer of substantially all of the licensed business to a successor that agrees in writing to be bound by this Agreement. Licensor may assign this Agreement as part of a merger, reorganisation, sale of business, or transfer of the Ghost FTP product, subject to applicable law.
+
+20. GOVERNING TERMS AND DISPUTES
+20.1 If an order, invoice, reseller agreement, enterprise agreement, or other signed commercial document identifies a governing law or forum, that provision controls.
+20.2 Otherwise, the governing law and competent courts are those applicable to the Licensor entity that issued the relevant commercial licence or invoice, without prejudice to mandatory rights and jurisdiction rules that apply to consumers or other protected parties.
+20.3 Before commencing formal proceedings, business parties will make reasonable good-faith efforts to resolve the dispute through written notice and commercial discussion.
+
+21. CHANGES TO THIS AGREEMENT
+21.1 The Agreement accepted for a paid licence remains applicable to that licensed version unless you expressly agree to replacement terms or replacement terms are lawfully applied to a renewal, new subscription period, or materially new version.
+21.2 Licensor may update terms for future purchases, renewals, subscriptions, or major versions by publishing or presenting the updated terms before they become binding.
+
+22. GENERAL
+22.1 This Agreement, together with the applicable commercial documents and incorporated policies, constitutes the agreement concerning the Software and supersedes prior representations about the same subject matter.
+22.2 If a provision is unenforceable, it will be enforced to the maximum lawful extent and the remaining provisions remain in effect.
+22.3 A failure to enforce a provision is not a waiver.
+22.4 Headings are for convenience only.
+22.5 Electronic acceptance and electronic records have the same effect as paper acceptance to the extent permitted by law.
+22.6 The English version controls in the event of inconsistency between translations, except where applicable law requires otherwise.
+
+23. CONTACT AND OFFICIAL PRODUCT INFORMATION
+Product: Ghost FTP
+Licensor: Brendigo LTD and Brendigo, obrt za programiranje, as applicable to the commercial transaction
+Official website: https://ghostftp.com/
+Documentation: https://ghostftp.com/docs/
+Support: https://ghostftp.com/support/
+Privacy: https://ghostftp.com/privacy/
+
+Copyright © 2026 Brendigo LTD and Brendigo, obrt za programiranje. All rights reserved.
+Ghost FTP and associated product branding are proprietary to their respective Licensor owner(s).

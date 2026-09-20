@@ -1,0 +1,189 @@
+[package]
+name = "ghostftp"
+version = "2.1.1-rc.7"
+edition = "2021"
+description = "Ghost FTP — secure modern FTP, FTPS, SFTP and SSH file transfer client."
+authors = ["Brendigo LTD", "Brendigo, obrt za programiranje"]
+license-file = "../../LICENSE.txt"
+# This package builds the Ghost FTP GUI only (`src/main.rs` → the `ghostftp` binary).
+# The standalone CLI lives in its own workspace member, `ghostftp-cli/`, so the
+# Tauri bundler only ever sees ONE binary in this package. A second `[[bin]]`
+# here breaks the desktop bundle because the bundler expects one GUI binary.
+[workspace]
+members = ["ghostftp-cli", "ghostftp-agent-proto", "ghostftp-agentd"]
+resolver = "2"
+
+[lib]
+name = "ghostftp_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.1", features = [] }
+# Native file/folder picker for the Upload button + download-folder chooser.
+tauri-plugin-dialog = "2"
+# ghostftp:// deep links (one-click "open in Ghost FTP" from a hosting panel like
+# ServerKit). single-instance forwards a link to the already-running window
+# instead of launching a second copy; the `deep-link` feature carries the URL.
+tauri-plugin-deep-link = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+# Desktop notifications (Plan 16 Phase 3): OS toasts for a small curated set of
+# events (transfer batch done/failed, folder-sync error, edit-in-place save
+# failure) so they surface when Ghost FTP isn't focused. The events are decided +
+# gated frontend-side (focus + the `notifications` setting); this just exposes
+# the OS toast API to the webview.
+tauri-plugin-notification = "2"
+# In-app auto-updater (Plan 16 Phase 1/2): checks a signed Ghost FTP release service
+# `latest.json`, downloads the signed artifact, verifies its minisign signature
+# against the pubkey in tauri.conf.json, and installs. `process` powers the
+# "Restart to update" relaunch. Signature verification is the whole security
+# model — the app never installs an unsigned/unverified update.
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+url = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Async
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# SSH / SFTP
+russh = "0.45"
+russh-keys = "0.45"
+russh-sftp = "2.0"
+# Native OpenSSH-format private-key writing for the in-app key generator. russh
+# can only *write* PKCS#8 PEM, which OpenSSH itself refuses to load for Ed25519
+# ("error in libcrypto") — so a key generated via russh wouldn't work with
+# ssh/ssh-keygen. ssh-key writes real `-----BEGIN OPENSSH PRIVATE KEY-----`
+# files (encrypted with bcrypt-pbkdf + aes256-ctr like ssh-keygen does), which
+# both OpenSSH and russh's own loader read back. Already in the tree as a russh
+# transitive dep; pulled directly here for the generator.
+ssh-key = { version = "0.6", features = ["ed25519", "rsa", "encryption", "getrandom"] }
+
+# Ghost FTP Agent (Ghost FTP-to-Ghost FTP remote control) — shared wire protocol + encrypted
+# channel. mdns-sd powers LAN discovery of paired daemons. ghostftp-agentd (a lib
+# here, a headless binary elsewhere) is embedded so Settings → Remote control
+# can host this machine's agent with zero extra downloads; it shares the
+# daemon's identity/config dir, so embedded and headless are interchangeable.
+ghostftp-agent-proto = { path = "ghostftp-agent-proto" }
+ghostftp-agentd = { path = "ghostftp-agentd" }
+mdns-sd = "0.11"
+
+# FTP / FTPS — sync API, driven from tokio via spawn_blocking.
+suppaftp = { version = "6", features = ["native-tls"] }
+
+# S3 / R2 / B2 — Apache Arrow's polymorphic object_store crate. The same crate
+# backs Azure Blob (`azure` feature) and native Google Cloud Storage (`gcp`).
+object_store = { version = "0.11", features = ["aws", "azure", "gcp"] }
+bytes = "1"
+
+# Importers — quick-xml for FileZilla's sitemanager.xml.
+quick-xml = "0.36"
+
+# Shared connection index (ghostftp.db). The `bundled` feature compiles SQLite from
+# source so there's no system-SQLite dependency. One DB under app_data_dir holds
+# per-feature tables (sync_state today; scan_cache / search_index / diff_hash
+# later). See docs/plans/3_scan-index-foundation.md.
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Misc
+anyhow = "1"
+thiserror = "1"
+# Content-search matching (regex mode) + glob→regex compilation for fleet search.
+regex = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dirs = "5"
+sha2 = "0.10"
+base64 = "0.22"
+# `stream` powers ranged/streamed WebDAV GET+PUT bodies; `multipart` powers Box's
+# multipart/form-data uploads and Google Drive multipart create.
+reqwest = { version = "0.12", features = ["json", "stream", "multipart"] }
+# Wraps a tokio File as a Stream for streaming WebDAV PUT uploads.
+tokio-util = { version = "0.7", features = ["io"] }
+# Decode percent-encoded WebDAV PROPFIND href paths back into file names.
+percent-encoding = "2"
+
+# Remote image thumbnails (Plan 13 Phase 1): decode a bounded read of a remote
+# image and downscale it to a small cached PNG in Rust. `default-features = false`
+# keeps out the codecs that need system libs (avif/dav1d); the enabled set covers
+# the web-common raster formats we gate previews to. `rayon` parallelises the
+# resize across cores.
+image = { version = "0.25", default-features = false, features = [
+    "jpeg", "png", "gif", "webp", "bmp", "ico", "tiff",
+] }
+
+# Filesystem watcher — powers the right-click "Edit with…" flow that
+# downloads a remote file to a tempfile, opens it in the user's editor, and
+# uploads it back on every save.
+notify = "6"
+
+# OS keychain for OAuth tokens (Dropbox et al., Plan 5 Phase 5). Native backends
+# only (Windows Credential Manager / Linux keyutils) so there's
+# no dbus/secret-service build dependency.
+keyring = { version = "3", features = ["windows-native", "linux-native"] }
+
+# Encrypted backup/restore container (Plan 12 Phase 4): an Argon2id-derived key
+# over a user password, AES-256-GCM over a gzipped archive of profiles + ghostftp.db
+# + configs + all keychain credentials. All pure-Rust, no system crypto dep.
+# (aes-gcm / flate2 / rand were already in the tree transitively.)
+argon2 = "0.5"
+aes-gcm = "0.10"
+flate2 = "1"
+rand = "0.8"
+
+# Windows-only: registry access for the PuTTY sessions importer, plus the
+# Cloud Filter API (`cldapi.dll`) that powers on-demand virtual folders (Plan 9)
+# via the safe `cloud-filter` wrapper crate. It's optional — only pulled when the
+# `virtualfs` feature is on — so the default build never compiles the native
+# provider. Using the wrapper instead of hand-rolled `windows`-crate FFI keeps
+# the unsafe surface tiny for code that can only be verified manually in Explorer.
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"
+# One-click "Add ghostftp-cli to PATH" (Plan 16 Phase 4). After writing the per-user
+# Path under HKCU\Environment we broadcast WM_SETTINGCHANGE("Environment") so new
+# terminals pick it up without a logoff — that's the only Win32 call we need, so
+# the lightweight `windows-sys` FFI crate (already in the tree transitively) is
+# enough; no need for the heavier `windows` wrapper.
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+] }
+# cloud-filter drives the hard part (connect + placeholders + hydration
+# callbacks over cldapi). The `windows` crate (same 0.58 cloud-filter pulls) is
+# used ONLY for `CfRegisterSyncRoot`/`CfUnregisterSyncRoot`, because the WinRT
+# `StorageProviderSyncRootManager` cloud-filter registers with requires package
+# identity, which unpackaged Ghost FTP doesn't have — the Win32 register API doesn't.
+cloud-filter = { version = "0.0.6", optional = true }
+windows = { version = "0.58", optional = true, features = [
+    "Win32_Foundation",
+    "Win32_Storage_CloudFilters",
+] }
+
+[dev-dependencies]
+# Paused-clock tokio tests for the transfer token bucket (Plan 17).
+tokio = { version = "1", features = ["test-util"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+# On-demand virtual folders (Plan 9): the Windows Cloud Filter provider —
+# OneDrive-style placeholders that hydrate on open and free-up-space to evict.
+# OFF by default: it compiles native `cldapi` FFI and registers OS sync roots on
+# the user's disk, which must be verified manually in Explorer (hydrate on open,
+# free-up-space, badge states) before shipping. Enable with `--features virtualfs`.
+virtualfs = ["dep:cloud-filter", "dep:windows"]
+
+[profile.dev]
+incremental = true
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

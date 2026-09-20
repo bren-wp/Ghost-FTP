@@ -1,0 +1,44 @@
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020d18;color:#eaf7ff;font-family:Inter,"Segoe UI",Arial,sans-serif}button,input,select{font:inherit}.installer-shell{width:100%;height:100%;display:grid;place-items:center;padding:10px;background:radial-gradient(circle at 50% 0,rgba(28,127,210,.18),transparent 42%),#020d18}.setup-window{width:790px;height:585px;max-width:calc(100vw - 20px);max-height:calc(100vh - 20px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #2aaaff;border-radius:14px;background:#041526;box-shadow:0 0 30px rgba(42,170,255,.16),0 24px 60px rgba(0,0,0,.52)}.window-title{height:46px;min-height:46px;display:flex;align-items:center;gap:9px;padding:0 14px;border-bottom:1px solid #164b72;background:linear-gradient(180deg,#082039,#06172a)}.window-title img{width:27px;height:27px}.window-title b{font-size:14px}.window-title span{flex:1}.window-title button{width:35px;height:34px;border:0;background:transparent;color:#b2d2e7}.window-title button:hover{background:#123a57}.window-title .win-close:hover{background:#c42b35;color:#fff}.wizard{display:grid;grid-template-columns:210px 1fr;min-height:0;flex:1}.setup-brand{padding:18px 16px 15px;display:grid;grid-template-columns:42px 1fr;column-gap:10px;border-bottom:1px solid #174c72}.setup-brand img{grid-row:1/3;width:42px;height:42px}.setup-brand strong{font-size:17px;align-self:end}.setup-brand small{color:#8dbbd8;line-height:1.15}.wizard>aside{min-height:0;background:#05192c;border-right:1px solid #174c72}.wizard>aside button{width:100%;height:52px;display:flex;align-items:center;gap:12px;padding:0 17px;border:0;background:transparent;color:#b5d1e4;text-align:left;font-size:12px}.wizard>aside button b{width:27px;height:27px;display:grid;place-items:center;border:1px solid #71bffe;border-radius:50%;color:#e9f8ff}.wizard>aside button.active{background:linear-gradient(90deg,#0754ae,#0a71dc);color:#fff}.wizard-page{position:relative;min-width:0;overflow:auto;padding:32px 30px;background:linear-gradient(180deg,#061b2f,#041526)}.page h1{margin:0 0 16px;font-size:23px}.page p{color:#a8cee7;line-height:1.55;font-size:13px}.hero-mark{position:absolute;right:34px;top:36px;text-align:center}.hero-mark img{width:100px;height:100px;filter:drop-shadow(0 0 14px rgba(42,170,255,.3))}.hero-mark strong{display:block;font-size:28px}.hero-mark span{display:block;color:#8bc2e6;font-size:13px}.page label{display:block;margin-top:22px;font-size:12px}.page select,.page input:not([type=checkbox]){display:block;width:min(315px,100%);height:38px;margin-top:8px;border:1px solid #276b9d;border-radius:6px;background:#071d32;color:#eef8ff;padding:0 12px}.license{height:220px;overflow:auto;white-space:pre-wrap;margin:0;border:1px solid #1d567f;border-radius:7px;background:#031522;padding:14px;color:#a9cde5;font-size:12px;line-height:1.55}.check{display:flex!important;align-items:center;gap:10px;margin-top:15px!important}.check input{accent-color:#159eff}.note{padding:12px;border:1px solid #1a527b;border-radius:7px;background:#061b2e}.page dl{display:grid;grid-template-columns:120px 1fr;gap:10px;font-size:13px}.page dt{color:#8fb9d5}.page dd{margin:0}.primary{border:1px solid #35b3ff!important;background:linear-gradient(180deg,#189cff,#0876e6)!important;color:white!important;font-weight:650}.wide{width:235px;height:42px;margin-top:22px;border-radius:7px}.link{display:block;width:max-content;margin:18px auto 0;padding:10px 18px;border-radius:7px;text-decoration:none}.success{width:72px;height:72px;display:grid;place-items:center;margin:34px auto;border-radius:50%;background:#22d98a;color:#032016;font-size:42px}.setup-window>footer{height:52px;min-height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;border-top:1px solid #164b72;background:#051728}.setup-window>footer span{flex:1}.setup-window>footer button{height:35px;min-width:94px;border:1px solid #245e89;border-radius:6px;background:#071d32;color:#d9ecf8}.status{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:20;min-width:330px;padding:11px 16px;border:1px solid #35afff;border-radius:8px;background:#04172a;color:#e8f7ff;text-align:center;box-shadow:0 18px 45px rgba(0,0,0,.5)}@media(max-width:700px),(max-height:520px){.setup-window{width:calc(100vw - 8px);height:calc(100vh - 8px);max-width:none;max-height:none}.installer-shell{padding:4px}.wizard{grid-template-columns:165px 1fr}.hero-mark{display:none}.setup-brand small{display:none}}
+
+.folder-row{display:flex;gap:8px;align-items:center;margin-top:8px}.folder-row input{margin-top:0!important;flex:1;min-width:0}.folder-row button{height:38px;padding:0 14px;border:1px solid #276b9d;border-radius:6px;background:#071d32;color:#eef8ff;white-space:nowrap}.folder-row button:hover{background:#0a2d4b}.wizard>aside button:disabled{opacity:.5;cursor:default}.wizard>aside button.completed{color:#d8efff}
+
+/* v11 RC3 adaptive installer. Setup steps and controls remain reachable instead
+   of being removed when the physical screen is smaller than the reference. */
+@media (max-width:700px), (max-height:520px) {
+  .hero-mark { display:block; position:static; margin:18px 0 0; text-align:left; }
+  .hero-mark img { width:68px; height:68px; float:left; margin-right:12px; }
+  .hero-mark strong { font-size:22px; }
+  .setup-brand small { display:block; }
+}
+@media (max-width:620px) {
+  .installer-shell { padding:3px; }
+  .setup-window { width:calc(100vw - 6px); height:calc(100dvh - 6px); max-width:none; max-height:none; border-radius:8px; }
+  .window-title { padding-inline:8px; }
+  .window-title b { font-size:12px; }
+  .window-title button { width:32px; }
+  .wizard { grid-template-columns:1fr; grid-template-rows:auto minmax(0,1fr); }
+  .wizard>aside { display:flex; align-items:stretch; min-width:0; overflow-x:auto; overflow-y:hidden; border-right:0; border-bottom:1px solid #174c72; scrollbar-width:thin; }
+  .setup-brand { min-width:145px; padding:8px 10px; grid-template-columns:32px 1fr; column-gap:7px; }
+  .setup-brand img { width:32px; height:32px; }
+  .setup-brand strong { font-size:13px; }
+  .setup-brand small { font-size:9px; }
+  .wizard>aside button { width:auto; min-width:116px; height:58px; flex:0 0 auto; padding:0 10px; gap:7px; font-size:10px; }
+  .wizard>aside button b { width:23px; height:23px; flex:0 0 23px; }
+  .wizard-page { padding:20px 16px; }
+  .page h1 { font-size:20px; }
+  .license { height:min(220px,35dvh); }
+  .folder-row { align-items:stretch; flex-direction:column; }
+  .folder-row button { width:100%; }
+  .setup-window>footer { padding-inline:8px; gap:6px; overflow-x:auto; }
+  .setup-window>footer button { min-width:82px; }
+  .status { width:calc(100vw - 20px); min-width:0; bottom:8px; }
+}
+@media (max-width:420px) {
+  .setup-brand { min-width:126px; }
+  .wizard>aside button { min-width:104px; }
+  .wizard-page { padding:16px 12px; }
+  .page dl { grid-template-columns:92px 1fr; gap:8px; }
+  .hero-mark img { width:56px; height:56px; }
+  .hero-mark strong { font-size:19px; }
+  .setup-window>footer button { min-width:74px; font-size:11px; }
+}

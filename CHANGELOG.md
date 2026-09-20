@@ -1,14 +1,54 @@
 # Changelog
 
-## 2.1.1 RC7 — 20 September 2026
+## 2.1.1-rc.7 — 20 September 2026
 
-- Tightened Ghost FTP Electric Blue / Deep Navy / Slate Blue / Ice White reference styling.
-- Refined frame glow, panel borders, focus states and standalone application surfaces.
-- Preserved canonical 1290×852 desktop geometry and adaptive behavior at smaller sizes.
-- Kept the native Tauri window frameless with Ghost FTP custom chrome.
-- Scrubbed active source of legacy Faro/demo/example.com placeholder content.
-- Rebuilt Windows x64 compatibility Portable and Setup outputs.
-- Rebuilt Linux x86_64 compatibility executable, tar.gz and Debian package.
-- Re-ran Go test/vet and JavaScript syntax checks.
+- Reworked Site Manager, Preferences, Transfer Center and About into reference-style full application surfaces instead of generic modal cards.
+- Added reusable frameless Ghost FTP titlebar/menu chrome and tightened adaptive behavior for smaller windows without removing critical actions.
+- Matched New Connection and File Properties closer to the approved reference geometry.
+- Added real SHA-256 checksum commands for local and SSH/SFTP paths and recursive chmod where supported.
+- Rebuilt File Properties with General/Checksums tabs, chmod matrix, numeric mode, duplicate and open-containing-folder actions.
+- Brought compatibility runtime surfaces closer to the same Windows/Linux visual structure used by the native source.
+- Rebuilt Windows x64 and Linux x86-64 compatibility artifacts from RC7 source and refreshed package metadata.
 
-Native target-OS and protocol acceptance gates remain required before FINAL.
+## 2.1.1-rc.4 — 20 September 2026
+
+- Hardened native startup against corrupted profile metadata and SQLite state; broken stores are preserved for recovery instead of causing a startup panic.
+- Kept the frameless 1290×852 reference window and 480×600 minimum adaptive viewport contract.
+- Revalidated compatibility runtime security boundaries, local filesystem operations, state recovery, branding scan and package metadata.
+- Regenerated Windows/Linux compatibility artifacts and release checksums from the updated source tree.
+
+
+## 2.1.1 RC3 — 20 September 2026
+
+- Added true ephemeral Quick Connect sessions in the native Rust/Tauri source.
+- Added split FTP/FTPS/SFTP Quick Connect protocol selection in the reference titlebar.
+- Persisted Site Manager favorites, bookmarks, tags, folders and last-used metadata.
+- Made native transfer retry count configurable and re-applied persisted engine settings at startup.
+- Corrected Preferences Cancel/Reset semantics and wired Shell Integration to the real per-user PATH integration.
+- Centralized React release metadata in the RC3 line; current RC7 metadata is 2.1.1-rc.7 / build 2026.09.20.6.
+- Reached 185-key parity across every advertised non-English native dictionary.
+- Removed inline language-switch JavaScript from all 14 localized website pages.
+- Rebuilt Windows/Linux compatibility fallback artifacts and the Debian fallback package.
+- Re-ran local runtime security/filesystem QA and Go test/vet checks.
+
+## 2.1.0 — 2026-09-19 source/release-candidate hardening
+
+- Continued the existing Ghost FTP v9 source tree rather than replacing it.
+- Preserved the native React/Tauri/Rust protocol engine and verified the Tauri main window is frameless with custom decorations disabled.
+- Reduced the native minimum window width to 480 px and added compact CSS breakpoints down to the required narrow desktop sizes without intentionally removing toolbar actions.
+- Hardened native profile persistence with staged writes, a last-known-good backup and corrupt-file preservation.
+- Reworked About/Updates source so it does not claim "up to date" before a real updater check and reports the current platform.
+- Rebuilt the Go compatibility Windows/Linux hosts after removing fake connection-success and simulated transfer-progress behavior; fallback networking is now explicitly TCP reachability only.
+- Added custom titlebar drag support to the Windows compatibility host and setup source.
+- Hardened setup ordering so future steps cannot be clicked, embedded the full commercial EULA, added custom installation-folder selection/validation, improved upgrade rollback and corrected publisher metadata.
+- Added/updated release, security, privacy, installation, uninstall, support and QA documentation.
+
+This package is **not labelled FINAL** because a native Tauri build, Windows titlebar screenshot verification, native protocol end-to-end tests, full 14-language parity and native AppImage/RPM production packages could not all be executed in this environment.
+
+### RC7 parity and delivery pass
+- Matched the compatibility New Connection surface to the measured 752×628 reference envelope.
+- Added the reference-scale Site Manager identity block and refined full-window secondary surfaces.
+- Added local Ghost FTP mountain artwork to the About hero without using a reference screenshot as runtime UI.
+- Executed automated render QA at all nine required viewport sizes with no whole-window horizontal overflow and no page errors.
+- Rebuilt Windows x64 and Linux x86-64 compatibility artifacts from RC7 source.
+- Prepared repository bootstrap automation for the official `bren-wp/Ghost-FTP-Premium` GitHub repository so the current source can be reconstructed and committed by GitHub Actions without relying on this sandbox's blocked outbound Git transport.

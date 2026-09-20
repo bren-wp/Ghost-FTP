@@ -1,0 +1,19 @@
+{
+  "version": "2.1.1-rc.4",
+  "build": "2026.09.20.4",
+  "notes": "REPLACE_WITH_RELEASE_NOTES",
+  "pub_date": "REPLACE_WITH_RFC3339",
+  "platforms": {
+    "windows-x86_64": {
+      "url": "https://ghostftp.com/REPLACE_WITH_SIGNED_WINDOWS_PACKAGE",
+      "signature": "REPLACE_WITH_TAURI_SIGNATURE",
+      "sha256": "REPLACE_WITH_SHA256"
+    },
+    "linux-x86_64": {
+      "url": "https://ghostftp.com/REPLACE_WITH_SIGNED_LINUX_PACKAGE",
+      "signature": "REPLACE_WITH_TAURI_SIGNATURE",
+      "sha256": "REPLACE_WITH_SHA256"
+    }
+  },
+  "minimum_supported_version": "REPLACE_WITH_MIN_VERSION"
+}

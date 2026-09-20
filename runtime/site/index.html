@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en" translate="no" class="notranslate">
+<head>
+  <meta charset="utf-8">
+  <meta name="google" content="notranslate">
+  <meta name="robots" content="noai,noimageai">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#06182b">
+  <meta name="color-scheme" content="dark">
+  <title>Ghost FTP</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body translate="no">
+<svg class="icon-defs" aria-hidden="true" width="0" height="0">
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></symbol>
+  <symbol id="i-disconnect" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m5.6 18.4 12.8-12.8"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 6v6h-6"/><path d="M4 18v-6h6"/><path d="M6.5 8A7 7 0 0 1 18 6l2 2M4 16l2 2a7 7 0 0 0 11.5-2"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m6.5 10.5 5.5-5.5 5.5 5.5"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m6.5 13.5 5.5 5.5 5.5-5.5"/></symbol>
+  <symbol id="i-folder-plus" viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/><path d="M15 12v5M12.5 14.5h5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="m4 17-.5 3.5L7 20l11-11-3-3z"/><path d="m13.5 7.5 3 3"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7h.01"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="1.5"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="6" rx="1"/><rect x="4" y="15" width="16" height="6" rx="1"/><path d="M8 6h.01M8 18h.01"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-log" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="1.5"/><path d="M8 3h8v4H8zM8 11h8M8 15h5"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.5 1A8 8 0 0 0 14.7 6L14.4 3h-4.8l-.3 3A8 8 0 0 0 7.6 7.1l-2.5-1-2 3.4L5.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.5-1A8 8 0 0 0 9.3 18l.3 3h4.8l.3-3a8 8 0 0 0 1.7-1.1l2.5 1 2-3.4-2-1.5c.1-.3.1-.7.1-1z"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V6M7 11l5-5 5 5"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3z"/></symbol>
+</svg>
+
+<div class="stage">
+  <main class="app" id="app" role="application" aria-label="Ghost FTP">
+    <header class="titlebar" id="dragRegion">
+      <div class="brand"><img src="assets/ghostftp-symbol.svg" alt=""><strong>Ghost FTP</strong></div>
+      <div class="title-spacer"></div>
+      <div class="window-controls" aria-label="Window controls">
+        <button id="minimize" aria-label="Minimize">—</button>
+        <button id="maximize" aria-label="Maximize">□</button>
+        <button id="quit" class="close" aria-label="Close">×</button>
+      </div>
+    </header>
+
+    <div class="menubar">
+      <nav id="menus" aria-label="Application menu">
+        <button data-menu="file" data-i18n="file">File</button>
+        <button data-menu="edit" data-i18n="edit">Edit</button>
+        <button data-menu="view" data-i18n="view">View</button>
+        <button data-menu="transfer" data-i18n="transfer">Transfer</button>
+        <button data-menu="server" data-i18n="server">Server</button>
+        <button data-menu="bookmarks" data-i18n="bookmarks">Bookmarks</button>
+        <button data-menu="tools" data-i18n="tools">Tools</button>
+        <button data-menu="help" data-i18n="help">Help</button>
+      </nav>
+      <span></span>
+      <button class="settings-button" data-open="prefs"><svg><use href="#i-gear"/></svg><span data-i18n="settings">Settings</span></button>
+      <label class="language-select"><svg><use href="#i-globe"/></svg><select id="locale" aria-label="Language"></select><svg class="chev"><use href="#i-chevron"/></svg></label>
+    </div>
+
+    <form class="quick" id="quickForm" autocomplete="off">
+      <label><span data-i18n="host">Host</span><input id="host" autocomplete="off" spellcheck="false"></label>
+      <label><span data-i18n="username">Username</span><input id="user" autocomplete="username" spellcheck="false"></label>
+      <label><span data-i18n="password">Password</span><input id="password" type="password" autocomplete="current-password"></label>
+      <label class="port"><span data-i18n="port">Port</span><input id="port" inputmode="numeric" value="21"></label>
+      <button class="primary quick-connect" id="quickConnect" type="submit"><span data-i18n="quickConnect">Quick Connect</span><span class="split"></span><svg><use href="#i-chevron"/></svg></button>
+    </form>
+
+    <div class="toolbar">
+      <div class="sites-toolbar-head">
+        <button class="sites-title" data-open="site"><span class="site-ring"></span><span data-i18n="sites">Sites</span></button>
+        <span></span>
+        <button data-open="new" aria-label="New site"><svg><use href="#i-plus"/></svg></button>
+        <button data-open="site" aria-label="Site Manager"><svg><use href="#i-x"/></svg></button>
+      </div>
+      <button data-open="new" class="tool"><svg><use href="#i-link"/></svg><span data-i18n="connect">Connect</span></button>
+      <button id="disconnect" class="tool muted-tool"><svg><use href="#i-disconnect"/></svg><span data-i18n="disconnect">Disconnect</span></button>
+      <button id="refresh" class="tool"><svg><use href="#i-refresh"/></svg><span data-i18n="refresh">Refresh</span></button>
+      <button id="upload" class="tool"><svg><use href="#i-upload"/></svg><span data-i18n="upload">Upload</span></button>
+      <button id="download" class="tool"><svg><use href="#i-download"/></svg><span data-i18n="download">Download</span></button>
+      <button id="newFolder" class="tool"><svg><use href="#i-folder-plus"/></svg><span data-i18n="newFolder">New Folder</span></button>
+      <button id="delete" class="tool"><svg><use href="#i-trash"/></svg><span data-i18n="delete">Delete</span></button>
+      <button id="rename" class="tool"><svg><use href="#i-edit"/></svg><span data-i18n="rename">Rename</span></button>
+      <button data-open="props" class="tool"><svg><use href="#i-info"/></svg><span data-i18n="properties">Properties</span></button>
+      <span class="toolbar-fill"></span>
+    </div>
+
+    <div class="workspace">
+      <aside class="sites">
+        <div class="site-tree-head"><button id="siteTreeToggle">⌄</button><svg><use href="#i-server"/></svg><span data-i18n="mySites">My Sites</span></div>
+        <div id="siteList" class="site-list"></div>
+        <div id="siteEmpty" class="site-empty"><span data-i18n="noSites">No saved sites yet.</span><button class="inline-link" data-open="new" data-i18n="addSite">Add a site</button></div>
+      </aside>
+
+      <section class="panes">
+          <section class="pane active-pane" data-pane="local">
+            <header><svg><use href="#i-monitor"/></svg><strong data-i18n="localFiles">Local Files</strong><span></span><button class="pane-refresh" aria-label="Refresh"><svg><use href="#i-refresh"/></svg></button></header>
+            <div class="pathbar"><button><svg><use href="#i-left"/></svg></button><button><svg><use href="#i-right"/></svg></button><button><svg><use href="#i-up"/></svg></button><input id="localPath" spellcheck="false"></div>
+            <div class="columns local"><span data-i18n="name">Name</span><span data-i18n="size">Size</span><span data-i18n="type">Type</span><span data-i18n="modified">Modified</span></div>
+            <div class="files" id="localFiles"></div>
+            <div class="pane-summary" id="localSummary">0 items</div>
+          </section>
+          <section class="pane" data-pane="remote">
+            <header><svg><use href="#i-server"/></svg><strong data-i18n="remoteServer">Remote Server</strong><span></span><button class="pane-refresh" aria-label="Refresh"><svg><use href="#i-refresh"/></svg></button></header>
+            <div class="pathbar"><button><svg><use href="#i-left"/></svg></button><button><svg><use href="#i-right"/></svg></button><button><svg><use href="#i-up"/></svg></button><input id="remotePath" value="/" spellcheck="false"></div>
+            <div class="columns remote"><span data-i18n="name">Name</span><span data-i18n="size">Size</span><span data-i18n="type">Type</span><span data-i18n="modified">Modified</span><span data-i18n="permissions">Permissions</span></div>
+            <div class="files" id="remoteFiles"></div>
+            <div class="empty-remote" id="remoteEmpty"><svg><use href="#i-server"/></svg><strong data-i18n="notConnected">No server connected</strong><span data-i18n="connectToStart">Connect to a server to browse remote files.</span></div>
+            <div class="pane-summary" id="remoteSummary">0 items</div>
+          </section>
+      </section>
+    </div>
+
+    <div class="lower">
+          <section class="queue">
+            <div class="tabs">
+              <button class="active"><svg><use href="#i-clock"/></svg><span data-i18n="transferQueue">Transfer Queue</span> (<b id="queueCount">0</b>)</button>
+              <button><span class="state-dot failed"></span><span data-i18n="failed">Failed</span></button>
+              <button><span class="state-dot completed"></span><span data-i18n="completed">Completed</span></button>
+              <span></span><button id="pauseQueue" aria-label="Pause">Ⅱ</button><button id="clearQueue" aria-label="Clear">×</button>
+            </div>
+            <div class="queue-columns"><span data-i18n="file">File</span><span data-i18n="direction">Direction</span><span data-i18n="progress">Progress</span><span data-i18n="size">Size</span><span data-i18n="status">Status</span><span data-i18n="speed">Speed</span><span data-i18n="eta">ETA</span></div>
+            <div id="queueRows" class="queue-rows"></div>
+            <div class="queue-empty" id="queueEmpty"><span data-i18n="noTransfers">No active transfers.</span></div>
+          </section>
+          <section class="log">
+            <header><svg><use href="#i-log"/></svg><strong data-i18n="serverLog">Server Log</strong><span></span><button id="clearLog" data-i18n="clear">Clear</button></header>
+            <div id="logRows" class="log-rows"></div>
+          </section>
+    </div>
+
+    <footer class="status"><b id="statusDot"></b><span id="statusText" data-i18n="ready">Ready</span><span></span><em id="transferStatus">0 transfers active</em><em class="speed up" id="upSpeed">↑ 0 B/s</em><em class="speed down" id="downSpeed">↓ 0 B/s</em><em><span data-i18n="serverTime">Server time</span>: <i id="clock">--:--</i></em><em class="encoding">UTF-8</em></footer>
+  </main>
+</div>
+<div id="overlay"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="menuPopup" class="menu-popup" hidden></div>
+<script src="app.js" defer></script>
+</body>
+</html>

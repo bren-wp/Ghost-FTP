@@ -1,0 +1,53 @@
+# Standalone Ghost FTP CLI. Lives in its own workspace member (rather than as a
+# second `[[bin]]` in the `ghostftp` package) so the Tauri bundler never tries to
+# pull it into the desktop application bundle — see the note in ../Cargo.toml.
+#
+# It depends on the GUI crate's library (`ghostftp_lib`) by path, reusing the exact
+# same RemoteFs / Session / sync layers the app runs against. The `ghostftp_lib`
+# import name is preserved via `package = "ghostftp"` so the source needs no edits.
+[package]
+name = "ghostftp-cli"
+version = "2.1.1-rc.7"
+edition = "2021"
+description = "Ghost FTP CLI — SFTP / FTP / S3 / R2 / B2 / Azure Blob from the terminal."
+authors = ["Ghost FTP"]
+license = "MIT"
+
+[[bin]]
+name = "ghostftp-cli"
+path = "src/main.rs"
+
+[dependencies]
+ghostftp_lib = { path = "..", package = "ghostftp" }
+
+# Async runtime + traits shared with the library layers.
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# Backends the CLI talks to directly (object_store for S3/R2/B2/Azure puts/gets,
+# russh only for the `russh::Error` in the host-key verifier signature).
+object_store = { version = "0.11", features = ["aws", "azure"] }
+russh = "0.45"
+bytes = "1"
+
+# CLI surface + progress bars.
+clap = { version = "4", features = ["derive"] }
+indicatif = "0.17"
+
+# HTTP client for the `agent` subcommands (localhost http, no TLS) AND for
+# `self-update`, which fetches release assets from ghostftp.com over HTTPS — hence the
+# `tls` feature (rustls). `json` re-enables send_json/into_json (serde_json);
+# `gzip` lets the Projects API response decompress.
+ureq = { version = "2", default-features = false, features = ["json", "tls", "gzip"] }
+
+# Misc
+anyhow = "1"
+serde_json = "1"
+dirs = "5"
+base64 = "0.22"
+
+# `fetch` performs an authenticated GET through a saved HTTP(S) profile's
+# HttpSession (which is built on reqwest); default features match ghostftp_lib so the
+# TLS backend unifies rather than pulling a second stack.
+reqwest = { version = "0.12", default-features = false }

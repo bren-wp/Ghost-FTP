@@ -1,0 +1,11 @@
+node_modules/
+dist/
+target/
+qa/
+release*/
+build*/
+*.exe
+*.deb
+*.rpm
+*.AppImage
+*.tar.gz
