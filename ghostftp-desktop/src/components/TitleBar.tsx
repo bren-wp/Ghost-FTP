@@ -22,6 +22,7 @@ type PaneActionState = {
   hasActiveItem: boolean;
   hasSession: boolean;
   canCreateDirectory: boolean;
+  focused: boolean;
 };
 
 function fileAction(action: FileAction, pane: PaneTarget = "active") {
@@ -51,13 +52,20 @@ export function TitleBar() {
   const [menu, setMenu] = useState<string | null>(null);
   const [protocolMenu, setProtocolMenu] = useState(false);
   const [quickBusy, setQuickBusy] = useState(false);
-  const [paneState, setPaneState] = useState<PaneActionState>({
-    paneId: "local",
+  const emptyPane = (paneId: "local" | "remote"): PaneActionState => ({
+    paneId,
     selectedCount: 0,
     hasActiveItem: false,
-    hasSession: true,
-    canCreateDirectory: true,
+    hasSession: paneId === "local",
+    canCreateDirectory: paneId === "local",
+    focused: paneId === "local",
   });
+  const [paneStates, setPaneStates] = useState<Record<"local" | "remote", PaneActionState>>({
+    local: emptyPane("local"),
+    remote: emptyPane("remote"),
+  });
+  const [activePane, setActivePane] = useState<"local" | "remote">("local");
+  const paneState = paneStates[activePane];
   const menuWrap = useRef<HTMLDivElement>(null);
   const quickConnectRef = useRef<HTMLDivElement>(null);
   const locale = getLocale();
@@ -65,7 +73,9 @@ export function TitleBar() {
   useEffect(() => {
     const handler = (event: Event) => {
       const custom = event as CustomEvent<PaneActionState>;
-      if (custom.detail) setPaneState(custom.detail);
+      if (!custom.detail) return;
+      setPaneStates((current) => ({ ...current, [custom.detail.paneId]: custom.detail }));
+      if (custom.detail.focused) setActivePane(custom.detail.paneId);
     };
     window.addEventListener("ghostftp:pane-action-state", handler as EventListener);
     return () => window.removeEventListener("ghostftp:pane-action-state", handler as EventListener);
@@ -297,8 +307,8 @@ export function TitleBar() {
       <Tool icon={<Link2 size={17}/>} label="Connect" onClick={() => openNewConnection()}/>
       <Tool icon={<X size={17}/>} label="Disconnect" disabled={!activeSessionId} onClick={() => void disconnect()}/>
       <Tool icon={<RefreshCw size={17}/>} label="Refresh" onClick={() => fileAction("refresh")}/>
-      <Tool icon={<Upload size={17}/>} label="Upload" onClick={() => fileAction("upload", "local")}/>
-      <Tool icon={<Download size={17}/>} label="Download" disabled={!activeSessionId} onClick={() => fileAction("download", "remote")}/>
+      <Tool icon={<Upload size={17}/>} label="Upload" disabled={paneStates.local.selectedCount === 0} onClick={() => fileAction("upload", "local")}/>
+      <Tool icon={<Download size={17}/>} label="Download" disabled={!activeSessionId || paneStates.remote.selectedCount === 0} onClick={() => fileAction("download", "remote")}/>
       <Tool icon={<FolderPlus size={17}/>} label="New Folder" disabled={!paneState.canCreateDirectory} onClick={() => fileAction("newFolder")}/>
       <Tool icon={<Trash2 size={17}/>} label="Delete" disabled={paneState.selectedCount === 0} onClick={() => fileAction("delete")}/>
       <Tool icon={<Pencil size={17}/>} label="Rename" disabled={!paneState.hasActiveItem} onClick={() => fileAction("rename")}/>
