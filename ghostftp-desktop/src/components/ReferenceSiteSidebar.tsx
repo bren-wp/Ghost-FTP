@@ -36,9 +36,6 @@ export function ReferenceSiteSidebar() {
     await connect(profileId);
   };
 
-  const openSync = () => {
-    window.dispatchEvent(new CustomEvent("ghostftp:open-sync"));
-  };
 
   return (
     <aside className="ghost-sites-panel" aria-label="Sites and File Manager navigation">
@@ -95,7 +92,7 @@ export function ReferenceSiteSidebar() {
           active
           onClick={() => useLayout.getState().closeDialog()}
         />
-        <SidebarAction icon={<FolderSync size={15}/>} label="Sync & Backup" onClick={openSync}/>
+        <SidebarAction icon={<FolderSync size={15}/>} label="Sync & Backup" onClick={() => openDialog("sync")}/>
         <SidebarAction
           icon={<Cloud size={15}/>}
           label="Cloud Storage"
