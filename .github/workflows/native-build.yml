@@ -1,6 +1,6 @@
 name: Ghost FTP native build
 
-# RC9 native release gate: only Tauri/WebView bundles are eligible for end-user releases.
+# RC9 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
 # RC9 release build stamp: 2026-09-20.10
 
 on:
@@ -26,8 +26,10 @@ jobs:
         include:
           - os: windows-latest
             args: '--bundles nsis'
+            artifact: 'GhostFTP-Windows-x64'
           - os: ubuntu-22.04
             args: '--bundles deb,rpm,appimage'
+            artifact: 'GhostFTP-Linux-x86_64'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +54,7 @@ jobs:
       - name: TypeScript/frontend build
         working-directory: desktop-tauri
         run: npm run build
-      - name: Native Tauri bundle
+      - name: Build Ghost FTP desktop bundle
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -62,7 +64,7 @@ jobs:
       - name: Upload native bundles
         uses: actions/upload-artifact@v4
         with:
-          name: ghostftp-native-${{ runner.os }}
+          name: ${{ matrix.artifact }}
           path: |
             desktop-tauri/src-tauri/target/release/bundle/**
             desktop-tauri/src-tauri/target/release/ghostftp.exe
