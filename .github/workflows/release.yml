@@ -23,28 +23,46 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
-      - name: Require current main and RC9 metadata
+      - name: Validate build/source relationship and wait for current audit
         env:
           GH_TOKEN: ${{ github.token }}
+          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin main
-          test "${{ github.event.workflow_run.head_sha }}" = "$(git rev-parse origin/main)"
+          MAIN_SHA="$(git rev-parse origin/main)"
+
+          # Native binaries must match the production source. Documentation and
+          # release-workflow-only commits may advance main without forcing an
+          # expensive rebuild.
+          changed="$(git diff --name-only "$BUILD_SHA" "$MAIN_SHA" || true)"
+          if [ -n "$changed" ]; then
+            echo "$changed"
+            forbidden="$(printf '%s\n' "$changed" | grep -Ev '^(docs/|README\.md$|CHANGELOG\.md$|SECURITY\.md$|LICENSE\.txt$|EULA\.txt$|\.github/workflows/(release|source-audit)\.yml$)' || true)"
+            if [ -n "$forbidden" ]; then
+              echo "Production source changed after the native build:"
+              echo "$forbidden"
+              exit 1
+            fi
+          fi
+
+          git checkout --detach "$MAIN_SHA"
           grep -q '"version": "2.1.1-rc.9"' desktop-tauri/package.json
           grep -q '"version": "2.1.1-rc.9"' desktop-tauri/src-tauri/tauri.conf.json
 
-          for attempt in $(seq 1 30); do
-            audit="$(gh run list --workflow 'Ghost FTP source audit' --commit "${{ github.event.workflow_run.head_sha }}" --limit 1 --json status,conclusion --jq '.[0] | (.status // "") + ":" + (.conclusion // "")' || true)"
-            echo "source audit: ${audit:-not-found}"
+          for attempt in $(seq 1 45); do
+            audit="$(gh run list --workflow 'Ghost FTP source audit' --commit "$MAIN_SHA" --limit 1 --json status,conclusion --jq '.[0] | ((.status // "") + ":" + (.conclusion // ""))' || true)"
+            echo "source audit for $MAIN_SHA: ${audit:-not-found}"
             if [ "$audit" = "completed:success" ]; then
+              echo "MAIN_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
               break
             fi
             if [[ "$audit" == completed:* ]] && [ "$audit" != "completed:success" ]; then
               echo "Source audit did not pass."
               exit 1
             fi
-            if [ "$attempt" = "30" ]; then
+            if [ "$attempt" -eq 45 ]; then
               echo "Timed out waiting for source audit."
               exit 1
             fi
@@ -124,14 +142,15 @@ jobs:
         run: |
           set -euo pipefail
           TAG="v2.1.1-rc.9"
+          MAIN_SHA="${MAIN_SHA:-$(git rev-parse HEAD)}"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
               gh release delete-asset "$TAG" "$asset" -y || true
             done
-            gh release edit "$TAG"               --target "${{ github.event.workflow_run.head_sha }}"               --title "Ghost FTP 2.1.1 RC9 — Native"               --notes-file docs/releases/2.1.1-rc.9.md               --prerelease
+            gh release edit "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC9 — Native"               --notes-file docs/releases/2.1.1-rc.9.md               --prerelease
           else
-            gh release create "$TAG"               --target "${{ github.event.workflow_run.head_sha }}"               --title "Ghost FTP 2.1.1 RC9 — Native"               --notes-file docs/releases/2.1.1-rc.9.md               --prerelease
+            gh release create "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC9 — Native"               --notes-file docs/releases/2.1.1-rc.9.md               --prerelease
           fi
 
           gh release upload "$TAG" dist/* --clobber
