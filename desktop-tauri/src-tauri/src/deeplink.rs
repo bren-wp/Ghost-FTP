@@ -9,7 +9,7 @@
 //! Grammar (see `docs/deep-links.md` for the full spec):
 //!
 //! ```text
-//! ghostftp://connect?protocol=sftp&host=example.com&port=22&username=me&path=/var/www&name=My%20Site
+//! ghostftp://connect?protocol=sftp&host=example.invalid&port=22&username=me&path=/var/www&name=My%20Site
 //! ghostftp://pair?host=192.168.1.5&port=8722&code=428170&name=Basement%20NAS
 //! ghostftp://terminal?name=My%20Site
 //! ```
@@ -130,12 +130,12 @@ mod tests {
     #[test]
     fn parses_connect_link() {
         let dl = parse(
-            "ghostftp://connect?protocol=sftp&host=example.com&port=22&username=me&path=/var/www&name=My%20Site",
+            "ghostftp://connect?protocol=sftp&host=example.invalid&port=22&username=me&path=/var/www&name=My%20Site",
         )
         .unwrap();
         assert_eq!(dl.action, "connect");
         assert_eq!(dl.protocol.as_deref(), Some("sftp"));
-        assert_eq!(dl.host.as_deref(), Some("example.com"));
+        assert_eq!(dl.host.as_deref(), Some("example.invalid"));
         assert_eq!(dl.port, Some(22));
         assert_eq!(dl.username.as_deref(), Some("me"));
         assert_eq!(dl.path.as_deref(), Some("/var/www"));
@@ -167,8 +167,8 @@ mod tests {
 
     #[test]
     fn rejects_foreign_scheme() {
-        assert!(parse("https://example.com").is_none());
-        assert!(parse("ssh://example.com").is_none());
+        assert!(parse("https://example.invalid").is_none());
+        assert!(parse("ssh://example.invalid").is_none());
     }
 
     #[test]
