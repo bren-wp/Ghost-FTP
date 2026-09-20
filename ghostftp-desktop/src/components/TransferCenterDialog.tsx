@@ -86,12 +86,15 @@ export function TransferCenterDialog({ onClose }: Props) {
     });
   }, [transfers, tab, query]);
 
-  const selected =
-    (selectedId
-      ? filtered.find((transfer) => transfer.id === selectedId)
-      : undefined) ??
-    filtered[0] ??
-    null;
+  const selected = selectedId
+    ? filtered.find((transfer) => transfer.id === selectedId) ?? null
+    : null;
+
+  useEffect(() => {
+    if (selectedId && !filtered.some((transfer) => transfer.id === selectedId)) {
+      setSelectedId(null);
+    }
+  }, [filtered, selectedId]);
 
   const logTransfers = useMemo(
     () =>
@@ -258,7 +261,7 @@ export function TransferCenterDialog({ onClose }: Props) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto p-4">
-          <div className="grid min-w-[920px] grid-cols-[36px_minmax(220px,1.4fr)_95px_90px_160px_90px_90px_100px] border-b border-border px-2 py-2 text-[10px] uppercase tracking-wider text-text-dim">
+          <div className="grid min-w-[920px] grid-cols-[36px_minmax(220px,1.4fr)_95px_90px_160px_90px_90px_100px_106px] border-b border-border px-2 py-2 text-[10px] uppercase tracking-wider text-text-dim">
             <span>#</span>
             <span>Name</span>
             <span>Direction</span>
@@ -267,6 +270,7 @@ export function TransferCenterDialog({ onClose }: Props) {
             <span>Speed</span>
             <span>ETA</span>
             <span>Status</span>
+            <span className="text-right">Actions</span>
           </div>
           <div className="min-w-[920px]">
             {filtered.length === 0 ? (
@@ -279,6 +283,9 @@ export function TransferCenterDialog({ onClose }: Props) {
                   index={index + 1}
                   selected={selected?.id === transfer.id}
                   onClick={() => setSelectedId(transfer.id)}
+                  onPauseResume={() => void (transfer.status === "paused" ? resume(transfer.id) : pause(transfer.id))}
+                  onCancel={() => void cancel(transfer.id)}
+                  onRetry={() => void retry(transfer.id)}
                 />
               ))
             )}
@@ -564,23 +571,39 @@ function TransferRow({
   index,
   selected,
   onClick,
+  onPauseResume,
+  onCancel,
+  onRetry,
 }: {
   transfer: Transfer;
   index: number;
   selected: boolean;
   onClick: () => void;
+  onPauseResume: () => void;
+  onCancel: () => void;
+  onRetry: () => void;
 }) {
   const pct =
     transfer.size > 0
       ? Math.max(0, Math.min(100, (transfer.transferred / transfer.size) * 100))
       : 0;
+  const pausable = transfer.status === "transferring" || transfer.status === "queued" || transfer.status === "paused";
+  const cancelable = pausable;
+  const retryable = transfer.status === "error";
 
   return (
-    <button
-      type="button"
+    <div
+      role="row"
+      tabIndex={0}
       onClick={onClick}
-      aria-pressed={selected}
-      className={`grid w-full grid-cols-[36px_minmax(220px,1.4fr)_95px_90px_160px_90px_90px_100px] items-center border-0 border-b border-border-subtle px-2 py-2.5 text-left text-[11.5px] outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent ${
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      aria-selected={selected}
+      className={`grid w-full grid-cols-[36px_minmax(220px,1.4fr)_95px_90px_160px_90px_90px_100px_106px] items-center border-b border-border-subtle px-2 py-2.5 text-left text-[11.5px] outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent ${
         selected ? "bg-accent/10" : "bg-transparent hover:bg-bg-hover"
       }`}
     >
@@ -620,7 +643,39 @@ function TransferRow({
       >
         {transfer.status}
       </span>
-    </button>
+      <span className="flex justify-end gap-1" role="group" aria-label={`Actions for ${baseName(transfer.source)}`}>
+        <button
+          type="button"
+          className="ghost-row-action"
+          disabled={!pausable}
+          aria-label={transfer.status === "paused" ? "Resume transfer" : "Pause transfer"}
+          title={transfer.status === "paused" ? "Resume" : "Pause"}
+          onClick={(event) => { event.stopPropagation(); onPauseResume(); }}
+        >
+          {transfer.status === "paused" ? <Play size={13}/> : <Pause size={13}/>}
+        </button>
+        <button
+          type="button"
+          className="ghost-row-action"
+          disabled={!retryable}
+          aria-label="Retry transfer"
+          title="Retry"
+          onClick={(event) => { event.stopPropagation(); onRetry(); }}
+        >
+          <RotateCcw size={13}/>
+        </button>
+        <button
+          type="button"
+          className="ghost-row-action"
+          disabled={!cancelable}
+          aria-label="Cancel transfer"
+          title="Cancel"
+          onClick={(event) => { event.stopPropagation(); onCancel(); }}
+        >
+          <XCircle size={13}/>
+        </button>
+      </span>
+    </div>
   );
 }
 
