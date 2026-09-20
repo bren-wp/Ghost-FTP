@@ -6,10 +6,10 @@ Ghost FTP keeps user-facing names branded as **Ghost FTP** / **GhostFTP** while 
 
 ```text
 Ghost-FTP-Premium/
-├── desktop-tauri/      production desktop application source
-├── runtime/            compatibility/developer runtime tooling
-├── installer/          installer development/support tooling
-├── website/            ghostftp.com website source
+├── ghostftp-desktop/      production desktop application source
+├── ghostftp-runtime/            compatibility/developer runtime tooling
+├── ghostftp-installer/          installer development/support tooling
+├── ghostftp-web/            ghostftp.com website source
 ├── docs/               product, QA, build, legal and audit documentation
 ├── .github/workflows/  source audit, native build and release automation
 ├── README.md
@@ -40,7 +40,7 @@ Examples:
 
 ## Why some internal paths still mention the framework
 
-The `desktop-tauri/` and `src-tauri/` directory names are build-system conventions already referenced by package scripts, Rust configuration, GitHub Actions and tool defaults.
+The `ghostftp-desktop/` and `src-tauri/` directory names are build-system conventions already referenced by package scripts, Rust configuration, GitHub Actions and tool defaults.
 
 Renaming those paths only to hide the framework name would create a large, low-value migration surface and could break:
 
