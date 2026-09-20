@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  TerminalSquare,
   Wifi,
   ArrowDownUp,
 } from "lucide-react";
@@ -21,6 +22,7 @@ import {
   captureSettingsSnapshot,
   resetSettingsToDefaults,
   restoreSettingsSnapshot,
+  APP_THEMES,
   useSettings,
 } from "@/stores/settingsStore";
 import { getLocale, saveLocale } from "@/lib/i18n";
@@ -32,7 +34,7 @@ import { ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
 import { useDialog } from "@/hooks/useDialog";
 
 interface Props { onClose: () => void }
-type Section = "general" | "appearance" | "transfers" | "connection" | "security" | "updates" | "integrations" | "shortcuts" | "language";
+type Section = "general" | "appearance" | "transfers" | "terminal" | "connection" | "security" | "updates" | "integrations" | "shortcuts" | "language";
 
 export function Settings({ onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -66,6 +68,7 @@ export function Settings({ onClose }: Props) {
           <Nav section="general" current={section} set={setSection} icon={<Settings2/>} label="General"/>
           <Nav section="appearance" current={section} set={setSection} icon={<Monitor/>} label="Appearance"/>
           <Nav section="transfers" current={section} set={setSection} icon={<ArrowDownUp/>} label="Transfers"/>
+          <Nav section="terminal" current={section} set={setSection} icon={<TerminalSquare/>} label="Terminal"/>
           <Nav section="connection" current={section} set={setSection} icon={<Wifi/>} label="Connection"/>
           <Nav section="security" current={section} set={setSection} icon={<ShieldCheck/>} label="Security"/>
           <Nav section="updates" current={section} set={setSection} icon={<RefreshCw/>} label="Updates"/>
@@ -86,6 +89,7 @@ export function Settings({ onClose }: Props) {
             {section === "general" && <GeneralGrid locale={pendingLocale} setLocale={setPendingLocale}/>}
             {section === "appearance" && <AppearancePanel/>}
             {section === "transfers" && <TransfersPanel/>}
+            {section === "terminal" && <TerminalPanel/>}
             {section === "connection" && <ConnectionPanel/>}
             {section === "security" && <SecurityPanel/>}
             {section === "updates" && <UpdatesPanel/>}
@@ -107,7 +111,19 @@ export function Settings({ onClose }: Props) {
 }
 
 function GeneralGrid({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }) {
-  return <div className="grid grid-cols-2 gap-4"><LanguageCard locale={locale} setLocale={setLocale}/><AppearanceCard/><PerformanceCard/><TransfersCard/><ConnectionCard/><SecurityCard/><UpdatesCard/><IntegrationsCard/></div>;
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <LanguageCard locale={locale} setLocale={setLocale}/>
+      <AppearanceCard/>
+      <PerformanceCard/>
+      <TransfersCard/>
+      <TerminalCard/>
+      <ConnectionCard/>
+      <SecurityCard/>
+      <UpdatesCard/>
+      <IntegrationsCard/>
+    </div>
+  );
 }
 
 function Card({ icon, title, subtitle, children }: { icon: React.ReactNode; title: string; subtitle: string; children: React.ReactNode }) {
@@ -117,24 +133,23 @@ function Card({ icon, title, subtitle, children }: { icon: React.ReactNode; titl
 function LanguageCard({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }) { const options = [['en','English (English)'],['hr','Hrvatski (Croatian)'],['de','Deutsch (German)'],['fr','Français (French)'],['es','Español (Spanish)'],['it','Italiano (Italian)'],['pt','Português (Portuguese)'],['nl','Nederlands (Dutch)'],['pl','Polski (Polish)'],['sl','Slovenščina (Slovenian)'],['sr','Srpski (Serbian)'],['bs','Bosanski (Bosnian)'],['mk','Македонски (Macedonian)'],['sq','Shqip (Albanian)']] as [string,string][]; return <Card icon={<Globe2 size={20}/>} title="Language" subtitle="Choose your preferred application language."><SelectRow label="Primary Language" value={locale} onChange={setLocale} options={options}/><div className="text-[10px] text-text-dim">English is the primary language. Changes take effect after restart.</div></Card> }
 function AppearanceCard() {
   const s = useSettings();
+  const themeOptions = APP_THEMES.map(
+    (theme) => [theme.value, theme.label] as [string, string]
+  );
+
   return (
     <Card icon={<Monitor size={20}/>} title="Appearance" subtitle="Personalize the look and feel of Ghost FTP.">
       <SelectRow
         label="Theme"
         value={s.appTheme}
-        onChange={(v) => s.setAppTheme(v as typeof s.appTheme)}
-        options={[
-          ["dark", "Dark (Default)"],
-          ["light", "Light"],
-          ["tokyo", "Tokyo Night"],
-          ["nord", "Nord"],
-          ["onedark", "One Dark"],
-        ]}
+        onChange={(value) => s.setAppTheme(value as typeof s.appTheme)}
+        options={themeOptions}
       />
+      <AccentRow value={s.accentColor} onChange={s.setAccentColor} />
       <SelectRow
         label="Interface Density"
         value={s.paneDensity}
-        onChange={(v) => s.setPaneDensity(v as "comfortable" | "compact")}
+        onChange={(value) => s.setPaneDensity(value as "comfortable" | "compact")}
         options={[
           ["comfortable", "Comfortable"],
           ["compact", "Compact"],
@@ -143,10 +158,20 @@ function AppearanceCard() {
       <SelectRow
         label="File Browser"
         value={s.browserLayout}
-        onChange={(v) => s.setBrowserLayout(v as "single" | "dual")}
+        onChange={(value) => s.setBrowserLayout(value as "single" | "dual")}
         options={[
           ["dual", "Local + Remote (Dual Pane)"],
           ["single", "Server Focused"],
+        ]}
+      />
+      <SelectRow
+        label="File View"
+        value={s.paneViewMode}
+        onChange={(value) => s.setPaneViewMode(value as "list" | "details" | "grid")}
+        options={[
+          ["details", "Details"],
+          ["list", "List"],
+          ["grid", "Grid"],
         ]}
       />
       <ToggleRow
@@ -157,7 +182,7 @@ function AppearanceCard() {
       <ToggleRow
         label="Remote image previews"
         checked={s.remoteImagePreviews === "on"}
-        onChange={(v) => s.setRemoteImagePreviews(v ? "on" : "off")}
+        onChange={(value) => s.setRemoteImagePreviews(value ? "on" : "off")}
       />
     </Card>
   );
@@ -170,7 +195,7 @@ function PerformanceCard() {
         label="Concurrent Transfers"
         value={s.transferConcurrency}
         min={1}
-        max={12}
+        max={32}
         onChange={s.setTransferConcurrency}
       />
       <RangeRow
@@ -235,6 +260,65 @@ function TransfersCard() {
     </Card>
   );
 }
+function TerminalCard() {
+  const s = useSettings();
+  return (
+    <Card
+      icon={<TerminalSquare size={20}/>}
+      title="Terminal"
+      subtitle="Tune the integrated SSH terminal for daily server work."
+    >
+      <SelectRow
+        label="Terminal Theme"
+        value={s.terminalTheme}
+        onChange={(value) => s.setTerminalTheme(value as typeof s.terminalTheme)}
+        options={[
+          ["dark", "Dark"],
+          ["light", "Light"],
+          ["dracula", "Dracula"],
+          ["solarized-dark", "Solarized Dark"],
+          ["gruvbox-dark", "Gruvbox Dark"],
+          ["onedark", "One Dark"],
+          ["rosepine", "Rosé Pine"],
+          ["everforest", "Everforest"],
+        ]}
+      />
+      <NumberRow
+        label="Font Size"
+        value={s.terminalFontSize}
+        min={8}
+        max={32}
+        fallback={13}
+        onChange={s.setTerminalFontSize}
+      />
+      <TextRow
+        label="Font Family"
+        value={s.terminalFontFamily}
+        placeholder="JetBrains Mono, Cascadia Code, monospace"
+        onChange={s.setTerminalFontFamily}
+      />
+      <NumberRow
+        label="Scrollback Lines"
+        value={s.terminalScrollback}
+        min={100}
+        max={100000}
+        fallback={5000}
+        onChange={s.setTerminalScrollback}
+      />
+      <ToggleRow
+        label="Copy selection automatically"
+        checked={s.terminalCopyOnSelect}
+        onChange={s.setTerminalCopyOnSelect}
+      />
+      <ToggleRow
+        label="Inline command suggestions"
+        checked={s.terminalSuggestions}
+        onChange={s.setTerminalSuggestions}
+      />
+    </Card>
+  );
+}
+
 function ConnectionCard() {
   const s = useSettings();
   return (
@@ -297,6 +381,7 @@ function IntegrationsCard() {
 
 function AppearancePanel(){return <div className="max-w-3xl"><AppearanceCard/></div>}
 function TransfersPanel(){return <div className="grid max-w-4xl grid-cols-2 gap-4"><PerformanceCard/><TransfersCard/></div>}
+function TerminalPanel(){return <div className="max-w-3xl"><TerminalCard/></div>}
 function ConnectionPanel(){return <div className="max-w-3xl"><ConnectionCard/></div>}
 function SecurityPanel(){return <div className="max-w-3xl"><SecurityCard/></div>}
 function UpdatesPanel(){return <div className="max-w-3xl"><UpdatesCard/></div>}
@@ -358,6 +443,41 @@ function SelectRow({
         <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-2.5 text-text-dim"/>
       </span>
     </label>
+  );
+}
+
+function AccentRow({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const color = /^#[0-9a-f]{6}$/i.test(value) ? value : "#3b82f6";
+  return (
+    <div className="grid grid-cols-[150px_1fr] items-center gap-3 text-[12px]">
+      <span className="text-text-muted">Accent Color</span>
+      <div className="flex min-w-0 items-center gap-2">
+        <input
+          type="color"
+          value={color}
+          aria-label="Accent color"
+          onChange={(event) => onChange(event.target.value)}
+          className="h-8 w-12 cursor-pointer rounded border border-border bg-[#051929] p-1"
+        />
+        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-text-dim">
+          {value || "Theme default"}
+        </span>
+        <button
+          type="button"
+          className="ghost-mini-button"
+          disabled={!value}
+          onClick={() => onChange("")}
+        >
+          Reset
+        </button>
+      </div>
+    </div>
   );
 }
 
