@@ -11,6 +11,7 @@ import { getLocale, setLocale } from "@/lib/i18n";
 import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
 import { openOfficialUrl } from "@/lib/external";
+import { PRODUCT_VERSION_BADGE } from "@/lib/release";
 
 type PaneTarget = "local" | "remote" | "active";
 type FileAction = "refresh" | "upload" | "download" | "newFolder" | "delete" | "rename" | "properties";
@@ -198,38 +199,49 @@ export function TitleBar() {
   };
 
   return <header className="ghost-app-header">
-    <div className="ghost-title-row" data-tauri-drag-region onDoubleClick={() => safeWindowAction("maximize")}>
-      <div className="ghost-title-left" data-tauri-drag-region><GhostWordmark compact /></div>
+    <div
+      className="ghost-title-row"
+      onDoubleClick={(event) => {
+        if ((event.target as HTMLElement).closest("button,select,input")) return;
+        safeWindowAction("maximize");
+      }}
+    >
+      <div className="ghost-title-left" data-tauri-drag-region>
+        <GhostWordmark compact />
+        <span className="ghost-version-badge">{PRODUCT_VERSION_BADGE}</span>
+      </div>
+      <div className="ghost-title-menu-wrap" ref={menuWrap}>
+        <nav className="ghost-menu" aria-label="Application menu">
+          {Object.keys(menus).map((name) => <div className="ghost-menu-anchor" data-menu-anchor={name} key={name}>
+            <button
+              className={menu === name ? "active" : ""}
+              aria-haspopup="menu"
+              aria-expanded={menu === name}
+              data-menu-trigger={name}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowDown") { event.preventDefault(); openMenuFromKeyboard(name); }
+                else if (event.key === "ArrowRight" || event.key === "ArrowLeft") { event.preventDefault(); moveTopMenu(name, event.key === "ArrowRight" ? 1 : -1); }
+              }}
+              onClick={() => setMenu((value) => value === name ? null : name)}
+            >
+              {name}
+            </button>
+            {menu === name && (
+              <div className="ghost-menu-popover" role="menu" onKeyDown={(event) => menuListKeyDown(event, name)}>
+                {menus[name].map((item, idx) =>
+                  "separator" in item
+                    ? <div key={idx} className="ghost-menu-separator"/>
+                    : <button key={idx} role="menuitem" disabled={item.disabled} onClick={() => { setMenu(null); item.run(); }}>{item.label}</button>)}
+              </div>
+            )}
+          </div>)}
+        </nav>
+      </div>
+      <div className="ghost-window-title-spacer" data-tauri-drag-region />
       <div className="ghost-window-controls">
         <button aria-label="Minimize" onClick={() => safeWindowAction("minimize")}><Minus size={14}/></button>
-        <button aria-label="Maximize" onClick={() => safeWindowAction("maximize")}><Square size={12}/></button>
+        <button aria-label="Maximize or restore" onClick={() => safeWindowAction("maximize")}><Square size={12}/></button>
         <button className="danger" aria-label="Close" onClick={() => safeWindowAction("close")}><X size={15}/></button>
-      </div>
-    </div>
-
-    <div className="ghost-menu-row" ref={menuWrap}>
-      <nav className="ghost-menu" aria-label="Application menu">
-        {Object.keys(menus).map((name) => <div className="ghost-menu-anchor" data-menu-anchor={name} key={name}>
-          <button
-            className={menu === name ? "active" : ""}
-            aria-haspopup="menu"
-            aria-expanded={menu === name}
-            data-menu-trigger={name}
-            onKeyDown={(event) => {
-              if (event.key === "ArrowDown") { event.preventDefault(); openMenuFromKeyboard(name); }
-              else if (event.key === "ArrowRight" || event.key === "ArrowLeft") { event.preventDefault(); moveTopMenu(name, event.key === "ArrowRight" ? 1 : -1); }
-            }}
-            onClick={() => setMenu((v) => v === name ? null : name)}
-          >
-            {name}
-          </button>
-          {menu === name && <div className="ghost-menu-popover" role="menu" onKeyDown={(event) => menuListKeyDown(event, name)}>{menus[name].map((item, idx) =>
-            "separator" in item ? <div key={idx} className="ghost-menu-separator"/> : <button key={idx} role="menuitem" disabled={item.disabled} onClick={() => { setMenu(null); item.run(); }}>{item.label}</button>)}</div>}
-        </div>)}
-      </nav>
-      <div className="ghost-title-actions">
-        <button className="ghost-mini-button" aria-label="Settings" title="Settings" onClick={() => openDialog("settings")}><Settings size={14}/><span>Settings</span></button>
-        <div className="ghost-language-menu"><Languages size={14}/><select aria-label="Language" value={locale} onChange={(e) => setLocale(e.target.value as any)}><option value="en">English (English)</option><option value="hr">Hrvatski (Croatian)</option><option value="de">Deutsch (German)</option><option value="fr">Français (French)</option><option value="es">Español (Spanish)</option><option value="it">Italiano (Italian)</option><option value="pt">Português (Portuguese)</option><option value="nl">Nederlands (Dutch)</option><option value="pl">Polski (Polish)</option><option value="sl">Slovenščina (Slovenian)</option><option value="sr">Srpski (Serbian)</option><option value="bs">Bosanski (Bosnian)</option><option value="mk">Македонски (Macedonian)</option><option value="sq">Shqip (Albanian)</option></select><ChevronDown size={12}/></div>
       </div>
     </div>
 
@@ -240,10 +252,14 @@ export function TitleBar() {
       <label className="ghost-port-field">Port<input type="number" min={1} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value) || PROTOCOL_DEFAULT_PORT[protocol])}/></label>
       <div className="ghost-quick-connect" ref={quickConnectRef}>
         <button className="ghost-quick-connect-main" disabled={quickBusy} onClick={() => void quickConnect()}>{quickBusy ? "Connecting…" : "Quick Connect"}</button>
-        <button className="ghost-quick-connect-menu" aria-label="Quick Connect protocol" aria-haspopup="menu" aria-expanded={protocolMenu} onKeyDown={(event) => { if (event.key === "ArrowDown") { event.preventDefault(); setProtocolMenu(true); requestAnimationFrame(() => quickConnectRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus()); } }} onClick={() => setProtocolMenu((v) => !v)}><ChevronDown size={13}/></button>
+        <button className="ghost-quick-connect-menu" aria-label="Quick Connect protocol" aria-haspopup="menu" aria-expanded={protocolMenu} onKeyDown={(event) => { if (event.key === "ArrowDown") { event.preventDefault(); setProtocolMenu(true); requestAnimationFrame(() => quickConnectRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus()); } }} onClick={() => setProtocolMenu((value) => !value)}><ChevronDown size={13}/></button>
         {protocolMenu && <div className="ghost-quick-protocol-menu" role="menu" onKeyDown={(event) => { const items=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]')); const current=items.indexOf(document.activeElement as HTMLButtonElement); if(event.key==="ArrowDown"||event.key==="ArrowUp"){event.preventDefault(); const delta=event.key==="ArrowDown"?1:-1; items[(Math.max(current,0)+delta+items.length)%items.length]?.focus();} else if(event.key==="Escape"){event.preventDefault();setProtocolMenu(false);quickConnectRef.current?.querySelector<HTMLButtonElement>(".ghost-quick-connect-menu")?.focus();} }}>
           {(["ftp", "ftps", "sftp"] as Protocol[]).map((item) => <button key={item} role="menuitem" className={item === protocol ? "active" : ""} onClick={() => chooseQuickProtocol(item)}>{item.toUpperCase()} <span>{PROTOCOL_DEFAULT_PORT[item]}</span></button>)}
         </div>}
+      </div>
+      <div className="ghost-title-actions ghost-quick-actions">
+        <button className="ghost-mini-button" aria-label="Settings" title="Settings" onClick={() => openDialog("settings")}><Settings size={14}/><span>Settings</span></button>
+        <div className="ghost-language-menu"><Languages size={14}/><select aria-label="Language" value={locale} onChange={(e) => setLocale(e.target.value as any)}><option value="en">English (English)</option><option value="hr">Hrvatski (Croatian)</option><option value="de">Deutsch (German)</option><option value="fr">Français (French)</option><option value="es">Español (Spanish)</option><option value="it">Italiano (Italian)</option><option value="pt">Português (Portuguese)</option><option value="nl">Nederlands (Dutch)</option><option value="pl">Polski (Polish)</option><option value="sl">Slovenščina (Slovenian)</option><option value="sr">Srpski (Serbian)</option><option value="bs">Bosanski (Bosnian)</option><option value="mk">Македонски (Macedonian)</option><option value="sq">Shqip (Albanian)</option></select><ChevronDown size={12}/></div>
       </div>
     </div>
 
