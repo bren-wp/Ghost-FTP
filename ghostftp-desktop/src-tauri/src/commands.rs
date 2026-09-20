@@ -2142,7 +2142,10 @@ pub async fn bridge_register_mcp(url: String, token: String) -> Result<String, S
             .output()
             .map_err(|e| format!("couldn't run {bin}: {e}"))?;
         if output.status.success() {
-            return Ok("Ghost FTP MCP server registered as 'ghostftp'. Claude Code can now use it.".to_string());
+            return Ok(
+                "Ghost FTP MCP server registered as 'ghostftp'. Claude Code can now use it."
+                    .to_string(),
+            );
         }
         last_err = format!(
             "{} exited with {}: {}",
