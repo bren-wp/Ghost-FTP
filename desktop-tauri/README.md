@@ -1,231 +1,184 @@
 <p align="center">
-  <img src="branding/ghostftp-logo.svg" alt="Ghost FTP" width="720">
+  <img src="branding/ghostftp-logo.svg" alt="Ghost FTP" width="520">
 </p>
 
-<h1 align="center">Ghost FTP</h1>
+<h1 align="center">Ghost FTP Native Desktop</h1>
 <p align="center"><strong>More Than Transfer. Total Control.</strong></p>
-<p align="center">A privacy-first desktop file-transfer workspace for Windows and Linux.</p>
+<p align="center">React + Tauri + Rust production desktop application for Windows and Linux.</p>
 
 <p align="center">
-  <a href="https://ghostftp.com/">Official Website</a> ·
-  <a href="https://ghostftp.com/download/">Downloads</a> ·
-  <a href="https://ghostftp.com/docs/">Documentation</a> ·
-  <a href="https://ghostftp.com/security/">Security</a> ·
-  <a href="https://ghostftp.com/support/">Support</a>
+  <a href="../README.md">Product README</a> ·
+  <a href="../docs/README.md">Documentation</a> ·
+  <a href="https://ghostftp.com/">Website</a> ·
+  <a href="https://github.com/bren-wp/Ghost-FTP-Premium/releases">Releases</a>
 </p>
 
 ---
 
-## Ghost FTP 2.1
+## Production application
 
-Ghost FTP is a modern desktop client built around fast file operations, secure server access, a dual-pane workflow and a consistent Windows/Linux interface. The application is branded exclusively as **Ghost FTP**: application names, package names, Rust crates, deep links, data paths, UI copy, build scripts, bundle identifiers and product-facing URLs use the Ghost FTP namespace.
+This directory contains the **production Ghost FTP desktop application**. The native release line does not launch the interface through a localhost browser shell. Tauri owns the desktop window and the React application renders the real Ghost FTP controls inside it.
 
-The primary interface language is **English**. **Croatian / Hrvatski** is available from the language selector and Settings → Language. Public product links resolve to **ghostftp.com**.
+Current development line: **2.1.1 RC9**.
 
-### Supported desktop platforms
+### Native distribution targets
 
-| Platform | Distribution target | Status |
-|---|---|---|
-| Windows 10 / 11 x64 | `.exe` NSIS installer, `.msi` | Tauri target configured |
-| Linux x86_64 | `.AppImage`, `.deb`, `.rpm` | Tauri target configured |
+| Platform | Native deliverables |
+| --- | --- |
+| Windows 10/11 x64 | portable `ghostftp.exe`, NSIS Setup EXE |
+| Linux x86-64 | native executable, AppImage, DEB, RPM |
 
-### Core capabilities
+MSI is intentionally not part of the prerelease RC pipeline because WiX/MSI does not accept the `rc.N` prerelease version used by this line.
 
-- FTP, FTPS and SFTP/SSH workflows
-- Dual-pane local/remote file browser
-- Saved server profiles and Site Manager
-- Upload/download transfer queue with pause, retry and progress tracking
-- Remote editing, directory synchronization and comparison tools
-- SSH keys, OS keychain-backed credential storage and host-key verification
-- Transfer throttling, concurrency controls and overwrite policies
-- Terminal and remote management utilities
-- Signed update configuration using the official Ghost FTP update endpoint
-- English primary UI plus Croatian language support
-- No Ghost FTP telemetry layer and no third-party product branding in the UI
+## Core capabilities
 
----
+- FTP, explicit/implicit FTPS and SFTP workflows
+- Dual-pane local/remote file management
+- Quick Connect and persistent Site Manager profiles
+- Transfer queues with progress, retry, pause/resume and cancellation
+- File operations, checksums and permission controls where supported
+- SSH-key and host-key verification paths
+- OS-protected credentials where supported
+- Remote editing, synchronization, comparison and terminal tooling
+- Signed Tauri updater integration
+- 14 advertised interface languages
+- no required analytics or telemetry
 
-## Approved visual system
+## Visual contract
 
-The desktop frontend and README follow the supplied Ghost FTP concept set: deep navy surfaces, electric-blue focus/accent states, soft cyan ghost mark, thin blue borders, compact Windows-style controls and dense professional file-management layouts.
+The approved visual references live at **[`../docs/assets/screenshots/`](../docs/assets/screenshots/)**. They are documentation/QA specifications only; they must never be used as runtime screenshot backgrounds or click maps.
 
-### Main file manager
+<p align="center">
+  <img src="../docs/assets/screenshots/main.webp" alt="Ghost FTP approved main-window reference" width="100%">
+</p>
 
-![Ghost FTP main file manager](docs/screenshots/01-main-file-manager.png)
+Canonical desktop geometry at **1290×852**:
 
-### Site Manager
+| Surface | Reference size |
+| --- | ---: |
+| Custom titlebar | 51 px |
+| Application menu | 42 px |
+| Quick Connect | 50 px |
+| Toolbar | 62 px |
+| Main file workspace | 416 px |
+| Transfer/log band | 191 px |
+| Status bar | 40 px |
+| Sites rail | 216 px wide |
+| New Connection | 752×628 |
+| File Properties | 530×770 |
 
-![Ghost FTP Site Manager](docs/screenshots/02-site-manager.png)
+Smaller windows use adaptive layout and contained scrolling. Essential controls must remain reachable rather than disappearing.
 
-### New Connection
-
-![Ghost FTP New Connection](docs/screenshots/03-new-connection.png)
-
-### Preferences
-
-![Ghost FTP preferences](docs/screenshots/04-preferences.png)
-
-### Transfer Center
-
-![Ghost FTP Transfer Center](docs/screenshots/05-transfer-center.png)
-
-### File properties and permissions
-
-![Ghost FTP file properties](docs/screenshots/06-file-properties.png)
-
-### About, updates and help
-
-![Ghost FTP About screen](docs/screenshots/07-about-updates.png)
-
-### Windows and Linux distribution concept
-
-![Ghost FTP Windows and Linux distribution](docs/screenshots/08-windows-linux-install.png)
-
-### Brand identity
-
-![Ghost FTP brand identity board](docs/screenshots/09-brand-board.png)
-
-### Website loading screen
-
-![Ghost FTP website loading page](docs/screenshots/10-web-loading.png)
-
----
-
-## Project structure
+### Ghost FTP palette
 
 ```text
-Ghost-FTP/
-├─ branding/                 Ghost FTP vector marks
-├─ build/                    Windows and Linux build helpers
-├─ docs/screenshots/         Approved UI reference artwork
-├─ packages/file-ui/         Ghost FTP file-browser component package
-├─ scripts/                  Build/verification utilities
-├─ src/                      React/Tauri desktop frontend
-├─ src-tauri/                Rust/Tauri application and transfer engine
-│  ├─ ghostftp-cli/          Ghost FTP command-line client
-│  ├─ ghostftp-agent-proto/  Ghost FTP agent protocol
-│  └─ ghostftp-agentd/       Ghost FTP agent daemon
-└─ web/                      Static Ghost FTP loading website
+Electric Blue  #38ABFF
+Deep Navy      #0B1E36
+Slate Blue     #132D52
+Ice White      #EAF6FF
+Success        #26DC8F
+Danger         #FF5A65
 ```
 
-The application bundle identifier is:
+## Source layout
 
 ```text
-com.ghostftp.desktop
+desktop-tauri/
+├── branding/                 approved SVG logo and symbol
+├── packages/file-ui/         shared file-browser UI package
+├── scripts/                  icon/build/verification utilities
+├── src/                      React application
+│   ├── components/           application surfaces and reusable controls
+│   ├── lib/                  IPC, i18n, commands and helpers
+│   ├── stores/               application state
+│   └── styles.css            canonical visual and responsive rules
+├── src-tauri/                native Rust backend and Tauri packaging
+│   ├── ghostftp-agent-proto/
+│   ├── ghostftp-agentd/
+│   └── ghostftp-cli/
+└── web/                      static companion/loading surface
 ```
 
-The custom deep-link scheme is:
-
-```text
-ghostftp://
-```
-
-The local application database uses the Ghost FTP namespace (`ghostftp.db`).
-
----
+Native identifier: `com.ghostftp.desktop`  
+Deep-link scheme: `ghostftp://`  
+Local database namespace: `ghostftp.db`
 
 ## Development
 
-Requirements for the desktop source build:
+Requirements:
 
-- Node.js 20+ / npm
-- Rust stable + Cargo
+- Node.js **22+**
+- npm
+- stable Rust + Cargo
 - Tauri 2 platform prerequisites
-- Windows: WebView2 and Visual Studio Build Tools for native Windows bundles
-- Linux: WebKitGTK/Tauri build dependencies for the target distribution
+- Windows: WebView2 + Visual Studio native build tools
+- Linux: WebKitGTK 4.1 and Tauri packaging dependencies
 
-Install frontend dependencies:
+Install exact dependencies and validate the frontend:
 
 ```bash
-npm install
+npm ci
+npm run check
+npm run build
 ```
 
-Run the desktop frontend in development mode:
+Run the native development application:
 
 ```bash
 npm run tauri dev
 ```
 
-Run the web frontend preview:
+Build the current platform:
 
 ```bash
-npm run dev
+npm run tauri build
 ```
 
-### Windows packages
-
-From Windows PowerShell:
-
-```powershell
-./build/windows.ps1
-```
-
-Or directly:
+Windows RC package:
 
 ```powershell
 npm run build:windows
 ```
 
-Configured outputs are NSIS `.exe` and MSI packages under Tauri's `target/release/bundle/` tree.
-
-### Linux packages
-
-```bash
-chmod +x build/linux.sh
-./build/linux.sh
-```
-
-Or directly:
+Linux packages:
 
 ```bash
 npm run build:linux
 ```
 
-Configured outputs are `.AppImage`, `.deb` and `.rpm` packages under Tauri's `target/release/bundle/` tree.
+The repository GitHub Actions pipeline is the authoritative production build environment.
+
+## Quality gates
+
+The repository source audit verifies:
+
+- TypeScript typecheck and Vite production build
+- Rust formatting, workspace compilation and tests
+- Clippy with warnings denied
+- Go tests/vet for compatibility tooling
+- JavaScript syntax for companion surfaces
+- legacy/demo-branding rejection
+
+The native workflow separately builds Windows and Linux Tauri artifacts. GitHub release publication is gated on successful native build output and source audit evidence.
+
+See:
+
+- [Build status](../docs/build/STATUS.md)
+- [Code audit](../docs/audits/CODE.md)
+- [Pixel parity](../docs/qa/PIXEL_PARITY.md)
+- [Responsive QA](../docs/qa/RESPONSIVE.md)
+- [Titlebar QA](../docs/qa/TITLEBAR.md)
+- [Transfer QA](../docs/qa/TRANSFERS.md)
+
+## Security and privacy
+
+Credentials and connection details remain under user control. Native profiles use OS-protected credential facilities where supported, SSH host-key verification is explicit, and update packages are verified by the Tauri updater before installation. Sensitive secrets must never be written to logs.
+
+Read [SECURITY.md](../SECURITY.md), [privacy](../docs/legal/PRIVACY.md) and the [update policy](../docs/guides/UPDATES.md).
 
 ---
 
-## Web loading page
-
-The `web/` directory is dependency-free and can be uploaded directly to ordinary shared hosting. Its viewport uses the approved Ghost FTP loading artwork without altering the supplied layout. Accessible interaction regions map the approved navigation and cards to official Ghost FTP pages.
-
-Important public destinations:
-
-- `https://ghostftp.com/`
-- `https://ghostftp.com/download/`
-- `https://ghostftp.com/docs/`
-- `https://ghostftp.com/security/`
-- `https://ghostftp.com/support/`
-
-No public web link in the supplied Ghost FTP page points to another product repository or old application brand.
-
----
-
-## Privacy and security principles
-
-Ghost FTP is designed so credentials and server details remain under the user's control. The desktop architecture uses local profile storage, OS credential facilities where supported, SSH host-key verification and signed update metadata. Production deployments should keep the update signing key and distribution pipeline under the Ghost FTP release infrastructure.
-
-See the official security information at **ghostftp.com/security/** and privacy information at **ghostftp.com/privacy/**.
-
----
-
-## Brand rules
-
-The canonical product name is always **Ghost FTP**. Internal machine-safe identifiers use `ghostftp` or `GHOSTFTP`. New modules, packages, storage keys, binaries, environment variables and deep links should follow that namespace.
-
-Primary visual tokens used by the approved interface:
-
-```text
-Deep Navy      #061B2E
-Panel Navy     #071F35
-Electric Blue  #31AAFF
-Action Blue    #027BF4
-Ice White      #E8F6FF
-Muted Cyan     #AACCE5
-Success        #26DC8F
-Danger         #FF5A65
-```
-
----
-
-**Ghost FTP — Files Move Forward.**
+<p align="center">
+  <img src="branding/ghostftp-symbol.svg" alt="Ghost FTP symbol" width="64"><br>
+  <strong>Ghost FTP — Files Move Forward.</strong>
+</p>
