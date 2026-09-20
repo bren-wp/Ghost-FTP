@@ -3,6 +3,16 @@ import fs from "node:fs";
 const read = (path) => fs.readFileSync(path, "utf8");
 const failures = [];
 
+function walkSource(dir) {
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) out.push(...walkSource(full));
+    else if (/\.(ts|tsx)$/.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+
 const workspaceFiles = [
   "src/components/SiteManagerDialog.tsx",
   "src/components/TransferCenterDialog.tsx",
@@ -45,6 +55,16 @@ const criticalFiles = [
   "src/components/QuickConnectionDialog.tsx",
   "packages/file-ui/src/components/PropertiesModal.tsx",
 ];
+
+for (const file of walkSource("src")) {
+  const source = read(file);
+  if (/window\.open\s*\(/.test(source) || /target\s*=\s*["']_blank["']/.test(source)) {
+    failures.push(`${file}: popup/new-tab navigation is not allowed inside Ghost FTP`);
+  }
+  if (/new\s+WebviewWindow\s*\(/.test(source) && file !== "src/lib/popout.ts") {
+    failures.push(`${file}: secondary Tauri windows are restricted to the explicit Terminal pop-out implementation`);
+  }
+}
 
 for (const file of criticalFiles) {
   const source = read(file);
