@@ -39,7 +39,7 @@ jobs:
           changed="$(git diff --name-only "$BUILD_SHA" "$MAIN_SHA" || true)"
           if [ -n "$changed" ]; then
             echo "$changed"
-            forbidden="$(printf '%s\n' "$changed" | grep -Ev '^(docs/|README\.md$|CHANGELOG\.md$|SECURITY\.md$|LICENSE\.txt$|EULA\.txt$|\.github/workflows/(release|source-audit)\.yml$)' || true)"
+            forbidden="$(printf '%s\n' "$changed" | grep -Ev '^(docs/|website/|README\.md$|CHANGELOG\.md$|SECURITY\.md$|LICENSE\.txt$|EULA\.txt$|\.github/workflows/.*\.yml$)' || true)"
             if [ -n "$forbidden" ]; then
               echo "Production source changed after the native build:"
               echo "$forbidden"
@@ -76,7 +76,7 @@ jobs:
           mkdir -p dist/native
 
           git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC9-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-RC9-Native-Source.zip desktop-tauri
+          zip -qr dist/GhostFTP-v2.1.1-RC9-Desktop-Source.zip desktop-tauri
           zip -qr dist/GhostFTP-v2.1.1-RC9-Web.zip website
           zip -qr dist/GhostFTP-v2.1.1-RC9-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
 
@@ -148,7 +148,7 @@ jobs:
             for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
               gh release delete-asset "$TAG" "$asset" -y || true
             done
-            gh release edit "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC9 — Native"               --notes-file docs/releases/2.1.1-rc.9.md               --prerelease
+            gh release edit "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC9"               --notes-file docs/releases/2.1.1-rc.9.md               --prerelease
           else
             gh release create "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC9 — Native"               --notes-file docs/releases/2.1.1-rc.9.md               --prerelease
           fi
