@@ -3424,3 +3424,49 @@ button:active,
     height: 30px;
   }
 }
+
+
+/* RC13 transient-panel measurements from the supplied 1290px reference frame. */
+.ghost-new-connection-dialog {
+  width: min(650px, calc(100vw - 24px)) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: min(610px, calc(100dvh - 24px)) !important;
+}
+
+.ghost-new-connection-head {
+  min-height: 64px !important;
+  padding-block: 10px !important;
+}
+
+.ghost-new-connection-mode {
+  padding-top: 12px !important;
+}
+
+.ghost-new-connection-body {
+  flex: 0 1 auto !important;
+  max-height: calc(100dvh - 226px) !important;
+  padding: 14px 18px !important;
+}
+
+.ghost-new-connection-actions {
+  min-height: 58px !important;
+  padding: 10px 18px !important;
+}
+
+.ghost-properties-dialog {
+  width: min(486px, calc(100vw - 20px)) !important;
+  max-height: min(710px, calc(100dvh - 20px)) !important;
+}
+
+@media (max-width: 700px) {
+  .ghost-new-connection-dialog {
+    width: calc(100vw - 12px) !important;
+    max-height: calc(100dvh - 12px) !important;
+  }
+
+  .ghost-properties-dialog {
+    width: calc(100vw - 12px) !important;
+    max-height: calc(100dvh - 12px) !important;
+  }
+}
