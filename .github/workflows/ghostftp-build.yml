@@ -1,7 +1,7 @@
 name: Ghost FTP native build
 
-# RC11 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
-# RC11 release build stamp: 2026-09-20.11
+# RC12 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
+# RC12 release build stamp: 2026-09-20.12
 
 on:
   workflow_dispatch:
@@ -31,10 +31,10 @@ jobs:
         include:
           - os: windows-latest
             args: '--bundles nsis'
-            artifact: 'GhostFTP-Windows-x64-RC11'
+            artifact: 'GhostFTP-Windows-x64-RC12'
           - os: ubuntu-22.04
             args: '--bundles deb,rpm,appimage'
-            artifact: 'GhostFTP-Linux-x86_64-RC11'
+            artifact: 'GhostFTP-Linux-x86_64-RC12'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -117,7 +117,7 @@ jobs:
             $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
             try {
               $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, $bitmap.Size)
-              $bitmap.Save((Join-Path $qaDir 'GhostFTP-Windows-RC11-Native-Window.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+              $bitmap.Save((Join-Path $qaDir 'GhostFTP-Windows-RC12-Native-Window.png'), [System.Drawing.Imaging.ImageFormat]::Png)
             } finally {
               $graphics.Dispose()
               $bitmap.Dispose()
@@ -128,7 +128,7 @@ jobs:
               "WindowTitle=$($proc.MainWindowTitle)"
               "WindowBounds=${width}x${height}"
               "Executable=$exe"
-            ) | Set-Content -Encoding UTF8 (Join-Path $qaDir 'GhostFTP-Windows-RC11-Native-Window.txt')
+            ) | Set-Content -Encoding UTF8 (Join-Path $qaDir 'GhostFTP-Windows-RC12-Native-Window.txt')
           } finally {
             if (-not $proc.HasExited) {
               $null = $proc.CloseMainWindow()
@@ -141,7 +141,7 @@ jobs:
         if: runner.os == 'Windows' && always()
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-Windows-x64-RC11-QA
+          name: GhostFTP-Windows-x64-RC12-QA
           path: qa/*
           if-no-files-found: warn
           retention-days: 14
@@ -157,24 +157,24 @@ jobs:
           if-no-files-found: error
 
   source-packages:
-    name: RC11 source packages
+    name: RC12 source packages
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Package RC11 source and documentation
+      - name: Package RC12 source and documentation
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist
-          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC11-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-RC11-Desktop-Source.zip ghostftp-desktop
-          zip -qr dist/GhostFTP-v2.1.1-RC11-Website.zip website
-          zip -qr dist/GhostFTP-v2.1.1-RC11-Updates.zip updates
-          zip -qr dist/GhostFTP-v2.1.1-RC11-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
-      - name: Upload RC11 source packages
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC12-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC12-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC12-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC12-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC12-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+      - name: Upload RC12 source packages
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-RC11-Source-Packages
+          name: GhostFTP-RC12-Source-Packages
           path: dist/*
           if-no-files-found: error
           retention-days: 14
