@@ -2,7 +2,7 @@
 
 This document separates **what Ghost FTP provides now** from **recommended future product work**. It intentionally avoids unnecessary implementation detail.
 
-## Implemented and available in RC9
+## Implemented and available in RC10
 
 | Area | Implemented |
 |---|---|
@@ -20,7 +20,7 @@ This document separates **what Ghost FTP provides now** from **recommended futur
 
 Full details: [Implemented Features](FEATURES.md).
 
-## RC9 engineering work completed
+## RC10 engineering work completed
 
 - Repository reorganized into a clear product layout: `ghostftp-desktop/`, `website/`, `updates/`, `tools/` and `docs/`.
 - Public release naming standardized by product, platform, architecture, role and version.
