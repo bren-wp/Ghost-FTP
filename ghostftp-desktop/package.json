@@ -1,7 +1,7 @@
 {
-  "name": "ghost-ftp",
+  "name": "ghostftp-desktop",
   "private": true,
-  "version": "2.1.1-rc.9",
+  "version": "2.1.1-rc.10",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "tauri": "tauri",
+    "ghostftp": "tauri",
     "gen:brand-icons": "node scripts/gen-brand-icons.mjs",
     "init-icons": "node scripts/init-icons.mjs",
     "postinstall": "node scripts/init-icons.mjs",
