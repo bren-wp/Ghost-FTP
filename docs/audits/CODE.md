@@ -2,7 +2,7 @@
 
 ## Scope
 
-RC9 continues the existing Ghost FTP production source. The authoritative desktop application now lives in `ghostftp-desktop/`. The Go-based `ghostftp-runtime/` and `ghostftp-installer/` trees are retained only as developer/compatibility tooling and are not shipped as the production desktop GUI.
+RC9 continues the existing Ghost FTP production source. The authoritative desktop application now lives in `ghostftp-desktop/`. The Go-based `tools/ghostftp-runtime/` and `tools/ghostftp-installer/` trees are retained only as developer/compatibility tooling and are not shipped as the production desktop GUI.
 
 ## Corrected and hardened
 
@@ -32,10 +32,10 @@ RC9 continues the existing Ghost FTP production source. The authoritative deskto
 Product-facing source roots are now:
 
 - `ghostftp-desktop/`
-- `ghostftp-runtime/`
-- `ghostftp-installer/`
-- `ghostftp-web/`
-- `ghostftp-updates/`
+- `tools/ghostftp-runtime/`
+- `tools/ghostftp-installer/`
+- `website/`
+- `updates/`
 
 Public artifacts follow:
 
