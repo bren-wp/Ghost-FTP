@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Languages, Minus, Settings, Square, X } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GhostWordmark } from "./GhostBrand";
 import { useLayout } from "@/stores/layoutStore";
 import { getLocale, setLocale } from "@/lib/i18n";
 import { openOfficialUrl } from "@/lib/external";
+import { PRODUCT_VERSION_BADGE } from "@/lib/release";
 
-type Item = { label: string; run: () => void } | { separator: true };
+type Item = { label: string; run: () => void; disabled?: boolean } | { separator: true };
 
 function windowAction(action: "minimize" | "maximize" | "close") {
   try {
@@ -15,8 +16,13 @@ function windowAction(action: "minimize" | "maximize" | "close") {
     else if (action === "maximize") void win.toggleMaximize();
     else void win.close();
   } catch {
-    // Browser/source preview: window controls are native-only.
+    // Native window controls are unavailable only in source/browser previews.
   }
+}
+
+function onTitlebarDoubleClick(event: React.MouseEvent<HTMLDivElement>) {
+  if ((event.target as HTMLElement).closest("button,select,input")) return;
+  windowAction("maximize");
 }
 
 export function ReferenceWindowControls({ onClose }: { onClose?: () => void }) {
@@ -43,7 +49,7 @@ export function ReferenceWindowTitlebar({
   onClose?: () => void;
 }) {
   return (
-    <div className="ghost-standalone-titlebar" data-tauri-drag-region onDoubleClick={() => windowAction("maximize")}>
+    <div className="ghost-standalone-titlebar" onDoubleClick={onTitlebarDoubleClick}>
       <div className="ghost-standalone-brand" data-tauri-drag-region>
         <GhostWordmark compact />
         {suffix ? <span className="ghost-standalone-suffix">— {suffix}</span> : null}
@@ -54,21 +60,18 @@ export function ReferenceWindowTitlebar({
   );
 }
 
-export function ReferenceMenuRow({ onClose }: { onClose?: () => void } = {}) {
+function ReferenceMenuNav({ onClose }: { onClose?: () => void }) {
   const openDialog = useLayout((s) => s.openDialog);
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const [open, setOpen] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const locale = getLocale();
-  const menus: Record<string, Item[]> = {
+
+  const menus = useMemo<Record<string, Item[]>>(() => ({
     File: [
       { label: "New Connection…", run: () => openNewConnection() },
       { label: "Site Manager…", run: () => openDialog("siteManager") },
       { separator: true },
-      {
-        label: "Close view",
-        run: () => onClose ? onClose() : useLayout.getState().closeDialog(),
-      },
+      { label: "Close view", run: () => onClose ? onClose() : useLayout.getState().closeDialog() },
     ],
     Edit: [{ label: "Preferences…", run: () => openDialog("settings") }],
     View: [
@@ -85,14 +88,16 @@ export function ReferenceMenuRow({ onClose }: { onClose?: () => void } = {}) {
       { separator: true },
       { label: "About Ghost FTP", run: () => openDialog("about") },
     ],
-  };
+  }), [onClose, openDialog, openNewConnection]);
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(null);
+    const onDown = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(null);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(null);
+    };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -101,27 +106,106 @@ export function ReferenceMenuRow({ onClose }: { onClose?: () => void } = {}) {
     };
   }, [open]);
 
+  const focusTrigger = (name: string) => requestAnimationFrame(() => {
+    rootRef.current?.querySelector<HTMLButtonElement>(`[data-menu-trigger="${name}"]`)?.focus();
+  });
+  const openFromKeyboard = (name: string) => {
+    setOpen(name);
+    requestAnimationFrame(() => {
+      rootRef.current?.querySelector<HTMLButtonElement>(`[data-menu-anchor="${name}"] [role="menuitem"]:not(:disabled)`)?.focus();
+    });
+  };
+  const moveTop = (name: string, delta: number) => {
+    const names = Object.keys(menus);
+    const index = names.indexOf(name);
+    const next = names[(index + delta + names.length) % names.length];
+    if (open) openFromKeyboard(next);
+    else focusTrigger(next);
+  };
+  const onListKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, name: string) => {
+    const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]:not(:disabled)'));
+    const current = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const delta = event.key === "ArrowDown" ? 1 : -1;
+      items[(Math.max(current, 0) + delta + items.length) % items.length]?.focus();
+    } else if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      (event.key === "Home" ? items[0] : items[items.length - 1])?.focus();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      setOpen(null);
+      focusTrigger(name);
+    } else if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+      event.preventDefault();
+      moveTop(name, event.key === "ArrowRight" ? 1 : -1);
+    }
+  };
+
   return (
-    <div className="ghost-standalone-menubar" ref={rootRef}>
+    <div className="ghost-title-menu-wrap" ref={rootRef}>
       <nav className="ghost-menu" aria-label="Application menu">
         {Object.keys(menus).map((name) => (
-          <div className="ghost-menu-anchor" key={name}>
-            <button className={open === name ? "active" : ""} onClick={() => setOpen((v) => v === name ? null : name)}>{name}</button>
+          <div className="ghost-menu-anchor" data-menu-anchor={name} key={name}>
+            <button
+              className={open === name ? "active" : ""}
+              aria-haspopup="menu"
+              aria-expanded={open === name}
+              data-menu-trigger={name}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  openFromKeyboard(name);
+                } else if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+                  event.preventDefault();
+                  moveTop(name, event.key === "ArrowRight" ? 1 : -1);
+                }
+              }}
+              onClick={() => setOpen((value) => value === name ? null : name)}
+            >
+              {name}
+            </button>
             {open === name && (
-              <div className="ghost-dropdown-menu">
-                {menus[name].map((item, i) => "separator" in item ? <div className="ghost-menu-separator" key={i}/> : (
-                  <button key={i} onClick={() => { setOpen(null); item.run(); }}>{item.label}</button>
-                ))}
+              <div className="ghost-dropdown-menu" role="menu" onKeyDown={(event) => onListKeyDown(event, name)}>
+                {menus[name].map((item, index) =>
+                  "separator" in item
+                    ? <div className="ghost-menu-separator" key={index}/>
+                    : <button role="menuitem" disabled={item.disabled} key={index} onClick={() => { setOpen(null); item.run(); }}>{item.label}</button>
+                )}
               </div>
             )}
           </div>
         ))}
       </nav>
+    </div>
+  );
+}
+
+export function ReferenceMenuTitlebar({ onClose }: { onClose?: () => void } = {}) {
+  return (
+    <div className="ghost-standalone-titlebar ghost-menu-titlebar" onDoubleClick={onTitlebarDoubleClick}>
+      <div className="ghost-standalone-brand" data-tauri-drag-region>
+        <GhostWordmark compact />
+        <span className="ghost-version-badge">{PRODUCT_VERSION_BADGE}</span>
+      </div>
+      <ReferenceMenuNav onClose={onClose} />
+      <div className="ghost-window-title-spacer" data-tauri-drag-region />
+      <ReferenceWindowControls onClose={onClose} />
+    </div>
+  );
+}
+
+export function ReferenceActionRow() {
+  const openDialog = useLayout((s) => s.openDialog);
+  const locale = getLocale();
+  return (
+    <div className="ghost-standalone-action-row">
+      <div className="flex-1" />
       <div className="ghost-title-actions">
         <button className="ghost-mini-button" onClick={() => openDialog("settings")}><Settings size={14}/><span>Settings</span></button>
         <label className="ghost-language-menu">
           <Languages size={14}/>
-          <select aria-label="Language" value={locale} onChange={(e) => setLocale(e.target.value as any)}>
+          <select aria-label="Language" value={locale} onChange={(event) => setLocale(event.target.value as any)}>
             <option value="en">English (English)</option><option value="hr">Hrvatski (Croatian)</option>
             <option value="de">Deutsch (German)</option><option value="fr">Français (French)</option>
             <option value="es">Español (Spanish)</option><option value="it">Italiano (Italian)</option>
@@ -135,4 +219,9 @@ export function ReferenceMenuRow({ onClose }: { onClose?: () => void } = {}) {
       </div>
     </div>
   );
+}
+
+/** Compatibility export for any older surface still expecting the second-row component. */
+export function ReferenceMenuRow() {
+  return <ReferenceActionRow />;
 }
