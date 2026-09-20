@@ -112,17 +112,113 @@ export function Settings({ onClose }: Props) {
 }
 
 function GeneralGrid({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }) {
+  const s = useSettings();
+  const themeOptions = APP_THEMES.map((theme) => [theme.value, theme.label] as [string, string]);
+
   return (
-    <div className="grid grid-cols-2 gap-4">
-      <LanguageCard locale={locale} setLocale={setLocale}/>
-      <AppearanceCard/>
-      <TransfersCard/>
-      <ConnectionCard/>
-      <SecurityCard/>
-      <UpdatesCard/>
-      <IntegrationsCard/>
-      <ShortcutsPanel/>
+    <div className="ghost-general-grid grid grid-cols-2 gap-3">
+      <GeneralCard icon={<Globe2 size={20}/>} title="Language" subtitle="Choose your preferred application language.">
+        <SelectRow
+          label="Primary Language"
+          value={locale}
+          onChange={setLocale}
+          options={[
+            ["en","English (English)"],
+            ["hr","Hrvatski (Croatian)"],
+            ["de","Deutsch (German)"],
+            ["fr","Français (French)"],
+            ["es","Español (Spanish)"],
+            ["it","Italiano (Italian)"],
+            ["pt","Português (Portuguese)"],
+            ["nl","Nederlands (Dutch)"],
+            ["pl","Polski (Polish)"],
+            ["sl","Slovenščina (Slovenian)"],
+            ["sr","Srpski (Serbian)"],
+            ["bs","Bosanski (Bosnian)"],
+            ["mk","Македонски (Macedonian)"],
+            ["sq","Shqip (Albanian)"],
+          ]}
+        />
+      </GeneralCard>
+
+      <GeneralCard icon={<Monitor size={20}/>} title="Appearance" subtitle="Personalize the look and feel of Ghost FTP.">
+        <SelectRow label="Theme" value={s.appTheme} onChange={(v)=>s.setAppTheme(v as typeof s.appTheme)} options={themeOptions}/>
+        <SelectRow label="Interface Density" value={s.paneDensity} onChange={(v)=>s.setPaneDensity(v as "comfortable"|"compact")} options={[["comfortable","Comfortable"],["compact","Compact"]]}/>
+        <ToggleRow label="Image previews" checked={s.remoteImagePreviews === "on"} onChange={(v)=>s.setRemoteImagePreviews(v ? "on" : "off")}/>
+      </GeneralCard>
+
+      <GeneralCard icon={<ArrowDownUp size={20}/>} title="Transfers" subtitle="Set default options for file transfers.">
+        <SelectRow label="Overwrite Behavior" value={s.overwritePolicy} onChange={(v)=>s.setOverwritePolicy(v as "overwrite"|"skip"|"rename")} options={[["overwrite","Overwrite"],["rename","Rename duplicate"],["skip","Skip existing"]]}/>
+        <ToggleRow label="Prompt before overwrite" checked={s.promptOnOverwrite} onChange={s.setPromptOnOverwrite}/>
+        <ToggleRow label="Open transfer queue" checked={s.autoOpenTransferPanel} onChange={s.setAutoOpenTransferPanel}/>
+      </GeneralCard>
+
+      <GeneralCard icon={<Wifi size={20}/>} title="Connection" subtitle="Configure connection behavior and reliability.">
+        <NumberRow label="Default SFTP Port" value={s.defaultPort} min={1} max={65535} fallback={22} onChange={s.setDefaultPort}/>
+        <DesktopNotificationsToggle/>
+        <ToggleRow label="Notify only when unfocused" checked={s.notifications.unfocusedOnly} onChange={(v)=>s.setNotifications({...s.notifications,unfocusedOnly:v})}/>
+      </GeneralCard>
+
+      <GeneralCard icon={<ShieldCheck size={20}/>} title="Security & Privacy" subtitle="Protect your data and control your privacy.">
+        <ToggleRow label="No tracking" checked onChange={()=>{}} locked/>
+        <ToggleRow label="No analytics or telemetry" checked onChange={()=>{}} locked/>
+        <ToggleRow label="OS keychain credentials" checked onChange={()=>{}} locked/>
+      </GeneralCard>
+
+      <GeneralUpdatesCard/>
+
+      <GeneralCard icon={<Plug size={20}/>} title="Integrations" subtitle="Extend Ghost FTP with system integrations.">
+        <ToggleRow label="Shell integration" checked={s.shellIntegration} onChange={s.setShellIntegration}/>
+        <ToggleRow label="File associations" checked={s.fileAssociations} onChange={s.setFileAssociations} locked/>
+        <DesktopNotificationsToggle/>
+      </GeneralCard>
+
+      <GeneralCard icon={<Keyboard size={20}/>} title="Shortcuts" subtitle="Keyboard shortcuts for common actions.">
+        <div className="grid grid-cols-[1fr_auto] gap-x-5 gap-y-2 text-[11px]">
+          <span>Open Quick Connect</span><kbd>Ctrl + Q</kbd>
+          <span>Start Transfer</span><kbd>Ctrl + Enter</kbd>
+          <span>Command Palette</span><kbd>Ctrl + K</kbd>
+        </div>
+      </GeneralCard>
     </div>
+  );
+}
+
+function GeneralCard({ icon, title, subtitle, children }: { icon: React.ReactNode; title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <section className="ghost-general-card rounded-lg border border-border bg-[#071f35] p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-accent">{icon}</span>
+        <div className="min-w-0">
+          <div className="font-semibold text-accent">{title}</div>
+          <div className="truncate text-[10.5px] text-text-muted">{subtitle}</div>
+        </div>
+      </div>
+      <div className="space-y-2">{children}</div>
+    </section>
+  );
+}
+
+function GeneralUpdatesCard() {
+  const status=useUpdater((x)=>x.status);
+  const version=useUpdater((x)=>x.version);
+  const check=useUpdater((x)=>x.check);
+  const busy=status==="checking"||status==="downloading";
+  return (
+    <GeneralCard icon={<RefreshCw size={20}/>} title="Updates" subtitle="Keep Ghost FTP current.">
+      <div className="grid grid-cols-[150px_1fr] items-center gap-3 text-[12px]">
+        <span className="text-text-muted">Update Channel</span>
+        <div className="rounded-md border border-border bg-[#051929] px-3 py-2 text-text">Stable (Recommended)</div>
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="min-w-0 truncate text-[10.5px] text-text-dim">
+          {status==="available" ? `Ghost FTP ${version ?? "update"} available` : status==="checking" ? "Checking…" : "Automatic update checks supported"}
+        </span>
+        <button className="ghost-mini-button" disabled={busy} onClick={()=>void check(false)}>
+          <RefreshCw size={13}/> Check
+        </button>
+      </div>
+    </GeneralCard>
   );
 }
 
