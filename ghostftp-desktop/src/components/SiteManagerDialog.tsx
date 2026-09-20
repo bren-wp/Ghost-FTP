@@ -1,10 +1,13 @@
 import { useMemo, useRef, useState } from "react";
-import { Download, Edit3, Folder, Search, Server, Star, Tag, Upload, Plus, Link2, RadioTower, Save, Trash2 } from "lucide-react";
+import { CopyPlus, Download, Edit3, Folder, Search, Server, Star, Tag, Upload, Plus, Link2, RadioTower, Save, Trash2 } from "lucide-react";
 import { useConnections } from "@/stores/connectionsStore";
 import { useLayout } from "@/stores/layoutStore";
 import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
 import { ReferenceMenuRow, ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
+import { ipc } from "@/lib/ipc";
+import { toast } from "@/stores/toastStore";
+import { toastError } from "@/lib/errors";
 
 interface Props { onClose: () => void }
 
@@ -18,8 +21,8 @@ export function SiteManagerDialog({ onClose }: Props) {
   const ephemeralIds = useMemo(() => new Set(sessions.filter((session) => session.ephemeral).map((session) => session.profileId)), [sessions]);
   const profiles = useMemo(() => allProfiles.filter((profile) => !ephemeralIds.has(profile.id)), [allProfiles, ephemeralIds]);
   const saveProfile = useConnections((s)=>s.saveProfile);
+  const duplicateProfile = useConnections((s)=>s.duplicateProfile);
   const deleteProfile = useConnections((s)=>s.deleteProfile);
-  const disconnect = useConnections((s)=>s.disconnect);
   const openNewConnection = useLayout((s)=>s.openNewConnection);
   const openDialog = useLayout((s)=>s.openDialog);
   const [query,setQuery]=useState("");
@@ -71,14 +74,24 @@ export function SiteManagerDialog({ onClose }: Props) {
   };
   const testSelected = async () => {
     if(!selected) return;
-    const existing = useConnections.getState().sessions.find((s)=>s.profileId===selected.id);
-    if(existing){
-      await connect(selected.id);
-      return;
+    try {
+      await ipc.testProfileConnection(selected.id);
+      toast.success("Connection successful", `${selected.name} — ${selected.username}@${selected.host}:${selected.port}`);
+    } catch (error) {
+      toastError(error, `Couldn't connect to ${selected.name}`);
     }
-    await connect(selected.id);
-    const created = useConnections.getState().sessions.find((s)=>s.profileId===selected.id);
-    if(created) await disconnect(created.sessionId);
+  };
+  const duplicateSelected = async () => {
+    if(!selected) return;
+    try {
+      const copy = await duplicateProfile(selected.id);
+      setSelectedId(copy.id);
+      setDraft({...copy});
+      setEditing(false);
+      toast.success("Site duplicated", copy.name);
+    } catch (error) {
+      toastError(error, `Couldn't duplicate ${selected.name}`);
+    }
   };
 
   return <div className="ghost-standalone-view fixed inset-0 z-modal bg-[#041425]" role="dialog" aria-modal="true">
@@ -130,7 +143,7 @@ export function SiteManagerDialog({ onClose }: Props) {
               <EditField label="Connection Mode" editing={false}><input value={draft.protocol==='ftp'||draft.protocol==='ftps'?'Passive':'Secure'} readOnly/></EditField>
             </div>
             <div className="mt-5 flex gap-2"><button disabled={isConnected} className="ghost-primary-button flex-1" onClick={()=>void connect(selected.id)}><Link2 size={15}/>{isConnected?'Connected':'Connect'}</button><button className="ghost-mini-button flex-1" onClick={()=>void testSelected()}><RadioTower size={14}/> Test Connection</button></div>
-            <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-danger/30 bg-danger/10 py-2 text-[11px] text-danger hover:bg-danger/20" onClick={()=>void remove()}><Trash2 size={13}/> Delete Site</button>
+            <div className="mt-3 grid grid-cols-2 gap-2"><button className="ghost-mini-button justify-center" onClick={()=>void duplicateSelected()}><CopyPlus size={13}/> Duplicate</button><button className="flex items-center justify-center gap-2 rounded-md border border-danger/30 bg-danger/10 py-2 text-[11px] text-danger hover:bg-danger/20" onClick={()=>void remove()}><Trash2 size={13}/> Delete Site</button></div>
           </> : <div className="grid h-full place-items-center text-text-muted"><div className="text-center"><Server size={58} className="mx-auto text-accent"/><div className="mt-2">No site selected</div></div></div>}
         </aside>
       </div>
