@@ -3366,3 +3366,49 @@ button:active,
     grid-template-columns: 1fr !important;
   }
 }
+
+
+/* RC13 measured reference-dialog envelopes.
+   Measurements are taken from the supplied 1672x941 acceptance artwork:
+   New Connection ~639x496 inside a ~1291px app frame; File Properties
+   ~489x716. Keep those proportions at the canonical 1290px desktop width. */
+.ghost-new-connection-dialog {
+  width: min(640px, calc(100vw - 24px)) !important;
+  height: min(496px, calc(100dvh - 24px)) !important;
+  max-height: min(496px, calc(100dvh - 24px)) !important;
+}
+.ghost-new-connection-head {
+  min-height: 64px !important;
+}
+.ghost-new-connection-mode {
+  min-height: 48px !important;
+}
+.ghost-new-connection-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  padding-block: 12px !important;
+}
+.ghost-new-connection-actions {
+  min-height: 54px !important;
+}
+.ghost-properties-dialog {
+  width: min(490px, calc(100vw - 20px)) !important;
+  height: min(716px, calc(100dvh - 20px)) !important;
+  max-height: min(716px, calc(100dvh - 20px)) !important;
+}
+
+@media (max-height: 560px) {
+  .ghost-new-connection-dialog {
+    height: calc(100dvh - 12px) !important;
+    max-height: calc(100dvh - 12px) !important;
+  }
+}
+
+@media (max-height: 740px) {
+  .ghost-properties-dialog {
+    height: calc(100dvh - 12px) !important;
+    max-height: calc(100dvh - 12px) !important;
+  }
+}
