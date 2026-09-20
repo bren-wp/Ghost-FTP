@@ -301,10 +301,8 @@ fn href_to_path(href: &str, base_path: &str) -> Option<(String, String)> {
 
     let rel = if hp == bp {
         "" // the collection itself
-    } else if let Some(r) = hp.strip_prefix(bp) {
-        r.trim_start_matches('/')
     } else {
-        return None;
+        hp.strip_prefix(bp)?.trim_start_matches('/')
     };
 
     let entry_path = if rel.is_empty() {
