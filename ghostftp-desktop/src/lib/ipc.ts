@@ -94,6 +94,9 @@ export const ipc = {
   sshPublicKeyFor: (path: string, passphrase?: string) =>
     invoke<GeneratedKey>("ssh_public_key_for", { path, passphrase }),
 
+  testProfileConnection: (profileId: string) =>
+    invoke<void>("test_profile_connection", { profileId }),
+
   connect: (profileId: string) =>
     invoke<SessionId>("connect", { profileId }),
 
