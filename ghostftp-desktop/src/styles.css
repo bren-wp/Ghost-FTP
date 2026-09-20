@@ -2780,3 +2780,25 @@ body,
     min-height: 32px;
   }
 }
+
+.ghost-row-action {
+  display: inline-grid;
+  width: 26px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid #24577c;
+  border-radius: 5px;
+  background: #071f35;
+  color: #a8d8f8;
+}
+.ghost-row-action:hover:not(:disabled),
+.ghost-row-action:focus-visible {
+  border-color: #289ee9;
+  background: #0b3557;
+  color: #fff;
+  outline: none;
+}
+.ghost-row-action:disabled {
+  cursor: default;
+  opacity: .32;
+}
