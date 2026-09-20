@@ -9,7 +9,7 @@ on:
     branches: [main]
     paths:
       - 'ghostftp-desktop/**'
-      - '.github/workflows/native-build.yml'
+      - '.github/workflows/ghostftp-build.yml'
 
 permissions:
   contents: read
