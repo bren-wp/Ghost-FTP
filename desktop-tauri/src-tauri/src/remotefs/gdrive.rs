@@ -288,7 +288,7 @@ mod tests {
         let session = Arc::new(gdrive_connect(&profile).await.expect("connect"));
 
         // First call uses STALE → 401 → refresh → succeeds.
-        assert_eq!(session.account_label().await.expect("account"), "tester@example.com");
+        assert_eq!(session.account_label().await.expect("account"), "tester@example.invalid");
 
         let fs = GDriveFs::new(session.clone());
         // Nested folders exercise the resolver descending two levels.
