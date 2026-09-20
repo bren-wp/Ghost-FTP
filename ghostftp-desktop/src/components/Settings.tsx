@@ -33,13 +33,14 @@ import { GhostMark } from "./GhostBrand";
 import { ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
 import { useDialog } from "@/hooks/useDialog";
 import { requestDesktopNotificationPermission } from "@/lib/notifications";
+import { SyncSettings } from "./SyncSettings";
 
-interface Props { onClose: () => void }
-type Section = "general" | "appearance" | "transfers" | "connection" | "security" | "updates" | "integrations" | "shortcuts" | "language";
+interface Props { onClose: () => void; initialSection?: Section }
+type Section = "general" | "appearance" | "transfers" | "connection" | "security" | "updates" | "integrations" | "shortcuts" | "language" | "sync";
 
-export function Settings({ onClose }: Props) {
+export function Settings({ onClose, initialSection = "general" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [section, setSection] = useState<Section>("general");
+  const [section, setSection] = useState<Section>(initialSection);
   const [pendingLocale, setPendingLocale] = useState(getLocale());
   const initialSettings = useRef(captureSettingsSnapshot());
   const initialLocale = useRef(getLocale());
@@ -87,7 +88,10 @@ export function Settings({ onClose }: Props) {
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="ghost-preferences-heading flex h-[78px] shrink-0 items-center gap-3 border-b border-border px-5">
             <Settings2 size={28} className="text-accent"/>
-            <div><div className="text-[22px] font-semibold capitalize">{section}</div><div className="text-[12px] text-text-muted">Configure how Ghost FTP looks, behaves and keeps your data safe.</div></div>
+            <div>
+              <div className="text-[22px] font-semibold">{section === "sync" ? "Sync & Backup" : section.charAt(0).toUpperCase() + section.slice(1)}</div>
+              <div className="text-[12px] text-text-muted">{section === "sync" ? "Create and manage real folder synchronization pairs." : "Configure how Ghost FTP looks, behaves and keeps your data safe."}</div>
+            </div>
           </div>
           <div className="ghost-preferences-content flex-1 overflow-y-auto p-4">
             {section === "general" && <GeneralGrid locale={pendingLocale} setLocale={setPendingLocale}/>}
@@ -98,7 +102,8 @@ export function Settings({ onClose }: Props) {
             {section === "updates" && <UpdatesPanel/>}
             {section === "integrations" && <IntegrationsPanel/>}
             {section === "shortcuts" && <ShortcutsPanel/>}
-            {section === "language" && <LanguagePanel locale={pendingLocale} setLocale={setPendingLocale}/>}
+            {section === "language" && <LanguagePanel locale={pendingLocale} setLocale={setPendingLocale}/>} 
+            {section === "sync" && <div className="max-w-5xl"><SyncSettings/></div>}
           </div>
           <div className="ghost-preferences-actions flex h-[58px] shrink-0 items-center justify-end border-t border-border bg-[#061a2d] px-4">
             <button className="ghost-mini-button" onClick={cancel}>Cancel</button>
