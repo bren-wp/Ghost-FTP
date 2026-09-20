@@ -30,7 +30,9 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
   const [passive, setPassive] = useState(true);
   const [useKey, setUseKey] = useState(prefill?.auth?.kind === "key");
   const [keyPath, setKeyPath] = useState(prefill?.auth?.kind === "key" ? prefill.auth.path : "");
-  const [remember, setRemember] = useState(true);
+  const [keyPassphrase, setKeyPassphrase] = useState(prefill?.auth?.kind === "key" ? (prefill.auth.passphrase ?? "") : "");
+  const [showKeyPassphrase, setShowKeyPassphrase] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const [remotePath, setRemotePath] = useState(prefill?.defaultRemotePath ?? ".");
   const [name, setName] = useState(prefill?.name ?? "");
@@ -47,7 +49,7 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
     host: host.trim(),
     port,
     username: username.trim(),
-    auth: useKey && protocol === "sftp" ? { kind: "key", path: keyPath.trim() } : { kind: "password", password },
+    auth: useKey && protocol === "sftp" ? { kind: "key", path: keyPath.trim(), passphrase: keyPassphrase || undefined } : { kind: "password", password },
     defaultRemotePath: remotePath.trim() || ".",
     autoConnect: false,
     group: mode === "profile" ? "My Sites" : undefined,
@@ -128,7 +130,7 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
             <Check checked={passive} onChange={setPassive} label="Passive mode (recommended)" icon={<Radio size={15}/>}/>
             <Check checked={useKey} disabled={protocol!=="sftp"} onChange={setUseKey} label="Use private key (SSH)" icon={<KeyRound size={15}/>}/>
           </div>
-          {useKey && protocol === "sftp" && <div className="mt-3 grid grid-cols-[1fr_auto] gap-2"><input className="ghost-ref-input" value={keyPath} onChange={(e)=>setKeyPath(e.target.value)} placeholder="Select private key file…"/><button className="ghost-mini-button" onClick={()=>void chooseKey()}><FolderOpen size={14}/></button></div>}
+          {useKey && protocol === "sftp" && <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2"><input className="ghost-ref-input" value={keyPath} onChange={(e)=>setKeyPath(e.target.value)} placeholder="Select private key file…"/><button className="ghost-mini-button" onClick={()=>void chooseKey()}><FolderOpen size={14}/></button><div className="relative col-span-2"><input className="ghost-ref-input pr-10" type={showKeyPassphrase?"text":"password"} value={keyPassphrase} onChange={(e)=>setKeyPassphrase(e.target.value)} placeholder="Private key passphrase (optional)"/><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim" onClick={()=>setShowKeyPassphrase(v=>!v)} aria-label={showKeyPassphrase?"Hide key passphrase":"Show key passphrase"}>{showKeyPassphrase?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></div>}
 
           <div className="mt-4 flex items-center gap-3"><Check checked={mode === "profile" ? true : remember} disabled={mode === "profile"} onChange={setRemember} label="Remember this connection" icon={<Bookmark size={15}/>}/><div className="flex-1"/><button className="ghost-mini-button" disabled={!canConnect||busy} onClick={()=>void testConnection()}><Radio size={14}/>{testStatus==="testing"?"Testing…":testStatus==="ok"?"Connection OK":testStatus==="error"?"Test Failed":"Test Connection"}</button></div>
 
