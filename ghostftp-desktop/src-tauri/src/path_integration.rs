@@ -65,7 +65,20 @@ pub struct PathStatus {
 /// surrounding whitespace, drop a trailing slash/backslash, and lowercase
 /// (Windows paths are case-insensitive). Storage always keeps the original bytes.
 fn normalize_entry(e: &str) -> String {
-    e.trim().trim_end_matches(['\\', '/']).to_ascii_lowercase()
+    // Windows is case-insensitive. Ghost FTP previously used both "Ghost FTP"
+    // and "GhostFTP" for its own app directory. Canonicalize only that product
+    // path segment so upgrades stay idempotent without changing unrelated paths.
+    let normalized = e
+        .trim()
+        .trim_end_matches(['\\', '/'])
+        .replace('/', "\\")
+        .to_ascii_lowercase();
+
+    normalized
+        .split('\\')
+        .map(|segment| if segment == "ghost ftp" { "ghostftp" } else { segment })
+        .collect::<Vec<_>>()
+        .join("\\")
 }
 
 /// Is `dir` already present as one of the ';'-separated entries in `value`?
