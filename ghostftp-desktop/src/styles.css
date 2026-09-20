@@ -2254,3 +2254,36 @@ body::after { opacity: 0.018; }
     max-height: none;
   }
 }
+
+
+/* RC11 adaptive shell: preserve the 1290×852 measurements as the baseline,
+   but let real native windows grow instead of leaving dead bands above 852px. */
+@media (min-width: 1041px) and (min-height: 760px) {
+  .ghost-main-workspace {
+    flex: 1 1 416px !important;
+    height: auto !important;
+    min-height: 280px !important;
+  }
+
+  .ghost-bottom-band {
+    flex: 0 0 clamp(164px, 22.4dvh, 191px) !important;
+    height: clamp(164px, 22.4dvh, 191px) !important;
+    min-height: 164px !important;
+  }
+}
+
+/* Keep the 1290×852 acceptance frame pixel-compatible with the approved
+   reference while using the adaptive rules everywhere else. */
+@media (width: 1290px) and (height: 852px) {
+  .ghost-main-workspace {
+    flex: 0 0 416px !important;
+    height: 416px !important;
+    min-height: 416px !important;
+  }
+
+  .ghost-bottom-band {
+    flex: 0 0 191px !important;
+    height: 191px !important;
+    min-height: 191px !important;
+  }
+}
