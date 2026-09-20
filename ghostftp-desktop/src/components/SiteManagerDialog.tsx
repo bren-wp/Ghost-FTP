@@ -669,7 +669,7 @@ export function SiteManagerDialog({ onClose }: Props) {
           onConfirm={() => void remove()}
         />
       )}
-    </div>
+    </section>
   );
 }
 
