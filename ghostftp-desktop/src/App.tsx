@@ -117,6 +117,7 @@ export default function App() {
     dialog === "settings" ||
     dialog === "siteManager" ||
     dialog === "transferCenter" ||
+    dialog === "sync" ||
     dialog === "about";
 
   useShortcuts();
@@ -160,6 +161,7 @@ export default function App() {
       <DeepLinkListener />
       <Suspense fallback={<DialogLoading workspace={standaloneDialog} />}>
         {dialog === "settings" && <Settings onClose={closeDialog} />}
+        {dialog === "sync" && <Settings onClose={closeDialog} initialSection="sync" />}
         {dialog === "newConnection" && (
           <QuickConnectionDialog
             prefill={connectionPrefill}
