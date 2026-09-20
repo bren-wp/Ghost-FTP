@@ -1,4 +1,4 @@
-# Ghost FTP QA Index — RC10
+# Ghost FTP QA Index — RC11
 
 This directory tracks the evidence required before Ghost FTP can move from release candidate to FINAL.
 
@@ -27,3 +27,10 @@ A source implementation, successful compile or compatibility-host test is **not*
 ## FINAL rule
 
 Ghost FTP must not be labelled FINAL until the documented protocol, installer, titlebar and pixel/responsive acceptance gates have real evidence.
+
+## RC11 UI regression checks
+
+- Application header must remain below semantic modal surfaces.
+- File/Tools/Help and other top menus must render as floating popovers and never push the Quick Connect or toolbar rows.
+- About, Preferences, Site Manager, Transfer Center and New Connection must fully cover the underlying application when open.
+- Default native geometry remains 1290×852 with adaptive checks at the documented smaller sizes.
