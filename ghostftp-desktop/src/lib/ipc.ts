@@ -71,6 +71,9 @@ export const ipc = {
   saveProfile: (profile: ConnectionProfile) =>
     invoke<void>("save_profile", { profile }),
 
+  duplicateProfile: (id: string) =>
+    invoke<ConnectionProfile>("duplicate_profile", { id }),
+
   /** Persist a manual rail order: every profile id, in display order. */
   reorderProfiles: (ids: string[]) =>
     invoke<void>("reorder_profiles", { ids }),
