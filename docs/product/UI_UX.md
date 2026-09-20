@@ -119,7 +119,7 @@ Minimum supported native window target remains 480×600, with 480×800 used in t
 A release is not described as pixel-perfect/FINAL until the real native Windows/Linux render is compared against the approved references at the documented sizes and the measured differences are accepted.
 
 
-## RC11 production-fidelity acceptance
+## RC12 production-fidelity acceptance
 
 - The supplied Ghost FTP reference screenshots are treated as visual acceptance specifications, never as runtime backgrounds.
 - File Manager chrome is isolated from standalone Site Manager, Preferences, Transfer Center and About surfaces.
