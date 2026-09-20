@@ -61,7 +61,7 @@ export function Settings({ onClose }: Props) {
   useDialog(panelRef, { onClose: cancel });
 
   return (
-    <div className="ghost-standalone-view fixed inset-0 z-modal bg-[#041425]" role="dialog" aria-modal="true">
+    <div className="ghost-workspace-view ghost-standalone-view bg-[#041425]" role="region" aria-label="Ghost FTP Preferences">
       <div ref={panelRef} className="ghost-preferences flex h-full w-full flex-col overflow-hidden bg-bg-panel">
         <ReferenceWindowTitlebar suffix="Preferences" onClose={cancel} />
         <div className="ghost-preferences-body flex min-h-0 flex-1">
