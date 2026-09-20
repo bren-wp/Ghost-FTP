@@ -1,21 +1,18 @@
-name: Ghost FTP native build
-
-# RC9 native release gate: only Tauri/WebView bundles are eligible for end-user releases.
-# RC9 release build stamp: 2026-09-20.10
+name: GhostFTP Desktop Build
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'desktop-tauri/**'
+      - 'ghostftp-desktop/**'
       - '.github/workflows/native-build.yml'
 
 permissions:
   contents: read
 
 concurrency:
-  group: ghostftp-native-${{ github.ref }}
+  group: ghostftp-desktop-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -31,40 +28,48 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: desktop-tauri/package-lock.json
+          cache-dependency-path: ghostftp-desktop/package-lock.json
+
       - uses: dtolnay/rust-toolchain@stable
+
       - uses: swatinem/rust-cache@v2
         with:
-          workspaces: desktop-tauri/src-tauri
-      - name: Linux dependencies
+          workspaces: ghostftp-desktop/src-tauri
+
+      - name: Linux desktop dependencies
         if: runner.os == 'Linux'
         shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
-      - name: Install frontend dependencies
-        working-directory: desktop-tauri
+
+      - name: Install GhostFTP frontend dependencies
+        working-directory: ghostftp-desktop
         run: npm ci
-      - name: TypeScript/frontend build
-        working-directory: desktop-tauri
+
+      - name: Build GhostFTP frontend
+        working-directory: ghostftp-desktop
         run: npm run build
-      - name: Native Tauri bundle
+
+      - name: Build GhostFTP native packages
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: desktop-tauri
+          projectPath: ghostftp-desktop
           args: ${{ matrix.args }}
-      - name: Upload native bundles
+
+      - name: Upload GhostFTP native artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ghostftp-native-${{ runner.os }}
+          name: ghostftp-desktop-${{ runner.os }}
           path: |
-            desktop-tauri/src-tauri/target/release/bundle/**
-            desktop-tauri/src-tauri/target/release/ghostftp.exe
-            desktop-tauri/src-tauri/target/release/ghostftp
+            ghostftp-desktop/src-tauri/target/release/bundle/**
+            ghostftp-desktop/src-tauri/target/release/ghostftp.exe
+            ghostftp-desktop/src-tauri/target/release/ghostftp
           if-no-files-found: error
