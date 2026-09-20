@@ -10,7 +10,6 @@ import { useConnections } from "@/stores/connectionsStore";
 import { getLocale, setLocale } from "@/lib/i18n";
 import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
-import { openOfficialUrl } from "@/lib/external";
 import { PRODUCT_VERSION_BADGE } from "@/lib/release";
 
 type PaneTarget = "local" | "remote" | "active";
