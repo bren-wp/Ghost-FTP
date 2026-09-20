@@ -69,8 +69,8 @@ export function PropertiesModal({ entry, sessionId, onClose, onApplied, onOpenCo
     finally { setChecksumBusy(false); }
   };
 
-  return <div className="fixed inset-0 z-modal flex items-center justify-center bg-black/70 p-2 backdrop-blur-md" onClick={onClose}>
-    <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="ghost-properties-dialog anim-modal flex flex-col overflow-hidden rounded-xl border border-accent/70 bg-[#061a2d] shadow-elev-3" onClick={(e) => e.stopPropagation()}>
+  return <div className="fixed inset-0 z-modal flex items-center justify-center bg-black/76 p-2" onClick={onClose}>
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="ghost-properties-dialog flex flex-col overflow-hidden rounded-xl border border-accent/70 bg-[#061a2d] shadow-elev-3" onClick={(e) => e.stopPropagation()}>
       <div className="flex h-[54px] shrink-0 items-center gap-3 border-b border-border px-4"><div className="ghost-dialog-icon"><FileCode2 size={21}/></div><div id={titleId} className="text-[16px] font-semibold">File Properties &amp; Permissions</div><div className="flex-1"/><button onClick={onClose} className="ghost-icon-close"><X size={18}/></button></div>
       <div className="flex h-[43px] shrink-0 items-end gap-2 border-b border-border px-3">
         <button className={`h-[33px] rounded-t-md border px-6 text-[12px] ${tab === "general" ? "border-accent bg-accent/15 text-white" : "border-transparent text-text-muted"}`} onClick={() => setTab("general")}>General</button>
