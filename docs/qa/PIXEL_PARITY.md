@@ -1,10 +1,10 @@
 # Ghost FTP Pixel-Parity QA — RC9
 
-The approved images under `docs/assets/screenshots/` are the visual specification. They are documentation/QA references only and are not loaded as application backgrounds or used as click maps.
+The approved images under `docs/assets/screenshots/` are the visual specification. They are documentation/QA references only and are never loaded as application backgrounds or used as click maps.
 
 ## Canonical main-window geometry
 
-At the approved 1290×852 desktop frame the real Ghost FTP component shell uses:
+At the approved **1290×852** desktop frame the real Ghost FTP component shell targets:
 
 - 51 px custom titlebar;
 - 42 px application menu;
@@ -15,12 +15,51 @@ At the approved 1290×852 desktop frame the real Ghost FTP component shell uses:
 - 191 px transfer/log band;
 - 40 px status bar.
 
-These dimensions sum to the canonical 852 px application height. New Connection targets 752×628 px and File Properties targets 530×770 px while remaining viewport-constrained on smaller windows.
+Reference modal envelopes:
+
+- New Connection: **752×628**
+- File Properties: **530×770**
 
 ## Visual system
 
-The default dark surface uses the Ghost FTP navy hierarchy with the approved Electric Blue accent and Ice White primary text. RC9 removes a redundant older dark-token block so only the canonical Ghost FTP visual system controls the default theme.
+Core Ghost FTP colors:
+
+- Electric Blue: `#38ABFF`
+- Deep Navy: `#0B1E36`
+- Slate Blue: `#132D52`
+- Ice White: `#EAF6FF`
+
+The UI should use dark navy hierarchy, restrained Electric Blue emphasis, readable Ice White text, thin blue borders and selective glow.
+
+## Reference screens
+
+Current branded reference files cover:
+
+- Main File Manager;
+- Site Manager;
+- New Connection;
+- Preferences;
+- Transfer Center;
+- File Properties;
+- About;
+- Windows/Linux platform presentation;
+- brand identity.
 
 ## Acceptance rule
 
-RC9 does not claim complete pixel-perfect acceptance yet. Before FINAL, capture native Windows renders for Main, Site Manager, New Connection, Preferences, Transfer Center, File Properties and About at 100% display scale and compare bounds, typography, icon placement, dividers, radii, selected/hover/focus states and custom-window chrome against the matching reference images.
+RC9 does **not** claim pixel-perfect FINAL acceptance yet.
+
+Before FINAL, capture real native Windows renders at 100% display scale and compare:
+
+- window bounds;
+- typography;
+- row heights;
+- dividers;
+- radii;
+- icon placement;
+- selected/hover/focus states;
+- modal dimensions;
+- custom titlebar;
+- spacing and alignment.
+
+Measured differences must be accepted or corrected before the release is described as 1:1 / pixel-perfect FINAL.
