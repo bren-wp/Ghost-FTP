@@ -103,6 +103,8 @@ export default function App() {
   const terminalVisible = !!activeSessionId && terminalOpen && supportsTerminal;
   const consoleOpen = useLayout((s) => s.consoleOpen);
   const browserLayout = useSettings((s) => s.browserLayout);
+  const view = useLayout((s) => s.view);
+  const returnToFiles = useLayout((s) => s.returnToFiles);
   const dialog = useLayout((s) => s.dialog);
   const closeDialog = useLayout((s) => s.closeDialog);
   const connectionPrefill = useLayout((s) => s.connectionPrefill);
@@ -114,11 +116,6 @@ export default function App() {
     ).length
   );
   const [editsMenuOpen, setEditsMenuOpen] = useState(false);
-  const standaloneDialog =
-    dialog === "settings" ||
-    dialog === "siteManager" ||
-    dialog === "transferCenter" ||
-    dialog === "about";
 
   useShortcuts();
 
@@ -156,25 +153,58 @@ export default function App() {
   }, []);
 
   return (
-      <div className="ghost-app-shell flex h-full w-full flex-col">
-      {!standaloneDialog && <TitleBar />}
+    <div className="ghost-app-shell flex h-full w-full flex-col">
       <DeepLinkListener />
-      <Suspense fallback={<DialogLoading />}>
-        {dialog === "settings" && <Settings onClose={closeDialog} />}
+
+      <Suspense fallback={<ViewLoading />}>
+        {view === "files" && (
+          <>
+            <TitleBar />
+            <div className="ghost-main-workspace flex min-h-0 flex-1 overflow-hidden">
+              <ReferenceSiteSidebar />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <FileUiBridge>
+                    {browserLayout === "dual" ? <DualPaneBrowser /> : <FileBrowser />}
+                  </FileUiBridge>
+                </div>
+                {consoleOpen && (
+                  <div className="h-64 border-t border-border">
+                    <AgentConsoleDock />
+                  </div>
+                )}
+                <div
+                  className={cn(
+                    terminalVisible ? "h-72 border-t border-border" : "h-0 overflow-hidden"
+                  )}
+                >
+                  <TerminalDock
+                    sessionId={supportsTerminal ? activeSessionId : null}
+                    visible={terminalVisible}
+                  />
+                </div>
+              </div>
+            </div>
+            <TransferQueue />
+            <ReferenceStatusBar />
+          </>
+        )}
+
+        {view === "siteManager" && <SiteManagerDialog onClose={returnToFiles} />}
+        {view === "transferCenter" && <TransferCenterDialog onClose={returnToFiles} />}
+        {view === "settings" && <Settings onClose={returnToFiles} />}
+        {view === "about" && <AboutDialog onClose={returnToFiles} />}
+
         {dialog === "newConnection" && (
           <QuickConnectionDialog
             prefill={connectionPrefill}
             onClose={closeDialog}
           />
         )}
-        {dialog === "siteManager" && <SiteManagerDialog onClose={closeDialog} />}
-        {dialog === "transferCenter" && (
-          <TransferCenterDialog onClose={closeDialog} />
-        )}
         {dialog === "import" && <ImportDialog onClose={closeDialog} />}
         {dialog === "grant" && <GrantDialog onClose={closeDialog} />}
-        {dialog === "about" && <AboutDialog onClose={closeDialog} />}
       </Suspense>
+
       {dialog === "agentBridge" && <AgentBridge onClose={closeDialog} />}
       <HostKeyModal />
       <AuthPromptModal />
@@ -189,47 +219,14 @@ export default function App() {
       <SnippetsHost />
       <CommandPalette />
       <KeyboardShortcutsDialog />
-      {!standaloneDialog && (
-      <>
-      <div className="ghost-main-workspace flex min-h-0 flex-1 overflow-hidden">
-        <ReferenceSiteSidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <FileUiBridge>
-              {browserLayout === "dual" ? <DualPaneBrowser /> : <FileBrowser />}
-            </FileUiBridge>
-          </div>
-          {consoleOpen && (
-            <div className="h-64 border-t border-border">
-              <AgentConsoleDock />
-            </div>
-          )}
-          {/* The terminal dock stays mounted even when hidden so background
-              shells survive connection-tab switches and toggling it closed. */}
-          <div
-            className={cn(
-              terminalVisible ? "h-72 border-t border-border" : "h-0 overflow-hidden"
-            )}
-          >
-            <TerminalDock
-              sessionId={supportsTerminal ? activeSessionId : null}
-              visible={terminalVisible}
-            />
-          </div>
-        </div>
-      </div>
-      <TransferQueue />
-      <ReferenceStatusBar />
-      </>
-      )}
-      </div>
+    </div>
   );
 }
 
-function DialogLoading() {
+function ViewLoading() {
   return (
     <div
-      className="fixed inset-0 z-modal grid place-items-center bg-[#041425]/95"
+      className="ghost-app-view grid flex-1 place-items-center bg-[#041425]"
       role="status"
       aria-live="polite"
     >
