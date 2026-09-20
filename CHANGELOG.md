@@ -8,6 +8,9 @@
 - Added focused-pane capability reporting so Delete, Rename, Properties, New Folder, Upload and Download disable when the action is not valid.
 - Removed the modal loading flash when switching between primary Ghost FTP workspace views.
 - Added a UI contract CI gate for single-shell architecture, critical click handlers and popup/new-tab regressions.
+- Added a functional in-app Transfer Scheduler with persisted once/daily/weekly schedules and real queue-priority movement.
+- Wired Sync & Backup to a real workspace and kept Help/Documentation/Updates inside the main Ghost FTP window.
+- Removed obsolete duplicate status-bar code and stray untranslated UI text.
 - RC13 remains a development release candidate until quality, protocol E2E, native Windows/Linux build and native visual acceptance are complete.
 
 
