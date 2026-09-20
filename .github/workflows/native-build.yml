@@ -1,5 +1,7 @@
 name: Ghost FTP native build
 
+# RC8 native release gate: only Tauri/WebView bundles are eligible for end-user releases.
+
 on:
   workflow_dispatch:
   push:
