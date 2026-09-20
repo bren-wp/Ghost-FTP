@@ -2,6 +2,7 @@ use crate::profiles::{AuthMethod, ConnectionProfile};
 use anyhow::{anyhow, Context, Result};
 use std::sync::{Arc, Mutex as StdMutex};
 use suppaftp::native_tls::TlsConnector;
+use suppaftp::types::FileType;
 use suppaftp::{FtpStream, NativeTlsConnector, NativeTlsFtpStream};
 
 /// One FTP control connection. suppaftp is synchronous; we wrap it in a
@@ -183,7 +184,18 @@ pub async fn ftp_connect(profile: &ConnectionProfile) -> Result<FtpSession> {
 
 fn login(stream: &mut FtpStreamKind, user: &str, password: &str) -> Result<()> {
     match stream {
-        FtpStreamKind::Plain(s) => s.login(user, password).map_err(into_anyhow),
-        FtpStreamKind::Tls(s) => s.login(user, password).map_err(into_anyhow),
+        FtpStreamKind::Plain(s) => {
+            s.login(user, password).map_err(into_anyhow)?;
+            s.transfer_type(FileType::Binary)
+                .map_err(into_anyhow)
+                .context("FTP TYPE I")?;
+        }
+        FtpStreamKind::Tls(s) => {
+            s.login(user, password).map_err(into_anyhow)?;
+            s.transfer_type(FileType::Binary)
+                .map_err(into_anyhow)
+                .context("FTPS TYPE I")?;
+        }
     }
+    Ok(())
 }
