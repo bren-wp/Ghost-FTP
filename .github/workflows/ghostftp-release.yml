@@ -1,4 +1,4 @@
-name: Ghost FTP RC9 release
+name: Ghost FTP RC10 release
 
 on:
   workflow_run:
@@ -10,7 +10,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: ghostftp-rc9-release
+  group: ghostftp-rc10-release
   cancel-in-progress: true
 
 jobs:
@@ -48,11 +48,9 @@ jobs:
           fi
 
           git checkout --detach "$MAIN_SHA"
-          grep -q '"version": "2.1.1-rc.9"' ghostftp-desktop/package.json
-          grep -q '"version": "2.1.1-rc.9"' ghostftp-desktop/package-lock.json
-          grep -q '^version = "2.1.1-rc.9"$' ghostftp-desktop/src-tauri/Cargo.toml
-          grep -q '"version": "2.1.1-rc.9"' ghostftp-desktop/src-tauri/tauri.conf.json
-
+          grep -q '"version": "2.1.1-rc.10"' ghostftp-desktop/package.json
+          grep -q '"version": "2.1.1-rc.10"' ghostftp-desktop/package-lock.json
+          grep -q '^version = "2.1.1-rc.10"
           for attempt in $(seq 1 45); do
             audit="$(gh run list --workflow 'Ghost FTP quality' --commit "$MAIN_SHA" --limit 1 --json status,conclusion --jq '.[0] | ((.status // "") + ":" + (.conclusion // ""))' || true)"
             echo "source audit for $MAIN_SHA: ${audit:-not-found}"
@@ -77,11 +75,123 @@ jobs:
           set -euo pipefail
           mkdir -p dist/native
 
-          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC9-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-RC9-Desktop-Source.zip ghostftp-desktop
-          zip -qr dist/GhostFTP-v2.1.1-RC9-Website.zip website
-          zip -qr dist/GhostFTP-v2.1.1-RC9-Updates.zip updates
-          zip -qr dist/GhostFTP-v2.1.1-RC9-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC10-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+
+      - name: Download successful native build artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "${{ github.event.workflow_run.id }}" -D dist/native
+          find dist/native -type f -print
+
+      - name: Normalize platform artifact names
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          WIN_EXE="$(find dist/native -type f -iname 'ghostftp.exe' | head -n1 || true)"
+          WIN_SETUP="$(find dist/native -type f -iname '*setup.exe' | head -n1 || true)"
+          LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
+          APPIMAGE="$(find dist/native -type f -iname '*.AppImage' | head -n1 || true)"
+          DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
+          RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
+          WIN_QA_PNG="$(find dist/native -type f -iname '*RC10-Native-Window.png' | head -n1 || true)"
+          WIN_QA_TXT="$(find dist/native -type f -iname '*RC10-Native-Window.txt' | head -n1 || true)"
+
+          test -n "$WIN_EXE"
+          test -n "$WIN_SETUP"
+          test -n "$LINUX_BIN"
+          test -n "$APPIMAGE"
+          test -n "$DEB"
+          test -n "$RPM"
+          test -n "$WIN_QA_PNG"
+          test -n "$WIN_QA_TXT"
+
+          cp "$WIN_EXE" dist/GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe
+          cp "$WIN_SETUP" dist/GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe
+          cp "$LINUX_BIN" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10
+          chmod +x dist/GhostFTP-Linux-x86_64-v2.1.1-RC10
+          cp "$APPIMAGE" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10.AppImage
+          cp "$DEB" dist/GhostFTP-Linux-amd64-v2.1.1-RC10.deb
+          cp "$RPM" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10.rpm
+          cp "$WIN_QA_PNG" dist/GhostFTP-Windows-x64-v2.1.1-RC10-Native-Window.png
+          cp "$WIN_QA_TXT" dist/GhostFTP-Windows-x64-v2.1.1-RC10-Native-Window.txt
+
+          (
+            cd dist
+            zip -q GhostFTP-Windows-x64-v2.1.1-RC10.zip               GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe               GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe
+            tar -czf GhostFTP-Linux-x86_64-v2.1.1-RC10.tar.gz               GhostFTP-Linux-x86_64-v2.1.1-RC10               GhostFTP-Linux-x86_64-v2.1.1-RC10.AppImage               GhostFTP-Linux-amd64-v2.1.1-RC10.deb               GhostFTP-Linux-x86_64-v2.1.1-RC10.rpm
+          )
+
+          rm -rf dist/native
+
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd dist
+            find . -maxdepth 1 -type f ! -name 'GhostFTP-v2.1.1-RC10-SHA256SUMS.txt' -printf '%f\0' |
+              sort -z |
+              xargs -0 sha256sum
+          ) > dist/GhostFTP-v2.1.1-RC10-SHA256SUMS.txt
+
+      - name: Publish RC10 pre-release and retain older releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v2.1.1-rc.10"
+          MAIN_SHA="${MAIN_SHA:-$(git rev-parse HEAD)}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
+              gh release delete-asset "$TAG" "$asset" -y || true
+            done
+            gh release edit "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC10"               --notes-file docs/releases/2.1.1-rc.10.md               --prerelease
+          else
+            gh release create "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC10 — Native"               --notes-file docs/releases/2.1.1-rc.10.md               --prerelease
+          fi
+
+          gh release upload "$TAG" dist/* --clobber
+ ghostftp-desktop/src-tauri/Cargo.toml
+          grep -q '^version = "2.1.1-rc.10"
+          for attempt in $(seq 1 45); do
+            audit="$(gh run list --workflow 'Ghost FTP quality' --commit "$MAIN_SHA" --limit 1 --json status,conclusion --jq '.[0] | ((.status // "") + ":" + (.conclusion // ""))' || true)"
+            echo "source audit for $MAIN_SHA: ${audit:-not-found}"
+            if [ "$audit" = "completed:success" ]; then
+              echo "MAIN_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
+              break
+            fi
+            if [[ "$audit" == completed:* ]] && [ "$audit" != "completed:success" ]; then
+              echo "Source audit did not pass."
+              exit 1
+            fi
+            if [ "$attempt" -eq 45 ]; then
+              echo "Timed out waiting for source audit."
+              exit 1
+            fi
+            sleep 20
+          done
+
+      - name: Package source and documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/native
+
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC10-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
 
       - name: Download successful native build artifacts
         env:
@@ -111,18 +221,18 @@ jobs:
           test -n "$DEB"
           test -n "$RPM"
 
-          cp "$WIN_EXE" dist/GhostFTP-Windows-x64-Portable-v2.1.1-RC9.exe
-          cp "$WIN_SETUP" dist/GhostFTP-Windows-x64-Setup-v2.1.1-RC9.exe
-          cp "$LINUX_BIN" dist/GhostFTP-Linux-x86_64-v2.1.1-RC9
-          chmod +x dist/GhostFTP-Linux-x86_64-v2.1.1-RC9
-          cp "$APPIMAGE" dist/GhostFTP-Linux-x86_64-v2.1.1-RC9.AppImage
-          cp "$DEB" dist/GhostFTP-Linux-amd64-v2.1.1-RC9.deb
-          cp "$RPM" dist/GhostFTP-Linux-x86_64-v2.1.1-RC9.rpm
+          cp "$WIN_EXE" dist/GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe
+          cp "$WIN_SETUP" dist/GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe
+          cp "$LINUX_BIN" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10
+          chmod +x dist/GhostFTP-Linux-x86_64-v2.1.1-RC10
+          cp "$APPIMAGE" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10.AppImage
+          cp "$DEB" dist/GhostFTP-Linux-amd64-v2.1.1-RC10.deb
+          cp "$RPM" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10.rpm
 
           (
             cd dist
-            zip -q GhostFTP-Windows-x64-v2.1.1-RC9.zip               GhostFTP-Windows-x64-Portable-v2.1.1-RC9.exe               GhostFTP-Windows-x64-Setup-v2.1.1-RC9.exe
-            tar -czf GhostFTP-Linux-x86_64-v2.1.1-RC9.tar.gz               GhostFTP-Linux-x86_64-v2.1.1-RC9               GhostFTP-Linux-x86_64-v2.1.1-RC9.AppImage               GhostFTP-Linux-amd64-v2.1.1-RC9.deb               GhostFTP-Linux-x86_64-v2.1.1-RC9.rpm
+            zip -q GhostFTP-Windows-x64-v2.1.1-RC10.zip               GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe               GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe
+            tar -czf GhostFTP-Linux-x86_64-v2.1.1-RC10.tar.gz               GhostFTP-Linux-x86_64-v2.1.1-RC10               GhostFTP-Linux-x86_64-v2.1.1-RC10.AppImage               GhostFTP-Linux-amd64-v2.1.1-RC10.deb               GhostFTP-Linux-x86_64-v2.1.1-RC10.rpm
           )
 
           rm -rf dist/native
@@ -133,27 +243,350 @@ jobs:
           set -euo pipefail
           (
             cd dist
-            find . -maxdepth 1 -type f ! -name 'GhostFTP-v2.1.1-RC9-SHA256SUMS.txt' -printf '%f\0' |
+            find . -maxdepth 1 -type f ! -name 'GhostFTP-v2.1.1-RC10-SHA256SUMS.txt' -printf '%f\0' |
               sort -z |
               xargs -0 sha256sum
-          ) > dist/GhostFTP-v2.1.1-RC9-SHA256SUMS.txt
+          ) > dist/GhostFTP-v2.1.1-RC10-SHA256SUMS.txt
 
-      - name: Publish RC9 pre-release and retain older releases
+      - name: Publish RC10 pre-release and retain older releases
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="v2.1.1-rc.9"
+          TAG="v2.1.1-rc.10"
           MAIN_SHA="${MAIN_SHA:-$(git rev-parse HEAD)}"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
               gh release delete-asset "$TAG" "$asset" -y || true
             done
-            gh release edit "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC9"               --notes-file docs/releases/2.1.1-rc.9.md               --prerelease
+            gh release edit "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC10"               --notes-file docs/releases/2.1.1-rc.10.md               --prerelease
           else
-            gh release create "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC9 — Native"               --notes-file docs/releases/2.1.1-rc.9.md               --prerelease
+            gh release create "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC10 — Native"               --notes-file docs/releases/2.1.1-rc.10.md               --prerelease
+          fi
+
+          gh release upload "$TAG" dist/* --clobber
+ ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
+          grep -q '^version = "2.1.1-rc.10"
+          for attempt in $(seq 1 45); do
+            audit="$(gh run list --workflow 'Ghost FTP quality' --commit "$MAIN_SHA" --limit 1 --json status,conclusion --jq '.[0] | ((.status // "") + ":" + (.conclusion // ""))' || true)"
+            echo "source audit for $MAIN_SHA: ${audit:-not-found}"
+            if [ "$audit" = "completed:success" ]; then
+              echo "MAIN_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
+              break
+            fi
+            if [[ "$audit" == completed:* ]] && [ "$audit" != "completed:success" ]; then
+              echo "Source audit did not pass."
+              exit 1
+            fi
+            if [ "$attempt" -eq 45 ]; then
+              echo "Timed out waiting for source audit."
+              exit 1
+            fi
+            sleep 20
+          done
+
+      - name: Package source and documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/native
+
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC10-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+
+      - name: Download successful native build artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "${{ github.event.workflow_run.id }}" -D dist/native
+          find dist/native -type f -print
+
+      - name: Normalize platform artifact names
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          WIN_EXE="$(find dist/native -type f -iname 'ghostftp.exe' | head -n1 || true)"
+          WIN_SETUP="$(find dist/native -type f -iname '*setup.exe' | head -n1 || true)"
+          LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
+          APPIMAGE="$(find dist/native -type f -iname '*.AppImage' | head -n1 || true)"
+          DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
+          RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
+
+          test -n "$WIN_EXE"
+          test -n "$WIN_SETUP"
+          test -n "$LINUX_BIN"
+          test -n "$APPIMAGE"
+          test -n "$DEB"
+          test -n "$RPM"
+
+          cp "$WIN_EXE" dist/GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe
+          cp "$WIN_SETUP" dist/GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe
+          cp "$LINUX_BIN" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10
+          chmod +x dist/GhostFTP-Linux-x86_64-v2.1.1-RC10
+          cp "$APPIMAGE" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10.AppImage
+          cp "$DEB" dist/GhostFTP-Linux-amd64-v2.1.1-RC10.deb
+          cp "$RPM" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10.rpm
+
+          (
+            cd dist
+            zip -q GhostFTP-Windows-x64-v2.1.1-RC10.zip               GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe               GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe
+            tar -czf GhostFTP-Linux-x86_64-v2.1.1-RC10.tar.gz               GhostFTP-Linux-x86_64-v2.1.1-RC10               GhostFTP-Linux-x86_64-v2.1.1-RC10.AppImage               GhostFTP-Linux-amd64-v2.1.1-RC10.deb               GhostFTP-Linux-x86_64-v2.1.1-RC10.rpm
+          )
+
+          rm -rf dist/native
+
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd dist
+            find . -maxdepth 1 -type f ! -name 'GhostFTP-v2.1.1-RC10-SHA256SUMS.txt' -printf '%f\0' |
+              sort -z |
+              xargs -0 sha256sum
+          ) > dist/GhostFTP-v2.1.1-RC10-SHA256SUMS.txt
+
+      - name: Publish RC10 pre-release and retain older releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v2.1.1-rc.10"
+          MAIN_SHA="${MAIN_SHA:-$(git rev-parse HEAD)}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
+              gh release delete-asset "$TAG" "$asset" -y || true
+            done
+            gh release edit "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC10"               --notes-file docs/releases/2.1.1-rc.10.md               --prerelease
+          else
+            gh release create "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC10 — Native"               --notes-file docs/releases/2.1.1-rc.10.md               --prerelease
+          fi
+
+          gh release upload "$TAG" dist/* --clobber
+ ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
+          grep -q '^version = "2.1.1-rc.10"
+          for attempt in $(seq 1 45); do
+            audit="$(gh run list --workflow 'Ghost FTP quality' --commit "$MAIN_SHA" --limit 1 --json status,conclusion --jq '.[0] | ((.status // "") + ":" + (.conclusion // ""))' || true)"
+            echo "source audit for $MAIN_SHA: ${audit:-not-found}"
+            if [ "$audit" = "completed:success" ]; then
+              echo "MAIN_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
+              break
+            fi
+            if [[ "$audit" == completed:* ]] && [ "$audit" != "completed:success" ]; then
+              echo "Source audit did not pass."
+              exit 1
+            fi
+            if [ "$attempt" -eq 45 ]; then
+              echo "Timed out waiting for source audit."
+              exit 1
+            fi
+            sleep 20
+          done
+
+      - name: Package source and documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/native
+
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC10-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+
+      - name: Download successful native build artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "${{ github.event.workflow_run.id }}" -D dist/native
+          find dist/native -type f -print
+
+      - name: Normalize platform artifact names
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          WIN_EXE="$(find dist/native -type f -iname 'ghostftp.exe' | head -n1 || true)"
+          WIN_SETUP="$(find dist/native -type f -iname '*setup.exe' | head -n1 || true)"
+          LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
+          APPIMAGE="$(find dist/native -type f -iname '*.AppImage' | head -n1 || true)"
+          DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
+          RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
+
+          test -n "$WIN_EXE"
+          test -n "$WIN_SETUP"
+          test -n "$LINUX_BIN"
+          test -n "$APPIMAGE"
+          test -n "$DEB"
+          test -n "$RPM"
+
+          cp "$WIN_EXE" dist/GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe
+          cp "$WIN_SETUP" dist/GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe
+          cp "$LINUX_BIN" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10
+          chmod +x dist/GhostFTP-Linux-x86_64-v2.1.1-RC10
+          cp "$APPIMAGE" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10.AppImage
+          cp "$DEB" dist/GhostFTP-Linux-amd64-v2.1.1-RC10.deb
+          cp "$RPM" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10.rpm
+
+          (
+            cd dist
+            zip -q GhostFTP-Windows-x64-v2.1.1-RC10.zip               GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe               GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe
+            tar -czf GhostFTP-Linux-x86_64-v2.1.1-RC10.tar.gz               GhostFTP-Linux-x86_64-v2.1.1-RC10               GhostFTP-Linux-x86_64-v2.1.1-RC10.AppImage               GhostFTP-Linux-amd64-v2.1.1-RC10.deb               GhostFTP-Linux-x86_64-v2.1.1-RC10.rpm
+          )
+
+          rm -rf dist/native
+
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd dist
+            find . -maxdepth 1 -type f ! -name 'GhostFTP-v2.1.1-RC10-SHA256SUMS.txt' -printf '%f\0' |
+              sort -z |
+              xargs -0 sha256sum
+          ) > dist/GhostFTP-v2.1.1-RC10-SHA256SUMS.txt
+
+      - name: Publish RC10 pre-release and retain older releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v2.1.1-rc.10"
+          MAIN_SHA="${MAIN_SHA:-$(git rev-parse HEAD)}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
+              gh release delete-asset "$TAG" "$asset" -y || true
+            done
+            gh release edit "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC10"               --notes-file docs/releases/2.1.1-rc.10.md               --prerelease
+          else
+            gh release create "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC10 — Native"               --notes-file docs/releases/2.1.1-rc.10.md               --prerelease
+          fi
+
+          gh release upload "$TAG" dist/* --clobber
+ ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
+          grep -q '"version": "2.1.1-rc.10"' ghostftp-desktop/src-tauri/tauri.conf.json
+          grep -q 'PRODUCT_VERSION = "2.1.1-rc.10"' ghostftp-desktop/src/lib/release.ts
+          grep -q 'const version = "2.1.1-rc.10"' tools/ghostftp-runtime/main.go
+          grep -q 'const version = "2.1.1-rc.10"' tools/ghostftp-installer/main.go
+          grep -q '"version": "2.1.1-rc.10"' updates/channels/preview.template.json
+
+          for attempt in $(seq 1 45); do
+            audit="$(gh run list --workflow 'Ghost FTP quality' --commit "$MAIN_SHA" --limit 1 --json status,conclusion --jq '.[0] | ((.status // "") + ":" + (.conclusion // ""))' || true)"
+            echo "source audit for $MAIN_SHA: ${audit:-not-found}"
+            if [ "$audit" = "completed:success" ]; then
+              echo "MAIN_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
+              break
+            fi
+            if [[ "$audit" == completed:* ]] && [ "$audit" != "completed:success" ]; then
+              echo "Source audit did not pass."
+              exit 1
+            fi
+            if [ "$attempt" -eq 45 ]; then
+              echo "Timed out waiting for source audit."
+              exit 1
+            fi
+            sleep 20
+          done
+
+      - name: Package source and documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/native
+
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC10-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC10-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+
+      - name: Download successful native build artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "${{ github.event.workflow_run.id }}" -D dist/native
+          find dist/native -type f -print
+
+      - name: Normalize platform artifact names
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          WIN_EXE="$(find dist/native -type f -iname 'ghostftp.exe' | head -n1 || true)"
+          WIN_SETUP="$(find dist/native -type f -iname '*setup.exe' | head -n1 || true)"
+          LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
+          APPIMAGE="$(find dist/native -type f -iname '*.AppImage' | head -n1 || true)"
+          DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
+          RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
+
+          test -n "$WIN_EXE"
+          test -n "$WIN_SETUP"
+          test -n "$LINUX_BIN"
+          test -n "$APPIMAGE"
+          test -n "$DEB"
+          test -n "$RPM"
+
+          cp "$WIN_EXE" dist/GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe
+          cp "$WIN_SETUP" dist/GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe
+          cp "$LINUX_BIN" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10
+          chmod +x dist/GhostFTP-Linux-x86_64-v2.1.1-RC10
+          cp "$APPIMAGE" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10.AppImage
+          cp "$DEB" dist/GhostFTP-Linux-amd64-v2.1.1-RC10.deb
+          cp "$RPM" dist/GhostFTP-Linux-x86_64-v2.1.1-RC10.rpm
+
+          (
+            cd dist
+            zip -q GhostFTP-Windows-x64-v2.1.1-RC10.zip               GhostFTP-Windows-x64-Portable-v2.1.1-RC10.exe               GhostFTP-Windows-x64-Setup-v2.1.1-RC10.exe
+            tar -czf GhostFTP-Linux-x86_64-v2.1.1-RC10.tar.gz               GhostFTP-Linux-x86_64-v2.1.1-RC10               GhostFTP-Linux-x86_64-v2.1.1-RC10.AppImage               GhostFTP-Linux-amd64-v2.1.1-RC10.deb               GhostFTP-Linux-x86_64-v2.1.1-RC10.rpm
+          )
+
+          rm -rf dist/native
+
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd dist
+            find . -maxdepth 1 -type f ! -name 'GhostFTP-v2.1.1-RC10-SHA256SUMS.txt' -printf '%f\0' |
+              sort -z |
+              xargs -0 sha256sum
+          ) > dist/GhostFTP-v2.1.1-RC10-SHA256SUMS.txt
+
+      - name: Publish RC10 pre-release and retain older releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v2.1.1-rc.10"
+          MAIN_SHA="${MAIN_SHA:-$(git rev-parse HEAD)}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
+              gh release delete-asset "$TAG" "$asset" -y || true
+            done
+            gh release edit "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC10"               --notes-file docs/releases/2.1.1-rc.10.md               --prerelease
+          else
+            gh release create "$TAG"               --target "$MAIN_SHA"               --title "Ghost FTP 2.1.1 RC10 — Native"               --notes-file docs/releases/2.1.1-rc.10.md               --prerelease
           fi
 
           gh release upload "$TAG" dist/* --clobber
