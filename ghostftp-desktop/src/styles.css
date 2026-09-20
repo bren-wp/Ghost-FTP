@@ -2154,3 +2154,418 @@ body::after { opacity: 0.018; }
     min-width: 176px;
   }
 }
+
+
+/* ==========================================================================
+   RC11 acceptance geometry — production source, not screenshot simulation
+   Stabilizes the four-row File Manager chrome and standalone Ghost FTP views
+   against the approved 1290x852 references while remaining adaptive.
+   ========================================================================== */
+
+.ghost-app-shell {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ghost-app-header {
+  position: relative;
+  z-index: 30 !important;
+  flex: 0 0 auto;
+  min-width: 0;
+  overflow: visible !important;
+  background: #06182b;
+}
+
+.ghost-title-row {
+  height: 48px !important;
+  min-height: 48px !important;
+}
+.ghost-menu-row {
+  position: relative;
+  z-index: 44;
+  height: 44px !important;
+  min-height: 44px !important;
+  overflow: visible !important;
+}
+.ghost-menu {
+  display: flex !important;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: stretch;
+  flex-wrap: nowrap !important;
+  overflow: visible !important;
+}
+.ghost-menu-anchor {
+  flex: 0 0 auto;
+}
+.ghost-menu-anchor > button {
+  height: 100%;
+  white-space: nowrap;
+}
+.ghost-title-actions {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.ghost-quick-row {
+  position: relative;
+  z-index: 32;
+  display: grid !important;
+  grid-template-columns:
+    minmax(150px, 1.35fr)
+    minmax(145px, 1fr)
+    minmax(150px, 1fr)
+    minmax(92px, .45fr)
+    162px;
+  align-items: center;
+  column-gap: 14px;
+  height: 56px !important;
+  min-height: 56px !important;
+  padding: 8px 16px !important;
+  overflow: visible !important;
+}
+.ghost-quick-row > label {
+  min-width: 0;
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  white-space: nowrap;
+}
+.ghost-quick-row > label > input {
+  min-width: 0;
+  width: 100% !important;
+  height: 36px;
+}
+.ghost-port-field {
+  grid-template-columns: auto minmax(64px,1fr) !important;
+}
+.ghost-quick-connect {
+  width: 162px !important;
+  min-width: 162px !important;
+  flex-basis: 162px !important;
+  justify-self: start;
+}
+
+.ghost-toolbar-row {
+  position: relative;
+  z-index: 25;
+  height: 60px !important;
+  min-height: 60px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none;
+}
+.ghost-toolbar-row::-webkit-scrollbar { display: none; }
+.ghost-tool-button {
+  min-width: 82px;
+  height: 60px !important;
+  flex: 0 0 82px;
+}
+.ghost-sites-toolbar-head {
+  width: 214px !important;
+  min-width: 214px !important;
+  flex: 0 0 214px !important;
+}
+
+.ghost-main-workspace {
+  min-height: 0;
+  overflow: hidden;
+}
+.ghost-bottom-band {
+  flex: 0 0 clamp(172px, 24dvh, 214px) !important;
+  min-height: 172px !important;
+  max-height: 214px !important;
+}
+
+/* True modal geometry. New Connection must size to its content instead of
+   manufacturing the large dead region seen in the failed acceptance capture. */
+.fixed.inset-0.z-modal {
+  overflow: hidden;
+}
+.ghost-new-connection-dialog {
+  width: min(752px, calc(100vw - 32px)) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: min(628px, calc(100dvh - 32px)) !important;
+}
+.ghost-new-connection-head {
+  min-height: 72px;
+}
+.ghost-new-connection-body {
+  flex: 0 1 auto !important;
+  max-height: calc(100dvh - 248px);
+  scrollbar-gutter: stable;
+}
+.ghost-new-connection-actions {
+  min-height: 64px;
+}
+.ghost-ref-field input,
+.ghost-ref-field select,
+.ghost-ref-input {
+  min-height: 38px;
+}
+
+/* Standalone application surfaces replace the File Manager chrome entirely. */
+.ghost-standalone-view {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.ghost-standalone-titlebar {
+  height: 52px !important;
+  min-height: 52px !important;
+}
+.ghost-standalone-menubar {
+  height: 42px !important;
+  min-height: 42px !important;
+}
+.ghost-site-manager,
+.ghost-preferences,
+.ghost-transfer-center,
+.ghost-about {
+  min-width: 0;
+  min-height: 0;
+}
+
+.ghost-site-manager-hero {
+  height: 74px !important;
+  min-height: 74px !important;
+}
+.ghost-site-manager-workspace {
+  min-height: 0;
+}
+.ghost-site-manager-nav {
+  width: 228px;
+}
+.ghost-site-manager-details {
+  width: auto;
+}
+
+.ghost-preferences-heading,
+.ghost-transfer-center-heading {
+  height: 76px !important;
+  min-height: 76px !important;
+}
+.ghost-preferences-content {
+  padding: 14px 16px 16px !important;
+}
+.ghost-preferences-content > .grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px !important;
+}
+.ghost-preferences-content section {
+  min-width: 0;
+  padding: 14px !important;
+}
+
+.ghost-about-content {
+  padding: 18px !important;
+}
+.ghost-about-grid {
+  width: min(100%, 1080px);
+  margin: 0 auto;
+  align-items: start;
+}
+.ghost-about-hero {
+  min-height: 220px !important;
+}
+.ghost-about-nav {
+  width: 206px !important;
+  min-width: 206px !important;
+}
+
+.ghost-transfer-center {
+  min-height: 0;
+}
+.ghost-transfer-filters {
+  flex: 0 0 auto;
+  min-height: 52px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.ghost-transfer-summary-grid,
+.ghost-transfer-lower-grid {
+  flex: 0 0 auto;
+}
+.ghost-transfer-summary-grid {
+  min-height: 190px;
+}
+.ghost-transfer-lower-grid {
+  min-height: 164px;
+}
+
+/* 1024-class windows: preserve all controls, reduce them before allowing
+   component-local scrolling. */
+@media (max-width: 1120px) {
+  .ghost-quick-row {
+    grid-template-columns:
+      minmax(130px, 1.25fr)
+      minmax(126px, .9fr)
+      minmax(132px, .95fr)
+      minmax(78px, .4fr)
+      142px;
+    column-gap: 9px;
+    padding-inline: 10px !important;
+  }
+  .ghost-quick-connect {
+    width: 142px !important;
+    min-width: 142px !important;
+    flex-basis: 142px !important;
+  }
+  .ghost-tool-button {
+    min-width: 72px;
+    flex-basis: 72px;
+  }
+  .ghost-sites-toolbar-head {
+    width: 184px !important;
+    min-width: 184px !important;
+    flex-basis: 184px !important;
+  }
+  .ghost-site-manager > .grid {
+    grid-template-columns: 190px minmax(420px,1fr) 300px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .ghost-menu-row {
+    padding-inline: 4px !important;
+  }
+  .ghost-menu > .ghost-menu-anchor > button {
+    padding-inline: 7px !important;
+    font-size: 11px !important;
+  }
+  .ghost-title-actions .ghost-mini-button {
+    width: 34px;
+    min-width: 34px;
+    padding-inline: 0;
+    justify-content: center;
+  }
+  .ghost-title-actions .ghost-mini-button span {
+    display: none;
+  }
+  .ghost-language-menu select {
+    width: 112px !important;
+    min-width: 112px !important;
+  }
+  .ghost-quick-row {
+    grid-template-columns: minmax(128px,1fr) minmax(120px,.85fr) minmax(128px,.9fr) 72px 128px;
+  }
+  .ghost-quick-row > label {
+    grid-template-columns: 1fr !important;
+    gap: 3px;
+    font-size: 10px;
+  }
+  .ghost-quick-connect {
+    width: 128px !important;
+    min-width: 128px !important;
+    flex-basis: 128px !important;
+    align-self: end;
+  }
+  .ghost-toolbar-row {
+    height: 56px !important;
+    min-height: 56px !important;
+  }
+  .ghost-tool-button {
+    height: 56px !important;
+    min-width: 66px;
+    flex-basis: 66px;
+  }
+  .ghost-sites-toolbar-head {
+    width: 156px !important;
+    min-width: 156px !important;
+    flex-basis: 156px !important;
+  }
+  .ghost-about-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .ghost-title-row {
+    height: 46px !important;
+    min-height: 46px !important;
+  }
+  .ghost-menu-row {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+  .ghost-menu {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    scrollbar-width: none;
+  }
+  .ghost-menu::-webkit-scrollbar { display: none; }
+  .ghost-title-actions {
+    padding-left: 4px;
+    background: #071a2e;
+  }
+  .ghost-quick-row {
+    display: flex !important;
+    height: 54px !important;
+    min-height: 54px !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    gap: 8px !important;
+  }
+  .ghost-quick-row > label {
+    flex: 0 0 142px;
+  }
+  .ghost-port-field {
+    flex-basis: 74px !important;
+  }
+  .ghost-quick-connect {
+    flex: 0 0 126px !important;
+  }
+  .ghost-preferences-nav,
+  .ghost-about-nav {
+    width: 150px !important;
+    min-width: 150px !important;
+  }
+  .ghost-preferences-content > .grid {
+    grid-template-columns: 1fr !important;
+  }
+  .ghost-transfer-summary-grid,
+  .ghost-transfer-lower-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .ghost-transfer-summary-grid,
+  .ghost-transfer-lower-grid {
+    min-height: auto;
+  }
+  .ghost-new-connection-dialog {
+    width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
+  }
+  .ghost-new-connection-body {
+    max-height: calc(100dvh - 220px);
+  }
+}
+
+@media (max-width: 540px) {
+  .ghost-standalone-suffix {
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ghost-new-connection-head {
+    padding: 12px !important;
+  }
+  .ghost-new-connection-mode {
+    padding-inline: 12px !important;
+  }
+  .ghost-new-connection-body {
+    padding: 12px !important;
+  }
+  .ghost-new-connection-actions {
+    padding: 10px 12px !important;
+  }
+  .ghost-new-connection-body .grid {
+    grid-template-columns: 1fr !important;
+  }
+}
