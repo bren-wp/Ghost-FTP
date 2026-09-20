@@ -17,6 +17,12 @@ RC9 continues the existing Ghost FTP production source. The production GUI remai
 - Removed an unused Rust agent-service constant.
 - Removed a redundant earlier dark-theme token block that was fully overridden by the canonical Ghost FTP visual-system block.
 - Kept release-critical source paths stable while improving documentation and downloadable artifact naming to avoid breaking imports, build scripts or Tauri configuration.
+- Corrected Transfer Queue UX/state bugs around completed, skipped and canceled transfers.
+- Replaced dynamic inline-width transfer progress with a semantic `progress` element and centralized CSS styling.
+- Validated transfer throttle input before persisting/applying it.
+- Exposed previously implemented but hidden file-browser/transfer preferences in the Preferences UI.
+- Website timer cleanup now stops background interval work after reaching its final state and respects reduced-motion preferences.
+
 
 ## CI quality gates
 
