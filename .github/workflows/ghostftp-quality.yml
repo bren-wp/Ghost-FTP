@@ -27,14 +27,14 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: desktop-tauri/package-lock.json
+          cache-dependency-path: ghostftp-desktop/package-lock.json
 
       - name: Reject legacy/demo branding
         shell: bash
         run: |
           set -euo pipefail
           ! grep -RniE 'Faro|example\.com|Production Server|Staging Server|Design Assets|Cloud Server|C:\\Users\\Alex' \
-            desktop-tauri/src desktop-tauri/src-tauri runtime installer website \
+            ghostftp-desktop/src ghostftp-desktop/src-tauri runtime installer website \
             --exclude-dir=node_modules --exclude-dir=target
 
       - name: Runtime checks
@@ -50,8 +50,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p installer/payload
-          : > installer/payload/GhostFTP.exe
+          mkdir -p ghostftp-installer/payload
+          : > ghostftp-installer/payload/GhostFTP.exe
           cd installer
           go test ./...
           go vet ./...
@@ -61,7 +61,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --check website/assets/site.js
+          node --check ghostftp-web/assets/site.js
           python - <<'PY'
           from html.parser import HTMLParser
           from pathlib import Path
@@ -85,14 +85,14 @@ jobs:
               parser.feed(path.read_text(encoding="utf-8"))
 
           required = [
-              Path("website/assets/ghostftp-symbol.svg"),
-              Path("website/assets/icons/download.svg"),
-              Path("website/assets/icons/features.svg"),
-              Path("website/assets/icons/security.svg"),
-              Path("website/assets/icons/help.svg"),
-              Path("website/assets/icons/speed.svg"),
-              Path("website/assets/icons/privacy.svg"),
-              Path("website/assets/icons/globe.svg"),
+              Path("ghostftp-web/assets/ghostftp-symbol.svg"),
+              Path("ghostftp-web/assets/icons/download.svg"),
+              Path("ghostftp-web/assets/icons/features.svg"),
+              Path("ghostftp-web/assets/icons/security.svg"),
+              Path("ghostftp-web/assets/icons/help.svg"),
+              Path("ghostftp-web/assets/icons/speed.svg"),
+              Path("ghostftp-web/assets/icons/privacy.svg"),
+              Path("ghostftp-web/assets/icons/globe.svg"),
           ]
           for path in required:
               if not path.is_file() or path.stat().st_size == 0:
@@ -103,7 +103,7 @@ jobs:
           PY
 
       - name: Native frontend typecheck and production build
-        working-directory: desktop-tauri
+        working-directory: ghostftp-desktop
         shell: bash
         run: |
           set -euo pipefail
@@ -123,7 +123,7 @@ jobs:
 
       - uses: swatinem/rust-cache@v2
         with:
-          workspaces: desktop-tauri/src-tauri
+          workspaces: ghostftp-desktop/src-tauri
 
       - name: Linux desktop prerequisites
         shell: bash
@@ -135,21 +135,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p desktop-tauri/dist
-          printf '<!doctype html><html><body></body></html>\n' > desktop-tauri/dist/index.html
+          mkdir -p ghostftp-desktop/dist
+          printf '<!doctype html><html><body></body></html>\n' > ghostftp-desktop/dist/index.html
 
       - name: Rust formatting
-        working-directory: desktop-tauri/src-tauri
+        working-directory: ghostftp-desktop/src-tauri
         run: cargo fmt --all -- --check
 
       - name: Rust workspace check
-        working-directory: desktop-tauri/src-tauri
+        working-directory: ghostftp-desktop/src-tauri
         run: cargo check --workspace --all-targets
 
       - name: Rust workspace tests
-        working-directory: desktop-tauri/src-tauri
+        working-directory: ghostftp-desktop/src-tauri
         run: cargo test --workspace
 
       - name: Clippy
-        working-directory: desktop-tauri/src-tauri
+        working-directory: ghostftp-desktop/src-tauri
         run: cargo clippy --workspace --all-targets -- -D warnings
