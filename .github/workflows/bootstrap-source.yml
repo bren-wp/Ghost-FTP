@@ -1,0 +1,43 @@
+name: Bootstrap Ghost FTP RC6 source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "bootstrap/READY"
+
+permissions:
+  contents: write
+
+jobs:
+  extract-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reassemble source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat bootstrap/source.part.*.b64 | base64 -d > /tmp/ghostftp-source.tar.xz
+          echo "8291c7a62d446be3728a4e805974a5aa78f00e96eb07512530ac0cece7f4cb0e  /tmp/ghostftp-source.tar.xz" | sha256sum -c -
+      - name: Extract current Ghost FTP source
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -xJf /tmp/ghostftp-source.tar.xz
+          rm -rf bootstrap
+      - name: Commit reconstructed source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Brendigo"
+          git config user.email "info@brendigo.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No source changes to commit."
+            exit 0
+          fi
+          git commit -m "Import Ghost FTP 2.1.1 RC6 source"
+          git push
