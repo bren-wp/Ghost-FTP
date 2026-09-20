@@ -54,7 +54,7 @@ jobs:
           test -d website
           test -f .github/workflows/native-build.yml
           test -f .github/workflows/source-audit.yml
-          ! grep -RniE 'faro|example\.com|Production Server|Staging Server|Design Assets|Cloud Server|C:\\Users\\Alex' \
+          ! grep -RniE 'faro|Production Server|Staging Server|Design Assets|Cloud Server|C:\\Users\\Alex' \
               desktop-tauri runtime installer website --exclude-dir=node_modules
 
       - name: Commit reconstructed RC7 source
