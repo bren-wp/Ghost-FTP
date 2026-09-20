@@ -34,7 +34,7 @@ import { ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
 import { useDialog } from "@/hooks/useDialog";
 
 interface Props { onClose: () => void }
-type Section = "general" | "appearance" | "transfers" | "terminal" | "connection" | "security" | "updates" | "integrations" | "shortcuts" | "language";
+type Section = "general" | "appearance" | "transfers" | "connection" | "security" | "updates" | "integrations" | "shortcuts" | "language";
 
 export function Settings({ onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -68,7 +68,6 @@ export function Settings({ onClose }: Props) {
           <Nav section="general" current={section} set={setSection} icon={<Settings2/>} label="General"/>
           <Nav section="appearance" current={section} set={setSection} icon={<Monitor/>} label="Appearance"/>
           <Nav section="transfers" current={section} set={setSection} icon={<ArrowDownUp/>} label="Transfers"/>
-          <Nav section="terminal" current={section} set={setSection} icon={<TerminalSquare/>} label="Terminal"/>
           <Nav section="connection" current={section} set={setSection} icon={<Wifi/>} label="Connection"/>
           <Nav section="security" current={section} set={setSection} icon={<ShieldCheck/>} label="Security"/>
           <Nav section="updates" current={section} set={setSection} icon={<RefreshCw/>} label="Updates"/>
@@ -89,7 +88,6 @@ export function Settings({ onClose }: Props) {
             {section === "general" && <GeneralGrid locale={pendingLocale} setLocale={setPendingLocale}/>}
             {section === "appearance" && <AppearancePanel/>}
             {section === "transfers" && <TransfersPanel/>}
-            {section === "terminal" && <TerminalPanel/>}
             {section === "connection" && <ConnectionPanel/>}
             {section === "security" && <SecurityPanel/>}
             {section === "updates" && <UpdatesPanel/>}
@@ -380,11 +378,10 @@ function IntegrationsCard() {
 
 function AppearancePanel(){return <div className="max-w-3xl"><AppearanceCard/></div>}
 function TransfersPanel(){return <div className="grid max-w-4xl grid-cols-2 gap-4"><PerformanceCard/><TransfersCard/></div>}
-function TerminalPanel(){return <div className="max-w-3xl"><TerminalCard/></div>}
 function ConnectionPanel(){return <div className="max-w-3xl"><ConnectionCard/></div>}
 function SecurityPanel(){return <div className="max-w-3xl"><SecurityCard/></div>}
 function UpdatesPanel(){return <div className="max-w-3xl"><UpdatesCard/></div>}
-function IntegrationsPanel(){return <div className="max-w-3xl"><IntegrationsCard/></div>}
+function IntegrationsPanel(){return <div className="grid max-w-4xl grid-cols-2 gap-4"><IntegrationsCard/><TerminalCard/></div>}
 function LanguagePanel({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }){return <div className="max-w-3xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
 function ShortcutsPanel(){return <Card icon={<Keyboard size={20}/>} title="Keyboard Shortcuts" subtitle="Core Ghost FTP shortcuts."><div className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-[12px]"><span>New connection</span><kbd>Ctrl + N</kbd><span>Settings</span><kbd>Ctrl + ,</kbd><span>Transfer queue</span><kbd>Ctrl + Shift + T</kbd><span>Command palette</span><kbd>Ctrl + K</kbd></div></Card>}
 
