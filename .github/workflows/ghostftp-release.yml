@@ -77,7 +77,7 @@ jobs:
 
           git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC9-Source.zip HEAD
           zip -qr dist/GhostFTP-v2.1.1-RC9-Desktop-Source.zip ghostftp-desktop
-          zip -qr dist/GhostFTP-v2.1.1-RC9-Web.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC9-Web.zip ghostftp-web
           zip -qr dist/GhostFTP-v2.1.1-RC9-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
 
       - name: Download successful native build artifacts
