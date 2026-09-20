@@ -78,8 +78,6 @@ export interface ConnectionProfile {
   color?: string;
   /** Connect automatically on app launch (and on a single click in the rail). */
   autoConnect?: boolean;
-  /** FTP/FTPS data-channel mode. Omitted/true = passive; false = active. */
-  ftpPassive?: boolean;
   // Object-store fields (used when protocol === "s3" or "azure").
   bucket?: string; // bucket (S3) or container (Azure)
   region?: string;
