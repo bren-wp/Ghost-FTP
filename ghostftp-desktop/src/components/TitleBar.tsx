@@ -222,6 +222,7 @@ export function TitleBar() {
                 if (event.key === "ArrowDown") { event.preventDefault(); openMenuFromKeyboard(name); }
                 else if (event.key === "ArrowRight" || event.key === "ArrowLeft") { event.preventDefault(); moveTopMenu(name, event.key === "ArrowRight" ? 1 : -1); }
               }}
+              onPointerEnter={() => { if (menu && menu !== name) setMenu(name); }}
               onClick={() => setMenu((value) => value === name ? null : name)}
             >
               {name}
@@ -268,7 +269,7 @@ export function TitleBar() {
         <button className="ghost-sites-toolbar-title" onClick={() => openDialog("siteManager")}><span className="ghost-sites-ring">◉</span><span>Sites</span></button>
         <span/>
         <button aria-label="New site" title="New site" onClick={() => openNewConnection()}>＋</button>
-        <button aria-label="Site Manager" title="Site Manager" onClick={() => openDialog("siteManager")}>×</button>
+        <button aria-label="Open Site Manager" title="Open Site Manager" onClick={() => openDialog("siteManager")}><ChevronDown size={14}/></button>
       </div>
       <Tool icon={<Link2 size={17}/>} label="Connect" onClick={() => openNewConnection()}/>
       <Tool icon={<X size={17}/>} label="Disconnect" disabled={!activeSessionId} onClick={() => void disconnect()}/>
