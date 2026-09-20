@@ -1,6 +1,6 @@
 # Ghost FTP — Recommended Next Work
 
-This is the prioritized improvement backlog after Ghost FTP 2.1.1 RC9. Items here are recommendations, not claims of completed functionality.
+This is the prioritized improvement backlog after Ghost FTP 2.1.1 RC10. Items here are recommendations, not claims of completed functionality.
 
 ## Release blockers before FINAL
 
