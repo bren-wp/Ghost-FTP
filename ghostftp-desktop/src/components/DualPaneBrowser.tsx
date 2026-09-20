@@ -89,7 +89,7 @@ export function DualPaneBrowser() {
       <div className="ghost-pane-separator" aria-hidden="true" />
       <FilePane
         paneId="remote"
-        title={profile ? `Remote Server — ${profile.name}` : "Remote Server"}
+        title="Remote Server"
         sessionId={activeSessionId}
         path={remotePath}
         onPathChange={setRemotePath}
