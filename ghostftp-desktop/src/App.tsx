@@ -36,7 +36,6 @@ import { applyTransferEngineSettings, useSettings } from "./stores/settingsStore
 import { onDeepLink } from "./lib/ipc";
 import { runDefaultBumps, runSettingsMigration } from "./lib/secretMigration";
 import { initNotifications } from "./lib/notifications";
-import { openTerminalWindow } from "./lib/popout";
 import { toast } from "./stores/toastStore";
 import type { DeepLink, Protocol, ConnectionProfile } from "./lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "./lib/types";
@@ -600,8 +599,9 @@ function PillButton({
 /// opens the New Connection editor prefilled. Never auto-connects — the user
 /// reviews the target and clicks Connect / Pair, because any web page can fire
 /// a protocol handler. `ghostftp://terminal` is the one shortcut: if the named
-/// server is ALREADY connected it opens a standalone terminal window for it
-/// (no new connection is ever made), otherwise it falls back to the editor.
+/// server is ALREADY connected it focuses that session and opens the terminal
+/// dock inside the existing Ghost FTP window (no second app window and no new
+/// connection is ever made); otherwise it falls back to the editor.
 function DeepLinkListener() {
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const openGrant = useLayout((s) => s.openGrant);
@@ -632,10 +632,10 @@ function DeepLinkListener() {
           ? sessions.find((s) => s.profileId === match.id)
           : undefined;
         if (match && live && match.protocol === "sftp") {
-          void openTerminalWindow({
-            sessionId: live.sessionId,
-            title: match.name,
-          }).catch((e) => toast.error("Terminal window failed", String(e)));
+          useConnections.getState().setActiveSession(live.sessionId);
+          useLayout.getState().closeDialog();
+          useLayout.getState().setTerminalOpen(true);
+          toast.info("Terminal ready", match.name);
           return;
         }
         if (match && live) {
@@ -650,7 +650,7 @@ function DeepLinkListener() {
         openNewConnection(deepLinkToPrefill(dl));
         toast.warning(
           "Server not connected",
-          "Connect it first, then the terminal link can open a shell."
+          "Connect it first, then the terminal link can open the in-app shell."
         );
         return;
       }
