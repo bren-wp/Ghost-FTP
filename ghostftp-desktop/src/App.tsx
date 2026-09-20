@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ReferenceSiteSidebar } from "./components/ReferenceSiteSidebar";
 import { ReferenceStatusBar } from "./components/ReferenceStatusBar";
 import { DualPaneBrowser } from "./components/DualPaneBrowser";
@@ -8,16 +8,9 @@ import { TerminalDock } from "./components/Terminal";
 import { TransferQueue } from "./components/TransferQueue";
 import { CliUpdatePrompt } from "./components/CliUpdatePrompt";
 import { UpdatePrompt } from "./components/UpdatePrompt";
-import { Settings } from "./components/Settings";
 import { HostKeyModal } from "./components/HostKeyModal";
 import { AuthPromptModal } from "./components/AuthPromptModal";
 import { TitleBar } from "./components/TitleBar";
-import { QuickConnectionDialog } from "./components/QuickConnectionDialog";
-import { SiteManagerDialog } from "./components/SiteManagerDialog";
-import { TransferCenterDialog } from "./components/TransferCenterDialog";
-import { GrantDialog } from "./components/GrantDialog";
-import { ImportDialog } from "./components/ImportDialog";
-import { AboutDialog } from "./components/AboutDialog";
 import { useConnections } from "./stores/connectionsStore";
 import { useTransfers } from "./stores/transfersStore";
 import { useLayout } from "./stores/layoutStore";
@@ -64,6 +57,41 @@ import { SnippetsHost } from "./components/SnippetsPanel";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { relTime } from "./lib/format";
 import { cn } from "./lib/cn";
+
+const Settings = lazy(() =>
+  import("./components/Settings").then((module) => ({ default: module.Settings }))
+);
+const QuickConnectionDialog = lazy(() =>
+  import("./components/QuickConnectionDialog").then((module) => ({
+    default: module.QuickConnectionDialog,
+  }))
+);
+const SiteManagerDialog = lazy(() =>
+  import("./components/SiteManagerDialog").then((module) => ({
+    default: module.SiteManagerDialog,
+  }))
+);
+const TransferCenterDialog = lazy(() =>
+  import("./components/TransferCenterDialog").then((module) => ({
+    default: module.TransferCenterDialog,
+  }))
+);
+const GrantDialog = lazy(() =>
+  import("./components/GrantDialog").then((module) => ({
+    default: module.GrantDialog,
+  }))
+);
+const ImportDialog = lazy(() =>
+  import("./components/ImportDialog").then((module) => ({
+    default: module.ImportDialog,
+  }))
+);
+const AboutDialog = lazy(() =>
+  import("./components/AboutDialog").then((module) => ({
+    default: module.AboutDialog,
+  }))
+);
+
 
 export default function App() {
   const activeSessionId = useConnections((s) => s.activeSessionId);
@@ -128,15 +156,22 @@ export default function App() {
       <div className="ghost-app-shell flex h-full w-full flex-col">
       <TitleBar />
       <DeepLinkListener />
-      {dialog === "settings" && <Settings onClose={closeDialog} />}
-      {dialog === "newConnection" && (
-        <QuickConnectionDialog prefill={connectionPrefill} onClose={closeDialog} />
-      )}
-      {dialog === "siteManager" && <SiteManagerDialog onClose={closeDialog} />}
-      {dialog === "transferCenter" && <TransferCenterDialog onClose={closeDialog} />}
-      {dialog === "import" && <ImportDialog onClose={closeDialog} />}
-      {dialog === "grant" && <GrantDialog onClose={closeDialog} />}
-      {dialog === "about" && <AboutDialog onClose={closeDialog} />}
+      <Suspense fallback={<DialogLoading />}>
+        {dialog === "settings" && <Settings onClose={closeDialog} />}
+        {dialog === "newConnection" && (
+          <QuickConnectionDialog
+            prefill={connectionPrefill}
+            onClose={closeDialog}
+          />
+        )}
+        {dialog === "siteManager" && <SiteManagerDialog onClose={closeDialog} />}
+        {dialog === "transferCenter" && (
+          <TransferCenterDialog onClose={closeDialog} />
+        )}
+        {dialog === "import" && <ImportDialog onClose={closeDialog} />}
+        {dialog === "grant" && <GrantDialog onClose={closeDialog} />}
+        {dialog === "about" && <AboutDialog onClose={closeDialog} />}
+      </Suspense>
       {dialog === "agentBridge" && <AgentBridge onClose={closeDialog} />}
       <HostKeyModal />
       <AuthPromptModal />
@@ -183,6 +218,20 @@ export default function App() {
       <CliUpdatePrompt />
       <ReferenceStatusBar />
       </div>
+  );
+}
+
+function DialogLoading() {
+  return (
+    <div
+      className="fixed inset-0 z-modal grid place-items-center bg-[#041425]/95"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="rounded-lg border border-border bg-bg-panel px-5 py-3 text-sm text-text-muted shadow-elev-3">
+        Opening Ghost FTP view…
+      </div>
+    </div>
   );
 }
 

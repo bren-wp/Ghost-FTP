@@ -27,6 +27,7 @@ interface ConnectionsState {
 
   loadProfiles: () => Promise<void>;
   saveProfile: (p: ConnectionProfile) => Promise<void>;
+  duplicateProfile: (id: string) => Promise<ConnectionProfile>;
   /** Save several profiles with a single reload at the end (group rename etc). */
   saveProfiles: (ps: ConnectionProfile[]) => Promise<void>;
   /** Persist a drag-and-drop rail order (every profile id, display order).
@@ -68,6 +69,12 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
   saveProfile: async (p) => {
     await ipc.saveProfile(p);
     await get().loadProfiles();
+  },
+
+  duplicateProfile: async (id) => {
+    const duplicated = await ipc.duplicateProfile(id);
+    await get().loadProfiles();
+    return duplicated;
   },
 
   saveProfiles: async (ps) => {

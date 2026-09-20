@@ -152,6 +152,58 @@ pub async fn reorder_profiles(ids: Vec<String>, state: State<'_, AppState>) -> R
 }
 
 #[tauri::command]
+pub async fn duplicate_profile(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<ConnectionProfile, String> {
+    let mut profile = state
+        .profiles
+        .get(&id)
+        .await
+        .map_err(err)?
+        .ok_or_else(|| format!("profile {id} not found"))?;
+
+    if !matches!(profile.protocol.as_str(), "sftp" | "ssh" | "ftp" | "ftps") {
+        return Err(format!(
+            "Duplicate is not available for {} profiles because their authorization is account-bound. Create a new profile instead.",
+            profile.protocol.to_uppercase()
+        ));
+    }
+    if matches!(&profile.auth, AuthMethod::KeyRef { .. }) {
+        return Err(
+            "Duplicate is not available for grant-managed key profiles. Import or grant a separate profile instead."
+                .to_string(),
+        );
+    }
+
+    // Hydrate the original only inside Rust, then move the copied secret into a
+    // brand-new keychain entry before the duplicate metadata is persisted.
+    hydrate_profile_secrets(&mut profile).map_err(err)?;
+
+    let existing = state.profiles.list().await.map_err(err)?;
+    let base = format!("{} Copy", profile.name);
+    let mut name = base.clone();
+    let mut suffix = 2usize;
+    while existing
+        .iter()
+        .any(|candidate| candidate.name.eq_ignore_ascii_case(&name))
+    {
+        name = format!("{base} {suffix}");
+        suffix += 1;
+    }
+
+    profile.id = Uuid::new_v4().to_string();
+    profile.name = name;
+    profile.last_used = None;
+    profile.sort_order = None;
+    profile.favorite = Some(false);
+
+    protect_profile_secrets(&mut profile, &state)?;
+    state.profiles.upsert(profile.clone()).await.map_err(err)?;
+    Ok(profile)
+}
+
+#[tauri::command]
 pub async fn delete_profile(id: String, state: State<'_, AppState>) -> Result<(), String> {
     // Clean up any keychain-stored OAuth tokens for this profile.
     if let Ok(Some(p)) = state.profiles.get(&id).await {
@@ -224,6 +276,39 @@ pub async fn ssh_public_key_for(
 // ---------- Sessions ----------
 
 #[tauri::command]
+pub async fn test_profile_connection(
+    profile_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), GhostFTPError> {
+    let mut profile = state
+        .profiles
+        .get(&profile_id)
+        .await
+        .map_err(GhostFTPError::from)?
+        .ok_or_else(|| {
+            GhostFTPError::new(
+                ErrorKind::NotFound,
+                format!("profile {profile_id} not found"),
+            )
+        })?;
+
+    hydrate_profile_secrets(&mut profile)?;
+    let session_id = state
+        .sessions
+        .connect(profile, app)
+        .await
+        .map_err(GhostFTPError::from)?;
+
+    state
+        .sessions
+        .disconnect(&session_id)
+        .await
+        .map_err(GhostFTPError::from)?;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn connect(
     profile_id: String,
     app: AppHandle,
@@ -264,6 +349,26 @@ pub async fn connect(
         .on_session_connected(&session_id, &profile_id)
         .await;
     Ok(session_id)
+}
+
+#[tauri::command]
+pub async fn test_ephemeral_connection(
+    profile: ConnectionProfile,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), GhostFTPError> {
+    let session_id = state
+        .sessions
+        .connect(profile, app)
+        .await
+        .map_err(GhostFTPError::from)?;
+
+    state
+        .sessions
+        .disconnect(&session_id)
+        .await
+        .map_err(GhostFTPError::from)?;
+    Ok(())
 }
 
 #[tauri::command]

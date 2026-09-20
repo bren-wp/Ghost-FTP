@@ -24,8 +24,6 @@ export function PropertiesModal({ entry, sessionId, onClose, onApplied, onOpenCo
   const [mode, setMode] = useState(initialMode);
   const [tab, setTab] = useState<Tab>("general");
   const [recursive, setRecursive] = useState(false);
-  const [preserveTimestamps, setPreserveTimestamps] = useState(true);
-  const [includeSync, setIncludeSync] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checksum, setChecksum] = useState<string | null>(null);
@@ -86,7 +84,19 @@ export function PropertiesModal({ entry, sessionId, onClose, onApplied, onOpenCo
           <div className="my-4 border-t border-border"/>
           <div className="grid grid-cols-[92px_1fr] gap-y-2 text-[12px]"><span className="text-text-muted">Owner:</span><span>—</span><span className="text-text-muted">Group:</span><span>—</span></div>
           {entry.mode != null && <div className="mt-4 border-t border-border pt-4"><div className="mb-3 flex items-center"><strong>Permissions</strong><div className="flex-1"/><span className="mr-2 text-[11px] text-text-muted">Numeric (chmod):</span><input className="ghost-ref-input h-8 w-20" value={octal} onChange={(e) => setOctal(e.target.value)}/></div><div className="grid grid-cols-[1fr_66px_66px_66px] items-center gap-y-2 text-[12px]"><span/><span>Read</span><span>Write</span><span>Execute</span><PermRow label="Owner" bits={[256,128,64]} bit={bit} toggle={toggle}/><PermRow label="Group" bits={[32,16,8]} bit={bit} toggle={toggle}/><PermRow label="Others" bits={[4,2,1]} bit={bit} toggle={toggle}/></div></div>}
-          <div className="mt-4 border-t border-border pt-3"><div className="mb-2 text-[12px] font-semibold text-text-muted">Sync Options</div><CheckRow label="Apply permissions recursively to all files and folders" checked={recursive} onChange={setRecursive} disabled={!isDir || !fs.chmodRecursive}/><CheckRow label="Preserve timestamps during transfer" checked={preserveTimestamps} onChange={setPreserveTimestamps}/><CheckRow label="Include in synchronization" checked={includeSync} onChange={setIncludeSync}/></div>
+          <div className="mt-4 border-t border-border pt-3">
+            <div className="mb-2 text-[12px] font-semibold text-text-muted">Advanced</div>
+            {isDir && (
+              <CheckRow
+                label="Apply permissions recursively to all files and folders"
+                checked={recursive}
+                onChange={setRecursive}
+                disabled={!fs.chmodRecursive}
+              />
+            )}
+            <StatusRow label="Transfer timestamps" value="Controlled by the transfer backend" />
+            <StatusRow label="Synchronization" value="Configure inclusion in Sync settings" />
+          </div>
         </> : <div className="min-h-[360px]"><div className="mb-4 flex items-center gap-3"><div className="ghost-dialog-icon"><Hash size={20}/></div><div><div className="font-semibold">SHA-256</div><div className="text-[11px] text-text-muted">Calculate a cryptographic digest without inventing unsupported results.</div></div></div>{isDir ? <div className="rounded-md border border-border bg-[#051929] p-4 text-[12px] text-text-muted">Checksums are available for files only.</div> : <><button className="ghost-primary-button" disabled={checksumBusy || !fs.checksum} onClick={() => void calculateChecksum()}>{checksumBusy ? "Calculating…" : "Calculate SHA-256"}</button>{checksum && <div className="mt-4 break-all rounded-md border border-border bg-[#041522] p-3 font-mono text-[11px] text-success">{checksum}</div>}{!fs.checksum && <div className="mt-3 text-[11px] text-text-muted">This backend does not provide checksums.</div>}</>}</div>}
         {error && <div className="mt-4 rounded-md border border-danger/35 bg-danger/10 px-3 py-2 text-[11px] text-danger">{error}</div>}
       </div>
@@ -98,3 +108,4 @@ export function PropertiesModal({ entry, sessionId, onClose, onApplied, onOpenCo
 function Detail({label,children}:{label:string;children:React.ReactNode}) { return <label className="block"><span className="mb-1.5 block text-[10px] text-text-dim">{label}</span>{children}</label>; }
 function PermRow({label,bits,bit,toggle}:{label:string;bits:number[];bit:(n:number)=>boolean;toggle:(n:number)=>void}) { return <><span>{label}</span>{bits.map((b)=><span key={b}><input type="checkbox" checked={bit(b)} onChange={() => toggle(b)} className="h-4 w-4 accent-[#169cff]"/></span>)}</>; }
 function CheckRow({label,checked,onChange,disabled=false}:{label:string;checked:boolean;onChange:(v:boolean)=>void;disabled?:boolean}) { return <label className={`mb-2 flex items-center gap-2 text-[11.5px] ${disabled ? "opacity-45" : ""}`}><input type="checkbox" disabled={disabled} checked={checked} onChange={(e)=>onChange(e.target.checked)} className="h-4 w-4 accent-[#169cff]"/><span>{label}</span></label>; }
+function StatusRow({label,value}:{label:string;value:string}) { return <div className="mb-2 grid grid-cols-[132px_1fr] gap-3 text-[11px]"><span className="text-text-muted">{label}</span><span className="text-text-dim">{value}</span></div>; }

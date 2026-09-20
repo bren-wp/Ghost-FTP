@@ -18,6 +18,28 @@ export default defineConfig(() => ({
     },
   },
   clearScreen: false,
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("@xterm")) return "terminal-vendor";
+          if (id.includes("material-icon-theme")) return "file-icon-theme";
+          if (id.includes("@iconify")) return "icon-vendor";
+          if (id.includes("@tauri-apps")) return "tauri-vendor";
+          if (
+            id.includes("react-dom") ||
+            id.includes("/react/") ||
+            id.includes("\\react\\") ||
+            id.includes("zustand")
+          ) {
+            return "ui-vendor";
+          }
+          return undefined;
+        },
+      },
+    },
+  },
   server: {
     port: 1420,
     strictPort: true,

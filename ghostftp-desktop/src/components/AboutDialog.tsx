@@ -13,6 +13,7 @@ import { GhostMark } from "./GhostBrand";
 import { ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
 import { useUpdater } from "@/stores/updaterStore";
 import { PRODUCT_BUILD, PRODUCT_RELEASE_DATE, PRODUCT_SITE, PRODUCT_VERSION } from "@/lib/release";
+import { useDialog } from "@/hooks/useDialog";
 
 interface Props { onClose: () => void }
 
@@ -23,10 +24,12 @@ function external(path = "") {
 export function AboutDialog({ onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<"about" | "updates" | "help">("about");
+  useDialog(panelRef, { onClose });
+
   return (
     <div className="ghost-standalone-view fixed inset-0 z-modal bg-[#041425]" role="dialog" aria-modal="true">
       <div ref={panelRef} className="ghost-about flex h-full w-full flex-col overflow-hidden bg-bg-panel">
-        <ReferenceWindowTitlebar />
+        <ReferenceWindowTitlebar onClose={onClose} />
         <div className="ghost-about-body flex min-h-0 flex-1">
         <aside className="ghost-about-nav w-[214px] shrink-0 border-r border-border bg-[#061a2d] p-3">
           <AboutNav active={tab === "about"} icon={<Globe2 size={17}/>} label="About" onClick={() => setTab("about")} />
@@ -56,7 +59,7 @@ function AboutContent() {
       <section className="space-y-4">
         <div className="overflow-hidden rounded-lg border border-border bg-[#071f35]">
           <div className="relative flex min-h-52 items-center gap-8 overflow-hidden px-8 py-7">
-            <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(circle at 65% 35%, #1a78b8 0, transparent 45%), linear-gradient(135deg,#0a2c49,#071826)" }} />
+            <div className="ghost-about-hero-glow absolute inset-0 opacity-30" />
             <div className="relative flex h-28 w-28 items-center justify-center rounded-[2rem] bg-[#0b2b46]/70 shadow-[0_0_55px_rgba(58,181,255,.24)]"><GhostMark size={104}/></div>
             <div className="relative">
               <h2 className="text-[34px] font-semibold tracking-tight">Ghost FTP</h2>

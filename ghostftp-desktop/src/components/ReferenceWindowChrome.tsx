@@ -20,17 +20,29 @@ function windowAction(action: "minimize" | "maximize" | "close") {
   }
 }
 
-export function ReferenceWindowControls() {
+export function ReferenceWindowControls({ onClose }: { onClose?: () => void }) {
   return (
     <div className="ghost-window-controls">
       <button aria-label="Minimize" onClick={() => windowAction("minimize")}><Minus size={14}/></button>
       <button aria-label="Maximize or restore" onClick={() => windowAction("maximize")}><Square size={12}/></button>
-      <button className="danger" aria-label="Close" onClick={() => windowAction("close")}><X size={15}/></button>
+      <button
+        className="danger"
+        aria-label={onClose ? "Close view" : "Close Ghost FTP"}
+        onClick={() => onClose ? onClose() : windowAction("close")}
+      >
+        <X size={15}/>
+      </button>
     </div>
   );
 }
 
-export function ReferenceWindowTitlebar({ suffix }: { suffix?: string }) {
+export function ReferenceWindowTitlebar({
+  suffix,
+  onClose,
+}: {
+  suffix?: string;
+  onClose?: () => void;
+}) {
   return (
     <div className="ghost-standalone-titlebar" data-tauri-drag-region onDoubleClick={() => windowAction("maximize")}>
       <div className="ghost-standalone-brand" data-tauri-drag-region>
@@ -38,12 +50,12 @@ export function ReferenceWindowTitlebar({ suffix }: { suffix?: string }) {
         {suffix ? <span className="ghost-standalone-suffix">— {suffix}</span> : null}
       </div>
       <div className="ghost-window-title-spacer" data-tauri-drag-region />
-      <ReferenceWindowControls />
+      <ReferenceWindowControls onClose={onClose} />
     </div>
   );
 }
 
-export function ReferenceMenuRow() {
+export function ReferenceMenuRow({ onClose }: { onClose?: () => void } = {}) {
   const openDialog = useLayout((s) => s.openDialog);
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const [open, setOpen] = useState<string | null>(null);
@@ -54,7 +66,10 @@ export function ReferenceMenuRow() {
       { label: "New Connection…", run: () => openNewConnection() },
       { label: "Site Manager…", run: () => openDialog("siteManager") },
       { separator: true },
-      { label: "Close view", run: () => useLayout.getState().closeDialog() },
+      {
+        label: "Close view",
+        run: () => onClose ? onClose() : useLayout.getState().closeDialog(),
+      },
     ],
     Edit: [{ label: "Preferences…", run: () => openDialog("settings") }],
     View: [

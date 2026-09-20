@@ -53,6 +53,18 @@ jobs:
             ghostftp-desktop/src ghostftp-desktop/src-tauri tools/ghostftp-runtime tools/ghostftp-installer website \
             --exclude-dir=node_modules --exclude-dir=target
 
+      - name: Native window architecture guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())' ghostftp-desktop/src-tauri/src/lib.rs
+          grep -Fq '.inner_size(1290.0, 852.0)' ghostftp-desktop/src-tauri/src/lib.rs
+          grep -Fq '.min_inner_size(480.0, 600.0)' ghostftp-desktop/src-tauri/src/lib.rs
+          grep -Fq '.decorations(false)' ghostftp-desktop/src-tauri/src/lib.rs
+          ! grep -RniE 'http://127\\.0\\.0\\.1|browser shell' \
+            ghostftp-desktop/src ghostftp-desktop/src-tauri/src tools/ghostftp-runtime tools/ghostftp-installer \
+            --exclude-dir=target
+
       - name: Runtime checks
         shell: bash
         run: |
@@ -130,6 +142,7 @@ jobs:
         run: |
           set -euo pipefail
           npm ci
+          npm audit --omit=dev --audit-level=high
           npm run check:i18n
           npm run check
           npm run build

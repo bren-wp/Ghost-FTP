@@ -71,6 +71,9 @@ export const ipc = {
   saveProfile: (profile: ConnectionProfile) =>
     invoke<void>("save_profile", { profile }),
 
+  duplicateProfile: (id: string) =>
+    invoke<ConnectionProfile>("duplicate_profile", { id }),
+
   /** Persist a manual rail order: every profile id, in display order. */
   reorderProfiles: (ids: string[]) =>
     invoke<void>("reorder_profiles", { ids }),
@@ -90,6 +93,12 @@ export const ipc = {
    *  passphrase if the key is encrypted). */
   sshPublicKeyFor: (path: string, passphrase?: string) =>
     invoke<GeneratedKey>("ssh_public_key_for", { path, passphrase }),
+
+  testProfileConnection: (profileId: string) =>
+    invoke<void>("test_profile_connection", { profileId }),
+
+  testEphemeralConnection: (profile: ConnectionProfile) =>
+    invoke<void>("test_ephemeral_connection", { profile }),
 
   connect: (profileId: string) =>
     invoke<SessionId>("connect", { profileId }),

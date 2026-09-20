@@ -1,0 +1,219 @@
+name: Ghost FTP protocol E2E
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'ghostftp-desktop/src-tauri/**'
+      - '.github/workflows/ghostftp-protocol-e2e.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ghostftp-desktop/src-tauri/**'
+      - '.github/workflows/ghostftp-protocol-e2e.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-protocol-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-protocol-roundtrip:
+    name: Real FTP / FTPS / SFTP roundtrip
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ghostftp-desktop/src-tauri -> target
+
+      - name: Install native and protocol test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            openssh-server \
+            python3-pip \
+            netcat-openbsd \
+            ca-certificates \
+            openssl
+
+          python3 -m pip install --disable-pip-version-check --no-cache-dir pyftpdlib pyopenssl
+
+      - name: Prepare desktop frontendDist for Rust tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ghostftp-desktop/dist
+          printf '<!doctype html><html><body></body></html>\n' > ghostftp-desktop/dist/index.html
+
+      - name: Start real FTP, explicit FTPS and SFTP servers
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          USERNAME=ghostftp_e2e
+          PASSWORD="$(openssl rand -hex 24)"
+          KEYPASS="$(openssl rand -hex 24)"
+          echo "::add-mask::$PASSWORD"
+          echo "::add-mask::$KEYPASS"
+
+          sudo useradd -m -s /bin/bash "$USERNAME"
+          echo "$USERNAME:$PASSWORD" | sudo chpasswd
+
+          # SFTP password + encrypted OpenSSH private-key authentication.
+          sudo mkdir -p /run/sshd
+          sudo ssh-keygen -A
+          ssh-keygen -q -t ed25519 -N "$KEYPASS" -f "$RUNNER_TEMP/ghostftp_e2e_ed25519"
+          sudo install -d -m 700 -o "$USERNAME" -g "$USERNAME" "/home/$USERNAME/.ssh"
+          sudo install -m 600 -o "$USERNAME" -g "$USERNAME" \
+            "$RUNNER_TEMP/ghostftp_e2e_ed25519.pub" "/home/$USERNAME/.ssh/authorized_keys"
+
+          cat > "$RUNNER_TEMP/ghostftp-sshd.conf" <<'EOF'
+          Port 2222
+          ListenAddress 127.0.0.1
+          HostKey /etc/ssh/ssh_host_ed25519_key
+          PasswordAuthentication yes
+          KbdInteractiveAuthentication no
+          PubkeyAuthentication yes
+          UsePAM no
+          PermitRootLogin no
+          AllowUsers ghostftp_e2e
+          Subsystem sftp internal-sftp
+          PidFile /tmp/ghostftp-e2e-sshd.pid
+          LogLevel VERBOSE
+          EOF
+          sudo /usr/sbin/sshd -f "$RUNNER_TEMP/ghostftp-sshd.conf" -E "$RUNNER_TEMP/ghostftp-sshd.log"
+
+          # A one-run CA trusted by the runner, plus a server certificate valid
+          # for localhost only. The IP mismatch is asserted by the Rust E2E test.
+          openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
+            -subj '/CN=Ghost FTP E2E CA' \
+            -keyout "$RUNNER_TEMP/ghostftp-e2e-ca.key" \
+            -out "$RUNNER_TEMP/ghostftp-e2e-ca.crt"
+          openssl req -newkey rsa:2048 -sha256 -nodes \
+            -subj '/CN=localhost' \
+            -keyout "$RUNNER_TEMP/ghostftp-e2e-server.key" \
+            -out "$RUNNER_TEMP/ghostftp-e2e-server.csr"
+          cat > "$RUNNER_TEMP/ghostftp-e2e-server.ext" <<'EOF'
+          subjectAltName=DNS:localhost
+          extendedKeyUsage=serverAuth
+          keyUsage=digitalSignature,keyEncipherment
+          EOF
+          openssl x509 -req -sha256 -days 1 \
+            -in "$RUNNER_TEMP/ghostftp-e2e-server.csr" \
+            -CA "$RUNNER_TEMP/ghostftp-e2e-ca.crt" \
+            -CAkey "$RUNNER_TEMP/ghostftp-e2e-ca.key" \
+            -CAcreateserial \
+            -extfile "$RUNNER_TEMP/ghostftp-e2e-server.ext" \
+            -out "$RUNNER_TEMP/ghostftp-e2e-server.crt"
+          sudo cp "$RUNNER_TEMP/ghostftp-e2e-ca.crt" /usr/local/share/ca-certificates/ghostftp-e2e-ca.crt
+          sudo update-ca-certificates
+
+          cat > "$RUNNER_TEMP/ghostftp_ftp_server.py" <<'PY'
+          import os
+          import sys
+          from pyftpdlib.authorizers import DummyAuthorizer
+          from pyftpdlib.handlers import FTPHandler, TLS_FTPHandler
+          from pyftpdlib.servers import FTPServer
+
+          mode = sys.argv[1]
+          username = os.environ["GHOSTFTP_SERVER_USERNAME"]
+          password = os.environ["GHOSTFTP_SERVER_PASSWORD"]
+          home = os.environ["GHOSTFTP_SERVER_HOME"]
+
+          authorizer = DummyAuthorizer()
+          authorizer.add_user(username, password, home, perm="elradfmwMT")
+
+          if mode == "ftp":
+              handler = FTPHandler
+              handler.passive_ports = range(30000, 30010)
+              port = 2121
+          elif mode == "ftps":
+              handler = TLS_FTPHandler
+              handler.certfile = os.environ["GHOSTFTP_SERVER_CERT"]
+              handler.keyfile = os.environ["GHOSTFTP_SERVER_KEY"]
+              handler.tls_control_required = True
+              handler.tls_data_required = True
+              handler.passive_ports = range(30010, 30020)
+              port = 2122
+          else:
+              raise SystemExit(f"unknown server mode: {mode}")
+
+          handler.authorizer = authorizer
+          handler.banner = f"Ghost FTP {mode.upper()} E2E"
+          server = FTPServer(("127.0.0.1", port), handler)
+          server.serve_forever(timeout=0.5, blocking=True)
+          PY
+
+          FTP_HOME="$RUNNER_TEMP/ghostftp-ftp-home"
+          mkdir -p "$FTP_HOME"
+          chmod 700 "$FTP_HOME"
+
+          export GHOSTFTP_SERVER_USERNAME="$USERNAME"
+          export GHOSTFTP_SERVER_PASSWORD="$PASSWORD"
+          export GHOSTFTP_SERVER_HOME="$FTP_HOME"
+          export GHOSTFTP_SERVER_CERT="$RUNNER_TEMP/ghostftp-e2e-server.crt"
+          export GHOSTFTP_SERVER_KEY="$RUNNER_TEMP/ghostftp-e2e-server.key"
+
+          python3 "$RUNNER_TEMP/ghostftp_ftp_server.py" ftp \
+            >"$RUNNER_TEMP/ghostftp-ftp.log" 2>&1 &
+          FTP_PID=$!
+          python3 "$RUNNER_TEMP/ghostftp_ftp_server.py" ftps \
+            >"$RUNNER_TEMP/ghostftp-ftps.log" 2>&1 &
+          FTPS_PID=$!
+
+          echo "Ghost FTP FTP test server PID: $FTP_PID"
+          echo "Ghost FTP FTPS test server PID: $FTPS_PID"
+
+          for port in 2121 2122 2222; do
+            ready=0
+            for _ in $(seq 1 30); do
+              if nc -z 127.0.0.1 "$port"; then
+                ready=1
+                break
+              fi
+              sleep 1
+            done
+            if [ "$ready" -ne 1 ]; then
+              echo "Protocol test server failed to listen on port $port" >&2
+              echo "--- FTP log ---" >&2
+              cat "$RUNNER_TEMP/ghostftp-ftp.log" 2>/dev/null || true
+              echo "--- FTPS log ---" >&2
+              cat "$RUNNER_TEMP/ghostftp-ftps.log" 2>/dev/null || true
+              echo "--- SFTP log ---" >&2
+              cat "$RUNNER_TEMP/ghostftp-sshd.log" 2>/dev/null || true
+              exit 1
+            fi
+          done
+
+          {
+            echo "GHOSTFTP_PROTOCOL_E2E=1"
+            echo "GHOSTFTP_E2E_USERNAME=$USERNAME"
+            echo "GHOSTFTP_E2E_PASSWORD=$PASSWORD"
+            echo "GHOSTFTP_E2E_FTP_PORT=2121"
+            echo "GHOSTFTP_E2E_FTPS_PORT=2122"
+            echo "GHOSTFTP_E2E_SFTP_PORT=2222"
+            echo "GHOSTFTP_E2E_KEY_PATH=$RUNNER_TEMP/ghostftp_e2e_ed25519"
+            echo "GHOSTFTP_E2E_KEY_PASSPHRASE=$KEYPASS"
+          } >> "$GITHUB_ENV"
+
+      - name: Run real protocol E2E
+        working-directory: ghostftp-desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test -p ghostftp --test protocol_e2e -- --nocapture
