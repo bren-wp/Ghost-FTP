@@ -1,26 +1,37 @@
-# Ghost FTP Code Audit
+# Ghost FTP Code Audit — RC9
 
-## Corrected in this pass
+## Scope
 
-- Removed the save-connect-delete workaround for non-persistent Quick Connect. Native Rust now accepts an in-memory `ConnectionProfile` through `connect_ephemeral`; the frontend owns that profile only while its session is live.
-- Added proper lifecycle cleanup for ephemeral profiles when their session disconnects and kept them out of Site Manager saved-site lists.
-- Converted the titlebar Quick Connect button into a real split protocol control instead of only opening a modal.
-- Added persisted Site Manager metadata: favorite, bookmark, tags, folder and last-used timestamp.
-- Refreshed persisted metadata after successful saved-profile connections.
-- Made transfer auto-retry count a live backend setting and re-applied all transfer-engine settings at startup.
-- Preferences X/Cancel now follows cancel semantics and restores a captured settings snapshot.
-- Replaced the cosmetic Shell Integration toggle with the existing native PATH integration implementation.
-- Centralized RC3 release metadata for version/build/date/site in the React source.
-- Removed inline JavaScript from localized web language selectors.
+RC9 continues the existing Ghost FTP production source. The production GUI remains the React + Tauri + Rust application in `desktop-tauri/`; compatibility Go hosts are retained only as developer/tooling surfaces and are not shipped as the production desktop UI.
 
-## Structural checks
+## Corrected and hardened
 
-A branding scan of runtime source found no Faro identifiers. `example.com` occurrences in the native tree are confined to comments/unit-test fixtures and are not seeded production profiles. Reference PNGs are stored as QA/design evidence only and are not loaded as application UI surfaces.
+- Removed the old save-connect-delete workaround for temporary Quick Connect sessions; ephemeral profiles remain memory-only.
+- Persisted Site Manager favorites, bookmarks, tags, folders and last-used metadata.
+- Re-applied persisted transfer concurrency, retry, throttle and delta-sync settings to the native engine at startup.
+- Preferences Cancel restores the captured settings snapshot; Reset reapplies native defaults.
+- Shell Integration is wired to the real per-user PATH integration path.
+- Corrupt profile metadata and SQLite state are preserved/quarantined instead of crashing startup.
+- Passwords and SSH passphrases remain outside profile JSON and use OS-protected credential storage where supported.
+- File Properties uses real SHA-256 and permission operations where the active backend supports them; unsupported operations return explicit errors.
+- Removed an unused Rust agent-service constant.
+- Removed a redundant earlier dark-theme token block that was fully overridden by the canonical Ghost FTP visual-system block.
+- Kept release-critical source paths stable while improving documentation and downloadable artifact naming to avoid breaking imports, build scripts or Tauri configuration.
 
+## CI quality gates
 
-## RC4 verification — 20 September 2026
+The source audit runs:
 
-- `go test ./...` and `go vet ./...` pass for both compatibility runtime and installer.
-- Runtime JavaScript parses successfully with `node --check`.
-- Production-source scan found no `Faro`/`faro` identifiers and no `example.com`, demo user, Production Server, Staging Server, Design Assets, Cloud Server or Alex placeholder strings in the runtime/native frontend source surfaces.
-- Native startup panic paths for corrupted profile JSON and SQLite initialization were reduced by recovery/quarantine logic.
+- Go tests and `go vet` for runtime/installer tooling;
+- JavaScript syntax checks for runtime, installer and website;
+- `npm ci`, TypeScript typecheck and production Vite build;
+- Rust `cargo fmt --check`, workspace check, tests and Clippy with warnings denied;
+- legacy/demo-branding scan across production source surfaces.
+
+## Naming policy
+
+Runtime-critical paths, Rust crate/package names and Tauri identifiers are not renamed casually. Human-facing release artifacts use a clearer convention instead:
+
+`GhostFTP-<Platform>-<Arch>-<Role>-v<Version>.<ext>`
+
+This gives cleaner downloads without destabilizing source imports or installer/update identifiers.
