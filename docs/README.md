@@ -8,6 +8,10 @@ This directory is the documentation hub for Ghost FTP. The repository root stays
 - [Recommended next work](product/ROADMAP.md) — what is worth adding or finishing next.
 - [UI / UX contract](product/UI_UX.md) — canonical geometry, interaction and pixel-parity rules.
 
+## Architecture and repository
+
+- [Repository structure](architecture/STRUCTURE.md) — naming policy and why framework-required internal paths remain stable.
+
 ## Build and release status
 
 - [Build status](build/STATUS.md) — authoritative build/release state.
