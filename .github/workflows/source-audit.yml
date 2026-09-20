@@ -34,6 +34,9 @@ jobs:
       - name: Installer checks
         shell: bash
         run: |
+          set -euo pipefail
+          mkdir -p installer/payload
+          : > installer/payload/GhostFTP.exe
           cd installer
           go test ./...
           go vet ./...
