@@ -6,8 +6,6 @@ import { FileBrowser } from "./components/FileBrowser";
 import { FileUiBridge } from "./components/FileUiBridge";
 import { TerminalDock } from "./components/Terminal";
 import { TransferQueue } from "./components/TransferQueue";
-import { CliUpdatePrompt } from "./components/CliUpdatePrompt";
-import { UpdatePrompt } from "./components/UpdatePrompt";
 import { HostKeyModal } from "./components/HostKeyModal";
 import { AuthPromptModal } from "./components/AuthPromptModal";
 import { TitleBar } from "./components/TitleBar";
@@ -156,7 +154,7 @@ export default function App() {
       <div className="ghost-app-shell flex h-full w-full flex-col">
       <TitleBar />
       <DeepLinkListener />
-      <Suspense fallback={<DialogLoading />}>
+      <Suspense fallback={null}>
         {dialog === "settings" && <Settings onClose={closeDialog} />}
         {dialog === "newConnection" && (
           <QuickConnectionDialog
@@ -214,24 +212,8 @@ export default function App() {
         </div>
       </div>
       <TransferQueue />
-      <UpdatePrompt />
-      <CliUpdatePrompt />
       <ReferenceStatusBar />
       </div>
-  );
-}
-
-function DialogLoading() {
-  return (
-    <div
-      className="fixed inset-0 z-modal grid place-items-center bg-[#041425]/95"
-      role="status"
-      aria-live="polite"
-    >
-      <div className="rounded-lg border border-border bg-bg-panel px-5 py-3 text-sm text-text-muted shadow-elev-3">
-        Opening Ghost FTP view…
-      </div>
-    </div>
   );
 }
 
@@ -319,8 +301,11 @@ function StatusBar({
               style={{ background: profile.color || "rgb(var(--accent))" }}
             />
             <div
-              className="absolute inset-0 h-1.5 w-1.5 animate-ping rounded-full opacity-50"
-              style={{ background: profile.color || "rgb(var(--accent))" }}
+              className="absolute inset-0 h-1.5 w-1.5 rounded-full opacity-35"
+              style={{
+                background: profile.color || "rgb(var(--accent))",
+                boxShadow: `0 0 7px ${profile.color || "rgb(var(--accent))"}`,
+              }}
             />
           </div>
           <span className="max-w-[18rem] shrink-0 truncate font-medium" title={profile.name}>
@@ -466,7 +451,7 @@ function StatusBar({
             size={11}
             className={cn(
               syncActive
-                ? "animate-pulse text-warning"
+                ? "text-warning"
                 : syncRunning
                   ? "text-success"
                   : undefined
