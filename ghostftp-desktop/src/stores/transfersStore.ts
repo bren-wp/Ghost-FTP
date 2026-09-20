@@ -98,6 +98,7 @@ interface TransfersState {
   setConcurrency: (n: number) => Promise<void>;
   setThrottle: (kbps: number) => Promise<void>;
   clearFinished: () => void;
+  clearCompleted: () => void;
 }
 
 /** Map a conflict action to the backend overwrite policy. "skip"/"cancel" are
@@ -331,6 +332,17 @@ export const useTransfers = create<TransfersState>((set, get) => ({
           t.status === "queued" ||
           t.status === "paused"
         ) {
+          next[t.id] = t;
+        }
+      }
+      return { byId: next };
+    }),
+
+  clearCompleted: () =>
+    set((s) => {
+      const next: Record<string, Transfer> = {};
+      for (const t of Object.values(s.byId)) {
+        if (t.status !== "done" && t.status !== "skipped" && t.status !== "canceled") {
           next[t.id] = t;
         }
       }
