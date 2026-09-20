@@ -10,6 +10,11 @@ on:
     paths:
       - 'ghostftp-desktop/**'
       - '.github/workflows/ghostftp-build.yml'
+  pull_request:
+    paths:
+      - 'ghostftp-desktop/**'
+      - '.github/workflows/ghostftp-build.yml'
+      - '.github/workflows/ghostftp-release.yml'
 
 permissions:
   contents: read
@@ -70,3 +75,26 @@ jobs:
             ghostftp-desktop/src-tauri/target/release/ghostftp.exe
             ghostftp-desktop/src-tauri/target/release/ghostftp
           if-no-files-found: error
+
+  source-packages:
+    name: RC9 source packages
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package RC9 source and documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC9-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC9-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC9-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC9-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC9-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+      - name: Upload RC9 source packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: GhostFTP-RC9-Source-Packages
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
