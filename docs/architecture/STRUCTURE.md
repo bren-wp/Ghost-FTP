@@ -1,17 +1,18 @@
 # Ghost FTP Repository Structure
 
-Ghost FTP keeps user-facing names branded as **Ghost FTP** / **GhostFTP** while preserving a small number of framework-specific internal paths that are safer to leave stable.
+Ghost FTP keeps the repository product-oriented and easy to scan. Public/source-root naming is **Ghost FTP / GhostFTP** first; framework-specific names are confined to internal locations where changing them would create unnecessary build risk.
 
 ## Top-level layout
 
 ```text
 Ghost-FTP-Premium/
-├── ghostftp-desktop/      production desktop application source
-├── ghostftp-runtime/            compatibility/developer runtime tooling
-├── ghostftp-installer/          installer development/support tooling
-├── ghostftp-web/            ghostftp.com website source
-├── docs/               product, QA, build, legal and audit documentation
-├── .github/workflows/  source audit, native build and release automation
+├── ghostftp-desktop/      Production desktop application source
+├── ghostftp-runtime/      Developer / compatibility runtime tooling
+├── ghostftp-installer/    Installer support and compatibility tooling
+├── ghostftp-web/          ghostftp.com website source
+├── ghostftp-updates/      Update-manifest templates
+├── docs/                  Product, QA, build, legal and audit documentation
+├── .github/workflows/     GhostFTP quality, build and release automation
 ├── README.md
 ├── CHANGELOG.md
 ├── SECURITY.md
@@ -19,17 +20,48 @@ Ghost-FTP-Premium/
 └── EULA.txt
 ```
 
+## Source-root responsibilities
+
+### `ghostftp-desktop/`
+
+Authoritative production GUI and protocol engine. It contains the React/TypeScript interface, Rust backend, file-transfer engine, native window integration, updater, credential handling, agent components and packaging configuration.
+
+### `ghostftp-runtime/`
+
+Developer and compatibility tooling. It is not accepted as the production desktop GUI and must never replace the native Ghost FTP release path.
+
+### `ghostftp-installer/`
+
+Installer support / compatibility tooling retained for development and historical flows. Public Windows production packaging is generated from the authoritative desktop build.
+
+### `ghostftp-web/`
+
+Static ghostftp.com website source and local website icon assets.
+
+### `ghostftp-updates/`
+
+Update-manifest templates and release update metadata helpers.
+
+### `docs/`
+
+Documentation is grouped by purpose instead of accumulating duplicate files in the repository root.
+
+```text
+docs/
+├── assets/        Brand and visual QA media
+├── architecture/ Repository structure and naming rules
+├── audits/        Code, security, language, branding and project audits
+├── build/         Authoritative build status and runtime notes
+├── guides/        Installation, updates, support and uninstall
+├── legal/         Privacy and third-party notices
+├── product/       Features, status, roadmap and UI/UX contract
+├── qa/            Interaction, installer, transfer, responsive and pixel QA
+└── releases/      Release notes and release-specific records
+```
+
 ## Naming policy
 
-Use **Ghost FTP** in user-facing copy.
-
-Use **GhostFTP** in:
-
-- release filenames;
-- package artifacts;
-- technical product identifiers;
-- generated archives;
-- CI artifact labels.
+Use **Ghost FTP** for user-facing copy and **GhostFTP** for technical filenames/artifacts.
 
 Examples:
 
@@ -38,33 +70,22 @@ Examples:
 - `GhostFTP-Linux-x86_64-v2.1.1-RC9.AppImage`
 - `GhostFTP-v2.1.1-RC9-Desktop-Source.zip`
 
-## Why some internal paths still mention the framework
+See [NAMING.md](NAMING.md) for the full policy.
 
-The `ghostftp-desktop/` and `src-tauri/` directory names are build-system conventions already referenced by package scripts, Rust configuration, GitHub Actions and tool defaults.
+## Internal framework names
 
-Renaming those paths only to hide the framework name would create a large, low-value migration surface and could break:
+The outer project directory is deliberately branded as `ghostftp-desktop/`.
 
-- build scripts;
-- updater/bundle configuration;
-- CI cache paths;
-- packaging commands;
-- developer tooling;
-- framework defaults.
+A small set of internal framework-required names remains inside it, such as:
 
-For that reason, RC9 keeps those internal paths stable. Public files and documentation avoid framework-first naming wherever possible.
+- `src-tauri/`
+- `tauri.conf.json`
+- framework package names under `@tauri-apps/*`
 
-## Documentation layout
+Those names are implementation requirements, not public product naming. They are kept stable to avoid breaking tooling, packaging, updater integration and CI.
 
-```text
-docs/
-├── assets/       screenshots and brand/reference media
-├── audits/       code, security, language, branding and project audits
-├── build/        build status and runtime notes
-├── guides/       install, uninstall, support and update guidance
-├── legal/        privacy and third-party notices
-├── product/      implemented features, roadmap and UI/UX contract
-├── qa/           interaction, installer, transfer, responsive and pixel QA
-└── releases/     release notes and release checksums
-```
+## Stability principle
 
-The repository root is intentionally kept small and product-oriented.
+Repository cleanup must not break persisted product identifiers or installed-client compatibility. Bundle IDs, updater identifiers, deep-link schemes and data locations are treated as migration-sensitive even when folders and documentation are reorganized.
+
+The root remains intentionally small and product-oriented.
