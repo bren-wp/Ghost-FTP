@@ -1,7 +1,7 @@
 name: Ghost FTP native build
 
 # RC9 native release gate: only Tauri/WebView bundles are eligible for end-user releases.
-# RC9 release build stamp: 2026-09-20.9
+# RC9 release build stamp: 2026-09-20.10
 
 on:
   workflow_dispatch:
