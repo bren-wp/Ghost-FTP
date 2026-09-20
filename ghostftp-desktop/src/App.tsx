@@ -36,7 +36,6 @@ import { applyTransferEngineSettings, useSettings } from "./stores/settingsStore
 import { onDeepLink } from "./lib/ipc";
 import { runDefaultBumps, runSettingsMigration } from "./lib/secretMigration";
 import { initNotifications } from "./lib/notifications";
-import { openTerminalWindow } from "./lib/popout";
 import { toast } from "./stores/toastStore";
 import type { DeepLink, Protocol, ConnectionProfile } from "./lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "./lib/types";
@@ -597,6 +596,8 @@ function PillButton({
 function DeepLinkListener() {
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const openGrant = useLayout((s) => s.openGrant);
+  const returnToFiles = useLayout((s) => s.returnToFiles);
+  const setTerminalOpen = useLayout((s) => s.setTerminalOpen);
   useEffect(() => {
     const un = onDeepLink((dl) => {
       if (dl.action === "grant") {
@@ -624,10 +625,9 @@ function DeepLinkListener() {
           ? sessions.find((s) => s.profileId === match.id)
           : undefined;
         if (match && live && match.protocol === "sftp") {
-          void openTerminalWindow({
-            sessionId: live.sessionId,
-            title: match.name,
-          }).catch((e) => toast.error("Terminal window failed", String(e)));
+          useConnections.getState().setActiveSession(live.sessionId);
+          returnToFiles();
+          setTerminalOpen(true);
           return;
         }
         if (match && live) {
