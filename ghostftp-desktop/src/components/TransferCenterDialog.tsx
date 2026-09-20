@@ -436,7 +436,7 @@ export function TransferCenterDialog({ onClose }: Props) {
 }
 
 function TransferCenterTitlebar({ onClose }: { onClose: () => void }) {
-  const openDialog = useLayout((state) => state.openDialog);
+  const openView = useLayout((state) => state.openView);
   const locale = getLocale();
 
   const item = (
@@ -481,11 +481,11 @@ function TransferCenterTitlebar({ onClose }: { onClose: () => void }) {
       <nav className="ghost-transfer-nav" aria-label="Transfer Center navigation">
         {item("Sites", <FolderTree size={15} />, onClose)}
         {item("Transfers", <ArrowUp size={15} />, undefined, true)}
-        {item("Server", <Server size={15} />, () => openDialog("siteManager"))}
-        {item("Bookmarks", <Bookmark size={15} />, () => openDialog("siteManager"))}
-        {item("Tools", <Wrench size={15} />, () => openDialog("settings"))}
-        {item("Settings", <Settings size={15} />, () => openDialog("settings"))}
-        {item("Help", <HelpCircle size={15} />, () => openDialog("about"))}
+        {item("Server", <Server size={15} />, () => openView("siteManager"))}
+        {item("Bookmarks", <Bookmark size={15} />, () => openView("siteManager"))}
+        {item("Tools", <Wrench size={15} />, () => openView("settings"))}
+        {item("Settings", <Settings size={15} />, () => openView("settings"))}
+        {item("Help", <HelpCircle size={15} />, () => openView("about"))}
       </nav>
       <label className="ghost-transfer-language">
         <Languages size={14} />
