@@ -159,7 +159,7 @@ export default function App() {
       <div className="ghost-app-shell flex h-full w-full flex-col">
       {!standaloneDialog && <TitleBar />}
       <DeepLinkListener />
-      <Suspense fallback={<DialogLoading />}>
+      <Suspense fallback={<DialogLoading workspace={standaloneDialog} />}>
         {dialog === "settings" && <Settings onClose={closeDialog} />}
         {dialog === "newConnection" && (
           <QuickConnectionDialog
@@ -226,10 +226,12 @@ export default function App() {
   );
 }
 
-function DialogLoading() {
+function DialogLoading({ workspace = false }: { workspace?: boolean }) {
   return (
     <div
-      className="fixed inset-0 z-modal grid place-items-center bg-[#041425]/95"
+      className={workspace
+        ? "ghost-workspace-loading grid min-h-0 flex-1 place-items-center bg-[#041425]"
+        : "ghost-transient-overlay fixed inset-0 z-modal grid place-items-center bg-[#041425]/92"}
       role="status"
       aria-live="polite"
     >
