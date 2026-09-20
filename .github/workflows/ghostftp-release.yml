@@ -39,7 +39,7 @@ jobs:
           changed="$(git diff --name-only "$BUILD_SHA" "$MAIN_SHA" || true)"
           if [ -n "$changed" ]; then
             echo "$changed"
-            forbidden="$(printf '%s\n' "$changed" | grep -Ev '^(docs/|website/|README\.md$|CHANGELOG\.md$|SECURITY\.md$|LICENSE\.txt$|EULA\.txt$|\.github/workflows/.*\.yml$)' || true)"
+            forbidden="$(printf '%s\n' "$changed" | grep -Ev '^(docs/|ghostftp-web/|README\.md$|CHANGELOG\.md$|SECURITY\.md$|LICENSE\.txt$|EULA\.txt$|\.github/workflows/.*\.yml$)' || true)"
             if [ -n "$forbidden" ]; then
               echo "Production source changed after the native build:"
               echo "$forbidden"
@@ -48,8 +48,8 @@ jobs:
           fi
 
           git checkout --detach "$MAIN_SHA"
-          grep -q '"version": "2.1.1-rc.9"' desktop-tauri/package.json
-          grep -q '"version": "2.1.1-rc.9"' desktop-tauri/src-tauri/tauri.conf.json
+          grep -q '"version": "2.1.1-rc.9"' ghostftp-desktop/package.json
+          grep -q '"version": "2.1.1-rc.9"' ghostftp-desktop/src-tauri/tauri.conf.json
 
           for attempt in $(seq 1 45); do
             audit="$(gh run list --workflow 'Ghost FTP source audit' --commit "$MAIN_SHA" --limit 1 --json status,conclusion --jq '.[0] | ((.status // "") + ":" + (.conclusion // ""))' || true)"
@@ -76,7 +76,7 @@ jobs:
           mkdir -p dist/native
 
           git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC9-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-RC9-Desktop-Source.zip desktop-tauri
+          zip -qr dist/GhostFTP-v2.1.1-RC9-Desktop-Source.zip ghostftp-desktop
           zip -qr dist/GhostFTP-v2.1.1-RC9-Web.zip website
           zip -qr dist/GhostFTP-v2.1.1-RC9-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
 
