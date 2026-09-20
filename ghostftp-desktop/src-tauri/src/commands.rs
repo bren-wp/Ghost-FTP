@@ -273,6 +273,39 @@ pub async fn ssh_public_key_for(
 // ---------- Sessions ----------
 
 #[tauri::command]
+pub async fn test_profile_connection(
+    profile_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), GhostFTPError> {
+    let mut profile = state
+        .profiles
+        .get(&profile_id)
+        .await
+        .map_err(GhostFTPError::from)?
+        .ok_or_else(|| {
+            GhostFTPError::new(
+                ErrorKind::NotFound,
+                format!("profile {profile_id} not found"),
+            )
+        })?;
+
+    hydrate_profile_secrets(&mut profile)?;
+    let session_id = state
+        .sessions
+        .connect(profile, app)
+        .await
+        .map_err(GhostFTPError::from)?;
+
+    state
+        .sessions
+        .disconnect(&session_id)
+        .await
+        .map_err(GhostFTPError::from)?;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn connect(
     profile_id: String,
     app: AppHandle,
