@@ -33,10 +33,10 @@ Examples:
 Current repository source roots are intentionally branded:
 
 - `ghostftp-desktop/`
-- `ghostftp-runtime/`
-- `ghostftp-installer/`
-- `ghostftp-web/`
-- `ghostftp-updates/`
+- `tools/ghostftp-runtime/`
+- `tools/ghostftp-installer/`
+- `website/`
+- `updates/`
 
 These names replace generic or framework-first top-level paths and make the repository easier to understand at a glance.
 
