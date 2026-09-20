@@ -8,7 +8,7 @@ Credentials and private-key material must never be printed to routine logs. Nati
 
 ## Updates
 
-Native update metadata is retrieved only from the configured official `https://ghostftp.com/updates/latest.json` endpoint. The Tauri updater verifies the configured signature before installing an artifact. Package SHA-256 values should also be published with releases. A failed download, checksum/signature verification or apply step must leave the currently installed version usable.
+Native update metadata is retrieved only from the configured official `https://ghostftp.com/ghostftp-updates/latest.json` endpoint. The Tauri updater verifies the configured signature before installing an artifact. Package SHA-256 values should also be published with releases. A failed download, checksum/signature verification or apply step must leave the currently installed version usable.
 
 ## Local runtime boundary
 
