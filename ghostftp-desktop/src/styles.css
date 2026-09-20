@@ -2900,3 +2900,19 @@ button:active,
     max-width: calc(100vw - 12px);
   }
 }
+
+/* RC12 standalone menu edge containment. */
+.ghost-menu-anchor:last-child .ghost-menu-popover {
+  right: 0;
+  left: auto;
+}
+.ghost-standalone-titlebar .ghost-title-menu-wrap,
+.ghost-standalone-titlebar .ghost-menu,
+.ghost-standalone-titlebar .ghost-menu-anchor {
+  overflow: visible !important;
+}
+.ghost-standalone-titlebar .ghost-menu-popover {
+  z-index: 1000 !important;
+  transform: none !important;
+  animation: none !important;
+}
