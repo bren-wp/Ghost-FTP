@@ -1,0 +1,132 @@
+name: Ghost FTP repository organization
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.maintenance/organize-rc9'
+
+permissions:
+  contents: write
+
+jobs:
+  organize:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rebrand safe top-level source paths and documentation assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git mv desktop-tauri ghostftp-desktop
+          git mv runtime ghostftp-runtime
+          git mv installer ghostftp-installer
+          git mv website ghostftp-web
+          git mv updates ghostftp-updates
+
+          git mv docs/assets/screenshots/main.webp docs/assets/screenshots/ghostftp-main-file-manager.webp
+          git mv docs/assets/screenshots/site-manager.webp docs/assets/screenshots/ghostftp-site-manager.webp
+          git mv docs/assets/screenshots/new-connection.webp docs/assets/screenshots/ghostftp-new-connection.webp
+          git mv docs/assets/screenshots/preferences.webp docs/assets/screenshots/ghostftp-preferences.webp
+          git mv docs/assets/screenshots/transfer-center.webp docs/assets/screenshots/ghostftp-transfer-center.webp
+          git mv docs/assets/screenshots/file-properties.webp docs/assets/screenshots/ghostftp-file-properties.webp
+          git mv docs/assets/screenshots/about.webp docs/assets/screenshots/ghostftp-about.webp
+          git mv docs/assets/screenshots/platforms.webp docs/assets/screenshots/ghostftp-platforms.webp
+          git mv docs/assets/screenshots/brand-board.webp docs/assets/screenshots/ghostftp-brand-board.webp
+
+          git mv .github/workflows/native-build.yml .github/workflows/ghostftp-build.yml
+          git mv .github/workflows/source-audit.yml .github/workflows/ghostftp-quality.yml
+          git mv .github/workflows/release.yml .github/workflows/ghostftp-release.yml
+
+      - name: Update repository references without touching framework-required internals
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = [
+              ("desktop-tauri", "ghostftp-desktop"),
+              ("runtime/", "ghostftp-runtime/"),
+              ("installer/", "ghostftp-installer/"),
+              ("website/", "ghostftp-web/"),
+              ("updates/", "ghostftp-updates/"),
+              ("docs/assets/screenshots/main.webp", "docs/assets/screenshots/ghostftp-main-file-manager.webp"),
+              ("docs/assets/screenshots/site-manager.webp", "docs/assets/screenshots/ghostftp-site-manager.webp"),
+              ("docs/assets/screenshots/new-connection.webp", "docs/assets/screenshots/ghostftp-new-connection.webp"),
+              ("docs/assets/screenshots/preferences.webp", "docs/assets/screenshots/ghostftp-preferences.webp"),
+              ("docs/assets/screenshots/transfer-center.webp", "docs/assets/screenshots/ghostftp-transfer-center.webp"),
+              ("docs/assets/screenshots/file-properties.webp", "docs/assets/screenshots/ghostftp-file-properties.webp"),
+              ("docs/assets/screenshots/about.webp", "docs/assets/screenshots/ghostftp-about.webp"),
+              ("docs/assets/screenshots/platforms.webp", "docs/assets/screenshots/ghostftp-platforms.webp"),
+              ("docs/assets/screenshots/brand-board.webp", "docs/assets/screenshots/ghostftp-brand-board.webp"),
+          ]
+
+          text_ext = {
+              ".md",".txt",".json",".jsonc",".toml",".yml",".yaml",".js",".mjs",".cjs",
+              ".ts",".tsx",".jsx",".css",".scss",".html",".rs",".go",".py",".sh",".ps1",
+              ".xml",".ini",".cfg",".conf",".lock",".gitignore"
+          }
+
+          skip = {".git"}
+          for path in Path(".").rglob("*"):
+              if not path.is_file() or any(part in skip for part in path.parts):
+                  continue
+              if path.suffix.lower() not in text_ext and path.name not in {".gitignore"}:
+                  continue
+              try:
+                  original = path.read_text(encoding="utf-8")
+              except UnicodeDecodeError:
+                  continue
+              updated = original
+              for old,new in replacements:
+                  updated = updated.replace(old,new)
+              if path.as_posix() == "ghostftp-desktop/package.json":
+                  updated = updated.replace('"name": "ghost-ftp"', '"name": "ghostftp-desktop"')
+              if path.as_posix() == "ghostftp-desktop/package-lock.json":
+                  updated = updated.replace('"name": "ghost-ftp"', '"name": "ghostftp-desktop"', 2)
+              if updated != original:
+                  path.write_text(updated, encoding="utf-8")
+          PY
+
+      - name: Remove one-time migration trigger/workflow
+        shell: bash
+        run: |
+          rm -f .maintenance/organize-rc9
+          rm -f .github/workflows/repository-organization.yml
+          rmdir .maintenance 2>/dev/null || true
+
+      - name: Validate branded repository layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d ghostftp-desktop
+          test -d ghostftp-runtime
+          test -d ghostftp-installer
+          test -d ghostftp-web
+          test -d ghostftp-updates
+          test -f ghostftp-desktop/src-tauri/tauri.conf.json
+          test -f .github/workflows/ghostftp-build.yml
+          test -f .github/workflows/ghostftp-quality.yml
+          test -f .github/workflows/ghostftp-release.yml
+          ! test -e desktop-tauri
+          ! test -e runtime
+          ! test -e installer
+          ! test -e website
+          ! test -e updates
+          grep -q '"name": "ghostftp-desktop"' ghostftp-desktop/package.json
+
+      - name: Commit organized repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Brendigo"
+          git config user.email "info@brendigo.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "Organize GhostFTP repository and source paths"
+          git push
