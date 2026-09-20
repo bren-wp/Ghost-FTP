@@ -1,7 +1,7 @@
 use super::{Capabilities, ChangeSignal, DirEntry, FileKind, RemoteFs};
-use anyhow::Context;
 #[cfg(not(unix))]
 use anyhow::anyhow;
+use anyhow::Context;
 use async_trait::async_trait;
 use std::path::Path;
 
