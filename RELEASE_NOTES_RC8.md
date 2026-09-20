@@ -22,7 +22,7 @@ Windows and Linux GUI artifacts for RC8 are produced from the native React + Tau
 
 ## Release status
 
-RC8 is a release candidate. It is not labelled FINAL until the remaining Windows 10/11 screenshot/titlebar, installer upgrade/uninstall, real FTP/FTPS/SFTP end-to-end and final pixel/responsive acceptance tests are completed with evidence.
+RC8 is a release candidate. Native Windows and Linux Tauri builds now pass in GitHub Actions and the Windows portable/NSIS plus Linux executable/DEB/RPM/AppImage artifacts are published. It is not labelled FINAL until the remaining Windows 10/11 screenshot/titlebar, installer upgrade/uninstall, real FTP/FTPS/SFTP end-to-end and final pixel/responsive acceptance tests are completed with evidence.
 
 ## Official project
 
