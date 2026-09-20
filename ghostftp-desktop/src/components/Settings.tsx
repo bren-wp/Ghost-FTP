@@ -79,10 +79,14 @@ export function Settings({ onClose }: Props) {
             <div className="mb-2 flex items-center gap-2"><GhostMark size={20}/><strong className="text-text">Ghost FTP</strong></div>
             <div>v{PRODUCT_VERSION_DISPLAY}</div><div>Built for Windows & Linux</div>
           </div>
+          <button className="ghost-mini-button mt-3 w-full justify-center" onClick={reset}>
+            <RotateCcw size={14}/> Reset to Defaults
+          </button>
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col">
-          <div className="ghost-preferences-heading flex h-[78px] shrink-0 items-center border-b border-border px-5">
+          <div className="ghost-preferences-heading flex h-[78px] shrink-0 items-center gap-3 border-b border-border px-5">
+            <Settings2 size={28} className="text-accent"/>
             <div><div className="text-[22px] font-semibold capitalize">{section}</div><div className="text-[12px] text-text-muted">Configure how Ghost FTP looks, behaves and keeps your data safe.</div></div>
           </div>
           <div className="ghost-preferences-content flex-1 overflow-y-auto p-4">
@@ -96,9 +100,7 @@ export function Settings({ onClose }: Props) {
             {section === "shortcuts" && <ShortcutsPanel/>}
             {section === "language" && <LanguagePanel locale={pendingLocale} setLocale={setPendingLocale}/>}
           </div>
-          <div className="ghost-preferences-actions flex h-[58px] shrink-0 items-center border-t border-border bg-[#061a2d] px-4">
-            <button className="ghost-mini-button" onClick={reset}><RotateCcw size={14}/> Reset to Defaults</button>
-            <div className="flex-1"/>
+          <div className="ghost-preferences-actions flex h-[58px] shrink-0 items-center justify-end border-t border-border bg-[#061a2d] px-4">
             <button className="ghost-mini-button" onClick={cancel}>Cancel</button>
             <button className="ghost-primary-button ml-2" onClick={apply}>Apply</button>
           </div>
@@ -114,12 +116,12 @@ function GeneralGrid({ locale, setLocale }: { locale: string; setLocale: (value:
     <div className="grid grid-cols-2 gap-4">
       <LanguageCard locale={locale} setLocale={setLocale}/>
       <AppearanceCard/>
-      <PerformanceCard/>
       <TransfersCard/>
       <ConnectionCard/>
       <SecurityCard/>
       <UpdatesCard/>
       <IntegrationsCard/>
+      <ShortcutsPanel/>
     </div>
   );
 }
