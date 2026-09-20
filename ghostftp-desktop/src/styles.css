@@ -2324,3 +2324,145 @@ body::after {
 .ghost-app-shell {
   contain: layout paint;
 }
+
+
+/* RC11 main chrome parity ---------------------------------------------------
+   Approved desktop reference uses three vertical bands:
+   51px title/menu, 50px quick-connect/actions, 62px file toolbar. */
+.ghost-app-header {
+  flex: 0 0 163px !important;
+  height: 163px !important;
+  min-height: 163px !important;
+}
+
+.ghost-title-row {
+  height: 51px !important;
+  min-height: 51px !important;
+  padding: 0 5px 0 14px !important;
+  gap: 12px !important;
+  overflow: visible !important;
+}
+
+.ghost-title-left {
+  flex: 0 0 auto !important;
+  gap: 8px !important;
+}
+
+.ghost-title-menu {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: visible !important;
+}
+
+.ghost-title-menu > .ghost-menu-anchor > button {
+  height: 34px !important;
+  padding: 0 9px !important;
+  font-size: 12px !important;
+}
+
+.ghost-rc-badge {
+  display: inline-flex;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border: 1px solid rgba(56,171,255,.72);
+  border-radius: 6px;
+  background: linear-gradient(180deg,#0a3b69,#082c4e);
+  color: #c9ebff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  box-shadow: inset 0 1px rgba(255,255,255,.05),0 0 12px rgba(56,171,255,.08);
+}
+
+.ghost-quick-row {
+  height: 50px !important;
+  min-height: 50px !important;
+  padding: 5px 12px 5px 14px !important;
+  gap: 11px !important;
+  overflow: visible !important;
+}
+
+.ghost-quick-row label:nth-child(1) { flex: 1 1 210px !important; min-width: 140px !important; }
+.ghost-quick-row label:nth-child(2) { flex: 0.86 1 180px !important; min-width: 130px !important; }
+.ghost-quick-row label:nth-child(3) { flex: 0.9 1 190px !important; min-width: 140px !important; }
+.ghost-quick-row label:nth-child(4) { flex: 0 0 116px !important; min-width: 92px !important; }
+
+.ghost-quick-connect {
+  flex: 0 0 172px !important;
+  width: 172px !important;
+  min-width: 172px !important;
+  height: 36px !important;
+}
+
+.ghost-quick-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.ghost-quick-actions .ghost-mini-button,
+.ghost-quick-actions .ghost-language-menu {
+  height: 34px !important;
+}
+
+.ghost-quick-actions .ghost-language-menu select {
+  min-width: 126px;
+}
+
+.ghost-toolbar-row {
+  height: 62px !important;
+  min-height: 62px !important;
+}
+
+/* Old four-band menu row is no longer part of the main shell. Keep its rules
+   only for standalone reference windows. */
+.ghost-app-header > .ghost-menu-row {
+  display: none !important;
+}
+
+@media (max-width: 1180px) {
+  .ghost-title-row { gap: 7px !important; }
+  .ghost-title-menu > .ghost-menu-anchor > button { padding-inline: 6px !important; }
+  .ghost-quick-row { gap: 6px !important; padding-inline: 8px !important; }
+  .ghost-quick-row label:nth-child(1) { min-width: 118px !important; }
+  .ghost-quick-row label:nth-child(2) { min-width: 110px !important; }
+  .ghost-quick-row label:nth-child(3) { min-width: 118px !important; }
+  .ghost-quick-row label:nth-child(4) { flex-basis: 84px !important; min-width: 76px !important; }
+  .ghost-quick-connect { flex-basis: 145px !important; width: 145px !important; min-width: 145px !important; }
+  .ghost-quick-actions .ghost-mini-button span { display: none; }
+  .ghost-quick-actions .ghost-language-menu select { min-width: 102px; width: 102px; }
+}
+
+@media (max-width: 900px) {
+  .ghost-app-header { flex-basis: 163px !important; height: 163px !important; min-height: 163px !important; }
+  .ghost-title-menu {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    scrollbar-width: none;
+  }
+  .ghost-title-menu::-webkit-scrollbar { display: none; }
+  .ghost-title-menu > .ghost-menu-anchor > button { white-space: nowrap; }
+  .ghost-quick-row {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    scrollbar-width: none;
+  }
+  .ghost-quick-row::-webkit-scrollbar { display: none; }
+  .ghost-quick-actions { margin-left: 0; }
+}
+
+@media (max-width: 640px) {
+  .ghost-app-header {
+    flex-basis: 151px !important;
+    height: 151px !important;
+    min-height: 151px !important;
+  }
+  .ghost-title-row { height: 45px !important; min-height: 45px !important; }
+  .ghost-quick-row { height: 53px !important; min-height: 53px !important; }
+  .ghost-toolbar-row { height: 53px !important; min-height: 53px !important; }
+  .ghost-rc-badge { display: none; }
+}
