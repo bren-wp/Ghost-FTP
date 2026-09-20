@@ -26,13 +26,6 @@ RC9 now includes `npm run check:i18n`, and the quality workflow executes it befo
 
 ## Remaining language QA before FINAL
 
-Key parity is not the same as linguistic acceptance. FINAL still requires manual review of:
-
-- terminology and grammar;
-- buttons, menus, tooltips, placeholders and accessibility labels;
-- long translations and clipping;
-- narrow-window layouts;
-- dialogs and dropdown widths;
-- protocol/security terminology.
+Key parity is not the same as linguistic acceptance. FINAL still requires manual review of terminology and grammar, long translations and clipping, narrow-window layouts, dialogs/dropdowns, protocol/security terminology, tooltips/placeholders and accessibility labels.
 
 Status: **source key parity is complete and CI-gated; visual/linguistic target-OS acceptance remains open before FINAL.**
