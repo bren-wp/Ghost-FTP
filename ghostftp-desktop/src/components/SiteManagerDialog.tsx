@@ -24,7 +24,6 @@ import { ConfirmModal } from "./ConfirmModal";
 import { ipc } from "@/lib/ipc";
 import { toast } from "@/stores/toastStore";
 import { toastError } from "@/lib/errors";
-import { useDialog } from "@/hooks/useDialog";
 
 interface Props {
   onClose: () => void;
@@ -36,7 +35,6 @@ type Action = "save" | "test" | "duplicate" | "delete" | null;
 const DIRECT_EDIT_PROTOCOLS = new Set<Protocol>(["sftp", "ftp", "ftps"]);
 
 export function SiteManagerDialog({ onClose }: Props) {
-  const panelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const allProfiles = useConnections((s) => s.profiles);
   const connect = useConnections((s) => s.connect);
@@ -72,8 +70,6 @@ export function SiteManagerDialog({ onClose }: Props) {
   );
   const [action, setAction] = useState<Action>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-
-  useDialog(panelRef, { onClose, initialFocus: searchRef });
 
   const folders = useMemo(
     () =>
@@ -247,16 +243,11 @@ export function SiteManagerDialog({ onClose }: Props) {
   };
 
   return (
-    <div
-      className="ghost-standalone-view fixed inset-0 z-modal bg-[#041425]"
-      role="dialog"
-      aria-modal="true"
+    <section
+      className="ghost-app-view ghost-standalone-view bg-[#041425]"
       aria-label="Site Manager"
     >
-      <div
-        ref={panelRef}
-        className="ghost-site-manager flex h-full w-full flex-col overflow-hidden bg-[#061a2d]"
-      >
+      <div className="ghost-site-manager flex h-full w-full flex-col overflow-hidden bg-[#061a2d]">
         <ReferenceMenuTitlebar onClose={onClose} />
         <ReferenceActionRow />
 
