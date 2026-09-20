@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.1-rc.10 — 20 September 2026
+
+- Closed the final RC9 Rust Clippy blockers in the Ghost FTP CLI.
+- Fixed the native Transfer Queue / Server Log desktop layout found by Windows screenshot evidence.
+- Added explicit transfer-grid sizing, overflow, truncation, action alignment and log row layout.
+- Made Windows native-window screenshot capture a required native-build gate and validated the expected `Ghost FTP` window title.
+- Bumped desktop, CLI, agent, compatibility-tool, updater-preview and release packaging versions consistently to RC10.
+
 ## 2.1.1-rc.9 — 20 September 2026
 
 - Reorganized repository documentation under `docs/` and removed duplicate root copies while preserving stable runtime source paths.
