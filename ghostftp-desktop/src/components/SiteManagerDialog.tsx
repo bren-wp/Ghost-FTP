@@ -149,7 +149,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   };
 
   const selected =
-    profiles.find((profile) => profile.id === selectedId) ?? profiles[0] ?? null;
+    filtered.find((profile) => profile.id === selectedId) ?? filtered[0] ?? null;
   const isConnected = selected
     ? sessions.some((session) => session.profileId === selected.id)
     : false;
