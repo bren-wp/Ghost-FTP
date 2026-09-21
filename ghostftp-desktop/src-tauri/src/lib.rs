@@ -92,11 +92,29 @@ fn build_settings_init_script(db: &db::Db) -> String {
         }
     }
     let obj = format!("{{{}}}", pairs.join(","));
+    let qa_view = std::env::var("GHOSTFTP_QA_VIEW")
+        .ok()
+        .filter(|view| {
+            matches!(
+                view.as_str(),
+                "main"
+                    | "siteManager"
+                    | "settings"
+                    | "transferCenter"
+                    | "about"
+                    | "newConnection"
+                    | "properties"
+            )
+        })
+        .unwrap_or_default();
+    let qa_view_json =
+        serde_json::to_string(&qa_view).unwrap_or_else(|_| "\"\"".to_string());
 
     format!(
         "(function(){{try{{\
            var s={obj};\
            window.__GHOSTFTP_SETTINGS__=s;\
+           window.__GHOSTFTP_QA_VIEW__={qa_view_json};\
            var el=document.documentElement;\
            if(el&&typeof s.appTheme==='string'){{el.setAttribute('data-theme',s.appTheme);}}\
          }}catch(e){{}}}})();"
