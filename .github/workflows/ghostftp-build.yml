@@ -97,16 +97,64 @@ jobs:
               int cy,
               uint uFlags
             );
-
-            [DllImport("user32.dll", SetLastError = true)]
-            public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
           }
           "@
+
+          function Receive-CdpMessage {
+            param(
+              [System.Net.WebSockets.ClientWebSocket]$Socket,
+              [int]$ExpectedId,
+              [System.Threading.CancellationToken]$Token
+            )
+            while ($true) {
+              $buffer = New-Object byte[] 1048576
+              $builder = New-Object System.Text.StringBuilder
+              do {
+                $segment = [System.ArraySegment[byte]]::new($buffer)
+                $result = $Socket.ReceiveAsync($segment, $Token).GetAwaiter().GetResult()
+                if ($result.MessageType -eq [System.Net.WebSockets.WebSocketMessageType]::Close) {
+                  throw "WebView2 DevTools websocket closed before command $ExpectedId completed"
+                }
+                [void]$builder.Append([System.Text.Encoding]::UTF8.GetString($buffer, 0, $result.Count))
+              } while (-not $result.EndOfMessage)
+
+              $message = $builder.ToString() | ConvertFrom-Json
+              if ($null -ne $message.id -and [int]$message.id -eq $ExpectedId) {
+                if ($message.error) {
+                  throw "WebView2 DevTools command $ExpectedId failed: $($message.error | ConvertTo-Json -Compress)"
+                }
+                return $message.result
+              }
+            }
+          }
+
+          function Send-CdpCommand {
+            param(
+              [System.Net.WebSockets.ClientWebSocket]$Socket,
+              [int]$Id,
+              [string]$Method,
+              [hashtable]$Params,
+              [System.Threading.CancellationToken]$Token
+            )
+            $payload = @{
+              id = $Id
+              method = $Method
+              params = $Params
+            } | ConvertTo-Json -Compress -Depth 12
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($payload)
+            $segment = [System.ArraySegment[byte]]::new($bytes)
+            $Socket.SendAsync(
+              $segment,
+              [System.Net.WebSockets.WebSocketMessageType]::Text,
+              $true,
+              $Token
+            ).GetAwaiter().GetResult()
+            return Receive-CdpMessage -Socket $Socket -ExpectedId $Id -Token $Token
+          }
 
           $targetWidth = 1290
           $targetHeight = 852
           $SWP_NOZORDER = 0x0004
-          $PW_RENDERFULLCONTENT = 0x00000002
           $views = @(
             @{ key = 'main'; label = 'Native-Window' },
             @{ key = 'siteManager'; label = 'Site-Manager' },
@@ -117,13 +165,18 @@ jobs:
             @{ key = 'about'; label = 'About' }
           )
 
+          $viewIndex = 0
           foreach ($view in $views) {
+            $debugPort = 9222 + $viewIndex
+            $viewIndex++
             $env:GHOSTFTP_QA_VIEW = $view.key
+            $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=$debugPort --remote-allow-origins=*"
+
             $proc = Start-Process -FilePath $exe -PassThru
             try {
               $handle = [IntPtr]::Zero
-              for ($i = 0; $i -lt 20; $i++) {
-                Start-Sleep -Milliseconds 500
+              for ($i = 0; $i -lt 30; $i++) {
+                Start-Sleep -Milliseconds 400
                 $proc.Refresh()
                 if ($proc.HasExited) {
                   throw "Ghost FTP exited before the $($view.key) QA capture"
@@ -140,9 +193,6 @@ jobs:
                 throw "Unexpected Ghost FTP window title for $($view.key): $($proc.MainWindowTitle)"
               }
 
-              # GitHub's hosted Windows desktop is smaller than our approved
-              # reference frame. Force the canonical native geometry, then use
-              # PrintWindow so the whole WebView is captured even off-screen.
               if (-not [GhostFtpWindowCapture]::SetWindowPos(
                 $handle,
                 [IntPtr]::Zero,
@@ -155,10 +205,7 @@ jobs:
                 throw "SetWindowPos failed for $($view.key)"
               }
 
-              # Primary workspaces settle quickly; File Properties waits for a
-              # real local directory listing before selecting the first real
-              # entry and opening the production properties panel.
-              $settleMs = if ($view.key -eq 'properties') { 2200 } else { 1200 }
+              $settleMs = if ($view.key -eq 'properties') { 2500 } else { 1400 }
               Start-Sleep -Milliseconds $settleMs
 
               $rect = New-Object GhostFtpWindowCapture+RECT
@@ -171,47 +218,106 @@ jobs:
                 throw "Canonical Ghost FTP QA size was not applied for $($view.key): ${width}x${height}"
               }
 
-              $bitmap = New-Object System.Drawing.Bitmap $width, $height
-              $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-              $png = Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".png")
-              try {
-                $hdc = $graphics.GetHdc()
+              $target = $null
+              for ($i = 0; $i -lt 30; $i++) {
                 try {
-                  if (-not [GhostFtpWindowCapture]::PrintWindow($handle, $hdc, $PW_RENDERFULLCONTENT)) {
-                    throw "PrintWindow failed for $($view.key)"
-                  }
-                } finally {
-                  $graphics.ReleaseHdc($hdc)
+                  $targets = Invoke-RestMethod -Uri "http://127.0.0.1:$debugPort/json/list" -TimeoutSec 2
+                  $target = $targets |
+                    Where-Object { $_.type -eq 'page' -and $_.webSocketDebuggerUrl } |
+                    Select-Object -First 1
+                  if ($target) { break }
+                } catch {
+                  # WebView2 DevTools endpoint is still starting.
                 }
-                $bitmap.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
+                Start-Sleep -Milliseconds 250
+              }
+              if (-not $target) {
+                throw "WebView2 DevTools target was not available for $($view.key)"
+              }
+
+              $cts = [System.Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds(20))
+              $socket = [System.Net.WebSockets.ClientWebSocket]::new()
+              try {
+                $socket.ConnectAsync([Uri]$target.webSocketDebuggerUrl, $cts.Token).GetAwaiter().GetResult()
+
+                # DevTools capture renders the actual WebView2 compositor rather
+                # than PrintWindow's blank child surface. Metrics are fixed to
+                # the approved 1290x852 reference viewport before each shot.
+                $null = Send-CdpCommand -Socket $socket -Id 1 -Method 'Emulation.setDeviceMetricsOverride' -Params @{
+                  width = $targetWidth
+                  height = $targetHeight
+                  deviceScaleFactor = 1
+                  mobile = $false
+                } -Token $cts.Token
+
+                $shot = Send-CdpCommand -Socket $socket -Id 2 -Method 'Page.captureScreenshot' -Params @{
+                  format = 'png'
+                  fromSurface = $true
+                  captureBeyondViewport = $false
+                } -Token $cts.Token
               } finally {
-                $graphics.Dispose()
-                $bitmap.Dispose()
+                if ($socket.State -eq [System.Net.WebSockets.WebSocketState]::Open) {
+                  $socket.CloseAsync(
+                    [System.Net.WebSockets.WebSocketCloseStatus]::NormalClosure,
+                    'done',
+                    [System.Threading.CancellationToken]::None
+                  ).GetAwaiter().GetResult()
+                }
+                $socket.Dispose()
+                $cts.Dispose()
+              }
+
+              if (-not $shot.data) {
+                throw "WebView2 DevTools returned no screenshot data for $($view.key)"
+              }
+
+              $png = Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".png")
+              [System.IO.File]::WriteAllBytes($png, [Convert]::FromBase64String($shot.data))
+
+              $image = [System.Drawing.Bitmap]::FromFile($png)
+              try {
+                if ($image.Width -ne $targetWidth -or $image.Height -ne $targetHeight) {
+                  throw "QA screenshot dimensions for $($view.key) are $($image.Width)x$($image.Height), expected ${targetWidth}x${targetHeight}"
+                }
+
+                # Reject blank/white/solid captures without relying on PNG file
+                # size. Sample a grid and require real UI color variation.
+                $colors = New-Object 'System.Collections.Generic.HashSet[int]'
+                $darkSamples = 0
+                for ($y = 0; $y -lt $image.Height; $y += 53) {
+                  for ($x = 0; $x -lt $image.Width; $x += 61) {
+                    $pixel = $image.GetPixel($x, $y)
+                    $null = $colors.Add($pixel.ToArgb())
+                    if ($pixel.GetBrightness() -lt 0.65) { $darkSamples++ }
+                  }
+                }
+                if ($colors.Count -lt 12 -or $darkSamples -lt 20) {
+                  throw "QA screenshot for $($view.key) appears blank or invalid (colors=$($colors.Count), darkSamples=$darkSamples)"
+                }
+              } finally {
+                $image.Dispose()
               }
 
               $pngInfo = Get-Item $png
-              if ($pngInfo.Length -lt 12000) {
-                throw "Native QA image for $($view.key) is unexpectedly small: $($pngInfo.Length) bytes"
-              }
-
               @(
                 "View=$($view.key)"
                 "ProcessId=$($proc.Id)"
                 "WindowTitle=$($proc.MainWindowTitle)"
                 "WindowBounds=${width}x${height}"
                 "TargetReferenceBounds=${targetWidth}x${targetHeight}"
-                "CaptureMethod=PrintWindow(PW_RENDERFULLCONTENT)"
+                "CaptureMethod=WebView2CDP(Page.captureScreenshot)"
+                "DevToolsPort=$debugPort"
                 "ImageBytes=$($pngInfo.Length)"
                 "Executable=$exe"
               ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".txt"))
             } finally {
               if (-not $proc.HasExited) {
                 $null = $proc.CloseMainWindow()
-                Start-Sleep -Milliseconds 600
+                Start-Sleep -Milliseconds 700
                 if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
               }
             }
-            Start-Sleep -Milliseconds 350
+            Start-Sleep -Milliseconds 500
           }
 
           Remove-Item Env:GHOSTFTP_QA_VIEW -ErrorAction SilentlyContinue
