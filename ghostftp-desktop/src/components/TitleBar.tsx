@@ -11,6 +11,7 @@ import { getLocale, setLocale } from "@/lib/i18n";
 import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
 import { PRODUCT_VERSION_BADGE } from "@/lib/release";
+import { toastError } from "@/lib/errors";
 
 type PaneTarget = "local" | "remote" | "active";
 type FileAction = "refresh" | "upload" | "download" | "newFolder" | "delete" | "rename" | "properties";
@@ -28,13 +29,15 @@ function fileAction(action: FileAction, pane: PaneTarget = "active") {
   const target = pane === "active" ? undefined : pane;
   window.dispatchEvent(new CustomEvent("ghostftp:toolbar-action", { detail: { action, target } }));
 }
-function safeWindowAction(action: "minimize" | "maximize" | "close") {
+async function safeWindowAction(action: "minimize" | "maximize" | "close") {
   try {
     const win = getCurrentWindow();
-    if (action === "minimize") void win.minimize();
-    if (action === "maximize") void win.toggleMaximize();
-    if (action === "close") void win.close();
-  } catch {}
+    if (action === "minimize") await win.minimize();
+    if (action === "maximize") await win.toggleMaximize();
+    if (action === "close") await win.close();
+  } catch (error) {
+    toastError(error, `Couldn't ${action === "maximize" ? "maximize or restore" : action} Ghost FTP`);
+  }
 }
 
 export function TitleBar() {
@@ -133,7 +136,7 @@ export function TitleBar() {
       { label: "Site Manager…", run: () => openDialog("siteManager") },
       { label: "Import Sites…", run: () => openDialog("import") },
       { separator: true },
-      { label: "Exit", run: () => safeWindowAction("close") },
+      { label: "Exit", run: () => void safeWindowAction("close") },
     ],
     Edit: [
       { label: "Rename", run: () => fileAction("rename"), disabled: !paneState.hasActiveItem },
@@ -239,7 +242,7 @@ export function TitleBar() {
       className="ghost-title-row"
       onDoubleClick={(event) => {
         if ((event.target as HTMLElement).closest("button,select,input")) return;
-        safeWindowAction("maximize");
+        void safeWindowAction("maximize");
       }}
     >
       <div className="ghost-title-left" data-tauri-drag-region>
@@ -276,9 +279,9 @@ export function TitleBar() {
       </div>
       <div className="ghost-window-title-spacer" data-tauri-drag-region />
       <div className="ghost-window-controls">
-        <button aria-label="Minimize" onClick={() => safeWindowAction("minimize")}><Minus size={14}/></button>
-        <button aria-label="Maximize or restore" onClick={() => safeWindowAction("maximize")}><Square size={12}/></button>
-        <button className="danger" aria-label="Close" onClick={() => safeWindowAction("close")}><X size={15}/></button>
+        <button aria-label="Minimize" onClick={() => void safeWindowAction("minimize")}><Minus size={14}/></button>
+        <button aria-label="Maximize or restore" onClick={() => void safeWindowAction("maximize")}><Square size={12}/></button>
+        <button className="danger" aria-label="Close" onClick={() => void safeWindowAction("close")}><X size={15}/></button>
       </div>
     </div>
 
