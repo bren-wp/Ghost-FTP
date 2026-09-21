@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import ts from "typescript";
 
 const read = (path) => fs.readFileSync(path, "utf8");
 const failures = [];
@@ -11,6 +12,88 @@ function walkSource(dir) {
     else if (/\.(ts|tsx)$/.test(entry.name)) out.push(full);
   }
   return out;
+}
+
+
+function jsxAttribute(node, name) {
+  return node.attributes.properties.find(
+    (attr) => ts.isJsxAttribute(attr) && attr.name.text === name
+  );
+}
+
+function hasJsxSpread(node) {
+  return node.attributes.properties.some((attr) => ts.isJsxSpreadAttribute(attr));
+}
+
+function expressionFromAttribute(attr) {
+  if (!attr || !attr.initializer) return null;
+  if (ts.isJsxExpression(attr.initializer)) return attr.initializer.expression ?? null;
+  return null;
+}
+
+function isEmptyHandler(expr) {
+  if (!expr) return false;
+  if (ts.isArrowFunction(expr) || ts.isFunctionExpression(expr)) {
+    return ts.isBlock(expr.body) && expr.body.statements.length === 0;
+  }
+  return false;
+}
+
+function auditClickableTsx(file) {
+  const sourceText = read(file);
+  const sourceFile = ts.createSourceFile(
+    file,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  );
+
+  const visit = (node) => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      const tag = node.tagName.getText(sourceFile);
+
+      if (tag === "button") {
+        const onClick = jsxAttribute(node, "onClick");
+        const onPointerDown = jsxAttribute(node, "onPointerDown");
+        const onMouseDown = jsxAttribute(node, "onMouseDown");
+        const type = jsxAttribute(node, "type");
+        const typeText = type?.initializer && ts.isStringLiteral(type.initializer)
+          ? type.initializer.text
+          : null;
+        const hasAction =
+          Boolean(onClick || onPointerDown || onMouseDown) ||
+          typeText === "submit" ||
+          typeText === "reset" ||
+          hasJsxSpread(node);
+
+        if (!hasAction) {
+          const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+          failures.push(`${file}:${pos.line + 1}: button has no click/pointer/submit contract`);
+        }
+
+        const clickExpr = expressionFromAttribute(onClick);
+        if (isEmptyHandler(clickExpr)) {
+          const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+          failures.push(`${file}:${pos.line + 1}: button has an empty onClick handler`);
+        }
+      }
+
+      if (tag === "a") {
+        const href = jsxAttribute(node, "href");
+        if (href?.initializer && ts.isStringLiteral(href.initializer) && href.initializer.text === "#") {
+          const onClick = jsxAttribute(node, "onClick");
+          if (!onClick && !hasJsxSpread(node)) {
+            const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+            failures.push(`${file}:${pos.line + 1}: href="#" anchor has no click contract`);
+          }
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sourceFile);
 }
 
 const workspaceFiles = [
@@ -56,8 +139,9 @@ const criticalFiles = [
   "packages/file-ui/src/components/PropertiesModal.tsx",
 ];
 
-for (const file of walkSource("src")) {
+for (const file of [...walkSource("src"), ...walkSource("packages/file-ui/src")]) {
   const source = read(file);
+  if (file.endsWith(".tsx")) auditClickableTsx(file);
   if (/[\u3400-\u9fff]/u.test(source)) {
     failures.push(`${file}: unexpected CJK text found in the production English/Balkan source UI`);
   }
@@ -144,4 +228,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log("Ghost FTP UI contract OK: single-shell views, transient overlays and critical click handlers are present.");
+console.log("Ghost FTP UI contract OK: single-shell views, transient overlays, popup guards and TSX click contracts are valid.");
