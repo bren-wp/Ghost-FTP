@@ -733,7 +733,6 @@ export function FilePane({
         items.push({
           label: "Download as…",
           icon: <FileArchive size={12} />,
-          onClick: () => {},
           children: [
             {
               label: "Compressed .tar.gz",
