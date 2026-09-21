@@ -107,8 +107,7 @@ fn build_settings_init_script(db: &db::Db) -> String {
             )
         })
         .unwrap_or_default();
-    let qa_view_json =
-        serde_json::to_string(&qa_view).unwrap_or_else(|_| "\"\"".to_string());
+    let qa_view_json = serde_json::to_string(&qa_view).unwrap_or_else(|_| "\"\"".to_string());
 
     format!(
         "(function(){{try{{\
