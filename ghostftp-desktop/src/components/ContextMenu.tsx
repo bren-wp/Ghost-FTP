@@ -82,7 +82,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
         <div key={i}>
           <button
             role="menuitem"
-            disabled={item.disabled}
+            disabled={item.disabled || !item.onClick}
             onClick={() => {
               item.onClick?.();
               onClose();
