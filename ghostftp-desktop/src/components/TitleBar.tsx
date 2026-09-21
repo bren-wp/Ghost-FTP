@@ -322,5 +322,5 @@ export function TitleBar() {
 }
 
 function Tool({ icon, label, onClick, disabled = false }: { icon: React.ReactNode; label: string; onClick?: () => void; disabled?: boolean }) {
-  return <button className="ghost-tool-button" aria-label={label} title={label} onClick={onClick} disabled={disabled}>{icon}<span>{label}</span></button>;
+  return <button className="ghost-tool-button" aria-label={label} title={label} onClick={onClick} disabled={disabled || !onClick}>{icon}<span>{label}</span></button>;
 }
