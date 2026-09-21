@@ -98,7 +98,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
               role="menuitem"
               aria-haspopup={hasChildren || undefined}
               aria-expanded={hasChildren ? openSub === i : undefined}
-              disabled={item.disabled}
+              disabled={item.disabled || (!hasChildren && !item.onClick)}
               onClick={() => {
                 if (hasChildren) {
                   setOpenSub((cur) => (cur === i ? null : i));
@@ -131,7 +131,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
                   <button
                     key={j}
                     role="menuitem"
-                    disabled={child.disabled}
+                    disabled={child.disabled || !child.onClick}
                     onClick={() => {
                       child.onClick?.();
                       onClose();
