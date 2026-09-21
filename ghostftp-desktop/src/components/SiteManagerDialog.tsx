@@ -413,7 +413,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
               <SideItem
                 key={tag}
                 active={view === `tag:${tag}`}
-                icon={<Tag />}
+                icon={<TagDot label={tag} />}
                 label={tag}
                 count={profiles.filter((profile) => (profile.tags ?? []).includes(tag)).length}
                 onClick={() => setView(`tag:${tag}`)}
@@ -887,7 +887,7 @@ function SiteRow({
       <span className="truncate text-text-muted">{profile.host}</span>
       <span className="text-text-muted">{profile.protocol.toUpperCase()}</span>
       <span>
-        <em className="not-italic rounded-full border border-accent/30 bg-accent/10 px-2 py-1 text-[10px] text-accent">
+        <em className={`not-italic rounded-full border px-2 py-1 text-[10px] ${tagToneClass(tag)}`}>
           {tag}
         </em>
       </span>
@@ -896,6 +896,38 @@ function SiteRow({
       </span>
     </div>
   );
+}
+
+
+function tagToneClass(label: string) {
+  const normalized = label.trim().toLowerCase();
+  if (normalized.includes("production")) return "border-sky-400/55 bg-sky-500/15 text-sky-300";
+  if (normalized.includes("staging")) return "border-emerald-400/55 bg-emerald-500/15 text-emerald-300";
+  if (normalized.includes("personal")) return "border-pink-400/55 bg-pink-500/15 text-pink-300";
+  if (normalized.includes("client")) return "border-orange-400/55 bg-orange-500/15 text-orange-300";
+  if (normalized.includes("development") || normalized.includes("dev")) return "border-violet-400/55 bg-violet-500/15 text-violet-300";
+  if (normalized.includes("backup")) return "border-rose-400/55 bg-rose-500/15 text-rose-300";
+  const palette = [
+    "border-sky-400/55 bg-sky-500/15 text-sky-300",
+    "border-emerald-400/55 bg-emerald-500/15 text-emerald-300",
+    "border-violet-400/55 bg-violet-500/15 text-violet-300",
+    "border-orange-400/55 bg-orange-500/15 text-orange-300",
+    "border-pink-400/55 bg-pink-500/15 text-pink-300",
+    "border-rose-400/55 bg-rose-500/15 text-rose-300",
+  ];
+  const hash = Array.from(normalized).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return palette[hash % palette.length];
+}
+
+function TagDot({ label }: { label: string }) {
+  const tone = tagToneClass(label);
+  const background =
+    tone.includes("emerald") ? "bg-emerald-400" :
+    tone.includes("violet") ? "bg-violet-400" :
+    tone.includes("orange") ? "bg-orange-400" :
+    tone.includes("pink") ? "bg-pink-400" :
+    tone.includes("rose") ? "bg-rose-400" : "bg-sky-400";
+  return <span className={`inline-block h-3 w-3 rounded-full shadow-[0_0_8px_currentColor] ${background}`} aria-hidden="true"/>;
 }
 
 function formatLastUsed(value?: number) {
