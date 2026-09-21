@@ -101,6 +101,9 @@ jobs:
 
             [DllImport("user32.dll")]
             public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
           }
           "@
 
@@ -108,6 +111,7 @@ jobs:
           $targetHeight = 852
           $SWP_NOZORDER = 0x0004
           $SWP_SHOWWINDOW = 0x0040
+          $PW_RENDERFULLCONTENT = 0x00000002
           $views = @(
             @{ key = 'main'; label = 'Native-Window' },
             @{ key = 'siteManager'; label = 'Site-Manager' },
@@ -146,65 +150,63 @@ jobs:
                 throw "Unexpected Ghost FTP window title for $($view.key): $($proc.MainWindowTitle)"
               }
 
-              # Hosted Windows runners expose a desktop smaller than 1290x852.
-              # Capture the real WebView2 surface in overlapping visible tiles,
-              # moving the native borderless window so every pixel becomes
-              # visible inside the taskbar-free WorkingArea before capture.
-              $xOffsets = @(
-                0,
-                [Math]::Max(0, $targetWidth - $work.Width)
-              ) | Select-Object -Unique
-              $yOffsets = @(
-                0,
-                [Math]::Max(0, $targetHeight - $work.Height)
-              ) | Select-Object -Unique
+              # Keep the real native window at the canonical reference geometry.
+              # PrintWindow(PW_RENDERFULLCONTENT) captures the HWND itself instead
+              # of the hosted runner desktop, so unrelated console windows cannot
+              # contaminate the visual evidence even when 1290x852 exceeds the
+              # visible GitHub Actions working area.
+              if (-not [GhostFtpWindowCapture]::SetWindowPos(
+                $handle,
+                [IntPtr]::Zero,
+                $work.Left,
+                $work.Top,
+                $targetWidth,
+                $targetHeight,
+                ($SWP_NOZORDER -bor $SWP_SHOWWINDOW)
+              )) {
+                throw "SetWindowPos failed for $($view.key)"
+              }
+              $null = [GhostFtpWindowCapture]::SetForegroundWindow($handle)
 
-              $bitmap = New-Object System.Drawing.Bitmap $targetWidth, $targetHeight
+              $settleMs = if ($view.key -eq 'properties') { 1800 } else { 1100 }
+              Start-Sleep -Milliseconds $settleMs
+
+              $rect = New-Object GhostFtpWindowCapture+RECT
+              if (-not [GhostFtpWindowCapture]::GetWindowRect($handle, [ref]$rect)) {
+                throw "GetWindowRect failed for $($view.key)"
+              }
+              $width = $rect.Right - $rect.Left
+              $height = $rect.Bottom - $rect.Top
+              if ([Math]::Abs($width - $targetWidth) -gt 4 -or [Math]::Abs($height - $targetHeight) -gt 4) {
+                throw "Native window bounds for $($view.key) are ${width}x${height}, expected approximately ${targetWidth}x${targetHeight}"
+              }
+
+              $bitmap = New-Object System.Drawing.Bitmap $targetWidth, $targetHeight, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
               $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+              $hdc = [IntPtr]::Zero
               try {
-                foreach ($yOffset in $yOffsets) {
-                  foreach ($xOffset in $xOffsets) {
-                    $windowX = $work.Left - [int]$xOffset
-                    $windowY = $work.Top - [int]$yOffset
-
-                    if (-not [GhostFtpWindowCapture]::SetWindowPos(
-                      $handle,
-                      [IntPtr]::Zero,
-                      $windowX,
-                      $windowY,
-                      $targetWidth,
-                      $targetHeight,
-                      ($SWP_NOZORDER -bor $SWP_SHOWWINDOW)
-                    )) {
-                      throw "SetWindowPos failed for $($view.key) tile $xOffset,$yOffset"
-                    }
-                    $null = [GhostFtpWindowCapture]::SetForegroundWindow($handle)
-
-                    $settleMs = if ($view.key -eq 'properties') { 1200 } else { 650 }
-                    Start-Sleep -Milliseconds $settleMs
-
-                    $copyWidth = [Math]::Min($work.Width, $targetWidth - [int]$xOffset)
-                    $copyHeight = [Math]::Min($work.Height, $targetHeight - [int]$yOffset)
-                    if ($copyWidth -le 0 -or $copyHeight -le 0) {
-                      continue
-                    }
-
-                    $graphics.CopyFromScreen(
-                      $work.Left,
-                      $work.Top,
-                      [int]$xOffset,
-                      [int]$yOffset,
-                      (New-Object System.Drawing.Size($copyWidth, $copyHeight)),
-                      [System.Drawing.CopyPixelOperation]::SourceCopy
-                    )
-                  }
+                $hdc = $graphics.GetHdc()
+                if (-not [GhostFtpWindowCapture]::PrintWindow($handle, $hdc, $PW_RENDERFULLCONTENT)) {
+                  throw "PrintWindow(PW_RENDERFULLCONTENT) failed for $($view.key)"
                 }
+              } finally {
+                if ($hdc -ne [IntPtr]::Zero) { $graphics.ReleaseHdc($hdc) }
+                $graphics.Dispose()
+              }
 
-                $png = Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".png")
+              $png = Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".png")
+              try {
                 $bitmap.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
               } finally {
-                $graphics.Dispose()
                 $bitmap.Dispose()
+              }
+
+              if (-not (Test-Path $png)) {
+                throw "QA screenshot was not written for $($view.key)"
+              }
+              $pngInfo = Get-Item $png
+              if ($pngInfo.Length -le 0) {
+                throw "QA screenshot is empty for $($view.key)"
               }
 
               $image = [System.Drawing.Bitmap]::FromFile($png)
@@ -213,33 +215,45 @@ jobs:
                   throw "QA screenshot dimensions for $($view.key) are $($image.Width)x$($image.Height), expected ${targetWidth}x${targetHeight}"
                 }
 
-                # Reject white/solid/blank captures. Real Ghost FTP surfaces
-                # contain many distinct dark blues plus bright controls/text.
+                # Robust blank-image validation: prove the decoded bitmap has
+                # opaque content, multiple colors and measurable luminance
+                # variation. Do not use compressed PNG byte size as a proxy.
                 $colors = New-Object 'System.Collections.Generic.HashSet[int]'
-                $darkSamples = 0
-                $brightSamples = 0
-                for ($y = 8; $y -lt $image.Height; $y += 47) {
-                  for ($x = 8; $x -lt $image.Width; $x += 53) {
+                $sampleCount = 0
+                $opaqueSamples = 0
+                $transparentSamples = 0
+                $minBrightness = 1.0
+                $maxBrightness = 0.0
+                $sumBrightness = 0.0
+                $sumBrightnessSq = 0.0
+
+                for ($y = 7; $y -lt $image.Height; $y += 29) {
+                  for ($x = 7; $x -lt $image.Width; $x += 31) {
                     $pixel = $image.GetPixel($x, $y)
+                    $sampleCount++
+                    if ($pixel.A -eq 0) { $transparentSamples++ } else { $opaqueSamples++ }
                     $null = $colors.Add($pixel.ToArgb())
-                    if ($pixel.GetBrightness() -lt 0.45) { $darkSamples++ }
-                    if ($pixel.GetBrightness() -gt 0.70) { $brightSamples++ }
+                    $brightness = [double]$pixel.GetBrightness()
+                    $minBrightness = [Math]::Min($minBrightness, $brightness)
+                    $maxBrightness = [Math]::Max($maxBrightness, $brightness)
+                    $sumBrightness += $brightness
+                    $sumBrightnessSq += ($brightness * $brightness)
                   }
                 }
-                if ($colors.Count -lt 20 -or $darkSamples -lt 40 -or $brightSamples -lt 2) {
-                  throw "QA screenshot for $($view.key) appears blank/invalid (colors=$($colors.Count), dark=$darkSamples, bright=$brightSamples)"
+
+                if ($sampleCount -le 0 -or $opaqueSamples -le 0 -or $transparentSamples -eq $sampleCount) {
+                  throw "QA screenshot for $($view.key) is fully transparent or has no sampled pixels"
+                }
+
+                $meanBrightness = $sumBrightness / $sampleCount
+                $brightnessVariance = ($sumBrightnessSq / $sampleCount) - ($meanBrightness * $meanBrightness)
+                $brightnessRange = $maxBrightness - $minBrightness
+                if ($colors.Count -lt 12 -or $brightnessRange -lt 0.05 -or $brightnessVariance -lt 0.0003) {
+                  throw "QA screenshot for $($view.key) appears blank/solid (colors=$($colors.Count), range=$([Math]::Round($brightnessRange,4)), variance=$([Math]::Round($brightnessVariance,6)), opaque=$opaqueSamples/$sampleCount)"
                 }
               } finally {
                 $image.Dispose()
               }
-
-              $rect = New-Object GhostFtpWindowCapture+RECT
-              if (-not [GhostFtpWindowCapture]::GetWindowRect($handle, [ref]$rect)) {
-                throw "GetWindowRect failed for $($view.key)"
-              }
-              $width = $rect.Right - $rect.Left
-              $height = $rect.Bottom - $rect.Top
-              $pngInfo = Get-Item $png
 
               @(
                 "View=$($view.key)"
@@ -248,7 +262,7 @@ jobs:
                 "WindowBounds=${width}x${height}"
                 "TargetReferenceBounds=${targetWidth}x${targetHeight}"
                 "WorkingArea=$($work.Width)x$($work.Height)"
-                "CaptureMethod=CopyFromScreenTiled(WorkingArea)"
+                "CaptureMethod=PrintWindow(PW_RENDERFULLCONTENT)"
                 "ImageBytes=$($pngInfo.Length)"
                 "Executable=$exe"
               ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".txt"))
