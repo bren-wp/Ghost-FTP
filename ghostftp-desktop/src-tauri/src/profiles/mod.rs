@@ -43,6 +43,8 @@ pub struct ConnectionProfile {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_remote_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<String>,
     // Connect automatically on app launch. Optional so existing profile JSON
     // files (written before this field existed) keep loading as `None`.
