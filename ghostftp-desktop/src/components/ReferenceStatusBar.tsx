@@ -16,9 +16,9 @@ export function ReferenceStatusBar() {
   const metrics = useMemo(() => {
     let up = 0, down = 0, active = 0;
     for (const t of transfers) {
-      if (t.status !== "transferring" && t.status !== "queued") continue;
+      if (t.status !== "transferring") continue;
       active++;
-      const elapsed = Math.max(1, (now - t.startedAt) / 1000);
+      const elapsed = Math.max(1, now / 1000 - t.startedAt);
       const speed = t.transferred / elapsed;
       if (t.kind === "upload") up += speed; else down += speed;
     }
