@@ -1,7 +1,7 @@
 name: Ghost FTP native build
 
-# RC13 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
-# RC13 release build stamp: 2026-09-21.13
+# RC14 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
+# RC14 release build stamp: 2026-09-21.13
 
 on:
   workflow_dispatch:
@@ -31,10 +31,10 @@ jobs:
         include:
           - os: windows-latest
             args: '--bundles nsis'
-            artifact: 'GhostFTP-Windows-x64-RC13'
+            artifact: 'GhostFTP-Windows-x64-RC14'
           - os: ubuntu-22.04
             args: '--bundles deb,rpm,appimage'
-            artifact: 'GhostFTP-Linux-x86_64-RC13'
+            artifact: 'GhostFTP-Linux-x86_64-RC14'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -150,7 +150,7 @@ jobs:
               $edgeComparisons = 0
               $edgeHits = 0
 
-              # Sample densely enough to detect UI structure. RC13 exposed why
+              # Sample densely enough to detect UI structure. RC14 exposed why
               # sparse color/variance checks are insufficient: a blank WebView2
               # compositor frame with only the native border still had >100 raw
               # colors from anti-aliasing and incorrectly passed.
@@ -420,8 +420,8 @@ jobs:
                 throw "Native window bounds for $($view.key) are ${width}x${height}, expected approximately ${targetWidth}x${targetHeight}"
               }
 
-              $png = Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".png")
-              $printCandidate = Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".printwindow.tmp.png")
+              $png = Join-Path $qaDir ("GhostFTP-Windows-RC14-" + $view.label + ".png")
+              $printCandidate = Join-Path $qaDir ("GhostFTP-Windows-RC14-" + $view.label + ".printwindow.tmp.png")
               $captureMethod = 'PrintWindow(PW_RENDERFULLCONTENT)'
 
               $bitmap = New-Object System.Drawing.Bitmap $targetWidth, $targetHeight, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
@@ -487,7 +487,7 @@ jobs:
                 "OpaqueSamples=$($validation.Opaque)/$($validation.Samples)"
                 "ImageBytes=$($pngInfo.Length)"
                 "Executable=$exe"
-              ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".txt"))
+              ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC14-" + $view.label + ".txt"))
             } finally {
               if (-not $proc.HasExited) {
                 $null = $proc.CloseMainWindow()
@@ -507,7 +507,7 @@ jobs:
         if: runner.os == 'Windows' && always()
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-Windows-x64-RC13-QA
+          name: GhostFTP-Windows-x64-RC14-QA
           path: qa/*
           if-no-files-found: warn
           retention-days: 14
@@ -524,26 +524,26 @@ jobs:
           if-no-files-found: error
 
   source-packages:
-    name: RC13 source packages
+    name: RC14 source packages
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Package RC13 source and documentation
+      - name: Package RC14 source and documentation
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist
-          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC13-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-RC13-Desktop-Source.zip ghostftp-desktop
-          zip -qr dist/GhostFTP-v2.1.1-RC13-Website.zip website
-          zip -qr dist/GhostFTP-v2.1.1-RC13-Updates.zip updates
-          zip -qr dist/GhostFTP-v2.1.1-RC13-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
-      - name: Upload RC13 source packages
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC14-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC14-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC14-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC14-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC14-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+      - name: Upload RC14 source packages
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-RC13-Source-Packages
+          name: GhostFTP-RC14-Source-Packages
           path: dist/*
           if-no-files-found: error
           retention-days: 14
