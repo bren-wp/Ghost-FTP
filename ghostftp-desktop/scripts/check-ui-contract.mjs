@@ -160,6 +160,9 @@ const criticalFiles = [
 for (const file of [...walkSource("src"), ...walkSource("packages/file-ui/src")]) {
   const source = read(file);
   if (file.endsWith(".tsx")) auditClickableTsx(file);
+  if (/onClick\s*:\s*\(\)\s*=>\s*\{\s*\}/.test(source)) {
+    failures.push(`${file}: contains a fake no-op onClick handler`);
+  }
   if (/[\u3400-\u9fff]/u.test(source)) {
     failures.push(`${file}: unexpected CJK text found in the production English/Balkan source UI`);
   }
