@@ -111,8 +111,9 @@ function FleetSearch() {
     close();
   };
   const copyPath = (path: string) => {
-    navigator.clipboard.writeText(path);
-    toast.info("Path copied", path);
+    void navigator.clipboard.writeText(path)
+      .then(() => toast.info("Path copied", path))
+      .catch((error) => toast.error("Couldn't copy path", String(error)));
   };
 
   const done = state === "done";
