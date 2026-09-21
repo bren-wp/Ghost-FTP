@@ -69,6 +69,7 @@ export const ipc = {
   openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
 
   listProfiles: () => invoke<ConnectionProfile[]>("list_profiles"),
+  exportProfiles: (path: string) => invoke<number>("export_profiles", { path }),
 
   saveProfile: (profile: ConnectionProfile) =>
     invoke<void>("save_profile", { profile }),
