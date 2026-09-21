@@ -321,16 +321,32 @@ jobs:
             throw "Unexpected Windows QA working area: $($work.Width)x$($work.Height)"
           }
 
+          $webViewArgsPolicy = 'HKCU:\Software\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments'
+          $webViewDataPolicy = 'HKCU:\Software\Policies\Microsoft\Edge\WebView2\UserDataFolder'
+          New-Item -Path $webViewArgsPolicy -Force | Out-Null
+          New-Item -Path $webViewDataPolicy -Force | Out-Null
+
           $viewIndex = 0
           foreach ($view in $views) {
             $debugPort = 9222 + $viewIndex
             $viewIndex++
             $env:GHOSTFTP_QA_VIEW = $view.key
-            # PrintWindow cannot capture a GPU-composited WebView2 surface on
-            # some hosted Windows runners. Disable GPU for the primary attempt,
-            # and expose a loopback-only DevTools endpoint for an exact compositor
-            # screenshot fallback if Windows still returns a blank HWND bitmap.
-            $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--disable-gpu --disable-gpu-compositing --remote-debugging-port=$debugPort"
+
+            # GitHub-hosted Windows jobs run with an elevated administrator
+            # token. WebView2 intentionally ignores environment-provided browser
+            # flags for elevated hosts, so configure the documented per-exe
+            # policy override as well as the environment fallback. A unique QA
+            # user-data folder prevents a lingering WebView2 browser process from
+            # reusing another view's remote-debugging port.
+            $browserArgs = "--disable-gpu --disable-gpu-compositing --remote-debugging-address=127.0.0.1 --remote-debugging-port=$debugPort"
+            $qaWebViewData = Join-Path $env:RUNNER_TEMP ("ghostftp-webview2-" + $debugPort)
+            Remove-Item $qaWebViewData -Recurse -Force -ErrorAction SilentlyContinue
+            New-Item -ItemType Directory -Path $qaWebViewData -Force | Out-Null
+
+            $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = $browserArgs
+            $env:WEBVIEW2_USER_DATA_FOLDER = $qaWebViewData
+            New-ItemProperty -Path $webViewArgsPolicy -Name 'ghostftp.exe' -Value $browserArgs -PropertyType String -Force | Out-Null
+            New-ItemProperty -Path $webViewDataPolicy -Name 'ghostftp.exe' -Value $qaWebViewData -PropertyType String -Force | Out-Null
 
             $proc = Start-Process -FilePath $exe -PassThru
             try {
@@ -443,12 +459,16 @@ jobs:
                 Start-Sleep -Milliseconds 700
                 if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
               }
+              Remove-ItemProperty -Path $webViewArgsPolicy -Name 'ghostftp.exe' -ErrorAction SilentlyContinue
+              Remove-ItemProperty -Path $webViewDataPolicy -Name 'ghostftp.exe' -ErrorAction SilentlyContinue
+              Remove-Item $qaWebViewData -Recurse -Force -ErrorAction SilentlyContinue
             }
             Start-Sleep -Milliseconds 500
           }
 
           Remove-Item Env:GHOSTFTP_QA_VIEW -ErrorAction SilentlyContinue
           Remove-Item Env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS -ErrorAction SilentlyContinue
+          Remove-Item Env:WEBVIEW2_USER_DATA_FOLDER -ErrorAction SilentlyContinue
 
       - name: Upload Windows native-window QA evidence
         if: runner.os == 'Windows' && always()
