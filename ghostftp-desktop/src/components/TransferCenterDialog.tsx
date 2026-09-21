@@ -32,18 +32,12 @@ import { getLocale, setLocale } from "@/lib/i18n";
 import { useLayout } from "@/stores/layoutStore";
 import { useDialog } from "@/hooks/useDialog";
 import { toastError } from "@/lib/errors";
+import { useTransferSchedule } from "@/stores/transferScheduleStore";
 
 type FilterTab = "all" | "upload" | "download" | "completed" | "failed" | "paused";
 type DirectionFilter = "all" | "upload" | "download";
 type TimeFilter = "all" | "hour" | "day";
 type BandwidthSample = { upload: number; download: number };
-
-function localDateInputValue(date = new Date()) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 interface Props {
   onClose: () => void;
@@ -80,11 +74,16 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   const schedulerRef = useRef<HTMLDivElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [scheduleMode, setScheduleMode] = useState<"off" | "once" | "daily" | "weekly">("off");
-  const [scheduleDate, setScheduleDate] = useState(() => localDateInputValue());
-  const [scheduleTime, setScheduleTime] = useState("13:00");
-  const [scheduledTransferId, setScheduledTransferId] = useState<string | null>(null);
-  const [scheduleArmed, setScheduleArmed] = useState(false);
+  const scheduleMode = useTransferSchedule((state) => state.mode);
+  const scheduleDate = useTransferSchedule((state) => state.date);
+  const scheduleTime = useTransferSchedule((state) => state.time);
+  const scheduledTransferId = useTransferSchedule((state) => state.transferId);
+  const scheduleArmed = useTransferSchedule((state) => state.armed);
+  const setScheduleMode = useTransferSchedule((state) => state.setMode);
+  const setScheduleDate = useTransferSchedule((state) => state.setDate);
+  const setScheduleTime = useTransferSchedule((state) => state.setTime);
+  const setScheduledTransferId = useTransferSchedule((state) => state.setTarget);
+  const setScheduleArmed = useTransferSchedule((state) => state.setArmed);
   const [logClearedAt, setLogClearedAt] = useState(0);
   const [bandwidthHistory, setBandwidthHistory] = useState<BandwidthSample[]>([]);
   const previousTotals = useRef({
@@ -120,96 +119,6 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
       document.removeEventListener("keydown", onKey);
     };
   }, [moreOpen]);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("ghostftp.transferSchedule.v1");
-      if (!raw) return;
-      const saved = JSON.parse(raw) as {
-        mode?: "off" | "once" | "daily" | "weekly";
-        date?: string;
-        time?: string;
-        transferId?: string | null;
-        armed?: boolean;
-      };
-      if (saved.mode) setScheduleMode(saved.mode);
-      if (saved.date) setScheduleDate(saved.date);
-      if (saved.time) setScheduleTime(saved.time);
-      setScheduledTransferId(saved.transferId ?? null);
-      setScheduleArmed(Boolean(saved.armed && saved.mode && saved.mode !== "off" && saved.transferId));
-    } catch {
-      localStorage.removeItem("ghostftp.transferSchedule.v1");
-    }
-  }, []);
-
-  useEffect(() => {
-    const payload = {
-      mode: scheduleMode,
-      date: scheduleDate,
-      time: scheduleTime,
-      transferId: scheduledTransferId,
-      armed: scheduleArmed,
-    };
-    localStorage.setItem("ghostftp.transferSchedule.v1", JSON.stringify(payload));
-  }, [scheduleMode, scheduleDate, scheduleTime, scheduledTransferId, scheduleArmed]);
-
-  useEffect(() => {
-    if (!scheduleArmed || scheduleMode === "off" || !scheduledTransferId) return;
-
-    const computeDue = () => {
-      const [hour, minute] = scheduleTime.split(":").map(Number);
-      if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
-      const now = new Date();
-
-      if (scheduleMode === "once") {
-        const due = new Date(`${scheduleDate}T${scheduleTime}:00`);
-        return Number.isNaN(due.getTime()) ? null : due;
-      }
-
-      if (scheduleMode === "daily") {
-        const due = new Date(now);
-        due.setHours(hour, minute, 0, 0);
-        if (due.getTime() <= now.getTime()) due.setDate(due.getDate() + 1);
-        return due;
-      }
-
-      const anchor = new Date(`${scheduleDate}T${scheduleTime}:00`);
-      if (Number.isNaN(anchor.getTime())) return null;
-      const due = new Date(now);
-      due.setHours(hour, minute, 0, 0);
-      const delta = (anchor.getDay() - due.getDay() + 7) % 7;
-      due.setDate(due.getDate() + delta);
-      if (due.getTime() <= now.getTime()) due.setDate(due.getDate() + 7);
-      return due;
-    };
-
-    let timer: number | undefined;
-    let cancelled = false;
-    const arm = () => {
-      if (cancelled) return;
-      const due = computeDue();
-      if (!due) return;
-      const delay = Math.max(0, due.getTime() - Date.now());
-      const maxDelay = 2_147_000_000;
-      if (delay > maxDelay) {
-        timer = window.setTimeout(arm, maxDelay);
-        return;
-      }
-      timer = window.setTimeout(() => {
-        if (cancelled) return;
-        void retry(scheduledTransferId).finally(() => {
-          if (scheduleMode === "once") setScheduleArmed(false);
-          else arm();
-        });
-      }, delay);
-    };
-    arm();
-
-    return () => {
-      cancelled = true;
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
-  }, [scheduleArmed, scheduleMode, scheduleDate, scheduleTime, scheduledTransferId, retry]);
 
   const transfers = useMemo(() => Object.values(byId), [byId]);
   const completed = transfers.filter(
