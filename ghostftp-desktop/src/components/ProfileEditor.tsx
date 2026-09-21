@@ -276,7 +276,7 @@ export function ProfileEditor({ profile, prefill, onClose }: Props) {
       ipc
         .apiKeyStatus(`shopify:${id}`)
         .then(setShopifySecretSaved)
-        .catch(() => {});
+        .catch((error) => toast.error("Couldn't read Shopify credential status", String(error)));
     }
   }, [protocol, id]);
 
@@ -309,7 +309,7 @@ export function ProfileEditor({ profile, prefill, onClose }: Props) {
       ipc
         .apiKeyStatus(`hubspot:${id}`)
         .then(setHubspotSecretSaved)
-        .catch(() => {});
+        .catch((error) => toast.error("Couldn't read HubSpot credential status", String(error)));
     }
   }, [protocol, id]);
 
@@ -346,7 +346,7 @@ export function ProfileEditor({ profile, prefill, onClose }: Props) {
       ipc
         .apiKeyStatus(`dynamics:${id}`)
         .then(setDynamicsSecretSaved)
-        .catch(() => {});
+        .catch((error) => toast.error("Couldn't read Dynamics credential status", String(error)));
     }
   }, [protocol, id]);
 
