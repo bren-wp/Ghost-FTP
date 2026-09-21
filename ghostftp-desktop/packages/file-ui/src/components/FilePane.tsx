@@ -1568,9 +1568,49 @@ function Row({
 function entryTypeLabel(entry: DirEntry) {
   if (entry.kind === "directory") return "File folder";
   if (entry.kind === "symlink") return "Symbolic link";
-  const dot = entry.name.lastIndexOf(".");
-  if (dot <= 0 || dot === entry.name.length - 1) return "File";
-  return `${entry.name.slice(dot + 1).toUpperCase()} File`;
+  if (entry.kind === "other") return "File";
+
+  const lower = entry.name.toLowerCase();
+  const extension =
+    lower.startsWith(".") && lower.indexOf(".", 1) === -1
+      ? lower.slice(1)
+      : lower.includes(".")
+        ? lower.slice(lower.lastIndexOf(".") + 1)
+        : "";
+
+  const friendly: Record<string, string> = {
+    html: "HTML File",
+    htm: "HTML File",
+    js: "JavaScript File",
+    mjs: "JavaScript File",
+    cjs: "JavaScript File",
+    ts: "TypeScript File",
+    tsx: "TypeScript File",
+    jsx: "JavaScript File",
+    css: "CSS File",
+    scss: "SCSS File",
+    less: "LESS File",
+    md: "Markdown File",
+    markdown: "Markdown File",
+    json: "JSON File",
+    php: "PHP File",
+    env: "ENV File",
+    txt: "Text File",
+    conf: "CONF File",
+    config: "CONFIG File",
+    xml: "XML File",
+    yml: "YAML File",
+    yaml: "YAML File",
+    csv: "CSV File",
+    sql: "SQL File",
+    sh: "Shell Script",
+    ps1: "PowerShell Script",
+    zip: "ZIP Archive",
+    gz: "GZip Archive",
+    tar: "TAR Archive",
+  };
+
+  return friendly[extension] ?? (extension ? `${extension.toUpperCase()} File` : "File");
 }
 
 function SortHeader({
