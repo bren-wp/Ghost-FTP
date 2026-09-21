@@ -200,22 +200,26 @@ for (const required of ["Transfer Center", "File Manager", "Sync & Backup", "Clo
   if (!sidebar.includes(required)) failures.push(`Reference sidebar missing required navigation: ${required}`);
 }
 if (!sidebar.includes('openDialog("sync")')) failures.push("Sync & Backup must open the real in-app sync workspace.");
+for (const note of ["Secure Connections", "Fast Transfers", "Modern Interface", "Cross-Platform", "Built for Creators"]) {
+  if (!sidebar.includes(note)) failures.push(`Reference sidebar missing capability note: ${note}`);
+}
 for (const route of ['openDialog("cloudStorage")', 'openDialog("schedules")', 'openDialog("activityLogs")']) {
   if (!sidebar.includes(route)) failures.push(`Sidebar must use purpose-specific in-app route: ${route}`);
 }
 
 const app = read("src/App.tsx");
 for (const required of [
-  'className="ghost-file-manager-body flex min-h-0 flex-1 flex-col overflow-hidden"',
-  'className="ghost-file-manager-top flex min-h-0 min-w-0 flex-1 overflow-hidden"',
+  'className="ghost-file-manager-body flex min-h-0 flex-1 overflow-hidden"',
+  'className="ghost-file-manager-right flex min-w-0 flex-1 flex-col"',
   "<TransferQueue />",
 ]) {
-  if (!app.includes(required)) failures.push(`App missing reference shell contract: ${required}`);
+  if (!app.includes(required)) failures.push(`App missing newest-reference shell contract: ${required}`);
 }
-const topIndex = app.indexOf("ghost-file-manager-top");
+const sidebarIndex = app.indexOf("<ReferenceSiteSidebar />");
+const rightIndex = app.indexOf("ghost-file-manager-right");
 const transferIndex = app.indexOf("<TransferQueue />");
-if (topIndex < 0 || transferIndex < 0 || transferIndex < topIndex) {
-  failures.push("TransferQueue must span below the site rail, after the upper File Manager row.");
+if (sidebarIndex < 0 || rightIndex < sidebarIndex || transferIndex < rightIndex) {
+  failures.push("File Manager must keep the site rail beside the workspace + transfer band, matching the newest reference.");
 }
 
 const titleBar = read("src/components/TitleBar.tsx");
@@ -266,15 +270,16 @@ for (const required of ["Type", "Permissions", "JavaScript File", "Markdown File
 
 const styles = read("src/styles.css");
 for (const required of [
-  "flex: 0 0 182px !important;",
-  "height: 67px !important;",
+  "flex: 0 0 175px !important;",
   "height: 65px !important;",
-  "flex: 0 0 414px !important;",
-  "width: 220px !important;",
-  "flex: 0 0 220px !important;",
-  "flex: 0 0 36px !important;",
+  "height: 60px !important;",
+  "flex: 0 0 423px !important;",
+  "width: 204px !important;",
+  "flex: 0 0 214px !important;",
+  "flex: 0 0 40px !important;",
+  "grid-template-columns: minmax(0, 1.55fr) minmax(360px, 1fr) !important;",
 ]) {
-  if (!styles.includes(required)) failures.push(`Styles missing canonical 1290x852 reference geometry: ${required}`);
+  if (!styles.includes(required)) failures.push(`Styles missing newest-reference 1290x852 geometry: ${required}`);
 }
 for (const required of [
   ".ghost-reference-statusbar {",
