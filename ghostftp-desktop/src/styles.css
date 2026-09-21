@@ -4221,7 +4221,7 @@ input.ghost-pane-address:focus-visible {
 }
 
 
-/* RC13 final compact-height guard.
+/* RC14 compact-height guard.
    Keep the 1290×852 acceptance frame exact, but release the fixed desktop
    workspace/bottom-band heights as soon as either viewport dimension is below
    the reference. This prevents the later reference-fidelity rules from
