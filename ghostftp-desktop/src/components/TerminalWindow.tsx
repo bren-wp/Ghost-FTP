@@ -62,23 +62,23 @@ export function TerminalWindow() {
 
     const dataDisposable = term.onData((data) => {
       const id = terminalIdRef.current;
-      if (id) ipc.terminalWrite(id, data).catch(() => {});
+      if (id) ipc.terminalWrite(id, data).catch((error) => setError(`Terminal write failed: ${String(error)}`));
     });
     const resizeDisposable = term.onResize(({ cols, rows }) => {
       const id = terminalIdRef.current;
-      if (id) ipc.terminalResize(id, cols, rows).catch(() => {});
+      if (id) ipc.terminalResize(id, cols, rows).catch((error) => setError(`Terminal resize failed: ${String(error)}`));
     });
     const selectionDisposable = term.onSelectionChange(() => {
       if (!useSettings.getState().terminalCopyOnSelect) return;
       const text = term.getSelection();
-      if (text) navigator.clipboard.writeText(text).catch(() => {});
+      if (text) navigator.clipboard.writeText(text).catch((error) => setError(`Clipboard copy failed: ${String(error)}`));
     });
 
     const suggest = attachSuggestions(term, {
       historyKey: histKey || sessionId || "default",
       send: (data) => {
         const id = terminalIdRef.current;
-        if (id) ipc.terminalWrite(id, data).catch(() => {});
+        if (id) ipc.terminalWrite(id, data).catch((error) => setError(`Terminal write failed: ${String(error)}`));
       },
     });
 
@@ -122,7 +122,7 @@ export function TerminalWindow() {
           localStorage.removeItem(key);
           if (buffer) term.write(buffer);
           terminalIdRef.current = handoffId;
-          ipc.terminalResize(handoffId, term.cols, term.rows).catch(() => {});
+          ipc.terminalResize(handoffId, term.cols, term.rows).catch((error) => setError(`Terminal resize failed: ${String(error)}`));
           setStatus("ready");
         } else {
           if (!sessionId) throw new Error("No session for this terminal window");
@@ -163,7 +163,7 @@ export function TerminalWindow() {
 
   return (
     <div className="flex h-screen w-screen flex-col bg-bg">
-      <PopoutTitleBar title={title} exited={status === "exited"} />
+      <PopoutTitleBar title={title} exited={status === "exited"} onError={(error) => setError(String(error))} />
       <div className="relative flex-1 overflow-hidden">
         <div
           ref={containerRef}
@@ -186,17 +186,17 @@ export function TerminalWindow() {
   );
 }
 
-function PopoutTitleBar({ title, exited }: { title: string; exited: boolean }) {
+function PopoutTitleBar({ title, exited, onError }: { title: string; exited: boolean; onError: (error: unknown) => void }) {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
     const win = getCurrentWindow();
-    win.isMaximized().then(setMaximized).catch(() => {});
+    win.isMaximized().then(setMaximized).catch(onError);
     const unlisten = win.onResized(() => {
-      win.isMaximized().then(setMaximized).catch(() => {});
+      win.isMaximized().then(setMaximized).catch(onError);
     });
     return () => {
-      unlisten.then((u) => u()).catch(() => {});
+      unlisten.then((u) => u()).catch(onError);
     };
   }, []);
 
@@ -220,16 +220,16 @@ function PopoutTitleBar({ title, exited }: { title: string; exited: boolean }) {
       )}
       <div className="flex-1" data-tauri-drag-region />
       <div className="flex h-8 items-stretch">
-        <PopoutWindowButton onClick={() => void win.minimize()} title="Minimize">
+        <PopoutWindowButton onClick={() => void win.minimize().catch(onError)} title="Minimize">
           <Minus size={12} />
         </PopoutWindowButton>
         <PopoutWindowButton
-          onClick={() => void win.toggleMaximize()}
+          onClick={() => void win.toggleMaximize().catch(onError)}
           title={maximized ? "Restore" : "Maximize"}
         >
           {maximized ? <CopySquares size={11} /> : <Square size={11} />}
         </PopoutWindowButton>
-        <PopoutWindowButton onClick={() => void win.close()} title="Close" danger>
+        <PopoutWindowButton onClick={() => void win.close().catch(onError)} title="Close" danger>
           <X size={13} />
         </PopoutWindowButton>
       </div>
