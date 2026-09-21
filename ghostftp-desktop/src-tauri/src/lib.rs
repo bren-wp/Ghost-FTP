@@ -261,21 +261,18 @@ pub fn run() {
                 // runners may ignore WebView2 environment/policy overrides.
                 // These variables are used only with an allow-listed QA view.
                 #[cfg(windows)]
-                if std::env::var("GHOSTFTP_QA_VIEW")
-                    .ok()
-                    .is_some_and(|view| {
-                        matches!(
-                            view.as_str(),
-                            "main"
-                                | "siteManager"
-                                | "settings"
-                                | "transferCenter"
-                                | "about"
-                                | "newConnection"
-                                | "properties"
-                        )
-                    })
-                {
+                if std::env::var("GHOSTFTP_QA_VIEW").ok().is_some_and(|view| {
+                    matches!(
+                        view.as_str(),
+                        "main"
+                            | "siteManager"
+                            | "settings"
+                            | "transferCenter"
+                            | "about"
+                            | "newConnection"
+                            | "properties"
+                    )
+                }) {
                     if let Ok(args) = std::env::var("GHOSTFTP_QA_BROWSER_ARGS") {
                         if !args.trim().is_empty() {
                             window_builder = window_builder.additional_browser_args(&args);
