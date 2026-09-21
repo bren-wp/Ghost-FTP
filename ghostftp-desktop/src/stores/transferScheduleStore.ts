@@ -131,7 +131,14 @@ export const useTransferSchedule = create<TransferScheduleState>((set, get) => (
       transferId,
       armed: transferId ? get().armed : false,
     }),
-  setArmed: (armed) => update(set, get, { armed }),
+  setArmed: (armed) =>
+    update(
+      set,
+      get,
+      armed
+        ? { armed: true, lastRunAt: Date.now() }
+        : { armed: false }
+    ),
   markRun: (scheduledAt) => update(set, get, { lastRunAt: scheduledAt }),
 }));
 
