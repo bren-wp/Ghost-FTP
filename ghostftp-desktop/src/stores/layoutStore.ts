@@ -88,23 +88,35 @@ export const useLayout = create<LayoutState>((set) => ({
   dialog: null,
   returnDialog: null,
   openDialog: (d) =>
-    set((state) => ({
-      dialog: d,
-      returnDialog:
-        d === "import" && state.dialog && state.dialog !== "import"
-          ? state.dialog
-          : d === "import"
-            ? state.returnDialog
-            : null,
-    })),
+    set((state) => {
+      const returnsToCaller =
+        d === "import" ||
+        d === "settings" ||
+        d === "help" ||
+        d === "updates" ||
+        d === "about";
+      return {
+        dialog: d,
+        returnDialog:
+          returnsToCaller && state.dialog && state.dialog !== d
+            ? state.dialog
+            : returnsToCaller
+              ? state.returnDialog
+              : null,
+      };
+    }),
   closeDialog: () =>
     set((state) => {
-      const transient =
+      const returnsToCaller =
         state.dialog === "newConnection" ||
         state.dialog === "import" ||
-        state.dialog === "grant";
+        state.dialog === "grant" ||
+        state.dialog === "settings" ||
+        state.dialog === "help" ||
+        state.dialog === "updates" ||
+        state.dialog === "about";
       return {
-        dialog: transient ? state.returnDialog : null,
+        dialog: returnsToCaller ? state.returnDialog : null,
         returnDialog: null,
         connectionPrefill: null,
         grantPrefill: null,
