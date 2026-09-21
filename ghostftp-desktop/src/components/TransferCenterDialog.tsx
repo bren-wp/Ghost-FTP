@@ -73,6 +73,7 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
   const schedulerRef = useRef<HTMLDivElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -108,19 +109,52 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
 
   useEffect(() => {
     if (!moreOpen) return;
+    const raf = requestAnimationFrame(() => {
+      moreRef.current
+        ?.querySelector<HTMLButtonElement>('button[role="menuitem"]:not(:disabled)')
+        ?.focus();
+    });
     const onDown = (event: MouseEvent) => {
       if (!moreRef.current?.contains(event.target as Node)) setMoreOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMoreOpen(false);
+      if (event.key === "Escape") {
+        setMoreOpen(false);
+        moreButtonRef.current?.focus();
+      }
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
+      cancelAnimationFrame(raf);
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
   }, [moreOpen]);
+
+  const onMoreMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]:not(:disabled)')
+    );
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setMoreOpen(false);
+      moreButtonRef.current?.focus();
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key) || items.length === 0) return;
+    event.preventDefault();
+    const current = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? items.length - 1
+          : event.key === "ArrowDown"
+            ? (Math.max(current, -1) + 1) % items.length
+            : (current <= 0 ? items.length : current) - 1;
+    items[next]?.focus();
+  };
 
   const transfers = useMemo(() => Object.values(byId), [byId]);
   const completed = transfers.filter(
@@ -308,6 +342,7 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
           </button>
           <div className="relative" ref={moreRef}>
             <button
+              ref={moreButtonRef}
               type="button"
               className="ghost-mini-button"
               aria-haspopup="menu"
@@ -317,7 +352,7 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
               <MoreHorizontal size={15}/> More
             </button>
             {moreOpen && (
-              <div className="ghost-transfer-more-menu" role="menu">
+              <div className="ghost-transfer-more-menu" role="menu" onKeyDown={onMoreMenuKeyDown}>
                 <button
                   type="button"
                   role="menuitem"
@@ -749,11 +784,11 @@ function TransferCenterTitlebar({ onClose }: { onClose: () => void }) {
     </button>
   );
 
-  const toggleMaximize = () => {
+  const toggleMaximize = async () => {
     try {
-      void getCurrentWindow().toggleMaximize();
-    } catch {
-      // Native window operation; browser/source preview has no Tauri window.
+      await getCurrentWindow().toggleMaximize();
+    } catch (error) {
+      toastError(error, "Couldn't maximize or restore Ghost FTP");
     }
   };
 
@@ -761,7 +796,7 @@ function TransferCenterTitlebar({ onClose }: { onClose: () => void }) {
     <div
       className="ghost-transfer-titlebar"
       data-tauri-drag-region
-      onDoubleClick={toggleMaximize}
+      onDoubleClick={() => void toggleMaximize()}
     >
       <div className="ghost-transfer-brand" data-tauri-drag-region>
         <GhostMark size={34} />
