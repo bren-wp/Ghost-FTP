@@ -367,7 +367,7 @@ for (const required of [
 }
 
 for (const required of [
-  "RC13 final compact-height guard",
+  "RC14 compact-height guard",
   "@media (max-width: 1289px), (max-height: 851px)",
   "max-height: none !important;",
   "flex: 0 1 clamp(132px, 24dvh, 190px) !important;",
