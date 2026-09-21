@@ -37,7 +37,7 @@ interface Props {
 }
 
 type View = "all" | "favorites" | "recent" | "bookmarks" | string;
-type Action = "save" | "test" | "duplicate" | "delete" | null;
+type Action = "save" | "test" | "connect" | "duplicate" | "delete" | null;
 type SiteSortField = "name" | "host" | "protocol" | "lastUsed";
 
 const DIRECT_EDIT_PROTOCOLS = new Set<Protocol>(["sftp", "ftp", "ftps"]);
@@ -257,6 +257,20 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     anchor.download = "ghostftp-sites.json";
     anchor.click();
     URL.revokeObjectURL(href);
+  };
+
+  const connectSelected = async () => {
+    if (!selected || isConnected || action || editing) return;
+    setAction("connect");
+    try {
+      await connect(selected.id);
+    } catch {
+      // connectionsStore already surfaces the structured FTP/FTPS/SFTP error.
+      // Keep the click contract contained so WebView2 never receives an
+      // unhandled rejected promise.
+    } finally {
+      setAction(null);
+    }
   };
 
   const testSelected = async () => {
@@ -752,10 +766,10 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                     type="button"
                     disabled={isConnected || Boolean(action) || editing}
                     className="ghost-primary-button flex-1"
-                    onClick={() => void connect(selected.id)}
+                    onClick={() => void connectSelected()}
                   >
                     <Link2 size={15} />
-                    {isConnected ? "Connected" : "Connect"}
+                    {isConnected ? "Connected" : action === "connect" ? "Connecting…" : "Connect"}
                   </button>
                   <button
                     type="button"
