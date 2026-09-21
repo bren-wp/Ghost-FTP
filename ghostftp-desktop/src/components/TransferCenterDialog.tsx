@@ -58,6 +58,8 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   const move = useTransfers((state) => state.move);
   const concurrency = useTransfers((state) => state.concurrency);
   const throttleKbps = useTransfers((state) => state.throttleKbps);
+  const setConcurrency = useTransfers((state) => state.setConcurrency);
+  const setThrottle = useTransfers((state) => state.setThrottle);
   const enqueueUploads = useTransfers((state) => state.enqueueUploads);
   const activeSessionId = useConnections((state) => state.activeSessionId);
   const activeProfileId = useConnections((state) => state.activeProfileId);
@@ -203,6 +205,17 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
     return () => window.clearInterval(timer);
   }, []);
 
+  const runBackendAction = async (
+    failureTitle: string,
+    operation: () => Promise<void>
+  ) => {
+    try {
+      await operation();
+    } catch (error) {
+      toastError(error, failureTitle);
+    }
+  };
+
   const revealScheduler = () => {
     schedulerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     requestAnimationFrame(() => schedulerRef.current?.focus());
@@ -323,7 +336,10 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
                   disabled={activeCount === 0 && !pausedAll}
                   onClick={() => {
                     setMoreOpen(false);
-                    void (pausedAll ? resumeAll() : pauseAll());
+                    void runBackendAction(
+                      pausedAll ? "Couldn't resume the transfer queue" : "Couldn't pause the transfer queue",
+                      () => pausedAll ? resumeAll() : pauseAll()
+                    );
                   }}
                 >
                   {pausedAll ? <Play size={14}/> : <Pause size={14}/>}
@@ -442,9 +458,12 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
                   index={index + 1}
                   selected={selected?.id === transfer.id}
                   onClick={() => setSelectedId(transfer.id)}
-                  onPauseResume={() => void (transfer.status === "paused" ? resume(transfer.id) : pause(transfer.id))}
-                  onCancel={() => void cancel(transfer.id)}
-                  onRetry={() => void retry(transfer.id)}
+                  onPauseResume={() => void runBackendAction(
+                    transfer.status === "paused" ? "Couldn't resume transfer" : "Couldn't pause transfer",
+                    () => transfer.status === "paused" ? resume(transfer.id) : pause(transfer.id)
+                  )}
+                  onCancel={() => void runBackendAction("Couldn't cancel transfer", () => cancel(transfer.id))}
+                  onRetry={() => void runBackendAction("Couldn't retry transfer", () => retry(transfer.id))}
                 />
               ))
             )}
@@ -462,6 +481,44 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
               </span>
             </div>
             <BandwidthChart history={bandwidthHistory} />
+            <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-border-subtle pt-3 text-[10.5px] text-text-muted">
+              <label className="flex items-center gap-2">
+                <span>Concurrent</span>
+                <select
+                  className="ghost-ref-input h-7 w-[74px]"
+                  value={concurrency}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    void runBackendAction("Couldn't change transfer concurrency", () => setConcurrency(next));
+                  }}
+                >
+                  {Array.from({ length: 8 }, (_, index) => index + 1)
+                    .concat([12, 16, 24, 32])
+                    .map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2">
+                <span>Throttle</span>
+                <select
+                  className="ghost-ref-input h-7 min-w-[112px]"
+                  value={throttleKbps}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    void runBackendAction("Couldn't change transfer throttle", () => setThrottle(next));
+                  }}
+                >
+                  {!([0, 512, 1024, 2048, 5120, 10240].includes(throttleKbps)) && (
+                    <option value={throttleKbps}>{throttleKbps} KiB/s</option>
+                  )}
+                  <option value={0}>Unlimited</option>
+                  <option value={512}>512 KiB/s</option>
+                  <option value={1024}>1 MiB/s</option>
+                  <option value={2048}>2 MiB/s</option>
+                  <option value={5120}>5 MiB/s</option>
+                  <option value={10240}>10 MiB/s</option>
+                </select>
+              </label>
+            </div>
           </div>
 
           <div className="rounded-lg border border-border bg-[#071f35] p-4">
@@ -483,9 +540,10 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
                 disabled={!selected || !canPauseSelected}
                 onClick={() =>
                   selected &&
-                  void (selected.status === "paused"
-                    ? resume(selected.id)
-                    : pause(selected.id))
+                  void runBackendAction(
+                    selected.status === "paused" ? "Couldn't resume transfer" : "Couldn't pause transfer",
+                    () => selected.status === "paused" ? resume(selected.id) : pause(selected.id)
+                  )
                 }
               >
                 {selected?.status === "paused" ? (
@@ -499,7 +557,7 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
                 type="button"
                 className="ghost-mini-button"
                 disabled={!selected || !canCancelSelected}
-                onClick={() => selected && void cancel(selected.id)}
+                onClick={() => selected && void runBackendAction("Couldn't cancel transfer", () => cancel(selected.id))}
               >
                 Cancel
               </button>
@@ -507,7 +565,7 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
                 type="button"
                 className="ghost-mini-button"
                 disabled={!selected || selected.status !== "error"}
-                onClick={() => selected && void retry(selected.id)}
+                onClick={() => selected && void runBackendAction("Couldn't retry transfer", () => retry(selected.id))}
               >
                 <RotateCcw size={14} /> Retry
               </button>
@@ -520,8 +578,8 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
                 disabled={!selected}
                 onChange={(event) => {
                   if (!selected) return;
-                  if (event.target.value === "high") void move(selected.id, "up");
-                  if (event.target.value === "low") void move(selected.id, "down");
+                  if (event.target.value === "high") void runBackendAction("Couldn't raise transfer priority", () => move(selected.id, "up"));
+                  if (event.target.value === "low") void runBackendAction("Couldn't lower transfer priority", () => move(selected.id, "down"));
                   event.currentTarget.value = "normal";
                 }}
               >
