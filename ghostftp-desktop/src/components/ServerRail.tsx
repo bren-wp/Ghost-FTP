@@ -42,6 +42,7 @@ import {
 import { cn } from "@/lib/cn";
 import { BrandIcon, protocolIcon } from "@/lib/brandIcons";
 import { BRAND_ICONS } from "@/lib/brandIconData";
+import { toastError } from "@/lib/errors";
 
 type RowState = "focused" | "connected" | "connecting" | "error" | "idle";
 
@@ -389,7 +390,7 @@ export function ServerRail() {
     setPendingId(id);
     connect(id)
       .then(() => setPendingId((cur) => (cur === id ? null : cur)))
-      .catch(() => {});
+      .catch((error) => toastError(error, "Connection failed"));
   };
 
   const openShell = async (id: string) => {

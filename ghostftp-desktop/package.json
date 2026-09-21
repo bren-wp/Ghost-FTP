@@ -1,7 +1,7 @@
 {
   "name": "ghostftp-desktop",
   "private": true,
-  "version": "2.1.1-rc.13",
+  "version": "2.1.1-rc.14",
   "type": "module",
   "workspaces": [
     "packages/*"

@@ -110,6 +110,21 @@ pub async fn list_profiles(state: State<'_, AppState>) -> Result<Vec<ConnectionP
 }
 
 #[tauri::command]
+pub async fn export_profiles(path: String, state: State<'_, AppState>) -> Result<usize, String> {
+    let profiles = state.profiles.list().await.map_err(err)?;
+    let mut sanitized = Vec::with_capacity(profiles.len());
+    for mut profile in profiles {
+        if protect_profile_secrets(&mut profile, &state)? {
+            state.profiles.upsert(profile.clone()).await.map_err(err)?;
+        }
+        sanitized.push(profile);
+    }
+    let bytes = serde_json::to_vec_pretty(&sanitized).map_err(err)?;
+    std::fs::write(&path, bytes).map_err(err)?;
+    Ok(sanitized.len())
+}
+
+#[tauri::command]
 pub async fn save_profile(
     mut profile: ConnectionProfile,
     state: State<'_, AppState>,

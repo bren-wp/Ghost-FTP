@@ -169,27 +169,27 @@ export function acquirePane(
   entry.suggest = attachSuggestions(term, {
     historyKey,
     send: (data) => {
-      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch(() => {});
+      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setState({ error: `Terminal write failed: ${String(error)}` }));
     },
     swallowKey: isTerminalChord,
   });
 
   entry.unregisterInput = registerTerminalPane(paneId, {
     write: (data) => {
-      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch(() => {});
+      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setState({ error: `Terminal write failed: ${String(error)}` }));
     },
     focus: () => term.focus(),
   });
 
   entry.disposables.push(
     term.onData((data) => {
-      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch(() => {});
+      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setState({ error: `Terminal write failed: ${String(error)}` }));
     })
   );
   entry.disposables.push(
     term.onResize(({ cols, rows }) => {
       if (entry.terminalId)
-        ipc.terminalResize(entry.terminalId, cols, rows).catch(() => {});
+        ipc.terminalResize(entry.terminalId, cols, rows).catch((error) => setState({ error: `Terminal resize failed: ${String(error)}` }));
     })
   );
   // Copy-on-select (PuTTY style); read the toggle live so Settings takes effect
@@ -198,7 +198,7 @@ export function acquirePane(
     term.onSelectionChange(() => {
       if (!useSettings.getState().terminalCopyOnSelect) return;
       const text = term.getSelection();
-      if (text) navigator.clipboard.writeText(text).catch(() => {});
+      if (text) navigator.clipboard.writeText(text).catch((error) => setState({ error: `Clipboard copy failed: ${String(error)}` }));
     })
   );
 
@@ -233,7 +233,7 @@ export function acquirePane(
       setState({ status: "ready" });
       term.focus();
       // "Open terminal here" seeds a cd; run it once the shell is live.
-      if (initialCommand) ipc.terminalWrite(id, initialCommand).catch(() => {});
+      if (initialCommand) ipc.terminalWrite(id, initialCommand).catch((error) => setState({ error: `Terminal command failed: ${String(error)}` }));
     } catch (e) {
       setState({ status: "exited", error: String(e) });
     }

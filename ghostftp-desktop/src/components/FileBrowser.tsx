@@ -10,6 +10,7 @@ import { useLayout } from "@/stores/layoutStore";
 import { useSettings } from "@/stores/settingsStore";
 import { toast } from "@/stores/toastStore";
 import { LOCAL_SESSION, type DirEntry } from "@/lib/types";
+import { toastError } from "@/lib/errors";
 
 // Single-pane file browser: the active server is the main view. Uploads go
 // through a native OS picker (Upload button); downloads land in the Downloads
@@ -101,18 +102,22 @@ export function FileBrowser() {
   );
   const pickAndUpload = async (kind: "files" | "folder") => {
     if (!serverSid) return;
-    const picked = await open({
-      multiple: kind === "files",
-      directory: kind === "folder",
-      title: kind === "folder" ? "Upload a folder" : "Upload files",
-    });
-    if (!picked) return;
-    const paths = Array.isArray(picked) ? picked : [picked];
-    const items = paths.map((p) => ({
-      path: p,
-      kind: (kind === "folder" ? "directory" : "file") as "directory" | "file",
-    }));
-    enqueueUploads(serverSid, items, serverRemotePath).catch(() => {});
+    try {
+      const picked = await open({
+        multiple: kind === "files",
+        directory: kind === "folder",
+        title: kind === "folder" ? "Upload a folder" : "Upload files",
+      });
+      if (!picked) return;
+      const paths = Array.isArray(picked) ? picked : [picked];
+      const items = paths.map((p) => ({
+        path: p,
+        kind: (kind === "folder" ? "directory" : "file") as "directory" | "file",
+      }));
+      await enqueueUploads(serverSid, items, serverRemotePath);
+    } catch (error) {
+      toastError(error, kind === "folder" ? "Couldn't upload folder" : "Couldn't upload files");
+    }
   };
   const onUpload = (e: React.MouseEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -139,9 +144,11 @@ export function FileBrowser() {
         toast.info("Not connected", "Connect to a server to upload there.");
         return;
       }
-      enqueueUploads(serverSid, entries.map(toTransferItem), serverRemotePath).catch(
-        () => {}
-      );
+      try {
+        await enqueueUploads(serverSid, entries.map(toTransferItem), serverRemotePath);
+      } catch (error) {
+        toastError(error, "Couldn't queue upload");
+      }
       return;
     }
     // Server view → download the selection to the Downloads folder.
@@ -154,7 +161,11 @@ export function FileBrowser() {
       );
       return;
     }
-    enqueueDownloads(serverSid, entries.map(toTransferItem), dest).catch(() => {});
+    try {
+      await enqueueDownloads(serverSid, entries.map(toTransferItem), dest);
+    } catch (error) {
+      toastError(error, "Couldn't queue download");
+    }
   };
 
   return (

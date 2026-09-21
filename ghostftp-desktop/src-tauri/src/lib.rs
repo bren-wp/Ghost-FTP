@@ -394,6 +394,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             open_external_url,
             commands::list_profiles,
+            commands::export_profiles,
             commands::save_profile,
             commands::reorder_profiles,
             commands::duplicate_profile,

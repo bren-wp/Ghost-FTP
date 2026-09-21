@@ -219,6 +219,10 @@ const criticalFiles = [
   "src/components/Settings.tsx",
   "src/components/AboutDialog.tsx",
   "src/components/QuickConnectionDialog.tsx",
+  "src/components/DualPaneBrowser.tsx",
+  "src/components/ProfileEditor.tsx",
+  "src/components/ServerRail.tsx",
+  "src/lib/commands.tsx",
   "packages/file-ui/src/components/PropertiesModal.tsx",
 ];
 
@@ -244,6 +248,9 @@ for (const file of criticalFiles) {
 
   if (/window\.open\s*\(/.test(source) || /target\s*=\s*["']_blank["']/.test(source)) {
     failures.push(`${file}: browser popup/new-tab navigation is not allowed in the production shell`);
+  }
+  if (/\.catch\s*\(\s*\(\s*\)\s*=>\s*\{\s*\}\s*\)/.test(source)) {
+    failures.push(`${file}: critical UI contains a silent rejected-promise handler`);
   }
 
   // Critical actions are checked explicitly below. Avoid regex-parsing JSX
@@ -312,6 +319,9 @@ const siteManager = read("src/components/SiteManagerDialog.tsx");
 for (const required of ["Import", "Export", "New Site", "Connect", "Test Connection"]) {
   if (!siteManager.includes(required)) failures.push(`Site Manager missing required action: ${required}`);
 }
+for (const required of ["saveDialog(", "ipc.exportProfiles(", "Couldn't export sites"]) {
+  if (!siteManager.includes(required)) failures.push(`Site Manager missing native export/error contract: ${required}`);
+}
 
 const transferCenter = read("src/components/TransferCenterDialog.tsx");
 for (const required of ["Add Transfer", "Schedule", "Transfer Scheduler", "Set Schedule", "Priority", "Concurrent", "Throttle", "Clear Completed", "More", "Pause All", "Retry", "Paused", "All Directions", "Any Time", "runBackendAction"]) {
@@ -322,6 +332,9 @@ const settings = read("src/components/Settings.tsx");
 for (const required of ["Reset to Defaults", "Cancel", "Apply"]) {
   if (!settings.includes(required)) failures.push(`Preferences missing required action: ${required}`);
 }
+for (const required of ["GeneralPerformanceCard", "Concurrent Transfers", "Speed Limit (KiB/s)", "Max Retry Attempts"]) {
+  if (!settings.includes(required)) failures.push(`Preferences missing reference Performance contract: ${required}`);
+}
 
 const quick = read("src/components/QuickConnectionDialog.tsx");
 for (const required of ["Test Connection", "Save Profile", "Connect"]) {
@@ -331,6 +344,9 @@ for (const required of ["Test Connection", "Save Profile", "Connect"]) {
 const filePane = read("packages/file-ui/src/components/FilePane.tsx");
 for (const required of ["Type", "Permissions", "JavaScript File", "Markdown File", "ENV File"]) {
   if (!filePane.includes(required)) failures.push(`FilePane missing reference metadata contract: ${required}`);
+}
+for (const required of ["Couldn't copy path", "Couldn't copy name"]) {
+  if (!filePane.includes(required)) failures.push(`FilePane clipboard errors must be visible: ${required}`);
 }
 
 const styles = read("src/styles.css");
@@ -355,12 +371,25 @@ for (const required of [
 }
 
 for (const required of [
-  "RC13 final compact-height guard",
+  "RC14 compact-height guard",
   "@media (max-width: 1289px), (max-height: 851px)",
   "max-height: none !important;",
   "flex: 0 1 clamp(132px, 24dvh, 190px) !important;",
 ]) {
   if (!styles.includes(required)) failures.push(`Styles missing compact-height clipping guard: ${required}`);
+}
+
+for (const required of [
+  "RC14 transfer-center fidelity",
+  "flex: 0 0 210px;",
+  "flex: 0 0 178px;",
+]) {
+  if (!styles.includes(required)) failures.push(`Styles missing Transfer Center table-space fidelity guard: ${required}`);
+}
+
+const nativeBuildWorkflow = read("../.github/workflows/ghostftp-build.yml");
+for (const required of ["QuantizedColors", "EdgeRatio", "byte-identical", "blank-or-structureless"]) {
+  if (!nativeBuildWorkflow.includes(required)) failures.push(`Windows native QA missing structural blank-frame guard: ${required}`);
 }
 
 const props = read("packages/file-ui/src/components/PropertiesModal.tsx");

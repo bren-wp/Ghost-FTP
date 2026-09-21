@@ -2385,10 +2385,43 @@ body,
   flex: 0 0 auto;
 }
 .ghost-transfer-summary-grid {
-  min-height: 190px;
+  min-height: 178px;
 }
 .ghost-transfer-lower-grid {
-  min-height: 164px;
+  min-height: 150px;
+}
+
+/* RC14 transfer-center fidelity: at the 1290×852 reference frame, reserve
+   enough vertical space for the real transfer table/empty state instead of
+   letting the dashboard cards consume the workspace. */
+@media (min-width: 1121px) and (min-height: 780px) {
+  .ghost-transfer-center > .min-h-0.flex-1 {
+    min-height: 180px;
+  }
+
+  .ghost-transfer-summary-grid {
+    flex: 0 0 210px;
+    min-height: 210px;
+    gap: 12px !important;
+    padding: 12px !important;
+  }
+
+  .ghost-transfer-lower-grid {
+    flex: 0 0 178px;
+    min-height: 178px;
+    gap: 12px !important;
+    padding: 12px !important;
+  }
+
+  .ghost-transfer-summary-grid > div,
+  .ghost-transfer-lower-grid > div {
+    min-height: 0;
+    padding: 12px !important;
+  }
+
+  .ghost-transfer-lower-grid > div {
+    overflow: auto;
+  }
 }
 
 /* 1024-class windows: preserve all controls, reduce them before allowing
@@ -4188,7 +4221,7 @@ input.ghost-pane-address:focus-visible {
 }
 
 
-/* RC13 final compact-height guard.
+/* RC14 compact-height guard.
    Keep the 1290×852 acceptance frame exact, but release the fixed desktop
    workspace/bottom-band heights as soon as either viewport dimension is below
    the reference. This prevents the later reference-fidelity rules from
@@ -4221,5 +4254,68 @@ input.ghost-pane-address:focus-visible {
     flex: 0 0 34px !important;
     height: 34px !important;
     min-height: 34px !important;
+  }
+}
+
+
+/* RC14 reference-frame polish: keep every General preference card visible at
+   the 1290×852 native QA frame while preserving the existing scroll-first
+   responsive behavior below desktop reference size. */
+@media (min-width: 1121px) and (min-height: 780px) {
+  .ghost-preferences-heading {
+    height: 64px !important;
+    min-height: 64px !important;
+  }
+
+  .ghost-preferences-content {
+    padding: 8px 14px !important;
+  }
+
+  .ghost-general-grid {
+    gap: 8px !important;
+  }
+
+  .ghost-general-card {
+    padding: 8px 10px !important;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .ghost-general-card > div:first-child {
+    margin-bottom: 4px !important;
+  }
+
+  .ghost-general-card > .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 3px !important;
+  }
+
+  .ghost-general-card select,
+  .ghost-general-card input[type="text"],
+  .ghost-general-card input[type="number"] {
+    min-height: 26px;
+    padding-top: 3px !important;
+    padding-bottom: 3px !important;
+  }
+
+  .ghost-general-card input[type="color"] {
+    height: 26px !important;
+  }
+
+  .ghost-general-card .ghost-mini-button {
+    min-height: 26px;
+    height: 26px;
+  }
+
+  .ghost-preferences-actions {
+    height: 52px !important;
+  }
+
+  .ghost-new-connection-dialog {
+    height: min(574px, calc(100dvh - 24px)) !important;
+    max-height: min(574px, calc(100dvh - 24px)) !important;
+  }
+
+  .ghost-properties-dialog {
+    width: min(530px, calc(100vw - 24px)) !important;
   }
 }

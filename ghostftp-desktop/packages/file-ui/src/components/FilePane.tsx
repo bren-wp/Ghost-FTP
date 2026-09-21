@@ -680,10 +680,14 @@ export function FilePane({
   // --- Context menu ---
 
   const copyPaths = (items: DirEntry[]) => {
-    navigator.clipboard.writeText(items.map((e) => e.path).join("\n"));
+    void navigator.clipboard
+      .writeText(items.map((e) => e.path).join("\n"))
+      .catch((e) => setError(`Couldn't copy path: ${errorText(e)}`));
   };
   const copyNames = (items: DirEntry[]) => {
-    navigator.clipboard.writeText(items.map((e) => e.name).join("\n"));
+    void navigator.clipboard
+      .writeText(items.map((e) => e.name).join("\n"))
+      .catch((e) => setError(`Couldn't copy name: ${errorText(e)}`));
   };
 
   const openRowMenu = (e: React.MouseEvent, entry: DirEntry) => {

@@ -92,8 +92,9 @@ function DiskUsage() {
   };
 
   const copyPath = (node: DuNode) => {
-    navigator.clipboard.writeText(node.path);
-    toast.info("Path copied", node.path);
+    void navigator.clipboard.writeText(node.path)
+      .then(() => toast.info("Path copied", node.path))
+      .catch((error) => toast.error("Couldn't copy path", String(error)));
   };
 
   const openMenu = (node: DuNode, x: number, y: number) => {

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { ipc } from "@/lib/ipc";
+import { toastError } from "@/lib/errors";
 
 export type OverwritePolicy = "overwrite" | "skip" | "rename";
 export type SortField = "name" | "size" | "modified";
@@ -287,8 +288,8 @@ function load(): PersistedSettings {
  *  2). Fire-and-forget: a missing backend (mock) just skips the write, the
  *  in-memory value still applies for the session. */
 function persistKey<K extends keyof PersistedSettings>(key: K, value: PersistedSettings[K]) {
-  ipc.settingsSet(String(key), JSON.stringify(value)).catch(() => {
-    // no backend — ignore
+  ipc.settingsSet(String(key), JSON.stringify(value)).catch((error) => {
+    toastError(error, `Couldn't save preference: ${String(key)}`);
   });
 }
 
@@ -317,22 +318,22 @@ export const useSettings = create<SettingsState>((set, get) => ({
     const clamped = Math.max(1, Math.min(32, Math.round(n)));
     mutate(set, get, "transferConcurrency", clamped);
     // Live-apply to the running queue; the persisted value covers next launch.
-    ipc.transferSetConcurrency(clamped).catch(() => {});
+    ipc.transferSetConcurrency(clamped).catch((error) => toastError(error, "Couldn't apply transfer concurrency"));
   },
   setMaxRetryAttempts: (n) => {
     const clamped = Math.max(0, Math.min(8, Math.round(n)));
     mutate(set, get, "maxRetryAttempts", clamped);
-    ipc.transferSetMaxRetries(clamped).catch(() => {});
+    ipc.transferSetMaxRetries(clamped).catch((error) => toastError(error, "Couldn't apply retry limit"));
   },
   setTransferThrottleKbps: (n) => {
     const clamped = Math.max(0, Math.round(n));
     mutate(set, get, "transferThrottleKbps", clamped);
-    ipc.transferSetThrottle(clamped).catch(() => {});
+    ipc.transferSetThrottle(clamped).catch((error) => toastError(error, "Couldn't apply transfer speed limit"));
   },
   setDeltaSync: (v) => {
     mutate(set, get, "deltaSync", v);
     // Live-apply to the transfer engine; the persisted value covers next launch.
-    ipc.transferSetDeltaSync(v).catch(() => {});
+    ipc.transferSetDeltaSync(v).catch((error) => toastError(error, "Couldn't apply delta synchronization"));
   },
   setDefaultDownloadFolder: (s) =>
     mutate(set, get, "defaultDownloadFolder", s),
@@ -383,10 +384,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
  * user's saved limits immediately after startup/hydration. */
 export function applyTransferEngineSettings(): void {
   const state = useSettings.getState();
-  ipc.transferSetConcurrency(state.transferConcurrency).catch(() => {});
-  ipc.transferSetMaxRetries(state.maxRetryAttempts).catch(() => {});
-  ipc.transferSetThrottle(state.transferThrottleKbps).catch(() => {});
-  ipc.transferSetDeltaSync(state.deltaSync).catch(() => {});
+  ipc.transferSetConcurrency(state.transferConcurrency).catch((error) => toastError(error, "Couldn't restore transfer concurrency"));
+  ipc.transferSetMaxRetries(state.maxRetryAttempts).catch((error) => toastError(error, "Couldn't restore retry limit"));
+  ipc.transferSetThrottle(state.transferThrottleKbps).catch((error) => toastError(error, "Couldn't restore transfer speed limit"));
+  ipc.transferSetDeltaSync(state.deltaSync).catch((error) => toastError(error, "Couldn't restore delta synchronization"));
 }
 
 export async function hydrateFromDb(): Promise<void> {
@@ -436,11 +437,11 @@ export function captureSettingsSnapshot(): PersistedSettings {
 export function restoreSettingsSnapshot(snapshot: PersistedSettings): void {
   useSettings.setState({ ...snapshot } as Partial<SettingsState>);
   for (const key of SETTINGS_KEYS) persistKey(key, snapshot[key]);
-  ipc.transferSetConcurrency(snapshot.transferConcurrency).catch(() => {});
-  ipc.transferSetMaxRetries(snapshot.maxRetryAttempts).catch(() => {});
-  ipc.transferSetThrottle(snapshot.transferThrottleKbps).catch(() => {});
-  ipc.transferSetDeltaSync(snapshot.deltaSync).catch(() => {});
-  (snapshot.shellIntegration ? ipc.pathAdd() : ipc.pathRemove()).catch(() => {});
+  ipc.transferSetConcurrency(snapshot.transferConcurrency).catch((error) => toastError(error, "Couldn't restore transfer concurrency"));
+  ipc.transferSetMaxRetries(snapshot.maxRetryAttempts).catch((error) => toastError(error, "Couldn't restore retry limit"));
+  ipc.transferSetThrottle(snapshot.transferThrottleKbps).catch((error) => toastError(error, "Couldn't restore transfer speed limit"));
+  ipc.transferSetDeltaSync(snapshot.deltaSync).catch((error) => toastError(error, "Couldn't restore delta synchronization"));
+  (snapshot.shellIntegration ? ipc.pathAdd() : ipc.pathRemove()).catch((error) => toastError(error, "Couldn't restore shell integration"));
 }
 
 export const TERMINAL_THEMES: Record<
@@ -487,9 +488,9 @@ export const TERMINAL_THEMES: Record<
 export function resetSettingsToDefaults(): void {
   useSettings.setState({ ...DEFAULTS } as Partial<SettingsState>);
   for (const key of SETTINGS_KEYS) persistKey(key, DEFAULTS[key]);
-  ipc.transferSetConcurrency(DEFAULTS.transferConcurrency).catch(() => {});
-  ipc.transferSetMaxRetries(DEFAULTS.maxRetryAttempts).catch(() => {});
-  ipc.transferSetThrottle(DEFAULTS.transferThrottleKbps).catch(() => {});
-  ipc.transferSetDeltaSync(DEFAULTS.deltaSync).catch(() => {});
-  (DEFAULTS.shellIntegration ? ipc.pathAdd() : ipc.pathRemove()).catch(() => {});
+  ipc.transferSetConcurrency(DEFAULTS.transferConcurrency).catch((error) => toastError(error, "Couldn't reset transfer concurrency"));
+  ipc.transferSetMaxRetries(DEFAULTS.maxRetryAttempts).catch((error) => toastError(error, "Couldn't reset retry limit"));
+  ipc.transferSetThrottle(DEFAULTS.transferThrottleKbps).catch((error) => toastError(error, "Couldn't reset transfer speed limit"));
+  ipc.transferSetDeltaSync(DEFAULTS.deltaSync).catch((error) => toastError(error, "Couldn't reset delta synchronization"));
+  (DEFAULTS.shellIntegration ? ipc.pathAdd() : ipc.pathRemove()).catch((error) => toastError(error, "Couldn't reset shell integration"));
 }

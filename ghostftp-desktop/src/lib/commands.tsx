@@ -28,6 +28,7 @@ import { useSkills } from "@/stores/skillsStore";
 import { useSnippets } from "@/stores/snippetsStore";
 import { useTerminals } from "@/stores/terminalsStore";
 import { TERMINAL_CHORDS } from "@/lib/terminalChords";
+import { toastError } from "@/lib/errors";
 
 export interface Command {
   id: string;
@@ -250,7 +251,7 @@ export function useCommands(): Command[] {
       keywords: `${p.username} ${p.host} ${p.protocol}`,
       enabled: activeProfileId !== p.id,
       run: () => {
-        connect(p.id).catch(() => {});
+        void connect(p.id).catch((error) => toastError(error, "Connection failed"));
       },
     });
   }

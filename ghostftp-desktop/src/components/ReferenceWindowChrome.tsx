@@ -5,34 +5,35 @@ import { GhostWordmark } from "./GhostBrand";
 import { useLayout } from "@/stores/layoutStore";
 import { getLocale, setLocale } from "@/lib/i18n";
 import { PRODUCT_VERSION_BADGE } from "@/lib/release";
+import { toastError } from "@/lib/errors";
 
 type Item = { label: string; run: () => void; disabled?: boolean } | { separator: true };
 
-function windowAction(action: "minimize" | "maximize" | "close") {
+async function windowAction(action: "minimize" | "maximize" | "close") {
   try {
     const win = getCurrentWindow();
-    if (action === "minimize") void win.minimize();
-    else if (action === "maximize") void win.toggleMaximize();
-    else void win.close();
-  } catch {
-    // Native window controls are unavailable only in source/browser previews.
+    if (action === "minimize") await win.minimize();
+    else if (action === "maximize") await win.toggleMaximize();
+    else await win.close();
+  } catch (error) {
+    toastError(error, `Couldn't ${action === "maximize" ? "maximize or restore" : action} Ghost FTP`);
   }
 }
 
 function onTitlebarDoubleClick(event: React.MouseEvent<HTMLDivElement>) {
   if ((event.target as HTMLElement).closest("button,select,input")) return;
-  windowAction("maximize");
+  void windowAction("maximize");
 }
 
 export function ReferenceWindowControls({ onClose }: { onClose?: () => void }) {
   return (
     <div className="ghost-window-controls">
-      <button aria-label="Minimize" onClick={() => windowAction("minimize")}><Minus size={14}/></button>
-      <button aria-label="Maximize or restore" onClick={() => windowAction("maximize")}><Square size={12}/></button>
+      <button aria-label="Minimize" onClick={() => void windowAction("minimize")}><Minus size={14}/></button>
+      <button aria-label="Maximize or restore" onClick={() => void windowAction("maximize")}><Square size={12}/></button>
       <button
         className="danger"
         aria-label={onClose ? "Close view" : "Close Ghost FTP"}
-        onClick={() => onClose ? onClose() : windowAction("close")}
+        onClick={() => onClose ? onClose() : void windowAction("close")}
       >
         <X size={15}/>
       </button>

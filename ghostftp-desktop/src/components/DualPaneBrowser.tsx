@@ -6,6 +6,7 @@ import { useTransfers, toTransferItem } from "@/stores/transfersStore";
 import { useLayout } from "@/stores/layoutStore";
 import { LOCAL_SESSION } from "@/lib/types";
 import type { DirEntry } from "@/lib/types";
+import { toastError } from "@/lib/errors";
 
 export function DualPaneBrowser() {
   const activeSessionId = useConnections((s) => s.activeSessionId);
@@ -62,15 +63,15 @@ export function DualPaneBrowser() {
 
   const uploadAll = (entries: DirEntry[]) => {
     if (!activeSessionId) return;
-    enqueueUploads(activeSessionId, entries.map(toTransferItem), remotePath).catch(
-      () => {}
+    void enqueueUploads(activeSessionId, entries.map(toTransferItem), remotePath).catch(
+      (error) => toastError(error, "Couldn't queue upload")
     );
   };
 
   const downloadAll = (entries: DirEntry[]) => {
     if (!activeSessionId) return;
-    enqueueDownloads(activeSessionId, entries.map(toTransferItem), localPath).catch(
-      () => {}
+    void enqueueDownloads(activeSessionId, entries.map(toTransferItem), localPath).catch(
+      (error) => toastError(error, "Couldn't queue download")
     );
   };
 
