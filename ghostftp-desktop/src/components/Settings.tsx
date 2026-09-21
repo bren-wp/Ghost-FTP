@@ -165,9 +165,9 @@ function GeneralGrid({ locale, setLocale }: { locale: string; setLocale: (value:
       </GeneralCard>
 
       <GeneralCard icon={<ShieldCheck size={20}/>} title="Security & Privacy" subtitle="Protect your data and control your privacy.">
-        <ToggleRow label="No tracking" checked onChange={()=>{}} locked/>
-        <ToggleRow label="No analytics or telemetry" checked onChange={()=>{}} locked/>
-        <ToggleRow label="OS keychain credentials" checked onChange={()=>{}} locked/>
+        <ToggleRow label="No tracking" checked locked/>
+        <ToggleRow label="No analytics or telemetry" checked locked/>
+        <ToggleRow label="OS keychain credentials" checked locked/>
       </GeneralCard>
 
       <GeneralUpdatesCard/>
@@ -489,7 +489,7 @@ function ConnectionCard() {
     </Card>
   );
 }
-function SecurityCard() { return <Card icon={<ShieldCheck size={20}/>} title="Security & Privacy" subtitle="Protect your data and control your privacy."><ToggleRow label="No tracking" checked onChange={()=>{}} locked/><ToggleRow label="No analytics or telemetry" checked onChange={()=>{}} locked/><ToggleRow label="Store credentials in OS keychain" checked onChange={()=>{}} locked/></Card> }
+function SecurityCard() { return <Card icon={<ShieldCheck size={20}/>} title="Security & Privacy" subtitle="Protect your data and control your privacy."><ToggleRow label="No tracking" checked onChange={()=>{}} locked/><ToggleRow label="No analytics or telemetry" checked onChange={()=>{}} locked/><ToggleRow label="Store credentials in OS keychain" checked locked/></Card> }
 function UpdatesCard() { const status=useUpdater((x)=>x.status); const version=useUpdater((x)=>x.version); const error=useUpdater((x)=>x.error); const check=useUpdater((x)=>x.check); const download=useUpdater((x)=>x.downloadAndInstall); const restart=useUpdater((x)=>x.restart); const busy=status==='checking'||status==='downloading'; const label=status==='checking'?'Checking for updates…':status==='available'?`Ghost FTP ${version ?? 'update'} is available.`:status==='downloading'?'Downloading and verifying update…':status==='ready'?'Update ready — restart to finish.':status==='error'?(error??'Update check failed.'):'Ready to check the official Ghost FTP update service.'; return <Card icon={<RefreshCw size={20}/>} title="Updates" subtitle="Choose how Ghost FTP updates itself."><div className="grid grid-cols-[150px_1fr] items-center gap-3 text-[12px]"><span className="text-text-muted">Update Channel</span><div className="rounded-md border border-border bg-[#051929] px-3 py-2 text-text">Stable (Recommended)</div></div><div className="text-[11px] text-text-muted" aria-live="polite">{label}</div><div className="flex flex-wrap gap-2"><button className="ghost-mini-button" disabled={busy} onClick={()=>void check(false)}><RefreshCw size={13}/> Check for Updates</button>{status==='available'&&<button className="ghost-mini-button" onClick={()=>void download()}>Download &amp; install</button>}{status==='ready'&&<button className="ghost-mini-button" onClick={()=>void restart()}>Restart now</button>}</div></Card> }
 function IntegrationsCard() {
   const s=useSettings();
@@ -633,7 +633,7 @@ function ToggleRow({
 }: {
   label: string;
   checked: boolean;
-  onChange: (v: boolean) => void;
+  onChange?: (v: boolean) => void;
   locked?: boolean;
 }) {
   return (
@@ -641,10 +641,11 @@ function ToggleRow({
       <span className="text-text-muted">{label}</span>
       <button
         type="button"
-        disabled={locked}
+        disabled={locked || !onChange}
         aria-label={label}
         aria-pressed={checked}
-        onClick={() => onChange(!checked)}
+        aria-readonly={locked || !onChange ? true : undefined}
+        onClick={() => onChange?.(!checked)}
         className={`relative h-5 w-9 rounded-full border ${checked ? "border-accent bg-accent-strong" : "border-border bg-[#041522]"}`}
       >
         <span className={`absolute top-[2px] h-3.5 w-3.5 rounded-full bg-white transition-all ${checked ? "left-[18px]" : "left-[2px]"}`}/>
