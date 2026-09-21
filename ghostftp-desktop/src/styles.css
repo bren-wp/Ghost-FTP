@@ -3971,3 +3971,35 @@ input.ghost-pane-address:focus-visible {
     display: none;
   }
 }
+
+
+/* RC13 Site Manager reference bookmark control. */
+.ghost-site-bookmark-button {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border: 1px solid rgb(var(--border) / .9);
+  border-radius: 6px;
+  background: #061a2d;
+  color: #8eb9d6;
+  transition: border-color .12s ease, background-color .12s ease, color .12s ease;
+}
+
+.ghost-site-bookmark-button:hover:not(:disabled) {
+  border-color: #2baaff;
+  background: #0a2945;
+  color: #ffd24a;
+}
+
+.ghost-site-bookmark-button[aria-pressed="true"] {
+  border-color: rgba(255,210,74,.52);
+  background: rgba(255,210,74,.1);
+  color: #ffd24a;
+}
+
+.ghost-site-bookmark-button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
