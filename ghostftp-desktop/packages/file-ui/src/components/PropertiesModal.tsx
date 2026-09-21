@@ -29,7 +29,7 @@ export function PropertiesModal({ entry, sessionId, onClose, onApplied, onOpenCo
   const [checksum, setChecksum] = useState<string | null>(null);
   const [checksumBusy, setChecksumBusy] = useState(false);
   const isDir = entry.kind === "directory";
-  const kindLabel = isDir ? "File folder" : entry.kind === "file" ? "File" : entry.kind;
+  const kindLabel = propertyTypeLabel(entry);
   const octal = useMemo(() => mode.toString(8).padStart(3, "0"), [mode]);
 
   const setOctal = (value: string) => {
@@ -103,6 +103,44 @@ export function PropertiesModal({ entry, sessionId, onClose, onApplied, onOpenCo
       <div className="flex min-h-[62px] shrink-0 items-center border-t border-border bg-[#051929] px-3 py-3"><button className="ghost-mini-button" disabled={!onOpenContainingFolder} onClick={onOpenContainingFolder}><FolderOpen size={14}/> Open Containing Folder</button><button className="ghost-mini-button ml-2" disabled={!fs.duplicate || busy} onClick={() => void duplicate()}><CopyPlus size={14}/> Duplicate</button><div className="flex-1"/><button className="ghost-primary-button" disabled={busy} onClick={() => void apply()}>{busy ? "Applying…" : "Apply"}</button><button className="ghost-mini-button ml-2" onClick={onClose}>Cancel</button></div>
     </div>
   </div>;
+}
+
+function propertyTypeLabel(entry: DirEntry) {
+  if (entry.kind === "directory") return "File folder";
+  if (entry.kind === "symlink") return "Symbolic link";
+  if (entry.kind === "other") return "File";
+
+  const lower = entry.name.toLowerCase();
+  const extension =
+    lower.startsWith(".") && lower.indexOf(".", 1) === -1
+      ? lower.slice(1)
+      : lower.includes(".")
+        ? lower.slice(lower.lastIndexOf(".") + 1)
+        : "";
+
+  const labels: Record<string, string> = {
+    html: "HTML File",
+    htm: "HTML File",
+    js: "JavaScript File",
+    mjs: "JavaScript File",
+    cjs: "JavaScript File",
+    ts: "TypeScript File",
+    tsx: "TypeScript File",
+    jsx: "JavaScript File",
+    css: "CSS File",
+    md: "Markdown File",
+    markdown: "Markdown File",
+    json: "JSON File",
+    php: "PHP File",
+    env: "ENV File",
+    txt: "Text File",
+    conf: "CONF File",
+    yml: "YAML File",
+    yaml: "YAML File",
+    csv: "CSV File",
+    sql: "SQL File",
+  };
+  return labels[extension] ?? (extension ? `${extension.toUpperCase()} File` : "File");
 }
 
 function Detail({label,children}:{label:string;children:React.ReactNode}) { return <label className="block"><span className="mb-1.5 block text-[10px] text-text-dim">{label}</span>{children}</label>; }
