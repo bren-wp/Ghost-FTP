@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.1-rc.14 — 21 September 2026
+
+- Hardened seven-view Windows native QA so blank/structureless WebView2 frames cannot pass on anti-aliased border colors alone.
+- Added quantized-color, luminance, edge-density and duplicate-image checks plus real WebView2 compositor fallback evidence.
+- Reordered Preferences General to match the approved reference hierarchy and restored a real Performance card.
+- Rebalanced Transfer Center so the real transfer table and professional empty state keep reference-sized workspace area.
+- Added keyboard navigation and focus return to the Transfer Center More menu.
+- Replaced Site Manager browser-style profile export with a native Save dialog and Rust export command that omits credentials.
+- Surfaced native window-control, clipboard, transfer enqueue, preference persistence and shell-integration errors instead of silent no-op failures.
+- Preserved real FTP, explicit FTPS and SFTP behavior, keychain credential handling, capability checks and the no-fake-data production policy.
+- Bumped Windows/Linux desktop, CLI, agent, updater metadata and release packaging consistently to RC14.
+
 ## 2.1.1-rc.13 — 21 September 2026
 
 - Moved Site Manager, Preferences, Transfer Center and About from fixed modal overlays into single-app workspace surfaces.
