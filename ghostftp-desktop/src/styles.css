@@ -2385,10 +2385,43 @@ body,
   flex: 0 0 auto;
 }
 .ghost-transfer-summary-grid {
-  min-height: 190px;
+  min-height: 178px;
 }
 .ghost-transfer-lower-grid {
-  min-height: 164px;
+  min-height: 150px;
+}
+
+/* RC14 transfer-center fidelity: at the 1290×852 reference frame, reserve
+   enough vertical space for the real transfer table/empty state instead of
+   letting the dashboard cards consume the workspace. */
+@media (min-width: 1121px) and (min-height: 780px) {
+  .ghost-transfer-center > .min-h-0.flex-1 {
+    min-height: 180px;
+  }
+
+  .ghost-transfer-summary-grid {
+    flex: 0 0 210px;
+    min-height: 210px;
+    gap: 12px !important;
+    padding: 12px !important;
+  }
+
+  .ghost-transfer-lower-grid {
+    flex: 0 0 178px;
+    min-height: 178px;
+    gap: 12px !important;
+    padding: 12px !important;
+  }
+
+  .ghost-transfer-summary-grid > div,
+  .ghost-transfer-lower-grid > div {
+    min-height: 0;
+    padding: 12px !important;
+  }
+
+  .ghost-transfer-lower-grid > div {
+    overflow: auto;
+  }
 }
 
 /* 1024-class windows: preserve all controls, reduce them before allowing
