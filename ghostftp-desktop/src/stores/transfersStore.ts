@@ -4,6 +4,7 @@ import { useSettings } from "./settingsStore";
 import { toast } from "./toastStore";
 import { useConflicts, type ConflictDecision } from "./conflictStore";
 import { baseName } from "@/lib/format";
+import { toastError } from "@/lib/errors";
 import {
   LOCAL_SESSION,
   type SessionId,
@@ -125,7 +126,13 @@ async function runBatch(
   // "Don't ask" mode (the user ticked "remember" before, or turned prompts off
   // in Settings): apply the saved default silently — the original behaviour.
   if (!settings.promptOnOverwrite) {
-    for (const item of items) await start(item, defaultPolicy).catch(() => {});
+    for (const item of items) {
+      try {
+        await start(item, defaultPolicy);
+      } catch (error) {
+        toastError(error, `Couldn't queue ${baseName(item.path)}`);
+      }
+    }
     return;
   }
 
@@ -177,7 +184,11 @@ async function runBatch(
       policy = actionToPolicy(decision.action);
     }
 
-    await start(item, policy).catch(() => {});
+    try {
+      await start(item, policy);
+    } catch (error) {
+      toastError(error, `Couldn't queue ${baseName(item.path)}`);
+    }
   }
 }
 
