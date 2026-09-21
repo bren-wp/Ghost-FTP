@@ -10,10 +10,6 @@ import {
   Server,
   Settings,
   ArrowUpDown,
-  ShieldCheck,
-  Zap,
-  MonitorSmartphone,
-  Sparkles,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { useConnections } from "@/stores/connectionsStore";
@@ -120,23 +116,7 @@ export function ReferenceSiteSidebar() {
       </nav>
 
       <div className="ghost-sites-spacer"/>
-      <div className="ghost-sidebar-features" aria-label="Ghost FTP capabilities">
-        <FeatureNote icon={<ShieldCheck size={14}/>} label="Secure Connections"/>
-        <FeatureNote icon={<Zap size={14}/>} label="Fast Transfers"/>
-        <FeatureNote icon={<Sparkles size={14}/>} label="Modern Interface"/>
-        <FeatureNote icon={<MonitorSmartphone size={14}/>} label="Cross-Platform"/>
-        <FeatureNote icon={<Sparkles size={14}/>} label="Built for Creators"/>
-      </div>
     </aside>
-  );
-}
-
-function FeatureNote({ icon, label }: { icon: ReactNode; label: string }) {
-  return (
-    <div className="ghost-sidebar-feature" role="note">
-      {icon}
-      <span>{label}</span>
-    </div>
   );
 }
 
