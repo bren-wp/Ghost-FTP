@@ -117,16 +117,16 @@ jobs:
             )
 
             if (-not (Test-Path $Path)) {
-              return [pscustomobject]@{ Valid=$false; Reason='missing'; Colors=0; Range=0; Variance=0; Opaque=0; Samples=0 }
+              return [pscustomobject]@{ Valid=$false; Reason='missing'; Colors=0; QuantizedColors=0; Range=0; Variance=0; EdgeRatio=0; Opaque=0; Samples=0 }
             }
             if ((Get-Item $Path).Length -le 0) {
-              return [pscustomobject]@{ Valid=$false; Reason='empty'; Colors=0; Range=0; Variance=0; Opaque=0; Samples=0 }
+              return [pscustomobject]@{ Valid=$false; Reason='empty'; Colors=0; QuantizedColors=0; Range=0; Variance=0; EdgeRatio=0; Opaque=0; Samples=0 }
             }
 
             try {
               $image = [System.Drawing.Bitmap]::FromFile($Path)
             } catch {
-              return [pscustomobject]@{ Valid=$false; Reason='decode-failed'; Colors=0; Range=0; Variance=0; Opaque=0; Samples=0 }
+              return [pscustomobject]@{ Valid=$false; Reason='decode-failed'; Colors=0; QuantizedColors=0; Range=0; Variance=0; EdgeRatio=0; Opaque=0; Samples=0 }
             }
 
             try {
@@ -134,11 +134,12 @@ jobs:
                 return [pscustomobject]@{
                   Valid=$false
                   Reason=("dimensions-" + $image.Width + "x" + $image.Height)
-                  Colors=0; Range=0; Variance=0; Opaque=0; Samples=0
+                  Colors=0; QuantizedColors=0; Range=0; Variance=0; EdgeRatio=0; Opaque=0; Samples=0
                 }
               }
 
               $colors = New-Object 'System.Collections.Generic.HashSet[int]'
+              $quantized = New-Object 'System.Collections.Generic.HashSet[int]'
               $sampleCount = 0
               $opaqueSamples = 0
               $transparentSamples = 0
@@ -146,38 +147,70 @@ jobs:
               $maxBrightness = 0.0
               $sumBrightness = 0.0
               $sumBrightnessSq = 0.0
+              $edgeComparisons = 0
+              $edgeHits = 0
 
-              for ($y = 7; $y -lt $image.Height; $y += 29) {
-                for ($x = 7; $x -lt $image.Width; $x += 31) {
+              # Sample densely enough to detect UI structure. RC13 exposed why
+              # sparse color/variance checks are insufficient: a blank WebView2
+              # compositor frame with only the native border still had >100 raw
+              # colors from anti-aliasing and incorrectly passed.
+              for ($y = 8; $y -lt ($image.Height - 9); $y += 12) {
+                for ($x = 8; $x -lt ($image.Width - 9); $x += 12) {
                   $pixel = $image.GetPixel($x, $y)
                   $sampleCount++
                   if ($pixel.A -eq 0) { $transparentSamples++ } else { $opaqueSamples++ }
                   $null = $colors.Add($pixel.ToArgb())
+
+                  $qr = [Math]::Floor($pixel.R / 16)
+                  $qg = [Math]::Floor($pixel.G / 16)
+                  $qb = [Math]::Floor($pixel.B / 16)
+                  $null = $quantized.Add(($qr -shl 8) -bor ($qg -shl 4) -bor $qb)
+
                   $brightness = [double]$pixel.GetBrightness()
                   $minBrightness = [Math]::Min($minBrightness, $brightness)
                   $maxBrightness = [Math]::Max($maxBrightness, $brightness)
                   $sumBrightness += $brightness
                   $sumBrightnessSq += ($brightness * $brightness)
+
+                  $right = $image.GetPixel($x + 8, $y)
+                  $down = $image.GetPixel($x, $y + 8)
+                  $edgeComparisons += 2
+                  if ([Math]::Abs($brightness - [double]$right.GetBrightness()) -ge 0.035) { $edgeHits++ }
+                  if ([Math]::Abs($brightness - [double]$down.GetBrightness()) -ge 0.035) { $edgeHits++ }
                 }
               }
 
               if ($sampleCount -le 0 -or $opaqueSamples -le 0 -or $transparentSamples -eq $sampleCount) {
                 return [pscustomobject]@{
-                  Valid=$false; Reason='transparent'; Colors=$colors.Count; Range=0; Variance=0
-                  Opaque=$opaqueSamples; Samples=$sampleCount
+                  Valid=$false; Reason='transparent'; Colors=$colors.Count; QuantizedColors=$quantized.Count
+                  Range=0; Variance=0; EdgeRatio=0; Opaque=$opaqueSamples; Samples=$sampleCount
                 }
               }
 
               $meanBrightness = $sumBrightness / $sampleCount
               $brightnessVariance = ($sumBrightnessSq / $sampleCount) - ($meanBrightness * $meanBrightness)
               $brightnessRange = $maxBrightness - $minBrightness
-              $valid = $colors.Count -ge 12 -and $brightnessRange -ge 0.05 -and $brightnessVariance -ge 0.0003
+              $edgeRatio = if ($edgeComparisons -gt 0) { $edgeHits / $edgeComparisons } else { 0.0 }
+
+              # A real Ghost FTP 1290x852 view has dense text, icons, separators
+              # and controls. Require actual structure, not only native-window
+              # border anti-aliasing. Keep thresholds conservative enough for
+              # legitimate empty states.
+              $valid =
+                $colors.Count -ge 24 -and
+                $quantized.Count -ge 18 -and
+                $brightnessRange -ge 0.08 -and
+                $brightnessVariance -ge 0.0005 -and
+                $edgeRatio -ge 0.008
+
               return [pscustomobject]@{
                 Valid=$valid
-                Reason=if ($valid) { 'ok' } else { 'blank-or-solid' }
+                Reason=if ($valid) { 'ok' } else { 'blank-or-structureless' }
                 Colors=$colors.Count
+                QuantizedColors=$quantized.Count
                 Range=$brightnessRange
                 Variance=$brightnessVariance
+                EdgeRatio=$edgeRatio
                 Opaque=$opaqueSamples
                 Samples=$sampleCount
               }
@@ -321,6 +354,7 @@ jobs:
             throw "Unexpected Windows QA working area: $($work.Width)x$($work.Height)"
           }
 
+          $capturedHashes = @{}
           $viewIndex = 0
           foreach ($view in $views) {
             $debugPort = 9222 + $viewIndex
@@ -417,6 +451,8 @@ jobs:
                   ", colors=" + $printValidation.Colors +
                   ", range=" + [Math]::Round($printValidation.Range,4) +
                   ", variance=" + [Math]::Round($printValidation.Variance,6) +
+                  ", quantized=" + $printValidation.QuantizedColors +
+                  ", edgeRatio=" + [Math]::Round($printValidation.EdgeRatio,5) +
                   "); falling back to the real WebView2 compositor surface.")
                 Remove-Item $printCandidate -Force -ErrorAction SilentlyContinue
                 Capture-GhostFtpWebView2 -Port $debugPort -OutputPath $png -Width $targetWidth -Height $targetHeight
@@ -425,8 +461,14 @@ jobs:
 
               $validation = Test-GhostFtpPng -Path $png -ExpectedWidth $targetWidth -ExpectedHeight $targetHeight
               if (-not $validation.Valid) {
-                throw "QA screenshot for $($view.key) is invalid (reason=$($validation.Reason), colors=$($validation.Colors), range=$([Math]::Round($validation.Range,4)), variance=$([Math]::Round($validation.Variance,6)), opaque=$($validation.Opaque)/$($validation.Samples))"
+                throw "QA screenshot for $($view.key) is invalid (reason=$($validation.Reason), colors=$($validation.Colors), quantized=$($validation.QuantizedColors), range=$([Math]::Round($validation.Range,4)), variance=$([Math]::Round($validation.Variance,6)), edgeRatio=$([Math]::Round($validation.EdgeRatio,5)), opaque=$($validation.Opaque)/$($validation.Samples))"
               }
+
+              $hash = (Get-FileHash -Algorithm SHA256 $png).Hash
+              if ($capturedHashes.ContainsKey($hash)) {
+                throw "QA screenshot for $($view.key) is byte-identical to $($capturedHashes[$hash]); distinct allow-listed views must render distinct UI."
+              }
+              $capturedHashes[$hash] = $view.key
 
               $pngInfo = Get-Item $png
               @(
@@ -438,8 +480,10 @@ jobs:
                 "WorkingArea=$($work.Width)x$($work.Height)"
                 "CaptureMethod=$captureMethod"
                 "DecodedColors=$($validation.Colors)"
+                "QuantizedColors=$($validation.QuantizedColors)"
                 "BrightnessRange=$([Math]::Round($validation.Range,6))"
                 "BrightnessVariance=$([Math]::Round($validation.Variance,8))"
+                "EdgeRatio=$([Math]::Round($validation.EdgeRatio,8))"
                 "OpaqueSamples=$($validation.Opaque)/$($validation.Samples)"
                 "ImageBytes=$($pngInfo.Length)"
                 "Executable=$exe"
