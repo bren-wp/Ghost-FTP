@@ -247,6 +247,15 @@ for (const required of ["Type", "Permissions", "JavaScript File", "Markdown File
   if (!filePane.includes(required)) failures.push(`FilePane missing reference metadata contract: ${required}`);
 }
 
+const styles = read("src/styles.css");
+for (const required of [
+  ".ghost-reference-statusbar {",
+  "display: flex !important;",
+  "align-items: center !important;",
+]) {
+  if (!styles.includes(required)) failures.push(`Styles missing status-bar reference contract: ${required}`);
+}
+
 const props = read("packages/file-ui/src/components/PropertiesModal.tsx");
 for (const required of ["Open Containing Folder", "Duplicate", "Apply", "Checksums"]) {
   if (!props.includes(required)) failures.push(`File Properties missing required action: ${required}`);
