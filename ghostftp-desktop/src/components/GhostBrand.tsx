@@ -39,8 +39,8 @@ export function GhostMark({ size = 28, className = "" }: { size?: number; classN
 export function GhostWordmark({ compact = false }: { compact?: boolean }) {
   return (
     <div className="ghost-wordmark" aria-label="Ghost FTP">
-      <GhostMark size={compact ? 25 : 34} />
-      <span className={compact ? "text-[15px]" : "text-[19px]"}>Ghost <strong>FTP</strong></span>
+      <GhostMark size={compact ? 34 : 38} />
+      <span className={compact ? "text-[20px]" : "text-[21px]"}>Ghost <strong>FTP</strong></span>
     </div>
   );
 }
