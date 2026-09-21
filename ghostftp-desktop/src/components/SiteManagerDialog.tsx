@@ -668,19 +668,25 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                     />
                   </EditField>
                   <EditField label="Description" editing={editing}>
-                    <textarea
-                      value={draft.description || ""}
-                      readOnly={!editing}
-                      maxLength={500}
-                      rows={3}
-                      onChange={(event) =>
-                        setDraft({
-                          ...draft,
-                          description: event.target.value,
-                        })
-                      }
-                      placeholder="Optional note about this server"
-                    />
+                    <div className="relative">
+                      <textarea
+                        value={draft.description || ""}
+                        readOnly={!editing}
+                        maxLength={500}
+                        rows={3}
+                        className="pb-6"
+                        onChange={(event) =>
+                          setDraft({
+                            ...draft,
+                            description: event.target.value,
+                          })
+                        }
+                        placeholder="Optional note about this server"
+                      />
+                      <span className="pointer-events-none absolute bottom-2 right-2 text-[9.5px] text-text-dim">
+                        {(draft.description || "").length}/500
+                      </span>
+                    </div>
                   </EditField>
                   <EditField label="Folder" editing={editing}>
                     <input
