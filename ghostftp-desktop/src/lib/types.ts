@@ -75,6 +75,8 @@ export interface ConnectionProfile {
   username: string;
   auth: AuthMethod;
   defaultRemotePath?: string;
+  /** Optional human-readable note shown in Site Manager. */
+  description?: string;
   color?: string;
   /** Connect automatically on app launch (and on a single click in the rail). */
   autoConnect?: boolean;
