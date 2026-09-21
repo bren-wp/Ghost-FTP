@@ -3849,3 +3849,35 @@ input.ghost-pane-address:focus-visible {
 .ghost-site-meta-editor button:disabled {
   opacity: .35;
 }
+
+
+/* RC13 About reference landscape polish. */
+.ghost-about-hero {
+  position: relative;
+  isolation: isolate;
+  background: #071a2d !important;
+}
+
+.ghost-about-landscape {
+  z-index: 0;
+  opacity: .92;
+  pointer-events: none;
+}
+
+.ghost-about-hero-glow {
+  z-index: 1;
+  opacity: .24 !important;
+  background:
+    radial-gradient(circle at 31% 47%, rgba(98,207,255,.22), transparent 23%),
+    linear-gradient(90deg, rgba(3,16,30,.08), rgba(3,16,30,.2)) !important;
+  pointer-events: none;
+}
+
+.ghost-about-hero > .relative {
+  z-index: 2;
+}
+
+.ghost-about-hero h2,
+.ghost-about-hero p {
+  text-shadow: 0 2px 16px rgba(0,0,0,.72);
+}
