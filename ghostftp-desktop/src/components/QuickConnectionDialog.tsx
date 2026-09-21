@@ -7,6 +7,7 @@ import { useConnections } from "@/stores/connectionsStore";
 import { useDialog } from "@/hooks/useDialog";
 import { GhostMark } from "./GhostBrand";
 import { ipc } from "@/lib/ipc";
+import { toastError } from "@/lib/errors";
 
 interface Props {
   prefill?: Partial<ConnectionProfile> | null;
@@ -89,8 +90,8 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
     try {
       const picked = await openNativeDialog({ multiple: false, directory: false, title: "Select SSH private key" });
       if (typeof picked === "string") setKeyPath(picked);
-    } catch {
-      // Browser preview fallback: keep the field editable.
+    } catch (error) {
+      toastError(error, "Couldn't open the SSH private key picker");
     }
   };
 
@@ -100,8 +101,9 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
     try {
       await ipc.testEphemeralConnection(makeProfile());
       setTestStatus("ok");
-    } catch {
+    } catch (error) {
       setTestStatus("error");
+      toastError(error, "Connection test failed");
     }
   };
 
