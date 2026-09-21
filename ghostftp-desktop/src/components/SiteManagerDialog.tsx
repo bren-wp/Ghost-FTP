@@ -103,7 +103,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
       profiles
         .filter((profile) => {
           const haystack =
-            `${profile.name} ${profile.host} ${profile.protocol} ${profile.group ?? ""} ${(
+            `${profile.name} ${profile.host} ${profile.protocol} ${profile.group ?? ""} ${profile.description ?? ""} ${(
               profile.tags ?? []
             ).join(" ")}`.toLowerCase();
           if (query && !haystack.includes(query.toLowerCase())) return false;
@@ -562,7 +562,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                       {selected.name}
                     </div>
                     <div className="text-[11px] text-text-muted">
-                      {selected.group || "Saved connection"}
+                      {selected.description || selected.group || "Saved connection"}
                     </div>
                   </div>
                 </div>
@@ -665,6 +665,21 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                           defaultRemotePath: event.target.value,
                         })
                       }
+                    />
+                  </EditField>
+                  <EditField label="Description" editing={editing}>
+                    <textarea
+                      value={draft.description || ""}
+                      readOnly={!editing}
+                      maxLength={500}
+                      rows={3}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          description: event.target.value,
+                        })
+                      }
+                      placeholder="Optional note about this server"
                     />
                   </EditField>
                   <EditField label="Folder" editing={editing}>
