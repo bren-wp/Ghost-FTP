@@ -109,6 +109,198 @@ jobs:
           }
           "@
 
+          function Test-GhostFtpPng {
+            param(
+              [Parameter(Mandatory=$true)][string]$Path,
+              [Parameter(Mandatory=$true)][int]$ExpectedWidth,
+              [Parameter(Mandatory=$true)][int]$ExpectedHeight
+            )
+
+            if (-not (Test-Path $Path)) {
+              return [pscustomobject]@{ Valid=$false; Reason='missing'; Colors=0; Range=0; Variance=0; Opaque=0; Samples=0 }
+            }
+            if ((Get-Item $Path).Length -le 0) {
+              return [pscustomobject]@{ Valid=$false; Reason='empty'; Colors=0; Range=0; Variance=0; Opaque=0; Samples=0 }
+            }
+
+            try {
+              $image = [System.Drawing.Bitmap]::FromFile($Path)
+            } catch {
+              return [pscustomobject]@{ Valid=$false; Reason='decode-failed'; Colors=0; Range=0; Variance=0; Opaque=0; Samples=0 }
+            }
+
+            try {
+              if ($image.Width -ne $ExpectedWidth -or $image.Height -ne $ExpectedHeight) {
+                return [pscustomobject]@{
+                  Valid=$false
+                  Reason=("dimensions-" + $image.Width + "x" + $image.Height)
+                  Colors=0; Range=0; Variance=0; Opaque=0; Samples=0
+                }
+              }
+
+              $colors = New-Object 'System.Collections.Generic.HashSet[int]'
+              $sampleCount = 0
+              $opaqueSamples = 0
+              $transparentSamples = 0
+              $minBrightness = 1.0
+              $maxBrightness = 0.0
+              $sumBrightness = 0.0
+              $sumBrightnessSq = 0.0
+
+              for ($y = 7; $y -lt $image.Height; $y += 29) {
+                for ($x = 7; $x -lt $image.Width; $x += 31) {
+                  $pixel = $image.GetPixel($x, $y)
+                  $sampleCount++
+                  if ($pixel.A -eq 0) { $transparentSamples++ } else { $opaqueSamples++ }
+                  $null = $colors.Add($pixel.ToArgb())
+                  $brightness = [double]$pixel.GetBrightness()
+                  $minBrightness = [Math]::Min($minBrightness, $brightness)
+                  $maxBrightness = [Math]::Max($maxBrightness, $brightness)
+                  $sumBrightness += $brightness
+                  $sumBrightnessSq += ($brightness * $brightness)
+                }
+              }
+
+              if ($sampleCount -le 0 -or $opaqueSamples -le 0 -or $transparentSamples -eq $sampleCount) {
+                return [pscustomobject]@{
+                  Valid=$false; Reason='transparent'; Colors=$colors.Count; Range=0; Variance=0
+                  Opaque=$opaqueSamples; Samples=$sampleCount
+                }
+              }
+
+              $meanBrightness = $sumBrightness / $sampleCount
+              $brightnessVariance = ($sumBrightnessSq / $sampleCount) - ($meanBrightness * $meanBrightness)
+              $brightnessRange = $maxBrightness - $minBrightness
+              $valid = $colors.Count -ge 12 -and $brightnessRange -ge 0.05 -and $brightnessVariance -ge 0.0003
+              return [pscustomobject]@{
+                Valid=$valid
+                Reason=if ($valid) { 'ok' } else { 'blank-or-solid' }
+                Colors=$colors.Count
+                Range=$brightnessRange
+                Variance=$brightnessVariance
+                Opaque=$opaqueSamples
+                Samples=$sampleCount
+              }
+            } finally {
+              $image.Dispose()
+            }
+          }
+
+          function Invoke-GhostFtpCdp {
+            param(
+              [Parameter(Mandatory=$true)][System.Net.WebSockets.ClientWebSocket]$Socket,
+              [Parameter(Mandatory=$true)][int]$Id,
+              [Parameter(Mandatory=$true)][string]$Method,
+              [hashtable]$Params=@{}
+            )
+
+            $payload = @{ id=$Id; method=$Method; params=$Params } | ConvertTo-Json -Compress -Depth 12
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($payload)
+            $send = [System.ArraySegment[byte]]::new($bytes)
+            $Socket.SendAsync(
+              $send,
+              [System.Net.WebSockets.WebSocketMessageType]::Text,
+              $true,
+              [System.Threading.CancellationToken]::None
+            ).GetAwaiter().GetResult()
+
+            while ($true) {
+              $buffer = New-Object byte[] 65536
+              $stream = New-Object System.IO.MemoryStream
+              try {
+                do {
+                  $segment = [System.ArraySegment[byte]]::new($buffer)
+                  $received = $Socket.ReceiveAsync(
+                    $segment,
+                    [System.Threading.CancellationToken]::None
+                  ).GetAwaiter().GetResult()
+                  if ($received.MessageType -eq [System.Net.WebSockets.WebSocketMessageType]::Close) {
+                    throw "WebView2 DevTools socket closed while waiting for $Method"
+                  }
+                  if ($received.Count -gt 0) {
+                    $stream.Write($buffer, 0, $received.Count)
+                  }
+                } until ($received.EndOfMessage)
+
+                $jsonText = [System.Text.Encoding]::UTF8.GetString($stream.ToArray())
+                $message = $jsonText | ConvertFrom-Json
+                if ($message.id -eq $Id) {
+                  if ($message.error) {
+                    throw "WebView2 DevTools $Method failed: $($message.error.message)"
+                  }
+                  return $message
+                }
+              } finally {
+                $stream.Dispose()
+              }
+            }
+          }
+
+          function Capture-GhostFtpWebView2 {
+            param(
+              [Parameter(Mandatory=$true)][int]$Port,
+              [Parameter(Mandatory=$true)][string]$OutputPath,
+              [Parameter(Mandatory=$true)][int]$Width,
+              [Parameter(Mandatory=$true)][int]$Height
+            )
+
+            $target = $null
+            for ($i = 0; $i -lt 40; $i++) {
+              try {
+                $targets = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/json/list" -TimeoutSec 2
+                $target = @($targets) | Where-Object {
+                  $_.type -eq 'page' -and $_.webSocketDebuggerUrl
+                } | Select-Object -First 1
+                if ($target) { break }
+              } catch {}
+              Start-Sleep -Milliseconds 250
+            }
+            if (-not $target) {
+              throw "WebView2 DevTools endpoint did not expose a page target on port $Port"
+            }
+
+            $socket = [System.Net.WebSockets.ClientWebSocket]::new()
+            try {
+              $socket.ConnectAsync(
+                [Uri]$target.webSocketDebuggerUrl,
+                [System.Threading.CancellationToken]::None
+              ).GetAwaiter().GetResult()
+
+              # The production window remains the real Tauri/WebView2 window.
+              # This QA-only override makes the captured compositor surface use
+              # the canonical 1290x852 CSS viewport regardless of hosted-runner DPI.
+              $null = Invoke-GhostFtpCdp -Socket $socket -Id 1 -Method 'Emulation.setDeviceMetricsOverride' -Params @{
+                width=$Width
+                height=$Height
+                deviceScaleFactor=1
+                mobile=$false
+              }
+              $null = Invoke-GhostFtpCdp -Socket $socket -Id 2 -Method 'Page.bringToFront'
+              Start-Sleep -Milliseconds 250
+              $capture = Invoke-GhostFtpCdp -Socket $socket -Id 3 -Method 'Page.captureScreenshot' -Params @{
+                format='png'
+                fromSurface=$true
+                captureBeyondViewport=$false
+              }
+              if (-not $capture.result.data) {
+                throw "WebView2 DevTools returned no screenshot data"
+              }
+              [System.IO.File]::WriteAllBytes(
+                $OutputPath,
+                [Convert]::FromBase64String([string]$capture.result.data)
+              )
+            } finally {
+              if ($socket.State -eq [System.Net.WebSockets.WebSocketState]::Open) {
+                $socket.CloseAsync(
+                  [System.Net.WebSockets.WebSocketCloseStatus]::NormalClosure,
+                  'done',
+                  [System.Threading.CancellationToken]::None
+                ).GetAwaiter().GetResult()
+              }
+              $socket.Dispose()
+            }
+          }
+
           $targetWidth = 1290
           $targetHeight = 852
           $SWP_NOZORDER = 0x0004
@@ -129,8 +321,17 @@ jobs:
             throw "Unexpected Windows QA working area: $($work.Width)x$($work.Height)"
           }
 
+          $viewIndex = 0
           foreach ($view in $views) {
+            $debugPort = 9222 + $viewIndex
+            $viewIndex++
             $env:GHOSTFTP_QA_VIEW = $view.key
+            # PrintWindow cannot capture a GPU-composited WebView2 surface on
+            # some hosted Windows runners. Disable GPU for the primary attempt,
+            # and expose a loopback-only DevTools endpoint for an exact compositor
+            # screenshot fallback if Windows still returns a blank HWND bitmap.
+            $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--disable-gpu --disable-gpu-compositing --remote-debugging-port=$debugPort"
+
             $proc = Start-Process -FilePath $exe -PassThru
             try {
               $handle = [IntPtr]::Zero
@@ -152,11 +353,6 @@ jobs:
                 throw "Unexpected Ghost FTP window title for $($view.key): $($proc.MainWindowTitle)"
               }
 
-              # Keep the real native window at the canonical reference geometry.
-              # PrintWindow(PW_RENDERFULLCONTENT) captures the HWND itself instead
-              # of the hosted runner desktop, so unrelated console windows cannot
-              # contaminate the visual evidence even when 1290x852 exceeds the
-              # visible GitHub Actions working area.
               if (-not [GhostFtpWindowCapture]::SetWindowPos(
                 $handle,
                 [IntPtr]::Zero,
@@ -170,7 +366,7 @@ jobs:
               }
               $null = [GhostFtpWindowCapture]::SetForegroundWindow($handle)
 
-              $settleMs = if ($view.key -eq 'properties') { 1800 } else { 1100 }
+              $settleMs = if ($view.key -eq 'properties') { 2200 } else { 1400 }
               Start-Sleep -Milliseconds $settleMs
 
               $rect = New-Object GhostFtpWindowCapture+RECT
@@ -182,6 +378,10 @@ jobs:
               if ([Math]::Abs($width - $targetWidth) -gt 4 -or [Math]::Abs($height - $targetHeight) -gt 4) {
                 throw "Native window bounds for $($view.key) are ${width}x${height}, expected approximately ${targetWidth}x${targetHeight}"
               }
+
+              $png = Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".png")
+              $printCandidate = Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".printwindow.tmp.png")
+              $captureMethod = 'PrintWindow(PW_RENDERFULLCONTENT)'
 
               $bitmap = New-Object System.Drawing.Bitmap $targetWidth, $targetHeight, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
               $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
@@ -195,68 +395,33 @@ jobs:
                 if ($hdc -ne [IntPtr]::Zero) { $graphics.ReleaseHdc($hdc) }
                 $graphics.Dispose()
               }
-
-              $png = Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".png")
               try {
-                $bitmap.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
+                $bitmap.Save($printCandidate, [System.Drawing.Imaging.ImageFormat]::Png)
               } finally {
                 $bitmap.Dispose()
               }
 
-              if (-not (Test-Path $png)) {
-                throw "QA screenshot was not written for $($view.key)"
+              $printValidation = Test-GhostFtpPng -Path $printCandidate -ExpectedWidth $targetWidth -ExpectedHeight $targetHeight
+              if ($printValidation.Valid) {
+                Move-Item -Force $printCandidate $png
+              } else {
+                Write-Host ("PrintWindow compositor capture invalid for " + $view.key +
+                  " (reason=" + $printValidation.Reason +
+                  ", colors=" + $printValidation.Colors +
+                  ", range=" + [Math]::Round($printValidation.Range,4) +
+                  ", variance=" + [Math]::Round($printValidation.Variance,6) +
+                  "); falling back to the real WebView2 compositor surface.")
+                Remove-Item $printCandidate -Force -ErrorAction SilentlyContinue
+                Capture-GhostFtpWebView2 -Port $debugPort -OutputPath $png -Width $targetWidth -Height $targetHeight
+                $captureMethod = 'WebView2 CDP compositor fallback after blank PrintWindow'
               }
+
+              $validation = Test-GhostFtpPng -Path $png -ExpectedWidth $targetWidth -ExpectedHeight $targetHeight
+              if (-not $validation.Valid) {
+                throw "QA screenshot for $($view.key) is invalid (reason=$($validation.Reason), colors=$($validation.Colors), range=$([Math]::Round($validation.Range,4)), variance=$([Math]::Round($validation.Variance,6)), opaque=$($validation.Opaque)/$($validation.Samples))"
+              }
+
               $pngInfo = Get-Item $png
-              if ($pngInfo.Length -le 0) {
-                throw "QA screenshot is empty for $($view.key)"
-              }
-
-              $image = [System.Drawing.Bitmap]::FromFile($png)
-              try {
-                if ($image.Width -ne $targetWidth -or $image.Height -ne $targetHeight) {
-                  throw "QA screenshot dimensions for $($view.key) are $($image.Width)x$($image.Height), expected ${targetWidth}x${targetHeight}"
-                }
-
-                # Robust blank-image validation: prove the decoded bitmap has
-                # opaque content, multiple colors and measurable luminance
-                # variation. Do not use compressed PNG byte size as a proxy.
-                $colors = New-Object 'System.Collections.Generic.HashSet[int]'
-                $sampleCount = 0
-                $opaqueSamples = 0
-                $transparentSamples = 0
-                $minBrightness = 1.0
-                $maxBrightness = 0.0
-                $sumBrightness = 0.0
-                $sumBrightnessSq = 0.0
-
-                for ($y = 7; $y -lt $image.Height; $y += 29) {
-                  for ($x = 7; $x -lt $image.Width; $x += 31) {
-                    $pixel = $image.GetPixel($x, $y)
-                    $sampleCount++
-                    if ($pixel.A -eq 0) { $transparentSamples++ } else { $opaqueSamples++ }
-                    $null = $colors.Add($pixel.ToArgb())
-                    $brightness = [double]$pixel.GetBrightness()
-                    $minBrightness = [Math]::Min($minBrightness, $brightness)
-                    $maxBrightness = [Math]::Max($maxBrightness, $brightness)
-                    $sumBrightness += $brightness
-                    $sumBrightnessSq += ($brightness * $brightness)
-                  }
-                }
-
-                if ($sampleCount -le 0 -or $opaqueSamples -le 0 -or $transparentSamples -eq $sampleCount) {
-                  throw "QA screenshot for $($view.key) is fully transparent or has no sampled pixels"
-                }
-
-                $meanBrightness = $sumBrightness / $sampleCount
-                $brightnessVariance = ($sumBrightnessSq / $sampleCount) - ($meanBrightness * $meanBrightness)
-                $brightnessRange = $maxBrightness - $minBrightness
-                if ($colors.Count -lt 12 -or $brightnessRange -lt 0.05 -or $brightnessVariance -lt 0.0003) {
-                  throw "QA screenshot for $($view.key) appears blank/solid (colors=$($colors.Count), range=$([Math]::Round($brightnessRange,4)), variance=$([Math]::Round($brightnessVariance,6)), opaque=$opaqueSamples/$sampleCount)"
-                }
-              } finally {
-                $image.Dispose()
-              }
-
               @(
                 "View=$($view.key)"
                 "ProcessId=$($proc.Id)"
@@ -264,7 +429,11 @@ jobs:
                 "WindowBounds=${width}x${height}"
                 "TargetReferenceBounds=${targetWidth}x${targetHeight}"
                 "WorkingArea=$($work.Width)x$($work.Height)"
-                "CaptureMethod=PrintWindow(PW_RENDERFULLCONTENT)"
+                "CaptureMethod=$captureMethod"
+                "DecodedColors=$($validation.Colors)"
+                "BrightnessRange=$([Math]::Round($validation.Range,6))"
+                "BrightnessVariance=$([Math]::Round($validation.Variance,8))"
+                "OpaqueSamples=$($validation.Opaque)/$($validation.Samples)"
                 "ImageBytes=$($pngInfo.Length)"
                 "Executable=$exe"
               ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".txt"))
@@ -279,6 +448,7 @@ jobs:
           }
 
           Remove-Item Env:GHOSTFTP_QA_VIEW -ErrorAction SilentlyContinue
+          Remove-Item Env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS -ErrorAction SilentlyContinue
 
       - name: Upload Windows native-window QA evidence
         if: runner.os == 'Windows' && always()
