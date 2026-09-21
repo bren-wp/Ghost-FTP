@@ -33,6 +33,7 @@ import { SkillsHost } from "./components/SkillsPanel";
 import { SnippetsHost } from "./components/SnippetsPanel";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { cn } from "./lib/cn";
+import { initTransferScheduler } from "./stores/transferScheduleStore";
 
 const Settings = lazy(() =>
   import("./components/Settings").then((module) => ({ default: module.Settings }))
@@ -145,6 +146,12 @@ export default function App() {
   // in that order, so the bumps apply on top of the imported values.
   useEffect(() => {
     void runSettingsMigration().then(runDefaultBumps).then(() => applyTransferEngineSettings());
+  }, []);
+
+  // Keep Transfer Center schedules running even when another workspace is open.
+  useEffect(() => {
+    const cleanup = initTransferScheduler();
+    return cleanup;
   }, []);
 
   // Desktop notifications (Plan 16 Phase 3): OS toasts for the curated events
