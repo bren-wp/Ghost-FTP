@@ -291,12 +291,20 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   };
 
   const addTransfer = () => {
-    window.dispatchEvent(
-      new CustomEvent("ghostftp:toolbar-action", {
-        detail: { action: "upload" },
-      })
-    );
+    // Transfer Center replaces File Manager in the single-window shell, so the
+    // file panes are not mounted while this view is open. Return to File Manager
+    // first, then dispatch after React has remounted the panes; otherwise the
+    // action is silently lost.
     onClose();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.dispatchEvent(
+          new CustomEvent("ghostftp:toolbar-action", {
+            detail: { action: "upload", target: "local" },
+          })
+        );
+      });
+    });
   };
 
   const activeCount = transfers.filter(
