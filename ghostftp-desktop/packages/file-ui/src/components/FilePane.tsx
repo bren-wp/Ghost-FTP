@@ -242,6 +242,7 @@ export function FilePane({
   const containerRef = useRef<HTMLDivElement>(null);
   const typeBufRef = useRef("");
   const typeAtRef = useRef(0);
+  const qaPropertiesOpened = useRef(false);
 
   const history = usePathHistory(path, onPathChange);
 
@@ -330,6 +331,31 @@ export function FilePane({
         return sortDirection === "asc" ? cmp : -cmp;
       });
   }, [entries, showHiddenFiles, filter, sortField, sortDirection]);
+
+  // Native screenshot QA can open File Properties against a real local entry.
+  // No fixture data is injected: the first real file (or first real entry when
+  // the directory contains folders only) is selected after the local listing
+  // has loaded, then the production Properties modal is opened normally.
+  useEffect(() => {
+    const qaView = (
+      globalThis as typeof globalThis & { __GHOSTFTP_QA_VIEW__?: string }
+    ).__GHOSTFTP_QA_VIEW__;
+    if (
+      qaView !== "properties" ||
+      paneId !== "local" ||
+      qaPropertiesOpened.current ||
+      loading ||
+      visible.length === 0
+    ) {
+      return;
+    }
+
+    const entry = visible.find((candidate) => candidate.kind === "file") ?? visible[0];
+    qaPropertiesOpened.current = true;
+    setSelected(new Set([entry.path]));
+    setAnchor(entry.path);
+    setModal({ type: "props", entry });
+  }, [loading, paneId, visible]);
 
   useEffect(() => {
     const el = containerRef.current;
