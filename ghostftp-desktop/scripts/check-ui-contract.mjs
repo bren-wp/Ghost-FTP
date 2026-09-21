@@ -89,6 +89,24 @@ function auditClickableTsx(file) {
           }
         }
       }
+
+      if (tag === "input" || tag === "select" || tag === "textarea") {
+        const controlled = Boolean(
+          jsxAttribute(node, "value") ||
+          jsxAttribute(node, "checked")
+        );
+        const onChange = jsxAttribute(node, "onChange");
+        const readOnly = jsxAttribute(node, "readOnly");
+        const disabled = jsxAttribute(node, "disabled");
+        if (controlled && !onChange && !readOnly && !disabled && !hasJsxSpread(node)) {
+          const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+          failures.push(`${file}:${pos.line + 1}: controlled ${tag} has no onChange/readOnly/disabled contract`);
+        }
+        if (isEmptyHandler(expressionFromAttribute(onChange)) && !readOnly && !disabled) {
+          const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+          failures.push(`${file}:${pos.line + 1}: ${tag} has an empty onChange handler`);
+        }
+      }
     }
     ts.forEachChild(node, visit);
   };
