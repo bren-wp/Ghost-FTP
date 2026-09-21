@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Bookmark,
   ChevronDown,
   ChevronUp,
   CopyPlus,
@@ -205,6 +206,22 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
       toast.success("Site saved", name);
     } catch (error) {
       toastError(error, `Couldn't save ${name}`);
+    } finally {
+      setAction(null);
+    }
+  };
+
+  const toggleBookmark = async () => {
+    if (!selected || action) return;
+    setAction("save");
+    try {
+      await saveProfile({ ...selected, bookmarked: !selected.bookmarked });
+      toast.info(
+        selected.bookmarked ? "Bookmark removed" : "Bookmarked",
+        selected.name
+      );
+    } catch (error) {
+      toastError(error, `Couldn't update ${selected.name}`);
     } finally {
       setAction(null);
     }
@@ -539,6 +556,17 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                   <div className="flex-1" />
                   <button
                     type="button"
+                    className="ghost-site-bookmark-button"
+                    aria-label={selected.bookmarked ? "Remove bookmark" : "Bookmark site"}
+                    aria-pressed={selected.bookmarked === true}
+                    title={selected.bookmarked ? "Remove bookmark" : "Bookmark site"}
+                    disabled={Boolean(action) || editing}
+                    onClick={() => void toggleBookmark()}
+                  >
+                    <Bookmark size={14} fill={selected.bookmarked ? "currentColor" : "none"} />
+                  </button>
+                  <button
+                    type="button"
                     className="ghost-mini-button"
                     onClick={() => void (editing ? save() : startEdit())}
                     disabled={Boolean(action) || (!editing && !canDirectEdit)}
@@ -688,46 +716,6 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                       </span>
                     </div>
                   </EditField>
-                  <EditField label="Folder" editing={editing}>
-                    <input
-                      value={draft.group || ""}
-                      readOnly={!editing}
-                      onChange={(event) =>
-                        setDraft({
-                          ...draft,
-                          group: event.target.value.trimStart() || undefined,
-                        })
-                      }
-                      placeholder="My Sites"
-                    />
-                  </EditField>
-                  <EditField label="Tags" editing={editing}>
-                    <input
-                      value={(draft.tags ?? []).join(", ")}
-                      readOnly={!editing}
-                      onChange={(event) =>
-                        setDraft({
-                          ...draft,
-                          tags: event.target.value
-                            .split(",")
-                            .map((value) => value.trim())
-                            .filter(Boolean),
-                        })
-                      }
-                      placeholder="Production, Client"
-                    />
-                  </EditField>
-                  <label className="flex items-center justify-between gap-3 text-[11px] text-text-muted">
-                    <span>Bookmark</span>
-                    <input
-                      type="checkbox"
-                      disabled={!editing}
-                      checked={draft.bookmarked === true}
-                      onChange={(event) =>
-                        setDraft({ ...draft, bookmarked: event.target.checked })
-                      }
-                    />
-                  </label>
                   <EditField label="Encoding" editing={false}>
                     <input value="UTF-8" readOnly />
                   </EditField>
