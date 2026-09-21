@@ -4120,3 +4120,35 @@ input.ghost-pane-address:focus-visible {
     grid-template-columns: minmax(0, 2fr) minmax(340px, 1fr) !important;
   }
 }
+
+
+/* RC13 newest-reference sidebar capability notes. */
+.ghost-sidebar-capabilities {
+  flex: 0 0 auto;
+  border-top: 1px solid #1a4c6e;
+  padding: 8px 10px 10px;
+  background: #041526;
+}
+
+.ghost-sidebar-capability {
+  display: flex;
+  min-height: 29px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  color: #c3dced;
+  font-size: 11.5px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ghost-sidebar-capability svg {
+  flex: 0 0 auto;
+  color: #bde3fb;
+}
+
+@media (max-width: 760px), (max-height: 760px) {
+  .ghost-sidebar-capabilities {
+    display: none;
+  }
+}
