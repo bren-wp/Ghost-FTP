@@ -3735,6 +3735,7 @@ mod tests {
             username: "u".into(),
             auth: crate::profiles::AuthMethod::Agent,
             default_remote_path: None,
+            description: None,
             color: None,
             auto_connect: None,
             bucket: None,
