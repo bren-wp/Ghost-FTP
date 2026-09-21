@@ -1,7 +1,7 @@
 name: Ghost FTP native build
 
 # RC14 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
-# RC14 release build stamp: 2026-09-21.13
+# RC14 release build stamp: 2026-09-21.14
 
 on:
   workflow_dispatch:
