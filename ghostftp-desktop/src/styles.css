@@ -4256,3 +4256,60 @@ input.ghost-pane-address:focus-visible {
     min-height: 34px !important;
   }
 }
+
+
+/* RC14 reference-frame polish: keep every General preference card visible at
+   the 1290×852 native QA frame while preserving the existing scroll-first
+   responsive behavior below desktop reference size. */
+@media (min-width: 1121px) and (min-height: 780px) {
+  .ghost-preferences-heading {
+    height: 70px !important;
+    min-height: 70px !important;
+  }
+
+  .ghost-preferences-content {
+    padding: 10px 14px 12px !important;
+  }
+
+  .ghost-general-grid {
+    gap: 9px !important;
+  }
+
+  .ghost-general-card {
+    padding: 10px 12px !important;
+  }
+
+  .ghost-general-card > div:first-child {
+    margin-bottom: 6px !important;
+  }
+
+  .ghost-general-card > .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 5px !important;
+  }
+
+  .ghost-general-card select,
+  .ghost-general-card input[type="text"],
+  .ghost-general-card input[type="number"] {
+    min-height: 28px;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+  }
+
+  .ghost-general-card input[type="color"] {
+    height: 28px !important;
+  }
+
+  .ghost-general-card .ghost-mini-button {
+    min-height: 28px;
+    height: 28px;
+  }
+
+  .ghost-new-connection-dialog {
+    height: min(574px, calc(100dvh - 24px)) !important;
+    max-height: min(574px, calc(100dvh - 24px)) !important;
+  }
+
+  .ghost-properties-dialog {
+    width: min(530px, calc(100vw - 24px)) !important;
+  }
+}
