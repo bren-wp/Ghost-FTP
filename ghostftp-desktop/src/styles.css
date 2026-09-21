@@ -3182,9 +3182,9 @@ button:active,
 
 /* RC13 reference-frame geometry: File Manager structure and sidebar fidelity. */
 .ghost-app-header {
-  flex: 0 0 170px !important;
-  height: 170px !important;
-  min-height: 170px !important;
+  flex: 0 0 182px !important;
+  height: 182px !important;
+  min-height: 182px !important;
 }
 
 .ghost-title-row {
@@ -3193,31 +3193,39 @@ button:active,
 }
 
 .ghost-quick-row {
-  height: 60px !important;
-  min-height: 60px !important;
-  padding: 9px 14px !important;
+  height: 67px !important;
+  min-height: 67px !important;
+  padding: 10px 14px !important;
 }
 
 .ghost-toolbar-row {
-  height: 60px !important;
-  min-height: 60px !important;
+  height: 65px !important;
+  min-height: 65px !important;
 }
 
 .ghost-file-manager-body,
+.ghost-file-manager-top,
 .ghost-file-manager-right {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
 
+.ghost-file-manager-top {
+  flex: 0 0 414px !important;
+  height: 414px !important;
+  min-height: 414px !important;
+  max-height: 414px !important;
+}
+
 .ghost-file-manager-right {
   background: #041526;
 }
 
-.ghost-file-manager-body > .ghost-sites-panel {
-  width: 214px !important;
-  min-width: 214px !important;
-  flex: 0 0 214px !important;
+.ghost-file-manager-top > .ghost-sites-panel {
+  width: 220px !important;
+  min-width: 220px !important;
+  flex: 0 0 220px !important;
 }
 
 .ghost-main-workspace {
@@ -3238,10 +3246,12 @@ button:active,
 }
 
 .ghost-dual-browser > .ghost-file-pane:first-child {
+  flex: .91 1 0% !important;
   border-left: 0 !important;
 }
 
 .ghost-dual-browser > .ghost-file-pane:last-child {
+  flex: 1 1 0% !important;
   border-right: 0 !important;
 }
 
@@ -3311,17 +3321,17 @@ button:active,
 
 .ghost-bottom-band {
   width: 100%;
-  flex: 0 0 210px !important;
-  height: 210px !important;
-  min-height: 210px !important;
-  max-height: 210px !important;
+  flex: 0 0 220px !important;
+  height: 220px !important;
+  min-height: 220px !important;
+  max-height: 220px !important;
   padding-left: 4px !important;
 }
 
 .ghost-reference-statusbar {
-  flex: 0 0 40px !important;
-  height: 40px !important;
-  min-height: 40px !important;
+  flex: 0 0 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
 }
 
 @media (max-width: 1120px) {
@@ -3331,7 +3341,14 @@ button:active,
     min-height: 0 !important;
   }
 
-  .ghost-file-manager-body > .ghost-sites-panel {
+  .ghost-file-manager-top {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+
+  .ghost-file-manager-top > .ghost-sites-panel {
     width: 184px !important;
     min-width: 184px !important;
     flex-basis: 184px !important;
@@ -3351,7 +3368,7 @@ button:active,
 }
 
 @media (max-width: 760px) {
-  .ghost-file-manager-body > .ghost-sites-panel {
+  .ghost-file-manager-top > .ghost-sites-panel {
     width: 132px !important;
     min-width: 132px !important;
     flex-basis: 132px !important;
@@ -3376,7 +3393,7 @@ button:active,
 }
 
 @media (max-width: 540px) {
-  .ghost-file-manager-body > .ghost-sites-panel {
+  .ghost-file-manager-top > .ghost-sites-panel {
     width: 108px !important;
     min-width: 108px !important;
     flex-basis: 108px !important;
@@ -3474,7 +3491,7 @@ button:active,
 
 /* RC13 measured sidebar width from the supplied main 1290px application reference. */
 @media (min-width: 1121px) {
-  .ghost-file-manager-body > .ghost-sites-panel,
+  .ghost-file-manager-top > .ghost-sites-panel,
   .ghost-sites-toolbar-head {
     width: 204px !important;
     min-width: 204px !important;
