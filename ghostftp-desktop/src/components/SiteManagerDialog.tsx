@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import {
   Bookmark,
   ChevronDown,
@@ -247,16 +248,23 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     }
   };
 
-  const exportSites = () => {
-    const blob = new Blob([JSON.stringify(profiles, null, 2)], {
-      type: "application/json",
-    });
-    const href = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = href;
-    anchor.download = "ghostftp-sites.json";
-    anchor.click();
-    URL.revokeObjectURL(href);
+  const exportSites = async () => {
+    if (profiles.length === 0) {
+      toast.info("Nothing to export", "Create or import a site profile first.");
+      return;
+    }
+    try {
+      const path = await saveDialog({
+        title: "Export Ghost FTP sites",
+        defaultPath: "ghostftp-sites.json",
+        filters: [{ name: "Ghost FTP site export", extensions: ["json"] }],
+      });
+      if (!path) return;
+      const count = await ipc.exportProfiles(path);
+      toast.success("Sites exported", `${count} profile${count === 1 ? "" : "s"} saved securely without credentials.`);
+    } catch (error) {
+      toastError(error, "Couldn't export sites");
+    }
   };
 
   const connectSelected = async () => {
@@ -393,7 +401,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
           <button
             type="button"
             className="ghost-mini-button"
-            onClick={exportSites}
+            onClick={() => void exportSites()}
             disabled={profiles.length === 0}
           >
             <Upload size={14} /> Export
