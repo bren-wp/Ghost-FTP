@@ -76,23 +76,8 @@ jobs:
           $exe = Join-Path $env:GITHUB_WORKSPACE 'ghostftp-desktop\src-tauri\target\release\ghostftp.exe'
           if (-not (Test-Path $exe)) { throw "Ghost FTP executable not found: $exe" }
 
-          $proc = Start-Process -FilePath $exe -PassThru
-          try {
-            $handle = [IntPtr]::Zero
-            for ($i = 0; $i -lt 15; $i++) {
-              Start-Sleep -Seconds 1
-              $proc.Refresh()
-              if ($proc.HasExited) { throw "Ghost FTP exited before the QA capture" }
-              if ($proc.MainWindowHandle -ne 0) {
-                $handle = $proc.MainWindowHandle
-                break
-              }
-            }
-            if ($handle -eq [IntPtr]::Zero) { throw "Ghost FTP did not expose a native main-window handle" }
-            if ($proc.MainWindowTitle -ne 'Ghost FTP') { throw "Unexpected Ghost FTP window title: $($proc.MainWindowTitle)" }
-
-            Add-Type -AssemblyName System.Drawing
-            Add-Type @"
+          Add-Type -AssemblyName System.Drawing
+          Add-Type @"
           using System;
           using System.Runtime.InteropServices;
           public static class GhostFtpWindowCapture {
@@ -118,70 +103,118 @@ jobs:
           }
           "@
 
-            # GitHub's Windows runner exposes a small desktop, so a normal
-            # CopyFromScreen capture forces our responsive compact breakpoint.
-            # Force the canonical 1290x852 reference geometry and use PrintWindow
-            # so the full native WebView can be captured even when part of the
-            # window extends beyond the runner's visible desktop.
-            $targetWidth = 1290
-            $targetHeight = 852
-            $SWP_NOZORDER = 0x0004
-            if (-not [GhostFtpWindowCapture]::SetWindowPos(
-              $handle,
-              [IntPtr]::Zero,
-              0,
-              0,
-              $targetWidth,
-              $targetHeight,
-              $SWP_NOZORDER
-            )) {
-              throw "SetWindowPos failed while applying canonical QA geometry"
-            }
-            Start-Sleep -Milliseconds 750
+          $targetWidth = 1290
+          $targetHeight = 852
+          $SWP_NOZORDER = 0x0004
+          $PW_RENDERFULLCONTENT = 0x00000002
+          $views = @(
+            @{ key = 'main'; label = 'Native-Window' },
+            @{ key = 'siteManager'; label = 'Site-Manager' },
+            @{ key = 'newConnection'; label = 'New-Connection' },
+            @{ key = 'settings'; label = 'Preferences' },
+            @{ key = 'transferCenter'; label = 'Transfer-Center' },
+            @{ key = 'properties'; label = 'File-Properties' },
+            @{ key = 'about'; label = 'About' }
+          )
 
-            $rect = New-Object GhostFtpWindowCapture+RECT
-            if (-not [GhostFtpWindowCapture]::GetWindowRect($handle, [ref]$rect)) {
-              throw "GetWindowRect failed"
-            }
-            $width = $rect.Right - $rect.Left
-            $height = $rect.Bottom - $rect.Top
-            if ([Math]::Abs($width - $targetWidth) -gt 2 -or [Math]::Abs($height - $targetHeight) -gt 2) {
-              throw "Canonical Ghost FTP QA size was not applied: ${width}x${height}"
-            }
-
-            $bitmap = New-Object System.Drawing.Bitmap $width, $height
-            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+          foreach ($view in $views) {
+            $env:GHOSTFTP_QA_VIEW = $view.key
+            $proc = Start-Process -FilePath $exe -PassThru
             try {
-              $hdc = $graphics.GetHdc()
-              try {
-                $PW_RENDERFULLCONTENT = 0x00000002
-                if (-not [GhostFtpWindowCapture]::PrintWindow($handle, $hdc, $PW_RENDERFULLCONTENT)) {
-                  throw "PrintWindow failed while capturing canonical native-window QA evidence"
+              $handle = [IntPtr]::Zero
+              for ($i = 0; $i -lt 20; $i++) {
+                Start-Sleep -Milliseconds 500
+                $proc.Refresh()
+                if ($proc.HasExited) {
+                  throw "Ghost FTP exited before the $($view.key) QA capture"
                 }
-              } finally {
-                $graphics.ReleaseHdc($hdc)
+                if ($proc.MainWindowHandle -ne 0) {
+                  $handle = $proc.MainWindowHandle
+                  break
+                }
               }
-              $bitmap.Save((Join-Path $qaDir 'GhostFTP-Windows-RC13-Native-Window.png'), [System.Drawing.Imaging.ImageFormat]::Png)
-            } finally {
-              $graphics.Dispose()
-              $bitmap.Dispose()
-            }
+              if ($handle -eq [IntPtr]::Zero) {
+                throw "Ghost FTP did not expose a native main-window handle for $($view.key)"
+              }
+              if ($proc.MainWindowTitle -ne 'Ghost FTP') {
+                throw "Unexpected Ghost FTP window title for $($view.key): $($proc.MainWindowTitle)"
+              }
 
-            @(
-              "ProcessId=$($proc.Id)"
-              "WindowTitle=$($proc.MainWindowTitle)"
-              "WindowBounds=${width}x${height}"
-              "TargetReferenceBounds=${targetWidth}x${targetHeight}"
-              "CaptureMethod=PrintWindow(PW_RENDERFULLCONTENT)"
-              "Executable=$exe"
-            ) | Set-Content -Encoding UTF8 (Join-Path $qaDir 'GhostFTP-Windows-RC13-Native-Window.txt')
-          } finally {
-            if (-not $proc.HasExited) {
-              $null = $proc.CloseMainWindow()
-              Start-Sleep -Seconds 1
-              if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+              # GitHub's hosted Windows desktop is smaller than our approved
+              # reference frame. Force the canonical native geometry, then use
+              # PrintWindow so the whole WebView is captured even off-screen.
+              if (-not [GhostFtpWindowCapture]::SetWindowPos(
+                $handle,
+                [IntPtr]::Zero,
+                0,
+                0,
+                $targetWidth,
+                $targetHeight,
+                $SWP_NOZORDER
+              )) {
+                throw "SetWindowPos failed for $($view.key)"
+              }
+
+              # Primary workspaces settle quickly; File Properties waits for a
+              # real local directory listing before selecting the first real
+              # entry and opening the production properties panel.
+              $settleMs = if ($view.key -eq 'properties') { 2200 } else { 1200 }
+              Start-Sleep -Milliseconds $settleMs
+
+              $rect = New-Object GhostFtpWindowCapture+RECT
+              if (-not [GhostFtpWindowCapture]::GetWindowRect($handle, [ref]$rect)) {
+                throw "GetWindowRect failed for $($view.key)"
+              }
+              $width = $rect.Right - $rect.Left
+              $height = $rect.Bottom - $rect.Top
+              if ([Math]::Abs($width - $targetWidth) -gt 2 -or [Math]::Abs($height - $targetHeight) -gt 2) {
+                throw "Canonical Ghost FTP QA size was not applied for $($view.key): ${width}x${height}"
+              }
+
+              $bitmap = New-Object System.Drawing.Bitmap $width, $height
+              $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+              $png = Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".png")
+              try {
+                $hdc = $graphics.GetHdc()
+                try {
+                  if (-not [GhostFtpWindowCapture]::PrintWindow($handle, $hdc, $PW_RENDERFULLCONTENT)) {
+                    throw "PrintWindow failed for $($view.key)"
+                  }
+                } finally {
+                  $graphics.ReleaseHdc($hdc)
+                }
+                $bitmap.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
+              } finally {
+                $graphics.Dispose()
+                $bitmap.Dispose()
+              }
+
+              $pngInfo = Get-Item $png
+              if ($pngInfo.Length -lt 12000) {
+                throw "Native QA image for $($view.key) is unexpectedly small: $($pngInfo.Length) bytes"
+              }
+
+              @(
+                "View=$($view.key)"
+                "ProcessId=$($proc.Id)"
+                "WindowTitle=$($proc.MainWindowTitle)"
+                "WindowBounds=${width}x${height}"
+                "TargetReferenceBounds=${targetWidth}x${targetHeight}"
+                "CaptureMethod=PrintWindow(PW_RENDERFULLCONTENT)"
+                "ImageBytes=$($pngInfo.Length)"
+                "Executable=$exe"
+              ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC13-" + $view.label + ".txt"))
+            } finally {
+              if (-not $proc.HasExited) {
+                $null = $proc.CloseMainWindow()
+                Start-Sleep -Milliseconds 600
+                if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+              }
             }
+            Start-Sleep -Milliseconds 350
           }
+
+          Remove-Item Env:GHOSTFTP_QA_VIEW -ErrorAction SilentlyContinue
 
       - name: Upload Windows native-window QA evidence
         if: runner.os == 'Windows' && always()
