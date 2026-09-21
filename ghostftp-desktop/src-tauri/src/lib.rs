@@ -245,7 +245,7 @@ pub fn run() {
             // itself synchronously instead of an async round-trip.
             {
                 let init_script = build_settings_init_script(&db);
-                let mut window_builder =
+                let window_builder =
                     tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                         .title("Ghost FTP")
                         .inner_size(1290.0, 852.0)
@@ -254,6 +254,9 @@ pub fn run() {
                         .resizable(true)
                         .shadow(true)
                         .initialization_script(&init_script);
+
+                #[cfg(windows)]
+                let mut window_builder = window_builder;
 
                 // Native Windows screenshot QA must capture the real WebView2
                 // compositor, not a screenshot fixture. Apply the QA-only
