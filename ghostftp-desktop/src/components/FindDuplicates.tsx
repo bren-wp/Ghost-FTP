@@ -104,8 +104,9 @@ function FindDuplicates() {
   };
 
   const copyPath = (p: string) => {
-    navigator.clipboard.writeText(p);
-    toast.info("Path copied", p);
+    void navigator.clipboard.writeText(p)
+      .then(() => toast.info("Path copied", p))
+      .catch((error) => toast.error("Couldn't copy path", String(error)));
   };
 
   return createPortal(
