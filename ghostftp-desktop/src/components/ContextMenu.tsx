@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 
 export interface MenuItem {
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
   icon?: React.ReactNode;
   disabled?: boolean;
   destructive?: boolean;
