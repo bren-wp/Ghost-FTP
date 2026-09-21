@@ -84,7 +84,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
             role="menuitem"
             disabled={item.disabled}
             onClick={() => {
-              item.onClick();
+              item.onClick?.();
               onClose();
             }}
             className={cn(
