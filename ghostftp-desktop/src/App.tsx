@@ -97,6 +97,31 @@ export default function App() {
 
   useShortcuts();
 
+  // Native CI visual evidence can request a real application surface through
+  // the allow-listed GHOSTFTP_QA_VIEW environment variable injected by Rust.
+  // This only selects an existing view; it never seeds servers, transfers,
+  // credentials, connection state, or other fake production data.
+  useEffect(() => {
+    const qaView = (
+      globalThis as typeof globalThis & { __GHOSTFTP_QA_VIEW__?: string }
+    ).__GHOSTFTP_QA_VIEW__;
+    if (!qaView || qaView === "main" || qaView === "properties") return;
+
+    const layout = useLayout.getState();
+    if (qaView === "newConnection") {
+      layout.openNewConnection();
+      return;
+    }
+    if (
+      qaView === "siteManager" ||
+      qaView === "settings" ||
+      qaView === "transferCenter" ||
+      qaView === "about"
+    ) {
+      layout.openDialog(qaView);
+    }
+  }, []);
+
   // Boot the Folder Sync store: fetch the current pairs and attach the
   // "foldersync://changed" listener so background syncs keep the UI live.
   useEffect(() => {
