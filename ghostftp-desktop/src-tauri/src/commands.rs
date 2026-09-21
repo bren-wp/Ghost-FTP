@@ -110,10 +110,7 @@ pub async fn list_profiles(state: State<'_, AppState>) -> Result<Vec<ConnectionP
 }
 
 #[tauri::command]
-pub async fn export_profiles(
-    path: String,
-    state: State<'_, AppState>,
-) -> Result<usize, String> {
+pub async fn export_profiles(path: String, state: State<'_, AppState>) -> Result<usize, String> {
     let profiles = state.profiles.list().await.map_err(err)?;
     let bytes = serde_json::to_vec_pretty(&profiles).map_err(err)?;
     std::fs::write(&path, bytes).map_err(err)?;
