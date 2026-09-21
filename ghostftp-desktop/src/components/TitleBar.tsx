@@ -112,6 +112,10 @@ export function TitleBar() {
     try {
       await connectTemporary(profile);
       setPassword("");
+    } catch {
+      // connectionsStore already surfaces the structured backend error.
+      // Swallow it here so a failed toolbar Quick Connect does not become an
+      // unhandled promise rejection in WebView2.
     } finally {
       setQuickBusy(false);
     }
