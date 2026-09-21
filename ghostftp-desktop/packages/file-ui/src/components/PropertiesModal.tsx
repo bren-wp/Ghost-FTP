@@ -53,7 +53,14 @@ export function PropertiesModal({ entry, sessionId, onClose, onApplied, onOpenCo
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(false); }
   };
-  const copyPath = async () => { try { await navigator.clipboard.writeText(entry.path); } catch {} };
+  const copyPath = async () => {
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(entry.path);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't copy the file path.");
+    }
+  };
   const duplicate = async () => {
     if (!sessionId || !fs.duplicate) return;
     setBusy(true); setError(null);
