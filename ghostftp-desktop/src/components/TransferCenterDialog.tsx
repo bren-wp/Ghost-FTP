@@ -1057,7 +1057,7 @@ function BandwidthChart({ history }: { history: BandwidthSample[] }) {
         </span>
         <span className="ml-auto">Peak {formatRate(peak)}</span>
       </div>
-      <div className="relative h-28 overflow-hidden rounded border border-border-subtle bg-[#041522]">
+      <div className="relative h-24 overflow-hidden rounded border border-border-subtle bg-[#041522]">
         <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent_0_27px,rgba(31,80,115,.36)_28px)]" />
         <svg
           viewBox="0 0 600 120"
