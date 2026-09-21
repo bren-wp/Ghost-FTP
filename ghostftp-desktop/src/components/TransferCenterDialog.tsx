@@ -31,6 +31,7 @@ import { GhostMark } from "./GhostBrand";
 import { getLocale, setLocale } from "@/lib/i18n";
 import { useLayout } from "@/stores/layoutStore";
 import { useDialog } from "@/hooks/useDialog";
+import { toastError } from "@/lib/errors";
 
 type FilterTab = "all" | "upload" | "download" | "completed" | "failed" | "paused";
 type DirectionFilter = "all" | "upload" | "download";
@@ -300,24 +301,28 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
 
   const addTransfer = async (kind: "files" | "folder" = "files") => {
     if (!activeSessionId) return;
-    const picked = await open({
-      multiple: kind === "files",
-      directory: kind === "folder",
-      title: kind === "folder" ? "Add folder transfer" : "Add file transfer",
-    });
-    if (!picked) return;
+    try {
+      const picked = await open({
+        multiple: kind === "files",
+        directory: kind === "folder",
+        title: kind === "folder" ? "Add folder transfer" : "Add file transfer",
+      });
+      if (!picked) return;
 
-    const paths = Array.isArray(picked) ? picked : [picked];
-    if (paths.length === 0) return;
+      const paths = Array.isArray(picked) ? picked : [picked];
+      if (paths.length === 0) return;
 
-    await enqueueUploads(
-      activeSessionId,
-      paths.map((path) => ({
-        path,
-        kind: kind === "folder" ? "directory" as const : "file" as const,
-      })),
-      uploadTarget
-    );
+      await enqueueUploads(
+        activeSessionId,
+        paths.map((path) => ({
+          path,
+          kind: kind === "folder" ? "directory" as const : "file" as const,
+        })),
+        uploadTarget
+      );
+    } catch (error) {
+      toastError(error, "Couldn't add the transfer");
+    }
   };
 
   const activeCount = transfers.filter(
