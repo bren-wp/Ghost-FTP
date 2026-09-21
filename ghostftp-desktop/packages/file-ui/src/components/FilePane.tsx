@@ -23,6 +23,8 @@ import {
   ChevronUp,
   ChevronDown,
   Pencil,
+  Monitor,
+  Server,
   Inbox,
   SearchX,
   List,
@@ -946,11 +948,13 @@ export function FilePane({
   // Columns yield as the pane narrows so the filename never gets crushed:
   // Modified drops below ~360px, Perms shows only when the pane is wide.
   const showModified = paneTier !== "narrow";
+  const showType = paneTier !== "narrow";
   const showPermsCol = hasPerms && paneTier === "wide";
   const cols = [
     "minmax(0,1fr)",
+    "5.2rem",
+    showType ? "6.4rem" : null,
     showModified ? "7.5rem" : null,
-    "5.5rem",
     showPermsCol ? "5.5rem" : null,
   ]
     .filter(Boolean)
@@ -1004,7 +1008,7 @@ export function FilePane({
     >
       <div className="ghost-pane-header flex min-w-0 items-center gap-2 border-b border-border bg-bg-subtle px-3">
         <span className="ghost-pane-title-icon" aria-hidden="true">
-          {sessionId === LOCAL_SESSION ? "▣" : "▤"}
+          {sessionId === LOCAL_SESSION ? <Monitor size={15}/> : <Server size={15}/>}
         </span>
         <span
           title={title}
@@ -1134,6 +1138,15 @@ export function FilePane({
             sortDirection={sortDirection}
             onSort={onSort}
           />
+          <SortHeader
+            label="Size"
+            field="size"
+            align="right"
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onSort={onSort}
+          />
+          {showType && <span>Type</span>}
           {showModified && (
             <SortHeader
               label="Modified"
@@ -1143,15 +1156,7 @@ export function FilePane({
               onSort={onSort}
             />
           )}
-          <SortHeader
-            label="Size"
-            field="size"
-            align="right"
-            sortField={sortField}
-            sortDirection={sortDirection}
-            onSort={onSort}
-          />
-          {showPermsCol && <span className="text-right">Perms</span>}
+          {showPermsCol && <span className="text-right">Permissions</span>}
         </div>
       )}
 
@@ -1206,6 +1211,7 @@ export function FilePane({
                 selected={selected.has(entry.path)}
                 cols={cols}
                 showModified={showModified}
+                showType={showType}
                 showPermsCol={showPermsCol}
                 sessionId={sessionId}
                 loadThumb={loadThumb}
@@ -1229,6 +1235,7 @@ export function FilePane({
               selected={selected.has(entry.path)}
               cols={cols}
               showModified={showModified}
+              showType={showType}
               showPermsCol={showPermsCol}
               sessionId={sessionId}
               loadThumb={loadThumb}
@@ -1362,6 +1369,7 @@ function Row({
   selected,
   cols,
   showModified,
+  showType,
   showPermsCol,
   sessionId,
   loadThumb,
@@ -1379,6 +1387,7 @@ function Row({
   selected: boolean;
   cols: string;
   showModified: boolean;
+  showType: boolean;
   showPermsCol: boolean;
   sessionId: SessionId | null;
   loadThumb?: (
@@ -1531,14 +1540,19 @@ function Row({
         {rowThumb}
         <span className="truncate">{entry.name}</span>
       </span>
+      <span className="text-right text-xs tabular-nums text-text-dim">
+        {entry.kind === "file" ? fmtSize(entry.size) : ""}
+      </span>
+      {showType && (
+        <span className="truncate text-xs text-text-dim">
+          {entryTypeLabel(entry)}
+        </span>
+      )}
       {showModified && (
         <span className="truncate text-xs text-text-dim">
           {fmtMtime(entry.modified)}
         </span>
       )}
-      <span className="text-right text-xs tabular-nums text-text-dim">
-        {entry.kind === "file" ? fmtSize(entry.size) : ""}
-      </span>
       {showPermsCol && (
         <span
           className="text-right font-mono text-[10px] text-text-dim"
@@ -1549,6 +1563,14 @@ function Row({
       )}
     </div>
   );
+}
+
+function entryTypeLabel(entry: DirEntry) {
+  if (entry.kind === "directory") return "File folder";
+  if (entry.kind === "symlink") return "Symbolic link";
+  const dot = entry.name.lastIndexOf(".");
+  if (dot <= 0 || dot === entry.name.length - 1) return "File";
+  return `${entry.name.slice(dot + 1).toUpperCase()} File`;
 }
 
 function SortHeader({
