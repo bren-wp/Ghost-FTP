@@ -204,6 +204,20 @@ for (const route of ['openDialog("cloudStorage")', 'openDialog("schedules")', 'o
   if (!sidebar.includes(route)) failures.push(`Sidebar must use purpose-specific in-app route: ${route}`);
 }
 
+const app = read("src/App.tsx");
+for (const required of [
+  'className="ghost-file-manager-body flex min-h-0 flex-1 flex-col overflow-hidden"',
+  'className="ghost-file-manager-top flex min-h-0 min-w-0 flex-1 overflow-hidden"',
+  "<TransferQueue />",
+]) {
+  if (!app.includes(required)) failures.push(`App missing reference shell contract: ${required}`);
+}
+const topIndex = app.indexOf("ghost-file-manager-top");
+const transferIndex = app.indexOf("<TransferQueue />");
+if (topIndex < 0 || transferIndex < 0 || transferIndex < topIndex) {
+  failures.push("TransferQueue must span below the site rail, after the upper File Manager row.");
+}
+
 const titleBar = read("src/components/TitleBar.tsx");
 if (titleBar.includes("openOfficialUrl")) failures.push("Top Help menu must stay inside the Ghost FTP app.");
 for (const required of [
@@ -251,6 +265,17 @@ for (const required of ["Type", "Permissions", "JavaScript File", "Markdown File
 }
 
 const styles = read("src/styles.css");
+for (const required of [
+  "flex: 0 0 182px !important;",
+  "height: 67px !important;",
+  "height: 65px !important;",
+  "flex: 0 0 414px !important;",
+  "width: 220px !important;",
+  "flex: 0 0 220px !important;",
+  "flex: 0 0 36px !important;",
+]) {
+  if (!styles.includes(required)) failures.push(`Styles missing canonical 1290x852 reference geometry: ${required}`);
+}
 for (const required of [
   ".ghost-reference-statusbar {",
   "display: flex !important;",
