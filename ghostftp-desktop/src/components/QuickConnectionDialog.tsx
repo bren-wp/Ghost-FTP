@@ -73,14 +73,30 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
     const ephemeral = mode === "quick" && !remember;
     try {
       if (connectNow && ephemeral) {
-        await connectTemporary(profile);
+        try {
+          await connectTemporary(profile);
+        } catch {
+          // connectionsStore already presents the structured connection error.
+          return;
+        }
       } else {
-        await saveProfile(profile);
-        if (connectNow) await connectProfile(profile.id);
+        try {
+          await saveProfile(profile);
+        } catch (error) {
+          toastError(error, `Couldn't save ${profile.name}`);
+          return;
+        }
+        if (connectNow) {
+          try {
+            await connectProfile(profile.id);
+          } catch {
+            // The profile is safely persisted; connectionsStore already surfaced
+            // the real FTP/FTPS/SFTP connection failure.
+            return;
+          }
+        }
       }
       onClose();
-    } catch {
-      // connectionsStore already presents the structured connection error.
     } finally {
       setBusy(false);
     }
