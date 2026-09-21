@@ -987,9 +987,12 @@ function CopyButton({
     <button
       disabled={disabled}
       onClick={() => {
-        navigator.clipboard.writeText(text);
-        setDone(true);
-        setTimeout(() => setDone(false), 1200);
+        void navigator.clipboard.writeText(text)
+          .then(() => {
+            setDone(true);
+            setTimeout(() => setDone(false), 1200);
+          })
+          .catch((error) => toast.error("Couldn't copy to clipboard", String(error)));
       }}
       className={cn(
         "flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40",
