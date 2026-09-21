@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ChevronDown,
+  ChevronUp,
   CopyPlus,
   Download,
   Edit3,
@@ -35,6 +37,7 @@ interface Props {
 
 type View = "all" | "favorites" | "recent" | "bookmarks" | string;
 type Action = "save" | "test" | "duplicate" | "delete" | null;
+type SiteSortField = "name" | "host" | "protocol" | "lastUsed";
 
 const DIRECT_EDIT_PROTOCOLS = new Set<Protocol>(["sftp", "ftp", "ftps"]);
 
@@ -65,6 +68,8 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   );
 
   const [query, setQuery] = useState("");
+  const [sortField, setSortField] = useState<SiteSortField>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedId, setSelectedId] = useState<string | null>(
     profiles[0]?.id ?? null
   );
@@ -123,13 +128,25 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
           }
           return true;
         })
-        .sort((a, b) =>
-          view === "recent"
-            ? (b.lastUsed ?? 0) - (a.lastUsed ?? 0)
-            : a.name.localeCompare(b.name)
-        ),
-    [profiles, query, view]
+        .sort((a, b) => {
+          let cmp = 0;
+          if (sortField === "host") cmp = a.host.localeCompare(b.host);
+          else if (sortField === "protocol") cmp = a.protocol.localeCompare(b.protocol);
+          else if (sortField === "lastUsed") cmp = (a.lastUsed ?? 0) - (b.lastUsed ?? 0);
+          else cmp = a.name.localeCompare(b.name);
+          return sortDirection === "asc" ? cmp : -cmp;
+        }),
+    [profiles, query, view, sortField, sortDirection]
   );
+
+  const toggleSort = (field: SiteSortField) => {
+    if (field === sortField) {
+      setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortField(field);
+    setSortDirection(field === "lastUsed" ? "desc" : "asc");
+  };
 
   const selected =
     profiles.find((profile) => profile.id === selectedId) ?? profiles[0] ?? null;
@@ -477,11 +494,11 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
             aria-label="Saved sites"
           >
             <div className="grid grid-cols-[minmax(180px,1.4fr)_minmax(150px,1fr)_90px_120px_110px] border-b border-border px-3 py-2 text-[11px] font-semibold text-text-dim">
-              <span>Name</span>
-              <span>Host</span>
-              <span>Protocol</span>
-              <span>Tags</span>
-              <span>Last Used</span>
+              <SiteSortHeader label="Name" field="name" activeField={sortField} direction={sortDirection} onSort={toggleSort}/>
+              <SiteSortHeader label="Host" field="host" activeField={sortField} direction={sortDirection} onSort={toggleSort}/>
+              <SiteSortHeader label="Protocol" field="protocol" activeField={sortField} direction={sortDirection} onSort={toggleSort}/>
+              <span className="flex items-center">Tags</span>
+              <SiteSortHeader label="Last Used" field="lastUsed" activeField={sortField} direction={sortDirection} onSort={toggleSort}/>
             </div>
 
             {filtered.length === 0 && (
@@ -788,6 +805,35 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
         />
       )}
     </div>
+  );
+}
+
+
+function SiteSortHeader({
+  label,
+  field,
+  activeField,
+  direction,
+  onSort,
+}: {
+  label: string;
+  field: SiteSortField;
+  activeField: SiteSortField;
+  direction: "asc" | "desc";
+  onSort: (field: SiteSortField) => void;
+}) {
+  const active = activeField === field;
+  return (
+    <button
+      type="button"
+      className={`flex min-w-0 items-center gap-1 text-left hover:text-white focus-visible:outline-none focus-visible:text-white ${active ? "text-text" : "text-text-dim"}`}
+      aria-label={`Sort by ${label}`}
+      aria-pressed={active}
+      onClick={() => onSort(field)}
+    >
+      <span className="truncate">{label}</span>
+      {active ? direction === "asc" ? <ChevronUp size={12}/> : <ChevronDown size={12}/> : null}
+    </button>
   );
 }
 
