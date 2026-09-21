@@ -39,6 +39,25 @@ function isEmptyHandler(expr) {
   return false;
 }
 
+const auditedHandlerNames = [
+  "onClick",
+  "onChange",
+  "onSubmit",
+  "onPointerDown",
+  "onPointerUp",
+  "onMouseDown",
+  "onKeyDown",
+  "onKeyUp",
+];
+
+const interactiveAriaRoles = new Set([
+  "button",
+  "menuitem",
+  "tab",
+  "checkbox",
+  "switch",
+]);
+
 function auditClickableTsx(file) {
   const sourceText = read(file);
   const sourceFile = ts.createSourceFile(
@@ -52,6 +71,44 @@ function auditClickableTsx(file) {
   const visit = (node) => {
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
       const tag = node.tagName.getText(sourceFile);
+
+      for (const handlerName of auditedHandlerNames) {
+        const handler = jsxAttribute(node, handlerName);
+        if (isEmptyHandler(expressionFromAttribute(handler))) {
+          const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+          failures.push(`${file}:${pos.line + 1}: ${tag} has an empty ${handlerName} handler`);
+        }
+      }
+
+      const roleAttr = jsxAttribute(node, "role");
+      const role =
+        roleAttr?.initializer && ts.isStringLiteral(roleAttr.initializer)
+          ? roleAttr.initializer.text
+          : null;
+      if (
+        role &&
+        interactiveAriaRoles.has(role) &&
+        !["button", "input", "select", "textarea", "a"].includes(tag)
+      ) {
+        const hasPointerAction = Boolean(
+          jsxAttribute(node, "onClick") ||
+          jsxAttribute(node, "onPointerDown") ||
+          jsxAttribute(node, "onMouseDown") ||
+          hasJsxSpread(node)
+        );
+        if (!hasPointerAction) {
+          const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+          failures.push(`${file}:${pos.line + 1}: role="${role}" element has no pointer/click contract`);
+        }
+        if (
+          (role === "button" || role === "tab") &&
+          !jsxAttribute(node, "onKeyDown") &&
+          !hasJsxSpread(node)
+        ) {
+          const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+          failures.push(`${file}:${pos.line + 1}: role="${role}" element has no keyboard activation contract`);
+        }
+      }
 
       if (tag === "button") {
         const onClick = jsxAttribute(node, "onClick");
@@ -72,20 +129,22 @@ function auditClickableTsx(file) {
           failures.push(`${file}:${pos.line + 1}: button has no click/pointer/submit contract`);
         }
 
-        const clickExpr = expressionFromAttribute(onClick);
-        if (isEmptyHandler(clickExpr)) {
-          const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-          failures.push(`${file}:${pos.line + 1}: button has an empty onClick handler`);
-        }
       }
 
       if (tag === "a") {
         const href = jsxAttribute(node, "href");
-        if (href?.initializer && ts.isStringLiteral(href.initializer) && href.initializer.text === "#") {
-          const onClick = jsxAttribute(node, "onClick");
-          if (!onClick && !hasJsxSpread(node)) {
+        if (href?.initializer && ts.isStringLiteral(href.initializer)) {
+          const hrefText = href.initializer.text.trim().toLowerCase();
+          if (hrefText === "#") {
+            const onClick = jsxAttribute(node, "onClick");
+            if (!onClick && !hasJsxSpread(node)) {
+              const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+              failures.push(`${file}:${pos.line + 1}: href="#" anchor has no click contract`);
+            }
+          }
+          if (hrefText.startsWith("javascript:")) {
             const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-            failures.push(`${file}:${pos.line + 1}: href="#" anchor has no click contract`);
+            failures.push(`${file}:${pos.line + 1}: javascript: anchors are not allowed`);
           }
         }
       }
@@ -101,10 +160,6 @@ function auditClickableTsx(file) {
         if (controlled && !onChange && !readOnly && !disabled && !hasJsxSpread(node)) {
           const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
           failures.push(`${file}:${pos.line + 1}: controlled ${tag} has no onChange/readOnly/disabled contract`);
-        }
-        if (isEmptyHandler(expressionFromAttribute(onChange)) && !readOnly && !disabled) {
-          const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-          failures.push(`${file}:${pos.line + 1}: ${tag} has an empty onChange handler`);
         }
       }
     }
@@ -143,6 +198,16 @@ for (const file of transientFiles) {
   const source = read(file);
   if (!source.includes("ghost-transient-overlay")) {
     failures.push(`${file}: transient view must use the shared in-app overlay shell`);
+  }
+  if (!source.includes("useDialog(")) {
+    failures.push(`${file}: transient view must use the shared Escape/focus dialog contract`);
+  }
+}
+
+for (const file of workspaceFiles) {
+  const source = read(file);
+  if (!source.includes("useDialog(")) {
+    failures.push(`${file}: workspace view must keep the shared Escape/focus close contract`);
   }
 }
 
@@ -249,7 +314,7 @@ for (const required of ["Import", "Export", "New Site", "Connect", "Test Connect
 }
 
 const transferCenter = read("src/components/TransferCenterDialog.tsx");
-for (const required of ["Add Transfer", "Schedule", "Transfer Scheduler", "Set Schedule", "Priority", "Clear Completed", "More", "Pause All", "Retry", "Paused", "All Directions", "Any Time"]) {
+for (const required of ["Add Transfer", "Schedule", "Transfer Scheduler", "Set Schedule", "Priority", "Concurrent", "Throttle", "Clear Completed", "More", "Pause All", "Retry", "Paused", "All Directions", "Any Time", "runBackendAction"]) {
   if (!transferCenter.includes(required)) failures.push(`Transfer Center missing required action: ${required}`);
 }
 
