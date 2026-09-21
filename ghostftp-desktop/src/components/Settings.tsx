@@ -512,7 +512,13 @@ function IntegrationsCard() {
       if(!active)return;
       s.setShellIntegration(status.managed);
       if(status.detail)setShellDetail(status.detail);
-    }).catch(()=>{});
+    }).catch((error)=>{
+      if(active){
+        const detail=error instanceof Error?error.message:String(error);
+        setShellDetail(detail);
+        toastError(error, "Couldn't read shell integration status");
+      }
+    });
     return()=>{active=false};
   },[]);
   const setShell=async(enabled:boolean)=>{
