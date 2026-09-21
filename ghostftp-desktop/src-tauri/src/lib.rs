@@ -245,15 +245,51 @@ pub fn run() {
             // itself synchronously instead of an async round-trip.
             {
                 let init_script = build_settings_init_script(&db);
-                tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
-                    .title("Ghost FTP")
-                    .inner_size(1290.0, 852.0)
-                    .min_inner_size(480.0, 600.0)
-                    .decorations(false)
-                    .resizable(true)
-                    .shadow(true)
-                    .initialization_script(&init_script)
-                    .build()?;
+                let mut window_builder =
+                    tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
+                        .title("Ghost FTP")
+                        .inner_size(1290.0, 852.0)
+                        .min_inner_size(480.0, 600.0)
+                        .decorations(false)
+                        .resizable(true)
+                        .shadow(true)
+                        .initialization_script(&init_script);
+
+                // Native Windows screenshot QA must capture the real WebView2
+                // compositor, not a screenshot fixture. Apply the QA-only
+                // browser arguments programmatically because elevated hosted
+                // runners may ignore WebView2 environment/policy overrides.
+                // These variables are used only with an allow-listed QA view.
+                #[cfg(windows)]
+                if std::env::var("GHOSTFTP_QA_VIEW")
+                    .ok()
+                    .is_some_and(|view| {
+                        matches!(
+                            view.as_str(),
+                            "main"
+                                | "siteManager"
+                                | "settings"
+                                | "transferCenter"
+                                | "about"
+                                | "newConnection"
+                                | "properties"
+                        )
+                    })
+                {
+                    if let Ok(args) = std::env::var("GHOSTFTP_QA_BROWSER_ARGS") {
+                        if !args.trim().is_empty() {
+                            window_builder = window_builder.additional_browser_args(&args);
+                        }
+                    }
+                    if let Ok(data_dir) = std::env::var("GHOSTFTP_QA_WEBVIEW_DATA") {
+                        if !data_dir.trim().is_empty() {
+                            window_builder =
+                                window_builder.data_directory(std::path::PathBuf::from(data_dir));
+                        }
+                    }
+                }
+
+                window_builder.build()?;
             }
 
             let state = AppState {
