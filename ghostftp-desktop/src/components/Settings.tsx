@@ -34,6 +34,7 @@ import { ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
 import { useDialog } from "@/hooks/useDialog";
 import { requestDesktopNotificationPermission } from "@/lib/notifications";
 import { SyncSettings } from "./SyncSettings";
+import { toastError } from "@/lib/errors";
 
 interface Props { onClose: () => void; initialSection?: Section }
 type Section = "general" | "appearance" | "transfers" | "connection" | "security" | "updates" | "integrations" | "shortcuts" | "language" | "sync";
@@ -152,6 +153,8 @@ function GeneralGrid({ locale, setLocale }: { locale: string; setLocale: (value:
         <ToggleRow label="Image previews" checked={s.remoteImagePreviews === "on"} onChange={(v)=>s.setRemoteImagePreviews(v ? "on" : "off")}/>
       </GeneralCard>
 
+      <GeneralPerformanceCard/>
+
       <GeneralCard icon={<ArrowDownUp size={20}/>} title="Transfers" subtitle="Set default options for file transfers.">
         <SelectRow label="Overwrite Behavior" value={s.overwritePolicy} onChange={(v)=>s.setOverwritePolicy(v as "overwrite"|"skip"|"rename")} options={[["overwrite","Overwrite"],["rename","Rename duplicate"],["skip","Skip existing"]]}/>
         <ToggleRow label="Prompt before overwrite" checked={s.promptOnOverwrite} onChange={s.setPromptOnOverwrite}/>
@@ -173,15 +176,19 @@ function GeneralGrid({ locale, setLocale }: { locale: string; setLocale: (value:
       <GeneralUpdatesCard/>
 
       <GeneralIntegrationsCard/>
-
-      <GeneralCard icon={<Keyboard size={20}/>} title="Shortcuts" subtitle="Keyboard shortcuts for common actions.">
-        <div className="grid grid-cols-[1fr_auto] gap-x-5 gap-y-2 text-[11px]">
-          <span>Open Quick Connect</span><kbd>Ctrl + Q</kbd>
-          <span>Start Transfer</span><kbd>Ctrl + Enter</kbd>
-          <span>Command Palette</span><kbd>Ctrl + K</kbd>
-        </div>
-      </GeneralCard>
     </div>
+  );
+}
+
+function GeneralPerformanceCard() {
+  const s = useSettings();
+  return (
+    <GeneralCard icon={<Sparkles size={20}/>} title="Performance" subtitle="Adjust transfer performance and resilience.">
+      <RangeRow label="Concurrent Transfers" value={s.transferConcurrency} min={1} max={32} onChange={s.setTransferConcurrency}/>
+      <NumberRow label="Speed Limit (KiB/s)" value={s.transferThrottleKbps} min={0} fallback={0} onChange={s.setTransferThrottleKbps}/>
+      <RangeRow label="Max Retry Attempts" value={s.maxRetryAttempts} min={0} max={8} onChange={s.setMaxRetryAttempts}/>
+      <ToggleRow label="Delta synchronization" checked={s.deltaSync} onChange={s.setDeltaSync}/>
+    </GeneralCard>
   );
 }
 
@@ -208,7 +215,9 @@ function GeneralIntegrationsCard() {
     let active=true;
     void ipc.pathStatus().then((status)=>{
       if(active) s.setShellIntegration(status.managed);
-    }).catch(()=>{});
+    }).catch((error)=>{
+      if(active) toastError(error, "Couldn't read shell integration status");
+    });
     return()=>{ active=false; };
   },[]);
 
@@ -218,6 +227,8 @@ function GeneralIntegrationsCard() {
     try{
       const status=enabled?await ipc.pathAdd():await ipc.pathRemove();
       s.setShellIntegration(status.managed);
+    }catch(error){
+      toastError(error, enabled ? "Couldn't enable shell integration" : "Couldn't disable shell integration");
     }finally{
       setBusy(false);
     }
