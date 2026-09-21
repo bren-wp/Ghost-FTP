@@ -4020,3 +4020,32 @@ input.ghost-pane-address:focus-visible {
   cursor: not-allowed;
   opacity: .45;
 }
+
+
+/* RC13 canonical titlebar proportions. */
+@media (min-width: 1121px) {
+  .ghost-title-row {
+    padding-left: 18px !important;
+  }
+
+  .ghost-title-left {
+    gap: 9px !important;
+    margin-right: 18px;
+  }
+
+  .ghost-wordmark {
+    gap: 9px !important;
+  }
+
+  .ghost-version-badge {
+    height: 28px !important;
+    min-width: 47px;
+    padding-inline: 9px !important;
+    font-size: 11px !important;
+  }
+
+  .ghost-title-menu-wrap .ghost-menu-anchor > button {
+    padding-inline: 11px !important;
+    font-size: 13.5px !important;
+  }
+}
