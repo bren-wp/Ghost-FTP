@@ -84,6 +84,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [addingMeta, setAddingMeta] = useState<"tag" | "folder" | null>(null);
   const [metaValue, setMetaValue] = useState("");
+  const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
 
   useDialog(panelRef, { onClose, initialFocus: searchRef });
 
@@ -295,6 +296,22 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
       toastError(error, "Couldn't update site organization");
     } finally {
       setAction(null);
+    }
+  };
+
+  const toggleFavorite = async (profile: ConnectionProfile) => {
+    if (favoriteBusyId) return;
+    setFavoriteBusyId(profile.id);
+    try {
+      await saveProfile({ ...profile, favorite: !profile.favorite });
+      toast.info(
+        profile.favorite ? "Removed from favorites" : "Added to favorites",
+        profile.name
+      );
+    } catch (error) {
+      toastError(error, `Couldn't update ${profile.name}`);
+    } finally {
+      setFavoriteBusyId(null);
     }
   };
 
@@ -532,13 +549,12 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                 profile={profile}
                 active={selected?.id === profile.id}
                 favorite={profile.favorite === true}
+                favoriteBusy={favoriteBusyId === profile.id}
                 connected={sessions.some(
                   (session) => session.profileId === profile.id
                 )}
                 onClick={() => select(profile.id)}
-                onFavorite={() =>
-                  void saveProfile({ ...profile, favorite: !profile.favorite })
-                }
+                onFavorite={() => void toggleFavorite(profile)}
               />
             ))}
             <div className="ghost-site-table-footer sticky bottom-0 mt-1 flex h-8 items-center border-t border-border bg-[#051929] px-3 text-[10px] text-text-muted">
@@ -883,6 +899,7 @@ function SiteRow({
   profile,
   active,
   favorite,
+  favoriteBusy,
   connected,
   onClick,
   onFavorite,
@@ -890,6 +907,7 @@ function SiteRow({
   profile: ConnectionProfile;
   active: boolean;
   favorite: boolean;
+  favoriteBusy: boolean;
   connected: boolean;
   onClick: () => void;
   onFavorite: () => void;
@@ -924,6 +942,7 @@ function SiteRow({
           }}
           onKeyDown={(event) => event.stopPropagation()}
           className="rounded p-0.5 text-text-dim outline-none hover:bg-bg-hover hover:text-warning focus-visible:ring-1 focus-visible:ring-accent"
+          disabled={favoriteBusy}
           aria-label={favorite ? "Remove from favorites" : "Add to favorites"}
           aria-pressed={favorite}
         >
