@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
   Activity,
   ArrowDown,
@@ -23,6 +24,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useTransfers } from "@/stores/transfersStore";
+import { useConnections } from "@/stores/connectionsStore";
 import type { Transfer } from "@/lib/types";
 import { ReferenceWindowControls } from "./ReferenceWindowChrome";
 import { GhostMark } from "./GhostBrand";
@@ -61,6 +63,12 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   const move = useTransfers((state) => state.move);
   const concurrency = useTransfers((state) => state.concurrency);
   const throttleKbps = useTransfers((state) => state.throttleKbps);
+  const enqueueUploads = useTransfers((state) => state.enqueueUploads);
+  const activeSessionId = useConnections((state) => state.activeSessionId);
+  const activeProfileId = useConnections((state) => state.activeProfileId);
+  const profiles = useConnections((state) => state.profiles);
+  const activeProfile = profiles.find((profile) => profile.id === activeProfileId);
+  const uploadTarget = activeProfile?.defaultRemotePath?.trim() || ".";
 
   const [tab, setTab] = useState<FilterTab>("all");
   const [query, setQuery] = useState("");
@@ -290,21 +298,26 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
     requestAnimationFrame(() => schedulerRef.current?.focus());
   };
 
-  const addTransfer = () => {
-    // Transfer Center replaces File Manager in the single-window shell, so the
-    // file panes are not mounted while this view is open. Return to File Manager
-    // first, then dispatch after React has remounted the panes; otherwise the
-    // action is silently lost.
-    onClose();
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        window.dispatchEvent(
-          new CustomEvent("ghostftp:toolbar-action", {
-            detail: { action: "upload", target: "local" },
-          })
-        );
-      });
+  const addTransfer = async (kind: "files" | "folder" = "files") => {
+    if (!activeSessionId) return;
+    const picked = await open({
+      multiple: kind === "files",
+      directory: kind === "folder",
+      title: kind === "folder" ? "Add folder transfer" : "Add file transfer",
     });
+    if (!picked) return;
+
+    const paths = Array.isArray(picked) ? picked : [picked];
+    if (paths.length === 0) return;
+
+    await enqueueUploads(
+      activeSessionId,
+      paths.map((path) => ({
+        path,
+        kind: kind === "folder" ? "directory" as const : "file" as const,
+      })),
+      uploadTarget
+    );
   };
 
   const activeCount = transfers.filter(
@@ -341,7 +354,13 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
             </div>
           </div>
           <div className="flex-1" />
-          <button type="button" className="ghost-primary-button" onClick={addTransfer}>
+          <button
+            type="button"
+            className="ghost-primary-button"
+            disabled={!activeSessionId}
+            title={activeSessionId ? `Upload files to ${uploadTarget}` : "Connect to a server first"}
+            onClick={() => void addTransfer("files")}
+          >
             <Plus size={14} /> Add Transfer
           </button>
           <button
@@ -372,6 +391,18 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
             </button>
             {moreOpen && (
               <div className="ghost-transfer-more-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={!activeSessionId}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    void addTransfer("folder");
+                  }}
+                >
+                  <FolderTree size={14}/>
+                  <span>Add Folder Transfer…</span>
+                </button>
                 <button
                   type="button"
                   role="menuitem"
