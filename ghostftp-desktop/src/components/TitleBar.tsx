@@ -144,7 +144,7 @@ export function TitleBar() {
       { label: "Site Manager", run: () => openDialog("siteManager") },
     ],
     Transfer: [
-      { label: "Upload", run: () => fileAction("upload", "local"), disabled: paneStates.local.selectedCount === 0 },
+      { label: "Upload", run: () => fileAction("upload", "local"), disabled: !activeSessionId || paneStates.local.selectedCount === 0 },
       { label: "Download", run: () => fileAction("download", "remote"), disabled: !activeSessionId || paneStates.remote.selectedCount === 0 },
       { separator: true },
       { label: "Transfer Center", run: () => openDialog("transferCenter") },
@@ -306,7 +306,7 @@ export function TitleBar() {
       <Tool icon={<Link2 size={17}/>} label="Connect" onClick={() => openNewConnection()}/>
       <Tool icon={<X size={17}/>} label="Disconnect" disabled={!activeSessionId} onClick={() => void disconnect()}/>
       <Tool icon={<RefreshCw size={17}/>} label="Refresh" onClick={() => fileAction("refresh")}/>
-      <Tool icon={<Upload size={17}/>} label="Upload" disabled={paneStates.local.selectedCount === 0} onClick={() => fileAction("upload", "local")}/>
+      <Tool icon={<Upload size={17}/>} label="Upload" disabled={!activeSessionId || paneStates.local.selectedCount === 0} onClick={() => fileAction("upload", "local")}/>
       <Tool icon={<Download size={17}/>} label="Download" disabled={!activeSessionId || paneStates.remote.selectedCount === 0} onClick={() => fileAction("download", "remote")}/>
       <Tool icon={<FolderPlus size={17}/>} label="New Folder" disabled={!paneState.canCreateDirectory} onClick={() => fileAction("newFolder")}/>
       <Tool icon={<Trash2 size={17}/>} label="Delete" disabled={paneState.selectedCount === 0} onClick={() => fileAction("delete")}/>
