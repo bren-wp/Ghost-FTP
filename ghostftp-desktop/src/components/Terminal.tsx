@@ -154,7 +154,7 @@ export function TerminalDock({
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const items: MenuItem[] = [];
     if (snippets.length === 0) {
-      items.push({ label: "No snippets yet", disabled: true, onClick: () => {} });
+      items.push({ label: "No snippets yet", disabled: true });
     } else {
       snippets.slice(0, 12).forEach((s, i, arr) => {
         items.push({
@@ -322,8 +322,17 @@ function TabChip({
   }
 
   return (
-    <button
+    <div
+      role="tab"
+      tabIndex={0}
+      aria-selected={active}
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
       onDoubleClick={() => {
         setDraft(tab.title);
         setEditing(true);
@@ -339,18 +348,19 @@ function TabChip({
     >
       <TerminalSquare size={11} className={cn("shrink-0", active && "text-accent")} />
       <span className="max-w-[18rem] truncate">{tab.title}</span>
-      <span
-        role="button"
-        tabIndex={-1}
-        onClick={(e) => {
-          e.stopPropagation();
+      <button
+        type="button"
+        aria-label={`Close ${tab.title}`}
+        onClick={(event) => {
+          event.stopPropagation();
           onClose();
         }}
-        className="ml-0.5 flex h-4 w-4 items-center justify-center rounded text-text-dim opacity-0 hover:bg-bg-hover hover:text-text group-hover/tab:opacity-100"
+        onKeyDown={(event) => event.stopPropagation()}
+        className="ml-0.5 flex h-4 w-4 items-center justify-center rounded text-text-dim opacity-0 hover:bg-bg-hover hover:text-text focus-visible:opacity-100 group-hover/tab:opacity-100"
       >
         <X size={10} />
-      </span>
-    </button>
+      </button>
+    </div>
   );
 }
 

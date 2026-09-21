@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   ChevronDown, Download, FolderPlus, Info, Languages, Link2, Minus, Pencil,
-  RefreshCw, Settings, Square, Trash2, Upload, X,
+  RefreshCw, Settings, Shield, Square, Trash2, Upload, X,
 } from "lucide-react";
 import { GhostWordmark } from "./GhostBrand";
 import { useLayout } from "@/stores/layoutStore";
@@ -10,12 +10,19 @@ import { useConnections } from "@/stores/connectionsStore";
 import { getLocale, setLocale } from "@/lib/i18n";
 import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
-import { openOfficialUrl } from "@/lib/external";
 import { PRODUCT_VERSION_BADGE } from "@/lib/release";
 
 type PaneTarget = "local" | "remote" | "active";
 type FileAction = "refresh" | "upload" | "download" | "newFolder" | "delete" | "rename" | "properties";
 type MenuItem = { label: string; run: () => void; disabled?: boolean } | { separator: true };
+type PaneActionState = {
+  paneId: "local" | "remote";
+  selectedCount: number;
+  hasActiveItem: boolean;
+  hasSession: boolean;
+  canCreateDirectory: boolean;
+  focused: boolean;
+};
 
 function fileAction(action: FileAction, pane: PaneTarget = "active") {
   const target = pane === "active" ? undefined : pane;
@@ -36,17 +43,42 @@ export function TitleBar() {
   const activeSessionId = useConnections((s) => s.activeSessionId);
   const disconnect = useConnections((s) => s.disconnect);
   const connectTemporary = useConnections((s) => s.connectTemporary);
-  const [protocol, setProtocol] = useState<Protocol>("ftp");
+  const [protocol, setProtocol] = useState<Protocol>("sftp");
   const [host, setHost] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [port, setPort] = useState(21);
+  const [port, setPort] = useState(22);
   const [menu, setMenu] = useState<string | null>(null);
   const [protocolMenu, setProtocolMenu] = useState(false);
   const [quickBusy, setQuickBusy] = useState(false);
+  const emptyPane = (paneId: "local" | "remote"): PaneActionState => ({
+    paneId,
+    selectedCount: 0,
+    hasActiveItem: false,
+    hasSession: paneId === "local",
+    canCreateDirectory: paneId === "local",
+    focused: paneId === "local",
+  });
+  const [paneStates, setPaneStates] = useState<Record<"local" | "remote", PaneActionState>>({
+    local: emptyPane("local"),
+    remote: emptyPane("remote"),
+  });
+  const [activePane, setActivePane] = useState<"local" | "remote">("local");
+  const paneState = paneStates[activePane];
   const menuWrap = useRef<HTMLDivElement>(null);
   const quickConnectRef = useRef<HTMLDivElement>(null);
   const locale = getLocale();
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const custom = event as CustomEvent<PaneActionState>;
+      if (!custom.detail) return;
+      setPaneStates((current) => ({ ...current, [custom.detail.paneId]: custom.detail }));
+      if (custom.detail.focused) setActivePane(custom.detail.paneId);
+    };
+    window.addEventListener("ghostftp:pane-action-state", handler as EventListener);
+    return () => window.removeEventListener("ghostftp:pane-action-state", handler as EventListener);
+  }, []);
 
   const quickConnect = async () => {
     if (quickBusy) return;
@@ -80,6 +112,10 @@ export function TitleBar() {
     try {
       await connectTemporary(profile);
       setPassword("");
+    } catch {
+      // connectionsStore already surfaces the structured backend error.
+      // Swallow it here so a failed toolbar Quick Connect does not become an
+      // unhandled promise rejection in WebView2.
     } finally {
       setQuickBusy(false);
     }
@@ -100,20 +136,20 @@ export function TitleBar() {
       { label: "Exit", run: () => safeWindowAction("close") },
     ],
     Edit: [
-      { label: "Rename", run: () => fileAction("rename") },
-      { label: "Delete", run: () => fileAction("delete") },
-      { label: "Properties", run: () => fileAction("properties") },
+      { label: "Rename", run: () => fileAction("rename"), disabled: !paneState.hasActiveItem },
+      { label: "Delete", run: () => fileAction("delete"), disabled: paneState.selectedCount === 0 },
+      { label: "Properties", run: () => fileAction("properties"), disabled: !paneState.hasActiveItem },
       { separator: true },
       { label: "Preferences…", run: () => openDialog("settings") },
     ],
     View: [
-      { label: "Refresh", run: () => fileAction("refresh") },
+      { label: "Refresh", run: () => fileAction("refresh"), disabled: !paneState.hasSession },
       { label: "Transfer Center", run: () => openDialog("transferCenter") },
       { label: "Site Manager", run: () => openDialog("siteManager") },
     ],
     Transfer: [
-      { label: "Upload", run: () => fileAction("upload", "local") },
-      { label: "Download", run: () => fileAction("download", "remote"), disabled: !activeSessionId },
+      { label: "Upload", run: () => fileAction("upload", "local"), disabled: !activeSessionId || paneStates.local.selectedCount === 0 },
+      { label: "Download", run: () => fileAction("download", "remote"), disabled: !activeSessionId || paneStates.remote.selectedCount === 0 },
       { separator: true },
       { label: "Transfer Center", run: () => openDialog("transferCenter") },
     ],
@@ -128,13 +164,13 @@ export function TitleBar() {
       { label: "Preferences…", run: () => openDialog("settings") },
     ],
     Help: [
-      { label: "Help Center", run: () => openOfficialUrl("/support/") },
-      { label: "Documentation", run: () => openOfficialUrl("/docs/") },
-      { label: "Check for Updates", run: () => openDialog("about") },
+      { label: "Help Center", run: () => openDialog("help") },
+      { label: "Documentation", run: () => openDialog("help") },
+      { label: "Check for Updates", run: () => openDialog("updates") },
       { separator: true },
       { label: "About Ghost FTP", run: () => openDialog("about") },
     ],
-  }), [activeSessionId, disconnect, openDialog, openNewConnection]);
+  }), [activeSessionId, disconnect, openDialog, openNewConnection, paneState, paneStates]);
 
   useEffect(() => {
     if (!menu) return;
@@ -266,7 +302,7 @@ export function TitleBar() {
 
     <div className="ghost-toolbar-row">
       <div className="ghost-sites-toolbar-head">
-        <button className="ghost-sites-toolbar-title" onClick={() => openDialog("siteManager")}><span className="ghost-sites-ring">◉</span><span>Sites</span></button>
+        <button className="ghost-sites-toolbar-title" onClick={() => openDialog("siteManager")}><Shield size={15}/><span>Sites</span></button>
         <span/>
         <button aria-label="New site" title="New site" onClick={() => openNewConnection()}>＋</button>
         <button aria-label="Open Site Manager" title="Open Site Manager" onClick={() => openDialog("siteManager")}><ChevronDown size={14}/></button>
@@ -274,17 +310,17 @@ export function TitleBar() {
       <Tool icon={<Link2 size={17}/>} label="Connect" onClick={() => openNewConnection()}/>
       <Tool icon={<X size={17}/>} label="Disconnect" disabled={!activeSessionId} onClick={() => void disconnect()}/>
       <Tool icon={<RefreshCw size={17}/>} label="Refresh" onClick={() => fileAction("refresh")}/>
-      <Tool icon={<Upload size={17}/>} label="Upload" onClick={() => fileAction("upload", "local")}/>
-      <Tool icon={<Download size={17}/>} label="Download" disabled={!activeSessionId} onClick={() => fileAction("download", "remote")}/>
-      <Tool icon={<FolderPlus size={17}/>} label="New Folder" onClick={() => fileAction("newFolder")}/>
-      <Tool icon={<Trash2 size={17}/>} label="Delete" onClick={() => fileAction("delete")}/>
-      <Tool icon={<Pencil size={17}/>} label="Rename" onClick={() => fileAction("rename")}/>
-      <Tool icon={<Info size={17}/>} label="Properties" onClick={() => fileAction("properties")}/>
+      <Tool icon={<Upload size={17}/>} label="Upload" disabled={!activeSessionId || paneStates.local.selectedCount === 0} onClick={() => fileAction("upload", "local")}/>
+      <Tool icon={<Download size={17}/>} label="Download" disabled={!activeSessionId || paneStates.remote.selectedCount === 0} onClick={() => fileAction("download", "remote")}/>
+      <Tool icon={<FolderPlus size={17}/>} label="New Folder" disabled={!paneState.canCreateDirectory} onClick={() => fileAction("newFolder")}/>
+      <Tool icon={<Trash2 size={17}/>} label="Delete" disabled={paneState.selectedCount === 0} onClick={() => fileAction("delete")}/>
+      <Tool icon={<Pencil size={17}/>} label="Rename" disabled={!paneState.hasActiveItem} onClick={() => fileAction("rename")}/>
+      <Tool icon={<Info size={17}/>} label="Properties" disabled={!paneState.hasActiveItem} onClick={() => fileAction("properties")}/>
       <div className="ghost-toolbar-spacer"/>
     </div>
   </header>;
 }
 
 function Tool({ icon, label, onClick, disabled = false }: { icon: React.ReactNode; label: string; onClick?: () => void; disabled?: boolean }) {
-  return <button className="ghost-tool-button" aria-label={label} title={label} onClick={onClick} disabled={disabled}>{icon}<span>{label}</span></button>;
+  return <button className="ghost-tool-button" aria-label={label} title={label} onClick={onClick} disabled={disabled || !onClick}>{icon}<span>{label}</span></button>;
 }

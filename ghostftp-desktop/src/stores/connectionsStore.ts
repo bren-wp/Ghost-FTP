@@ -169,8 +169,12 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
     const profile = get().profiles.find((p) => p.id === target?.profileId);
     try {
       await ipc.disconnect(sid);
-    } catch {
-      // best effort — drop it locally regardless
+    } catch (error) {
+      // A dropped/broken transport may make the backend disconnect fail even
+      // though the UI still has to forget the dead session. Surface the real
+      // backend error, then continue the local cleanup instead of failing
+      // silently or leaving a stale Connected state behind.
+      toastError(error, profile ? `Couldn't cleanly disconnect from ${profile.name}` : "Disconnect failed");
     }
     useTerminals.getState().dropSessionTabs(sid);
     set((s) => {

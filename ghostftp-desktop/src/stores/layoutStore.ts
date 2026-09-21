@@ -12,7 +12,13 @@ export type AppDialog =
   | "agentBridge"
   | "grant"
   | "siteManager"
-  | "transferCenter";
+  | "transferCenter"
+  | "sync"
+  | "help"
+  | "updates"
+  | "cloudStorage"
+  | "schedules"
+  | "activityLogs";
 
 /** Seed for the grant consent dialog, parsed from a ghostftp://grant deep link. */
 export interface GrantPrefill {
@@ -33,6 +39,8 @@ interface LayoutState {
   toggleConsole: () => void;
 
   dialog: AppDialog | null;
+  /** Parent workspace restored after a transient editor/import/consent dialog closes. */
+  returnDialog: AppDialog | null;
   openDialog: (d: AppDialog) => void;
   closeDialog: () => void;
 
@@ -78,16 +86,64 @@ export const useLayout = create<LayoutState>((set) => ({
   toggleConsole: () => set((s) => ({ consoleOpen: !s.consoleOpen })),
 
   dialog: null,
-  openDialog: (d) => set({ dialog: d }),
+  returnDialog: null,
+  openDialog: (d) =>
+    set((state) => {
+      const returnsToCaller =
+        d === "import" ||
+        d === "settings" ||
+        d === "help" ||
+        d === "updates" ||
+        d === "about";
+      return {
+        dialog: d,
+        returnDialog:
+          returnsToCaller && state.dialog && state.dialog !== d
+            ? state.dialog
+            : returnsToCaller
+              ? state.returnDialog
+              : null,
+      };
+    }),
   closeDialog: () =>
-    set({ dialog: null, connectionPrefill: null, grantPrefill: null }),
+    set((state) => {
+      const returnsToCaller =
+        state.dialog === "newConnection" ||
+        state.dialog === "import" ||
+        state.dialog === "grant" ||
+        state.dialog === "settings" ||
+        state.dialog === "help" ||
+        state.dialog === "updates" ||
+        state.dialog === "about";
+      return {
+        dialog: returnsToCaller ? state.returnDialog : null,
+        returnDialog: null,
+        connectionPrefill: null,
+        grantPrefill: null,
+      };
+    }),
 
   connectionPrefill: null,
   openNewConnection: (prefill) =>
-    set({ dialog: "newConnection", connectionPrefill: prefill ?? null }),
+    set((state) => ({
+      dialog: "newConnection",
+      returnDialog:
+        state.dialog && state.dialog !== "newConnection"
+          ? state.dialog
+          : state.returnDialog,
+      connectionPrefill: prefill ?? null,
+    })),
 
   grantPrefill: null,
-  openGrant: (prefill) => set({ dialog: "grant", grantPrefill: prefill }),
+  openGrant: (prefill) =>
+    set((state) => ({
+      dialog: "grant",
+      returnDialog:
+        state.dialog && state.dialog !== "grant"
+          ? state.dialog
+          : state.returnDialog,
+      grantPrefill: prefill,
+    })),
 
   browseLocal: false,
   setBrowseLocal: (v) => set({ browseLocal: v }),

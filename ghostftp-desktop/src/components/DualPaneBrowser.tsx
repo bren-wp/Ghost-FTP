@@ -6,7 +6,6 @@ import { useTransfers, toTransferItem } from "@/stores/transfersStore";
 import { useLayout } from "@/stores/layoutStore";
 import { LOCAL_SESSION } from "@/lib/types";
 import type { DirEntry } from "@/lib/types";
-import { ArrowRightLeft } from "lucide-react";
 
 export function DualPaneBrowser() {
   const activeSessionId = useConnections((s) => s.activeSessionId);
@@ -23,6 +22,7 @@ export function DualPaneBrowser() {
   // tabs returns you to where you left off on that server.
   const [remotePaths, setRemotePaths] = useState<Record<string, string>>({});
   const [syncOpen, setSyncOpen] = useState(false);
+  const openNewConnection = useLayout((s) => s.openNewConnection);
 
   const remotePath =
     (activeSessionId && remotePaths[activeSessionId]) ||
@@ -32,6 +32,18 @@ export function DualPaneBrowser() {
     if (!activeSessionId) return;
     setRemotePaths((m) => ({ ...m, [activeSessionId]: path }));
   };
+
+  useEffect(() => {
+    const openSync = () => {
+      if (!activeSessionId) {
+        openNewConnection();
+        return;
+      }
+      setSyncOpen(true);
+    };
+    window.addEventListener("ghostftp:open-sync", openSync);
+    return () => window.removeEventListener("ghostftp:open-sync", openSync);
+  }, [activeSessionId, openNewConnection]);
 
   // "Reveal in browser" from the Disk Usage explorer. Local targets go to the
   // local pane; a matching server target updates that session's remote pane.
@@ -63,7 +75,7 @@ export function DualPaneBrowser() {
   };
 
   return (
-    <div className="ghost-dual-browser relative flex h-full flex-1 gap-2 p-2">
+    <div className="ghost-dual-browser relative flex h-full flex-1 gap-0 p-0">
       <FilePane
         paneId="local"
         title="Local Files"
@@ -74,26 +86,10 @@ export function DualPaneBrowser() {
         onDrop={downloadAll}
         transferLabel="Upload"
       />
-      <div className="relative w-[1px] bg-border/80">
-        {activeSessionId && (
-          // Centering lives on the wrapper so the button keeps its own
-          // transform for the press-scale (button:active scale would otherwise
-          // wipe out a -translate centering and make it jump on click).
-          <div className="absolute left-1/2 top-1/2 z-raised -translate-x-1/2 -translate-y-1/2">
-            <button
-              onClick={() => setSyncOpen(true)}
-              title="Sync folders"
-              aria-label="Sync folders"
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-bg-subtle text-text-muted shadow-elev-1 hover:border-accent hover:bg-accent-soft hover:text-accent hover:shadow-elev-2"
-            >
-              <ArrowRightLeft size={13} />
-            </button>
-          </div>
-        )}
-      </div>
+      <div className="ghost-pane-separator" aria-hidden="true" />
       <FilePane
         paneId="remote"
-        title={profile ? `Remote Server — ${profile.name}` : "Remote Server"}
+        title="Remote Server"
         sessionId={activeSessionId}
         path={remotePath}
         onPathChange={setRemotePath}

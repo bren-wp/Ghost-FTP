@@ -56,6 +56,7 @@ fn profile(
         username: username.to_string(),
         auth,
         default_remote_path: Some(".".to_string()),
+        description: None,
         color: None,
         auto_connect: Some(false),
         bucket: None,

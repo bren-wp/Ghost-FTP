@@ -23,6 +23,8 @@ import {
   ChevronUp,
   ChevronDown,
   Pencil,
+  Monitor,
+  Server,
   Inbox,
   SearchX,
   List,
@@ -235,10 +237,12 @@ export function FilePane({
     items: MenuItem[];
   } | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
+  const [paneFocused, setPaneFocused] = useState(false);
   const dragCounter = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const typeBufRef = useRef("");
   const typeAtRef = useRef(0);
+  const qaPropertiesOpened = useRef(false);
 
   const history = usePathHistory(path, onPathChange);
 
@@ -327,6 +331,31 @@ export function FilePane({
         return sortDirection === "asc" ? cmp : -cmp;
       });
   }, [entries, showHiddenFiles, filter, sortField, sortDirection]);
+
+  // Native screenshot QA can open File Properties against a real local entry.
+  // No fixture data is injected: the first real file (or first real entry when
+  // the directory contains folders only) is selected after the local listing
+  // has loaded, then the production Properties modal is opened normally.
+  useEffect(() => {
+    const qaView = (
+      globalThis as typeof globalThis & { __GHOSTFTP_QA_VIEW__?: string }
+    ).__GHOSTFTP_QA_VIEW__;
+    if (
+      qaView !== "properties" ||
+      paneId !== "local" ||
+      qaPropertiesOpened.current ||
+      loading ||
+      visible.length === 0
+    ) {
+      return;
+    }
+
+    const entry = visible.find((candidate) => candidate.kind === "file") ?? visible[0];
+    qaPropertiesOpened.current = true;
+    setSelected(new Set([entry.path]));
+    setAnchor(entry.path);
+    setModal({ type: "props", entry });
+  }, [loading, paneId, visible]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -531,6 +560,26 @@ export function FilePane({
     onTransfer?.(items);
   };
 
+  // Keep the shared application toolbar honest: publish only the capabilities
+  // of the pane the user is actually working in, so impossible actions are
+  // disabled instead of producing dead clicks or confusing no-ops.
+  useEffect(() => {
+    const selectedItems = visible.filter((entry) => selected.has(entry.path));
+    const activeItem = anchor
+      ? visible.find((entry) => entry.path === anchor) ?? selectedItems[0]
+      : selectedItems[0];
+    window.dispatchEvent(new CustomEvent("ghostftp:pane-action-state", {
+      detail: {
+        paneId,
+        selectedCount: selectedItems.length,
+        hasActiveItem: Boolean(activeItem),
+        hasSession: Boolean(sessionId),
+        canCreateDirectory: Boolean(sessionId && caps?.hasDirectories !== false),
+        focused: paneFocused,
+      },
+    }));
+  }, [paneFocused, paneId, visible, selected, anchor, sessionId, caps?.hasDirectories]);
+
   // Global toolbar bridge. The reference UI has one toolbar above both panes;
   // commands are routed to the focused pane (or to the explicit local/remote
   // target for Upload/Download). This keeps the screenshot-accurate toolbar
@@ -684,7 +733,6 @@ export function FilePane({
         items.push({
           label: "Download as…",
           icon: <FileArchive size={12} />,
-          onClick: () => {},
           children: [
             {
               label: "Compressed .tar.gz",
@@ -925,11 +973,13 @@ export function FilePane({
   // Columns yield as the pane narrows so the filename never gets crushed:
   // Modified drops below ~360px, Perms shows only when the pane is wide.
   const showModified = paneTier !== "narrow";
+  const showType = paneTier !== "narrow";
   const showPermsCol = hasPerms && paneTier === "wide";
   const cols = [
     "minmax(0,1fr)",
+    "5.2rem",
+    showType ? "6.4rem" : null,
     showModified ? "7.5rem" : null,
-    "5.5rem",
     showPermsCol ? "5.5rem" : null,
   ]
     .filter(Boolean)
@@ -964,6 +1014,12 @@ export function FilePane({
       aria-label={`${title} directory listing`}
       aria-multiselectable="true"
       aria-activedescendant={activeDescId}
+      onFocus={() => setPaneFocused(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setPaneFocused(false);
+        }
+      }}
       onDragEnter={onPaneDragEnter}
       onDragOver={onPaneDragOver}
       onDragLeave={onPaneDragLeave}
@@ -975,138 +1031,70 @@ export function FilePane({
         isDropTarget && "ring-2 ring-inset ring-accent/60 bg-accent/5"
       )}
     >
-      <div className="ghost-pane-header flex min-w-0 items-center gap-1 border-b border-border bg-bg-subtle px-2 py-1.5">
+      <div className="ghost-pane-header flex min-w-0 items-center gap-2 border-b border-border bg-bg-subtle px-3">
+        <span className="ghost-pane-title-icon" aria-hidden="true">
+          {sessionId === LOCAL_SESSION ? <Monitor size={15}/> : <Server size={15}/>}
+        </span>
         <span
           title={title}
-          className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider text-text-muted"
+          className="min-w-0 truncate text-[14px] font-semibold text-[#d9efff]"
         >
           {title}
         </span>
         {selectionCount > 0 && (
-          <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+          <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[9.5px] font-medium text-accent">
             {selectionCount} selected
           </span>
         )}
         {isDropTarget && (
-          <span className="rounded bg-accent-strong px-1.5 py-0.5 text-[10px] font-medium text-white">
+          <span className="rounded bg-accent-strong px-1.5 py-0.5 text-[9.5px] font-medium text-white">
             drop to {transferLabel.toLowerCase()}
           </span>
         )}
         <div className="flex-1" />
-        {selectionCount > 0 && onTransfer && (
-          <button
-            onClick={transferSelection}
-            className="flex items-center gap-1 rounded bg-accent-strong px-2 py-0.5 text-[11px] font-medium text-white hover:brightness-110"
-            title={`${transferLabel} ${selectionCount} item(s)`}
-          >
-            {transferLabel === "Upload" ? (
-              <Upload size={11} />
-            ) : (
-              <Download size={11} />
-            )}
-            {transferLabel} {selectionCount}
-          </button>
-        )}
-        {onUpload && (
-          <button
-            onClick={onUpload}
-            disabled={!sessionId}
-            className="flex items-center gap-1 rounded border border-accent/40 bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent hover:bg-accent/20 disabled:opacity-40"
-            title="Upload files or a folder to this directory"
-          >
-            <Upload size={11} /> Upload
-          </button>
-        )}
-        {fs.analyzeDiskUsage && (
-          <button
-            onClick={() =>
-              sessionId &&
-              fs
-                .analyzeDiskUsage!(sessionId, path)
-                .catch((e) => setError(errorText(e)))
-            }
-            disabled={!sessionId}
-            className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
-            title="Analyze disk usage in this folder"
-          >
-            <PieChart size={13} />
-          </button>
-        )}
-        {fs.searchDirectory && (
-          <button
-            onClick={() =>
-              sessionId &&
-              fs
-                .searchDirectory!(sessionId, path)
-                .catch((e) => setError(errorText(e)))
-            }
-            disabled={!sessionId}
-            className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
-            title="Search this folder by name or content"
-          >
-            <Search size={13} />
-          </button>
-        )}
-        {fs.findDuplicates && (
-          <button
-            onClick={() =>
-              sessionId &&
-              fs
-                .findDuplicates!(sessionId, path)
-                .catch((e) => setError(errorText(e)))
-            }
-            disabled={!sessionId}
-            className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
-            title="Find duplicate files in this folder"
-          >
-            <CopyX size={13} />
-          </button>
-        )}
-        {caps?.hasDirectories !== false && (
-          <button
-            onClick={() => setModal({ type: "mkdir" })}
-            disabled={!sessionId}
-            className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
-            title="New folder"
-          >
-            <FolderPlus size={13} />
-          </button>
-        )}
         <button
-          onClick={history.back}
-          disabled={!sessionId || !history.canBack}
-          className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-30"
-          title="Back"
-        >
-          <ArrowLeft size={13} />
-        </button>
-        <button
-          onClick={history.forward}
-          disabled={!sessionId || !history.canForward}
-          className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-30"
-          title="Forward"
-        >
-          <ArrowRight size={13} />
-        </button>
-        <button
-          onClick={goUp}
-          disabled={!sessionId}
-          className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
-          title="Up (Backspace)"
-        >
-          <ArrowUp size={13} />
-        </button>
-        <button
+          type="button"
           onClick={() => load(path)}
           disabled={!sessionId}
-          className="rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
+          className="ghost-pane-refresh"
           title="Refresh"
+          aria-label={`Refresh ${title}`}
         >
-          <RefreshCw size={13} />
+          <RefreshCw size={14} />
         </button>
       </div>
 
-      <div className="ghost-pane-pathbar flex items-center gap-1.5 border-b border-border px-2 py-1">
+      <div className="ghost-pane-pathbar flex min-w-0 items-center gap-1 border-b border-border px-2">
+        <div className="ghost-pane-nav-buttons flex shrink-0 items-center">
+          <button
+            type="button"
+            onClick={history.back}
+            disabled={!sessionId || !history.canBack}
+            title="Back"
+            aria-label="Back"
+          >
+            <ArrowLeft size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={history.forward}
+            disabled={!sessionId || !history.canForward}
+            title="Forward"
+            aria-label="Forward"
+          >
+            <ArrowRight size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={goUp}
+            disabled={!sessionId}
+            title="Up"
+            aria-label="Up one folder"
+          >
+            <ArrowUp size={14} />
+          </button>
+        </div>
+
         {editingPath ? (
           <input
             autoFocus
@@ -1118,123 +1106,24 @@ export function FilePane({
             }}
             onBlur={commitPath}
             disabled={!sessionId}
-            className="min-w-0 flex-1 rounded border border-accent bg-bg-subtle px-2 py-1 font-mono text-xs outline-none disabled:opacity-50"
+            className="ghost-pane-address min-w-0 flex-1 font-mono text-xs outline-none disabled:opacity-50"
             placeholder="/"
           />
         ) : (
-          <div className="flex min-w-0 flex-1 items-center overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {segments.map((seg, i) => {
-              const last = i === segments.length - 1;
-              return (
-                <span key={seg.path + i} className="flex items-center">
-                  {i > 0 && <span className="px-0.5 text-text-dim">/</span>}
-                  <button
-                    onClick={() => !last && sessionId && onPathChange(seg.path)}
-                    disabled={!sessionId || last}
-                    className={cn(
-                      "max-w-[12rem] truncate rounded px-1 py-0.5 font-mono text-xs",
-                      last
-                        ? "font-medium text-text"
-                        : "text-text-muted hover:bg-bg-hover hover:text-text"
-                    )}
-                    title={seg.path}
-                  >
-                    {seg.label}
-                  </button>
-                </span>
-              );
-            })}
-          </div>
-        )}
-        <div className="flex shrink-0 items-center gap-0.5">
           <button
-            onClick={() => setPaneViewMode("list")}
-            className={cn(
-              "rounded p-1 hover:bg-bg-hover",
-              paneViewMode === "list"
-                ? "text-accent"
-                : "text-text-dim hover:text-text"
-            )}
-            title="List view"
-          >
-            <List size={13} />
-          </button>
-          <button
-            onClick={() => setPaneViewMode("details")}
-            className={cn(
-              "rounded p-1 hover:bg-bg-hover",
-              paneViewMode === "details"
-                ? "text-accent"
-                : "text-text-dim hover:text-text"
-            )}
-            title="Details view"
-          >
-            <Table2 size={13} />
-          </button>
-          <button
-            onClick={() => setPaneViewMode("grid")}
-            className={cn(
-              "rounded p-1 hover:bg-bg-hover",
-              paneViewMode === "grid"
-                ? "text-accent"
-                : "text-text-dim hover:text-text"
-            )}
-            title="Grid view"
-          >
-            <LayoutGrid size={13} />
-          </button>
-          <button
-            onClick={() =>
-              setPaneDensity(paneDensity === "compact" ? "comfortable" : "compact")
-            }
-            className={cn(
-              "rounded p-1 hover:bg-bg-hover",
-              paneDensity === "compact"
-                ? "text-accent"
-                : "text-text-dim hover:text-text"
-            )}
-            title={
-              paneDensity === "compact"
-                ? "Compact rows — click for comfortable"
-                : "Comfortable rows — click for compact"
-            }
-          >
-            <AlignJustify size={13} />
-          </button>
-          {sessionId &&
-            sessionId !== LOCAL_SESSION &&
-            setRemoteImagePreviews && (
-              <button
-                onClick={() => setRemoteImagePreviews(!remoteImagePreviews)}
-                className={cn(
-                  "rounded p-1 hover:bg-bg-hover",
-                  remoteImagePreviews
-                    ? "text-accent"
-                    : "text-text-dim hover:text-text"
-                )}
-                title={
-                  remoteImagePreviews
-                    ? "Image previews on — click to turn off (fetches images to thumbnail them)"
-                    : "Image previews off — click to show remote image thumbnails"
-                }
-              >
-                <ImageIcon size={13} />
-              </button>
-            )}
-        </div>
-        {!editingPath && (
-          <button
+            type="button"
+            className="ghost-pane-address min-w-0 flex-1 truncate text-left font-mono text-[11.5px]"
             onClick={() => {
               setDraftPath(path);
               setEditingPath(true);
             }}
             disabled={!sessionId}
-            className="shrink-0 rounded p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
-            title="Edit path"
+            title={path}
           >
-            <Pencil size={12} />
+            {path}
           </button>
         )}
+
         <div className="relative shrink-0">
           <Search
             size={12}
@@ -1245,13 +1134,16 @@ export function FilePane({
             onChange={(e) => setFilter(e.target.value)}
             disabled={!sessionId}
             placeholder="Filter"
-            className="w-32 rounded border border-border bg-bg-subtle py-1 pl-7 pr-6 text-xs outline-none focus:border-accent disabled:opacity-50"
+            aria-label={`Filter ${title}`}
+            className="ghost-pane-filter w-24 py-1 pl-7 pr-6 text-xs outline-none disabled:opacity-50"
           />
           {filter && (
             <button
+              type="button"
               onClick={() => setFilter("")}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-text-dim hover:text-text"
+              className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-text-dim hover:text-text"
               title="Clear filter"
+              aria-label="Clear filter"
             >
               <X size={11} />
             </button>
@@ -1271,6 +1163,15 @@ export function FilePane({
             sortDirection={sortDirection}
             onSort={onSort}
           />
+          <SortHeader
+            label="Size"
+            field="size"
+            align="right"
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onSort={onSort}
+          />
+          {showType && <span>Type</span>}
           {showModified && (
             <SortHeader
               label="Modified"
@@ -1280,15 +1181,7 @@ export function FilePane({
               onSort={onSort}
             />
           )}
-          <SortHeader
-            label="Size"
-            field="size"
-            align="right"
-            sortField={sortField}
-            sortDirection={sortDirection}
-            onSort={onSort}
-          />
-          {showPermsCol && <span className="text-right">Perms</span>}
+          {showPermsCol && <span className="text-right">Permissions</span>}
         </div>
       )}
 
@@ -1343,6 +1236,7 @@ export function FilePane({
                 selected={selected.has(entry.path)}
                 cols={cols}
                 showModified={showModified}
+                showType={showType}
                 showPermsCol={showPermsCol}
                 sessionId={sessionId}
                 loadThumb={loadThumb}
@@ -1366,6 +1260,7 @@ export function FilePane({
               selected={selected.has(entry.path)}
               cols={cols}
               showModified={showModified}
+              showType={showType}
               showPermsCol={showPermsCol}
               sessionId={sessionId}
               loadThumb={loadThumb}
@@ -1499,6 +1394,7 @@ function Row({
   selected,
   cols,
   showModified,
+  showType,
   showPermsCol,
   sessionId,
   loadThumb,
@@ -1516,6 +1412,7 @@ function Row({
   selected: boolean;
   cols: string;
   showModified: boolean;
+  showType: boolean;
   showPermsCol: boolean;
   sessionId: SessionId | null;
   loadThumb?: (
@@ -1668,14 +1565,19 @@ function Row({
         {rowThumb}
         <span className="truncate">{entry.name}</span>
       </span>
+      <span className="text-right text-xs tabular-nums text-text-dim">
+        {entry.kind === "file" ? fmtSize(entry.size) : ""}
+      </span>
+      {showType && (
+        <span className="truncate text-xs text-text-dim">
+          {entryTypeLabel(entry)}
+        </span>
+      )}
       {showModified && (
         <span className="truncate text-xs text-text-dim">
           {fmtMtime(entry.modified)}
         </span>
       )}
-      <span className="text-right text-xs tabular-nums text-text-dim">
-        {entry.kind === "file" ? fmtSize(entry.size) : ""}
-      </span>
       {showPermsCol && (
         <span
           className="text-right font-mono text-[10px] text-text-dim"
@@ -1686,6 +1588,54 @@ function Row({
       )}
     </div>
   );
+}
+
+function entryTypeLabel(entry: DirEntry) {
+  if (entry.kind === "directory") return "File folder";
+  if (entry.kind === "symlink") return "Symbolic link";
+  if (entry.kind === "other") return "File";
+
+  const lower = entry.name.toLowerCase();
+  const extension =
+    lower.startsWith(".") && lower.indexOf(".", 1) === -1
+      ? lower.slice(1)
+      : lower.includes(".")
+        ? lower.slice(lower.lastIndexOf(".") + 1)
+        : "";
+
+  const friendly: Record<string, string> = {
+    html: "HTML File",
+    htm: "HTML File",
+    js: "JavaScript File",
+    mjs: "JavaScript File",
+    cjs: "JavaScript File",
+    ts: "TypeScript File",
+    tsx: "TypeScript File",
+    jsx: "JavaScript File",
+    css: "CSS File",
+    scss: "SCSS File",
+    less: "LESS File",
+    md: "Markdown File",
+    markdown: "Markdown File",
+    json: "JSON File",
+    php: "PHP File",
+    env: "ENV File",
+    txt: "Text File",
+    conf: "CONF File",
+    config: "CONFIG File",
+    xml: "XML File",
+    yml: "YAML File",
+    yaml: "YAML File",
+    csv: "CSV File",
+    sql: "SQL File",
+    sh: "Shell Script",
+    ps1: "PowerShell Script",
+    zip: "ZIP Archive",
+    gz: "GZip Archive",
+    tar: "TAR Archive",
+  };
+
+  return friendly[extension] ?? (extension ? `${extension.toUpperCase()} File` : "File");
 }
 
 function SortHeader({

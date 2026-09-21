@@ -243,6 +243,7 @@ mod tests {
                 password: String::new(),
             },
             default_remote_path: None,
+            description: None,
             color: None,
             auto_connect: None,
             bucket: None,

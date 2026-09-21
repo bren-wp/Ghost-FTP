@@ -106,20 +106,20 @@ export function TransferQueue() {
           <button
             type="button"
             role="tab"
-            aria-selected={tab === "failed"}
-            className={tab === "failed" ? "active failed" : "failed"}
-            onClick={() => setTab("failed")}
-          >
-            <AlertCircle size={13} /> Failed ({failed.length})
-          </button>
-          <button
-            type="button"
-            role="tab"
             aria-selected={tab === "completed"}
             className={tab === "completed" ? "active completed" : "completed"}
             onClick={() => setTab("completed")}
           >
             <CheckCircle2 size={13} /> Completed ({completed.length})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "failed"}
+            className={tab === "failed" ? "active failed" : "failed"}
+            onClick={() => setTab("failed")}
+          >
+            <AlertCircle size={13} /> Failed ({failed.length})
           </button>
           <span />
           {failed.length > 0 && (

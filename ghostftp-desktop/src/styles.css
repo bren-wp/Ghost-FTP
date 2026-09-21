@@ -2916,3 +2916,1310 @@ button:active,
   transform: none !important;
   animation: none !important;
 }
+
+
+/* RC13 single-shell fidelity and overlap hardening. */
+.ghost-workspace-view {
+  position: relative !important;
+  inset: auto !important;
+  z-index: auto !important;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+  contain: layout paint;
+}
+
+.ghost-workspace-view > .ghost-site-manager,
+.ghost-workspace-view > .ghost-preferences,
+.ghost-workspace-view > .ghost-transfer-center,
+.ghost-workspace-view > .ghost-about {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ghost-transient-overlay {
+  isolation: isolate;
+  overscroll-behavior: contain;
+  backdrop-filter: none !important;
+}
+
+.ghost-mini-button,
+.ghost-primary-button,
+.ghost-tool-button,
+.ghost-row-action,
+.ghost-window-controls button {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.ghost-mini-button,
+.ghost-primary-button {
+  white-space: nowrap;
+}
+
+.ghost-title-left,
+.ghost-title-menu-wrap,
+.ghost-window-title-spacer,
+.ghost-title-actions,
+.ghost-language-menu,
+.ghost-quick-connect {
+  min-width: 0;
+}
+
+.ghost-window-controls {
+  flex: 0 0 auto;
+  min-width: 132px;
+}
+
+.ghost-title-actions {
+  flex: 0 0 auto;
+}
+
+.ghost-site-manager-hero,
+.ghost-transfer-center-heading {
+  gap: 10px !important;
+}
+
+.ghost-site-manager-hero > .relative {
+  min-width: 180px;
+}
+
+.ghost-site-manager-hero button,
+.ghost-transfer-center-heading button {
+  flex: 0 0 auto;
+}
+
+.ghost-site-manager-table,
+.ghost-site-manager-details,
+.ghost-transfer-center,
+.ghost-preferences-content,
+.ghost-about-content {
+  min-width: 0;
+}
+
+.ghost-new-connection-dialog,
+.ghost-properties-dialog {
+  transform: none !important;
+  animation: none !important;
+  backface-visibility: hidden;
+}
+
+.ghost-new-connection-head button,
+.ghost-properties-dialog button {
+  flex: 0 0 auto;
+}
+
+.ghost-new-connection-actions,
+.ghost-preferences-actions {
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.ghost-new-connection-actions::-webkit-scrollbar,
+.ghost-preferences-actions::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 1180px) {
+  .ghost-site-manager-workspace {
+    grid-template-columns: 196px minmax(420px, 1fr) 304px !important;
+    overflow-x: auto;
+  }
+
+  .ghost-site-manager-hero {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .ghost-site-manager-hero::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ghost-site-manager-hero > div:nth-child(2) {
+    min-width: 220px;
+  }
+
+  .ghost-transfer-center-heading {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .ghost-transfer-center-heading::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .ghost-site-manager-workspace {
+    grid-template-columns: 168px minmax(430px, 1fr) !important;
+    grid-template-rows: minmax(270px, 1fr) minmax(250px, auto);
+  }
+
+  .ghost-site-manager-nav {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    overflow-y: auto;
+  }
+
+  .ghost-site-manager-table {
+    grid-column: 2;
+    grid-row: 1;
+    overflow: auto;
+  }
+
+  .ghost-site-manager-details {
+    grid-column: 2;
+    grid-row: 2;
+    overflow: auto;
+    border-left: 0 !important;
+    border-top: 1px solid rgb(var(--border));
+  }
+
+  .ghost-preferences-content > .grid,
+  .ghost-about-grid,
+  .ghost-transfer-summary-grid,
+  .ghost-transfer-lower-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ghost-new-connection-dialog {
+    width: min(720px, calc(100vw - 12px)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .ghost-window-controls {
+    min-width: 120px;
+  }
+
+  .ghost-site-manager-hero {
+    height: auto !important;
+    min-height: 70px !important;
+    padding: 8px !important;
+  }
+
+  .ghost-site-manager-workspace {
+    display: flex !important;
+    min-width: 0;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .ghost-site-manager-nav {
+    display: flex;
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 0 0 auto;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgb(var(--border));
+  }
+
+  .ghost-site-manager-nav > * {
+    flex: 0 0 auto;
+  }
+
+  .ghost-site-manager-table {
+    flex: 1 1 auto;
+    min-height: 220px;
+    overflow: auto;
+  }
+
+  .ghost-site-manager-details {
+    flex: 0 0 min(44dvh, 320px);
+    max-height: min(44dvh, 320px) !important;
+    overflow: auto;
+  }
+
+  .ghost-transfer-center-heading {
+    min-height: 72px !important;
+  }
+
+  .ghost-preferences-actions .ghost-mini-button,
+  .ghost-preferences-actions .ghost-primary-button,
+  .ghost-new-connection-actions .ghost-mini-button,
+  .ghost-new-connection-actions .ghost-primary-button {
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 520px) {
+  .ghost-new-connection-dialog,
+  .ghost-properties-dialog {
+    width: calc(100vw - 8px) !important;
+    max-width: calc(100vw - 8px) !important;
+  }
+
+  .ghost-new-connection-body {
+    padding: 10px !important;
+  }
+
+  .ghost-new-connection-body .grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ghost-new-connection-actions {
+    padding: 8px 10px !important;
+  }
+
+  .ghost-properties-dialog {
+    max-height: calc(100dvh - 8px) !important;
+  }
+}
+
+
+/* RC13 reference-frame geometry: File Manager structure and sidebar fidelity. */
+.ghost-app-header {
+  flex: 0 0 175px !important;
+  height: 175px !important;
+  min-height: 175px !important;
+}
+
+.ghost-title-row {
+  height: 50px !important;
+  min-height: 50px !important;
+}
+
+.ghost-quick-row {
+  height: 65px !important;
+  min-height: 65px !important;
+  padding: 9px 14px !important;
+}
+
+.ghost-toolbar-row {
+  height: 60px !important;
+  min-height: 60px !important;
+}
+
+.ghost-file-manager-body,
+.ghost-file-manager-right {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ghost-file-manager-right {
+  background: #041526;
+}
+
+.ghost-file-manager-body > .ghost-sites-panel {
+  width: 204px !important;
+  min-width: 204px !important;
+  flex: 0 0 204px !important;
+}
+
+.ghost-main-workspace {
+  flex: 0 0 423px !important;
+  width: 100%;
+  height: 423px !important;
+  min-height: 423px !important;
+  max-height: 423px !important;
+  background: #041526 !important;
+}
+
+.ghost-dual-browser {
+  border: 0 !important;
+  background: #041526;
+}
+
+.ghost-dual-browser > .ghost-file-pane {
+  border-radius: 0 !important;
+}
+
+.ghost-dual-browser > .ghost-file-pane:first-child {
+  flex: 1 1 0% !important;
+  border-left: 0 !important;
+}
+
+.ghost-dual-browser > .ghost-file-pane:last-child {
+  flex: 1 1 0% !important;
+  border-right: 0 !important;
+}
+
+.ghost-pane-separator {
+  width: 1px;
+  min-width: 1px;
+  flex: 0 0 1px;
+  background: #23577d;
+}
+
+.ghost-sites-panel {
+  overflow: hidden;
+}
+
+.ghost-sites-list {
+  flex: 0 0 auto;
+  padding: 0 8px 8px 12px !important;
+}
+
+.ghost-file-nav {
+  flex: 0 0 auto;
+  border-top: 1px solid #1a4c6e;
+  padding: 7px 8px 8px;
+}
+
+.ghost-file-nav-row {
+  display: flex;
+  width: 100%;
+  height: 34px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 0 10px;
+  background: transparent;
+  color: #b8d3e7;
+  font-size: 12px;
+  line-height: 1;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ghost-file-nav-row svg {
+  flex: 0 0 auto;
+  color: #a8d7f7;
+}
+
+.ghost-file-nav-row:hover,
+.ghost-file-nav-row:focus-visible {
+  border-color: rgba(43, 143, 216, .36);
+  background: #0a2c49;
+  color: #fff;
+  outline: none;
+}
+
+.ghost-file-nav-row.active {
+  border-color: #166fc5;
+  background: linear-gradient(90deg,#0b4f98,#0b3767);
+  color: #fff;
+  box-shadow: inset 2px 0 #24a8ff;
+}
+
+.ghost-sites-spacer {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.ghost-bottom-band {
+  width: 100%;
+  flex: 0 0 214px !important;
+  height: 214px !important;
+  min-height: 214px !important;
+  max-height: 214px !important;
+  padding-left: 4px !important;
+}
+
+.ghost-reference-statusbar {
+  flex: 0 0 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+}
+
+@media (max-width: 1120px) {
+  .ghost-app-header {
+    flex-basis: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+
+  .ghost-file-manager-body > .ghost-sites-panel {
+    width: 184px !important;
+    min-width: 184px !important;
+    flex-basis: 184px !important;
+  }
+
+  .ghost-file-nav-row {
+    padding-inline: 8px;
+    gap: 8px;
+  }
+
+  .ghost-bottom-band {
+    flex-basis: 190px !important;
+    height: 190px !important;
+    min-height: 190px !important;
+    max-height: 190px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .ghost-file-manager-body > .ghost-sites-panel {
+    width: 132px !important;
+    min-width: 132px !important;
+    flex-basis: 132px !important;
+  }
+
+  .ghost-file-nav {
+    padding-inline: 5px;
+  }
+
+  .ghost-file-nav-row {
+    height: 32px;
+    gap: 6px;
+    padding-inline: 6px;
+    font-size: 10px;
+  }
+
+  .ghost-bottom-band {
+    flex-basis: min(190px, 31dvh) !important;
+    height: min(190px, 31dvh) !important;
+    min-height: 150px !important;
+  }
+}
+
+@media (max-width: 540px) {
+  .ghost-file-manager-body > .ghost-sites-panel {
+    width: 108px !important;
+    min-width: 108px !important;
+    flex-basis: 108px !important;
+  }
+
+  .ghost-file-nav-row {
+    gap: 5px;
+    padding-inline: 4px;
+    font-size: 9px;
+  }
+
+  .ghost-file-nav-row svg {
+    width: 13px;
+    height: 13px;
+  }
+}
+
+
+/* RC13 sidebar overflow guard: preserve navigation with any site count. */
+.ghost-sites-list {
+  max-height: 228px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.ghost-sites-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ghost-file-nav {
+  position: relative;
+  z-index: 1;
+  background: #041526;
+}
+
+@media (max-height: 720px) {
+  .ghost-sites-list {
+    max-height: 170px;
+  }
+
+  .ghost-file-nav-row {
+    height: 30px;
+  }
+}
+
+
+/* RC13 transient-panel measurements from the supplied 1290px reference frame. */
+.ghost-new-connection-dialog {
+  width: min(650px, calc(100vw - 24px)) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: min(610px, calc(100dvh - 24px)) !important;
+}
+
+.ghost-new-connection-head {
+  min-height: 64px !important;
+  padding-block: 10px !important;
+}
+
+.ghost-new-connection-mode {
+  padding-top: 12px !important;
+}
+
+.ghost-new-connection-body {
+  flex: 0 1 auto !important;
+  max-height: calc(100dvh - 226px) !important;
+  padding: 14px 18px !important;
+}
+
+.ghost-new-connection-actions {
+  min-height: 58px !important;
+  padding: 10px 18px !important;
+}
+
+.ghost-properties-dialog {
+  width: min(486px, calc(100vw - 20px)) !important;
+  max-height: min(710px, calc(100dvh - 20px)) !important;
+}
+
+@media (max-width: 700px) {
+  .ghost-new-connection-dialog {
+    width: calc(100vw - 12px) !important;
+    max-height: calc(100dvh - 12px) !important;
+  }
+
+  .ghost-properties-dialog {
+    width: calc(100vw - 12px) !important;
+    max-height: calc(100dvh - 12px) !important;
+  }
+}
+
+
+/* RC13 measured sidebar width from the supplied main 1290px application reference. */
+@media (min-width: 1121px) {
+  .ghost-file-manager-body > .ghost-sites-panel,
+  .ghost-sites-toolbar-head {
+    width: 204px !important;
+    min-width: 204px !important;
+    flex-basis: 204px !important;
+  }
+}
+
+
+/* RC13 Transfer Center reference controls. */
+.ghost-transfer-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 500;
+  min-width: 154px;
+  overflow: hidden;
+  border: 1px solid #255d84;
+  border-radius: 7px;
+  padding: 5px;
+  background: #061a2d;
+  box-shadow: 0 18px 44px rgba(0,0,0,.48);
+}
+
+.ghost-transfer-more-menu button {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 5px;
+  padding: 0 9px;
+  background: transparent;
+  color: #c9e4f6;
+  font-size: 11px;
+  text-align: left;
+}
+
+.ghost-transfer-more-menu button:hover:not(:disabled),
+.ghost-transfer-more-menu button:focus-visible {
+  background: #0a3150;
+  color: white;
+  outline: none;
+}
+
+.ghost-transfer-more-menu button:disabled {
+  opacity: .42;
+}
+
+.ghost-transfer-filters {
+  min-height: 52px;
+  overflow-x: auto;
+  overflow-y: visible !important;
+  scrollbar-width: none;
+}
+
+.ghost-transfer-filters::-webkit-scrollbar {
+  display: none;
+}
+
+
+/* RC13 final reference-pass: file panes and compact native-window geometry. */
+.ghost-pane-header {
+  flex: 0 0 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding-inline: 12px !important;
+  background: #071a2e !important;
+}
+
+.ghost-pane-title-icon {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  flex: 0 0 22px;
+  border-radius: 4px;
+  color: #65c8ff;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.ghost-pane-refresh {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  flex: 0 0 28px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #9cc9e7;
+}
+
+.ghost-pane-refresh:hover:not(:disabled),
+.ghost-pane-refresh:focus-visible {
+  background: #0a3150;
+  color: #fff;
+  outline: none;
+}
+
+.ghost-pane-refresh:disabled {
+  opacity: .35;
+}
+
+.ghost-pane-pathbar {
+  flex: 0 0 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 5px 8px !important;
+  background: #051929 !important;
+}
+
+.ghost-pane-nav-buttons {
+  height: 32px;
+  overflow: hidden;
+  border: 1px solid #255776;
+  border-radius: 6px;
+  background: #071d31;
+}
+
+.ghost-pane-nav-buttons button {
+  display: inline-grid;
+  width: 34px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-right: 1px solid #1a4564;
+  background: transparent;
+  color: #b9d9ed;
+}
+
+.ghost-pane-nav-buttons button:last-child {
+  border-right: 0;
+}
+
+.ghost-pane-nav-buttons button:hover:not(:disabled),
+.ghost-pane-nav-buttons button:focus-visible {
+  background: #0a3556;
+  color: #fff;
+  outline: none;
+}
+
+.ghost-pane-nav-buttons button:disabled {
+  opacity: .32;
+}
+
+.ghost-pane-address {
+  height: 32px;
+  min-height: 32px;
+  border: 1px solid #255776;
+  border-radius: 6px;
+  padding: 0 11px;
+  background: #061d31;
+  color: #d9efff;
+}
+
+button.ghost-pane-address:hover:not(:disabled),
+button.ghost-pane-address:focus-visible,
+input.ghost-pane-address:focus-visible {
+  border-color: #2b91d3;
+  background: #08233b;
+  outline: none;
+}
+
+.ghost-pane-filter {
+  height: 32px;
+  min-height: 32px;
+  border: 1px solid #255776;
+  border-radius: 6px;
+  background: #061d31;
+  color: #d9efff;
+}
+
+.ghost-pane-columns {
+  min-height: 32px;
+  background: #06182b !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-size: 10.5px !important;
+}
+
+.ghost-transfer-scheduler {
+  min-width: 0;
+}
+
+@media (min-width: 901px) and (max-width: 1120px) {
+  .ghost-quick-row {
+    display: flex !important;
+    height: 58px !important;
+    min-height: 58px !important;
+    gap: 7px !important;
+    padding: 8px 9px !important;
+    overflow-x: hidden !important;
+  }
+
+  .ghost-quick-row > label {
+    flex: 1 1 128px !important;
+    min-width: 112px !important;
+    max-width: none !important;
+  }
+
+  .ghost-quick-row > .ghost-port-field {
+    flex: 0 0 70px !important;
+    min-width: 70px !important;
+  }
+
+  .ghost-quick-connect {
+    flex: 0 0 132px !important;
+    width: 132px !important;
+    min-width: 132px !important;
+  }
+
+  .ghost-quick-actions {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    align-items: center;
+    gap: 6px !important;
+  }
+
+  .ghost-quick-actions .ghost-mini-button {
+    display: inline-flex !important;
+    width: auto !important;
+    min-width: 90px !important;
+    height: 36px !important;
+    padding-inline: 9px !important;
+    justify-content: center;
+  }
+
+  .ghost-quick-actions .ghost-mini-button span {
+    display: inline !important;
+  }
+
+  .ghost-quick-actions .ghost-language-menu {
+    min-width: 154px !important;
+    height: 36px !important;
+    padding-inline: 7px !important;
+  }
+
+  .ghost-quick-actions .ghost-language-menu select {
+    width: 116px !important;
+    min-width: 116px !important;
+    font-size: 10.5px !important;
+  }
+}
+
+@media (min-width: 901px) and (max-height: 760px) {
+  .ghost-app-header {
+    flex: 0 0 154px !important;
+    height: 154px !important;
+    min-height: 154px !important;
+  }
+
+  .ghost-title-row {
+    height: 50px !important;
+    min-height: 50px !important;
+  }
+
+  .ghost-quick-row {
+    height: 52px !important;
+    min-height: 52px !important;
+    padding-block: 6px !important;
+  }
+
+  .ghost-toolbar-row,
+  .ghost-tool-button {
+    height: 52px !important;
+    min-height: 52px !important;
+  }
+
+  .ghost-bottom-band {
+    flex: 0 0 148px !important;
+    height: 148px !important;
+    min-height: 148px !important;
+    max-height: 148px !important;
+  }
+
+  .ghost-reference-statusbar {
+    flex: 0 0 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  .ghost-transfer-rows {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .ghost-pane-pathbar {
+    gap: 4px !important;
+    padding-inline: 5px !important;
+  }
+
+  .ghost-pane-nav-buttons button {
+    width: 30px;
+  }
+
+  .ghost-pane-filter {
+    width: 72px !important;
+  }
+}
+
+
+/* RC13 Site Manager inline organization controls. */
+.ghost-site-meta-add {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: #a7d9f9;
+}
+
+.ghost-site-meta-add:hover:not(:disabled),
+.ghost-site-meta-add:focus-visible {
+  border-color: #286a96;
+  background: #0a3150;
+  color: #fff;
+  outline: none;
+}
+
+.ghost-site-meta-add:disabled {
+  opacity: .35;
+}
+
+.ghost-site-meta-editor {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto auto;
+  gap: 4px;
+  padding-inline: 4px;
+}
+
+.ghost-site-meta-editor input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #255776;
+  border-radius: 5px;
+  padding: 0 7px;
+  background: #061d31;
+  color: #d9efff;
+  font-size: 10.5px;
+  outline: none;
+}
+
+.ghost-site-meta-editor input:focus {
+  border-color: #2e9ee9;
+}
+
+.ghost-site-meta-editor button {
+  min-width: 30px;
+  height: 30px;
+  border: 1px solid #255776;
+  border-radius: 5px;
+  padding-inline: 6px;
+  background: #071f35;
+  color: #b9d9ed;
+  font-size: 10px;
+}
+
+.ghost-site-meta-editor button:hover:not(:disabled),
+.ghost-site-meta-editor button:focus-visible {
+  border-color: #2e9ee9;
+  background: #0a3150;
+  color: #fff;
+  outline: none;
+}
+
+.ghost-site-meta-editor button:disabled {
+  opacity: .35;
+}
+
+
+/* RC13 About reference landscape polish. */
+.ghost-about-hero {
+  position: relative;
+  isolation: isolate;
+  background: #071a2d !important;
+}
+
+.ghost-about-landscape {
+  z-index: 0;
+  opacity: .92;
+  pointer-events: none;
+}
+
+.ghost-about-hero-glow {
+  z-index: 1;
+  opacity: .24 !important;
+  background:
+    radial-gradient(circle at 31% 47%, rgba(98,207,255,.22), transparent 23%),
+    linear-gradient(90deg, rgba(3,16,30,.08), rgba(3,16,30,.2)) !important;
+  pointer-events: none;
+}
+
+.ghost-about-hero > .relative {
+  z-index: 2;
+}
+
+.ghost-about-hero h2,
+.ghost-about-hero p {
+  text-shadow: 0 2px 16px rgba(0,0,0,.72);
+}
+
+
+/* RC13 Site Manager description field. */
+.ghost-site-manager-details .ghost-ref-field textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  border: 1px solid rgb(var(--border) / .92);
+  border-radius: 6px;
+  background: #051929;
+  padding: 8px 11px;
+  color: rgb(var(--text));
+  font: inherit;
+  line-height: 1.45;
+  outline: none;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / .18);
+}
+
+.ghost-site-manager-details .ghost-ref-field textarea:focus {
+  border-color: #2baaff;
+  box-shadow: 0 0 0 2px rgb(43 170 255 / .12);
+}
+
+.ghost-site-manager-details .ghost-ref-field textarea[readonly] {
+  resize: none;
+}
+
+
+/* RC13 status bar reference alignment. */
+.ghost-reference-statusbar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  overflow: hidden !important;
+  white-space: nowrap;
+  color: #c9e4f6;
+  line-height: 1 !important;
+}
+
+.ghost-reference-statusbar > span {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+.ghost-reference-statusbar > .grow {
+  flex: 1 1 auto;
+}
+
+.ghost-reference-statusbar > span:not(.grow) {
+  flex: 0 0 auto;
+}
+
+.ghost-reference-statusbar .dot {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
+  border-radius: 999px;
+  background: #31536a;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+}
+
+.ghost-reference-statusbar .dot.online {
+  background: #13df8b;
+  box-shadow: 0 0 11px rgba(19,223,139,.45);
+}
+
+.ghost-reference-statusbar .up {
+  color: #5fc2ff;
+}
+
+.ghost-reference-statusbar .down {
+  color: #72d7ff;
+}
+
+.ghost-reference-statusbar .encoding {
+  padding-left: 2px;
+}
+
+@media (max-width: 860px) {
+  .ghost-reference-statusbar {
+    gap: 9px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none;
+  }
+  .ghost-reference-statusbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+
+/* RC13 Site Manager reference bookmark control. */
+.ghost-site-bookmark-button {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border: 1px solid rgb(var(--border) / .9);
+  border-radius: 6px;
+  background: #061a2d;
+  color: #8eb9d6;
+  transition: border-color .12s ease, background-color .12s ease, color .12s ease;
+}
+
+.ghost-site-bookmark-button:hover:not(:disabled) {
+  border-color: #2baaff;
+  background: #0a2945;
+  color: #ffd24a;
+}
+
+.ghost-site-bookmark-button[aria-pressed="true"] {
+  border-color: rgba(255,210,74,.52);
+  background: rgba(255,210,74,.1);
+  color: #ffd24a;
+}
+
+.ghost-site-bookmark-button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+
+/* RC13 canonical titlebar proportions. */
+@media (min-width: 1121px) {
+  .ghost-title-row {
+    padding-left: 18px !important;
+  }
+
+  .ghost-title-left {
+    gap: 9px !important;
+    margin-right: 18px;
+  }
+
+  .ghost-wordmark {
+    gap: 9px !important;
+  }
+
+  .ghost-version-badge {
+    height: 28px !important;
+    min-width: 47px;
+    padding-inline: 9px !important;
+    font-size: 11px !important;
+  }
+
+  .ghost-title-menu-wrap .ghost-menu-anchor > button {
+    padding-inline: 11px !important;
+    font-size: 13.5px !important;
+  }
+}
+
+
+/* RC13 canonical desktop control widths. */
+@media (min-width: 1121px) {
+  .ghost-quick-row {
+    grid-template-columns: 230px 214px 209px 112px 142px 96px 170px !important;
+    column-gap: 8px !important;
+    justify-content: start;
+  }
+
+  .ghost-quick-row > label {
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .ghost-quick-row > .ghost-port-field {
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+  }
+
+  .ghost-quick-connect {
+    width: 142px !important;
+    min-width: 142px !important;
+    flex-basis: 142px !important;
+    margin-left: 0 !important;
+  }
+
+  .ghost-quick-actions .ghost-mini-button {
+    width: 96px !important;
+    min-width: 96px !important;
+    padding-inline: 9px !important;
+  }
+
+  .ghost-quick-actions .ghost-language-menu {
+    width: 170px !important;
+    min-width: 170px !important;
+  }
+
+  .ghost-quick-actions .ghost-language-menu select {
+    width: 132px !important;
+    min-width: 132px !important;
+  }
+
+  .ghost-tool-button {
+    width: 94px !important;
+    min-width: 94px !important;
+    flex: 0 0 94px !important;
+    height: 60px !important;
+  }
+
+  .ghost-sites-toolbar-head {
+    width: 204px !important;
+    min-width: 204px !important;
+    flex: 0 0 204px !important;
+    height: 60px !important;
+  }
+
+  .ghost-pane-header > span:first-child {
+    font-size: 14px !important;
+    font-weight: 650;
+  }
+
+  .ghost-file-nav-row {
+    font-size: 12.5px;
+  }
+
+  .ghost-bottom-band {
+    grid-template-columns: minmax(0, 1.55fr) minmax(360px, 1fr) !important;
+  }
+}
+
+
+/* RC13 newest-reference sidebar capability notes. */
+.ghost-sidebar-capabilities {
+  flex: 0 0 auto;
+  border-top: 1px solid #1a4c6e;
+  padding: 8px 10px 10px;
+  background: #041526;
+}
+
+.ghost-sidebar-capability {
+  display: flex;
+  min-height: 29px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  color: #c3dced;
+  font-size: 11.5px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ghost-sidebar-capability svg {
+  flex: 0 0 auto;
+  color: #bde3fb;
+}
+
+@media (max-width: 760px), (max-height: 760px) {
+  .ghost-sidebar-capabilities {
+    display: none;
+  }
+}
+
+
+/* RC13 newest-reference sidebar density. */
+@media (min-width: 1121px) and (min-height: 761px) {
+  .ghost-sites-group {
+    height: 34px !important;
+    min-height: 34px !important;
+    padding-inline: 11px !important;
+    font-size: 12.5px !important;
+  }
+
+  .ghost-sites-list {
+    max-height: 194px;
+    padding: 0 7px 6px 10px !important;
+  }
+
+  .ghost-site-row {
+    height: 31px !important;
+    min-height: 31px !important;
+    margin-inline: 0 !important;
+    padding-inline: 8px !important;
+    font-size: 11.5px !important;
+  }
+
+  .ghost-file-nav {
+    padding: 6px 8px !important;
+  }
+
+  .ghost-file-nav-row {
+    height: 30px !important;
+    min-height: 30px !important;
+    gap: 9px !important;
+    padding-inline: 8px !important;
+    font-size: 11.5px !important;
+  }
+
+  .ghost-sidebar-capabilities {
+    padding: 6px 9px 8px !important;
+  }
+
+  .ghost-sidebar-capability {
+    min-height: 27px !important;
+    gap: 9px !important;
+    padding-inline: 7px !important;
+    font-size: 11px !important;
+  }
+}
+
+
+/* RC13 final compact-height guard.
+   Keep the 1290×852 acceptance frame exact, but release the fixed desktop
+   workspace/bottom-band heights as soon as either viewport dimension is below
+   the reference. This prevents the later reference-fidelity rules from
+   re-introducing vertical clipping at 1280×800, 1024×768 and smaller windows. */
+@media (max-width: 1289px), (max-height: 851px) {
+  .ghost-main-workspace {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+
+  .ghost-bottom-band {
+    flex: 0 1 clamp(132px, 24dvh, 190px) !important;
+    height: auto !important;
+    min-height: 132px !important;
+    max-height: 190px !important;
+  }
+}
+
+@media (max-height: 700px) {
+  .ghost-bottom-band {
+    flex-basis: clamp(116px, 22dvh, 150px) !important;
+    min-height: 116px !important;
+    max-height: 150px !important;
+    overflow: auto !important;
+  }
+
+  .ghost-reference-statusbar {
+    flex: 0 0 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+  }
+}

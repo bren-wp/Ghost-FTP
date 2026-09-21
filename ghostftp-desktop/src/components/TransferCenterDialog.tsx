@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
   Activity,
   ArrowDown,
@@ -12,6 +13,8 @@ import {
   Pause,
   Play,
   Plus,
+  MoreHorizontal,
+  Clock3,
   RotateCcw,
   Search,
   Server,
@@ -21,24 +24,30 @@ import {
   XCircle,
 } from "lucide-react";
 import { useTransfers } from "@/stores/transfersStore";
+import { useConnections } from "@/stores/connectionsStore";
 import type { Transfer } from "@/lib/types";
 import { ReferenceWindowControls } from "./ReferenceWindowChrome";
 import { GhostMark } from "./GhostBrand";
 import { getLocale, setLocale } from "@/lib/i18n";
 import { useLayout } from "@/stores/layoutStore";
 import { useDialog } from "@/hooks/useDialog";
+import { toastError } from "@/lib/errors";
+import { useTransferSchedule } from "@/stores/transferScheduleStore";
 
-type FilterTab = "all" | "upload" | "download" | "completed" | "failed";
+type FilterTab = "all" | "upload" | "download" | "completed" | "failed" | "paused";
+type DirectionFilter = "all" | "upload" | "download";
+type TimeFilter = "all" | "hour" | "day";
 type BandwidthSample = { upload: number; download: number };
 
 interface Props {
   onClose: () => void;
+  initialFocus?: "scheduler" | "log";
 }
 
-export function TransferCenterDialog({ onClose }: Props) {
+export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const byId = useTransfers((state) => state.byId);
-  const clearFinished = useTransfers((state) => state.clearFinished);
+  const clearCompleted = useTransfers((state) => state.clearCompleted);
   const pauseAll = useTransfers((state) => state.pauseAll);
   const resumeAll = useTransfers((state) => state.resumeAll);
   const pausedAll = useTransfers((state) => state.pausedAll);
@@ -46,12 +55,37 @@ export function TransferCenterDialog({ onClose }: Props) {
   const pause = useTransfers((state) => state.pause);
   const resume = useTransfers((state) => state.resume);
   const retry = useTransfers((state) => state.retry);
+  const move = useTransfers((state) => state.move);
   const concurrency = useTransfers((state) => state.concurrency);
   const throttleKbps = useTransfers((state) => state.throttleKbps);
+  const setConcurrency = useTransfers((state) => state.setConcurrency);
+  const setThrottle = useTransfers((state) => state.setThrottle);
+  const enqueueUploads = useTransfers((state) => state.enqueueUploads);
+  const activeSessionId = useConnections((state) => state.activeSessionId);
+  const activeProfileId = useConnections((state) => state.activeProfileId);
+  const profiles = useConnections((state) => state.profiles);
+  const activeProfile = profiles.find((profile) => profile.id === activeProfileId);
+  const uploadTarget = activeProfile?.defaultRemotePath?.trim() || ".";
 
   const [tab, setTab] = useState<FilterTab>("all");
   const [query, setQuery] = useState("");
+  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>("all");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const schedulerRef = useRef<HTMLDivElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const scheduleMode = useTransferSchedule((state) => state.mode);
+  const scheduleDate = useTransferSchedule((state) => state.date);
+  const scheduleTime = useTransferSchedule((state) => state.time);
+  const scheduledTransferId = useTransferSchedule((state) => state.transferId);
+  const scheduleArmed = useTransferSchedule((state) => state.armed);
+  const setScheduleMode = useTransferSchedule((state) => state.setMode);
+  const setScheduleDate = useTransferSchedule((state) => state.setDate);
+  const setScheduleTime = useTransferSchedule((state) => state.setTime);
+  const setScheduledTransferId = useTransferSchedule((state) => state.setTarget);
+  const setScheduleArmed = useTransferSchedule((state) => state.setArmed);
   const [logClearedAt, setLogClearedAt] = useState(0);
   const [bandwidthHistory, setBandwidthHistory] = useState<BandwidthSample[]>([]);
   const previousTotals = useRef({
@@ -62,11 +96,38 @@ export function TransferCenterDialog({ onClose }: Props) {
 
   useDialog(panelRef, { onClose });
 
+  useEffect(() => {
+    if (!initialFocus) return;
+    const timer = window.setTimeout(() => {
+      const target = initialFocus === "scheduler" ? schedulerRef.current : logRef.current;
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [initialFocus]);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (event: MouseEvent) => {
+      if (!moreRef.current?.contains(event.target as Node)) setMoreOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMoreOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [moreOpen]);
+
   const transfers = useMemo(() => Object.values(byId), [byId]);
   const completed = transfers.filter(
     (transfer) => transfer.status === "done" || transfer.status === "skipped"
   ).length;
   const failed = transfers.filter((transfer) => transfer.status === "error").length;
+  const paused = transfers.filter((transfer) => transfer.status === "paused").length;
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -77,14 +138,22 @@ export function TransferCenterDialog({ onClose }: Props) {
         (tab === "download" && transfer.kind === "download") ||
         (tab === "completed" &&
           (transfer.status === "done" || transfer.status === "skipped")) ||
-        (tab === "failed" && transfer.status === "error");
+        (tab === "failed" && transfer.status === "error") ||
+        (tab === "paused" && transfer.status === "paused");
       if (!tabMatch) return false;
+
+      if (directionFilter !== "all" && transfer.kind !== directionFilter) return false;
+
+      const now = Date.now() / 1000;
+      if (timeFilter === "hour" && transfer.startedAt < now - 3600) return false;
+      if (timeFilter === "day" && transfer.startedAt < now - 86400) return false;
+
       if (!normalizedQuery) return true;
       return `${transfer.source} ${transfer.destination} ${transfer.status}`
         .toLowerCase()
         .includes(normalizedQuery);
     });
-  }, [transfers, tab, query]);
+  }, [transfers, tab, query, directionFilter, timeFilter]);
 
   const selected = selectedId
     ? filtered.find((transfer) => transfer.id === selectedId) ?? null
@@ -136,13 +205,46 @@ export function TransferCenterDialog({ onClose }: Props) {
     return () => window.clearInterval(timer);
   }, []);
 
-  const addTransfer = () => {
-    window.dispatchEvent(
-      new CustomEvent("ghostftp:toolbar-action", {
-        detail: { action: "upload" },
-      })
-    );
-    onClose();
+  const runBackendAction = async (
+    failureTitle: string,
+    operation: () => Promise<void>
+  ) => {
+    try {
+      await operation();
+    } catch (error) {
+      toastError(error, failureTitle);
+    }
+  };
+
+  const revealScheduler = () => {
+    schedulerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    requestAnimationFrame(() => schedulerRef.current?.focus());
+  };
+
+  const addTransfer = async (kind: "files" | "folder" = "files") => {
+    if (!activeSessionId) return;
+    try {
+      const picked = await open({
+        multiple: kind === "files",
+        directory: kind === "folder",
+        title: kind === "folder" ? "Add folder transfer" : "Add file transfer",
+      });
+      if (!picked) return;
+
+      const paths = Array.isArray(picked) ? picked : [picked];
+      if (paths.length === 0) return;
+
+      await enqueueUploads(
+        activeSessionId,
+        paths.map((path) => ({
+          path,
+          kind: kind === "folder" ? "directory" as const : "file" as const,
+        })),
+        uploadTarget
+      );
+    } catch (error) {
+      toastError(error, "Couldn't add the transfer");
+    }
   };
 
   const activeCount = transfers.filter(
@@ -161,9 +263,8 @@ export function TransferCenterDialog({ onClose }: Props) {
 
   return (
     <div
-      className="ghost-standalone-view fixed inset-0 z-modal bg-[#041425]"
-      role="dialog"
-      aria-modal="true"
+      className="ghost-workspace-view ghost-standalone-view bg-[#041425]"
+      role="region"
       aria-label="Transfer Center"
     >
       <div
@@ -180,26 +281,73 @@ export function TransferCenterDialog({ onClose }: Props) {
             </div>
           </div>
           <div className="flex-1" />
-          <button type="button" className="ghost-primary-button" onClick={addTransfer}>
+          <button
+            type="button"
+            className="ghost-primary-button"
+            disabled={!activeSessionId}
+            title={activeSessionId ? `Upload files to ${uploadTarget}` : "Connect to a server first"}
+            onClick={() => void addTransfer("files")}
+          >
             <Plus size={14} /> Add Transfer
           </button>
           <button
             type="button"
             className="ghost-mini-button"
-            disabled={activeCount === 0 && !pausedAll}
-            onClick={() => void (pausedAll ? resumeAll() : pauseAll())}
+            onClick={revealScheduler}
+            title="Open the transfer scheduler"
           >
-            {pausedAll ? <Play size={14} /> : <Pause size={14} />}
-            {pausedAll ? "Resume All" : "Pause All"}
+            <Clock3 size={14} /> Schedule
           </button>
           <button
             type="button"
             className="ghost-mini-button"
-            disabled={completed === 0 && failed === 0}
-            onClick={clearFinished}
+            disabled={completed === 0}
+            onClick={clearCompleted}
           >
-            <Trash2 size={14} /> Clear Finished
+            <Trash2 size={14} /> Clear Completed
           </button>
+          <div className="relative" ref={moreRef}>
+            <button
+              type="button"
+              className="ghost-mini-button"
+              aria-haspopup="menu"
+              aria-expanded={moreOpen}
+              onClick={() => setMoreOpen((value) => !value)}
+            >
+              <MoreHorizontal size={15}/> More
+            </button>
+            {moreOpen && (
+              <div className="ghost-transfer-more-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={!activeSessionId}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    void addTransfer("folder");
+                  }}
+                >
+                  <FolderTree size={14}/>
+                  <span>Add Folder Transfer…</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={activeCount === 0 && !pausedAll}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    void runBackendAction(
+                      pausedAll ? "Couldn't resume the transfer queue" : "Couldn't pause the transfer queue",
+                      () => pausedAll ? resumeAll() : pauseAll()
+                    );
+                  }}
+                >
+                  {pausedAll ? <Play size={14}/> : <Pause size={14}/>}
+                  <span>{pausedAll ? "Resume All" : "Pause All"}</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="ghost-transfer-filters flex items-center gap-2 border-b border-border px-4 py-3 text-[12px]">
@@ -232,6 +380,12 @@ export function TransferCenterDialog({ onClose }: Props) {
             label={`Failed (${failed})`}
             icon={<XCircle size={14} />}
           />
+          <Tab
+            active={tab === "paused"}
+            onClick={() => setTab("paused")}
+            label={`Paused (${paused})`}
+            icon={<Pause size={14} />}
+          />
           <div className="flex-1" />
           <div className="relative">
             <Search
@@ -248,15 +402,36 @@ export function TransferCenterDialog({ onClose }: Props) {
           </div>
           <select
             className="ghost-ref-input h-8 w-32"
-            aria-label="Transfer filter"
+            aria-label="Transfer status filter"
             value={tab}
             onChange={(event) => setTab(event.target.value as FilterTab)}
           >
-            <option value="all">All Status</option>
+            <option value="all">All Statuses</option>
             <option value="completed">Completed</option>
             <option value="failed">Failed</option>
+            <option value="paused">Paused</option>
             <option value="upload">Uploads</option>
             <option value="download">Downloads</option>
+          </select>
+          <select
+            className="ghost-ref-input h-8 w-32"
+            aria-label="Transfer direction filter"
+            value={directionFilter}
+            onChange={(event) => setDirectionFilter(event.target.value as DirectionFilter)}
+          >
+            <option value="all">All Directions</option>
+            <option value="upload">Uploads</option>
+            <option value="download">Downloads</option>
+          </select>
+          <select
+            className="ghost-ref-input h-8 w-28"
+            aria-label="Transfer time filter"
+            value={timeFilter}
+            onChange={(event) => setTimeFilter(event.target.value as TimeFilter)}
+          >
+            <option value="all">Any Time</option>
+            <option value="hour">Last Hour</option>
+            <option value="day">Last 24h</option>
           </select>
         </div>
 
@@ -283,9 +458,12 @@ export function TransferCenterDialog({ onClose }: Props) {
                   index={index + 1}
                   selected={selected?.id === transfer.id}
                   onClick={() => setSelectedId(transfer.id)}
-                  onPauseResume={() => void (transfer.status === "paused" ? resume(transfer.id) : pause(transfer.id))}
-                  onCancel={() => void cancel(transfer.id)}
-                  onRetry={() => void retry(transfer.id)}
+                  onPauseResume={() => void runBackendAction(
+                    transfer.status === "paused" ? "Couldn't resume transfer" : "Couldn't pause transfer",
+                    () => transfer.status === "paused" ? resume(transfer.id) : pause(transfer.id)
+                  )}
+                  onCancel={() => void runBackendAction("Couldn't cancel transfer", () => cancel(transfer.id))}
+                  onRetry={() => void runBackendAction("Couldn't retry transfer", () => retry(transfer.id))}
                 />
               ))
             )}
@@ -303,6 +481,44 @@ export function TransferCenterDialog({ onClose }: Props) {
               </span>
             </div>
             <BandwidthChart history={bandwidthHistory} />
+            <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-border-subtle pt-3 text-[10.5px] text-text-muted">
+              <label className="flex items-center gap-2">
+                <span>Concurrent</span>
+                <select
+                  className="ghost-ref-input h-7 w-[74px]"
+                  value={concurrency}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    void runBackendAction("Couldn't change transfer concurrency", () => setConcurrency(next));
+                  }}
+                >
+                  {Array.from({ length: 8 }, (_, index) => index + 1)
+                    .concat([12, 16, 24, 32])
+                    .map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2">
+                <span>Throttle</span>
+                <select
+                  className="ghost-ref-input h-7 min-w-[112px]"
+                  value={throttleKbps}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    void runBackendAction("Couldn't change transfer throttle", () => setThrottle(next));
+                  }}
+                >
+                  {!([0, 512, 1024, 2048, 5120, 10240].includes(throttleKbps)) && (
+                    <option value={throttleKbps}>{throttleKbps} KiB/s</option>
+                  )}
+                  <option value={0}>Unlimited</option>
+                  <option value={512}>512 KiB/s</option>
+                  <option value={1024}>1 MiB/s</option>
+                  <option value={2048}>2 MiB/s</option>
+                  <option value={5120}>5 MiB/s</option>
+                  <option value={10240}>10 MiB/s</option>
+                </select>
+              </label>
+            </div>
           </div>
 
           <div className="rounded-lg border border-border bg-[#071f35] p-4">
@@ -324,9 +540,10 @@ export function TransferCenterDialog({ onClose }: Props) {
                 disabled={!selected || !canPauseSelected}
                 onClick={() =>
                   selected &&
-                  void (selected.status === "paused"
-                    ? resume(selected.id)
-                    : pause(selected.id))
+                  void runBackendAction(
+                    selected.status === "paused" ? "Couldn't resume transfer" : "Couldn't pause transfer",
+                    () => selected.status === "paused" ? resume(selected.id) : pause(selected.id)
+                  )
                 }
               >
                 {selected?.status === "paused" ? (
@@ -340,7 +557,7 @@ export function TransferCenterDialog({ onClose }: Props) {
                 type="button"
                 className="ghost-mini-button"
                 disabled={!selected || !canCancelSelected}
-                onClick={() => selected && void cancel(selected.id)}
+                onClick={() => selected && void runBackendAction("Couldn't cancel transfer", () => cancel(selected.id))}
               >
                 Cancel
               </button>
@@ -348,43 +565,109 @@ export function TransferCenterDialog({ onClose }: Props) {
                 type="button"
                 className="ghost-mini-button"
                 disabled={!selected || selected.status !== "error"}
-                onClick={() => selected && void retry(selected.id)}
+                onClick={() => selected && void runBackendAction("Couldn't retry transfer", () => retry(selected.id))}
               >
                 <RotateCcw size={14} /> Retry
               </button>
             </div>
+            <label className="mt-3 grid grid-cols-[70px_1fr] items-center gap-2 text-[11px] text-text-muted">
+              <span>Priority</span>
+              <select
+                className="ghost-ref-input h-8"
+                defaultValue="normal"
+                disabled={!selected}
+                onChange={(event) => {
+                  if (!selected) return;
+                  if (event.target.value === "high") void runBackendAction("Couldn't raise transfer priority", () => move(selected.id, "up"));
+                  if (event.target.value === "low") void runBackendAction("Couldn't lower transfer priority", () => move(selected.id, "down"));
+                  event.currentTarget.value = "normal";
+                }}
+              >
+                <option value="high">High — move up</option>
+                <option value="normal">Normal</option>
+                <option value="low">Low — move down</option>
+              </select>
+            </label>
           </div>
         </div>
 
         <div className="ghost-transfer-lower-grid grid grid-cols-2 gap-4 border-t border-border bg-[#051929] p-4">
-          <div className="rounded-lg border border-border bg-[#071f35] p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <Settings size={16} className="text-accent" />
-              <strong>Queue Controls</strong>
+          <div
+            ref={schedulerRef}
+            tabIndex={-1}
+            className="ghost-transfer-scheduler rounded-lg border border-border bg-[#071f35] p-4 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          >
+            <div className="mb-1 flex items-center gap-2">
+              <Clock3 size={16} className="text-accent" />
+              <strong>Transfer Scheduler</strong>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-[11px]">
-              <QueueMetric label="Active / queued" value={String(activeCount)} />
-              <QueueMetric
-                label="Concurrency"
-                value={String(concurrency)}
+            <div className="mb-3 text-[10.5px] text-text-muted">
+              Schedule the selected transfer for later or recurring retry.
+            </div>
+            <div className="grid grid-cols-4 gap-1 rounded-md border border-border bg-[#051929] p-1">
+              {(["off","once","daily","weekly"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={`h-8 rounded text-[11px] capitalize ${scheduleMode === mode ? "bg-accent-strong text-white" : "text-text-muted hover:bg-bg-hover"}`}
+                  onClick={() => {
+                    setScheduleMode(mode);
+                    if (mode === "off") setScheduleArmed(false);
+                  }}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 grid grid-cols-[1fr_120px] gap-2">
+              <input
+                type="date"
+                className="ghost-ref-input h-9"
+                value={scheduleDate}
+                disabled={scheduleMode === "off" || scheduleMode === "daily"}
+                onChange={(event) => setScheduleDate(event.target.value)}
               />
-              <QueueMetric
-                label="Speed limit"
-                value={throttleKbps > 0 ? `${formatBytes(throttleKbps * 1024)}/s` : "No limit"}
-              />
-              <QueueMetric
-                label="Queue state"
-                value={pausedAll ? "Paused" : "Running"}
+              <input
+                type="time"
+                className="ghost-ref-input h-9"
+                value={scheduleTime}
+                disabled={scheduleMode === "off"}
+                onChange={(event) => setScheduleTime(event.target.value)}
               />
             </div>
-            <div className="mt-4 text-[10.5px] leading-5 text-text-dim">
-              Persistent scheduling is not exposed here until the native scheduler
-              is implemented. Ghost FTP does not simulate scheduled transfers.
-              Concurrency, retry and speed policies are configured in Preferences.
+            <div className="mt-3 flex items-center gap-2">
+              <div className="min-w-0 flex-1 truncate text-[10.5px] text-text-muted">
+                {selected
+                  ? `Target: ${baseName(selected.source)}`
+                  : scheduledTransferId
+                    ? "Scheduled target retained"
+                    : "Select a transfer first"}
+              </div>
+              <button
+                type="button"
+                className="ghost-primary-button"
+                disabled={scheduleMode === "off" || !selected}
+                onClick={() => {
+                  if (!selected) return;
+                  setScheduledTransferId(selected.id);
+                  setScheduleArmed(true);
+                }}
+              >
+                Set Schedule
+              </button>
             </div>
+            {scheduleArmed && scheduleMode !== "off" && (
+              <div className="mt-2 rounded-md border border-success/25 bg-success/10 px-2.5 py-1.5 text-[10.5px] text-success">
+                Schedule active — {scheduleMode} at {scheduleTime}
+              </div>
+            )}
           </div>
 
-          <div className="rounded-lg border border-border bg-[#071f35] p-4">
+          <div
+            ref={logRef}
+            tabIndex={-1}
+            className="rounded-lg border border-border bg-[#071f35] p-4 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          >
             <div className="mb-3 flex items-center">
               <strong>Transfer Log</strong>
               <div className="flex-1" />
@@ -494,7 +777,7 @@ function TransferCenterTitlebar({ onClose }: { onClose: () => void }) {
         {item("Bookmarks", <Bookmark size={15} />, () => openDialog("siteManager"))}
         {item("Tools", <Wrench size={15} />, () => openDialog("settings"))}
         {item("Settings", <Settings size={15} />, () => openDialog("settings"))}
-        {item("Help", <HelpCircle size={15} />, () => openDialog("about"))}
+        {item("Help", <HelpCircle size={15} />, () => openDialog("help"))}
       </nav>
       <label className="ghost-transfer-language">
         <Languages size={14} />

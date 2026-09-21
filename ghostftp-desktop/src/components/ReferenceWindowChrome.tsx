@@ -4,7 +4,6 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GhostWordmark } from "./GhostBrand";
 import { useLayout } from "@/stores/layoutStore";
 import { getLocale, setLocale } from "@/lib/i18n";
-import { openOfficialUrl } from "@/lib/external";
 import { PRODUCT_VERSION_BADGE } from "@/lib/release";
 
 type Item = { label: string; run: () => void; disabled?: boolean } | { separator: true };
@@ -83,8 +82,9 @@ function ReferenceMenuNav({ onClose }: { onClose?: () => void }) {
     Bookmarks: [{ label: "Site Manager…", run: () => openDialog("siteManager") }],
     Tools: [{ label: "Preferences…", run: () => openDialog("settings") }],
     Help: [
-      { label: "Documentation", run: () => openOfficialUrl("/docs/") },
-      { label: "Support Center", run: () => openOfficialUrl("/support/") },
+      { label: "Help Center", run: () => openDialog("help") },
+      { label: "Documentation", run: () => openDialog("help") },
+      { label: "Check for Updates", run: () => openDialog("updates") },
       { separator: true },
       { label: "About Ghost FTP", run: () => openDialog("about") },
     ],

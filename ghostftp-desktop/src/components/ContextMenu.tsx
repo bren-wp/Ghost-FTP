@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 
 export interface MenuItem {
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
   icon?: React.ReactNode;
   disabled?: boolean;
   destructive?: boolean;
@@ -82,9 +82,9 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
         <div key={i}>
           <button
             role="menuitem"
-            disabled={item.disabled}
+            disabled={item.disabled || !item.onClick}
             onClick={() => {
-              item.onClick();
+              item.onClick?.();
               onClose();
             }}
             className={cn(

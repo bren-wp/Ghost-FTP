@@ -529,6 +529,7 @@ mod tests {
             username: user,
             auth: AuthMethod::Password { password: pass },
             default_remote_path: None,
+            description: None,
             color: None,
             auto_connect: None,
             bucket: None,

@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.1.1-rc.13 — 21 September 2026
+
+- Moved Site Manager, Preferences, Transfer Center and About from fixed modal overlays into single-app workspace surfaces.
+- Kept New Connection and File Properties as deliberate transient in-app panels with explicit close/cancel behavior.
+- Hardened responsive containment so titlebar, action rows, Site Manager columns and dialog buttons cannot overlap.
+- Added focused-pane capability reporting so Delete, Rename, Properties, New Folder, Upload and Download disable when the action is not valid.
+- Removed the modal loading flash when switching between primary Ghost FTP workspace views.
+- Added a UI contract CI gate for single-shell architecture, critical click handlers and popup/new-tab regressions.
+- Added a functional in-app Transfer Scheduler with persisted once/daily/weekly schedules and real queue-priority movement.
+- Wired Sync & Backup to a real workspace and kept Help/Documentation/Updates inside the main Ghost FTP window.
+- Removed obsolete duplicate status-bar code and stray untranslated UI text.
+- RC13 remains a development release candidate until quality, protocol E2E, native Windows/Linux build and native visual acceptance are complete.
+
+
 ## 2.1.1-rc.12 — 20 September 2026
 
 - Continued the existing native Ghost FTP React/TypeScript/Tauri/Rust source after RC11 instead of replacing the project.
