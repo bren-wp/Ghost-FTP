@@ -98,10 +98,46 @@ jobs:
           public static class GhostFtpWindowCapture {
             [StructLayout(LayoutKind.Sequential)]
             public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+
             [DllImport("user32.dll")]
             public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern bool SetWindowPos(
+              IntPtr hWnd,
+              IntPtr hWndInsertAfter,
+              int X,
+              int Y,
+              int cx,
+              int cy,
+              uint uFlags
+            );
+
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
           }
           "@
+
+            # GitHub's Windows runner exposes a small desktop, so a normal
+            # CopyFromScreen capture forces our responsive compact breakpoint.
+            # Force the canonical 1290x852 reference geometry and use PrintWindow
+            # so the full native WebView can be captured even when part of the
+            # window extends beyond the runner's visible desktop.
+            $targetWidth = 1290
+            $targetHeight = 852
+            $SWP_NOZORDER = 0x0004
+            if (-not [GhostFtpWindowCapture]::SetWindowPos(
+              $handle,
+              [IntPtr]::Zero,
+              0,
+              0,
+              $targetWidth,
+              $targetHeight,
+              $SWP_NOZORDER
+            )) {
+              throw "SetWindowPos failed while applying canonical QA geometry"
+            }
+            Start-Sleep -Milliseconds 750
 
             $rect = New-Object GhostFtpWindowCapture+RECT
             if (-not [GhostFtpWindowCapture]::GetWindowRect($handle, [ref]$rect)) {
@@ -109,14 +145,22 @@ jobs:
             }
             $width = $rect.Right - $rect.Left
             $height = $rect.Bottom - $rect.Top
-            if ($width -lt 480 -or $height -lt 600) {
-              throw "Unexpected Ghost FTP window size: ${width}x${height}"
+            if ([Math]::Abs($width - $targetWidth) -gt 2 -or [Math]::Abs($height - $targetHeight) -gt 2) {
+              throw "Canonical Ghost FTP QA size was not applied: ${width}x${height}"
             }
 
             $bitmap = New-Object System.Drawing.Bitmap $width, $height
             $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
             try {
-              $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, $bitmap.Size)
+              $hdc = $graphics.GetHdc()
+              try {
+                $PW_RENDERFULLCONTENT = 0x00000002
+                if (-not [GhostFtpWindowCapture]::PrintWindow($handle, $hdc, $PW_RENDERFULLCONTENT)) {
+                  throw "PrintWindow failed while capturing canonical native-window QA evidence"
+                }
+              } finally {
+                $graphics.ReleaseHdc($hdc)
+              }
               $bitmap.Save((Join-Path $qaDir 'GhostFTP-Windows-RC13-Native-Window.png'), [System.Drawing.Imaging.ImageFormat]::Png)
             } finally {
               $graphics.Dispose()
@@ -127,6 +171,8 @@ jobs:
               "ProcessId=$($proc.Id)"
               "WindowTitle=$($proc.MainWindowTitle)"
               "WindowBounds=${width}x${height}"
+              "TargetReferenceBounds=${targetWidth}x${targetHeight}"
+              "CaptureMethod=PrintWindow(PW_RENDERFULLCONTENT)"
               "Executable=$exe"
             ) | Set-Content -Encoding UTF8 (Join-Path $qaDir 'GhostFTP-Windows-RC13-Native-Window.txt')
           } finally {
