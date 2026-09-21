@@ -3881,3 +3881,29 @@ input.ghost-pane-address:focus-visible {
 .ghost-about-hero p {
   text-shadow: 0 2px 16px rgba(0,0,0,.72);
 }
+
+
+/* RC13 Site Manager description field. */
+.ghost-site-manager-details .ghost-ref-field textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  border: 1px solid rgb(var(--border) / .92);
+  border-radius: 6px;
+  background: #051929;
+  padding: 8px 11px;
+  color: rgb(var(--text));
+  font: inherit;
+  line-height: 1.45;
+  outline: none;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / .18);
+}
+
+.ghost-site-manager-details .ghost-ref-field textarea:focus {
+  border-color: #2baaff;
+  box-shadow: 0 0 0 2px rgb(43 170 255 / .12);
+}
+
+.ghost-site-manager-details .ghost-ref-field textarea[readonly] {
+  resize: none;
+}
