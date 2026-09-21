@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   ChevronDown, Download, FolderPlus, Info, Languages, Link2, Minus, Pencil,
-  RefreshCw, Settings, Square, Trash2, Upload, X,
+  RefreshCw, Settings, Shield, Square, Trash2, Upload, X,
 } from "lucide-react";
 import { GhostWordmark } from "./GhostBrand";
 import { useLayout } from "@/stores/layoutStore";
@@ -43,11 +43,11 @@ export function TitleBar() {
   const activeSessionId = useConnections((s) => s.activeSessionId);
   const disconnect = useConnections((s) => s.disconnect);
   const connectTemporary = useConnections((s) => s.connectTemporary);
-  const [protocol, setProtocol] = useState<Protocol>("ftp");
+  const [protocol, setProtocol] = useState<Protocol>("sftp");
   const [host, setHost] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [port, setPort] = useState(21);
+  const [port, setPort] = useState(22);
   const [menu, setMenu] = useState<string | null>(null);
   const [protocolMenu, setProtocolMenu] = useState(false);
   const [quickBusy, setQuickBusy] = useState(false);
@@ -298,7 +298,7 @@ export function TitleBar() {
 
     <div className="ghost-toolbar-row">
       <div className="ghost-sites-toolbar-head">
-        <button className="ghost-sites-toolbar-title" onClick={() => openDialog("siteManager")}><span className="ghost-sites-ring">◉</span><span>Sites</span></button>
+        <button className="ghost-sites-toolbar-title" onClick={() => openDialog("siteManager")}><Shield size={15}/><span>Sites</span></button>
         <span/>
         <button aria-label="New site" title="New site" onClick={() => openNewConnection()}>＋</button>
         <button aria-label="Open Site Manager" title="Open Site Manager" onClick={() => openDialog("siteManager")}><ChevronDown size={14}/></button>
