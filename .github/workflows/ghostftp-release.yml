@@ -142,6 +142,18 @@ jobs:
           cp "$WIN_QA_PNG" dist/GhostFTP-Windows-x64-v2.1.1-RC14-Native-Window.png
           cp "$WIN_QA_TXT" dist/GhostFTP-Windows-x64-v2.1.1-RC14-Native-Window.txt
 
+          QA_PNG_COUNT="$(find dist/native -type f -iname 'GhostFTP-Windows-RC14-*.png' | wc -l | tr -d ' ')"
+          QA_TXT_COUNT="$(find dist/native -type f -iname 'GhostFTP-Windows-RC14-*.txt' | wc -l | tr -d ' ')"
+          test "$QA_PNG_COUNT" -eq 7
+          test "$QA_TXT_COUNT" -eq 7
+          mkdir -p dist/qa-evidence
+          find dist/native -type f \( -iname 'GhostFTP-Windows-RC14-*.png' -o -iname 'GhostFTP-Windows-RC14-*.txt' \) -exec cp {} dist/qa-evidence/ \;
+          (
+            cd dist/qa-evidence
+            zip -q ../GhostFTP-Windows-x64-v2.1.1-RC14-Native-QA.zip ./*
+          )
+          rm -rf dist/qa-evidence
+
           (
             cd dist
             zip -q GhostFTP-Windows-x64-v2.1.1-RC14.zip               GhostFTP-Windows-x64-Portable-v2.1.1-RC14.exe               GhostFTP-Windows-x64-Setup-v2.1.1-RC14.exe
