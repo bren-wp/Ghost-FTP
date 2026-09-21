@@ -38,7 +38,12 @@ export function ReferenceSiteSidebar() {
       setActiveSession(live.sessionId);
       return;
     }
-    await connect(profileId);
+    try {
+      await connect(profileId);
+    } catch {
+      // connectionsStore already shows the protocol/backend failure to the user.
+      // Keep sidebar activation from leaking an unhandled rejected promise.
+    }
   };
 
 
