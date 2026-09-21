@@ -154,7 +154,7 @@ export function TerminalDock({
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const items: MenuItem[] = [];
     if (snippets.length === 0) {
-      items.push({ label: "No snippets yet", disabled: true, onClick: () => {} });
+      items.push({ label: "No snippets yet", disabled: true });
     } else {
       snippets.slice(0, 12).forEach((s, i, arr) => {
         items.push({
