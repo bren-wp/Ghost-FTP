@@ -219,6 +219,7 @@ const criticalFiles = [
   "src/components/Settings.tsx",
   "src/components/AboutDialog.tsx",
   "src/components/QuickConnectionDialog.tsx",
+  "src/components/DualPaneBrowser.tsx",
   "packages/file-ui/src/components/PropertiesModal.tsx",
 ];
 
