@@ -215,6 +215,12 @@ for (const required of [
 for (const route of ['openDialog("help")', 'openDialog("updates")', 'openDialog("about")']) {
   if (!titleBar.includes(route)) failures.push(`TitleBar must use in-app workspace route: ${route}`);
 }
+if (!titleBar.includes('useState<Protocol>("sftp")')) {
+  failures.push("TitleBar Quick Connect must default to SFTP like the approved reference.");
+}
+if (!titleBar.includes("useState(22)")) {
+  failures.push("TitleBar Quick Connect must default to port 22 like the approved reference.");
+}
 
 const siteManager = read("src/components/SiteManagerDialog.tsx");
 for (const required of ["Import", "Export", "New Site", "Connect", "Test Connection"]) {
@@ -234,6 +240,11 @@ for (const required of ["Reset to Defaults", "Cancel", "Apply"]) {
 const quick = read("src/components/QuickConnectionDialog.tsx");
 for (const required of ["Test Connection", "Save Profile", "Connect"]) {
   if (!quick.includes(required)) failures.push(`New Connection missing required action: ${required}`);
+}
+
+const filePane = read("packages/file-ui/src/components/FilePane.tsx");
+for (const required of ["Type", "Permissions", "JavaScript File", "Markdown File", "ENV File"]) {
+  if (!filePane.includes(required)) failures.push(`FilePane missing reference metadata contract: ${required}`);
 }
 
 const props = read("packages/file-ui/src/components/PropertiesModal.tsx");
