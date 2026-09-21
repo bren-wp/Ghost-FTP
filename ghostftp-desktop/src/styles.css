@@ -4049,3 +4049,74 @@ input.ghost-pane-address:focus-visible {
     font-size: 13.5px !important;
   }
 }
+
+
+/* RC13 canonical desktop control widths. */
+@media (min-width: 1121px) {
+  .ghost-quick-row {
+    grid-template-columns: 230px 214px 209px 112px 142px 96px 170px !important;
+    column-gap: 8px !important;
+    justify-content: start;
+  }
+
+  .ghost-quick-row > label {
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .ghost-quick-row > .ghost-port-field {
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+  }
+
+  .ghost-quick-connect {
+    width: 142px !important;
+    min-width: 142px !important;
+    flex-basis: 142px !important;
+    margin-left: 0 !important;
+  }
+
+  .ghost-quick-actions .ghost-mini-button {
+    width: 96px !important;
+    min-width: 96px !important;
+    padding-inline: 9px !important;
+  }
+
+  .ghost-quick-actions .ghost-language-menu {
+    width: 170px !important;
+    min-width: 170px !important;
+  }
+
+  .ghost-quick-actions .ghost-language-menu select {
+    width: 132px !important;
+    min-width: 132px !important;
+  }
+
+  .ghost-tool-button {
+    width: 94px !important;
+    min-width: 94px !important;
+    flex: 0 0 94px !important;
+    height: 65px !important;
+  }
+
+  .ghost-sites-toolbar-head {
+    width: 220px !important;
+    min-width: 220px !important;
+    flex: 0 0 220px !important;
+    height: 65px !important;
+  }
+
+  .ghost-pane-header > span:first-child {
+    font-size: 14px !important;
+    font-weight: 650;
+  }
+
+  .ghost-file-nav-row {
+    font-size: 12.5px;
+  }
+
+  .ghost-bottom-band {
+    grid-template-columns: minmax(0, 2fr) minmax(340px, 1fr) !important;
+  }
+}
