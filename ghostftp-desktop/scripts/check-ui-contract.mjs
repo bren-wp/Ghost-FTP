@@ -354,6 +354,15 @@ for (const required of [
   if (!styles.includes(required)) failures.push(`Styles missing status-bar reference contract: ${required}`);
 }
 
+for (const required of [
+  "RC13 final compact-height guard",
+  "@media (max-width: 1289px), (max-height: 851px)",
+  "max-height: none !important;",
+  "flex: 0 1 clamp(132px, 24dvh, 190px) !important;",
+]) {
+  if (!styles.includes(required)) failures.push(`Styles missing compact-height clipping guard: ${required}`);
+}
+
 const props = read("packages/file-ui/src/components/PropertiesModal.tsx");
 for (const required of ["Open Containing Folder", "Duplicate", "Apply", "Checksums"]) {
   if (!props.includes(required)) failures.push(`File Properties missing required action: ${required}`);
