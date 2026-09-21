@@ -12,7 +12,7 @@ import {
 import { GhostMark } from "./GhostBrand";
 import { ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
 import { useUpdater } from "@/stores/updaterStore";
-import { PRODUCT_BUILD, PRODUCT_RELEASE_DATE, PRODUCT_VERSION } from "@/lib/release";
+import { PRODUCT_BUILD, PRODUCT_RELEASE_DATE, PRODUCT_VERSION_DISPLAY } from "@/lib/release";
 import { useDialog } from "@/hooks/useDialog";
 import { openOfficialUrl } from "@/lib/external";
 
@@ -72,7 +72,7 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: "about" | "updates" | 
             </div>
           </div>
           <div className="grid grid-cols-3 border-t border-border px-6 py-4 text-center">
-            <Meta label="Version" value={PRODUCT_VERSION}/>
+            <Meta label="Version" value={PRODUCT_VERSION_DISPLAY}/>
             <Meta label="Build" value={PRODUCT_BUILD} border/>
             <Meta label="Release Date" value={PRODUCT_RELEASE_DATE} border/>
           </div>
@@ -82,7 +82,7 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: "about" | "updates" | 
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
           <div className="mb-3 flex items-center gap-2"><FileText className="text-accent" size={22}/><div><div className="text-[16px] font-semibold">What's New</div><div className="text-[12px] text-text-muted">Highlights from the latest release</div></div><div className="flex-1"/><button onClick={() => onNavigate("updates")} className="text-[12px] text-accent hover:underline">View Full Changelog</button></div>
           <div className="rounded-md border border-border-subtle bg-[#051929] p-4">
-            <div className="mb-2 font-semibold">Version {PRODUCT_VERSION}</div>
+            <div className="mb-2 font-semibold">Version {PRODUCT_VERSION_DISPLAY}</div>
             <ul className="space-y-1.5 text-[12px] text-text-muted">
               <li>• Redesigned Windows and Linux interface based on the Ghost FTP visual system.</li>
               <li>• Faster transfer workflows with a clearer queue, progress and server activity log.</li>
@@ -128,7 +128,7 @@ function UpdatesContent() {
     : status === "ready" ? "Update is ready. Restart Ghost FTP to finish."
     : status === "error" ? (error ?? "Update check failed.")
     : "No update check has been run in this view yet.";
-  return <div className="rounded-lg border border-border bg-[#071f35] p-6"><div className="mb-4 flex items-center gap-3"><RefreshCw size={30} className="text-accent"/><div><div className="text-[18px] font-semibold">Ghost FTP {PRODUCT_VERSION}</div><div className="text-text-muted">Release candidate · {currentPlatform()}</div></div></div><p className="max-w-2xl text-[13px] leading-6 text-text-muted">Update checks use the official Ghost FTP endpoint at ghostftp.com. Tauri verifies the signed package before installation.</p><p className="mt-3 text-[12px] text-text-muted" aria-live="polite">{label}</p><div className="mt-5 flex gap-2"><button className="ghost-primary-button" disabled={status === "checking" || status === "downloading"} onClick={() => void check(false)}><RefreshCw size={14}/> Check for Updates</button>{status === "available" && <button className="ghost-primary-button" onClick={() => void download()}>Download &amp; install</button>}{status === "ready" && <button className="ghost-primary-button" onClick={() => void restart()}>Restart now</button>}</div></div>;
+  return <div className="rounded-lg border border-border bg-[#071f35] p-6"><div className="mb-4 flex items-center gap-3"><RefreshCw size={30} className="text-accent"/><div><div className="text-[18px] font-semibold">Ghost FTP {PRODUCT_VERSION_DISPLAY}</div><div className="text-text-muted">Release candidate · {currentPlatform()}</div></div></div><p className="max-w-2xl text-[13px] leading-6 text-text-muted">Update checks use the official Ghost FTP endpoint at ghostftp.com. Tauri verifies the signed package before installation.</p><p className="mt-3 text-[12px] text-text-muted" aria-live="polite">{label}</p><div className="mt-5 flex gap-2"><button className="ghost-primary-button" disabled={status === "checking" || status === "downloading"} onClick={() => void check(false)}><RefreshCw size={14}/> Check for Updates</button>{status === "available" && <button className="ghost-primary-button" onClick={() => void download()}>Download &amp; install</button>}{status === "ready" && <button className="ghost-primary-button" onClick={() => void restart()}>Restart now</button>}</div></div>;
 }
 
 function UpdateStatusRow() {
