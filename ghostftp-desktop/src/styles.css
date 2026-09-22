@@ -4319,3 +4319,54 @@ input.ghost-pane-address:focus-visible {
     width: min(530px, calc(100vw - 24px)) !important;
   }
 }
+
+
+/* RC15 reference-density pass: use the full 1290×852 standalone workspace
+   instead of leaving unused space below content-driven cards. */
+@media (min-width: 1121px) and (min-height: 780px) {
+  .ghost-general-grid {
+    min-height: 100%;
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+  }
+
+  .ghost-general-grid > section {
+    height: 100%;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .ghost-about-grid {
+    min-height: 100%;
+  }
+
+  .ghost-about-grid > section,
+  .ghost-about-grid > aside {
+    display: grid;
+    min-height: 0;
+    gap: 16px;
+    margin: 0;
+  }
+
+  .ghost-about-grid > section {
+    grid-template-rows: minmax(344px, 1.15fr) minmax(190px, .85fr);
+  }
+
+  .ghost-about-grid > aside {
+    grid-template-rows: minmax(360px, 1.15fr) minmax(180px, .85fr);
+  }
+
+  .ghost-about-grid > section > *,
+  .ghost-about-grid > aside > * {
+    min-height: 0;
+    margin: 0 !important;
+  }
+
+  .ghost-about-grid > section > *:last-child,
+  .ghost-about-grid > aside > *:last-child {
+    overflow: auto;
+  }
+
+  .ghost-about-hero {
+    min-height: 230px !important;
+  }
+}
