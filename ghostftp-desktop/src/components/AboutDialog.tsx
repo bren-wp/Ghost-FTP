@@ -211,4 +211,4 @@ function AboutLandscape() {
     </svg>
   );
 }
-function HelpCard({ icon, title, text, onClick }: { icon: React.ReactNode; title: string; text: string; onClick: () => void }) { return <button onClick={onClick} className="rounded-lg border border-border bg-[#071f35] p-5 text-left hover:border-accent/50 hover:bg-[#092844]"><div className="mb-3 text-accent">{icon}</div><div className="text-[16px] font-semibold">{title}</div><div className="mt-1 text-[12px] leading-5 text-text-muted">{text}</div></button> }
+function InfoCard({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) { return <div className="rounded-lg border border-border bg-[#071f35] p-5 text-left"><div className="mb-3 text-accent">{icon}</div><div className="text-[16px] font-semibold">{title}</div><div className="mt-1 text-[12px] leading-5 text-text-muted">{text}</div></div> }
