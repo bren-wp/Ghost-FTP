@@ -442,7 +442,6 @@ for (const required of ["QuantizedColors", "EdgeRatio", "byte-identical", "blank
   if (!nativeBuildWorkflow.includes(required)) failures.push(`Windows native QA missing structural blank-frame guard: ${required}`);
 }
 
-const styles = read("src/styles.css");
 if (!styles.includes("@media (max-width: 760px)")) {
   failures.push("Primary navigation must keep labels until a truly narrow viewport.");
 }
