@@ -305,9 +305,9 @@ for (const forbidden of ["Secure Connections", "Fast Transfers", "Modern Interfa
   if (sidebar.includes(forbidden)) failures.push(`Primary sidebar still contains duplicate/noisy navigation: ${forbidden}`);
 }
 
-const siteManager = read("src/components/SiteManagerDialog.tsx");
+const siteManagerCloud = read("src/components/SiteManagerDialog.tsx");
 for (const required of ['view === "cloud"', 'label="Cloud"', "s3", "azure", "gcs"]) {
-  if (!siteManager.includes(required)) failures.push(`Sites must retain discoverable cloud filtering: ${required}`);
+  if (!siteManagerCloud.includes(required)) failures.push(`Sites must retain discoverable cloud filtering: ${required}`);
 }
 
 const titleBar = read("src/components/TitleBar.tsx");
