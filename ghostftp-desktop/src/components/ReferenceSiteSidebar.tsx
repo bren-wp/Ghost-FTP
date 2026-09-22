@@ -42,7 +42,7 @@ export function ReferenceSiteSidebar() {
         />
         <SidebarAction
           icon={<Server size={16}/>} label="Sites"
-          active={current === "siteManager"}
+          active={current === "siteManager" || current === "cloudStorage"}
           onClick={() => openDialog("siteManager")}
         />
         <SidebarAction
