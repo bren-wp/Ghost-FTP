@@ -8,6 +8,7 @@ import {
 import { ipc, onHostPrompt } from "@/lib/ipc";
 import { useDialog } from "@/hooks/useDialog";
 import type { HostDecision, HostPromptEvent } from "@/lib/types";
+import { toast } from "@/stores/toastStore";
 
 // Mounted once at the top of the tree. Listens for `host://prompt` events
 // from the SSH connect handshake and shows the user the fingerprint of an
@@ -17,12 +18,22 @@ export function HostKeyModal() {
   const [queue, setQueue] = useState<HostPromptEvent[]>([]);
 
   useEffect(() => {
-    let unlisten: (() => void) | null = null;
-    onHostPrompt((e) => setQueue((q) => [...q, e])).then((u) => {
-      unlisten = u;
-    });
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    const registration = onHostPrompt((e) => setQueue((q) => [...q, e]));
+
+    void registration
+      .then((cleanup) => {
+        if (disposed) cleanup();
+        else unlisten = cleanup;
+      })
+      .catch((error) => {
+        toast.error("Host-key verification unavailable", String(error));
+      });
+
     return () => {
-      if (unlisten) unlisten();
+      disposed = true;
+      unlisten?.();
     };
   }, []);
 
@@ -32,8 +43,9 @@ export function HostKeyModal() {
   const respond = async (decision: HostDecision) => {
     try {
       await ipc.respondToHostPrompt(current.requestId, decision);
-    } finally {
       setQueue((q) => q.slice(1));
+    } catch (error) {
+      toast.error("Couldn't answer host-key prompt", String(error));
     }
   };
 
