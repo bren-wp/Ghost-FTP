@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capabilities for the main window and popped-out terminal windows",
-  "windows": ["main", "terminal-*"],
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "core:event:default",
