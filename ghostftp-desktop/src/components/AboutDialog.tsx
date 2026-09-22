@@ -144,7 +144,7 @@ function PrivacyContent() {
   return <div className="max-w-3xl space-y-4 text-[13px] leading-6 text-text-muted">
     <div className="rounded-lg border border-border bg-[#071f35] p-5"><div className="mb-2 flex items-center gap-2 text-[16px] font-semibold text-text"><ShieldCheck size={20} className="text-accent"/>Privacy-first by default</div><p>Ghost FTP is designed to keep connection data and application settings under your control. The application does not require analytics or telemetry to transfer files.</p></div>
     <div className="rounded-lg border border-border bg-[#071f35] p-5"><div className="font-semibold text-text">Credentials and connections</div><p className="mt-2">Saved credentials are handled by Ghost FTP's local credential storage. Connections go to the server or provider you configure; the file manager does not need a Ghost FTP relay to perform ordinary FTP, FTPS or SFTP transfers.</p></div>
-    <div className="rounded-lg border border-border bg-[#071f35] p-5"><div className="font-semibold text-text">Diagnostics</div><p className="mt-2">Operational errors are shown inside the app so failures are visible instead of silently ignored. Review Settings → Security and Settings → Integrations for privacy-sensitive options.</p></div>
+    <div className="rounded-lg border border-border bg-[#071f35] p-5"><div className="font-semibold text-text">Diagnostics</div><p className="mt-2">Operational errors are shown inside the app so failures are visible instead of silently ignored. Review Settings → Security and Settings → Advanced for privacy-sensitive options.</p></div>
   </div>;
 }
 
