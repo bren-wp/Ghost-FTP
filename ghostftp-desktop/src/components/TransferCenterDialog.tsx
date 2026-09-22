@@ -1,15 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   Activity,
   ArrowDown,
   ArrowUp,
-  Bookmark,
   CheckCircle2,
   FolderTree,
-  HelpCircle,
-  Languages,
   Pause,
   Play,
   Plus,
@@ -17,19 +13,12 @@ import {
   Clock3,
   RotateCcw,
   Search,
-  Server,
-  Settings,
   Trash2,
-  Wrench,
   XCircle,
 } from "lucide-react";
 import { useTransfers } from "@/stores/transfersStore";
 import { useConnections } from "@/stores/connectionsStore";
 import type { Transfer } from "@/lib/types";
-import { ReferenceWindowControls } from "./ReferenceWindowChrome";
-import { GhostMark } from "./GhostBrand";
-import { getLocale, setLocale } from "@/lib/i18n";
-import { useLayout } from "@/stores/layoutStore";
 import { useDialog } from "@/hooks/useDialog";
 import { toastError } from "@/lib/errors";
 import { useTransferSchedule } from "@/stores/transferScheduleStore";
@@ -315,8 +304,6 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
         ref={panelRef}
         className="ghost-transfer-center flex h-full w-full flex-col overflow-hidden bg-[#061a2d]"
       >
-        <TransferCenterTitlebar onClose={onClose} />
-
         <div className="ghost-transfer-center-heading flex h-[78px] shrink-0 items-center gap-3 border-b border-border px-4">
           <div>
             <div className="text-xl font-semibold">Transfer Center</div>
@@ -768,86 +755,6 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function TransferCenterTitlebar({ onClose }: { onClose: () => void }) {
-  const openDialog = useLayout((state) => state.openDialog);
-  const locale = getLocale();
-
-  const item = (
-    label: string,
-    icon: React.ReactNode,
-    action?: () => void,
-    active = false
-  ) => (
-    <button
-      type="button"
-      className={`ghost-transfer-nav-item ${active ? "active" : ""}`}
-      onClick={action}
-      disabled={active || !action}
-      aria-current={active ? "page" : undefined}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
-  );
-
-  const toggleMaximize = async () => {
-    try {
-      await getCurrentWindow().toggleMaximize();
-    } catch (error) {
-      toastError(error, "Couldn't maximize or restore Ghost FTP");
-    }
-  };
-
-  return (
-    <div
-      className="ghost-transfer-titlebar"
-      data-tauri-drag-region
-      onDoubleClick={() => void toggleMaximize()}
-    >
-      <div className="ghost-transfer-brand" data-tauri-drag-region>
-        <GhostMark size={34} />
-        <div>
-          <div className="font-semibold">Ghost FTP</div>
-          <div>Transfer Center</div>
-        </div>
-      </div>
-      <nav className="ghost-transfer-nav" aria-label="Transfer Center navigation">
-        {item("Sites", <FolderTree size={15} />, onClose)}
-        {item("Transfers", <ArrowUp size={15} />, undefined, true)}
-        {item("Server", <Server size={15} />, () => openDialog("siteManager"))}
-        {item("Bookmarks", <Bookmark size={15} />, () => openDialog("siteManager"))}
-        {item("Tools", <Wrench size={15} />, () => openDialog("settings"))}
-        {item("Settings", <Settings size={15} />, () => openDialog("settings"))}
-        {item("Help", <HelpCircle size={15} />, () => openDialog("help"))}
-      </nav>
-      <label className="ghost-transfer-language">
-        <Languages size={14} />
-        <select
-          aria-label="Language"
-          value={locale}
-          onChange={(event) => setLocale(event.target.value as any)}
-        >
-          <option value="en">English (English)</option>
-          <option value="hr">Hrvatski (Croatian)</option>
-          <option value="de">Deutsch (German)</option>
-          <option value="fr">Français (French)</option>
-          <option value="es">Español (Spanish)</option>
-          <option value="it">Italiano (Italian)</option>
-          <option value="pt">Português (Portuguese)</option>
-          <option value="nl">Nederlands (Dutch)</option>
-          <option value="pl">Polski (Polish)</option>
-          <option value="sl">Slovenščina (Slovenian)</option>
-          <option value="sr">Srpski (Serbian)</option>
-          <option value="bs">Bosanski (Bosnian)</option>
-          <option value="mk">Македонски (Macedonian)</option>
-          <option value="sq">Shqip (Albanian)</option>
-        </select>
-      </label>
-      <ReferenceWindowControls onClose={onClose} />
     </div>
   );
 }
