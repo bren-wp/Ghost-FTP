@@ -75,8 +75,9 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
       if (connectNow && ephemeral) {
         try {
           await connectTemporary(profile);
-        } catch {
+        } catch (error) {
           // connectionsStore already presents the structured connection error.
+          console.debug("Quick connection failure was surfaced by the connections store", error);
           return;
         }
       } else {
@@ -89,9 +90,10 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
         if (connectNow) {
           try {
             await connectProfile(profile.id);
-          } catch {
+          } catch (error) {
             // The profile is safely persisted; connectionsStore already surfaced
             // the real FTP/FTPS/SFTP connection failure.
+            console.debug("Saved-profile connection failure was surfaced by the connections store", error);
             return;
           }
         }
