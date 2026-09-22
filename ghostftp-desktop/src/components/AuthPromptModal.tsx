@@ -126,8 +126,11 @@ function AuthPromptDialog({
     try {
       await navigator.clipboard.writeText(pw);
       toast.success("Password generated", "Copied to clipboard");
-    } catch {
-      // clipboard unavailable; fields are still filled
+    } catch (error) {
+      toast.warning(
+        "Password generated, but couldn't copy it",
+        `The generated password remains in the fields. ${String(error)}`
+      );
     }
   };
 
