@@ -290,11 +290,16 @@ for (const required of [
 }
 
 const sidebar = read("src/components/ReferenceSiteSidebar.tsx");
-for (const required of ["New connection", "Files", "Sites", "Transfers", "Sync & Backup", "Cloud Storage", "Settings", "Help & About"]) {
+for (const required of ["New connection", "Files", "Sites", "Transfers", "Sync & Backup", "Settings", "Help & About"]) {
   if (!sidebar.includes(required)) failures.push(`Primary sidebar missing: ${required}`);
 }
-for (const forbidden of ["Secure Connections", "Fast Transfers", "Modern Interface", "Cross-Platform", "Built for Creators", "Schedules", "Activity Logs"]) {
+for (const forbidden of ["Secure Connections", "Fast Transfers", "Modern Interface", "Cross-Platform", "Built for Creators", "Schedules", "Activity Logs", 'label="Cloud Storage"']) {
   if (sidebar.includes(forbidden)) failures.push(`Primary sidebar still contains duplicate/noisy navigation: ${forbidden}`);
+}
+
+const siteManager = read("src/components/SiteManagerDialog.tsx");
+for (const required of ['view === "cloud"', 'label="Cloud"', "s3", "azure", "gcs"]) {
+  if (!siteManager.includes(required)) failures.push(`Sites must retain discoverable cloud filtering: ${required}`);
 }
 
 const titleBar = read("src/components/TitleBar.tsx");
