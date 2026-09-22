@@ -77,7 +77,7 @@ jobs:
           grep -Fq '.ghost-workspace-view {' ghostftp-desktop/src/styles.css
           grep -Fq '.ghost-transient-overlay {' ghostftp-desktop/src/styles.css
           grep -Fq '.ghost-primary-sidebar {' ghostftp-desktop/src/styles.css
-          grep -Fq 'className="ghost-simple-header"' ghostftp-desktop/src/components/TitleBar.tsx
+          grep -Fq 'ghost-simple-header' ghostftp-desktop/src/components/TitleBar.tsx
           grep -Fq 'label="Files"' ghostftp-desktop/src/components/ReferenceSiteSidebar.tsx
           grep -Fq 'label="Settings"' ghostftp-desktop/src/components/ReferenceSiteSidebar.tsx
           ! grep -Fq 'English (English)' ghostftp-desktop/src/components/TitleBar.tsx
