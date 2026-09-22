@@ -2,14 +2,12 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
-import { TerminalWindow } from "./components/TerminalWindow";
 import { useSettings } from "./stores/settingsStore";
 import { applyAccent } from "./lib/accent";
 import { startLocalization } from "./lib/i18n";
-import { sweepStalePopoutBuffers } from "./lib/popout";
 import "./styles.css";
 
-// English is the primary UI language. Croatian can be selected from Help → Language.
+// English is the primary UI language. Language selection lives in Settings.
 startLocalization();
 
 
@@ -48,15 +46,6 @@ useSettings.subscribe((s) => {
   themingTimer = setTimeout(() => el.classList.remove("theming"), 260);
 });
 
-// Secondary windows load this same SPA with `?view=…` (see lib/popout.ts):
-// a popped-out terminal renders just the terminal view, not the app shell.
-// No StrictMode there — its dev double-mount would close the adopted PTY.
-const view = new URLSearchParams(window.location.search).get("view");
-// Reap handoff buffers a crashed popout left behind — deferred so it stays off
-// the first-paint path and so a reload during an in-flight handoff can't eat
-// a buffer its popout hasn't read yet.
-if (view !== "terminal") window.setTimeout(sweepStalePopoutBuffers, 10_000);
-
 // Keep unexpected async errors observable without leaking state or credentials.
 window.addEventListener("unhandledrejection", (event) => {
   const reason = event.reason instanceof Error ? event.reason.message : "Unhandled asynchronous error";
@@ -68,13 +57,9 @@ window.addEventListener("error", (event) => {
 });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  view === "terminal" ? (
-    <TerminalWindow />
-  ) : (
-    <React.StrictMode>
-      <AppErrorBoundary>
-        <App />
-      </AppErrorBoundary>
-    </React.StrictMode>
-  )
+  <React.StrictMode>
+    <AppErrorBoundary>
+      <App />
+    </AppErrorBoundary>
+  </React.StrictMode>
 );
