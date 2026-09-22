@@ -24,6 +24,7 @@ interface TransferScheduleState extends TransferScheduleData {
 }
 
 const STORAGE_KEY = "ghostftp.transferSchedule.v2";
+let schedulePersistenceWarningShown = false;
 
 function localDateInputValue(date = new Date()) {
   const y = date.getFullYear();
@@ -55,7 +56,8 @@ function loadSchedule(): TransferScheduleData {
       return migrated;
     }
     return normalize(JSON.parse(raw) as Partial<TransferScheduleData>);
-  } catch {
+  } catch (error) {
+    console.warn("Couldn't read the saved transfer schedule; using defaults", error);
     return DEFAULTS;
   }
 }
@@ -92,9 +94,15 @@ function normalize(input: Partial<TransferScheduleData>): TransferScheduleData {
 function persistSchedule(data: TransferScheduleData) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    // A locked-down WebView may reject storage. The in-memory schedule still
-    // functions for this process rather than turning the controls into no-ops.
+  } catch (error) {
+    console.warn("Couldn't persist the transfer schedule", error);
+    if (!schedulePersistenceWarningShown) {
+      schedulePersistenceWarningShown = true;
+      toast.warning(
+        "Transfer schedule is session-only",
+        "Ghost FTP couldn't save this schedule, so it may be lost after restart."
+      );
+    }
   }
 }
 
@@ -234,7 +242,11 @@ async function runScheduleTick() {
  * The schedule is local-only and never creates fake transfer rows or activity.
  */
 export function initTransferScheduler() {
-  void runScheduleTick();
-  const timer = window.setInterval(() => void runScheduleTick(), 10_000);
+  const runSafely = () =>
+    void runScheduleTick().catch((error) =>
+      console.error("Unexpected transfer scheduler failure", error)
+    );
+  runSafely();
+  const timer = window.setInterval(runSafely, 10_000);
   return () => window.clearInterval(timer);
 }
