@@ -4404,3 +4404,219 @@ input.ghost-pane-address:focus-visible {
 .animate-ping {
   animation: none !important;
 }
+
+
+/* RC16 single-window simplified navigation.
+   One persistent app shell, one primary sidebar, contextual actions only. */
+.ghost-simple-header {
+  flex: 0 0 auto;
+}
+
+.ghost-simple-header .ghost-title-row {
+  height: 46px !important;
+  min-height: 46px !important;
+}
+
+.ghost-current-workspace {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 12px;
+  color: rgb(var(--text-muted));
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.ghost-simple-toolbar {
+  height: 52px !important;
+  min-height: 52px !important;
+  padding-left: 8px;
+}
+
+.ghost-active-site-chip {
+  display: inline-flex;
+  height: 34px;
+  min-width: 150px;
+  max-width: 240px;
+  align-items: center;
+  gap: 8px;
+  margin-right: 6px;
+  padding: 0 11px;
+  border: 1px solid rgb(var(--border));
+  border-radius: 7px;
+  background: rgb(var(--bg-subtle));
+  color: rgb(var(--text));
+}
+
+.ghost-active-site-chip span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ghost-active-site-chip i {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 999px;
+  background: rgb(var(--text-dim));
+}
+
+.ghost-active-site-chip i.online {
+  background: rgb(var(--success));
+  box-shadow: 0 0 0 3px rgb(var(--success) / .12);
+}
+
+.ghost-app-body {
+  background: rgb(var(--bg));
+}
+
+.ghost-primary-sidebar {
+  flex: 0 0 184px !important;
+  width: 184px !important;
+  min-width: 184px !important;
+  padding: 10px !important;
+  border-right: 1px solid rgb(var(--border));
+  background: #051929 !important;
+}
+
+.ghost-sidebar-new {
+  display: flex;
+  width: 100%;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  border: 1px solid rgb(var(--accent) / .55);
+  border-radius: 8px;
+  background: rgb(var(--accent-strong));
+  color: white;
+  font-weight: 600;
+}
+
+.ghost-primary-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ghost-primary-sidebar .ghost-file-nav-row {
+  min-height: 38px;
+  border-radius: 7px;
+  padding: 0 10px;
+}
+
+.ghost-content-shell {
+  background: rgb(var(--bg));
+}
+
+.ghost-workspace-view.ghost-standalone-view {
+  position: relative !important;
+  inset: auto !important;
+  z-index: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.ghost-settings-tabs,
+.ghost-about-tabs,
+.ghost-site-filterbar {
+  scrollbar-width: thin;
+}
+
+.ghost-preferences-heading {
+  height: 70px !important;
+  min-height: 70px !important;
+}
+
+.ghost-site-manager-hero,
+.ghost-transfer-center-heading {
+  min-height: 74px;
+}
+
+.ghost-site-filter-chip {
+  display: inline-flex;
+  height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: rgb(var(--text-muted));
+}
+
+.ghost-site-filter-chip:hover {
+  background: rgb(var(--bg-hover));
+  color: rgb(var(--text));
+}
+
+.ghost-site-filter-chip.active {
+  border-color: rgb(var(--accent) / .45);
+  background: rgb(var(--accent) / .15);
+  color: white;
+}
+
+.ghost-site-filter-chip b {
+  min-width: 18px;
+  border-radius: 999px;
+  background: rgb(var(--bg-hover));
+  padding: 1px 5px;
+  color: rgb(var(--text-dim));
+  font-size: 9px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.ghost-site-filter-select {
+  display: inline-flex;
+  height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  color: rgb(var(--text-dim));
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.ghost-site-filter-select select {
+  height: 30px;
+  min-width: 116px;
+  border: 1px solid rgb(var(--border));
+  border-radius: 7px;
+  background: rgb(var(--bg-subtle));
+  padding: 0 24px 0 8px;
+  color: rgb(var(--text));
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .ghost-primary-sidebar {
+    flex-basis: 58px !important;
+    width: 58px !important;
+    min-width: 58px !important;
+    padding: 8px 6px !important;
+  }
+  .ghost-primary-sidebar .ghost-file-nav-row,
+  .ghost-sidebar-new {
+    justify-content: center;
+    padding: 0;
+  }
+  .ghost-primary-sidebar .ghost-file-nav-row span,
+  .ghost-sidebar-new span {
+    display: none;
+  }
+  .ghost-current-workspace {
+    display: none;
+  }
+  .ghost-site-manager-workspace {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .ghost-site-manager-details {
+    display: none;
+  }
+}
