@@ -245,7 +245,13 @@ function PairForm({ onDone }: { onDone: () => void }) {
   // On-demand placeholders are Windows-only (and gated behind the `virtualfs`
   // build); only offer the mode where it actually works.
   useEffect(() => {
-    ipc.virtualFsSupported().then(setVfsSupported).catch(() => setVfsSupported(false));
+    void ipc
+      .virtualFsSupported()
+      .then(setVfsSupported)
+      .catch((error) => {
+        console.warn("Couldn't determine virtual filesystem support", error);
+        setVfsSupported(false);
+      });
   }, []);
 
   const pickProfile = (id: string) => {
