@@ -269,6 +269,9 @@ if (appShell.includes("openTerminalWindow(")) {
 if (!appShell.includes("setTerminalOpen(true)")) {
   failures.push("src/App.tsx: single-window terminal deep link must open the in-app terminal dock");
 }
+if (appShell.includes("lazy(") || appShell.includes("<Suspense")) {
+  failures.push("src/App.tsx: primary Ghost FTP views must not use lazy/Suspense transitions that can flash or blank the workspace");
+}
 for (const required of [
   "Couldn't initialize Sync & Backup",
   "Couldn't initialize application settings",
