@@ -1064,7 +1064,7 @@ impl SshSession {
             // In a PTY, ETX (Ctrl-C) is handled by the terminal driver and sends
             // SIGINT to the foreground process group, including a sudo child.
             // Give the remote command a short grace period to exit cleanly.
-            if channel.data(&[0x03]).await.is_ok() {
+            if channel.data(&[0x03u8][..]).await.is_ok() {
                 let interrupted = async {
                     loop {
                         match channel.wait().await {
