@@ -208,19 +208,30 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
     [transfers, logClearedAt]
   );
 
-  // Sample real byte deltas from the native transfer store. This intentionally
-  // replaces the old decorative bandwidth curves with actual queue activity.
+  const hasLiveTransfer = transfers.some(
+    (transfer) => transfer.status === "transferring"
+  );
+
+  // Sample real byte deltas only while transfers are active. Idle Transfer
+  // Center views do not repaint every second and never manufacture decorative
+  // history; the existing real history remains visible until new activity.
   useEffect(() => {
-    const sample = () => {
-      const snapshot = Object.values(useTransfers.getState().byId);
-      const now = Date.now();
-      const totals = snapshot.reduce(
+    const snapshotTotals = () =>
+      Object.values(useTransfers.getState().byId).reduce(
         (sum, transfer) => {
           sum[transfer.kind] += transfer.transferred;
           return sum;
         },
         { upload: 0, download: 0 }
       );
+
+    const baseline = snapshotTotals();
+    previousTotals.current = { at: Date.now(), ...baseline };
+    if (!hasLiveTransfer) return;
+
+    const sample = () => {
+      const totals = snapshotTotals();
+      const now = Date.now();
       const previous = previousTotals.current;
       const elapsedSeconds = Math.max(0.25, (now - previous.at) / 1000);
       const next: BandwidthSample = {
@@ -234,10 +245,9 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
       setBandwidthHistory((history) => [...history, next].slice(-48));
     };
 
-    sample();
     const timer = window.setInterval(sample, 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [hasLiveTransfer]);
 
   const runBackendAction = async (
     failureTitle: string,
