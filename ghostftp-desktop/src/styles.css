@@ -4370,3 +4370,20 @@ input.ghost-pane-address:focus-visible {
     min-height: 230px !important;
   }
 }
+
+
+/* RC15 compositor stability: in-app overlays remain real Ghost FTP UI, but
+   avoid background-blur and pulse/ping compositor effects that can cause
+   WebView2 repaint flashes or text jitter on Windows. */
+.fixed.inset-0.z-modal.backdrop-blur-sm,
+.fixed.inset-0.z-secure.backdrop-blur-sm,
+.fixed.inset-0.z-palette.backdrop-blur-sm,
+.ghost-transient-overlay {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.animate-pulse,
+.animate-ping {
+  animation: none !important;
+}
