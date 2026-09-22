@@ -31,7 +31,7 @@ export function ReferenceSiteSidebar() {
 
   return (
     <aside className="ghost-sites-panel ghost-primary-sidebar" aria-label="Ghost FTP navigation">
-      <button type="button" className="ghost-sidebar-new" onClick={() => openNewConnection()}>
+      <button type="button" className="ghost-sidebar-new" aria-label="New connection" title="New connection" onClick={() => openNewConnection()}>
         <Plus size={16}/><span>New connection</span>
       </button>
 
@@ -80,6 +80,8 @@ function SidebarAction({ icon, label, onClick, active = false }: {
       type="button"
       className={`ghost-file-nav-row ${active ? "active" : ""}`}
       onClick={onClick}
+      aria-label={label}
+      title={label}
       aria-current={active ? "page" : undefined}
     >
       {icon}<span>{label}</span>
