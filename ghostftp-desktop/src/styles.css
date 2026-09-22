@@ -4469,6 +4469,18 @@ input.ghost-pane-address:focus-visible {
   box-shadow: 0 0 0 3px rgb(var(--success) / .12);
 }
 
+.ghost-simple-toolbar .ghost-tool-button.active,
+.ghost-active-site-chip.active {
+  border-color: rgb(var(--accent) / .6);
+  background: rgb(var(--accent) / .14);
+  color: white;
+}
+
+.ghost-simple-toolbar .ghost-tool-button.active svg,
+.ghost-active-site-chip.active svg {
+  color: rgb(var(--accent));
+}
+
 .ghost-app-body {
   background: rgb(var(--bg));
 }
