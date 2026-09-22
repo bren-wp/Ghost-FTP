@@ -183,8 +183,9 @@ export function ServerRail() {
         if (st.sessions.some((s) => s.profileId === p.id)) continue;
         try {
           await st.connect(p.id);
-        } catch {
+        } catch (error) {
           // connect() already surfaces failures as a toast.
+          console.debug("Auto-connect failure was surfaced by the connections store", error);
         }
       }
     })().catch((error) => {
@@ -401,8 +402,8 @@ export function ServerRail() {
       await connect(id);
       setPendingId((cur) => (cur === id ? null : cur));
       setTerminalOpen(true);
-    } catch {
-      /* surfaced on the bubble */
+    } catch (error) {
+      console.debug("Terminal connection failure was surfaced by the connections store", error);
     }
   };
 
