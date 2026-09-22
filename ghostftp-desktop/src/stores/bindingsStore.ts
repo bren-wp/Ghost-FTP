@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { ipc } from "@/lib/ipc";
+import { toast } from "./toastStore";
 
 // Keyboard-shortcut override layer (Plan 15 Phase 1). Default combos live in the
 // command registry (src/lib/commands.tsx) and the file-browser catalog
@@ -54,13 +55,15 @@ function seedFromInjection(): Overrides {
 }
 
 function persistSet(id: string, combo: string) {
-  ipc.settingsSet(SHORTCUT_PREFIX + id, JSON.stringify(combo)).catch(() => {
-    // no backend (mock) — the in-memory override still applies this session
+  void ipc.settingsSet(SHORTCUT_PREFIX + id, JSON.stringify(combo)).catch((error) => {
+    toast.error("Shortcut changed for this session only", String(error));
   });
 }
 
 function persistDelete(id: string) {
-  ipc.settingsDelete(SHORTCUT_PREFIX + id).catch(() => {});
+  void ipc.settingsDelete(SHORTCUT_PREFIX + id).catch((error) => {
+    toast.error("Shortcut reset for this session only", String(error));
+  });
 }
 
 export const useBindings = create<BindingsState>((set, get) => ({

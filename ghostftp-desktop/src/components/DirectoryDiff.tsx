@@ -135,7 +135,9 @@ function DirectoryDiff() {
     try {
       // Best-effort: make sure a nested destination directory exists.
       if (e.relative.includes("/")) {
-        await ipc.createDirectory(destSession, destDir).catch(() => {});
+        await ipc.createDirectory(destSession, destDir).catch((error) => {
+          console.warn("Couldn't pre-create destination directory; transfer will continue", error);
+        });
       }
       if (srcSession === LOCAL_SESSION) {
         await ipc.startUpload(destSession, srcPath, destDir, "overwrite");

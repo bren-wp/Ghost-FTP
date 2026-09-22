@@ -65,7 +65,10 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
     if (get().status === "checking" || get().status === "downloading") return;
     set({ status: "checking", error: null });
     // Record the check time regardless of outcome so we don't hammer the endpoint.
-    ipc.settingsSet("lastUpdateCheck", JSON.stringify(Date.now())).catch(() => {});
+    void ipc.settingsSet("lastUpdateCheck", JSON.stringify(Date.now())).catch((error) => {
+      if (quiet) console.warn("Couldn't persist update-check time", error);
+      else toast.warning("Update check will not be remembered", String(error));
+    });
     try {
       const update = await check();
       if (update && update.available) {

@@ -134,7 +134,11 @@ export const useDiskScan = create<DiskScanStoreState>((set, get) => ({
   openFor: async (sessionId, path) => {
     const prev = get();
     // Tear down any previous scan first.
-    if (prev.scanId) ipc.diskScanForget(prev.scanId).catch(() => {});
+    if (prev.scanId) {
+      void ipc.diskScanForget(prev.scanId).catch((error) =>
+        console.warn("Couldn't forget previous disk scan", error)
+      );
+    }
     prev.unlisten?.();
 
     const unlisten = await onDiskScanEvent((kind, payload) => {
@@ -197,12 +201,22 @@ export const useDiskScan = create<DiskScanStoreState>((set, get) => ({
 
   cancel: async () => {
     const { scanId } = get();
-    if (scanId) await ipc.diskScanCancel(scanId).catch(() => {});
+    if (!scanId) return;
+    try {
+      await ipc.diskScanCancel(scanId);
+    } catch (error) {
+      set({ error: String(error) });
+      toast.error("Couldn't cancel disk usage scan", String(error));
+    }
   },
 
   close: () => {
     const { scanId, unlisten } = get();
-    if (scanId) ipc.diskScanForget(scanId).catch(() => {});
+    if (scanId) {
+      void ipc.diskScanForget(scanId).catch((error) =>
+        console.warn("Couldn't forget disk scan", error)
+      );
+    }
     unlisten?.();
     set({
       open: false,

@@ -137,7 +137,11 @@ export const useSearch = create<SearchStoreState>((set, get) => ({
   run: async () => {
     const prev = get();
     if (!prev.pattern.trim()) return;
-    if (prev.searchId) ipc.searchForget(prev.searchId).catch(() => {});
+    if (prev.searchId) {
+      void ipc.searchForget(prev.searchId).catch((error) =>
+        console.warn("Couldn't forget previous search", error)
+      );
+    }
     prev.unlisten?.();
 
     const unlisten = await onSearchEvent((kind, payload) => {
@@ -186,12 +190,22 @@ export const useSearch = create<SearchStoreState>((set, get) => ({
 
   cancel: async () => {
     const { searchId } = get();
-    if (searchId) await ipc.searchCancel(searchId).catch(() => {});
+    if (!searchId) return;
+    try {
+      await ipc.searchCancel(searchId);
+    } catch (error) {
+      set({ error: String(error) });
+      toast.error("Couldn't cancel the search", String(error));
+    }
   },
 
   close: () => {
     const { searchId, unlisten } = get();
-    if (searchId) ipc.searchForget(searchId).catch(() => {});
+    if (searchId) {
+      void ipc.searchForget(searchId).catch((error) =>
+        console.warn("Couldn't forget search", error)
+      );
+    }
     unlisten?.();
     set({ open: false, unlisten: null, ...RESET });
   },

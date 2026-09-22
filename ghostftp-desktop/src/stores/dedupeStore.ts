@@ -103,7 +103,11 @@ export const useDedupe = create<DedupeStoreState>((set, get) => ({
 
   run: async () => {
     const prev = get();
-    if (prev.dedupeId) ipc.dedupeForget(prev.dedupeId).catch(() => {});
+    if (prev.dedupeId) {
+      void ipc.dedupeForget(prev.dedupeId).catch((error) =>
+        console.warn("Couldn't forget previous duplicate scan", error)
+      );
+    }
     prev.unlisten?.();
 
     const unlisten = await onDedupeEvent((kind, payload) => {
@@ -146,12 +150,22 @@ export const useDedupe = create<DedupeStoreState>((set, get) => ({
 
   cancel: async () => {
     const { dedupeId } = get();
-    if (dedupeId) await ipc.dedupeCancel(dedupeId).catch(() => {});
+    if (!dedupeId) return;
+    try {
+      await ipc.dedupeCancel(dedupeId);
+    } catch (error) {
+      set({ error: String(error) });
+      toast.error("Couldn't cancel duplicate scan", String(error));
+    }
   },
 
   close: () => {
     const { dedupeId, unlisten } = get();
-    if (dedupeId) ipc.dedupeForget(dedupeId).catch(() => {});
+    if (dedupeId) {
+      void ipc.dedupeForget(dedupeId).catch((error) =>
+        console.warn("Couldn't forget duplicate scan", error)
+      );
+    }
     unlisten?.();
     set({
       open: false,
