@@ -58,6 +58,69 @@ const interactiveAriaRoles = new Set([
   "switch",
 ]);
 
+function auditFireAndForgetPromises(file) {
+  const sourceText = read(file);
+  const sourceFile = ts.createSourceFile(
+    file,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  );
+
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "then" &&
+      node.arguments.length < 2
+    ) {
+      let cursor = node;
+      let top = node;
+      let handled = false;
+
+      while (cursor.parent) {
+        const parent = cursor.parent;
+        if (
+          ts.isPropertyAccessExpression(parent) &&
+          parent.expression === cursor &&
+          parent.name.text === "catch" &&
+          ts.isCallExpression(parent.parent) &&
+          parent.parent.expression === parent
+        ) {
+          handled = true;
+          top = parent.parent;
+          break;
+        }
+        if (
+          ts.isPropertyAccessExpression(parent) ||
+          ts.isCallExpression(parent) ||
+          ts.isParenthesizedExpression(parent)
+        ) {
+          top = parent;
+          cursor = parent;
+          continue;
+        }
+        break;
+      }
+
+      const standalone =
+        ts.isExpressionStatement(top.parent) ||
+        (ts.isVoidExpression(top.parent) && ts.isExpressionStatement(top.parent.parent));
+
+      if (standalone && !handled) {
+        const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+        failures.push(
+          `${file}:${pos.line + 1}: fire-and-forget .then() chain has no rejection handler`
+        );
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sourceFile);
+}
+
 function auditClickableTsx(file) {
   const sourceText = read(file);
   const sourceFile = ts.createSourceFile(
@@ -233,6 +296,7 @@ const criticalFiles = [
 
 for (const file of [...walkSource("src"), ...walkSource("packages/file-ui/src")]) {
   const source = read(file);
+  auditFireAndForgetPromises(file);
   if (file.endsWith(".tsx") || file.endsWith(".ts")) auditClickableTsx(file);
   if (/onClick\s*:\s*\(\)\s*=>\s*\{\s*\}/.test(source)) {
     failures.push(`${file}: contains a fake no-op onClick handler`);
