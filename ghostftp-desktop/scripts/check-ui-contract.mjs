@@ -445,6 +445,12 @@ for (const required of ["QuantizedColors", "EdgeRatio", "byte-identical", "blank
 if (!styles.includes("@media (max-width: 760px)")) {
   failures.push("Primary navigation must keep labels until a truly narrow viewport.");
 }
+for (const required of [
+  "grid-template-rows: minmax(180px, 42%) minmax(0, 58%);",
+  "display: block !important;",
+]) {
+  if (!styles.includes(required)) failures.push(`Narrow Site Manager must retain editable connection details: ${required}`);
+}
 
 if (failures.length) {
   console.error("Ghost FTP UI contract failed:\n" + failures.map((x) => " - " + x).join("\n"));
