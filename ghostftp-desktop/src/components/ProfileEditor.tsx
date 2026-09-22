@@ -63,7 +63,10 @@ function genId(): string {
 function hostFromUrl(u: string): string {
   try {
     return new URL(u.includes("://") ? u : `https://${u}`).hostname;
-  } catch {
+  } catch (error) {
+    if (!(error instanceof TypeError)) {
+      console.warn("Couldn't derive a hostname from the WebDAV URL", error);
+    }
     return u;
   }
 }
@@ -1018,8 +1021,8 @@ function KeyAuthSection({
     if (!genPath) {
       try {
         setGenPath((await ipc.sshKeyDefaults()).suggestedPath);
-      } catch {
-        // Non-fatal — the user can type a path.
+      } catch (error) {
+        toast.warning("Couldn't suggest a default key path", String(error));
       }
     }
   }, [genPath]);
