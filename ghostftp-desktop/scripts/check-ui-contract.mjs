@@ -289,6 +289,14 @@ for (const required of [
   if (!app.includes(required)) failures.push(`App startup/deep-link failure must remain observable: ${required}`);
 }
 
+if (fs.existsSync("src/components/ServerRail.tsx")) {
+  failures.push("Obsolete duplicate ServerRail must not return; primary navigation lives in ReferenceSiteSidebar.");
+}
+const settingsStore = read("src/stores/settingsStore.ts");
+for (const forbidden of ["railExpanded", "railCollapsedGroups", "setRailExpanded", "toggleRailGroup"]) {
+  if (settingsStore.includes(forbidden)) failures.push(`Removed duplicate-rail setting returned: ${forbidden}`);
+}
+
 const sidebar = read("src/components/ReferenceSiteSidebar.tsx");
 for (const required of ["New connection", "Files", "Sites", "Transfers", "Sync & Backup", "Settings", "Help & About"]) {
   if (!sidebar.includes(required)) failures.push(`Primary sidebar missing: ${required}`);
