@@ -1,0 +1,212 @@
+name: Ghost FTP RC15 release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/RC15_RELEASE_APPROVED
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: ghostftp-rc15-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve approved source and verify release gates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APPROVAL_FILE=".github/RC15_RELEASE_APPROVED"
+          test -f "$APPROVAL_FILE"
+          SOURCE_SHA="$(tr -d '[:space:]' < "$APPROVAL_FILE")"
+          test -n "$SOURCE_SHA"
+
+          git fetch origin main --tags
+          git cat-file -e "$SOURCE_SHA^{commit}"
+          git merge-base --is-ancestor "$SOURCE_SHA" origin/main
+
+          changed="$(git diff --name-only "$SOURCE_SHA" origin/main || true)"
+          forbidden="$(printf '%s\n' "$changed" | grep -Ev '^(.github/RC15_RELEASE_APPROVED|.github/workflows/ghostftp-rc15-release.yml)$' || true)"
+          if [ -n "$forbidden" ]; then
+            echo "Production or unrelated files changed after the approved source:"
+            echo "$forbidden"
+            exit 1
+          fi
+
+          git checkout --detach "$SOURCE_SHA"
+
+          grep -q '"version": "2.1.1-rc.15"' ghostftp-desktop/package.json
+          grep -q '"version": "2.1.1-rc.15"' ghostftp-desktop/package-lock.json
+          grep -q '^version = "2.1.1-rc.15"$' ghostftp-desktop/src-tauri/Cargo.toml
+          grep -q '^version = "2.1.1-rc.15"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
+          grep -q '^version = "2.1.1-rc.15"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
+          grep -q '^version = "2.1.1-rc.15"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
+          grep -q '"version": "2.1.1-rc.15"' ghostftp-desktop/src-tauri/tauri.conf.json
+          grep -q 'PRODUCT_VERSION = "2.1.1-rc.15"' ghostftp-desktop/src/lib/release.ts
+          grep -q 'const version = "2.1.1-rc.15"' tools/ghostftp-runtime/main.go
+          grep -q 'const version = "2.1.1-rc.15"' tools/ghostftp-installer/main.go
+          grep -q '"version": "2.1.1-rc.15"' updates/channels/preview.template.json
+          grep -q '"version": "2.1.1-rc.15"' updates/latest.template.json
+          grep -q '"build": "2026.09.22.15"' updates/latest.template.json
+          test -f docs/releases/2.1.1-rc.15.md
+
+          wait_for_gate() {
+            local workflow="$1"
+            local label="$2"
+            for attempt in $(seq 1 45); do
+              state="$(gh run list --workflow "$workflow" --commit "$SOURCE_SHA" --limit 1 --json status,conclusion --jq '.[0] | ((.status // "") + ":" + (.conclusion // ""))' || true)"
+              echo "$label for $SOURCE_SHA: ${state:-not-found}"
+              if [ "$state" = "completed:success" ]; then
+                return 0
+              fi
+              if [[ "$state" == completed:* ]] && [ "$state" != "completed:success" ]; then
+                echo "$label did not pass."
+                return 1
+              fi
+              if [ "$attempt" -eq 45 ]; then
+                echo "Timed out waiting for $label."
+                return 1
+              fi
+              sleep 20
+            done
+          }
+
+          wait_for_gate "Ghost FTP quality" "source audit"
+          wait_for_gate "Ghost FTP protocol E2E" "FTP/FTPS/SFTP E2E"
+          wait_for_gate "Ghost FTP native build" "native Windows/Linux build"
+
+          BUILD_RUN_ID="$(gh run list --workflow "Ghost FTP native build" --commit "$SOURCE_SHA" --limit 1 --json databaseId,status,conclusion --jq '.[0] | select(.status=="completed" and .conclusion=="success") | .databaseId')"
+          test -n "$BUILD_RUN_ID"
+
+          echo "SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
+          echo "BUILD_RUN_ID=$BUILD_RUN_ID" >> "$GITHUB_ENV"
+
+      - name: Package approved source and documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/native
+
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC15-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC15-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC15-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC15-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC15-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+
+      - name: Download approved native build artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "$BUILD_RUN_ID" -D dist/native
+          find dist/native -type f -print
+
+      - name: Normalize RC15 platform artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          WIN_EXE="$(find dist/native -type f -iname 'ghostftp.exe' | head -n1 || true)"
+          WIN_SETUP="$(find dist/native -type f -iname '*setup.exe' | head -n1 || true)"
+          LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
+          APPIMAGE="$(find dist/native -type f -iname '*.AppImage' | head -n1 || true)"
+          DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
+          RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
+
+          test -n "$WIN_EXE"
+          test -n "$WIN_SETUP"
+          test -n "$LINUX_BIN"
+          test -n "$APPIMAGE"
+          test -n "$DEB"
+          test -n "$RPM"
+
+          cp "$WIN_EXE" dist/GhostFTP-Windows-x64-Portable-v2.1.1-RC15.exe
+          cp "$WIN_SETUP" dist/GhostFTP-Windows-x64-Setup-v2.1.1-RC15.exe
+          cp "$LINUX_BIN" dist/GhostFTP-Linux-x86_64-v2.1.1-RC15
+          chmod +x dist/GhostFTP-Linux-x86_64-v2.1.1-RC15
+          cp "$APPIMAGE" dist/GhostFTP-Linux-x86_64-v2.1.1-RC15.AppImage
+          cp "$DEB" dist/GhostFTP-Linux-amd64-v2.1.1-RC15.deb
+          cp "$RPM" dist/GhostFTP-Linux-x86_64-v2.1.1-RC15.rpm
+
+          QA_PNG_COUNT="$(find dist/native -type f -iname 'GhostFTP-Windows-RC15-*.png' | wc -l | tr -d ' ')"
+          QA_TXT_COUNT="$(find dist/native -type f -iname 'GhostFTP-Windows-RC15-*.txt' | wc -l | tr -d ' ')"
+          test "$QA_PNG_COUNT" -eq 7
+          test "$QA_TXT_COUNT" -eq 7
+
+          mkdir -p dist/qa-evidence
+          find dist/native -type f \( -iname 'GhostFTP-Windows-RC15-*.png' -o -iname 'GhostFTP-Windows-RC15-*.txt' \) -exec cp {} dist/qa-evidence/ \;
+          (
+            cd dist/qa-evidence
+            zip -q ../GhostFTP-Windows-x64-v2.1.1-RC15-Native-QA.zip ./*
+          )
+          rm -rf dist/qa-evidence
+
+          (
+            cd dist
+            zip -q GhostFTP-Windows-x64-v2.1.1-RC15.zip \
+              GhostFTP-Windows-x64-Portable-v2.1.1-RC15.exe \
+              GhostFTP-Windows-x64-Setup-v2.1.1-RC15.exe
+            tar -czf GhostFTP-Linux-x86_64-v2.1.1-RC15.tar.gz \
+              GhostFTP-Linux-x86_64-v2.1.1-RC15 \
+              GhostFTP-Linux-x86_64-v2.1.1-RC15.AppImage \
+              GhostFTP-Linux-amd64-v2.1.1-RC15.deb \
+              GhostFTP-Linux-x86_64-v2.1.1-RC15.rpm
+          )
+
+          rm -rf dist/native
+
+      - name: Generate RC15 SHA-256 checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd dist
+            find . -maxdepth 1 -type f ! -name 'GhostFTP-v2.1.1-RC15-SHA256SUMS.txt' -printf '%f\0' |
+              sort -z |
+              xargs -0 sha256sum
+          ) > dist/GhostFTP-v2.1.1-RC15-SHA256SUMS.txt
+
+      - name: Publish immutable RC15 pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v2.1.1-rc.15"
+
+          git fetch --tags --force
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            TAG_SHA="$(git rev-list -n 1 "$TAG")"
+            if [ "$TAG_SHA" != "$SOURCE_SHA" ]; then
+              echo "$TAG already exists at $TAG_SHA; approved source is $SOURCE_SHA."
+              exit 1
+            fi
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG is already published from the approved source; leaving it immutable."
+            exit 0
+          fi
+
+          gh release create "$TAG" \
+            --target "$SOURCE_SHA" \
+            --title "Ghost FTP 2.1.1 RC15 — Native" \
+            --notes-file docs/releases/2.1.1-rc.15.md \
+            --prerelease
+
+          gh release upload "$TAG" dist/*

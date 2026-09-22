@@ -4336,12 +4336,15 @@ input.ghost-pane-address:focus-visible {
   }
 
   .ghost-about-grid {
+    height: 100%;
     min-height: 100%;
+    align-items: stretch;
   }
 
   .ghost-about-grid > section,
   .ghost-about-grid > aside {
     display: grid;
+    height: 100%;
     min-height: 0;
     gap: 16px;
     margin: 0;
@@ -4367,7 +4370,21 @@ input.ghost-pane-address:focus-visible {
   }
 
   .ghost-about-hero {
-    min-height: 230px !important;
+    min-height: 250px !important;
+  }
+
+  .ghost-about-content {
+    overflow: hidden !important;
+  }
+
+  .ghost-about-grid > section > *,
+  .ghost-about-grid > aside > * {
+    overflow: hidden;
+  }
+
+  .ghost-about-grid > section > *:last-child,
+  .ghost-about-grid > aside > *:last-child {
+    overflow: auto;
   }
 }
 
