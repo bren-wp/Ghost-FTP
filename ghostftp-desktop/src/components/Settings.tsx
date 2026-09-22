@@ -9,7 +9,6 @@ import {
   Monitor,
   Palette,
   Plug,
-  RefreshCw,
   RotateCcw,
   Settings2,
   ShieldCheck,
@@ -26,7 +25,6 @@ import {
 } from "@/stores/settingsStore";
 import { getLocale, saveLocale } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
-import { useUpdater } from "@/stores/updaterStore";
 import { useDialog } from "@/hooks/useDialog";
 import { requestDesktopNotificationPermission } from "@/lib/notifications";
 import { SyncSettings } from "./SyncSettings";
@@ -34,7 +32,7 @@ import { toastError } from "@/lib/errors";
 import { toast } from "@/stores/toastStore";
 
 interface Props { onClose: () => void; initialSection?: Section }
-type Section = "appearance" | "language" | "transfers" | "connection" | "security" | "updates" | "integrations" | "shortcuts" | "sync";
+type Section = "appearance" | "language" | "transfers" | "connection" | "security" | "advanced" | "sync";
 
 export function Settings({ onClose, initialSection = "appearance" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -63,10 +61,7 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
           <Nav section="transfers" current={section} set={setSection} icon={<ArrowDownUp/>} label="Transfers"/>
           <Nav section="connection" current={section} set={setSection} icon={<Wifi/>} label="Connection"/>
           <Nav section="security" current={section} set={setSection} icon={<ShieldCheck/>} label="Security"/>
-          <Nav section="sync" current={section} set={setSection} icon={<FolderSync/>} label="Sync & Backup"/>
-          <Nav section="integrations" current={section} set={setSection} icon={<Plug/>} label="Integrations"/>
-          <Nav section="shortcuts" current={section} set={setSection} icon={<Keyboard/>} label="Shortcuts"/>
-          <Nav section="updates" current={section} set={setSection} icon={<RefreshCw/>} label="Updates"/>
+          <Nav section="advanced" current={section} set={setSection} icon={<SlidersHorizontal/>} label="Advanced"/>
         </div>
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -74,7 +69,7 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
             <Settings2 size={28} className="text-accent"/>
             <div>
               <div className="text-[22px] font-semibold">{section === "sync" ? "Sync & Backup" : section.charAt(0).toUpperCase() + section.slice(1)}</div>
-              <div className="text-[12px] text-text-muted">{section === "sync" ? "Create and manage real folder synchronization pairs." : "Configure how Ghost FTP looks, behaves and keeps your data safe."}</div>
+              <div className="text-[12px] text-text-muted">{section === "sync" ? "Create and manage real folder synchronization pairs." : section === "advanced" ? "System integrations and keyboard shortcuts." : "Configure the options for this area."}</div>
             </div>
           </div>
           <div className="ghost-preferences-content flex-1 overflow-y-auto p-4">
@@ -84,9 +79,7 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
             {section === "transfers" && <TransfersPanel/>}
             {section === "connection" && <ConnectionPanel/>}
             {section === "security" && <SecurityPanel/>}
-            {section === "updates" && <UpdatesPanel/>}
-            {section === "integrations" && <IntegrationsPanel/>}
-            {section === "shortcuts" && <ShortcutsPanel/>}
+            {section === "advanced" && <AdvancedPanel/>}
             {section === "sync" && <div className="max-w-5xl"><SyncSettings/></div>}
           </div>
           <div className="ghost-preferences-actions flex h-[58px] shrink-0 items-center border-t border-border bg-[#061a2d] px-4">
@@ -345,7 +338,7 @@ function ConnectionCard() {
   );
 }
 function SecurityCard() { return <Card icon={<ShieldCheck size={20}/>} title="Security & Privacy" subtitle="Protect your data and control your privacy."><ToggleRow label="No tracking" checked locked/><ToggleRow label="No analytics or telemetry" checked locked/><ToggleRow label="Store credentials in OS keychain" checked locked/></Card> }
-function UpdatesCard() { const status=useUpdater((x)=>x.status); const version=useUpdater((x)=>x.version); const error=useUpdater((x)=>x.error); const check=useUpdater((x)=>x.check); const download=useUpdater((x)=>x.downloadAndInstall); const restart=useUpdater((x)=>x.restart); const busy=status==='checking'||status==='downloading'; const label=status==='checking'?'Checking for updates…':status==='available'?`Ghost FTP ${version ?? 'update'} is available.`:status==='downloading'?'Downloading and verifying update…':status==='ready'?'Update ready — restart to finish.':status==='error'?(error??'Update check failed.'):'Ready to check the official Ghost FTP update service.'; return <Card icon={<RefreshCw size={20}/>} title="Updates" subtitle="Choose how Ghost FTP updates itself."><div className="grid grid-cols-[150px_1fr] items-center gap-3 text-[12px]"><span className="text-text-muted">Update Channel</span><div className="rounded-md border border-border bg-[#051929] px-3 py-2 text-text">Stable (Recommended)</div></div><div className="text-[11px] text-text-muted" aria-live="polite">{label}</div><div className="flex flex-wrap gap-2"><button className="ghost-mini-button" disabled={busy} onClick={()=>void check(false)}><RefreshCw size={13}/> Check for Updates</button>{status==='available'&&<button className="ghost-mini-button" onClick={()=>void download()}>Download &amp; install</button>}{status==='ready'&&<button className="ghost-mini-button" onClick={()=>void restart()}>Restart now</button>}</div></Card> }
+
 function IntegrationsCard() {
   const s=useSettings();
   const [shellBusy,setShellBusy]=useState(false);
@@ -390,9 +383,8 @@ function LanguagePanel({ locale, setLocale }: { locale: string; setLocale: (valu
 function TransfersPanel(){return <div className="grid max-w-4xl grid-cols-2 gap-4"><PerformanceCard/><TransfersCard/><div className="col-span-2"><TerminalCard/></div></div>}
 function ConnectionPanel(){return <div className="max-w-3xl"><ConnectionCard/></div>}
 function SecurityPanel(){return <div className="max-w-3xl"><SecurityCard/></div>}
-function UpdatesPanel(){return <div className="max-w-3xl"><UpdatesCard/></div>}
-function IntegrationsPanel(){return <div className="max-w-3xl"><IntegrationsCard/></div>}
-function ShortcutsPanel(){return <Card icon={<Keyboard size={20}/>} title="Keyboard Shortcuts" subtitle="Core Ghost FTP shortcuts."><div className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-[12px]"><span>New connection</span><kbd>Ctrl + N</kbd><span>Settings</span><kbd>Ctrl + ,</kbd><span>Transfer queue</span><kbd>Ctrl + Shift + T</kbd><span>Command palette</span><kbd>Ctrl + K</kbd></div></Card>}
+function ShortcutsCard(){return <Card icon={<Keyboard size={20}/>} title="Keyboard Shortcuts" subtitle="Core Ghost FTP shortcuts."><div className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-[12px]"><span>New connection</span><kbd>Ctrl + N</kbd><span>Settings</span><kbd>Ctrl + ,</kbd><span>Transfer queue</span><kbd>Ctrl + Shift + T</kbd><span>Command palette</span><kbd>Ctrl + K</kbd></div></Card>}
+function AdvancedPanel(){return <div className="grid max-w-5xl gap-4 xl:grid-cols-2"><IntegrationsCard/><ShortcutsCard/></div>}
 
 function Nav({
   section,
