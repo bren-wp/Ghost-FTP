@@ -1,6 +1,5 @@
 import {
   ArrowUpDown,
-  Cloud,
   FolderOpen,
   FolderSync,
   HelpCircle,
@@ -55,11 +54,6 @@ export function ReferenceSiteSidebar() {
           icon={<FolderSync size={16}/>} label="Sync & Backup"
           active={current === "sync"}
           onClick={() => openDialog("sync")}
-        />
-        <SidebarAction
-          icon={<Cloud size={16}/>} label="Cloud Storage"
-          active={current === "cloudStorage"}
-          onClick={() => openDialog("cloudStorage")}
         />
         <SidebarAction
           icon={<Settings size={16}/>} label="Settings"
