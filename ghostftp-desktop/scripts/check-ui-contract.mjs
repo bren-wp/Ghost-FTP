@@ -407,6 +407,15 @@ for (const required of [
   if (!styles.includes(required)) failures.push(`Styles missing Transfer Center table-space fidelity guard: ${required}`);
 }
 
+for (const required of [
+  "RC15 reference-density pass",
+  "grid-template-rows: repeat(4, minmax(0, 1fr));",
+  "grid-template-rows: minmax(344px, 1.15fr) minmax(190px, .85fr);",
+  "grid-template-rows: minmax(360px, 1.15fr) minmax(180px, .85fr);",
+]) {
+  if (!styles.includes(required)) failures.push(`Styles missing RC15 standalone reference-density guard: ${required}`);
+}
+
 const nativeBuildWorkflow = read("../.github/workflows/ghostftp-build.yml");
 for (const required of ["QuantizedColors", "EdgeRatio", "byte-identical", "blank-or-structureless"]) {
   if (!nativeBuildWorkflow.includes(required)) failures.push(`Windows native QA missing structural blank-frame guard: ${required}`);
