@@ -298,11 +298,32 @@ for (const forbidden of ["Secure Connections", "Fast Transfers", "Modern Interfa
 }
 
 const titleBar = read("src/components/TitleBar.tsx");
-for (const required of ["Choose a site", "New Folder", "Properties", "ghost-simple-header"]) {
+for (const required of [
+  "Choose a site",
+  'label="Local"',
+  "New Folder",
+  "Properties",
+  "ghost-simple-header",
+  'fileAction("refresh", effectivePane)',
+  'fileAction("newFolder", effectivePane)',
+  'fileAction("rename", effectivePane)',
+  'fileAction("delete", effectivePane)',
+  'fileAction("properties", effectivePane)',
+  'new CustomEvent("ghostftp:pick-upload")',
+]) {
   if (!titleBar.includes(required)) failures.push(`Simplified header missing contextual action: ${required}`);
 }
 for (const forbidden of ["English (English)", "Quick Connect", "Application menu", "Bookmarks", "Tools", "Help Center", "ghost-menu-popover", "ghost-back-to-files"]) {
   if (titleBar.includes(forbidden)) failures.push(`Header still contains duplicate navigation/language control: ${forbidden}`);
+}
+
+const fileBrowser = read("src/components/FileBrowser.tsx");
+for (const required of [
+  'window.addEventListener("ghostftp:pick-upload"',
+  'setBrowseLocal(true)',
+  'setBrowseLocal(false)',
+]) {
+  if (!fileBrowser.includes(required)) failures.push(`Single-pane File Browser missing navigation/upload bridge: ${required}`);
 }
 
 const mainEntry = read("src/main.tsx");
