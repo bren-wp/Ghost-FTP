@@ -86,8 +86,11 @@ export function RemoteControlSettings() {
       await navigator.clipboard.writeText(status.pairing.code);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard blocked — the code is on screen anyway */
+    } catch (error) {
+      toast.warning(
+        "Couldn't copy the pairing code",
+        `The code remains visible on screen. ${String(error)}`
+      );
     }
   };
 
