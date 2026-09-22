@@ -35,6 +35,7 @@ import { useDialog } from "@/hooks/useDialog";
 import { requestDesktopNotificationPermission } from "@/lib/notifications";
 import { SyncSettings } from "./SyncSettings";
 import { toastError } from "@/lib/errors";
+import { toast } from "@/stores/toastStore";
 
 interface Props { onClose: () => void; initialSection?: Section }
 type Section = "general" | "appearance" | "transfers" | "connection" | "security" | "updates" | "integrations" | "shortcuts" | "language" | "sync";
@@ -472,6 +473,12 @@ function DesktopNotificationsToggle() {
     try {
       const granted = await requestDesktopNotificationPermission();
       s.setNotifications({ ...s.notifications, enabled: granted });
+      if (!granted) {
+        toast.warning(
+          "Desktop notifications remain off",
+          "Ghost FTP did not receive notification permission from the operating system."
+        );
+      }
     } finally {
       setBusy(false);
     }
