@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 import {
-  CheckCircle2,
   ChevronRight,
   FileText,
   Globe2,
@@ -73,7 +72,6 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
             <Meta label="Build" value={PRODUCT_BUILD} border/>
             <Meta label="Release Date" value={PRODUCT_RELEASE_DATE} border/>
           </div>
-          <UpdateStatusRow />
         </div>
 
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
@@ -93,8 +91,7 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
       <aside className="space-y-4">
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
           <div className="mb-4 flex items-center gap-3"><HelpCircle size={34} className="text-accent"/><div><div className="text-[16px] font-semibold">Get Help</div><div className="text-[12px] text-text-muted">Resources, documentation and support.</div></div></div>
-          <LinkRow icon={<FileText size={18}/>} title="Documentation" subtitle="Guides and tutorials" onClick={() => onNavigate("help")}/>
-          <LinkRow icon={<LifeBuoy size={18}/>} title="Support Center" subtitle="Get help from our team" onClick={() => onNavigate("help")}/>
+          <LinkRow icon={<LifeBuoy size={18}/>} title="Help Center" subtitle="Guides, troubleshooting and support" onClick={() => onNavigate("help")}/>
           <LinkRow icon={<ShieldCheck size={18}/>} title="Privacy" subtitle="Privacy-first defaults and local data" onClick={() => onNavigate("privacy")}/>
           <LinkRow icon={<FileText size={18}/>} title="Changelog" subtitle="See what's new" onClick={() => onNavigate("updates")}/>
         </div>
@@ -125,21 +122,6 @@ function UpdatesContent() {
     : status === "error" ? (error ?? "Update check failed.")
     : "No update check has been run in this view yet.";
   return <div className="rounded-lg border border-border bg-[#071f35] p-6"><div className="mb-4 flex items-center gap-3"><RefreshCw size={30} className="text-accent"/><div><div className="text-[18px] font-semibold">Ghost FTP {PRODUCT_VERSION_DISPLAY}</div><div className="text-text-muted">Release candidate · {currentPlatform()}</div></div></div><p className="max-w-2xl text-[13px] leading-6 text-text-muted">Update checks use the official Ghost FTP endpoint at ghostftp.com. Installation proceeds only when the package passes Tauri's configured signature verification.</p><p className="mt-3 text-[12px] text-text-muted" aria-live="polite">{label}</p><div className="mt-5 flex gap-2"><button className="ghost-primary-button" disabled={status === "checking" || status === "downloading"} onClick={() => void check(false)}><RefreshCw size={14}/> Check for Updates</button>{status === "available" && <button className="ghost-primary-button" onClick={() => void download()}>Download &amp; install</button>}{status === "ready" && <button className="ghost-primary-button" onClick={() => void restart()}>Restart now</button>}</div></div>;
-}
-
-function UpdateStatusRow() {
-  const status = useUpdater((s) => s.status);
-  const offered = useUpdater((s) => s.version);
-  const error = useUpdater((s) => s.error);
-  const check = useUpdater((s) => s.check);
-  const text = status === "checking" ? "Checking for updates…"
-    : status === "available" ? `Ghost FTP ${offered ?? "update"} is available.`
-    : status === "downloading" ? "Downloading and verifying update…"
-    : status === "ready" ? "Update ready — restart to finish installation."
-    : status === "error" ? (error ?? "Update check failed.")
-    : "Ready to check the official Ghost FTP update service.";
-  const ok = status === "idle";
-  return <div className="flex items-center gap-3 border-t border-border px-6 py-4"><CheckCircle2 size={28} className={ok ? "text-success" : "text-accent"}/><div><div className={ok ? "font-semibold text-success" : "font-semibold"}>{text}</div><div className="text-[12px] text-text-muted">Updates are checked only through ghostftp.com.</div></div><div className="flex-1"/><button disabled={status === "checking" || status === "downloading"} onClick={() => void check(false)} className="ghost-primary-button"><RefreshCw size={14}/> Check for Updates</button></div>;
 }
 
 function currentPlatform() {
