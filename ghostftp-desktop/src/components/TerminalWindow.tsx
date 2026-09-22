@@ -93,7 +93,11 @@ export function TerminalWindow() {
     // so the PTY close also rides on beforeunload — fire-and-forget is fine.
     const onBeforeUnload = () => {
       const id = terminalIdRef.current;
-      if (id) ipc.closeTerminal(id).catch(() => {});
+      if (id) {
+        void ipc.closeTerminal(id).catch((error) =>
+          console.warn("Couldn't close terminal during window shutdown", error)
+        );
+      }
       terminalIdRef.current = null;
     };
     window.addEventListener("beforeunload", onBeforeUnload);
@@ -129,7 +133,9 @@ export function TerminalWindow() {
           const id = await ipc.openTerminal(sessionId, term.cols, term.rows);
           terminalIdRef.current = id;
           if (disposed) {
-            ipc.closeTerminal(id).catch(() => {});
+            void ipc.closeTerminal(id).catch((error) =>
+              console.warn("Couldn't close disposed terminal", error)
+            );
             return;
           }
           setStatus("ready");
@@ -152,7 +158,11 @@ export function TerminalWindow() {
       if (unlistenData) unlistenData();
       if (unlistenExit) unlistenExit();
       const id = terminalIdRef.current;
-      if (id) ipc.closeTerminal(id).catch(() => {});
+      if (id) {
+        void ipc.closeTerminal(id).catch((error) =>
+          console.warn("Couldn't close terminal during cleanup", error)
+        );
+      }
       term.dispose();
       termRef.current = null;
       terminalIdRef.current = null;
