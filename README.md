@@ -64,7 +64,7 @@ The canonical desktop reference is **1290×852**. Smaller windows adapt through 
 
 **Control.** Use permissions, checksums, sync, terminal, search, duplicate detection and diagnostics from the same product.
 
-## Implemented in current RC14 source
+## Implemented in current RC15 development source
 
 - FTP, explicit FTPS and SFTP Quick Connect and saved profiles with real protocol E2E acceptance.
 - Site Manager with folders, favorites, tags, bookmarks and recent-server metadata.
@@ -80,9 +80,9 @@ The canonical desktop reference is **1290×852**. Smaller windows adapt through 
 
 See [Features](docs/product/FEATURES.md) and [Project status](docs/product/STATUS_AND_NEXT.md).
 
-## Downloads — Ghost FTP 2.1.1 RC14 release line
+## Downloads — latest published Ghost FTP 2.1.1 RC14 release
 
-RC14 is the current source target. The release workflow publishes its Windows/Linux packages only after the exact main-branch candidate passes quality, real FTP/FTPS/SFTP E2E, native Windows seven-view QA and Linux native build gates. Older release candidates remain available in GitHub Releases.
+RC15 is the current development target. RC14 remains the latest published release and stays pinned to its historical source commit. RC15 must pass quality, real FTP/FTPS/SFTP E2E, Windows/Linux native builds and Windows seven-view QA before it can be tagged or published. Older release candidates remain available in GitHub Releases.
 
 **Windows x64**
 - `GhostFTP-Windows-x64-Portable-v2.1.1-RC14.exe`
