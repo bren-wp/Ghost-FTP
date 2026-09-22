@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   Download,
+  FolderOpen,
   FolderPlus,
   Info,
   Minus,
@@ -16,6 +17,7 @@ import {
 import { GhostWordmark } from "./GhostBrand";
 import { type AppDialog, useLayout } from "@/stores/layoutStore";
 import { useConnections } from "@/stores/connectionsStore";
+import { useSettings } from "@/stores/settingsStore";
 import { PRODUCT_VERSION_BADGE } from "@/lib/release";
 import { toastError } from "@/lib/errors";
 
@@ -65,6 +67,9 @@ export function TitleBar() {
   const dialog = useLayout((s) => s.dialog);
   const returnDialog = useLayout((s) => s.returnDialog);
   const openDialog = useLayout((s) => s.openDialog);
+  const browseLocal = useLayout((s) => s.browseLocal);
+  const setBrowseLocal = useLayout((s) => s.setBrowseLocal);
+  const browserLayout = useSettings((s) => s.browserLayout);
   const activeSessionId = useConnections((s) => s.activeSessionId);
   const activeProfileId = useConnections((s) => s.activeProfileId);
   const profiles = useConnections((s) => s.profiles);
@@ -85,7 +90,13 @@ export function TitleBar() {
     remote: emptyPane("remote"),
   });
   const [activePane, setActivePane] = useState<"local" | "remote">("local");
-  const paneState = paneStates[activePane];
+  const singlePane = browserLayout === "single";
+  const effectivePane: "local" | "remote" = singlePane
+    ? browseLocal
+      ? "local"
+      : "remote"
+    : activePane;
+  const paneState = paneStates[effectivePane];
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -122,10 +133,24 @@ export function TitleBar() {
 
       {workspace === "Files" && (
         <div className="ghost-toolbar-row ghost-simple-toolbar">
+          {singlePane && (
+            <Tool
+              icon={<FolderOpen size={17}/>}
+              label="Local"
+              active={browseLocal}
+              onClick={() => setBrowseLocal(true)}
+            />
+          )}
           <button
-            className="ghost-active-site-chip"
-            onClick={() => openDialog("siteManager")}
-            title="Open Sites"
+            className={`ghost-active-site-chip ${singlePane && !browseLocal ? "active" : ""}`}
+            onClick={() => {
+              if (singlePane && activeSessionId) {
+                setBrowseLocal(false);
+                return;
+              }
+              openDialog("siteManager");
+            }}
+            title={singlePane && activeSessionId ? "Show server files" : "Choose a site"}
           >
             <Server size={15}/>
             <span>{profile ? profile.name : "Choose a site"}</span>
@@ -134,13 +159,29 @@ export function TitleBar() {
           {activeSessionId && (
             <Tool icon={<X size={16}/>} label="Disconnect" onClick={() => void disconnect()}/>
           )}
-          <Tool icon={<RefreshCw size={17}/>} label="Refresh" onClick={() => fileAction("refresh")}/>
-          <Tool icon={<Upload size={17}/>} label="Upload" disabled={!activeSessionId || paneStates.local.selectedCount === 0} onClick={() => fileAction("upload", "local")}/>
-          <Tool icon={<Download size={17}/>} label="Download" disabled={!activeSessionId || paneStates.remote.selectedCount === 0} onClick={() => fileAction("download", "remote")}/>
-          <Tool icon={<FolderPlus size={17}/>} label="New Folder" disabled={!paneState.canCreateDirectory} onClick={() => fileAction("newFolder")}/>
-          <Tool icon={<Pencil size={17}/>} label="Rename" disabled={!paneState.hasActiveItem} onClick={() => fileAction("rename")}/>
-          <Tool icon={<Trash2 size={17}/>} label="Delete" disabled={paneState.selectedCount === 0} onClick={() => fileAction("delete")}/>
-          <Tool icon={<Info size={17}/>} label="Properties" disabled={!paneState.hasActiveItem} onClick={() => fileAction("properties")}/>
+          <Tool icon={<RefreshCw size={17}/>} label="Refresh" onClick={() => fileAction("refresh", effectivePane)}/>
+          <Tool
+            icon={<Upload size={17}/>}
+            label="Upload"
+            disabled={!activeSessionId || (singlePane ? browseLocal && paneStates.local.selectedCount === 0 : paneStates.local.selectedCount === 0)}
+            onClick={() => {
+              if (singlePane && !browseLocal) {
+                window.dispatchEvent(new CustomEvent("ghostftp:pick-upload"));
+                return;
+              }
+              fileAction("upload", "local");
+            }}
+          />
+          <Tool
+            icon={<Download size={17}/>}
+            label="Download"
+            disabled={!activeSessionId || (singlePane && browseLocal) || paneStates.remote.selectedCount === 0}
+            onClick={() => fileAction("download", "remote")}
+          />
+          <Tool icon={<FolderPlus size={17}/>} label="New Folder" disabled={!paneState.canCreateDirectory} onClick={() => fileAction("newFolder", effectivePane)}/>
+          <Tool icon={<Pencil size={17}/>} label="Rename" disabled={!paneState.hasActiveItem} onClick={() => fileAction("rename", effectivePane)}/>
+          <Tool icon={<Trash2 size={17}/>} label="Delete" disabled={paneState.selectedCount === 0} onClick={() => fileAction("delete", effectivePane)}/>
+          <Tool icon={<Info size={17}/>} label="Properties" disabled={!paneState.hasActiveItem} onClick={() => fileAction("properties", effectivePane)}/>
           <div className="ghost-toolbar-spacer"/>
         </div>
       )}
@@ -148,6 +189,6 @@ export function TitleBar() {
   );
 }
 
-function Tool({ icon, label, onClick, disabled = false }: { icon: React.ReactNode; label: string; onClick?: () => void; disabled?: boolean }) {
-  return <button className="ghost-tool-button" aria-label={label} title={label} onClick={onClick} disabled={disabled || !onClick}>{icon}<span>{label}</span></button>;
+function Tool({ icon, label, onClick, disabled = false, active = false }: { icon: React.ReactNode; label: string; onClick?: () => void; disabled?: boolean; active?: boolean }) {
+  return <button className={`ghost-tool-button ${active ? "active" : ""}`} aria-label={label} title={label} aria-pressed={active || undefined} onClick={onClick} disabled={disabled || !onClick}>{icon}<span>{label}</span></button>;
 }
