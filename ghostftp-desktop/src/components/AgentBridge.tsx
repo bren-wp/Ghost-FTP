@@ -109,6 +109,9 @@ export function AgentBridgeHost() {
       .then((c) => {
         if (cancelled) c();
         else cleanup = c;
+      })
+      .catch((error) => {
+        toast.error("Couldn't initialize Agent Bridge", String(error));
       });
     return () => {
       cancelled = true;

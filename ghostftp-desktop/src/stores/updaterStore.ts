@@ -139,8 +139,8 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
       if (!Number.isFinite(last) || Date.now() - last > CHECK_INTERVAL_MS) {
         await get().check(true);
       }
-    } catch {
-      // No backend (mock) — skip the launch check.
+    } catch (error) {
+      console.warn("Couldn't initialize the quiet update check", error);
     }
     return () => {};
   },

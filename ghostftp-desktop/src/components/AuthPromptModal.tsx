@@ -34,16 +34,38 @@ export function AuthPromptModal() {
   } | null>(null);
 
   useEffect(() => {
+    let disposed = false;
     const unsubs: Array<() => void> = [];
-    onAuthPrompt((e) => setQueue((q) => [...q, e])).then((u) => unsubs.push(u));
-    onAuthChanged((e) => {
-      const pw = captured.current.get(e.profileId);
-      if (pw) {
-        captured.current.delete(e.profileId);
-        setSavePrompt({ profileId: e.profileId, password: pw });
-      }
-    }).then((u) => unsubs.push(u));
-    return () => unsubs.forEach((u) => u());
+    const track = (registration: Promise<() => void>, label: string) => {
+      void registration
+        .then((cleanup) => {
+          if (disposed) cleanup();
+          else unsubs.push(cleanup);
+        })
+        .catch((error) => {
+          toast.error(label, String(error));
+        });
+    };
+
+    track(
+      onAuthPrompt((e) => setQueue((q) => [...q, e])),
+      "Authentication prompt listener unavailable"
+    );
+    track(
+      onAuthChanged((e) => {
+        const pw = captured.current.get(e.profileId);
+        if (pw) {
+          captured.current.delete(e.profileId);
+          setSavePrompt({ profileId: e.profileId, password: pw });
+        }
+      }),
+      "Authentication-change listener unavailable"
+    );
+
+    return () => {
+      disposed = true;
+      unsubs.forEach((cleanup) => cleanup());
+    };
   }, []);
 
   const current = queue[0];
@@ -57,8 +79,9 @@ export function AuthPromptModal() {
     }
     try {
       await ipc.respondToAuthPrompt(event.requestId, values);
-    } finally {
       setQueue((q) => q.slice(1));
+    } catch (error) {
+      toast.error("Couldn't submit authentication response", String(error));
     }
   };
 
@@ -66,8 +89,9 @@ export function AuthPromptModal() {
     captured.current.delete(event.profileId);
     try {
       await ipc.respondToAuthPrompt(event.requestId, null);
-    } finally {
       setQueue((q) => q.slice(1));
+    } catch (error) {
+      toast.error("Couldn't cancel authentication prompt", String(error));
     }
   };
 
@@ -126,8 +150,11 @@ function AuthPromptDialog({
     try {
       await navigator.clipboard.writeText(pw);
       toast.success("Password generated", "Copied to clipboard");
-    } catch {
-      // clipboard unavailable; fields are still filled
+    } catch (error) {
+      toast.warning(
+        "Password generated, but couldn't copy it",
+        `The generated password remains in the fields. ${String(error)}`
+      );
     }
   };
 

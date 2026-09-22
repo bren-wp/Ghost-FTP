@@ -27,11 +27,12 @@ export const useSync = create<SyncStoreState>((set, get) => ({
 
   init: async () => {
     if (!get().loaded) {
-      set({ loaded: true });
       try {
-        set({ pairs: await ipc.folderSyncList() });
-      } catch {
-        // backend not ready yet — the listener below still attaches
+        set({ pairs: await ipc.folderSyncList(), loaded: true });
+      } catch (error) {
+        set({ loaded: false });
+        console.warn("Couldn't load Sync & Backup pairs during startup", error);
+        toast.error("Couldn't load Sync & Backup", String(error));
       }
     }
     const un = await onFolderSyncChanged(() => {
@@ -42,9 +43,9 @@ export const useSync = create<SyncStoreState>((set, get) => ({
 
   refresh: async () => {
     try {
-      set({ pairs: await ipc.folderSyncList() });
-    } catch {
-      // ignore — a transient failure; the next event will reconcile
+      set({ pairs: await ipc.folderSyncList(), loaded: true });
+    } catch (error) {
+      console.warn("Couldn't refresh Sync & Backup pairs", error);
     }
   },
 

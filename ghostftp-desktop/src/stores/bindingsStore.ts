@@ -48,8 +48,8 @@ function seedFromInjection(): Overrides {
         }
       }
     }
-  } catch {
-    // ignore
+  } catch (error) {
+    console.warn("Couldn't read injected shortcut settings", error);
   }
   return out;
 }
@@ -101,13 +101,13 @@ export const useBindings = create<BindingsState>((set, get) => ({
           if (typeof parsed === "string") {
             next[k.slice(SHORTCUT_PREFIX.length)] = parsed;
           }
-        } catch {
-          // skip a corrupt row
+        } catch (error) {
+          console.warn(`Ignoring corrupt shortcut setting: ${k}`, error);
         }
       }
       set({ overrides: next });
-    } catch {
-      // no backend — ignore
+    } catch (error) {
+      console.warn("Couldn't hydrate saved keyboard shortcuts", error);
     }
   },
 }));
@@ -117,7 +117,8 @@ export const useBindings = create<BindingsState>((set, get) => ({
 function hasInjection(): boolean {
   try {
     return !!(globalThis as { __GHOSTFTP_SETTINGS__?: unknown }).__GHOSTFTP_SETTINGS__;
-  } catch {
+  } catch (error) {
+    console.warn("Couldn't inspect injected shortcut settings", error);
     return false;
   }
 }

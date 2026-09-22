@@ -260,8 +260,8 @@ function readInjected(): Partial<PersistedSettings> | null {
   try {
     const inj = (globalThis as { __GHOSTFTP_SETTINGS__?: unknown }).__GHOSTFTP_SETTINGS__;
     if (inj && typeof inj === "object") return inj as Partial<PersistedSettings>;
-  } catch {
-    // ignore
+  } catch (error) {
+    console.warn("Couldn't read injected Ghost FTP settings", error);
   }
   return null;
 }
@@ -399,8 +399,8 @@ export async function hydrateFromDb(): Promise<void> {
       if (v !== undefined) {
         try {
           (parsed as Record<string, unknown>)[k] = JSON.parse(v);
-        } catch {
-          // skip a corrupt row
+        } catch (error) {
+          console.warn(`Ignoring corrupt saved preference: ${String(k)}`, error);
         }
       }
     }
@@ -409,8 +409,9 @@ export async function hydrateFromDb(): Promise<void> {
       useSettings.setState(known as Partial<SettingsState>);
     }
     applyTransferEngineSettings();
-  } catch {
-    // no backend — ignore
+  } catch (error) {
+    console.warn("Couldn't hydrate saved preferences from the native settings database", error);
+    toastError(error, "Couldn't load saved preferences");
   }
 }
 

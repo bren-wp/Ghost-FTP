@@ -5,6 +5,12 @@ import { toastError, messageOf } from "@/lib/errors";
 import type { ConnectionProfile, SessionId } from "@/lib/types";
 import { useTerminals } from "./terminalsStore";
 
+function syncBridgeActiveSession(sessionId: SessionId | null): void {
+  void ipc.bridgeSetActiveSession(sessionId).catch((error) => {
+    console.warn("Couldn't synchronize Agent Bridge active session", error);
+  });
+}
+
 // One live connection. The backend keeps every session alive in a map, so the
 // app can hold several at once; this is the frontend's view of them.
 export interface LiveSession {
@@ -114,7 +120,7 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
         activeProfileId: profileId,
         connecting: false,
       }));
-      void ipc.bridgeSetActiveSession(sessionId);
+      syncBridgeActiveSession(sessionId);
       toast.success(
         "Connected",
         profile
@@ -123,7 +129,9 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
       );
       // Refresh persisted profile metadata such as lastUsed without disturbing
       // any active ephemeral Quick Connect profiles.
-      void get().loadProfiles();
+      void get().loadProfiles().catch((error) =>
+        toastError(error, "Connected, but couldn't refresh saved sites")
+      );
     } catch (e) {
       // `connect` returns a structured {kind, message} error (Plan 12 Phase 3),
       // so the toast is keyed off the kind (auth → reconnect, network → check
@@ -153,7 +161,7 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
         activeProfileId: profile.id,
         connecting: false,
       }));
-      void ipc.bridgeSetActiveSession(sessionId);
+      syncBridgeActiveSession(sessionId);
       toast.success("Connected", `${profile.name} — ${profile.username}@${profile.host}`);
     } catch (e) {
       set({ connecting: false, error: messageOf(e) });
@@ -192,7 +200,7 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
       }
       return { profiles, sessions, activeSessionId, activeProfileId };
     });
-    void ipc.bridgeSetActiveSession(get().activeSessionId);
+    syncBridgeActiveSession(get().activeSessionId);
     toast.info("Disconnected", profile?.name);
   },
 
@@ -201,6 +209,6 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
     if (!target) return;
     set({ activeSessionId: sessionId, activeProfileId: target.profileId });
     // Keep the Agent Bridge aware of which connection the user is focused on.
-    void ipc.bridgeSetActiveSession(sessionId);
+    syncBridgeActiveSession(sessionId);
   },
 }));

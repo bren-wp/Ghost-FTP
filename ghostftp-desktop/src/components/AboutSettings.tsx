@@ -33,8 +33,8 @@ export function AboutSettings() {
       try {
         const v = await getVersion();
         if (!cancelled) setVersion(v);
-      } catch {
-        /* not in a Tauri context (mock/browser) — just omit the version */
+      } catch (error) {
+        console.warn("Couldn't read the Ghost FTP application version", error);
       }
     })();
     return () => {

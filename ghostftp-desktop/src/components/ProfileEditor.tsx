@@ -63,7 +63,10 @@ function genId(): string {
 function hostFromUrl(u: string): string {
   try {
     return new URL(u.includes("://") ? u : `https://${u}`).hostname;
-  } catch {
+  } catch (error) {
+    if (!(error instanceof TypeError)) {
+      console.warn("Couldn't derive a hostname from the WebDAV URL", error);
+    }
     return u;
   }
 }
@@ -1018,8 +1021,8 @@ function KeyAuthSection({
     if (!genPath) {
       try {
         setGenPath((await ipc.sshKeyDefaults()).suggestedPath);
-      } catch {
-        // Non-fatal — the user can type a path.
+      } catch (error) {
+        toast.warning("Couldn't suggest a default key path", String(error));
       }
     }
   }, [genPath]);
@@ -1047,7 +1050,11 @@ function KeyAuthSection({
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
       return true;
-    } catch {
+    } catch (error) {
+      toast.warning(
+        "Couldn't copy public key",
+        `The key is still available in the field. ${String(error)}`
+      );
       return false;
     }
   };
@@ -2508,8 +2515,11 @@ function PasswordInput({
       await navigator.clipboard.writeText(pw);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard can be unavailable (focus/permissions); the field is still set.
+    } catch (error) {
+      toast.warning(
+        "Password generated, but couldn't copy it",
+        `The generated password remains in the field. ${String(error)}`
+      );
     }
   }
 

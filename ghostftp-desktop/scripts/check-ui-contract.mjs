@@ -58,6 +58,69 @@ const interactiveAriaRoles = new Set([
   "switch",
 ]);
 
+function auditFireAndForgetPromises(file) {
+  const sourceText = read(file);
+  const sourceFile = ts.createSourceFile(
+    file,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  );
+
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "then" &&
+      node.arguments.length < 2
+    ) {
+      let cursor = node;
+      let top = node;
+      let handled = false;
+
+      while (cursor.parent) {
+        const parent = cursor.parent;
+        if (
+          ts.isPropertyAccessExpression(parent) &&
+          parent.expression === cursor &&
+          parent.name.text === "catch" &&
+          ts.isCallExpression(parent.parent) &&
+          parent.parent.expression === parent
+        ) {
+          handled = true;
+          top = parent.parent;
+          break;
+        }
+        if (
+          ts.isPropertyAccessExpression(parent) ||
+          ts.isCallExpression(parent) ||
+          ts.isParenthesizedExpression(parent)
+        ) {
+          top = parent;
+          cursor = parent;
+          continue;
+        }
+        break;
+      }
+
+      const standalone =
+        ts.isExpressionStatement(top.parent) ||
+        (ts.isVoidExpression(top.parent) && ts.isExpressionStatement(top.parent.parent));
+
+      if (standalone && !handled) {
+        const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+        failures.push(
+          `${file}:${pos.line + 1}: fire-and-forget .then() chain has no rejection handler`
+        );
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sourceFile);
+}
+
 function auditClickableTsx(file) {
   const sourceText = read(file);
   const sourceFile = ts.createSourceFile(
@@ -69,6 +132,11 @@ function auditClickableTsx(file) {
   );
 
   const visit = (node) => {
+    if (ts.isCatchClause(node) && node.block.statements.length === 0) {
+      const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      failures.push(`${file}:${pos.line + 1}: empty catch block hides a production error`);
+    }
+
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
       const tag = node.tagName.getText(sourceFile);
 
@@ -228,7 +296,8 @@ const criticalFiles = [
 
 for (const file of [...walkSource("src"), ...walkSource("packages/file-ui/src")]) {
   const source = read(file);
-  if (file.endsWith(".tsx")) auditClickableTsx(file);
+  auditFireAndForgetPromises(file);
+  if (file.endsWith(".tsx") || file.endsWith(".ts")) auditClickableTsx(file);
   if (/onClick\s*:\s*\(\)\s*=>\s*\{\s*\}/.test(source)) {
     failures.push(`${file}: contains a fake no-op onClick handler`);
   }
@@ -268,6 +337,18 @@ if (appShell.includes("openTerminalWindow(")) {
 }
 if (!appShell.includes("setTerminalOpen(true)")) {
   failures.push("src/App.tsx: single-window terminal deep link must open the in-app terminal dock");
+}
+if (appShell.includes("lazy(") || appShell.includes("<Suspense")) {
+  failures.push("src/App.tsx: primary Ghost FTP views must not use lazy/Suspense transitions that can flash or blank the workspace");
+}
+for (const required of [
+  "Couldn't initialize Sync & Backup",
+  "Couldn't initialize application settings",
+  "Couldn't register Ghost FTP deep-link listener",
+]) {
+  if (!appShell.includes(required)) {
+    failures.push(`src/App.tsx: startup/deep-link failure must stay observable: ${required}`);
+  }
 }
 
 const sidebar = read("src/components/ReferenceSiteSidebar.tsx");
@@ -388,6 +469,15 @@ for (const required of [
   "flex: 0 0 178px;",
 ]) {
   if (!styles.includes(required)) failures.push(`Styles missing Transfer Center table-space fidelity guard: ${required}`);
+}
+
+for (const required of [
+  "RC15 reference-density pass",
+  "grid-template-rows: repeat(4, minmax(0, 1fr));",
+  "grid-template-rows: minmax(344px, 1.15fr) minmax(190px, .85fr);",
+  "grid-template-rows: minmax(360px, 1.15fr) minmax(180px, .85fr);",
+]) {
+  if (!styles.includes(required)) failures.push(`Styles missing RC15 standalone reference-density guard: ${required}`);
 }
 
 const nativeBuildWorkflow = read("../.github/workflows/ghostftp-build.yml");

@@ -75,8 +75,9 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
           ipc.bridgeListCommands(),
         ]);
         set({ status, activity: activity.slice().reverse(), savedCommands });
-      } catch {
-        // backend not ready yet — listeners below still attach
+      } catch (error) {
+        set({ loaded: false });
+        console.warn("Couldn't initialize Agent Bridge state", error);
       }
     }
     const unApproval = await onBridgeApproval((a) => {
@@ -152,8 +153,8 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
   refresh: async () => {
     try {
       set({ status: await ipc.bridgeStatus() });
-    } catch {
-      // ignore
+    } catch (error) {
+      console.warn("Couldn't refresh Agent Bridge status", error);
     }
   },
 
@@ -219,8 +220,8 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
     }));
     try {
       await ipc.respondToBridgeApproval(requestId, decision);
-    } catch {
-      // the request may have already timed out on the backend
+    } catch (error) {
+      toast.warning("Approval request is no longer available", String(error));
     }
   },
 
@@ -229,8 +230,8 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
   refreshActivity: async () => {
     try {
       set({ activity: (await ipc.bridgeActivity()).slice().reverse() });
-    } catch {
-      // ignore
+    } catch (error) {
+      toast.error("Couldn't refresh Agent Bridge activity", String(error));
     }
   },
 
@@ -238,16 +239,17 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
     set({ activity: [] });
     try {
       await ipc.bridgeClearActivity();
-    } catch {
-      // best effort — the view is already cleared
+    } catch (error) {
+      toast.warning("Activity view cleared locally, but backend history remains", String(error));
+      void get().refreshActivity();
     }
   },
 
   loadCommands: async () => {
     try {
       set({ savedCommands: await ipc.bridgeListCommands() });
-    } catch {
-      // ignore
+    } catch (error) {
+      toast.error("Couldn't load saved Agent Bridge commands", String(error));
     }
   },
 

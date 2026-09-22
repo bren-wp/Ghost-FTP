@@ -16,6 +16,7 @@ import {
 import { open } from "@tauri-apps/plugin-dialog";
 import { ipc } from "@/lib/ipc";
 import { useSync } from "@/stores/syncStore";
+import { toast } from "@/stores/toastStore";
 import { useConnections } from "@/stores/connectionsStore";
 import { relTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -95,8 +96,8 @@ function PairRow({ pair }: { pair: PairView }) {
     setFreeing(true);
     try {
       await ipc.virtualFsFreeUpSpace(pair.id);
-    } catch {
-      // best-effort; the OS "Free up space" also works from Explorer
+    } catch (error) {
+      toast.error("Couldn't free up local space", String(error));
     } finally {
       setFreeing(false);
     }
@@ -244,7 +245,13 @@ function PairForm({ onDone }: { onDone: () => void }) {
   // On-demand placeholders are Windows-only (and gated behind the `virtualfs`
   // build); only offer the mode where it actually works.
   useEffect(() => {
-    ipc.virtualFsSupported().then(setVfsSupported).catch(() => setVfsSupported(false));
+    void ipc
+      .virtualFsSupported()
+      .then(setVfsSupported)
+      .catch((error) => {
+        console.warn("Couldn't determine virtual filesystem support", error);
+        setVfsSupported(false);
+      });
   }, []);
 
   const pickProfile = (id: string) => {

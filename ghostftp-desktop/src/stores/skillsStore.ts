@@ -45,7 +45,7 @@ export const useSkills = create<SkillsState>((set, get) => ({
     }
     // When the AI proposes a skill, refresh and nudge the user to approve it.
     const un = await onBridgeSkillProposed((skill) => {
-      get().load();
+      void get().load();
       toast.info(
         "New skill proposal",
         `The AI proposed "${skill.name}". Review and approve it in the Skills panel before it can run.`
@@ -57,14 +57,16 @@ export const useSkills = create<SkillsState>((set, get) => ({
   load: async () => {
     try {
       set({ skills: await ipc.bridgeListSkills(), loaded: true });
-    } catch {
-      // backend not ready yet — the proposal listener will still refresh later.
+    } catch (error) {
+      set({ loaded: false });
+      console.warn("Couldn't load Agent Bridge skills", error);
+      if (get().open) toast.error("Couldn't load skills", String(error));
     }
   },
 
   openPanel: () => {
     set({ open: true });
-    get().load();
+    void get().load();
   },
   close: () => set({ open: false }),
 

@@ -39,8 +39,13 @@ export function PropertiesModal({ entry, sessionId, onClose, onApplied, onOpenCo
   };
   const bit = (m: number) => Boolean(mode & m);
   const toggle = (m: number) => setMode((v) => v ^ m);
+  const canApplyPermissions =
+    Boolean(sessionId) &&
+    entry.mode != null &&
+    (mode !== initialMode || (recursive && isDir));
+
   const apply = async () => {
-    if (!sessionId || entry.mode == null || mode === initialMode) { onClose(); return; }
+    if (!sessionId || entry.mode == null || !canApplyPermissions) return;
     setBusy(true); setError(null);
     try {
       if (recursive && isDir) {
@@ -107,7 +112,7 @@ export function PropertiesModal({ entry, sessionId, onClose, onApplied, onOpenCo
         </> : <div className="min-h-[360px]"><div className="mb-4 flex items-center gap-3"><div className="ghost-dialog-icon"><Hash size={20}/></div><div><div className="font-semibold">SHA-256</div><div className="text-[11px] text-text-muted">Calculate a cryptographic digest without inventing unsupported results.</div></div></div>{isDir ? <div className="rounded-md border border-border bg-[#051929] p-4 text-[12px] text-text-muted">Checksums are available for files only.</div> : <><button className="ghost-primary-button" disabled={checksumBusy || !fs.checksum} onClick={() => void calculateChecksum()}>{checksumBusy ? "Calculating…" : "Calculate SHA-256"}</button>{checksum && <div className="mt-4 break-all rounded-md border border-border bg-[#041522] p-3 font-mono text-[11px] text-success">{checksum}</div>}{!fs.checksum && <div className="mt-3 text-[11px] text-text-muted">This backend does not provide checksums.</div>}</>}</div>}
         {error && <div className="mt-4 rounded-md border border-danger/35 bg-danger/10 px-3 py-2 text-[11px] text-danger">{error}</div>}
       </div>
-      <div className="flex min-h-[62px] shrink-0 items-center border-t border-border bg-[#051929] px-3 py-3"><button className="ghost-mini-button" disabled={!onOpenContainingFolder} onClick={onOpenContainingFolder}><FolderOpen size={14}/> Open Containing Folder</button><button className="ghost-mini-button ml-2" disabled={!fs.duplicate || busy} onClick={() => void duplicate()}><CopyPlus size={14}/> Duplicate</button><div className="flex-1"/><button className="ghost-primary-button" disabled={busy} onClick={() => void apply()}>{busy ? "Applying…" : "Apply"}</button><button className="ghost-mini-button ml-2" onClick={onClose}>Cancel</button></div>
+      <div className="flex min-h-[62px] shrink-0 items-center border-t border-border bg-[#051929] px-3 py-3"><button className="ghost-mini-button" disabled={!onOpenContainingFolder} onClick={onOpenContainingFolder}><FolderOpen size={14}/> Open Containing Folder</button><button className="ghost-mini-button ml-2" disabled={!fs.duplicate || busy} onClick={() => void duplicate()}><CopyPlus size={14}/> Duplicate</button><div className="flex-1"/><button className="ghost-primary-button" disabled={busy || !canApplyPermissions} onClick={() => void apply()}>{busy ? "Applying…" : "Apply"}</button><button className="ghost-mini-button ml-2" onClick={onClose}>Cancel</button></div>
     </div>
   </div>;
 }

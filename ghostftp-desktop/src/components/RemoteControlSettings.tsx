@@ -37,12 +37,25 @@ export function RemoteControlSettings() {
 
   // A controller finished pairing — refresh the peer list and celebrate.
   useEffect(() => {
-    const un = onAgentHostPaired((e) => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    const registration = onAgentHostPaired((e) => {
       toast.success("New machine paired", `${e.name} can now control this computer`);
       void refresh();
     });
+
+    void registration
+      .then((cleanup) => {
+        if (disposed) cleanup();
+        else unlisten = cleanup;
+      })
+      .catch((error) => {
+        toast.error("Remote-control listener unavailable", String(error));
+      });
+
     return () => {
-      void un.then((f) => f());
+      disposed = true;
+      unlisten?.();
     };
   }, [refresh]);
 
@@ -86,8 +99,11 @@ export function RemoteControlSettings() {
       await navigator.clipboard.writeText(status.pairing.code);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard blocked — the code is on screen anyway */
+    } catch (error) {
+      toast.warning(
+        "Couldn't copy the pairing code",
+        `The code remains visible on screen. ${String(error)}`
+      );
     }
   };
 

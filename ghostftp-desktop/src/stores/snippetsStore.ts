@@ -94,14 +94,15 @@ export const useSnippets = create<SnippetsState>((set, get) => ({
   load: async () => {
     try {
       set({ snippets: (await ipc.snippetList()) ?? [] });
-    } catch {
-      // Backend not ready yet — a later openPanel() / init() retries.
+    } catch (error) {
+      console.warn("Couldn't load command snippets", error);
+      if (get().open) toast.error("Couldn't load snippets", String(error));
     }
   },
 
   openPanel: () => {
     set({ open: true });
-    get().load();
+    void get().load();
   },
   closePanel: () => set({ open: false }),
 

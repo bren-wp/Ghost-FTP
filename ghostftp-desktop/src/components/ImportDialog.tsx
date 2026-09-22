@@ -23,6 +23,7 @@ import type {
   Protocol,
 } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { toast } from "@/stores/toastStore";
 
 interface Props {
   onClose: () => void;
@@ -39,7 +40,12 @@ export function ImportDialog({ onClose }: Props) {
   useDialog(panelRef, { onClose });
 
   useEffect(() => {
-    ipc.importerDefaultPaths().then(setPaths);
+    void ipc
+      .importerDefaultPaths()
+      .then(setPaths)
+      .catch((error) => {
+        toast.error("Couldn't detect import locations", String(error));
+      });
   }, []);
 
   return (

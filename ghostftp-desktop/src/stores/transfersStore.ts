@@ -144,8 +144,9 @@ async function runBatch(
     for (const e of list) {
       existing.set(e.name, { size: e.size, modified: e.modified ?? undefined });
     }
-  } catch {
-    // destination unreadable / missing → treat as no conflicts
+  } catch (error) {
+    toastError(error, "Couldn't inspect the destination for existing files");
+    return;
   }
 
   let remembered: ConflictDecision | null = null;

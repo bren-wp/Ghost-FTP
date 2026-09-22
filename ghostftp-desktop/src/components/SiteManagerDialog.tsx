@@ -272,10 +272,9 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     setAction("connect");
     try {
       await connect(selected.id);
-    } catch {
+    } catch (error) {
       // connectionsStore already surfaces the structured FTP/FTPS/SFTP error.
-      // Keep the click contract contained so WebView2 never receives an
-      // unhandled rejected promise.
+      console.debug("Site Manager connection failure was surfaced by the connections store", error);
     } finally {
       setAction(null);
     }

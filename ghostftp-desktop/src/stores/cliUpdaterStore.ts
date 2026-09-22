@@ -31,8 +31,8 @@ export const useCliUpdater = create<CliUpdaterState>((set, get) => ({
     try {
       const status = await ipc.cliUpdaterStatus();
       set({ status });
-    } catch {
-      /* bridge not ready — the startup emit will fill it in */
+    } catch (error) {
+      console.warn("Couldn't read the initial Ghost FTP CLI updater status", error);
     }
     return unlisten;
   },
