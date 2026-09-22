@@ -128,12 +128,16 @@ export default function App() {
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     let cancelled = false;
-    useSync
+    void useSync
       .getState()
       .init()
       .then((c) => {
         if (cancelled) c();
         else cleanup = c;
+      })
+      .catch((error) => {
+        console.error("Couldn't initialize Sync & Backup", error);
+        toast.error("Couldn't initialize Sync & Backup", String(error));
       });
     return () => {
       cancelled = true;
@@ -145,7 +149,13 @@ export default function App() {
   // then any defaults that changed since this install first wrote its rows —
   // in that order, so the bumps apply on top of the imported values.
   useEffect(() => {
-    void runSettingsMigration().then(runDefaultBumps).then(() => applyTransferEngineSettings());
+    void runSettingsMigration()
+      .then(runDefaultBumps)
+      .then(() => applyTransferEngineSettings())
+      .catch((error) => {
+        console.error("Couldn't initialize application settings", error);
+        toast.error("Couldn't initialize application settings", String(error));
+      });
   }, []);
 
   // Keep Transfer Center schedules running even when another workspace is open.
@@ -268,7 +278,10 @@ function DeepLinkListener() {
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const openGrant = useLayout((s) => s.openGrant);
   useEffect(() => {
-    const un = onDeepLink((dl) => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+
+    const registration = onDeepLink((dl) => {
       if (dl.action === "grant") {
         // Access grant: never prefill the editor — open the consent dialog,
         // which fetches the manifest and only acts on Accept.
@@ -323,8 +336,20 @@ function DeepLinkListener() {
         prefill.name || prefill.host || undefined
       );
     });
+
+    void registration
+      .then((cleanup) => {
+        if (disposed) cleanup();
+        else unlisten = cleanup;
+      })
+      .catch((error) => {
+        console.error("Couldn't register Ghost FTP deep-link listener", error);
+        toast.error("Couldn't register deep-link handler", String(error));
+      });
+
     return () => {
-      void un.then((f) => f());
+      disposed = true;
+      unlisten?.();
     };
   }, [openNewConnection, openGrant]);
   return null;
