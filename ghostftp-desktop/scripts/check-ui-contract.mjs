@@ -339,6 +339,20 @@ for (const required of [
   if (!fileBrowser.includes(required)) failures.push(`Single-pane File Browser missing navigation/upload bridge: ${required}`);
 }
 
+const newConnection = read("src/components/QuickConnectionDialog.tsx");
+for (const required of [
+  "Save this connection in Sites",
+  "Host / Address",
+  "ftp.example.com or 192.0.2.10",
+  "Advanced Settings",
+  "Test Connection",
+]) {
+  if (!newConnection.includes(required)) failures.push(`New Connection missing simplified form contract: ${required}`);
+}
+for (const forbidden of ["Quick Connect", "Save as Profile", "ghost-new-connection-mode"]) {
+  if (newConnection.includes(forbidden)) failures.push(`New Connection reintroduced duplicate mode UI: ${forbidden}`);
+}
+
 const commands = read("src/lib/commands.tsx");
 if (!commands.includes("openNewConnection()")) {
   failures.push("Command palette New Connection must use openNewConnection so closing returns to its caller.");
