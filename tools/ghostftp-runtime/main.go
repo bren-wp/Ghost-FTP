@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-const version = "2.1.1-rc.14"
+const version = "2.1.1-rc.15"
 const runtimeKind = "compatibility-fallback"
 
 //go:embed site/* site/assets/*
