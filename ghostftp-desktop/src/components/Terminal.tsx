@@ -68,7 +68,9 @@ export function TerminalDock({
       try {
         const buffer = entry.serialize();
         if (buffer) localStorage.setItem(popoutBufferKey(terminalId), buffer);
-      } catch {}
+      } catch (error) {
+        console.warn("Couldn't persist terminal popout scrollback", error);
+      }
       entry.setHandedOff(true);
     }
     try {
