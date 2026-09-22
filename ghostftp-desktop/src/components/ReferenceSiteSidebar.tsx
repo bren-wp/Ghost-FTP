@@ -40,9 +40,9 @@ export function ReferenceSiteSidebar() {
     }
     try {
       await connect(profileId);
-    } catch {
+    } catch (error) {
       // connectionsStore already shows the protocol/backend failure to the user.
-      // Keep sidebar activation from leaking an unhandled rejected promise.
+      console.debug("Sidebar connection failure was surfaced by the connections store", error);
     }
   };
 
