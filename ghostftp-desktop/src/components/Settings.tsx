@@ -3,6 +3,7 @@ import {
   Bell,
   ChevronDown,
   Globe2,
+  FolderSync,
   Keyboard,
   Languages,
   Monitor,
@@ -19,18 +20,13 @@ import {
   ArrowDownUp,
 } from "lucide-react";
 import {
-  captureSettingsSnapshot,
   resetSettingsToDefaults,
-  restoreSettingsSnapshot,
   APP_THEMES,
   useSettings,
 } from "@/stores/settingsStore";
 import { getLocale, saveLocale } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
 import { useUpdater } from "@/stores/updaterStore";
-import { PRODUCT_VERSION_DISPLAY } from "@/lib/release";
-import { GhostMark } from "./GhostBrand";
-import { ReferenceWindowTitlebar } from "./ReferenceWindowChrome";
 import { useDialog } from "@/hooks/useDialog";
 import { requestDesktopNotificationPermission } from "@/lib/notifications";
 import { SyncSettings } from "./SyncSettings";
@@ -38,53 +34,42 @@ import { toastError } from "@/lib/errors";
 import { toast } from "@/stores/toastStore";
 
 interface Props { onClose: () => void; initialSection?: Section }
-type Section = "general" | "appearance" | "transfers" | "connection" | "security" | "updates" | "integrations" | "shortcuts" | "language" | "sync";
+type Section = "appearance" | "language" | "transfers" | "connection" | "security" | "updates" | "integrations" | "shortcuts" | "sync";
 
-export function Settings({ onClose, initialSection = "general" }: Props) {
+export function Settings({ onClose, initialSection = "appearance" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [section, setSection] = useState<Section>(initialSection);
   const [pendingLocale, setPendingLocale] = useState(getLocale());
-  const initialSettings = useRef(captureSettingsSnapshot());
-  const initialLocale = useRef(getLocale());
-
-  const cancel = () => {
-    restoreSettingsSnapshot(initialSettings.current);
-    saveLocale(initialLocale.current);
-    onClose();
+  const setLocaleNow = (value: any) => {
+    setPendingLocale(value);
+    saveLocale(value);
   };
-  const apply = () => {
-    saveLocale(pendingLocale);
-    onClose();
-  };
+  const done = () => onClose();
   const reset = () => {
     resetSettingsToDefaults();
     setPendingLocale("en");
+    saveLocale("en");
   };
 
-  useDialog(panelRef, { onClose: cancel });
+  useDialog(panelRef, { onClose: done });
 
   return (
     <div className="ghost-workspace-view ghost-standalone-view bg-[#041425]" role="region" aria-label="Ghost FTP Preferences">
       <div ref={panelRef} className="ghost-preferences flex h-full w-full flex-col overflow-hidden bg-bg-panel">
-        <ReferenceWindowTitlebar suffix="Preferences" onClose={cancel} />
-        <div className="ghost-preferences-body flex min-h-0 flex-1">
-        <aside className="ghost-preferences-nav flex w-[214px] shrink-0 flex-col border-r border-border bg-[#061a2d] p-3">
-          <Nav section="general" current={section} set={setSection} icon={<Settings2/>} label="General"/>
+        <div className="ghost-preferences-body flex min-h-0 flex-1 flex-col">
+        <div className="ghost-preferences-nav ghost-settings-tabs flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-[#061a2d] px-3 py-2">
           <Nav section="appearance" current={section} set={setSection} icon={<Monitor/>} label="Appearance"/>
+          <Nav section="language" current={section} set={setSection} icon={<Globe2/>} label="Language"/>
           <Nav section="transfers" current={section} set={setSection} icon={<ArrowDownUp/>} label="Transfers"/>
           <Nav section="connection" current={section} set={setSection} icon={<Wifi/>} label="Connection"/>
           <Nav section="security" current={section} set={setSection} icon={<ShieldCheck/>} label="Security"/>
-          <Nav section="updates" current={section} set={setSection} icon={<RefreshCw/>} label="Updates"/>
+          <Nav section="sync" current={section} set={setSection} icon={<FolderSync/>} label="Sync & Backup"/>
           <Nav section="integrations" current={section} set={setSection} icon={<Plug/>} label="Integrations"/>
           <Nav section="shortcuts" current={section} set={setSection} icon={<Keyboard/>} label="Shortcuts"/>
-          <Nav section="language" current={section} set={setSection} icon={<Globe2/>} label="Language"/>
-          <div className="mt-auto border-t border-border pt-4 px-2 text-[11px] text-text-muted">
-            <div className="mb-2 flex items-center gap-2"><GhostMark size={20}/><strong className="text-text">Ghost FTP</strong></div>
-            <div>v{PRODUCT_VERSION_DISPLAY}</div><div>Built for Windows & Linux</div>
-          </div>
-        </aside>
+          <Nav section="updates" current={section} set={setSection} icon={<RefreshCw/>} label="Updates"/>
+        </div>
 
-        <main className="flex min-w-0 flex-1 flex-col">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="ghost-preferences-heading flex h-[78px] shrink-0 items-center gap-3 border-b border-border px-5">
             <Settings2 size={28} className="text-accent"/>
             <div>
@@ -93,22 +78,21 @@ export function Settings({ onClose, initialSection = "general" }: Props) {
             </div>
           </div>
           <div className="ghost-preferences-content flex-1 overflow-y-auto p-4">
-            {section === "general" && <GeneralGrid locale={pendingLocale} setLocale={setPendingLocale}/>}
+
             {section === "appearance" && <AppearancePanel/>}
+            {section === "language" && <LanguagePanel locale={pendingLocale} setLocale={setLocaleNow}/>} 
             {section === "transfers" && <TransfersPanel/>}
             {section === "connection" && <ConnectionPanel/>}
             {section === "security" && <SecurityPanel/>}
             {section === "updates" && <UpdatesPanel/>}
             {section === "integrations" && <IntegrationsPanel/>}
             {section === "shortcuts" && <ShortcutsPanel/>}
-            {section === "language" && <LanguagePanel locale={pendingLocale} setLocale={setPendingLocale}/>} 
             {section === "sync" && <div className="max-w-5xl"><SyncSettings/></div>}
           </div>
           <div className="ghost-preferences-actions flex h-[58px] shrink-0 items-center border-t border-border bg-[#061a2d] px-4">
             <button className="ghost-mini-button" onClick={reset}><RotateCcw size={14}/> Reset to Defaults</button>
             <div className="flex-1"/>
-            <button className="ghost-mini-button" onClick={cancel}>Cancel</button>
-            <button className="ghost-primary-button ml-2" onClick={apply}>Apply</button>
+            <button className="ghost-primary-button" onClick={done}>Done</button>
           </div>
         </main>
         </div>
@@ -117,161 +101,14 @@ export function Settings({ onClose, initialSection = "general" }: Props) {
   );
 }
 
-function GeneralGrid({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }) {
-  const s = useSettings();
-  const themeOptions = APP_THEMES.map((theme) => [theme.value, theme.label] as [string, string]);
-
-  return (
-    <div className="ghost-general-grid grid grid-cols-2 gap-3">
-      <GeneralCard icon={<Globe2 size={20}/>} title="Language" subtitle="Choose your preferred application language.">
-        <SelectRow
-          label="Primary Language"
-          value={locale}
-          onChange={setLocale}
-          options={[
-            ["en","English (English)"],
-            ["hr","Hrvatski (Croatian)"],
-            ["de","Deutsch (German)"],
-            ["fr","Français (French)"],
-            ["es","Español (Spanish)"],
-            ["it","Italiano (Italian)"],
-            ["pt","Português (Portuguese)"],
-            ["nl","Nederlands (Dutch)"],
-            ["pl","Polski (Polish)"],
-            ["sl","Slovenščina (Slovenian)"],
-            ["sr","Srpski (Serbian)"],
-            ["bs","Bosanski (Bosnian)"],
-            ["mk","Македонски (Macedonian)"],
-            ["sq","Shqip (Albanian)"],
-          ]}
-        />
-      </GeneralCard>
-
-      <GeneralCard icon={<Monitor size={20}/>} title="Appearance" subtitle="Personalize the look and feel of Ghost FTP.">
-        <SelectRow label="Theme" value={s.appTheme} onChange={(v)=>s.setAppTheme(v as typeof s.appTheme)} options={themeOptions}/>
-        <AccentRow value={s.accentColor} onChange={s.setAccentColor}/>
-        <SelectRow label="Interface Density" value={s.paneDensity} onChange={(v)=>s.setPaneDensity(v as "comfortable"|"compact")} options={[["comfortable","Comfortable"],["compact","Compact"]]}/>
-        <ToggleRow label="Image previews" checked={s.remoteImagePreviews === "on"} onChange={(v)=>s.setRemoteImagePreviews(v ? "on" : "off")}/>
-      </GeneralCard>
-
-      <GeneralPerformanceCard/>
-
-      <GeneralCard icon={<ArrowDownUp size={20}/>} title="Transfers" subtitle="Set default options for file transfers.">
-        <SelectRow label="Overwrite Behavior" value={s.overwritePolicy} onChange={(v)=>s.setOverwritePolicy(v as "overwrite"|"skip"|"rename")} options={[["overwrite","Overwrite"],["rename","Rename duplicate"],["skip","Skip existing"]]}/>
-        <ToggleRow label="Prompt before overwrite" checked={s.promptOnOverwrite} onChange={s.setPromptOnOverwrite}/>
-        <ToggleRow label="Open transfer queue" checked={s.autoOpenTransferPanel} onChange={s.setAutoOpenTransferPanel}/>
-      </GeneralCard>
-
-      <GeneralCard icon={<Wifi size={20}/>} title="Connection" subtitle="Configure connection behavior and reliability.">
-        <NumberRow label="Default SFTP Port" value={s.defaultPort} min={1} max={65535} fallback={22} onChange={s.setDefaultPort}/>
-        <DesktopNotificationsToggle/>
-        <ToggleRow label="Notify only when unfocused" checked={s.notifications.unfocusedOnly} onChange={(v)=>s.setNotifications({...s.notifications,unfocusedOnly:v})}/>
-      </GeneralCard>
-
-      <GeneralCard icon={<ShieldCheck size={20}/>} title="Security & Privacy" subtitle="Protect your data and control your privacy.">
-        <ToggleRow label="No tracking" checked locked/>
-        <ToggleRow label="No analytics or telemetry" checked locked/>
-        <ToggleRow label="OS keychain credentials" checked locked/>
-      </GeneralCard>
-
-      <GeneralUpdatesCard/>
-
-      <GeneralIntegrationsCard/>
-    </div>
-  );
-}
-
-function GeneralPerformanceCard() {
-  const s = useSettings();
-  return (
-    <GeneralCard icon={<Sparkles size={20}/>} title="Performance" subtitle="Adjust transfer performance and resilience.">
-      <RangeRow label="Concurrent Transfers" value={s.transferConcurrency} min={1} max={32} onChange={s.setTransferConcurrency}/>
-      <NumberRow label="Speed Limit (KiB/s)" value={s.transferThrottleKbps} min={0} fallback={0} onChange={s.setTransferThrottleKbps}/>
-      <RangeRow label="Max Retry Attempts" value={s.maxRetryAttempts} min={0} max={8} onChange={s.setMaxRetryAttempts}/>
-      <ToggleRow label="Delta synchronization" checked={s.deltaSync} onChange={s.setDeltaSync}/>
-    </GeneralCard>
-  );
-}
-
-function GeneralCard({ icon, title, subtitle, children }: { icon: React.ReactNode; title: string; subtitle: string; children: React.ReactNode }) {
-  return (
-    <section className="ghost-general-card rounded-lg border border-border bg-[#071f35] p-3">
-      <div className="mb-2 flex items-center gap-2">
-        <span className="text-accent">{icon}</span>
-        <div className="min-w-0">
-          <div className="font-semibold text-accent">{title}</div>
-          <div className="truncate text-[10.5px] text-text-muted">{subtitle}</div>
-        </div>
-      </div>
-      <div className="space-y-2">{children}</div>
-    </section>
-  );
-}
-
-function GeneralIntegrationsCard() {
-  const s=useSettings();
-  const [busy,setBusy]=useState(false);
-
-  useEffect(()=>{
-    let active=true;
-    void ipc.pathStatus().then((status)=>{
-      if(active) s.setShellIntegration(status.managed);
-    }).catch((error)=>{
-      if(active) toastError(error, "Couldn't read shell integration status");
-    });
-    return()=>{ active=false; };
-  },[]);
-
-  const setShell=async(enabled:boolean)=>{
-    if(busy)return;
-    setBusy(true);
-    try{
-      const status=enabled?await ipc.pathAdd():await ipc.pathRemove();
-      s.setShellIntegration(status.managed);
-    }catch(error){
-      toastError(error, enabled ? "Couldn't enable shell integration" : "Couldn't disable shell integration");
-    }finally{
-      setBusy(false);
-    }
-  };
-
-  return (
-    <GeneralCard icon={<Plug size={20}/>} title="Integrations" subtitle="Extend Ghost FTP with system integrations.">
-      <ToggleRow label="Shell integration" checked={s.shellIntegration} onChange={(v)=>void setShell(v)} locked={busy}/>
-      <ToggleRow label="File associations" checked={s.fileAssociations} onChange={s.setFileAssociations} locked/>
-      <DesktopNotificationsToggle/>
-    </GeneralCard>
-  );
-}
-
-function GeneralUpdatesCard() {
-  const status=useUpdater((x)=>x.status);
-  const version=useUpdater((x)=>x.version);
-  const check=useUpdater((x)=>x.check);
-  const busy=status==="checking"||status==="downloading";
-  return (
-    <GeneralCard icon={<RefreshCw size={20}/>} title="Updates" subtitle="Keep Ghost FTP current.">
-      <div className="grid grid-cols-[150px_1fr] items-center gap-3 text-[12px]">
-        <span className="text-text-muted">Update Channel</span>
-        <div className="rounded-md border border-border bg-[#051929] px-3 py-2 text-text">Stable (Recommended)</div>
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <span className="min-w-0 truncate text-[10.5px] text-text-dim">
-          {status==="available" ? `Ghost FTP ${version ?? "update"} available` : status==="checking" ? "Checking…" : "Automatic update checks supported"}
-        </span>
-        <button className="ghost-mini-button" disabled={busy} onClick={()=>void check(false)}>
-          <RefreshCw size={13}/> Check
-        </button>
-      </div>
-    </GeneralCard>
-  );
-}
-
 function Card({ icon, title, subtitle, children }: { icon: React.ReactNode; title: string; subtitle: string; children: React.ReactNode }) {
   return <section className="rounded-lg border border-border bg-[#071f35] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.02)]"><div className="mb-3 flex items-center gap-2"><span className="text-accent">{icon}</span><div><div className="font-semibold text-accent">{title}</div><div className="text-[11px] text-text-muted">{subtitle}</div></div></div><div className="space-y-3">{children}</div></section>;
 }
 
-function LanguageCard({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }) { const options = [['en','English (English)'],['hr','Hrvatski (Croatian)'],['de','Deutsch (German)'],['fr','Français (French)'],['es','Español (Spanish)'],['it','Italiano (Italian)'],['pt','Português (Portuguese)'],['nl','Nederlands (Dutch)'],['pl','Polski (Polish)'],['sl','Slovenščina (Slovenian)'],['sr','Srpski (Serbian)'],['bs','Bosanski (Bosnian)'],['mk','Македонски (Macedonian)'],['sq','Shqip (Albanian)']] as [string,string][]; return <Card icon={<Globe2 size={20}/>} title="Language" subtitle="Choose your preferred application language."><SelectRow label="Primary Language" value={locale} onChange={setLocale} options={options}/><div className="text-[10px] text-text-dim">English is the primary language. Changes take effect after restart.</div></Card> }
+function LanguageCard({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }) {
+  const options = [['en','English (English)'],['hr','Hrvatski (Croatian)'],['de','Deutsch (German)'],['fr','Français (French)'],['es','Español (Spanish)'],['it','Italiano (Italian)'],['pt','Português (Portuguese)'],['nl','Nederlands (Dutch)'],['pl','Polski (Polish)'],['sl','Slovenščina (Slovenian)'],['sr','Srpski (Serbian)'],['bs','Bosanski (Bosnian)'],['mk','Македонски (Macedonian)'],['sq','Shqip (Albanian)']] as [string,string][];
+  return <Card icon={<Globe2 size={20}/>} title="Language" subtitle="Choose your preferred application language."><SelectRow label="Primary Language" value={locale} onChange={setLocale} options={options}/><div className="text-[10px] text-text-dim">Language changes are saved immediately. English remains the primary fallback language.</div></Card>;
+}
 function AppearanceCard() {
   const s = useSettings();
   const themeOptions = APP_THEMES.map(
@@ -549,12 +386,12 @@ function IntegrationsCard() {
 }
 
 function AppearancePanel(){return <div className="max-w-3xl"><AppearanceCard/></div>}
+function LanguagePanel({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }){return <div className="max-w-3xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
 function TransfersPanel(){return <div className="grid max-w-4xl grid-cols-2 gap-4"><PerformanceCard/><TransfersCard/><div className="col-span-2"><TerminalCard/></div></div>}
 function ConnectionPanel(){return <div className="max-w-3xl"><ConnectionCard/></div>}
 function SecurityPanel(){return <div className="max-w-3xl"><SecurityCard/></div>}
 function UpdatesPanel(){return <div className="max-w-3xl"><UpdatesCard/></div>}
 function IntegrationsPanel(){return <div className="max-w-3xl"><IntegrationsCard/></div>}
-function LanguagePanel({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }){return <div className="max-w-3xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
 function ShortcutsPanel(){return <Card icon={<Keyboard size={20}/>} title="Keyboard Shortcuts" subtitle="Core Ghost FTP shortcuts."><div className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-[12px]"><span>New connection</span><kbd>Ctrl + N</kbd><span>Settings</span><kbd>Ctrl + ,</kbd><span>Transfer queue</span><kbd>Ctrl + Shift + T</kbd><span>Command palette</span><kbd>Ctrl + K</kbd></div></Card>}
 
 function Nav({
@@ -576,7 +413,7 @@ function Nav({
       type="button"
       aria-current={active ? "page" : undefined}
       onClick={() => set(section)}
-      className={`mb-1 flex items-center gap-3 rounded-md border px-3 py-2.5 text-left ${active ? "border-accent/45 bg-accent/15 text-white" : "border-transparent text-text-muted hover:bg-bg-hover hover:text-white"}`}
+      className={`flex shrink-0 items-center gap-2 rounded-md border px-3 py-2 text-left ${active ? "border-accent/45 bg-accent/15 text-white" : "border-transparent text-text-muted hover:bg-bg-hover hover:text-white"}`}
     >
       <span className="[&>svg]:h-[18px] [&>svg]:w-[18px]">{icon}</span>
       <span>{label}</span>
