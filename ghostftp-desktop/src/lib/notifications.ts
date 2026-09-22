@@ -93,10 +93,14 @@ export function initNotifications(): () => void {
   // the double-mount leaks a listener and every toast fires twice.
   let cancelled = false;
   const track = (p: Promise<() => void>) => {
-    void p.then((un) => {
-      if (cancelled) un();
-      else cleanups.push(un);
-    });
+    void p
+      .then((un) => {
+        if (cancelled) un();
+        else cleanups.push(un);
+      })
+      .catch((error) => {
+        console.warn("Couldn't attach a desktop-notification event listener", error);
+      });
   };
 
   // ---- Transfer batches: notify when the active queue drains ----
@@ -115,8 +119,8 @@ export function initNotifications(): () => void {
     const route = () => {
       try {
         useTransfers.getState().setPanelOpen(true);
-      } catch {
-        /* ignore */
+      } catch (error) {
+        console.warn("Couldn't route a transfer notification back to the queue", error);
       }
     };
     if (failed > 0) {
@@ -193,8 +197,8 @@ export function initNotifications(): () => void {
           () => {
             try {
               useLayout.getState().openDialog("settings");
-            } catch {
-              /* ignore */
+            } catch (error) {
+              console.warn("Couldn't route a sync notification to Preferences", error);
             }
           }
         );
@@ -206,24 +210,26 @@ export function initNotifications(): () => void {
 
   // ---- Click-to-focus (best-effort; toast-click support varies by OS) ----
   void onAction(() => {
-    try {
-      void getCurrentWindow().setFocus();
-    } catch {
-      /* ignore */
-    }
+    void getCurrentWindow().setFocus().catch((error) => {
+      console.warn("Couldn't focus Ghost FTP from a notification action", error);
+    });
     try {
       lastRoute?.();
-    } catch {
-      /* ignore */
+    } catch (error) {
+      console.warn("Couldn't run the notification route action", error);
     }
   })
     .then((listener) => {
-      const un = () => void listener.unregister();
+      const un = () => {
+        void listener.unregister().catch((error) =>
+          console.warn("Couldn't unregister the notification action listener", error)
+        );
+      };
       if (cancelled) un();
       else cleanups.push(un);
     })
-    .catch(() => {
-      /* onAction unsupported here — window still focuses on click via the OS */
+    .catch((error) => {
+      console.warn("Notification action callbacks are unavailable on this platform", error);
     });
 
   return () => {
@@ -231,8 +237,8 @@ export function initNotifications(): () => void {
     for (const c of cleanups) {
       try {
         c();
-      } catch {
-        /* ignore */
+      } catch (error) {
+        console.warn("Couldn't clean up a desktop-notification listener", error);
       }
     }
   };
