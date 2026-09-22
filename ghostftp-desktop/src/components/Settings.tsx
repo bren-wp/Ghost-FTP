@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Bell,
   ChevronDown,
   Globe2,
-  FolderSync,
   Keyboard,
-  Languages,
   Monitor,
   Palette,
   Plug,
