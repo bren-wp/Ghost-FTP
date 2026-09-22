@@ -108,11 +108,15 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
 
   stopEditing: async (editId) => {
-    await ipc.stopEdit(editId).catch(() => {});
-    set((s) => {
-      const next = { ...s.edits };
-      delete next[editId];
-      return { edits: next };
-    });
+    try {
+      await ipc.stopEdit(editId);
+      set((s) => {
+        const next = { ...s.edits };
+        delete next[editId];
+        return { edits: next };
+      });
+    } catch (error) {
+      toast.error("Couldn't stop editing session", String(error));
+    }
   },
 }));
