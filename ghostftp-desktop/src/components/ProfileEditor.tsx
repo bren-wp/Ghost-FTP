@@ -1047,7 +1047,11 @@ function KeyAuthSection({
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
       return true;
-    } catch {
+    } catch (error) {
+      toast.warning(
+        "Couldn't copy public key",
+        `The key is still available in the field. ${String(error)}`
+      );
       return false;
     }
   };
@@ -2508,8 +2512,11 @@ function PasswordInput({
       await navigator.clipboard.writeText(pw);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard can be unavailable (focus/permissions); the field is still set.
+    } catch (error) {
+      toast.warning(
+        "Password generated, but couldn't copy it",
+        `The generated password remains in the field. ${String(error)}`
+      );
     }
   }
 
