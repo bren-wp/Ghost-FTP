@@ -227,7 +227,9 @@ export function acquirePane(
       const id = await ipc.openTerminal(sessionId, term.cols || 80, term.rows || 24);
       entry.terminalId = id;
       if (entry.disposed) {
-        ipc.closeTerminal(id).catch(() => {});
+        void ipc.closeTerminal(id).catch((error) =>
+          console.warn("Couldn't close disposed terminal", error)
+        );
         return;
       }
       setState({ status: "ready" });
@@ -257,7 +259,9 @@ export function disposePane(paneId: string): void {
   entry.unlistenData?.();
   entry.unlistenExit?.();
   if (entry.terminalId && !entry.handedOff) {
-    ipc.closeTerminal(entry.terminalId).catch(() => {});
+    void ipc.closeTerminal(entry.terminalId).catch((error) =>
+      console.warn("Couldn't close docked terminal", error)
+    );
   }
   entry.detach();
   entry.term.dispose();
