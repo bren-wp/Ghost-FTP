@@ -298,7 +298,7 @@ for (const forbidden of ["railExpanded", "railCollapsedGroups", "setRailExpanded
 }
 
 const sidebar = read("src/components/ReferenceSiteSidebar.tsx");
-for (const required of ["New connection", "Files", "Sites", "Transfers", "Sync & Backup", "Settings", "Help & About"]) {
+for (const required of ["New connection", "Files", "Sites", "Transfers", "Sync & Backup", "Settings", "Help & About", "aria-label={label}", "title={label}"]) {
   if (!sidebar.includes(required)) failures.push(`Primary sidebar missing: ${required}`);
 }
 for (const forbidden of ["Secure Connections", "Fast Transfers", "Modern Interface", "Cross-Platform", "Built for Creators", "Schedules", "Activity Logs", 'label="Cloud Storage"']) {
@@ -440,6 +440,11 @@ if (capability.includes("terminal-*")) {
 const nativeBuildWorkflow = read("../.github/workflows/ghostftp-build.yml");
 for (const required of ["QuantizedColors", "EdgeRatio", "byte-identical", "blank-or-structureless"]) {
   if (!nativeBuildWorkflow.includes(required)) failures.push(`Windows native QA missing structural blank-frame guard: ${required}`);
+}
+
+const styles = read("src/styles.css");
+if (!styles.includes("@media (max-width: 760px)")) {
+  failures.push("Primary navigation must keep labels until a truly narrow viewport.");
 }
 
 if (failures.length) {
