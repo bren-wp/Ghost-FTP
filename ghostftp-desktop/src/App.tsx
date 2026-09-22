@@ -77,13 +77,10 @@ export default function App() {
   const closeDialog = useLayout((s) => s.closeDialog);
   const connectionPrefill = useLayout((s) => s.connectionPrefill);
   const workspace = workspaceFor(dialog, returnDialog);
+  const fileManager = workspace === null;
 
   useShortcuts();
 
-  // Native CI visual evidence can request a real application surface through
-  // the allow-listed GHOSTFTP_QA_VIEW environment variable injected by Rust.
-  // This only selects an existing view; it never seeds servers, transfers,
-  // credentials, connection state, or other fake production data.
   useEffect(() => {
     const qaView = (
       globalThis as typeof globalThis & { __GHOSTFTP_QA_VIEW__?: string }
@@ -105,23 +102,46 @@ export default function App() {
     }
   }, []);
 
-  // Boot the Folder Sync store: fetch the current pairs and attach the
-  // "foldersync://changed" listener so background syncs keep the UI live.
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     let cancelled = false;
     void useSync
       .getState()
       .init()
-      .then((c) => {
-        if (cancelled) c();
-        else cleanup = c;
+      .then((nextCleanup) => {
+        if (cancelled) nextCleanup();
+        else cleanup = nextCleanup;
       })
       .catch((error) => {
         console.error("Couldn't initialize Sync & Backup", error);
         toast.error("Couldn't initialize Sync & Backup", String(error));
       });
-    const fileManager = workspace === null;
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    void runSettingsMigration()
+      .then(runDefaultBumps)
+      .then(() => applyTransferEngineSettings())
+      .catch((error) => {
+        console.error("Couldn't initialize application settings", error);
+        toast.error("Couldn't initialize application settings", String(error));
+      });
+  }, []);
+
+  useEffect(() => {
+    const cleanup = initTransferScheduler();
+    return cleanup;
+  }, []);
+
+  useEffect(() => {
+    const cleanup = initNotifications();
+    return cleanup;
+  }, []);
 
   return (
     <div className="ghost-app-shell flex h-full w-full flex-col">
