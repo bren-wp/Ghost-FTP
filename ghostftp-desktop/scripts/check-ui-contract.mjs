@@ -269,6 +269,15 @@ if (appShell.includes("openTerminalWindow(")) {
 if (!appShell.includes("setTerminalOpen(true)")) {
   failures.push("src/App.tsx: single-window terminal deep link must open the in-app terminal dock");
 }
+for (const required of [
+  "Couldn't initialize Sync & Backup",
+  "Couldn't initialize application settings",
+  "Couldn't register Ghost FTP deep-link listener",
+]) {
+  if (!appShell.includes(required)) {
+    failures.push(`src/App.tsx: startup/deep-link failure must stay observable: ${required}`);
+  }
+}
 
 const sidebar = read("src/components/ReferenceSiteSidebar.tsx");
 for (const required of ["Transfer Center", "File Manager", "Sync & Backup", "Cloud Storage", "Schedules", "Activity Logs", "Settings"]) {
