@@ -133,10 +133,10 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
         </div>
 
         <div className="ghost-new-connection-body min-h-0 overflow-y-auto p-5">
-          {remember && <Field label="Site name"><input value={name} onChange={(e)=>setName(e.target.value)} placeholder="e.g. Production server"/></Field>}
+          {remember && <Field label="Site name"><input value={name} onChange={(e)=>setName(e.target.value)} placeholder="e.g. Main web server"/></Field>}
           <div className="grid grid-cols-[1.1fr_1.7fr_.55fr] gap-3">
             <Field label="Protocol"><select value={protocol} onChange={(e)=>{const p=e.target.value as Protocol;setProtocol(p);setPort(PROTOCOL_DEFAULT_PORT[p]);}}><option value="sftp">SFTP (SSH File Transfer)</option><option value="ftp">FTP</option><option value="ftps">FTPS (FTP over TLS)</option></select></Field>
-            <Field label="Host / Address"><input value={host} onChange={(e)=>setHost(e.target.value)} placeholder="e.g. ftp.example.com or 192.0.2.10"/></Field>
+            <Field label="Host / Address"><input value={host} onChange={(e)=>setHost(e.target.value)} placeholder="e.g. ftp.your-domain.tld or 192.0.2.10"/></Field>
             <Field label="Port"><input type="number" min={1} max={65535} value={port} onChange={(e)=>setPort(Number(e.target.value))} aria-label="Server port"/></Field>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3">
