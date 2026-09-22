@@ -1,6 +1,6 @@
 [package]
 name = "ghostftp"
-version = "2.1.1-rc.14"
+version = "2.1.1-rc.15"
 edition = "2021"
 description = "Ghost FTP — secure modern FTP, FTPS, SFTP and SSH file transfer client."
 authors = ["Brendigo LTD", "Brendigo, obrt za programiranje"]
