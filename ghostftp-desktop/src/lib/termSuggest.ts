@@ -31,7 +31,8 @@ function loadHistory(key: string): string[] {
     try {
       const raw = localStorage.getItem(HISTORY_PREFIX + key);
       list = raw ? (JSON.parse(raw) as string[]) : [];
-    } catch {
+    } catch (error) {
+      console.warn("Couldn't read terminal command history", error);
       list = [];
     }
     historyCache.set(key, list);
