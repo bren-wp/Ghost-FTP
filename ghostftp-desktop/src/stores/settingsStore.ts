@@ -409,8 +409,9 @@ export async function hydrateFromDb(): Promise<void> {
       useSettings.setState(known as Partial<SettingsState>);
     }
     applyTransferEngineSettings();
-  } catch {
-    // no backend — ignore
+  } catch (error) {
+    console.warn("Couldn't hydrate saved preferences from the native settings database", error);
+    toastError(error, "Couldn't load saved preferences");
   }
 }
 
