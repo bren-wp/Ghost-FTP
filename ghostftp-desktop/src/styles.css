@@ -4609,9 +4609,12 @@ input.ghost-pane-address:focus-visible {
 @media (max-width: 900px) {
   .ghost-site-manager-workspace {
     grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(180px, 42%) minmax(0, 58%);
   }
   .ghost-site-manager-details {
-    display: none;
+    display: block !important;
+    border-left: 0 !important;
+    border-top: 1px solid rgb(var(--border));
   }
 }
 
