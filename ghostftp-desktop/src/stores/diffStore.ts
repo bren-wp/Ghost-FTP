@@ -116,7 +116,11 @@ export const useDiff = create<DiffStoreState>((set, get) => ({
 
   run: async () => {
     const prev = get();
-    if (prev.diffId) ipc.diffForget(prev.diffId).catch(() => {});
+    if (prev.diffId) {
+      void ipc.diffForget(prev.diffId).catch((error) =>
+        console.warn("Couldn't forget previous directory diff", error)
+      );
+    }
     prev.unlisten?.();
 
     const unlisten = await onDiffEvent((kind, payload) => {
@@ -168,12 +172,22 @@ export const useDiff = create<DiffStoreState>((set, get) => ({
 
   cancel: async () => {
     const { diffId } = get();
-    if (diffId) await ipc.diffCancel(diffId).catch(() => {});
+    if (!diffId) return;
+    try {
+      await ipc.diffCancel(diffId);
+    } catch (error) {
+      set({ error: String(error) });
+      toast.error("Couldn't cancel directory diff", String(error));
+    }
   },
 
   close: () => {
     const { diffId, unlisten } = get();
-    if (diffId) ipc.diffForget(diffId).catch(() => {});
+    if (diffId) {
+      void ipc.diffForget(diffId).catch((error) =>
+        console.warn("Couldn't forget directory diff", error)
+      );
+    }
     unlisten?.();
     set({
       open: false,
