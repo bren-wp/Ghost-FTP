@@ -38,7 +38,8 @@ function loadHistory(): Toast[] {
   try {
     const raw = localStorage.getItem(HISTORY_KEY);
     return raw ? (JSON.parse(raw) as Toast[]) : [];
-  } catch {
+  } catch (error) {
+    console.warn("Couldn't read Ghost FTP notification history", error);
     return [];
   }
 }
@@ -46,8 +47,8 @@ function loadHistory(): Toast[] {
 function saveHistory(h: Toast[]) {
   try {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
-  } catch {
-    // ignore quota / serialization failures
+  } catch (error) {
+    console.warn("Couldn't persist Ghost FTP notification history", error);
   }
 }
 
