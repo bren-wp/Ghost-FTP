@@ -11,6 +11,7 @@ import {
 import { useTransfers } from "@/stores/transfersStore";
 import { useConnections } from "@/stores/connectionsStore";
 import type { Transfer } from "@/lib/types";
+import { toast } from "@/stores/toastStore";
 
 export function TransferQueue() {
   const {
@@ -37,18 +38,38 @@ export function TransferQueue() {
   const [logClearedAt, setLogClearedAt] = useState(0);
 
   useEffect(() => {
+    let disposed = false;
     let unsub: (() => void) | undefined;
-    void (async () => {
+
+    const init = async () => {
       await loadInitial();
-      unsub = await initListeners();
-    })();
-    return () => unsub?.();
+      const cleanup = await initListeners();
+      if (disposed) cleanup();
+      else unsub = cleanup;
+    };
+
+    void init().catch((error) => {
+      toast.error("Couldn't initialize transfer queue", String(error));
+    });
+
+    return () => {
+      disposed = true;
+      unsub?.();
+    };
   }, [initListeners, loadInitial]);
 
+  const hasLiveTransfer = Object.values(byId).some(
+    (transfer) => transfer.status === "transferring"
+  );
+
   useEffect(() => {
+    if (!hasLiveTransfer) {
+      setNow(Date.now());
+      return;
+    }
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [hasLiveTransfer]);
 
   const transfers = useMemo(
     () => Object.values(byId).sort((a, b) => b.startedAt - a.startedAt),
