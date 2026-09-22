@@ -46,7 +46,9 @@ function recordCommand(key: string, cmd: string) {
   historyCache.set(key, list);
   try {
     localStorage.setItem(HISTORY_PREFIX + key, JSON.stringify(list));
-  } catch {}
+  } catch (error) {
+    console.warn("Couldn't persist terminal command history", error);
+  }
 }
 
 function lookupHistory(key: string, prefix: string): string | null {
