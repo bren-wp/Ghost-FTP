@@ -974,8 +974,9 @@ impl SshSession {
         // session. Emit its pid before sudo starts so a timed-out privileged
         // command can be interrupted and, if needed, terminated from a fresh
         // channel instead of being abandoned on the server.
-        let wrapped =
-            format!("printf '%s:%s\\n' '{pgid_marker}' \"\\x24\\x24\"; sudo -p '{marker}' -v && {command}");
+        let wrapped = format!(
+            "printf '%s:%s\\n' '{pgid_marker}' \"\\x24\\x24\"; sudo -p '{marker}' -v && {command}"
+        );
         let wrapped_ref = wrapped.as_str();
 
         // Open + request a PTY + exec, reconnecting once if the transport is dead
