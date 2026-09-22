@@ -4607,6 +4607,15 @@ input.ghost-pane-address:focus-visible {
 }
 
 @media (max-width: 900px) {
+  .ghost-site-manager-workspace {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .ghost-site-manager-details {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
   .ghost-primary-sidebar {
     flex-basis: 58px !important;
     width: 58px !important;
@@ -4623,12 +4632,6 @@ input.ghost-pane-address:focus-visible {
     display: none;
   }
   .ghost-current-workspace {
-    display: none;
-  }
-  .ghost-site-manager-workspace {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-  .ghost-site-manager-details {
     display: none;
   }
 }
