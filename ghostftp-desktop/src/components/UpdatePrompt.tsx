@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { ArrowUpCircle, X, RefreshCw, Loader2 } from "lucide-react";
 import { useUpdater } from "@/stores/updaterStore";
+import { toast } from "@/stores/toastStore";
 
 /**
  * Non-blocking in-app update prompt (Plan 16 Phase 1/2). Mounted at the app root;
@@ -27,6 +28,9 @@ export function UpdatePrompt() {
       .then((c) => {
         if (cancelled) c();
         else cleanup = c;
+      })
+      .catch((error) => {
+        toast.error("Couldn't initialize app updates", String(error));
       });
     return () => {
       cancelled = true;
