@@ -173,7 +173,7 @@ export function ServerRail() {
   const autoRan = useRef(false);
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       await loadProfiles();
       if (cancelled || autoRan.current) return;
       autoRan.current = true;
@@ -187,7 +187,9 @@ export function ServerRail() {
           // connect() already surfaces failures as a toast.
         }
       }
-    })();
+    })().catch((error) => {
+      toastError(error, "Couldn't initialize saved sites");
+    });
     return () => {
       cancelled = true;
     };
