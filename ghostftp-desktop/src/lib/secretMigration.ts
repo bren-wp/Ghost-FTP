@@ -54,8 +54,8 @@ export async function runDefaultBumps(): Promise<void> {
           if (JSON.stringify(JSON.parse(raw)) === JSON.stringify(b.from)) {
             updates[b.key] = JSON.stringify(b.to);
           }
-        } catch {
-          // corrupt row — leave it for hydrate to skip
+        } catch (error) {
+          console.warn(`Ignoring corrupt saved setting during defaults migration: ${b.key}`, error);
         }
       }
       if (Object.keys(updates).length) await ipc.settingsSetAll(updates);
@@ -63,8 +63,9 @@ export async function runDefaultBumps(): Promise<void> {
 
     await ipc.settingsSet(REVISION_KEY, JSON.stringify(CURRENT_REVISION));
     await hydrateFromDb();
-  } catch {
-    // Keychain/DB unavailable (or mock) — retry next launch.
+  } catch (error) {
+    console.warn("Couldn't apply Ghost FTP settings default migrations", error);
+    throw error;
   }
 }
 
@@ -92,7 +93,8 @@ export async function runSettingsMigration(): Promise<void> {
       // this first upgrade boot).
       await hydrateFromDb();
     }
-  } catch {
-    // Keychain/DB unavailable (or mock) — retry next launch.
+  } catch (error) {
+    console.warn("Couldn't migrate legacy Ghost FTP settings", error);
+    throw error;
   }
 }
