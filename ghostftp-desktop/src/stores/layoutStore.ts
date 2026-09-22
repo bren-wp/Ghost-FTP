@@ -43,6 +43,7 @@ interface LayoutState {
   returnDialog: AppDialog | null;
   openDialog: (d: AppDialog) => void;
   closeDialog: () => void;
+  showFiles: () => void;
 
   // Prefill for the New Connection editor, set by a ghostftp:// deep link so the
   // editor opens pointed at the right server (never auto-connecting). Cleared
@@ -89,38 +90,39 @@ export const useLayout = create<LayoutState>((set) => ({
   returnDialog: null,
   openDialog: (d) =>
     set((state) => {
-      const returnsToCaller =
-        d === "import" ||
-        d === "settings" ||
-        d === "help" ||
-        d === "updates" ||
-        d === "about";
+      const transient = d === "import" || d === "agentBridge";
       return {
         dialog: d,
         returnDialog:
-          returnsToCaller && state.dialog && state.dialog !== d
+          transient && state.dialog && state.dialog !== d
             ? state.dialog
-            : returnsToCaller
+            : transient
               ? state.returnDialog
               : null,
+        connectionPrefill: null,
+        grantPrefill: null,
       };
     }),
   closeDialog: () =>
     set((state) => {
-      const returnsToCaller =
+      const transient =
         state.dialog === "newConnection" ||
         state.dialog === "import" ||
         state.dialog === "grant" ||
-        state.dialog === "settings" ||
-        state.dialog === "help" ||
-        state.dialog === "updates" ||
-        state.dialog === "about";
+        state.dialog === "agentBridge";
       return {
-        dialog: returnsToCaller ? state.returnDialog : null,
+        dialog: transient ? state.returnDialog : null,
         returnDialog: null,
         connectionPrefill: null,
         grantPrefill: null,
       };
+    }),
+  showFiles: () =>
+    set({
+      dialog: null,
+      returnDialog: null,
+      connectionPrefill: null,
+      grantPrefill: null,
     }),
 
   connectionPrefill: null,
