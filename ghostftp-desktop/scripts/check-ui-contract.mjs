@@ -361,6 +361,9 @@ const settings = read("src/components/Settings.tsx");
 for (const required of ["Reset to Defaults", "Done", "Primary Language", "ghost-settings-tabs", "LanguagePanel", "Advanced", "Concurrent Transfers", "Speed Limit (KiB/s)", "Max Retry Attempts"]) {
   if (!settings.includes(required)) failures.push(`Settings missing simplified contract: ${required}`);
 }
+for (const required of ['const syncOnly = initialSection === "sync"', "{!syncOnly && (", "{!syncOnly && <button"]) {
+  if (!settings.includes(required)) failures.push(`Sync workspace must not expose the general Settings navigation/reset controls: ${required}`);
+}
 for (const forbidden of [
   "ReferenceWindowTitlebar",
   "GeneralGrid",
