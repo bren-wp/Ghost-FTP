@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Server } from "lucide-react";
 import { useConnections } from "@/stores/connectionsStore";
 import { useTransfers } from "@/stores/transfersStore";
+import type { Transfer } from "@/lib/types";
 
 export function ReferenceStatusBar() {
   const activeSessionId = useConnections((s) => s.activeSessionId);
@@ -21,7 +22,7 @@ export function ReferenceStatusBar() {
   </footer>;
 }
 
-function TransferMetrics({ transfers }: { transfers: ReturnType<typeof Object.values<import("@/lib/types").Transfer>> }) {
+function TransferMetrics({ transfers }: { transfers: Transfer[] }) {
   const hasLiveTransfer = transfers.some((transfer) => transfer.status === "transferring");
   const [now, setNow] = useState(Date.now());
 
