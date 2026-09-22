@@ -80,8 +80,9 @@ export function FileBrowser() {
     if (downloadsRef.current == null) {
       try {
         downloadsRef.current = await downloadDir();
-      } catch {
+      } catch (error) {
         downloadsRef.current = "";
+        toastError(error, "Couldn't resolve the Downloads folder");
       }
     }
     return downloadsRef.current || null;
