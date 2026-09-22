@@ -144,13 +144,13 @@ export function TitleBar() {
           <button
             className={`ghost-active-site-chip ${singlePane && !browseLocal ? "active" : ""}`}
             onClick={() => {
-              if (singlePane && activeSessionId) {
+              if (singlePane && activeSessionId && browseLocal) {
                 setBrowseLocal(false);
                 return;
               }
               openDialog("siteManager");
             }}
-            title={singlePane && activeSessionId ? "Show server files" : "Choose a site"}
+            title={singlePane && activeSessionId && browseLocal ? "Show server files" : "Open Sites"}
           >
             <Server size={15}/>
             <span>{profile ? profile.name : "Choose a site"}</span>
