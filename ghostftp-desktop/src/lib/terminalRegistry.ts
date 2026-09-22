@@ -144,7 +144,9 @@ export function acquirePane(
     refit: () => {
       try {
         fit.fit();
-      } catch {}
+      } catch (error) {
+        console.warn("Couldn't refit docked terminal", error);
+      }
     },
     subscribe: (cb) => {
       entry.listeners.add(cb);
