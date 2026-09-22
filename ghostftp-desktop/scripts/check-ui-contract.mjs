@@ -474,8 +474,10 @@ for (const required of [
 for (const required of [
   "RC15 reference-density pass",
   "grid-template-rows: repeat(4, minmax(0, 1fr));",
+  "height: 100%;",
   "grid-template-rows: minmax(344px, 1.15fr) minmax(190px, .85fr);",
   "grid-template-rows: minmax(360px, 1.15fr) minmax(180px, .85fr);",
+  "min-height: 250px !important;",
 ]) {
   if (!styles.includes(required)) failures.push(`Styles missing RC15 standalone reference-density guard: ${required}`);
 }
