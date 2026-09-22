@@ -34,7 +34,9 @@ export function sweepStalePopoutBuffers() {
       const k = localStorage.key(i);
       if (k && k.startsWith(POPOUT_BUFFER_PREFIX)) localStorage.removeItem(k);
     }
-  } catch {}
+  } catch (error) {
+    console.warn("Couldn't clear stale terminal popout buffers", error);
+  }
 }
 
 export async function openTerminalWindow(
