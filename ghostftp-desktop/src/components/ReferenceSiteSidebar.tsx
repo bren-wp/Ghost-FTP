@@ -1,161 +1,85 @@
 import {
-  ChevronDown,
-  ChevronRight,
-  Clock3,
+  ArrowUpDown,
   Cloud,
   FolderOpen,
   FolderSync,
+  HelpCircle,
   Plus,
-  ScrollText,
   Server,
   Settings,
-  ArrowUpDown,
-  ShieldCheck,
-  Zap,
-  Sparkles,
-  MonitorSmartphone,
-  CircleDot,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
-import { useConnections } from "@/stores/connectionsStore";
-import { useLayout } from "@/stores/layoutStore";
+import type { ReactNode } from "react";
+import { type AppDialog, useLayout } from "@/stores/layoutStore";
+
+const WORKSPACE_DIALOGS = new Set<AppDialog>([
+  "settings", "siteManager", "transferCenter", "sync", "help", "updates",
+  "cloudStorage", "schedules", "activityLogs", "about",
+]);
+
+function workspace(dialog: AppDialog | null, returnDialog: AppDialog | null): AppDialog | null {
+  if (dialog && WORKSPACE_DIALOGS.has(dialog)) return dialog;
+  if (returnDialog && WORKSPACE_DIALOGS.has(returnDialog)) return returnDialog;
+  return null;
+}
 
 export function ReferenceSiteSidebar() {
-  const profiles = useConnections((s) => s.profiles);
-  const activeProfileId = useConnections((s) => s.activeProfileId);
-  const sessions = useConnections((s) => s.sessions);
-  const connect = useConnections((s) => s.connect);
-  const setActiveSession = useConnections((s) => s.setActiveSession);
+  const dialog = useLayout((s) => s.dialog);
+  const returnDialog = useLayout((s) => s.returnDialog);
   const openDialog = useLayout((s) => s.openDialog);
   const openNewConnection = useLayout((s) => s.openNewConnection);
-  const [expanded, setExpanded] = useState(true);
-
-  const visibleProfiles = useMemo(() => profiles, [profiles]);
-
-  const activate = async (profileId: string) => {
-    const live = sessions.find((s) => s.profileId === profileId);
-    if (live) {
-      setActiveSession(live.sessionId);
-      return;
-    }
-    try {
-      await connect(profileId);
-    } catch (error) {
-      // connectionsStore already shows the protocol/backend failure to the user.
-      console.debug("Sidebar connection failure was surfaced by the connections store", error);
-    }
-  };
-
+  const showFiles = useLayout((s) => s.showFiles);
+  const current = workspace(dialog, returnDialog);
 
   return (
-    <aside className="ghost-sites-panel" aria-label="Sites and File Manager navigation">
-      <button
-        type="button"
-        className="ghost-sites-group"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-      >
-        {expanded ? <ChevronDown size={13}/> : <ChevronRight size={13}/>}
-        <Server size={14}/>
-        <span>My Sites</span>
+    <aside className="ghost-sites-panel ghost-primary-sidebar" aria-label="Ghost FTP navigation">
+      <button type="button" className="ghost-sidebar-new" onClick={() => openNewConnection()}>
+        <Plus size={16}/><span>New connection</span>
       </button>
 
-      {expanded && (
-        <div className="ghost-sites-list">
-          {visibleProfiles.length === 0 ? (
-            <button
-              type="button"
-              className="ghost-site-row ghost-site-empty"
-              onClick={() => openNewConnection()}
-            >
-              <Plus size={14}/><span>Add your first server</span>
-            </button>
-          ) : visibleProfiles.map((p) => {
-            const connected = sessions.some((s) => s.profileId === p.id);
-            const active = p.id === activeProfileId;
-            return (
-              <button
-                type="button"
-                key={p.id}
-                className={`ghost-site-row ${active ? "active" : ""}`}
-                onClick={() => void activate(p.id)}
-                title={`${p.name} · ${p.host}`}
-              >
-                <Server size={14}/>
-                <span className="ghost-site-name">{p.name}</span>
-                <i className={connected ? "online" : ""}/>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      <nav className="ghost-file-nav" aria-label="File Manager sections">
+      <nav className="ghost-file-nav ghost-primary-nav" aria-label="Primary navigation">
         <SidebarAction
-          icon={<ArrowUpDown size={15}/>}
-          label="Transfer Center"
+          icon={<FolderOpen size={16}/>} label="Files" active={current === null}
+          onClick={showFiles}
+        />
+        <SidebarAction
+          icon={<Server size={16}/>} label="Sites"
+          active={current === "siteManager"}
+          onClick={() => openDialog("siteManager")}
+        />
+        <SidebarAction
+          icon={<ArrowUpDown size={16}/>} label="Transfers"
+          active={current === "transferCenter" || current === "schedules" || current === "activityLogs"}
           onClick={() => openDialog("transferCenter")}
         />
         <SidebarAction
-          icon={<FolderOpen size={15}/>}
-          label="File Manager"
-          active
-          onClick={() => useLayout.getState().closeDialog()}
+          icon={<FolderSync size={16}/>} label="Sync & Backup"
+          active={current === "sync"}
+          onClick={() => openDialog("sync")}
         />
-        <SidebarAction icon={<FolderSync size={15}/>} label="Sync & Backup" onClick={() => openDialog("sync")}/>
         <SidebarAction
-          icon={<Cloud size={15}/>}
-          label="Cloud Storage"
+          icon={<Cloud size={16}/>} label="Cloud Storage"
+          active={current === "cloudStorage"}
           onClick={() => openDialog("cloudStorage")}
         />
         <SidebarAction
-          icon={<Clock3 size={15}/>}
-          label="Schedules"
-          onClick={() => openDialog("schedules")}
-        />
-        <SidebarAction
-          icon={<ScrollText size={15}/>}
-          label="Activity Logs"
-          onClick={() => openDialog("activityLogs")}
-        />
-        <SidebarAction
-          icon={<Settings size={15}/>}
-          label="Settings"
+          icon={<Settings size={16}/>} label="Settings"
+          active={current === "settings"}
           onClick={() => openDialog("settings")}
         />
       </nav>
 
       <div className="ghost-sites-spacer"/>
-      <div className="ghost-sidebar-capabilities" aria-label="Ghost FTP capabilities">
-        <CapabilityNote icon={<ShieldCheck size={14}/>} label="Secure Connections"/>
-        <CapabilityNote icon={<Zap size={14}/>} label="Fast Transfers"/>
-        <CapabilityNote icon={<Sparkles size={14}/>} label="Modern Interface"/>
-        <CapabilityNote icon={<MonitorSmartphone size={14}/>} label="Cross-Platform"/>
-        <CapabilityNote icon={<CircleDot size={14}/>} label="Built for Creators"/>
-      </div>
+      <SidebarAction
+        icon={<HelpCircle size={16}/>} label="Help & About"
+        active={current === "about" || current === "help" || current === "updates"}
+        onClick={() => openDialog("about")}
+      />
     </aside>
   );
 }
 
-function CapabilityNote({ icon, label }: { icon: ReactNode; label: string }) {
-  return (
-    <div className="ghost-sidebar-capability" role="note">
-      {icon}
-      <span>{label}</span>
-    </div>
-  );
-}
-
-function SidebarAction({
-  icon,
-  label,
-  onClick,
-  active = false,
-}: {
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-  active?: boolean;
+function SidebarAction({ icon, label, onClick, active = false }: {
+  icon: ReactNode; label: string; onClick: () => void; active?: boolean;
 }) {
   return (
     <button
@@ -164,8 +88,7 @@ function SidebarAction({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
     >
-      {icon}
-      <span>{label}</span>
+      {icon}<span>{label}</span>
     </button>
   );
 }
