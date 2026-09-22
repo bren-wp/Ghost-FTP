@@ -73,7 +73,9 @@ function inject(s: Snippet, values: Record<string, string>): boolean {
   ipc
     .snippetRun(s.id)
     .then((list) => useSnippets.setState({ snippets: list }))
-    .catch(() => {});
+    .catch((error) =>
+      toast.warning("Snippet inserted, but usage history wasn't saved", String(error))
+    );
   return true;
 }
 
