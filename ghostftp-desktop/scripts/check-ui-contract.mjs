@@ -343,7 +343,7 @@ const newConnection = read("src/components/QuickConnectionDialog.tsx");
 for (const required of [
   "Save this connection in Sites",
   "Host / Address",
-  "ftp.example.com or 192.0.2.10",
+  "ftp.your-domain.tld or 192.0.2.10",
   "Advanced Settings",
   "Test Connection",
 ]) {
