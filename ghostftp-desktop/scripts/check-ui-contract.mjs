@@ -69,6 +69,11 @@ function auditClickableTsx(file) {
   );
 
   const visit = (node) => {
+    if (ts.isCatchClause(node) && node.block.statements.length === 0) {
+      const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      failures.push(`${file}:${pos.line + 1}: empty catch block hides a production error`);
+    }
+
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
       const tag = node.tagName.getText(sourceFile);
 
@@ -228,7 +233,7 @@ const criticalFiles = [
 
 for (const file of [...walkSource("src"), ...walkSource("packages/file-ui/src")]) {
   const source = read(file);
-  if (file.endsWith(".tsx")) auditClickableTsx(file);
+  if (file.endsWith(".tsx") || file.endsWith(".ts")) auditClickableTsx(file);
   if (/onClick\s*:\s*\(\)\s*=>\s*\{\s*\}/.test(source)) {
     failures.push(`${file}: contains a fake no-op onClick handler`);
   }
