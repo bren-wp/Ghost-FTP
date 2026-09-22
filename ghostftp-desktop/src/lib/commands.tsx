@@ -57,6 +57,7 @@ export function useCommands(): Command[] {
   const terminalOpen = useLayout((s) => s.terminalOpen);
   const toggleConsole = useLayout((s) => s.toggleConsole);
   const openDialog = useLayout((s) => s.openDialog);
+  const openNewConnection = useLayout((s) => s.openNewConnection);
   const setShortcutsOpen = useLayout((s) => s.setShortcutsOpen);
   const openSkills = useSkills((s) => s.openPanel);
   const snippets = useSnippets((s) => s.snippets);
@@ -74,7 +75,7 @@ export function useCommands(): Command[] {
       group: "File",
       icon: <Plus size={14} />,
       combo: "mod+n",
-      run: () => openDialog("newConnection"),
+      run: () => openNewConnection(),
     },
     {
       id: "import",
