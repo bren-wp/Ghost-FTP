@@ -63,6 +63,9 @@ jobs:
         run: |
           set -euo pipefail
           grep -Fq 'tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())' ghostftp-desktop/src-tauri/src/lib.rs
+          test "$(grep -Rho 'WebviewWindowBuilder::new' ghostftp-desktop/src-tauri/src --include='*.rs' | wc -l | tr -d ' ')" -eq 1
+          ! grep -Fq 'core:webview:allow-create-webview-window' ghostftp-desktop/src-tauri/capabilities/default.json
+          grep -Fq '"windows": ["main"]' ghostftp-desktop/src-tauri/capabilities/default.json
           grep -Fq '.inner_size(1290.0, 852.0)' ghostftp-desktop/src-tauri/src/lib.rs
           grep -Fq '.min_inner_size(480.0, 600.0)' ghostftp-desktop/src-tauri/src/lib.rs
           grep -Fq '.decorations(false)' ghostftp-desktop/src-tauri/src/lib.rs
