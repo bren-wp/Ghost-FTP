@@ -969,7 +969,14 @@ impl SshSession {
         stream: Option<&ExecStream>,
     ) -> Result<ExecOutput> {
         let marker = format!("[ghostftp-sudo-{}]", Uuid::new_v4().simple());
-        let wrapped = format!("sudo -p '{marker}' -v && {command}");
+        let pgid_marker = format!("__GHOSTFTP_SUDO_PGID_{}", Uuid::new_v4().simple());
+        // The PTY shell is the foreground process-group leader on the SSH
+        // session. Emit its pid before sudo starts so a timed-out privileged
+        // command can be interrupted and, if needed, terminated from a fresh
+        // channel instead of being abandoned on the server.
+        let wrapped = format!(
+            "printf '%s:%s\\n' '{pgid_marker}' \"$\"; sudo -p '{marker}' -v && {command}"
+        );
         let wrapped_ref = wrapped.as_str();
 
         // Open + request a PTY + exec, reconnecting once if the transport is dead
@@ -993,6 +1000,10 @@ impl SshSession {
         let mut exit_code = None;
         let mut truncated = false;
         let marker_bytes = marker.as_bytes();
+        let pgid_marker_bytes = pgid_marker.as_bytes();
+        let mut pgid_probe = Vec::new();
+        let mut pgid: Option<i32> = None;
+        let mut pgid_done = false;
         let mut markers_seen = 0usize; // prompts observed so far
         let mut pw_sent = 0usize; // password lines typed
 
@@ -1003,6 +1014,18 @@ impl SshSession {
                 };
                 match msg {
                     ChannelMsg::Data { ref data } | ChannelMsg::ExtendedData { ref data, .. } => {
+                        if !pgid_done {
+                            pgid_probe.extend_from_slice(data);
+                            if let Some(nl) = pgid_probe.iter().position(|&b| b == b'\n') {
+                                pgid = parse_pgid(&pgid_probe[..nl], pgid_marker_bytes);
+                                pgid_done = true;
+                            } else if pgid_probe.len() > 1024 {
+                                // The marker is emitted before sudo starts. If it has
+                                // not appeared within 1 KiB, stop buffering raw PTY
+                                // output and fall back to Ctrl-C-only timeout handling.
+                                pgid_done = true;
+                            }
+                        }
                         let total = out.len();
                         append_capped(&mut out, data, max_bytes, total, &mut truncated);
                         if let Some(s) = stream {
@@ -1035,9 +1058,51 @@ impl SshSession {
         };
 
         let timed_out = tokio::time::timeout(timeout, collect).await.is_err();
+        let mut killed = false;
 
-        // Scrub the priming prompt(s) so the caller/agent sees clean output.
-        let text = String::from_utf8_lossy(&out).replace(&marker, "");
+        if timed_out {
+            // In a PTY, ETX (Ctrl-C) is handled by the terminal driver and sends
+            // SIGINT to the foreground process group, including a sudo child.
+            // Give the remote command a short grace period to exit cleanly.
+            if channel.data(&[0x03]).await.is_ok() {
+                let interrupted = async {
+                    loop {
+                        match channel.wait().await {
+                            Some(ChannelMsg::ExitStatus { exit_status }) => {
+                                exit_code = Some(exit_status as i32);
+                            }
+                            Some(ChannelMsg::Eof) | Some(ChannelMsg::Close) | None => break true,
+                            Some(_) => {}
+                        }
+                    }
+                };
+                killed = tokio::time::timeout(Duration::from_secs(2), interrupted)
+                    .await
+                    .unwrap_or(false);
+            }
+
+            // If Ctrl-C did not close the command, terminate the tracked shell
+            // process group from a fresh channel. This is best-effort because
+            // unusually hardened sudo configurations can isolate descendants,
+            // but it is strictly safer than abandoning the timed-out PTY.
+            if !killed {
+                if let Some(pgid) = pgid {
+                    killed = self.kill_pgid(pgid).await.is_ok();
+                }
+            }
+
+            let _ = channel.eof().await;
+        }
+
+        // Scrub Ghost FTP's private PTY markers so the caller/agent sees only
+        // real command output.
+        let mut text = String::from_utf8_lossy(&out).replace(&marker, "");
+        if text.starts_with(&pgid_marker) {
+            text = text
+                .find('\n')
+                .map(|nl| text[nl + 1..].to_string())
+                .unwrap_or_default();
+        }
         let text = text.trim_start_matches(['\r', '\n']).to_string();
 
         Ok(ExecOutput {
@@ -1046,10 +1111,7 @@ impl SshSession {
             exit_code,
             truncated,
             timed_out,
-            // TODO: extend the pgid wrapping + kill-on-timeout to the sudo/PTY
-            // path too (a sudo'd migration is exactly the dangerous case). For
-            // now the sudo path still abandons on timeout, as before.
-            killed: false,
+            killed,
         })
     }
 }
