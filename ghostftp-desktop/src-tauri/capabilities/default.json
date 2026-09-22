@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capabilities for the main window and popped-out terminal windows",
+  "description": "Default capabilities for the single Ghost FTP main window",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -9,7 +9,6 @@
     "core:window:default",
     "core:webview:default",
     "core:app:default",
-    "core:webview:allow-create-webview-window",
     "core:window:allow-minimize",
     "core:window:allow-maximize",
     "core:window:allow-unmaximize",
