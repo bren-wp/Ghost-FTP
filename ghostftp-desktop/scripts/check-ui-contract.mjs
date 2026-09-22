@@ -316,11 +316,29 @@ for (const forbidden of ["openTerminalWindow", "Pop out active pane", "PictureIn
 }
 
 const settings = read("src/components/Settings.tsx");
-for (const required of ["Reset to Defaults", "Done", "Primary Language", "ghost-settings-tabs", "LanguagePanel", "Concurrent Transfers", "Speed Limit (KiB/s)", "Max Retry Attempts"]) {
+for (const required of ["Reset to Defaults", "Done", "Primary Language", "ghost-settings-tabs", "LanguagePanel", "Advanced", "Concurrent Transfers", "Speed Limit (KiB/s)", "Max Retry Attempts"]) {
   if (!settings.includes(required)) failures.push(`Settings missing simplified contract: ${required}`);
 }
-for (const forbidden of ["ReferenceWindowTitlebar", "GeneralGrid", "GeneralPerformanceCard", "GeneralIntegrationsCard", "GeneralUpdatesCard"]) {
+for (const forbidden of [
+  "ReferenceWindowTitlebar",
+  "GeneralGrid",
+  "GeneralPerformanceCard",
+  "GeneralIntegrationsCard",
+  "GeneralUpdatesCard",
+  'section="updates"',
+  'section="sync"',
+  'section="integrations"',
+  'section="shortcuts"',
+]) {
   if (settings.includes(forbidden)) failures.push(`Settings still duplicates application/settings navigation: ${forbidden}`);
+}
+
+for (const file of walkSource("src/components")) {
+  if (!file.endsWith(".tsx") || file === "src/components/Settings.tsx") continue;
+  const source = read(file);
+  if (source.includes('aria-label="Language"') || source.includes("English (English)")) {
+    failures.push(`${file}: application language selector must live in Settings only`);
+  }
 }
 
 const about = read("src/components/AboutDialog.tsx");
