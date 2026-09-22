@@ -339,6 +339,14 @@ for (const required of [
   if (!fileBrowser.includes(required)) failures.push(`Single-pane File Browser missing navigation/upload bridge: ${required}`);
 }
 
+const commands = read("src/lib/commands.tsx");
+if (!commands.includes("openNewConnection()")) {
+  failures.push("Command palette New Connection must use openNewConnection so closing returns to its caller.");
+}
+if (commands.includes('openDialog("newConnection")')) {
+  failures.push("Command palette must not bypass New Connection return-navigation state.");
+}
+
 const mainEntry = read("src/main.tsx");
 for (const forbidden of ["TerminalWindow", "sweepStalePopoutBuffers", 'view === "terminal"']) {
   if (mainEntry.includes(forbidden)) failures.push(`Main entry still supports a secondary app window: ${forbidden}`);
