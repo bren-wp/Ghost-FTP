@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { ArrowUpCircle, X } from "lucide-react";
 import { useCliUpdater } from "@/stores/cliUpdaterStore";
+import { toast } from "@/stores/toastStore";
 
 /**
  * Non-blocking prompt for a stale `ghostftp-cli` (Plan 10 Phase 0c/0d). Mounted at
@@ -27,6 +28,9 @@ export function CliUpdatePrompt() {
       .then((c) => {
         if (cancelled) c();
         else cleanup = c;
+      })
+      .catch((error) => {
+        toast.error("Couldn't initialize CLI updates", String(error));
       });
     return () => {
       cancelled = true;
