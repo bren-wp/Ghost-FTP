@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.1-rc.15 — 22 September 2026
+
+- Hardened Folder Sync, settings migration, transfer-engine and deep-link startup promises so initialization failures cannot escape silently.
+- Added deterministic ghostftp:// listener cleanup and visible registration failure handling.
+- Contained saved-site startup failures and surfaced SSH public-key/password clipboard failures.
+- Removed lazy-loaded primary/transient application views from the main shell to prevent brief workspace loading/blank flashes during navigation.
+- Advanced desktop, Tauri, CLI, agent, runtime, installer, updater and native QA development metadata consistently to RC15.
+- Preserved the published RC14 release workflow and immutable RC14 source/tag relationship.
+- RC15 remains blocked until exact-head quality, real protocol E2E, Windows/Linux native builds and seven-view visual acceptance all pass.
+
 ## 2.1.1-rc.14 — 21 September 2026
 
 - Hardened seven-view Windows native QA so blank/structureless WebView2 frames cannot pass on anti-aliased border colors alone.
