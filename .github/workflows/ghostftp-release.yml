@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   publish:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_sha == '674b28cb7b37bedf0b679bfe3c45395d84376240' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
