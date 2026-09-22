@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.1-rc.16 — 23 September 2026
+
+- Reworked Ghost FTP around one persistent native application window; Site Manager, Transfers, Preferences, Sync, Cloud Storage, Help, About and Updates now switch inside the main workspace instead of behaving like separate application windows.
+- Removed the secondary Tauri terminal pop-out path so terminal work stays docked inside the main Ghost FTP window.
+- Replaced the stacked File/Edit/View/Transfer/Server/Bookmarks/Tools/Help navigation with one compact primary sidebar and contextual toolbar actions.
+- Removed the language selector from the main header; language selection now lives in Settings only.
+- Removed duplicate workspace titlebars and duplicate navigation from Site Manager, Transfer Center, Preferences and About.
+- Simplified the main sidebar to Files, Sites, Transfers, Sync & Backup, Cloud Storage, Settings and Help & About, plus one New connection action.
+- Kept New Connection, import, consent and other genuinely transient tasks as in-app overlays rather than new native windows.
+- Added CI regression guards that reject secondary WebView windows, popup/new-tab navigation and reintroduction of duplicate top-level menus.
+- Advanced desktop, Tauri, CLI, agent, runtime, installer, updater and native QA metadata to RC16.
+
 ## 2.1.1-rc.15 — 22 September 2026
 
 - Hardened Folder Sync, settings migration, transfer-engine and deep-link startup promises so initialization failures cannot escape silently.
