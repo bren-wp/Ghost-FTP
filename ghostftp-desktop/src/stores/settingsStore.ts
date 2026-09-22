@@ -116,12 +116,6 @@ interface SettingsState {
   /** Remote image previews: `"off"` (default) or `"on"`. Local previews are
    *  always on; this only gates the network-fetching remote kind (Plan 13). */
   remoteImagePreviews: RemoteImagePreviews;
-  /** Expand the connection rail into a labeled list (names + addresses) instead
-   *  of the compact Discord-style bubble strip. */
-  railExpanded: boolean;
-  /** Rail groups the user has folded shut (by group name). */
-  railCollapsedGroups: string[];
-
   // Terminal
   terminalFontSize: number;
   terminalFontFamily: string;
@@ -162,8 +156,6 @@ interface SettingsState {
   setPaneDensity: (d: PaneDensity) => void;
   setBrowserLayout: (l: BrowserLayout) => void;
   setRemoteImagePreviews: (v: RemoteImagePreviews) => void;
-  setRailExpanded: (v: boolean) => void;
-  toggleRailGroup: (name: string) => void;
   setTerminalFontSize: (n: number) => void;
   setTerminalFontFamily: (s: string) => void;
   setTerminalTheme: (t: TerminalTheme) => void;
@@ -198,8 +190,6 @@ export type PersistedSettings = Omit<
   | "setPaneDensity"
   | "setBrowserLayout"
   | "setRemoteImagePreviews"
-  | "setRailExpanded"
-  | "toggleRailGroup"
   | "setTerminalFontSize"
   | "setTerminalFontFamily"
   | "setTerminalTheme"
@@ -234,8 +224,6 @@ const DEFAULTS: PersistedSettings = {
   paneDensity: "comfortable",
   browserLayout: "dual",
   remoteImagePreviews: "off",
-  railExpanded: true,
-  railCollapsedGroups: [],
   terminalFontSize: 13,
   terminalFontFamily:
     '"JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace',
@@ -254,8 +242,7 @@ const DEFAULTS: PersistedSettings = {
 export const SETTINGS_KEYS = Object.keys(DEFAULTS) as (keyof PersistedSettings)[];
 
 /** Read the pre-paint snapshot Rust injected on `window.__GHOSTFTP_SETTINGS__`
- *  (Plan 12 Phase 2) — present in the main window, absent in JS-spawned
- *  popouts and mock builds. */
+ *  (Plan 12 Phase 2) — present in the native main window and absent in mock builds. */
 function readInjected(): Partial<PersistedSettings> | null {
   try {
     const inj = (globalThis as { __GHOSTFTP_SETTINGS__?: unknown }).__GHOSTFTP_SETTINGS__;
@@ -279,8 +266,8 @@ function pickKnown(obj: Partial<PersistedSettings>): Partial<PersistedSettings> 
 function load(): PersistedSettings {
   const injected = readInjected();
   if (injected) return { ...DEFAULTS, ...pickKnown(injected) };
-  // No injection (popout / mock / first paint before the script ran) — start
-  // from defaults; `hydrateFromDb()` below reconciles from ghostftp.db async.
+  // No injection (mock / first paint before the script ran) — start from
+  // defaults; `hydrateFromDb()` below reconciles from ghostftp.db async.
   return DEFAULTS;
 }
 
@@ -345,16 +332,6 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setPaneDensity: (d) => mutate(set, get, "paneDensity", d),
   setBrowserLayout: (l) => mutate(set, get, "browserLayout", l),
   setRemoteImagePreviews: (v) => mutate(set, get, "remoteImagePreviews", v),
-  setRailExpanded: (v) => mutate(set, get, "railExpanded", v),
-  toggleRailGroup: (name) => {
-    const cur = get().railCollapsedGroups;
-    mutate(
-      set,
-      get,
-      "railCollapsedGroups",
-      cur.includes(name) ? cur.filter((g) => g !== name) : [...cur, name]
-    );
-  },
   setTerminalFontSize: (n) =>
     mutate(set, get, "terminalFontSize", Math.max(8, Math.min(32, Math.round(n)))),
   setTerminalFontFamily: (s) => mutate(set, get, "terminalFontFamily", s),
