@@ -93,11 +93,20 @@ export function SkillsHost() {
   const open = useSkills((s) => s.open);
   const init = useSkills((s) => s.init);
   useEffect(() => {
+    let disposed = false;
     let cleanup: (() => void) | undefined;
-    init().then((fn) => {
-      cleanup = fn;
-    });
-    return () => cleanup?.();
+    void init()
+      .then((fn) => {
+        if (disposed) fn();
+        else cleanup = fn;
+      })
+      .catch((error) => {
+        toast.error("Couldn't initialize Skills", String(error));
+      });
+    return () => {
+      disposed = true;
+      cleanup?.();
+    };
   }, [init]);
   return open ? <SkillsPanel /> : null;
 }
