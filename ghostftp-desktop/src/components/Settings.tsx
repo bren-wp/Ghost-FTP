@@ -34,6 +34,7 @@ type Section = "appearance" | "language" | "transfers" | "connection" | "securit
 export function Settings({ onClose, initialSection = "appearance" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [section, setSection] = useState<Section>(initialSection);
+  const syncOnly = initialSection === "sync";
   const [pendingLocale, setPendingLocale] = useState(getLocale());
   const setLocaleNow = (value: any) => {
     setPendingLocale(value);
@@ -52,14 +53,16 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
     <div className="ghost-workspace-view ghost-standalone-view bg-[#041425]" role="region" aria-label="Ghost FTP Preferences">
       <div ref={panelRef} className="ghost-preferences flex h-full w-full flex-col overflow-hidden bg-bg-panel">
         <div className="ghost-preferences-body flex min-h-0 flex-1 flex-col">
-        <div className="ghost-preferences-nav ghost-settings-tabs flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-[#061a2d] px-3 py-2">
-          <Nav section="appearance" current={section} set={setSection} icon={<Monitor/>} label="Appearance"/>
-          <Nav section="language" current={section} set={setSection} icon={<Globe2/>} label="Language"/>
-          <Nav section="transfers" current={section} set={setSection} icon={<ArrowDownUp/>} label="Transfers"/>
-          <Nav section="connection" current={section} set={setSection} icon={<Wifi/>} label="Connection"/>
-          <Nav section="security" current={section} set={setSection} icon={<ShieldCheck/>} label="Security"/>
-          <Nav section="advanced" current={section} set={setSection} icon={<SlidersHorizontal/>} label="Advanced"/>
-        </div>
+        {!syncOnly && (
+          <div className="ghost-preferences-nav ghost-settings-tabs flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-[#061a2d] px-3 py-2">
+            <Nav section="appearance" current={section} set={setSection} icon={<Monitor/>} label="Appearance"/>
+            <Nav section="language" current={section} set={setSection} icon={<Globe2/>} label="Language"/>
+            <Nav section="transfers" current={section} set={setSection} icon={<ArrowDownUp/>} label="Transfers"/>
+            <Nav section="connection" current={section} set={setSection} icon={<Wifi/>} label="Connection"/>
+            <Nav section="security" current={section} set={setSection} icon={<ShieldCheck/>} label="Security"/>
+            <Nav section="advanced" current={section} set={setSection} icon={<SlidersHorizontal/>} label="Advanced"/>
+          </div>
+        )}
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="ghost-preferences-heading flex h-[78px] shrink-0 items-center gap-3 border-b border-border px-5">
@@ -80,7 +83,7 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
             {section === "sync" && <div className="max-w-5xl"><SyncSettings/></div>}
           </div>
           <div className="ghost-preferences-actions flex h-[58px] shrink-0 items-center border-t border-border bg-[#061a2d] px-4">
-            <button className="ghost-mini-button" onClick={reset}><RotateCcw size={14}/> Reset to Defaults</button>
+            {!syncOnly && <button className="ghost-mini-button" onClick={reset}><RotateCcw size={14}/> Reset to Defaults</button>}
             <div className="flex-1"/>
             <button className="ghost-primary-button" onClick={done}>Done</button>
           </div>
