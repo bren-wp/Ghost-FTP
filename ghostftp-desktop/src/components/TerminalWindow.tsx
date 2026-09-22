@@ -85,7 +85,9 @@ export function TerminalWindow() {
     const onWindowResize = () => {
       try {
         fit.fit();
-      } catch {}
+      } catch (error) {
+        console.warn("Couldn't fit terminal after window resize", error);
+      }
     };
     window.addEventListener("resize", onWindowResize);
 
