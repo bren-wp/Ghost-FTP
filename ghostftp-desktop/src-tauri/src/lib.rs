@@ -245,9 +245,16 @@ pub fn run() {
                         .title("Ghost FTP")
                         .inner_size(1290.0, 852.0)
                         .min_inner_size(480.0, 600.0)
+                        // Preserve the preferred desktop size, but never let the
+                        // first launch overflow the OS working area (taskbar/dock
+                        // included). This keeps compact displays usable without
+                        // starting maximized or fullscreen.
+                        .prevent_overflow_with_margin(tauri::LogicalSize::new(32.0, 32.0))
                         .center()
                         .decorations(false)
                         .resizable(true)
+                        .maximized(false)
+                        .fullscreen(false)
                         .shadow(true)
                         .initialization_script(&init_script);
 
