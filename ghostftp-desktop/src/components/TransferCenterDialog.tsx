@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   Activity,
-  ArrowDown,
-  ArrowUp,
   CheckCircle2,
   FolderTree,
   Pause,
@@ -23,7 +21,7 @@ import { useDialog } from "@/hooks/useDialog";
 import { toastError } from "@/lib/errors";
 import { useTransferSchedule } from "@/stores/transferScheduleStore";
 
-type FilterTab = "all" | "upload" | "download" | "completed" | "failed" | "paused";
+type FilterTab = "all" | "active" | "completed" | "failed";
 type DirectionFilter = "all" | "upload" | "download";
 type TimeFilter = "all" | "hour" | "day";
 type BandwidthSample = { upload: number; download: number };
@@ -150,19 +148,25 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
     (transfer) => transfer.status === "done" || transfer.status === "skipped"
   ).length;
   const failed = transfers.filter((transfer) => transfer.status === "error").length;
-  const paused = transfers.filter((transfer) => transfer.status === "paused").length;
+  const activeFilterCount = transfers.filter(
+    (transfer) =>
+      transfer.status === "transferring" ||
+      transfer.status === "queued" ||
+      transfer.status === "paused"
+  ).length;
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return transfers.filter((transfer) => {
       const tabMatch =
         tab === "all" ||
-        (tab === "upload" && transfer.kind === "upload") ||
-        (tab === "download" && transfer.kind === "download") ||
+        (tab === "active" &&
+          (transfer.status === "transferring" ||
+            transfer.status === "queued" ||
+            transfer.status === "paused")) ||
         (tab === "completed" &&
           (transfer.status === "done" || transfer.status === "skipped")) ||
-        (tab === "failed" && transfer.status === "error") ||
-        (tab === "paused" && transfer.status === "paused");
+        (tab === "failed" && transfer.status === "error");
       if (!tabMatch) return false;
 
       if (directionFilter !== "all" && transfer.kind !== directionFilter) return false;
@@ -389,16 +393,10 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
             label={`All Transfers (${transfers.length})`}
           />
           <Tab
-            active={tab === "upload"}
-            onClick={() => setTab("upload")}
-            label={`Uploads (${transfers.filter((transfer) => transfer.kind === "upload").length})`}
-            icon={<ArrowUp size={14} />}
-          />
-          <Tab
-            active={tab === "download"}
-            onClick={() => setTab("download")}
-            label={`Downloads (${transfers.filter((transfer) => transfer.kind === "download").length})`}
-            icon={<ArrowDown size={14} />}
+            active={tab === "active"}
+            onClick={() => setTab("active")}
+            label={`Active (${activeFilterCount})`}
+            icon={<Play size={14} />}
           />
           <Tab
             active={tab === "completed"}
@@ -411,12 +409,6 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
             onClick={() => setTab("failed")}
             label={`Failed (${failed})`}
             icon={<XCircle size={14} />}
-          />
-          <Tab
-            active={tab === "paused"}
-            onClick={() => setTab("paused")}
-            label={`Paused (${paused})`}
-            icon={<Pause size={14} />}
           />
           <div className="flex-1" />
           <div className="relative">
@@ -432,19 +424,6 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
-          <select
-            className="ghost-ref-input h-8 w-32"
-            aria-label="Transfer status filter"
-            value={tab}
-            onChange={(event) => setTab(event.target.value as FilterTab)}
-          >
-            <option value="all">All Statuses</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-            <option value="paused">Paused</option>
-            <option value="upload">Uploads</option>
-            <option value="download">Downloads</option>
-          </select>
           <select
             className="ghost-ref-input h-8 w-32"
             aria-label="Transfer direction filter"
