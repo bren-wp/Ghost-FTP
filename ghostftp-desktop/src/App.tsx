@@ -199,6 +199,7 @@ export default function App() {
           prefill={connectionPrefill}
           onClose={closeDialog}
           saveByDefault={returnDialog === "siteManager"}
+          cancelLabel={returnDialog === "siteManager" ? "Back to Sites" : "Cancel"}
         />
       )}
       {dialog === "import" && <ImportDialog onClose={closeDialog} />}
