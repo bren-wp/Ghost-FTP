@@ -573,6 +573,13 @@ for (const required of [
 ]) {
   if (!transferCenter.includes(required)) failures.push(`Transfer Center missing action/filter contract: ${required}`);
 }
+if (!transferCenter.includes('filtered.length === 0 ? (\n            <Empty />')) {
+  failures.push("Transfer Center empty state must render outside the wide transfer table so compact windows do not inherit table overflow.");
+}
+if (transferCenter.includes('<div className="min-w-[920px]">\n            {filtered.length === 0 ?')) {
+  failures.push("Transfer Center empty state must not be wrapped in the 920px transfer-table width.");
+}
+
 for (const forbidden of [
   "TransferCenterTitlebar",
   "ghost-transfer-language",
