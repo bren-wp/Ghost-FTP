@@ -323,6 +323,11 @@ for (const forbidden of [
 }
 
 const transfersStore = read("src/stores/transfersStore.ts");
+for (const required of ["rateById", "liveTransferRate", "RATE_STALE_AFTER_MS", "rateFromEvent"]) {
+  if (!transfersStore.includes(required)) {
+    failures.push(`Transfers store missing real progress-derived rate telemetry: ${required}`);
+  }
+}
 for (const forbidden of ["panelOpen", "togglePanel", "setPanelOpen", "autoOpenTransferPanel"]) {
   if (transfersStore.includes(forbidden)) failures.push(`Transfers store still contains obsolete Files-panel state: ${forbidden}`);
 }
@@ -573,6 +578,8 @@ for (const forbidden of ["ReferenceMenuTitlebar", "ReferenceActionRow", 'grid-co
 
 const transferCenter = read("src/components/TransferCenterDialog.tsx");
 for (const required of [
+  "liveTransferRate",
+  "rate={liveTransferRate(transfer, rateById[transfer.id])}",
   'aria-label="Transfers"',
   "<div className=\"text-xl font-semibold\">Transfers</div>",
   "Add Transfer",
@@ -599,6 +606,9 @@ if (transferCenter.includes('<div className="min-w-[920px]">\n            {filte
 }
 
 for (const forbidden of [
+  "function speedOf(transfer: Transfer)",
+  "transfer.transferred / seconds",
+  "previousTotals",
   "TransferCenterTitlebar",
   "ghost-transfer-language",
   "English (English)",
@@ -623,11 +633,16 @@ for (const required of ["Open Containing Folder", "Duplicate", "Apply", "Checksu
 
 const statusBar = read("src/components/ReferenceStatusBar.tsx");
 for (const required of [
+  "liveTransferRate",
+  "rateById",
   'openDialog("transferCenter")',
   "ghost-status-transfer-link",
   'aria-label="Open Transfers"',
 ]) {
   if (!statusBar.includes(required)) failures.push(`Files transfer status must link to the single Transfers workspace: ${required}`);
+}
+if (statusBar.includes("transfer.transferred / elapsed")) {
+  failures.push("Files status bar must not regress to average-since-start transfer speed.");
 }
 
 const styles = read("src/styles.css");
