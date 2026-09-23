@@ -3641,12 +3641,17 @@ async fn write_via_upload(
     if !overwrite {
         ensure_absent(sess, remote_path).await?;
     }
-    let (_, name) = split_parent(remote_path);
     let dir = std::env::temp_dir()
         .join("ghostftp-agent-writes")
         .join(Uuid::new_v4().to_string());
     std::fs::create_dir_all(&dir).context("create scratch dir for write")?;
-    let local = dir.join(if name.is_empty() { "file".into() } else { name });
+
+    // The remote path is untrusted input and may legitimately contain Windows
+    // separators, drive prefixes, or object-key characters. Never reuse any
+    // portion of it as a local staging filename: PathBuf::join can otherwise
+    // escape the UUID scratch directory on Windows. The upload target remains
+    // remote_path; this fixed local leaf is intentionally unrelated to it.
+    let local = dir.join("payload.bin");
     let staged = std::fs::write(&local, bytes)
         .with_context(|| format!("stage {} bytes for write", bytes.len()));
     let result = match staged {
