@@ -407,12 +407,14 @@ function Nav({
   return (
     <button
       type="button"
+      aria-label={label}
+      title={label}
       aria-current={active ? "page" : undefined}
       onClick={() => set(section)}
-      className={`flex shrink-0 items-center gap-2 rounded-md border px-3 py-2 text-left ${active ? "border-accent/45 bg-accent/15 text-white" : "border-transparent text-text-muted hover:bg-bg-hover hover:text-white"}`}
+      className={`ghost-settings-tab flex shrink-0 items-center gap-2 rounded-md border px-3 py-2 text-left ${active ? "border-accent/45 bg-accent/15 text-white" : "border-transparent text-text-muted hover:bg-bg-hover hover:text-white"}`}
     >
       <span className="[&>svg]:h-[18px] [&>svg]:w-[18px]">{icon}</span>
-      <span>{label}</span>
+      <span className="ghost-settings-tab-label">{label}</span>
     </button>
   );
 }
