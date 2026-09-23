@@ -64,7 +64,7 @@ The canonical desktop reference is **1290×852**. Smaller windows adapt through 
 
 **Control.** Use permissions, checksums, sync, terminal, search, duplicate detection and diagnostics from the same product.
 
-## Implemented in current RC18 source
+## Implemented in current RC19 source
 
 - FTP, explicit FTPS and SFTP temporary connections and saved profiles with real protocol E2E acceptance.
 - Site Manager with folders, favorites, tags, bookmarks and recent-server metadata.
@@ -82,28 +82,28 @@ See [Features](docs/product/FEATURES.md) and [Project status](docs/product/STATU
 
 ## Downloads and release artifacts
 
-The current source line is **Ghost FTP 2.1.1 RC18**. GitHub Releases is the authoritative source for the latest published candidate and its SHA-256 checksums. RC18 publication is allowed only from the exact source commit that passes quality, real FTP/explicit-FTPS/SFTP E2E, Windows/Linux native builds and Windows native visual QA.
+The current source line is **Ghost FTP 2.1.1 RC19**. GitHub Releases is the authoritative source for the latest published candidate and its SHA-256 checksums. RC19 publication is allowed only from the exact source commit that passes quality, real FTP/explicit-FTPS/SFTP E2E, Windows/Linux native builds and Windows native visual QA.
 
 **Windows x64**
-- `GhostFTP-Windows-x64-Portable-v2.1.1-RC18.exe`
-- `GhostFTP-Windows-x64-Setup-v2.1.1-RC18.exe`
-- `GhostFTP-Windows-x64-v2.1.1-RC18.zip`
-- `GhostFTP-Windows-x64-v2.1.1-RC18-Native-QA.zip`
+- `GhostFTP-Windows-x64-Portable-v2.1.1-RC19.exe`
+- `GhostFTP-Windows-x64-Setup-v2.1.1-RC19.exe`
+- `GhostFTP-Windows-x64-v2.1.1-RC19.zip`
+- `GhostFTP-Windows-x64-v2.1.1-RC19-Native-QA.zip`
 
 **Linux x86-64**
-- `GhostFTP-Linux-x86_64-v2.1.1-RC18`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC18.AppImage`
-- `GhostFTP-Linux-amd64-v2.1.1-RC18.deb`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC18.rpm`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC18.tar.gz`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC19`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC19.AppImage`
+- `GhostFTP-Linux-amd64-v2.1.1-RC19.deb`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC19.rpm`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC19.tar.gz`
 
 **Source and verification**
-- `GhostFTP-v2.1.1-RC18-Source.zip`
-- `GhostFTP-v2.1.1-RC18-Desktop-Source.zip`
-- `GhostFTP-v2.1.1-RC18-Website.zip`
-- `GhostFTP-v2.1.1-RC18-Updates.zip`
-- `GhostFTP-v2.1.1-RC18-Documentation.zip`
-- `GhostFTP-v2.1.1-RC18-SHA256SUMS.txt`
+- `GhostFTP-v2.1.1-RC19-Source.zip`
+- `GhostFTP-v2.1.1-RC19-Desktop-Source.zip`
+- `GhostFTP-v2.1.1-RC19-Website.zip`
+- `GhostFTP-v2.1.1-RC19-Updates.zip`
+- `GhostFTP-v2.1.1-RC19-Documentation.zip`
+- `GhostFTP-v2.1.1-RC19-SHA256SUMS.txt`
 
 The Windows native QA bundle contains the seven critical product surfaces at canonical, compact and near-minimum viewports. Older release candidates remain immutable in GitHub Releases.
 
