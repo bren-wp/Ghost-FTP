@@ -142,7 +142,7 @@ export function acquirePane(
       try {
         fit.fit();
       } catch (error) {
-        console.warn("Couldn't refit docked terminal", error);
+        console.warn("Couldn't refit docked terminal", redactSensitiveText(error, 240));
       }
     },
     subscribe: (cb) => {
@@ -153,8 +153,15 @@ export function acquirePane(
   };
 
   const setState = (patch: Partial<PaneState>) => {
+    if (entry.disposed) return;
     entry.state = { ...entry.state, ...patch };
     for (const cb of entry.listeners) cb(entry.state);
+  };
+
+  const setPaneError = (context: string, error: unknown) => {
+    setState({
+      error: `${context}: ${redactSensitiveText(error, 240)}`,
+    });
   };
 
   // History is keyed by profile so suggestions can be reused across panes and
@@ -166,27 +173,27 @@ export function acquirePane(
   entry.suggest = attachSuggestions(term, {
     historyKey,
     send: (data) => {
-      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setState({ error: `Terminal write failed: ${redactSensitiveText(error, 240)}` }));
+      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setPaneError("Terminal write failed", error));
     },
     swallowKey: isTerminalChord,
   });
 
   entry.unregisterInput = registerTerminalPane(paneId, {
     write: (data) => {
-      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setState({ error: `Terminal write failed: ${redactSensitiveText(error, 240)}` }));
+      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setPaneError("Terminal write failed", error));
     },
     focus: () => term.focus(),
   });
 
   entry.disposables.push(
     term.onData((data) => {
-      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setState({ error: `Terminal write failed: ${redactSensitiveText(error, 240)}` }));
+      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setPaneError("Terminal write failed", error));
     })
   );
   entry.disposables.push(
     term.onResize(({ cols, rows }) => {
       if (entry.terminalId)
-        ipc.terminalResize(entry.terminalId, cols, rows).catch((error) => setState({ error: `Terminal resize failed: ${redactSensitiveText(error, 240)}` }));
+        ipc.terminalResize(entry.terminalId, cols, rows).catch((error) => setPaneError("Terminal resize failed", error));
     })
   );
   // Copy-on-select (PuTTY style); read the toggle live so Settings takes effect
@@ -195,7 +202,7 @@ export function acquirePane(
     term.onSelectionChange(() => {
       if (!useSettings.getState().terminalCopyOnSelect) return;
       const text = term.getSelection();
-      if (text) navigator.clipboard.writeText(text).catch((error) => setState({ error: `Clipboard copy failed: ${redactSensitiveText(error, 240)}` }));
+      if (text) navigator.clipboard.writeText(text).catch((error) => setPaneError("Clipboard copy failed", error));
     })
   );
 
@@ -258,9 +265,7 @@ export function acquirePane(
       // "Open terminal here" seeds a cd; run it once the shell is live.
       if (initialCommand) {
         ipc.terminalWrite(id, initialCommand).catch((error) =>
-          setState({
-            error: `Terminal command failed: ${redactSensitiveText(error, 240)}`,
-          })
+          setPaneError("Terminal command failed", error)
         );
       }
     } catch (error) {
