@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document separates what Ghost FTP provides in the current **2.1.1 RC18** source from future product work. Historical release details belong in `docs/releases/`.
+This document separates what Ghost FTP provides in the current **2.1.1 RC19** source from future product work. Historical release details belong in `docs/releases/`.
 
-## Implemented in RC18
+## Implemented in RC19
 
 | Area | Current capability |
 |---|---|
@@ -21,17 +21,18 @@ This document separates what Ghost FTP provides in the current **2.1.1 RC18** so
 
 Full capability detail: [Implemented Features](FEATURES.md).
 
-## RC18 hardening completed in source
+## RC19 hardening completed in source
 
-- Removes persistent WebView storage for terminal suggestion history.
+- Preserves process-memory-only terminal suggestion history from RC18.
 - Filters credential-looking shell commands before they can enter in-memory suggestion history.
 - Makes notification-center history session-only.
 - Redacts query credentials, assignments, sensitive CLI flags, Authorization/Bearer values, URL passwords, JSON credential fields and private-key blocks before user-facing diagnostic storage/display.
 - Purges legacy terminal/notification history keys created by older candidates during startup migration.
-- Keeps workspace-level error containment and the one-window navigation model from RC17.
+- Fixes terminal listener/PTy startup disposal races and transfer listener/snapshot startup races.
+- Keeps workspace-level error containment and the one-window navigation model.
 - Keeps terminal PTY lifetime docked and deterministic with no secondary-window handoff residue.
 - Keeps real progress-delta transfer telemetry and near-minimum native Windows QA coverage.
-- Updates active repository documentation and release metadata consistently to RC18.
+- Updates active repository documentation and release metadata consistently to RC19.
 
 ## Gates before stable / FINAL
 
