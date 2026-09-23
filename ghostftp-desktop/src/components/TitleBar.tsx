@@ -163,21 +163,23 @@ export function TitleBar() {
               onClick={() => setBrowseLocal(true)}
             />
           )}
-          <button
-            className={`ghost-active-site-chip ${singlePane && !browseLocal ? "active" : ""}`}
-            onClick={() => {
-              if (singlePane && activeSessionId && browseLocal) {
-                setBrowseLocal(false);
-                return;
-              }
-              openDialog("siteManager");
-            }}
-            title={singlePane && activeSessionId && browseLocal ? "Show server files" : "Open Sites"}
-          >
-            <Server size={15}/>
-            <span>{profile ? profile.name : "Choose a site"}</span>
-            {activeSessionId && <i className="online" aria-label="Connected"/>}
-          </button>
+          {profile && (
+            <button
+              className={`ghost-active-site-chip ${singlePane && !browseLocal ? "active" : ""}`}
+              onClick={() => {
+                if (singlePane && activeSessionId && browseLocal) {
+                  setBrowseLocal(false);
+                  return;
+                }
+                openDialog("siteManager");
+              }}
+              title={singlePane && activeSessionId && browseLocal ? "Show server files" : "Open this site in Sites"}
+            >
+              <Server size={15}/>
+              <span>{profile.name}</span>
+              {activeSessionId && <i className="online" aria-label="Connected"/>}
+            </button>
+          )}
           {activeSessionId && (
             <Tool icon={<X size={16}/>} label="Disconnect" onClick={() => void disconnect()}/>
           )}
