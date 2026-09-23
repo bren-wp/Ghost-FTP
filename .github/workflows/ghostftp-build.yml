@@ -14,7 +14,7 @@ on:
     paths:
       - 'ghostftp-desktop/**'
       - '.github/workflows/ghostftp-build.yml'
-      - '.github/workflows/ghostftp-release.yml'
+      - '.github/workflows/ghostftp-rc18-release.yml'
 
 permissions:
   contents: read
