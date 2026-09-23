@@ -132,7 +132,6 @@ interface SettingsState {
 
   // Integrations
   shellIntegration: boolean;
-  fileAssociations: boolean;
 
   // Notifications (Plan 16 Phase 3)
   notifications: NotificationSettings;
@@ -162,7 +161,6 @@ interface SettingsState {
   setTerminalSuggestions: (v: boolean) => void;
   setDefaultPort: (n: number) => void;
   setShellIntegration: (v: boolean) => void;
-  setFileAssociations: (v: boolean) => void;
   setNotifications: (v: NotificationSettings) => void;
 }
 
@@ -195,7 +193,6 @@ export type PersistedSettings = Omit<
   | "setTerminalSuggestions"
   | "setDefaultPort"
   | "setShellIntegration"
-  | "setFileAssociations"
   | "setNotifications"
 >;
 
@@ -229,7 +226,6 @@ const DEFAULTS: PersistedSettings = {
   terminalSuggestions: true,
   defaultPort: 22,
   shellIntegration: false,
-  fileAssociations: false,
   notifications: { enabled: false, unfocusedOnly: true },
 };
 
@@ -343,7 +339,6 @@ export const useSettings = create<SettingsState>((set, get) => ({
     mutate(set, get, "terminalSuggestions", v),
   setDefaultPort: (n) => mutate(set, get, "defaultPort", Math.max(1, Math.min(65535, Math.round(n)))),
   setShellIntegration: (v) => mutate(set, get, "shellIntegration", v),
-  setFileAssociations: (v) => mutate(set, get, "fileAssociations", v),
   setNotifications: (v) => mutate(set, get, "notifications", v),
 }));
 
