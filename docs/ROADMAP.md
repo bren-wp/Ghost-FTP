@@ -1,6 +1,6 @@
 # Ghost FTP Roadmap
 
-This roadmap separates shipped/current RC12 work from future work. Items under Planned, Recommended and Long-term are not claims of implemented functionality.
+This roadmap separates the shipped/current RC18 release-candidate work from future work. Items under Planned, Recommended and Long-term are not claims of implemented functionality.
 
 ## Implemented
 
@@ -34,8 +34,8 @@ These are release-candidate acceptance items and should not be presented as comp
 ## Recommended
 
 - Per-profile reconnect and keep-alive policy.
-- Persistent scheduled transfers and transfer-history export.
-- Per-profile bandwidth limits and improved rolling speed/ETA calculation.
+- Transfer-history export and richer schedule management.
+- Per-profile bandwidth limits.
 - Verify-after-transfer checksum where both sides support it.
 - Batch rename and remote-edit conflict detection.
 - Encrypted selected-profile import/export.

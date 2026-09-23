@@ -1,4 +1,5 @@
 import React from "react";
+import { redactSensitiveText } from "@/lib/redact";
 import { AlertTriangle, FolderOpen, RefreshCw } from "lucide-react";
 
 interface Props extends React.PropsWithChildren {
@@ -12,13 +13,7 @@ interface State {
 }
 
 function safeWorkspaceDiagnostic(error: unknown): string {
-  const raw = error instanceof Error ? error.message : String(error);
-  return raw
-    .replace(/[A-Za-z]:\\Users\\[^\\\s]+/gi, "C:\\Users\\<user>")
-    .replace(/\/home\/[^/\s]+/g, "/home/<user>")
-    .replace(/([?&](?:token|code|password|passphrase|secret|key)=)[^&\s]+/gi, "$1<redacted>")
-    .replace(/([a-z][a-z0-9+.-]*:\/\/[^:\s/@]+:)[^@\s/]+@/gi, "$1<redacted>@")
-    .slice(0, 320);
+  return redactSensitiveText(error, 320);
 }
 
 /**

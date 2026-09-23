@@ -13,43 +13,46 @@ import { useSettings } from "@/stores/settingsStore";
 /// Wrong-but-plausible ghosts are worse than none, so every ambiguity resolves
 /// to "hide".
 
-/** MRU command history, most recent first, persisted per profile so it
- *  survives reconnects to the same server. */
-const HISTORY_PREFIX = "ghostftp.term-history.v1:";
-const HISTORY_CAP = 300;
+/** MRU command history, most recent first. It is intentionally memory-only:
+ * shell commands can contain credentials or sensitive infrastructure details,
+ * so Ghost FTP never persists suggestion history to WebView storage. */
+const HISTORY_CAP = 120;
 const MAX_CMD_LEN = 300;
 /** Suggest only once a couple of chars are down — 1-char prefixes are noise. */
 const MIN_PREFIX = 2;
 
 // Shared across panes so two shells on the same server see each other's
-// commands immediately (write-through to localStorage).
+// commands during the current Ghost FTP process only.
 const historyCache = new Map<string, string[]>();
 
 function loadHistory(key: string): string[] {
   let list = historyCache.get(key);
   if (!list) {
-    try {
-      const raw = localStorage.getItem(HISTORY_PREFIX + key);
-      list = raw ? (JSON.parse(raw) as string[]) : [];
-    } catch (error) {
-      console.warn("Couldn't read terminal command history", error);
-      list = [];
-    }
+    list = [];
     historyCache.set(key, list);
   }
   return list;
 }
 
+const SENSITIVE_COMMAND_PATTERNS = [
+  /\b(?:password|passphrase|secret|token|api[_-]?key|access[_-]?token|refresh[_-]?token|aws_secret_access_key|pgpassword)\s*=\s*\S+/i,
+  /\s--?(?:password|passphrase|secret|token|api-key|apikey|access-token|refresh-token)(?:=|\s+)\S+/i,
+  /\b(?:authorization|proxy-authorization)\s*:\s*(?:bearer|basic)?\s*\S+/i,
+  /\bsshpass\b/i,
+  /\bcurl\b[^\r\n]*\s-u\s+\S+:/i,
+  /-----BEGIN [^-\r\n]*PRIVATE KEY-----/i,
+];
+
+function looksSensitiveCommand(cmd: string): boolean {
+  return SENSITIVE_COMMAND_PATTERNS.some((pattern) => pattern.test(cmd));
+}
+
 function recordCommand(key: string, cmd: string) {
+  if (looksSensitiveCommand(cmd)) return;
   const list = loadHistory(key).filter((c) => c !== cmd);
   list.unshift(cmd);
   if (list.length > HISTORY_CAP) list.length = HISTORY_CAP;
   historyCache.set(key, list);
-  try {
-    localStorage.setItem(HISTORY_PREFIX + key, JSON.stringify(list));
-  } catch (error) {
-    console.warn("Couldn't persist terminal command history", error);
-  }
 }
 
 function lookupHistory(key: string, prefix: string): string | null {
@@ -150,8 +153,9 @@ export function attachSuggestions(
   };
 
   // On Enter, only record the line if the shell actually echoed it back —
-  // checked a beat later against the buffer row the prompt was on. This is
-  // what keeps passwords (no echo) and desynced junk out of the history.
+  // checked a beat later against the buffer row the prompt was on. This avoids
+  // no-echo password prompts; recordCommand() adds a second deny-list for
+  // credential-looking commands before anything enters in-memory history.
   const commit = () => {
     const cmd = line;
     line = "";

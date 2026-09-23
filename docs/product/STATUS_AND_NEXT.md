@@ -1,112 +1,64 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document separates **what Ghost FTP provides now** from **recommended future product work**. It intentionally avoids unnecessary implementation detail.
+This document separates what Ghost FTP provides in the current **2.1.1 RC18** source from future product work. Historical release details belong in `docs/releases/`.
 
-## Implemented and available in RC12
+## Implemented in RC18
 
-| Area | Implemented |
+| Area | Current capability |
 |---|---|
-| Connections | FTP, FTPS, SFTP, Quick Connect, saved profiles, private-key paths, host-key/TLS verification |
-| Site Manager | Favorites, folders, tags, bookmarks, recent-server metadata |
-| File browser | Dual panes, upload/download, folder operations, rename, delete, duplicate, hidden files, multiple views |
-| File properties | SHA-256, supported chmod/permission workflows, owner/group display where available |
-| Transfers | Concurrent queue, pause/resume, retry, Retry All, cancel, bandwidth control, conflict handling |
-| Sync & analysis | Folder sync, directory compare, duplicate detection, disk analysis |
-| Productivity | Integrated terminal, command palette, snippets, shortcuts, shell integration |
-| Preferences | Themes, density, previews, transfer limits, download folder, editor, notifications, privacy controls |
-| Security | OS credential storage where supported, CSP, signed update path, secret separation from profile JSON |
-| Platforms | Windows portable/Setup; Linux binary/AppImage/DEB/RPM build targets |
-| Languages | 14-language selector coverage |
+| Connections | FTP, explicit FTPS, SFTP, temporary connections, saved Sites, private-key paths, host-key/TLS verification |
+| Application shell | One persistent native window for Files, Sites, Transfers, Sync & Backup, Settings and Help & About |
+| File browser | Local/remote browsing, upload/download, folder operations, rename, delete, duplicate, hidden files, multiple views |
+| File properties | SHA-256 plus supported chmod/permission and owner/group workflows |
+| Transfers | Concurrent queue, pause/resume, retry, retry-all, cancel, priority movement, bandwidth control, conflict handling, scheduling, live progress-derived speed/ETA |
+| Sync & analysis | Folder sync, directory comparison, duplicate detection and disk analysis |
+| Productivity | Docked terminal, command palette, snippets, shortcuts and shell integration |
+| Preferences | Themes, language, transfer limits, connection/security settings, notifications and advanced controls |
+| Security/privacy | OS credential storage where supported, CSP, signed updater path, credential redaction, session-only terminal suggestion and notification history |
+| Platforms | Windows portable + NSIS Setup; Linux binary, AppImage, DEB and RPM |
+| Languages | English primary plus 13 additional selectable interface languages |
+| Release QA | Quality + Rust gates, real FTP/explicit-FTPS/SFTP E2E, Windows/Linux native builds and Windows native 7-surface × 3-viewport evidence |
 
-Full details: [Implemented Features](FEATURES.md).
+Full capability detail: [Implemented Features](FEATURES.md).
 
-## RC12 engineering work completed
+## RC18 hardening completed in source
 
-- Repository reorganized into a clear product layout: `ghostftp-desktop/`, `website/`, `updates/`, `tools/` and `docs/`.
-- Public release naming standardized by product, platform, architecture, role and version.
-- Main README rebuilt as a marketing/product landing page with local Ghost FTP logo, icons and visual references.
-- Visual reference assets renamed with GhostFTP-first filenames.
-- Obsolete browser-host production path excluded from end-user releases.
-- Transfer Queue terminal-state actions corrected.
-- Retry All added for failed transfers.
-- Semantic transfer progress and reduced-motion handling added.
-- Preferences exposes previously hidden browser/transfer settings.
-- Website expanded as the English-first product site with local Ghost FTP branding, screenshots and download/security/support content.
-- Corrupt profile/database recovery paths hardened.
-- PATH integration migration logic corrected so historical `Ghost FTP` and `GhostFTP` app directory aliases do not duplicate the managed entry.
-- Preview/stable update channels, manifest schema and validation tooling are grouped under `updates/`.
-- Rust, Go, TypeScript, website and update-tool checks remain CI-gated.
+- Removes persistent WebView storage for terminal suggestion history.
+- Filters credential-looking shell commands before they can enter in-memory suggestion history.
+- Makes notification-center history session-only.
+- Redacts query credentials, assignments, sensitive CLI flags, Authorization/Bearer values, URL passwords, JSON credential fields and private-key blocks before user-facing diagnostic storage/display.
+- Purges legacy terminal/notification history keys created by older candidates during startup migration.
+- Keeps workspace-level error containment and the one-window navigation model from RC17.
+- Keeps terminal PTY lifetime docked and deterministic with no secondary-window handoff residue.
+- Keeps real progress-delta transfer telemetry and near-minimum native Windows QA coverage.
+- Updates active repository documentation and release metadata consistently to RC18.
 
-## Release gates still required before FINAL
+## Gates before stable / FINAL
 
-These are not marked complete without real target-OS evidence:
+A release candidate is not a stable/FINAL claim. Stable promotion still requires product-owner acceptance of:
 
-1. Windows 10/11 native screenshot comparison for Main, Site Manager, New Connection, Preferences, Transfer Center, File Properties and About.
-2. Confirmation that only the Ghost FTP custom titlebar is visible in installed and portable Windows builds.
-3. Real FTP upload/download/rename/delete/resume acceptance.
-4. Real FTPS certificate and failure-path acceptance.
-5. Real SFTP password/private-key and host-key acceptance.
-6. Windows clean install, upgrade, reinstall and uninstall lifecycle QA.
-7. Final responsive acceptance at all documented viewport sizes.
-8. Production code-signing decision and signing validation.
+1. Windows clean install, upgrade, reinstall and uninstall lifecycle.
+2. Windows 10/11 installed + portable visual acceptance, including titlebar and snap behavior.
+3. Required security failure-path review on target systems.
+4. Production code-signing decision and verification.
+5. Final accessibility/keyboard/high-contrast review.
+6. Any broader protocol matrix beyond the automated FTP, explicit FTPS and SFTP release E2E suite.
 
-## Recommended high-value improvements
+## Recommended next improvements
 
-### Transfers
+- Per-profile reconnect/keep-alive policies and connection health/reconnect status.
+- Per-profile bandwidth limits and transfer-history export.
+- Verify-after-transfer checksums where both endpoints can calculate them.
+- Batch rename and remote-edit conflict detection.
+- Encrypted selected-profile export/import and duplicate-profile detection.
+- Windows snap-layout, screen-reader, high-contrast and touch-target acceptance.
+- SBOM/provenance, secret scanning and reproducible-build documentation.
+- Production signing and optional managed package repositories when distribution policy requires them.
 
-- Persistent scheduled transfers.
-- Per-transfer priority.
-- Per-profile bandwidth limits.
-- Rolling transfer-speed calculation.
-- Optional verify-after-transfer checksum.
-- Transfer-history export.
+## Repository rules
 
-### Connections
-
-- Per-profile reconnect/keep-alive policy.
-- Connection-health indicator.
-- Visible reconnect countdown.
-- SOCKS/HTTP proxy workflows if demanded by users.
-
-### File workflow
-
-- Batch rename.
-- Configurable double-click behavior.
-- Safe-delete/trash integration for local files.
-- Remote edit conflict detection.
-- Better archive preview/extract workflows.
-
-### Site Manager
-
-- Encrypted selected-profile export/import.
-- Duplicate profile detection.
-- Profile templates.
-- Richer search by host, username, tag and note.
-- Optional profile color/icon.
-
-### UI / UX
-
-- Persisted column widths.
-- Optional compact toolbar labels.
-- User-configurable panel visibility.
-- Full keyboard navigation audit.
-- Screen-reader audit.
-- High-contrast acceptance.
-- Windows 11 snap-layout acceptance.
-
-### Security and release engineering
-
-- Production Windows code signing.
-- SBOM generation.
-- Dependency vulnerability scanning.
-- Secret scanning.
-- Reproducible-build documentation.
-- Signed Linux repository metadata if package repositories are introduced.
-
-## Recommended repository rules
-
-- Keep product-facing paths and artifacts GhostFTP-branded.
-- Keep framework-required internal names only where technically necessary.
+- Keep product-facing names Ghost FTP / GhostFTP.
+- Keep framework-specific internal names only where technically required.
 - Keep implemented features separate from planned work.
-- Never publish a compatibility/browser-host executable as the production desktop GUI.
-- Never call a build FINAL until its required release evidence exists.
+- Never seed fake servers, fake transfers, fake connection state or screenshot-backed runtime UI.
+- Never label a build FINAL solely because it compiles or packages successfully.

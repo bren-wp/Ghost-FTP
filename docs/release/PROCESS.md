@@ -1,65 +1,65 @@
 # Ghost FTP Release Process
 
-This document describes the production release path. A successful compile is not equivalent to FINAL acceptance.
+This is the production release path for Ghost FTP release candidates. A successful compile is not equivalent to stable/FINAL acceptance.
 
 ## RC release flow
 
-1. Audit the current `main` branch and confirm the intended version.
-2. Keep package, Cargo and Tauri version references consistent.
-3. Update changelog, release notes, README download names and documentation.
-4. Open a release-hardening PR rather than building from an unrelated source copy.
-5. Require the `Ghost FTP quality` workflow to pass.
-6. Require native Windows and Linux jobs in `Ghost FTP native build` to pass.
-7. Inspect generated artifacts and Windows native-window QA evidence when available.
-8. Merge only the tested source into `main`.
-9. The main native build produces release binaries.
-10. `Ghost FTP RC12 release` publishes only after a successful main native build and a successful quality run for the current production source.
-11. Generate/upload SHA-256 checksums with the release assets.
-12. Retain older releases.
+1. Start from current `main`.
+2. Create a dedicated release-candidate branch.
+3. Keep package, Cargo, Tauri, runtime, installer, updater and display versions consistent.
+4. Update the changelog, release notes, active README/status documentation and artifact names.
+5. Open a PR from the RC branch.
+6. Require **Ghost FTP quality** on the exact PR HEAD.
+7. Require **Ghost FTP protocol E2E** on the exact PR HEAD.
+8. Require **Ghost FTP native build** on the exact PR HEAD.
+9. Confirm Windows and Linux artifacts exist and inspect the Windows native QA evidence.
+10. Merge only that tested source to `main`.
+11. Add the version-specific approval marker containing the exact tested source SHA.
+12. The version-specific release workflow verifies that SHA is an ancestor of `main`, rechecks all gates and packages from that exact source.
+13. Publish an immutable prerelease tag and upload normalized native/source/documentation assets plus SHA-256 checksums.
+14. Keep older tags/releases immutable.
 
-## Required RC12 assets
+## Current RC18 assets
 
 Windows x64:
 
-- `GhostFTP-Windows-x64-Portable-v2.1.1-RC12.exe`
-- `GhostFTP-Windows-x64-Setup-v2.1.1-RC12.exe`
-- Windows bundle ZIP
+- `GhostFTP-Windows-x64-Portable-v2.1.1-RC18.exe`
+- `GhostFTP-Windows-x64-Setup-v2.1.1-RC18.exe`
+- `GhostFTP-Windows-x64-v2.1.1-RC18.zip`
+- `GhostFTP-Windows-x64-v2.1.1-RC18-Native-QA.zip`
 
 Linux x86-64:
 
-- native executable
-- AppImage
-- DEB
-- RPM
-- Linux bundle archive
+- `GhostFTP-Linux-x86_64-v2.1.1-RC18`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC18.AppImage`
+- `GhostFTP-Linux-amd64-v2.1.1-RC18.deb`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC18.rpm`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC18.tar.gz`
 
 Source/documentation:
 
-- Full Source ZIP
-- Desktop Source ZIP
-- Website ZIP
-- Updates ZIP
-- Documentation ZIP
-- SHA256SUMS file
+- `GhostFTP-v2.1.1-RC18-Source.zip`
+- `GhostFTP-v2.1.1-RC18-Desktop-Source.zip`
+- `GhostFTP-v2.1.1-RC18-Website.zip`
+- `GhostFTP-v2.1.1-RC18-Updates.zip`
+- `GhostFTP-v2.1.1-RC18-Documentation.zip`
+- `GhostFTP-v2.1.1-RC18-SHA256SUMS.txt`
 
-## FINAL gates
+## Windows QA evidence
 
-Do not label an artifact FINAL until the QA documents contain real evidence for:
+The release workflow requires exactly seven critical surfaces in three viewport classes: canonical, compact and near-minimum. That is 21 PNG files plus 21 corresponding metadata TXT files. A blank/structureless, duplicate or incorrectly sized capture fails the native build gate.
 
-- Windows native titlebar/pixel acceptance;
-- required responsive sizes;
-- FTP/FTPS/SFTP end-to-end behavior;
-- installer clean install/upgrade/reinstall/uninstall;
-- update verification;
-- required security failure paths;
-- production signing decision.
+## Stable / FINAL gates
 
-Blocked gates must be recorded as BLOCKED, not PASS.
+Do not label an artifact FINAL until real evidence exists for the required installer lifecycle, target-OS visual acceptance, security failure paths, update verification, accessibility acceptance and production signing decision.
+
+Blocked gates are BLOCKED, not PASS.
 
 ## Release integrity
 
 - End-user GUI assets must come from `ghostftp-desktop/`.
 - A browser-host/localhost wrapper is not a production release asset.
-- Release publication must fail if required native platform bundles are absent.
-- Existing tag/release history must not be deleted merely to publish a new RC.
+- Publication must fail if a required native platform artifact or QA set is absent.
+- The approval marker must identify the exact previously tested source commit.
+- Existing tags/releases are never moved merely to publish a newer RC.
 - Public filenames use `GhostFTP`; product copy uses `Ghost FTP`.

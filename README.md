@@ -64,7 +64,7 @@ The canonical desktop reference is **1290×852**. Smaller windows adapt through 
 
 **Control.** Use permissions, checksums, sync, terminal, search, duplicate detection and diagnostics from the same product.
 
-## Implemented in current RC15 development source
+## Implemented in current RC18 source
 
 - FTP, explicit FTPS and SFTP temporary connections and saved profiles with real protocol E2E acceptance.
 - Site Manager with folders, favorites, tags, bookmarks and recent-server metadata.
@@ -72,7 +72,7 @@ The canonical desktop reference is **1290×852**. Smaller windows adapt through 
 - Upload/download queues with pause, resume, retry, cancel and bandwidth controls.
 - SHA-256 and supported permission/chmod workflows.
 - Folder sync, directory comparison, duplicate discovery and disk analysis.
-- Integrated terminal, command palette, snippets and keyboard shortcuts.
+- Integrated terminal, command palette, snippets and keyboard shortcuts; terminal suggestion history is session-only and sensitive-looking commands are excluded.
 - Protected credential handling where supported by the operating system.
 - Native Windows and Linux packaging.
 - Branded preview/stable update-channel structure.
@@ -80,30 +80,32 @@ The canonical desktop reference is **1290×852**. Smaller windows adapt through 
 
 See [Features](docs/product/FEATURES.md) and [Project status](docs/product/STATUS_AND_NEXT.md).
 
-## Downloads — latest published Ghost FTP 2.1.1 RC14 release
+## Downloads and release artifacts
 
-RC15 is the current development target. RC14 remains the latest published release and stays pinned to its historical source commit. RC15 must pass quality, real FTP/FTPS/SFTP E2E, Windows/Linux native builds and Windows seven-view QA before it can be tagged or published. Older release candidates remain available in GitHub Releases.
+The current source line is **Ghost FTP 2.1.1 RC18**. GitHub Releases is the authoritative source for the latest published candidate and its SHA-256 checksums. RC18 publication is allowed only from the exact source commit that passes quality, real FTP/explicit-FTPS/SFTP E2E, Windows/Linux native builds and Windows native visual QA.
 
 **Windows x64**
-- `GhostFTP-Windows-x64-Portable-v2.1.1-RC14.exe`
-- `GhostFTP-Windows-x64-Setup-v2.1.1-RC14.exe`
-- `GhostFTP-Windows-x64-v2.1.1-RC14.zip`
-- native seven-view QA evidence from the exact release build
+- `GhostFTP-Windows-x64-Portable-v2.1.1-RC18.exe`
+- `GhostFTP-Windows-x64-Setup-v2.1.1-RC18.exe`
+- `GhostFTP-Windows-x64-v2.1.1-RC18.zip`
+- `GhostFTP-Windows-x64-v2.1.1-RC18-Native-QA.zip`
 
 **Linux x86-64**
-- `GhostFTP-Linux-x86_64-v2.1.1-RC14`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC14.AppImage`
-- `GhostFTP-Linux-amd64-v2.1.1-RC14.deb`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC14.rpm`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC14.tar.gz`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC18`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC18.AppImage`
+- `GhostFTP-Linux-amd64-v2.1.1-RC18.deb`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC18.rpm`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC18.tar.gz`
 
-**Source**
-- `GhostFTP-v2.1.1-RC14-Source.zip`
-- `GhostFTP-v2.1.1-RC14-Desktop-Source.zip`
-- `GhostFTP-v2.1.1-RC14-Website.zip`
-- `GhostFTP-v2.1.1-RC14-Updates.zip`
-- `GhostFTP-v2.1.1-RC14-Documentation.zip`
-- `GhostFTP-v2.1.1-RC14-SHA256SUMS.txt`
+**Source and verification**
+- `GhostFTP-v2.1.1-RC18-Source.zip`
+- `GhostFTP-v2.1.1-RC18-Desktop-Source.zip`
+- `GhostFTP-v2.1.1-RC18-Website.zip`
+- `GhostFTP-v2.1.1-RC18-Updates.zip`
+- `GhostFTP-v2.1.1-RC18-Documentation.zip`
+- `GhostFTP-v2.1.1-RC18-SHA256SUMS.txt`
+
+The Windows native QA bundle contains the seven critical product surfaces at canonical, compact and near-minimum viewports. Older release candidates remain immutable in GitHub Releases.
 
 ## Repository layout
 

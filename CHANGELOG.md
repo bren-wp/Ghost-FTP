@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.1-rc.18 — 24 September 2026
+
+- Made terminal suggestion history process-memory only; shell commands are no longer persisted to WebView localStorage.
+- Added sensitive-command filtering so credential-looking terminal commands are excluded even from in-session suggestions.
+- Made notification-center history session-only and removed its browser-storage persistence.
+- Added centralized credential redaction for query parameters, assignments, CLI flags, Authorization/Bearer values, URL userinfo passwords, JSON credential fields and private-key blocks.
+- Reused the central redactor in global/workspace UI error boundaries.
+- Added startup cleanup for legacy persisted terminal and notification history from older release candidates.
+- Added UI/security regression guards that prevent sensitive history persistence and redaction controls from silently regressing.
+- Refreshed active product, desktop, feature, build, QA, roadmap and release-process documentation to the RC18 line.
+- Advanced desktop, Tauri, CLI, agent, runtime, installer, updater and native artifact metadata consistently to RC18 / build 2026.09.24.18.
+- Preserved real FTP/explicit-FTPS/SFTP E2E, single-window architecture, native Windows 21-capture QA and immutable prior releases.
+
 ## 2.1.1-rc.17 — 23 September 2026
 
 - Added workspace-level UI error containment so an unexpected render failure stays inside the active workspace and the persistent Ghost FTP shell remains usable.

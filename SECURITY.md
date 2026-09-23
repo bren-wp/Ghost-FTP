@@ -6,6 +6,12 @@ Ghost FTP's native desktop implementation uses real protocol/session backends ra
 
 Credentials and private-key material must never be printed to routine logs. Native credential references should use OS-protected storage where supported. User-supplied remote paths and local paths must be treated as data, not command text. Any shell integration must quote paths defensively and avoid passing credentials through command lines.
 
+## Diagnostic and terminal privacy
+
+Terminal inline suggestions use process-memory-only history. Shell commands are not persisted to WebView storage, and commands that look credential-bearing are excluded from suggestion history.
+
+Notification-center history is also session-only. User-facing diagnostics are filtered through credential redaction before they are stored in UI state or shown to the user. Upgrade startup removes legacy terminal/notification history keys written by older release candidates.
+
 ## Updates
 
 Native update metadata is retrieved only from the configured official `https://ghostftp.com/updates/latest.json` endpoint. The Tauri updater verifies the configured signature before installing an artifact. Package SHA-256 values should also be published with releases. A failed download, checksum/signature verification or apply step must leave the currently installed version usable.

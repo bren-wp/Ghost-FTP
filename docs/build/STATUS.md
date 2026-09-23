@@ -1,97 +1,67 @@
-# Ghost FTP Build Status — 20 September 2026
+# Ghost FTP Build Status — 24 September 2026
 
-## Authoritative status
+## Authoritative source status
 
-**Ghost FTP 2.1.1 RC12 — native Ghost FTP desktop release candidate. NOT FINAL.**
+**Ghost FTP 2.1.1 RC18 — native Windows/Linux release-candidate source. NOT FINAL.**
 
-RC12 continues the existing Ghost FTP source and does not replace the project with a new implementation or screenshot-driven runtime.
+The authoritative desktop application is `ghostftp-desktop/`. Production end-user GUI releases come from the native React + TypeScript + Tauri + Rust path, not a localhost/browser-shell compatibility host.
 
-## Repository and build organization
+## Build organization
 
-- Production desktop source: `ghostftp-desktop/`
-- Developer runtime tooling: `tools/ghostftp-runtime/`
-- Installer support tooling: `tools/ghostftp-installer/`
-- Website source: `website/`
-- Update templates: `updates/`
-- Native build workflow: `.github/workflows/ghostftp-build.yml`
+- Desktop source: `ghostftp-desktop/`
 - Quality workflow: `.github/workflows/ghostftp-quality.yml`
-- Release workflow: `.github/workflows/ghostftp-release.yml`
+- Protocol E2E workflow: Ghost FTP protocol E2E
+- Native build workflow: `.github/workflows/ghostftp-build.yml`
+- Versioned release workflow: `.github/workflows/ghostftp-rc18-release.yml`
+- Release approval marker: `.github/RC18_RELEASE_APPROVED` after the exact candidate is validated and merged
 
-A small number of internal framework-required names remain inside `ghostftp-desktop/` because renaming them would create unnecessary build risk.
+## RC18 quality gates
 
-## RC12 source improvements
+The exact RC18 candidate must pass:
 
-- Reorganized the repository around GhostFTP-branded top-level source paths.
-- Standardized release filenames by platform, architecture, role and version.
-- Rebuilt the main README as a product/marketing landing page with local logo, icons and screenshots.
-- Added dedicated naming and project-status documentation.
-- Corrected historical `Ghost FTP` / `GhostFTP` managed PATH alias handling without removing spaces from unrelated Windows paths.
-- Removed the browser-host GUI from the production release path.
-- Preserved the custom frameless Ghost FTP desktop window and canonical 1290×852 reference geometry.
-- Preserved adaptive smaller-window behavior down to the documented minimum target.
-- Corrected transfer terminal-state actions and active queue filtering.
-- Added Retry All for failed transfers.
-- Added semantic progress controls and reduced-motion handling.
-- Exposed browser-layout, hidden-file, remote-preview, speed-limit, download-folder and editor settings.
-- Hardened corrupt profile/database startup recovery.
-- Kept profile secrets outside ordinary profile JSON and OS-keychain-backed where supported.
-- Kept the 14-language selector and canonical dictionary coverage model.
-- Improved website local icon use and loading-timer cleanup.
-
-## Quality gates
-
-The RC10 quality workflow requires:
-
-- Go tests and `go vet` for GhostFTP runtime/installer tooling;
-- JavaScript syntax checks;
-- website markup/asset policy checks;
-- TypeScript typecheck;
-- production frontend build;
+- npm clean install;
+- npm production dependency audit at high severity;
+- i18n parity check;
+- single-window/UI contract and privacy/security regression guards;
+- TypeScript typecheck and production frontend build;
+- Go tests and `go vet` for repository tooling;
+- website and updater-script syntax/policy checks;
 - Rust formatting;
 - Rust workspace check;
 - Rust workspace tests;
 - Clippy with warnings denied;
-- legacy/demo-branding rejection.
+- real FTP, explicit FTPS and SFTP roundtrip E2E;
+- Windows x64 native bundle;
+- Linux x86-64 native binary/AppImage/DEB/RPM;
+- Windows native visual evidence for seven critical surfaces at canonical, compact and near-minimum viewports;
+- RC18 source/documentation packages.
 
-An earlier RC9 quality run correctly exposed PATH-integration failures, and a later RC9 run narrowed the remaining gate to two CLI Clippy findings. RC12 retains the corrected PATH logic and CLI lint fixes. Current publication remains gated on a fully successful quality run for the exact RC12 source revision.
+## RC18 security/privacy delta
 
-## Native RC12 build targets
+- Terminal suggestion history is memory-only and never written to WebView localStorage.
+- Commands that look credential-bearing are excluded from suggestion history.
+- Notification-center history is memory-only.
+- User-facing diagnostic/toast text is centrally credential-redacted.
+- Startup migration deletes legacy persisted terminal/notification history created by older candidates.
+- The CLI executable replacement path remains fail-closed until signed package verification is available.
+
+## Native package targets
 
 ### Windows x64
 
-- native portable EXE;
-- NSIS Setup EXE.
+- portable Ghost FTP EXE;
+- NSIS Setup EXE;
+- Windows bundle ZIP;
+- 21-image + 21-metadata native QA bundle.
 
 ### Linux x86-64
 
 - native executable;
 - AppImage;
 - DEB;
-- RPM.
+- RPM;
+- Linux bundle archive.
 
-MSI is intentionally omitted from prerelease builds because the current MSI version path rejects prerelease identifiers such as `rc.12`.
+## Release truth
 
-## Public release artifact policy
-
-Only the native Ghost FTP desktop build is accepted as the end-user GUI release.
-
-The old compatibility browser shell that displayed a visible `127.0.0.1` origin/address strip is not an accepted production artifact.
-
-## Gates still blocking FINAL
-
-FINAL remains blocked until documented evidence exists for:
-
-1. Real FTP end-to-end transfers.
-2. Real FTPS end-to-end transfers and certificate failures.
-3. Real SFTP password/private-key transfers and host-key behavior.
-4. Windows 10/11 titlebar screenshots from installed and portable builds.
-5. Windows clean install / upgrade / reinstall / uninstall acceptance.
-6. Final responsive and pixel comparison at every required reference size.
-7. Production signing decision/validation.
-
-Build and packaging success alone does not convert RC10 into FINAL.
-
-
-## RC12 fidelity/stability pass
-
-The RC12 branch additionally hardens menu stacking, reference dialog geometry, external-link handling and explicit notification permission flow. Real FTP/FTPS/SFTP workflow evidence exists for an earlier RC12 head, but release status must be reevaluated on the final RC12 commit; native screenshot and installer lifecycle acceptance remain separate gates.
+A successful build does not equal FINAL acceptance. RC18 publication uses an immutable version tag pointing at the exact source commit that passed the required workflows. Earlier release candidates remain unchanged.

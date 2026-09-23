@@ -1,6 +1,6 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 2.1.1 RC12 source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 2.1.1 RC18 source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Connection and profile management
 
@@ -51,7 +51,7 @@ Implemented:
 - Pause all / resume all.
 - Cancel active/queued transfers.
 - Retry failed transfers.
-- RC10 retry-all action for failed transfers.
+- Retry-all action for failed transfers.
 - Queue, Failed and Completed views.
 - Correct Completed, Skipped, Canceled, Failed, Paused, Queued and Transferring labels.
 - Semantic progress controls and percent display.
@@ -60,7 +60,6 @@ Implemented:
 - Global bandwidth throttle.
 - Overwrite / skip / rename conflict policies.
 - Per-file conflict prompts with optional remembered behavior.
-- Automatic transfer-panel opening.
 - Preferences UI for browser layout, hidden files, remote previews, transfer speed limit, default download folder and default editor.
 
 - Desktop completion/failure notifications.
@@ -84,10 +83,9 @@ Implemented:
 Implemented:
 
 - Integrated terminal surfaces.
-- Terminal pop-out window.
 - Configurable terminal font, theme and scrollback.
 - Copy-on-select.
-- Inline command/history suggestions.
+- Inline command/history suggestions with process-memory-only history and sensitive-command filtering.
 - Command palette.
 - Keyboard shortcut settings and shortcut reference.
 - Snippets.
@@ -109,7 +107,6 @@ Implemented:
 - Delta synchronization.
 - Overwrite policy.
 - Prompt-before-overwrite.
-- Auto-open transfer queue.
 - Default SFTP port.
 - Notification controls.
 - OS keychain requirement display.
@@ -168,9 +165,9 @@ Implemented architectural controls include:
 - Restricted developer compatibility API and mutation authorization.
 - No production dependency on a browser-host `127.0.0.1` GUI wrapper.
 
-## Current RC12 UX fixes
+## Current RC18 hardening
 
-RC12 retains and further hardens:
+RC18 retains the single-window RC16/RC17 architecture and further hardens:
 
 - Terminal transfer rows no longer show a meaningless Cancel action after completion.
 - Skipped and canceled transfers have explicit labels.
@@ -178,6 +175,11 @@ RC12 retains and further hardens:
 - Retry All is available for failed transfers.
 - Clear controls are disabled when there is nothing to clear.
 - Transfer progress uses a semantic `<progress>` element instead of inline width styling.
+- Live transfer speed and ETA are derived from real backend progress byte deltas with stale-sample handling.
+- Transfer scheduling remains available inside Transfers instead of a duplicate top-level workspace.
+- Terminal command suggestions never persist shell history to WebView storage.
+- Notification history is session-only and all toast/error text passes through credential redaction.
+- Startup removes legacy persisted terminal/notification history left by older release candidates.
 - Reduced-motion support is applied to desktop UI transitions.
 - Website loading animation stops when complete instead of running an interval forever.
 - Website loading animation respects `prefers-reduced-motion`.

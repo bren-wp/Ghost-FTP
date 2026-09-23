@@ -1,6 +1,6 @@
 # Ghost FTP — Recommended Next Work
 
-This is the prioritized improvement backlog after Ghost FTP 2.1.1 RC10. Items here are recommendations, not claims of completed functionality.
+This is the prioritized improvement backlog for the Ghost FTP 2.1.1 RC18 line. Items here are recommendations, not claims of completed functionality.
 
 ## Release blockers before FINAL
 
@@ -45,12 +45,9 @@ These should be completed before a production FINAL label:
 
 Recommended:
 
-- Per-transfer priority controls in the main queue.
-- Scheduled transfers with persistent schedules.
 - Optional automatic clear of successful transfers after a configurable delay.
 - Transfer-history export.
 - Per-server bandwidth limits in addition to the global throttle.
-- More accurate rolling transfer speed instead of lifetime-average speed.
 - Verify-after-transfer checksum option for protocols/backends that can calculate both sides.
 
 ### Connection reliability
