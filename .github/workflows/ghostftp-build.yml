@@ -514,7 +514,7 @@ jobs:
               # carry the most responsive pressure. This is separate from the
               # canonical 1290x852 visual reference and catches clipped buttons,
               # wrapped navigation and off-viewport overlays.
-              if (@('main', 'siteManager', 'newConnection', 'settings', 'transferCenter', 'about') -contains $view.key) {
+              if (@('main', 'siteManager', 'newConnection', 'settings', 'transferCenter', 'properties', 'about') -contains $view.key) {
                 $compactWidth = [Math]::Min(720, $work.Width - 40)
                 $compactHeight = [Math]::Min(640, $work.Height - 40)
                 if ($compactWidth -ge 520 -and $compactHeight -ge 610) {
