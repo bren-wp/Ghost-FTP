@@ -455,38 +455,40 @@ export function TransferCenterDialog({ onClose }: Props) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto p-4">
-          <div className="grid min-w-[920px] grid-cols-[36px_minmax(220px,1.4fr)_95px_90px_160px_90px_90px_100px_106px] border-b border-border px-2 py-2 text-[10px] uppercase tracking-wider text-text-dim">
-            <span>#</span>
-            <span>Name</span>
-            <span>Direction</span>
-            <span>Size</span>
-            <span>Progress</span>
-            <span>Speed</span>
-            <span>ETA</span>
-            <span>Status</span>
-            <span className="text-right">Actions</span>
-          </div>
-          <div className="min-w-[920px]">
-            {filtered.length === 0 ? (
-              <Empty />
-            ) : (
-              filtered.map((transfer, index) => (
-                <TransferRow
-                  key={transfer.id}
-                  transfer={transfer}
-                  index={index + 1}
-                  selected={selected?.id === transfer.id}
-                  onClick={() => setSelectedId(transfer.id)}
-                  onPauseResume={() => void runBackendAction(
-                    transfer.status === "paused" ? "Couldn't resume transfer" : "Couldn't pause transfer",
-                    () => transfer.status === "paused" ? resume(transfer.id) : pause(transfer.id)
-                  )}
-                  onCancel={() => void runBackendAction("Couldn't cancel transfer", () => cancel(transfer.id))}
-                  onRetry={() => void runBackendAction("Couldn't retry transfer", () => retry(transfer.id))}
-                />
-              ))
-            )}
-          </div>
+          {filtered.length === 0 ? (
+            <Empty />
+          ) : (
+            <>
+              <div className="grid min-w-[920px] grid-cols-[36px_minmax(220px,1.4fr)_95px_90px_160px_90px_90px_100px_106px] border-b border-border px-2 py-2 text-[10px] uppercase tracking-wider text-text-dim">
+                <span>#</span>
+                <span>Name</span>
+                <span>Direction</span>
+                <span>Size</span>
+                <span>Progress</span>
+                <span>Speed</span>
+                <span>ETA</span>
+                <span>Status</span>
+                <span className="text-right">Actions</span>
+              </div>
+              <div className="min-w-[920px]">
+                {filtered.map((transfer, index) => (
+                  <TransferRow
+                    key={transfer.id}
+                    transfer={transfer}
+                    index={index + 1}
+                    selected={selected?.id === transfer.id}
+                    onClick={() => setSelectedId(transfer.id)}
+                    onPauseResume={() => void runBackendAction(
+                      transfer.status === "paused" ? "Couldn't resume transfer" : "Couldn't pause transfer",
+                      () => transfer.status === "paused" ? resume(transfer.id) : pause(transfer.id)
+                    )}
+                    onCancel={() => void runBackendAction("Couldn't cancel transfer", () => cancel(transfer.id))}
+                    onRetry={() => void runBackendAction("Couldn't retry transfer", () => retry(transfer.id))}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {detailsOpen && (
