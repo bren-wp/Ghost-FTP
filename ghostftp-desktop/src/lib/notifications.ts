@@ -20,7 +20,6 @@ import { useSettings } from "@/stores/settingsStore";
 import { useSync } from "@/stores/syncStore";
 import { onTransferEvent, onEditError } from "@/lib/ipc";
 import { useLayout } from "@/stores/layoutStore";
-import { useTransfers } from "@/stores/transfersStore";
 
 type Permission = "unknown" | "granted" | "denied";
 let permission: Permission = "unknown";
@@ -118,9 +117,9 @@ export function initNotifications(): () => void {
     batchTotal = batchDone = batchFailed = 0;
     const route = () => {
       try {
-        useTransfers.getState().setPanelOpen(true);
+        useLayout.getState().openDialog("transferCenter");
       } catch (error) {
-        console.warn("Couldn't route a transfer notification back to the queue", error);
+        console.warn("Couldn't route a transfer notification to Transfers", error);
       }
     };
     if (failed > 0) {
