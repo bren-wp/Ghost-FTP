@@ -221,11 +221,6 @@ function TransfersCard() {
         checked={s.promptOnOverwrite}
         onChange={s.setPromptOnOverwrite}
       />
-      <ToggleRow
-        label="Open transfer queue automatically"
-        checked={s.autoOpenTransferPanel}
-        onChange={s.setAutoOpenTransferPanel}
-      />
       <TextRow
         label="Download Folder"
         value={s.defaultDownloadFolder}
