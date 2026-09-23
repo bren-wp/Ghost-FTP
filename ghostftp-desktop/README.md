@@ -49,10 +49,20 @@ MSI is intentionally excluded from prerelease RC packaging because the current M
 
 ## Visual contract
 
-Approved visual references live under **[`../docs/assets/screenshots/`](../docs/assets/screenshots/)**. They are documentation/QA specifications only and must never be used as runtime screenshot backgrounds or click maps.
+The repository keeps **actual native screenshots** under **[`../docs/assets/screenshots/`](../docs/assets/screenshots/)**. The RC Windows QA workflow refreshes them from the real executable; they are documentation evidence only and are never used as runtime screenshot backgrounds or click maps.
 
 <p align="center">
-  <img src="../docs/assets/screenshots/ghostftp-main-file-manager.webp" alt="Ghost FTP approved main-window reference" width="100%">
+  <img src="../docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP native Files workspace — actual RC19 build" width="100%">
+</p>
+
+<p align="center">
+  <img src="../docs/assets/screenshots/ghostftp-native-sites.png" alt="Ghost FTP native Sites workspace" width="49%">
+  <img src="../docs/assets/screenshots/ghostftp-native-transfers.png" alt="Ghost FTP native Transfers workspace" width="49%">
+</p>
+
+<p align="center">
+  <img src="../docs/assets/screenshots/ghostftp-native-settings.png" alt="Ghost FTP native Settings workspace" width="49%">
+  <img src="../docs/assets/screenshots/ghostftp-native-about.png" alt="Ghost FTP native Help and About workspace" width="49%">
 </p>
 
 The canonical desktop reference is **1290×852** and the production window minimum is **480×600**. RC19 keeps one persistent native application window: Files, Sites, Transfers, Sync & Backup, Settings and Help & About switch inside the main workspace; New Connection and File Properties remain transient overlays inside that same window.
