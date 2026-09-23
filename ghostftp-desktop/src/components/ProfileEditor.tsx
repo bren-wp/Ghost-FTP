@@ -46,6 +46,7 @@ import { IconPicker } from "./IconPicker";
 import { generatePassword } from "@/lib/password";
 import { ipc } from "@/lib/ipc";
 import { toast } from "@/stores/toastStore";
+import { messageOf } from "@/lib/errors";
 
 interface Props {
   profile: ConnectionProfile | null;
@@ -512,7 +513,12 @@ export function ProfileEditor({ profile, prefill, onClose }: Props) {
       `${res.os} · ${res.fingerprint}`
     );
     onClose();
-    void connectProfile(id);
+    void connectProfile(id).catch((error) => {
+      // The connection store already shows the actionable toast. Handle the
+      // rejection here as well so a failed post-pair connect never becomes an
+      // unhandled promise rejection.
+      console.warn("Couldn't connect after pairing", messageOf(error));
+    });
   };
 
   const gcsCredOk = authKind === "key" ? !!keyPath : !!password;
