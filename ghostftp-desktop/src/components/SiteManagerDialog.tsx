@@ -355,7 +355,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     <div
       className="ghost-workspace-view ghost-standalone-view bg-[#041425]"
       role="region"
-      aria-label="Site Manager"
+      aria-label="Sites"
     >
       <div
         ref={panelRef}
@@ -366,7 +366,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
             <Server size={24} />
           </div>
           <div>
-            <div className="text-xl font-semibold">Site Manager</div>
+            <div className="text-xl font-semibold">Sites</div>
             <div className="text-[12px] text-text-muted">
               Manage saved connections, bookmarks and server profiles.
             </div>
