@@ -388,7 +388,7 @@ function LanguagePanel({ locale, setLocale }: { locale: string; setLocale: (valu
 function TransfersPanel(){return <div className="grid max-w-4xl grid-cols-2 gap-4"><PerformanceCard/><TransfersCard/><div className="col-span-2"><TerminalCard/></div></div>}
 function ConnectionPanel(){return <div className="max-w-3xl"><ConnectionCard/></div>}
 function SecurityPanel(){return <div className="max-w-3xl"><SecurityCard/></div>}
-function ShortcutsCard(){return <Card icon={<Keyboard size={20}/>} title="Keyboard Shortcuts" subtitle="Core Ghost FTP shortcuts."><div className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-[12px]"><span>New connection</span><kbd>Ctrl + N</kbd><span>Settings</span><kbd>Ctrl + ,</kbd><span>Transfer queue</span><kbd>Ctrl + Shift + T</kbd><span>Command palette</span><kbd>Ctrl + K</kbd></div></Card>}
+function ShortcutsCard(){return <Card icon={<Keyboard size={20}/>} title="Keyboard Shortcuts" subtitle="Core Ghost FTP shortcuts."><div className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-[12px]"><span>New connection</span><kbd>Ctrl + N</kbd><span>Settings</span><kbd>Ctrl + ,</kbd><span>Open Transfers</span><kbd>Ctrl + T</kbd><span>Command palette</span><kbd>Ctrl + K</kbd></div></Card>}
 function AdvancedPanel(){return <div className="grid max-w-5xl gap-4 xl:grid-cols-2"><IntegrationsCard/><ShortcutsCard/></div>}
 
 function Nav({
