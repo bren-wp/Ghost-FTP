@@ -28,10 +28,9 @@ type BandwidthSample = { upload: number; download: number };
 
 interface Props {
   onClose: () => void;
-  initialFocus?: "scheduler" | "log";
 }
 
-export function TransferCenterDialog({ onClose, initialFocus }: Props) {
+export function TransferCenterDialog({ onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const byId = useTransfers((state) => state.byId);
   const clearCompleted = useTransfers((state) => state.clearCompleted);
@@ -62,8 +61,8 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   const moreRef = useRef<HTMLDivElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const schedulerRef = useRef<HTMLDivElement>(null);
-  const logRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const scheduleMode = useTransferSchedule((state) => state.mode);
   const scheduleDate = useTransferSchedule((state) => state.date);
   const scheduleTime = useTransferSchedule((state) => state.time);
@@ -83,16 +82,6 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   });
 
   useDialog(panelRef, { onClose, trapFocus: false });
-
-  useEffect(() => {
-    if (!initialFocus) return;
-    const timer = window.setTimeout(() => {
-      const target = initialFocus === "scheduler" ? schedulerRef.current : logRef.current;
-      target?.scrollIntoView({ behavior: "smooth", block: "center" });
-      target?.focus();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [initialFocus]);
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -254,8 +243,13 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   };
 
   const revealScheduler = () => {
-    schedulerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    requestAnimationFrame(() => schedulerRef.current?.focus());
+    setDetailsOpen(true);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        schedulerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        schedulerRef.current?.focus();
+      });
+    });
   };
 
   const addTransfer = async (kind: "files" | "folder" = "files") => {
@@ -325,22 +319,6 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
           >
             <Plus size={14} /> Add Transfer
           </button>
-          <button
-            type="button"
-            className="ghost-mini-button"
-            onClick={revealScheduler}
-            title="Open the transfer scheduler"
-          >
-            <Clock3 size={14} /> Schedule
-          </button>
-          <button
-            type="button"
-            className="ghost-mini-button"
-            disabled={completed === 0}
-            onClick={clearCompleted}
-          >
-            <Trash2 size={14} /> Clear Completed
-          </button>
           <div className="relative" ref={moreRef}>
             <button
               ref={moreButtonRef}
@@ -354,6 +332,28 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
             </button>
             {moreOpen && (
               <div className="ghost-transfer-more-menu" role="menu" onKeyDown={onMoreMenuKeyDown}>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    setDetailsOpen((open) => !open);
+                  }}
+                >
+                  <Activity size={14}/>
+                  <span>{detailsOpen ? "Hide Details" : "Show Details"}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    revealScheduler();
+                  }}
+                >
+                  <Clock3 size={14}/>
+                  <span>Schedule Transfer…</span>
+                </button>
                 <button
                   type="button"
                   role="menuitem"
@@ -380,6 +380,18 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
                 >
                   {pausedAll ? <Play size={14}/> : <Pause size={14}/>}
                   <span>{pausedAll ? "Resume All" : "Pause All"}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={completed === 0}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    clearCompleted();
+                  }}
+                >
+                  <Trash2 size={14}/>
+                  <span>Clear Completed</span>
                 </button>
               </div>
             )}
@@ -481,7 +493,9 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
           </div>
         </div>
 
-        <div className="ghost-transfer-summary-grid grid grid-cols-[1.55fr_.75fr] gap-4 border-t border-border bg-[#051929] p-4">
+        {detailsOpen && (
+          <>
+          <div className="ghost-transfer-summary-grid grid grid-cols-[1.55fr_.75fr] gap-4 border-t border-border bg-[#051929] p-4">
           <div className="rounded-lg border border-border bg-[#071f35] p-4">
             <div className="mb-3 flex items-center gap-2">
               <Activity size={16} className="text-accent" />
@@ -674,11 +688,7 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
             )}
           </div>
 
-          <div
-            ref={logRef}
-            tabIndex={-1}
-            className="rounded-lg border border-border bg-[#071f35] p-4 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-          >
+          <div className="rounded-lg border border-border bg-[#071f35] p-4">
             <div className="mb-3 flex items-center">
               <strong>Transfer Log</strong>
               <div className="flex-1" />
@@ -713,6 +723,8 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
             </div>
           </div>
         </div>
+          </>
+        )}
 
         <div className="flex items-center border-t border-border bg-[#041522] px-4 py-3">
           <span
