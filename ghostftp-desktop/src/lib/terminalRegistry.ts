@@ -61,6 +61,15 @@ interface InternalEntry extends PaneEntry {
 
 const panes = new Map<string, InternalEntry>();
 
+function clearNativeListeners(entry: InternalEntry): void {
+  const unlistenData = entry.unlistenData;
+  const unlistenExit = entry.unlistenExit;
+  entry.unlistenData = null;
+  entry.unlistenExit = null;
+  unlistenData?.();
+  unlistenExit?.();
+}
+
 export function hasPane(paneId: string): boolean {
   return panes.has(paneId);
 }
@@ -193,15 +202,6 @@ export function acquirePane(
   entry.onWindowResize = () => entry.refit();
   window.addEventListener("resize", entry.onWindowResize);
 
-  const clearNativeListeners = () => {
-    const unlistenData = entry.unlistenData;
-    const unlistenExit = entry.unlistenExit;
-    entry.unlistenData = null;
-    entry.unlistenExit = null;
-    unlistenData?.();
-    unlistenExit?.();
-  };
-
   // Open the PTY and wire its lifecycle. Each awaited listener registration is
   // disposal-aware so closing a pane during startup cannot strand a native
   // event listener after disposePane() has already run.
@@ -264,7 +264,7 @@ export function acquirePane(
         );
       }
     } catch (error) {
-      clearNativeListeners();
+      clearNativeListeners(entry);
       if (!entry.disposed) {
         setState({
           status: "exited",
@@ -288,7 +288,7 @@ export function disposePane(paneId: string): void {
   entry.unregisterInput();
   entry.suggest.dispose();
   for (const d of entry.disposables) d.dispose();
-  clearNativeListeners();
+  clearNativeListeners(entry);
   if (entry.terminalId) {
     void ipc.closeTerminal(entry.terminalId).catch((error) =>
       console.warn(
