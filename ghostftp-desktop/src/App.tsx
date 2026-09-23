@@ -42,6 +42,7 @@ import { GrantDialog } from "./components/GrantDialog";
 import { ImportDialog } from "./components/ImportDialog";
 import { AboutDialog } from "./components/AboutDialog";
 import { useUpdater } from "./stores/updaterStore";
+import { WorkspaceErrorBoundary } from "./components/WorkspaceErrorBoundary";
 
 const WORKSPACE_DIALOGS = new Set<AppDialog>([
   "settings",
@@ -73,9 +74,22 @@ export default function App() {
   const dialog = useLayout((s) => s.dialog);
   const returnDialog = useLayout((s) => s.returnDialog);
   const closeDialog = useLayout((s) => s.closeDialog);
+  const showFiles = useLayout((s) => s.showFiles);
   const connectionPrefill = useLayout((s) => s.connectionPrefill);
   const workspace = workspaceFor(dialog, returnDialog);
   const fileManager = workspace === null;
+  const workspaceLabel =
+    workspace === "settings"
+      ? "Settings"
+      : workspace === "sync"
+        ? "Sync & Backup"
+        : workspace === "siteManager"
+          ? "Sites"
+          : workspace === "transferCenter"
+            ? "Transfers"
+            : workspace === "about" || workspace === "help" || workspace === "updates"
+              ? "Help & About"
+              : "Files";
 
   useShortcuts();
 
@@ -191,38 +205,44 @@ export default function App() {
         <ReferenceSiteSidebar />
         <div className="ghost-content-shell flex min-w-0 flex-1 flex-col overflow-hidden">
           <div className="ghost-main-workspace min-h-0 flex-1 overflow-hidden">
-            {workspace === "settings" && <Settings onClose={closeDialog} />}
-            {workspace === "sync" && <Settings onClose={closeDialog} initialSection="sync" />}
-            {workspace === "siteManager" && <SiteManagerDialog onClose={closeDialog} />}
-            {workspace === "transferCenter" && <TransferCenterDialog onClose={closeDialog} />}
-            {workspace === "about" && <AboutDialog onClose={closeDialog} initialTab="about" />}
-            {workspace === "help" && <AboutDialog onClose={closeDialog} initialTab="help" />}
-            {workspace === "updates" && <AboutDialog onClose={closeDialog} initialTab="updates" />}
+            <WorkspaceErrorBoundary
+              label={workspaceLabel}
+              resetKey={workspace ?? "files"}
+              onReturnToFiles={showFiles}
+            >
+              {workspace === "settings" && <Settings onClose={closeDialog} />}
+              {workspace === "sync" && <Settings onClose={closeDialog} initialSection="sync" />}
+              {workspace === "siteManager" && <SiteManagerDialog onClose={closeDialog} />}
+              {workspace === "transferCenter" && <TransferCenterDialog onClose={closeDialog} />}
+              {workspace === "about" && <AboutDialog onClose={closeDialog} initialTab="about" />}
+              {workspace === "help" && <AboutDialog onClose={closeDialog} initialTab="help" />}
+              {workspace === "updates" && <AboutDialog onClose={closeDialog} initialTab="updates" />}
 
-            {fileManager && (
-              <div className="flex h-full min-h-0 flex-col">
-                <div className="min-h-0 flex-1 overflow-hidden">
-                  <FileUiBridge>
-                    {browserLayout === "dual" ? <DualPaneBrowser /> : <FileBrowser />}
-                  </FileUiBridge>
-                </div>
-                {consoleOpen && (
-                  <div className="h-64 border-t border-border">
-                    <AgentConsoleDock />
+              {fileManager && (
+                <div className="flex h-full min-h-0 flex-col">
+                  <div className="min-h-0 flex-1 overflow-hidden">
+                    <FileUiBridge>
+                      {browserLayout === "dual" ? <DualPaneBrowser /> : <FileBrowser />}
+                    </FileUiBridge>
                   </div>
-                )}
-                <div
-                  className={cn(
-                    terminalVisible ? "h-72 border-t border-border" : "h-0 overflow-hidden"
+                  {consoleOpen && (
+                    <div className="h-64 border-t border-border">
+                      <AgentConsoleDock />
+                    </div>
                   )}
-                >
-                  <TerminalDock
-                    sessionId={supportsTerminal ? activeSessionId : null}
-                    visible={terminalVisible}
-                  />
+                  <div
+                    className={cn(
+                      terminalVisible ? "h-72 border-t border-border" : "h-0 overflow-hidden"
+                    )}
+                  >
+                    <TerminalDock
+                      sessionId={supportsTerminal ? activeSessionId : null}
+                      visible={terminalVisible}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </WorkspaceErrorBoundary>
           </div>
         </div>
       </div>
