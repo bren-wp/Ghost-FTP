@@ -532,6 +532,8 @@ for (const forbidden of ["ReferenceMenuTitlebar", "ReferenceActionRow", 'grid-co
 
 const transferCenter = read("src/components/TransferCenterDialog.tsx");
 for (const required of [
+  'aria-label="Transfers"',
+  "<div className=\"text-xl font-semibold\">Transfers</div>",
   "Add Transfer",
   "Show Details",
   "Hide Details",
@@ -558,6 +560,10 @@ for (const forbidden of [
   'active={tab === "download"}',
   'active={tab === "paused"}',
   'initialFocus?: "scheduler" | "log"',
+  "setConcurrency",
+  "setThrottle",
+  "Concurrent</span>",
+  "Throttle</span>",
 ]) {
   if (transferCenter.includes(forbidden)) failures.push(`Transfer Center still contains duplicate app navigation/filter control: ${forbidden}`);
 }
