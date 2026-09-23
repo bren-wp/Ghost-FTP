@@ -6,6 +6,9 @@ const SECRET_FLAG =
   /(\s--?(?:password|passphrase|secret|token|api-key|apikey|access-token|refresh-token)(?:=|\s+))(?:"[^"]*"|'[^']*'|\S+)/gi;
 const AUTH_HEADER =
   /\b((?:authorization|proxy-authorization)\s*:\s*)(?:bearer|basic)?\s*[^\s,;]+/gi;
+const JSON_SECRET =
+  /(["'](?:password|passphrase|secret|token|api[_-]?key|access[_-]?token|refresh[_-]?token)["']\s*:\s*)["'][^"']*["']/gi;
+const BEARER_TOKEN = /\b(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi;
 const URL_PASSWORD =
   /([a-z][a-z0-9+.-]*:\/\/[^:\s/@]+:)[^@\s/]+@/gi;
 const PRIVATE_KEY_BLOCK =
@@ -32,6 +35,8 @@ export function redactSensitiveText(value: unknown, maxLength?: number): string 
     .replace(SECRET_ASSIGNMENT, "$1<redacted>")
     .replace(SECRET_FLAG, "$1<redacted>")
     .replace(AUTH_HEADER, "$1<redacted>")
+    .replace(JSON_SECRET, '$1"<redacted>"')
+    .replace(BEARER_TOKEN, "$1<redacted>")
     .replace(PRIVATE_KEY_BLOCK, "<redacted private key>");
 
   return typeof maxLength === "number" ? redacted.slice(0, maxLength) : redacted;
