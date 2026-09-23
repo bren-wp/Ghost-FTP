@@ -507,6 +507,14 @@ const appErrorBoundary = read("src/components/AppErrorBoundary.tsx");
 if (appErrorBoundary.includes("Your files and server data were not modified")) {
   failures.push("Global recovery UI must not make an unverifiable claim about side effects from an operation that was already running.");
 }
+for (const [label, source] of [
+  ["App error boundary", appErrorBoundary],
+  ["Workspace error boundary", read("src/components/WorkspaceErrorBoundary.tsx")],
+]) {
+  if (!source.includes("redactSensitiveText")) {
+    failures.push(`${label} must use central credential redaction before logging diagnostics.`);
+  }
+}
 
 const mainEntry = read("src/main.tsx");
 for (const forbidden of [
@@ -536,6 +544,57 @@ for (const [label, source] of [["package.json", packageJson], ["package-lock.jso
   }
 }
 
+
+const terminalSuggestions = read("src/lib/termSuggest.ts");
+for (const forbidden of ["localStorage", "ghostftp.term-history.v1:", "HISTORY_PREFIX"]) {
+  if (terminalSuggestions.includes(forbidden)) {
+    failures.push(`Terminal suggestion history must remain process-memory only: ${forbidden}`);
+  }
+}
+for (const required of ["SENSITIVE_COMMAND_PATTERNS", "looksSensitiveCommand", "if (looksSensitiveCommand(cmd)) return"]) {
+  if (!terminalSuggestions.includes(required)) {
+    failures.push(`Terminal suggestion history is missing sensitive-command filtering: ${required}`);
+  }
+}
+
+const toastStore = read("src/stores/toastStore.ts");
+for (const forbidden of ["localStorage", "ghostftp.notifications.v1", "saveHistory(", "loadHistory("]) {
+  if (toastStore.includes(forbidden)) {
+    failures.push(`Notification history must remain session-only: ${forbidden}`);
+  }
+}
+for (const required of ["redactSensitiveText(title", "redactSensitiveText(message"]) {
+  if (!toastStore.includes(required)) {
+    failures.push(`Notification text must pass through credential redaction: ${required}`);
+  }
+}
+
+const secretMigration = read("src/lib/secretMigration.ts");
+for (const required of [
+  "purgeLegacySensitiveBrowserState",
+  "ghostftp.notifications.v1",
+  "ghostftp.term-history.v1:",
+  "localStorage.removeItem",
+]) {
+  if (!secretMigration.includes(required)) {
+    failures.push(`Startup migration must purge legacy sensitive browser state: ${required}`);
+  }
+}
+
+const redaction = read("src/lib/redact.ts");
+for (const required of [
+  "SECRET_QUERY",
+  "SECRET_ASSIGNMENT",
+  "SECRET_FLAG",
+  "AUTH_HEADER",
+  "JSON_SECRET",
+  "BEARER_TOKEN",
+  "PRIVATE_KEY_BLOCK",
+]) {
+  if (!redaction.includes(required)) {
+    failures.push(`Central credential redaction is incomplete: ${required}`);
+  }
+}
 
 const settings = read("src/components/Settings.tsx");
 for (const [label, source] of [
