@@ -49,9 +49,6 @@ const WORKSPACE_DIALOGS = new Set<AppDialog>([
   "sync",
   "help",
   "updates",
-  "cloudStorage",
-  "schedules",
-  "activityLogs",
   "about",
 ]);
 
@@ -175,10 +172,7 @@ export default function App() {
             {workspace === "settings" && <Settings onClose={closeDialog} />}
             {workspace === "sync" && <Settings onClose={closeDialog} initialSection="sync" />}
             {workspace === "siteManager" && <SiteManagerDialog onClose={closeDialog} />}
-            {workspace === "cloudStorage" && <SiteManagerDialog onClose={closeDialog} initialView="cloud" />}
             {workspace === "transferCenter" && <TransferCenterDialog onClose={closeDialog} />}
-            {workspace === "schedules" && <TransferCenterDialog onClose={closeDialog} initialFocus="scheduler" />}
-            {workspace === "activityLogs" && <TransferCenterDialog onClose={closeDialog} initialFocus="log" />}
             {workspace === "about" && <AboutDialog onClose={closeDialog} initialTab="about" />}
             {workspace === "help" && <AboutDialog onClose={closeDialog} initialTab="help" />}
             {workspace === "updates" && <AboutDialog onClose={closeDialog} initialTab="updates" />}
