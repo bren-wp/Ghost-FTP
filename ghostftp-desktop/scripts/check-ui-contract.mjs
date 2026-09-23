@@ -317,6 +317,20 @@ for (const forbidden of ["panelOpen", "togglePanel", "setPanelOpen", "autoOpenTr
   if (transfersStore.includes(forbidden)) failures.push(`Transfers store still contains obsolete Files-panel state: ${forbidden}`);
 }
 
+const layoutStore = read("src/stores/layoutStore.ts");
+for (const forbidden of ["cloudStorage", "schedules", "activityLogs"]) {
+  for (const [label, source] of [
+    ["layout store", layoutStore],
+    ["app shell", app],
+    ["title bar", read("src/components/TitleBar.tsx")],
+    ["primary sidebar", read("src/components/ReferenceSiteSidebar.tsx")],
+  ]) {
+    if (source.includes(forbidden)) {
+      failures.push(`${label} still contains obsolete hidden workspace alias: ${forbidden}`);
+    }
+  }
+}
+
 const sidebar = read("src/components/ReferenceSiteSidebar.tsx");
 for (const required of ["New connection", "Files", "Sites", "Transfers", "Sync & Backup", "Settings", "Help & About", "aria-label={label}", "title={label}"]) {
   if (!sidebar.includes(required)) failures.push(`Primary sidebar missing: ${required}`);
