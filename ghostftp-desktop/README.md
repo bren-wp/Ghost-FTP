@@ -77,6 +77,19 @@ Native Windows QA captures all seven critical surfaces at three viewport classes
 
 The QA workflow rejects blank/structureless frames, duplicate captures, unexpected window titles, invalid launch geometry and missing evidence. Smaller layouts use contained scrolling and icon compaction rather than removing primary actions.
 
+
+The canonical screenshots shown in the repository are generated from that native QA run and tracked as:
+
+- `ghostftp-native-files.png`
+- `ghostftp-native-sites.png`
+- `ghostftp-native-new-connection.png`
+- `ghostftp-native-settings.png`
+- `ghostftp-native-transfers.png`
+- `ghostftp-native-file-properties.png`
+- `ghostftp-native-about.png`
+
+They are direct captures of the running native application, not design mockups.
+
 ### Ghost FTP palette
 
 ```text
