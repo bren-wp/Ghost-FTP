@@ -19,7 +19,7 @@ interface Props { onClose: () => void; initialTab?: Exclude<AboutTab, "privacy">
 export function AboutDialog({ onClose, initialTab = "about" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<AboutTab>(initialTab);
-  useDialog(panelRef, { onClose });
+  useDialog(panelRef, { onClose, trapFocus: false });
 
   return (
     <div className="ghost-workspace-view ghost-standalone-view bg-[#041425]" role="region" aria-label="About Ghost FTP">
