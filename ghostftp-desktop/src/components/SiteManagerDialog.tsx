@@ -421,7 +421,34 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
           <label className="ghost-site-filter-select">Folder<select aria-label="Filter by folder" value={view.startsWith("folder:") ? view : ""} onChange={(event) => setView(event.target.value || "all")}><option value="">All folders</option>{folders.map((folder) => <option key={folder} value={`folder:${folder}`}>{folder}</option>)}</select></label>
         </div>
 
-        <div className="ghost-site-manager-workspace grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_356px] gap-0">
+        {profiles.length === 0 && !query ? (
+          <div className="ghost-sites-empty">
+            <div className="ghost-sites-empty-card">
+              <Server size={52} className="mx-auto text-accent" />
+              <h2 className="mt-4 text-[20px] font-semibold">Add your first site</h2>
+              <p className="mx-auto mt-2 max-w-md text-[12px] leading-5 text-text-muted">
+                Save an FTP, FTPS, SFTP or cloud connection here so it is easy to find and reconnect later.
+              </p>
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                <button
+                  type="button"
+                  className="ghost-primary-button"
+                  onClick={() => openNewConnection()}
+                >
+                  <Plus size={15} /> New Site
+                </button>
+                <button
+                  type="button"
+                  className="ghost-mini-button"
+                  onClick={() => openDialog("import")}
+                >
+                  <Download size={14} /> Import Sites
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="ghost-site-manager-workspace grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_356px] gap-0">
           <section
             className="ghost-site-manager-table min-w-0 overflow-auto p-3"
             aria-label="Saved sites"
@@ -728,6 +755,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
             )}
           </aside>
         </div>
+        )}
 
       </div>
 
