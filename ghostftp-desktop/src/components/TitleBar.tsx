@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   Download,
@@ -6,6 +6,7 @@ import {
   FolderPlus,
   Info,
   Minus,
+  MoreHorizontal,
   Pencil,
   RefreshCw,
   Server,
@@ -90,6 +91,8 @@ export function TitleBar() {
     remote: emptyPane("remote"),
   });
   const [activePane, setActivePane] = useState<"local" | "remote">("local");
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
   const singlePane = browserLayout === "single";
   const effectivePane: "local" | "remote" = singlePane
     ? browseLocal
@@ -108,6 +111,26 @@ export function TitleBar() {
     window.addEventListener("ghostftp:pane-action-state", handler as EventListener);
     return () => window.removeEventListener("ghostftp:pane-action-state", handler as EventListener);
   }, []);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!moreRef.current?.contains(event.target as Node)) setMoreOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMoreOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [moreOpen]);
+
+  useEffect(() => {
+    if (workspace !== "Files") setMoreOpen(false);
+  }, [workspace]);
 
   return (
     <header className="ghost-app-header ghost-simple-header">
@@ -179,9 +202,53 @@ export function TitleBar() {
             onClick={() => fileAction("download", "remote")}
           />
           <Tool icon={<FolderPlus size={17}/>} label="New Folder" disabled={!paneState.canCreateDirectory} onClick={() => fileAction("newFolder", effectivePane)}/>
-          <Tool icon={<Pencil size={17}/>} label="Rename" disabled={!paneState.hasActiveItem} onClick={() => fileAction("rename", effectivePane)}/>
-          <Tool icon={<Trash2 size={17}/>} label="Delete" disabled={paneState.selectedCount === 0} onClick={() => fileAction("delete", effectivePane)}/>
-          <Tool icon={<Info size={17}/>} label="Properties" disabled={!paneState.hasActiveItem} onClick={() => fileAction("properties", effectivePane)}/>
+          <div ref={moreRef} className="ghost-toolbar-more">
+            <button
+              type="button"
+              className={`ghost-tool-button ${moreOpen ? "active" : ""}`}
+              aria-label="More file actions"
+              title="More file actions"
+              aria-haspopup="menu"
+              aria-expanded={moreOpen}
+              onClick={() => setMoreOpen((open) => !open)}
+            >
+              <MoreHorizontal size={17}/>
+              <span>More</span>
+            </button>
+            {moreOpen && (
+              <div className="ghost-toolbar-more-menu" role="menu" aria-label="More file actions">
+                <MoreAction
+                  icon={<Pencil size={15}/>}
+                  label="Rename"
+                  disabled={!paneState.hasActiveItem}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    fileAction("rename", effectivePane);
+                  }}
+                />
+                <MoreAction
+                  icon={<Info size={15}/>}
+                  label="Properties"
+                  disabled={!paneState.hasActiveItem}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    fileAction("properties", effectivePane);
+                  }}
+                />
+                <div className="ghost-toolbar-more-separator"/>
+                <MoreAction
+                  icon={<Trash2 size={15}/>}
+                  label="Delete"
+                  destructive
+                  disabled={paneState.selectedCount === 0}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    fileAction("delete", effectivePane);
+                  }}
+                />
+              </div>
+            )}
+          </div>
           <div className="ghost-toolbar-spacer"/>
         </div>
       )}
@@ -191,4 +258,24 @@ export function TitleBar() {
 
 function Tool({ icon, label, onClick, disabled = false, active = false }: { icon: React.ReactNode; label: string; onClick?: () => void; disabled?: boolean; active?: boolean }) {
   return <button className={`ghost-tool-button ${active ? "active" : ""}`} aria-label={label} title={label} aria-pressed={active || undefined} onClick={onClick} disabled={disabled || !onClick}>{icon}<span>{label}</span></button>;
+}
+
+function MoreAction({ icon, label, onClick, disabled = false, destructive = false }: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  destructive?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      className={`ghost-toolbar-more-action ${destructive ? "danger" : ""}`}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {icon}<span>{label}</span>
+    </button>
+  );
 }
