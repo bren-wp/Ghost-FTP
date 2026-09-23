@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Server } from "lucide-react";
 import { useConnections } from "@/stores/connectionsStore";
-import { useTransfers } from "@/stores/transfersStore";
+import { liveTransferRate, useTransfers, type TransferRateSample } from "@/stores/transfersStore";
 import { useLayout } from "@/stores/layoutStore";
 import type { Transfer } from "@/lib/types";
 
@@ -10,6 +10,7 @@ export function ReferenceStatusBar() {
   const activeProfileId = useConnections((s) => s.activeProfileId);
   const profiles = useConnections((s) => s.profiles);
   const transfersById = useTransfers((s) => s.byId);
+  const rateById = useTransfers((s) => s.rateById);
   const transfers = useMemo(() => Object.values(transfersById), [transfersById]);
   const openDialog = useLayout((s) => s.openDialog);
   const profile = profiles.find((p) => p.id === activeProfileId);
@@ -18,13 +19,21 @@ export function ReferenceStatusBar() {
     <span className={`dot ${activeSessionId ? "online" : ""}`}/>
     <span>{activeSessionId && profile ? `Connected to ${profile.host} (${profile.protocol.toUpperCase()})` : "Ready"}</span>
     <span className="grow"/>
-    <TransferMetrics transfers={transfers} onOpen={() => openDialog("transferCenter")}/>
+    <TransferMetrics transfers={transfers} rateById={rateById} onOpen={() => openDialog("transferCenter")}/>
     <StatusClock/>
     <span className="encoding"><i className="dot online"/> UTF-8</span>
   </footer>;
 }
 
-function TransferMetrics({ transfers, onOpen }: { transfers: Transfer[]; onOpen: () => void }) {
+function TransferMetrics({
+  transfers,
+  rateById,
+  onOpen,
+}: {
+  transfers: Transfer[];
+  rateById: Record<string, TransferRateSample>;
+  onOpen: () => void;
+}) {
   const hasLiveTransfer = transfers.some((transfer) => transfer.status === "transferring");
   const [now, setNow] = useState(Date.now());
 
@@ -42,13 +51,12 @@ function TransferMetrics({ transfers, onOpen }: { transfers: Transfer[]; onOpen:
     for (const transfer of transfers) {
       if (transfer.status !== "transferring") continue;
       active++;
-      const elapsed = Math.max(1, now / 1000 - transfer.startedAt);
-      const speed = transfer.transferred / elapsed;
+      const speed = liveTransferRate(transfer, rateById[transfer.id], now);
       if (transfer.kind === "upload") up += speed;
       else down += speed;
     }
     return { up, down, active };
-  }, [transfers, now]);
+  }, [transfers, rateById, now]);
 
   return (
     <button
