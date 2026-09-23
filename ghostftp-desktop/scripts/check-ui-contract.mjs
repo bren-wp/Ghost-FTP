@@ -308,6 +308,8 @@ for (const forbidden of [
   "toggleRailGroup",
   "autoOpenTransferPanel",
   "setAutoOpenTransferPanel",
+  "fileAssociations",
+  "setFileAssociations",
 ]) {
   if (settingsStore.includes(forbidden)) failures.push(`Removed duplicate-shell setting returned: ${forbidden}`);
 }
@@ -492,6 +494,16 @@ if (!settings.includes('advanced: "Terminal, system integrations and keyboard sh
 }
 if (!settings.includes('<div className="xl:col-span-2"><TerminalCard/></div>')) {
   failures.push("Terminal settings must live under Advanced rather than Transfers.");
+}
+for (const forbidden of ["File associations", "setFileAssociations", "fileAssociations", "source/dev builds"]) {
+  if (settings.includes(forbidden)) failures.push(`Settings still exposes a nonfunctional/development-only control: ${forbidden}`);
+}
+for (const required of [
+  '<StatusRow label="No tracking"/>',
+  '<StatusRow label="No analytics or telemetry"/>',
+  '<StatusRow label="Credentials stored with the operating system keychain"/>',
+]) {
+  if (!settings.includes(required)) failures.push(`Security settings must present fixed protections as status, not fake toggles: ${required}`);
 }
 
 for (const file of walkSource("src/components")) {
