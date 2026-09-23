@@ -533,6 +533,15 @@ for (const required of ["Open Containing Folder", "Duplicate", "Apply", "Checksu
   if (!props.includes(required)) failures.push(`File Properties missing required action: ${required}`);
 }
 
+const statusBar = read("src/components/ReferenceStatusBar.tsx");
+for (const required of [
+  'openDialog("transferCenter")',
+  "ghost-status-transfer-link",
+  'aria-label="Open Transfers"',
+]) {
+  if (!statusBar.includes(required)) failures.push(`Files transfer status must link to the single Transfers workspace: ${required}`);
+}
+
 const styles = read("src/styles.css");
 for (const required of [
   "RC16 single-window simplified navigation",
@@ -547,6 +556,7 @@ for (const required of [
   ".ghost-sites-empty {",
   ".ghost-sites-empty-card {",
   ".ghost-transfer-filters > .relative {",
+  ".ghost-status-transfer-link {",
   "height: auto !important;",
 ]) {
   if (!styles.includes(required)) failures.push(`Styles missing RC16 simplified-shell contract: ${required}`);
