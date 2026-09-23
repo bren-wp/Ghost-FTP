@@ -617,6 +617,19 @@ for (const required of [
   if (!styles.includes(required)) failures.push(`Styles missing RC16 simplified-shell contract: ${required}`);
 }
 
+const nativeShell = read("src-tauri/src/lib.rs");
+for (const required of [
+  ".inner_size(1290.0, 852.0)",
+  ".min_inner_size(480.0, 600.0)",
+  ".center()",
+  ".resizable(true)",
+]) {
+  if (!nativeShell.includes(required)) failures.push(`Default native window contract missing: ${required}`);
+}
+for (const forbidden of [".maximized(true)", ".fullscreen(true)"]) {
+  if (nativeShell.includes(forbidden)) failures.push(`Default native window must remain non-maximized: ${forbidden}`);
+}
+
 const capability = read("src-tauri/capabilities/default.json");
 if (!capability.includes('"windows": ["main"]')) {
   failures.push("Tauri capability scope must be restricted to the single main window.");
