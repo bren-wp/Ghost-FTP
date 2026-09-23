@@ -11,8 +11,7 @@ import type { ReactNode } from "react";
 import { type AppDialog, useLayout } from "@/stores/layoutStore";
 
 const WORKSPACE_DIALOGS = new Set<AppDialog>([
-  "settings", "siteManager", "transferCenter", "sync", "help", "updates",
-  "cloudStorage", "schedules", "activityLogs", "about",
+  "settings", "siteManager", "transferCenter", "sync", "help", "updates", "about",
 ]);
 
 function workspace(dialog: AppDialog | null, returnDialog: AppDialog | null): AppDialog | null {
@@ -42,12 +41,12 @@ export function ReferenceSiteSidebar() {
         />
         <SidebarAction
           icon={<Server size={16}/>} label="Sites"
-          active={current === "siteManager" || current === "cloudStorage"}
+          active={current === "siteManager"}
           onClick={() => openDialog("siteManager")}
         />
         <SidebarAction
           icon={<ArrowUpDown size={16}/>} label="Transfers"
-          active={current === "transferCenter" || current === "schedules" || current === "activityLogs"}
+          active={current === "transferCenter"}
           onClick={() => openDialog("transferCenter")}
         />
         <SidebarAction
