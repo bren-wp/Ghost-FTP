@@ -36,8 +36,15 @@ export function toTransferItem(e: {
   };
 }
 
+export interface TransferRateSample {
+  bytesPerSecond: number;
+  sampledAt: number;
+}
+
 interface TransfersState {
   byId: Record<string, Transfer>;
+  /** Rolling rates derived from real backend progress byte deltas. */
+  rateById: Record<string, TransferRateSample>;
   /** Waiting (queued) transfer ids in FIFO order — position = index + 1. */
   queue: string[];
   pausedAll: boolean;
@@ -196,8 +203,72 @@ function indexBy(transfers: Transfer[]): Record<string, Transfer> {
   }, {});
 }
 
+const transferRateBaselines = new Map<string, { bytes: number; at: number }>();
+const RATE_STALE_AFTER_MS = 2_500;
+const RATE_EMA_WEIGHT = 0.35;
+
+export function liveTransferRate(
+  transfer: Transfer,
+  sample: TransferRateSample | undefined,
+  now = Date.now()
+): number {
+  if (
+    transfer.status !== "transferring" ||
+    !sample ||
+    now - sample.sampledAt > RATE_STALE_AFTER_MS
+  ) {
+    return 0;
+  }
+  return sample.bytesPerSecond;
+}
+
+function rateFromEvent(
+  kind: string,
+  transfer: Transfer,
+  previous: TransferRateSample | undefined
+): TransferRateSample {
+  const now = Date.now();
+
+  if (transfer.status !== "transferring") {
+    transferRateBaselines.delete(transfer.id);
+    return { bytesPerSecond: 0, sampledAt: now };
+  }
+
+  const baseline = transferRateBaselines.get(transfer.id);
+  transferRateBaselines.set(transfer.id, { bytes: transfer.transferred, at: now });
+
+  if (
+    kind !== "progress" ||
+    !baseline ||
+    transfer.transferred < baseline.bytes
+  ) {
+    return { bytesPerSecond: 0, sampledAt: now };
+  }
+
+  const elapsedMs = now - baseline.at;
+  if (elapsedMs < 40) {
+    return previous
+      ? { ...previous, sampledAt: now }
+      : { bytesPerSecond: 0, sampledAt: now };
+  }
+
+  const instant =
+    ((transfer.transferred - baseline.bytes) * 1000) / elapsedMs;
+  const bytesPerSecond =
+    previous && previous.bytesPerSecond > 0
+      ? previous.bytesPerSecond * (1 - RATE_EMA_WEIGHT) +
+        instant * RATE_EMA_WEIGHT
+      : instant;
+
+  return {
+    bytesPerSecond: Math.max(0, bytesPerSecond),
+    sampledAt: now,
+  };
+}
+
 export const useTransfers = create<TransfersState>((set, get) => ({
   byId: {},
+  rateById: {},
   queue: [],
   pausedAll: false,
   concurrency: 3,
@@ -205,10 +276,16 @@ export const useTransfers = create<TransfersState>((set, get) => ({
 
   initListeners: async () => {
     const unlistenEvents = await onTransferEvent((kind, t) => {
-      // "updated" is treated exactly like progress: replace the byId entry.
-      // It never toasts (it also carries the mid-auto-retry "retrying in Ns"
-      // state, which is not a terminal outcome).
-      set((s) => ({ byId: { ...s.byId, [t.id]: t } }));
+      // Keep the transfer snapshot plus rolling rate telemetry from actual
+      // backend progress byte deltas. Updated/paused/error/done events reset
+      // the sample instead of leaving stale speed visible.
+      set((s) => ({
+        byId: { ...s.byId, [t.id]: t },
+        rateById: {
+          ...s.rateById,
+          [t.id]: rateFromEvent(kind, t, s.rateById[t.id]),
+        },
+      }));
       // Surface terminal outcomes as toasts so background transfers aren't silent.
       if (kind === "done") {
         const verb = t.kind === "upload" ? "Uploaded" : "Downloaded";
@@ -240,8 +317,10 @@ export const useTransfers = create<TransfersState>((set, get) => ({
       ipc.listTransfers(),
       ipc.transferQueueState(),
     ]);
+    transferRateBaselines.clear();
     set({
       byId: indexBy(list),
+      rateById: {},
       queue: q.waiting,
       pausedAll: q.pausedAll,
       concurrency: q.concurrency,
@@ -334,7 +413,15 @@ export const useTransfers = create<TransfersState>((set, get) => ({
           next[t.id] = t;
         }
       }
-      return { byId: next };
+      const rateById = Object.fromEntries(
+        Object.keys(next)
+          .map((id) => [id, s.rateById[id]] as const)
+          .filter((entry): entry is [string, TransferRateSample] => Boolean(entry[1]))
+      );
+      for (const id of [...transferRateBaselines.keys()]) {
+        if (!next[id]) transferRateBaselines.delete(id);
+      }
+      return { byId: next, rateById };
     }),
 
   clearCompleted: () =>
@@ -345,6 +432,14 @@ export const useTransfers = create<TransfersState>((set, get) => ({
           next[t.id] = t;
         }
       }
-      return { byId: next };
+      const rateById = Object.fromEntries(
+        Object.keys(next)
+          .map((id) => [id, s.rateById[id]] as const)
+          .filter((entry): entry is [string, TransferRateSample] => Boolean(entry[1]))
+      );
+      for (const id of [...transferRateBaselines.keys()]) {
+        if (!next[id]) transferRateBaselines.delete(id);
+      }
+      return { byId: next, rateById };
     }),
 }));
