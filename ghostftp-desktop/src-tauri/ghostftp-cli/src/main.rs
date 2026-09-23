@@ -3443,7 +3443,6 @@ fn fmt_bytes(n: u64) -> String {
 mod tests {
     use super::{check_mangled_remote_path, is_windows_drive_path, parse_semver};
 
-
     #[test]
     fn mangled_path_rejected_only_on_non_windows_target() {
         // Drive-prefixed path against a POSIX server → rejected with the hint.
