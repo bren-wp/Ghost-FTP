@@ -524,6 +524,19 @@ for (const forbidden of ["openTerminalWindow", "Pop out active pane", "PictureIn
   if (terminal.includes(forbidden)) failures.push(`Terminal still exposes a secondary-window action: ${forbidden}`);
 }
 
+const terminalRegistry = read("src/lib/terminalRegistry.ts");
+for (const forbidden of ["setHandedOff", "handedOff", "SerializeAddon", "popout"]) {
+  if (terminalRegistry.includes(forbidden)) failures.push(`Terminal registry still contains obsolete secondary-window handoff residue: ${forbidden}`);
+}
+const packageJson = read("package.json");
+const packageLock = read("package-lock.json");
+for (const [label, source] of [["package.json", packageJson], ["package-lock.json", packageLock]]) {
+  if (source.includes("@xterm/addon-serialize")) {
+    failures.push(`${label}: unused terminal serialize dependency returned after popout removal`);
+  }
+}
+
+
 const settings = read("src/components/Settings.tsx");
 for (const [label, source] of [
   ["Settings", settings],
