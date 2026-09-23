@@ -560,6 +560,57 @@ jobs:
                     "Executable=$exe"
                   ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC16-" + $view.label + "-Compact.txt"))
                 }
+
+                # Exercise a near-minimum responsive viewport as a separate
+                # regression surface. The production window minimum is about
+                # 480x600; 500x620 keeps OS chrome tolerance while still
+                # exposing layouts that only look correct at the 720px compact
+                # reference.
+                $minimumWidth = [Math]::Min(500, $work.Width - 24)
+                $minimumHeight = [Math]::Min(620, $work.Height - 24)
+                if ($minimumWidth -ge 480 -and $minimumHeight -ge 600) {
+                  if (-not [GhostFtpWindowCapture]::SetWindowPos(
+                    $handle,
+                    [IntPtr]::Zero,
+                    $work.Left + 12,
+                    $work.Top + 12,
+                    $minimumWidth,
+                    $minimumHeight,
+                    ($SWP_NOZORDER -bor $SWP_SHOWWINDOW)
+                  )) {
+                    throw "Minimum SetWindowPos failed for $($view.key)"
+                  }
+                  Start-Sleep -Milliseconds 350
+
+                  $minimumPng = Join-Path $qaDir ("GhostFTP-Windows-RC16-" + $view.label + "-Minimum.png")
+                  Capture-GhostFtpWebView2 -Port $debugPort -OutputPath $minimumPng -Width $minimumWidth -Height $minimumHeight
+                  $minimumValidation = Test-GhostFtpPng -Path $minimumPng -ExpectedWidth $minimumWidth -ExpectedHeight $minimumHeight
+                  if (-not $minimumValidation.Valid) {
+                    throw "Minimum QA screenshot for $($view.key) is invalid (reason=$($minimumValidation.Reason), colors=$($minimumValidation.Colors), quantized=$($minimumValidation.QuantizedColors), edgeRatio=$([Math]::Round($minimumValidation.EdgeRatio,5)))"
+                  }
+
+                  $minimumHash = (Get-FileHash -Algorithm SHA256 $minimumPng).Hash
+                  if ($capturedHashes.ContainsKey($minimumHash)) {
+                    throw "Minimum QA screenshot for $($view.key) is byte-identical to $($capturedHashes[$minimumHash])"
+                  }
+                  $capturedHashes[$minimumHash] = "$($view.key)-minimum"
+
+                  @(
+                    "View=$($view.key)-minimum"
+                    "ProcessId=$($proc.Id)"
+                    "WindowTitle=$($proc.MainWindowTitle)"
+                    "WindowBounds=${minimumWidth}x${minimumHeight}"
+                    "WorkingArea=$($work.Width)x$($work.Height)"
+                    "CaptureMethod=WebView2 CDP minimum responsive viewport"
+                    "DecodedColors=$($minimumValidation.Colors)"
+                    "QuantizedColors=$($minimumValidation.QuantizedColors)"
+                    "BrightnessRange=$([Math]::Round($minimumValidation.Range,6))"
+                    "BrightnessVariance=$([Math]::Round($minimumValidation.Variance,8))"
+                    "EdgeRatio=$([Math]::Round($minimumValidation.EdgeRatio,8))"
+                    "OpaqueSamples=$($minimumValidation.Opaque)/$($minimumValidation.Samples)"
+                    "Executable=$exe"
+                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC16-" + $view.label + "-Minimum.txt"))
+                }
               }
             } finally {
               if (-not $proc.HasExited) {
