@@ -785,7 +785,7 @@ function Empty() {
         <Activity size={28} className="mx-auto mb-3 text-accent" />
         <div className="font-semibold text-text">No transfers in this view</div>
         <div className="mx-auto mt-1 max-w-sm text-[12px] leading-5">
-          Start a real upload or download from File Manager, or change the active filters.
+          Start an upload or download from Files, or change the active filters.
         </div>
       </div>
     </div>
