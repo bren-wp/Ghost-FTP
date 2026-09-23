@@ -47,7 +47,7 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
     saveLocale("en");
   };
 
-  useDialog(panelRef, { onClose: done });
+  useDialog(panelRef, { onClose: done, trapFocus: false });
 
   return (
     <div className="ghost-workspace-view ghost-standalone-view bg-[#041425]" role="region" aria-label="Ghost FTP Preferences">
