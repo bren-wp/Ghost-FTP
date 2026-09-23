@@ -1,7 +1,7 @@
 {
   "channel": "preview",
-  "version": "2.1.1-rc.16",
-  "notes": "Ghost FTP 2.1.1 RC16",
+  "version": "2.1.1-rc.17",
+  "notes": "Ghost FTP 2.1.1 RC17",
   "pub_date": "REPLACE_WITH_RFC3339",
   "minimum_supported_version": "2.1.0",
   "platforms": {
