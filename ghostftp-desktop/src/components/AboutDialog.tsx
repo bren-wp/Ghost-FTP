@@ -134,7 +134,7 @@ function currentPlatform() {
 function HelpContent() {
   return <div className="grid grid-cols-2 gap-4">
     <InfoCard icon={<Globe2/>} title="Connections" text="Create or edit a saved site, then use Test Connection before connecting." />
-    <InfoCard icon={<FileText/>} title="Transfers" text="Use the Transfer Center for queue status, retry, scheduling and transfer history." />
+    <InfoCard icon={<FileText/>} title="Transfers" text="Use Transfers for queue status, retry, scheduling and transfer history." />
     <InfoCard icon={<LifeBuoy/>} title="Troubleshooting" text="Connection and transfer errors stay visible in the app so you can act on the real failure." />
     <InfoCard icon={<RefreshCw/>} title="Updates" text="Open the Updates tab here to check the official Ghost FTP update channel." />
   </div>;
