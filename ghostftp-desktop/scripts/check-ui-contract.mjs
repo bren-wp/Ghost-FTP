@@ -466,8 +466,12 @@ const appShell = read("src/App.tsx");
 if (!appShell.includes('"Back to Sites"')) {
   failures.push("Site Manager New Site must expose an explicit return path back to Sites.");
 }
-const transferListenerInitAt = appShell.indexOf("initListeners()");
-const transferSnapshotInitAt = appShell.indexOf("loadInitial()");
+const transferListenerInitAt = appShell.indexOf(
+  "const nextCleanup = await useTransfers.getState().initListeners();"
+);
+const transferSnapshotInitAt = appShell.indexOf(
+  "await useTransfers.getState().loadInitial();"
+);
 if (
   transferListenerInitAt < 0 ||
   transferSnapshotInitAt < 0 ||
