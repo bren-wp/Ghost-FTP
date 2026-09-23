@@ -1,6 +1,6 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 2.1.1 RC18 source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 2.1.1 RC19 source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Connection and profile management
 
@@ -165,9 +165,9 @@ Implemented architectural controls include:
 - Restricted developer compatibility API and mutation authorization.
 - No production dependency on a browser-host `127.0.0.1` GUI wrapper.
 
-## Current RC18 hardening
+## Current RC19 hardening
 
-RC18 retains the single-window RC16/RC17 architecture and further hardens:
+RC19 retains the single-window architecture and further hardens:
 
 - Terminal transfer rows no longer show a meaningless Cancel action after completion.
 - Skipped and canceled transfers have explicit labels.
@@ -180,6 +180,7 @@ RC18 retains the single-window RC16/RC17 architecture and further hardens:
 - Terminal command suggestions never persist shell history to WebView storage.
 - Notification history is session-only and all toast/error text passes through credential redaction.
 - Startup removes legacy persisted terminal/notification history left by older release candidates.
+- Terminal and transfer listener startup is disposal/race-aware so late async initialization cannot leak listeners or overwrite newer live transfer state.
 - Reduced-motion support is applied to desktop UI transitions.
 - Website loading animation stops when complete instead of running an interval forever.
 - Website loading animation respects `prefers-reduced-motion`.
