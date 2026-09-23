@@ -349,6 +349,7 @@ for (const required of [
   "Authentication",
   "Private key",
   "ghost-auth-choice",
+  "cancelLabel",
 ]) {
   if (!newConnection.includes(required)) failures.push(`New Connection missing simplified form contract: ${required}`);
 }
@@ -362,6 +363,11 @@ if (!commands.includes("openNewConnection()")) {
 }
 if (commands.includes('openDialog("newConnection")')) {
   failures.push("Command palette must not bypass New Connection return-navigation state.");
+}
+
+const appShell = read("src/App.tsx");
+if (!appShell.includes('"Back to Sites"')) {
+  failures.push("Site Manager New Site must expose an explicit return path back to Sites.");
 }
 
 const mainEntry = read("src/main.tsx");
