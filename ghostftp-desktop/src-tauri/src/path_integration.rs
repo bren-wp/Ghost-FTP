@@ -1,9 +1,7 @@
-//! One-click "Add ghostftp-cli to PATH" (Plan 16 Phase 4) — per-user, no admin.
+//! One-click "Add ghostftp-cli to PATH" — per-user, no admin.
 //!
-//! Every serious dev tool (`code`, `gh`) offers a one-click "install shell
-//! command"; Plan 10's `cli_updater::install_missing` downloads `ghostftp-cli` into
-//! an app-owned `bin/` dir but leaves wiring PATH to the user. This closes that
-//! gap at the **per-user** level, which needs no elevation:
+//! Ghost FTP can wire an explicitly installed `ghostftp-cli` into the user's
+//! PATH without elevation:
 //!
 //! - **Windows:** append the app-owned `bin/` dir to the per-user `Path` under
 //!   `HKCU\Environment` — no admin, no UAC. We read/modify/write the *exact*
@@ -38,7 +36,7 @@ const WIN_PATH_BACKUP_KEY: &str = "windows_user_path";
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PathStatus {
-    /// The app-owned `bin/` dir Ghost FTP manages (where `install_missing` drops the CLI).
+    /// The app-owned `bin/` dir Ghost FTP uses for an explicitly installed CLI.
     pub bin_dir: String,
     /// Whether a `ghostftp-cli` binary actually exists in `bin_dir` (so "Add to PATH"
     /// is meaningful — otherwise the user should Install it first).
@@ -58,8 +56,7 @@ pub struct PathStatus {
 // Pure PATH-string helpers (platform-agnostic, unit-tested). Windows separates
 // entries with ';'; splitting and re-joining on ';' round-trips byte-for-byte
 // (empty entries included), so add = push / remove = retain both preserve every
-// other entry exactly — the invariant the plan's "rest of PATH byte-identical"
-// verification checks.
+// other entry exactly.
 // ---------------------------------------------------------------------------
 
 /// Normalize one entry for *comparison only* (never for storage): trim
@@ -133,7 +130,7 @@ fn cli_exe_name() -> &'static str {
     }
 }
 
-/// `<app_data_dir>/bin` — the same dir `cli_updater::install_missing` writes into.
+/// `<app_data_dir>/bin` — Ghost FTP's app-owned CLI directory.
 fn app_bin_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(app
         .path()
