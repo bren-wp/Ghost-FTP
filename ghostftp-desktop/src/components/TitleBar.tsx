@@ -34,14 +34,13 @@ type PaneActionState = {
 };
 
 const WORKSPACE_DIALOGS = new Set<AppDialog>([
-  "settings", "siteManager", "transferCenter", "sync", "help", "updates",
-  "cloudStorage", "schedules", "activityLogs", "about",
+  "settings", "siteManager", "transferCenter", "sync", "help", "updates", "about",
 ]);
 
 function currentWorkspace(dialog: AppDialog | null, returnDialog: AppDialog | null) {
   const active = dialog && WORKSPACE_DIALOGS.has(dialog) ? dialog : returnDialog;
-  if (active === "siteManager" || active === "cloudStorage") return active === "cloudStorage" ? "Cloud Storage" : "Sites";
-  if (active === "transferCenter" || active === "schedules" || active === "activityLogs") return "Transfers";
+  if (active === "siteManager") return "Sites";
+  if (active === "transferCenter") return "Transfers";
   if (active === "sync") return "Sync & Backup";
   if (active === "settings") return "Settings";
   if (active === "about" || active === "help" || active === "updates") return "Help & About";
