@@ -274,7 +274,6 @@ for (const required of [
   "ghost-app-body",
   "ghost-content-shell",
   "workspaceFor(",
-  "fileManager && <TransferQueue />",
 ]) {
   if (!app.includes(required)) failures.push(`App missing single-window shell contract: ${required}`);
 }
@@ -402,6 +401,12 @@ for (const forbidden of ["Quick Connect", "Save as Profile", "ghost-new-connecti
 }
 
 const commands = read("src/lib/commands.tsx");
+for (const required of ['id: "open-transfers"', 'title: "Open Transfers"', 'openDialog("transferCenter")']) {
+  if (!commands.includes(required)) failures.push(`Command palette must route transfer access to the Transfers workspace: ${required}`);
+}
+for (const forbidden of ["Toggle Transfer Panel", "togglePanel"]) {
+  if (commands.includes(forbidden)) failures.push(`Command palette still references removed transfer panel behavior: ${forbidden}`);
+}
 if (!commands.includes("openNewConnection()")) {
   failures.push("Command palette New Connection must use openNewConnection so closing returns to its caller.");
 }
