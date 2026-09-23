@@ -150,10 +150,16 @@ export default function App() {
     let cancelled = false;
 
     void (async () => {
-      await useTransfers.getState().loadInitial();
+      // Register live listeners before taking the initial snapshot so transfer
+      // activity cannot fall into a startup gap. loadInitial() preserves any
+      // newer events observed while its backend snapshot is in flight.
       const nextCleanup = await useTransfers.getState().initListeners();
-      if (cancelled) nextCleanup();
-      else cleanup = nextCleanup;
+      if (cancelled) {
+        nextCleanup();
+        return;
+      }
+      cleanup = nextCleanup;
+      await useTransfers.getState().loadInitial();
     })().catch((error) => {
       console.error("Couldn't initialize transfer activity", error);
       toast.error("Couldn't initialize transfer activity", String(error));
