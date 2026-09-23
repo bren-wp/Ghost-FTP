@@ -211,29 +211,12 @@ export interface AgentHostStatus {
   pairing: AgentHostPairing | null;
 }
 
-/** How to handle a stale `ghostftp-cli`. Mirrors Rust's
- *  CliUpdateMode. `ask` prompts, `auto` updates silently, `off` never checks. */
-export type CliUpdateMode = "ask" | "auto" | "off";
-
-/** CLI version-drift status (mirrors Rust's CliStatus). */
-export interface CliStatus {
-  mode: CliUpdateMode;
-  installed: boolean;
-  cliPath: string | null;
-  cliVersion: string | null;
-  appVersion: string;
-  /** installed && cliVersion < appVersion — the CLI lags the app. */
-  stale: boolean;
-  /** One-line result of the last update/install action, if any. */
-  message: string | null;
-}
-
 /** One-click "Add ghostftp-cli to PATH" status (mirrors Rust's
  *  PathStatus). Per-user only — never needs admin. */
 export interface PathStatus {
-  /** The app-owned bin dir Ghost FTP manages (where the CLI is downloaded). */
+  /** The app-owned bin dir Ghost FTP uses for an explicitly installed CLI. */
   binDir: string;
-  /** Whether a ghostftp-cli binary actually exists in binDir (else: install first). */
+  /** Whether a ghostftp-cli binary actually exists in binDir. */
   binHasCli: boolean;
   /** Whether ghostftp-cli resolves on PATH right now, and where. */
   onPath: boolean;
