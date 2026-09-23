@@ -82,7 +82,7 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
     download: 0,
   });
 
-  useDialog(panelRef, { onClose });
+  useDialog(panelRef, { onClose, trapFocus: false });
 
   useEffect(() => {
     if (!initialFocus) return;
