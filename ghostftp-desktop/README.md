@@ -21,7 +21,7 @@ This directory contains the authoritative **Ghost FTP desktop application**.
 
 The release line opens as a real desktop window. It does not launch the production GUI through a localhost browser wrapper, and it must not expose a visible `127.0.0.1` address/origin bar.
 
-Current development line: **2.1.1 RC18**.
+Current development line: **2.1.1 RC19**.
 
 ## Platform deliverables
 
@@ -55,7 +55,7 @@ Approved visual references live under **[`../docs/assets/screenshots/`](../docs/
   <img src="../docs/assets/screenshots/ghostftp-main-file-manager.webp" alt="Ghost FTP approved main-window reference" width="100%">
 </p>
 
-The canonical desktop reference is **1290×852** and the production window minimum is **480×600**. RC18 keeps one persistent native application window: Files, Sites, Transfers, Sync & Backup, Settings and Help & About switch inside the main workspace; New Connection and File Properties remain transient overlays inside that same window.
+The canonical desktop reference is **1290×852** and the production window minimum is **480×600**. RC19 keeps one persistent native application window: Files, Sites, Transfers, Sync & Backup, Settings and Help & About switch inside the main workspace; New Connection and File Properties remain transient overlays inside that same window.
 
 Native Windows QA captures all seven critical surfaces at three viewport classes:
 
