@@ -211,7 +211,7 @@ export interface AgentHostStatus {
   pairing: AgentHostPairing | null;
 }
 
-/** How to handle a stale `ghostftp-cli` (Plan 10 Phase 0c/0d). Mirrors Rust's
+/** How to handle a stale `ghostftp-cli`. Mirrors Rust's
  *  CliUpdateMode. `ask` prompts, `auto` updates silently, `off` never checks. */
 export type CliUpdateMode = "ask" | "auto" | "off";
 
@@ -228,7 +228,7 @@ export interface CliStatus {
   message: string | null;
 }
 
-/** One-click "Add ghostftp-cli to PATH" status (Plan 16 Phase 4; mirrors Rust's
+/** One-click "Add ghostftp-cli to PATH" status (mirrors Rust's
  *  PathStatus). Per-user only — never needs admin. */
 export interface PathStatus {
   /** The app-owned bin dir Ghost FTP manages (where the CLI is downloaded). */
@@ -330,7 +330,7 @@ export type SyncStrategy = "additive" | "mirror";
 export type SyncReason = "missing" | "newer" | "sizeChanged" | "edited";
 /** How a pair materializes files locally. `mirror` moves whole files eagerly;
  *  `onDemand` registers OneDrive-style placeholders that hydrate on open
- *  (Plan 9 — Windows-only, inert elsewhere). */
+ *  (Windows-only, inert elsewhere). */
 export type SyncMode = "mirror" | "onDemand";
 
 export interface SyncFile {
@@ -387,7 +387,7 @@ export interface PairView extends SyncPair {
   lastError: string | null;
 }
 
-// ---- On-demand virtual folders (Plan 9; mirrors src-tauri/src/virtualfs) ----
+// ---- On-demand virtual folders (mirrors src-tauri/src/virtualfs) ----
 
 /** Live status of one on-demand sync root (placeholders that hydrate on open). */
 export interface VirtualFsRootStatus {
@@ -958,7 +958,7 @@ export interface SavedCommand {
   description: string;
 }
 
-// ---- Command snippets (Plan 11 Phase 4): the low-friction, single-session
+// ---- Command snippets: the low-friction, single-session
 // counterpart to Fleet Skills — a saved command line with optional {{variable}}
 // placeholders, inserted into a live shell with one keystroke. ----
 export interface Snippet {
@@ -973,7 +973,7 @@ export interface Snippet {
   updatedMs: number;
 }
 
-// ---- Skills (Plan 8): parameterized, fleet-targetable, AI-authorable) ----
+// ---- Skills: parameterized, fleet-targetable, AI-authorable ----
 
 export type SkillStatus = "approved" | "proposed";
 
@@ -1109,7 +1109,7 @@ export interface Transfer {
   /** Set while the backend auto-retries a failed transfer (`error` reads
    *  "retrying in Ns (attempt N/3)"). */
   retryAttempt?: number;
-  /** Delta-sync stats (Plan 23), present only when the transfer ran over the
+  /** Delta-sync stats, present only when the transfer ran over the
    *  Ghost FTP Agent backend with delta enabled. `sent` = literal bytes that
    *  crossed the wire; `reused` = bytes sourced from the basis instead.
    *  `sent + reused` equals the total file size. Set before finalize, so it
@@ -1118,7 +1118,7 @@ export interface Transfer {
   startedAt: number;
 }
 
-/** Live transfer-queue snapshot (Plan 17) — payload of `transfer://queue` and
+/** Live transfer-queue snapshot — payload of `transfer://queue` and
  *  the return of `transfer_queue_state`. `waiting` holds the FIFO order of
  *  queued transfer ids. */
 export interface TransferQueueState {
@@ -1128,7 +1128,7 @@ export interface TransferQueueState {
   throttleKbps: number;
 }
 
-/** What an encrypted backup contains (Plan 12 Phase 4). */
+/** What an encrypted backup contains. */
 export interface BackupSummary {
   profiles: number;
   credentials: number;
