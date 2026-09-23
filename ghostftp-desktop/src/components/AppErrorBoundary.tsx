@@ -1,4 +1,5 @@
 import React from "react";
+import { redactSensitiveText } from "@/lib/redact";
 
 interface State {
   failed: boolean;
@@ -6,12 +7,7 @@ interface State {
 }
 
 function safeDiagnostic(error: unknown): string {
-  const raw = error instanceof Error ? error.message : "Unexpected UI error";
-  return raw
-    .replace(/[A-Za-z]:\\Users\\[^\\\s]+/gi, "C:\\Users\\<user>")
-    .replace(/\/home\/[^/\s]+/g, "/home/<user>")
-    .replace(/([?&](?:token|code|password|passphrase|secret|key)=)[^&\s]+/gi, "$1<redacted>")
-    .slice(0, 320);
+  return redactSensitiveText(error instanceof Error ? error.message : "Unexpected UI error", 320);
 }
 
 /**
