@@ -38,15 +38,11 @@ export function toTransferItem(e: {
 
 interface TransfersState {
   byId: Record<string, Transfer>;
-  panelOpen: boolean;
   /** Waiting (queued) transfer ids in FIFO order — position = index + 1. */
   queue: string[];
   pausedAll: boolean;
   concurrency: number;
   throttleKbps: number;
-
-  togglePanel: () => void;
-  setPanelOpen: (open: boolean) => void;
 
   initListeners: () => Promise<() => void>;
   loadInitial: () => Promise<void>;
@@ -202,14 +198,10 @@ function indexBy(transfers: Transfer[]): Record<string, Transfer> {
 
 export const useTransfers = create<TransfersState>((set, get) => ({
   byId: {},
-  panelOpen: true,
   queue: [],
   pausedAll: false,
   concurrency: 3,
   throttleKbps: 0,
-
-  togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
-  setPanelOpen: (open) => set({ panelOpen: open }),
 
   initListeners: async () => {
     const unlistenEvents = await onTransferEvent((kind, t) => {
@@ -217,11 +209,6 @@ export const useTransfers = create<TransfersState>((set, get) => ({
       // It never toasts (it also carries the mid-auto-retry "retrying in Ns"
       // state, which is not a terminal outcome).
       set((s) => ({ byId: { ...s.byId, [t.id]: t } }));
-      if (kind === "added" && !get().panelOpen) {
-        if (useSettings.getState().autoOpenTransferPanel) {
-          set({ panelOpen: true });
-        }
-      }
       // Surface terminal outcomes as toasts so background transfers aren't silent.
       if (kind === "done") {
         const verb = t.kind === "upload" ? "Uploaded" : "Downloaded";

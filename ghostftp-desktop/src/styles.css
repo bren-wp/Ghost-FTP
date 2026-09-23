@@ -4404,3 +4404,627 @@ input.ghost-pane-address:focus-visible {
 .animate-ping {
   animation: none !important;
 }
+
+
+/* RC16 single-window simplified navigation.
+   One persistent app shell, one primary sidebar, contextual actions only. */
+.ghost-simple-header {
+  flex: 0 0 auto;
+}
+
+.ghost-simple-header .ghost-title-row {
+  height: 46px !important;
+  min-height: 46px !important;
+}
+
+.ghost-current-workspace {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 12px;
+  color: rgb(var(--text-muted));
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.ghost-simple-toolbar {
+  height: 52px !important;
+  min-height: 52px !important;
+  padding-left: 8px;
+}
+
+.ghost-active-site-chip {
+  display: inline-flex;
+  height: 34px;
+  min-width: 150px;
+  max-width: 240px;
+  align-items: center;
+  gap: 8px;
+  margin-right: 6px;
+  padding: 0 11px;
+  border: 1px solid rgb(var(--border));
+  border-radius: 7px;
+  background: rgb(var(--bg-subtle));
+  color: rgb(var(--text));
+}
+
+.ghost-active-site-chip span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ghost-active-site-chip i {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 999px;
+  background: rgb(var(--text-dim));
+}
+
+.ghost-active-site-chip i.online {
+  background: rgb(var(--success));
+  box-shadow: 0 0 0 3px rgb(var(--success) / .12);
+}
+
+.ghost-simple-toolbar .ghost-tool-button.active,
+.ghost-active-site-chip.active {
+  border-color: rgb(var(--accent) / .6);
+  background: rgb(var(--accent) / .14);
+  color: white;
+}
+
+.ghost-simple-toolbar .ghost-tool-button.active svg,
+.ghost-active-site-chip.active svg {
+  color: rgb(var(--accent));
+}
+
+.ghost-app-body {
+  background: rgb(var(--bg));
+}
+
+.ghost-primary-sidebar {
+  flex: 0 0 184px !important;
+  width: 184px !important;
+  min-width: 184px !important;
+  padding: 10px !important;
+  border-right: 1px solid rgb(var(--border));
+  background: #051929 !important;
+}
+
+.ghost-sidebar-new {
+  display: flex;
+  width: 100%;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  border: 1px solid rgb(var(--accent) / .55);
+  border-radius: 8px;
+  background: rgb(var(--accent-strong));
+  color: white;
+  font-weight: 600;
+}
+
+.ghost-primary-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ghost-primary-sidebar .ghost-file-nav-row {
+  min-height: 38px;
+  border-radius: 7px;
+  padding: 0 10px;
+}
+
+.ghost-content-shell {
+  background: rgb(var(--bg));
+}
+
+.ghost-workspace-view.ghost-standalone-view {
+  position: relative !important;
+  inset: auto !important;
+  z-index: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.ghost-settings-tabs,
+.ghost-about-tabs,
+.ghost-site-filterbar {
+  scrollbar-width: thin;
+}
+
+.ghost-preferences-heading {
+  height: 70px !important;
+  min-height: 70px !important;
+}
+
+.ghost-site-manager-hero,
+.ghost-transfer-center-heading {
+  min-height: 74px;
+}
+
+.ghost-site-filter-chip {
+  display: inline-flex;
+  height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: rgb(var(--text-muted));
+}
+
+.ghost-site-filter-chip:hover {
+  background: rgb(var(--bg-hover));
+  color: rgb(var(--text));
+}
+
+.ghost-site-filter-chip.active {
+  border-color: rgb(var(--accent) / .45);
+  background: rgb(var(--accent) / .15);
+  color: white;
+}
+
+.ghost-site-filter-chip b {
+  min-width: 18px;
+  border-radius: 999px;
+  background: rgb(var(--bg-hover));
+  padding: 1px 5px;
+  color: rgb(var(--text-dim));
+  font-size: 9px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.ghost-site-filter-select {
+  display: inline-flex;
+  height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  color: rgb(var(--text-dim));
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.ghost-site-filter-select select {
+  height: 30px;
+  min-width: 116px;
+  border: 1px solid rgb(var(--border));
+  border-radius: 7px;
+  background: rgb(var(--bg-subtle));
+  padding: 0 24px 0 8px;
+  color: rgb(var(--text));
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .ghost-site-manager-workspace {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(180px, 42%) minmax(0, 58%);
+  }
+  .ghost-site-manager-details {
+    display: block !important;
+    border-left: 0 !important;
+    border-top: 1px solid rgb(var(--border));
+  }
+}
+
+@media (max-width: 760px) {
+  .ghost-primary-sidebar {
+    flex-basis: 58px !important;
+    width: 58px !important;
+    min-width: 58px !important;
+    padding: 8px 6px !important;
+  }
+  .ghost-primary-sidebar .ghost-file-nav-row,
+  .ghost-sidebar-new {
+    justify-content: center;
+    padding: 0;
+  }
+  .ghost-primary-sidebar .ghost-file-nav-row span,
+  .ghost-sidebar-new span {
+    display: none;
+  }
+  .ghost-current-workspace {
+    display: none;
+  }
+}
+
+
+/* RC16 New Connection authentication selector */
+.ghost-auth-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  min-height: 34px;
+  padding: 3px;
+  border: 1px solid rgb(var(--border));
+  border-radius: 7px;
+  background: rgb(var(--bg-subtle));
+}
+
+.ghost-auth-choice button {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 0 10px;
+  color: rgb(var(--text-muted));
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ghost-auth-choice button:hover {
+  background: rgb(var(--bg-hover));
+  color: rgb(var(--text));
+}
+
+.ghost-auth-choice button.active {
+  border-color: rgb(var(--accent) / .45);
+  background: rgb(var(--accent) / .16);
+  color: white;
+}
+
+.ghost-auth-choice button:focus-visible {
+  outline: 2px solid rgb(var(--accent) / .7);
+  outline-offset: 1px;
+}
+
+
+/* RC16 contextual File actions: keep the primary toolbar short and predictable. */
+.ghost-toolbar-more {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ghost-toolbar-more-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 80;
+  min-width: 174px;
+  overflow: hidden;
+  border: 1px solid rgb(var(--border));
+  border-radius: 8px;
+  background: #071f35;
+  padding: 5px;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .48), inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.ghost-toolbar-more-action {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  gap: 9px;
+  border-radius: 6px;
+  padding: 0 9px;
+  color: rgb(var(--text-muted));
+  font-size: 11.5px;
+  text-align: left;
+}
+
+.ghost-toolbar-more-action:hover:not(:disabled),
+.ghost-toolbar-more-action:focus-visible:not(:disabled) {
+  background: rgb(var(--bg-hover));
+  color: white;
+}
+
+.ghost-toolbar-more-action:focus-visible {
+  outline: 2px solid rgb(var(--accent) / .65);
+  outline-offset: -1px;
+}
+
+.ghost-toolbar-more-action:disabled {
+  cursor: default;
+  opacity: .42;
+}
+
+.ghost-toolbar-more-action.danger {
+  color: rgb(var(--danger));
+}
+
+.ghost-toolbar-more-separator {
+  height: 1px;
+  margin: 4px 3px;
+  background: rgb(var(--border));
+}
+
+
+/* RC16 post-QA geometry corrections:
+   remove legacy RC13 fixed header height and obsolete narrow nested-nav widths. */
+.ghost-simple-header {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+.ghost-settings-tabs,
+.ghost-about-tabs {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: 0 0 auto !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 6px 10px !important;
+  border-right: 0 !important;
+  scrollbar-width: none;
+}
+
+.ghost-settings-tabs::-webkit-scrollbar,
+.ghost-about-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.ghost-settings-tabs button,
+.ghost-about-tabs button {
+  flex: 0 0 auto;
+  margin: 0 !important;
+  white-space: nowrap;
+}
+
+.ghost-transfer-filters > .relative {
+  flex: 1 1 190px;
+  min-width: 170px;
+  max-width: 240px;
+}
+
+.ghost-transfer-filters > .relative .ghost-ref-input {
+  width: 100% !important;
+}
+
+.ghost-transfer-filters select[aria-label="Transfer direction filter"] {
+  width: 148px !important;
+  min-width: 148px !important;
+  flex: 0 0 148px !important;
+}
+
+.ghost-transfer-filters select[aria-label="Transfer time filter"] {
+  width: 118px !important;
+  min-width: 118px !important;
+  flex: 0 0 118px !important;
+}
+
+.ghost-sites-empty {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  place-items: center;
+  padding: 32px;
+  background:
+    radial-gradient(circle at 50% 42%, rgb(var(--accent) / .08), transparent 32%),
+    rgb(var(--bg));
+}
+
+.ghost-sites-empty-card {
+  width: min(520px, 100%);
+  border: 1px solid rgb(var(--border));
+  border-radius: 12px;
+  background: #071f35;
+  padding: 28px;
+  text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+@media (max-width: 760px) {
+  .ghost-settings-tabs,
+  .ghost-about-tabs {
+    padding-inline: 6px !important;
+  }
+
+  .ghost-transfer-filters > .relative {
+    min-width: 150px;
+  }
+}
+
+
+/* RC16 single transfer surface: Files shows status only; management lives in Transfers. */
+.ghost-status-transfer-link {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 6px;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.ghost-status-transfer-link > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ghost-status-transfer-link:hover,
+.ghost-status-transfer-link:focus-visible {
+  border-color: rgb(var(--accent) / .35);
+  background: rgb(var(--accent) / .09);
+  color: white;
+}
+
+.ghost-status-transfer-link:focus-visible {
+  outline: 2px solid rgb(var(--accent) / .55);
+  outline-offset: 1px;
+}
+
+
+/* RC16 transient editor sizing: overlays should fit their content rather than
+   looking like separate fixed-height application windows. */
+.ghost-new-connection-dialog {
+  height: auto !important;
+  max-height: min(620px, calc(100dvh - 24px)) !important;
+}
+
+.ghost-new-connection-body {
+  max-height: min(470px, calc(100dvh - 170px));
+}
+
+
+/* RC16 final Files workspace fill:
+   legacy reference-frame CSS fixed the file workspace at ~423px because the
+   old design reserved a transfer tray below it. Transfers now has its own
+   workspace, so Files must consume all remaining vertical space. */
+.ghost-content-shell > .ghost-main-workspace,
+.ghost-main-workspace {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+.ghost-main-workspace > .flex.h-full,
+.ghost-main-workspace .ghost-dual-browser,
+.ghost-main-workspace .ghost-file-pane {
+  min-height: 0;
+  height: 100%;
+}
+
+.ghost-dual-browser {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+
+/* RC16 compact Transfers filter reflow:
+   keep status tabs, search, direction and time controls reachable without
+   horizontal filter scrolling on narrow native windows. The transfer table
+   keeps its own local horizontal scroll because it is column-dense data. */
+@media (max-width: 760px) {
+  .ghost-transfer-filters {
+    flex-wrap: wrap;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    gap: 8px !important;
+    padding: 8px !important;
+  }
+
+  .ghost-transfer-filters > button {
+    flex: 0 0 auto;
+    padding-inline: 10px;
+  }
+
+  .ghost-transfer-filters > .flex-1 {
+    display: none;
+  }
+
+  .ghost-transfer-filters > .relative {
+    flex: 1 1 220px;
+    min-width: 200px;
+    max-width: none;
+  }
+
+  .ghost-transfer-filters select[aria-label="Transfer direction filter"] {
+    width: auto !important;
+    min-width: 126px !important;
+    flex: 1 1 126px !important;
+  }
+
+  .ghost-transfer-filters select[aria-label="Transfer time filter"] {
+    width: auto !important;
+    min-width: 108px !important;
+    flex: 1 1 108px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .ghost-transfer-filters > .relative {
+    flex-basis: 100%;
+    min-width: 100%;
+  }
+
+  .ghost-transfer-filters select[aria-label="Transfer direction filter"],
+  .ghost-transfer-filters select[aria-label="Transfer time filter"] {
+    min-width: 0 !important;
+  }
+}
+
+
+/* RC16 minimum-window responsive corrections */
+@media (max-width: 620px) {
+  .ghost-dual-browser {
+    flex-direction: column !important;
+  }
+
+  .ghost-dual-browser > .ghost-file-pane {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    flex: 1 1 0% !important;
+  }
+
+  .ghost-pane-separator {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 1px !important;
+    min-height: 1px !important;
+    flex: 0 0 1px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .ghost-settings-tabs {
+    justify-content: space-between;
+    gap: 4px !important;
+    overflow-x: hidden !important;
+    padding-inline: 6px !important;
+  }
+
+  .ghost-settings-tab {
+    min-width: 0;
+    flex: 1 1 0%;
+    justify-content: center;
+    gap: 0 !important;
+    padding-inline: 6px !important;
+  }
+
+  .ghost-settings-tab-label {
+    display: none;
+  }
+
+  .ghost-title-left {
+    gap: 6px !important;
+  }
+
+  .ghost-title-left .ghost-wordmark {
+    gap: 5px !important;
+  }
+
+  .ghost-title-left .ghost-wordmark svg {
+    width: 28px !important;
+    height: 28px !important;
+    flex: 0 0 28px;
+  }
+
+  .ghost-title-left .ghost-wordmark span {
+    max-width: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    font-size: 14px !important;
+  }
+
+  .ghost-title-left .ghost-version-badge {
+    max-width: none !important;
+    height: 23px !important;
+    padding-inline: 6px !important;
+    font-size: 10px !important;
+  }
+}

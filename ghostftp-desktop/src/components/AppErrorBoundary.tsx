@@ -41,8 +41,8 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, S
       <main className="min-h-screen bg-[#041526] p-6 text-[#eaf6ff]" role="alert">
         <section className="mx-auto mt-16 max-w-xl rounded-xl border border-[#245b84] bg-[#071d32] p-6 shadow-2xl">
           <h1 className="text-xl font-semibold">Ghost FTP recovered from an interface error</h1>
-          <p className="mt-3 text-sm text-[#9fc3db]">
-            Your files and server data were not modified by this interface failure. Reload the application to restore the workspace.
+          <p className="mt-3 text-sm leading-6 text-[#9fc3db]">
+            An unexpected interface error prevented the application shell from rendering. Reload Ghost FTP to restore the interface, then review Transfers if an operation was running when the error occurred.
           </p>
           {this.state.message && (
             <details className="mt-4 rounded-lg border border-[#214d70] bg-[#041526] p-3 text-xs text-[#a9cce2]" open>

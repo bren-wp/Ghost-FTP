@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { open as openNativeDialog } from "@tauri-apps/plugin-dialog";
-import { Bookmark, ChevronDown, Eye, EyeOff, FolderOpen, KeyRound, Link2, Radio, Settings2, X, Zap } from "lucide-react";
+import { Bookmark, ChevronDown, Eye, EyeOff, FolderOpen, KeyRound, Link2, Radio, Settings2, X } from "lucide-react";
 import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
 import { useConnections } from "@/stores/connectionsStore";
@@ -12,15 +12,16 @@ import { toastError } from "@/lib/errors";
 interface Props {
   prefill?: Partial<ConnectionProfile> | null;
   onClose: () => void;
+  saveByDefault?: boolean;
+  cancelLabel?: string;
 }
 
-export function QuickConnectionDialog({ prefill, onClose }: Props) {
+export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false, cancelLabel = "Cancel" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   useDialog(panelRef, { onClose });
   const saveProfile = useConnections((s) => s.saveProfile);
   const connectProfile = useConnections((s) => s.connect);
   const connectTemporary = useConnections((s) => s.connectTemporary);
-  const [mode, setMode] = useState<"quick" | "profile">("quick");
   const initialProtocol = (prefill?.protocol === "ftp" || prefill?.protocol === "ftps" || prefill?.protocol === "sftp" ? prefill.protocol : "sftp") as Protocol;
   const [protocol, setProtocol] = useState<Protocol>(initialProtocol);
   const [host, setHost] = useState(prefill?.host ?? "");
@@ -32,7 +33,7 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
   const [keyPath, setKeyPath] = useState(prefill?.auth?.kind === "key" ? prefill.auth.path : "");
   const [keyPassphrase, setKeyPassphrase] = useState(prefill?.auth?.kind === "key" ? (prefill.auth.passphrase ?? "") : "");
   const [showKeyPassphrase, setShowKeyPassphrase] = useState(false);
-  const [remember, setRemember] = useState(false);
+  const [remember, setRemember] = useState(saveByDefault);
   const [advanced, setAdvanced] = useState(false);
   const [remotePath, setRemotePath] = useState(prefill?.defaultRemotePath ?? ".");
   const [name, setName] = useState(prefill?.name ?? "");
@@ -58,7 +59,7 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
     auth: useKey && protocol === "sftp" ? { kind: "key", path: keyPath.trim(), passphrase: keyPassphrase || undefined } : { kind: "password", password },
     defaultRemotePath: remotePath.trim() || ".",
     autoConnect: false,
-    group: mode === "profile" ? "My Sites" : undefined,
+    group: remember ? "My Sites" : undefined,
   });
 
   useEffect(() => {
@@ -69,8 +70,7 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
     if (!canConnect || busy) return;
     setBusy(true);
     const profile = makeProfile();
-    if (!connectNow && !profile.group) profile.group = "My Sites";
-    const ephemeral = mode === "quick" && !remember;
+    const ephemeral = !remember;
     try {
       if (connectNow && ephemeral) {
         try {
@@ -130,71 +130,98 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
       <div ref={panelRef} role="dialog" aria-modal="true" className="ghost-new-connection-dialog flex w-[min(752px,94vw)] flex-col overflow-hidden rounded-xl border border-accent/70 bg-[#061a2d] shadow-[0_0_0_1px_rgba(65,181,255,.08),0_30px_90px_rgba(0,0,0,.7),0_0_38px_rgba(31,149,255,.15)]">
         <div className="ghost-new-connection-head flex shrink-0 items-center gap-3 border-b border-border px-5 py-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0b3151]"><GhostMark size={34}/></div>
-          <div><div className="text-[19px] font-semibold">New Connection</div><div className="text-[12px] text-text-muted">Quickly connect to your server or save it as a profile.</div></div>
+          <div><div className="text-[19px] font-semibold">New Connection</div><div className="text-[12px] text-text-muted">Enter your server details, then connect or optionally save it in Sites.</div></div>
           <div className="flex-1"/><button onClick={onClose} className="rounded-md p-2 text-text-muted hover:bg-bg-hover hover:text-white"><X size={18}/></button>
         </div>
 
-        <div className="ghost-new-connection-mode grid shrink-0 grid-cols-2 gap-2 px-5 pt-4">
-          <button className={`flex items-center justify-center gap-2 rounded-md border py-3 font-semibold ${mode==='quick'?'border-accent bg-accent-strong text-white shadow-[0_0_20px_rgba(34,154,255,.18)]':'border-border bg-[#071f35] text-text-muted'}`} onClick={()=>setMode('quick')}><Zap size={18}/> Quick Connect</button>
-          <button className={`flex items-center justify-center gap-2 rounded-md border py-3 font-semibold ${mode==='profile'?'border-accent bg-accent-strong text-white':'border-border bg-[#071f35] text-text-muted'}`} onClick={()=>setMode('profile')}><Bookmark size={17}/> Save as Profile</button>
-        </div>
-
         <div className="ghost-new-connection-body min-h-0 overflow-y-auto p-5">
-          {mode === "profile" && <Field label="Profile name"><input value={name} onChange={(e)=>setName(e.target.value)} placeholder=""/></Field>}
+          {remember && <Field label="Site name"><input value={name} onChange={(e)=>setName(e.target.value)} placeholder="e.g. Main web server"/></Field>}
           <div className="grid grid-cols-[1.1fr_1.7fr_.55fr] gap-3">
             <Field label="Protocol"><select value={protocol} onChange={(e)=>{const p=e.target.value as Protocol;setProtocol(p);setPort(PROTOCOL_DEFAULT_PORT[p]);}}><option value="sftp">SFTP (SSH File Transfer)</option><option value="ftp">FTP</option><option value="ftps">FTPS (FTP over TLS)</option></select></Field>
-            <Field label="Host"><input value={host} onChange={(e)=>setHost(e.target.value)} placeholder=""/></Field>
-            <Field label="Port"><input type="number" min={1} max={65535} value={port} onChange={(e)=>setPort(Number(e.target.value))}/></Field>
+            <Field label="Host / Address"><input value={host} onChange={(e)=>setHost(e.target.value)} placeholder="e.g. ftp.your-domain.tld or 192.0.2.10"/></Field>
+            <Field label="Port"><input type="number" min={1} max={65535} value={port} onChange={(e)=>setPort(Number(e.target.value))} aria-label="Server port"/></Field>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <Field label="Username"><input value={username} onChange={(e)=>setUsername(e.target.value)} placeholder="Enter username"/></Field>
-            <Field label="Password"><div className="relative"><input type={showPassword?'text':'password'} value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></Field>
+            {protocol === "sftp" ? (
+              <Field label="Authentication">
+                <div className="ghost-auth-choice" role="group" aria-label="SFTP authentication method">
+                  <button
+                    type="button"
+                    className={!useKey ? "active" : ""}
+                    aria-pressed={!useKey}
+                    onClick={()=>setUseKey(false)}
+                  >
+                    Password
+                  </button>
+                  <button
+                    type="button"
+                    className={useKey ? "active" : ""}
+                    aria-pressed={useKey}
+                    onClick={()=>setUseKey(true)}
+                  >
+                    <KeyRound size={13}/> Private key
+                  </button>
+                </div>
+              </Field>
+            ) : (
+              <Field label="Password"><div className="relative"><input type={showPassword?'text':'password'} value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/><button type="button" aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></Field>
+            )}
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <ConnectionModeStatus protocol={protocol}/>
-            <Check checked={useKey} disabled={protocol!=="sftp"} onChange={setUseKey} label="Use private key (SSH)" icon={<KeyRound size={15}/>}/>
-          </div>
-          {protocol === "sftp" && (
+          {protocol === "sftp" && !useKey && (
+            <div className="mt-3">
+              <Field label="Password">
+                <div className="relative">
+                  <input type={showPassword?'text':'password'} value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/>
+                  <button type="button" aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button>
+                </div>
+              </Field>
+            </div>
+          )}
+
+          {protocol === "sftp" && useKey && (
             <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
               <input
                 className="ghost-ref-input"
                 value={keyPath}
-                disabled={!useKey}
                 onChange={(e)=>setKeyPath(e.target.value)}
                 placeholder="Select private key file…"
+                aria-label="Private key file"
               />
               <button
+                type="button"
                 className="ghost-mini-button"
-                disabled={!useKey}
                 onClick={()=>void chooseKey()}
                 aria-label="Choose private key file"
               >
-                <FolderOpen size={14}/>
+                <FolderOpen size={14}/> Browse
               </button>
-              {useKey && (
-                <div className="relative col-span-2">
-                  <input
-                    className="ghost-ref-input pr-10"
-                    type={showKeyPassphrase?"text":"password"}
-                    value={keyPassphrase}
-                    onChange={(e)=>setKeyPassphrase(e.target.value)}
-                    placeholder="Private key passphrase (optional)"
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim"
-                    onClick={()=>setShowKeyPassphrase(v=>!v)}
-                    aria-label={showKeyPassphrase?"Hide key passphrase":"Show key passphrase"}
-                  >
-                    {showKeyPassphrase?<EyeOff size={16}/>:<Eye size={16}/>}
-                  </button>
-                </div>
-              )}
+              <div className="relative col-span-2">
+                <input
+                  className="ghost-ref-input pr-10"
+                  type={showKeyPassphrase?"text":"password"}
+                  value={keyPassphrase}
+                  onChange={(e)=>setKeyPassphrase(e.target.value)}
+                  placeholder="Private key passphrase (optional)"
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim"
+                  onClick={()=>setShowKeyPassphrase(v=>!v)}
+                  aria-label={showKeyPassphrase?"Hide key passphrase":"Show key passphrase"}
+                >
+                  {showKeyPassphrase?<EyeOff size={16}/>:<Eye size={16}/>}
+                </button>
+              </div>
             </div>
           )}
 
-          <div className="mt-4 flex items-center gap-3"><Check checked={mode === "profile" ? true : remember} disabled={mode === "profile"} onChange={setRemember} label="Remember this connection" icon={<Bookmark size={15}/>}/><div className="flex-1"/><button className="ghost-mini-button" disabled={!canConnect||busy||testStatus==="testing"} onClick={()=>void testConnection()} aria-live="polite"><Radio size={14}/>{testStatus==="testing"?"Testing…":testStatus==="ok"?"Connection OK":testStatus==="error"?"Test Failed":"Test Connection"}</button></div>
+          <div className="mt-4">
+            <ConnectionModeStatus protocol={protocol}/>
+          </div>
+
+          <div className="mt-4 flex items-center gap-3"><Check checked={remember} onChange={setRemember} label="Save this connection in Sites" icon={<Bookmark size={15}/>}/><div className="flex-1"/><button className="ghost-mini-button" disabled={!canConnect||busy||testStatus==="testing"} onClick={()=>void testConnection()} aria-live="polite"><Radio size={14}/>{testStatus==="testing"?"Testing…":testStatus==="ok"?"Connection OK":testStatus==="error"?"Test Failed":"Test Connection"}</button></div>
 
           <div className="mt-4 overflow-hidden rounded-md border border-border bg-[#051929]">
             <button onClick={()=>setAdvanced(v=>!v)} className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-text-muted hover:bg-bg-hover"><Settings2 size={16}/><span>Advanced Settings</span><div className="flex-1"/><ChevronDown size={14} className={advanced?'rotate-180':''}/></button>
@@ -203,8 +230,8 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
         </div>
 
         <div className="ghost-new-connection-actions flex shrink-0 items-center border-t border-border bg-[#051929] px-5 py-4">
-          <button className="ghost-mini-button" onClick={onClose}>Cancel</button><div className="flex-1"/>
-          <button disabled={!canConnect||busy} className="ghost-mini-button mr-2" onClick={()=>void submit(false)}><Bookmark size={14}/> Save Profile</button>
+          <button className="ghost-mini-button" onClick={onClose}>{cancelLabel}</button><div className="flex-1"/>
+          {remember && <button disabled={!canConnect||busy} className="ghost-mini-button mr-2" onClick={()=>void submit(false)}><Bookmark size={14}/> Save</button>}
           <button disabled={!canConnect||busy} className="ghost-primary-button" onClick={()=>void submit(true)}><Link2 size={15}/> {busy?'Connecting…':'Connect'}</button>
         </div>
       </div>

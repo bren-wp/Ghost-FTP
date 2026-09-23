@@ -56,7 +56,7 @@ The canonical desktop reference is **1290×852**. Smaller windows adapt through 
 
 ## Core workflow
 
-**Connect.** Use Quick Connect for a temporary session or save reusable profiles in Site Manager.
+**Connect.** Use **New connection** for a temporary connection or save a reusable profile in Sites.
 
 **Browse.** Work with local and remote files side by side.
 
@@ -66,7 +66,7 @@ The canonical desktop reference is **1290×852**. Smaller windows adapt through 
 
 ## Implemented in current RC15 development source
 
-- FTP, explicit FTPS and SFTP Quick Connect and saved profiles with real protocol E2E acceptance.
+- FTP, explicit FTPS and SFTP temporary connections and saved profiles with real protocol E2E acceptance.
 - Site Manager with folders, favorites, tags, bookmarks and recent-server metadata.
 - Dual-pane file browsing and normal file operations.
 - Upload/download queues with pause, resume, retry, cancel and bandwidth controls.

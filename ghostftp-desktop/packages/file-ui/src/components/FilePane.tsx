@@ -1194,7 +1194,7 @@ export function FilePane({
           <EmptyState
             icon={<ServerOff size={20} />}
             title="No connection"
-            hint="Pick a server in the left rail to connect."
+            hint="Open Sites and choose a saved connection, or create a new connection."
           />
         ) : error ? (
           <div className="px-3 py-2 text-xs text-danger">

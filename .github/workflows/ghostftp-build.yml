@@ -1,7 +1,7 @@
 name: Ghost FTP native build
 
-# RC15 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
-# RC15 release build stamp: 2026-09-22.15
+# RC16 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
+# RC16 release build stamp: 2026-09-23.16
 
 on:
   workflow_dispatch:
@@ -31,10 +31,10 @@ jobs:
         include:
           - os: windows-latest
             args: '--bundles nsis'
-            artifact: 'GhostFTP-Windows-x64-RC15'
+            artifact: 'GhostFTP-Windows-x64-RC16'
           - os: ubuntu-22.04
             args: '--bundles deb,rpm,appimage'
-            artifact: 'GhostFTP-Linux-x86_64-RC15'
+            artifact: 'GhostFTP-Linux-x86_64-RC16'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -104,6 +104,9 @@ jobs:
             [DllImport("user32.dll")]
             public static extern bool SetForegroundWindow(IntPtr hWnd);
 
+            [DllImport("user32.dll")]
+            public static extern bool IsZoomed(IntPtr hWnd);
+
             [DllImport("user32.dll", SetLastError = true)]
             public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
           }
@@ -150,7 +153,7 @@ jobs:
               $edgeComparisons = 0
               $edgeHits = 0
 
-              # Sample densely enough to detect UI structure. RC15 exposed why
+              # Sample densely enough to detect UI structure. RC16 exposed why
               # sparse color/variance checks are insufficient: a blank WebView2
               # compositor frame with only the native border still had >100 raw
               # colors from anti-aliasing and incorrectly passed.
@@ -394,6 +397,23 @@ jobs:
                 throw "Unexpected Ghost FTP window title for $($view.key): $($proc.MainWindowTitle)"
               }
 
+              # Validate the real launch geometry before the canonical QA resize.
+              # RC16 must start as a normal window and stay inside the OS working
+              # area even when the preferred 1290x852 size is larger than the
+              # available desktop.
+              $launchRect = New-Object GhostFtpWindowCapture+RECT
+              if (-not [GhostFtpWindowCapture]::GetWindowRect($handle, [ref]$launchRect)) {
+                throw "GetWindowRect failed for initial $($view.key) launch"
+              }
+              $launchWidth = $launchRect.Right - $launchRect.Left
+              $launchHeight = $launchRect.Bottom - $launchRect.Top
+              if ([GhostFtpWindowCapture]::IsZoomed($handle)) {
+                throw "Ghost FTP started maximized for $($view.key)"
+              }
+              if ($launchWidth -gt ($work.Width - 16) -or $launchHeight -gt ($work.Height - 16)) {
+                throw "Ghost FTP initial window ${launchWidth}x${launchHeight} does not preserve a compact margin inside working area $($work.Width)x$($work.Height)"
+              }
+
               if (-not [GhostFtpWindowCapture]::SetWindowPos(
                 $handle,
                 [IntPtr]::Zero,
@@ -420,8 +440,8 @@ jobs:
                 throw "Native window bounds for $($view.key) are ${width}x${height}, expected approximately ${targetWidth}x${targetHeight}"
               }
 
-              $png = Join-Path $qaDir ("GhostFTP-Windows-RC15-" + $view.label + ".png")
-              $printCandidate = Join-Path $qaDir ("GhostFTP-Windows-RC15-" + $view.label + ".printwindow.tmp.png")
+              $png = Join-Path $qaDir ("GhostFTP-Windows-RC16-" + $view.label + ".png")
+              $printCandidate = Join-Path $qaDir ("GhostFTP-Windows-RC16-" + $view.label + ".printwindow.tmp.png")
               $captureMethod = 'PrintWindow(PW_RENDERFULLCONTENT)'
 
               $bitmap = New-Object System.Drawing.Bitmap $targetWidth, $targetHeight, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
@@ -475,6 +495,7 @@ jobs:
                 "View=$($view.key)"
                 "ProcessId=$($proc.Id)"
                 "WindowTitle=$($proc.MainWindowTitle)"
+                "InitialWindowBounds=${launchWidth}x${launchHeight}"
                 "WindowBounds=${width}x${height}"
                 "TargetReferenceBounds=${targetWidth}x${targetHeight}"
                 "WorkingArea=$($work.Width)x$($work.Height)"
@@ -487,7 +508,110 @@ jobs:
                 "OpaqueSamples=$($validation.Opaque)/$($validation.Samples)"
                 "ImageBytes=$($pngInfo.Length)"
                 "Executable=$exe"
-              ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC15-" + $view.label + ".txt"))
+              ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC16-" + $view.label + ".txt"))
+
+              # Exercise a genuinely compact viewport for the workspaces that
+              # carry the most responsive pressure. This is separate from the
+              # canonical 1290x852 visual reference and catches clipped buttons,
+              # wrapped navigation and off-viewport overlays.
+              if (@('main', 'siteManager', 'newConnection', 'settings', 'transferCenter', 'properties', 'about') -contains $view.key) {
+                $compactWidth = [Math]::Min(720, $work.Width - 40)
+                $compactHeight = [Math]::Min(640, $work.Height - 40)
+                if ($compactWidth -ge 520 -and $compactHeight -ge 610) {
+                  if (-not [GhostFtpWindowCapture]::SetWindowPos(
+                    $handle,
+                    [IntPtr]::Zero,
+                    $work.Left + 20,
+                    $work.Top + 20,
+                    $compactWidth,
+                    $compactHeight,
+                    ($SWP_NOZORDER -bor $SWP_SHOWWINDOW)
+                  )) {
+                    throw "Compact SetWindowPos failed for $($view.key)"
+                  }
+                  Start-Sleep -Milliseconds 350
+
+                  $compactPng = Join-Path $qaDir ("GhostFTP-Windows-RC16-" + $view.label + "-Compact.png")
+                  Capture-GhostFtpWebView2 -Port $debugPort -OutputPath $compactPng -Width $compactWidth -Height $compactHeight
+                  $compactValidation = Test-GhostFtpPng -Path $compactPng -ExpectedWidth $compactWidth -ExpectedHeight $compactHeight
+                  if (-not $compactValidation.Valid) {
+                    throw "Compact QA screenshot for $($view.key) is invalid (reason=$($compactValidation.Reason), colors=$($compactValidation.Colors), quantized=$($compactValidation.QuantizedColors), edgeRatio=$([Math]::Round($compactValidation.EdgeRatio,5)))"
+                  }
+
+                  $compactHash = (Get-FileHash -Algorithm SHA256 $compactPng).Hash
+                  if ($capturedHashes.ContainsKey($compactHash)) {
+                    throw "Compact QA screenshot for $($view.key) is byte-identical to $($capturedHashes[$compactHash])"
+                  }
+                  $capturedHashes[$compactHash] = "$($view.key)-compact"
+
+                  @(
+                    "View=$($view.key)-compact"
+                    "ProcessId=$($proc.Id)"
+                    "WindowTitle=$($proc.MainWindowTitle)"
+                    "WindowBounds=${compactWidth}x${compactHeight}"
+                    "WorkingArea=$($work.Width)x$($work.Height)"
+                    "CaptureMethod=WebView2 CDP compact responsive viewport"
+                    "DecodedColors=$($compactValidation.Colors)"
+                    "QuantizedColors=$($compactValidation.QuantizedColors)"
+                    "BrightnessRange=$([Math]::Round($compactValidation.Range,6))"
+                    "BrightnessVariance=$([Math]::Round($compactValidation.Variance,8))"
+                    "EdgeRatio=$([Math]::Round($compactValidation.EdgeRatio,8))"
+                    "OpaqueSamples=$($compactValidation.Opaque)/$($compactValidation.Samples)"
+                    "Executable=$exe"
+                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC16-" + $view.label + "-Compact.txt"))
+                }
+
+                # Exercise a near-minimum responsive viewport as a separate
+                # regression surface. The production window minimum is about
+                # 480x600; 500x620 keeps OS chrome tolerance while still
+                # exposing layouts that only look correct at the 720px compact
+                # reference.
+                $minimumWidth = [Math]::Min(500, $work.Width - 24)
+                $minimumHeight = [Math]::Min(620, $work.Height - 24)
+                if ($minimumWidth -ge 480 -and $minimumHeight -ge 600) {
+                  if (-not [GhostFtpWindowCapture]::SetWindowPos(
+                    $handle,
+                    [IntPtr]::Zero,
+                    $work.Left + 12,
+                    $work.Top + 12,
+                    $minimumWidth,
+                    $minimumHeight,
+                    ($SWP_NOZORDER -bor $SWP_SHOWWINDOW)
+                  )) {
+                    throw "Minimum SetWindowPos failed for $($view.key)"
+                  }
+                  Start-Sleep -Milliseconds 350
+
+                  $minimumPng = Join-Path $qaDir ("GhostFTP-Windows-RC16-" + $view.label + "-Minimum.png")
+                  Capture-GhostFtpWebView2 -Port $debugPort -OutputPath $minimumPng -Width $minimumWidth -Height $minimumHeight
+                  $minimumValidation = Test-GhostFtpPng -Path $minimumPng -ExpectedWidth $minimumWidth -ExpectedHeight $minimumHeight
+                  if (-not $minimumValidation.Valid) {
+                    throw "Minimum QA screenshot for $($view.key) is invalid (reason=$($minimumValidation.Reason), colors=$($minimumValidation.Colors), quantized=$($minimumValidation.QuantizedColors), edgeRatio=$([Math]::Round($minimumValidation.EdgeRatio,5)))"
+                  }
+
+                  $minimumHash = (Get-FileHash -Algorithm SHA256 $minimumPng).Hash
+                  if ($capturedHashes.ContainsKey($minimumHash)) {
+                    throw "Minimum QA screenshot for $($view.key) is byte-identical to $($capturedHashes[$minimumHash])"
+                  }
+                  $capturedHashes[$minimumHash] = "$($view.key)-minimum"
+
+                  @(
+                    "View=$($view.key)-minimum"
+                    "ProcessId=$($proc.Id)"
+                    "WindowTitle=$($proc.MainWindowTitle)"
+                    "WindowBounds=${minimumWidth}x${minimumHeight}"
+                    "WorkingArea=$($work.Width)x$($work.Height)"
+                    "CaptureMethod=WebView2 CDP minimum responsive viewport"
+                    "DecodedColors=$($minimumValidation.Colors)"
+                    "QuantizedColors=$($minimumValidation.QuantizedColors)"
+                    "BrightnessRange=$([Math]::Round($minimumValidation.Range,6))"
+                    "BrightnessVariance=$([Math]::Round($minimumValidation.Variance,8))"
+                    "EdgeRatio=$([Math]::Round($minimumValidation.EdgeRatio,8))"
+                    "OpaqueSamples=$($minimumValidation.Opaque)/$($minimumValidation.Samples)"
+                    "Executable=$exe"
+                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC16-" + $view.label + "-Minimum.txt"))
+                }
+              }
             } finally {
               if (-not $proc.HasExited) {
                 $null = $proc.CloseMainWindow()
@@ -507,7 +631,7 @@ jobs:
         if: runner.os == 'Windows' && always()
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-Windows-x64-RC15-QA
+          name: GhostFTP-Windows-x64-RC16-QA
           path: qa/*
           if-no-files-found: warn
           retention-days: 14
@@ -524,26 +648,26 @@ jobs:
           if-no-files-found: error
 
   source-packages:
-    name: RC15 source packages
+    name: RC16 source packages
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Package RC15 source and documentation
+      - name: Package RC16 source and documentation
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist
-          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC15-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-RC15-Desktop-Source.zip ghostftp-desktop
-          zip -qr dist/GhostFTP-v2.1.1-RC15-Website.zip website
-          zip -qr dist/GhostFTP-v2.1.1-RC15-Updates.zip updates
-          zip -qr dist/GhostFTP-v2.1.1-RC15-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
-      - name: Upload RC15 source packages
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC16-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC16-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC16-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC16-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC16-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+      - name: Upload RC16 source packages
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-RC15-Source-Packages
+          name: GhostFTP-RC16-Source-Packages
           path: dist/*
           if-no-files-found: error
           retention-days: 14

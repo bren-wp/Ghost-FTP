@@ -25,7 +25,6 @@ import { useConnections } from "@/stores/connectionsStore";
 import { useLayout } from "@/stores/layoutStore";
 import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
-import { ReferenceActionRow, ReferenceMenuTitlebar } from "./ReferenceWindowChrome";
 import { ConfirmModal } from "./ConfirmModal";
 import { ipc } from "@/lib/ipc";
 import { toast } from "@/stores/toastStore";
@@ -87,7 +86,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   const [metaValue, setMetaValue] = useState("");
   const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
 
-  useDialog(panelRef, { onClose, initialFocus: searchRef });
+  useDialog(panelRef, { onClose, initialFocus: searchRef, trapFocus: false });
 
   const folders = useMemo(
     () =>
@@ -356,194 +355,105 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     <div
       className="ghost-workspace-view ghost-standalone-view bg-[#041425]"
       role="region"
-      aria-label="Site Manager"
+      aria-label="Sites"
     >
       <div
         ref={panelRef}
         className="ghost-site-manager flex h-full w-full flex-col overflow-hidden bg-[#061a2d]"
       >
-        <ReferenceMenuTitlebar onClose={onClose} />
-        <ReferenceActionRow />
-
         <div className="ghost-site-manager-hero flex items-center gap-3 border-b border-border px-5">
           <div className="ghost-dialog-icon">
             <Server size={24} />
           </div>
           <div>
-            <div className="text-xl font-semibold">Site Manager</div>
+            <div className="text-xl font-semibold">Sites</div>
             <div className="text-[12px] text-text-muted">
               Manage saved connections, bookmarks and server profiles.
             </div>
           </div>
           <div className="flex-1" />
-          <div className="relative">
-            <Search
-              size={14}
-              className="pointer-events-none absolute left-3 top-2.5 text-text-dim"
-            />
-            <input
-              ref={searchRef}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="ghost-ref-input w-64 pl-9"
-              placeholder="Search sites…"
-              aria-label="Search saved sites"
-            />
-          </div>
-          <button
-            type="button"
-            className="ghost-mini-button"
-            onClick={() => openDialog("import")}
-          >
-            <Download size={14} /> Import
-          </button>
-          <button
-            type="button"
-            className="ghost-mini-button"
-            onClick={() => void exportSites()}
-            disabled={profiles.length === 0}
-          >
-            <Upload size={14} /> Export
-          </button>
-          <button
-            type="button"
-            className="ghost-primary-button"
-            onClick={() => openNewConnection()}
-          >
-            <Plus size={15} /> New Site
-          </button>
+          {profiles.length > 0 && (
+            <>
+              <div className="relative">
+                <Search
+                  size={14}
+                  className="pointer-events-none absolute left-3 top-2.5 text-text-dim"
+                />
+                <input
+                  ref={searchRef}
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  className="ghost-ref-input w-64 pl-9"
+                  placeholder="Search sites…"
+                  aria-label="Search saved sites"
+                />
+              </div>
+              <button
+                type="button"
+                className="ghost-mini-button"
+                onClick={() => openDialog("import")}
+              >
+                <Download size={14} /> Import
+              </button>
+              <button
+                type="button"
+                className="ghost-mini-button"
+                onClick={() => void exportSites()}
+              >
+                <Upload size={14} /> Export
+              </button>
+              <button
+                type="button"
+                className="ghost-primary-button"
+                onClick={() => openNewConnection()}
+              >
+                <Plus size={15} /> New Site
+              </button>
+            </>
+          )}
         </div>
 
-        <div className="ghost-site-manager-workspace grid min-h-0 flex-1 grid-cols-[242px_minmax(0,1fr)_356px] gap-0">
-          <aside className="ghost-site-manager-nav border-r border-border bg-[#051929] p-3">
-            <SideItem
-              active={view === "all"}
-              icon={<Server />}
-              label="All Sites"
-              count={profiles.length}
-              onClick={() => setView("all")}
-            />
-            <SideItem
-              active={view === "favorites"}
-              icon={<Star />}
-              label="Favorites"
-              count={profiles.filter((profile) => profile.favorite).length}
-              onClick={() => setView("favorites")}
-            />
-            <SideItem
-              active={view === "recent"}
-              icon={<RadioTower />}
-              label="Recent Servers"
-              count={profiles.filter((profile) => profile.lastUsed).length}
-              onClick={() => setView("recent")}
-            />
-            <SideItem
-              active={view === "bookmarks"}
-              icon={<Folder />}
-              label="Bookmarks"
-              count={profiles.filter((profile) => profile.bookmarked).length}
-              onClick={() => setView("bookmarks")}
-            />
+        {profiles.length > 0 && (
+          <div className="ghost-site-filterbar flex shrink-0 items-center gap-2 overflow-x-auto border-b border-border bg-[#051929] px-3 py-2">
+          <FilterChip active={view === "all"} label="All" count={profiles.length} onClick={() => setView("all")} />
+          <FilterChip active={view === "favorites"} label="Favorites" count={profiles.filter((profile) => profile.favorite).length} onClick={() => setView("favorites")} />
+          <FilterChip active={view === "recent"} label="Recent" count={profiles.filter((profile) => profile.lastUsed).length} onClick={() => setView("recent")} />
+          <FilterChip active={view === "bookmarks"} label="Bookmarks" count={profiles.filter((profile) => profile.bookmarked).length} onClick={() => setView("bookmarks")} />
+          <FilterChip active={view === "cloud"} label="Cloud" count={profiles.filter((profile) => ["s3", "azure", "gcs", "webdav", "dropbox", "onedrive", "gdrive", "box"].includes(profile.protocol)).length} onClick={() => setView("cloud")} />
+          <div className="h-6 w-px shrink-0 bg-border"/>
+          <label className="ghost-site-filter-select">Tag<select aria-label="Filter by tag" value={view.startsWith("tag:") ? view : ""} onChange={(event) => setView(event.target.value || "all")}><option value="">All tags</option>{tags.map((tag) => <option key={tag} value={`tag:${tag}`}>{tag}</option>)}</select></label>
+          <label className="ghost-site-filter-select">Folder<select aria-label="Filter by folder" value={view.startsWith("folder:") ? view : ""} onChange={(event) => setView(event.target.value || "all")}><option value="">All folders</option>{folders.map((folder) => <option key={folder} value={`folder:${folder}`}>{folder}</option>)}</select></label>
+          </div>
+        )}
 
-            <div className="my-3 border-t border-border" />
-            <div className="mb-2 flex items-center justify-between px-2 text-[11px] font-semibold text-accent">
-              <span>Tags</span>
-              <button
-                type="button"
-                className="ghost-site-meta-add"
-                disabled={!selected || Boolean(action)}
-                title="Add a tag to the selected site"
-                aria-label="Add tag"
-                onClick={() => {
-                  setAddingMeta("tag");
-                  setMetaValue("");
-                }}
-              >
-                <Plus size={13} />
-              </button>
-            </div>
-            {addingMeta === "tag" && (
-              <div className="ghost-site-meta-editor mb-2">
-                <input
-                  autoFocus
-                  value={metaValue}
-                  placeholder="Tag name"
-                  onChange={(event) => setMetaValue(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") void applyMeta();
-                    if (event.key === "Escape") setAddingMeta(null);
-                  }}
-                />
-                <button type="button" onClick={() => void applyMeta()} disabled={!metaValue.trim()}>Add</button>
-                <button type="button" onClick={() => setAddingMeta(null)}>×</button>
+        {profiles.length === 0 && !query ? (
+          <div className="ghost-sites-empty">
+            <div className="ghost-sites-empty-card">
+              <Server size={52} className="mx-auto text-accent" />
+              <h2 className="mt-4 text-[20px] font-semibold">Add your first site</h2>
+              <p className="mx-auto mt-2 max-w-md text-[12px] leading-5 text-text-muted">
+                Save an FTP, FTPS, SFTP or cloud connection here so it is easy to find and reconnect later.
+              </p>
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                <button
+                  type="button"
+                  className="ghost-primary-button"
+                  onClick={() => openNewConnection()}
+                >
+                  <Plus size={15} /> New Site
+                </button>
+                <button
+                  type="button"
+                  className="ghost-mini-button"
+                  onClick={() => openDialog("import")}
+                >
+                  <Download size={14} /> Import Sites
+                </button>
               </div>
-            )}
-            {tags.length === 0 && (
-              <div className="px-2 py-2 text-[11px] text-text-dim">No tags yet</div>
-            )}
-            {tags.map((tag) => (
-              <SideItem
-                key={tag}
-                active={view === `tag:${tag}`}
-                icon={<TagDot label={tag} />}
-                label={tag}
-                count={profiles.filter((profile) => (profile.tags ?? []).includes(tag)).length}
-                onClick={() => setView(`tag:${tag}`)}
-              />
-            ))}
-
-            <div className="my-3 border-t border-border" />
-            <div className="mb-2 flex items-center justify-between px-2 text-[11px] font-semibold text-accent">
-              <span>Folders</span>
-              <button
-                type="button"
-                className="ghost-site-meta-add"
-                disabled={!selected || Boolean(action)}
-                title="Assign the selected site to a folder"
-                aria-label="Assign folder"
-                onClick={() => {
-                  setAddingMeta("folder");
-                  setMetaValue(selected?.group ?? "");
-                }}
-              >
-                <Plus size={13} />
-              </button>
             </div>
-            {addingMeta === "folder" && (
-              <div className="ghost-site-meta-editor mb-2">
-                <input
-                  autoFocus
-                  value={metaValue}
-                  placeholder="Folder name"
-                  onChange={(event) => setMetaValue(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") void applyMeta();
-                    if (event.key === "Escape") setAddingMeta(null);
-                  }}
-                />
-                <button type="button" onClick={() => void applyMeta()} disabled={!metaValue.trim()}>Set</button>
-                <button type="button" onClick={() => setAddingMeta(null)}>×</button>
-              </div>
-            )}
-            <SideItem
-              active={view === "all"}
-              icon={<Folder />}
-              label="My Sites"
-              count={profiles.length}
-              onClick={() => setView("all")}
-            />
-            {folders.map((folder) => (
-              <SideItem
-                key={folder}
-                active={view === `folder:${folder}`}
-                icon={<Folder />}
-                label={folder}
-                count={profiles.filter((profile) => (profile.group ?? "") === folder).length}
-                onClick={() => setView(`folder:${folder}`)}
-              />
-            ))}
-          </aside>
-
+          </div>
+        ) : (
+          <div className="ghost-site-manager-workspace grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_356px] gap-0">
           <section
             className="ghost-site-manager-table min-w-0 overflow-auto p-3"
             aria-label="Saved sites"
@@ -639,6 +549,19 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                     flow to change credentials.
                   </div>
                 )}
+
+                <div className="mb-4 grid grid-cols-2 gap-2 border-t border-border pt-4">
+                  <div className="rounded-md border border-border-subtle bg-[#051929] p-2.5">
+                    <div className="mb-1 text-[10px] uppercase tracking-wide text-text-dim">Folder</div>
+                    <div className="flex items-center gap-2"><span className="min-w-0 flex-1 truncate text-[11px]">{selected.group || "None"}</span><button type="button" className="ghost-site-meta-add" disabled={Boolean(action)} onClick={() => { setAddingMeta("folder"); setMetaValue(selected.group ?? ""); }}><Edit3 size={12}/></button></div>
+                    {addingMeta === "folder" && <div className="ghost-site-meta-editor mt-2"><input autoFocus value={metaValue} placeholder="Folder name" onChange={(event) => setMetaValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void applyMeta(); if (event.key === "Escape") setAddingMeta(null); }}/><button type="button" onClick={() => void applyMeta()} disabled={!metaValue.trim()}>Set</button><button type="button" onClick={() => setAddingMeta(null)}>×</button></div>}
+                  </div>
+                  <div className="rounded-md border border-border-subtle bg-[#051929] p-2.5">
+                    <div className="mb-1 text-[10px] uppercase tracking-wide text-text-dim">Tags</div>
+                    <div className="flex items-center gap-2"><span className="min-w-0 flex-1 truncate text-[11px]">{(selected.tags ?? []).join(", ") || "None"}</span><button type="button" className="ghost-site-meta-add" disabled={Boolean(action)} onClick={() => { setAddingMeta("tag"); setMetaValue(""); }}><Plus size={12}/></button></div>
+                    {addingMeta === "tag" && <div className="ghost-site-meta-editor mt-2"><input autoFocus value={metaValue} placeholder="Tag name" onChange={(event) => setMetaValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void applyMeta(); if (event.key === "Escape") setAddingMeta(null); }}/><button type="button" onClick={() => void applyMeta()} disabled={!metaValue.trim()}>Add</button><button type="button" onClick={() => setAddingMeta(null)}>×</button></div>}
+                  </div>
+                </div>
 
                 <div className="space-y-3 border-t border-border pt-4">
                   <EditField label="Protocol" editing={editing}>
@@ -837,6 +760,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
             )}
           </aside>
         </div>
+        )}
 
       </div>
 
@@ -854,6 +778,10 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   );
 }
 
+
+function FilterChip({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {
+  return <button type="button" className={`ghost-site-filter-chip ${active ? "active" : ""}`} aria-pressed={active} onClick={onClick}><span>{label}</span><b>{count}</b></button>;
+}
 
 function SiteSortHeader({
   label,

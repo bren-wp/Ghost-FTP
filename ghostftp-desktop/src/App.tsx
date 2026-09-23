@@ -5,12 +5,12 @@ import { DualPaneBrowser } from "./components/DualPaneBrowser";
 import { FileBrowser } from "./components/FileBrowser";
 import { FileUiBridge } from "./components/FileUiBridge";
 import { TerminalDock } from "./components/Terminal";
-import { TransferQueue } from "./components/TransferQueue";
 import { HostKeyModal } from "./components/HostKeyModal";
 import { AuthPromptModal } from "./components/AuthPromptModal";
 import { TitleBar } from "./components/TitleBar";
 import { useConnections } from "./stores/connectionsStore";
-import { useLayout } from "./stores/layoutStore";
+import { useTransfers } from "./stores/transfersStore";
+import { type AppDialog, useLayout } from "./stores/layoutStore";
 import { useSync } from "./stores/syncStore";
 import { applyTransferEngineSettings, useSettings } from "./stores/settingsStore";
 import { onDeepLink } from "./lib/ipc";
@@ -41,6 +41,24 @@ import { TransferCenterDialog } from "./components/TransferCenterDialog";
 import { GrantDialog } from "./components/GrantDialog";
 import { ImportDialog } from "./components/ImportDialog";
 import { AboutDialog } from "./components/AboutDialog";
+import { useUpdater } from "./stores/updaterStore";
+import { WorkspaceErrorBoundary } from "./components/WorkspaceErrorBoundary";
+
+const WORKSPACE_DIALOGS = new Set<AppDialog>([
+  "settings",
+  "siteManager",
+  "transferCenter",
+  "sync",
+  "help",
+  "updates",
+  "about",
+]);
+
+function workspaceFor(dialog: AppDialog | null, returnDialog: AppDialog | null): AppDialog | null {
+  if (dialog && WORKSPACE_DIALOGS.has(dialog)) return dialog;
+  if (returnDialog && WORKSPACE_DIALOGS.has(returnDialog)) return returnDialog;
+  return null;
+}
 
 export default function App() {
   const activeSessionId = useConnections((s) => s.activeSessionId);
@@ -54,26 +72,27 @@ export default function App() {
   const consoleOpen = useLayout((s) => s.consoleOpen);
   const browserLayout = useSettings((s) => s.browserLayout);
   const dialog = useLayout((s) => s.dialog);
+  const returnDialog = useLayout((s) => s.returnDialog);
   const closeDialog = useLayout((s) => s.closeDialog);
+  const showFiles = useLayout((s) => s.showFiles);
   const connectionPrefill = useLayout((s) => s.connectionPrefill);
-  const standaloneDialog =
-    dialog === "settings" ||
-    dialog === "siteManager" ||
-    dialog === "transferCenter" ||
-    dialog === "sync" ||
-    dialog === "help" ||
-    dialog === "updates" ||
-    dialog === "cloudStorage" ||
-    dialog === "schedules" ||
-    dialog === "activityLogs" ||
-    dialog === "about";
+  const workspace = workspaceFor(dialog, returnDialog);
+  const fileManager = workspace === null;
+  const workspaceLabel =
+    workspace === "settings"
+      ? "Settings"
+      : workspace === "sync"
+        ? "Sync & Backup"
+        : workspace === "siteManager"
+          ? "Sites"
+          : workspace === "transferCenter"
+            ? "Transfers"
+            : workspace === "about" || workspace === "help" || workspace === "updates"
+              ? "Help & About"
+              : "Files";
 
   useShortcuts();
 
-  // Native CI visual evidence can request a real application surface through
-  // the allow-listed GHOSTFTP_QA_VIEW environment variable injected by Rust.
-  // This only selects an existing view; it never seeds servers, transfers,
-  // credentials, connection state, or other fake production data.
   useEffect(() => {
     const qaView = (
       globalThis as typeof globalThis & { __GHOSTFTP_QA_VIEW__?: string }
@@ -95,31 +114,27 @@ export default function App() {
     }
   }, []);
 
-  // Boot the Folder Sync store: fetch the current pairs and attach the
-  // "foldersync://changed" listener so background syncs keep the UI live.
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     let cancelled = false;
     void useSync
       .getState()
       .init()
-      .then((c) => {
-        if (cancelled) c();
-        else cleanup = c;
+      .then((nextCleanup) => {
+        if (cancelled) nextCleanup();
+        else cleanup = nextCleanup;
       })
       .catch((error) => {
         console.error("Couldn't initialize Sync & Backup", error);
         toast.error("Couldn't initialize Sync & Backup", String(error));
       });
+
     return () => {
       cancelled = true;
       cleanup?.();
     };
   }, []);
 
-  // One-time migration of app settings from localStorage into ghostftp.db (Plan 12),
-  // then any defaults that changed since this install first wrote its rows —
-  // in that order, so the bumps apply on top of the imported values.
   useEffect(() => {
     void runSettingsMigration()
       .then(runDefaultBumps)
@@ -130,43 +145,122 @@ export default function App() {
       });
   }, []);
 
-  // Keep Transfer Center schedules running even when another workspace is open.
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+
+    void (async () => {
+      await useTransfers.getState().loadInitial();
+      const nextCleanup = await useTransfers.getState().initListeners();
+      if (cancelled) nextCleanup();
+      else cleanup = nextCleanup;
+    })().catch((error) => {
+      console.error("Couldn't initialize transfer activity", error);
+      toast.error("Couldn't initialize transfer activity", String(error));
+    });
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, []);
+
   useEffect(() => {
     const cleanup = initTransferScheduler();
     return cleanup;
   }, []);
 
-  // Desktop notifications (Plan 16 Phase 3): OS toasts for the curated events
-  // (transfer batch done/failed, folder-sync error, edit-in-place save failure),
-  // gated by the `notifications` setting + window focus.
   useEffect(() => {
     const cleanup = initNotifications();
     return cleanup;
   }, []);
 
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+
+    void useUpdater.getState().init()
+      .then((nextCleanup) => {
+        if (cancelled) nextCleanup();
+        else cleanup = nextCleanup;
+      })
+      .catch((error) => {
+        // The quiet updater check is non-blocking; an unexpected initialization
+        // failure must remain observable without interrupting application launch.
+        console.error("Couldn't initialize app updates", error);
+      });
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, []);
+
   return (
-      <div className="ghost-app-shell flex h-full w-full flex-col">
-      {!standaloneDialog && <TitleBar />}
+    <div className="ghost-app-shell flex h-full w-full flex-col">
+      <TitleBar />
       <DeepLinkListener />
-      {dialog === "settings" && <Settings onClose={closeDialog} />}
-      {dialog === "sync" && <Settings onClose={closeDialog} initialSection="sync" />}
+
+      <div className="ghost-app-body flex min-h-0 flex-1 overflow-hidden">
+        <ReferenceSiteSidebar />
+        <div className="ghost-content-shell flex min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="ghost-main-workspace min-h-0 flex-1 overflow-hidden">
+            <WorkspaceErrorBoundary
+              label={workspaceLabel}
+              resetKey={workspace ?? "files"}
+              onReturnToFiles={showFiles}
+            >
+              {workspace === "settings" && <Settings onClose={closeDialog} />}
+              {workspace === "sync" && <Settings onClose={closeDialog} initialSection="sync" />}
+              {workspace === "siteManager" && <SiteManagerDialog onClose={closeDialog} />}
+              {workspace === "transferCenter" && <TransferCenterDialog onClose={closeDialog} />}
+              {workspace === "about" && <AboutDialog onClose={closeDialog} initialTab="about" />}
+              {workspace === "help" && <AboutDialog onClose={closeDialog} initialTab="help" />}
+              {workspace === "updates" && <AboutDialog onClose={closeDialog} initialTab="updates" />}
+
+              {fileManager && (
+                <div className="flex h-full min-h-0 flex-col">
+                  <div className="min-h-0 flex-1 overflow-hidden">
+                    <FileUiBridge>
+                      {browserLayout === "dual" ? <DualPaneBrowser /> : <FileBrowser />}
+                    </FileUiBridge>
+                  </div>
+                  {consoleOpen && (
+                    <div className="h-64 border-t border-border">
+                      <AgentConsoleDock />
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      terminalVisible ? "h-72 border-t border-border" : "h-0 overflow-hidden"
+                    )}
+                  >
+                    <TerminalDock
+                      sessionId={supportsTerminal ? activeSessionId : null}
+                      visible={terminalVisible}
+                    />
+                  </div>
+                </div>
+              )}
+            </WorkspaceErrorBoundary>
+          </div>
+        </div>
+      </div>
+
+      {fileManager && <ReferenceStatusBar />}
+
       {dialog === "newConnection" && (
         <QuickConnectionDialog
           prefill={connectionPrefill}
           onClose={closeDialog}
+          saveByDefault={returnDialog === "siteManager"}
+          cancelLabel={returnDialog === "siteManager" ? "Back to Sites" : "Cancel"}
         />
       )}
-      {dialog === "siteManager" && <SiteManagerDialog onClose={closeDialog} />}
-      {dialog === "cloudStorage" && <SiteManagerDialog onClose={closeDialog} initialView="cloud" />}
-      {dialog === "transferCenter" && <TransferCenterDialog onClose={closeDialog} />}
-      {dialog === "schedules" && <TransferCenterDialog onClose={closeDialog} initialFocus="scheduler" />}
-      {dialog === "activityLogs" && <TransferCenterDialog onClose={closeDialog} initialFocus="log" />}
       {dialog === "import" && <ImportDialog onClose={closeDialog} />}
       {dialog === "grant" && <GrantDialog onClose={closeDialog} />}
-      {dialog === "about" && <AboutDialog onClose={closeDialog} initialTab="about" />}
-      {dialog === "help" && <AboutDialog onClose={closeDialog} initialTab="help" />}
-      {dialog === "updates" && <AboutDialog onClose={closeDialog} initialTab="updates" />}
       {dialog === "agentBridge" && <AgentBridge onClose={closeDialog} />}
+
       <HostKeyModal />
       <AuthPromptModal />
       <Toaster />
@@ -180,54 +274,10 @@ export default function App() {
       <SnippetsHost />
       <CommandPalette />
       <KeyboardShortcutsDialog />
-      {!standaloneDialog && (
-      <>
-      <div className="ghost-file-manager-body flex min-h-0 flex-1 overflow-hidden">
-        <ReferenceSiteSidebar />
-        <div className="ghost-file-manager-right flex min-w-0 flex-1 flex-col">
-          <div className="ghost-main-workspace flex min-h-0 flex-1 overflow-hidden">
-            <div className="flex min-w-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 overflow-hidden">
-                <FileUiBridge>
-                  {browserLayout === "dual" ? <DualPaneBrowser /> : <FileBrowser />}
-                </FileUiBridge>
-              </div>
-              {consoleOpen && (
-                <div className="h-64 border-t border-border">
-                  <AgentConsoleDock />
-                </div>
-              )}
-              {/* The terminal dock stays mounted even when hidden so background
-                  shells survive connection-tab switches and toggling it closed. */}
-              <div
-                className={cn(
-                  terminalVisible ? "h-72 border-t border-border" : "h-0 overflow-hidden"
-                )}
-              >
-                <TerminalDock
-                  sessionId={supportsTerminal ? activeSessionId : null}
-                  visible={terminalVisible}
-                />
-              </div>
-            </div>
-          </div>
-          <TransferQueue />
-        </div>
-      </div>
-      <ReferenceStatusBar />
-      </>
-      )}
-      </div>
+    </div>
   );
 }
 
-/// Listens for ghostftp:// deep links (from a hosting panel like a hosting panel) and
-/// opens the New Connection editor prefilled. Never auto-connects — the user
-/// reviews the target and clicks Connect / Pair, because any web page can fire
-/// a protocol handler. `ghostftp://terminal` is the one shortcut: if the named
-/// server is ALREADY connected it focuses that session and opens the terminal
-/// dock inside the existing Ghost FTP window (no second app window and no new
-/// connection is ever made); otherwise it falls back to the editor.
 function DeepLinkListener() {
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const openGrant = useLayout((s) => s.openGrant);
@@ -262,7 +312,7 @@ function DeepLinkListener() {
           : undefined;
         if (match && live && match.protocol === "sftp") {
           useConnections.getState().setActiveSession(live.sessionId);
-          useLayout.getState().closeDialog();
+          useLayout.getState().showFiles();
           useLayout.getState().setTerminalOpen(true);
           toast.info("Terminal ready", match.name);
           return;
@@ -279,7 +329,7 @@ function DeepLinkListener() {
         openNewConnection(deepLinkToPrefill(dl));
         toast.warning(
           "Server not connected",
-          "Connect it first, then the terminal link can open the in-app shell."
+          "Connect it first, then the terminal opens inside the main Ghost FTP window."
         );
         return;
       }

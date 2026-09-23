@@ -91,7 +91,6 @@ interface SettingsState {
   /** Show a per-file conflict prompt before overwriting. When false, apply
    *  `overwritePolicy` silently (the pre-prompt behaviour). */
   promptOnOverwrite: boolean;
-  autoOpenTransferPanel: boolean;
   /** Max simultaneous transfers (1–32). Live-applied to the backend queue. */
   transferConcurrency: number;
   /** Automatic retries for transient network/timeout failures (0–8). */
@@ -116,12 +115,6 @@ interface SettingsState {
   /** Remote image previews: `"off"` (default) or `"on"`. Local previews are
    *  always on; this only gates the network-fetching remote kind (Plan 13). */
   remoteImagePreviews: RemoteImagePreviews;
-  /** Expand the connection rail into a labeled list (names + addresses) instead
-   *  of the compact Discord-style bubble strip. */
-  railExpanded: boolean;
-  /** Rail groups the user has folded shut (by group name). */
-  railCollapsedGroups: string[];
-
   // Terminal
   terminalFontSize: number;
   terminalFontFamily: string;
@@ -139,16 +132,14 @@ interface SettingsState {
 
   // Integrations
   shellIntegration: boolean;
-  fileAssociations: boolean;
 
-  // Notifications (Plan 16 Phase 3)
+  // Notifications
   notifications: NotificationSettings;
 
   setAppTheme: (t: AppTheme) => void;
   setAccentColor: (hex: string) => void;
   setOverwritePolicy: (p: OverwritePolicy) => void;
   setPromptOnOverwrite: (v: boolean) => void;
-  setAutoOpenTransferPanel: (v: boolean) => void;
   setTransferConcurrency: (n: number) => void;
   setMaxRetryAttempts: (n: number) => void;
   setTransferThrottleKbps: (n: number) => void;
@@ -162,8 +153,6 @@ interface SettingsState {
   setPaneDensity: (d: PaneDensity) => void;
   setBrowserLayout: (l: BrowserLayout) => void;
   setRemoteImagePreviews: (v: RemoteImagePreviews) => void;
-  setRailExpanded: (v: boolean) => void;
-  toggleRailGroup: (name: string) => void;
   setTerminalFontSize: (n: number) => void;
   setTerminalFontFamily: (s: string) => void;
   setTerminalTheme: (t: TerminalTheme) => void;
@@ -172,7 +161,6 @@ interface SettingsState {
   setTerminalSuggestions: (v: boolean) => void;
   setDefaultPort: (n: number) => void;
   setShellIntegration: (v: boolean) => void;
-  setFileAssociations: (v: boolean) => void;
   setNotifications: (v: NotificationSettings) => void;
 }
 
@@ -184,7 +172,6 @@ export type PersistedSettings = Omit<
   | "setAccentColor"
   | "setOverwritePolicy"
   | "setPromptOnOverwrite"
-  | "setAutoOpenTransferPanel"
   | "setTransferConcurrency"
   | "setMaxRetryAttempts"
   | "setTransferThrottleKbps"
@@ -198,8 +185,6 @@ export type PersistedSettings = Omit<
   | "setPaneDensity"
   | "setBrowserLayout"
   | "setRemoteImagePreviews"
-  | "setRailExpanded"
-  | "toggleRailGroup"
   | "setTerminalFontSize"
   | "setTerminalFontFamily"
   | "setTerminalTheme"
@@ -208,7 +193,6 @@ export type PersistedSettings = Omit<
   | "setTerminalSuggestions"
   | "setDefaultPort"
   | "setShellIntegration"
-  | "setFileAssociations"
   | "setNotifications"
 >;
 
@@ -217,7 +201,6 @@ const DEFAULTS: PersistedSettings = {
   accentColor: "",
   overwritePolicy: "overwrite",
   promptOnOverwrite: true,
-  autoOpenTransferPanel: true,
   transferConcurrency: 3,
   maxRetryAttempts: 3,
   transferThrottleKbps: 0,
@@ -234,8 +217,6 @@ const DEFAULTS: PersistedSettings = {
   paneDensity: "comfortable",
   browserLayout: "dual",
   remoteImagePreviews: "off",
-  railExpanded: true,
-  railCollapsedGroups: [],
   terminalFontSize: 13,
   terminalFontFamily:
     '"JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace',
@@ -245,7 +226,6 @@ const DEFAULTS: PersistedSettings = {
   terminalSuggestions: true,
   defaultPort: 22,
   shellIntegration: false,
-  fileAssociations: false,
   notifications: { enabled: false, unfocusedOnly: true },
 };
 
@@ -253,9 +233,7 @@ const DEFAULTS: PersistedSettings = {
 // the localStorage→ghostftp.db migration filters against.
 export const SETTINGS_KEYS = Object.keys(DEFAULTS) as (keyof PersistedSettings)[];
 
-/** Read the pre-paint snapshot Rust injected on `window.__GHOSTFTP_SETTINGS__`
- *  (Plan 12 Phase 2) — present in the main window, absent in JS-spawned
- *  popouts and mock builds. */
+/** Read the pre-paint snapshot Rust injects on `window.__GHOSTFTP_SETTINGS__` in the native main window. */
 function readInjected(): Partial<PersistedSettings> | null {
   try {
     const inj = (globalThis as { __GHOSTFTP_SETTINGS__?: unknown }).__GHOSTFTP_SETTINGS__;
@@ -279,14 +257,12 @@ function pickKnown(obj: Partial<PersistedSettings>): Partial<PersistedSettings> 
 function load(): PersistedSettings {
   const injected = readInjected();
   if (injected) return { ...DEFAULTS, ...pickKnown(injected) };
-  // No injection (popout / mock / first paint before the script ran) — start
-  // from defaults; `hydrateFromDb()` below reconciles from ghostftp.db async.
+  // No injection (mock / first paint before the script ran) — start from
+  // defaults; `hydrateFromDb()` below reconciles from ghostftp.db async.
   return DEFAULTS;
 }
 
-/** Persist one setting to ghostftp.db — the single source of truth (Plan 12 Phase
- *  2). Fire-and-forget: a missing backend (mock) just skips the write, the
- *  in-memory value still applies for the session. */
+/** Persist one setting to ghostftp.db. A missing backend in mock builds skips the write while the in-memory value still applies for the session. */
 function persistKey<K extends keyof PersistedSettings>(key: K, value: PersistedSettings[K]) {
   ipc.settingsSet(String(key), JSON.stringify(value)).catch((error) => {
     toastError(error, `Couldn't save preference: ${String(key)}`);
@@ -312,8 +288,6 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setAccentColor: (hex) => mutate(set, get, "accentColor", hex),
   setOverwritePolicy: (p) => mutate(set, get, "overwritePolicy", p),
   setPromptOnOverwrite: (v) => mutate(set, get, "promptOnOverwrite", v),
-  setAutoOpenTransferPanel: (v) =>
-    mutate(set, get, "autoOpenTransferPanel", v),
   setTransferConcurrency: (n) => {
     const clamped = Math.max(1, Math.min(32, Math.round(n)));
     mutate(set, get, "transferConcurrency", clamped);
@@ -345,16 +319,6 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setPaneDensity: (d) => mutate(set, get, "paneDensity", d),
   setBrowserLayout: (l) => mutate(set, get, "browserLayout", l),
   setRemoteImagePreviews: (v) => mutate(set, get, "remoteImagePreviews", v),
-  setRailExpanded: (v) => mutate(set, get, "railExpanded", v),
-  toggleRailGroup: (name) => {
-    const cur = get().railCollapsedGroups;
-    mutate(
-      set,
-      get,
-      "railCollapsedGroups",
-      cur.includes(name) ? cur.filter((g) => g !== name) : [...cur, name]
-    );
-  },
   setTerminalFontSize: (n) =>
     mutate(set, get, "terminalFontSize", Math.max(8, Math.min(32, Math.round(n)))),
   setTerminalFontFamily: (s) => mutate(set, get, "terminalFontFamily", s),
@@ -372,7 +336,6 @@ export const useSettings = create<SettingsState>((set, get) => ({
     mutate(set, get, "terminalSuggestions", v),
   setDefaultPort: (n) => mutate(set, get, "defaultPort", Math.max(1, Math.min(65535, Math.round(n)))),
   setShellIntegration: (v) => mutate(set, get, "shellIntegration", v),
-  setFileAssociations: (v) => mutate(set, get, "fileAssociations", v),
   setNotifications: (v) => mutate(set, get, "notifications", v),
 }));
 

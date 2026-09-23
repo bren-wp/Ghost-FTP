@@ -14,9 +14,9 @@ import { toastError } from "@/lib/errors";
 
 // Single-pane file browser: the active server is the main view. Uploads go
 // through a native OS picker (Upload button); downloads land in the Downloads
-// folder. A "Local" rail bubble swaps the pane to the local filesystem. The
-// classic two-pane (local + remote) layout still lives in DualPaneBrowser and is
-// chosen via the `browserLayout` setting.
+// folder. The shared Files toolbar switches between Local and the active server
+// in single-pane mode. The classic two-pane (local + remote) layout still lives
+// in DualPaneBrowser and is chosen via the `browserLayout` setting.
 export function FileBrowser() {
   const activeSessionId = useConnections((s) => s.activeSessionId);
   const activeProfileId = useConnections((s) => s.activeProfileId);
@@ -124,6 +124,15 @@ export function FileBrowser() {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setUploadMenu({ x: r.left, y: r.bottom + 4 });
   };
+
+  useEffect(() => {
+    const pickFromSharedToolbar = () => {
+      if (!browseLocal && serverSid) void pickAndUpload("files");
+    };
+    window.addEventListener("ghostftp:pick-upload", pickFromSharedToolbar);
+    return () => window.removeEventListener("ghostftp:pick-upload", pickFromSharedToolbar);
+  }, [browseLocal, serverSid, serverRemotePath]);
+
   const uploadMenuItems: MenuItem[] = [
     {
       label: "Upload files…",

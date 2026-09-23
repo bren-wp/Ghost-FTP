@@ -236,13 +236,8 @@ pub fn run() {
                 Arc::new(preview::PreviewManager::new(dir.join("thumbnails")))
             };
 
-            // Create the main window ourselves (it's no longer in
-            // tauri.conf.json) so we can inject a pre-paint script that reads the
-            // theme from ghostftp.db and sets `data-theme` on <html> before the first
-            // paint — killing the dark→light flash structurally, not by timing
-            // luck (Plan 12 Phase 2). The script also stashes the full settings
-            // snapshot on `window.__GHOSTFTP_SETTINGS__` so the frontend store seeds
-            // itself synchronously instead of an async round-trip.
+            // Create the single main window in code so persisted appearance
+            // settings can be applied before the first frontend paint.
             {
                 let init_script = build_settings_init_script(&db);
                 let window_builder =
@@ -250,8 +245,16 @@ pub fn run() {
                         .title("Ghost FTP")
                         .inner_size(1290.0, 852.0)
                         .min_inner_size(480.0, 600.0)
+                        // Preserve the preferred desktop size, but never let the
+                        // first launch overflow the OS working area (taskbar/dock
+                        // included). This keeps compact displays usable without
+                        // starting maximized or fullscreen.
+                        .prevent_overflow_with_margin(tauri::LogicalSize::new(32.0, 32.0))
+                        .center()
                         .decorations(false)
                         .resizable(true)
+                        .maximized(false)
+                        .fullscreen(false)
                         .shadow(true)
                         .initialization_script(&init_script);
 

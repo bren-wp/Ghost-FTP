@@ -1,15 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   Activity,
-  ArrowDown,
-  ArrowUp,
-  Bookmark,
   CheckCircle2,
   FolderTree,
-  HelpCircle,
-  Languages,
   Pause,
   Play,
   Plus,
@@ -17,34 +11,26 @@ import {
   Clock3,
   RotateCcw,
   Search,
-  Server,
-  Settings,
   Trash2,
-  Wrench,
   XCircle,
 } from "lucide-react";
 import { useTransfers } from "@/stores/transfersStore";
 import { useConnections } from "@/stores/connectionsStore";
 import type { Transfer } from "@/lib/types";
-import { ReferenceWindowControls } from "./ReferenceWindowChrome";
-import { GhostMark } from "./GhostBrand";
-import { getLocale, setLocale } from "@/lib/i18n";
-import { useLayout } from "@/stores/layoutStore";
 import { useDialog } from "@/hooks/useDialog";
 import { toastError } from "@/lib/errors";
 import { useTransferSchedule } from "@/stores/transferScheduleStore";
 
-type FilterTab = "all" | "upload" | "download" | "completed" | "failed" | "paused";
+type FilterTab = "all" | "active" | "completed" | "failed";
 type DirectionFilter = "all" | "upload" | "download";
 type TimeFilter = "all" | "hour" | "day";
 type BandwidthSample = { upload: number; download: number };
 
 interface Props {
   onClose: () => void;
-  initialFocus?: "scheduler" | "log";
 }
 
-export function TransferCenterDialog({ onClose, initialFocus }: Props) {
+export function TransferCenterDialog({ onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const byId = useTransfers((state) => state.byId);
   const clearCompleted = useTransfers((state) => state.clearCompleted);
@@ -56,10 +42,6 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   const resume = useTransfers((state) => state.resume);
   const retry = useTransfers((state) => state.retry);
   const move = useTransfers((state) => state.move);
-  const concurrency = useTransfers((state) => state.concurrency);
-  const throttleKbps = useTransfers((state) => state.throttleKbps);
-  const setConcurrency = useTransfers((state) => state.setConcurrency);
-  const setThrottle = useTransfers((state) => state.setThrottle);
   const enqueueUploads = useTransfers((state) => state.enqueueUploads);
   const activeSessionId = useConnections((state) => state.activeSessionId);
   const activeProfileId = useConnections((state) => state.activeProfileId);
@@ -75,8 +57,8 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   const moreRef = useRef<HTMLDivElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const schedulerRef = useRef<HTMLDivElement>(null);
-  const logRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const scheduleMode = useTransferSchedule((state) => state.mode);
   const scheduleDate = useTransferSchedule((state) => state.date);
   const scheduleTime = useTransferSchedule((state) => state.time);
@@ -95,17 +77,7 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
     download: 0,
   });
 
-  useDialog(panelRef, { onClose });
-
-  useEffect(() => {
-    if (!initialFocus) return;
-    const timer = window.setTimeout(() => {
-      const target = initialFocus === "scheduler" ? schedulerRef.current : logRef.current;
-      target?.scrollIntoView({ behavior: "smooth", block: "center" });
-      target?.focus();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [initialFocus]);
+  useDialog(panelRef, { onClose, trapFocus: false });
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -161,19 +133,25 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
     (transfer) => transfer.status === "done" || transfer.status === "skipped"
   ).length;
   const failed = transfers.filter((transfer) => transfer.status === "error").length;
-  const paused = transfers.filter((transfer) => transfer.status === "paused").length;
+  const activeFilterCount = transfers.filter(
+    (transfer) =>
+      transfer.status === "transferring" ||
+      transfer.status === "queued" ||
+      transfer.status === "paused"
+  ).length;
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return transfers.filter((transfer) => {
       const tabMatch =
         tab === "all" ||
-        (tab === "upload" && transfer.kind === "upload") ||
-        (tab === "download" && transfer.kind === "download") ||
+        (tab === "active" &&
+          (transfer.status === "transferring" ||
+            transfer.status === "queued" ||
+            transfer.status === "paused")) ||
         (tab === "completed" &&
           (transfer.status === "done" || transfer.status === "skipped")) ||
-        (tab === "failed" && transfer.status === "error") ||
-        (tab === "paused" && transfer.status === "paused");
+        (tab === "failed" && transfer.status === "error");
       if (!tabMatch) return false;
 
       if (directionFilter !== "all" && transfer.kind !== directionFilter) return false;
@@ -261,8 +239,13 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   };
 
   const revealScheduler = () => {
-    schedulerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    requestAnimationFrame(() => schedulerRef.current?.focus());
+    setDetailsOpen(true);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        schedulerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        schedulerRef.current?.focus();
+      });
+    });
   };
 
   const addTransfer = async (kind: "files" | "folder" = "files") => {
@@ -309,17 +292,15 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
     <div
       className="ghost-workspace-view ghost-standalone-view bg-[#041425]"
       role="region"
-      aria-label="Transfer Center"
+      aria-label="Transfers"
     >
       <div
         ref={panelRef}
         className="ghost-transfer-center flex h-full w-full flex-col overflow-hidden bg-[#061a2d]"
       >
-        <TransferCenterTitlebar onClose={onClose} />
-
         <div className="ghost-transfer-center-heading flex h-[78px] shrink-0 items-center gap-3 border-b border-border px-4">
           <div>
-            <div className="text-xl font-semibold">Transfer Center</div>
+            <div className="text-xl font-semibold">Transfers</div>
             <div className="text-[12px] text-text-muted">
               Manage real uploads, downloads, queue state and transfer history.
             </div>
@@ -334,22 +315,6 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
           >
             <Plus size={14} /> Add Transfer
           </button>
-          <button
-            type="button"
-            className="ghost-mini-button"
-            onClick={revealScheduler}
-            title="Open the transfer scheduler"
-          >
-            <Clock3 size={14} /> Schedule
-          </button>
-          <button
-            type="button"
-            className="ghost-mini-button"
-            disabled={completed === 0}
-            onClick={clearCompleted}
-          >
-            <Trash2 size={14} /> Clear Completed
-          </button>
           <div className="relative" ref={moreRef}>
             <button
               ref={moreButtonRef}
@@ -363,6 +328,28 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
             </button>
             {moreOpen && (
               <div className="ghost-transfer-more-menu" role="menu" onKeyDown={onMoreMenuKeyDown}>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    setDetailsOpen((open) => !open);
+                  }}
+                >
+                  <Activity size={14}/>
+                  <span>{detailsOpen ? "Hide Details" : "Show Details"}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    revealScheduler();
+                  }}
+                >
+                  <Clock3 size={14}/>
+                  <span>Schedule Transfer…</span>
+                </button>
                 <button
                   type="button"
                   role="menuitem"
@@ -390,6 +377,18 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
                   {pausedAll ? <Play size={14}/> : <Pause size={14}/>}
                   <span>{pausedAll ? "Resume All" : "Pause All"}</span>
                 </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={completed === 0}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    clearCompleted();
+                  }}
+                >
+                  <Trash2 size={14}/>
+                  <span>Clear Completed</span>
+                </button>
               </div>
             )}
           </div>
@@ -402,16 +401,10 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
             label={`All Transfers (${transfers.length})`}
           />
           <Tab
-            active={tab === "upload"}
-            onClick={() => setTab("upload")}
-            label={`Uploads (${transfers.filter((transfer) => transfer.kind === "upload").length})`}
-            icon={<ArrowUp size={14} />}
-          />
-          <Tab
-            active={tab === "download"}
-            onClick={() => setTab("download")}
-            label={`Downloads (${transfers.filter((transfer) => transfer.kind === "download").length})`}
-            icon={<ArrowDown size={14} />}
+            active={tab === "active"}
+            onClick={() => setTab("active")}
+            label={`Active (${activeFilterCount})`}
+            icon={<Play size={14} />}
           />
           <Tab
             active={tab === "completed"}
@@ -424,12 +417,6 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
             onClick={() => setTab("failed")}
             label={`Failed (${failed})`}
             icon={<XCircle size={14} />}
-          />
-          <Tab
-            active={tab === "paused"}
-            onClick={() => setTab("paused")}
-            label={`Paused (${paused})`}
-            icon={<Pause size={14} />}
           />
           <div className="flex-1" />
           <div className="relative">
@@ -445,19 +432,6 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
-          <select
-            className="ghost-ref-input h-8 w-32"
-            aria-label="Transfer status filter"
-            value={tab}
-            onChange={(event) => setTab(event.target.value as FilterTab)}
-          >
-            <option value="all">All Statuses</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-            <option value="paused">Paused</option>
-            <option value="upload">Uploads</option>
-            <option value="download">Downloads</option>
-          </select>
           <select
             className="ghost-ref-input h-8 w-32"
             aria-label="Transfer direction filter"
@@ -481,41 +455,45 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto p-4">
-          <div className="grid min-w-[920px] grid-cols-[36px_minmax(220px,1.4fr)_95px_90px_160px_90px_90px_100px_106px] border-b border-border px-2 py-2 text-[10px] uppercase tracking-wider text-text-dim">
-            <span>#</span>
-            <span>Name</span>
-            <span>Direction</span>
-            <span>Size</span>
-            <span>Progress</span>
-            <span>Speed</span>
-            <span>ETA</span>
-            <span>Status</span>
-            <span className="text-right">Actions</span>
-          </div>
-          <div className="min-w-[920px]">
-            {filtered.length === 0 ? (
-              <Empty />
-            ) : (
-              filtered.map((transfer, index) => (
-                <TransferRow
-                  key={transfer.id}
-                  transfer={transfer}
-                  index={index + 1}
-                  selected={selected?.id === transfer.id}
-                  onClick={() => setSelectedId(transfer.id)}
-                  onPauseResume={() => void runBackendAction(
-                    transfer.status === "paused" ? "Couldn't resume transfer" : "Couldn't pause transfer",
-                    () => transfer.status === "paused" ? resume(transfer.id) : pause(transfer.id)
-                  )}
-                  onCancel={() => void runBackendAction("Couldn't cancel transfer", () => cancel(transfer.id))}
-                  onRetry={() => void runBackendAction("Couldn't retry transfer", () => retry(transfer.id))}
-                />
-              ))
-            )}
-          </div>
+          {filtered.length === 0 ? (
+            <Empty />
+          ) : (
+            <>
+              <div className="grid min-w-[920px] grid-cols-[36px_minmax(220px,1.4fr)_95px_90px_160px_90px_90px_100px_106px] border-b border-border px-2 py-2 text-[10px] uppercase tracking-wider text-text-dim">
+                <span>#</span>
+                <span>Name</span>
+                <span>Direction</span>
+                <span>Size</span>
+                <span>Progress</span>
+                <span>Speed</span>
+                <span>ETA</span>
+                <span>Status</span>
+                <span className="text-right">Actions</span>
+              </div>
+              <div className="min-w-[920px]">
+                {filtered.map((transfer, index) => (
+                  <TransferRow
+                    key={transfer.id}
+                    transfer={transfer}
+                    index={index + 1}
+                    selected={selected?.id === transfer.id}
+                    onClick={() => setSelectedId(transfer.id)}
+                    onPauseResume={() => void runBackendAction(
+                      transfer.status === "paused" ? "Couldn't resume transfer" : "Couldn't pause transfer",
+                      () => transfer.status === "paused" ? resume(transfer.id) : pause(transfer.id)
+                    )}
+                    onCancel={() => void runBackendAction("Couldn't cancel transfer", () => cancel(transfer.id))}
+                    onRetry={() => void runBackendAction("Couldn't retry transfer", () => retry(transfer.id))}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="ghost-transfer-summary-grid grid grid-cols-[1.55fr_.75fr] gap-4 border-t border-border bg-[#051929] p-4">
+        {detailsOpen && (
+          <>
+          <div className="ghost-transfer-summary-grid grid grid-cols-[1.55fr_.75fr] gap-4 border-t border-border bg-[#051929] p-4">
           <div className="rounded-lg border border-border bg-[#071f35] p-4">
             <div className="mb-3 flex items-center gap-2">
               <Activity size={16} className="text-accent" />
@@ -526,44 +504,6 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
               </span>
             </div>
             <BandwidthChart history={bandwidthHistory} />
-            <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-border-subtle pt-3 text-[10.5px] text-text-muted">
-              <label className="flex items-center gap-2">
-                <span>Concurrent</span>
-                <select
-                  className="ghost-ref-input h-7 w-[74px]"
-                  value={concurrency}
-                  onChange={(event) => {
-                    const next = Number(event.target.value);
-                    void runBackendAction("Couldn't change transfer concurrency", () => setConcurrency(next));
-                  }}
-                >
-                  {Array.from({ length: 8 }, (_, index) => index + 1)
-                    .concat([12, 16, 24, 32])
-                    .map((value) => <option key={value} value={value}>{value}</option>)}
-                </select>
-              </label>
-              <label className="flex items-center gap-2">
-                <span>Throttle</span>
-                <select
-                  className="ghost-ref-input h-7 min-w-[112px]"
-                  value={throttleKbps}
-                  onChange={(event) => {
-                    const next = Number(event.target.value);
-                    void runBackendAction("Couldn't change transfer throttle", () => setThrottle(next));
-                  }}
-                >
-                  {!([0, 512, 1024, 2048, 5120, 10240].includes(throttleKbps)) && (
-                    <option value={throttleKbps}>{throttleKbps} KiB/s</option>
-                  )}
-                  <option value={0}>Unlimited</option>
-                  <option value={512}>512 KiB/s</option>
-                  <option value={1024}>1 MiB/s</option>
-                  <option value={2048}>2 MiB/s</option>
-                  <option value={5120}>5 MiB/s</option>
-                  <option value={10240}>10 MiB/s</option>
-                </select>
-              </label>
-            </div>
           </div>
 
           <div className="rounded-lg border border-border bg-[#071f35] p-4">
@@ -708,11 +648,7 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
             )}
           </div>
 
-          <div
-            ref={logRef}
-            tabIndex={-1}
-            className="rounded-lg border border-border bg-[#071f35] p-4 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-          >
+          <div className="rounded-lg border border-border bg-[#071f35] p-4">
             <div className="mb-3 flex items-center">
               <strong>Transfer Log</strong>
               <div className="flex-1" />
@@ -747,6 +683,8 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
             </div>
           </div>
         </div>
+          </>
+        )}
 
         <div className="flex items-center border-t border-border bg-[#041522] px-4 py-3">
           <span
@@ -772,86 +710,6 @@ export function TransferCenterDialog({ onClose, initialFocus }: Props) {
   );
 }
 
-function TransferCenterTitlebar({ onClose }: { onClose: () => void }) {
-  const openDialog = useLayout((state) => state.openDialog);
-  const locale = getLocale();
-
-  const item = (
-    label: string,
-    icon: React.ReactNode,
-    action?: () => void,
-    active = false
-  ) => (
-    <button
-      type="button"
-      className={`ghost-transfer-nav-item ${active ? "active" : ""}`}
-      onClick={action}
-      disabled={active || !action}
-      aria-current={active ? "page" : undefined}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
-  );
-
-  const toggleMaximize = async () => {
-    try {
-      await getCurrentWindow().toggleMaximize();
-    } catch (error) {
-      toastError(error, "Couldn't maximize or restore Ghost FTP");
-    }
-  };
-
-  return (
-    <div
-      className="ghost-transfer-titlebar"
-      data-tauri-drag-region
-      onDoubleClick={() => void toggleMaximize()}
-    >
-      <div className="ghost-transfer-brand" data-tauri-drag-region>
-        <GhostMark size={34} />
-        <div>
-          <div className="font-semibold">Ghost FTP</div>
-          <div>Transfer Center</div>
-        </div>
-      </div>
-      <nav className="ghost-transfer-nav" aria-label="Transfer Center navigation">
-        {item("Sites", <FolderTree size={15} />, onClose)}
-        {item("Transfers", <ArrowUp size={15} />, undefined, true)}
-        {item("Server", <Server size={15} />, () => openDialog("siteManager"))}
-        {item("Bookmarks", <Bookmark size={15} />, () => openDialog("siteManager"))}
-        {item("Tools", <Wrench size={15} />, () => openDialog("settings"))}
-        {item("Settings", <Settings size={15} />, () => openDialog("settings"))}
-        {item("Help", <HelpCircle size={15} />, () => openDialog("help"))}
-      </nav>
-      <label className="ghost-transfer-language">
-        <Languages size={14} />
-        <select
-          aria-label="Language"
-          value={locale}
-          onChange={(event) => setLocale(event.target.value as any)}
-        >
-          <option value="en">English (English)</option>
-          <option value="hr">Hrvatski (Croatian)</option>
-          <option value="de">Deutsch (German)</option>
-          <option value="fr">Français (French)</option>
-          <option value="es">Español (Spanish)</option>
-          <option value="it">Italiano (Italian)</option>
-          <option value="pt">Português (Portuguese)</option>
-          <option value="nl">Nederlands (Dutch)</option>
-          <option value="pl">Polski (Polish)</option>
-          <option value="sl">Slovenščina (Slovenian)</option>
-          <option value="sr">Srpski (Serbian)</option>
-          <option value="bs">Bosanski (Bosnian)</option>
-          <option value="mk">Македонски (Macedonian)</option>
-          <option value="sq">Shqip (Albanian)</option>
-        </select>
-      </label>
-      <ReferenceWindowControls onClose={onClose} />
-    </div>
-  );
-}
-
 function Tab({
   label,
   icon,
@@ -868,7 +726,7 @@ function Tab({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-md border px-3 py-2 ${
+      className={`flex items-center gap-1.5 whitespace-nowrap rounded-md border px-3 py-2 ${
         active
           ? "border-accent bg-accent/15 text-white"
           : "border-transparent text-text-muted hover:bg-bg-hover"
@@ -887,7 +745,7 @@ function Empty() {
         <Activity size={28} className="mx-auto mb-3 text-accent" />
         <div className="font-semibold text-text">No transfers in this view</div>
         <div className="mx-auto mt-1 max-w-sm text-[12px] leading-5">
-          Start a real upload or download from File Manager, or change the active filters.
+          Start an upload or download from Files, or change the active filters.
         </div>
       </div>
     </div>
@@ -1090,15 +948,6 @@ function BandwidthChart({ history }: { history: BandwidthSample[] }) {
           />
         </svg>
       </div>
-    </div>
-  );
-}
-
-function QueueMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-border-subtle bg-[#051929] px-3 py-2">
-      <div className="text-[10px] text-text-dim">{label}</div>
-      <div className="mt-0.5 font-medium text-text">{value}</div>
     </div>
   );
 }

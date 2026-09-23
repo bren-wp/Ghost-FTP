@@ -3,7 +3,6 @@ import {
   Plus,
   X,
   TerminalSquare,
-  PictureInPicture2,
   Braces,
   Settings2,
   SplitSquareHorizontal,
@@ -26,7 +25,6 @@ import {
   type PaneNode,
   type SplitDir,
 } from "@/stores/terminalsStore";
-import { openTerminalWindow, popoutBufferKey } from "@/lib/popout";
 import { toast } from "@/stores/toastStore";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { cn } from "@/lib/cn";
@@ -35,8 +33,7 @@ import { cn } from "@/lib/cn";
 /// is one shell (its own PTY channel on the shared SSH connection), a split
 /// arranges two subtrees. Every tab across all sessions stays mounted; only the
 /// active tab's tree is visible. xterm instances live in the terminal registry
-/// (outside React) so scrollback survives tab switches, dock toggles, splits,
-/// popouts, and HMR — components only attach/detach the cached node.
+/// (outside React) so scrollback survives tab switches, dock toggles, splits and HMR — components only attach/detach the cached node.
 export function TerminalDock({
   sessionId,
   visible,
@@ -59,40 +56,6 @@ export function TerminalDock({
     null
   );
 
-  // Move the active pane's shell into its own window: hand the live PTY over
-  // (scrollback serialized through localStorage) and drop it here.
-  const popOut = async (tab: TerminalTab) => {
-    const entry = getPane(tab.activePaneId);
-    const terminalId = entry?.getTerminalId() ?? null;
-    if (entry && terminalId) {
-      try {
-        const buffer = entry.serialize();
-        if (buffer) localStorage.setItem(popoutBufferKey(terminalId), buffer);
-      } catch (error) {
-        console.warn("Couldn't persist terminal popout scrollback", error);
-      }
-      entry.setHandedOff(true);
-    }
-    try {
-      await openTerminalWindow({
-        sessionId: tab.sessionId,
-        title: tab.title,
-        terminalId: terminalId ?? undefined,
-        historyKey: useConnections
-          .getState()
-          .sessions.find((x) => x.sessionId === tab.sessionId)?.profileId,
-      });
-      // Dispose won't close the handed-off PTY; the new window owns it now.
-      useTerminals.getState().closePane(tab.id, tab.activePaneId);
-    } catch (e) {
-      if (entry && terminalId) {
-        entry.setHandedOff(false);
-        localStorage.removeItem(popoutBufferKey(terminalId));
-      }
-      toast.error("Pop out failed", String(e));
-    }
-  };
-
   const tabMenuItems = (tab: TerminalTab): MenuItem[] => [
     {
       label: "Split right",
@@ -103,14 +66,6 @@ export function TerminalDock({
       label: "Split down",
       icon: <SplitSquareVertical size={12} />,
       onClick: () => splitActivePane(tab.id, "col"),
-      separatorAfter: true,
-    },
-    {
-      label: "Pop out active pane",
-      icon: <PictureInPicture2 size={12} />,
-      // No PTY id yet (shell still opening) → nothing to hand off.
-      disabled: !getPane(tab.activePaneId)?.getTerminalId(),
-      onClick: () => void popOut(tab),
       separatorAfter: true,
     },
     {
