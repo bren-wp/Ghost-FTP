@@ -4830,3 +4830,36 @@ input.ghost-pane-address:focus-visible {
     min-width: 150px;
   }
 }
+
+
+/* RC16 single transfer surface: Files shows status only; management lives in Transfers. */
+.ghost-status-transfer-link {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 6px;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.ghost-status-transfer-link > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ghost-status-transfer-link:hover,
+.ghost-status-transfer-link:focus-visible {
+  border-color: rgb(var(--accent) / .35);
+  background: rgb(var(--accent) / .09);
+  color: white;
+}
+
+.ghost-status-transfer-link:focus-visible {
+  outline: 2px solid rgb(var(--accent) / .55);
+  outline-offset: 1px;
+}
