@@ -522,12 +522,15 @@ for (const forbidden of ["ReferenceMenuTitlebar", "ReferenceActionRow", 'grid-co
 const transferCenter = read("src/components/TransferCenterDialog.tsx");
 for (const required of [
   "Add Transfer",
-  "Schedule",
+  "Show Details",
+  "Hide Details",
+  "Schedule Transfer…",
   "Transfer Scheduler",
   "Set Schedule",
   "Clear Completed",
   "Pause All",
   "Retry",
+  "detailsOpen",
   'active={tab === "active"}',
   'aria-label="Transfer direction filter"',
   'aria-label="Transfer time filter"',
@@ -543,6 +546,7 @@ for (const forbidden of [
   'active={tab === "upload"}',
   'active={tab === "download"}',
   'active={tab === "paused"}',
+  'initialFocus?: "scheduler" | "log"',
 ]) {
   if (transferCenter.includes(forbidden)) failures.push(`Transfer Center still contains duplicate app navigation/filter control: ${forbidden}`);
 }
