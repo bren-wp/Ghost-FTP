@@ -372,45 +372,49 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
             </div>
           </div>
           <div className="flex-1" />
-          <div className="relative">
-            <Search
-              size={14}
-              className="pointer-events-none absolute left-3 top-2.5 text-text-dim"
-            />
-            <input
-              ref={searchRef}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="ghost-ref-input w-64 pl-9"
-              placeholder="Search sites…"
-              aria-label="Search saved sites"
-            />
-          </div>
-          <button
-            type="button"
-            className="ghost-mini-button"
-            onClick={() => openDialog("import")}
-          >
-            <Download size={14} /> Import
-          </button>
-          <button
-            type="button"
-            className="ghost-mini-button"
-            onClick={() => void exportSites()}
-            disabled={profiles.length === 0}
-          >
-            <Upload size={14} /> Export
-          </button>
-          <button
-            type="button"
-            className="ghost-primary-button"
-            onClick={() => openNewConnection()}
-          >
-            <Plus size={15} /> New Site
-          </button>
+          {profiles.length > 0 && (
+            <>
+              <div className="relative">
+                <Search
+                  size={14}
+                  className="pointer-events-none absolute left-3 top-2.5 text-text-dim"
+                />
+                <input
+                  ref={searchRef}
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  className="ghost-ref-input w-64 pl-9"
+                  placeholder="Search sites…"
+                  aria-label="Search saved sites"
+                />
+              </div>
+              <button
+                type="button"
+                className="ghost-mini-button"
+                onClick={() => openDialog("import")}
+              >
+                <Download size={14} /> Import
+              </button>
+              <button
+                type="button"
+                className="ghost-mini-button"
+                onClick={() => void exportSites()}
+              >
+                <Upload size={14} /> Export
+              </button>
+              <button
+                type="button"
+                className="ghost-primary-button"
+                onClick={() => openNewConnection()}
+              >
+                <Plus size={15} /> New Site
+              </button>
+            </>
+          )}
         </div>
 
-        <div className="ghost-site-filterbar flex shrink-0 items-center gap-2 overflow-x-auto border-b border-border bg-[#051929] px-3 py-2">
+        {profiles.length > 0 && (
+          <div className="ghost-site-filterbar flex shrink-0 items-center gap-2 overflow-x-auto border-b border-border bg-[#051929] px-3 py-2">
           <FilterChip active={view === "all"} label="All" count={profiles.length} onClick={() => setView("all")} />
           <FilterChip active={view === "favorites"} label="Favorites" count={profiles.filter((profile) => profile.favorite).length} onClick={() => setView("favorites")} />
           <FilterChip active={view === "recent"} label="Recent" count={profiles.filter((profile) => profile.lastUsed).length} onClick={() => setView("recent")} />
@@ -419,7 +423,8 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
           <div className="h-6 w-px shrink-0 bg-border"/>
           <label className="ghost-site-filter-select">Tag<select aria-label="Filter by tag" value={view.startsWith("tag:") ? view : ""} onChange={(event) => setView(event.target.value || "all")}><option value="">All tags</option>{tags.map((tag) => <option key={tag} value={`tag:${tag}`}>{tag}</option>)}</select></label>
           <label className="ghost-site-filter-select">Folder<select aria-label="Filter by folder" value={view.startsWith("folder:") ? view : ""} onChange={(event) => setView(event.target.value || "all")}><option value="">All folders</option>{folders.map((folder) => <option key={folder} value={`folder:${folder}`}>{folder}</option>)}</select></label>
-        </div>
+          </div>
+        )}
 
         {profiles.length === 0 && !query ? (
           <div className="ghost-sites-empty">
