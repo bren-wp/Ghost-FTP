@@ -8,7 +8,6 @@ use tauri::Manager;
 mod agent_host;
 pub mod backup;
 pub mod bridge;
-mod cli_updater;
 pub mod commands;
 pub mod credentials;
 pub mod db;
@@ -45,9 +44,6 @@ pub struct AppState {
     pub editors: Arc<editor::EditManager>,
     pub bridge: Arc<bridge::BridgeState>,
     pub agent_host: Arc<agent_host::AgentHost>,
-    /// CLI version-drift watcher (Plan 10 Phase 0c/0d) — keeps `ghostftp-cli` in step
-    /// with the app per the user's `cliUpdate` preference.
-    pub cli_updater: Arc<cli_updater::CliUpdater>,
     pub foldersync: Arc<foldersync::FolderSync>,
     /// On-demand virtual folders (Plan 9) — OneDrive-style placeholders. Owns
     /// the OS sync-root registrations; inert on non-Windows / non-`virtualfs`
@@ -303,7 +299,6 @@ pub fn run() {
                 editors: Arc::new(editor::EditManager::new()),
                 bridge: Arc::new(bridge::BridgeState::load_or_create(&handle).unwrap_or_default()),
                 agent_host: Arc::new(agent_host::AgentHost::load(&handle)?),
-                cli_updater: Arc::new(cli_updater::CliUpdater::load(&handle)?),
                 foldersync: Arc::new(foldersync::FolderSync::load(&handle)?),
                 virtualfs: Arc::new(virtualfs::VirtualFs::load(&handle)?),
                 diskscan: Arc::new(diskscan::ScanManager::new()),
@@ -354,15 +349,6 @@ pub fn run() {
             let host_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 host.auto_start_if_enabled(host_handle).await;
-            });
-
-            // Check whether the installed ghostftp-cli lags the app (Plan 10 0c/0d);
-            // updates silently when the user chose `auto`, else emits status so
-            // the status-bar pill can prompt.
-            let cli_updater = app.state::<AppState>().cli_updater.clone();
-            let cli_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                cli_updater.auto_start_if_enabled(cli_handle).await;
             });
 
             // Restart any folder-sync pairs the user left enabled.
@@ -424,10 +410,6 @@ pub fn run() {
             agent_host::agent_host_close_pairing,
             agent_host::agent_host_set_policy,
             agent_host::agent_host_revoke_peer,
-            cli_updater::cli_updater_status,
-            cli_updater::cli_updater_check,
-            cli_updater::cli_updater_update,
-            cli_updater::cli_updater_set_mode,
             path_integration::path_status,
             path_integration::path_add,
             path_integration::path_remove,
