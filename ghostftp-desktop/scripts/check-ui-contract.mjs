@@ -456,23 +456,31 @@ if (!appShell.includes('"Back to Sites"')) {
   failures.push("Site Manager New Site must expose an explicit return path back to Sites.");
 }
 
-const cliUpdater = read("src-tauri/src/cli_updater.rs");
-for (const required of [
-  "safe_mode",
-  "Automatic ghostftp-cli installation and updates are disabled until signed package verification is available.",
+for (const obsolete of [
+  "src-tauri/src/cli_updater.rs",
+  "src/stores/cliUpdaterStore.ts",
+  "src/components/CliUpdatePrompt.tsx",
+  "src/components/CliUpdaterSettings.tsx",
 ]) {
-  if (!cliUpdater.includes(required)) {
-    failures.push(`CLI updater must fail closed until native package verification exists: ${required}`);
+  if (fs.existsSync(obsolete)) {
+    failures.push(`Dead desktop CLI updater surface must not return: ${obsolete}`);
   }
 }
-for (const forbidden of [
-  "install_missing(",
-  "run_self_update(",
-  "reqwest::get(&url)",
-  "downloaded asset is only",
+for (const [label, source] of [
+  ["Tauri app state", read("src-tauri/src/lib.rs")],
+  ["frontend IPC", read("src/lib/ipc.ts")],
+  ["frontend types", read("src/lib/types.ts")],
 ]) {
-  if (cliUpdater.includes(forbidden)) {
-    failures.push(`Desktop CLI updater must not install unverified executable bytes: ${forbidden}`);
+  for (const forbidden of [
+    "cli_updater",
+    "cliUpdaterStatus",
+    "CliUpdateMode",
+    "CliStatus",
+    "onCliUpdaterStatus",
+  ]) {
+    if (source.includes(forbidden)) {
+      failures.push(`${label} still contains removed desktop CLI updater residue: ${forbidden}`);
+    }
   }
 }
 
