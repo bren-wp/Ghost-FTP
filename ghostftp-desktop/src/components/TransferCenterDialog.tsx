@@ -296,7 +296,7 @@ export function TransferCenterDialog({ onClose }: Props) {
     <div
       className="ghost-workspace-view ghost-standalone-view bg-[#041425]"
       role="region"
-      aria-label="Transfer Center"
+      aria-label="Transfers"
     >
       <div
         ref={panelRef}
@@ -304,7 +304,7 @@ export function TransferCenterDialog({ onClose }: Props) {
       >
         <div className="ghost-transfer-center-heading flex h-[78px] shrink-0 items-center gap-3 border-b border-border px-4">
           <div>
-            <div className="text-xl font-semibold">Transfer Center</div>
+            <div className="text-xl font-semibold">Transfers</div>
             <div className="text-[12px] text-text-muted">
               Manage real uploads, downloads, queue state and transfer history.
             </div>
@@ -766,7 +766,7 @@ function Tab({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-md border px-3 py-2 ${
+      className={`flex items-center gap-1.5 whitespace-nowrap rounded-md border px-3 py-2 ${
         active
           ? "border-accent bg-accent/15 text-white"
           : "border-transparent text-text-muted hover:bg-bg-hover"
