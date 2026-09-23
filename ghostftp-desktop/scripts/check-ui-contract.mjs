@@ -660,6 +660,18 @@ for (const required of ["QuantizedColors", "EdgeRatio", "byte-identical", "blank
 if (!styles.includes("@media (max-width: 760px)")) {
   failures.push("Primary navigation must keep labels until a truly narrow viewport.");
 }
+if (!styles.includes("RC16 compact Transfers filter reflow") ||
+    !/\.ghost-transfer-filters\s*\{[\s\S]*?flex-wrap:\s*wrap;[\s\S]*?overflow-x:\s*hidden\s*!important;/.test(
+      styles.slice(styles.indexOf("RC16 compact Transfers filter reflow"))
+    )) {
+  failures.push("Compact Transfers filters must wrap without horizontal filter scrolling.");
+}
+for (const required of [
+  '.ghost-transfer-filters select[aria-label="Transfer direction filter"]',
+  '.ghost-transfer-filters select[aria-label="Transfer time filter"]',
+]) {
+  if (!styles.includes(required)) failures.push(`Compact Transfers filters missing responsive selector: ${required}`);
+}
 for (const required of [
   "grid-template-rows: minmax(180px, 42%) minmax(0, 58%);",
   "display: block !important;",

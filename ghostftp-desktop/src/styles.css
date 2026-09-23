@@ -4902,3 +4902,57 @@ input.ghost-pane-address:focus-visible {
   min-height: 0 !important;
   height: 100% !important;
 }
+
+
+/* RC16 compact Transfers filter reflow:
+   keep status tabs, search, direction and time controls reachable without
+   horizontal filter scrolling on narrow native windows. The transfer table
+   keeps its own local horizontal scroll because it is column-dense data. */
+@media (max-width: 760px) {
+  .ghost-transfer-filters {
+    flex-wrap: wrap;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    gap: 8px !important;
+    padding: 8px !important;
+  }
+
+  .ghost-transfer-filters > button {
+    flex: 0 0 auto;
+    padding-inline: 10px;
+  }
+
+  .ghost-transfer-filters > .flex-1 {
+    display: none;
+  }
+
+  .ghost-transfer-filters > .relative {
+    flex: 1 1 220px;
+    min-width: 200px;
+    max-width: none;
+  }
+
+  .ghost-transfer-filters select[aria-label="Transfer direction filter"] {
+    width: auto !important;
+    min-width: 126px !important;
+    flex: 1 1 126px !important;
+  }
+
+  .ghost-transfer-filters select[aria-label="Transfer time filter"] {
+    width: auto !important;
+    min-width: 108px !important;
+    flex: 1 1 108px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .ghost-transfer-filters > .relative {
+    flex-basis: 100%;
+    min-width: 100%;
+  }
+
+  .ghost-transfer-filters select[aria-label="Transfer direction filter"],
+  .ghost-transfer-filters select[aria-label="Transfer time filter"] {
+    min-width: 0 !important;
+  }
+}
