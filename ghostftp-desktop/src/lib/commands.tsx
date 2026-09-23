@@ -21,7 +21,6 @@ import {
   X,
 } from "lucide-react";
 import { useConnections } from "@/stores/connectionsStore";
-import { useTransfers } from "@/stores/transfersStore";
 import { useLayout } from "@/stores/layoutStore";
 import { useSettings, APP_THEMES } from "@/stores/settingsStore";
 import { useSkills } from "@/stores/skillsStore";
@@ -50,8 +49,6 @@ export function useCommands(): Command[] {
   const activeProfileId = useConnections((s) => s.activeProfileId);
   const connect = useConnections((s) => s.connect);
   const disconnect = useConnections((s) => s.disconnect);
-
-  const togglePanel = useTransfers((s) => s.togglePanel);
 
   const toggleTerminal = useLayout((s) => s.toggleTerminal);
   const terminalOpen = useLayout((s) => s.terminalOpen);
@@ -148,12 +145,12 @@ export function useCommands(): Command[] {
       run: () => window.location.reload(),
     },
     {
-      id: "toggle-transfers",
-      title: "Toggle Transfer Panel",
+      id: "open-transfers",
+      title: "Open Transfers",
       group: "View",
       icon: <ArrowDownUp size={14} />,
       combo: "mod+t",
-      run: togglePanel,
+      run: () => openDialog("transferCenter"),
     },
     {
       id: "toggle-terminal",
