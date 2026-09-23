@@ -4742,3 +4742,91 @@ input.ghost-pane-address:focus-visible {
   margin: 4px 3px;
   background: rgb(var(--border));
 }
+
+
+/* RC16 post-QA geometry corrections:
+   remove legacy RC13 fixed header height and obsolete narrow nested-nav widths. */
+.ghost-simple-header {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+.ghost-settings-tabs,
+.ghost-about-tabs {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: 0 0 auto !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 6px 10px !important;
+  border-right: 0 !important;
+  scrollbar-width: none;
+}
+
+.ghost-settings-tabs::-webkit-scrollbar,
+.ghost-about-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.ghost-settings-tabs button,
+.ghost-about-tabs button {
+  flex: 0 0 auto;
+  margin: 0 !important;
+  white-space: nowrap;
+}
+
+.ghost-transfer-filters > .relative {
+  flex: 1 1 190px;
+  min-width: 170px;
+  max-width: 240px;
+}
+
+.ghost-transfer-filters > .relative .ghost-ref-input {
+  width: 100% !important;
+}
+
+.ghost-transfer-filters select[aria-label="Transfer direction filter"] {
+  width: 148px !important;
+  min-width: 148px !important;
+  flex: 0 0 148px !important;
+}
+
+.ghost-transfer-filters select[aria-label="Transfer time filter"] {
+  width: 118px !important;
+  min-width: 118px !important;
+  flex: 0 0 118px !important;
+}
+
+.ghost-sites-empty {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  place-items: center;
+  padding: 32px;
+  background:
+    radial-gradient(circle at 50% 42%, rgb(var(--accent) / .08), transparent 32%),
+    rgb(var(--bg));
+}
+
+.ghost-sites-empty-card {
+  width: min(520px, 100%);
+  border: 1px solid rgb(var(--border));
+  border-radius: 12px;
+  background: #071f35;
+  padding: 28px;
+  text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+@media (max-width: 760px) {
+  .ghost-settings-tabs,
+  .ghost-about-tabs {
+    padding-inline: 6px !important;
+  }
+
+  .ghost-transfer-filters > .relative {
+    min-width: 150px;
+  }
+}
