@@ -456,6 +456,45 @@ if (!appShell.includes('"Back to Sites"')) {
   failures.push("Site Manager New Site must expose an explicit return path back to Sites.");
 }
 
+const cliUpdater = read("src-tauri/src/cli_updater.rs");
+for (const required of [
+  "safe_mode",
+  "Automatic ghostftp-cli installation and updates are disabled until signed package verification is available.",
+]) {
+  if (!cliUpdater.includes(required)) {
+    failures.push(`CLI updater must fail closed until native package verification exists: ${required}`);
+  }
+}
+for (const forbidden of [
+  "install_missing(",
+  "run_self_update(",
+  "reqwest::get(&url)",
+  "downloaded asset is only",
+]) {
+  if (cliUpdater.includes(forbidden)) {
+    failures.push(`Desktop CLI updater must not install unverified executable bytes: ${forbidden}`);
+  }
+}
+
+const cliMain = read("src-tauri/ghostftp-cli/src/main.rs");
+for (const required of [
+  "automatic ghostftp-cli replacement is disabled until signed package verification is available",
+  "if check {",
+]) {
+  if (!cliMain.includes(required)) {
+    failures.push(`ghostftp-cli self-update must remain read-only/fail-closed: ${required}`);
+  }
+}
+for (const forbidden of [
+  "fn download_bytes(",
+  "fn swap_binary_at(",
+  "Downloading {asset}",
+]) {
+  if (cliMain.includes(forbidden)) {
+    failures.push(`ghostftp-cli must not restore unsigned executable replacement: ${forbidden}`);
+  }
+}
+
 const appErrorBoundary = read("src/components/AppErrorBoundary.tsx");
 if (appErrorBoundary.includes("Your files and server data were not modified")) {
   failures.push("Global recovery UI must not make an unverifiable claim about side effects from an operation that was already running.");
