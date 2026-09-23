@@ -447,11 +447,31 @@ for (const forbidden of ["ReferenceMenuTitlebar", "ReferenceActionRow", 'grid-co
 }
 
 const transferCenter = read("src/components/TransferCenterDialog.tsx");
-for (const required of ["Add Transfer", "Schedule", "Transfer Scheduler", "Set Schedule", "Clear Completed", "Pause All", "Retry"]) {
-  if (!transferCenter.includes(required)) failures.push(`Transfer Center missing action: ${required}`);
+for (const required of [
+  "Add Transfer",
+  "Schedule",
+  "Transfer Scheduler",
+  "Set Schedule",
+  "Clear Completed",
+  "Pause All",
+  "Retry",
+  'active={tab === "active"}',
+  'aria-label="Transfer direction filter"',
+  'aria-label="Transfer time filter"',
+]) {
+  if (!transferCenter.includes(required)) failures.push(`Transfer Center missing action/filter contract: ${required}`);
 }
-for (const forbidden of ["TransferCenterTitlebar", "ghost-transfer-language", "English (English)", "ReferenceWindowControls"]) {
-  if (transferCenter.includes(forbidden)) failures.push(`Transfer Center still contains duplicate app navigation/language control: ${forbidden}`);
+for (const forbidden of [
+  "TransferCenterTitlebar",
+  "ghost-transfer-language",
+  "English (English)",
+  "ReferenceWindowControls",
+  'aria-label="Transfer status filter"',
+  'active={tab === "upload"}',
+  'active={tab === "download"}',
+  'active={tab === "paused"}',
+]) {
+  if (transferCenter.includes(forbidden)) failures.push(`Transfer Center still contains duplicate app navigation/filter control: ${forbidden}`);
 }
 
 const props = read("packages/file-ui/src/components/PropertiesModal.tsx");
