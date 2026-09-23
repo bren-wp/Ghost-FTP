@@ -104,6 +104,9 @@ jobs:
             [DllImport("user32.dll")]
             public static extern bool SetForegroundWindow(IntPtr hWnd);
 
+            [DllImport("user32.dll")]
+            public static extern bool IsZoomed(IntPtr hWnd);
+
             [DllImport("user32.dll", SetLastError = true)]
             public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
           }
@@ -394,6 +397,23 @@ jobs:
                 throw "Unexpected Ghost FTP window title for $($view.key): $($proc.MainWindowTitle)"
               }
 
+              # Validate the real launch geometry before the canonical QA resize.
+              # RC16 must start as a normal window and stay inside the OS working
+              # area even when the preferred 1290x852 size is larger than the
+              # available desktop.
+              $launchRect = New-Object GhostFtpWindowCapture+RECT
+              if (-not [GhostFtpWindowCapture]::GetWindowRect($handle, [ref]$launchRect)) {
+                throw "GetWindowRect failed for initial $($view.key) launch"
+              }
+              $launchWidth = $launchRect.Right - $launchRect.Left
+              $launchHeight = $launchRect.Bottom - $launchRect.Top
+              if ([GhostFtpWindowCapture]::IsZoomed($handle)) {
+                throw "Ghost FTP started maximized for $($view.key)"
+              }
+              if ($launchWidth -gt ($work.Width - 16) -or $launchHeight -gt ($work.Height - 16)) {
+                throw "Ghost FTP initial window ${launchWidth}x${launchHeight} does not preserve a compact margin inside working area $($work.Width)x$($work.Height)"
+              }
+
               if (-not [GhostFtpWindowCapture]::SetWindowPos(
                 $handle,
                 [IntPtr]::Zero,
@@ -475,6 +495,7 @@ jobs:
                 "View=$($view.key)"
                 "ProcessId=$($proc.Id)"
                 "WindowTitle=$($proc.MainWindowTitle)"
+                "InitialWindowBounds=${launchWidth}x${launchHeight}"
                 "WindowBounds=${width}x${height}"
                 "TargetReferenceBounds=${targetWidth}x${targetHeight}"
                 "WorkingArea=$($work.Width)x$($work.Height)"
@@ -488,6 +509,58 @@ jobs:
                 "ImageBytes=$($pngInfo.Length)"
                 "Executable=$exe"
               ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC16-" + $view.label + ".txt"))
+
+              # Exercise a genuinely compact viewport for the workspaces that
+              # carry the most responsive pressure. This is separate from the
+              # canonical 1290x852 visual reference and catches clipped buttons,
+              # wrapped navigation and off-viewport overlays.
+              if (@('main', 'siteManager', 'newConnection', 'settings', 'transferCenter', 'about') -contains $view.key) {
+                $compactWidth = [Math]::Min(720, $work.Width - 40)
+                $compactHeight = [Math]::Min(640, $work.Height - 40)
+                if ($compactWidth -ge 520 -and $compactHeight -ge 610) {
+                  if (-not [GhostFtpWindowCapture]::SetWindowPos(
+                    $handle,
+                    [IntPtr]::Zero,
+                    $work.Left + 20,
+                    $work.Top + 20,
+                    $compactWidth,
+                    $compactHeight,
+                    ($SWP_NOZORDER -bor $SWP_SHOWWINDOW)
+                  )) {
+                    throw "Compact SetWindowPos failed for $($view.key)"
+                  }
+                  Start-Sleep -Milliseconds 350
+
+                  $compactPng = Join-Path $qaDir ("GhostFTP-Windows-RC16-" + $view.label + "-Compact.png")
+                  Capture-GhostFtpWebView2 -Port $debugPort -OutputPath $compactPng -Width $compactWidth -Height $compactHeight
+                  $compactValidation = Test-GhostFtpPng -Path $compactPng -ExpectedWidth $compactWidth -ExpectedHeight $compactHeight
+                  if (-not $compactValidation.Valid) {
+                    throw "Compact QA screenshot for $($view.key) is invalid (reason=$($compactValidation.Reason), colors=$($compactValidation.Colors), quantized=$($compactValidation.QuantizedColors), edgeRatio=$([Math]::Round($compactValidation.EdgeRatio,5)))"
+                  }
+
+                  $compactHash = (Get-FileHash -Algorithm SHA256 $compactPng).Hash
+                  if ($capturedHashes.ContainsKey($compactHash)) {
+                    throw "Compact QA screenshot for $($view.key) is byte-identical to $($capturedHashes[$compactHash])"
+                  }
+                  $capturedHashes[$compactHash] = "$($view.key)-compact"
+
+                  @(
+                    "View=$($view.key)-compact"
+                    "ProcessId=$($proc.Id)"
+                    "WindowTitle=$($proc.MainWindowTitle)"
+                    "WindowBounds=${compactWidth}x${compactHeight}"
+                    "WorkingArea=$($work.Width)x$($work.Height)"
+                    "CaptureMethod=WebView2 CDP compact responsive viewport"
+                    "DecodedColors=$($compactValidation.Colors)"
+                    "QuantizedColors=$($compactValidation.QuantizedColors)"
+                    "BrightnessRange=$([Math]::Round($compactValidation.Range,6))"
+                    "BrightnessVariance=$([Math]::Round($compactValidation.Variance,8))"
+                    "EdgeRatio=$([Math]::Round($compactValidation.EdgeRatio,8))"
+                    "OpaqueSamples=$($compactValidation.Opaque)/$($compactValidation.Samples)"
+                    "Executable=$exe"
+                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC16-" + $view.label + "-Compact.txt"))
+                }
+              }
             } finally {
               if (-not $proc.HasExited) {
                 $null = $proc.CloseMainWindow()
