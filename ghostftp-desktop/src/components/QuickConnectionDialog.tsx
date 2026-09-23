@@ -12,9 +12,10 @@ import { toastError } from "@/lib/errors";
 interface Props {
   prefill?: Partial<ConnectionProfile> | null;
   onClose: () => void;
+  saveByDefault?: boolean;
 }
 
-export function QuickConnectionDialog({ prefill, onClose }: Props) {
+export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   useDialog(panelRef, { onClose });
   const saveProfile = useConnections((s) => s.saveProfile);
@@ -31,7 +32,7 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
   const [keyPath, setKeyPath] = useState(prefill?.auth?.kind === "key" ? prefill.auth.path : "");
   const [keyPassphrase, setKeyPassphrase] = useState(prefill?.auth?.kind === "key" ? (prefill.auth.passphrase ?? "") : "");
   const [showKeyPassphrase, setShowKeyPassphrase] = useState(false);
-  const [remember, setRemember] = useState(false);
+  const [remember, setRemember] = useState(saveByDefault);
   const [advanced, setAdvanced] = useState(false);
   const [remotePath, setRemotePath] = useState(prefill?.defaultRemotePath ?? ".");
   const [name, setName] = useState(prefill?.name ?? "");
