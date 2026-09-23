@@ -4863,3 +4863,15 @@ input.ghost-pane-address:focus-visible {
   outline: 2px solid rgb(var(--accent) / .55);
   outline-offset: 1px;
 }
+
+
+/* RC16 transient editor sizing: overlays should fit their content rather than
+   looking like separate fixed-height application windows. */
+.ghost-new-connection-dialog {
+  height: auto !important;
+  max-height: min(620px, calc(100dvh - 24px)) !important;
+}
+
+.ghost-new-connection-body {
+  max-height: min(470px, calc(100dvh - 170px));
+}
