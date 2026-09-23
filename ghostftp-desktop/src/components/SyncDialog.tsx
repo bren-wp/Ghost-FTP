@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { ipc } from "@/lib/ipc";
 import { useConnections } from "@/stores/connectionsStore";
-import { useTransfers } from "@/stores/transfersStore";
+import { useLayout } from "@/stores/layoutStore";
 import { useDialog } from "@/hooks/useDialog";
 import type {
   SyncDirection,
@@ -38,7 +38,7 @@ export function SyncDialog({ localPath, remotePath, onClose }: Props) {
   const activeProfile = useConnections((s) =>
     s.profiles.find((p) => p.id === s.activeProfileId)
   );
-  const togglePanel = useTransfers((s) => s.togglePanel);
+  const openDialog = useLayout((s) => s.openDialog);
 
   const [direction, setDirection] = useState<SyncDirection>("localToRemote");
   const [strategy, setStrategy] = useState<SyncStrategy>("additive");
@@ -81,8 +81,8 @@ export function SyncDialog({ localPath, remotePath, onClose }: Props) {
     setError(null);
     try {
       await ipc.syncExecute(sessionId, plan);
-      togglePanel(); // open the transfer queue so progress is visible
       onClose();
+      openDialog("transferCenter");
     } catch (e) {
       setError(String(e));
       setExecuting(false);
