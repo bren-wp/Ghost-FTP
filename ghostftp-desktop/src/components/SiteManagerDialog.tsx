@@ -86,7 +86,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   const [metaValue, setMetaValue] = useState("");
   const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
 
-  useDialog(panelRef, { onClose, initialFocus: searchRef });
+  useDialog(panelRef, { onClose, initialFocus: searchRef, trapFocus: false });
 
   const folders = useMemo(
     () =>
