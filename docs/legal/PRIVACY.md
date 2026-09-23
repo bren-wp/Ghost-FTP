@@ -16,6 +16,12 @@ User-requested connections necessarily disclose technical connection information
 
 ## Local data
 
-Local settings, profile metadata, transfer history and caches should be written defensively. The profile store in the native source uses staged writes with a backup/recovery path to reduce corruption risk. Users remain responsible for backups of their own files and credentials.
+Local settings, profile metadata, transfer state and required caches are stored on the user's device. The profile store uses staged writes with a backup/recovery path to reduce corruption risk.
+
+Terminal suggestion history is **session-only** in RC18: entered shell commands are not persisted to WebView storage, and credential-looking commands are excluded even from the in-memory suggestion list. Notification-center history is also session-only. On upgrade, Ghost FTP removes legacy terminal/notification history keys created by older release candidates.
+
+User-facing diagnostic text passes through credential redaction for common password, passphrase, token, API-key, Authorization/Bearer, credential-URL and private-key patterns. This filtering is defense in depth and does not replace the rule that secrets should not be included in errors or logs in the first place.
+
+Users remain responsible for backups of their own files and credentials.
 
 For official privacy information, use **https://ghostftp.com/privacy/**. This project document describes the supplied software configuration and is not a substitute for the public website policy that applies to hosted Ghost FTP services.
