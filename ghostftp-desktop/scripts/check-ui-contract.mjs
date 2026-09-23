@@ -402,6 +402,17 @@ for (const forbidden of ["openTerminalWindow", "Pop out active pane", "PictureIn
 }
 
 const settings = read("src/components/Settings.tsx");
+for (const [label, source] of [
+  ["Settings", settings],
+  ["Help & About", read("src/components/AboutDialog.tsx")],
+  ["Transfer Center", read("src/components/TransferCenterDialog.tsx")],
+  ["Site Manager", read("src/components/SiteManagerDialog.tsx")],
+]) {
+  if (!source.includes("trapFocus: false")) {
+    failures.push(`${label} primary workspace must not trap keyboard focus away from persistent navigation`);
+  }
+}
+
 for (const required of ["Reset to Defaults", "Done", "Primary Language", "ghost-settings-tabs", "LanguagePanel", "Advanced", "Concurrent Transfers", "Speed Limit (KiB/s)", "Max Retry Attempts"]) {
   if (!settings.includes(required)) failures.push(`Settings missing simplified contract: ${required}`);
 }
