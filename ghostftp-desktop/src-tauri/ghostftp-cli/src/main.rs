@@ -213,17 +213,15 @@ enum Cmd {
         action: SkillCmd,
     },
 
-    /// Update this ghostftp-cli binary to the latest release (or a specific --tag).
+    /// Check this ghostftp-cli binary against the latest release.
     ///
-    /// Downloads the matching release asset from ghostftp.com (the same source the
-    /// agent installer uses) and swaps it in place. ghostftp-cli and the Ghost FTP app
-    /// ship as separate downloads, so the CLI can lag the app after an app
-    /// update — this catches it up. Use --check to only compare versions.
+    /// Executable replacement is intentionally disabled until CLI release
+    /// packages have cryptographic verification. Use --check to compare versions.
     SelfUpdate {
-        /// Update to a specific release tag (e.g. v1.4.0) instead of the latest.
+        /// Compare against a specific release tag (e.g. v1.4.0) instead of the latest.
         #[arg(long)]
         tag: Option<String>,
-        /// Only report current vs latest version; don't download or replace anything.
+        /// Report current vs latest version without modifying anything.
         #[arg(long)]
         check: bool,
     },
@@ -682,7 +680,8 @@ async fn run(cli: Cli) -> Result<()> {
         Cmd::Agent { action } => cmd_agent(action),
         // Skills likewise run through the bridge.
         Cmd::Skill { action } => cmd_skill(action),
-        // Self-update fetches a release asset from ghostftp.com over HTTPS.
+        // Self-update currently supports version checking only; native-code
+        // replacement stays disabled until signed CLI packages are available.
         Cmd::SelfUpdate { tag, check } => cmd_self_update(tag, check),
         // Authenticated GET through a saved HTTP profile's creds.
         Cmd::Fetch { url, profile } => cmd_fetch(&store, &url, profile).await,
@@ -1734,22 +1733,10 @@ async fn cmd_profiles_show(store: &ProfileStore, name: &str) -> Result<()> {
     Ok(())
 }
 
-// ---- self-update (Plan 10 Phase 0b) ------------------------------------
+// ---- CLI version check / secured self-update gate ----------------------
 
 /// Ghost FTP release service base URL (same as scripts/install-agentd.sh).
 const RELEASE_BASE: &str = "https://ghostftp.com";
-
-/// The release asset name matching this OS/arch — mirrors the `ghostftp-cli` matrix
-/// in `the Ghost FTP release pipeline` and the daemon installer's naming.
-fn target_asset_name() -> Result<&'static str> {
-    Ok(match (std::env::consts::OS, std::env::consts::ARCH) {
-        ("windows", "x86_64") => "ghostftp-cli-windows-x86_64.exe",
-        ("linux", "x86_64") => "ghostftp-cli-linux-x86_64",
-        (os, arch) => bail!(
-            "no prebuilt ghostftp-cli for {os}/{arch}; build from source (cargo build -p ghostftp-cli)"
-        ),
-    })
-}
 
 /// Ask the Ghost FTP release service for the latest release tag, normalised to a bare version
 /// (`v1.4.0` → `1.4.0`).
@@ -1772,125 +1759,33 @@ fn latest_release_tag() -> Result<String> {
     Ok(tag.trim_start_matches('v').to_string())
 }
 
-/// Release download URL for `asset`, at a specific tag or `latest`.
-fn asset_url(tag: Option<&str>, asset: &str) -> String {
-    match tag {
-        Some(t) => format!("{RELEASE_BASE}/downloads/{t}/{asset}"),
-        None => format!("{RELEASE_BASE}/downloads/{asset}"),
-    }
-}
-
-fn download_bytes(url: &str) -> Result<Vec<u8>> {
-    use std::io::Read as _;
-    let agent = ureq::AgentBuilder::new()
-        .timeout(std::time::Duration::from_secs(300))
-        .build();
-    let resp = agent
-        .get(url)
-        .set("User-Agent", "ghostftp-cli-self-update")
-        .call()
-        .with_context(|| format!("download {url}"))?;
-    let mut buf = Vec::new();
-    resp.into_reader()
-        .read_to_end(&mut buf)
-        .context("read download body")?;
-    Ok(buf)
-}
-
-/// Replace the binary at `target` with `new_bytes`. A running exe can't be
-/// overwritten in place on Windows (and to stay crash-safe on Unix), so write the
-/// new bytes to a sibling temp file on the same volume, then rename: on Unix an
-/// atomic rename over the target (the running process keeps the old inode); on
-/// Windows, move the current exe aside first (allowed while running), move the
-/// new one in, and leave the `.old` for the OS to reap. Split out from
-/// `current_exe()` so the swap mechanism is unit-testable on a temp file.
-fn swap_binary_at(target: &std::path::Path, new_bytes: &[u8]) -> Result<()> {
-    let dir = target
-        .parent()
-        .ok_or_else(|| anyhow!("target has no parent directory"))?;
-    let file_name = target
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("ghostftp-cli");
-    let new_path = dir.join(format!("{file_name}.new"));
-    std::fs::write(&new_path, new_bytes)
-        .with_context(|| format!("write {}", new_path.display()))?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&new_path, std::fs::Permissions::from_mode(0o755))
-            .context("chmod +x the new binary")?;
-        std::fs::rename(&new_path, target)
-            .with_context(|| format!("replace {}", target.display()))?;
-    }
-    #[cfg(windows)]
-    {
-        let old_path = dir.join(format!("{file_name}.old"));
-        let _ = std::fs::remove_file(&old_path); // clear a stale one
-        std::fs::rename(target, &old_path).context("rename current exe aside")?;
-        if let Err(e) = std::fs::rename(&new_path, target) {
-            // Roll back so the user isn't left without a binary.
-            let _ = std::fs::rename(&old_path, target);
-            let _ = std::fs::remove_file(&new_path);
-            return Err(anyhow::Error::new(e).context("move the new exe into place"));
-        }
-        let _ = std::fs::remove_file(&old_path); // often locked while running; ignore
-    }
-    Ok(())
-}
-
 fn cmd_self_update(tag: Option<String>, check: bool) -> Result<()> {
     let current = cli_version();
-    let asset = target_asset_name()?;
 
-    // Target version for reporting: the explicit tag, else the Ghost FTP release service's latest.
+    // Target version for reporting: the explicit tag, else the Ghost FTP release
+    // service's latest metadata. This path is read-only.
     let target_ver = match &tag {
         Some(t) => t.trim_start_matches('v').to_string(),
         None => latest_release_tag()?,
     };
 
-    if check {
-        println!("current: v{current}");
-        println!("latest:  v{target_ver}");
-        match (parse_semver(current), parse_semver(&target_ver)) {
-            (Some(c), Some(l)) if c < l => {
-                println!("→ an update is available — run `ghostftp-cli self-update`");
-            }
-            (Some(_), Some(_)) => println!("→ already up to date"),
-            _ => println!("→ could not compare versions"),
+    println!("current: v{current}");
+    println!("latest:  v{target_ver}");
+    match (parse_semver(current), parse_semver(&target_ver)) {
+        (Some(c), Some(l)) if c < l => {
+            println!("→ an update is available");
         }
+        (Some(_), Some(_)) => println!("→ already up to date"),
+        _ => println!("→ could not compare versions"),
+    }
+
+    if check {
         return Ok(());
     }
 
-    // Skip a no-op update to latest when we're already current.
-    if tag.is_none() {
-        if let (Some(c), Some(l)) = (parse_semver(current), parse_semver(&target_ver)) {
-            if c >= l {
-                println!("ghostftp-cli v{current} is already up to date.");
-                return Ok(());
-            }
-        }
-    }
-
-    let url = asset_url(tag.as_deref(), asset);
-    eprintln!("Downloading {asset} (v{target_ver})…");
-    let bytes = download_bytes(&url)?;
-    // A real ghostftp-cli is multi-MB; a tiny body is an HTML error page (bad tag) or
-    // a redirect that wasn't followed — refuse to install it over the binary.
-    if bytes.len() < 200_000 {
-        bail!(
-            "downloaded asset is only {} bytes — that doesn't look like ghostftp-cli (wrong --tag?)",
-            bytes.len()
-        );
-    }
-    let exe = std::env::current_exe().context("resolve the running ghostftp-cli path")?;
-    swap_binary_at(&exe, &bytes)?;
-    println!("Updated ghostftp-cli: v{current} → v{target_ver}");
-    #[cfg(windows)]
-    println!(
-        "(this process keeps running the old code; the next `ghostftp-cli` call uses the new binary)"
-    );
-    Ok(())
+    bail!(
+        "automatic ghostftp-cli replacement is disabled until signed package verification is available; install only a verified Ghost FTP CLI package"
+    )
 }
 
 // ---- Agent Bridge client -----------------------------------------------
@@ -3546,53 +3441,8 @@ fn fmt_bytes(n: u64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        asset_url, check_mangled_remote_path, is_windows_drive_path, parse_semver, swap_binary_at,
-    };
+    use super::{check_mangled_remote_path, is_windows_drive_path, parse_semver};
 
-    #[test]
-    fn asset_url_points_at_the_release() {
-        assert_eq!(
-            asset_url(None, "ghostftp-cli-windows-x86_64.exe"),
-            "https://ghostftp.com/downloads/ghostftp-cli-windows-x86_64.exe"
-        );
-        assert_eq!(
-            asset_url(Some("v1.4.0"), "ghostftp-cli-linux-x86_64"),
-            "https://ghostftp.com/downloads/v1.4.0/ghostftp-cli-linux-x86_64"
-        );
-    }
-
-    // Plan 10 Phase 0b: the swap must replace the target's bytes even though (on
-    // Windows) a running exe can't be overwritten in place — exercised here on a
-    // temp file to prove the rename-aside/move-in mechanism.
-    #[test]
-    fn swap_binary_replaces_target_bytes() {
-        let dir = tempdir_unique();
-        let target = dir.join("ghostftp-cli.exe");
-        std::fs::write(&target, b"OLD BINARY").unwrap();
-        swap_binary_at(&target, b"NEW BINARY BYTES").unwrap();
-        assert_eq!(std::fs::read(&target).unwrap(), b"NEW BINARY BYTES");
-        // No stray temp file left behind.
-        assert!(!dir.join("ghostftp-cli.exe.new").exists());
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    /// A unique temp dir without pulling in the tempfile crate (Date/rand are
-    /// fine in a test binary, unlike the workflow sandbox).
-    fn tempdir_unique() -> std::path::PathBuf {
-        let mut p = std::env::temp_dir();
-        let uniq = format!(
-            "ghostftp-cli-test-{}-{:?}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        );
-        p.push(uniq);
-        std::fs::create_dir_all(&p).unwrap();
-        p
-    }
 
     #[test]
     fn mangled_path_rejected_only_on_non_windows_target() {
