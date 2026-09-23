@@ -354,6 +354,14 @@ for (const required of [
   if (!fileBrowser.includes(required)) failures.push(`Single-pane File Browser missing navigation/upload bridge: ${required}`);
 }
 
+const filePane = read("packages/file-ui/src/components/FilePane.tsx");
+if (!filePane.includes("Open Sites and choose a saved connection, or create a new connection.")) {
+  failures.push("Remote FilePane empty state must point users to the simplified Sites/New connection navigation.");
+}
+if (filePane.includes("Pick a server in the left rail")) {
+  failures.push("Remote FilePane still references the removed server rail.");
+}
+
 const newConnection = read("src/components/QuickConnectionDialog.tsx");
 for (const required of [
   "Save this connection in Sites",
@@ -450,7 +458,19 @@ for (const forbidden of ["openOfficialUrl", "ReferenceWindowTitlebar", "Visit gh
 }
 
 const siteManager = read("src/components/SiteManagerDialog.tsx");
-for (const required of ["ghost-site-filterbar", "FilterChip", "Import", "Export", "New Site", "Connect", "Test Connection"]) {
+for (const required of [
+  "ghost-site-filterbar",
+  "FilterChip",
+  "Import",
+  "Export",
+  "New Site",
+  "Connect",
+  "Test Connection",
+  "ghost-sites-empty",
+  "Add your first site",
+  "Import Sites",
+  "profiles.length === 0 && !query",
+]) {
   if (!siteManager.includes(required)) failures.push(`Site Manager missing simplified/action contract: ${required}`);
 }
 for (const forbidden of ["ReferenceMenuTitlebar", "ReferenceActionRow", 'grid-cols-[242px_minmax(0,1fr)_356px]']) {
@@ -493,6 +513,7 @@ for (const required of ["Open Containing Folder", "Duplicate", "Apply", "Checksu
 const styles = read("src/styles.css");
 for (const required of [
   "RC16 single-window simplified navigation",
+  "RC16 post-QA geometry corrections",
   ".ghost-primary-sidebar {",
   ".ghost-sidebar-new {",
   ".ghost-content-shell {",
@@ -500,6 +521,10 @@ for (const required of [
   ".ghost-about-tabs,",
   ".ghost-site-filterbar {",
   ".ghost-workspace-view.ghost-standalone-view {",
+  ".ghost-sites-empty {",
+  ".ghost-sites-empty-card {",
+  ".ghost-transfer-filters > .relative {",
+  "height: auto !important;",
 ]) {
   if (!styles.includes(required)) failures.push(`Styles missing RC16 simplified-shell contract: ${required}`);
 }
