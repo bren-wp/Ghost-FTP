@@ -133,7 +133,7 @@ interface SettingsState {
   // Integrations
   shellIntegration: boolean;
 
-  // Notifications (Plan 16 Phase 3)
+  // Notifications
   notifications: NotificationSettings;
 
   setAppTheme: (t: AppTheme) => void;
@@ -233,8 +233,7 @@ const DEFAULTS: PersistedSettings = {
 // the localStorage→ghostftp.db migration filters against.
 export const SETTINGS_KEYS = Object.keys(DEFAULTS) as (keyof PersistedSettings)[];
 
-/** Read the pre-paint snapshot Rust injected on `window.__GHOSTFTP_SETTINGS__`
- *  (Plan 12 Phase 2) — present in the native main window and absent in mock builds. */
+/** Read the pre-paint snapshot Rust injects on `window.__GHOSTFTP_SETTINGS__` in the native main window. */
 function readInjected(): Partial<PersistedSettings> | null {
   try {
     const inj = (globalThis as { __GHOSTFTP_SETTINGS__?: unknown }).__GHOSTFTP_SETTINGS__;
@@ -263,9 +262,7 @@ function load(): PersistedSettings {
   return DEFAULTS;
 }
 
-/** Persist one setting to ghostftp.db — the single source of truth (Plan 12 Phase
- *  2). Fire-and-forget: a missing backend (mock) just skips the write, the
- *  in-memory value still applies for the session. */
+/** Persist one setting to ghostftp.db. A missing backend in mock builds skips the write while the in-memory value still applies for the session. */
 function persistKey<K extends keyof PersistedSettings>(key: K, value: PersistedSettings[K]) {
   ipc.settingsSet(String(key), JSON.stringify(value)).catch((error) => {
     toastError(error, `Couldn't save preference: ${String(key)}`);
