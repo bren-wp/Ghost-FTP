@@ -328,6 +328,17 @@ for (const required of ["rateById", "liveTransferRate", "RATE_STALE_AFTER_MS", "
     failures.push(`Transfers store missing real progress-derived rate telemetry: ${required}`);
   }
 }
+for (const required of [
+  "transferEventRevision",
+  "queueEventRevision",
+  "transferChangedWhileLoading",
+  "queueChangedWhileLoading",
+  "unlistenEvents?.();",
+]) {
+  if (!transfersStore.includes(required)) {
+    failures.push(`Transfers startup must preserve live events and clean partial listener registration: ${required}`);
+  }
+}
 for (const forbidden of ["panelOpen", "togglePanel", "setPanelOpen", "autoOpenTransferPanel"]) {
   if (transfersStore.includes(forbidden)) failures.push(`Transfers store still contains obsolete Files-panel state: ${forbidden}`);
 }
@@ -455,6 +466,15 @@ const appShell = read("src/App.tsx");
 if (!appShell.includes('"Back to Sites"')) {
   failures.push("Site Manager New Site must expose an explicit return path back to Sites.");
 }
+const transferListenerInitAt = appShell.indexOf("initListeners()");
+const transferSnapshotInitAt = appShell.indexOf("loadInitial()");
+if (
+  transferListenerInitAt < 0 ||
+  transferSnapshotInitAt < 0 ||
+  transferListenerInitAt > transferSnapshotInitAt
+) {
+  failures.push("App startup must register transfer listeners before loading the initial transfer snapshot.");
+}
 
 for (const obsolete of [
   "src-tauri/src/cli_updater.rs",
@@ -517,6 +537,9 @@ for (const [label, source] of [
 }
 
 const mainEntry = read("src/main.tsx");
+if (!mainEntry.includes("redactSensitiveText")) {
+  failures.push("Global async/runtime diagnostics must pass through central credential redaction.");
+}
 for (const forbidden of [
   "TerminalWindow",
   "sweepStalePopoutBuffers",
@@ -535,6 +558,17 @@ for (const forbidden of ["openTerminalWindow", "Pop out active pane", "PictureIn
 const terminalRegistry = read("src/lib/terminalRegistry.ts");
 for (const forbidden of ["setHandedOff", "handedOff", "SerializeAddon", "popout"]) {
   if (terminalRegistry.includes(forbidden)) failures.push(`Terminal registry still contains obsolete secondary-window handoff residue: ${forbidden}`);
+}
+for (const required of [
+  "clearNativeListeners(entry)",
+  "if (entry.disposed) {\n        unlistenData();",
+  "if (entry.disposed) {\n        // disposePane() already cleaned the data listener",
+  "if (entry.disposed) return;",
+  "redactSensitiveText(error",
+]) {
+  if (!terminalRegistry.includes(required)) {
+    failures.push(`Terminal lifecycle must remain disposal-aware and credential-redacted: ${required}`);
+  }
 }
 const packageJson = read("package.json");
 const packageLock = read("package-lock.json");
