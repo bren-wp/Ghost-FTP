@@ -2,9 +2,11 @@ import { ipc } from "@/lib/ipc";
 import { hydrateFromDb, SETTINGS_KEYS } from "@/stores/settingsStore";
 
 const STORAGE_KEY = "ghostftp.settings.v1";
+const LEGACY_NOTIFICATION_HISTORY_KEY = "ghostftp.notifications.v1";
+const LEGACY_TERMINAL_HISTORY_PREFIX = "ghostftp.term-history.v1:";
 
-// One-time migration of app settings from localStorage into ghostftp.db (Plan 12
-// Phase 2). Idempotent and safe by construction:
+// One-time migration of app settings from localStorage into ghostftp.db.
+// Idempotent and safe by construction:
 //   - if ghostftp.db already holds settings, do nothing (never re-import a stale
 //     blob over newer DB values);
 //   - migrate-then-verify: only drop the localStorage blob once the DB reads
@@ -33,6 +35,29 @@ const DEFAULT_BUMPS: DefaultBump[] = [
 ];
 
 const CURRENT_REVISION = DEFAULT_BUMPS.reduce((max, b) => Math.max(max, b.rev), 0);
+
+export function purgeLegacySensitiveBrowserState(): number {
+  let removed = 0;
+
+  if (localStorage.getItem(LEGACY_NOTIFICATION_HISTORY_KEY) !== null) {
+    localStorage.removeItem(LEGACY_NOTIFICATION_HISTORY_KEY);
+    removed++;
+  }
+
+  const terminalKeys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(LEGACY_TERMINAL_HISTORY_PREFIX)) {
+      terminalKeys.push(key);
+    }
+  }
+  for (const key of terminalKeys) {
+    localStorage.removeItem(key);
+    removed++;
+  }
+
+  return removed;
+}
 
 /** Apply any changed defaults this install predates. Idempotent: the stored
  *  revision only moves forward, so each bump runs at most once. */
@@ -71,6 +96,7 @@ export async function runDefaultBumps(): Promise<void> {
 
 export async function runSettingsMigration(): Promise<void> {
   try {
+    purgeLegacySensitiveBrowserState();
     const existing = await ipc.settingsGetAll();
     if (Object.keys(existing).length > 0) return; // already migrated
 
