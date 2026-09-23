@@ -204,6 +204,8 @@ function indexBy(transfers: Transfer[]): Record<string, Transfer> {
 }
 
 const transferRateBaselines = new Map<string, { bytes: number; at: number }>();
+let transferEventRevision = 0;
+let queueEventRevision = 0;
 const RATE_STALE_AFTER_MS = 2_500;
 const RATE_EMA_WEIGHT = 0.35;
 
@@ -275,56 +277,89 @@ export const useTransfers = create<TransfersState>((set, get) => ({
   throttleKbps: 0,
 
   initListeners: async () => {
-    const unlistenEvents = await onTransferEvent((kind, t) => {
-      // Keep the transfer snapshot plus rolling rate telemetry from actual
-      // backend progress byte deltas. Updated/paused/error/done events reset
-      // the sample instead of leaving stale speed visible.
-      set((s) => ({
-        byId: { ...s.byId, [t.id]: t },
-        rateById: {
-          ...s.rateById,
-          [t.id]: rateFromEvent(kind, t, s.rateById[t.id]),
-        },
-      }));
-      // Surface terminal outcomes as toasts so background transfers aren't silent.
-      if (kind === "done") {
-        const verb = t.kind === "upload" ? "Uploaded" : "Downloaded";
-        if (t.status === "skipped") {
-          toast.info("Transfer skipped", baseName(t.source));
-        } else {
-          toast.success("Transfer complete", `${verb} ${baseName(t.source)}`);
+    let unlistenEvents: (() => void) | null = null;
+    try {
+      unlistenEvents = await onTransferEvent((kind, t) => {
+        transferEventRevision++;
+        // Keep the transfer snapshot plus rolling rate telemetry from actual
+        // backend progress byte deltas. Updated/paused/error/done events reset
+        // the sample instead of leaving stale speed visible.
+        set((state) => ({
+          byId: { ...state.byId, [t.id]: t },
+          rateById: {
+            ...state.rateById,
+            [t.id]: rateFromEvent(kind, t, state.rateById[t.id]),
+          },
+        }));
+        // Surface terminal outcomes as toasts so background transfers aren't silent.
+        if (kind === "done") {
+          const verb = t.kind === "upload" ? "Uploaded" : "Downloaded";
+          if (t.status === "skipped") {
+            toast.info("Transfer skipped", baseName(t.source));
+          } else {
+            toast.success("Transfer complete", `${verb} ${baseName(t.source)}`);
+          }
+        } else if (kind === "error") {
+          toast.error("Transfer failed", t.error || baseName(t.source));
         }
-      } else if (kind === "error") {
-        toast.error("Transfer failed", t.error || baseName(t.source));
-      }
-    });
-    const unlistenQueue = await onTransferQueue((q) => {
-      set({
-        queue: q.waiting,
-        pausedAll: q.pausedAll,
-        concurrency: q.concurrency,
-        throttleKbps: q.throttleKbps,
       });
-    });
-    return () => {
-      unlistenEvents();
-      unlistenQueue();
-    };
+
+      const unlistenQueue = await onTransferQueue((q) => {
+        queueEventRevision++;
+        set({
+          queue: q.waiting,
+          pausedAll: q.pausedAll,
+          concurrency: q.concurrency,
+          throttleKbps: q.throttleKbps,
+        });
+      });
+
+      return () => {
+        unlistenEvents?.();
+        unlistenQueue();
+      };
+    } catch (error) {
+      // If queue-listener registration fails after the transfer listener is
+      // already live, release the partial registration before surfacing the
+      // initialization failure.
+      unlistenEvents?.();
+      throw error;
+    }
   },
 
   loadInitial: async () => {
+    const transferRevisionAtStart = transferEventRevision;
+    const queueRevisionAtStart = queueEventRevision;
     const [list, q] = await Promise.all([
       ipc.listTransfers(),
       ipc.transferQueueState(),
     ]);
-    transferRateBaselines.clear();
-    set({
-      byId: indexBy(list),
-      rateById: {},
-      queue: q.waiting,
-      pausedAll: q.pausedAll,
-      concurrency: q.concurrency,
-      throttleKbps: q.throttleKbps,
+
+    const initialById = indexBy(list);
+    set((state) => {
+      const transferChangedWhileLoading =
+        transferEventRevision !== transferRevisionAtStart;
+      const queueChangedWhileLoading = queueEventRevision !== queueRevisionAtStart;
+
+      if (!transferChangedWhileLoading) {
+        transferRateBaselines.clear();
+      }
+
+      return {
+        // A live event observed after snapshot loading began is newer than the
+        // snapshot. Preserve it while still importing transfers that existed
+        // before listener registration completed.
+        byId: transferChangedWhileLoading
+          ? { ...initialById, ...state.byId }
+          : initialById,
+        rateById: transferChangedWhileLoading ? state.rateById : {},
+        queue: queueChangedWhileLoading ? state.queue : q.waiting,
+        pausedAll: queueChangedWhileLoading ? state.pausedAll : q.pausedAll,
+        concurrency: queueChangedWhileLoading ? state.concurrency : q.concurrency,
+        throttleKbps: queueChangedWhileLoading
+          ? state.throttleKbps
+          : q.throttleKbps,
+      };
     });
   },
 
