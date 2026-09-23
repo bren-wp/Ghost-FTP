@@ -323,6 +323,11 @@ for (const forbidden of [
 }
 
 const transfersStore = read("src/stores/transfersStore.ts");
+for (const required of ["rateById", "liveTransferRate", "RATE_STALE_AFTER_MS", "rateFromEvent"]) {
+  if (!transfersStore.includes(required)) {
+    failures.push(`Transfers store missing real progress-derived rate telemetry: ${required}`);
+  }
+}
 for (const forbidden of ["panelOpen", "togglePanel", "setPanelOpen", "autoOpenTransferPanel"]) {
   if (transfersStore.includes(forbidden)) failures.push(`Transfers store still contains obsolete Files-panel state: ${forbidden}`);
 }
@@ -451,6 +456,53 @@ if (!appShell.includes('"Back to Sites"')) {
   failures.push("Site Manager New Site must expose an explicit return path back to Sites.");
 }
 
+for (const obsolete of [
+  "src-tauri/src/cli_updater.rs",
+  "src/stores/cliUpdaterStore.ts",
+  "src/components/CliUpdatePrompt.tsx",
+  "src/components/CliUpdaterSettings.tsx",
+]) {
+  if (fs.existsSync(obsolete)) {
+    failures.push(`Dead desktop CLI updater surface must not return: ${obsolete}`);
+  }
+}
+for (const [label, source] of [
+  ["Tauri app state", read("src-tauri/src/lib.rs")],
+  ["frontend IPC", read("src/lib/ipc.ts")],
+  ["frontend types", read("src/lib/types.ts")],
+]) {
+  for (const forbidden of [
+    "cli_updater",
+    "cliUpdaterStatus",
+    "CliUpdateMode",
+    "CliStatus",
+    "onCliUpdaterStatus",
+  ]) {
+    if (source.includes(forbidden)) {
+      failures.push(`${label} still contains removed desktop CLI updater residue: ${forbidden}`);
+    }
+  }
+}
+
+const cliMain = read("src-tauri/ghostftp-cli/src/main.rs");
+for (const required of [
+  "automatic ghostftp-cli replacement is disabled until signed package verification is available",
+  "if check {",
+]) {
+  if (!cliMain.includes(required)) {
+    failures.push(`ghostftp-cli self-update must remain read-only/fail-closed: ${required}`);
+  }
+}
+for (const forbidden of [
+  "fn download_bytes(",
+  "fn swap_binary_at(",
+  "Downloading {asset}",
+]) {
+  if (cliMain.includes(forbidden)) {
+    failures.push(`ghostftp-cli must not restore unsigned executable replacement: ${forbidden}`);
+  }
+}
+
 const appErrorBoundary = read("src/components/AppErrorBoundary.tsx");
 if (appErrorBoundary.includes("Your files and server data were not modified")) {
   failures.push("Global recovery UI must not make an unverifiable claim about side effects from an operation that was already running.");
@@ -471,6 +523,19 @@ const terminal = read("src/components/Terminal.tsx");
 for (const forbidden of ["openTerminalWindow", "Pop out active pane", "PictureInPicture2", "popoutBufferKey"]) {
   if (terminal.includes(forbidden)) failures.push(`Terminal still exposes a secondary-window action: ${forbidden}`);
 }
+
+const terminalRegistry = read("src/lib/terminalRegistry.ts");
+for (const forbidden of ["setHandedOff", "handedOff", "SerializeAddon", "popout"]) {
+  if (terminalRegistry.includes(forbidden)) failures.push(`Terminal registry still contains obsolete secondary-window handoff residue: ${forbidden}`);
+}
+const packageJson = read("package.json");
+const packageLock = read("package-lock.json");
+for (const [label, source] of [["package.json", packageJson], ["package-lock.json", packageLock]]) {
+  if (source.includes("@xterm/addon-serialize")) {
+    failures.push(`${label}: unused terminal serialize dependency returned after popout removal`);
+  }
+}
+
 
 const settings = read("src/components/Settings.tsx");
 for (const [label, source] of [
@@ -573,6 +638,8 @@ for (const forbidden of ["ReferenceMenuTitlebar", "ReferenceActionRow", 'grid-co
 
 const transferCenter = read("src/components/TransferCenterDialog.tsx");
 for (const required of [
+  "liveTransferRate",
+  "rate={liveTransferRate(transfer, rateById[transfer.id])}",
   'aria-label="Transfers"',
   "<div className=\"text-xl font-semibold\">Transfers</div>",
   "Add Transfer",
@@ -599,6 +666,9 @@ if (transferCenter.includes('<div className="min-w-[920px]">\n            {filte
 }
 
 for (const forbidden of [
+  "function speedOf(transfer: Transfer)",
+  "transfer.transferred / seconds",
+  "previousTotals",
   "TransferCenterTitlebar",
   "ghost-transfer-language",
   "English (English)",
@@ -623,11 +693,16 @@ for (const required of ["Open Containing Folder", "Duplicate", "Apply", "Checksu
 
 const statusBar = read("src/components/ReferenceStatusBar.tsx");
 for (const required of [
+  "liveTransferRate",
+  "rateById",
   'openDialog("transferCenter")',
   "ghost-status-transfer-link",
   'aria-label="Open Transfers"',
 ]) {
   if (!statusBar.includes(required)) failures.push(`Files transfer status must link to the single Transfers workspace: ${required}`);
+}
+if (statusBar.includes("transfer.transferred / elapsed")) {
+  failures.push("Files status bar must not regress to average-since-start transfer speed.");
 }
 
 const styles = read("src/styles.css");

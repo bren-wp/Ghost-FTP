@@ -14,7 +14,7 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
-import { useTransfers } from "@/stores/transfersStore";
+import { liveTransferRate, useTransfers } from "@/stores/transfersStore";
 import { useConnections } from "@/stores/connectionsStore";
 import type { Transfer } from "@/lib/types";
 import { useDialog } from "@/hooks/useDialog";
@@ -33,6 +33,7 @@ interface Props {
 export function TransferCenterDialog({ onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const byId = useTransfers((state) => state.byId);
+  const rateById = useTransfers((state) => state.rateById);
   const clearCompleted = useTransfers((state) => state.clearCompleted);
   const pauseAll = useTransfers((state) => state.pauseAll);
   const resumeAll = useTransfers((state) => state.resumeAll);
@@ -71,11 +72,6 @@ export function TransferCenterDialog({ onClose }: Props) {
   const setScheduleArmed = useTransferSchedule((state) => state.setArmed);
   const [logClearedAt, setLogClearedAt] = useState(0);
   const [bandwidthHistory, setBandwidthHistory] = useState<BandwidthSample[]>([]);
-  const previousTotals = useRef({
-    at: Date.now(),
-    upload: 0,
-    download: 0,
-  });
 
   useDialog(panelRef, { onClose, trapFocus: false });
 
@@ -190,39 +186,31 @@ export function TransferCenterDialog({ onClose }: Props) {
     (transfer) => transfer.status === "transferring"
   );
 
-  // Sample real byte deltas only while transfers are active. Idle Transfer
-  // Center views do not repaint every second and never manufacture decorative
-  // history; the existing real history remains visible until new activity.
+  // Sample the rolling rates derived from real backend progress events. Idle
+  // views do not repaint, and a stalled transfer naturally samples as 0 once
+  // its last progress event becomes stale.
   useEffect(() => {
-    const snapshotTotals = () =>
-      Object.values(useTransfers.getState().byId).reduce(
+    if (!hasLiveTransfer) return;
+
+    const sample = () => {
+      const state = useTransfers.getState();
+      const now = Date.now();
+      const next = Object.values(state.byId).reduce<BandwidthSample>(
         (sum, transfer) => {
-          sum[transfer.kind] += transfer.transferred;
+          const speed = liveTransferRate(
+            transfer,
+            state.rateById[transfer.id],
+            now
+          );
+          sum[transfer.kind] += speed;
           return sum;
         },
         { upload: 0, download: 0 }
       );
-
-    const baseline = snapshotTotals();
-    previousTotals.current = { at: Date.now(), ...baseline };
-    if (!hasLiveTransfer) return;
-
-    const sample = () => {
-      const totals = snapshotTotals();
-      const now = Date.now();
-      const previous = previousTotals.current;
-      const elapsedSeconds = Math.max(0.25, (now - previous.at) / 1000);
-      const next: BandwidthSample = {
-        upload: Math.max(0, (totals.upload - previous.upload) / elapsedSeconds),
-        download: Math.max(
-          0,
-          (totals.download - previous.download) / elapsedSeconds
-        ),
-      };
-      previousTotals.current = { at: now, ...totals };
       setBandwidthHistory((history) => [...history, next].slice(-48));
     };
 
+    sample();
     const timer = window.setInterval(sample, 1000);
     return () => window.clearInterval(timer);
   }, [hasLiveTransfer]);
@@ -475,6 +463,7 @@ export function TransferCenterDialog({ onClose }: Props) {
                   <TransferRow
                     key={transfer.id}
                     transfer={transfer}
+                    rate={liveTransferRate(transfer, rateById[transfer.id])}
                     index={index + 1}
                     selected={selected?.id === transfer.id}
                     onClick={() => setSelectedId(transfer.id)}
@@ -512,7 +501,10 @@ export function TransferCenterDialog({ onClose }: Props) {
               <strong>Active Transfer Details</strong>
             </div>
             {selected ? (
-              <TransferDetails transfer={selected} />
+              <TransferDetails
+                transfer={selected}
+                rate={liveTransferRate(selected, rateById[selected.id])}
+              />
             ) : (
               <div className="text-[12px] text-text-muted">
                 Select a transfer to see details.
@@ -754,6 +746,7 @@ function Empty() {
 
 function TransferRow({
   transfer,
+  rate,
   index,
   selected,
   onClick,
@@ -762,6 +755,7 @@ function TransferRow({
   onRetry,
 }: {
   transfer: Transfer;
+  rate: number;
   index: number;
   selected: boolean;
   onClick: () => void;
@@ -814,8 +808,8 @@ function TransferRow({
         </span>
         <span className="w-8 text-right text-[10px]">{pct.toFixed(0)}%</span>
       </span>
-      <span className="text-text-muted">{formatRate(speedOf(transfer))}</span>
-      <span className="text-text-muted">{etaOf(transfer)}</span>
+      <span className="text-text-muted">{formatRate(rate)}</span>
+      <span className="text-text-muted">{etaOf(transfer, rate)}</span>
       <span
         className={
           transfer.status === "error"
@@ -865,7 +859,7 @@ function TransferRow({
   );
 }
 
-function TransferDetails({ transfer }: { transfer: Transfer }) {
+function TransferDetails({ transfer, rate }: { transfer: Transfer; rate: number }) {
   const pct =
     transfer.size > 0
       ? Math.max(0, Math.min(100, (transfer.transferred / transfer.size) * 100))
@@ -884,8 +878,8 @@ function TransferDetails({ transfer }: { transfer: Transfer }) {
       <div>
         Transferred: {formatBytes(transfer.transferred)} / {formatBytes(transfer.size)}
       </div>
-      <div>Speed: {formatRate(speedOf(transfer))}</div>
-      <div>ETA: {etaOf(transfer)}</div>
+      <div>Speed: {formatRate(rate)}</div>
+      <div>ETA: {etaOf(transfer, rate)}</div>
       <div>
         Status: <span className="text-accent">{transfer.status}</span>
       </div>
@@ -952,15 +946,7 @@ function BandwidthChart({ history }: { history: BandwidthSample[] }) {
   );
 }
 
-function speedOf(transfer: Transfer) {
-  const seconds = Math.max(1, Date.now() / 1000 - transfer.startedAt);
-  return transfer.status === "transferring"
-    ? transfer.transferred / seconds
-    : 0;
-}
-
-function etaOf(transfer: Transfer) {
-  const speed = speedOf(transfer);
+function etaOf(transfer: Transfer, speed: number) {
   if (
     !speed ||
     transfer.status !== "transferring" ||

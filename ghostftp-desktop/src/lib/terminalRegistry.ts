@@ -1,10 +1,9 @@
-// Terminal instance registry (Plan 11 Phase 1). xterm instances — and the DOM
-// node each one renders into — live here, OUTSIDE React, keyed by a stable
-// pane id. React components are thin viewports: on mount they `attach(el)` the
-// cached node, on unmount they `detach()` it; the instance (and its scrollback,
-// PTY, and listeners) survives remounts, dock toggles, split-tree restructures,
-// popouts, and HMR. Disposal is driven explicitly by the terminals store (the
-// source of truth), never by a React unmount.
+// Terminal instance registry. xterm instances — and the DOM node each one
+// renders into — live here outside React, keyed by a stable pane id. React
+// components are thin viewports: on mount they `attach(el)` the cached node,
+// on unmount they `detach()` it; the instance (and its scrollback, PTY, and
+// listeners) survives remounts, dock toggles, split-tree restructures and HMR.
+// Disposal is driven explicitly by the terminals store, never by a React unmount.
 //
 // This is what makes split panes cheap: re-parenting a pane in the layout tree
 // remounts its React node, but the xterm element is just moved, not rebuilt.
@@ -12,7 +11,6 @@
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
-import { SerializeAddon } from "@xterm/addon-serialize";
 import { ipc, onTerminalData, onTerminalExit } from "./ipc";
 import { attachSuggestions, type SuggestHandle } from "./termSuggest";
 import { registerTerminalPane } from "./termInput";
@@ -36,8 +34,6 @@ export interface PaneEntry {
   /** The host node the xterm rendered into — cached and re-parented on attach. */
   element: HTMLDivElement;
   getTerminalId(): string | null;
-  /** Serialize scrollback (capped) for a popout handoff. */
-  serialize(): string;
   attach(container: HTMLElement): void;
   /** Remove the cached node from the DOM. Pass the container this pane was
    *  attached to so a re-parent (split restructure / StrictMode) doesn't pull
@@ -47,10 +43,6 @@ export interface PaneEntry {
   refit(): void;
   /** Subscribe to status changes; fires immediately with the current state. */
   subscribe(cb: (s: PaneState) => void): () => void;
-  /** Flag this pane's PTY as handed off to a popout window — dispose must NOT
-   *  close it (the new window owns its lifetime). Reset to false to reclaim it
-   *  if the popout failed to open. */
-  setHandedOff(v: boolean): void;
 }
 
 interface InternalEntry extends PaneEntry {
@@ -62,7 +54,6 @@ interface InternalEntry extends PaneEntry {
   unlistenExit: (() => void) | null;
   disposables: Array<{ dispose: () => void }>;
   onWindowResize: () => void;
-  handedOff: boolean;
   disposed: boolean;
   terminalId: string | null;
 }
@@ -103,10 +94,8 @@ export function acquirePane(
     allowProposedApi: true,
   });
   const fit = new FitAddon();
-  const serialize = new SerializeAddon();
   term.loadAddon(fit);
   term.loadAddon(new WebLinksAddon());
-  term.loadAddon(serialize);
 
   // The xterm renders into this cached node; React only re-parents it. Opening
   // on a detached element is fine — content is buffered and shown once attached.
@@ -121,7 +110,6 @@ export function acquirePane(
     element,
     state: { status: "opening", error: null, exitCode: null },
     listeners: new Set(),
-    handedOff: false,
     disposed: false,
     terminalId: null,
     suggest: null as unknown as SuggestHandle,
@@ -131,7 +119,6 @@ export function acquirePane(
     disposables: [],
     onWindowResize: () => {},
     getTerminalId: () => entry.terminalId,
-    serialize: () => serialize.serialize({ scrollback: 2000 }),
     attach: (container) => {
       if (element.parentElement !== container) container.appendChild(element);
     },
@@ -152,9 +139,6 @@ export function acquirePane(
       entry.listeners.add(cb);
       cb(entry.state);
       return () => entry.listeners.delete(cb);
-    },
-    setHandedOff: (v) => {
-      entry.handedOff = v;
     },
   };
 
@@ -247,8 +231,7 @@ export function acquirePane(
   return entry;
 }
 
-/** Fully tear down a pane (store-driven, on tab/pane close or disconnect).
- *  Closes the PTY unless it was handed off to a popout window. */
+/** Fully tear down a pane (store-driven, on tab/pane close or disconnect). */
 export function disposePane(paneId: string): void {
   const entry = panes.get(paneId);
   if (!entry) return;
@@ -260,7 +243,7 @@ export function disposePane(paneId: string): void {
   for (const d of entry.disposables) d.dispose();
   entry.unlistenData?.();
   entry.unlistenExit?.();
-  if (entry.terminalId && !entry.handedOff) {
+  if (entry.terminalId) {
     void ipc.closeTerminal(entry.terminalId).catch((error) =>
       console.warn("Couldn't close docked terminal", error)
     );

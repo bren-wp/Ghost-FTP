@@ -379,22 +379,21 @@ jobs:
             $proc = Start-Process -FilePath $exe -PassThru
             try {
               $handle = [IntPtr]::Zero
-              for ($i = 0; $i -lt 30; $i++) {
-                Start-Sleep -Milliseconds 400
+              $observedTitle = ''
+              for ($i = 0; $i -lt 50; $i++) {
+                Start-Sleep -Milliseconds 300
                 $proc.Refresh()
                 if ($proc.HasExited) {
                   throw "Ghost FTP exited before the $($view.key) QA capture"
                 }
-                if ($proc.MainWindowHandle -ne 0) {
+                $observedTitle = $proc.MainWindowTitle
+                if ($proc.MainWindowHandle -ne 0 -and $observedTitle -eq 'Ghost FTP') {
                   $handle = $proc.MainWindowHandle
                   break
                 }
               }
               if ($handle -eq [IntPtr]::Zero) {
-                throw "Ghost FTP did not expose a native main-window handle for $($view.key)"
-              }
-              if ($proc.MainWindowTitle -ne 'Ghost FTP') {
-                throw "Unexpected Ghost FTP window title for $($view.key): $($proc.MainWindowTitle)"
+                throw "Ghost FTP did not expose the expected native main window for $($view.key); last title: $observedTitle"
               }
 
               # Validate the real launch geometry before the canonical QA resize.

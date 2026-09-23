@@ -8,7 +8,7 @@ export type SortDirection = "asc" | "desc";
 export type PaneViewMode = "list" | "details" | "grid";
 export type PaneDensity = "comfortable" | "compact";
 // Remote image previews are opt-in (default off) because a preview means a
-// download; local previews are always on and unaffected by this. See Plan 13.
+// download; local previews are always on and unaffected by this.
 export type RemoteImagePreviews = "off" | "on";
 // "single" = one server-focused pane (default); "dual" = local + remote panes.
 export type BrowserLayout = "single" | "dual";
@@ -72,7 +72,7 @@ export type TerminalTheme =
   | "rosepine"
   | "everforest";
 
-/** Desktop-notification preference (Plan 16 Phase 3). OS toasts for a curated
+/** Desktop-notification preference. OS toasts for a curated
  *  set of events, off-window by default so they don't duplicate in-app toasts. */
 export interface NotificationSettings {
   enabled: boolean;
@@ -113,7 +113,7 @@ interface SettingsState {
   paneDensity: PaneDensity;
   browserLayout: BrowserLayout;
   /** Remote image previews: `"off"` (default) or `"on"`. Local previews are
-   *  always on; this only gates the network-fetching remote kind (Plan 13). */
+   *  always on; this only gates the network-fetching remote kind. */
   remoteImagePreviews: RemoteImagePreviews;
   // Terminal
   terminalFontSize: number;
@@ -257,12 +257,12 @@ function pickKnown(obj: Partial<PersistedSettings>): Partial<PersistedSettings> 
 function load(): PersistedSettings {
   const injected = readInjected();
   if (injected) return { ...DEFAULTS, ...pickKnown(injected) };
-  // No injection (mock / first paint before the script ran) — start from
-  // defaults; `hydrateFromDb()` below reconciles from ghostftp.db async.
+  // If the native pre-paint snapshot is unavailable, start from defaults;
+  // `hydrateFromDb()` below reconciles from ghostftp.db asynchronously.
   return DEFAULTS;
 }
 
-/** Persist one setting to ghostftp.db. A missing backend in mock builds skips the write while the in-memory value still applies for the session. */
+/** Persist one setting to ghostftp.db. The in-memory value applies immediately; native persistence errors are surfaced to the user. */
 function persistKey<K extends keyof PersistedSettings>(key: K, value: PersistedSettings[K]) {
   ipc.settingsSet(String(key), JSON.stringify(value)).catch((error) => {
     toastError(error, `Couldn't save preference: ${String(key)}`);
@@ -339,9 +339,6 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setNotifications: (v) => mutate(set, get, "notifications", v),
 }));
 
-/** Reload settings from ghostftp.db and merge them into the live store. Used by
- *  windows that didn't get the pre-paint injection (popouts) and to reflect a
- *  freshly-completed localStorage→ghostftp.db migration in the current session. */
 /** Push the persisted transfer-engine preferences into the native queue.
  * Tauri initializes the engine with safe defaults, then this reconciles the
  * user's saved limits immediately after startup/hydration. */
@@ -378,8 +375,8 @@ export async function hydrateFromDb(): Promise<void> {
   }
 }
 
-// Popped-out terminal windows and mock builds never receive the Rust pre-paint
-// injection, so seed them from ghostftp.db right after boot.
+// If the native pre-paint snapshot was unavailable, hydrate from ghostftp.db
+// immediately after boot.
 if (!readInjected()) {
   void hydrateFromDb();
 }
