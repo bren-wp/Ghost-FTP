@@ -37,7 +37,7 @@ const SECTION_DESCRIPTION: Record<Section, string> = {
   transfers: "Transfer concurrency, speed limits, retries and resume behavior.",
   connection: "Reconnect, keep-alive and timeout behavior.",
   security: "Credentials, privacy and local history controls.",
-  advanced: "System integrations and keyboard shortcuts.",
+  advanced: "Terminal, system integrations and keyboard shortcuts.",
   sync: "Create and manage real folder synchronization pairs.",
 };
 
@@ -90,7 +90,7 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
             {section === "connection" && <ConnectionPanel/>}
             {section === "security" && <SecurityPanel/>}
             {section === "advanced" && <AdvancedPanel/>}
-            {section === "sync" && <div className="max-w-5xl"><SyncSettings/></div>}
+            {section === "sync" && <div className="mx-auto w-full max-w-5xl"><SyncSettings/></div>}
           </div>
           <div className="ghost-preferences-actions flex h-[58px] shrink-0 items-center border-t border-border bg-[#061a2d] px-4">
             {!syncOnly && <button className="ghost-mini-button" onClick={reset}><RotateCcw size={14}/> Reset to Defaults</button>}
@@ -375,7 +375,6 @@ function IntegrationsCard() {
     }finally{setShellBusy(false)}
   };
   return <Card icon={<Plug size={20}/>} title="Integrations" subtitle="Extend Ghost FTP with system integrations.">
-    <DesktopNotificationsToggle/>
     <ToggleRow label="Shell integration" checked={s.shellIntegration} onChange={(v)=>void setShell(v)} locked={shellBusy}/>
     <div className="-mt-1 text-[10px] leading-4 text-text-dim">{shellDetail}</div>
     <ToggleRow label="File associations" checked={s.fileAssociations} onChange={s.setFileAssociations} locked/>
@@ -383,13 +382,13 @@ function IntegrationsCard() {
   </Card>
 }
 
-function AppearancePanel(){return <div className="max-w-3xl"><AppearanceCard/></div>}
-function LanguagePanel({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }){return <div className="max-w-3xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
-function TransfersPanel(){return <div className="grid max-w-4xl grid-cols-2 gap-4"><PerformanceCard/><TransfersCard/><div className="col-span-2"><TerminalCard/></div></div>}
-function ConnectionPanel(){return <div className="max-w-3xl"><ConnectionCard/></div>}
-function SecurityPanel(){return <div className="max-w-3xl"><SecurityCard/></div>}
+function AppearancePanel(){return <div className="mx-auto w-full max-w-4xl"><AppearanceCard/></div>}
+function LanguagePanel({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }){return <div className="mx-auto w-full max-w-4xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
+function TransfersPanel(){return <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-4"><PerformanceCard/><TransfersCard/></div>}
+function ConnectionPanel(){return <div className="mx-auto w-full max-w-4xl"><ConnectionCard/></div>}
+function SecurityPanel(){return <div className="mx-auto w-full max-w-4xl"><SecurityCard/></div>}
 function ShortcutsCard(){return <Card icon={<Keyboard size={20}/>} title="Keyboard Shortcuts" subtitle="Core Ghost FTP shortcuts."><div className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-[12px]"><span>New connection</span><kbd>Ctrl + N</kbd><span>Settings</span><kbd>Ctrl + ,</kbd><span>Open Transfers</span><kbd>Ctrl + T</kbd><span>Command palette</span><kbd>Ctrl + K</kbd></div></Card>}
-function AdvancedPanel(){return <div className="grid max-w-5xl gap-4 xl:grid-cols-2"><IntegrationsCard/><ShortcutsCard/></div>}
+function AdvancedPanel(){return <div className="mx-auto grid w-full max-w-5xl gap-4 xl:grid-cols-2"><IntegrationsCard/><ShortcutsCard/><div className="xl:col-span-2"><TerminalCard/></div></div>}
 
 function Nav({
   section,
