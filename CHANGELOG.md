@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.1-rc.19 — 24 September 2026
+
+- Fixed terminal startup/disposal races so native data/exit listeners cannot remain registered after a pane is closed during asynchronous initialization.
+- Added deterministic cleanup for partial terminal listener registration and for PTYs that finish opening after disposal.
+- Prevented late terminal async failures from mutating disposed pane state.
+- Applied central credential redaction to terminal lifecycle errors and global unhandled-rejection/runtime diagnostics.
+- Registered transfer listeners before startup snapshots and added event revisions so slower snapshots cannot overwrite newer live transfer/queue state.
+- Cleaned partial transfer listener registration when queue-listener startup fails.
+- Added lifecycle regression guards for terminal disposal, global redaction and transfer listener-first initialization.
+- Advanced desktop, Tauri, CLI, agent, runtime, installer, updater and native artifact metadata consistently to RC19 / build 2026.09.24.19.
+- Preserved the RC18 privacy protections, one-window architecture, real protocol E2E and 21-capture Windows native QA gate.
+
 ## 2.1.1-rc.18 — 24 September 2026
 
 - Made terminal suggestion history process-memory only; shell commands are no longer persisted to WebView localStorage.
