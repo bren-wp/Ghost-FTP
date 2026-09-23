@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { redactSensitiveText } from "@/lib/redact";
 
 export type ToastVariant = "info" | "success" | "error" | "warning";
 
@@ -19,7 +20,7 @@ interface PushArgs {
 
 interface ToastState {
   toasts: Toast[]; // currently on-screen
-  history: Toast[]; // bounded, persisted log for the notification center
+  history: Toast[]; // bounded, session-only log for the notification center
   unreadCount: number;
 
   push: (args: PushArgs) => string;
@@ -28,39 +29,25 @@ interface ToastState {
   clearHistory: () => void;
 }
 
-const HISTORY_KEY = "ghostftp.notifications.v1";
 const MAX_HISTORY = 100;
 
 let _seq = 0;
 const nextId = () => `n${Date.now().toString(36)}${++_seq}`;
 
-function loadHistory(): Toast[] {
-  try {
-    const raw = localStorage.getItem(HISTORY_KEY);
-    return raw ? (JSON.parse(raw) as Toast[]) : [];
-  } catch (error) {
-    console.warn("Couldn't read Ghost FTP notification history", error);
-    return [];
-  }
-}
-
-function saveHistory(h: Toast[]) {
-  try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
-  } catch (error) {
-    console.warn("Couldn't persist Ghost FTP notification history", error);
-  }
-}
-
 export const useToasts = create<ToastState>((set, get) => ({
   toasts: [],
-  history: loadHistory(),
+  history: [],
   unreadCount: 0,
 
   push: ({ variant, title, message, duration }) => {
-    const item: Toast = { id: nextId(), variant, title, message, createdAt: Date.now() };
+    const item: Toast = {
+      id: nextId(),
+      variant,
+      title: redactSensitiveText(title, 180),
+      message: message ? redactSensitiveText(message, 600) : undefined,
+      createdAt: Date.now(),
+    };
     const history = [item, ...get().history].slice(0, MAX_HISTORY);
-    saveHistory(history);
     set((s) => ({
       toasts: [...s.toasts, item],
       history,
@@ -73,10 +60,7 @@ export const useToasts = create<ToastState>((set, get) => ({
 
   dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   markAllRead: () => set({ unreadCount: 0 }),
-  clearHistory: () => {
-    saveHistory([]);
-    set({ history: [] });
-  },
+  clearHistory: () => set({ history: [] }),
 }));
 
 // Call-from-anywhere helper (stores, ipc handlers, components).
