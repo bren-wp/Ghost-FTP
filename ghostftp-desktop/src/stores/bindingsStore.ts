@@ -2,13 +2,13 @@ import { create } from "zustand";
 import { ipc } from "@/lib/ipc";
 import { toast } from "./toastStore";
 
-// Keyboard-shortcut override layer (Plan 15 Phase 1). Default combos live in the
+// Keyboard-shortcut override layer. Default combos live in the
 // command registry (src/lib/commands.tsx) and the file-browser catalog
 // (src/lib/fileBrowserKeys.ts); this store holds only the user's *overrides*,
 // keyed by command/action id. The effective binding is `override ?? default`
 // (see effectiveCombo in src/lib/keybindings.ts).
 //
-// Persistence rides Plan 12's settings substrate — one `shortcut.<id>` row per
+// Persistence uses the native settings substrate — one `shortcut.<id>` row per
 // override in ghostftp.db. Because the pre-paint injector emits every settings row
 // onto `window.__GHOSTFTP_SETTINGS__`, overrides seed synchronously before first
 // paint (no theme-flash-style async gap), and the encrypted backup carries them
@@ -30,13 +30,13 @@ interface BindingsState {
   clearOverride: (id: string) => void;
   /** Remove every override (Reset all to defaults). */
   resetAll: () => void;
-  /** Reconcile from ghostftp.db — for popouts/mock that miss the pre-paint inject. */
+  /** Reconcile from ghostftp.db when the pre-paint snapshot is unavailable. */
   hydrate: () => Promise<void>;
 }
 
 /** Seed synchronously from the Rust pre-paint injection. Injected values are
  *  already JSON-parsed (see build_settings_init_script), so a shortcut row is a
- *  plain combo string. Absent in popouts / mock builds → {}. */
+ *  plain combo string. If the snapshot is unavailable, hydration runs after boot. */
 function seedFromInjection(): Overrides {
   const out: Overrides = {};
   try {
@@ -112,8 +112,8 @@ export const useBindings = create<BindingsState>((set, get) => ({
   },
 }));
 
-// Windows that never receive the pre-paint injection (popouts, mock builds)
-// seed from ghostftp.db right after boot, mirroring settingsStore.
+// If the pre-paint snapshot is unavailable, seed from ghostftp.db right after
+// boot, mirroring settingsStore.
 function hasInjection(): boolean {
   try {
     return !!(globalThis as { __GHOSTFTP_SETTINGS__?: unknown }).__GHOSTFTP_SETTINGS__;
