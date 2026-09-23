@@ -274,11 +274,16 @@ for (const required of [
   "ghost-app-body",
   "ghost-content-shell",
   "workspaceFor(",
+  "<WorkspaceErrorBoundary",
+  "onReturnToFiles={showFiles}",
 ]) {
   if (!app.includes(required)) failures.push(`App missing single-window shell contract: ${required}`);
 }
 if (app.includes("standaloneDialog") || app.includes("<Suspense")) {
   failures.push("App must not hide the main shell or lazy-swap primary workspaces.");
+}
+if (!fs.existsSync("src/components/WorkspaceErrorBoundary.tsx")) {
+  failures.push("Primary workspaces need a local error boundary so one render failure cannot replace the persistent app shell.");
 }
 for (const required of [
   "Couldn't initialize Sync & Backup",
@@ -401,6 +406,14 @@ if (filePane.includes("Pick a server in the left rail")) {
   failures.push("Remote FilePane still references the removed server rail.");
 }
 
+const profileEditor = read("src/components/ProfileEditor.tsx");
+if (profileEditor.includes("void connectProfile(id);")) {
+  failures.push("Profile pairing must not leave the post-pair connection promise unhandled.");
+}
+if (!profileEditor.includes("connectProfile(id).catch")) {
+  failures.push("Profile pairing must catch a failed post-pair connection attempt.");
+}
+
 const newConnection = read("src/components/QuickConnectionDialog.tsx");
 for (const required of [
   "Save this connection in Sites",
@@ -436,6 +449,11 @@ if (commands.includes('openDialog("newConnection")')) {
 const appShell = read("src/App.tsx");
 if (!appShell.includes('"Back to Sites"')) {
   failures.push("Site Manager New Site must expose an explicit return path back to Sites.");
+}
+
+const appErrorBoundary = read("src/components/AppErrorBoundary.tsx");
+if (appErrorBoundary.includes("Your files and server data were not modified")) {
+  failures.push("Global recovery UI must not make an unverifiable claim about side effects from an operation that was already running.");
 }
 
 const mainEntry = read("src/main.tsx");
@@ -660,7 +678,7 @@ if (capability.includes("terminal-*")) {
 }
 
 const nativeBuildWorkflow = read("../.github/workflows/ghostftp-build.yml");
-for (const required of ["QuantizedColors", "EdgeRatio", "byte-identical", "blank-or-structureless"]) {
+for (const required of ["QuantizedColors", "EdgeRatio", "byte-identical", "blank-or-structureless", "-Minimum.png", "minimum responsive viewport"]) {
   if (!nativeBuildWorkflow.includes(required)) failures.push(`Windows native QA missing structural blank-frame guard: ${required}`);
 }
 
