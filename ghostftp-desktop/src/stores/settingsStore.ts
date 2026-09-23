@@ -91,7 +91,6 @@ interface SettingsState {
   /** Show a per-file conflict prompt before overwriting. When false, apply
    *  `overwritePolicy` silently (the pre-prompt behaviour). */
   promptOnOverwrite: boolean;
-  autoOpenTransferPanel: boolean;
   /** Max simultaneous transfers (1–32). Live-applied to the backend queue. */
   transferConcurrency: number;
   /** Automatic retries for transient network/timeout failures (0–8). */
@@ -142,7 +141,6 @@ interface SettingsState {
   setAccentColor: (hex: string) => void;
   setOverwritePolicy: (p: OverwritePolicy) => void;
   setPromptOnOverwrite: (v: boolean) => void;
-  setAutoOpenTransferPanel: (v: boolean) => void;
   setTransferConcurrency: (n: number) => void;
   setMaxRetryAttempts: (n: number) => void;
   setTransferThrottleKbps: (n: number) => void;
@@ -176,7 +174,6 @@ export type PersistedSettings = Omit<
   | "setAccentColor"
   | "setOverwritePolicy"
   | "setPromptOnOverwrite"
-  | "setAutoOpenTransferPanel"
   | "setTransferConcurrency"
   | "setMaxRetryAttempts"
   | "setTransferThrottleKbps"
@@ -207,7 +204,6 @@ const DEFAULTS: PersistedSettings = {
   accentColor: "",
   overwritePolicy: "overwrite",
   promptOnOverwrite: true,
-  autoOpenTransferPanel: true,
   transferConcurrency: 3,
   maxRetryAttempts: 3,
   transferThrottleKbps: 0,
@@ -299,8 +295,6 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setAccentColor: (hex) => mutate(set, get, "accentColor", hex),
   setOverwritePolicy: (p) => mutate(set, get, "overwritePolicy", p),
   setPromptOnOverwrite: (v) => mutate(set, get, "promptOnOverwrite", v),
-  setAutoOpenTransferPanel: (v) =>
-    mutate(set, get, "autoOpenTransferPanel", v),
   setTransferConcurrency: (n) => {
     const clamped = Math.max(1, Math.min(32, Math.round(n)));
     mutate(set, get, "transferConcurrency", clamped);
