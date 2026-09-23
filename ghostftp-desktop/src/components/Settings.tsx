@@ -31,6 +31,16 @@ import { toast } from "@/stores/toastStore";
 interface Props { onClose: () => void; initialSection?: Section }
 type Section = "appearance" | "language" | "transfers" | "connection" | "security" | "advanced" | "sync";
 
+const SECTION_DESCRIPTION: Record<Section, string> = {
+  appearance: "Theme, density and file-browser layout.",
+  language: "Choose the application language used throughout Ghost FTP.",
+  transfers: "Transfer concurrency, speed limits, retries and resume behavior.",
+  connection: "Reconnect, keep-alive and timeout behavior.",
+  security: "Credentials, privacy and local history controls.",
+  advanced: "System integrations and keyboard shortcuts.",
+  sync: "Create and manage real folder synchronization pairs.",
+};
+
 export function Settings({ onClose, initialSection = "appearance" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [section, setSection] = useState<Section>(initialSection);
@@ -69,7 +79,7 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
             <Settings2 size={28} className="text-accent"/>
             <div>
               <div className="text-[22px] font-semibold">{section === "sync" ? "Sync & Backup" : section.charAt(0).toUpperCase() + section.slice(1)}</div>
-              <div className="text-[12px] text-text-muted">{section === "sync" ? "Create and manage real folder synchronization pairs." : section === "advanced" ? "System integrations and keyboard shortcuts." : "Configure the options for this area."}</div>
+              <div className="text-[12px] text-text-muted">{SECTION_DESCRIPTION[section]}</div>
             </div>
           </div>
           <div className="ghost-preferences-content flex-1 overflow-y-auto p-4">
