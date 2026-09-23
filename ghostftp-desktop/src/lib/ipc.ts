@@ -40,8 +40,6 @@ import type {
   DiscoveredAgent,
   AgentPairResult,
   AgentHostStatus,
-  CliStatus,
-  CliUpdateMode,
   PathStatus,
   DeepLink,
   GrantManifest,
@@ -176,13 +174,6 @@ export const ipc = {
   /** Un-pin a controller by its public key. */
   agentHostRevokePeer: (publicKey: string) =>
     invoke<AgentHostStatus>("agent_host_revoke_peer", { publicKey }),
-
-  // --- CLI updater (Plan 10 Phase 0c/0d): keep ghostftp-cli in step with the app.
-  cliUpdaterStatus: () => invoke<CliStatus>("cli_updater_status"),
-  cliUpdaterCheck: () => invoke<CliStatus>("cli_updater_check"),
-  cliUpdaterUpdate: () => invoke<CliStatus>("cli_updater_update"),
-  cliUpdaterSetMode: (mode: CliUpdateMode) =>
-    invoke<CliStatus>("cli_updater_set_mode", { mode }),
 
   // ---- One-click "Add ghostftp-cli to PATH" (Plan 16 Phase 4): per-user, no admin.
   pathStatus: () => invoke<PathStatus>("path_status"),
@@ -663,13 +654,6 @@ export async function onAgentHostPaired(
   return listen<{ name: string; key: string }>("agent-host://paired", (e) =>
     cb(e.payload)
   );
-}
-
-/** CLI version-drift status changed (startup check, or an update finished). */
-export async function onCliUpdaterStatus(
-  cb: (status: CliStatus) => void
-): Promise<UnlistenFn> {
-  return listen<CliStatus>("cli-updater://status", (e) => cb(e.payload));
 }
 
 /** A folder-sync pair changed (config edited, or a background sync updated its
