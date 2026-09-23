@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.1-rc.17 — 23 September 2026
+
+- Added workspace-level UI error containment so an unexpected render failure stays inside the active workspace and the persistent Ghost FTP shell remains usable.
+- Removed the final terminal pop-out handoff runtime state and unused xterm serialization dependency after the RC16 single-window migration.
+- Fixed compact Transfers empty-state overflow and extended the UI contract to prevent the wide table shell from wrapping empty states.
+- Added compact File Properties QA and near-minimum 500×620 Windows QA for all seven critical native surfaces.
+- Switched live transfer speed/ETA/status telemetry to real backend progress byte deltas with stale-sample handling.
+- Removed the desktop CLI updater surface and made ghostftp-cli self-update fail closed until signed package verification is available.
+- Handled post-pair connection rejections explicitly and removed an unverifiable global error-recovery guarantee.
+- Revalidated frontend quality, Rust workspace checks, real FTP/explicit-FTPS/SFTP E2E and Windows/Linux native packaging before publication.
+- Advanced desktop, Tauri, CLI, agent, runtime, installer, updater, build artifacts and release workflow metadata consistently to RC17.
+
 ## 2.1.1-rc.16 — 23 September 2026
 
 - Reworked Ghost FTP around one persistent native application window; Site Manager, Transfers, Preferences, Sync, Help, About and Updates now switch inside the main workspace instead of behaving like separate application windows.
