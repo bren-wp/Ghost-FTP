@@ -141,51 +141,83 @@ export function QuickConnectionDialog({ prefill, onClose }: Props) {
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <Field label="Username"><input value={username} onChange={(e)=>setUsername(e.target.value)} placeholder="Enter username"/></Field>
-            <Field label="Password"><div className="relative"><input type={showPassword?'text':'password'} value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></Field>
+            {protocol === "sftp" ? (
+              <Field label="Authentication">
+                <div className="ghost-auth-choice" role="group" aria-label="SFTP authentication method">
+                  <button
+                    type="button"
+                    className={!useKey ? "active" : ""}
+                    aria-pressed={!useKey}
+                    onClick={()=>setUseKey(false)}
+                  >
+                    Password
+                  </button>
+                  <button
+                    type="button"
+                    className={useKey ? "active" : ""}
+                    aria-pressed={useKey}
+                    onClick={()=>setUseKey(true)}
+                  >
+                    <KeyRound size={13}/> Private key
+                  </button>
+                </div>
+              </Field>
+            ) : (
+              <Field label="Password"><div className="relative"><input type={showPassword?'text':'password'} value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/><button type="button" aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></Field>
+            )}
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <ConnectionModeStatus protocol={protocol}/>
-            <Check checked={useKey} disabled={protocol!=="sftp"} onChange={setUseKey} label="Use private key (SSH)" icon={<KeyRound size={15}/>}/>
-          </div>
-          {protocol === "sftp" && (
+          {protocol === "sftp" && !useKey && (
+            <div className="mt-3">
+              <Field label="Password">
+                <div className="relative">
+                  <input type={showPassword?'text':'password'} value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/>
+                  <button type="button" aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button>
+                </div>
+              </Field>
+            </div>
+          )}
+
+          {protocol === "sftp" && useKey && (
             <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
               <input
                 className="ghost-ref-input"
                 value={keyPath}
-                disabled={!useKey}
                 onChange={(e)=>setKeyPath(e.target.value)}
                 placeholder="Select private key file…"
+                aria-label="Private key file"
               />
               <button
+                type="button"
                 className="ghost-mini-button"
-                disabled={!useKey}
                 onClick={()=>void chooseKey()}
                 aria-label="Choose private key file"
               >
-                <FolderOpen size={14}/>
+                <FolderOpen size={14}/> Browse
               </button>
-              {useKey && (
-                <div className="relative col-span-2">
-                  <input
-                    className="ghost-ref-input pr-10"
-                    type={showKeyPassphrase?"text":"password"}
-                    value={keyPassphrase}
-                    onChange={(e)=>setKeyPassphrase(e.target.value)}
-                    placeholder="Private key passphrase (optional)"
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim"
-                    onClick={()=>setShowKeyPassphrase(v=>!v)}
-                    aria-label={showKeyPassphrase?"Hide key passphrase":"Show key passphrase"}
-                  >
-                    {showKeyPassphrase?<EyeOff size={16}/>:<Eye size={16}/>}
-                  </button>
-                </div>
-              )}
+              <div className="relative col-span-2">
+                <input
+                  className="ghost-ref-input pr-10"
+                  type={showKeyPassphrase?"text":"password"}
+                  value={keyPassphrase}
+                  onChange={(e)=>setKeyPassphrase(e.target.value)}
+                  placeholder="Private key passphrase (optional)"
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim"
+                  onClick={()=>setShowKeyPassphrase(v=>!v)}
+                  aria-label={showKeyPassphrase?"Hide key passphrase":"Show key passphrase"}
+                >
+                  {showKeyPassphrase?<EyeOff size={16}/>:<Eye size={16}/>}
+                </button>
+              </div>
             </div>
           )}
+
+          <div className="mt-4">
+            <ConnectionModeStatus protocol={protocol}/>
+          </div>
 
           <div className="mt-4 flex items-center gap-3"><Check checked={remember} onChange={setRemember} label="Save this connection in Sites" icon={<Bookmark size={15}/>}/><div className="flex-1"/><button className="ghost-mini-button" disabled={!canConnect||busy||testStatus==="testing"} onClick={()=>void testConnection()} aria-live="polite"><Radio size={14}/>{testStatus==="testing"?"Testing…":testStatus==="ok"?"Connection OK":testStatus==="error"?"Test Failed":"Test Connection"}</button></div>
 
