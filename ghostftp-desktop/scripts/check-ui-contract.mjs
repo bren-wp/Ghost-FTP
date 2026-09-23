@@ -483,6 +483,17 @@ for (const forbidden of [
   if (settings.includes(forbidden)) failures.push(`Settings still duplicates application/settings navigation: ${forbidden}`);
 }
 
+const notificationToggleCount = (settings.match(/<DesktopNotificationsToggle\s*\/>/g) || []).length;
+if (notificationToggleCount !== 1) {
+  failures.push(`Settings must expose desktop notifications in exactly one section; found ${notificationToggleCount}`);
+}
+if (!settings.includes('advanced: "Terminal, system integrations and keyboard shortcuts."')) {
+  failures.push("Advanced Settings description must match its Terminal/Integrations/Shortcuts grouping.");
+}
+if (!settings.includes('<div className="xl:col-span-2"><TerminalCard/></div>')) {
+  failures.push("Terminal settings must live under Advanced rather than Transfers.");
+}
+
 for (const file of walkSource("src/components")) {
   if (!file.endsWith(".tsx") || file === "src/components/Settings.tsx") continue;
   const source = read(file);
