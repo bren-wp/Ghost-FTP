@@ -317,6 +317,9 @@ for (const required of [
   "New Folder",
   "Properties",
   "ghost-simple-header",
+  "ghost-toolbar-more",
+  'aria-haspopup="menu"',
+  'aria-label="More file actions"',
   'fileAction("refresh", effectivePane)',
   'fileAction("newFolder", effectivePane)',
   'fileAction("rename", effectivePane)',
@@ -326,7 +329,19 @@ for (const required of [
 ]) {
   if (!titleBar.includes(required)) failures.push(`Simplified header missing contextual action: ${required}`);
 }
-for (const forbidden of ["English (English)", "Quick Connect", "Application menu", "Bookmarks", "Tools", "Help Center", "ghost-menu-popover", "ghost-back-to-files"]) {
+for (const forbidden of [
+  "English (English)",
+  "Quick Connect",
+  "Application menu",
+  "Bookmarks",
+  "Tools",
+  "Help Center",
+  "ghost-menu-popover",
+  "ghost-back-to-files",
+  '<Tool icon={<Pencil',
+  '<Tool icon={<Trash2',
+  '<Tool icon={<Info',
+]) {
   if (titleBar.includes(forbidden)) failures.push(`Header still contains duplicate navigation/language control: ${forbidden}`);
 }
 
