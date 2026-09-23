@@ -4638,3 +4638,46 @@ input.ghost-pane-address:focus-visible {
     display: none;
   }
 }
+
+
+/* RC16 New Connection authentication selector */
+.ghost-auth-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  min-height: 34px;
+  padding: 3px;
+  border: 1px solid rgb(var(--border));
+  border-radius: 7px;
+  background: rgb(var(--bg-subtle));
+}
+
+.ghost-auth-choice button {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 0 10px;
+  color: rgb(var(--text-muted));
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ghost-auth-choice button:hover {
+  background: rgb(var(--bg-hover));
+  color: rgb(var(--text));
+}
+
+.ghost-auth-choice button.active {
+  border-color: rgb(var(--accent) / .45);
+  background: rgb(var(--accent) / .16);
+  color: white;
+}
+
+.ghost-auth-choice button:focus-visible {
+  outline: 2px solid rgb(var(--accent) / .7);
+  outline-offset: 1px;
+}
