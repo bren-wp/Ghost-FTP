@@ -386,8 +386,14 @@ if (!appShell.includes('"Back to Sites"')) {
 }
 
 const mainEntry = read("src/main.tsx");
-for (const forbidden of ["TerminalWindow", "sweepStalePopoutBuffers", 'view === "terminal"']) {
-  if (mainEntry.includes(forbidden)) failures.push(`Main entry still supports a secondary app window: ${forbidden}`);
+for (const forbidden of [
+  "TerminalWindow",
+  "sweepStalePopoutBuffers",
+  'view === "terminal"',
+  "popped-out terminals",
+  "Plan 12",
+]) {
+  if (mainEntry.includes(forbidden)) failures.push(`Main entry still contains secondary-window/development residue: ${forbidden}`);
 }
 
 const terminal = read("src/components/Terminal.tsx");
