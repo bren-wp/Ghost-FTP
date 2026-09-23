@@ -17,7 +17,7 @@ on:
       - '.github/workflows/ghostftp-rc19-release.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ghostftp-native-${{ github.ref }}
@@ -635,13 +635,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Refresh README screenshots from native RC19 QA
-        if: runner.os == 'Windows' && success() && github.event_name == 'pull_request' && startsWith(github.head_ref, 'rc') && github.event.pull_request.head.repo.full_name == github.repository
+      - name: Verify README screenshots against native RC19 QA
+        if: runner.os == 'Windows' && success()
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $shotDir = Join-Path $env:GITHUB_WORKSPACE 'docs\assets\screenshots'
-          New-Item -ItemType Directory -Force $shotDir | Out-Null
+          Add-Type -AssemblyName System.Drawing
 
           $screenshots = @(
             @{ Source = 'GhostFTP-Windows-RC19-Native-Window.png'; Dest = 'ghostftp-native-files.png' },
@@ -654,24 +653,53 @@ jobs:
           )
 
           foreach ($shot in $screenshots) {
-            $source = Join-Path $env:GITHUB_WORKSPACE ('qa\' + $shot.Source)
-            if (-not (Test-Path $source)) {
-              throw "Required native README screenshot missing: $($shot.Source)"
+            $freshPath = Join-Path $env:GITHUB_WORKSPACE ('qa\' + $shot.Source)
+            $trackedPath = Join-Path $env:GITHUB_WORKSPACE ('docs\assets\screenshots\' + $shot.Dest)
+
+            if (-not (Test-Path $freshPath)) {
+              throw "Required native QA screenshot missing: $($shot.Source)"
             }
-            Copy-Item -Force $source (Join-Path $shotDir $shot.Dest)
+            if (-not (Test-Path $trackedPath)) {
+              throw "README native screenshot missing from repository: $($shot.Dest)"
+            }
+
+            $fresh = [System.Drawing.Bitmap]::FromFile($freshPath)
+            $tracked = [System.Drawing.Bitmap]::FromFile($trackedPath)
+            try {
+              if ($fresh.Width -ne $tracked.Width -or $fresh.Height -ne $tracked.Height) {
+                throw "README screenshot dimensions drifted for $($shot.Dest): tracked=$($tracked.Width)x$($tracked.Height), fresh=$($fresh.Width)x$($fresh.Height)"
+              }
+
+              $samples = 0
+              $changed = 0
+              # Sample the rendered app densely while ignoring only the final
+              # status-bar strip where the clock/ephemeral counters change.
+              $compareHeight = [Math]::Max(0, $fresh.Height - 36)
+              for ($y = 0; $y -lt $compareHeight; $y += 6) {
+                for ($x = 0; $x -lt $fresh.Width; $x += 6) {
+                  $a = $fresh.GetPixel($x, $y)
+                  $b = $tracked.GetPixel($x, $y)
+                  $delta =
+                    [Math]::Abs([int]$a.R - [int]$b.R) +
+                    [Math]::Abs([int]$a.G - [int]$b.G) +
+                    [Math]::Abs([int]$a.B - [int]$b.B)
+                  $samples++
+                  if ($delta -gt 48) { $changed++ }
+                }
+              }
+
+              if ($samples -le 0) { throw "No screenshot comparison samples for $($shot.Dest)" }
+              $ratio = [double]$changed / [double]$samples
+              Write-Host ("README screenshot " + $shot.Dest + " changed-pixel ratio=" + [Math]::Round($ratio, 5))
+              if ($ratio -gt 0.05) {
+                throw "README screenshot $($shot.Dest) no longer matches the native RC19 UI closely enough; refresh it from reviewed QA evidence."
+              }
+            } finally {
+              $fresh.Dispose()
+              $tracked.Dispose()
+            }
           }
 
-          git config user.name 'ghostftp-release-bot'
-          git config user.email 'actions@users.noreply.github.com'
-          git add docs/assets/screenshots/ghostftp-native-*.png
-          git diff --cached --quiet
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host 'Native README screenshots are already current.'
-            exit 0
-          }
-
-          git commit -m 'docs: refresh README screenshots from RC19 native QA'
-          git push origin "HEAD:refs/heads/$env:GITHUB_HEAD_REF"
 
       - name: Upload native bundles
         uses: actions/upload-artifact@v4
