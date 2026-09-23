@@ -598,6 +598,7 @@ const styles = read("src/styles.css");
 for (const required of [
   "RC16 single-window simplified navigation",
   "RC16 post-QA geometry corrections",
+  "RC16 final Files workspace fill",
   ".ghost-primary-sidebar {",
   ".ghost-sidebar-new {",
   ".ghost-content-shell {",
@@ -610,6 +611,8 @@ for (const required of [
   ".ghost-transfer-filters > .relative {",
   ".ghost-status-transfer-link {",
   "height: auto !important;",
+  "max-height: none !important;",
+  "flex: 1 1 auto !important;",
 ]) {
   if (!styles.includes(required)) failures.push(`Styles missing RC16 simplified-shell contract: ${required}`);
 }
