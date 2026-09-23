@@ -621,8 +621,11 @@ const nativeShell = read("src-tauri/src/lib.rs");
 for (const required of [
   ".inner_size(1290.0, 852.0)",
   ".min_inner_size(480.0, 600.0)",
+  ".prevent_overflow_with_margin(tauri::LogicalSize::new(32.0, 32.0))",
   ".center()",
   ".resizable(true)",
+  ".maximized(false)",
+  ".fullscreen(false)",
 ]) {
   if (!nativeShell.includes(required)) failures.push(`Default native window contract missing: ${required}`);
 }
