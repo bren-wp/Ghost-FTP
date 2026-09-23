@@ -17,7 +17,7 @@ on:
       - '.github/workflows/ghostftp-rc19-release.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ghostftp-native-${{ github.ref }}
@@ -634,6 +634,44 @@ jobs:
           path: qa/*
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Refresh README screenshots from native RC19 QA
+        if: runner.os == 'Windows' && success() && github.event_name == 'pull_request' && startsWith(github.head_ref, 'rc') && github.event.pull_request.head.repo.full_name == github.repository
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $shotDir = Join-Path $env:GITHUB_WORKSPACE 'docs\assets\screenshots'
+          New-Item -ItemType Directory -Force $shotDir | Out-Null
+
+          $screenshots = @(
+            @{ Source = 'GhostFTP-Windows-RC19-Native-Window.png'; Dest = 'ghostftp-native-files.png' },
+            @{ Source = 'GhostFTP-Windows-RC19-Site-Manager.png'; Dest = 'ghostftp-native-sites.png' },
+            @{ Source = 'GhostFTP-Windows-RC19-New-Connection.png'; Dest = 'ghostftp-native-new-connection.png' },
+            @{ Source = 'GhostFTP-Windows-RC19-Preferences.png'; Dest = 'ghostftp-native-settings.png' },
+            @{ Source = 'GhostFTP-Windows-RC19-Transfer-Center.png'; Dest = 'ghostftp-native-transfers.png' },
+            @{ Source = 'GhostFTP-Windows-RC19-File-Properties.png'; Dest = 'ghostftp-native-file-properties.png' },
+            @{ Source = 'GhostFTP-Windows-RC19-About.png'; Dest = 'ghostftp-native-about.png' }
+          )
+
+          foreach ($shot in $screenshots) {
+            $source = Join-Path $env:GITHUB_WORKSPACE ('qa\' + $shot.Source)
+            if (-not (Test-Path $source)) {
+              throw "Required native README screenshot missing: $($shot.Source)"
+            }
+            Copy-Item -Force $source (Join-Path $shotDir $shot.Dest)
+          }
+
+          git config user.name 'ghostftp-release-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add docs/assets/screenshots/ghostftp-native-*.png
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host 'Native README screenshots are already current.'
+            exit 0
+          }
+
+          git commit -m 'docs: refresh README screenshots from RC19 native QA'
+          git push origin "HEAD:refs/heads/$env:GITHUB_HEAD_REF"
 
       - name: Upload native bundles
         uses: actions/upload-artifact@v4
