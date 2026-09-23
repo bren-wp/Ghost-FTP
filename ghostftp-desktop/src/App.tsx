@@ -5,11 +5,11 @@ import { DualPaneBrowser } from "./components/DualPaneBrowser";
 import { FileBrowser } from "./components/FileBrowser";
 import { FileUiBridge } from "./components/FileUiBridge";
 import { TerminalDock } from "./components/Terminal";
-import { TransferQueue } from "./components/TransferQueue";
 import { HostKeyModal } from "./components/HostKeyModal";
 import { AuthPromptModal } from "./components/AuthPromptModal";
 import { TitleBar } from "./components/TitleBar";
 import { useConnections } from "./stores/connectionsStore";
+import { useTransfers } from "./stores/transfersStore";
 import { type AppDialog, useLayout } from "./stores/layoutStore";
 import { useSync } from "./stores/syncStore";
 import { applyTransferEngineSettings, useSettings } from "./stores/settingsStore";
@@ -134,6 +134,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+
+    void (async () => {
+      await useTransfers.getState().loadInitial();
+      const nextCleanup = await useTransfers.getState().initListeners();
+      if (cancelled) nextCleanup();
+      else cleanup = nextCleanup;
+    })().catch((error) => {
+      console.error("Couldn't initialize transfer activity", error);
+      toast.error("Couldn't initialize transfer activity", String(error));
+    });
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, []);
+
+  useEffect(() => {
     const cleanup = initTransferScheduler();
     return cleanup;
   }, []);
@@ -188,7 +208,6 @@ export default function App() {
               </div>
             )}
           </div>
-          {fileManager && <TransferQueue />}
         </div>
       </div>
 
