@@ -11,11 +11,9 @@ import "./styles.css";
 startLocalization();
 
 
-// The main window's theme is set pre-paint by Rust's initialization script,
-// which reads ghostftp.db and sets `data-theme` before this bundle even loads
-// (Plan 12 Phase 2) — so there's no FOUC. This is only a deterministic
-// safety net: windows spawned from JS (popped-out terminals) get no injection,
-// so set `data-theme` from the seeded store if it isn't already present.
+// Rust seeds the main window theme before the frontend paints. Keep this
+// fallback so the single application window always starts with a deterministic
+// theme even if persisted settings are unavailable during early startup.
 if (!document.documentElement.getAttribute("data-theme")) {
   document.documentElement.setAttribute(
     "data-theme",
