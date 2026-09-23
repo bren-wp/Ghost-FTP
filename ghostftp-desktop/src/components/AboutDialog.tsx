@@ -79,9 +79,10 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
           <div className="rounded-md border border-border-subtle bg-[#051929] p-4">
             <div className="mb-2 font-semibold">Version {PRODUCT_VERSION_DISPLAY}</div>
             <ul className="space-y-1.5 text-[12px] text-text-muted">
-              <li>• Redesigned Windows and Linux interface based on the Ghost FTP visual system.</li>
-              <li>• Faster transfer workflows with a clearer queue, progress and server activity log.</li>
-              <li>• English primary interface with complete Croatian language support.</li>
+              <li>• One persistent application window with a simplified primary sidebar.</li>
+              <li>• Files, Sites, Transfers, Sync, Settings and Help now use one consistent workspace.</li>
+              <li>• Transfer management is consolidated in Transfers, with advanced details available on demand.</li>
+              <li>• Fourteen interface languages are available from Settings, with English as the fallback.</li>
               <li>• Privacy-first defaults, no telemetry and Ghost FTP-only branding.</li>
             </ul>
           </div>
