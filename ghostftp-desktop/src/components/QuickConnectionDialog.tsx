@@ -13,9 +13,10 @@ interface Props {
   prefill?: Partial<ConnectionProfile> | null;
   onClose: () => void;
   saveByDefault?: boolean;
+  cancelLabel?: string;
 }
 
-export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false }: Props) {
+export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false, cancelLabel = "Cancel" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   useDialog(panelRef, { onClose });
   const saveProfile = useConnections((s) => s.saveProfile);
@@ -229,7 +230,7 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false 
         </div>
 
         <div className="ghost-new-connection-actions flex shrink-0 items-center border-t border-border bg-[#051929] px-5 py-4">
-          <button className="ghost-mini-button" onClick={onClose}>Cancel</button><div className="flex-1"/>
+          <button className="ghost-mini-button" onClick={onClose}>{cancelLabel}</button><div className="flex-1"/>
           {remember && <button disabled={!canConnect||busy} className="ghost-mini-button mr-2" onClick={()=>void submit(false)}><Bookmark size={14}/> Save</button>}
           <button disabled={!canConnect||busy} className="ghost-primary-button" onClick={()=>void submit(true)}><Link2 size={15}/> {busy?'Connecting…':'Connect'}</button>
         </div>
