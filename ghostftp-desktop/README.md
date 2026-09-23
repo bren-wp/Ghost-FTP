@@ -21,7 +21,7 @@ This directory contains the authoritative **Ghost FTP desktop application**.
 
 The release line opens as a real desktop window. It does not launch the production GUI through a localhost browser wrapper, and it must not expose a visible `127.0.0.1` address/origin bar.
 
-Current development line: **2.1.1 RC10**.
+Current development line: **2.1.1 RC18**.
 
 ## Platform deliverables
 
@@ -45,6 +45,7 @@ MSI is intentionally excluded from prerelease RC packaging because the current M
 - signed desktop updater path
 - 14 advertised interface languages
 - no required analytics or telemetry
+- terminal suggestion history remains process-memory only and credential-looking commands are excluded
 
 ## Visual contract
 
@@ -54,22 +55,17 @@ Approved visual references live under **[`../docs/assets/screenshots/`](../docs/
   <img src="../docs/assets/screenshots/ghostftp-main-file-manager.webp" alt="Ghost FTP approved main-window reference" width="100%">
 </p>
 
-Canonical desktop geometry at **1290×852**:
+The canonical desktop reference is **1290×852** and the production window minimum is **480×600**. RC18 keeps one persistent native application window: Files, Sites, Transfers, Sync & Backup, Settings and Help & About switch inside the main workspace; New Connection and File Properties remain transient overlays inside that same window.
 
-| Surface | Reference size |
+Native Windows QA captures all seven critical surfaces at three viewport classes:
+
+| QA class | Viewport |
 | --- | ---: |
-| Custom titlebar | 51 px |
-| Application menu | 42 px |
-| Quick Connect | 50 px |
-| Toolbar | 62 px |
-| Main file workspace | 416 px |
-| Transfer/log band | 191 px |
-| Status bar | 40 px |
-| Sites rail | 216 px wide |
-| New Connection | 752×628 |
-| File Properties | 530×770 |
+| Canonical | 1290×852 |
+| Compact | up to 720×640 |
+| Near minimum | 500×620 |
 
-Smaller windows use adaptive layout and contained scrolling. Essential controls must remain reachable rather than disappearing.
+The QA workflow rejects blank/structureless frames, duplicate captures, unexpected window titles, invalid launch geometry and missing evidence. Smaller layouts use contained scrolling and icon compaction rather than removing primary actions.
 
 ### Ghost FTP palette
 
