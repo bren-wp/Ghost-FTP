@@ -165,9 +165,7 @@ export default function App() {
     let cleanup: (() => void) | undefined;
     let cancelled = false;
 
-    void useUpdater
-      .getState()
-      .init()
+    void useUpdater.getState().init()
       .then((nextCleanup) => {
         if (cancelled) nextCleanup();
         else cleanup = nextCleanup;
