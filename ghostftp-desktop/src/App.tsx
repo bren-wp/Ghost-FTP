@@ -195,7 +195,11 @@ export default function App() {
       {fileManager && <ReferenceStatusBar />}
 
       {dialog === "newConnection" && (
-        <QuickConnectionDialog prefill={connectionPrefill} onClose={closeDialog} />
+        <QuickConnectionDialog
+          prefill={connectionPrefill}
+          onClose={closeDialog}
+          saveByDefault={returnDialog === "siteManager"}
+        />
       )}
       {dialog === "import" && <ImportDialog onClose={closeDialog} />}
       {dialog === "grant" && <GrantDialog onClose={closeDialog} />}
