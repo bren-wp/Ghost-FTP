@@ -950,15 +950,6 @@ function BandwidthChart({ history }: { history: BandwidthSample[] }) {
   );
 }
 
-function QueueMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-border-subtle bg-[#051929] px-3 py-2">
-      <div className="text-[10px] text-text-dim">{label}</div>
-      <div className="mt-0.5 font-medium text-text">{value}</div>
-    </div>
-  );
-}
-
 function speedOf(transfer: Transfer) {
   const seconds = Math.max(1, Date.now() / 1000 - transfer.startedAt);
   return transfer.status === "transferring"
