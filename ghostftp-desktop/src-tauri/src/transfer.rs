@@ -45,7 +45,7 @@ pub enum TransferStatus {
 }
 
 /// Marker error: a paused transfer was resumed — the copy loop unwinds with
-/// this and the runner re-runs the file from byte 0 (Plan 17 Phase 2).
+/// this and the runner re-runs the file from byte 0.
 /// Honest on every backend: no per-backend seek support needed.
 #[derive(Debug)]
 struct RestartFromPause;
@@ -59,7 +59,7 @@ impl std::fmt::Display for RestartFromPause {
 impl std::error::Error for RestartFromPause {}
 
 /// Payload of the `transfer://queue` event: the FIFO of waiting transfer ids
-/// plus the manager-level state the panel header renders (Plan 17).
+/// plus the manager-level state the panel header renders.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QueueState {
@@ -69,7 +69,7 @@ pub struct QueueState {
     pub throttle_kbps: u64,
 }
 
-/// Global bandwidth cap shared by every active copy loop (Plan 17 Phase 4):
+/// Global bandwidth cap shared by every active copy loop:
 /// a token bucket refilling at `rate` bytes/sec (0 = unlimited). Because all
 /// transfers draw from this one bucket, the cap is split across active
 /// transfers rather than applied per transfer.
@@ -137,7 +137,7 @@ impl TokenBucket {
 }
 
 /// A pause gate shared by the scheduler (pause-all) and individual transfers
-/// (Phase 2). watch-channel based so waiters never miss a wakeup.
+/// Watch-channel based so waiters never miss a wakeup.
 #[derive(Debug, Clone)]
 pub struct PauseGate {
     tx: watch::Sender<bool>,
@@ -180,7 +180,7 @@ pub struct Transfer {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     /// Auto-retry round in progress (1- or 2-of-2), for the panel's
-    /// "retrying in Ns (attempt N/total)" state (Plan 17 Phase 3).
+    /// "retrying in Ns (attempt N/total)" state.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry_attempt: Option<u32>,
     /// Delta-sync accounting, present when this transfer ran as a block-level
@@ -203,7 +203,7 @@ pub struct DeltaStats {
 
 /// Everything needed to re-run a failed/canceled transfer with its already
 /// policy-resolved destination (overwrite/skip/rename was applied at enqueue
-/// time) — Plan 17 Phase 3 manual retry.
+/// time) — used by manual retry.
 #[derive(Clone)]
 enum RetryInfo {
     Download {
@@ -218,7 +218,7 @@ enum RetryInfo {
     },
 }
 
-/// Default bound on concurrently running transfers (Plan 17); the rest wait
+/// Default bound on concurrently running transfers; the rest wait
 /// in the FIFO as `Queued`. Overridden by the `transferConcurrency` setting.
 const DEFAULT_CONCURRENCY: usize = 3;
 
@@ -229,25 +229,25 @@ const DEFAULT_MAX_AUTO_RETRIES: usize = 3;
 pub struct TransferManager {
     transfers: Mutex<HashMap<String, Transfer>>,
     tasks: Mutex<HashMap<String, JoinHandle<()>>>,
-    /// FIFO of transfer ids waiting for a slot (Plan 17). An id is popped only
+    /// FIFO of transfer ids waiting for a slot. An id is popped only
     /// once it is at the front, the pause-all gate is open, and a concurrency
     /// permit is available — until then it waits as `Queued`.
     waiting: Mutex<VecDeque<String>>,
     semaphore: Arc<Semaphore>,
     concurrency: AtomicUsize,
-    /// Manager-level pause gate. Admission checks it; Phase 2 checkpoints do too.
+    /// Manager-level pause gate. Admission checks it; transfer checkpoints do too.
     pause_all: PauseGate,
-    /// Per-transfer pause gates, created at enqueue time (Plan 17 Phase 2).
+    /// Per-transfer pause gates, created at enqueue time.
     pauses: Mutex<HashMap<String, PauseGate>>,
-    /// Original resolved inputs per transfer, for manual retry (Phase 3).
+    /// Original resolved inputs per transfer, for manual retry.
     retry: Mutex<HashMap<String, RetryInfo>>,
     /// Bumped on every queue change so admission waiters re-check their turn.
     queue_gen: watch::Sender<u64>,
-    /// Global bandwidth cap every copy loop draws from per chunk (Phase 4).
+    /// Global bandwidth cap every copy loop draws from per chunk.
     bucket: TokenBucket,
     /// Maximum automatic retries for transient network/timeout failures.
     max_auto_retries: AtomicUsize,
-    /// Delta-sync master switch (Plan 23 Phase 3): the `deltaSync` setting,
+    /// Delta-sync master switch: the `deltaSync` setting,
     /// live-adjustable like the concurrency bound. `GHOSTFTP_DELTA=0` still
     /// force-disables regardless of this flag.
     delta_enabled: AtomicBool,
@@ -364,7 +364,7 @@ impl TransferManager {
         self.transfers.lock().await.insert(t.id.clone(), t);
     }
 
-    // ---------- Queue scheduling (Plan 17) ----------
+    // ---------- Queue scheduling ----------
 
     fn build_queue_state(&self, waiting: &VecDeque<String>) -> QueueState {
         QueueState {
@@ -483,8 +483,8 @@ impl TransferManager {
         self.pause_all.is_paused()
     }
 
-    /// Chunk-boundary checkpoint shared by every copy loop (Plan 17). Draws
-    /// `bytes` from the global bandwidth bucket (Phase 4), then — when the
+    /// Chunk-boundary checkpoint shared by every copy loop. Draws
+    /// `bytes` from the global bandwidth bucket, then — when the
     /// transfer (or the whole manager) is paused — parks until resumed and
     /// returns `RestartFromPause` so the runner re-runs the file from byte 0.
     async fn checkpoint(&self, id: &str, bytes: u64) -> Result<()> {
@@ -563,7 +563,7 @@ impl TransferManager {
 
     /// Re-enqueue a failed or canceled transfer with its original (already
     /// policy-resolved) source/destination. Same id — the panel row resets
-    /// in place (Plan 17 Phase 3 manual retry).
+    /// in place.
     pub async fn retry(self: &Arc<Self>, id: &str, app: &AppHandle) -> Result<()> {
         match self.get(id).await.map(|t| t.status) {
             Some(TransferStatus::Error) | Some(TransferStatus::Canceled) => {}
@@ -652,8 +652,7 @@ impl TransferManager {
         }
     }
 
-    /// Live-adjust the delta-sync switch (the `deltaSync` setting, Plan 23
-    /// Phase 3). Takes effect on the next transfer decision; `GHOSTFTP_DELTA=0`
+    /// Live-adjust the delta-sync switch (the `deltaSync` setting). Takes effect on the next transfer decision; `GHOSTFTP_DELTA=0`
     /// still force-disables regardless.
     pub fn set_max_auto_retries(&self, attempts: usize) {
         self.max_auto_retries
@@ -1035,7 +1034,7 @@ impl TransferManager {
         Ok(())
     }
 
-    /// Agent upload entry point (delta-sync Phase 2): attempt a block-level
+    /// Agent upload entry point (delta sync): attempt a block-level
     /// delta when the switch is on, a remote basis exists, and the file is big
     /// enough — ANY delta error logs and falls back to the whole-file upload.
     async fn run_agent_upload_with_delta(
@@ -1269,7 +1268,7 @@ impl TransferManager {
         Ok(())
     }
 
-    /// Agent download entry point (delta-sync Phase 2): mirror of
+    /// Agent download entry point (delta sync): mirror of
     /// [`Self::run_agent_upload_with_delta`].
     async fn run_agent_download_with_delta(
         &self,
@@ -2819,7 +2818,7 @@ async fn http_size(session: &Arc<HttpSession>, path: &str) -> u64 {
     }
 }
 
-/// Delta sync exists only for the Ghost FTP Agent backend (Plan 23): it's the one
+/// Delta sync exists only for the Ghost FTP Agent backend: it's the one
 /// remote where we run code, so a chunk signature + server-side reassemble is
 /// possible. Every other backend arm dispatches to a plain whole-file copy.
 /// The dispatch matches below already route only `Session::Agent` to the
@@ -3148,7 +3147,7 @@ fn split_ext(path: &str) -> (&str, &str) {
     }
 }
 
-/// Transient = worth an auto-retry (Plan 12's structured error kinds):
+/// Transient = worth an auto-retry (structured IPC error kinds):
 /// network and timeout failures; auth/permission/not-found never retry.
 fn is_transient(e: &anyhow::Error) -> bool {
     matches!(
@@ -3157,9 +3156,9 @@ fn is_transient(e: &anyhow::Error) -> bool {
     )
 }
 
-/// Shared download runner (Plan 17): admission → run loop → finalize → wake
+/// Shared download runner: admission → run loop → finalize → wake
 /// the queue. The loop re-runs the file from byte 0 after a resume-from-pause
-/// (Phase 2) and auto-retries transient errors with 5s/20s backoff (Phase 3).
+/// (Phase 2) and auto-retries transient errors with 5s/20s backoff.
 /// The concurrency permit is held through backoff — a deliberate trade-off so
 /// a retrying transfer keeps its slot.
 async fn run_download_task(
@@ -3266,7 +3265,7 @@ async fn run_upload_task(
 }
 
 /// Backend dispatch for a single-file download. Extracted so the runner (and
-/// Phase 3 retry) can re-invoke it.
+/// manual retry) can re-invoke it.
 async fn dispatch_download(
     mgr: &Arc<TransferManager>,
     id: &str,
@@ -3427,7 +3426,7 @@ async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result:
 mod tests {
     use super::*;
 
-    // ---------- TokenBucket (Phase 4) ----------
+    // ---------- TokenBucket ----------
 
     #[tokio::test(start_paused = true)]
     async fn token_bucket_caps_throughput() {
@@ -3464,7 +3463,7 @@ mod tests {
         assert!(start.elapsed() < Duration::from_millis(100));
     }
 
-    // ---------- PauseGate + checkpoint (Phase 2) ----------
+    // ---------- PauseGate + checkpoint ----------
 
     #[tokio::test]
     async fn pause_gate_parks_until_opened() {
@@ -3503,7 +3502,7 @@ mod tests {
         assert!(err.downcast_ref::<RestartFromPause>().is_some());
     }
 
-    // ---------- FIFO admission (Phase 1) ----------
+    // ---------- FIFO admission ----------
 
     #[tokio::test]
     async fn fifo_skips_paused_and_pause_all_blocks_everyone() {
@@ -3550,7 +3549,7 @@ mod tests {
         assert_eq!(mgr.semaphore.available_permits(), 2);
     }
 
-    // ---------- Retry classification (Phase 3) ----------
+    // ---------- Retry classification ----------
 
     #[test]
     fn transient_errors_retry_permanent_ones_dont() {
@@ -3576,7 +3575,7 @@ mod tests {
         assert_eq!(join_remote("", "a.txt"), "a.txt");
     }
 
-    // ---------- Delta sync (Phase 2) ----------
+    // ---------- Delta sync transfer paths ----------
 
     /// Deterministic pseudo-random bytes (xorshift64*), so tests need no
     /// fixtures or extra dev-deps.
@@ -3710,7 +3709,7 @@ mod tests {
         mgr
     }
 
-    // ---------- Delta sync (Phase 3): setting switch + cross-backend gate ----------
+    // ---------- Delta sync setting switch + cross-backend gate ----------
 
     /// The `deltaSync` setting drives the switch; `GHOSTFTP_DELTA=0` force-off
     /// wins over it either way.
