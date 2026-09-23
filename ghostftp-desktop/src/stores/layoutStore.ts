@@ -1,9 +1,8 @@
 import { create } from "zustand";
 import type { ConnectionProfile } from "@/lib/types";
 
-// Which app-level modal is open (mutually exclusive). Centralized here so the
-// command palette, keyboard shortcuts and title-bar menus can all open them
-// without prop-threading through App.
+// Which primary workspace or transient overlay is active. Centralized here so
+// navigation, shortcuts and contextual actions can route without prop-threading.
 export type AppDialog =
   | "settings"
   | "newConnection"
@@ -15,10 +14,7 @@ export type AppDialog =
   | "transferCenter"
   | "sync"
   | "help"
-  | "updates"
-  | "cloudStorage"
-  | "schedules"
-  | "activityLogs";
+  | "updates";
 
 /** Seed for the grant consent dialog, parsed from a ghostftp://grant deep link. */
 export interface GrantPrefill {
@@ -32,7 +28,7 @@ interface LayoutState {
   setTerminalOpen: (open: boolean) => void;
   toggleTerminal: () => void;
 
-  // The Agent console is a dockable bottom panel (not a modal) so it can sit
+  // The Agent console is a dockable bottom panel so it can sit
   // open alongside the file browser and the Bridge control panel.
   consoleOpen: boolean;
   setConsoleOpen: (open: boolean) => void;
@@ -58,7 +54,7 @@ interface LayoutState {
 
   // When true, the file browser shows the LOCAL filesystem instead of the
   // active server. Toggled by the rail's "Local" home bubble; cleared when a
-  // server bubble is selected.
+  // server is selected.
   browseLocal: boolean;
   setBrowseLocal: (v: boolean) => void;
 
