@@ -4875,3 +4875,30 @@ input.ghost-pane-address:focus-visible {
 .ghost-new-connection-body {
   max-height: min(470px, calc(100dvh - 170px));
 }
+
+
+/* RC16 final Files workspace fill:
+   legacy reference-frame CSS fixed the file workspace at ~423px because the
+   old design reserved a transfer tray below it. Transfers now has its own
+   workspace, so Files must consume all remaining vertical space. */
+.ghost-content-shell > .ghost-main-workspace,
+.ghost-main-workspace {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+.ghost-main-workspace > .flex.h-full,
+.ghost-main-workspace .ghost-dual-browser,
+.ghost-main-workspace .ghost-file-pane {
+  min-height: 0;
+  height: 100%;
+}
+
+.ghost-dual-browser {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+}
