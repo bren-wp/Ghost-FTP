@@ -284,17 +284,38 @@ if (app.includes("standaloneDialog") || app.includes("<Suspense")) {
 for (const required of [
   "Couldn't initialize Sync & Backup",
   "Couldn't initialize application settings",
+  "Couldn't initialize transfer activity",
   "Couldn't register Ghost FTP deep-link listener",
+  "useTransfers.getState().loadInitial()",
+  "useTransfers.getState().initListeners()",
 ]) {
-  if (!app.includes(required)) failures.push(`App startup/deep-link failure must remain observable: ${required}`);
+  if (!app.includes(required)) failures.push(`App startup/deep-link/transfer lifecycle must remain observable: ${required}`);
+}
+if (app.includes("<TransferQueue") || app.includes('from "./components/TransferQueue"')) {
+  failures.push("Files must not reintroduce a duplicate transfer-management panel.");
+}
+if (fs.existsSync("src/components/TransferQueue.tsx")) {
+  failures.push("Obsolete duplicate TransferQueue component must not return; use the Transfers workspace.");
 }
 
 if (fs.existsSync("src/components/ServerRail.tsx")) {
   failures.push("Obsolete duplicate ServerRail must not return; primary navigation lives in ReferenceSiteSidebar.");
 }
 const settingsStore = read("src/stores/settingsStore.ts");
-for (const forbidden of ["railExpanded", "railCollapsedGroups", "setRailExpanded", "toggleRailGroup"]) {
-  if (settingsStore.includes(forbidden)) failures.push(`Removed duplicate-rail setting returned: ${forbidden}`);
+for (const forbidden of [
+  "railExpanded",
+  "railCollapsedGroups",
+  "setRailExpanded",
+  "toggleRailGroup",
+  "autoOpenTransferPanel",
+  "setAutoOpenTransferPanel",
+]) {
+  if (settingsStore.includes(forbidden)) failures.push(`Removed duplicate-shell setting returned: ${forbidden}`);
+}
+
+const transfersStore = read("src/stores/transfersStore.ts");
+for (const forbidden of ["panelOpen", "togglePanel", "setPanelOpen", "autoOpenTransferPanel"]) {
+  if (transfersStore.includes(forbidden)) failures.push(`Transfers store still contains obsolete Files-panel state: ${forbidden}`);
 }
 
 const sidebar = read("src/components/ReferenceSiteSidebar.tsx");
@@ -433,6 +454,8 @@ for (const forbidden of [
   "GeneralPerformanceCard",
   "GeneralIntegrationsCard",
   "GeneralUpdatesCard",
+  "Open transfer queue automatically",
+  "autoOpenTransferPanel",
   'section="updates"',
   'section="sync"',
   'section="integrations"',
