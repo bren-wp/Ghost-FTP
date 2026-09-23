@@ -346,10 +346,13 @@ for (const required of [
   "ftp.your-domain.tld or 192.0.2.10",
   "Advanced Settings",
   "Test Connection",
+  "Authentication",
+  "Private key",
+  "ghost-auth-choice",
 ]) {
   if (!newConnection.includes(required)) failures.push(`New Connection missing simplified form contract: ${required}`);
 }
-for (const forbidden of ["Quick Connect", "Save as Profile", "ghost-new-connection-mode"]) {
+for (const forbidden of ["Quick Connect", "Save as Profile", "ghost-new-connection-mode", "Use private key (SSH)"]) {
   if (newConnection.includes(forbidden)) failures.push(`New Connection reintroduced duplicate mode UI: ${forbidden}`);
 }
 
