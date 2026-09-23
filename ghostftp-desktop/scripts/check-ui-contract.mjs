@@ -484,7 +484,7 @@ for (const [label, source] of [
   }
 }
 
-for (const required of ["Reset to Defaults", "Done", "Primary Language", "ghost-settings-tabs", "LanguagePanel", "Advanced", "Concurrent Transfers", "Speed Limit (KiB/s)", "Max Retry Attempts"]) {
+for (const required of ["Reset to Defaults", "Done", "Primary Language", "ghost-settings-tabs", "ghost-settings-tab-label", "aria-label={label}", "title={label}", "LanguagePanel", "Advanced", "Concurrent Transfers", "Speed Limit (KiB/s)", "Max Retry Attempts"]) {
   if (!settings.includes(required)) failures.push(`Settings missing simplified contract: ${required}`);
 }
 for (const required of ['const syncOnly = initialSection === "sync"', "{!syncOnly && (", "{!syncOnly && <button"]) {
@@ -635,6 +635,8 @@ for (const required of [
   "RC16 single-window simplified navigation",
   "RC16 post-QA geometry corrections",
   "RC16 final Files workspace fill",
+  "RC16 minimum-window responsive corrections",
+  ".ghost-settings-tab-label {",
   ".ghost-primary-sidebar {",
   ".ghost-sidebar-new {",
   ".ghost-content-shell {",
@@ -684,6 +686,9 @@ for (const required of ["QuantizedColors", "EdgeRatio", "byte-identical", "blank
 
 if (!styles.includes("@media (max-width: 760px)")) {
   failures.push("Primary navigation must keep labels until a truly narrow viewport.");
+}
+if (!styles.includes("@media (max-width: 620px)") || !styles.includes("flex-direction: column !important;")) {
+  failures.push("Dual-pane Files must stack at near-minimum window widths instead of squeezing both panes horizontally.");
 }
 if (!styles.includes("RC16 compact Transfers filter reflow") ||
     !/\.ghost-transfer-filters\s*\{[\s\S]*?flex-wrap:\s*wrap;[\s\S]*?overflow-x:\s*hidden\s*!important;/.test(
