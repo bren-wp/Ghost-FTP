@@ -348,7 +348,6 @@ for (const required of ['view === "cloud"', 'label="Cloud"', "s3", "azure", "gcs
 
 const titleBar = read("src/components/TitleBar.tsx");
 for (const required of [
-  "Choose a site",
   'label="Local"',
   "New Folder",
   "Properties",
@@ -374,6 +373,7 @@ for (const forbidden of [
   "Help Center",
   "ghost-menu-popover",
   "ghost-back-to-files",
+  "Choose a site",
   '<Tool icon={<Pencil',
   '<Tool icon={<Trash2',
   '<Tool icon={<Info',
