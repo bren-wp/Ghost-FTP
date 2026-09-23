@@ -413,11 +413,11 @@ export const useTransfers = create<TransfersState>((set, get) => ({
           next[t.id] = t;
         }
       }
-      const rateById = Object.fromEntries(
-        Object.keys(next)
-          .map((id) => [id, s.rateById[id]] as const)
-          .filter((entry): entry is [string, TransferRateSample] => Boolean(entry[1]))
-      );
+      const rateById: Record<string, TransferRateSample> = {};
+      for (const id of Object.keys(next)) {
+        const sample = s.rateById[id];
+        if (sample) rateById[id] = sample;
+      }
       for (const id of [...transferRateBaselines.keys()]) {
         if (!next[id]) transferRateBaselines.delete(id);
       }
@@ -432,11 +432,11 @@ export const useTransfers = create<TransfersState>((set, get) => ({
           next[t.id] = t;
         }
       }
-      const rateById = Object.fromEntries(
-        Object.keys(next)
-          .map((id) => [id, s.rateById[id]] as const)
-          .filter((entry): entry is [string, TransferRateSample] => Boolean(entry[1]))
-      );
+      const rateById: Record<string, TransferRateSample> = {};
+      for (const id of Object.keys(next)) {
+        const sample = s.rateById[id];
+        if (sample) rateById[id] = sample;
+      }
       for (const id of [...transferRateBaselines.keys()]) {
         if (!next[id]) transferRateBaselines.delete(id);
       }
