@@ -342,7 +342,7 @@ function ConnectionCard() {
     </Card>
   );
 }
-function SecurityCard() { return <Card icon={<ShieldCheck size={20}/>} title="Security & Privacy" subtitle="Protect your data and control your privacy."><ToggleRow label="No tracking" checked locked/><ToggleRow label="No analytics or telemetry" checked locked/><ToggleRow label="Store credentials in OS keychain" checked locked/></Card> }
+function SecurityCard() { return <Card icon={<ShieldCheck size={20}/>} title="Security & Privacy" subtitle="Privacy and credential protections built into Ghost FTP."><StatusRow label="No tracking"/><StatusRow label="No analytics or telemetry"/><StatusRow label="Credentials stored with the operating system keychain"/></Card> }
 
 function IntegrationsCard() {
   const s=useSettings();
@@ -377,10 +377,10 @@ function IntegrationsCard() {
   return <Card icon={<Plug size={20}/>} title="Integrations" subtitle="Extend Ghost FTP with system integrations.">
     <ToggleRow label="Shell integration" checked={s.shellIntegration} onChange={(v)=>void setShell(v)} locked={shellBusy}/>
     <div className="-mt-1 text-[10px] leading-4 text-text-dim">{shellDetail}</div>
-    <ToggleRow label="File associations" checked={s.fileAssociations} onChange={s.setFileAssociations} locked/>
-    <div className="-mt-1 text-[10px] leading-4 text-text-dim">File associations are installed only by signed production packages; this control stays locked in source/dev builds.</div>
   </Card>
 }
+
+function StatusRow({ label }: { label: string }){return <div className="flex min-h-8 items-center gap-3 rounded-md border border-border-subtle bg-[#051929] px-3 text-[12px]"><span className="h-2 w-2 shrink-0 rounded-full bg-success"/><span>{label}</span></div>}
 
 function AppearancePanel(){return <div className="mx-auto w-full max-w-4xl"><AppearanceCard/></div>}
 function LanguagePanel({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }){return <div className="mx-auto w-full max-w-4xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
