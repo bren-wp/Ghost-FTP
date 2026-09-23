@@ -284,9 +284,12 @@ for (const required of [
   "Couldn't initialize Sync & Backup",
   "Couldn't initialize application settings",
   "Couldn't initialize transfer activity",
+  "Couldn't initialize app updates",
   "Couldn't register Ghost FTP deep-link listener",
   "useTransfers.getState().loadInitial()",
   "useTransfers.getState().initListeners()",
+  "useUpdater.getState()",
+  ".init()",
 ]) {
   if (!app.includes(required)) failures.push(`App startup/deep-link/transfer lifecycle must remain observable: ${required}`);
 }
@@ -512,6 +515,14 @@ for (const file of walkSource("src/components")) {
   if (source.includes('aria-label="Language"') || source.includes("English (English)")) {
     failures.push(`${file}: application language selector must live in Settings only`);
   }
+}
+
+if (fs.existsSync("src/components/UpdatePrompt.tsx")) {
+  failures.push("Updates must remain inside Help & About; obsolete global UpdatePrompt must not return.");
+}
+const updaterStore = read("src/stores/updaterStore.ts");
+for (const forbidden of ["dismissed:", "dismiss: () =>"]) {
+  if (updaterStore.includes(forbidden)) failures.push(`Updater store still contains obsolete global-prompt state: ${forbidden}`);
 }
 
 const about = read("src/components/AboutDialog.tsx");

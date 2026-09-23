@@ -41,6 +41,7 @@ import { TransferCenterDialog } from "./components/TransferCenterDialog";
 import { GrantDialog } from "./components/GrantDialog";
 import { ImportDialog } from "./components/ImportDialog";
 import { AboutDialog } from "./components/AboutDialog";
+import { useUpdater } from "./stores/updaterStore";
 
 const WORKSPACE_DIALOGS = new Set<AppDialog>([
   "settings",
@@ -158,6 +159,29 @@ export default function App() {
   useEffect(() => {
     const cleanup = initNotifications();
     return cleanup;
+  }, []);
+
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+
+    void useUpdater
+      .getState()
+      .init()
+      .then((nextCleanup) => {
+        if (cancelled) nextCleanup();
+        else cleanup = nextCleanup;
+      })
+      .catch((error) => {
+        // The quiet updater check is non-blocking; an unexpected initialization
+        // failure must remain observable without interrupting application launch.
+        console.error("Couldn't initialize app updates", error);
+      });
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
   }, []);
 
   return (

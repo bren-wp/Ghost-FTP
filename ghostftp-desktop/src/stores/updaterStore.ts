@@ -4,14 +4,13 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { ipc } from "@/lib/ipc";
 import { toast } from "./toastStore";
 
-// In-app auto-updater (Plan 16 Phase 1/2). Drives the Tauri updater plugin from
-// the frontend: check a signed Ghost FTP release service `latest.json`, download the
-// signed artifact (verified against the pubkey in tauri.conf.json), and relaunch
-// to apply. The signature check is the plugin's, not ours — the app never
-// installs an unverified update.
+// In-app auto-updater. The persistent application shell performs a throttled,
+// quiet launch check; Help & About → Updates owns all user-facing update actions.
+// Tauri verifies the signed artifact against the public key in tauri.conf.json
+// before installation, and the process plugin performs the explicit restart.
 //
-// `heldUpdate` keeps the (non-serializable) plugin Update object between the
-// check and the download; only plain, renderable fields live in the store.
+// `heldUpdate` keeps the non-serializable plugin Update object between the
+// check and download; only plain, renderable fields live in the store.
 
 let heldUpdate: Update | null = null;
 
@@ -37,15 +36,11 @@ interface UpdaterState {
   downloaded: number;
   total: number | null;
   error: string | null;
-  /** Session-only: hide the launch prompt without changing anything persisted. */
-  dismissed: boolean;
-
   /** Check now. `quiet` swallows the "up to date" toast + any endpoint error
    *  (used for the throttled launch check); a manual check surfaces both. */
   check: (quiet: boolean) => Promise<void>;
   downloadAndInstall: () => Promise<void>;
   restart: () => Promise<void>;
-  dismiss: () => void;
   /** Throttled launch check. Returns a no-op cleanup so it slots into the same
    *  mount pattern as the other startup stores. */
   init: () => Promise<() => void>;
@@ -59,7 +54,6 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
   downloaded: 0,
   total: null,
   error: null,
-  dismissed: false,
 
   check: async (quiet) => {
     if (get().status === "checking" || get().status === "downloading") return;
@@ -78,7 +72,6 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
           version: update.version,
           currentVersion: update.currentVersion,
           notes: update.body ?? null,
-          dismissed: false,
         });
       } else {
         heldUpdate = null;
@@ -128,8 +121,6 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
       toast.error(`Couldn't restart: ${e}`);
     }
   },
-
-  dismiss: () => set({ dismissed: true }),
 
   init: async () => {
     try {
