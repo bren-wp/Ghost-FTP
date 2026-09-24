@@ -119,7 +119,7 @@ image = { version = "0.25", default-features = false, features = [
 ] }
 
 # Filesystem watcher — powers the right-click "Edit with…" flow that
-downloads a remote file to a tempfile, opens it in the user's editor, and
+# downloads a remote file to a tempfile, opens it in the user's editor, and
 # uploads it back on every save.
 notify = "6"
 
