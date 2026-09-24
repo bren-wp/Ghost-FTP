@@ -89,7 +89,7 @@ class MainActivity : Activity() {
             text = "Native Android workspace aligned with the Ghost FTP desktop layout: connection control, remote view, queue state and privacy-first session handling in one screen."
             setTextColor(Brand.textSoft)
             textSize = 15f
-            lineSpacing = 0f, 1.15f
+            setLineSpacing(0f, 1.15f)
         })
     }
 
@@ -334,7 +334,7 @@ class MainActivity : Activity() {
         setTextColor(Brand.textSoft)
         textSize = 14f
         setPadding(0, dp(4), 0, dp(12))
-        lineSpacing = 0f, 1.15f
+        setLineSpacing(0f, 1.15f)
     }
 
     private fun label(value: String): TextView = TextView(this).apply {
