@@ -34,3 +34,8 @@ android {
         jvmTarget = "17"
     }
 }
+
+dependencies {
+    implementation("commons-net:commons-net:3.11.1")
+    implementation("com.jcraft:jsch:0.1.55")
+}
