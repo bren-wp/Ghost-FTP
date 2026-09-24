@@ -59,9 +59,41 @@ jobs:
         shell: bash
         run: bash android/scripts/check-android-contract.sh
 
-      - name: Build Android APK
+      - name: Prepare Android signing material
+        env:
+          GHOSTFTP_ANDROID_KEYSTORE_BASE64: ${{ secrets.GHOSTFTP_ANDROID_KEYSTORE_BASE64 }}
+          GHOSTFTP_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.GHOSTFTP_ANDROID_KEYSTORE_PASSWORD }}
+          GHOSTFTP_ANDROID_KEY_ALIAS: ${{ secrets.GHOSTFTP_ANDROID_KEY_ALIAS }}
+          GHOSTFTP_ANDROID_KEY_PASSWORD: ${{ secrets.GHOSTFTP_ANDROID_KEY_PASSWORD }}
         shell: bash
-        run: gradle -p android lintDebug assembleDebug
+        run: |
+          set -euo pipefail
+          : "${GHOSTFTP_ANDROID_KEYSTORE_BASE64:?GHOSTFTP_ANDROID_KEYSTORE_BASE64 secret is required}"
+          : "${GHOSTFTP_ANDROID_KEYSTORE_PASSWORD:?GHOSTFTP_ANDROID_KEYSTORE_PASSWORD secret is required}"
+          : "${GHOSTFTP_ANDROID_KEY_ALIAS:?GHOSTFTP_ANDROID_KEY_ALIAS secret is required}"
+          : "${GHOSTFTP_ANDROID_KEY_PASSWORD:?GHOSTFTP_ANDROID_KEY_PASSWORD secret is required}"
+          KEYSTORE_PATH="$RUNNER_TEMP/ghostftp-android-release.jks"
+          printf '%s' "$GHOSTFTP_ANDROID_KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+          test -s "$KEYSTORE_PATH"
+          cat > android/signing.properties <<EOF
+          storeFile=$KEYSTORE_PATH
+          storePassword=$GHOSTFTP_ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$GHOSTFTP_ANDROID_KEY_ALIAS
+          keyPassword=$GHOSTFTP_ANDROID_KEY_PASSWORD
+          EOF
+          sed -i 's/^          //' android/signing.properties
+
+      - name: Build signed Android APK
+        shell: bash
+        run: gradle -p android lintRelease assembleRelease
+
+      - name: Verify signed Android APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
 
       - name: Prepare APK asset
         shell: bash
@@ -69,7 +101,7 @@ jobs:
           set -euo pipefail
           mkdir -p dist/android
           APK="dist/android/GhostFTP-Android-${SAFE_TAG}.apk"
-          cp android/app/build/outputs/apk/debug/app-debug.apk "$APK"
+          cp android/app/build/outputs/apk/release/app-release.apk "$APK"
           test -s "$APK"
           sha256sum "$APK" > "${APK}.sha256"
 
