@@ -9,6 +9,7 @@ import { useDialog } from "@/hooks/useDialog";
 import { useConnections } from "@/stores/connectionsStore";
 import { generatePassword } from "@/lib/password";
 import { toast } from "@/stores/toastStore";
+import { messageOf } from "@/lib/errors";
 import type { AuthPromptEvent } from "@/lib/types";
 
 const lower = (s: string) => s.toLowerCase();
@@ -43,7 +44,7 @@ export function AuthPromptModal() {
           else unsubs.push(cleanup);
         })
         .catch((error) => {
-          toast.error(label, String(error));
+          toast.error(label, messageOf(error));
         });
     };
 
@@ -81,7 +82,7 @@ export function AuthPromptModal() {
       await ipc.respondToAuthPrompt(event.requestId, values);
       setQueue((q) => q.slice(1));
     } catch (error) {
-      toast.error("Couldn't submit authentication response", String(error));
+      toast.error("Couldn't submit authentication response", messageOf(error));
     }
   };
 
@@ -91,7 +92,7 @@ export function AuthPromptModal() {
       await ipc.respondToAuthPrompt(event.requestId, null);
       setQueue((q) => q.slice(1));
     } catch (error) {
-      toast.error("Couldn't cancel authentication prompt", String(error));
+      toast.error("Couldn't cancel authentication prompt", messageOf(error));
     }
   };
 
@@ -122,22 +123,30 @@ function AuthPromptDialog({
   onCancel,
 }: {
   event: AuthPromptEvent;
-  onSubmit: (values: string[]) => void;
-  onCancel: () => void;
+  onSubmit: (values: string[]) => Promise<void>;
+  onCancel: () => Promise<void>;
 }) {
   const [values, setValues] = useState<string[]>(() =>
     event.prompts.map(() => "")
   );
+  const [submitting, setSubmitting] = useState(false);
+  const [generating, setGenerating] = useState<number | null>(null);
   const panelRef = useRef<HTMLFormElement>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
+  const busy = submitting || generating !== null;
+  const cancelIfIdle = () => {
+    if (!busy) void onCancel();
+  };
   // Escape cancels (aborts the connection); the first field takes focus.
-  useDialog(panelRef, { onClose: onCancel, initialFocus: firstInputRef });
+  useDialog(panelRef, { onClose: cancelIfIdle, initialFocus: firstInputRef });
 
   const setAt = (i: number, v: string) =>
     setValues((arr) => arr.map((x, idx) => (idx === i ? v : x)));
 
   const generateFor = async (i: number) => {
+    if (busy) return;
+    setGenerating(i);
     const pw = generatePassword();
     setValues((arr) =>
       arr.map((x, idx) => {
@@ -153,21 +162,29 @@ function AuthPromptDialog({
     } catch (error) {
       toast.warning(
         "Password generated, but couldn't copy it",
-        `The generated password remains in the fields. ${String(error)}`
+        `The generated password remains in the fields. ${messageOf(error)}`
       );
+    } finally {
+      setGenerating(null);
     }
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(values);
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit(values);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-secure flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <form
         ref={panelRef}
-        onSubmit={submit}
+        onSubmit={(event) => void submit(event)}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -187,8 +204,9 @@ function AuthPromptDialog({
           </div>
           <button
             type="button"
-            onClick={onCancel}
-            className="rounded-md p-1 text-text-muted hover:bg-bg-hover hover:text-text"
+            onClick={cancelIfIdle}
+            disabled={busy}
+            className="rounded-md p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
             title="Cancel"
           >
             <X size={13} />
@@ -217,17 +235,20 @@ function AuthPromptDialog({
                     onChange={(e) => setAt(i, e.target.value)}
                     autoComplete="off"
                     spellCheck={false}
-                    className="w-full rounded-md border border-border bg-bg-subtle px-2.5 py-1.5 text-sm outline-none focus:border-accent"
+                    disabled={submitting}
+                    className="w-full rounded-md border border-border bg-bg-subtle px-2.5 py-1.5 text-sm outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
                   />
                   {showGenerate && (
                     <button
                       type="button"
-                      onClick={() => generateFor(i)}
+                      onClick={() => void generateFor(i)}
+                      disabled={busy}
+                      aria-busy={generating === i}
                       title="Generate a strong password"
-                      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-bg-subtle px-2 py-1.5 text-[11.5px] text-text-muted hover:bg-bg-hover hover:text-text"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-bg-subtle px-2 py-1.5 text-[11.5px] text-text-muted hover:bg-bg-hover hover:text-text disabled:cursor-wait disabled:opacity-60"
                     >
                       <Wand2 size={12} />
-                      Generate
+                      {generating === i ? "Generating…" : "Generate"}
                     </button>
                   )}
                 </div>
@@ -239,16 +260,19 @@ function AuthPromptDialog({
         <div className="flex items-center justify-end gap-2 border-t border-border bg-bg-subtle px-4 py-3">
           <button
             type="button"
-            onClick={onCancel}
-            className="rounded-md border border-border bg-bg-panel px-3 py-1.5 text-xs font-medium hover:bg-bg-hover"
+            onClick={cancelIfIdle}
+            disabled={busy}
+            className="rounded-md border border-border bg-bg-panel px-3 py-1.5 text-xs font-medium hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="btn-accent rounded-md px-3 py-1.5 text-xs font-medium text-white"
+            disabled={submitting}
+            aria-busy={submitting}
+            className="btn-accent rounded-md px-3 py-1.5 text-xs font-medium text-white disabled:cursor-wait disabled:opacity-70"
           >
-            Submit
+            {submitting ? "Submitting…" : "Submit"}
           </button>
         </div>
       </form>
@@ -268,23 +292,31 @@ function SavePasswordDialog({
   const profiles = useConnections((s) => s.profiles);
   const saveProfile = useConnections((s) => s.saveProfile);
   const profile = profiles.find((p) => p.id === profileId);
+  const [saving, setSaving] = useState(false);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const keepRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
+  const closeIfIdle = () => {
+    if (!saving) onClose();
+  };
   // Escape = keep the old saved value (the conservative choice).
-  useDialog(panelRef, { onClose, initialFocus: keepRef });
+  useDialog(panelRef, { onClose: closeIfIdle, initialFocus: keepRef });
 
   const update = async () => {
+    if (saving) return;
+    setSaving(true);
     if (profile && profile.auth.kind === "password") {
       try {
         await saveProfile({ ...profile, auth: { kind: "password", password } });
         toast.success("Saved password updated", profile.name);
-      } catch (e) {
-        toast.error("Couldn't update saved password", String(e));
+        onClose();
+        return;
+      } catch (error) {
+        toast.error("Couldn't update saved password", messageOf(error));
       }
     }
-    onClose();
+    setSaving(false);
   };
 
   return (
@@ -314,16 +346,21 @@ function SavePasswordDialog({
         <div className="flex items-center justify-end gap-2 border-t border-border bg-bg-subtle px-4 py-3">
           <button
             ref={keepRef}
-            onClick={onClose}
-            className="rounded-md border border-border bg-bg-panel px-3 py-1.5 text-xs font-medium hover:bg-bg-hover"
+            type="button"
+            onClick={closeIfIdle}
+            disabled={saving}
+            className="rounded-md border border-border bg-bg-panel px-3 py-1.5 text-xs font-medium hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             Keep old
           </button>
           <button
-            onClick={update}
-            className="btn-accent rounded-md px-3 py-1.5 text-xs font-medium text-white"
+            type="button"
+            onClick={() => void update()}
+            disabled={saving}
+            aria-busy={saving}
+            className="btn-accent rounded-md px-3 py-1.5 text-xs font-medium text-white disabled:cursor-wait disabled:opacity-70"
           >
-            Update saved password
+            {saving ? "Updating…" : "Update saved password"}
           </button>
         </div>
       </div>
