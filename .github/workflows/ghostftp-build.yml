@@ -1,7 +1,7 @@
 name: Ghost FTP native build
 
-# RC19 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
-# RC19 release build stamp: 2026-09-24.19
+# RC20 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
+# RC20 release build stamp: 2026-09-24.20
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
     paths:
       - 'ghostftp-desktop/**'
       - '.github/workflows/ghostftp-build.yml'
-      - '.github/workflows/ghostftp-rc19-release.yml'
+      - '.github/workflows/ghostftp-rc20-release.yml'
 
 permissions:
   contents: read
@@ -31,10 +31,10 @@ jobs:
         include:
           - os: windows-latest
             args: '--bundles nsis'
-            artifact: 'GhostFTP-Windows-x64-RC19'
+            artifact: 'GhostFTP-Windows-x64-RC20'
           - os: ubuntu-22.04
             args: '--bundles deb,rpm,appimage'
-            artifact: 'GhostFTP-Linux-x86_64-RC19'
+            artifact: 'GhostFTP-Linux-x86_64-RC20'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -153,7 +153,7 @@ jobs:
               $edgeComparisons = 0
               $edgeHits = 0
 
-              # Sample densely enough to detect UI structure. RC19 exposed why
+              # Sample densely enough to detect UI structure. RC20 exposed why
               # sparse color/variance checks are insufficient: a blank WebView2
               # compositor frame with only the native border still had >100 raw
               # colors from anti-aliasing and incorrectly passed.
@@ -397,7 +397,7 @@ jobs:
               }
 
               # Validate the real launch geometry before the canonical QA resize.
-              # RC19 must start as a normal window and stay inside the OS working
+              # RC20 must start as a normal window and stay inside the OS working
               # area even when the preferred 1290x852 size is larger than the
               # available desktop.
               $launchRect = New-Object GhostFtpWindowCapture+RECT
@@ -439,8 +439,8 @@ jobs:
                 throw "Native window bounds for $($view.key) are ${width}x${height}, expected approximately ${targetWidth}x${targetHeight}"
               }
 
-              $png = Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + ".png")
-              $printCandidate = Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + ".printwindow.tmp.png")
+              $png = Join-Path $qaDir ("GhostFTP-Windows-RC20-" + $view.label + ".png")
+              $printCandidate = Join-Path $qaDir ("GhostFTP-Windows-RC20-" + $view.label + ".printwindow.tmp.png")
               $captureMethod = 'PrintWindow(PW_RENDERFULLCONTENT)'
 
               $bitmap = New-Object System.Drawing.Bitmap $targetWidth, $targetHeight, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
@@ -507,7 +507,7 @@ jobs:
                 "OpaqueSamples=$($validation.Opaque)/$($validation.Samples)"
                 "ImageBytes=$($pngInfo.Length)"
                 "Executable=$exe"
-              ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + ".txt"))
+              ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC20-" + $view.label + ".txt"))
 
               # Exercise a genuinely compact viewport for the workspaces that
               # carry the most responsive pressure. This is separate from the
@@ -530,7 +530,7 @@ jobs:
                   }
                   Start-Sleep -Milliseconds 350
 
-                  $compactPng = Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + "-Compact.png")
+                  $compactPng = Join-Path $qaDir ("GhostFTP-Windows-RC20-" + $view.label + "-Compact.png")
                   Capture-GhostFtpWebView2 -Port $debugPort -OutputPath $compactPng -Width $compactWidth -Height $compactHeight
                   $compactValidation = Test-GhostFtpPng -Path $compactPng -ExpectedWidth $compactWidth -ExpectedHeight $compactHeight
                   if (-not $compactValidation.Valid) {
@@ -557,7 +557,7 @@ jobs:
                     "EdgeRatio=$([Math]::Round($compactValidation.EdgeRatio,8))"
                     "OpaqueSamples=$($compactValidation.Opaque)/$($compactValidation.Samples)"
                     "Executable=$exe"
-                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + "-Compact.txt"))
+                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC20-" + $view.label + "-Compact.txt"))
                 }
 
                 # Exercise a near-minimum responsive viewport as a separate
@@ -581,7 +581,7 @@ jobs:
                   }
                   Start-Sleep -Milliseconds 350
 
-                  $minimumPng = Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + "-Minimum.png")
+                  $minimumPng = Join-Path $qaDir ("GhostFTP-Windows-RC20-" + $view.label + "-Minimum.png")
                   Capture-GhostFtpWebView2 -Port $debugPort -OutputPath $minimumPng -Width $minimumWidth -Height $minimumHeight
                   $minimumValidation = Test-GhostFtpPng -Path $minimumPng -ExpectedWidth $minimumWidth -ExpectedHeight $minimumHeight
                   if (-not $minimumValidation.Valid) {
@@ -608,7 +608,7 @@ jobs:
                     "EdgeRatio=$([Math]::Round($minimumValidation.EdgeRatio,8))"
                     "OpaqueSamples=$($minimumValidation.Opaque)/$($minimumValidation.Samples)"
                     "Executable=$exe"
-                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + "-Minimum.txt"))
+                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC20-" + $view.label + "-Minimum.txt"))
                 }
               }
             } finally {
@@ -630,12 +630,12 @@ jobs:
         if: runner.os == 'Windows' && always()
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-Windows-x64-RC19-QA
+          name: GhostFTP-Windows-x64-RC20-QA
           path: qa/*
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Verify README screenshots against native RC19 QA
+      - name: Verify README screenshots against native RC20 QA
         if: runner.os == 'Windows' && success()
         shell: pwsh
         run: |
@@ -643,13 +643,13 @@ jobs:
           Add-Type -AssemblyName System.Drawing
 
           $screenshots = @(
-            @{ Source = 'GhostFTP-Windows-RC19-Native-Window.png'; Dest = 'ghostftp-native-files.png' },
-            @{ Source = 'GhostFTP-Windows-RC19-Site-Manager.png'; Dest = 'ghostftp-native-sites.png' },
-            @{ Source = 'GhostFTP-Windows-RC19-New-Connection.png'; Dest = 'ghostftp-native-new-connection.png' },
-            @{ Source = 'GhostFTP-Windows-RC19-Preferences.png'; Dest = 'ghostftp-native-settings.png' },
-            @{ Source = 'GhostFTP-Windows-RC19-Transfer-Center.png'; Dest = 'ghostftp-native-transfers.png' },
-            @{ Source = 'GhostFTP-Windows-RC19-File-Properties.png'; Dest = 'ghostftp-native-file-properties.png' },
-            @{ Source = 'GhostFTP-Windows-RC19-About.png'; Dest = 'ghostftp-native-about.png' }
+            @{ Source = 'GhostFTP-Windows-RC20-Native-Window.png'; Dest = 'ghostftp-native-files.png' },
+            @{ Source = 'GhostFTP-Windows-RC20-Site-Manager.png'; Dest = 'ghostftp-native-sites.png' },
+            @{ Source = 'GhostFTP-Windows-RC20-New-Connection.png'; Dest = 'ghostftp-native-new-connection.png' },
+            @{ Source = 'GhostFTP-Windows-RC20-Preferences.png'; Dest = 'ghostftp-native-settings.png' },
+            @{ Source = 'GhostFTP-Windows-RC20-Transfer-Center.png'; Dest = 'ghostftp-native-transfers.png' },
+            @{ Source = 'GhostFTP-Windows-RC20-File-Properties.png'; Dest = 'ghostftp-native-file-properties.png' },
+            @{ Source = 'GhostFTP-Windows-RC20-About.png'; Dest = 'ghostftp-native-about.png' }
           )
 
           foreach ($shot in $screenshots) {
@@ -692,7 +692,7 @@ jobs:
               $ratio = [double]$changed / [double]$samples
               Write-Host ("README screenshot " + $shot.Dest + " changed-pixel ratio=" + [Math]::Round($ratio, 5))
               if ($ratio -gt 0.05) {
-                throw "README screenshot $($shot.Dest) no longer matches the native RC19 UI closely enough; refresh it from reviewed QA evidence."
+                throw "README screenshot $($shot.Dest) no longer matches the native RC20 UI closely enough; refresh it from reviewed QA evidence."
               }
             } finally {
               $fresh.Dispose()
@@ -713,26 +713,26 @@ jobs:
           if-no-files-found: error
 
   source-packages:
-    name: RC19 source packages
+    name: RC20 source packages
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Package RC19 source and documentation
+      - name: Package RC20 source and documentation
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist
-          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC19-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-RC19-Desktop-Source.zip ghostftp-desktop
-          zip -qr dist/GhostFTP-v2.1.1-RC19-Website.zip website
-          zip -qr dist/GhostFTP-v2.1.1-RC19-Updates.zip updates
-          zip -qr dist/GhostFTP-v2.1.1-RC19-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
-      - name: Upload RC19 source packages
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC20-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC20-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC20-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC20-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC20-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+      - name: Upload RC20 source packages
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-RC19-Source-Packages
+          name: GhostFTP-RC20-Source-Packages
           path: dist/*
           if-no-files-found: error
           retention-days: 14
