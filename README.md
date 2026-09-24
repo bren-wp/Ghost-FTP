@@ -7,7 +7,7 @@
 **A modern, privacy-first FTP / FTPS / SFTP client for Windows and Linux.**
 
 [Website](https://ghostftp.com/) ·
-[Releases](https://github.com/bren-wp/Ghost-FTP-Premium/releases) ·
+[Releases](https://github.com/bren-wp/Ghost-FTP/releases) ·
 [Documentation](docs/README.md) ·
 [Security](SECURITY.md) ·
 [Changelog](CHANGELOG.md)
@@ -124,7 +124,7 @@ The Windows native QA bundle contains the seven critical product surfaces at can
 ## Repository layout
 
 ```text
-Ghost-FTP-Premium/
+Ghost-FTP/
 ├── ghostftp-desktop/        Production Windows/Linux desktop application
 ├── website/                 ghostftp.com source
 ├── updates/                 Update channels, manifest schema and tools
