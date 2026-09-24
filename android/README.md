@@ -42,17 +42,12 @@ From the repository root:
 gradle -p android lintDebug lintRelease assembleDebug assembleRelease
 ```
 
-The pull-request Android workflow runs the production contract, both lint variants and both APK builds. It uploads CI APK artifacts and checksums for review.
+The pull-request Android workflow runs the Android contract, both lint variants and both APK builds. It uploads installable APK artifacts and checksums for review.
 
-## Production release rule
+## Release rule without external keys
 
-Every next GitHub release must include an Android APK asset. The dedicated workflow `.github/workflows/ghostftp-android-release.yml` builds from the published tag, signs the release APK, verifies the APK signature and uploads both the APK and its SHA-256 checksum to that release.
+Every next GitHub release must include an Android APK asset. The dedicated workflow `.github/workflows/ghostftp-android-release.yml` builds from the published tag, creates an installable APK without requiring GitHub signing secrets, verifies the APK signature and uploads both the APK and its SHA-256 checksum to that release.
 
-The following GitHub Secrets are required for a production-signed APK:
+No repository keystore, GitHub secret or manual signing key is required for this release path.
 
-- `GHOSTFTP_ANDROID_KEYSTORE_BASE64`
-- `GHOSTFTP_ANDROID_KEYSTORE_PASSWORD`
-- `GHOSTFTP_ANDROID_KEY_ALIAS`
-- `GHOSTFTP_ANDROID_KEY_PASSWORD`
-
-The release workflow fails if any signing secret is missing. Unsigned APK files must not be published as production release assets.
+For long-term Android upgrade continuity, a stable signing key can be introduced later. Without a stable saved signing key, Android may treat APKs from different release runs as separately signed builds.
