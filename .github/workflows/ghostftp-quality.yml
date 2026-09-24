@@ -58,6 +58,11 @@ jobs:
             ghostftp-desktop/src ghostftp-desktop/src-tauri tools/ghostftp-runtime tools/ghostftp-installer website \
             --exclude-dir=node_modules --exclude-dir=target
 
+          ! grep -Rni 'Ghost-FTP-Premium' \
+            README.md ghostftp-desktop/README.md docs/build docs/product docs/release
+          grep -Fq 'https://github.com/bren-wp/Ghost-FTP/releases' README.md
+          grep -Fq -- '--prerelease' .github/workflows/ghostftp-rc20-release.yml
+
       - name: Native window architecture guard
         shell: bash
         run: |
