@@ -6,10 +6,10 @@ Ghost FTP Android must follow the same product identity as the Windows and Linux
 
 - Product name: Ghost FTP
 - Brand owner label: Brendigo
-- Version: 2.1.1-rc.21
-- Display version: 2.1.1 RC21
-- Badge: RC21
-- Build: 2026.09.24.21
+- Version: 2.1.1-rc.22
+- Display version: 2.1.1 RC22
+- Badge: RC22
+- Build: 2026.09.24.22
 
 ## Interface contract
 
@@ -45,7 +45,7 @@ Android keeps the same primary product model as the desktop app:
 
 ## Release contract
 
-Every next GitHub release must include an Android APK file and a SHA-256 checksum. The Android release workflow builds the APK from the published tag, verifies the APK signature and uploads it to the matching release.
+Every RC22 GitHub release must include Windows, Linux and Android APK assets plus SHA-256 checksums. The Android release workflow builds the APK from the published tag, verifies the APK signature and uploads it to the matching release.
 
 The Android release workflow must not require GitHub signing secrets. The release path is designed to produce an installable APK without manual key setup.
 
