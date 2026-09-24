@@ -35,20 +35,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q '"version": "2.1.1-rc.19"' ghostftp-desktop/package.json
-          grep -q '"version": "2.1.1-rc.19"' ghostftp-desktop/package-lock.json
-          grep -q '^version = "2.1.1-rc.19"$' ghostftp-desktop/src-tauri/Cargo.toml
-          grep -q '^version = "2.1.1-rc.19"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
-          grep -q '^version = "2.1.1-rc.19"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
-          grep -q '^version = "2.1.1-rc.19"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
-          grep -q '"version": "2.1.1-rc.19"' ghostftp-desktop/src-tauri/tauri.conf.json
-          grep -q 'PRODUCT_VERSION = "2.1.1-rc.19"' ghostftp-desktop/src/lib/release.ts
-          grep -q 'const version = "2.1.1-rc.19"' tools/ghostftp-runtime/main.go
-          grep -q 'const version = "2.1.1-rc.19"' tools/ghostftp-installer/main.go
-          grep -q '"version": "2.1.1-rc.19"' updates/channels/preview.template.json
-          grep -q '"version": "2.1.1-rc.19"' updates/latest.template.json
-          grep -q '"build": "2026.09.24.19"' updates/latest.template.json
-          test -f docs/releases/2.1.1-rc.19.md
+          grep -q '"version": "2.1.1-rc.20"' ghostftp-desktop/package.json
+          grep -q '"version": "2.1.1-rc.20"' ghostftp-desktop/package-lock.json
+          grep -q '^version = "2.1.1-rc.20"$' ghostftp-desktop/src-tauri/Cargo.toml
+          grep -q '^version = "2.1.1-rc.20"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
+          grep -q '^version = "2.1.1-rc.20"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
+          grep -q '^version = "2.1.1-rc.20"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
+          grep -q '"version": "2.1.1-rc.20"' ghostftp-desktop/src-tauri/tauri.conf.json
+          grep -q 'PRODUCT_VERSION = "2.1.1-rc.20"' ghostftp-desktop/src/lib/release.ts
+          grep -q 'const version = "2.1.1-rc.20"' tools/ghostftp-runtime/main.go
+          grep -q 'const version = "2.1.1-rc.20"' tools/ghostftp-installer/main.go
+          grep -q '"version": "2.1.1-rc.20"' updates/channels/preview.template.json
+          grep -q '"version": "2.1.1-rc.20"' updates/latest.template.json
+          grep -q '"build": "2026.09.24.20"' updates/latest.template.json
+          test -f docs/releases/2.1.1-rc.20.md
 
       - name: Reject legacy/demo branding
         shell: bash
