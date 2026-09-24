@@ -27,10 +27,10 @@ require_absent() {
 
 require_text "product name" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt" 'PRODUCT_NAME = "Ghost FTP"'
 require_text "brand" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt" 'BRAND = "Brendigo"'
-require_text "version" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt" 'VERSION = "2.1.1-rc.21"'
-require_text "display version" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt" 'VERSION_DISPLAY = "2.1.1 RC21"'
-require_text "badge" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt" 'VERSION_BADGE = "RC21"'
-require_text "build" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt" 'BUILD = "2026.09.24.21"'
+require_text "version" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt" 'VERSION = "2.1.1-rc.22"'
+require_text "display version" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt" 'VERSION_DISPLAY = "2.1.1 RC22"'
+require_text "badge" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt" 'VERSION_BADGE = "RC22"'
+require_text "build" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt" 'BUILD = "2026.09.24.22"'
 require_text "app label" "$ANDROID_DIR/app/src/main/res/values/strings.xml" '<string name="app_name">Ghost FTP</string>'
 require_text "ftp protocol" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ConnectionModel.kt" 'FTP("FTP", 21)'
 require_text "ftps protocol" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ConnectionModel.kt" 'EXPLICIT_FTPS("Explicit FTPS", 21)'
@@ -51,6 +51,7 @@ blocked_patterns=(
   'ftp.company.com'
   'debug build'
   'RC20'
+  'RC21'
   'Win32'
   'Win 32'
   'Developer:'
@@ -62,4 +63,4 @@ for pattern in "${blocked_patterns[@]}"; do
   require_absent "product copy" "$APP_DIR" "$pattern"
 done
 
-echo "Ghost FTP Android production contract OK"
+echo "Ghost FTP Android RC22 production contract OK"
