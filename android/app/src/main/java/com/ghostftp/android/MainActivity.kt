@@ -320,7 +320,7 @@ class MainActivity : Activity() {
     private fun input(hintText: String, type: Int): EditText = EditText(this).apply {
         hint = hintText
         inputType = type
-        singleLine = true
+        setSingleLine(true)
         setTextColor(Brand.text)
         setHintTextColor(Brand.muted)
         textSize = 15f
