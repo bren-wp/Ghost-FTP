@@ -35,20 +35,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q '"version": "2.1.1-rc.20"' ghostftp-desktop/package.json
-          grep -q '"version": "2.1.1-rc.20"' ghostftp-desktop/package-lock.json
-          grep -q '^version = "2.1.1-rc.20"$' ghostftp-desktop/src-tauri/Cargo.toml
-          grep -q '^version = "2.1.1-rc.20"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
-          grep -q '^version = "2.1.1-rc.20"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
-          grep -q '^version = "2.1.1-rc.20"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
-          grep -q '"version": "2.1.1-rc.20"' ghostftp-desktop/src-tauri/tauri.conf.json
-          grep -q 'PRODUCT_VERSION = "2.1.1-rc.20"' ghostftp-desktop/src/lib/release.ts
-          grep -q 'const version = "2.1.1-rc.20"' tools/ghostftp-runtime/main.go
-          grep -q 'const version = "2.1.1-rc.20"' tools/ghostftp-installer/main.go
-          grep -q '"version": "2.1.1-rc.20"' updates/channels/preview.template.json
-          grep -q '"version": "2.1.1-rc.20"' updates/latest.template.json
-          grep -q '"build": "2026.09.24.20"' updates/latest.template.json
-          test -f docs/releases/2.1.1-rc.20.md
+          grep -q '"version": "2.1.1-rc.21"' ghostftp-desktop/package.json
+          grep -q '"version": "2.1.1-rc.21"' ghostftp-desktop/package-lock.json
+          grep -q '^version = "2.1.1-rc.21"$' ghostftp-desktop/src-tauri/Cargo.toml
+          grep -q '^version = "2.1.1-rc.21"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
+          grep -q '^version = "2.1.1-rc.21"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
+          grep -q '^version = "2.1.1-rc.21"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
+          grep -q '"version": "2.1.1-rc.21"' ghostftp-desktop/src-tauri/tauri.conf.json
+          grep -q 'PRODUCT_VERSION = "2.1.1-rc.21"' ghostftp-desktop/src/lib/release.ts
+          grep -q 'const version = "2.1.1-rc.21"' tools/ghostftp-runtime/main.go
+          grep -q 'const version = "2.1.1-rc.21"' tools/ghostftp-installer/main.go
+          grep -q '"version": "2.1.1-rc.21"' updates/channels/preview.template.json
+          grep -q '"version": "2.1.1-rc.21"' updates/latest.template.json
+          grep -q '"build": "2026.09.24.21"' updates/latest.template.json
+          test -f docs/releases/2.1.1-rc.21.md
+          ! grep -Rni '2.1.1-rc.20' ghostftp-desktop/package.json ghostftp-desktop/package-lock.json ghostftp-desktop/src-tauri tools updates ghostftp-desktop/src/lib/release.ts
 
       - name: Reject legacy/demo branding
         shell: bash
@@ -61,7 +62,7 @@ jobs:
           ! grep -Rni 'Ghost-FTP-Premium' \
             README.md ghostftp-desktop/README.md docs/build docs/product docs/release
           grep -Fq 'https://github.com/bren-wp/Ghost-FTP/releases' README.md
-          grep -Fq -- '--prerelease' .github/workflows/ghostftp-rc20-release.yml
+          grep -Fq -- '--prerelease' .github/workflows/ghostftp-rc21-release.yml
 
       - name: Native window architecture guard
         shell: bash
