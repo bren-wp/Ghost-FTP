@@ -19,31 +19,31 @@ This is the production release path for Ghost FTP release candidates. A successf
 13. Publish an immutable prerelease tag and upload normalized native/source/documentation assets plus SHA-256 checksums.
 14. Keep older tags/releases immutable.
 
-## Current RC18 assets
+## Current RC19 assets
 
 Windows x64:
 
-- `GhostFTP-Windows-x64-Portable-v2.1.1-RC18.exe`
-- `GhostFTP-Windows-x64-Setup-v2.1.1-RC18.exe`
-- `GhostFTP-Windows-x64-v2.1.1-RC18.zip`
-- `GhostFTP-Windows-x64-v2.1.1-RC18-Native-QA.zip`
+- `GhostFTP-Windows-x64-Portable-v2.1.1-RC19.exe`
+- `GhostFTP-Windows-x64-Setup-v2.1.1-RC19.exe`
+- `GhostFTP-Windows-x64-v2.1.1-RC19.zip`
+- `GhostFTP-Windows-x64-v2.1.1-RC19-Native-QA.zip`
 
 Linux x86-64:
 
-- `GhostFTP-Linux-x86_64-v2.1.1-RC18`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC18.AppImage`
-- `GhostFTP-Linux-amd64-v2.1.1-RC18.deb`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC18.rpm`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC18.tar.gz`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC19`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC19.AppImage`
+- `GhostFTP-Linux-amd64-v2.1.1-RC19.deb`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC19.rpm`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC19.tar.gz`
 
 Source/documentation:
 
-- `GhostFTP-v2.1.1-RC18-Source.zip`
-- `GhostFTP-v2.1.1-RC18-Desktop-Source.zip`
-- `GhostFTP-v2.1.1-RC18-Website.zip`
-- `GhostFTP-v2.1.1-RC18-Updates.zip`
-- `GhostFTP-v2.1.1-RC18-Documentation.zip`
-- `GhostFTP-v2.1.1-RC18-SHA256SUMS.txt`
+- `GhostFTP-v2.1.1-RC19-Source.zip`
+- `GhostFTP-v2.1.1-RC19-Desktop-Source.zip`
+- `GhostFTP-v2.1.1-RC19-Website.zip`
+- `GhostFTP-v2.1.1-RC19-Updates.zip`
+- `GhostFTP-v2.1.1-RC19-Documentation.zip`
+- `GhostFTP-v2.1.1-RC19-SHA256SUMS.txt`
 
 ## Windows QA evidence
 

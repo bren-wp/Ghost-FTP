@@ -5,6 +5,7 @@ import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { useSettings } from "./stores/settingsStore";
 import { applyAccent } from "./lib/accent";
 import { startLocalization } from "./lib/i18n";
+import { redactSensitiveText } from "./lib/redact";
 import "./styles.css";
 
 // English is the primary UI language. Language selection lives in Settings.
@@ -46,12 +47,22 @@ useSettings.subscribe((s) => {
 
 // Keep unexpected async errors observable without leaking state or credentials.
 window.addEventListener("unhandledrejection", (event) => {
-  const reason = event.reason instanceof Error ? event.reason.message : "Unhandled asynchronous error";
-  console.error("Ghost FTP async failure:", reason);
+  console.error(
+    "Ghost FTP async failure:",
+    redactSensitiveText(
+      event.reason instanceof Error
+        ? event.reason.message
+        : "Unhandled asynchronous error",
+      320
+    )
+  );
   event.preventDefault();
 });
 window.addEventListener("error", (event) => {
-  console.error("Ghost FTP runtime failure:", event.message || "Unexpected runtime error");
+  console.error(
+    "Ghost FTP runtime failure:",
+    redactSensitiveText(event.message || "Unexpected runtime error", 320)
+  );
 });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

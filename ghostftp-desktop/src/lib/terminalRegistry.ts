@@ -15,6 +15,7 @@ import { ipc, onTerminalData, onTerminalExit } from "./ipc";
 import { attachSuggestions, type SuggestHandle } from "./termSuggest";
 import { registerTerminalPane } from "./termInput";
 import { isTerminalChord } from "./terminalChords";
+import { redactSensitiveText } from "./redact";
 import { useSettings, TERMINAL_THEMES } from "@/stores/settingsStore";
 import { useConnections } from "@/stores/connectionsStore";
 import type { SessionId } from "./types";
@@ -59,6 +60,15 @@ interface InternalEntry extends PaneEntry {
 }
 
 const panes = new Map<string, InternalEntry>();
+
+function clearNativeListeners(entry: InternalEntry): void {
+  const unlistenData = entry.unlistenData;
+  const unlistenExit = entry.unlistenExit;
+  entry.unlistenData = null;
+  entry.unlistenExit = null;
+  unlistenData?.();
+  unlistenExit?.();
+}
 
 export function hasPane(paneId: string): boolean {
   return panes.has(paneId);
@@ -132,7 +142,7 @@ export function acquirePane(
       try {
         fit.fit();
       } catch (error) {
-        console.warn("Couldn't refit docked terminal", error);
+        console.warn("Couldn't refit docked terminal", redactSensitiveText(error, 240));
       }
     },
     subscribe: (cb) => {
@@ -143,11 +153,19 @@ export function acquirePane(
   };
 
   const setState = (patch: Partial<PaneState>) => {
+    if (entry.disposed) return;
     entry.state = { ...entry.state, ...patch };
     for (const cb of entry.listeners) cb(entry.state);
   };
 
-  // History is keyed by profile so suggestions survive reconnects to the server.
+  const setPaneError = (context: string, error: unknown) => {
+    setState({
+      error: `${context}: ${redactSensitiveText(error, 240)}`,
+    });
+  };
+
+  // History is keyed by profile so suggestions can be reused across panes and
+  // reconnects during the current Ghost FTP process only.
   const historyKey =
     useConnections
       .getState()
@@ -155,27 +173,27 @@ export function acquirePane(
   entry.suggest = attachSuggestions(term, {
     historyKey,
     send: (data) => {
-      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setState({ error: `Terminal write failed: ${String(error)}` }));
+      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setPaneError("Terminal write failed", error));
     },
     swallowKey: isTerminalChord,
   });
 
   entry.unregisterInput = registerTerminalPane(paneId, {
     write: (data) => {
-      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setState({ error: `Terminal write failed: ${String(error)}` }));
+      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setPaneError("Terminal write failed", error));
     },
     focus: () => term.focus(),
   });
 
   entry.disposables.push(
     term.onData((data) => {
-      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setState({ error: `Terminal write failed: ${String(error)}` }));
+      if (entry.terminalId) ipc.terminalWrite(entry.terminalId, data).catch((error) => setPaneError("Terminal write failed", error));
     })
   );
   entry.disposables.push(
     term.onResize(({ cols, rows }) => {
       if (entry.terminalId)
-        ipc.terminalResize(entry.terminalId, cols, rows).catch((error) => setState({ error: `Terminal resize failed: ${String(error)}` }));
+        ipc.terminalResize(entry.terminalId, cols, rows).catch((error) => setPaneError("Terminal resize failed", error));
     })
   );
   // Copy-on-select (PuTTY style); read the toggle live so Settings takes effect
@@ -184,20 +202,28 @@ export function acquirePane(
     term.onSelectionChange(() => {
       if (!useSettings.getState().terminalCopyOnSelect) return;
       const text = term.getSelection();
-      if (text) navigator.clipboard.writeText(text).catch((error) => setState({ error: `Clipboard copy failed: ${String(error)}` }));
+      if (text) navigator.clipboard.writeText(text).catch((error) => setPaneError("Clipboard copy failed", error));
     })
   );
 
   entry.onWindowResize = () => entry.refit();
   window.addEventListener("resize", entry.onWindowResize);
 
-  // Open the PTY and wire its lifecycle. Runs once per pane.
+  // Open the PTY and wire its lifecycle. Each awaited listener registration is
+  // disposal-aware so closing a pane during startup cannot strand a native
+  // event listener after disposePane() has already run.
   (async () => {
     try {
-      entry.unlistenData = await onTerminalData((e) => {
+      const unlistenData = await onTerminalData((e) => {
         if (e.terminalId === entry.terminalId) term.write(e.data);
       });
-      entry.unlistenExit = await onTerminalExit((e) => {
+      if (entry.disposed) {
+        unlistenData();
+        return;
+      }
+      entry.unlistenData = unlistenData;
+
+      const unlistenExit = await onTerminalExit((e) => {
         if (e.terminalId === entry.terminalId) {
           setState({
             status: "exited",
@@ -210,20 +236,46 @@ export function acquirePane(
           );
         }
       });
+      if (entry.disposed) {
+        // disposePane() already cleaned the data listener; this listener was
+        // registered after that cleanup and therefore must be released here.
+        unlistenExit();
+        return;
+      }
+      entry.unlistenExit = unlistenExit;
+
       const id = await ipc.openTerminal(sessionId, term.cols || 80, term.rows || 24);
       entry.terminalId = id;
       if (entry.disposed) {
+        // The pane may have been disposed while the native PTY was opening.
+        // Its listeners were already released by disposePane(); close the
+        // just-created PTY immediately and do not touch the disposed xterm.
+        entry.terminalId = null;
         void ipc.closeTerminal(id).catch((error) =>
-          console.warn("Couldn't close disposed terminal", error)
+          console.warn(
+            "Couldn't close disposed terminal",
+            redactSensitiveText(error, 240)
+          )
         );
         return;
       }
+
       setState({ status: "ready" });
       term.focus();
       // "Open terminal here" seeds a cd; run it once the shell is live.
-      if (initialCommand) ipc.terminalWrite(id, initialCommand).catch((error) => setState({ error: `Terminal command failed: ${String(error)}` }));
-    } catch (e) {
-      setState({ status: "exited", error: String(e) });
+      if (initialCommand) {
+        ipc.terminalWrite(id, initialCommand).catch((error) =>
+          setPaneError("Terminal command failed", error)
+        );
+      }
+    } catch (error) {
+      clearNativeListeners(entry);
+      if (!entry.disposed) {
+        setState({
+          status: "exited",
+          error: redactSensitiveText(error, 320),
+        });
+      }
     }
   })();
 
@@ -241,11 +293,13 @@ export function disposePane(paneId: string): void {
   entry.unregisterInput();
   entry.suggest.dispose();
   for (const d of entry.disposables) d.dispose();
-  entry.unlistenData?.();
-  entry.unlistenExit?.();
+  clearNativeListeners(entry);
   if (entry.terminalId) {
     void ipc.closeTerminal(entry.terminalId).catch((error) =>
-      console.warn("Couldn't close docked terminal", error)
+      console.warn(
+        "Couldn't close docked terminal",
+        redactSensitiveText(error, 240)
+      )
     );
   }
   entry.detach();

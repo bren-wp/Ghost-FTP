@@ -1,7 +1,7 @@
 name: Ghost FTP native build
 
-# RC18 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
-# RC18 release build stamp: 2026-09-24.18
+# RC19 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
+# RC19 release build stamp: 2026-09-24.19
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
     paths:
       - 'ghostftp-desktop/**'
       - '.github/workflows/ghostftp-build.yml'
-      - '.github/workflows/ghostftp-rc18-release.yml'
+      - '.github/workflows/ghostftp-rc19-release.yml'
 
 permissions:
   contents: read
@@ -31,10 +31,10 @@ jobs:
         include:
           - os: windows-latest
             args: '--bundles nsis'
-            artifact: 'GhostFTP-Windows-x64-RC18'
+            artifact: 'GhostFTP-Windows-x64-RC19'
           - os: ubuntu-22.04
             args: '--bundles deb,rpm,appimage'
-            artifact: 'GhostFTP-Linux-x86_64-RC18'
+            artifact: 'GhostFTP-Linux-x86_64-RC19'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -153,7 +153,7 @@ jobs:
               $edgeComparisons = 0
               $edgeHits = 0
 
-              # Sample densely enough to detect UI structure. RC18 exposed why
+              # Sample densely enough to detect UI structure. RC19 exposed why
               # sparse color/variance checks are insufficient: a blank WebView2
               # compositor frame with only the native border still had >100 raw
               # colors from anti-aliasing and incorrectly passed.
@@ -397,7 +397,7 @@ jobs:
               }
 
               # Validate the real launch geometry before the canonical QA resize.
-              # RC18 must start as a normal window and stay inside the OS working
+              # RC19 must start as a normal window and stay inside the OS working
               # area even when the preferred 1290x852 size is larger than the
               # available desktop.
               $launchRect = New-Object GhostFtpWindowCapture+RECT
@@ -439,8 +439,8 @@ jobs:
                 throw "Native window bounds for $($view.key) are ${width}x${height}, expected approximately ${targetWidth}x${targetHeight}"
               }
 
-              $png = Join-Path $qaDir ("GhostFTP-Windows-RC18-" + $view.label + ".png")
-              $printCandidate = Join-Path $qaDir ("GhostFTP-Windows-RC18-" + $view.label + ".printwindow.tmp.png")
+              $png = Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + ".png")
+              $printCandidate = Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + ".printwindow.tmp.png")
               $captureMethod = 'PrintWindow(PW_RENDERFULLCONTENT)'
 
               $bitmap = New-Object System.Drawing.Bitmap $targetWidth, $targetHeight, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
@@ -507,7 +507,7 @@ jobs:
                 "OpaqueSamples=$($validation.Opaque)/$($validation.Samples)"
                 "ImageBytes=$($pngInfo.Length)"
                 "Executable=$exe"
-              ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC18-" + $view.label + ".txt"))
+              ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + ".txt"))
 
               # Exercise a genuinely compact viewport for the workspaces that
               # carry the most responsive pressure. This is separate from the
@@ -530,7 +530,7 @@ jobs:
                   }
                   Start-Sleep -Milliseconds 350
 
-                  $compactPng = Join-Path $qaDir ("GhostFTP-Windows-RC18-" + $view.label + "-Compact.png")
+                  $compactPng = Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + "-Compact.png")
                   Capture-GhostFtpWebView2 -Port $debugPort -OutputPath $compactPng -Width $compactWidth -Height $compactHeight
                   $compactValidation = Test-GhostFtpPng -Path $compactPng -ExpectedWidth $compactWidth -ExpectedHeight $compactHeight
                   if (-not $compactValidation.Valid) {
@@ -557,7 +557,7 @@ jobs:
                     "EdgeRatio=$([Math]::Round($compactValidation.EdgeRatio,8))"
                     "OpaqueSamples=$($compactValidation.Opaque)/$($compactValidation.Samples)"
                     "Executable=$exe"
-                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC18-" + $view.label + "-Compact.txt"))
+                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + "-Compact.txt"))
                 }
 
                 # Exercise a near-minimum responsive viewport as a separate
@@ -581,7 +581,7 @@ jobs:
                   }
                   Start-Sleep -Milliseconds 350
 
-                  $minimumPng = Join-Path $qaDir ("GhostFTP-Windows-RC18-" + $view.label + "-Minimum.png")
+                  $minimumPng = Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + "-Minimum.png")
                   Capture-GhostFtpWebView2 -Port $debugPort -OutputPath $minimumPng -Width $minimumWidth -Height $minimumHeight
                   $minimumValidation = Test-GhostFtpPng -Path $minimumPng -ExpectedWidth $minimumWidth -ExpectedHeight $minimumHeight
                   if (-not $minimumValidation.Valid) {
@@ -608,7 +608,7 @@ jobs:
                     "EdgeRatio=$([Math]::Round($minimumValidation.EdgeRatio,8))"
                     "OpaqueSamples=$($minimumValidation.Opaque)/$($minimumValidation.Samples)"
                     "Executable=$exe"
-                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC18-" + $view.label + "-Minimum.txt"))
+                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC19-" + $view.label + "-Minimum.txt"))
                 }
               }
             } finally {
@@ -630,10 +630,76 @@ jobs:
         if: runner.os == 'Windows' && always()
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-Windows-x64-RC18-QA
+          name: GhostFTP-Windows-x64-RC19-QA
           path: qa/*
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Verify README screenshots against native RC19 QA
+        if: runner.os == 'Windows' && success()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.Drawing
+
+          $screenshots = @(
+            @{ Source = 'GhostFTP-Windows-RC19-Native-Window.png'; Dest = 'ghostftp-native-files.png' },
+            @{ Source = 'GhostFTP-Windows-RC19-Site-Manager.png'; Dest = 'ghostftp-native-sites.png' },
+            @{ Source = 'GhostFTP-Windows-RC19-New-Connection.png'; Dest = 'ghostftp-native-new-connection.png' },
+            @{ Source = 'GhostFTP-Windows-RC19-Preferences.png'; Dest = 'ghostftp-native-settings.png' },
+            @{ Source = 'GhostFTP-Windows-RC19-Transfer-Center.png'; Dest = 'ghostftp-native-transfers.png' },
+            @{ Source = 'GhostFTP-Windows-RC19-File-Properties.png'; Dest = 'ghostftp-native-file-properties.png' },
+            @{ Source = 'GhostFTP-Windows-RC19-About.png'; Dest = 'ghostftp-native-about.png' }
+          )
+
+          foreach ($shot in $screenshots) {
+            $freshPath = Join-Path $env:GITHUB_WORKSPACE ('qa\' + $shot.Source)
+            $trackedPath = Join-Path $env:GITHUB_WORKSPACE ('docs\assets\screenshots\' + $shot.Dest)
+
+            if (-not (Test-Path $freshPath)) {
+              throw "Required native QA screenshot missing: $($shot.Source)"
+            }
+            if (-not (Test-Path $trackedPath)) {
+              throw "README native screenshot missing from repository: $($shot.Dest)"
+            }
+
+            $fresh = [System.Drawing.Bitmap]::FromFile($freshPath)
+            $tracked = [System.Drawing.Bitmap]::FromFile($trackedPath)
+            try {
+              if ($fresh.Width -ne $tracked.Width -or $fresh.Height -ne $tracked.Height) {
+                throw "README screenshot dimensions drifted for $($shot.Dest): tracked=$($tracked.Width)x$($tracked.Height), fresh=$($fresh.Width)x$($fresh.Height)"
+              }
+
+              $samples = 0
+              $changed = 0
+              # Sample the rendered app densely while ignoring only the final
+              # status-bar strip where the clock/ephemeral counters change.
+              $compareHeight = [Math]::Max(0, $fresh.Height - 36)
+              for ($y = 0; $y -lt $compareHeight; $y += 6) {
+                for ($x = 0; $x -lt $fresh.Width; $x += 6) {
+                  $a = $fresh.GetPixel($x, $y)
+                  $b = $tracked.GetPixel($x, $y)
+                  $delta =
+                    [Math]::Abs([int]$a.R - [int]$b.R) +
+                    [Math]::Abs([int]$a.G - [int]$b.G) +
+                    [Math]::Abs([int]$a.B - [int]$b.B)
+                  $samples++
+                  if ($delta -gt 48) { $changed++ }
+                }
+              }
+
+              if ($samples -le 0) { throw "No screenshot comparison samples for $($shot.Dest)" }
+              $ratio = [double]$changed / [double]$samples
+              Write-Host ("README screenshot " + $shot.Dest + " changed-pixel ratio=" + [Math]::Round($ratio, 5))
+              if ($ratio -gt 0.05) {
+                throw "README screenshot $($shot.Dest) no longer matches the native RC19 UI closely enough; refresh it from reviewed QA evidence."
+              }
+            } finally {
+              $fresh.Dispose()
+              $tracked.Dispose()
+            }
+          }
+
 
       - name: Upload native bundles
         uses: actions/upload-artifact@v4
@@ -647,26 +713,26 @@ jobs:
           if-no-files-found: error
 
   source-packages:
-    name: RC18 source packages
+    name: RC19 source packages
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Package RC18 source and documentation
+      - name: Package RC19 source and documentation
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist
-          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC18-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-RC18-Desktop-Source.zip ghostftp-desktop
-          zip -qr dist/GhostFTP-v2.1.1-RC18-Website.zip website
-          zip -qr dist/GhostFTP-v2.1.1-RC18-Updates.zip updates
-          zip -qr dist/GhostFTP-v2.1.1-RC18-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
-      - name: Upload RC18 source packages
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC19-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC19-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC19-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC19-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC19-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+      - name: Upload RC19 source packages
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-RC18-Source-Packages
+          name: GhostFTP-RC19-Source-Packages
           path: dist/*
           if-no-files-found: error
           retention-days: 14

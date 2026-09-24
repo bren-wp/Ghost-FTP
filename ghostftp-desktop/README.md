@@ -21,7 +21,7 @@ This directory contains the authoritative **Ghost FTP desktop application**.
 
 The release line opens as a real desktop window. It does not launch the production GUI through a localhost browser wrapper, and it must not expose a visible `127.0.0.1` address/origin bar.
 
-Current development line: **2.1.1 RC18**.
+Current development line: **2.1.1 RC19**.
 
 ## Platform deliverables
 
@@ -49,13 +49,30 @@ MSI is intentionally excluded from prerelease RC packaging because the current M
 
 ## Visual contract
 
-Approved visual references live under **[`../docs/assets/screenshots/`](../docs/assets/screenshots/)**. They are documentation/QA specifications only and must never be used as runtime screenshot backgrounds or click maps.
+The repository keeps **actual native screenshots** under **[`../docs/assets/screenshots/`](../docs/assets/screenshots/)**. The RC Windows QA workflow refreshes them from the real executable; they are documentation evidence only and are never used as runtime screenshot backgrounds or click maps.
 
 <p align="center">
-  <img src="../docs/assets/screenshots/ghostftp-main-file-manager.webp" alt="Ghost FTP approved main-window reference" width="100%">
+  <a href="../docs/assets/screenshots/ghostftp-native-files.png"><img src="../docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP native Files workspace — actual RC19 build" width="100%"></a>
 </p>
 
-The canonical desktop reference is **1290×852** and the production window minimum is **480×600**. RC18 keeps one persistent native application window: Files, Sites, Transfers, Sync & Backup, Settings and Help & About switch inside the main workspace; New Connection and File Properties remain transient overlays inside that same window.
+<p align="center">
+  <a href="../docs/assets/screenshots/ghostftp-native-sites.png"><img src="../docs/assets/screenshots/ghostftp-native-sites.png" alt="Ghost FTP native Sites workspace" width="49%"></a>
+  <a href="../docs/assets/screenshots/ghostftp-native-new-connection.png"><img src="../docs/assets/screenshots/ghostftp-native-new-connection.png" alt="Ghost FTP native New Connection" width="49%"></a>
+</p>
+
+<p align="center">
+  <a href="../docs/assets/screenshots/ghostftp-native-settings.png"><img src="../docs/assets/screenshots/ghostftp-native-settings.png" alt="Ghost FTP native Settings workspace" width="49%"></a>
+  <a href="../docs/assets/screenshots/ghostftp-native-transfers.png"><img src="../docs/assets/screenshots/ghostftp-native-transfers.png" alt="Ghost FTP native Transfers workspace" width="49%"></a>
+</p>
+
+<p align="center">
+  <a href="../docs/assets/screenshots/ghostftp-native-file-properties.png"><img src="../docs/assets/screenshots/ghostftp-native-file-properties.png" alt="Ghost FTP native File Properties" width="49%"></a>
+  <a href="../docs/assets/screenshots/ghostftp-native-about.png"><img src="../docs/assets/screenshots/ghostftp-native-about.png" alt="Ghost FTP native Help and About workspace" width="49%"></a>
+</p>
+
+<p align="center"><sub>All seven images are direct 1290×852 captures from the native RC19 Windows QA build. Click any image for the original full-resolution PNG.</sub></p>
+
+The canonical desktop reference is **1290×852** and the production window minimum is **480×600**. RC19 keeps one persistent native application window: Files, Sites, Transfers, Sync & Backup, Settings and Help & About switch inside the main workspace; New Connection and File Properties remain transient overlays inside that same window.
 
 Native Windows QA captures all seven critical surfaces at three viewport classes:
 
@@ -66,6 +83,19 @@ Native Windows QA captures all seven critical surfaces at three viewport classes
 | Near minimum | 500×620 |
 
 The QA workflow rejects blank/structureless frames, duplicate captures, unexpected window titles, invalid launch geometry and missing evidence. Smaller layouts use contained scrolling and icon compaction rather than removing primary actions.
+
+
+The canonical screenshots shown in the repository are generated from that native QA run and tracked as:
+
+- `ghostftp-native-files.png`
+- `ghostftp-native-sites.png`
+- `ghostftp-native-new-connection.png`
+- `ghostftp-native-settings.png`
+- `ghostftp-native-transfers.png`
+- `ghostftp-native-file-properties.png`
+- `ghostftp-native-about.png`
+
+They are direct captures of the running native application, not design mockups.
 
 ### Ghost FTP palette
 
