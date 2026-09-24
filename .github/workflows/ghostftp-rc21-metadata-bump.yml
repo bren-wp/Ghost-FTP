@@ -1,0 +1,120 @@
+name: Ghost FTP RC21 metadata bump automation
+
+on:
+  push:
+    branches: [rc21-interaction-hardening]
+    paths:
+      - '.github/workflows/ghostftp-rc21-metadata-bump.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ghostftp-rc21-metadata-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: Align RC21 release metadata
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: rc21-interaction-hardening
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Align RC21 versions, artifacts and release docs
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'JS'
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const repo = process.cwd();
+          const textExtensions = new Set([
+            '.json', '.toml', '.rs', '.ts', '.tsx', '.js', '.mjs', '.go', '.yml', '.yaml', '.md', '.txt'
+          ]);
+          const skipDirs = new Set(['.git', 'node_modules', 'target', 'dist', 'build', '.vite']);
+          const skipFiles = new Set(['.github/workflows/ghostftp-rc21-metadata-bump.yml']);
+          const replacements = [
+            [/2\.1\.1-rc\.20/g, '2.1.1-rc.21'],
+            [/2\.1\.1 RC20/g, '2.1.1 RC21'],
+            [/v2\.1\.1-rc\.20/g, 'v2.1.1-rc.21'],
+            [/v2\.1\.1-RC20/g, 'v2.1.1-RC21'],
+            [/RC20/g, 'RC21'],
+            [/rc20/g, 'rc21'],
+            [/2026\.09\.24\.20/g, '2026.09.24.21'],
+          ];
+
+          function walk(dir, out = []) {
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              if (skipDirs.has(entry.name)) continue;
+              const full = path.join(dir, entry.name);
+              const rel = path.relative(repo, full).replaceAll(path.sep, '/');
+              if (skipFiles.has(rel)) continue;
+              if (entry.isDirectory()) walk(full, out);
+              else if (entry.isFile() && textExtensions.has(path.extname(entry.name))) out.push(rel);
+            }
+            return out;
+          }
+
+          let changed = 0;
+          for (const rel of walk(repo)) {
+            const file = path.join(repo, rel);
+            let source = fs.readFileSync(file, 'utf8');
+            let next = source;
+            for (const [pattern, replacement] of replacements) {
+              next = next.replace(pattern, replacement);
+            }
+            if (next !== source) {
+              fs.writeFileSync(file, next);
+              changed += 1;
+            }
+          }
+
+          const rc20Workflow = path.join(repo, '.github/workflows/ghostftp-rc21-release.yml');
+          if (!fs.existsSync(rc20Workflow)) {
+            const source = fs.readFileSync(path.join(repo, '.github/workflows/ghostftp-rc20-release.yml'), 'utf8');
+            let next = source;
+            for (const [pattern, replacement] of replacements) {
+              next = next.replace(pattern, replacement);
+            }
+            fs.writeFileSync(rc20Workflow, next);
+            changed += 1;
+          }
+
+          const releaseNotes = path.join(repo, 'docs/releases/2.1.1-rc.21.md');
+          if (!fs.existsSync(releaseNotes)) {
+            fs.writeFileSync(releaseNotes, `# Ghost FTP 2.1.1 RC21\n\nRelease date: 24 September 2026\n\nRC21 is a production-readiness hardening pass focused on making buttons, modal actions, connection prompts and release metadata safer and more predictable.\n\n## Highlights\n\n- Prevents duplicate destructive confirmations while a confirm action is in flight.\n- Serializes authentication prompt submit, cancel, password generation and save-password actions.\n- Serializes New Connection actions so Test, Browse, Save and Connect cannot overlap.\n- Serializes context-menu actions and clamps menu placement on small windows.\n- Adds CI interaction hardening coverage so key button/action contracts cannot regress silently.\n- Aligns RC21 package, native, updater, workflow and release metadata so generated artifacts carry the correct release identity.\n\n## Required gates\n\n- Ghost FTP quality workflow\n- Native frontend typecheck and production build\n- Rust formatting, workspace check, tests and Clippy\n- Real FTP / explicit FTPS / SFTP roundtrip E2E\n- Windows native build with native-window QA evidence and README screenshot verification\n- Linux native build and package upload\n`);
+            changed += 1;
+          }
+
+          const changelog = path.join(repo, 'CHANGELOG.md');
+          if (fs.existsSync(changelog)) {
+            const current = fs.readFileSync(changelog, 'utf8');
+            if (!current.includes('2.1.1 RC21')) {
+              const entry = `## Ghost FTP 2.1.1 RC21 — Production interaction hardening\n\n- Hardened confirm, authentication prompt, context menu and New Connection button flows against duplicate or overlapping native actions.\n- Added CI interaction-contract checks for the critical button and modal workflows.\n- Aligned RC21 release, updater, native package and documentation metadata to avoid RC20/RC21 artifact drift.\n\n`;
+              fs.writeFileSync(changelog, current.replace(/^(# .+\n\n)/, `$1${entry}`));
+              changed += 1;
+            }
+          }
+
+          fs.rmSync(path.join(repo, '.github/workflows/ghostftp-rc21-metadata-bump.yml'), { force: true });
+          console.log(`RC21 metadata alignment touched ${changed} files`);
+          JS
+
+      - name: Commit RC21 metadata alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Brendigo"
+          git config user.email "info@brendigo.com"
+          git add -A
+          git diff --cached --stat
+          if git diff --cached --quiet; then
+            echo "No RC21 metadata changes needed."
+            exit 0
+          fi
+          git commit -m "chore(release): align RC21 production metadata"
+          git push origin HEAD:rc21-interaction-hardening
