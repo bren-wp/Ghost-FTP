@@ -1,0 +1,72 @@
+name: Ghost FTP Android
+
+on:
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'docs/mobile/**'
+      - '.github/workflows/ghostftp-android.yml'
+      - '.github/workflows/ghostftp-android-release.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'docs/mobile/**'
+      - '.github/workflows/ghostftp-android.yml'
+      - '.github/workflows/ghostftp-android-release.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Android production contract
+        shell: bash
+        run: bash android/scripts/check-android-contract.sh
+      - name: Native Android lint and APK build
+        shell: bash
+        run: gradle -p android lintDebug lintRelease assembleDebug assembleRelease
+      - name: Prepare Android APK artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/android
+          DEBUG_APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          RELEASE_APK="$(find android/app/build/outputs/apk/release -type f \( -name '*release.apk' -o -name '*release-unsigned.apk' \) | head -n1 || true)"
+          test -s "$DEBUG_APK"
+          test -n "$RELEASE_APK"
+          test -s "$RELEASE_APK"
+          cp "$DEBUG_APK" dist/android/GhostFTP-Android-v2.1.1-RC22-ci.apk
+          cp "$RELEASE_APK" dist/android/GhostFTP-Android-v2.1.1-RC22-release-check.apk
+          sha256sum dist/android/*.apk > dist/android/GhostFTP-Android-v2.1.1-RC22-SHA256SUMS.txt
+      - name: Upload Android APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: GhostFTP-Android-APK-RC22
+          path: |
+            dist/android/*.apk
+            dist/android/GhostFTP-Android-v2.1.1-RC22-SHA256SUMS.txt
+          if-no-files-found: error

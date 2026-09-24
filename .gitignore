@@ -9,3 +9,14 @@ build*/
 *.rpm
 *.AppImage
 *.tar.gz
+
+# Android / Gradle
+.gradle/
+android/.gradle/
+android/local.properties
+android/signing.properties
+android/app/build/
+*.apk
+*.aab
+*.jks
+*.keystore
