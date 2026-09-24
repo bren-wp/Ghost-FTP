@@ -1,5 +1,6 @@
-import { useId, useRef } from "react";
+import { useId, useRef, useState } from "react";
 import { useDialog } from "@/hooks/useDialog";
+import { toastError } from "@/lib/errors";
 
 interface Props {
   title: string;
@@ -7,7 +8,7 @@ interface Props {
   confirmLabel?: string;
   destructive?: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
 }
 
 export function ConfirmModal({
@@ -20,11 +21,27 @@ export function ConfirmModal({
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  useDialog(panelRef, { onClose });
+  const [submitting, setSubmitting] = useState(false);
+  const closeIfIdle = () => {
+    if (!submitting) onClose();
+  };
+  const confirm = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onConfirm();
+      onClose();
+    } catch (error) {
+      toastError(error, `Couldn't ${confirmLabel.toLowerCase()}`);
+      setSubmitting(false);
+    }
+  };
+
+  useDialog(panelRef, { onClose: closeIfIdle });
   return (
     <div
       className="fixed inset-0 z-modal flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
+      onClick={closeIfIdle}
     >
       <div
         ref={panelRef}
@@ -40,23 +57,25 @@ export function ConfirmModal({
         </div>
         <div className="flex justify-end gap-2">
           <button
-            onClick={onClose}
-            className="rounded-md border border-border px-3.5 py-1.5 text-sm hover:bg-bg-hover"
+            type="button"
+            onClick={closeIfIdle}
+            disabled={submitting}
+            className="rounded-md border border-border px-3.5 py-1.5 text-sm hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             Cancel
           </button>
           <button
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
+            type="button"
+            onClick={() => void confirm()}
+            disabled={submitting}
+            aria-busy={submitting}
             className={
               destructive
-                ? "rounded-md bg-danger px-3.5 py-1.5 text-sm font-medium text-white hover:opacity-90"
-                : "btn-accent rounded-md px-3.5 py-1.5 text-sm font-medium text-white"
+                ? "rounded-md bg-danger px-3.5 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-wait disabled:opacity-70"
+                : "btn-accent rounded-md px-3.5 py-1.5 text-sm font-medium text-white disabled:cursor-wait disabled:opacity-70"
             }
           >
-            {confirmLabel}
+            {submitting ? "Working…" : confirmLabel}
           </button>
         </div>
       </div>
