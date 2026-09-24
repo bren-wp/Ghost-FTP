@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   bump:
-    name: Create RC21 metadata commit object
+    name: Align non-workflow RC21 metadata
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -23,44 +23,18 @@ jobs:
           ref: rc21-interaction-hardening
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create remote commit object with RC21 metadata
+      - name: Align non-workflow RC21 versions and docs
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPOSITORY: ${{ github.repository }}
-          BASE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           node --input-type=module <<'JS'
           import fs from 'node:fs';
           import path from 'node:path';
-          import { execFileSync } from 'node:child_process';
 
           const repo = process.cwd();
-          const api = 'https://api.github.com';
-          const repository = process.env.GH_REPOSITORY;
-          const token = process.env.GH_TOKEN;
-          const baseSha = process.env.BASE_SHA;
-          if (!repository || !token || !baseSha) throw new Error('Missing GitHub environment');
-
-          async function request(method, urlPath, body) {
-            const response = await fetch(`${api}${urlPath}`, {
-              method,
-              headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28',
-                ...(body ? { 'Content-Type': 'application/json' } : {}),
-              },
-              body: body ? JSON.stringify(body) : undefined,
-            });
-            const text = await response.text();
-            if (!response.ok) throw new Error(`${method} ${urlPath} failed ${response.status}: ${text}`);
-            return text ? JSON.parse(text) : {};
-          }
-
-          const textExtensions = new Set(['.json', '.toml', '.rs', '.ts', '.tsx', '.js', '.mjs', '.go', '.yml', '.yaml', '.md', '.txt']);
-          const skipDirs = new Set(['.git', 'node_modules', 'target', 'dist', 'build', '.vite']);
+          const textExtensions = new Set(['.json', '.toml', '.rs', '.ts', '.tsx', '.js', '.mjs', '.go', '.md', '.txt']);
+          const skipDirs = new Set(['.git', '.github', 'node_modules', 'target', 'dist', 'build', '.vite']);
+          const skipFiles = new Set(['CHANGELOG.md']);
           const replacements = [
             [/2\.1\.1-rc\.20/g, '2.1.1-rc.21'],
             [/2\.1\.1 RC20/g, '2.1.1 RC21'],
@@ -76,6 +50,8 @@ jobs:
               if (skipDirs.has(entry.name)) continue;
               const full = path.join(dir, entry.name);
               const rel = path.relative(repo, full).replaceAll(path.sep, '/');
+              if (rel.startsWith('docs/releases/')) continue;
+              if (skipFiles.has(rel)) continue;
               if (entry.isDirectory()) walk(full, out);
               else if (entry.isFile() && textExtensions.has(path.extname(entry.name))) out.push(rel);
             }
@@ -94,17 +70,9 @@ jobs:
             }
           }
 
-          const rc21Workflow = path.join(repo, '.github/workflows/ghostftp-rc21-release.yml');
-          if (!fs.existsSync(rc21Workflow)) {
-            let next = fs.readFileSync(path.join(repo, '.github/workflows/ghostftp-rc20-release.yml'), 'utf8');
-            for (const [pattern, replacement] of replacements) next = next.replace(pattern, replacement);
-            fs.writeFileSync(rc21Workflow, next);
-            touched += 1;
-          }
-
           const releaseNotes = path.join(repo, 'docs/releases/2.1.1-rc.21.md');
           if (!fs.existsSync(releaseNotes)) {
-            fs.writeFileSync(releaseNotes, `# Ghost FTP 2.1.1 RC21\n\nRelease date: 24 September 2026\n\nRC21 is a production-readiness hardening pass focused on making buttons, modal actions, connection prompts and release metadata safer and more predictable.\n\n## Highlights\n\n- Prevents duplicate destructive confirmations while a confirm action is in flight.\n- Serializes authentication prompt submit, cancel, password generation and save-password actions.\n- Serializes New Connection actions so Test, Browse, Save and Connect cannot overlap.\n- Serializes context-menu actions and clamps menu placement on small windows.\n- Adds CI interaction hardening coverage so key button/action contracts cannot regress silently.\n- Aligns RC21 package, native, updater, workflow and release metadata so generated artifacts carry the correct release identity.\n\n## Required gates\n\n- Ghost FTP quality workflow\n- Native frontend typecheck and production build\n- Rust formatting, workspace check, tests and Clippy\n- Real FTP / explicit FTPS / SFTP roundtrip E2E\n- Windows native build with native-window QA evidence and README screenshot verification\n- Linux native build and package upload\n`);
+            fs.writeFileSync(releaseNotes, `# Ghost FTP 2.1.1 RC21\n\nRelease date: 24 September 2026\n\nRC21 is a production-readiness hardening pass focused on making buttons, modal actions, connection prompts and release metadata safer and more predictable.\n\n## Highlights\n\n- Prevents duplicate destructive confirmations while a confirm action is in flight.\n- Serializes authentication prompt submit, cancel, password generation and save-password actions.\n- Serializes New Connection actions so Test, Browse, Save and Connect cannot overlap.\n- Serializes context-menu actions and clamps menu placement on small windows.\n- Adds CI interaction hardening coverage so key button/action contracts cannot regress silently.\n- Aligns RC21 package, native, updater and documentation metadata so generated artifacts carry the correct release identity.\n\n## Required gates\n\n- Ghost FTP quality workflow\n- Native frontend typecheck and production build\n- Rust formatting, workspace check, tests and Clippy\n- Real FTP / explicit FTPS / SFTP roundtrip E2E\n- Windows native build with native-window QA evidence and README screenshot verification\n- Linux native build and package upload\n`);
             touched += 1;
           }
 
@@ -112,42 +80,26 @@ jobs:
           if (fs.existsSync(changelog)) {
             const current = fs.readFileSync(changelog, 'utf8');
             if (!current.includes('2.1.1 RC21')) {
-              const entry = `## Ghost FTP 2.1.1 RC21 — Production interaction hardening\n\n- Hardened confirm, authentication prompt, context menu and New Connection button flows against duplicate or overlapping native actions.\n- Added CI interaction-contract checks for the critical button and modal workflows.\n- Aligned RC21 release, updater, native package and documentation metadata to avoid RC20/RC21 artifact drift.\n\n`;
+              const entry = `## Ghost FTP 2.1.1 RC21 — Production interaction hardening\n\n- Hardened confirm, authentication prompt, context menu and New Connection button flows against duplicate or overlapping native actions.\n- Added CI interaction-contract checks for the critical button and modal workflows.\n- Aligned RC21 package, updater, native package and documentation metadata to avoid RC20/RC21 artifact drift.\n\n`;
               fs.writeFileSync(changelog, current.replace(/^(# .+\n\n)/, `$1${entry}`));
               touched += 1;
             }
           }
 
-          fs.rmSync(path.join(repo, '.github/workflows/ghostftp-rc21-metadata-bump.yml'), { force: true });
-
-          execFileSync('git', ['add', '-A'], { stdio: 'inherit' });
-          const changedFiles = execFileSync('git', ['diff', '--cached', '--name-only'], { encoding: 'utf8' })
-            .split('\n').map((line) => line.trim()).filter(Boolean);
-          console.log(`RC21 metadata alignment touched ${touched} files; staged ${changedFiles.length} files`);
-          if (!changedFiles.length) {
-            console.log(`REMOTE_COMMIT_SHA=${baseSha}`);
-            process.exit(0);
-          }
-
-          const baseCommit = await request('GET', `/repos/${repository}/git/commits/${baseSha}`);
-          const treeEntries = [];
-          for (const rel of changedFiles) {
-            const status = execFileSync('git', ['status', '--porcelain', '--', rel], { encoding: 'utf8' }).slice(0, 2);
-            if (status.includes('D')) {
-              treeEntries.push({ path: rel, mode: '100644', type: 'blob', sha: null });
-              continue;
-            }
-            const blob = await request('POST', `/repos/${repository}/git/blobs`, {
-              content: fs.readFileSync(path.join(repo, rel), 'utf8'),
-              encoding: 'utf-8',
-            });
-            treeEntries.push({ path: rel, mode: '100644', type: 'blob', sha: blob.sha });
-          }
-          const tree = await request('POST', `/repos/${repository}/git/trees`, { base_tree: baseCommit.tree.sha, tree: treeEntries });
-          const commit = await request('POST', `/repos/${repository}/git/commits`, {
-            message: 'chore(release): align RC21 production metadata',
-            tree: tree.sha,
-            parents: [baseSha],
-          });
-          console.log(`REMOTE_COMMIT_SHA=${commit.sha}`);
+          console.log(`RC21 non-workflow metadata alignment touched ${touched} files`);
           JS
+
+      - name: Commit non-workflow RC21 metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Brendigo"
+          git config user.email "info@brendigo.com"
+          git add -A
+          git diff --cached --stat
+          if git diff --cached --quiet; then
+            echo "No non-workflow RC21 metadata changes needed."
+            exit 0
+          fi
+          git commit -m "chore(release): align RC21 production metadata files"
+          git push origin HEAD:rc21-interaction-hardening
