@@ -1,4 +1,5 @@
 import { toast } from "@/stores/toastStore";
+import { redactSensitiveText } from "@/lib/redact";
 
 // Structured IPC errors (Plan 12 Phase 3). Migrated Rust commands reject with a
 // `{ kind, message }` object instead of a bare string, so the UI can pattern-
@@ -50,13 +51,17 @@ export function kindOf(e: unknown): ErrorKind {
 
 /** The human-readable message from any error shape. */
 export function messageOf(e: unknown): string {
-  if (isGhostFtpError(e)) return e.message;
-  if (typeof e === "string") return e;
-  if (e instanceof Error) return e.message;
-  if (e && typeof (e as { message?: unknown }).message === "string") {
-    return (e as { message: string }).message;
-  }
-  return String(e);
+  const raw =
+    isGhostFtpError(e)
+      ? e.message
+      : typeof e === "string"
+        ? e
+        : e instanceof Error
+          ? e.message
+          : e && typeof (e as { message?: unknown }).message === "string"
+            ? (e as { message: string }).message
+            : String(e);
+  return redactSensitiveText(raw, 600);
 }
 
 interface Copy {
