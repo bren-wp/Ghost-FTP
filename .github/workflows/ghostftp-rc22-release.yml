@@ -89,7 +89,20 @@ jobs:
           gh run download "${{ github.event.workflow_run.id }}" -D dist/native
           find dist/native -type f -print
 
-      - name: Normalize Windows and Linux artifacts
+      - name: Download Android APK artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ env.SOURCE_SHA }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ANDROID_RUN_ID="$(gh run list --workflow "Ghost FTP Android" --commit "$SOURCE_SHA" --limit 10 --json databaseId,status,conclusion --jq 'map(select(.status == "completed" and .conclusion == "success")) | .[0].databaseId // ""')"
+          test -n "$ANDROID_RUN_ID"
+          mkdir -p dist/android
+          gh run download "$ANDROID_RUN_ID" --name GhostFTP-Android-APK-RC22 -D dist/android
+          find dist/android -type f -print
+
+      - name: Normalize Windows, Linux and Android artifacts
         shell: bash
         run: |
           set -euo pipefail
@@ -99,6 +112,7 @@ jobs:
           APPIMAGE="$(find dist/native -type f -iname '*.AppImage' | head -n1 || true)"
           DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
           RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
+          ANDROID_APK="$(find dist/android -type f \( -name 'GhostFTP-Android-v2.1.1-RC22-ci.apk' -o -name '*RC22*.apk' -o -name '*.apk' \) | head -n1 || true)"
 
           test -n "$WIN_EXE"
           test -n "$WIN_SETUP"
@@ -106,6 +120,7 @@ jobs:
           test -n "$APPIMAGE"
           test -n "$DEB"
           test -n "$RPM"
+          test -n "$ANDROID_APK"
 
           cp "$WIN_EXE" dist/GhostFTP-Windows-x64-Portable-v2.1.1-RC22.exe
           cp "$WIN_SETUP" dist/GhostFTP-Windows-x64-Setup-v2.1.1-RC22.exe
@@ -114,6 +129,7 @@ jobs:
           cp "$APPIMAGE" dist/GhostFTP-Linux-x86_64-v2.1.1-RC22.AppImage
           cp "$DEB" dist/GhostFTP-Linux-amd64-v2.1.1-RC22.deb
           cp "$RPM" dist/GhostFTP-Linux-x86_64-v2.1.1-RC22.rpm
+          cp "$ANDROID_APK" dist/GhostFTP-Android-v2.1.1-RC22.apk
 
           QA_FILES="$(find dist/native -type f \( -iname '*.png' -o -iname '*.txt' \) | wc -l | tr -d ' ')"
           if [ "$QA_FILES" -gt 0 ]; then
@@ -125,7 +141,7 @@ jobs:
 
           (cd dist && zip -q GhostFTP-Windows-x64-v2.1.1-RC22.zip GhostFTP-Windows-x64-Portable-v2.1.1-RC22.exe GhostFTP-Windows-x64-Setup-v2.1.1-RC22.exe)
           (cd dist && tar -czf GhostFTP-Linux-x86_64-v2.1.1-RC22.tar.gz GhostFTP-Linux-x86_64-v2.1.1-RC22 GhostFTP-Linux-x86_64-v2.1.1-RC22.AppImage GhostFTP-Linux-amd64-v2.1.1-RC22.deb GhostFTP-Linux-x86_64-v2.1.1-RC22.rpm)
-          rm -rf dist/native
+          rm -rf dist/native dist/android
 
       - name: Generate SHA-256 checksums
         shell: bash
