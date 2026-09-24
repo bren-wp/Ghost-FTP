@@ -15,10 +15,10 @@
 </div>
 
 <p align="center">
-  <a href="docs/assets/screenshots/ghostftp-native-files.png"><img src="docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP native Files workspace — actual Windows RC19 build" width="100%"></a>
+  <a href="docs/assets/screenshots/ghostftp-native-files.png"><img src="docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP native Files workspace — actual Windows RC20 build" width="100%"></a>
 </p>
 
-<p align="center"><sub><strong>Actual native application screenshot.</strong> Captured automatically from the Windows RC19 executable at the canonical 1290×852 QA viewport — not a mockup, design render or screenshot-backed runtime.</sub></p>
+<p align="center"><sub><strong>Actual native application screenshot.</strong> Captured automatically from the Windows RC20 executable at the canonical 1290×852 QA viewport — not a mockup, design render or screenshot-backed runtime.</sub></p>
 
 ## Modern file transfer without the legacy workflow
 
@@ -78,7 +78,7 @@ These repository screenshots are **1:1 captures of the running native Windows ap
 
 **Control.** Use permissions, checksums, sync, terminal, search, duplicate detection and diagnostics from the same product.
 
-## Implemented in current RC19 source
+## Implemented in current RC20 source
 
 - FTP, explicit FTPS and SFTP temporary connections and saved profiles with real protocol E2E acceptance.
 - Site Manager with folders, favorites, tags, bookmarks and recent-server metadata.
@@ -96,28 +96,28 @@ See [Features](docs/product/FEATURES.md) and [Project status](docs/product/STATU
 
 ## Downloads and release artifacts
 
-The current source line is **Ghost FTP 2.1.1 RC19**. GitHub Releases is the authoritative source for the latest published candidate and its SHA-256 checksums. RC19 publication is allowed only from the exact source commit that passes quality, real FTP/explicit-FTPS/SFTP E2E, Windows/Linux native builds and Windows native visual QA.
+The current source line is **Ghost FTP 2.1.1 RC20**. GitHub Releases is the authoritative source for the latest published candidate and its SHA-256 checksums. RC20 publication is allowed only from the exact source commit that passes quality, real FTP/explicit-FTPS/SFTP E2E, Windows/Linux native builds and Windows native visual QA.
 
 **Windows x64**
-- `GhostFTP-Windows-x64-Portable-v2.1.1-RC19.exe`
-- `GhostFTP-Windows-x64-Setup-v2.1.1-RC19.exe`
-- `GhostFTP-Windows-x64-v2.1.1-RC19.zip`
-- `GhostFTP-Windows-x64-v2.1.1-RC19-Native-QA.zip`
+- `GhostFTP-Windows-x64-Portable-v2.1.1-RC20.exe`
+- `GhostFTP-Windows-x64-Setup-v2.1.1-RC20.exe`
+- `GhostFTP-Windows-x64-v2.1.1-RC20.zip`
+- `GhostFTP-Windows-x64-v2.1.1-RC20-Native-QA.zip`
 
 **Linux x86-64**
-- `GhostFTP-Linux-x86_64-v2.1.1-RC19`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC19.AppImage`
-- `GhostFTP-Linux-amd64-v2.1.1-RC19.deb`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC19.rpm`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC19.tar.gz`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC20`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC20.AppImage`
+- `GhostFTP-Linux-amd64-v2.1.1-RC20.deb`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC20.rpm`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC20.tar.gz`
 
 **Source and verification**
-- `GhostFTP-v2.1.1-RC19-Source.zip`
-- `GhostFTP-v2.1.1-RC19-Desktop-Source.zip`
-- `GhostFTP-v2.1.1-RC19-Website.zip`
-- `GhostFTP-v2.1.1-RC19-Updates.zip`
-- `GhostFTP-v2.1.1-RC19-Documentation.zip`
-- `GhostFTP-v2.1.1-RC19-SHA256SUMS.txt`
+- `GhostFTP-v2.1.1-RC20-Source.zip`
+- `GhostFTP-v2.1.1-RC20-Desktop-Source.zip`
+- `GhostFTP-v2.1.1-RC20-Website.zip`
+- `GhostFTP-v2.1.1-RC20-Updates.zip`
+- `GhostFTP-v2.1.1-RC20-Documentation.zip`
+- `GhostFTP-v2.1.1-RC20-SHA256SUMS.txt`
 
 The Windows native QA bundle contains the seven critical product surfaces at canonical, compact and near-minimum viewports. Older release candidates remain immutable in GitHub Releases.
 
