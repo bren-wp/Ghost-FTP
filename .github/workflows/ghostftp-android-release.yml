@@ -1,0 +1,83 @@
+name: Ghost FTP Android release APK
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: GitHub release tag that should receive the Android APK asset
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ghostftp-android-release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  android-release-apk:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Resolve release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          test -n "$TAG"
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+          SAFE_TAG="${TAG#v}"
+          SAFE_TAG="${SAFE_TAG//./-}"
+          SAFE_TAG="${SAFE_TAG//_/-}"
+          echo "SAFE_TAG=$SAFE_TAG" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Android release contract
+        shell: bash
+        run: bash android/scripts/check-android-contract.sh
+
+      - name: Build Android APK
+        shell: bash
+        run: gradle -p android lintDebug assembleDebug
+
+      - name: Prepare APK asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/android
+          APK="dist/android/GhostFTP-Android-${SAFE_TAG}.apk"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "$APK"
+          test -s "$APK"
+          sha256sum "$APK" > "${APK}.sha256"
+
+      - name: Upload Android APK to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$RELEASE_TAG" >/dev/null
+          gh release upload "$RELEASE_TAG" dist/android/*.apk dist/android/*.sha256 --clobber
