@@ -86,7 +86,7 @@ class MainActivity : Activity() {
         })
         addView(space(10))
         addView(TextView(this@MainActivity).apply {
-            text = "Native Android workspace aligned with the Ghost FTP desktop layout: connection control, remote view, queue state and privacy-first session handling in one screen."
+            text = "Native Android workspace aligned with the Ghost FTP desktop layout: connection control, remote browser, queue state and privacy-first session handling in one screen."
             setTextColor(Brand.textSoft)
             textSize = 15f
             setLineSpacing(0f, 1.15f)
@@ -94,8 +94,7 @@ class MainActivity : Activity() {
     }
 
     private fun buildStatusCard(): View = panel().apply {
-        val label = label("Session")
-        addView(label)
+        addView(label("Session"))
         statusTitle = TextView(this@MainActivity).apply {
             setTextColor(Brand.text)
             textSize = 20f
@@ -111,7 +110,7 @@ class MainActivity : Activity() {
 
     private fun buildConnectionCard(): View = panel().apply {
         addView(sectionTitle("New connection"))
-        addView(sectionDescription("Enter a server endpoint, choose protocol and open a controlled Android session. Passwords remain in memory only for the active action."))
+        addView(sectionDescription("Choose FTP, explicit FTPS or SFTP, connect to a server and load the remote folder. Passwords stay in memory only for the active action."))
 
         protocolSpinner = Spinner(this@MainActivity).apply {
             adapter = ArrayAdapter(
@@ -123,7 +122,7 @@ class MainActivity : Activity() {
         addView(formLabel("Protocol"))
         addView(protocolSpinner)
 
-        hostInput = input("server.example.com", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        hostInput = input("ftp.company.com", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         addView(formLabel("Host"))
         addView(hostInput)
 
@@ -162,7 +161,7 @@ class MainActivity : Activity() {
 
     private fun buildWorkspaceCard(): View = panel().apply {
         addView(sectionTitle("Remote workspace"))
-        addView(sectionDescription("Mobile-first remote view with the same Ghost FTP hierarchy: location, protocol, account context and transfer-ready state."))
+        addView(sectionDescription("Mobile-first remote browser with the same Ghost FTP hierarchy: path, folders, files, protocol and account context."))
         remoteRows = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -171,7 +170,7 @@ class MainActivity : Activity() {
 
     private fun buildTransferCard(): View = panel().apply {
         addView(sectionTitle("Transfer queue"))
-        addView(sectionDescription("Queue actions are kept visible on Android so upload, download, retry and cancel controls stay close to the current connection."))
+        addView(sectionDescription("Queue state remains visible so upload, download, retry and cancel actions stay close to the active connection."))
         queueRows = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -192,10 +191,10 @@ class MainActivity : Activity() {
         activeProfile = profile
         setBusy(true)
         statusTitle.text = "Opening ${profile.protocol.label}"
-        statusDetail.text = "Checking ${profile.host}:${profile.port} without saving credentials."
+        statusDetail.text = "Loading ${profile.remotePath} from ${profile.host}:${profile.port} without storing credentials."
 
         thread(name = "ghostftp-android-connect") {
-            val result = runCatching { controller.probe(profile) }
+            val result = runCatching { controller.listRemote(profile) }
             runOnUiThread {
                 setBusy(false)
                 result.fold(
@@ -238,6 +237,7 @@ class MainActivity : Activity() {
             host = host,
             port = port,
             username = usernameInput.text.toString().trim(),
+            password = passwordInput.text.toString(),
             remotePath = remotePathInput.text.toString().trim().ifBlank { "/" }
         )
     }
@@ -249,12 +249,12 @@ class MainActivity : Activity() {
         result.rows.forEach { remoteRows.addView(row(it.name, it.detail)) }
         queueRows.removeAllViews()
         queueRows.addView(row("Queue", "Ready for ${profile.protocol.label} transfer actions."))
-        queueRows.addView(row("Security", "Session credentials are cleared on disconnect."))
+        queueRows.addView(row("Security", "Password remains in memory only and is cleared on disconnect."))
     }
 
     private fun showConnectionError(error: Throwable) {
         statusTitle.text = "Connection unavailable"
-        statusDetail.text = error.message ?: "The selected endpoint did not accept a session."
+        statusDetail.text = error.message ?: "The selected endpoint did not open a session."
         remoteRows.removeAllViews()
         remoteRows.addView(row("Remote view", "No server session is active."))
         queueRows.removeAllViews()
@@ -270,7 +270,7 @@ class MainActivity : Activity() {
         statusTitle.text = "Ready"
         statusDetail.text = "No active server session."
         remoteRows.removeAllViews()
-        remoteRows.addView(row("Remote view", "Connect to a server endpoint to load session context."))
+        remoteRows.addView(row("Remote view", "Connect to a server endpoint to load remote files."))
         queueRows.removeAllViews()
         queueRows.addView(row("Queue", "No active transfers."))
         setBusy(false)
