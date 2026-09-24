@@ -45,9 +45,9 @@ Android keeps the same primary product model as the desktop app:
 
 ## Release contract
 
-Every next GitHub release must include a production-signed Android APK file and a SHA-256 checksum. The Android release workflow builds the APK from the published tag, verifies the APK signature and uploads it to the matching release.
+Every next GitHub release must include an Android APK file and a SHA-256 checksum. The Android release workflow builds the APK from the published tag, verifies the APK signature and uploads it to the matching release.
 
-The Android release workflow must fail if production signing secrets are missing. Unsigned Android APK files must not be published as production release assets.
+The Android release workflow must not require GitHub signing secrets. The release path is designed to produce an installable APK without manual key setup.
 
 An Android APK or AAB must not be treated as final unless all of the following are true:
 
