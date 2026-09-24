@@ -1,6 +1,6 @@
 # Ghost FTP Roadmap
 
-This roadmap separates the shipped/current RC20 release-candidate work from future work. Items under Planned, Recommended and Long-term are not claims of implemented functionality.
+This roadmap separates the shipped/current RC21 release-candidate work from future work. Items under Planned, Recommended and Long-term are not claims of implemented functionality.
 
 ## Implemented
 

@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document separates what Ghost FTP provides in the current **2.1.1 RC20** source from future product work. Historical release details belong in `docs/releases/`.
+This document separates what Ghost FTP provides in the current **2.1.1 RC21** source from future product work. Historical release details belong in `docs/releases/`.
 
-## Implemented in RC20
+## Implemented in RC21
 
 | Area | Current capability |
 |---|---|
@@ -21,7 +21,7 @@ This document separates what Ghost FTP provides in the current **2.1.1 RC20** so
 
 Full capability detail: [Implemented Features](FEATURES.md).
 
-## RC20 hardening completed in source
+## RC21 hardening completed in source
 
 - Deduplicates concurrent connection attempts and keeps busy state correct across parallel connects.
 - Makes recurring transfer schedules honor their configured start date and disable stale missing targets.
@@ -36,7 +36,7 @@ Full capability detail: [Implemented Features](FEATURES.md).
 - Keeps workspace-level error containment and the one-window navigation model.
 - Keeps terminal PTY lifetime docked and deterministic with no secondary-window handoff residue.
 - Keeps real progress-delta transfer telemetry and near-minimum native Windows QA coverage.
-- Updates active repository documentation and release metadata consistently to RC20.
+- Updates active repository documentation and release metadata consistently to RC21.
 
 ## Gates before stable / FINAL
 

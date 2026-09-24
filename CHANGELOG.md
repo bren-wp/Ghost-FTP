@@ -1,5 +1,11 @@
 # Changelog
 
+## Ghost FTP 2.1.1 RC21 — Production interaction hardening
+
+- Hardened confirm, authentication prompt, context menu and New Connection button flows against duplicate or overlapping native actions.
+- Added CI interaction-contract checks for the critical button and modal workflows.
+- Aligned RC21 package, updater, native package and documentation metadata to avoid RC20/RC21 artifact drift.
+
 ## 2.1.1-rc.20 — 24 September 2026
 
 - Deduplicated concurrent saved/temporary profile connect attempts and corrected the global connecting indicator across parallel connection operations.
