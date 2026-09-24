@@ -3,6 +3,7 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { ipc } from "@/lib/ipc";
 import { toast } from "./toastStore";
+import { messageOf } from "@/lib/errors";
 
 // In-app auto-updater. The persistent application shell performs a throttled,
 // quiet launch check; Help & About → Updates owns all user-facing update actions.
@@ -60,8 +61,8 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
     set({ status: "checking", error: null });
     // Record the check time regardless of outcome so we don't hammer the endpoint.
     void ipc.settingsSet("lastUpdateCheck", JSON.stringify(Date.now())).catch((error) => {
-      if (quiet) console.warn("Couldn't persist update-check time", error);
-      else toast.warning("Update check will not be remembered", String(error));
+      if (quiet) console.warn("Couldn't persist update-check time", messageOf(error));
+      else toast.warning("Update check will not be remembered", messageOf(error));
     });
     try {
       const update = await check();
@@ -85,8 +86,9 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
       if (quiet) {
         set({ status: "idle" });
       } else {
-        set({ status: "error", error: String(e) });
-        toast.error(`Update check failed: ${e}`);
+        const message = messageOf(e);
+        set({ status: "error", error: message });
+        toast.error("Update check failed", message);
       }
     }
   },
@@ -107,10 +109,12 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
             break;
         }
       });
+      heldUpdate = null;
       set({ status: "ready" });
     } catch (e) {
-      set({ status: "error", error: String(e) });
-      toast.error(`Update download failed: ${e}`);
+      const message = messageOf(e);
+      set({ status: "error", error: message });
+      toast.error("Update download failed", message);
     }
   },
 
@@ -118,7 +122,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
     try {
       await relaunch();
     } catch (e) {
-      toast.error(`Couldn't restart: ${e}`);
+      toast.error("Couldn't restart", messageOf(e));
     }
   },
 
@@ -131,7 +135,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
         await get().check(true);
       }
     } catch (error) {
-      console.warn("Couldn't initialize the quiet update check", error);
+      console.warn("Couldn't initialize the quiet update check", messageOf(error));
     }
     return () => {};
   },
