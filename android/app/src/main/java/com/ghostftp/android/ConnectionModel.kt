@@ -12,6 +12,7 @@ import org.apache.commons.net.ftp.FTPReply
 import org.apache.commons.net.ftp.FTPSClient
 import java.net.IDN
 import java.security.MessageDigest
+import java.time.Duration
 import java.util.Base64
 import java.util.Vector
 
@@ -64,7 +65,7 @@ class ConnectionController {
         val client = if (secure) FTPSClient(false) else FTPClient()
         client.connectTimeout = CONNECT_TIMEOUT_MS
         client.defaultTimeout = CONNECT_TIMEOUT_MS
-        client.dataTimeout = CONNECT_TIMEOUT_MS
+        client.dataTimeout = Duration.ofMillis(CONNECT_TIMEOUT_MS.toLong())
         try {
             client.connect(profile.host, profile.port)
             require(FTPReply.isPositiveCompletion(client.replyCode)) {
