@@ -59,14 +59,14 @@ jobs:
           test -s "$DEBUG_APK"
           test -n "$RELEASE_APK"
           test -s "$RELEASE_APK"
-          cp "$DEBUG_APK" dist/android/GhostFTP-Android-v2.1.1-RC21-ci.apk
-          cp "$RELEASE_APK" dist/android/GhostFTP-Android-v2.1.1-RC21-release-check.apk
-          sha256sum dist/android/*.apk > dist/android/GhostFTP-Android-v2.1.1-RC21-SHA256SUMS.txt
+          cp "$DEBUG_APK" dist/android/GhostFTP-Android-v2.1.1-RC22-ci.apk
+          cp "$RELEASE_APK" dist/android/GhostFTP-Android-v2.1.1-RC22-release-check.apk
+          sha256sum dist/android/*.apk > dist/android/GhostFTP-Android-v2.1.1-RC22-SHA256SUMS.txt
       - name: Upload Android APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-Android-APK-RC21
+          name: GhostFTP-Android-APK-RC22
           path: |
             dist/android/*.apk
-            dist/android/GhostFTP-Android-v2.1.1-RC21-SHA256SUMS.txt
+            dist/android/GhostFTP-Android-v2.1.1-RC22-SHA256SUMS.txt
           if-no-files-found: error
