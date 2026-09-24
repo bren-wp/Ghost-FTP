@@ -48,7 +48,7 @@ RC22 Android lint validates minSdk 26 compatibility. API 27+ navigation-bar ligh
 
 ## Release rule without external keys
 
-Every next GitHub release must include an Android APK asset. The dedicated workflow `.github/workflows/ghostftp-android-release.yml` builds from the published tag, creates an installable APK without requiring GitHub signing secrets, verifies the APK signature and uploads both the APK and its SHA-256 checksum to that release.
+Every next GitHub release must include an Android APK asset. The RC22 release workflow downloads the verified Android workflow artifact for the same release source commit and publishes it as `GhostFTP-Android-v2.1.1-RC22.apk` together with the Windows, Linux and checksum assets.
 
 No repository keystore, GitHub secret or manual signing key is required for this release path.
 

@@ -88,7 +88,7 @@ RC22 release is valid only after these GitHub Actions pass:
 - Ghost FTP Android.
 - RC22 release packaging.
 
-The release must include SHA-256 checksums for the published artifacts. RC22 publication is tied to the latest `main` commit that includes the Android API 26 compatible theme fix and the RC22 release approval marker.
+The release must include SHA-256 checksums for the published artifacts. RC22 publication is tied to the latest `main` commit that includes the Android API 26 compatible theme fix and the RC22 release approval marker. RC22 packaging also pulls the verified Android APK artifact directly into the GitHub Release so the published asset set includes Windows, Linux and APK files.
 
 ## Repository layout
 
