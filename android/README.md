@@ -6,15 +6,15 @@ This Android app lives in `/android` so the Windows and Linux desktop release li
 
 - Product: Ghost FTP
 - Brand: Brendigo
-- Version: 2.1.1-rc.21
-- Display: 2.1.1 RC21
-- Build: 2026.09.24.21
+- Version: 2.1.1-rc.22
+- Display: 2.1.1 RC22
+- Build: 2026.09.24.22
 
 ## Android surface
 
 The Android surface is a native Kotlin single-activity app with a mobile layout that follows the desktop product structure:
 
-- Header with Ghost FTP RC21 release identity.
+- Header with Ghost FTP RC22 release identity.
 - Session status card.
 - New connection card for FTP, explicit FTPS and SFTP endpoint control.
 - SFTP host key fingerprint field for explicit server identity verification.
@@ -42,7 +42,7 @@ From the repository root:
 gradle -p android lintDebug lintRelease assembleDebug assembleRelease
 ```
 
-The pull-request Android workflow runs the Android contract, both lint variants and both APK builds. It uploads installable APK artifacts and checksums for review.
+The pull-request Android workflow runs the Android contract, both lint variants and both APK builds. It uploads installable RC22 APK artifacts and checksums for review.
 
 ## Release rule without external keys
 
