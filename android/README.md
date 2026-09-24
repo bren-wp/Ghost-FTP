@@ -2,7 +2,7 @@
 
 Native Android application source for Ghost FTP.
 
-This Android app lives in `/android` so the Windows and Linux RC21 desktop release line remains isolated. The product identity stays aligned with Ghost FTP and Brendigo:
+This Android app lives in `/android` so the Windows and Linux desktop release line remains isolated. The product identity stays aligned with Ghost FTP and Brendigo:
 
 - Product: Ghost FTP
 - Brand: Brendigo
@@ -10,36 +10,52 @@ This Android app lives in `/android` so the Windows and Linux RC21 desktop relea
 - Display: 2.1.1 RC21
 - Build: 2026.09.24.21
 
-## Current Android surface
+## Android surface
 
-The first Android surface is a native Kotlin single-activity app with a mobile layout that follows the desktop product structure:
+The Android surface is a native Kotlin single-activity app with a mobile layout that follows the desktop product structure:
 
 - Header with Ghost FTP RC21 release identity.
 - Session status card.
 - New connection card for FTP, explicit FTPS and SFTP endpoint control.
-- Remote workspace card for current server context.
+- Remote workspace card for current server context and remote folder listing.
 - Transfer queue card for mobile-first queue state.
 - Brendigo footer.
 - Passwords kept in memory only for the current action and cleared on disconnect.
 - No analytics, no telemetry and no required account sign-in.
+
+## Protocol support
+
+The Android app uses native protocol clients:
+
+- FTP remote login and folder listing.
+- Explicit FTPS remote login and protected data-channel listing.
+- SFTP remote login and folder listing.
+
+Credentials are passed only into the active connection action. The app does not add telemetry, accounts or ordinary password persistence.
 
 ## Build
 
 From the repository root:
 
 ```bash
-gradle -p android assembleDebug
+gradle -p android lintDebug assembleDebug
 ```
 
-The GitHub workflow installs the Android SDK and runs:
+The pull-request Android workflow also runs:
 
 ```bash
-gradle -p android lintDebug assembleDebug
 bash android/scripts/check-android-contract.sh
+gradle -p android lintDebug assembleDebug
 ```
 
-## Release gate
+It then uploads:
 
-Android is not published from the desktop RC21 release workflow. An Android release must pass its own native build, UI review, protocol acceptance and mobile security checks before any APK/AAB is published.
+```text
+GhostFTP-Android-v2.1.1-RC21-debug.apk
+```
 
-The desktop release remains authoritative for Windows and Linux until the Android protocol engine, Android QA evidence and release workflow are approved.
+## Release rule
+
+Every next GitHub release must include an Android APK asset. The dedicated workflow `.github/workflows/ghostftp-android-release.yml` builds the APK for the published tag and uploads both the APK and its SHA-256 checksum to that release.
+
+A production-signed Android APK can be added later by wiring signing secrets into the same workflow, but the release contract already requires an APK file for future releases.
