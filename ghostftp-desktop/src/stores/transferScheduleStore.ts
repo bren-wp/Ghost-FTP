@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { useTransfers } from "./transfersStore";
 import { toast } from "./toastStore";
+import { messageOf } from "@/lib/errors";
 
 export type TransferScheduleMode = "off" | "once" | "daily" | "weekly";
 
@@ -31,6 +32,31 @@ function localDateInputValue(date = new Date()) {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function validDateInput(value: string | undefined): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T12:00:00`);
+  return !Number.isNaN(parsed.getTime()) && localDateInputValue(parsed) === value;
+}
+
+function parseLocalOccurrence(date: string, time: string): Date | null {
+  if (!validDateInput(date)) return null;
+  const clock = parseClock(time);
+  if (!clock) return null;
+  const [hour, minute] = clock;
+  const parsed = new Date(`${date}T${time}:00`);
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    localDateInputValue(parsed) !== date ||
+    parsed.getHours() !== hour ||
+    parsed.getMinutes() !== minute
+  ) {
+    // Reject rolled invalid dates and local times that do not exist because of
+    // a daylight-saving transition.
+    return null;
+  }
+  return parsed;
 }
 
 const DEFAULTS: TransferScheduleData = {
@@ -70,8 +96,8 @@ function normalize(input: Partial<TransferScheduleData>): TransferScheduleData {
     input.mode === "off"
       ? input.mode
       : "off";
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(input.date ?? "")
-    ? input.date!
+  const date = validDateInput(input.date)
+    ? input.date
     : localDateInputValue();
   const time = /^\d{2}:\d{2}$/.test(input.time ?? "") ? input.time! : "13:00";
   const transferId =
@@ -165,36 +191,35 @@ function parseClock(time: string): [number, number] | null {
   return [hour, minute];
 }
 
-/** Most recent occurrence that should have run at or before `now`. */
+/** Most recent occurrence that should have run at or before `now`.
+ *  The selected date is the schedule anchor: recurring jobs never run before it. */
 function mostRecentOccurrence(
   schedule: TransferScheduleData,
   now: Date
 ): Date | null {
+  const anchor = parseLocalOccurrence(schedule.date, schedule.time);
+  if (!anchor || now.getTime() < anchor.getTime()) return null;
+
+  if (schedule.mode === "once") return anchor;
+
   const clock = parseClock(schedule.time);
   if (!clock) return null;
   const [hour, minute] = clock;
-
-  if (schedule.mode === "once") {
-    const due = new Date(`${schedule.date}T${schedule.time}:00`);
-    return Number.isNaN(due.getTime()) ? null : due;
-  }
 
   if (schedule.mode === "daily") {
     const due = new Date(now);
     due.setHours(hour, minute, 0, 0);
     if (due.getTime() > now.getTime()) due.setDate(due.getDate() - 1);
-    return due;
+    return due.getTime() >= anchor.getTime() ? due : null;
   }
 
   if (schedule.mode === "weekly") {
-    const anchor = new Date(`${schedule.date}T${schedule.time}:00`);
-    if (Number.isNaN(anchor.getTime())) return null;
     const due = new Date(now);
     due.setHours(hour, minute, 0, 0);
     const daysBack = (due.getDay() - anchor.getDay() + 7) % 7;
     due.setDate(due.getDate() - daysBack);
     if (due.getTime() > now.getTime()) due.setDate(due.getDate() - 7);
-    return due;
+    return due.getTime() >= anchor.getTime() ? due : null;
   }
 
   return null;
@@ -213,18 +238,47 @@ async function runScheduleTick() {
     return;
   }
 
+  const transfers = useTransfers.getState();
+  if (!transfers.initialized) return;
+
+  const target = transfers.byId[schedule.transferId];
+  if (!target) {
+    useTransferSchedule.getState().setArmed(false);
+    toast.warning(
+      "Transfer schedule disabled",
+      "The saved transfer no longer exists. Choose a transfer and set the schedule again."
+    );
+    return;
+  }
+
   const due = mostRecentOccurrence(schedule, new Date());
   if (!due || due.getTime() > Date.now() || due.getTime() <= schedule.lastRunAt) {
     return;
   }
 
+  // Never duplicate a transfer that is already queued/running/paused. Treat
+  // this occurrence as satisfied and wait for the next recurrence.
+  if (
+    target.status === "queued" ||
+    target.status === "transferring" ||
+    target.status === "paused"
+  ) {
+    useTransferSchedule.getState().markRun(due.getTime());
+    if (schedule.mode === "once") {
+      useTransferSchedule.getState().setArmed(false);
+    }
+    return;
+  }
+
   tickBusy = true;
   try {
-    await useTransfers.getState().retry(schedule.transferId);
-    toast.success("Scheduled transfer started", "The saved transfer retry is running.");
+    await transfers.retry(schedule.transferId);
+    toast.success(
+      "Scheduled transfer started",
+      "The saved transfer retry is running."
+    );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    toast.error("Scheduled transfer failed to start", message);
+    toast.error("Scheduled transfer failed to start", messageOf(error));
   } finally {
     // Mark the occurrence even on failure so a broken/stale transfer id cannot
     // hammer the native backend every few seconds.
@@ -244,7 +298,7 @@ async function runScheduleTick() {
 export function initTransferScheduler() {
   const runSafely = () =>
     void runScheduleTick().catch((error) =>
-      console.error("Unexpected transfer scheduler failure", error)
+      console.error("Unexpected transfer scheduler failure", messageOf(error))
     );
   runSafely();
   const timer = window.setInterval(runSafely, 10_000);
