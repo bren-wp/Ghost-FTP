@@ -15,6 +15,16 @@ require_text() {
   fi
 }
 
+require_absent() {
+  local label="$1"
+  local path="$2"
+  local text="$3"
+  if grep -RInF "$text" "$path"; then
+    echo "Android contract failed: blocked $label found: $text"
+    exit 1
+  fi
+}
+
 require_text "product name" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt" 'PRODUCT_NAME = "Ghost FTP"'
 require_text "brand" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt" 'BRAND = "Brendigo"'
 require_text "version" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt" 'VERSION = "2.1.1-rc.21"'
@@ -28,11 +38,18 @@ require_text "sftp protocol" "$ANDROID_DIR/app/src/main/java/com/ghostftp/androi
 require_text "connect action" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/MainActivity.kt" 'primaryButton("Connect")'
 require_text "disconnect action" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/MainActivity.kt" 'secondaryButton("Disconnect")'
 require_text "refresh action" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/MainActivity.kt" 'secondaryButton("Refresh")'
+require_text "SFTP host key verification" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ConnectionModel.kt" 'StrictHostKeyChecking", "yes"'
+require_text "SFTP fingerprint input" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/MainActivity.kt" 'SFTP host key fingerprint'
+require_text "release signing configuration" "$ANDROID_DIR/app/build.gradle.kts" 'signingConfigs'
 
 blocked_patterns=(
   'lorem'
   'placeholder'
   'demo'
+  'example.com'
+  'server.example'
+  'ftp.company.com'
+  'debug build'
   'RC20'
   'Win32'
   'Win 32'
@@ -42,10 +59,7 @@ blocked_patterns=(
 )
 
 for pattern in "${blocked_patterns[@]}"; do
-  if grep -RInF "$pattern" "$APP_DIR"; then
-    echo "Android contract failed: blocked product copy found: $pattern"
-    exit 1
-  fi
+  require_absent "product copy" "$APP_DIR" "$pattern"
 done
 
-echo "Ghost FTP Android contract OK"
+echo "Ghost FTP Android production contract OK"
