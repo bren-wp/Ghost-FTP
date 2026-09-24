@@ -15,7 +15,7 @@
     "init-icons": "node scripts/init-icons.mjs",
     "postinstall": "node scripts/init-icons.mjs",
     "check:i18n": "node scripts/check-i18n-parity.mjs",
-    "check:ui": "node scripts/check-ui-contract.mjs && node scripts/check-interaction-hardening.mjs",
+    "check:ui": "node scripts/check-ui-contract.mjs && node scripts/check-interaction-hardening.mjs && node scripts/check-linux-parity.mjs",
     "build:web": "vite build",
     "build:windows": "tauri build --bundles nsis",
     "build:linux": "tauri build --bundles deb,rpm,appimage",
