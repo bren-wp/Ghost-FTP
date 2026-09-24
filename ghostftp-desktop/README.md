@@ -52,18 +52,25 @@ MSI is intentionally excluded from prerelease RC packaging because the current M
 The repository keeps **actual native screenshots** under **[`../docs/assets/screenshots/`](../docs/assets/screenshots/)**. The RC Windows QA workflow refreshes them from the real executable; they are documentation evidence only and are never used as runtime screenshot backgrounds or click maps.
 
 <p align="center">
-  <img src="../docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP native Files workspace — actual RC19 build" width="100%">
+  <a href="../docs/assets/screenshots/ghostftp-native-files.png"><img src="../docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP native Files workspace — actual RC19 build" width="100%"></a>
 </p>
 
 <p align="center">
-  <img src="../docs/assets/screenshots/ghostftp-native-sites.png" alt="Ghost FTP native Sites workspace" width="49%">
-  <img src="../docs/assets/screenshots/ghostftp-native-transfers.png" alt="Ghost FTP native Transfers workspace" width="49%">
+  <a href="../docs/assets/screenshots/ghostftp-native-sites.png"><img src="../docs/assets/screenshots/ghostftp-native-sites.png" alt="Ghost FTP native Sites workspace" width="49%"></a>
+  <a href="../docs/assets/screenshots/ghostftp-native-new-connection.png"><img src="../docs/assets/screenshots/ghostftp-native-new-connection.png" alt="Ghost FTP native New Connection" width="49%"></a>
 </p>
 
 <p align="center">
-  <img src="../docs/assets/screenshots/ghostftp-native-settings.png" alt="Ghost FTP native Settings workspace" width="49%">
-  <img src="../docs/assets/screenshots/ghostftp-native-about.png" alt="Ghost FTP native Help and About workspace" width="49%">
+  <a href="../docs/assets/screenshots/ghostftp-native-settings.png"><img src="../docs/assets/screenshots/ghostftp-native-settings.png" alt="Ghost FTP native Settings workspace" width="49%"></a>
+  <a href="../docs/assets/screenshots/ghostftp-native-transfers.png"><img src="../docs/assets/screenshots/ghostftp-native-transfers.png" alt="Ghost FTP native Transfers workspace" width="49%"></a>
 </p>
+
+<p align="center">
+  <a href="../docs/assets/screenshots/ghostftp-native-file-properties.png"><img src="../docs/assets/screenshots/ghostftp-native-file-properties.png" alt="Ghost FTP native File Properties" width="49%"></a>
+  <a href="../docs/assets/screenshots/ghostftp-native-about.png"><img src="../docs/assets/screenshots/ghostftp-native-about.png" alt="Ghost FTP native Help and About workspace" width="49%"></a>
+</p>
+
+<p align="center"><sub>All seven images are direct 1290×852 captures from the native RC19 Windows QA build. Click any image for the original full-resolution PNG.</sub></p>
 
 The canonical desktop reference is **1290×852** and the production window minimum is **480×600**. RC19 keeps one persistent native application window: Files, Sites, Transfers, Sync & Backup, Settings and Help & About switch inside the main workspace; New Connection and File Properties remain transient overlays inside that same window.
 
