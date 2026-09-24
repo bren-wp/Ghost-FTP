@@ -1,9 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
+import { toastError } from "@/lib/errors";
 
 export interface MenuItem {
   label: string;
-  onClick?: () => void;
+  onClick?: () => void | Promise<void>;
   icon?: React.ReactNode;
   disabled?: boolean;
   destructive?: boolean;
@@ -19,13 +20,17 @@ interface Props {
 
 export function ContextMenu({ x, y, items, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const [busyIndex, setBusyIndex] = useState<number | null>(null);
+  const closeIfIdle = () => {
+    if (busyIndex === null) onClose();
+  };
 
   useEffect(() => {
     const onAnyClick = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose();
+      if (!ref.current?.contains(e.target as Node)) closeIfIdle();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closeIfIdle();
     };
     window.addEventListener("mousedown", onAnyClick);
     window.addEventListener("keydown", onKey);
@@ -40,7 +45,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
       window.removeEventListener("mousedown", onAnyClick);
       window.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, [busyIndex, onClose]);
 
   const onMenuKeyDown = (e: React.KeyboardEvent) => {
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
@@ -63,17 +68,30 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
     btns[next]?.focus();
   };
 
-  // Clamp to viewport.
-  const maxX = window.innerWidth - 220;
-  const maxY = window.innerHeight - items.length * 28 - 16;
-  const left = Math.min(x, maxX);
-  const top = Math.min(y, maxY);
+  const runItem = async (item: MenuItem, index: number) => {
+    if (!item.onClick || item.disabled || busyIndex !== null) return;
+    setBusyIndex(index);
+    try {
+      await item.onClick();
+      onClose();
+    } catch (error) {
+      toastError(error, `Couldn't run ${item.label}`);
+      setBusyIndex(null);
+    }
+  };
+
+  // Clamp to viewport and avoid negative coordinates on small windows.
+  const maxX = Math.max(8, window.innerWidth - 220);
+  const maxY = Math.max(8, window.innerHeight - items.length * 28 - 16);
+  const left = Math.max(8, Math.min(x, maxX));
+  const top = Math.max(8, Math.min(y, maxY));
 
   return (
     <div
       ref={ref}
       role="menu"
       aria-label="Context menu"
+      aria-busy={busyIndex !== null}
       onKeyDown={onMenuKeyDown}
       style={{ left, top }}
       className="anim-modal fixed z-menu min-w-[200px] rounded-lg border border-border bg-bg-panel py-1 shadow-elev-3"
@@ -82,14 +100,13 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
         <div key={i}>
           <button
             role="menuitem"
-            disabled={item.disabled || !item.onClick}
-            onClick={() => {
-              item.onClick?.();
-              onClose();
-            }}
+            disabled={item.disabled || !item.onClick || busyIndex !== null}
+            aria-busy={busyIndex === i}
+            onClick={() => void runItem(item, i)}
             className={cn(
               "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-bg-hover disabled:opacity-40 disabled:hover:bg-transparent",
-              item.destructive && "text-danger hover:bg-danger-soft"
+              item.destructive && "text-danger hover:bg-danger-soft",
+              busyIndex === i && "cursor-wait opacity-70"
             )}
           >
             {item.icon && (
@@ -97,7 +114,9 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
                 {item.icon}
               </span>
             )}
-            <span className="flex-1">{item.label}</span>
+            <span className="flex-1">
+              {busyIndex === i ? "Working…" : item.label}
+            </span>
           </button>
           {item.separatorAfter && (
             <div className="my-1 border-t border-border" />
