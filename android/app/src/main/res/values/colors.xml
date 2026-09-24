@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ghost_background">#080B14</color>
+    <color name="ghost_panel">#10182A</color>
+    <color name="ghost_panel_strong">#16233B</color>
+    <color name="ghost_accent">#69E6FF</color>
+    <color name="ghost_accent_strong">#7C5CFF</color>
+    <color name="ghost_text">#F4F8FF</color>
+    <color name="ghost_text_muted">#9FB2C8</color>
+</resources>
