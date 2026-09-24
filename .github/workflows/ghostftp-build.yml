@@ -9,10 +9,14 @@ on:
     branches: [main]
     paths:
       - 'ghostftp-desktop/**'
+      - 'README.md'
+      - 'docs/assets/screenshots/**'
       - '.github/workflows/ghostftp-build.yml'
   pull_request:
     paths:
       - 'ghostftp-desktop/**'
+      - 'README.md'
+      - 'docs/assets/screenshots/**'
       - '.github/workflows/ghostftp-build.yml'
       - '.github/workflows/ghostftp-rc20-release.yml'
 
