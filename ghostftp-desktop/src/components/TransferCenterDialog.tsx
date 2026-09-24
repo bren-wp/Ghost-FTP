@@ -601,7 +601,9 @@ export function TransferCenterDialog({ onClose }: Props) {
                 type="date"
                 className="ghost-ref-input h-9"
                 value={scheduleDate}
-                disabled={scheduleMode === "off" || scheduleMode === "daily"}
+                aria-label={scheduleMode === "once" ? "Run date" : "Start date"}
+                title={scheduleMode === "once" ? "Run date" : "Recurring schedule start date"}
+                disabled={scheduleMode === "off"}
                 onChange={(event) => setScheduleDate(event.target.value)}
               />
               <input
@@ -635,7 +637,9 @@ export function TransferCenterDialog({ onClose }: Props) {
             </div>
             {scheduleArmed && scheduleMode !== "off" && (
               <div className="mt-2 rounded-md border border-success/25 bg-success/10 px-2.5 py-1.5 text-[10.5px] text-success">
-                Schedule active — {scheduleMode} at {scheduleTime}
+                Schedule active — {scheduleMode}
+                {scheduleMode === "once" ? " on " : " from "}
+                {scheduleDate} at {scheduleTime}
               </div>
             )}
           </div>

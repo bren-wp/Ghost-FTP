@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.1-rc.20 — 24 September 2026
+
+- Deduplicated concurrent saved/temporary profile connect attempts and corrected the global connecting indicator across parallel connection operations.
+- Prevented duplicate frontend session rows from repeated native connection results.
+- Made daily/weekly transfer schedules honor their selected start date and reject invalid/nonexistent local date-time values.
+- Delayed schedule evaluation until the initial transfer snapshot is loaded, disabled stale missing targets and prevented duplicate retries of already-active transfers.
+- Enabled recurring start-date editing and made active schedule copy show the configured anchor date.
+- Routed human-readable IPC errors, updater diagnostics and native OS notification content through central credential redaction.
+- Cleared the held updater object after successful installation to prevent stale duplicate-install actions.
+- Updated canonical repository links to `bren-wp/Ghost-FTP`.
+- Preserved the seven real native README screenshots, README-vs-QA verification, real FTP/explicit-FTPS/SFTP E2E and the single-window architecture.
+- Advanced desktop, Tauri, CLI, agent, runtime, installer, updater and native artifact metadata consistently to RC20 / build 2026.09.24.20.
+
 ## 2.1.1-rc.19 — 24 September 2026
 
 - Fixed terminal startup/disposal races so native data/exit listeners cannot remain registered after a pane is closed during asynchronous initialization.

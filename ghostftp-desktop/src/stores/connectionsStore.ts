@@ -4,11 +4,39 @@ import { toast } from "./toastStore";
 import { toastError, messageOf } from "@/lib/errors";
 import type { ConnectionProfile, SessionId } from "@/lib/types";
 import { useTerminals } from "./terminalsStore";
+import { redactSensitiveText } from "@/lib/redact";
 
 function syncBridgeActiveSession(sessionId: SessionId | null): void {
   void ipc.bridgeSetActiveSession(sessionId).catch((error) => {
-    console.warn("Couldn't synchronize Agent Bridge active session", error);
+    console.warn(
+      "Couldn't synchronize Agent Bridge active session",
+      redactSensitiveText(error, 240)
+    );
   });
+}
+
+const pendingConnections = new Map<string, Promise<void>>();
+
+function trackConnection(
+  key: string,
+  set: (partial: Partial<ConnectionsState>) => void,
+  operation: () => Promise<void>
+): Promise<void> {
+  const existing = pendingConnections.get(key);
+  if (existing) return existing;
+
+  set({ connecting: true, error: null });
+  const promise = operation();
+  pendingConnections.set(key, promise);
+
+  const finish = () => {
+    if (pendingConnections.get(key) === promise) {
+      pendingConnections.delete(key);
+    }
+    set({ connecting: pendingConnections.size > 0 });
+  };
+  void promise.then(finish, finish);
+  return promise;
 }
 
 // One live connection. The backend keeps every session alive in a map, so the
@@ -102,73 +130,85 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
     await get().loadProfiles();
   },
 
-  connect: async (profileId) => {
-    // Already connected to this profile? Just focus its tab.
-    const existing = get().sessions.find((s) => s.profileId === profileId);
-    if (existing) {
-      get().setActiveSession(existing.sessionId);
-      return;
-    }
+  connect: (profileId) =>
+    trackConnection(`saved:${profileId}`, set, async () => {
+      // Already connected to this profile? Just focus its tab.
+      const existing = get().sessions.find((session) => session.profileId === profileId);
+      if (existing) {
+        get().setActiveSession(existing.sessionId);
+        return;
+      }
 
-    set({ connecting: true, error: null });
-    const profile = get().profiles.find((p) => p.id === profileId);
-    try {
-      const sessionId = await ipc.connect(profileId);
-      set((s) => ({
-        sessions: [...s.sessions, { sessionId, profileId }],
-        activeSessionId: sessionId,
-        activeProfileId: profileId,
-        connecting: false,
-      }));
-      syncBridgeActiveSession(sessionId);
-      toast.success(
-        "Connected",
-        profile
-          ? `${profile.name} — ${profile.username}@${profile.host}`
-          : undefined
+      const profile = get().profiles.find((item) => item.id === profileId);
+      try {
+        const sessionId = await ipc.connect(profileId);
+        // A concurrent caller for the same profile reuses this exact promise,
+        // so this is the only path that can append the resulting live session.
+        set((state) => ({
+          sessions: state.sessions.some((session) => session.sessionId === sessionId)
+            ? state.sessions
+            : [...state.sessions, { sessionId, profileId }],
+          activeSessionId: sessionId,
+          activeProfileId: profileId,
+        }));
+        syncBridgeActiveSession(sessionId);
+        toast.success(
+          "Connected",
+          profile
+            ? `${profile.name} — ${profile.username}@${profile.host}`
+            : undefined
+        );
+        // Refresh persisted profile metadata such as lastUsed without disturbing
+        // any active ephemeral Quick Connect profiles.
+        void get().loadProfiles().catch((error) =>
+          toastError(error, "Connected, but couldn't refresh saved sites")
+        );
+      } catch (error) {
+        set({ error: messageOf(error) });
+        toastError(
+          error,
+          profile ? `Couldn't connect to ${profile.name}` : "Connection failed"
+        );
+        throw error;
+      }
+    }),
+
+  connectTemporary: (profile) =>
+    trackConnection(`temporary:${profile.id}`, set, async () => {
+      const existing = get().sessions.find(
+        (session) => session.profileId === profile.id
       );
-      // Refresh persisted profile metadata such as lastUsed without disturbing
-      // any active ephemeral Quick Connect profiles.
-      void get().loadProfiles().catch((error) =>
-        toastError(error, "Connected, but couldn't refresh saved sites")
-      );
-    } catch (e) {
-      // `connect` returns a structured {kind, message} error (Plan 12 Phase 3),
-      // so the toast is keyed off the kind (auth → reconnect, network → check
-      // connection, …) instead of regexing the message.
-      set({ connecting: false, error: messageOf(e) });
-      toastError(e, profile ? `Couldn't connect to ${profile.name}` : "Connection failed");
-      throw e;
-    }
-  },
+      if (existing) {
+        get().setActiveSession(existing.sessionId);
+        return;
+      }
 
-  connectTemporary: async (profile) => {
-    const existing = get().sessions.find((session) => session.profileId === profile.id);
-    if (existing) {
-      get().setActiveSession(existing.sessionId);
-      return;
-    }
-
-    set({ connecting: true, error: null });
-    try {
-      const sessionId = await ipc.connectEphemeral(profile);
-      set((state) => ({
-        profiles: state.profiles.some((item) => item.id === profile.id)
-          ? state.profiles
-          : [...state.profiles, profile],
-        sessions: [...state.sessions, { sessionId, profileId: profile.id, ephemeral: true }],
-        activeSessionId: sessionId,
-        activeProfileId: profile.id,
-        connecting: false,
-      }));
-      syncBridgeActiveSession(sessionId);
-      toast.success("Connected", `${profile.name} — ${profile.username}@${profile.host}`);
-    } catch (e) {
-      set({ connecting: false, error: messageOf(e) });
-      toastError(e, `Couldn't connect to ${profile.name}`);
-      throw e;
-    }
-  },
+      try {
+        const sessionId = await ipc.connectEphemeral(profile);
+        set((state) => ({
+          profiles: state.profiles.some((item) => item.id === profile.id)
+            ? state.profiles
+            : [...state.profiles, profile],
+          sessions: state.sessions.some((session) => session.sessionId === sessionId)
+            ? state.sessions
+            : [
+                ...state.sessions,
+                { sessionId, profileId: profile.id, ephemeral: true },
+              ],
+          activeSessionId: sessionId,
+          activeProfileId: profile.id,
+        }));
+        syncBridgeActiveSession(sessionId);
+        toast.success(
+          "Connected",
+          `${profile.name} — ${profile.username}@${profile.host}`
+        );
+      } catch (error) {
+        set({ error: messageOf(error) });
+        toastError(error, `Couldn't connect to ${profile.name}`);
+        throw error;
+      }
+    }),
 
   disconnect: async (sessionId) => {
     const sid = sessionId ?? get().activeSessionId;

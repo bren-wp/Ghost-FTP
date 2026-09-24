@@ -42,6 +42,8 @@ export interface TransferRateSample {
 }
 
 interface TransfersState {
+  /** True after the first backend transfer/queue snapshot has completed. */
+  initialized: boolean;
   byId: Record<string, Transfer>;
   /** Rolling rates derived from real backend progress byte deltas. */
   rateById: Record<string, TransferRateSample>;
@@ -269,6 +271,7 @@ function rateFromEvent(
 }
 
 export const useTransfers = create<TransfersState>((set, get) => ({
+  initialized: false,
   byId: {},
   rateById: {},
   queue: [],
@@ -346,6 +349,7 @@ export const useTransfers = create<TransfersState>((set, get) => ({
       }
 
       return {
+        initialized: true,
         // A live event observed after snapshot loading began is newer than the
         // snapshot. Preserve it while still importing transfers that existed
         // before listener registration completed.

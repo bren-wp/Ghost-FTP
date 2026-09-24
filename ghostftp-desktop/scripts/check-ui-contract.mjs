@@ -339,6 +339,27 @@ for (const required of [
     failures.push(`Transfers startup must preserve live events and clean partial listener registration: ${required}`);
   }
 }
+if (!transfersStore.includes("initialized: true")) {
+  failures.push("Transfers store must expose completion of the initial backend snapshot for scheduler safety.");
+}
+
+const transferSchedule = read("src/stores/transferScheduleStore.ts");
+for (const required of [
+  "validDateInput",
+  "parseLocalOccurrence",
+  "now.getTime() < anchor.getTime()",
+  "due.getTime() >= anchor.getTime()",
+  "if (!transfers.initialized) return;",
+  "Transfer schedule disabled",
+  'target.status === "queued"',
+  'target.status === "transferring"',
+  'target.status === "paused"',
+  "messageOf(error)",
+]) {
+  if (!transferSchedule.includes(required)) {
+    failures.push(`Transfer scheduler missing start-date/stale-target safety: ${required}`);
+  }
+}
 for (const forbidden of ["panelOpen", "togglePanel", "setPanelOpen", "autoOpenTransferPanel"]) {
   if (transfersStore.includes(forbidden)) failures.push(`Transfers store still contains obsolete Files-panel state: ${forbidden}`);
 }
@@ -420,6 +441,19 @@ if (!filePane.includes("Open Sites and choose a saved connection, or create a ne
 }
 if (filePane.includes("Pick a server in the left rail")) {
   failures.push("Remote FilePane still references the removed server rail.");
+}
+
+const connectionsStore = read("src/stores/connectionsStore.ts");
+for (const required of [
+  "pendingConnections",
+  "trackConnection(",
+  'trackConnection(`saved:${profileId}`',
+  'trackConnection(`temporary:${profile.id}`',
+  "connecting: pendingConnections.size > 0",
+]) {
+  if (!connectionsStore.includes(required)) {
+    failures.push(`Connection startup must deduplicate concurrent native connects: ${required}`);
+  }
 }
 
 const profileEditor = read("src/components/ProfileEditor.tsx");
@@ -619,6 +653,21 @@ for (const required of [
   }
 }
 
+const errorsSource = read("src/lib/errors.ts");
+if (!errorsSource.includes("return redactSensitiveText(raw, 600)")) {
+  failures.push("Human-readable IPC errors must pass through central credential redaction.");
+}
+
+const notificationSource = read("src/lib/notifications.ts");
+for (const required of [
+  "redactSensitiveText(title, 120)",
+  "redactSensitiveText(body, 280)",
+]) {
+  if (!notificationSource.includes(required)) {
+    failures.push(`Native OS notifications must redact sensitive diagnostic content: ${required}`);
+  }
+}
+
 const redaction = read("src/lib/redact.ts");
 for (const required of [
   "SECRET_QUERY",
@@ -704,6 +753,16 @@ const updaterStore = read("src/stores/updaterStore.ts");
 for (const forbidden of ["dismissed:", "dismiss: () =>"]) {
   if (updaterStore.includes(forbidden)) failures.push(`Updater store still contains obsolete global-prompt state: ${forbidden}`);
 }
+for (const required of [
+  'import { messageOf } from "@/lib/errors";',
+  "heldUpdate = null;",
+  'toast.error("Update check failed", message)',
+  'toast.error("Update download failed", message)',
+]) {
+  if (!updaterStore.includes(required)) {
+    failures.push(`Updater diagnostics/lifecycle hardening missing: ${required}`);
+  }
+}
 
 const about = read("src/components/AboutDialog.tsx");
 for (const required of ["ghost-about-tabs", "PrivacyContent", "Ghost FTP Updates", "Ghost FTP Help Center"]) {
@@ -735,6 +794,9 @@ for (const forbidden of ["ReferenceMenuTitlebar", "ReferenceActionRow", 'grid-co
 
 const transferCenter = read("src/components/TransferCenterDialog.tsx");
 for (const required of [
+  'aria-label={scheduleMode === "once" ? "Run date" : "Start date"}',
+  'disabled={scheduleMode === "off"}',
+  'scheduleMode === "once" ? " on " : " from "',
   "liveTransferRate",
   "rate={liveTransferRate(transfer, rateById[transfer.id])}",
   'aria-label="Transfers"',

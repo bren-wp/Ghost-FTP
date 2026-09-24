@@ -20,6 +20,7 @@ import { useSettings } from "@/stores/settingsStore";
 import { useSync } from "@/stores/syncStore";
 import { onTransferEvent, onEditError } from "@/lib/ipc";
 import { useLayout } from "@/stores/layoutStore";
+import { redactSensitiveText } from "@/lib/redact";
 
 type Permission = "unknown" | "granted" | "denied";
 let permission: Permission = "unknown";
@@ -70,13 +71,16 @@ async function windowFocused(): Promise<boolean> {
 let lastRoute: (() => void) | null = null;
 
 async function notify(title: string, body: string, route?: () => void): Promise<boolean> {
-  const s = useSettings.getState().notifications;
-  if (!s.enabled) return false;
-  if (s.unfocusedOnly && (await windowFocused())) return false;
+  const settings = useSettings.getState().notifications;
+  if (!settings.enabled) return false;
+  if (settings.unfocusedOnly && (await windowFocused())) return false;
   if (!(await ensurePermission())) return false;
   lastRoute = route ?? null;
   try {
-    sendNotification({ title, body });
+    sendNotification({
+      title: redactSensitiveText(title, 120),
+      body: redactSensitiveText(body, 280),
+    });
     return true;
   } catch {
     return false;
@@ -98,7 +102,7 @@ export function initNotifications(): () => void {
         else cleanups.push(un);
       })
       .catch((error) => {
-        console.warn("Couldn't attach a desktop-notification event listener", error);
+        console.warn("Couldn't attach a desktop-notification event listener", redactSensitiveText(error, 240));
       });
   };
 
@@ -119,7 +123,7 @@ export function initNotifications(): () => void {
       try {
         useLayout.getState().openDialog("transferCenter");
       } catch (error) {
-        console.warn("Couldn't route a transfer notification to Transfers", error);
+        console.warn("Couldn't route a transfer notification to Transfers", redactSensitiveText(error, 240));
       }
     };
     if (failed > 0) {
@@ -197,7 +201,7 @@ export function initNotifications(): () => void {
             try {
               useLayout.getState().openDialog("settings");
             } catch (error) {
-              console.warn("Couldn't route a sync notification to Preferences", error);
+              console.warn("Couldn't route a sync notification to Preferences", redactSensitiveText(error, 240));
             }
           }
         );
@@ -210,25 +214,25 @@ export function initNotifications(): () => void {
   // ---- Click-to-focus (best-effort; toast-click support varies by OS) ----
   void onAction(() => {
     void getCurrentWindow().setFocus().catch((error) => {
-      console.warn("Couldn't focus Ghost FTP from a notification action", error);
+      console.warn("Couldn't focus Ghost FTP from a notification action", redactSensitiveText(error, 240));
     });
     try {
       lastRoute?.();
     } catch (error) {
-      console.warn("Couldn't run the notification route action", error);
+      console.warn("Couldn't run the notification route action", redactSensitiveText(error, 240));
     }
   })
     .then((listener) => {
       const un = () => {
         void listener.unregister().catch((error) =>
-          console.warn("Couldn't unregister the notification action listener", error)
+          console.warn("Couldn't unregister the notification action listener", redactSensitiveText(error, 240))
         );
       };
       if (cancelled) un();
       else cleanups.push(un);
     })
     .catch((error) => {
-      console.warn("Notification action callbacks are unavailable on this platform", error);
+      console.warn("Notification action callbacks are unavailable on this platform", redactSensitiveText(error, 240));
     });
 
   return () => {
@@ -237,7 +241,7 @@ export function initNotifications(): () => void {
       try {
         c();
       } catch (error) {
-        console.warn("Couldn't clean up a desktop-notification listener", error);
+        console.warn("Couldn't clean up a desktop-notification listener", redactSensitiveText(error, 240));
       }
     }
   };
