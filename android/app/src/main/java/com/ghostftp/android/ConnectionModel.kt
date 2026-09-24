@@ -1,13 +1,18 @@
 package com.ghostftp.android
 
 import com.jcraft.jsch.ChannelSftp
+import com.jcraft.jsch.HostKey
+import com.jcraft.jsch.HostKeyRepository
 import com.jcraft.jsch.JSch
+import com.jcraft.jsch.UserInfo
 import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
 import org.apache.commons.net.ftp.FTPFile
 import org.apache.commons.net.ftp.FTPReply
 import org.apache.commons.net.ftp.FTPSClient
 import java.net.IDN
+import java.security.MessageDigest
+import java.util.Base64
 import java.util.Vector
 
 enum class ConnectionProtocol(val label: String, val defaultPort: Int) {
@@ -26,6 +31,7 @@ data class ConnectionProfile(
     val port: Int,
     val username: String,
     val password: String,
+    val hostKeyFingerprint: String,
     val remotePath: String
 )
 
@@ -64,9 +70,9 @@ class ConnectionController {
             require(FTPReply.isPositiveCompletion(client.replyCode)) {
                 "Server rejected connection: ${client.replyString.trim()}"
             }
-            val username = profile.username.ifBlank { "anonymous" }
-            val password = profile.password.ifBlank { "ghostftp@local" }
-            require(client.login(username, password)) { "Login failed for ${profile.protocol.label}." }
+            require(profile.username.isNotBlank()) { "Username is required." }
+            require(profile.password.isNotBlank()) { "Password is required." }
+            require(client.login(profile.username, profile.password)) { "Login failed for ${profile.protocol.label}." }
 
             if (secure && client is FTPSClient) {
                 client.execPBSZ(0)
@@ -98,12 +104,16 @@ class ConnectionController {
 
     private fun listSftp(profile: ConnectionProfile): ConnectionProbeResult {
         require(profile.username.isNotBlank()) { "SFTP username is required." }
-        require(profile.password.isNotBlank()) { "SFTP password is required for this Android session." }
+        require(profile.password.isNotBlank()) { "SFTP password is required." }
+        require(profile.hostKeyFingerprint.isNotBlank()) {
+            "SFTP host key fingerprint is required. Use the server SHA-256 host key fingerprint."
+        }
 
         val jsch = JSch()
+        jsch.hostKeyRepository = FingerprintHostKeyRepository(profile.hostKeyFingerprint)
         val session = jsch.getSession(profile.username, profile.host, profile.port)
         session.setPassword(profile.password)
-        session.setConfig("StrictHostKeyChecking", "no")
+        session.setConfig("StrictHostKeyChecking", "yes")
         session.timeout = CONNECT_TIMEOUT_MS
 
         var channel: ChannelSftp? = null
@@ -135,7 +145,7 @@ class ConnectionController {
             .take(MAX_ROWS)
             .map { file ->
                 RemoteRow(
-                    name = if (file.isDirectory) "📁 ${file.name}" else "📄 ${file.name}",
+                    name = if (file.isDirectory) "[DIR] ${file.name}" else "[FILE] ${file.name}",
                     detail = when {
                         file.isDirectory -> "Folder · $path"
                         file.size >= 0L -> "File · ${formatBytes(file.size)}"
@@ -156,7 +166,7 @@ class ConnectionController {
             .take(MAX_ROWS)
             .map { entry ->
                 RemoteRow(
-                    name = if (entry.attrs.isDir) "📁 ${entry.filename}" else "📄 ${entry.filename}",
+                    name = if (entry.attrs.isDir) "[DIR] ${entry.filename}" else "[FILE] ${entry.filename}",
                     detail = if (entry.attrs.isDir) "Folder · $path" else "File · ${formatBytes(entry.attrs.size)}"
                 )
             }
@@ -192,6 +202,46 @@ class ConnectionController {
             unitIndex += 1
         }
         return "%.1f %s".format(value, units[unitIndex])
+    }
+
+    private class FingerprintHostKeyRepository(
+        expectedFingerprint: String
+    ) : HostKeyRepository {
+        private val expected = normalizeFingerprint(expectedFingerprint)
+
+        override fun getKnownHostsRepositoryID(): String = "Ghost FTP Android host key verifier"
+
+        override fun check(host: String?, key: ByteArray?): Int {
+            if (key == null || expected.isBlank()) return HostKeyRepository.NOT_INCLUDED
+            val actual = normalizeFingerprint(sha256Fingerprint(key))
+            return if (actual == expected) HostKeyRepository.OK else HostKeyRepository.CHANGED
+        }
+
+        override fun add(hostkey: HostKey?, ui: UserInfo?) = Unit
+
+        override fun remove(host: String?, type: String?) = Unit
+
+        override fun remove(host: String?, type: String?, key: ByteArray?) = Unit
+
+        override fun getHostKey(): Array<HostKey> = emptyArray()
+
+        override fun getHostKey(host: String?, type: String?): Array<HostKey> = emptyArray()
+
+        private companion object {
+            fun normalizeFingerprint(value: String): String {
+                val trimmed = value.trim().replace(" ", "")
+                return if (trimmed.startsWith("SHA256:", ignoreCase = true)) {
+                    "SHA256:${trimmed.substringAfter(':')}"
+                } else {
+                    "SHA256:$trimmed"
+                }
+            }
+
+            fun sha256Fingerprint(key: ByteArray): String {
+                val digest = MessageDigest.getInstance("SHA-256").digest(key)
+                return "SHA256:${Base64.getEncoder().withoutPadding().encodeToString(digest)}"
+            }
+        }
     }
 
     private companion object {
