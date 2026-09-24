@@ -132,7 +132,7 @@ jobs:
           console.log(`RC21 metadata alignment touched ${changed} files; staged ${changedFiles.length} files`);
           if (!changedFiles.length) {
             console.log(`REMOTE_COMMIT_SHA=${baseSha}`);
-            return;
+            process.exit(0);
           }
 
           const baseCommit = await request('GET', `/repos/${repository}/git/commits/${baseSha}`);
