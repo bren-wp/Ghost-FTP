@@ -44,6 +44,8 @@ gradle -p android lintDebug lintRelease assembleDebug assembleRelease
 
 The pull-request Android workflow runs the Android contract, both lint variants and both APK builds. It uploads installable RC22 APK artifacts and checksums for review.
 
+RC22 Android lint validates minSdk 26 compatibility. API 27+ navigation-bar light/dark behavior is kept in the `values-v27` resource override so the base theme remains valid for Android 8.0 devices.
+
 ## Release rule without external keys
 
 Every next GitHub release must include an Android APK asset. The dedicated workflow `.github/workflows/ghostftp-android-release.yml` builds from the published tag, creates an installable APK without requiring GitHub signing secrets, verifies the APK signature and uploads both the APK and its SHA-256 checksum to that release.
