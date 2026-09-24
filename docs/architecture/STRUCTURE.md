@@ -66,10 +66,10 @@ Use **Ghost FTP** for user-facing copy and **GhostFTP** for technical filenames/
 
 Examples:
 
-- `GhostFTP-Windows-x64-Portable-v2.1.1-RC20.exe`
-- `GhostFTP-Windows-x64-Setup-v2.1.1-RC20.exe`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC20.AppImage`
-- `GhostFTP-v2.1.1-RC20-Desktop-Source.zip`
+- `GhostFTP-Windows-x64-Portable-v2.1.1-RC21.exe`
+- `GhostFTP-Windows-x64-Setup-v2.1.1-RC21.exe`
+- `GhostFTP-Linux-x86_64-v2.1.1-RC21.AppImage`
+- `GhostFTP-v2.1.1-RC21-Desktop-Source.zip`
 
 See [NAMING.md](NAMING.md) for the full policy.
 

@@ -35,9 +35,9 @@ const OUT_DIR = join(REPO, 'docs', 'images', 'funding');
 
 /** Single source of truth. Keep in sync with the README Support section. */
 export const ADDRESSES = [
-  { slug: 'usdt-trc20', label: 'USDT (TRC-20 / Tron)', kind: 'tron',
+  { slug: 'usdt-trc21', label: 'USDT (TRC-20 / Tron)', kind: 'tron',
     address: 'TTiCtqLauF1iSW2YGB3b78KmRxRqoLCgeL' },
-  { slug: 'usdt-erc20', label: 'USDT / ETH (ERC-20 / Ethereum)', kind: 'eth',
+  { slug: 'usdt-erc21', label: 'USDT / ETH (ERC-20 / Ethereum)', kind: 'eth',
     address: '0xD13D5355Fa214e8317fea2ff192a065BaeC13527' },
   { slug: 'btc', label: 'Bitcoin', kind: 'btc',
     address: 'bc1qatx67n3qxdvuv3arc9j8aytk34f22g02k9c7vr' },
