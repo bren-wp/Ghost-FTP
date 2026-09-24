@@ -28,6 +28,7 @@ class MainActivity : Activity() {
     private lateinit var portInput: EditText
     private lateinit var usernameInput: EditText
     private lateinit var passwordInput: EditText
+    private lateinit var hostKeyFingerprintInput: EditText
     private lateinit var remotePathInput: EditText
     private lateinit var protocolSpinner: Spinner
     private lateinit var connectButton: Button
@@ -86,7 +87,7 @@ class MainActivity : Activity() {
         })
         addView(space(10))
         addView(TextView(this@MainActivity).apply {
-            text = "Native Android workspace aligned with the Ghost FTP desktop layout: connection control, remote browser, queue state and privacy-first session handling in one screen."
+            text = "Native Android workspace for secure FTP, explicit FTPS and SFTP access with connection control, remote browser and transfer queue in one screen."
             setTextColor(Brand.textSoft)
             textSize = 15f
             setLineSpacing(0f, 1.15f)
@@ -110,7 +111,7 @@ class MainActivity : Activity() {
 
     private fun buildConnectionCard(): View = panel().apply {
         addView(sectionTitle("New connection"))
-        addView(sectionDescription("Choose FTP, explicit FTPS or SFTP, connect to a server and load the remote folder. Passwords stay in memory only for the active action."))
+        addView(sectionDescription("Choose protocol, connect to a server and load the selected remote folder. Passwords stay in memory only for the active connection."))
 
         protocolSpinner = Spinner(this@MainActivity).apply {
             adapter = ArrayAdapter(
@@ -122,7 +123,7 @@ class MainActivity : Activity() {
         addView(formLabel("Protocol"))
         addView(protocolSpinner)
 
-        hostInput = input("ftp.company.com", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        hostInput = input("Host", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         addView(formLabel("Host"))
         addView(hostInput)
 
@@ -137,6 +138,10 @@ class MainActivity : Activity() {
         passwordInput = input("Password", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
         addView(formLabel("Password"))
         addView(passwordInput)
+
+        hostKeyFingerprintInput = input("SHA256 fingerprint for SFTP", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
+        addView(formLabel("SFTP host key fingerprint"))
+        addView(hostKeyFingerprintInput)
 
         remotePathInput = input("/", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         remotePathInput.setText("/")
@@ -161,7 +166,7 @@ class MainActivity : Activity() {
 
     private fun buildWorkspaceCard(): View = panel().apply {
         addView(sectionTitle("Remote workspace"))
-        addView(sectionDescription("Mobile-first remote browser with the same Ghost FTP hierarchy: path, folders, files, protocol and account context."))
+        addView(sectionDescription("Mobile remote browser with the same Ghost FTP model: path, folders, files, protocol and account context."))
         remoteRows = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -179,7 +184,7 @@ class MainActivity : Activity() {
 
     private fun buildFooter(): View = panel().apply {
         addView(TextView(this@MainActivity).apply {
-            text = "Ghost FTP · Brendigo · Privacy-first Android session"
+            text = "Ghost FTP · Brendigo · Private Android session"
             setTextColor(Brand.muted)
             textSize = 13f
             gravity = Gravity.CENTER
@@ -238,6 +243,7 @@ class MainActivity : Activity() {
             port = port,
             username = usernameInput.text.toString().trim(),
             password = passwordInput.text.toString(),
+            hostKeyFingerprint = hostKeyFingerprintInput.text.toString().trim(),
             remotePath = remotePathInput.text.toString().trim().ifBlank { "/" }
         )
     }
