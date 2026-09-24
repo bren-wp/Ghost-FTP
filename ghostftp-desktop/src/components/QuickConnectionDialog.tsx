@@ -7,7 +7,7 @@ import { useConnections } from "@/stores/connectionsStore";
 import { useDialog } from "@/hooks/useDialog";
 import { GhostMark } from "./GhostBrand";
 import { ipc } from "@/lib/ipc";
-import { toastError } from "@/lib/errors";
+import { messageOf, toastError } from "@/lib/errors";
 
 interface Props {
   prefill?: Partial<ConnectionProfile> | null;
@@ -18,7 +18,6 @@ interface Props {
 
 export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false, cancelLabel = "Cancel" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
-  useDialog(panelRef, { onClose });
   const saveProfile = useConnections((s) => s.saveProfile);
   const connectProfile = useConnections((s) => s.connect);
   const connectTemporary = useConnections((s) => s.connectTemporary);
@@ -38,7 +37,13 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
   const [remotePath, setRemotePath] = useState(prefill?.defaultRemotePath ?? ".");
   const [name, setName] = useState(prefill?.name ?? "");
   const [busy, setBusy] = useState(false);
+  const [keyPicking, setKeyPicking] = useState(false);
   const [testStatus, setTestStatus] = useState<"idle"|"testing"|"ok"|"error">("idle");
+  const actionBusy = busy || keyPicking || testStatus === "testing";
+  const closeIfIdle = () => {
+    if (!actionBusy) onClose();
+  };
+  useDialog(panelRef, { onClose: closeIfIdle });
 
   const validPort = Number.isInteger(port) && port >= 1 && port <= 65535;
   const keyReady = protocol !== "sftp" || !useKey || keyPath.trim().length > 0;
@@ -67,7 +72,7 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
   }, [protocol, host, port, username, password, useKey, keyPath, keyPassphrase, remotePath]);
 
   const submit = async (connectNow: boolean) => {
-    if (!canConnect || busy) return;
+    if (!canConnect || actionBusy) return;
     setBusy(true);
     const profile = makeProfile();
     const ephemeral = !remember;
@@ -77,7 +82,10 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
           await connectTemporary(profile);
         } catch (error) {
           // connectionsStore already presents the structured connection error.
-          console.debug("Quick connection failure was surfaced by the connections store", error);
+          console.debug(
+            "Quick connection failure was surfaced by the connections store",
+            messageOf(error)
+          );
           return;
         }
       } else {
@@ -93,7 +101,10 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
           } catch (error) {
             // The profile is safely persisted; connectionsStore already surfaced
             // the real FTP/FTPS/SFTP connection failure.
-            console.debug("Saved-profile connection failure was surfaced by the connections store", error);
+            console.debug(
+              "Saved-profile connection failure was surfaced by the connections store",
+              messageOf(error)
+            );
             return;
           }
         }
@@ -105,16 +116,20 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
   };
 
   const chooseKey = async () => {
+    if (actionBusy) return;
+    setKeyPicking(true);
     try {
       const picked = await openNativeDialog({ multiple: false, directory: false, title: "Select SSH private key" });
       if (typeof picked === "string") setKeyPath(picked);
     } catch (error) {
       toastError(error, "Couldn't open the SSH private key picker");
+    } finally {
+      setKeyPicking(false);
     }
   };
 
   const testConnection = async () => {
-    if (!canConnect || busy || testStatus === "testing") return;
+    if (!canConnect || actionBusy) return;
     setTestStatus("testing");
     try {
       await ipc.testEphemeralConnection(makeProfile());
@@ -131,23 +146,24 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
         <div className="ghost-new-connection-head flex shrink-0 items-center gap-3 border-b border-border px-5 py-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0b3151]"><GhostMark size={34}/></div>
           <div><div className="text-[19px] font-semibold">New Connection</div><div className="text-[12px] text-text-muted">Enter your server details, then connect or optionally save it in Sites.</div></div>
-          <div className="flex-1"/><button onClick={onClose} className="rounded-md p-2 text-text-muted hover:bg-bg-hover hover:text-white"><X size={18}/></button>
+          <div className="flex-1"/><button type="button" disabled={actionBusy} onClick={closeIfIdle} className="rounded-md p-2 text-text-muted hover:bg-bg-hover hover:text-white disabled:cursor-not-allowed disabled:opacity-50"><X size={18}/></button>
         </div>
 
         <div className="ghost-new-connection-body min-h-0 overflow-y-auto p-5">
-          {remember && <Field label="Site name"><input value={name} onChange={(e)=>setName(e.target.value)} placeholder="e.g. Main web server"/></Field>}
+          {remember && <Field label="Site name"><input value={name} onChange={(e)=>setName(e.target.value)} placeholder="e.g. Main web server" disabled={actionBusy}/></Field>}
           <div className="grid grid-cols-[1.1fr_1.7fr_.55fr] gap-3">
-            <Field label="Protocol"><select value={protocol} onChange={(e)=>{const p=e.target.value as Protocol;setProtocol(p);setPort(PROTOCOL_DEFAULT_PORT[p]);}}><option value="sftp">SFTP (SSH File Transfer)</option><option value="ftp">FTP</option><option value="ftps">FTPS (FTP over TLS)</option></select></Field>
-            <Field label="Host / Address"><input value={host} onChange={(e)=>setHost(e.target.value)} placeholder="e.g. ftp.your-domain.tld or 192.0.2.10"/></Field>
-            <Field label="Port"><input type="number" min={1} max={65535} value={port} onChange={(e)=>setPort(Number(e.target.value))} aria-label="Server port"/></Field>
+            <Field label="Protocol"><select value={protocol} disabled={actionBusy} onChange={(e)=>{const p=e.target.value as Protocol;setProtocol(p);setPort(PROTOCOL_DEFAULT_PORT[p]);}}><option value="sftp">SFTP (SSH File Transfer)</option><option value="ftp">FTP</option><option value="ftps">FTPS (FTP over TLS)</option></select></Field>
+            <Field label="Host / Address"><input value={host} disabled={actionBusy} onChange={(e)=>setHost(e.target.value)} placeholder="e.g. ftp.your-domain.tld or 192.0.2.10"/></Field>
+            <Field label="Port"><input type="number" min={1} max={65535} value={port} disabled={actionBusy} onChange={(e)=>setPort(Number(e.target.value))} aria-label="Server port"/></Field>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3">
-            <Field label="Username"><input value={username} onChange={(e)=>setUsername(e.target.value)} placeholder="Enter username"/></Field>
+            <Field label="Username"><input value={username} disabled={actionBusy} onChange={(e)=>setUsername(e.target.value)} placeholder="Enter username"/></Field>
             {protocol === "sftp" ? (
               <Field label="Authentication">
                 <div className="ghost-auth-choice" role="group" aria-label="SFTP authentication method">
                   <button
                     type="button"
+                    disabled={actionBusy}
                     className={!useKey ? "active" : ""}
                     aria-pressed={!useKey}
                     onClick={()=>setUseKey(false)}
@@ -156,6 +172,7 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
                   </button>
                   <button
                     type="button"
+                    disabled={actionBusy}
                     className={useKey ? "active" : ""}
                     aria-pressed={useKey}
                     onClick={()=>setUseKey(true)}
@@ -165,7 +182,7 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
                 </div>
               </Field>
             ) : (
-              <Field label="Password"><div className="relative"><input type={showPassword?'text':'password'} value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/><button type="button" aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></Field>
+              <Field label="Password"><div className="relative"><input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/><button type="button" disabled={actionBusy} aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim disabled:cursor-not-allowed disabled:opacity-50" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></Field>
             )}
           </div>
 
@@ -173,8 +190,8 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
             <div className="mt-3">
               <Field label="Password">
                 <div className="relative">
-                  <input type={showPassword?'text':'password'} value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/>
-                  <button type="button" aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button>
+                  <input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/>
+                  <button type="button" disabled={actionBusy} aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim disabled:cursor-not-allowed disabled:opacity-50" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button>
                 </div>
               </Field>
             </div>
@@ -185,6 +202,7 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
               <input
                 className="ghost-ref-input"
                 value={keyPath}
+                disabled={actionBusy}
                 onChange={(e)=>setKeyPath(e.target.value)}
                 placeholder="Select private key file…"
                 aria-label="Private key file"
@@ -192,22 +210,26 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
               <button
                 type="button"
                 className="ghost-mini-button"
+                disabled={actionBusy}
+                aria-busy={keyPicking}
                 onClick={()=>void chooseKey()}
                 aria-label="Choose private key file"
               >
-                <FolderOpen size={14}/> Browse
+                <FolderOpen size={14}/> {keyPicking ? "Browsing…" : "Browse"}
               </button>
               <div className="relative col-span-2">
                 <input
                   className="ghost-ref-input pr-10"
                   type={showKeyPassphrase?"text":"password"}
                   value={keyPassphrase}
+                  disabled={actionBusy}
                   onChange={(e)=>setKeyPassphrase(e.target.value)}
                   placeholder="Private key passphrase (optional)"
                 />
                 <button
                   type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim"
+                  disabled={actionBusy}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={()=>setShowKeyPassphrase(v=>!v)}
                   aria-label={showKeyPassphrase?"Hide key passphrase":"Show key passphrase"}
                 >
@@ -221,18 +243,18 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
             <ConnectionModeStatus protocol={protocol}/>
           </div>
 
-          <div className="mt-4 flex items-center gap-3"><Check checked={remember} onChange={setRemember} label="Save this connection in Sites" icon={<Bookmark size={15}/>}/><div className="flex-1"/><button className="ghost-mini-button" disabled={!canConnect||busy||testStatus==="testing"} onClick={()=>void testConnection()} aria-live="polite"><Radio size={14}/>{testStatus==="testing"?"Testing…":testStatus==="ok"?"Connection OK":testStatus==="error"?"Test Failed":"Test Connection"}</button></div>
+          <div className="mt-4 flex items-center gap-3"><Check checked={remember} disabled={actionBusy} onChange={setRemember} label="Save this connection in Sites" icon={<Bookmark size={15}/>}/><div className="flex-1"/><button type="button" className="ghost-mini-button" disabled={!canConnect||actionBusy} onClick={()=>void testConnection()} aria-live="polite" aria-busy={testStatus==="testing"}><Radio size={14}/>{testStatus==="testing"?"Testing…":testStatus==="ok"?"Connection OK":testStatus==="error"?"Test Failed":"Test Connection"}</button></div>
 
           <div className="mt-4 overflow-hidden rounded-md border border-border bg-[#051929]">
-            <button onClick={()=>setAdvanced(v=>!v)} className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-text-muted hover:bg-bg-hover"><Settings2 size={16}/><span>Advanced Settings</span><div className="flex-1"/><ChevronDown size={14} className={advanced?'rotate-180':''}/></button>
-            {advanced && <div className="grid grid-cols-2 gap-3 border-t border-border p-4"><Field label="Default remote path"><input value={remotePath} onChange={(e)=>setRemotePath(e.target.value)} placeholder="/var/www"/></Field>{(protocol==="ftp"||protocol==="ftps")&&<Field label="Connection mode"><input value="Passive" readOnly/></Field>}</div>}
+            <button type="button" disabled={actionBusy} onClick={()=>setAdvanced(v=>!v)} className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-text-muted hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-60"><Settings2 size={16}/><span>Advanced Settings</span><div className="flex-1"/><ChevronDown size={14} className={advanced?'rotate-180':''}/></button>
+            {advanced && <div className="grid grid-cols-2 gap-3 border-t border-border p-4"><Field label="Default remote path"><input value={remotePath} disabled={actionBusy} onChange={(e)=>setRemotePath(e.target.value)} placeholder="/var/www"/></Field>{(protocol==="ftp"||protocol==="ftps")&&<Field label="Connection mode"><input value="Passive" readOnly/></Field>}</div>}
           </div>
         </div>
 
         <div className="ghost-new-connection-actions flex shrink-0 items-center border-t border-border bg-[#051929] px-5 py-4">
-          <button className="ghost-mini-button" onClick={onClose}>{cancelLabel}</button><div className="flex-1"/>
-          {remember && <button disabled={!canConnect||busy} className="ghost-mini-button mr-2" onClick={()=>void submit(false)}><Bookmark size={14}/> Save</button>}
-          <button disabled={!canConnect||busy} className="ghost-primary-button" onClick={()=>void submit(true)}><Link2 size={15}/> {busy?'Connecting…':'Connect'}</button>
+          <button type="button" className="ghost-mini-button" disabled={actionBusy} onClick={closeIfIdle}>{cancelLabel}</button><div className="flex-1"/>
+          {remember && <button type="button" disabled={!canConnect||actionBusy} className="ghost-mini-button mr-2" onClick={()=>void submit(false)}><Bookmark size={14}/> {busy?'Saving…':'Save'}</button>}
+          <button type="button" disabled={!canConnect||actionBusy} aria-busy={busy} className="ghost-primary-button" onClick={()=>void submit(true)}><Link2 size={15}/> {busy?'Connecting…':'Connect'}</button>
         </div>
       </div>
     </div>
