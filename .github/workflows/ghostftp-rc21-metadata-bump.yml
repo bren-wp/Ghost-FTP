@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   bump:
-    name: Align RC21 release metadata
+    name: Create RC21 metadata commit object
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -23,20 +23,48 @@ jobs:
           ref: rc21-interaction-hardening
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Align RC21 versions, artifacts and release docs
+      - name: Create remote commit object with RC21 metadata
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPOSITORY: ${{ github.repository }}
+          BASE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           node <<'JS'
           const fs = require('node:fs');
           const path = require('node:path');
+          const { execFileSync } = require('node:child_process');
 
           const repo = process.cwd();
+          const api = 'https://api.github.com';
+          const repository = process.env.GH_REPOSITORY;
+          const token = process.env.GH_TOKEN;
+          const baseSha = process.env.BASE_SHA;
+          if (!repository || !token || !baseSha) throw new Error('Missing GitHub environment');
+
+          async function request(method, urlPath, body) {
+            const response = await fetch(`${api}${urlPath}`, {
+              method,
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                ...(body ? { 'Content-Type': 'application/json' } : {}),
+              },
+              body: body ? JSON.stringify(body) : undefined,
+            });
+            const text = await response.text();
+            if (!response.ok) {
+              throw new Error(`${method} ${urlPath} failed ${response.status}: ${text}`);
+            }
+            return text ? JSON.parse(text) : {};
+          }
+
           const textExtensions = new Set([
             '.json', '.toml', '.rs', '.ts', '.tsx', '.js', '.mjs', '.go', '.yml', '.yaml', '.md', '.txt'
           ]);
           const skipDirs = new Set(['.git', 'node_modules', 'target', 'dist', 'build', '.vite']);
-          const skipFiles = new Set(['.github/workflows/ghostftp-rc21-metadata-bump.yml']);
           const replacements = [
             [/2\.1\.1-rc\.20/g, '2.1.1-rc.21'],
             [/2\.1\.1 RC20/g, '2.1.1 RC21'],
@@ -52,7 +80,6 @@ jobs:
               if (skipDirs.has(entry.name)) continue;
               const full = path.join(dir, entry.name);
               const rel = path.relative(repo, full).replaceAll(path.sep, '/');
-              if (skipFiles.has(rel)) continue;
               if (entry.isDirectory()) walk(full, out);
               else if (entry.isFile() && textExtensions.has(path.extname(entry.name))) out.push(rel);
             }
@@ -64,23 +91,18 @@ jobs:
             const file = path.join(repo, rel);
             let source = fs.readFileSync(file, 'utf8');
             let next = source;
-            for (const [pattern, replacement] of replacements) {
-              next = next.replace(pattern, replacement);
-            }
+            for (const [pattern, replacement] of replacements) next = next.replace(pattern, replacement);
             if (next !== source) {
               fs.writeFileSync(file, next);
               changed += 1;
             }
           }
 
-          const rc20Workflow = path.join(repo, '.github/workflows/ghostftp-rc21-release.yml');
-          if (!fs.existsSync(rc20Workflow)) {
-            const source = fs.readFileSync(path.join(repo, '.github/workflows/ghostftp-rc20-release.yml'), 'utf8');
-            let next = source;
-            for (const [pattern, replacement] of replacements) {
-              next = next.replace(pattern, replacement);
-            }
-            fs.writeFileSync(rc20Workflow, next);
+          const rc21Workflow = path.join(repo, '.github/workflows/ghostftp-rc21-release.yml');
+          if (!fs.existsSync(rc21Workflow)) {
+            let next = fs.readFileSync(path.join(repo, '.github/workflows/ghostftp-rc20-release.yml'), 'utf8');
+            for (const [pattern, replacement] of replacements) next = next.replace(pattern, replacement);
+            fs.writeFileSync(rc21Workflow, next);
             changed += 1;
           }
 
@@ -101,20 +123,38 @@ jobs:
           }
 
           fs.rmSync(path.join(repo, '.github/workflows/ghostftp-rc21-metadata-bump.yml'), { force: true });
-          console.log(`RC21 metadata alignment touched ${changed} files`);
-          JS
 
-      - name: Commit RC21 metadata alignment
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "Brendigo"
-          git config user.email "info@brendigo.com"
-          git add -A
-          git diff --cached --stat
-          if git diff --cached --quiet; then
-            echo "No RC21 metadata changes needed."
-            exit 0
-          fi
-          git commit -m "chore(release): align RC21 production metadata"
-          git push origin HEAD:rc21-interaction-hardening
+          execFileSync('git', ['add', '-A'], { stdio: 'inherit' });
+          const changedFiles = execFileSync('git', ['diff', '--cached', '--name-only'], { encoding: 'utf8' })
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean);
+          console.log(`RC21 metadata alignment touched ${changed} files; staged ${changedFiles.length} files`);
+          if (!changedFiles.length) {
+            console.log(`REMOTE_COMMIT_SHA=${baseSha}`);
+            return;
+          }
+
+          const baseCommit = await request('GET', `/repos/${repository}/git/commits/${baseSha}`);
+          const treeEntries = [];
+          for (const rel of changedFiles) {
+            const status = execFileSync('git', ['status', '--porcelain', '--', rel], { encoding: 'utf8' }).slice(0, 2);
+            if (status.includes('D')) {
+              treeEntries.push({ path: rel, mode: '100644', type: 'blob', sha: null });
+              continue;
+            }
+            const content = fs.readFileSync(path.join(repo, rel), 'utf8');
+            const blob = await request('POST', `/repos/${repository}/git/blobs`, { content, encoding: 'utf-8' });
+            treeEntries.push({ path: rel, mode: '100644', type: 'blob', sha: blob.sha });
+          }
+          const tree = await request('POST', `/repos/${repository}/git/trees`, {
+            base_tree: baseCommit.tree.sha,
+            tree: treeEntries,
+          });
+          const commit = await request('POST', `/repos/${repository}/git/commits`, {
+            message: 'chore(release): align RC21 production metadata',
+            tree: tree.sha,
+            parents: [baseSha],
+          });
+          console.log(`REMOTE_COMMIT_SHA=${commit.sha}`);
+          JS
