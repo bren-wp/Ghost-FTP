@@ -13,13 +13,13 @@ Ghost FTP Android must follow the same product identity as the Windows and Linux
 
 ## Interface contract
 
-Android should keep the same primary product model as the desktop app:
+Android keeps the same primary product model as the desktop app:
 
 - One application surface.
 - Connection-first workflow.
 - FTP, explicit FTPS and SFTP protocol choices.
-- Remote workspace.
-- Transfer queue.
+- Remote workspace with remote folder listing.
+- Transfer queue state.
 - Settings and privacy messaging inside the same app surface.
 - Clear disconnect behavior.
 - No account requirement.
@@ -33,9 +33,19 @@ Android should keep the same primary product model as the desktop app:
 - Keep server, queue and privacy state visible without modal clutter.
 - Do not persist passwords in ordinary app storage.
 
-## Release blockers
+## Protocol contract
 
-An Android APK or AAB must not be published until all of the following are true:
+- FTP must open a session and list the selected remote path.
+- Explicit FTPS must open a protected session and list the selected remote path.
+- SFTP must open an SSH file-transfer session and list the selected remote path.
+- Passwords must stay in memory for the active action and be cleared on disconnect.
+- Host-key handling must be reviewed before a public production-signed APK is treated as final.
+
+## Release contract
+
+Every next GitHub release must include an Android APK file and a SHA-256 checksum. The Android release workflow builds the APK from the published tag and uploads it to the matching release.
+
+An Android APK or AAB must not be treated as final unless all of the following are true:
 
 - Android native build passes.
 - Android UI review confirms the mobile layout matches the Ghost FTP product identity.
