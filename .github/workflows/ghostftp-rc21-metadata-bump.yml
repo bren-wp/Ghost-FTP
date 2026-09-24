@@ -31,10 +31,10 @@ jobs:
           BASE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          node <<'JS'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const { execFileSync } = require('node:child_process');
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { execFileSync } from 'node:child_process';
 
           const repo = process.cwd();
           const api = 'https://api.github.com';
@@ -47,23 +47,19 @@ jobs:
             const response = await fetch(`${api}${urlPath}`, {
               method,
               headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/vnd.github+json',
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/vnd.github+json',
                 'X-GitHub-Api-Version': '2022-11-28',
                 ...(body ? { 'Content-Type': 'application/json' } : {}),
               },
               body: body ? JSON.stringify(body) : undefined,
             });
             const text = await response.text();
-            if (!response.ok) {
-              throw new Error(`${method} ${urlPath} failed ${response.status}: ${text}`);
-            }
+            if (!response.ok) throw new Error(`${method} ${urlPath} failed ${response.status}: ${text}`);
             return text ? JSON.parse(text) : {};
           }
 
-          const textExtensions = new Set([
-            '.json', '.toml', '.rs', '.ts', '.tsx', '.js', '.mjs', '.go', '.yml', '.yaml', '.md', '.txt'
-          ]);
+          const textExtensions = new Set(['.json', '.toml', '.rs', '.ts', '.tsx', '.js', '.mjs', '.go', '.yml', '.yaml', '.md', '.txt']);
           const skipDirs = new Set(['.git', 'node_modules', 'target', 'dist', 'build', '.vite']);
           const replacements = [
             [/2\.1\.1-rc\.20/g, '2.1.1-rc.21'],
@@ -86,15 +82,15 @@ jobs:
             return out;
           }
 
-          let changed = 0;
+          let touched = 0;
           for (const rel of walk(repo)) {
             const file = path.join(repo, rel);
-            let source = fs.readFileSync(file, 'utf8');
-            let next = source;
+            let next = fs.readFileSync(file, 'utf8');
+            const original = next;
             for (const [pattern, replacement] of replacements) next = next.replace(pattern, replacement);
-            if (next !== source) {
+            if (next !== original) {
               fs.writeFileSync(file, next);
-              changed += 1;
+              touched += 1;
             }
           }
 
@@ -103,13 +99,13 @@ jobs:
             let next = fs.readFileSync(path.join(repo, '.github/workflows/ghostftp-rc20-release.yml'), 'utf8');
             for (const [pattern, replacement] of replacements) next = next.replace(pattern, replacement);
             fs.writeFileSync(rc21Workflow, next);
-            changed += 1;
+            touched += 1;
           }
 
           const releaseNotes = path.join(repo, 'docs/releases/2.1.1-rc.21.md');
           if (!fs.existsSync(releaseNotes)) {
             fs.writeFileSync(releaseNotes, `# Ghost FTP 2.1.1 RC21\n\nRelease date: 24 September 2026\n\nRC21 is a production-readiness hardening pass focused on making buttons, modal actions, connection prompts and release metadata safer and more predictable.\n\n## Highlights\n\n- Prevents duplicate destructive confirmations while a confirm action is in flight.\n- Serializes authentication prompt submit, cancel, password generation and save-password actions.\n- Serializes New Connection actions so Test, Browse, Save and Connect cannot overlap.\n- Serializes context-menu actions and clamps menu placement on small windows.\n- Adds CI interaction hardening coverage so key button/action contracts cannot regress silently.\n- Aligns RC21 package, native, updater, workflow and release metadata so generated artifacts carry the correct release identity.\n\n## Required gates\n\n- Ghost FTP quality workflow\n- Native frontend typecheck and production build\n- Rust formatting, workspace check, tests and Clippy\n- Real FTP / explicit FTPS / SFTP roundtrip E2E\n- Windows native build with native-window QA evidence and README screenshot verification\n- Linux native build and package upload\n`);
-            changed += 1;
+            touched += 1;
           }
 
           const changelog = path.join(repo, 'CHANGELOG.md');
@@ -118,7 +114,7 @@ jobs:
             if (!current.includes('2.1.1 RC21')) {
               const entry = `## Ghost FTP 2.1.1 RC21 — Production interaction hardening\n\n- Hardened confirm, authentication prompt, context menu and New Connection button flows against duplicate or overlapping native actions.\n- Added CI interaction-contract checks for the critical button and modal workflows.\n- Aligned RC21 release, updater, native package and documentation metadata to avoid RC20/RC21 artifact drift.\n\n`;
               fs.writeFileSync(changelog, current.replace(/^(# .+\n\n)/, `$1${entry}`));
-              changed += 1;
+              touched += 1;
             }
           }
 
@@ -126,10 +122,8 @@ jobs:
 
           execFileSync('git', ['add', '-A'], { stdio: 'inherit' });
           const changedFiles = execFileSync('git', ['diff', '--cached', '--name-only'], { encoding: 'utf8' })
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean);
-          console.log(`RC21 metadata alignment touched ${changed} files; staged ${changedFiles.length} files`);
+            .split('\n').map((line) => line.trim()).filter(Boolean);
+          console.log(`RC21 metadata alignment touched ${touched} files; staged ${changedFiles.length} files`);
           if (!changedFiles.length) {
             console.log(`REMOTE_COMMIT_SHA=${baseSha}`);
             process.exit(0);
@@ -143,14 +137,13 @@ jobs:
               treeEntries.push({ path: rel, mode: '100644', type: 'blob', sha: null });
               continue;
             }
-            const content = fs.readFileSync(path.join(repo, rel), 'utf8');
-            const blob = await request('POST', `/repos/${repository}/git/blobs`, { content, encoding: 'utf-8' });
+            const blob = await request('POST', `/repos/${repository}/git/blobs`, {
+              content: fs.readFileSync(path.join(repo, rel), 'utf8'),
+              encoding: 'utf-8',
+            });
             treeEntries.push({ path: rel, mode: '100644', type: 'blob', sha: blob.sha });
           }
-          const tree = await request('POST', `/repos/${repository}/git/trees`, {
-            base_tree: baseCommit.tree.sha,
-            tree: treeEntries,
-          });
+          const tree = await request('POST', `/repos/${repository}/git/trees`, { base_tree: baseCommit.tree.sha, tree: treeEntries });
           const commit = await request('POST', `/repos/${repository}/git/commits`, {
             message: 'chore(release): align RC21 production metadata',
             tree: tree.sha,
