@@ -1,6 +1,6 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 2.1.1 RC19 source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 2.1.1 RC20 source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Connection and profile management
 
@@ -165,9 +165,13 @@ Implemented architectural controls include:
 - Restricted developer compatibility API and mutation authorization.
 - No production dependency on a browser-host `127.0.0.1` GUI wrapper.
 
-## Current RC19 hardening
+## Current RC20 hardening
 
-RC19 retains the single-window architecture and further hardens:
+- Recurring transfer schedules honor their configured start date and wait for the initial backend snapshot.
+- Concurrent native connection attempts for the same profile are deduplicated.
+- Native OS notification and updater diagnostic text is credential-redacted.
+
+RC20 retains the single-window architecture and further hardens:
 
 - Terminal transfer rows no longer show a meaningless Cancel action after completion.
 - Skipped and canceled transfers have explicit labels.
