@@ -10,7 +10,7 @@
   <a href="../README.md">Product README</a> ·
   <a href="../docs/README.md">Documentation</a> ·
   <a href="https://ghostftp.com/">Website</a> ·
-  <a href="https://github.com/bren-wp/Ghost-FTP-Premium/releases">Releases</a>
+  <a href="https://github.com/bren-wp/Ghost-FTP/releases">Releases</a>
 </p>
 
 ---
