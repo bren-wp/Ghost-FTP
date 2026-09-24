@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ANDROID_DIR="$ROOT/android"
+APP_DIR="$ANDROID_DIR/app/src/main"
 
 require_text() {
   local label="$1"
@@ -28,9 +29,23 @@ require_text "connect action" "$ANDROID_DIR/app/src/main/java/com/ghostftp/andro
 require_text "disconnect action" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/MainActivity.kt" 'secondaryButton("Disconnect")'
 require_text "refresh action" "$ANDROID_DIR/app/src/main/java/com/ghostftp/android/MainActivity.kt" 'secondaryButton("Refresh")'
 
-if grep -RInE 'lorem|placeholder|demo|RC20|Win32|Win 32|Developer:|Brendigo LTD|Brendigo Ltd' "$ANDROID_DIR"; then
-  echo "Android contract failed: blocked product copy found."
-  exit 1
-fi
+blocked_patterns=(
+  'lorem'
+  'placeholder'
+  'demo'
+  'RC20'
+  'Win32'
+  'Win 32'
+  'Developer:'
+  'Brendigo LTD'
+  'Brendigo Ltd'
+)
+
+for pattern in "${blocked_patterns[@]}"; do
+  if grep -RInF "$pattern" "$APP_DIR"; then
+    echo "Android contract failed: blocked product copy found: $pattern"
+    exit 1
+  fi
+done
 
 echo "Ghost FTP Android contract OK"
