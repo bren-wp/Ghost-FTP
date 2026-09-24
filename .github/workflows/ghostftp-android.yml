@@ -1,0 +1,47 @@
+name: Ghost FTP Android
+
+on:
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'docs/mobile/**'
+      - '.github/workflows/ghostftp-android.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'docs/mobile/**'
+      - '.github/workflows/ghostftp-android.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Android parity contract
+        shell: bash
+        run: bash android/scripts/check-android-contract.sh
+      - name: Native Android lint and build
+        shell: bash
+        run: gradle -p android lintDebug assembleDebug
