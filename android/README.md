@@ -17,6 +17,7 @@ The Android surface is a native Kotlin single-activity app with a mobile layout 
 - Header with Ghost FTP RC21 release identity.
 - Session status card.
 - New connection card for FTP, explicit FTPS and SFTP endpoint control.
+- SFTP host key fingerprint field for explicit server identity verification.
 - Remote workspace card for current server context and remote folder listing.
 - Transfer queue card for mobile-first queue state.
 - Brendigo footer.
@@ -29,7 +30,7 @@ The Android app uses native protocol clients:
 
 - FTP remote login and folder listing.
 - Explicit FTPS remote login and protected data-channel listing.
-- SFTP remote login and folder listing.
+- SFTP remote login and folder listing with SHA-256 host key fingerprint verification.
 
 Credentials are passed only into the active connection action. The app does not add telemetry, accounts or ordinary password persistence.
 
@@ -38,24 +39,20 @@ Credentials are passed only into the active connection action. The app does not 
 From the repository root:
 
 ```bash
-gradle -p android lintDebug assembleDebug
+gradle -p android lintDebug lintRelease assembleDebug assembleRelease
 ```
 
-The pull-request Android workflow also runs:
+The pull-request Android workflow runs the production contract, both lint variants and both APK builds. It uploads CI APK artifacts and checksums for review.
 
-```bash
-bash android/scripts/check-android-contract.sh
-gradle -p android lintDebug assembleDebug
-```
+## Production release rule
 
-It then uploads:
+Every next GitHub release must include an Android APK asset. The dedicated workflow `.github/workflows/ghostftp-android-release.yml` builds from the published tag, signs the release APK, verifies the APK signature and uploads both the APK and its SHA-256 checksum to that release.
 
-```text
-GhostFTP-Android-v2.1.1-RC21-debug.apk
-```
+The following GitHub Secrets are required for a production-signed APK:
 
-## Release rule
+- `GHOSTFTP_ANDROID_KEYSTORE_BASE64`
+- `GHOSTFTP_ANDROID_KEYSTORE_PASSWORD`
+- `GHOSTFTP_ANDROID_KEY_ALIAS`
+- `GHOSTFTP_ANDROID_KEY_PASSWORD`
 
-Every next GitHub release must include an Android APK asset. The dedicated workflow `.github/workflows/ghostftp-android-release.yml` builds the APK for the published tag and uploads both the APK and its SHA-256 checksum to that release.
-
-A production-signed Android APK can be added later by wiring signing secrets into the same workflow, but the release contract already requires an APK file for future releases.
+The release workflow fails if any signing secret is missing. Unsigned APK files must not be published as production release assets.
