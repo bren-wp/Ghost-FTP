@@ -1,8 +1,8 @@
 # Ghost FTP Android
 
-Native Android application source for Ghost FTP.
+Native Android application for Ghost FTP.
 
-This Android app lives in `/android` so the Windows and Linux desktop release line remains isolated. The product identity stays aligned with Ghost FTP and Brendigo:
+The Android app is aligned with the Windows and Linux Ghost FTP product identity:
 
 - Product: Ghost FTP
 - Brand: Brendigo
@@ -12,22 +12,24 @@ This Android app lives in `/android` so the Windows and Linux desktop release li
 
 ## Android surface
 
-The Android surface is a native Kotlin single-activity app with a mobile layout that follows the desktop product structure:
+The Android surface uses a mobile version of the desktop Ghost FTP shell:
 
-- Header with Ghost FTP RC22 release identity.
-- Session status card.
-- New connection card for FTP, explicit FTPS and SFTP endpoint control.
+- Ghost mark and Ghost FTP wordmark.
+- RC22 badge.
+- `Files` workspace label.
+- Desktop-aligned toolbar actions: Refresh, Upload, Download, New Folder and Delete.
+- `Sites` card for FTP, explicit FTPS and SFTP endpoint control.
 - SFTP host key fingerprint field for explicit server identity verification.
-- Remote workspace card for current server context and remote folder listing.
+- `Files` card for the current remote listing.
 - Tap-to-open remote folders and tap-to-select remote files.
-- Transfer actions for download, upload, remote file delete and remote folder creation.
+- `Transfers` card for the selected remote file, upload target and folder target.
 - Android document picker upload flow.
-- App-private Android download storage for received files.
-- Transfer-state text for the last selected, running or completed operation.
-- Bounded transfer event log so the mobile surface remains stable during long sessions.
+- Android download storage for received files.
+- Transfer-state text for the last selected, running, completed or failed operation.
+- Bounded activity log so long sessions keep a stable mobile layout.
 - Brendigo footer.
-- Passwords kept in memory only for the current action and cleared on disconnect.
-- No analytics, no telemetry and no required account sign-in.
+- Passwords kept in memory only for the active session and cleared on disconnect.
+- No analytics, telemetry or required account sign-in.
 
 ## Protocol support
 
@@ -37,18 +39,18 @@ The Android app uses native protocol clients:
 - Explicit FTPS remote login, protected data-channel listing, download, upload, file delete and folder creation.
 - SFTP remote login, folder listing, download, upload, file delete and folder creation with SHA-256 host key fingerprint verification.
 
-Credentials are passed only into the active connection or transfer action. The app does not add telemetry, accounts or ordinary password persistence.
+Credentials are passed only into the active connection or transfer action. The app does not add telemetry, accounts or password persistence.
 
 ## Safety UX
 
-The Android transfer surface now includes guarded actions for higher-risk operations:
+The Android transfer surface includes guarded actions for higher-risk operations:
 
-- Remote delete requires an explicit confirmation dialog before the server action runs.
+- Delete requires an explicit confirmation dialog before the server action runs.
 - Upload shows the selected local file and asks for confirmation before writing to the remote target.
-- Upload, delete and folder creation refresh the current remote workspace after success.
+- Upload, Delete and New Folder refresh the current Files listing after success.
 - Relative remote targets are resolved from the current remote folder.
 - Remote targets containing `.` or `..` path segments are rejected before a transfer action starts.
-- The transfer queue is capped by `MAX_QUEUE_ROWS` so repeated actions do not make the one-screen mobile UI grow without limit.
+- The activity log is capped by `MAX_ACTIVITY_ROWS` so repeated actions do not expand the mobile layout without limit.
 
 ## Build
 
@@ -72,15 +74,17 @@ For long-term Android upgrade continuity, a stable signing key can be introduced
 
 ## Completion checklist
 
-Before treating the Android app as complete for RC22 follow-up development, confirm:
+Before treating the Android app as release-ready, confirm:
 
 - FTP, explicit FTPS and SFTP can list a remote path.
+- The top shell shows Ghost mark, Ghost FTP wordmark, RC22 badge and the `Files` workspace.
+- Toolbar action names match desktop: Refresh, Upload, Download, New Folder and Delete.
 - Tapping a folder opens that remote path.
 - Tapping a file selects it for transfer actions.
-- Download saves into app-private Android downloads.
+- Download saves into Android downloads.
 - Upload uses the Android document picker and writes to the selected remote target after confirmation.
-- Remote file delete requires confirmation and returns a clear success or failure state.
-- Remote folder creation returns a clear success or failure state and refreshes the remote listing.
+- Delete requires confirmation and returns a clear success or failure state.
+- New Folder returns a clear success or failure state and refreshes the remote listing.
 - Unsafe remote target paths with `.` or `..` segments are rejected.
 - SFTP strict host-key checking remains active.
 - Password is cleared on disconnect.
