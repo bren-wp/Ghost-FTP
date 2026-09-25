@@ -20,8 +20,8 @@ android {
         applicationId = "com.ghostftp.android"
         minSdk = 26
         targetSdk = 35
-        versionCode = 211022
-        versionName = "2.1.1-rc.22"
+        versionCode = 211023
+        versionName = "2.1.1-rc.23"
     }
 
     signingConfigs {

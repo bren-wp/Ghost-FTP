@@ -20,9 +20,9 @@
 
 <p align="center"><sub><strong>Actual native application screenshot.</strong> Captured automatically from the Windows native QA workflow at the canonical 1290×852 viewport.</sub></p>
 
-## Ghost FTP 2.1.1 RC22
+## Ghost FTP 2.1.1 RC23
 
-Ghost FTP 2.1.1 RC22 is the multiplatform release line for:
+Ghost FTP 2.1.1 RC23 is the all-platform production-hardening release line for:
 
 - Windows x64 portable executable.
 - Windows x64 setup executable.
@@ -31,9 +31,9 @@ Ghost FTP 2.1.1 RC22 is the multiplatform release line for:
 - Linux amd64 DEB package.
 - Linux x86_64 RPM package.
 - Android APK.
-- Source, website, update templates, documentation and SHA-256 checksum bundles.
+- Website, update templates, source, documentation and SHA-256 checksum bundles.
 
-RC22 keeps the Windows/Linux desktop release path and adds the native Android app into the same release train. Android is built from `/android`, uses the same Ghost FTP / Brendigo product identity, and is released as an installable APK without requiring GitHub signing secrets.
+RC23 keeps the Windows/Linux desktop release path, includes the native Android app in the same release train, and updates the public website so the production download, security and support routes exist. Android is built from `/android`, uses the same Ghost FTP / Brendigo product identity, and is released as an installable APK without requiring GitHub signing secrets.
 
 ## Core product
 
@@ -47,20 +47,31 @@ Ghost FTP brings secure server connections, dual-pane file management, saved sit
 <tr><td><img src="website/assets/icons/download.svg" width="30" alt=""></td><td><strong>Desktop + mobile</strong><br>Windows, Linux and Android release artifacts are generated through GitHub Actions.</td></tr>
 </table>
 
-## Android RC22
+## Android RC23
 
 The Android app is native Kotlin and uses a single mobile-first application surface:
 
-- Header with Ghost FTP RC22 release identity.
-- Session status card.
+- Header with Ghost FTP RC23 release identity.
 - Connection card for FTP, explicit FTPS and SFTP.
-- SFTP SHA-256 host key fingerprint field.
-- Remote workspace with folder listing.
-- Transfer queue state.
+- SFTP SHA-256 host key fingerprint field with strict host-key checking.
+- Remote workspace with folder listing, tap-to-open folders and tap-to-select files.
+- Real transfer actions: download, upload, delete and create remote folder.
+- Guarded upload and delete confirmations.
+- Bounded activity log and lifecycle-safe UI updates.
 - Brendigo footer.
 - No analytics, no telemetry and no account requirement.
 
-Android credentials are passed only into the active connection action. Passwords are cleared on disconnect. SFTP does not disable strict host-key checking.
+Android credentials are passed only into the active connection or transfer action. Passwords are cleared on disconnect. FTP/FTPS use production timeouts, passive binary transfers and cleanup; explicit FTPS keeps the protected data channel enabled.
+
+## Website RC23
+
+The `website/` source includes production routes for:
+
+- `/download/` — Windows, Linux, Android and checksum guidance.
+- `/security/` — SFTP, FTPS, FTP and privacy safeguards.
+- `/support/` — install, verify, connect and issue-reporting guidance.
+
+The sitemap includes the new production routes plus the localized landing pages.
 
 ## Build
 
@@ -80,15 +91,15 @@ gradle -p android lintDebug lintRelease assembleDebug assembleRelease
 
 ## Release gates
 
-RC22 release is valid only after these GitHub Actions pass:
+RC23 release is valid only after these GitHub Actions pass for the same source commit:
 
 - Ghost FTP quality.
 - Ghost FTP protocol E2E.
 - Ghost FTP native build.
 - Ghost FTP Android.
-- RC22 release packaging.
+- RC23 release packaging.
 
-The release must include SHA-256 checksums for the published artifacts. RC22 publication is tied to the latest `main` commit that includes the Android API 26 compatible theme fix and the RC22 release approval marker. RC22 packaging also pulls the verified Android APK artifact directly into the GitHub Release so the published asset set includes Windows, Linux and APK files.
+The release must include SHA-256 checksums for the published artifacts. RC23 publication is tied to the latest `main` commit that includes the Windows/Linux/Android version bump, Android production protocol contract, website production routes and RC23 release workflow. RC23 packaging must pull the verified Android APK artifact directly into the GitHub Release so the published asset set includes Windows, Linux and APK files.
 
 ## Repository layout
 

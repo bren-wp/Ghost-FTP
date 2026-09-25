@@ -35,22 +35,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q '"version": "2.1.1-rc.22"' ghostftp-desktop/package.json
-          grep -q '^version = "2.1.1-rc.22"$' ghostftp-desktop/src-tauri/Cargo.toml
-          grep -q '^version = "2.1.1-rc.22"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
-          grep -q '^version = "2.1.1-rc.22"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
-          grep -q '^version = "2.1.1-rc.22"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
-          grep -q '"version": "2.1.1-rc.22"' ghostftp-desktop/src-tauri/tauri.conf.json
-          grep -q 'PRODUCT_VERSION = "2.1.1-rc.22"' ghostftp-desktop/src/lib/release.ts
-          grep -q 'VERSION = "2.1.1-rc.22"' android/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt
-          grep -q 'versionName = "2.1.1-rc.22"' android/app/build.gradle.kts
-          grep -q '"version": "2.1.1-rc.22"' updates/channels/preview.template.json
-          grep -q '"version": "2.1.1-rc.22"' updates/latest.template.json
-          grep -q '"build": "2026.09.24.22"' updates/latest.template.json
-          test -f docs/releases/2.1.1-rc.22.md
-          grep -Fq -- '--prerelease' .github/workflows/ghostftp-rc22-release.yml
+          grep -q '"version": "2.1.1-rc.23"' ghostftp-desktop/package.json
+          grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/Cargo.toml
+          grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
+          grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
+          grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
+          grep -q '"version": "2.1.1-rc.23"' ghostftp-desktop/src-tauri/tauri.conf.json
+          grep -q 'PRODUCT_VERSION = "2.1.1-rc.23"' ghostftp-desktop/src/lib/release.ts
+          grep -q 'VERSION = "2.1.1-rc.23"' android/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt
+          grep -q 'versionName = "2.1.1-rc.23"' android/app/build.gradle.kts
+          grep -q '"version": "2.1.1-rc.23"' updates/channels/preview.template.json
+          grep -q '"version": "2.1.1-rc.23"' updates/latest.template.json
+          grep -q '"build": "2026.09.25.23"' updates/latest.template.json
+          test -f docs/releases/2.1.1-rc.23.md
+          grep -Fq -- '--prerelease' .github/workflows/ghostftp-rc23-release.yml
+          test -f website/download/index.html
+          test -f website/security/index.html
+          test -f website/support/index.html
+          grep -Fq 'https://ghostftp.com/download/' website/sitemap.xml
+          grep -Fq 'https://ghostftp.com/security/' website/sitemap.xml
+          grep -Fq 'https://ghostftp.com/support/' website/sitemap.xml
           ! grep -Rni '2.1.1-rc.20' ghostftp-desktop/package.json ghostftp-desktop/src-tauri android/app updates ghostftp-desktop/src/lib/release.ts
           ! grep -Rni '2.1.1-rc.21' ghostftp-desktop/package.json ghostftp-desktop/src-tauri android/app updates ghostftp-desktop/src/lib/release.ts
+          ! grep -Rni '2.1.1-rc.22' ghostftp-desktop/package.json ghostftp-desktop/src-tauri android/app updates ghostftp-desktop/src/lib/release.ts
 
       - name: Reject legacy/demo branding
         shell: bash
@@ -63,7 +70,7 @@ jobs:
           ! grep -Rni 'Ghost-FTP-Premium' \
             README.md ghostftp-desktop/README.md docs/build docs/product docs/release
           grep -Fq 'https://github.com/bren-wp/Ghost-FTP/releases' README.md
-          grep -Fq -- '--prerelease' .github/workflows/ghostftp-rc22-release.yml
+          grep -Fq -- '--prerelease' .github/workflows/ghostftp-rc23-release.yml
 
       - name: Native window architecture guard
         shell: bash
@@ -155,10 +162,13 @@ jobs:
               Path("website/assets/icons/speed.svg"),
               Path("website/assets/icons/privacy.svg"),
               Path("website/assets/icons/globe.svg"),
+              Path("website/download/index.html"),
+              Path("website/security/index.html"),
+              Path("website/support/index.html"),
           ]
           for path in required:
               if not path.is_file() or path.stat().st_size == 0:
-                  errors.append(f"missing website asset: {path}")
+                  errors.append(f"missing website asset/page: {path}")
 
           if errors:
               raise SystemExit("\n".join(errors))
