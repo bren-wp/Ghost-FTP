@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://ghostftp.com/</loc></url>
+  <url><loc>https://ghostftp.com/download/</loc></url>
+  <url><loc>https://ghostftp.com/security/</loc></url>
+  <url><loc>https://ghostftp.com/support/</loc></url>
   <url><loc>https://ghostftp.com/hr/</loc></url>
   <url><loc>https://ghostftp.com/de/</loc></url>
   <url><loc>https://ghostftp.com/fr/</loc></url>
