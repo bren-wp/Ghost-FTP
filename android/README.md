@@ -19,7 +19,10 @@ The Android surface is a native Kotlin single-activity app with a mobile layout 
 - New connection card for FTP, explicit FTPS and SFTP endpoint control.
 - SFTP host key fingerprint field for explicit server identity verification.
 - Remote workspace card for current server context and remote folder listing.
-- Transfer queue card for mobile-first queue state.
+- Tap-to-open remote folders and tap-to-select remote files.
+- Transfer actions for download, upload, remote file delete and remote folder creation.
+- Android document picker upload flow.
+- App-private Android download storage for received files.
 - Brendigo footer.
 - Passwords kept in memory only for the current action and cleared on disconnect.
 - No analytics, no telemetry and no required account sign-in.
@@ -28,11 +31,11 @@ The Android surface is a native Kotlin single-activity app with a mobile layout 
 
 The Android app uses native protocol clients:
 
-- FTP remote login and folder listing.
-- Explicit FTPS remote login and protected data-channel listing.
-- SFTP remote login and folder listing with SHA-256 host key fingerprint verification.
+- FTP remote login, folder listing, download, upload, file delete and folder creation.
+- Explicit FTPS remote login, protected data-channel listing, download, upload, file delete and folder creation.
+- SFTP remote login, folder listing, download, upload, file delete and folder creation with SHA-256 host key fingerprint verification.
 
-Credentials are passed only into the active connection action. The app does not add telemetry, accounts or ordinary password persistence.
+Credentials are passed only into the active connection or transfer action. The app does not add telemetry, accounts or ordinary password persistence.
 
 ## Build
 
@@ -53,3 +56,17 @@ Every next GitHub release must include an Android APK asset. The RC22 release wo
 No repository keystore, GitHub secret or manual signing key is required for this release path.
 
 For long-term Android upgrade continuity, a stable signing key can be introduced later. Without a stable saved signing key, Android may treat APKs from different release runs as separately signed builds.
+
+## Completion checklist
+
+Before treating the Android app as complete for RC22 follow-up development, confirm:
+
+- FTP, explicit FTPS and SFTP can list a remote path.
+- Tapping a folder opens that remote path.
+- Tapping a file selects it for transfer actions.
+- Download saves into app-private Android downloads.
+- Upload uses the Android document picker and writes to the selected remote target.
+- Remote file delete returns a clear success or failure state.
+- Remote folder creation returns a clear success or failure state.
+- SFTP strict host-key checking remains active.
+- Password is cleared on disconnect.
