@@ -1,6 +1,7 @@
 package com.ghostftp.android
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -40,6 +41,7 @@ class MainActivity : Activity() {
     private lateinit var uploadRemoteNameInput: EditText
     private lateinit var mkdirNameInput: EditText
     private lateinit var uploadSelectionText: TextView
+    private lateinit var transferStateText: TextView
     private lateinit var protocolSpinner: Spinner
     private lateinit var connectButton: Button
     private lateinit var disconnectButton: Button
@@ -49,6 +51,7 @@ class MainActivity : Activity() {
     private var activeProfile: ConnectionProfile? = null
     private var selectedUploadUri: Uri? = null
     private var selectedUploadDisplayName: String = ""
+    private var lastCompletedTransferPath: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,6 +71,7 @@ class MainActivity : Activity() {
         if (uploadRemoteNameInput.text.toString().isBlank()) {
             uploadRemoteNameInput.setText(selectedUploadDisplayName)
         }
+        transferStateText.text = "Upload file selected: $selectedUploadDisplayName"
         appendQueue("Upload selection", "Ready to upload $selectedUploadDisplayName from Android document storage.")
     }
 
@@ -112,7 +116,7 @@ class MainActivity : Activity() {
         })
         addView(space(10))
         addView(TextView(this@MainActivity).apply {
-            text = "Native Android workspace for secure FTP, explicit FTPS and SFTP access with connection control, remote browsing, uploads, downloads, folder creation and remote file cleanup."
+            text = "Native Android workspace for secure FTP, explicit FTPS and SFTP access with connection control, remote browsing, uploads, downloads, folder creation and guarded remote cleanup."
             setTextColor(Brand.textSoft)
             textSize = 15f
             setLineSpacing(0f, 1.15f)
@@ -191,7 +195,7 @@ class MainActivity : Activity() {
 
     private fun buildWorkspaceCard(): View = panel().apply {
         addView(sectionTitle("Remote workspace"))
-        addView(sectionDescription("Tap a folder row to open it. Tap a file row to select it for download or remote cleanup."))
+        addView(sectionDescription("Tap a folder row to open it. Tap a file row to select it for download or guarded remote cleanup."))
         remoteRows = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -200,7 +204,7 @@ class MainActivity : Activity() {
 
     private fun buildTransferCard(): View = panel().apply {
         addView(sectionTitle("Transfer actions"))
-        addView(sectionDescription("Download remote files into app-private Android downloads, upload a selected Android document, delete a remote file or create a folder on the active server."))
+        addView(sectionDescription("Download remote files into app-private Android downloads, upload a selected Android document, create folders, or delete a remote file with confirmation."))
 
         transferRemotePathInput = input("/remote/file.txt", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         addView(formLabel("Remote file path"))
@@ -221,6 +225,14 @@ class MainActivity : Activity() {
             setPadding(0, dp(10), 0, dp(4))
         }
         addView(uploadSelectionText)
+
+        transferStateText = TextView(this@MainActivity).apply {
+            text = "No transfer started."
+            setTextColor(Brand.muted)
+            textSize = 13f
+            setPadding(0, dp(4), 0, dp(4))
+        }
+        addView(transferStateText)
 
         val transferRow = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -298,8 +310,10 @@ class MainActivity : Activity() {
         activeProfile = null
         selectedUploadUri = null
         selectedUploadDisplayName = ""
+        lastCompletedTransferPath = ""
         passwordInput.text.clear()
         uploadSelectionText.text = "No local upload file selected."
+        transferStateText.text = "No transfer started."
         showIdleState()
     }
 
@@ -334,6 +348,11 @@ class MainActivity : Activity() {
         queueRows.removeAllViews()
         queueRows.addView(row("Connection", "Ready for ${profile.protocol.label} transfer actions."))
         queueRows.addView(row("Security", "Password remains in memory only and is cleared on disconnect."))
+        transferStateText.text = if (lastCompletedTransferPath.isBlank()) {
+            "Ready for guarded transfer actions."
+        } else {
+            "Last completed remote path: $lastCompletedTransferPath"
+        }
     }
 
     private fun showConnectionError(error: Throwable) {
@@ -343,11 +362,13 @@ class MainActivity : Activity() {
         remoteRows.addView(row("Remote view", "No server session is active."))
         queueRows.removeAllViews()
         queueRows.addView(row("Transfer actions", "No active connection."))
+        transferStateText.text = "No transfer can run until the connection opens."
     }
 
     private fun showMessage(title: String, detail: String) {
         statusTitle.text = title
         statusDetail.text = detail
+        if (::transferStateText.isInitialized) transferStateText.text = detail
     }
 
     private fun showIdleState() {
@@ -357,6 +378,7 @@ class MainActivity : Activity() {
         remoteRows.addView(row("Remote view", "Connect to a server endpoint to load remote files."))
         queueRows.removeAllViews()
         queueRows.addView(row("Transfer actions", "Connect first, then choose a remote file or upload target."))
+        if (::transferStateText.isInitialized) transferStateText.text = "No transfer started."
         setBusy(false)
     }
 
@@ -387,24 +409,34 @@ class MainActivity : Activity() {
             return
         }
         val remoteTarget = uploadTargetPath() ?: return
-        runTransfer(
-            title = "Uploading",
-            detail = "Sending $selectedUploadDisplayName to $remoteTarget."
-        ) {
-            val input = contentResolver.openInputStream(uri)
-                ?: throw IllegalStateException("Unable to open selected Android document.")
-            controller.uploadRemote(profile, input, remoteTarget)
+        confirmUploadTarget(remoteTarget, selectedUploadDisplayName) {
+            runTransfer(
+                title = "Uploading",
+                detail = "Sending $selectedUploadDisplayName to $remoteTarget.",
+                refreshAfter = true
+            ) {
+                val input = contentResolver.openInputStream(uri)
+                    ?: throw IllegalStateException("Unable to open selected Android document.")
+                controller.uploadRemote(profile, input, remoteTarget)
+            }
         }
     }
 
     private fun deleteRemoteFile() {
         val profile = readProfile() ?: return
         val remotePath = requiredRemoteFilePath() ?: return
-        runTransfer(
-            title = "Deleting remote file",
-            detail = "Removing $remotePath from the active server."
+        confirmDestructiveRemoteAction(
+            title = "Delete remote file?",
+            message = "This permanently removes $remotePath from the active server. This action cannot be undone by Ghost FTP Android.",
+            confirmLabel = "Delete"
         ) {
-            controller.deleteRemoteFile(profile, remotePath)
+            runTransfer(
+                title = "Deleting remote file",
+                detail = "Removing $remotePath from the active server.",
+                refreshAfter = true
+            ) {
+                controller.deleteRemoteFile(profile, remotePath)
+            }
         }
     }
 
@@ -416,9 +448,11 @@ class MainActivity : Activity() {
             return
         }
         val remoteTarget = if (folderName.startsWith('/')) folderName else joinRemotePath(profile.remotePath, folderName)
+        if (!validateRemoteTarget(remoteTarget)) return
         runTransfer(
             title = "Creating remote folder",
-            detail = "Creating $remoteTarget on the active server."
+            detail = "Creating $remoteTarget on the active server.",
+            refreshAfter = true
         ) {
             controller.createRemoteDirectory(profile, remoteTarget)
         }
@@ -433,17 +467,29 @@ class MainActivity : Activity() {
             .onFailure { showMessage("File picker unavailable", it.message ?: "Android could not open a document picker.") }
     }
 
-    private fun runTransfer(title: String, detail: String, action: () -> TransferResult) {
+    private fun runTransfer(
+        title: String,
+        detail: String,
+        refreshAfter: Boolean = false,
+        action: () -> TransferResult
+    ) {
         setBusy(true)
         statusTitle.text = title
         statusDetail.text = detail
+        transferStateText.text = "In progress: $detail"
         appendQueue(title, detail)
         thread(name = "ghostftp-android-transfer") {
             val result = runCatching { action() }
             runOnUiThread {
                 setBusy(false)
                 result.fold(
-                    onSuccess = { showTransferResult(it) },
+                    onSuccess = {
+                        showTransferResult(it)
+                        if (refreshAfter) {
+                            appendQueue("Refreshing remote workspace", "Reloading current remote folder after ${it.title.lowercase(Locale.ROOT)}.")
+                            refreshActive()
+                        }
+                    },
                     onFailure = { showTransferFailure(it) }
                 )
             }
@@ -451,8 +497,10 @@ class MainActivity : Activity() {
     }
 
     private fun showTransferResult(result: TransferResult) {
+        lastCompletedTransferPath = result.remotePath
         statusTitle.text = result.title
         statusDetail.text = result.detail
+        transferStateText.text = "${result.title}: ${result.remotePath}"
         appendQueue(result.title, result.detail)
     }
 
@@ -460,6 +508,7 @@ class MainActivity : Activity() {
         val detail = error.message ?: "The transfer action did not complete."
         statusTitle.text = "Transfer failed"
         statusDetail.text = detail
+        transferStateText.text = "Transfer failed: $detail"
         appendQueue("Transfer failed", detail)
     }
 
@@ -469,7 +518,8 @@ class MainActivity : Activity() {
             showMessage("Remote file path is required", "Tap a remote file row or enter an absolute remote file path.")
             return null
         }
-        return if (raw.startsWith('/')) raw else joinRemotePath(remotePathInput.text.toString(), raw)
+        val remotePath = if (raw.startsWith('/')) raw else joinRemotePath(remotePathInput.text.toString(), raw)
+        return if (validateRemoteTarget(remotePath)) remotePath else null
     }
 
     private fun uploadTargetPath(): String? {
@@ -478,7 +528,40 @@ class MainActivity : Activity() {
             showMessage("Upload target is required", "Choose a local file and enter the target file name or path.")
             return null
         }
-        return if (targetName.startsWith('/')) targetName else joinRemotePath(remotePathInput.text.toString(), targetName)
+        val remotePath = if (targetName.startsWith('/')) targetName else joinRemotePath(remotePathInput.text.toString(), targetName)
+        return if (validateRemoteTarget(remotePath)) remotePath else null
+    }
+
+    private fun validateRemoteTarget(remotePath: String): Boolean {
+        val parts = remotePath.split('/').filter { it.isNotBlank() }
+        if (parts.any { it == "." || it == ".." }) {
+            showMessage("Unsafe remote path", "Remote paths cannot contain . or .. segments.")
+            return false
+        }
+        return true
+    }
+
+    private fun confirmUploadTarget(remoteTarget: String, localName: String, onConfirm: () -> Unit) {
+        AlertDialog.Builder(this)
+            .setTitle("Upload to remote path?")
+            .setMessage("Upload $localName to $remoteTarget. If a file with that name already exists, the server may replace it.")
+            .setPositiveButton("Upload") { _, _ -> onConfirm() }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun confirmDestructiveRemoteAction(
+        title: String,
+        message: String,
+        confirmLabel: String,
+        onConfirm: () -> Unit
+    ) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton(confirmLabel) { _, _ -> onConfirm() }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun remoteRow(item: RemoteRow): View = row(item.name, item.detail).apply {
@@ -490,12 +573,16 @@ class MainActivity : Activity() {
             }
             item.isFile -> setOnClickListener {
                 transferRemotePathInput.setText(target)
+                transferStateText.text = "Selected remote file: $target"
                 appendQueue("Selected remote file", target)
             }
         }
     }
 
     private fun appendQueue(title: String, detail: String) {
+        while (queueRows.childCount >= MAX_QUEUE_ROWS) {
+            queueRows.removeViewAt(0)
+        }
         queueRows.addView(row(title, detail))
     }
 
@@ -665,5 +752,6 @@ class MainActivity : Activity() {
 
     private companion object {
         const val PICK_UPLOAD_REQUEST = 22091
+        const val MAX_QUEUE_ROWS = 8
     }
 }
