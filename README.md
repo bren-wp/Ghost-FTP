@@ -95,7 +95,7 @@ RC23 release is valid only after these GitHub Actions pass for the same source c
 
 - Ghost FTP quality.
 - Ghost FTP protocol E2E.
-- Ghost FTP native build.
+- Ghost FTP native build RC23.
 - Ghost FTP Android.
 - RC23 release packaging.
 
