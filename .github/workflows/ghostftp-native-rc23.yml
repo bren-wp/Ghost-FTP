@@ -1,0 +1,144 @@
+name: Ghost FTP native build RC23
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ghostftp-desktop/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'docs/releases/2.1.1-rc.23.md'
+      - '.github/workflows/ghostftp-native-rc23.yml'
+  pull_request:
+    paths:
+      - 'ghostftp-desktop/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'docs/releases/2.1.1-rc.23.md'
+      - '.github/workflows/ghostftp-native-rc23.yml'
+      - '.github/workflows/ghostftp-rc23-release.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-native-rc23-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: RC23 ${{ matrix.label }} native build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: Windows x64
+            args: '--bundles nsis'
+            artifact: 'GhostFTP-Windows-x64-RC23'
+          - os: ubuntu-22.04
+            label: Linux x86_64
+            args: '--bundles deb,rpm,appimage'
+            artifact: 'GhostFTP-Linux-x86_64-RC23'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ghostftp-desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ghostftp-desktop/src-tauri
+
+      - name: Linux desktop dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: Validate RC23 metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '"version": "2.1.1-rc.23"' ghostftp-desktop/package.json
+          grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/Cargo.toml
+          grep -q '"version": "2.1.1-rc.23"' ghostftp-desktop/src-tauri/tauri.conf.json
+          grep -q 'PRODUCT_VERSION = "2.1.1-rc.23"' ghostftp-desktop/src/lib/release.ts
+
+      - name: Install frontend dependencies
+        working-directory: ghostftp-desktop
+        run: npm ci
+
+      - name: TypeScript and frontend build
+        working-directory: ghostftp-desktop
+        run: |
+          npm run check:i18n
+          npm run check:ui
+          npm run check
+          npm run build
+
+      - name: Build Ghost FTP native bundle
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: ghostftp-desktop
+          args: ${{ matrix.args }}
+
+      - name: Collect Windows RC23 artifacts
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force dist/native | Out-Null
+          $portable = 'ghostftp-desktop/src-tauri/target/release/ghostftp.exe'
+          if (-not (Test-Path $portable)) { throw "Missing portable executable: $portable" }
+          Copy-Item $portable 'dist/native/ghostftp.exe'
+          $setup = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/nsis' -Filter '*.exe' -Recurse | Select-Object -First 1
+          if (-not $setup) { throw 'Missing NSIS setup executable' }
+          Copy-Item $setup.FullName 'dist/native/GhostFTP-Windows-x64-Setup-RC23.exe'
+          Get-ChildItem dist/native | Format-Table FullName,Length
+
+      - name: Collect Linux RC23 artifacts
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/native
+          test -s ghostftp-desktop/src-tauri/target/release/ghostftp
+          cp ghostftp-desktop/src-tauri/target/release/ghostftp dist/native/ghostftp
+          APPIMAGE="$(find ghostftp-desktop/src-tauri/target/release/bundle/appimage -type f -iname '*.AppImage' | head -n1 || true)"
+          DEB="$(find ghostftp-desktop/src-tauri/target/release/bundle/deb -type f -iname '*.deb' | head -n1 || true)"
+          RPM="$(find ghostftp-desktop/src-tauri/target/release/bundle/rpm -type f -iname '*.rpm' | head -n1 || true)"
+          test -n "$APPIMAGE"
+          test -n "$DEB"
+          test -n "$RPM"
+          cp "$APPIMAGE" dist/native/GhostFTP-Linux-x86_64-RC23.AppImage
+          cp "$DEB" dist/native/GhostFTP-Linux-amd64-RC23.deb
+          cp "$RPM" dist/native/GhostFTP-Linux-x86_64-RC23.rpm
+          find dist/native -type f -maxdepth 1 -print -exec ls -lh {} \;
+
+      - name: Generate native artifact checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d dist/native ]; then
+            (cd dist/native && sha256sum * > SHA256SUMS.txt)
+          fi
+
+      - name: Upload RC23 native bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/native/*
+          if-no-files-found: error
