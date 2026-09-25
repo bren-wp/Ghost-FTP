@@ -16,6 +16,21 @@ pub mod sftp;
 pub mod shopify;
 pub mod webdav;
 
+/// Fail closed before any remote backend executes a destructive delete.
+/// Empty/root targets and dot path segments can otherwise expand a recursive
+/// delete far beyond the item the user selected.
+pub(crate) fn validate_remote_delete_path(path: &str) -> anyhow::Result<()> {
+    let parts: Vec<&str> = path
+        .trim()
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect();
+    if parts.is_empty() || parts.iter().any(|segment| matches!(*segment, "." | "..")) {
+        anyhow::bail!("refusing unsafe remote delete path: {path:?}");
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FileKind {
@@ -85,4 +100,19 @@ pub trait RemoteFs: Send + Sync {
     async fn create_dir(&self, path: &str) -> anyhow::Result<()>;
     async fn chmod(&self, path: &str, mode: u32) -> anyhow::Result<()>;
     fn capabilities(&self) -> Capabilities;
+}
+
+#[cfg(test)]
+mod destructive_path_tests {
+    use super::validate_remote_delete_path;
+
+    #[test]
+    fn rejects_root_and_dot_segments() {
+        for path in ["", "/", "////", ".", "..", "/srv/../etc", "srv/./file"] {
+            assert!(validate_remote_delete_path(path).is_err(), "{path:?} must be rejected");
+        }
+        for path in ["file.txt", "/srv/file.txt", "folder/subfolder"] {
+            assert!(validate_remote_delete_path(path).is_ok(), "{path:?} must be allowed");
+        }
+    }
 }
