@@ -31,10 +31,10 @@ RELEASE_INFO="$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt
 
 require_text "product name" "$RELEASE_INFO" 'PRODUCT_NAME = "Ghost FTP"'
 require_text "brand" "$RELEASE_INFO" 'BRAND = "Brendigo"'
-require_text "version" "$RELEASE_INFO" 'VERSION = "2.1.1-rc.22"'
-require_text "display version" "$RELEASE_INFO" 'VERSION_DISPLAY = "2.1.1 RC22"'
-require_text "badge" "$RELEASE_INFO" 'VERSION_BADGE = "RC22"'
-require_text "build" "$RELEASE_INFO" 'BUILD = "2026.09.24.22"'
+require_text "version" "$RELEASE_INFO" 'VERSION = "2.1.1-rc.23"'
+require_text "display version" "$RELEASE_INFO" 'VERSION_DISPLAY = "2.1.1 RC23"'
+require_text "badge" "$RELEASE_INFO" 'VERSION_BADGE = "RC23"'
+require_text "build" "$RELEASE_INFO" 'BUILD = "2026.09.25.23"'
 require_text "app label" "$ANDROID_DIR/app/src/main/res/values/strings.xml" '<string name="app_name">Ghost FTP</string>'
 
 require_text "ftp protocol" "$CONNECTION_MODEL" 'FTP("FTP", 21)'
@@ -113,6 +113,7 @@ blocked_patterns=(
   'Delete file'
   'RC20'
   'RC21'
+  'RC22'
   'Win32'
   'Win 32'
   'Developer:'
@@ -124,4 +125,4 @@ for pattern in "${blocked_patterns[@]}"; do
   require_absent "product copy" "$APP_DIR" "$pattern"
 done
 
-echo "Ghost FTP Android RC22 production contract OK"
+echo "Ghost FTP Android RC23 production contract OK"
