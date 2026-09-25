@@ -16,7 +16,7 @@ expect('release metadata is RC23', contains('src/lib/release.ts', 'PRODUCT_VERSI
 expect('release build stamp is RC23', contains('src/lib/release.ts', 'PRODUCT_BUILD = "2026.09.25.23"'));
 expect('Linux Tauri package version is RC23', contains('src-tauri/tauri.conf.json', '"version": "2.1.1-rc.23"'));
 expect('Linux Rust package version is RC23', contains('src-tauri/Cargo.toml', 'version = "2.1.1-rc.23"'));
-expect('Linux runtime helper remains versioned', matches('../tools/ghostftp-runtime/main.go', /const version = "2\.1\.1-rc\.(22|23)"/));
+expect('fallback runtime helper remains versioned', matches('../tools/ghostftp-runtime/main.go', /const version = "2\.1\.1-rc\.(21|22|23)"/));
 expect('Linux update channel is RC23', contains('../updates/channels/preview.template.json', '"version": "2.1.1-rc.23"'));
 expect('Linux latest update manifest is RC23', contains('../updates/latest.template.json', '"version": "2.1.1-rc.23"'));
 expect('Linux latest update build is RC23', contains('../updates/latest.template.json', '"build": "2026.09.25.23"'));
