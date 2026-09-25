@@ -109,10 +109,16 @@ mod destructive_path_tests {
     #[test]
     fn rejects_root_and_dot_segments() {
         for path in ["", "/", "////", ".", "..", "/srv/../etc", "srv/./file"] {
-            assert!(validate_remote_delete_path(path).is_err(), "{path:?} must be rejected");
+            assert!(
+                validate_remote_delete_path(path).is_err(),
+                "{path:?} must be rejected"
+            );
         }
         for path in ["file.txt", "/srv/file.txt", "folder/subfolder"] {
-            assert!(validate_remote_delete_path(path).is_ok(), "{path:?} must be allowed");
+            assert!(
+                validate_remote_delete_path(path).is_ok(),
+                "{path:?} must be allowed"
+            );
         }
     }
 }
