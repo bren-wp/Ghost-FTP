@@ -2,8 +2,15 @@ package com.ghostftp.android
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Context
 import android.content.Intent
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -47,7 +54,7 @@ class MainActivity : Activity() {
     private lateinit var disconnectButton: Button
     private lateinit var refreshButton: Button
     private lateinit var remoteRows: LinearLayout
-    private lateinit var queueRows: LinearLayout
+    private lateinit var activityRows: LinearLayout
     private var activeProfile: ConnectionProfile? = null
     private var selectedUploadUri: Uri? = null
     private var selectedUploadDisplayName: String = ""
@@ -72,55 +79,85 @@ class MainActivity : Activity() {
             uploadRemoteNameInput.setText(selectedUploadDisplayName)
         }
         transferStateText.text = "Upload file selected: $selectedUploadDisplayName"
-        appendQueue("Upload selection", "Ready to upload $selectedUploadDisplayName from Android document storage.")
+        appendActivity("Upload", "Selected $selectedUploadDisplayName from Android document storage.")
     }
 
-    private fun buildContent(): View {
-        return ScrollView(this).apply {
-            setBackgroundColor(Brand.background)
-            addView(
-                LinearLayout(this@MainActivity).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setPadding(dp(18), dp(18), dp(18), dp(24))
-                    addView(buildHeader())
-                    addView(space(14))
-                    addView(buildStatusCard())
-                    addView(space(14))
-                    addView(buildConnectionCard())
-                    addView(space(14))
-                    addView(buildWorkspaceCard())
-                    addView(space(14))
-                    addView(buildTransferCard())
-                    addView(space(14))
-                    addView(buildFooter())
-                },
-                ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
+    private fun buildContent(): View = ScrollView(this).apply {
+        setBackgroundColor(Brand.background)
+        addView(
+            LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(14), dp(14), dp(14), dp(22))
+                addView(buildHeader())
+                addView(space(12))
+                addView(buildStatusCard())
+                addView(space(12))
+                addView(buildConnectionCard())
+                addView(space(12))
+                addView(buildFilesCard())
+                addView(space(12))
+                addView(buildTransfersCard())
+                addView(space(12))
+                addView(buildFooter())
+            },
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
             )
-        }
+        )
     }
 
     private fun buildHeader(): View = panel(strong = true).apply {
-        addView(TextView(this@MainActivity).apply {
-            text = ReleaseInfo.PRODUCT_NAME
+        val titleRow = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        titleRow.addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(44), dp(44)))
+        titleRow.addView(gap(10))
+        titleRow.addView(TextView(this@MainActivity).apply {
+            text = "Ghost FTP"
             setTextColor(Brand.text)
-            textSize = 28f
+            textSize = 24f
             typeface = Typeface.DEFAULT_BOLD
-        })
-        addView(TextView(this@MainActivity).apply {
-            text = "${ReleaseInfo.VERSION_DISPLAY} · ${ReleaseInfo.VERSION_BADGE} · ${ReleaseInfo.BUILD}"
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        titleRow.addView(badge(ReleaseInfo.VERSION_BADGE))
+        addView(titleRow)
+
+        val workspaceRow = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(10), 0, 0)
+        }
+        workspaceRow.addView(workspaceChip("Files"))
+        workspaceRow.addView(gap(8))
+        workspaceRow.addView(TextView(this@MainActivity).apply {
+            text = ReleaseInfo.VERSION_DISPLAY
             setTextColor(Brand.muted)
             textSize = 13f
         })
-        addView(space(10))
-        addView(TextView(this@MainActivity).apply {
-            text = "Native Android workspace for secure FTP, explicit FTPS and SFTP access with connection control, remote browsing, uploads, downloads, folder creation and guarded remote cleanup."
-            setTextColor(Brand.textSoft)
-            textSize = 15f
-            setLineSpacing(0f, 1.15f)
-        })
+        addView(workspaceRow)
+
+        addView(space(12))
+        val toolbar = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        toolbar.addView(toolbarButton("Refresh") { refreshActive() }, buttonParams(weight = 1f))
+        toolbar.addView(gap(8))
+        toolbar.addView(track(toolbarButton("Upload") { uploadOrPickFile() }), buttonParams(weight = 1f))
+        toolbar.addView(gap(8))
+        toolbar.addView(track(toolbarButton("Download") { downloadRemoteFile() }), buttonParams(weight = 1f))
+        addView(toolbar)
+
+        val toolbarMore = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(8), 0, 0)
+        }
+        toolbarMore.addView(track(toolbarButton("New Folder") { createRemoteFolder() }), buttonParams(weight = 1f))
+        toolbarMore.addView(gap(8))
+        toolbarMore.addView(track(toolbarButton("Delete", destructive = true) { deleteRemoteFile() }), buttonParams(weight = 1f))
+        addView(toolbarMore)
     }
 
     private fun buildStatusCard(): View = panel().apply {
@@ -133,14 +170,15 @@ class MainActivity : Activity() {
         statusDetail = TextView(this@MainActivity).apply {
             setTextColor(Brand.textSoft)
             textSize = 14f
+            setLineSpacing(0f, 1.14f)
         }
         addView(statusTitle)
         addView(statusDetail)
     }
 
     private fun buildConnectionCard(): View = panel().apply {
-        addView(sectionTitle("New connection"))
-        addView(sectionDescription("Choose protocol, connect to a server and load the selected remote folder. Passwords stay in memory only for the active connection."))
+        addView(sectionTitle("Sites"))
+        addView(sectionDescription("Connect to FTP, explicit FTPS or SFTP. Passwords stay in memory for the active session and are cleared on disconnect."))
 
         protocolSpinner = Spinner(this@MainActivity).apply {
             adapter = ArrayAdapter(
@@ -186,25 +224,25 @@ class MainActivity : Activity() {
         disconnectButton = secondaryButton("Disconnect") { disconnect() }
         refreshButton = secondaryButton("Refresh") { refreshActive() }
         actions.addView(connectButton, buttonParams(weight = 1f))
-        actions.addView(gap(10))
+        actions.addView(gap(8))
         actions.addView(disconnectButton, buttonParams(weight = 1f))
-        actions.addView(gap(10))
+        actions.addView(gap(8))
         actions.addView(refreshButton, buttonParams(weight = 1f))
         addView(actions)
     }
 
-    private fun buildWorkspaceCard(): View = panel().apply {
-        addView(sectionTitle("Remote workspace"))
-        addView(sectionDescription("Tap a folder row to open it. Tap a file row to select it for download or guarded remote cleanup."))
+    private fun buildFilesCard(): View = panel().apply {
+        addView(sectionTitle("Files"))
+        addView(sectionDescription("Open folders, select files, then use the toolbar actions aligned with Ghost FTP desktop."))
         remoteRows = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
         }
         addView(remoteRows)
     }
 
-    private fun buildTransferCard(): View = panel().apply {
-        addView(sectionTitle("Transfer actions"))
-        addView(sectionDescription("Download remote files into app-private Android downloads, upload a selected Android document, create folders, or delete a remote file with confirmation."))
+    private fun buildTransfersCard(): View = panel().apply {
+        addView(sectionTitle("Transfers"))
+        addView(sectionDescription("Manage the selected remote file, upload target and remote folder action for the active session."))
 
         transferRemotePathInput = input("/remote/file.txt", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         addView(formLabel("Remote file path"))
@@ -234,44 +272,26 @@ class MainActivity : Activity() {
         }
         addView(transferStateText)
 
-        val transferRow = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(10), 0, 0)
-        }
-        transferRow.addView(track(primaryButton("Download") { downloadRemoteFile() }), buttonParams(weight = 1f))
-        transferRow.addView(gap(10))
-        transferRow.addView(track(secondaryButton("Delete file") { deleteRemoteFile() }), buttonParams(weight = 1f))
-        addView(transferRow)
-
         val uploadRow = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(10), 0, 0)
         }
         uploadRow.addView(track(secondaryButton("Pick file") { selectUploadFile() }), buttonParams(weight = 1f))
-        uploadRow.addView(gap(10))
+        uploadRow.addView(gap(8))
         uploadRow.addView(track(secondaryButton("Upload") { uploadSelectedFile() }), buttonParams(weight = 1f))
         addView(uploadRow)
 
-        val folderRow = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(10), 0, 0)
-        }
-        folderRow.addView(track(secondaryButton("Create folder") { createRemoteFolder() }), buttonParams(weight = 1f))
-        addView(folderRow)
-
-        queueRows = LinearLayout(this@MainActivity).apply {
+        activityRows = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(0, dp(12), 0, 0)
         }
-        addView(queueRows)
+        addView(activityRows)
     }
 
     private fun buildFooter(): View = panel().apply {
         addView(TextView(this@MainActivity).apply {
-            text = "Ghost FTP · Brendigo · Private Android session"
+            text = "Ghost FTP · Brendigo · Private session"
             setTextColor(Brand.muted)
             textSize = 13f
             gravity = Gravity.CENTER
@@ -280,18 +300,23 @@ class MainActivity : Activity() {
 
     private fun openConnection() {
         val profile = readProfile() ?: return
-        activeProfile = profile
         setBusy(true)
         statusTitle.text = "Opening ${profile.protocol.label}"
-        statusDetail.text = "Loading ${profile.remotePath} from ${profile.host}:${profile.port} without storing credentials."
+        statusDetail.text = "Loading ${profile.remotePath} from ${profile.host}:${profile.port}."
 
         thread(name = "ghostftp-android-connect") {
             val result = runCatching { controller.listRemote(profile) }
             runOnUiThread {
                 setBusy(false)
                 result.fold(
-                    onSuccess = { showReachable(profile, it) },
-                    onFailure = { showConnectionError(it) }
+                    onSuccess = {
+                        activeProfile = profile
+                        showReachable(profile, it)
+                    },
+                    onFailure = {
+                        activeProfile = null
+                        showConnectionError(it)
+                    }
                 )
             }
         }
@@ -303,6 +328,8 @@ class MainActivity : Activity() {
             showIdleState()
             return
         }
+        val nextPath = remotePathInput.text.toString().trim().ifBlank { profile.remotePath }
+        activeProfile = profile.copy(remotePath = nextPath)
         openConnection()
     }
 
@@ -340,16 +367,25 @@ class MainActivity : Activity() {
         )
     }
 
+    private fun activeTransferProfile(): ConnectionProfile? {
+        val profile = activeProfile
+        if (profile == null) {
+            showMessage("Connect first", "Open a server session before running file actions.")
+            return null
+        }
+        return profile.copy(remotePath = remotePathInput.text.toString().trim().ifBlank { profile.remotePath })
+    }
+
     private fun showReachable(profile: ConnectionProfile, result: ConnectionProbeResult) {
         statusTitle.text = result.title
         statusDetail.text = result.detail
         remoteRows.removeAllViews()
         result.rows.forEach { remoteRows.addView(remoteRow(it)) }
-        queueRows.removeAllViews()
-        queueRows.addView(row("Connection", "Ready for ${profile.protocol.label} transfer actions."))
-        queueRows.addView(row("Security", "Password remains in memory only and is cleared on disconnect."))
+        activityRows.removeAllViews()
+        activityRows.addView(row("Connection", "Ready for ${profile.protocol.label} file actions."))
+        activityRows.addView(row("Security", "Password is kept in memory and cleared on disconnect."))
         transferStateText.text = if (lastCompletedTransferPath.isBlank()) {
-            "Ready for guarded transfer actions."
+            "Ready for guarded file actions."
         } else {
             "Last completed remote path: $lastCompletedTransferPath"
         }
@@ -359,9 +395,9 @@ class MainActivity : Activity() {
         statusTitle.text = "Connection unavailable"
         statusDetail.text = error.message ?: "The selected endpoint did not open a session."
         remoteRows.removeAllViews()
-        remoteRows.addView(row("Remote view", "No server session is active."))
-        queueRows.removeAllViews()
-        queueRows.addView(row("Transfer actions", "No active connection."))
+        remoteRows.addView(row("Files", "No server session is active."))
+        activityRows.removeAllViews()
+        activityRows.addView(row("Transfers", "No active connection."))
         transferStateText.text = "No transfer can run until the connection opens."
     }
 
@@ -375,9 +411,9 @@ class MainActivity : Activity() {
         statusTitle.text = "Ready"
         statusDetail.text = "No active server session."
         remoteRows.removeAllViews()
-        remoteRows.addView(row("Remote view", "Connect to a server endpoint to load remote files."))
-        queueRows.removeAllViews()
-        queueRows.addView(row("Transfer actions", "Connect first, then choose a remote file or upload target."))
+        remoteRows.addView(row("Files", "Connect to a server to load remote files."))
+        activityRows.removeAllViews()
+        activityRows.addView(row("Transfers", "Connect first, then choose a file action."))
         if (::transferStateText.isInitialized) transferStateText.text = "No transfer started."
         setBusy(false)
     }
@@ -389,26 +425,30 @@ class MainActivity : Activity() {
         actionButtons.forEach { it.isEnabled = !busy }
     }
 
+    private fun uploadOrPickFile() {
+        if (selectedUploadUri == null) selectUploadFile() else uploadSelectedFile()
+    }
+
     private fun downloadRemoteFile() {
-        val profile = readProfile() ?: return
-        val remotePath = requiredRemoteFilePath() ?: return
+        val profile = activeTransferProfile() ?: return
+        val remotePath = requiredRemoteFilePath(profile) ?: return
         val outputFile = downloadTarget(remotePath)
         runTransfer(
             title = "Downloading",
-            detail = "Saving $remotePath into Android app-private downloads."
+            detail = "Saving $remotePath to Android downloads."
         ) {
             controller.downloadRemote(profile, remotePath, outputFile)
         }
     }
 
     private fun uploadSelectedFile() {
-        val profile = readProfile() ?: return
+        val profile = activeTransferProfile() ?: return
         val uri = selectedUploadUri
         if (uri == null) {
             showMessage("Choose a local file", "Pick an Android document before uploading.")
             return
         }
-        val remoteTarget = uploadTargetPath() ?: return
+        val remoteTarget = uploadTargetPath(profile) ?: return
         confirmUploadTarget(remoteTarget, selectedUploadDisplayName) {
             runTransfer(
                 title = "Uploading",
@@ -423,15 +463,15 @@ class MainActivity : Activity() {
     }
 
     private fun deleteRemoteFile() {
-        val profile = readProfile() ?: return
-        val remotePath = requiredRemoteFilePath() ?: return
+        val profile = activeTransferProfile() ?: return
+        val remotePath = requiredRemoteFilePath(profile) ?: return
         confirmDestructiveRemoteAction(
             title = "Delete remote file?",
-            message = "This permanently removes $remotePath from the active server. This action cannot be undone by Ghost FTP Android.",
+            message = "This permanently removes $remotePath from the active server.",
             confirmLabel = "Delete"
         ) {
             runTransfer(
-                title = "Deleting remote file",
+                title = "Deleting",
                 detail = "Removing $remotePath from the active server.",
                 refreshAfter = true
             ) {
@@ -441,16 +481,15 @@ class MainActivity : Activity() {
     }
 
     private fun createRemoteFolder() {
-        val profile = readProfile() ?: return
+        val profile = activeTransferProfile() ?: return
         val folderName = mkdirNameInput.text.toString().trim()
         if (folderName.isBlank()) {
             showMessage("Folder name is required", "Enter a folder name or absolute remote folder path.")
             return
         }
-        val remoteTarget = if (folderName.startsWith('/')) folderName else joinRemotePath(profile.remotePath, folderName)
-        if (!validateRemoteTarget(remoteTarget)) return
+        val remoteTarget = normalizeRemoteInput(folderName, profile.remotePath) ?: return
         runTransfer(
-            title = "Creating remote folder",
+            title = "Creating folder",
             detail = "Creating $remoteTarget on the active server.",
             refreshAfter = true
         ) {
@@ -467,100 +506,84 @@ class MainActivity : Activity() {
             .onFailure { showMessage("File picker unavailable", it.message ?: "Android could not open a document picker.") }
     }
 
-    private fun runTransfer(
-        title: String,
-        detail: String,
-        refreshAfter: Boolean = false,
-        action: () -> TransferResult
-    ) {
+    private fun runTransfer(title: String, detail: String, refreshAfter: Boolean = false, action: () -> TransferResult) {
         setBusy(true)
         statusTitle.text = title
         statusDetail.text = detail
-        transferStateText.text = "In progress: $detail"
-        appendQueue(title, detail)
+        transferStateText.text = detail
+        appendActivity(title, detail)
         thread(name = "ghostftp-android-transfer") {
             val result = runCatching { action() }
             runOnUiThread {
                 setBusy(false)
                 result.fold(
-                    onSuccess = {
-                        showTransferResult(it)
-                        if (refreshAfter) {
-                            appendQueue("Refreshing remote workspace", "Reloading current remote folder after ${it.title.lowercase(Locale.ROOT)}.")
-                            refreshActive()
-                        }
-                    },
+                    onSuccess = { showTransferResult(it, refreshAfter) },
                     onFailure = { showTransferFailure(it) }
                 )
             }
         }
     }
 
-    private fun showTransferResult(result: TransferResult) {
+    private fun showTransferResult(result: TransferResult, refreshAfter: Boolean) {
         lastCompletedTransferPath = result.remotePath
         statusTitle.text = result.title
         statusDetail.text = result.detail
-        transferStateText.text = "${result.title}: ${result.remotePath}"
-        appendQueue(result.title, result.detail)
+        transferStateText.text = result.detail
+        appendActivity(result.title, result.detail)
+        if (refreshAfter) refreshActive()
     }
 
     private fun showTransferFailure(error: Throwable) {
         val detail = error.message ?: "The transfer action did not complete."
         statusTitle.text = "Transfer failed"
         statusDetail.text = detail
-        transferStateText.text = "Transfer failed: $detail"
-        appendQueue("Transfer failed", detail)
+        transferStateText.text = detail
+        appendActivity("Transfer failed", detail)
     }
 
-    private fun requiredRemoteFilePath(): String? {
+    private fun requiredRemoteFilePath(profile: ConnectionProfile): String? {
         val raw = transferRemotePathInput.text.toString().trim()
         if (raw.isBlank()) {
             showMessage("Remote file path is required", "Tap a remote file row or enter an absolute remote file path.")
             return null
         }
-        val remotePath = if (raw.startsWith('/')) raw else joinRemotePath(remotePathInput.text.toString(), raw)
-        return if (validateRemoteTarget(remotePath)) remotePath else null
+        return normalizeRemoteInput(raw, profile.remotePath)
     }
 
-    private fun uploadTargetPath(): String? {
+    private fun uploadTargetPath(profile: ConnectionProfile): String? {
         val targetName = uploadRemoteNameInput.text.toString().trim().ifBlank { selectedUploadDisplayName }
         if (targetName.isBlank()) {
             showMessage("Upload target is required", "Choose a local file and enter the target file name or path.")
             return null
         }
-        val remotePath = if (targetName.startsWith('/')) targetName else joinRemotePath(remotePathInput.text.toString(), targetName)
-        return if (validateRemoteTarget(remotePath)) remotePath else null
+        return normalizeRemoteInput(targetName, profile.remotePath)
     }
 
-    private fun validateRemoteTarget(remotePath: String): Boolean {
-        val parts = remotePath.split('/').filter { it.isNotBlank() }
-        if (parts.any { it == "." || it == ".." }) {
-            showMessage("Unsafe remote path", "Remote paths cannot contain . or .. segments.")
-            return false
+    private fun normalizeRemoteInput(raw: String, directory: String): String? {
+        val resolved = if (raw.startsWith('/')) raw else joinRemotePath(directory, raw)
+        val blocked = resolved.split('/').filter { it.isNotBlank() }.any { it == "." || it == ".." }
+        if (blocked) {
+            showMessage("Unsupported remote path", "Use a direct remote path without dot path segments.")
+            return null
         }
-        return true
+        return resolved
     }
 
     private fun confirmUploadTarget(remoteTarget: String, localName: String, onConfirm: () -> Unit) {
         AlertDialog.Builder(this)
             .setTitle("Upload to remote path?")
-            .setMessage("Upload $localName to $remoteTarget. If a file with that name already exists, the server may replace it.")
-            .setPositiveButton("Upload") { _, _ -> onConfirm() }
+            .setMessage("Upload $localName to $remoteTarget on the active server.")
             .setNegativeButton("Cancel", null)
+            .setPositiveButton("Upload") { _, _ -> onConfirm() }
             .show()
     }
 
-    private fun confirmDestructiveRemoteAction(
-        title: String,
-        message: String,
-        confirmLabel: String,
-        onConfirm: () -> Unit
-    ) {
+    private fun confirmDestructiveRemoteAction(title: String, message: String, confirmLabel: String, onConfirm: () -> Unit) {
         AlertDialog.Builder(this)
             .setTitle(title)
             .setMessage(message)
-            .setPositiveButton(confirmLabel) { _, _ -> onConfirm() }
             .setNegativeButton("Cancel", null)
+            .setPositiveButton(confirmLabel) { _, _ -> onConfirm() }
             .show()
     }
 
@@ -574,16 +597,16 @@ class MainActivity : Activity() {
             item.isFile -> setOnClickListener {
                 transferRemotePathInput.setText(target)
                 transferStateText.text = "Selected remote file: $target"
-                appendQueue("Selected remote file", target)
+                appendActivity("Selected", target)
             }
         }
     }
 
-    private fun appendQueue(title: String, detail: String) {
-        while (queueRows.childCount >= MAX_QUEUE_ROWS) {
-            queueRows.removeViewAt(0)
+    private fun appendActivity(title: String, detail: String) {
+        activityRows.addView(row(title, detail), 0)
+        while (activityRows.childCount > MAX_ACTIVITY_ROWS) {
+            activityRows.removeViewAt(activityRows.childCount - 1)
         }
-        queueRows.addView(row(title, detail))
     }
 
     private fun downloadTarget(remotePath: String): File {
@@ -626,14 +649,14 @@ class MainActivity : Activity() {
 
     private fun panel(strong: Boolean = false): LinearLayout = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(16), dp(16), dp(16), dp(16))
-        background = rounded(if (strong) Brand.panelStrong else Brand.panel, dp(20), Brand.border)
+        setPadding(dp(14), dp(14), dp(14), dp(14))
+        background = rounded(if (strong) Brand.panelStrong else Brand.panel, dp(18), Brand.border)
     }
 
     private fun row(title: String, detail: String): View = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(12), dp(10), dp(12), dp(10))
-        background = rounded(Brand.row, dp(14), Brand.border)
+        background = rounded(Brand.row, dp(14), Brand.borderSubtle)
         addView(TextView(this@MainActivity).apply {
             text = title
             setTextColor(Brand.text)
@@ -644,6 +667,7 @@ class MainActivity : Activity() {
             text = detail
             setTextColor(Brand.textSoft)
             textSize = 13f
+            setLineSpacing(0f, 1.12f)
         })
         val params = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -693,6 +717,26 @@ class MainActivity : Activity() {
         setPadding(0, dp(10), 0, dp(4))
     }
 
+    private fun badge(value: String): TextView = TextView(this).apply {
+        text = value
+        setTextColor(Brand.text)
+        textSize = 12f
+        typeface = Typeface.DEFAULT_BOLD
+        gravity = Gravity.CENTER
+        setPadding(dp(10), dp(5), dp(10), dp(5))
+        background = rounded(Brand.badge, dp(999), Brand.border)
+    }
+
+    private fun workspaceChip(value: String): TextView = TextView(this).apply {
+        text = value
+        setTextColor(Brand.background)
+        textSize = 13f
+        typeface = Typeface.DEFAULT_BOLD
+        gravity = Gravity.CENTER
+        setPadding(dp(12), dp(6), dp(12), dp(6))
+        background = rounded(Brand.accent, dp(999), Brand.accent)
+    }
+
     private fun primaryButton(value: String, onClick: () -> Unit): Button = Button(this).apply {
         text = value
         setTextColor(Brand.background)
@@ -707,6 +751,15 @@ class MainActivity : Activity() {
         setTextColor(Brand.text)
         textSize = 14f
         background = rounded(Brand.input, dp(14), Brand.border)
+        setOnClickListener { onClick() }
+    }
+
+    private fun toolbarButton(value: String, destructive: Boolean = false, onClick: () -> Unit): Button = Button(this).apply {
+        text = value
+        setTextColor(if (destructive) Brand.danger else Brand.text)
+        textSize = 12f
+        typeface = Typeface.DEFAULT_BOLD
+        background = rounded(if (destructive) Brand.dangerSurface else Brand.input, dp(14), if (destructive) Brand.danger else Brand.border)
         setOnClickListener { onClick() }
     }
 
@@ -731,27 +784,65 @@ class MainActivity : Activity() {
 
     private fun buttonParams(weight: Float): LinearLayout.LayoutParams = LinearLayout.LayoutParams(
         0,
-        dp(48),
+        dp(46),
         weight
     )
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
     private object Brand {
-        val background: Int = Color.rgb(8, 11, 20)
-        val panel: Int = Color.rgb(16, 24, 42)
-        val panelStrong: Int = Color.rgb(22, 35, 59)
-        val row: Int = Color.rgb(13, 20, 35)
-        val input: Int = Color.rgb(9, 15, 28)
-        val border: Int = Color.rgb(42, 58, 88)
-        val accent: Int = Color.rgb(105, 230, 255)
-        val text: Int = Color.rgb(244, 248, 255)
-        val textSoft: Int = Color.rgb(199, 212, 230)
-        val muted: Int = Color.rgb(159, 178, 200)
+        val background: Int = Color.rgb(13, 17, 23)
+        val panel: Int = Color.rgb(22, 27, 34)
+        val panelStrong: Int = Color.rgb(28, 33, 40)
+        val row: Int = Color.rgb(22, 27, 34)
+        val input: Int = Color.rgb(13, 17, 23)
+        val badge: Int = Color.rgb(33, 38, 45)
+        val border: Int = Color.rgb(48, 54, 61)
+        val borderSubtle: Int = Color.rgb(33, 38, 45)
+        val accent: Int = Color.rgb(47, 129, 247)
+        val danger: Int = Color.rgb(248, 81, 73)
+        val dangerSurface: Int = Color.rgb(48, 27, 32)
+        val text: Int = Color.rgb(230, 237, 243)
+        val textSoft: Int = Color.rgb(190, 202, 214)
+        val muted: Int = Color.rgb(139, 148, 158)
     }
 
     private companion object {
         const val PICK_UPLOAD_REQUEST = 22091
-        const val MAX_QUEUE_ROWS = 8
+        const val MAX_ACTIVITY_ROWS = 8
+    }
+}
+
+private class GhostMarkView(context: Context) : View(context) {
+    private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val eyePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(10, 43, 81) }
+    private val bodyPath = Path()
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val w = width.toFloat()
+        val h = height.toFloat()
+        bodyPaint.shader = LinearGradient(
+            0f,
+            0f,
+            w,
+            h,
+            intArrayOf(Color.rgb(244, 253, 255), Color.rgb(190, 235, 255), Color.rgb(66, 174, 255)),
+            floatArrayOf(0f, 0.45f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        bodyPath.reset()
+        bodyPath.moveTo(w * 0.16f, h * 0.80f)
+        bodyPath.cubicTo(w * 0.25f, h * 0.76f, w * 0.30f, h * 0.66f, w * 0.31f, h * 0.54f)
+        bodyPath.cubicTo(w * 0.34f, h * 0.25f, w * 0.44f, h * 0.13f, w * 0.50f, h * 0.13f)
+        bodyPath.cubicTo(w * 0.64f, h * 0.13f, w * 0.71f, h * 0.32f, w * 0.73f, h * 0.54f)
+        bodyPath.cubicTo(w * 0.74f, h * 0.66f, w * 0.80f, h * 0.76f, w * 0.84f, h * 0.80f)
+        bodyPath.cubicTo(w * 0.77f, h * 0.89f, w * 0.66f, h * 0.88f, w * 0.61f, h * 0.77f)
+        bodyPath.cubicTo(w * 0.57f, h * 0.88f, w * 0.43f, h * 0.88f, w * 0.39f, h * 0.77f)
+        bodyPath.cubicTo(w * 0.34f, h * 0.88f, w * 0.22f, h * 0.89f, w * 0.16f, h * 0.80f)
+        bodyPath.close()
+        canvas.drawPath(bodyPath, bodyPaint)
+        canvas.drawOval(RectF(w * 0.39f, h * 0.42f, w * 0.47f, h * 0.56f), eyePaint)
+        canvas.drawOval(RectF(w * 0.57f, h * 0.42f, w * 0.65f, h * 0.56f), eyePaint)
     }
 }
