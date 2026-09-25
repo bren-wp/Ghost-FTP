@@ -76,6 +76,7 @@ class MainActivity : Activity() {
         activityClosing = true
         selectedUploadUri = null
         activeProfile = null
+        if (::passwordInput.isInitialized) passwordInput.text.clear()
         super.onDestroy()
     }
 
@@ -213,7 +214,10 @@ class MainActivity : Activity() {
         addView(formLabel("Username"))
         addView(usernameInput)
 
-        passwordInput = input("Password", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        passwordInput = input("Password", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD).apply {
+            // Never let Activity view-state persistence retain a session password.
+            isSaveEnabled = false
+        }
         addView(formLabel("Password"))
         addView(passwordInput)
 
@@ -482,6 +486,10 @@ class MainActivity : Activity() {
     private fun deleteRemoteFile() {
         val profile = activeTransferProfile() ?: return
         val remotePath = requiredRemoteFilePath(profile) ?: return
+        if (remotePath.split('/').filter { it.isNotBlank() }.isEmpty()) {
+            showMessage("Unsafe delete blocked", "Ghost FTP will not delete the remote root path.")
+            return
+        }
         confirmDestructiveRemoteAction(
             title = "Delete remote file?",
             message = "This permanently removes $remotePath from the active server.",
