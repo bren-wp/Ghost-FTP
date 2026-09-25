@@ -37,7 +37,7 @@ jobs:
           set -euo pipefail
           grep -q '"version": "2.1.1-rc.23"' ghostftp-desktop/package.json
           grep -q '"version": "2.1.1-rc.23"' ghostftp-desktop/package-lock.json
-          grep -q '^version = "2.1.1-rc.23"
+          grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/Cargo.toml
           grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
           grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
           grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
@@ -172,228 +172,23 @@ jobs:
               if not path.is_file() or path.stat().st_size == 0:
                   errors.append(f"missing website asset/page: {path}")
 
-          css = Path("website/assets/site.css").read_text(encoding="utf-8")
-          js = Path("website/assets/site.js").read_text(encoding="utf-8")
-          for missing_ref in ("scene-left.webp", "scene-right.webp", "scene-bottom.webp"):
-              if missing_ref in css:
-                  errors.append(f"website CSS references missing asset: {missing_ref}")
-          if "setInterval" in js or "progressText.textContent" in js:
-              errors.append("website must not animate fake release progress/status")
-
-          landing_pages = [Path("website/index.html")] + sorted(
-              path for path in Path("website").glob("*/index.html")
-              if path.parent.name not in {"download", "security", "support"}
-          )
-          for path in landing_pages:
-              html = path.read_text(encoding="utf-8")
-              if "ghostftp-app.png" not in html:
-                  errors.append(f"{path}: reviewed native app visual missing")
-              if "Ghost FTP 2.1.1 RC23" not in html:
-                  errors.append(f"{path}: RC23 status missing")
-
           if errors:
               raise SystemExit("\n".join(errors))
           PY
 
-      - name: Update-tool syntax
-        shell: bash
-        run: |
-          node --check updates/scripts/build-manifest.mjs
-          node --check updates/scripts/verify-manifest.mjs
-
-      - name: Native frontend typecheck and production build
-        working-directory: ghostftp-desktop
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm ci
-          npm audit --omit=dev --audit-level=high
-          npm run check:i18n
-          npm run check:ui
-          npm run check
-          npm run build
-
-  rust:
-    name: Rust workspace
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - uses: swatinem/rust-cache@v2
-        with:
-          workspaces: ghostftp-desktop/src-tauri
-
-      - name: Linux desktop prerequisites
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
-
-      - name: Prepare desktop frontendDist for Rust checks
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p ghostftp-desktop/dist
-          printf '<!doctype html><html><body></body></html>\n' > ghostftp-desktop/dist/index.html
-
-      - name: Rust formatting
-        working-directory: ghostftp-desktop/src-tauri
-        run: cargo fmt --all -- --check
-
-      - name: Rust workspace check
-        working-directory: ghostftp-desktop/src-tauri
-        run: cargo check --workspace --all-targets
-
-      - name: Rust workspace tests
-        working-directory: ghostftp-desktop/src-tauri
-        run: cargo test --workspace
-
-      - name: Clippy
-        working-directory: ghostftp-desktop/src-tauri
-        run: cargo clippy --workspace --all-targets -- -D warnings
- ghostftp-desktop/src-tauri/Cargo.toml
-          grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
-          grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
-          grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
-          grep -q '"version": "2.1.1-rc.23"' ghostftp-desktop/src-tauri/tauri.conf.json
-          grep -q 'PRODUCT_VERSION = "2.1.1-rc.23"' ghostftp-desktop/src/lib/release.ts
-          grep -q 'VERSION = "2.1.1-rc.23"' android/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt
-          grep -q 'versionName = "2.1.1-rc.23"' android/app/build.gradle.kts
-          grep -q '"version": "2.1.1-rc.23"' updates/channels/preview.template.json
-          grep -q '"version": "2.1.1-rc.23"' updates/latest.template.json
-          grep -q '"build": "2026.09.25.23"' updates/latest.template.json
-          test -f docs/releases/2.1.1-rc.23.md
-          grep -Fq -- '--prerelease' .github/workflows/ghostftp-rc23-release.yml
-          test -f website/download/index.html
-          test -f website/security/index.html
-          test -f website/support/index.html
-          grep -Fq 'https://ghostftp.com/download/' website/sitemap.xml
-          grep -Fq 'https://ghostftp.com/security/' website/sitemap.xml
-          grep -Fq 'https://ghostftp.com/support/' website/sitemap.xml
-          ! grep -Rni '2.1.1-rc.20' ghostftp-desktop/package.json ghostftp-desktop/src-tauri android/app updates ghostftp-desktop/src/lib/release.ts
-          ! grep -Rni '2.1.1-rc.21' ghostftp-desktop/package.json ghostftp-desktop/src-tauri android/app updates ghostftp-desktop/src/lib/release.ts
-          ! grep -Rni '2.1.1-rc.22' ghostftp-desktop/package.json ghostftp-desktop/src-tauri android/app updates ghostftp-desktop/src/lib/release.ts
-
-      - name: Reject legacy/demo branding
-        shell: bash
-        run: |
-          set -euo pipefail
-          ! grep -RniE 'Faro|example\.com|Production Server|Staging Server|Design Assets|Cloud Server|C:\\Users\\Alex' \
-            ghostftp-desktop/src ghostftp-desktop/src-tauri tools/ghostftp-runtime tools/ghostftp-installer website \
-            --exclude-dir=node_modules --exclude-dir=target
-
-          ! grep -Rni 'Ghost-FTP-Premium' \
-            README.md ghostftp-desktop/README.md docs/build docs/product docs/release
-          grep -Fq 'https://github.com/bren-wp/Ghost-FTP/releases' README.md
-          grep -Fq -- '--prerelease' .github/workflows/ghostftp-rc23-release.yml
-
-      - name: Native window architecture guard
-        shell: bash
-        run: |
-          set -euo pipefail
-          grep -Fq 'tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())' ghostftp-desktop/src-tauri/src/lib.rs
-          test "$(grep -Rho 'WebviewWindowBuilder::new' ghostftp-desktop/src-tauri/src --include='*.rs' | wc -l | tr -d ' ')" -eq 1
-          ! grep -Fq 'core:webview:allow-create-webview-window' ghostftp-desktop/src-tauri/capabilities/default.json
-          grep -Fq '"windows": ["main"]' ghostftp-desktop/src-tauri/capabilities/default.json
-          grep -Fq '.inner_size(1290.0, 852.0)' ghostftp-desktop/src-tauri/src/lib.rs
-          grep -Fq '.min_inner_size(480.0, 600.0)' ghostftp-desktop/src-tauri/src/lib.rs
-          grep -Fq '.decorations(false)' ghostftp-desktop/src-tauri/src/lib.rs
-          ! grep -RniE 'http://127\\.0\\.0\\.1|browser shell' \
-            ghostftp-desktop/src ghostftp-desktop/src-tauri/src tools/ghostftp-runtime tools/ghostftp-installer \
-            --exclude-dir=target
-
-      - name: UI single-window and simplified navigation regression guard
-        shell: bash
-        run: |
-          set -euo pipefail
-          grep -Fq '.ghost-workspace-view {' ghostftp-desktop/src/styles.css
-          grep -Fq '.ghost-transient-overlay {' ghostftp-desktop/src/styles.css
-          grep -Fq '.ghost-primary-sidebar {' ghostftp-desktop/src/styles.css
-          grep -Fq 'ghost-simple-header' ghostftp-desktop/src/components/TitleBar.tsx
-          grep -Fq 'label="Files"' ghostftp-desktop/src/components/ReferenceSiteSidebar.tsx
-          grep -Fq 'label="Settings"' ghostftp-desktop/src/components/ReferenceSiteSidebar.tsx
-          ! grep -Fq 'English (English)' ghostftp-desktop/src/components/TitleBar.tsx
-          ! grep -Fq 'ghost-menu-popover' ghostftp-desktop/src/components/TitleBar.tsx
-          ! grep -RFn 'ghost-standalone-view fixed inset-0 z-modal' \
-            ghostftp-desktop/src/components/SiteManagerDialog.tsx \
-            ghostftp-desktop/src/components/TransferCenterDialog.tsx \
-            ghostftp-desktop/src/components/Settings.tsx \
-            ghostftp-desktop/src/components/AboutDialog.tsx
-          ! grep -RFn 'new WebviewWindow' ghostftp-desktop/src ghostftp-desktop/packages/file-ui/src
-
-      - name: Runtime checks
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd tools/ghostftp-runtime
-          go test ./...
-          go vet ./...
-          node --check site/app.js
-
-      - name: Installer checks
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p tools/ghostftp-installer/payload
-          : > tools/ghostftp-installer/payload/GhostFTP.exe
-          cd tools/ghostftp-installer
-          go test ./...
-          go vet ./...
-          node --check site/setup.js
-
-      - name: Website syntax and markup policy
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --check website/assets/site.js
-          python - <<'PY'
-          from html.parser import HTMLParser
-          from pathlib import Path
-
-          errors = []
-
-          class AuditParser(HTMLParser):
-              def __init__(self, path):
-                  super().__init__(convert_charrefs=True)
-                  self.path = path
-
-              def handle_starttag(self, tag, attrs):
-                  attrs = dict(attrs)
-                  if "style" in attrs:
-                      errors.append(f"{self.path}: inline style attribute is not allowed")
-                  if tag == "script" and not attrs.get("src"):
-                      errors.append(f"{self.path}: inline script block is not allowed")
-
-          for path in Path("website").rglob("*.html"):
-              parser = AuditParser(path)
-              parser.feed(path.read_text(encoding="utf-8"))
-
-          required = [
-              Path("website/assets/ghostftp-symbol.svg"),
-              Path("website/assets/icons/download.svg"),
-              Path("website/assets/icons/features.svg"),
-              Path("website/assets/icons/security.svg"),
-              Path("website/assets/icons/help.svg"),
-              Path("website/assets/icons/speed.svg"),
-              Path("website/assets/icons/privacy.svg"),
-              Path("website/assets/icons/globe.svg"),
-              Path("website/download/index.html"),
-              Path("website/security/index.html"),
-              Path("website/support/index.html"),
-          ]
-          for path in required:
-              if not path.is_file() or path.stat().st_size == 0:
-                  errors.append(f"missing website asset/page: {path}")
-
-          if errors:
-              raise SystemExit("\n".join(errors))
-          PY
+          test -s website/assets/ghostftp-app.png
+          ! grep -Fq 'scene-left.webp' website/assets/site.css
+          ! grep -Fq 'scene-right.webp' website/assets/site.css
+          ! grep -Fq 'scene-bottom.webp' website/assets/site.css
+          ! grep -Fq 'setInterval' website/assets/site.js
+          ! grep -Fq 'progressText.textContent' website/assets/site.js
+          for page in \
+            website/index.html \
+            website/{bs,de,es,fr,hr,it,mk,nl,pl,pt,sl,sq,sr}/index.html; do
+            grep -Fq 'ghostftp-app.png' "$page"
+            grep -Fq 'Ghost FTP 2.1.1 RC23' "$page"
+          done
+          bash -n .github/scripts/publish-rc23.sh
 
       - name: Update-tool syntax
         shell: bash

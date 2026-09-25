@@ -37,7 +37,7 @@ jobs:
           set -euo pipefail
           grep -q '"version": "2.1.1-rc.23"' ghostftp-desktop/package.json
           grep -q '"version": "2.1.1-rc.23"' ghostftp-desktop/package-lock.json
-          grep -q '^version = "2.1.1-rc.23"
+          grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/Cargo.toml
           grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
           grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
           grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
