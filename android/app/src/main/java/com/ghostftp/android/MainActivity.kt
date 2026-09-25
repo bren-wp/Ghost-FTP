@@ -60,17 +60,28 @@ class MainActivity : Activity() {
     private var selectedUploadDisplayName: String = ""
     private var lastCompletedTransferPath: String = ""
 
+    @Volatile
+    private var activityClosing = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        activityClosing = false
         window.statusBarColor = Brand.background
         window.navigationBarColor = Brand.background
         setContentView(buildContent())
         showIdleState()
     }
 
+    override fun onDestroy() {
+        activityClosing = true
+        selectedUploadUri = null
+        activeProfile = null
+        super.onDestroy()
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != PICK_UPLOAD_REQUEST || resultCode != RESULT_OK) return
+        if (requestCode != PICK_UPLOAD_REQUEST || resultCode != RESULT_OK || !uiReady()) return
         val uri = data?.data ?: return
         selectedUploadUri = uri
         selectedUploadDisplayName = displayNameFor(uri)
@@ -306,7 +317,7 @@ class MainActivity : Activity() {
 
         thread(name = "ghostftp-android-connect") {
             val result = runCatching { controller.listRemote(profile) }
-            runOnUiThread {
+            safeUi {
                 setBusy(false)
                 result.fold(
                     onSuccess = {
@@ -338,9 +349,9 @@ class MainActivity : Activity() {
         selectedUploadUri = null
         selectedUploadDisplayName = ""
         lastCompletedTransferPath = ""
-        passwordInput.text.clear()
-        uploadSelectionText.text = "No local upload file selected."
-        transferStateText.text = "No transfer started."
+        if (::passwordInput.isInitialized) passwordInput.text.clear()
+        if (::uploadSelectionText.isInitialized) uploadSelectionText.text = "No local upload file selected."
+        if (::transferStateText.isInitialized) transferStateText.text = "No transfer started."
         showIdleState()
     }
 
@@ -377,6 +388,7 @@ class MainActivity : Activity() {
     }
 
     private fun showReachable(profile: ConnectionProfile, result: ConnectionProbeResult) {
+        if (!uiReady()) return
         statusTitle.text = result.title
         statusDetail.text = result.detail
         remoteRows.removeAllViews()
@@ -392,6 +404,7 @@ class MainActivity : Activity() {
     }
 
     private fun showConnectionError(error: Throwable) {
+        if (!uiReady()) return
         statusTitle.text = "Connection unavailable"
         statusDetail.text = error.message ?: "The selected endpoint did not open a session."
         remoteRows.removeAllViews()
@@ -402,23 +415,26 @@ class MainActivity : Activity() {
     }
 
     private fun showMessage(title: String, detail: String) {
+        if (!::statusTitle.isInitialized || !::statusDetail.isInitialized) return
         statusTitle.text = title
         statusDetail.text = detail
         if (::transferStateText.isInitialized) transferStateText.text = detail
     }
 
     private fun showIdleState() {
+        if (!uiReady()) return
         statusTitle.text = "Ready"
         statusDetail.text = "No active server session."
         remoteRows.removeAllViews()
         remoteRows.addView(row("Files", "Connect to a server to load remote files."))
         activityRows.removeAllViews()
         activityRows.addView(row("Transfers", "Connect first, then choose a file action."))
-        if (::transferStateText.isInitialized) transferStateText.text = "No transfer started."
+        transferStateText.text = "No transfer started."
         setBusy(false)
     }
 
     private fun setBusy(busy: Boolean) {
+        if (!::connectButton.isInitialized) return
         connectButton.isEnabled = !busy
         refreshButton.isEnabled = !busy
         disconnectButton.isEnabled = !busy
@@ -449,10 +465,11 @@ class MainActivity : Activity() {
             return
         }
         val remoteTarget = uploadTargetPath(profile) ?: return
-        confirmUploadTarget(remoteTarget, selectedUploadDisplayName) {
+        val uploadName = selectedUploadDisplayName.ifBlank { "selected file" }
+        confirmUploadTarget(remoteTarget, uploadName) {
             runTransfer(
                 title = "Uploading",
-                detail = "Sending $selectedUploadDisplayName to $remoteTarget.",
+                detail = "Sending $uploadName to $remoteTarget.",
                 refreshAfter = true
             ) {
                 val input = contentResolver.openInputStream(uri)
@@ -498,6 +515,7 @@ class MainActivity : Activity() {
     }
 
     private fun selectUploadFile() {
+        if (closingOrDestroyed()) return
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "*/*"
@@ -514,7 +532,7 @@ class MainActivity : Activity() {
         appendActivity(title, detail)
         thread(name = "ghostftp-android-transfer") {
             val result = runCatching { action() }
-            runOnUiThread {
+            safeUi {
                 setBusy(false)
                 result.fold(
                     onSuccess = { showTransferResult(it, refreshAfter) },
@@ -525,15 +543,17 @@ class MainActivity : Activity() {
     }
 
     private fun showTransferResult(result: TransferResult, refreshAfter: Boolean) {
+        if (!uiReady()) return
         lastCompletedTransferPath = result.remotePath
         statusTitle.text = result.title
         statusDetail.text = result.detail
         transferStateText.text = result.detail
         appendActivity(result.title, result.detail)
-        if (refreshAfter) refreshActive()
+        if (refreshAfter && activeProfile != null) refreshActive()
     }
 
     private fun showTransferFailure(error: Throwable) {
+        if (!uiReady()) return
         val detail = error.message ?: "The transfer action did not complete."
         statusTitle.text = "Transfer failed"
         statusDetail.text = detail
@@ -570,20 +590,22 @@ class MainActivity : Activity() {
     }
 
     private fun confirmUploadTarget(remoteTarget: String, localName: String, onConfirm: () -> Unit) {
+        if (closingOrDestroyed()) return
         AlertDialog.Builder(this)
             .setTitle("Upload to remote path?")
             .setMessage("Upload $localName to $remoteTarget on the active server.")
             .setNegativeButton("Cancel", null)
-            .setPositiveButton("Upload") { _, _ -> onConfirm() }
+            .setPositiveButton("Upload") { _, _ -> if (!closingOrDestroyed()) onConfirm() }
             .show()
     }
 
     private fun confirmDestructiveRemoteAction(title: String, message: String, confirmLabel: String, onConfirm: () -> Unit) {
+        if (closingOrDestroyed()) return
         AlertDialog.Builder(this)
             .setTitle(title)
             .setMessage(message)
             .setNegativeButton("Cancel", null)
-            .setPositiveButton(confirmLabel) { _, _ -> onConfirm() }
+            .setPositiveButton(confirmLabel) { _, _ -> if (!closingOrDestroyed()) onConfirm() }
             .show()
     }
 
@@ -603,6 +625,7 @@ class MainActivity : Activity() {
     }
 
     private fun appendActivity(title: String, detail: String) {
+        if (!::activityRows.isInitialized || closingOrDestroyed()) return
         activityRows.addView(row(title, detail), 0)
         while (activityRows.childCount > MAX_ACTIVITY_ROWS) {
             activityRows.removeViewAt(activityRows.childCount - 1)
@@ -610,9 +633,11 @@ class MainActivity : Activity() {
     }
 
     private fun downloadTarget(remotePath: String): File {
-        val dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            ?: File(filesDir, "downloads")
-        dir.mkdirs()
+        val primaryDir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        val dir = when {
+            primaryDir != null && (primaryDir.exists() || primaryDir.mkdirs()) -> primaryDir
+            else -> File(filesDir, "downloads").apply { mkdirs() }
+        }
         val baseName = safeFileName(remotePath.substringAfterLast('/').ifBlank { "ghostftp-download.bin" })
         var candidate = File(dir, baseName)
         var index = 1
@@ -627,14 +652,16 @@ class MainActivity : Activity() {
     }
 
     private fun displayNameFor(uri: Uri): String {
-        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (index >= 0 && cursor.moveToFirst()) {
-                val value = cursor.getString(index)
-                if (!value.isNullOrBlank()) return safeFileName(value)
+        return runCatching {
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index >= 0 && cursor.moveToFirst()) {
+                    val value = cursor.getString(index)
+                    if (!value.isNullOrBlank()) return@runCatching safeFileName(value)
+                }
             }
-        }
-        return safeFileName(uri.lastPathSegment?.substringAfterLast('/') ?: "ghostftp-upload.bin")
+            safeFileName(uri.lastPathSegment?.substringAfterLast('/') ?: "ghostftp-upload.bin")
+        }.getOrElse { "ghostftp-upload.bin" }
     }
 
     private fun safeFileName(value: String): String {
@@ -645,6 +672,26 @@ class MainActivity : Activity() {
         val safeChild = child.trim().trimStart('/')
         val base = directory.trim().ifBlank { "/" }.trimEnd('/')
         return if (base.isBlank()) "/$safeChild" else "$base/$safeChild"
+    }
+
+    private fun safeUi(block: () -> Unit) {
+        if (closingOrDestroyed()) return
+        runOnUiThread {
+            if (!closingOrDestroyed() && uiReady()) block()
+        }
+    }
+
+    private fun closingOrDestroyed(): Boolean {
+        return activityClosing || isFinishing || isDestroyed
+    }
+
+    private fun uiReady(): Boolean {
+        return !closingOrDestroyed() &&
+            ::statusTitle.isInitialized &&
+            ::statusDetail.isInitialized &&
+            ::remoteRows.isInitialized &&
+            ::activityRows.isInitialized &&
+            ::transferStateText.isInitialized
     }
 
     private fun panel(strong: Boolean = false): LinearLayout = LinearLayout(this).apply {
@@ -810,6 +857,7 @@ class MainActivity : Activity() {
     private companion object {
         const val PICK_UPLOAD_REQUEST = 22091
         const val MAX_ACTIVITY_ROWS = 8
+        const val MAX_QUEUE_ROWS = MAX_ACTIVITY_ROWS
     }
 }
 
