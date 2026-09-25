@@ -4,6 +4,10 @@ on:
   workflow_run:
     workflows: ["Ghost FTP native build RC23"]
     types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ghostftp-rc23-release.yml'
 
 permissions:
   contents: write
@@ -15,7 +19,7 @@ concurrency:
 
 jobs:
   publish:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -170,3 +174,28 @@ jobs:
             gh release create "$TAG" --target "$SOURCE_SHA" --title "Ghost FTP 2.1.1 RC23" --notes-file docs/releases/2.1.1-rc.23.md --prerelease
           fi
           gh release upload "$TAG" dist/* --clobber
+
+          RELEASE_ID="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.id')"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID" -F prerelease=true >/dev/null
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID" --jq '.prerelease')" = "true"
+          test "$(git rev-list -n1 "$TAG")" = "$SOURCE_SHA"
+
+  repair-metadata:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Repair and verify RC23 prerelease metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v2.1.1-rc.23"
+          RELEASE_ID="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.id')"
+          TAG_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/$TAG" --jq '.object.sha')"
+
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID"             -F prerelease=true             -f target_commitish="$TAG_SHA"             -f name="Ghost FTP 2.1.1 RC23" >/dev/null
+
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID" --jq '.prerelease')" = "true"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID" --jq '.tag_name')" = "$TAG"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID" --jq '.target_commitish')" = "$TAG_SHA"
