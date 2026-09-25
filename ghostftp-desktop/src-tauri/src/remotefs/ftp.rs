@@ -124,6 +124,7 @@ impl RemoteFs for FtpFs {
     }
 
     async fn delete(&self, path: &str, recursive: bool) -> Result<()> {
+        super::validate_remote_delete_path(path)?;
         // The FTP protocol distinguishes file deletion (DELE) from directory
         // deletion (RMD), and has no native recursive variant. We probe the
         // type via a CWD trick: if we can change into it, it's a directory.
