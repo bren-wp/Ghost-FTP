@@ -23,6 +23,8 @@ The Android surface is a native Kotlin single-activity app with a mobile layout 
 - Transfer actions for download, upload, remote file delete and remote folder creation.
 - Android document picker upload flow.
 - App-private Android download storage for received files.
+- Transfer-state text for the last selected, running or completed operation.
+- Bounded transfer event log so the mobile surface remains stable during long sessions.
 - Brendigo footer.
 - Passwords kept in memory only for the current action and cleared on disconnect.
 - No analytics, no telemetry and no required account sign-in.
@@ -36,6 +38,17 @@ The Android app uses native protocol clients:
 - SFTP remote login, folder listing, download, upload, file delete and folder creation with SHA-256 host key fingerprint verification.
 
 Credentials are passed only into the active connection or transfer action. The app does not add telemetry, accounts or ordinary password persistence.
+
+## Safety UX
+
+The Android transfer surface now includes guarded actions for higher-risk operations:
+
+- Remote delete requires an explicit confirmation dialog before the server action runs.
+- Upload shows the selected local file and asks for confirmation before writing to the remote target.
+- Upload, delete and folder creation refresh the current remote workspace after success.
+- Relative remote targets are resolved from the current remote folder.
+- Remote targets containing `.` or `..` path segments are rejected before a transfer action starts.
+- The transfer queue is capped by `MAX_QUEUE_ROWS` so repeated actions do not make the one-screen mobile UI grow without limit.
 
 ## Build
 
@@ -65,8 +78,9 @@ Before treating the Android app as complete for RC22 follow-up development, conf
 - Tapping a folder opens that remote path.
 - Tapping a file selects it for transfer actions.
 - Download saves into app-private Android downloads.
-- Upload uses the Android document picker and writes to the selected remote target.
-- Remote file delete returns a clear success or failure state.
-- Remote folder creation returns a clear success or failure state.
+- Upload uses the Android document picker and writes to the selected remote target after confirmation.
+- Remote file delete requires confirmation and returns a clear success or failure state.
+- Remote folder creation returns a clear success or failure state and refreshes the remote listing.
+- Unsafe remote target paths with `.` or `..` segments are rejected.
 - SFTP strict host-key checking remains active.
 - Password is cleared on disconnect.
