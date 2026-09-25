@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/ghostftp-rc23-release.yml'
+      - '.github/scripts/publish-rc23.sh'
 
 permissions:
   contents: write
@@ -157,227 +158,20 @@ jobs:
           set -euo pipefail
           (cd dist && find . -maxdepth 1 -type f ! -name 'GhostFTP-v2.1.1-RC23-SHA256SUMS.txt' -printf '%f\0' | sort -z | xargs -0 sha256sum) > dist/GhostFTP-v2.1.1-RC23-SHA256SUMS.txt
 
-      - name: Verify generated SHA-256 manifest
-        shell: bash
-        run: |
-          set -euo pipefail
-          (cd dist && sha256sum -c GhostFTP-v2.1.1-RC23-SHA256SUMS.txt)
-
       - name: Publish RC23 pre-release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: |
-          set -euo pipefail
-          TAG="v2.1.1-rc.23"
-          SOURCE_SHA="${SOURCE_SHA:-$(git rev-parse HEAD)}"
-          git fetch --tags --force
-
-          # RC23 is a pre-release train. Move its lightweight tag only after
-          # source, protocol, Android and native gates passed. A tag update
-          # failure aborts before release assets are touched.
-          if git show-ref --verify --quiet "refs/tags/$TAG"; then
-            CURRENT_TAG_SHA="$(git rev-list -n1 "$TAG")"
-            if [ "$CURRENT_TAG_SHA" != "$SOURCE_SHA" ]; then
-              git tag -f "$TAG" "$SOURCE_SHA"
-              git push origin "refs/tags/$TAG" --force
-            fi
-          else
-            git tag "$TAG" "$SOURCE_SHA"
-            git push origin "refs/tags/$TAG"
-          fi
-          git fetch --tags --force
-          test "$(git rev-list -n1 "$TAG")" = "$SOURCE_SHA"
-
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --target "$SOURCE_SHA" --title "Ghost FTP 2.1.1 RC23" --notes-file docs/releases/2.1.1-rc.23.md --prerelease
-          else
-            gh release create "$TAG" --target "$SOURCE_SHA" --title "Ghost FTP 2.1.1 RC23" --notes-file docs/releases/2.1.1-rc.23.md --prerelease
-          fi
-
-          # Replace same-name assets first. Do not empty the existing release
-          # before every new file has uploaded successfully.
-          gh release upload "$TAG" dist/* --clobber
-
-          RELEASE_ID="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.id')"
-          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID" -F prerelease=true >/dev/null
-
-          # GitHub exposes a SHA-256 digest for every uploaded release asset.
-          # Require it to match the local file generated from this source SHA.
-          for file in dist/*; do
-            NAME="$(basename "$file")"
-            LOCAL_SHA="$(sha256sum "$file" | awk '{print $1}')"
-            REMOTE_DIGEST="$(gh api "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID/assets" --paginate --jq ".[] | select(.name == \"$NAME\") | .digest" | tail -n1)"
-            test "$REMOTE_DIGEST" = "sha256:$LOCAL_SHA"
-          done
-
-          # Remove obsolete names only after every new RC23 asset is verified.
-          find dist -maxdepth 1 -type f -printf '%f\n' | sort > "$RUNNER_TEMP/expected-assets.txt"
-          for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
-            if ! grep -Fxq "$asset" "$RUNNER_TEMP/expected-assets.txt"; then
-              gh release delete-asset "$TAG" "$asset" -y
-            fi
-          done
- ghostftp-desktop/src-tauri/Cargo.toml
-          grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
-          grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
-          grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml
-          grep -q '"version": "2.1.1-rc.23"' ghostftp-desktop/src-tauri/tauri.conf.json
-          grep -q 'PRODUCT_VERSION = "2.1.1-rc.23"' ghostftp-desktop/src/lib/release.ts
-          grep -q 'VERSION = "2.1.1-rc.23"' android/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt
-          grep -q 'versionName = "2.1.1-rc.23"' android/app/build.gradle.kts
-          grep -q '"version": "2.1.1-rc.23"' updates/channels/preview.template.json
-          grep -q '"version": "2.1.1-rc.23"' updates/latest.template.json
-          grep -q '"build": "2026.09.25.23"' updates/latest.template.json
-          test -f docs/releases/2.1.1-rc.23.md
-          test -f website/download/index.html
-          test -f website/security/index.html
-          test -f website/support/index.html
-
-          wait_for_gate() {
-            local workflow="$1"
-            local label="$2"
-            for attempt in $(seq 1 60); do
-              state="$(gh run list --workflow "$workflow" --commit "$SOURCE_SHA" --limit 1 --json status,conclusion --jq '.[0] | ((.status // "") + ":" + (.conclusion // ""))' || true)"
-              echo "$label for $SOURCE_SHA: ${state:-not-found}"
-              if [ "$state" = "completed:success" ]; then
-                return 0
-              fi
-              if [[ "$state" == completed:* ]] && [ "$state" != "completed:success" ]; then
-                echo "$label did not pass."
-                return 1
-              fi
-              sleep 20
-            done
-            echo "Timed out waiting for $label."
-            return 1
-          }
-
-          wait_for_gate "Ghost FTP quality" "source audit"
-          wait_for_gate "Ghost FTP protocol E2E" "FTP/FTPS/SFTP E2E"
-          wait_for_gate "Ghost FTP Android" "Android APK build"
-          echo "SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
-
-      - name: Package source, website and documentation
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p dist/native
-          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC23-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-RC23-Desktop-Source.zip ghostftp-desktop
-          zip -qr dist/GhostFTP-v2.1.1-RC23-Android-Source.zip android
-          zip -qr dist/GhostFTP-v2.1.1-RC23-Website.zip website
-          zip -qr dist/GhostFTP-v2.1.1-RC23-Updates.zip updates
-          zip -qr dist/GhostFTP-v2.1.1-RC23-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
-
-      - name: Download native build artifacts
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh run download "${{ github.event.workflow_run.id }}" -D dist/native
-          find dist/native -type f -print
-
-      - name: Download Android APK artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SOURCE_SHA: ${{ env.SOURCE_SHA }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          ANDROID_RUN_ID="$(gh run list --workflow "Ghost FTP Android" --commit "$SOURCE_SHA" --limit 10 --json databaseId,status,conclusion --jq 'map(select(.status == "completed" and .conclusion == "success")) | .[0].databaseId // ""')"
-          test -n "$ANDROID_RUN_ID"
-          mkdir -p dist/android
-          gh run download "$ANDROID_RUN_ID" --name GhostFTP-Android-APK-RC23 -D dist/android
-          find dist/android -type f -print
-
-      - name: Normalize Windows, Linux and Android artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-          WIN_EXE="$(find dist/native -type f -iname 'ghostftp.exe' | head -n1 || true)"
-          WIN_SETUP="$(find dist/native -type f -iname '*setup*.exe' | head -n1 || true)"
-          LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
-          APPIMAGE="$(find dist/native -type f -iname '*.AppImage' | head -n1 || true)"
-          DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
-          RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
-          ANDROID_APK="$(find dist/android -type f \( -name 'GhostFTP-Android-v2.1.1-RC23-ci.apk' -o -name '*RC23*.apk' -o -name '*.apk' \) | head -n1 || true)"
-
-          test -n "$WIN_EXE"
-          test -n "$WIN_SETUP"
-          test -n "$LINUX_BIN"
-          test -n "$APPIMAGE"
-          test -n "$DEB"
-          test -n "$RPM"
-          test -n "$ANDROID_APK"
-
-          cp "$WIN_EXE" dist/GhostFTP-Windows-x64-Portable-v2.1.1-RC23.exe
-          cp "$WIN_SETUP" dist/GhostFTP-Windows-x64-Setup-v2.1.1-RC23.exe
-          cp "$LINUX_BIN" dist/GhostFTP-Linux-x86_64-v2.1.1-RC23
-          chmod +x dist/GhostFTP-Linux-x86_64-v2.1.1-RC23
-          cp "$APPIMAGE" dist/GhostFTP-Linux-x86_64-v2.1.1-RC23.AppImage
-          cp "$DEB" dist/GhostFTP-Linux-amd64-v2.1.1-RC23.deb
-          cp "$RPM" dist/GhostFTP-Linux-x86_64-v2.1.1-RC23.rpm
-          cp "$ANDROID_APK" dist/GhostFTP-Android-v2.1.1-RC23.apk
-
-          QA_FILES="$(find dist/native -type f \( -iname '*.png' -o -iname '*.txt' \) | wc -l | tr -d ' ')"
-          if [ "$QA_FILES" -gt 0 ]; then
-            mkdir -p dist/qa-evidence
-            find dist/native -type f \( -iname '*.png' -o -iname '*.txt' \) -exec cp {} dist/qa-evidence/ \;
-            (cd dist/qa-evidence && zip -q ../GhostFTP-Windows-x64-v2.1.1-RC23-Native-QA.zip ./*)
-            rm -rf dist/qa-evidence
-          fi
-
-          (cd dist && zip -q GhostFTP-Windows-x64-v2.1.1-RC23.zip GhostFTP-Windows-x64-Portable-v2.1.1-RC23.exe GhostFTP-Windows-x64-Setup-v2.1.1-RC23.exe)
-          (cd dist && tar -czf GhostFTP-Linux-x86_64-v2.1.1-RC23.tar.gz GhostFTP-Linux-x86_64-v2.1.1-RC23 GhostFTP-Linux-x86_64-v2.1.1-RC23.AppImage GhostFTP-Linux-amd64-v2.1.1-RC23.deb GhostFTP-Linux-x86_64-v2.1.1-RC23.rpm)
-          rm -rf dist/native dist/android
-
-      - name: Generate SHA-256 checksums
-        shell: bash
-        run: |
-          set -euo pipefail
-          (cd dist && find . -maxdepth 1 -type f ! -name 'GhostFTP-v2.1.1-RC23-SHA256SUMS.txt' -printf '%f\0' | sort -z | xargs -0 sha256sum) > dist/GhostFTP-v2.1.1-RC23-SHA256SUMS.txt
-
-      - name: Publish RC23 pre-release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="v2.1.1-rc.23"
-          SOURCE_SHA="${SOURCE_SHA:-$(git rev-parse HEAD)}"
-          git fetch --tags --force
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
-              gh release delete-asset "$TAG" "$asset" -y || true
-            done
-            gh release edit "$TAG" --target "$SOURCE_SHA" --title "Ghost FTP 2.1.1 RC23" --notes-file docs/releases/2.1.1-rc.23.md --prerelease
-          else
-            gh release create "$TAG" --target "$SOURCE_SHA" --title "Ghost FTP 2.1.1 RC23" --notes-file docs/releases/2.1.1-rc.23.md --prerelease
-          fi
-          gh release upload "$TAG" dist/* --clobber
-
+        run: bash .github/scripts/publish-rc23.sh "${SOURCE_SHA:-$(git rev-parse HEAD)}"
 
   repair-metadata:
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
+
       - name: Repair and verify RC23 prerelease metadata
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: |
-          set -euo pipefail
-          TAG="v2.1.1-rc.23"
-          RELEASE_ID="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.id')"
-          TAG_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/$TAG" --jq '.object.sha')"
-
-          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID" \
-            -F prerelease=true \
-            -f target_commitish="$TAG_SHA" \
-            -f name="Ghost FTP 2.1.1 RC23" >/dev/null
-
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID" --jq '.prerelease')" = "true"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID" --jq '.tag_name')" = "$TAG"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID" --jq '.target_commitish')" = "$TAG_SHA"
+        run: bash .github/scripts/publish-rc23.sh --repair-metadata
