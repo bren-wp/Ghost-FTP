@@ -2,7 +2,7 @@ name: Ghost FTP RC23 release
 
 on:
   workflow_run:
-    workflows: ["Ghost FTP native build"]
+    workflows: ["Ghost FTP native build RC23"]
     types: [completed]
 
 permissions:
@@ -110,7 +110,7 @@ jobs:
         run: |
           set -euo pipefail
           WIN_EXE="$(find dist/native -type f -iname 'ghostftp.exe' | head -n1 || true)"
-          WIN_SETUP="$(find dist/native -type f -iname '*setup.exe' | head -n1 || true)"
+          WIN_SETUP="$(find dist/native -type f -iname '*setup*.exe' | head -n1 || true)"
           LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
           APPIMAGE="$(find dist/native -type f -iname '*.AppImage' | head -n1 || true)"
           DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
