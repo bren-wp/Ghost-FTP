@@ -71,7 +71,7 @@ jobs:
           ! grep -Rni 'Ghost-FTP-Premium' \
             README.md ghostftp-desktop/README.md docs/build docs/product docs/release
           grep -Fq 'https://github.com/bren-wp/Ghost-FTP/releases' README.md
-          grep -Fq -- '--prerelease' .github/workflows/ghostftp-rc23-release.yml
+          grep -Fq -- '--prerelease' .github/scripts/publish-rc23.sh
 
       - name: Native window architecture guard
         shell: bash
