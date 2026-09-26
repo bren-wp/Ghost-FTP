@@ -220,8 +220,13 @@ pub async fn duplicate_profile(
 
 #[tauri::command]
 pub async fn delete_profile(id: String, state: State<'_, AppState>) -> Result<(), String> {
-    // Clean up any keychain-stored OAuth tokens for this profile.
-    if let Ok(Some(p)) = state.profiles.get(&id).await {
+    // Delete durable profile metadata first. If that write fails, keep all
+    // credentials intact so the saved profile remains usable/recoverable.
+    let profile = state.profiles.get(&id).await.map_err(err)?;
+    state.profiles.delete(&id).await.map_err(err)?;
+
+    // Metadata is gone; credentials can now be cleaned up best-effort.
+    if let Some(p) = profile {
         match p.protocol.as_str() {
             "dropbox" => crate::oauth::delete_tokens(crate::session::dropbox::DROPBOX_SERVICE, &id),
             "onedrive" => {
@@ -248,7 +253,7 @@ pub async fn delete_profile(id: String, state: State<'_, AppState>) -> Result<()
     }
     delete_profile_secret(&profile_password_key(&id), &state);
     delete_profile_secret(&profile_key_passphrase_key(&id), &state);
-    state.profiles.delete(&id).await.map_err(err)
+    Ok(())
 }
 
 // ---------- SSH key generation ----------
