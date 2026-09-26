@@ -92,7 +92,7 @@ class ConnectionController {
 
     fun deleteRemoteFile(profile: ConnectionProfile, remoteFilePath: String): TransferResult {
         val normalized = normalizedProfile(profile)
-        val target = normalizeRemoteTarget(remoteFilePath)
+        val target = normalizeRemoteDeleteTarget(remoteFilePath)
         return when (normalized.protocol) {
             ConnectionProtocol.FTP -> deleteFtp(normalized, secure = false, remoteFilePath = target)
             ConnectionProtocol.EXPLICIT_FTPS -> deleteFtp(normalized, secure = true, remoteFilePath = target)
@@ -354,7 +354,19 @@ class ConnectionController {
     private fun normalizeRemoteTarget(input: String): String {
         val value = input.trim()
         require(value.isNotBlank()) { "Remote path is required." }
-        return if (value.startsWith('/')) value else "/$value"
+        val target = if (value.startsWith('/')) value else "/$value"
+        require(target.split('/').filter { it.isNotBlank() }.none { it == "." || it == ".." }) {
+            "Remote path must not contain dot path segments."
+        }
+        return target
+    }
+
+    private fun normalizeRemoteDeleteTarget(input: String): String {
+        val target = normalizeRemoteTarget(input)
+        require(target.split('/').any { it.isNotBlank() }) {
+            "Refusing to delete the remote root path."
+        }
+        return target
     }
 
     private fun joinRemotePath(directory: String, child: String): String {

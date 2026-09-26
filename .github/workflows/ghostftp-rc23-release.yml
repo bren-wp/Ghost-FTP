@@ -4,6 +4,11 @@ on:
   workflow_run:
     workflows: ["Ghost FTP native build RC23"]
     types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ghostftp-rc23-release.yml'
+      - '.github/scripts/publish-rc23.sh'
 
 permissions:
   contents: write
@@ -15,7 +20,7 @@ concurrency:
 
 jobs:
   publish:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           grep -q '"version": "2.1.1-rc.23"' ghostftp-desktop/package.json
+          grep -q '"version": "2.1.1-rc.23"' ghostftp-desktop/package-lock.json
           grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/Cargo.toml
           grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml
           grep -q '^version = "2.1.1-rc.23"$' ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml
@@ -156,17 +162,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: |
-          set -euo pipefail
-          TAG="v2.1.1-rc.23"
-          SOURCE_SHA="${SOURCE_SHA:-$(git rev-parse HEAD)}"
-          git fetch --tags --force
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
-              gh release delete-asset "$TAG" "$asset" -y || true
-            done
-            gh release edit "$TAG" --target "$SOURCE_SHA" --title "Ghost FTP 2.1.1 RC23" --notes-file docs/releases/2.1.1-rc.23.md --prerelease
-          else
-            gh release create "$TAG" --target "$SOURCE_SHA" --title "Ghost FTP 2.1.1 RC23" --notes-file docs/releases/2.1.1-rc.23.md --prerelease
-          fi
-          gh release upload "$TAG" dist/* --clobber
+        run: bash .github/scripts/publish-rc23.sh "${SOURCE_SHA:-$(git rev-parse HEAD)}"
+
+  repair-metadata:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Repair and verify RC23 prerelease metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: bash .github/scripts/publish-rc23.sh --repair-metadata

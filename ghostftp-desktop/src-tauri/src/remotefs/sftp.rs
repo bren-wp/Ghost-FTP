@@ -78,6 +78,7 @@ impl RemoteFs for SftpFs {
     }
 
     async fn delete(&self, path: &str, recursive: bool) -> Result<()> {
+        super::validate_remote_delete_path(path)?;
         let sftp_cell = self.session.ensure_sftp().await?;
         let sftp = sftp_cell.lock().await;
 

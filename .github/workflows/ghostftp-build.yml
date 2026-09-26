@@ -1,7 +1,7 @@
 name: Ghost FTP native build
 
-# RC21 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
-# RC21 release build stamp: 2026-09-24.21
+# RC23 production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
+# RC23 release build stamp: 2026-09-25.23
 
 on:
   workflow_dispatch:
@@ -18,7 +18,7 @@ on:
       - 'README.md'
       - 'docs/assets/screenshots/**'
       - '.github/workflows/ghostftp-build.yml'
-      - '.github/workflows/ghostftp-rc21-release.yml'
+      - '.github/workflows/ghostftp-rc23-release.yml'
 
 permissions:
   contents: read
@@ -35,10 +35,10 @@ jobs:
         include:
           - os: windows-latest
             args: '--bundles nsis'
-            artifact: 'GhostFTP-Windows-x64-RC21'
+            artifact: 'GhostFTP-Windows-x64-RC23'
           - os: ubuntu-22.04
             args: '--bundles deb,rpm,appimage'
-            artifact: 'GhostFTP-Linux-x86_64-RC21'
+            artifact: 'GhostFTP-Linux-x86_64-RC23'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -401,7 +401,7 @@ jobs:
               }
 
               # Validate the real launch geometry before the canonical QA resize.
-              # RC21 must start as a normal window and stay inside the OS working
+              # RC23 must start as a normal window and stay inside the OS working
               # area even when the preferred 1290x852 size is larger than the
               # available desktop.
               $launchRect = New-Object GhostFtpWindowCapture+RECT
@@ -443,8 +443,8 @@ jobs:
                 throw "Native window bounds for $($view.key) are ${width}x${height}, expected approximately ${targetWidth}x${targetHeight}"
               }
 
-              $png = Join-Path $qaDir ("GhostFTP-Windows-RC21-" + $view.label + ".png")
-              $printCandidate = Join-Path $qaDir ("GhostFTP-Windows-RC21-" + $view.label + ".printwindow.tmp.png")
+              $png = Join-Path $qaDir ("GhostFTP-Windows-RC23-" + $view.label + ".png")
+              $printCandidate = Join-Path $qaDir ("GhostFTP-Windows-RC23-" + $view.label + ".printwindow.tmp.png")
               $captureMethod = 'PrintWindow(PW_RENDERFULLCONTENT)'
 
               $bitmap = New-Object System.Drawing.Bitmap $targetWidth, $targetHeight, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
@@ -511,7 +511,7 @@ jobs:
                 "OpaqueSamples=$($validation.Opaque)/$($validation.Samples)"
                 "ImageBytes=$($pngInfo.Length)"
                 "Executable=$exe"
-              ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC21-" + $view.label + ".txt"))
+              ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC23-" + $view.label + ".txt"))
 
               # Exercise a genuinely compact viewport for the workspaces that
               # carry the most responsive pressure. This is separate from the
@@ -534,7 +534,7 @@ jobs:
                   }
                   Start-Sleep -Milliseconds 350
 
-                  $compactPng = Join-Path $qaDir ("GhostFTP-Windows-RC21-" + $view.label + "-Compact.png")
+                  $compactPng = Join-Path $qaDir ("GhostFTP-Windows-RC23-" + $view.label + "-Compact.png")
                   Capture-GhostFtpWebView2 -Port $debugPort -OutputPath $compactPng -Width $compactWidth -Height $compactHeight
                   $compactValidation = Test-GhostFtpPng -Path $compactPng -ExpectedWidth $compactWidth -ExpectedHeight $compactHeight
                   if (-not $compactValidation.Valid) {
@@ -561,7 +561,7 @@ jobs:
                     "EdgeRatio=$([Math]::Round($compactValidation.EdgeRatio,8))"
                     "OpaqueSamples=$($compactValidation.Opaque)/$($compactValidation.Samples)"
                     "Executable=$exe"
-                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC21-" + $view.label + "-Compact.txt"))
+                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC23-" + $view.label + "-Compact.txt"))
                 }
 
                 # Exercise a near-minimum responsive viewport as a separate
@@ -585,7 +585,7 @@ jobs:
                   }
                   Start-Sleep -Milliseconds 350
 
-                  $minimumPng = Join-Path $qaDir ("GhostFTP-Windows-RC21-" + $view.label + "-Minimum.png")
+                  $minimumPng = Join-Path $qaDir ("GhostFTP-Windows-RC23-" + $view.label + "-Minimum.png")
                   Capture-GhostFtpWebView2 -Port $debugPort -OutputPath $minimumPng -Width $minimumWidth -Height $minimumHeight
                   $minimumValidation = Test-GhostFtpPng -Path $minimumPng -ExpectedWidth $minimumWidth -ExpectedHeight $minimumHeight
                   if (-not $minimumValidation.Valid) {
@@ -612,7 +612,7 @@ jobs:
                     "EdgeRatio=$([Math]::Round($minimumValidation.EdgeRatio,8))"
                     "OpaqueSamples=$($minimumValidation.Opaque)/$($minimumValidation.Samples)"
                     "Executable=$exe"
-                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC21-" + $view.label + "-Minimum.txt"))
+                  ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-RC23-" + $view.label + "-Minimum.txt"))
                 }
               }
             } finally {
@@ -634,12 +634,12 @@ jobs:
         if: runner.os == 'Windows' && always()
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-Windows-x64-RC21-QA
+          name: GhostFTP-Windows-x64-RC23-QA
           path: qa/*
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Verify README screenshots against native RC21 QA
+      - name: Verify README screenshots against native RC23 QA
         if: runner.os == 'Windows' && success()
         shell: pwsh
         run: |
@@ -647,13 +647,13 @@ jobs:
           Add-Type -AssemblyName System.Drawing
 
           $screenshots = @(
-            @{ Source = 'GhostFTP-Windows-RC21-Native-Window.png'; Dest = 'ghostftp-native-files.png' },
-            @{ Source = 'GhostFTP-Windows-RC21-Site-Manager.png'; Dest = 'ghostftp-native-sites.png' },
-            @{ Source = 'GhostFTP-Windows-RC21-New-Connection.png'; Dest = 'ghostftp-native-new-connection.png' },
-            @{ Source = 'GhostFTP-Windows-RC21-Preferences.png'; Dest = 'ghostftp-native-settings.png' },
-            @{ Source = 'GhostFTP-Windows-RC21-Transfer-Center.png'; Dest = 'ghostftp-native-transfers.png' },
-            @{ Source = 'GhostFTP-Windows-RC21-File-Properties.png'; Dest = 'ghostftp-native-file-properties.png' },
-            @{ Source = 'GhostFTP-Windows-RC21-About.png'; Dest = 'ghostftp-native-about.png' }
+            @{ Source = 'GhostFTP-Windows-RC23-Native-Window.png'; Dest = 'ghostftp-native-files.png' },
+            @{ Source = 'GhostFTP-Windows-RC23-Site-Manager.png'; Dest = 'ghostftp-native-sites.png' },
+            @{ Source = 'GhostFTP-Windows-RC23-New-Connection.png'; Dest = 'ghostftp-native-new-connection.png' },
+            @{ Source = 'GhostFTP-Windows-RC23-Preferences.png'; Dest = 'ghostftp-native-settings.png' },
+            @{ Source = 'GhostFTP-Windows-RC23-Transfer-Center.png'; Dest = 'ghostftp-native-transfers.png' },
+            @{ Source = 'GhostFTP-Windows-RC23-File-Properties.png'; Dest = 'ghostftp-native-file-properties.png' },
+            @{ Source = 'GhostFTP-Windows-RC23-About.png'; Dest = 'ghostftp-native-about.png' }
           )
 
           foreach ($shot in $screenshots) {
@@ -696,7 +696,7 @@ jobs:
               $ratio = [double]$changed / [double]$samples
               Write-Host ("README screenshot " + $shot.Dest + " changed-pixel ratio=" + [Math]::Round($ratio, 5))
               if ($ratio -gt 0.05) {
-                throw "README screenshot $($shot.Dest) no longer matches the native RC21 UI closely enough; refresh it from reviewed QA evidence."
+                throw "README screenshot $($shot.Dest) no longer matches the native RC23 UI closely enough; refresh it from reviewed QA evidence."
               }
             } finally {
               $fresh.Dispose()
@@ -716,26 +716,26 @@ jobs:
           if-no-files-found: error
 
   source-packages:
-    name: RC21 source packages
+    name: RC23 source packages
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Package RC21 source and documentation
+      - name: Package RC23 source and documentation
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist
-          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC21-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-RC21-Desktop-Source.zip ghostftp-desktop
-          zip -qr dist/GhostFTP-v2.1.1-RC21-Website.zip website
-          zip -qr dist/GhostFTP-v2.1.1-RC21-Updates.zip updates
-          zip -qr dist/GhostFTP-v2.1.1-RC21-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
-      - name: Upload RC21 source packages
+          git archive --format=zip --output=dist/GhostFTP-v2.1.1-RC23-Source.zip HEAD
+          zip -qr dist/GhostFTP-v2.1.1-RC23-Desktop-Source.zip ghostftp-desktop
+          zip -qr dist/GhostFTP-v2.1.1-RC23-Website.zip website
+          zip -qr dist/GhostFTP-v2.1.1-RC23-Updates.zip updates
+          zip -qr dist/GhostFTP-v2.1.1-RC23-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+      - name: Upload RC23 source packages
         uses: actions/upload-artifact@v4
         with:
-          name: GhostFTP-RC21-Source-Packages
+          name: GhostFTP-RC23-Source-Packages
           path: dist/*
           if-no-files-found: error
           retention-days: 14
