@@ -322,12 +322,16 @@ impl FolderSync {
         Self::validate_pair(&pair)?;
         {
             let mut s = self.settings.lock().await;
+            let previous = s.clone();
             match s.pairs.iter_mut().find(|p| p.id == pair.id) {
                 Some(existing) => *existing = pair.clone(),
                 None => s.pairs.push(pair.clone()),
             }
+            if let Err(error) = self.persist_snapshot(&s) {
+                *s = previous;
+                return Err(error);
+            }
         }
-        self.persist().await?;
         self.stop_pair(&pair.id).await;
         if pair.enabled {
             self.start_pair(app, &pair).await?;
@@ -337,12 +341,16 @@ impl FolderSync {
     }
 
     pub async fn remove(&self, app: &AppHandle, id: &str) -> Result<()> {
-        self.stop_pair(id).await;
         {
             let mut s = self.settings.lock().await;
+            let previous = s.clone();
             s.pairs.retain(|p| p.id != id);
+            if let Err(error) = self.persist_snapshot(&s) {
+                *s = previous;
+                return Err(error);
+            }
         }
-        self.persist().await?;
+        self.stop_pair(id).await;
         // Unregister the OS sync root if this was an on-demand pair.
         self.reconcile_virtualfs(app).await;
         Ok(())
@@ -351,16 +359,21 @@ impl FolderSync {
     pub async fn set_enabled(&self, app: &AppHandle, id: &str, enabled: bool) -> Result<()> {
         let pair = {
             let mut s = self.settings.lock().await;
+            let previous = s.clone();
             let p = s.pairs.iter_mut().find(|p| p.id == id);
-            match p {
+            let pair = match p {
                 Some(p) => {
                     p.enabled = enabled;
                     p.clone()
                 }
                 None => anyhow::bail!("no such sync pair"),
+            };
+            if let Err(error) = self.persist_snapshot(&s) {
+                *s = previous;
+                return Err(error);
             }
+            pair
         };
-        self.persist().await?;
         if enabled {
             self.stop_pair(id).await;
             self.start_pair(app, &pair).await?;
