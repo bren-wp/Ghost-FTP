@@ -1712,21 +1712,12 @@ impl TransferManager {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
 
-        // FTP's data channel doesn't surface incremental progress easily without
-        // an extra control round-trip. We can still report mid-transfer by
-        // calling .size() up front, then bumping `transferred` to size on
-        // completion. For now we keep it simple: 0 -> size on done.
+        // FTP data transfer is performed inside the session's blocking stream
+        // worker, so progress is reported at completion rather than by sharing
+        // manager state across threads.
+        let _ = app;
         let final_path = local_path.to_path_buf();
         let path = remote_path.to_string();
-        let id_for_emit = id.to_string();
-        let app_for_emit = app.clone();
-        let mgr_for_emit: *const TransferManager = self;
-        // The pointer cast keeps the closure 'static — we re-form an Arc via
-        // the field on the manager's containing Arc inside the blocking task.
-        // Since the blocking task is awaited (not detached), the manager
-        // outlives the borrow. We update progress after the task returns.
-
-        let _ = (mgr_for_emit, id_for_emit, app_for_emit);
 
         self.checkpoint(id, 0).await?;
         let res: Result<u64> = session
