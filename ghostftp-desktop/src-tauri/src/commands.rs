@@ -155,6 +155,10 @@ pub async fn save_profile(
         }
     }
     protect_profile_secrets(&mut profile, &state)?;
+    // Commit secret-free metadata before removing credentials that belong to
+    // the previous auth method. If persistence fails, the old saved profile
+    // remains usable instead of being left without its credential.
+    state.profiles.upsert(profile.clone()).await.map_err(err)?;
     match &profile.auth {
         AuthMethod::Password { .. } => {
             delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state)
@@ -165,7 +169,7 @@ pub async fn save_profile(
             delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
         }
     }
-    state.profiles.upsert(profile).await.map_err(err)
+    Ok(())
 }
 
 /// Persist the rail's drag-and-drop order: `ids` is every profile id in the
