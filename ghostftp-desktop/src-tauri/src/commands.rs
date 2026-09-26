@@ -1348,6 +1348,12 @@ pub async fn chmod_path(
     mode: u32,
     state: State<'_, AppState>,
 ) -> Result<(), GhostFTPError> {
+    if path.trim().is_empty() || matches!(path.trim(), "." | "..") || mode > 0o777 {
+        return Err(GhostFTPError::new(
+            ErrorKind::InvalidInput,
+            "permissions require a named path and a POSIX mode between 000 and 777",
+        ));
+    }
     let fs = fs_for(&session_id, &state).await?;
     fs.chmod(&path, mode).await.map_err(GhostFTPError::from)
 }
@@ -1363,10 +1369,17 @@ pub async fn chmod_path_recursive(
     mode: u32,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() || matches!(trimmed, "." | "..") || mode > 0o777 {
+        return Err("Recursive permissions require a named path and a POSIX mode between 000 and 777".into());
+    }
     if session_id == LOCAL_SESSION {
         let path_for_task = path.clone();
         return tokio::task::spawn_blocking(move || -> Result<(), String> {
             let root = Path::new(&path_for_task);
+            if root.parent().is_none() && root.has_root() {
+                return Err("Recursive permissions refuse the local filesystem root".into());
+            }
             if !root.exists() {
                 return Err(format!("{path_for_task} does not exist"));
             }
