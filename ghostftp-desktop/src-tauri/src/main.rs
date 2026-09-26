@@ -21,14 +21,22 @@ fn run_uninstaller_if_requested() -> bool {
         .map(|p| p.join("Desktop").join("Ghost FTP.lnk"));
     let start_menu = std::env::var_os("APPDATA")
         .map(std::path::PathBuf::from)
-        .map(|p| p.join("Microsoft").join("Windows").join("Start Menu").join("Programs"));
+        .map(|p| {
+            p.join("Microsoft")
+                .join("Windows")
+                .join("Start Menu")
+                .join("Programs")
+        });
     let quote = |s: &std::path::Path| s.to_string_lossy().replace('\'', "''");
     let mut script = format!(
         "$ErrorActionPreference='SilentlyContinue'; Wait-Process -Id {pid}; Remove-Item -LiteralPath '{}' -Force;",
         quote(&exe)
     );
     if let Some(path) = desktop.as_deref() {
-        script.push_str(&format!(" Remove-Item -LiteralPath '{}' -Force;", quote(path)));
+        script.push_str(&format!(
+            " Remove-Item -LiteralPath '{}' -Force;",
+            quote(path)
+        ));
     }
     if let Some(dir) = start_menu.as_deref() {
         script.push_str(&format!(
@@ -46,7 +54,13 @@ fn run_uninstaller_if_requested() -> bool {
     ));
 
     let _ = std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command"])
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+        ])
         .arg(script)
         .spawn();
     true
