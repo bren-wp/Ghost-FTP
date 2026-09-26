@@ -286,7 +286,7 @@ func install(opts installOptions) error {
 		_ = os.Remove(start)
 		_ = os.Remove(uninstallLink)
 	}
-	uninstall := fmt.Sprintf(`\"%s\" --uninstall`, exe)
+	uninstall := fmt.Sprintf(`"%s" --uninstall`, exe)
 	if opts.RegisterApps {
 		args := [][]string{
 			{"add", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/v", "DisplayName", "/t", "REG_SZ", "/d", "Ghost FTP", "/f"},
