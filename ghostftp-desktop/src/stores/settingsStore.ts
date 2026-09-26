@@ -336,18 +336,18 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setOverwritePolicy: (p) => mutate(set, get, "overwritePolicy", p),
   setPromptOnOverwrite: (v) => mutate(set, get, "promptOnOverwrite", v),
   setTransferConcurrency: (n) => {
-    const clamped = Math.max(1, Math.min(32, Math.round(n)));
+    const clamped = Math.max(1, Math.min(32, Math.round(finiteNumber(n, DEFAULTS.transferConcurrency))));
     mutate(set, get, "transferConcurrency", clamped);
     // Live-apply to the running queue; the persisted value covers next launch.
     ipc.transferSetConcurrency(clamped).catch((error) => toastError(error, "Couldn't apply transfer concurrency"));
   },
   setMaxRetryAttempts: (n) => {
-    const clamped = Math.max(0, Math.min(8, Math.round(n)));
+    const clamped = Math.max(0, Math.min(8, Math.round(finiteNumber(n, DEFAULTS.maxRetryAttempts))));
     mutate(set, get, "maxRetryAttempts", clamped);
     ipc.transferSetMaxRetries(clamped).catch((error) => toastError(error, "Couldn't apply retry limit"));
   },
   setTransferThrottleKbps: (n) => {
-    const clamped = Math.max(0, Math.round(n));
+    const clamped = Math.max(0, Math.round(finiteNumber(n, 0)));
     mutate(set, get, "transferThrottleKbps", clamped);
     ipc.transferSetThrottle(clamped).catch((error) => toastError(error, "Couldn't apply transfer speed limit"));
   },
@@ -367,7 +367,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setBrowserLayout: (l) => mutate(set, get, "browserLayout", l),
   setRemoteImagePreviews: (v) => mutate(set, get, "remoteImagePreviews", v),
   setTerminalFontSize: (n) =>
-    mutate(set, get, "terminalFontSize", Math.max(8, Math.min(32, Math.round(n)))),
+    mutate(set, get, "terminalFontSize", Math.max(8, Math.min(32, Math.round(finiteNumber(n, DEFAULTS.terminalFontSize))))),
   setTerminalFontFamily: (s) => mutate(set, get, "terminalFontFamily", s),
   setTerminalTheme: (t) => mutate(set, get, "terminalTheme", t),
   setTerminalScrollback: (n) =>
@@ -375,13 +375,13 @@ export const useSettings = create<SettingsState>((set, get) => ({
       set,
       get,
       "terminalScrollback",
-      Math.max(100, Math.min(100000, Math.round(n)))
+      Math.max(100, Math.min(100000, Math.round(finiteNumber(n, DEFAULTS.terminalScrollback)))
     ),
   setTerminalCopyOnSelect: (v) =>
     mutate(set, get, "terminalCopyOnSelect", v),
   setTerminalSuggestions: (v) =>
     mutate(set, get, "terminalSuggestions", v),
-  setDefaultPort: (n) => mutate(set, get, "defaultPort", Math.max(1, Math.min(65535, Math.round(n)))),
+  setDefaultPort: (n) => mutate(set, get, "defaultPort", Math.max(1, Math.min(65535, Math.round(finiteNumber(n, DEFAULTS.defaultPort))))),
   setShellIntegration: (v) => mutate(set, get, "shellIntegration", v),
   setNotifications: (v) => mutate(set, get, "notifications", v),
 }));
