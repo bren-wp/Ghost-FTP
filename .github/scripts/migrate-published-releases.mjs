@@ -64,31 +64,135 @@ function resolvedRefCommitSha(tag) {
   return null;
 }
 
-function createCanonicalTag(tag, sourceSha, legacyTag) {
-  const existing = resolvedRefCommitSha(tag);
-  if (existing) {
-    if (existing !== sourceSha) {
-      throw new Error(`${tag} resolves to ${existing}, expected ${sourceSha}`);
+function createCanonicalSnapshot(item, legacyTag) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ghostftp-canonical-snapshot-"));
+  let addedWorktree = false;
+  try {
+    run("git", ["worktree", "add", "--detach", tmp, item.sourceSha]);
+    addedWorktree = true;
+
+    const workflowsDir = path.join(tmp, ".github", "workflows");
+    fs.rmSync(workflowsDir, { recursive: true, force: true });
+    fs.mkdirSync(workflowsDir, { recursive: true });
+
+    const workflowList = String(
+      run("git", ["ls-tree", "-r", "--name-only", "origin/main", "--", ".github/workflows"]).stdout || "",
+    )
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean);
+
+    for (const rel of workflowList) {
+      const bytes = run("git", ["show", `origin/main:${rel}`], { encoding: null }).stdout;
+      const target = path.join(tmp, rel);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, bytes);
     }
-    return;
+
+    run("git", ["-C", tmp, "add", "-A", ".github/workflows"]);
+    run("git", ["-C", tmp, "config", "user.name", "github-actions[bot]"]);
+    run("git", ["-C", tmp, "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"]);
+
+    const treeSha = String(run("git", ["-C", tmp, "write-tree"]).stdout).trim();
+    const defaultSha = String(run("git", ["rev-parse", "origin/main"]).stdout).trim();
+    const message = [
+      `Ghost FTP canonical release snapshot for ${legacyTag}`,
+      "",
+      `original-source: ${item.sourceSha}`,
+      `workflow-baseline: ${defaultSha}`,
+    ].join("\n");
+    const snapshotSha = String(
+      run("git", ["-C", tmp, "commit-tree", treeSha, "-p", defaultSha, "-m", message]).stdout,
+    ).trim();
+
+    const productDiff = String(
+      run("git", [
+        "diff",
+        "--name-only",
+        item.sourceSha,
+        snapshotSha,
+        "--",
+        ".",
+        ":(exclude).github/workflows/**",
+      ]).stdout || "",
+    ).trim();
+    if (productDiff) {
+      throw new Error(`${legacyTag}: canonical snapshot changed product source outside .github/workflows:\n${productDiff}`);
+    }
+
+    const workflowDiff = String(
+      run("git", ["diff", "--name-only", defaultSha, snapshotSha, "--", ".github/workflows"]).stdout || "",
+    ).trim();
+    if (workflowDiff) {
+      throw new Error(`${legacyTag}: canonical snapshot workflows differ from default branch:\n${workflowDiff}`);
+    }
+
+    return snapshotSha;
+  } finally {
+    if (addedWorktree) {
+      run("git", ["worktree", "remove", "--force", tmp], { allowFailure: true });
+    }
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+function validateCanonicalTarget(item, tag) {
+  const resolved = resolvedRefCommitSha(tag);
+  if (!resolved) throw new Error(`${tag}: canonical tag is missing`);
+  if (resolved === item.sourceSha) {
+    return { resolved, exact: true };
   }
 
+  const commitLine = String(run("git", ["rev-list", "--parents", "-n1", resolved]).stdout || "").trim();
+  const parts = commitLine.split(/\s+/).filter(Boolean);
+  if (parts.length !== 2) {
+    throw new Error(`${tag}: fallback snapshot must have exactly one parent`);
+  }
+  const parent = parts[1];
+
+  const productDiff = String(
+    run("git", [
+      "diff",
+      "--name-only",
+      item.sourceSha,
+      resolved,
+      "--",
+      ".",
+      ":(exclude).github/workflows/**",
+    ]).stdout || "",
+  ).trim();
+  if (productDiff) {
+    throw new Error(`${tag}: fallback snapshot changed product source:\n${productDiff}`);
+  }
+
+  const workflowDiff = String(
+    run("git", ["diff", "--name-only", parent, resolved, "--", ".github/workflows"]).stdout || "",
+  ).trim();
+  if (workflowDiff) {
+    throw new Error(`${tag}: fallback snapshot changes workflows relative to its parent:\n${workflowDiff}`);
+  }
+
+  const message = String(run("git", ["show", "-s", "--format=%B", resolved]).stdout || "");
+  if (!message.includes(`original-source: ${item.sourceSha}`)) {
+    throw new Error(`${tag}: fallback snapshot does not record original source SHA`);
+  }
+
+  return { resolved, exact: false };
+}
+
+function createTagRef(tag, commitSha, legacyTag) {
   let apiError = null;
   try {
-    // Prefer an annotated tag object. This preserves the exact historical
-    // source commit while avoiding a direct historical-commit ref write when
-    // GitHub App workflow protections are stricter.
     const tagObject = ghJson(`repos/${repo}/git/tags`, {
       method: "POST",
       fields: [
         ["-f", "tag", tag],
         ["-f", "message", `Canonical Ghost FTP release tag for ${legacyTag}`],
-        ["-f", "object", sourceSha],
+        ["-f", "object", commitSha],
         ["-f", "type", "commit"],
       ],
     });
     if (!tagObject?.sha) throw new Error(`${tag}: GitHub did not return a tag object SHA`);
-
     ghJson(`repos/${repo}/git/refs`, {
       method: "POST",
       fields: [
@@ -100,13 +204,10 @@ function createCanonicalTag(tag, sourceSha, legacyTag) {
     apiError = error;
   }
 
-  if (resolvedRefCommitSha(tag) !== sourceSha) {
-    // Fallback to authenticated git transport. checkout persists GITHUB_TOKEN
-    // credentials, and a normal tag push is accepted on repositories where
-    // the Git Data ref endpoint rejects historical workflow-bearing commits.
+  if (resolvedRefCommitSha(tag) !== commitSha) {
     run("git", ["config", "user.name", "github-actions[bot]"]);
     run("git", ["config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"]);
-    run("git", ["tag", "-f", "-a", tag, sourceSha, "-m", `Canonical Ghost FTP release tag for ${legacyTag}`]);
+    run("git", ["tag", "-f", "-a", tag, commitSha, "-m", `Canonical Ghost FTP release tag for ${legacyTag}`]);
     const pushed = run("git", ["push", "origin", `refs/tags/${tag}`], { allowFailure: true });
     if (pushed.status !== 0) {
       throw new Error(
@@ -114,11 +215,37 @@ function createCanonicalTag(tag, sourceSha, legacyTag) {
       );
     }
   }
+}
 
-  const resolved = resolvedRefCommitSha(tag);
-  if (resolved !== sourceSha) {
-    throw new Error(`${tag}: resolves to ${resolved}, expected ${sourceSha}`);
+function createCanonicalTag(tag, item, legacyTag) {
+  const existing = resolvedRefCommitSha(tag);
+  if (existing) {
+    return validateCanonicalTarget(item, tag);
   }
+
+  // First preserve the exact historical source commit. GitHub blocks this for
+  // commits that differ from the default branch under .github/workflows when
+  // the caller is the Actions GITHUB_TOKEN.
+  let exactError = null;
+  try {
+    createTagRef(tag, item.sourceSha, legacyTag);
+    return validateCanonicalTarget(item, tag);
+  } catch (error) {
+    exactError = error;
+  }
+
+  // Permission-safe fallback: preserve the entire historical product source,
+  // but normalize only .github/workflows to the current default-branch tree.
+  // The synthetic commit has default main as its parent, so it contains no
+  // workflow-file change relative to that parent and may be tagged by the
+  // standard Actions token. The original source SHA is embedded in the commit
+  // and validated on every verify run.
+  const snapshotSha = createCanonicalSnapshot(item, legacyTag);
+  console.warn(
+    `${tag}: exact historical tag creation was blocked; using verified canonical snapshot ${snapshotSha}. Cause: ${exactError}`,
+  );
+  createTagRef(tag, snapshotSha, legacyTag);
+  return validateCanonicalTarget(item, tag);
 }
 
 function canonicalizeText(text, item) {
@@ -206,9 +333,7 @@ for (const item of mapping) {
   if (oldResolvedSha && oldResolvedSha !== item.sourceSha) {
     throw new Error(`${oldTag} points to ${oldResolvedSha}, expected ${item.sourceSha}`);
   }
-  if (newResolvedSha && newResolvedSha !== item.sourceSha) {
-    throw new Error(`${newTag} points to ${newResolvedSha}, expected ${item.sourceSha}`);
-  }
+  if (newResolvedSha) validateCanonicalTarget(item, newTag);
 
   const assetsBefore = getAssets(release.id);
   const binaryDigests = new Map(
@@ -218,9 +343,8 @@ for (const item of mapping) {
   if (verifyOnly) {
     assertRelease(item, release, assetsBefore.length);
     if (oldRemoteSha) throw new Error(`${oldTag}: legacy Git tag still exists`);
-    if (!newRemoteSha || newResolvedSha !== item.sourceSha) {
-      throw new Error(`${newTag}: canonical Git tag missing or points at the wrong source`);
-    }
+    if (!newRemoteSha) throw new Error(`${newTag}: canonical Git tag missing`);
+    validateCanonicalTarget(item, newTag);
     console.log(`verified ${newTag}`);
     continue;
   }
@@ -239,9 +363,13 @@ for (const item of mapping) {
     });
   }
 
-  createCanonicalTag(newTag, item.sourceSha, oldTag);
+  const canonicalTarget = createCanonicalTag(newTag, item, oldTag);
 
-  const body = canonicalizeText(release.body || "", item);
+  let body = canonicalizeText(release.body || "", item);
+  if (!canonicalTarget.exact) {
+    const auditNote = `\n\nCanonical migration audit: original published source SHA \`${item.sourceSha}\`; canonical tag snapshot SHA \`${canonicalTarget.resolved}\`. Product source is identical to the original outside \`.github/workflows\`; workflow metadata matches the migration-time default branch so GitHub's Actions token can legally create the tag. Binary release assets retain their original GitHub SHA-256 digests.`;
+    if (!body.includes("Canonical migration audit:")) body += auditNote;
+  }
   release = ghJson(`repos/${repo}/releases/${release.id}`, {
     method: "PATCH",
     fields: [
