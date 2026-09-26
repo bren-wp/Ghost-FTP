@@ -47,7 +47,10 @@ fn spawn_uninstall_helper(script: String) -> std::io::Result<()> {
     if !powershell.is_file() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::NotFound,
-            format!("system PowerShell was not found at {}", powershell.display()),
+            format!(
+                "system PowerShell was not found at {}",
+                powershell.display()
+            ),
         ));
     }
 
