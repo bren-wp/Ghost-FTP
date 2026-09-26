@@ -245,6 +245,14 @@ jobs:
         working-directory: ghostftp-desktop/src-tauri
         run: cargo generate-lockfile
 
+      - name: Export canonical Cargo lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: GhostFTP-Cargo-lock-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ghostftp-desktop/src-tauri/Cargo.lock
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Rust workspace check
         working-directory: ghostftp-desktop/src-tauri
         run: cargo check --workspace --all-targets --locked
