@@ -34,6 +34,8 @@ pub enum ErrorKind {
     Unsupported,
     /// The target already exists / a write conflicts with existing state.
     Conflict,
+    /// The caller supplied an invalid path/value for the requested operation.
+    InvalidInput,
     /// Anything not usefully categorised.
     Other,
 }
