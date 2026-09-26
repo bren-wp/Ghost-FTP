@@ -272,6 +272,31 @@ function canonicalizeText(text, item) {
   return out;
 }
 
+function canonicalizeAllReleaseText(text) {
+  let out = String(text ?? "");
+  for (const mapped of mapping) {
+    out = canonicalizeText(out, mapped);
+  }
+  return out;
+}
+
+function remainingLegacyReferences(text) {
+  const value = String(text ?? "");
+  const found = [];
+  for (const mapped of mapping) {
+    const rc = mapped.legacy.match(/-rc\.(\d+)$/i)?.[1];
+    if (!rc) continue;
+    const base = mapped.legacy.replace(/-rc\.\d+$/i, "");
+    const basePattern = base.replace(/\./g, "\\.");
+    const pattern = new RegExp(
+      `(?:v?${basePattern}(?:[-_. ]?rc[.-]?${rc})|\\bRC[.-]?${rc}\\b)`,
+      "i",
+    );
+    if (pattern.test(value)) found.push(mapped.legacy);
+  }
+  return found;
+}
+
 function isChecksumAsset(name) {
   return /SHA256SUMS\.txt$/i.test(name) || /\.sha256$/i.test(name);
 }
@@ -306,14 +331,19 @@ function assertRelease(item, release, assetCountBefore) {
   if (assets.length !== assetCountBefore) {
     throw new Error(`${expectedTag}: asset count changed ${assetCountBefore} -> ${assets.length}`);
   }
-  const legacyRc = item.legacy.match(/-rc\.(\d+)$/i)?.[1];
   for (const asset of assets) {
-    if (/2\.1\.1|RC\d+/i.test(asset.name)) {
-      throw new Error(`${expectedTag}: legacy asset name remains: ${asset.name}`);
+    const legacyInAsset = remainingLegacyReferences(asset.name);
+    if (legacyInAsset.length > 0) {
+      throw new Error(
+        `${expectedTag}: legacy asset name remains (${legacyInAsset.join(", ")}): ${asset.name}`,
+      );
     }
   }
-  if (legacyRc && new RegExp(`(?:2\\.1\\.1|RC${legacyRc}\\b)`, "i").test(release.body || "")) {
-    throw new Error(`${expectedTag}: legacy version remains in release body`);
+  const legacyInBody = remainingLegacyReferences(release.body || "");
+  if (legacyInBody.length > 0) {
+    throw new Error(
+      `${expectedTag}: legacy version remains in release body: ${legacyInBody.join(", ")}`,
+    );
   }
 }
 
@@ -365,7 +395,7 @@ for (const item of mapping) {
 
   const canonicalTarget = createCanonicalTag(newTag, item, oldTag);
 
-  let body = canonicalizeText(release.body || "", item);
+  let body = canonicalizeAllReleaseText(release.body || "");
   if (!canonicalTarget.exact) {
     const auditNote = `\n\nCanonical migration audit: original published source SHA \`${item.sourceSha}\`; canonical tag snapshot SHA \`${canonicalTarget.resolved}\`. Product source is identical to the original outside \`.github/workflows\`; workflow metadata matches the migration-time default branch so GitHub's Actions token can legally create the tag. Binary release assets retain their original GitHub SHA-256 digests.`;
     if (!body.includes("Canonical migration audit:")) body += auditNote;
@@ -402,7 +432,7 @@ for (const item of mapping) {
   try {
     for (const backup of checksumBackups) {
       ghJson(`repos/${repo}/releases/assets/${backup.asset.id}`, { method: "DELETE" });
-      const updated = canonicalizeText(Buffer.from(backup.bytes).toString("utf8"), item);
+      const updated = canonicalizeAllReleaseText(Buffer.from(backup.bytes).toString("utf8"));
       const target = path.join(tmp, backup.name);
       fs.writeFileSync(target, updated);
       uploadAsset(newTag, target);
