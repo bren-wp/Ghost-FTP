@@ -57,7 +57,10 @@ pub fn parse_default() -> Result<Vec<ProfilePreview>> {
         let mut p = ProfilePreview::new(display_name);
         p.protocol = proto.into();
         p.host = host;
-        p.port = u16::try_from(port).ok().filter(|port| *port != 0).unwrap_or(22);
+        p.port = u16::try_from(port)
+            .ok()
+            .filter(|port| *port != 0)
+            .unwrap_or(22);
         p.username = user;
         p.note = Some("from PuTTY".into());
         out.push(p);
@@ -106,11 +109,16 @@ pub fn parse_default() -> Result<Vec<ProfilePreview>> {
         };
         let Some(host) = host else { continue };
         let host = host.trim().to_string();
-        if host.is_empty() { continue; }
+        if host.is_empty() {
+            continue;
+        }
         let mut p = ProfilePreview::new(display_name);
         p.protocol = proto.into();
         p.host = host;
-        p.port = u16::try_from(port).ok().filter(|port| *port != 0).unwrap_or(22);
+        p.port = u16::try_from(port)
+            .ok()
+            .filter(|port| *port != 0)
+            .unwrap_or(22);
         p.username = user.unwrap_or_default();
         p.note = Some("from PuTTY".into());
         out.push(p);
