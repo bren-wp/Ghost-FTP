@@ -321,12 +321,19 @@ const initial = load();
 
 function mutate<K extends keyof PersistedSettings>(
   set: (fn: (s: SettingsState) => Partial<SettingsState>) => void,
-  _get: () => SettingsState,
+  get: () => SettingsState,
   key: K,
   value: PersistedSettings[K]
 ) {
+  const previous = structuredClone(
+    (get() as unknown as Record<string, unknown>)[key]
+  ) as PersistedSettings[K];
   set(() => ({ [key]: value }) as Partial<SettingsState>);
-  persistKey(key, value);
+  void persistKey(key, value).catch(() => {
+    // Keep the visible preference aligned with durable state when persistence
+    // fails. Without this rollback a click can look successful until restart.
+    set(() => ({ [key]: previous }) as Partial<SettingsState>);
+  });
 }
 
 export const useSettings = create<SettingsState>((set, get) => ({
