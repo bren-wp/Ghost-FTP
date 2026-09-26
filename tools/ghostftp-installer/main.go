@@ -222,18 +222,49 @@ func install(opts installOptions) error {
 	if _, oldErr := os.Stat(backup); oldErr == nil {
 		hadPrevious = true
 	}
-	rollback := func() {
-		_ = os.Remove(exe)
-		if hadPrevious {
-			_ = os.Rename(backup, exe)
-		}
-	}
 	// Product shortcuts are created through the Windows Script Host so no extra installer dependency is required.
 	desktop := filepath.Join(user, "Desktop", "Ghost FTP.lnk")
 	startDir := filepath.Join(appdata, "Microsoft", "Windows", "Start Menu", "Programs")
 	_ = os.MkdirAll(startDir, 0755)
 	start := filepath.Join(startDir, "Ghost FTP.lnk")
 	uninstallLink := filepath.Join(startDir, "Uninstall Ghost FTP.lnk")
+	shortcutPaths := []string{desktop, start, uninstallLink}
+	shortcutBackups := map[string]string{}
+	for _, path := range shortcutPaths {
+		if _, statErr := os.Stat(path); statErr == nil {
+			bak := path + ".ghostftp-previous"
+			_ = os.Remove(bak)
+			if err := os.Rename(path, bak); err != nil {
+				_ = os.Remove(exe)
+				if hadPrevious {
+					_ = os.Rename(backup, exe)
+				}
+				return fmt.Errorf("preparing shortcut rollback: %w", err)
+			}
+			shortcutBackups[path] = bak
+		}
+	}
+	registryBackup := filepath.Join(os.TempDir(), fmt.Sprintf("ghostftp-uninstall-%d.reg", os.Getpid()))
+	_ = os.Remove(registryBackup)
+	hadRegistry := exec.Command("reg", "export", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, registryBackup, "/y").Run() == nil
+	rollback := func() {
+		_ = os.Remove(exe)
+		if hadPrevious {
+			_ = os.Rename(backup, exe)
+		}
+		for _, path := range shortcutPaths {
+			_ = os.Remove(path)
+			if bak, ok := shortcutBackups[path]; ok {
+				_ = os.Rename(bak, path)
+			}
+		}
+		if hadRegistry {
+			_ = exec.Command("reg", "import", registryBackup).Run()
+		} else {
+			_ = exec.Command("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/f").Run()
+		}
+		_ = os.Remove(registryBackup)
+	}
 	if opts.DesktopShortcut {
 		if err := shortcut(exe, desktop, ""); err != nil {
 			rollback()
@@ -280,6 +311,10 @@ func install(opts installOptions) error {
 		_ = exec.Command("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/f").Run()
 	}
 	_ = os.Remove(backup)
+	for _, bak := range shortcutBackups {
+		_ = os.Remove(bak)
+	}
+	_ = os.Remove(registryBackup)
 	return nil
 }
 
