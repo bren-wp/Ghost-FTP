@@ -116,7 +116,11 @@ pub fn parse(raw: &str) -> Option<DeepLink> {
             return None;
         }
         let token = dl.token.as_deref()?;
-        if token.len() > 512 || !token.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-')) {
+        if token.len() > 512
+            || !token
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-'))
+        {
             tracing::warn!("ignoring grant deep link with invalid token");
             return None;
         }
@@ -231,7 +235,9 @@ mod tests {
 
     #[test]
     fn rejects_grant_issuer_with_userinfo() {
-        assert!(parse("ghostftp://grant?issuer=https://user:pass@panel.example&token=abc123").is_none());
+        assert!(
+            parse("ghostftp://grant?issuer=https://user:pass@panel.example&token=abc123").is_none()
+        );
     }
 
     #[test]
