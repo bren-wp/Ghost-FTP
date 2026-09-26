@@ -202,9 +202,11 @@ async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> 
                     let listing = list_lines(stream, &d)
                         .with_context(|| format!("FTP recursive LIST {d}"))?;
                     for line in listing {
-                        let Some(entry) = entry_from_listing(&d, &line) else {
-                            continue;
-                        };
+                        let entry = entry_from_listing(&d, &line).ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "FTP recursive delete refused: unrecognized LIST entry in {d}"
+                            )
+                        })?;
                         match entry.kind {
                             FileKind::Directory => {
                                 stack.push(entry.path.clone());
