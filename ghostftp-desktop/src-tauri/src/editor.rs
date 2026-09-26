@@ -203,8 +203,14 @@ impl EditManager {
 
         // Spawn the editor — non-blocking; we keep watching regardless of
         // whether the editor process exits. Uses the configured editor command
-        // when set, else the OS default app.
-        spawn_editor(&local_path, editor.as_deref())?;
+        // when set, else the OS default app. If launch fails, explicitly drop
+        // the watcher and remove the downloaded temp copy; the edit was never
+        // registered in `sessions`, so stop() cannot clean it up later.
+        if let Err(error) = spawn_editor(&local_path, editor.as_deref()) {
+            drop(watcher);
+            let _ = std::fs::remove_dir_all(&base);
+            return Err(error);
+        }
 
         let started = EditStartedEvent {
             edit_id: edit_id.clone(),
