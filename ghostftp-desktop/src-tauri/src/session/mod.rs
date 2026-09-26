@@ -415,8 +415,25 @@ impl client::Handler for ClientHandler {
         match decision {
             HostDecision::Accept => Ok(true),
             HostDecision::Trust => {
-                if let Err(e) = known_hosts::append(&self.host, self.port, server_public_key) {
-                    tracing::warn!(?e, "failed to persist host key");
+                let persist = match kind {
+                    HostPromptKind::Unknown => {
+                        known_hosts::append(&self.host, self.port, server_public_key)
+                    }
+                    HostPromptKind::Mismatch => {
+                        known_hosts::replace(&self.host, self.port, server_public_key)
+                    }
+                };
+                if let Err(error) = persist {
+                    tracing::warn!(
+                        ?error,
+                        host = %self.host,
+                        port = self.port,
+                        "failed to persist trusted SSH host key"
+                    );
+                    // "Accept" is the explicit session-only choice. If the user
+                    // chose "Trust", fail closed instead of silently downgrading
+                    // persistence semantics.
+                    return Ok(false);
                 }
                 Ok(true)
             }
