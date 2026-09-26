@@ -1,10 +1,10 @@
 use crate::profiles::{AuthMethod, ConnectionProfile};
 use anyhow::{anyhow, Context, Result};
-use std::net::{TcpStream, ToSocketAddrs};
+use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 use suppaftp::native_tls::TlsConnector;
-use suppaftp::types::FileType;
+use suppaftp::types::{FileType, Mode};
 use suppaftp::{FtpStream, NativeTlsConnector, NativeTlsFtpStream};
 
 /// One FTP control connection. suppaftp is synchronous; we wrap it in a
@@ -138,6 +138,51 @@ fn connect_control_socket(host: &str, port: u16) -> Result<TcpStream> {
     }
 }
 
+/// Build passive FTP/FTPS data sockets with the same bounded network waits as
+/// the control channel. SuppaFTP's default passive builder uses an unbounded
+/// TcpStream::connect, which can otherwise leave LIST/RETR/STOR stuck long
+/// after the control connection itself is healthy.
+fn connect_data_socket(
+    addr: SocketAddr,
+) -> std::result::Result<TcpStream, suppaftp::FtpError> {
+    let stream = TcpStream::connect_timeout(&addr, FTP_CONNECT_TIMEOUT)
+        .map_err(suppaftp::FtpError::ConnectionError)?;
+    stream
+        .set_read_timeout(Some(FTP_IO_TIMEOUT))
+        .map_err(suppaftp::FtpError::ConnectionError)?;
+    stream
+        .set_write_timeout(Some(FTP_IO_TIMEOUT))
+        .map_err(suppaftp::FtpError::ConnectionError)?;
+    Ok(stream)
+}
+
+/// Keep passive data connections on the authenticated control peer. For IPv4
+/// PASV this avoids stale/private advertised addresses and prevents a server
+/// response from redirecting the client to an unrelated host. IPv6 requires
+/// EPSV, which already reuses the control peer and only supplies a port.
+fn configure_plain_data_channel(mut stream: FtpStream, peer_is_ipv6: bool) -> FtpStream {
+    stream = stream.passive_stream_builder(connect_data_socket);
+    if peer_is_ipv6 {
+        stream.set_mode(Mode::ExtendedPassive);
+    } else {
+        stream.set_passive_nat_workaround(true);
+    }
+    stream
+}
+
+fn configure_tls_data_channel(
+    mut stream: NativeTlsFtpStream,
+    peer_is_ipv6: bool,
+) -> NativeTlsFtpStream {
+    stream = stream.passive_stream_builder(connect_data_socket);
+    if peer_is_ipv6 {
+        stream.set_mode(Mode::ExtendedPassive);
+    } else {
+        stream.set_passive_nat_workaround(true);
+    }
+    stream
+}
+
 impl FtpSession {
     /// Run a closure with mutable access to the underlying FTP stream on a
     /// blocking thread. Use this for any FTP operation — it ensures the
@@ -188,6 +233,10 @@ pub async fn ftp_connect(profile: &ConnectionProfile) -> Result<FtpSession> {
     let stream = tokio::task::spawn_blocking(move || -> Result<FtpStreamKind> {
         let addr = format!("{host_for_blocking}:{port}");
         let tcp = connect_control_socket(&host_for_blocking, port)?;
+        let peer_is_ipv6 = tcp
+            .peer_addr()
+            .with_context(|| format!("FTP peer address {addr}"))?
+            .is_ipv6();
         if want_tls {
             // Explicit FTPS: connect as a NativeTlsFtpStream-typed stream
             // (still plain TCP at this point), then issue AUTH TLS via
@@ -195,6 +244,7 @@ pub async fn ftp_connect(profile: &ConnectionProfile) -> Result<FtpSession> {
             // generic instantiations, so the type has to be picked up front.
             let s = NativeTlsFtpStream::connect_with_stream(tcp)
                 .with_context(|| format!("FTP connect {addr}"))?;
+            let s = configure_tls_data_channel(s, peer_is_ipv6);
             let tls_connector = TlsConnector::new().map_err(|e| anyhow!("TLS init: {e}"))?;
             let secured = s
                 .into_secure(NativeTlsConnector::from(tls_connector), &host_for_blocking)
@@ -205,6 +255,7 @@ pub async fn ftp_connect(profile: &ConnectionProfile) -> Result<FtpSession> {
         } else {
             let s = FtpStream::connect_with_stream(tcp)
                 .with_context(|| format!("FTP connect {addr}"))?;
+            let s = configure_plain_data_channel(s, peer_is_ipv6);
             let mut plain = FtpStreamKind::Plain(s);
             login(&mut plain, &username, &password)?;
             Ok(plain)
