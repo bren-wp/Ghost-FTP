@@ -209,12 +209,29 @@ impl FolderSync {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("create {}", parent.display()))?;
         let tmp = self.settings_path.with_extension("json.tmp");
+        let backup = self.settings_path.with_extension("json.bak");
         std::fs::write(&tmp, bytes)
             .with_context(|| format!("write {}", tmp.display()))?;
+
+        // Windows does not reliably allow rename(tmp, existing_target). Move the
+        // previous settings aside first, then commit the new snapshot and restore
+        // the backup if that commit fails.
+        let had_previous = self.settings_path.exists();
+        if had_previous {
+            let _ = std::fs::remove_file(&backup);
+            std::fs::rename(&self.settings_path, &backup)
+                .with_context(|| format!("backup {}", self.settings_path.display()))?;
+        }
         if let Err(error) = std::fs::rename(&tmp, &self.settings_path) {
             let _ = std::fs::remove_file(&tmp);
+            if had_previous {
+                let _ = std::fs::rename(&backup, &self.settings_path);
+            }
             return Err(error)
                 .with_context(|| format!("replace {}", self.settings_path.display()));
+        }
+        if had_previous {
+            let _ = std::fs::remove_file(&backup);
         }
         Ok(())
     }
