@@ -103,7 +103,10 @@ require_text "SFTP connect timeout" "$CONNECTION_MODEL" 'session.connect(CONNECT
 require_text "SFTP channel timeout" "$CONNECTION_MODEL" 'channel.connect(CONNECT_TIMEOUT_MS)'
 require_text "SFTP channel cleanup" "$CONNECTION_MODEL" 'channel?.disconnect()'
 require_text "SFTP session cleanup" "$CONNECTION_MODEL" 'session.disconnect()'
-require_text "host normalization" "$CONNECTION_MODEL" 'IDN.toASCII(value)'
+require_text "host normalization" "$CONNECTION_MODEL" 'IDN.toASCII(host)'
+require_text "IPv6 bracket parsing" "$CONNECTION_MODEL" "value.startsWith('[')"
+require_text "embedded credential rejection" "$CONNECTION_MODEL" "'@' !in value"
+require_text "host scheme validation" "$CONNECTION_MODEL" 'scheme in setOf("ftp", "ftps", "sftp")'
 require_text "release signing configuration" "$ANDROID_DIR/app/build.gradle.kts" 'signingConfigs'
 require_text "release workflow release build" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'assembleRelease'
 require_text "mandatory release APK gate" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'Android release is incomplete: release APK was not produced.'
