@@ -1762,8 +1762,10 @@ impl SessionManager {
         if profile.port == 0 {
             anyhow::bail!("connection port must be between 1 and 65535");
         }
-        if matches!(profile.protocol.as_str(), "sftp" | "ssh" | "ftp" | "ftps" | "")
-            && profile.username.trim().is_empty()
+        if matches!(
+            profile.protocol.as_str(),
+            "sftp" | "ssh" | "ftp" | "ftps" | ""
+        ) && profile.username.trim().is_empty()
         {
             anyhow::bail!("connection username must not be empty");
         }
