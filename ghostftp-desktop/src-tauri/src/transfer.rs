@@ -1645,8 +1645,14 @@ impl TransferManager {
 
         let fs = fs_for_session(&session);
 
-        // Best-effort: create the remote root.
-        let _ = fs.create_dir(&remote_root).await;
+        // Existing roots are valid, but an actual create failure must not be
+        // silently ignored: otherwise child uploads can fail later with a much
+        // less useful error.
+        if fs.stat(&remote_root).await.is_err() {
+            fs.create_dir(&remote_root)
+                .await
+                .with_context(|| format!("create remote directory {remote_root}"))?;
+        }
 
         let mut dirs_to_visit: Vec<PathBuf> = vec![local_root_path.clone()];
         let mut files: Vec<(PathBuf, String)> = Vec::new();
@@ -1678,7 +1684,11 @@ impl TransferManager {
 
         subdirs.sort_by_key(|s| s.matches('/').count());
         for sd in subdirs {
-            let _ = fs.create_dir(&sd).await;
+            if fs.stat(&sd).await.is_err() {
+                fs.create_dir(&sd)
+                    .await
+                    .with_context(|| format!("create remote directory {sd}"))?;
+            }
         }
 
         let mut ids = Vec::with_capacity(files.len());
