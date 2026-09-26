@@ -370,6 +370,9 @@ function IntegrationsCard() {
     setShellBusy(true);
     try{
       const status=enabled?await ipc.pathAdd():await ipc.pathRemove();
+      if(status.managed !== enabled){
+        throw new Error(status.detail ?? `Shell integration did not ${enabled ? "enable" : "disable"} as requested.`);
+      }
       s.setShellIntegration(status.managed);
       setShellDetail(status.detail ?? (status.managed?'Shell integration enabled.':'Shell integration disabled.'));
     }catch(error){
