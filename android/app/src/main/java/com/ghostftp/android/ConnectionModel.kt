@@ -72,11 +72,18 @@ class ConnectionController {
     fun downloadRemote(profile: ConnectionProfile, remoteFilePath: String, outputFile: File): TransferResult {
         val normalized = normalizedProfile(profile)
         val target = normalizeRemoteTarget(remoteFilePath)
-        outputFile.parentFile?.mkdirs()
-        return when (normalized.protocol) {
-            ConnectionProtocol.FTP -> downloadFtp(normalized, secure = false, remoteFilePath = target, outputFile = outputFile)
-            ConnectionProtocol.EXPLICIT_FTPS -> downloadFtp(normalized, secure = true, remoteFilePath = target, outputFile = outputFile)
-            ConnectionProtocol.SFTP -> downloadSftp(normalized, remoteFilePath = target, outputFile = outputFile)
+        outputFile.parentFile?.let { parent ->
+            require(parent.exists() || parent.mkdirs()) { "Unable to create the download directory." }
+        }
+        return try {
+            when (normalized.protocol) {
+                ConnectionProtocol.FTP -> downloadFtp(normalized, secure = false, remoteFilePath = target, outputFile = outputFile)
+                ConnectionProtocol.EXPLICIT_FTPS -> downloadFtp(normalized, secure = true, remoteFilePath = target, outputFile = outputFile)
+                ConnectionProtocol.SFTP -> downloadSftp(normalized, remoteFilePath = target, outputFile = outputFile)
+            }
+        } catch (error: Throwable) {
+            runCatching { if (outputFile.exists()) outputFile.delete() }
+            throw error
         }
     }
 
