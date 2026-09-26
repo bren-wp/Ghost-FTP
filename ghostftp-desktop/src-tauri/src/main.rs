@@ -22,7 +22,7 @@ fn run_uninstaller_if_requested() -> bool {
     let start_menu = std::env::var_os("APPDATA")
         .map(std::path::PathBuf::from)
         .map(|p| p.join("Microsoft").join("Windows").join("Start Menu").join("Programs"));
-    let quote = |s: &std::path::Path| s.to_string_lossy().replace(''', "''");
+    let quote = |s: &std::path::Path| s.to_string_lossy().replace('\'', "''");
     let mut script = format!(
         "$ErrorActionPreference='SilentlyContinue'; Wait-Process -Id {pid}; Remove-Item -LiteralPath '{}' -Force;",
         quote(&exe)
@@ -38,7 +38,7 @@ fn run_uninstaller_if_requested() -> bool {
         ));
     }
     script.push_str(
-        " Remove-Item -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP' -Recurse -Force;",
+        r" Remove-Item -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP' -Recurse -Force;",
     );
     script.push_str(&format!(
         " Remove-Item -LiteralPath '{}' -Force -ErrorAction SilentlyContinue;",
