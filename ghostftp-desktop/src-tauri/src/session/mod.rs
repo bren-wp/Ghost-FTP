@@ -377,7 +377,18 @@ impl client::Handler for ClientHandler {
         &mut self,
         server_public_key: &key::PublicKey,
     ) -> Result<bool, Self::Error> {
-        let status = known_hosts::check(&self.host, self.port, server_public_key);
+        let status = match known_hosts::check(&self.host, self.port, server_public_key) {
+            Ok(status) => status,
+            Err(error) => {
+                tracing::warn!(
+                    ?error,
+                    host = %self.host,
+                    port = self.port,
+                    "failed to verify SSH host key from known_hosts"
+                );
+                return Ok(false);
+            }
+        };
         let fingerprint = known_hosts::fingerprint(server_public_key);
         let key_type = server_public_key.name().to_string();
 
@@ -404,8 +415,25 @@ impl client::Handler for ClientHandler {
         match decision {
             HostDecision::Accept => Ok(true),
             HostDecision::Trust => {
-                if let Err(e) = known_hosts::append(&self.host, self.port, server_public_key) {
-                    tracing::warn!(?e, "failed to persist host key");
+                let persist = match kind {
+                    HostPromptKind::Unknown => {
+                        known_hosts::append(&self.host, self.port, server_public_key)
+                    }
+                    HostPromptKind::Mismatch => {
+                        known_hosts::replace(&self.host, self.port, server_public_key)
+                    }
+                };
+                if let Err(error) = persist {
+                    tracing::warn!(
+                        ?error,
+                        host = %self.host,
+                        port = self.port,
+                        "failed to persist trusted SSH host key"
+                    );
+                    // "Accept" is the explicit session-only choice. If the user
+                    // chose "Trust", fail closed instead of silently downgrading
+                    // persistence semantics.
+                    return Ok(false);
                 }
                 Ok(true)
             }
