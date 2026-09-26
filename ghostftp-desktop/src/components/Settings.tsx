@@ -20,7 +20,7 @@ import {
   APP_THEMES,
   useSettings,
 } from "@/stores/settingsStore";
-import { getLocale, saveLocale } from "@/lib/i18n";
+import { APP_LANGUAGE_OPTIONS, getLocale, saveLocale, type AppLocale } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
 import { useDialog } from "@/hooks/useDialog";
 import { requestDesktopNotificationPermission } from "@/lib/notifications";
@@ -46,7 +46,7 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
   const [section, setSection] = useState<Section>(initialSection);
   const syncOnly = initialSection === "sync";
   const [pendingLocale, setPendingLocale] = useState(getLocale());
-  const setLocaleNow = (value: any) => {
+  const setLocaleNow = (value: AppLocale) => {
     setPendingLocale(value);
     saveLocale(value);
   };
@@ -108,9 +108,9 @@ function Card({ icon, title, subtitle, children }: { icon: React.ReactNode; titl
   return <section className="rounded-lg border border-border bg-[#071f35] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.02)]"><div className="mb-3 flex items-center gap-2"><span className="text-accent">{icon}</span><div><div className="font-semibold text-accent">{title}</div><div className="text-[11px] text-text-muted">{subtitle}</div></div></div><div className="space-y-3">{children}</div></section>;
 }
 
-function LanguageCard({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }) {
-  const options = [['en','English (English)'],['hr','Hrvatski (Croatian)'],['de','Deutsch (German)'],['fr','Français (French)'],['es','Español (Spanish)'],['it','Italiano (Italian)'],['pt','Português (Portuguese)'],['nl','Nederlands (Dutch)'],['pl','Polski (Polish)'],['sl','Slovenščina (Slovenian)'],['sr','Srpski (Serbian)'],['bs','Bosanski (Bosnian)'],['mk','Македонски (Macedonian)']] as [string,string][];
-  return <Card icon={<Globe2 size={20}/>} title="Language" subtitle="Choose your preferred application language."><SelectRow label="Primary Language" value={locale} onChange={setLocale} options={options}/><div className="text-[10px] text-text-dim">Language changes are saved immediately. English remains the primary fallback language.</div></Card>;
+function LanguageCard({ locale, setLocale }: { locale: AppLocale; setLocale: (value: AppLocale) => void }) {
+  const options = APP_LANGUAGE_OPTIONS.map(([value, label]) => [value, label] as [string, string]);
+  return <Card icon={<Globe2 size={20}/>} title="Language" subtitle="Choose your preferred application language."><SelectRow label="Primary Language" value={locale} onChange={(value) => setLocale(value as AppLocale)} options={options}/><div className="text-[10px] text-text-dim">Language changes are saved immediately. English remains the primary fallback language.</div></Card>;
 }
 function AppearanceCard() {
   const s = useSettings();
