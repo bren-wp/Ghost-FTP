@@ -173,6 +173,9 @@ struct Running {
     /// Kept alive so the filesystem watch stays registered.
     _watcher: Option<notify::RecommendedWatcher>,
     status: Arc<Mutex<RuntimeStatus>>,
+    /// Session created for this background pair. Shared with stop_pair so an
+    /// aborted reconcile cannot strand a hidden live connection.
+    session_id: Arc<Mutex<Option<String>>>,
 }
 
 pub struct FolderSync {
@@ -349,7 +352,7 @@ impl FolderSync {
                 return Err(error);
             }
         }
-        self.stop_pair(&pair.id).await;
+        self.stop_pair(app, &pair.id).await;
         if pair.enabled {
             self.start_pair(app, &pair).await?;
         }
@@ -367,7 +370,7 @@ impl FolderSync {
                 return Err(error);
             }
         }
-        self.stop_pair(id).await;
+        self.stop_pair(app, id).await;
         // Unregister the OS sync root if this was an on-demand pair.
         self.reconcile_virtualfs(app).await;
         Ok(())
@@ -392,7 +395,7 @@ impl FolderSync {
             pair
         };
         if enabled {
-            self.stop_pair(id).await;
+            self.stop_pair(app, id).await;
             self.start_pair(app, &pair).await?;
         } else {
             self.stop_pair(id).await;
@@ -413,9 +416,17 @@ impl FolderSync {
         }
     }
 
-    async fn stop_pair(&self, id: &str) {
+    async fn stop_pair(&self, app: &AppHandle, id: &str) {
         if let Some(r) = self.running.lock().await.remove(id) {
             r.task.abort();
+            if let Some(session_id) = r.session_id.lock().await.take() {
+                let state = app.state::<AppState>();
+                if let Err(error) = state.sessions.disconnect(&session_id).await {
+                    tracing::debug!(
+                        "folder sync '{id}': background session cleanup failed: {error:#}"
+                    );
+                }
+            }
             // Dropping `_watcher` unregisters the filesystem watch.
         }
     }
@@ -453,10 +464,12 @@ impl FolderSync {
         let task_app = app.clone();
         let task_pair = pair.clone();
         let task_status = status.clone();
+        let session_id = Arc::new(Mutex::new(None));
+        let task_session_id = session_id.clone();
         let poll = Duration::from_secs(pair.poll_interval_secs.max(1));
         let task = tauri::async_runtime::spawn(async move {
             // A live session for this pair, connected lazily and rebuilt on error.
-            let mut session_id: Option<String> = None;
+            let mut session_id = task_session_id.lock().await.take();
             // Reconcile once immediately on start.
             let mut pending = true;
             loop {
@@ -477,6 +490,7 @@ impl FolderSync {
                 }
                 pending = false;
                 reconcile(&task_app, &task_pair, &task_status, &mut session_id).await;
+                *task_session_id.lock().await = session_id.clone();
             }
         });
 
@@ -487,6 +501,7 @@ impl FolderSync {
                 trigger,
                 _watcher: watcher,
                 status,
+                session_id,
             },
         );
         Ok(())
