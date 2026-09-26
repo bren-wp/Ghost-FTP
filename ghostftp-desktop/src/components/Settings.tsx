@@ -398,7 +398,7 @@ function IntegrationsCard() {
 function StatusRow({ label }: { label: string }){return <div className="flex min-h-8 items-center gap-3 rounded-md border border-border-subtle bg-[#051929] px-3 text-[12px]"><span className="h-2 w-2 shrink-0 rounded-full bg-success"/><span>{label}</span></div>}
 
 function AppearancePanel(){return <div className="mx-auto w-full max-w-4xl"><AppearanceCard/></div>}
-function LanguagePanel({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }){return <div className="mx-auto w-full max-w-4xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
+function LanguagePanel({ locale, setLocale }: { locale: AppLocale; setLocale: (value: AppLocale) => void }){return <div className="mx-auto w-full max-w-4xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
 function TransfersPanel(){return <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-4"><PerformanceCard/><TransfersCard/></div>}
 function ConnectionPanel(){return <div className="mx-auto w-full max-w-4xl"><ConnectionCard/></div>}
 function SecurityPanel(){return <div className="mx-auto w-full max-w-4xl"><SecurityCard/></div>}
