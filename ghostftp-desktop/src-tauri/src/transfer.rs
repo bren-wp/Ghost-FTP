@@ -905,16 +905,23 @@ impl TransferManager {
         app: AppHandle,
     ) -> Result<String> {
         let local = PathBuf::from(&local_path);
-        let size = tokio::fs::metadata(&local)
+        let metadata = tokio::fs::metadata(&local)
             .await
-            .with_context(|| format!("stat {}", local.display()))?
-            .len();
+            .with_context(|| format!("stat {}", local.display()))?;
+        if !metadata.is_file() {
+            anyhow::bail!("upload source is not a regular file: {}", local.display());
+        }
+        let file_name = basename(&local_path);
+        if file_name.is_empty() || matches!(file_name.as_str(), "." | "..") {
+            anyhow::bail!("upload path does not identify a file: {}", local.display());
+        }
+        let size = metadata.len();
 
         // Join with the separator the destination already uses, and don't add a
         // second one. A Windows agent target spelled `C:\srv\` used to produce
         // `C:\srv\/file` — Win32 tolerates it, but it shows up in every error
         // message and audit line, and the mixed form trips path comparisons.
-        let initial_remote = join_remote(&remote_dir, &basename(&local_path));
+        let initial_remote = join_remote(&remote_dir, &file_name);
 
         let (final_remote, skip) = remote_resolve(&session, &initial_remote, policy).await?;
 
