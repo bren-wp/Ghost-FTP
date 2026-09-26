@@ -343,14 +343,43 @@ class ConnectionController {
     }
 
     private fun normalizeHost(input: String): String {
-        val value = input.trim()
-            .removePrefix("ftp://")
-            .removePrefix("ftps://")
-            .removePrefix("sftp://")
-            .substringBefore('/')
-            .substringBefore(':')
-            .trim()
-        return if (value.isBlank()) "" else IDN.toASCII(value)
+        var value = input.trim()
+        if (value.isBlank()) return ""
+
+        val schemeIndex = value.indexOf("://")
+        if (schemeIndex >= 0) {
+            val scheme = value.substring(0, schemeIndex).lowercase()
+            require(scheme in setOf("ftp", "ftps", "sftp")) { "Unsupported host scheme." }
+            value = value.substring(schemeIndex + 3)
+        }
+
+        value = value.substringBefore('/').trim()
+        require('@' !in value) { "Credentials must not be embedded in the host." }
+
+        val host = when {
+            value.startsWith('[') -> {
+                val end = value.indexOf(']')
+                require(end > 1) { "Invalid IPv6 host." }
+                val remainder = value.substring(end + 1)
+                require(remainder.isBlank() || remainder.matches(Regex("^:\\d+$"))) {
+                    "Invalid host or port."
+                }
+                value.substring(1, end)
+            }
+            value.count { it == ':' } > 1 -> value
+            ':' in value -> {
+                val hostPart = value.substringBeforeLast(':').trim()
+                val portPart = value.substringAfterLast(':').trim()
+                require(portPart.all(Char::isDigit) && portPart.isNotBlank()) {
+                    "Invalid host or port."
+                }
+                hostPart
+            }
+            else -> value
+        }.trim()
+
+        if (host.isBlank()) return ""
+        return if (':' in host) host else IDN.toASCII(host)
     }
 
     private fun normalizeRemoteDirectory(input: String): String {
