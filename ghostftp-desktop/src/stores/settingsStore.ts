@@ -405,7 +405,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       set,
       get,
       "terminalScrollback",
-      Math.max(100, Math.min(100000, Math.round(finiteNumber(n, DEFAULTS.terminalScrollback)))
+      Math.max(100, Math.min(100000, Math.round(finiteNumber(n, DEFAULTS.terminalScrollback))))
     ),
   setTerminalCopyOnSelect: (v) =>
     mutate(set, get, "terminalCopyOnSelect", v),
