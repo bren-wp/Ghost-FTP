@@ -1753,6 +1753,25 @@ impl SessionManager {
         verifier: Arc<dyn HostKeyVerifier>,
         prompter: Arc<dyn AuthPrompter>,
     ) -> Result<String> {
+        if profile.id.trim().is_empty() {
+            anyhow::bail!("connection profile id must not be empty");
+        }
+        if profile.host.trim().is_empty() {
+            anyhow::bail!("connection host must not be empty");
+        }
+        if profile.port == 0 {
+            anyhow::bail!("connection port must be between 1 and 65535");
+        }
+        if matches!(profile.protocol.as_str(), "sftp" | "ssh" | "ftp" | "ftps" | "")
+            && profile.username.trim().is_empty()
+        {
+            anyhow::bail!("connection username must not be empty");
+        }
+        if let AuthMethod::Key { path, .. } = &profile.auth {
+            if path.trim().is_empty() {
+                anyhow::bail!("SSH private key path must not be empty");
+            }
+        }
         let _ = app;
         let session = match profile.protocol.as_str() {
             "sftp" | "ssh" | "" => {
