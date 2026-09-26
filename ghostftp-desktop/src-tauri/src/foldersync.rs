@@ -200,11 +200,28 @@ impl FolderSync {
         })
     }
 
+    fn persist_snapshot(&self, settings: &Settings) -> Result<()> {
+        let bytes = serde_json::to_vec_pretty(settings)?;
+        let parent = self
+            .settings_path
+            .parent()
+            .context("folder sync settings path has no parent")?;
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("create {}", parent.display()))?;
+        let tmp = self.settings_path.with_extension("json.tmp");
+        std::fs::write(&tmp, bytes)
+            .with_context(|| format!("write {}", tmp.display()))?;
+        if let Err(error) = std::fs::rename(&tmp, &self.settings_path) {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(error)
+                .with_context(|| format!("replace {}", self.settings_path.display()));
+        }
+        Ok(())
+    }
+
     async fn persist(&self) -> Result<()> {
         let settings = self.settings.lock().await.clone();
-        std::fs::write(&self.settings_path, serde_json::to_vec_pretty(&settings)?)
-            .with_context(|| format!("write {}", self.settings_path.display()))?;
-        Ok(())
+        self.persist_snapshot(&settings)
     }
 
     /// Bring up every pair the user left enabled.
