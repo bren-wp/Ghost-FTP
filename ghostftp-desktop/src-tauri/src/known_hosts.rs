@@ -29,9 +29,7 @@ pub fn check(host: &str, port: u16, key: &PublicKey) -> HostKeyStatus {
         return HostKeyStatus::Unknown;
     };
 
-    let Ok(recorded_keys) =
-        russh_keys::known_hosts::known_host_keys_path(host, port, &path)
-    else {
+    let Ok(recorded_keys) = russh_keys::known_hosts::known_host_keys_path(host, port, &path) else {
         return HostKeyStatus::Unknown;
     };
 
@@ -98,10 +96,7 @@ pub fn fingerprint(key: &PublicKey) -> String {
     format!("SHA256:{b64}")
 }
 
-
 fn base64_no_pad(bytes: &[u8]) -> String {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD_NO_PAD.encode(bytes)
 }
-
-
