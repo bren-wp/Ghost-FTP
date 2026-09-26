@@ -68,10 +68,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$GHOSTFTP_ANDROID_KEYSTORE_B64"
-          test -n "$GHOSTFTP_ANDROID_STORE_PASSWORD"
-          test -n "$GHOSTFTP_ANDROID_KEY_ALIAS"
-          test -n "$GHOSTFTP_ANDROID_KEY_PASSWORD"
+          if [[ -z "$GHOSTFTP_ANDROID_KEYSTORE_B64" || -z "$GHOSTFTP_ANDROID_STORE_PASSWORD" || -z "$GHOSTFTP_ANDROID_KEY_ALIAS" || -z "$GHOSTFTP_ANDROID_KEY_PASSWORD" ]]; then
+            echo "Production signing is not configured; no production APK will be published."
+            exit 1
+          fi
           printf '%s' "$GHOSTFTP_ANDROID_KEYSTORE_B64" | base64 --decode > android/release.keystore
           chmod 600 android/release.keystore
           cat > android/signing.properties <<EOF
