@@ -15,6 +15,7 @@ export type ErrorKind =
   | "timeout"
   | "unsupported"
   | "conflict"
+  | "invalid-input"
   | "other";
 
 export interface GhostFtpError {
@@ -30,6 +31,7 @@ const KINDS = new Set<ErrorKind>([
   "timeout",
   "unsupported",
   "conflict",
+  "invalid-input",
   "other",
 ]);
 
@@ -87,6 +89,8 @@ function describe(kind: ErrorKind, context?: string): Copy {
       return { title: context ?? "Not supported", hint: "This backend can't do that." };
     case "conflict":
       return { title: context ?? "Already exists", hint: "Choose a different name." };
+    case "invalid-input":
+      return { title: context ?? "Invalid input", hint: "Check the path or value and try again." };
     default:
       return { title: context ?? "Something went wrong" };
   }
