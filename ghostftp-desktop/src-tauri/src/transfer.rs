@@ -706,9 +706,17 @@ impl TransferManager {
         policy: OverwritePolicy,
         app: AppHandle,
     ) -> Result<String> {
+        let file_name = basename(&remote_path);
+        if file_name.is_empty() || matches!(file_name.as_str(), "." | "..") {
+            anyhow::bail!("download path does not identify a file: {remote_path}");
+        }
+        let local_root = PathBuf::from(&local_dir);
+        tokio::fs::create_dir_all(&local_root)
+            .await
+            .with_context(|| format!("create download directory {}", local_root.display()))?;
         let size = remote_size(&session, &remote_path).await.unwrap_or(0);
 
-        let initial = PathBuf::from(&local_dir).join(basename(&remote_path));
+        let initial = local_root.join(file_name);
         let (final_path, skip) = match policy {
             OverwritePolicy::Overwrite => (initial, false),
             OverwritePolicy::Skip => {
