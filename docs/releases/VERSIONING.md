@@ -12,3 +12,13 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 - Legacy `2.1.1-rc.*` identifiers remain compatibility aliases for already-published assets and links.
 
 The verified mapping is recorded in `docs/releases/version-map.json`.
+
+
+## Published-history migration
+
+The public GitHub release history was migrated and verified on 27 September 2026.
+
+- Legacy published RC releases now use the canonical sequence `v0.1.0` through `v0.14.0`.
+- The already published next release remains `v0.15.0`.
+- Legacy RC release automation, approval markers and one-time migration tooling were removed after successful verification so they cannot publish or fail against the active 0.x train.
+- Historical provenance remains recorded in `version-map.json`; migrated release assets retain their verified GitHub SHA-256 digests.
