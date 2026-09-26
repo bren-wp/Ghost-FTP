@@ -352,7 +352,9 @@ function IntegrationsCard() {
     let active=true;
     void ipc.pathStatus().then((status)=>{
       if(!active)return;
-      s.setShellIntegration(status.managed);
+      // Reflect the OS state without persisting it again. pathStatus() is the
+      // source of truth and opening Settings must never mutate preferences.
+      useSettings.setState({ shellIntegration: status.managed });
       if(status.detail)setShellDetail(status.detail);
     }).catch((error)=>{
       if(active){
