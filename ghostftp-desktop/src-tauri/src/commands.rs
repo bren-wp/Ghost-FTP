@@ -364,23 +364,29 @@ pub async fn connect(
                 format!("profile {profile_id} not found"),
             )
         })?;
-    // Record recency on the persisted, secret-free profile before credentials
-    // are hydrated from the OS keychain, so secrets can never leak to disk.
-    profile.last_used = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()
-        .map(|duration| duration.as_secs());
-    state
-        .profiles
-        .upsert(profile.clone())
-        .await
-        .map_err(GhostFTPError::from)?;
+    // Hydrate and establish the transport first. A failed connection attempt
+    // must not be recorded as "last used" because the UI sorts and labels sites
+    // from this value.
     hydrate_profile_secrets(&mut profile)?;
     let session_id = state
         .sessions
-        .connect(profile, app)
+        .connect(profile.clone(), app)
         .await
         .map_err(GhostFTPError::from)?;
+    // Persist only secret-free metadata after connection succeeds.
+    let mut persisted = profile.clone();
+    persisted.last_used = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|duration| duration.as_secs());
+    protect_profile_secrets(&mut persisted, &state)?;
+    if let Err(error) = state.profiles.upsert(persisted).await {
+        // The live transport is valid even if recency persistence fails; close
+        // it before returning the storage error so frontend/backend state stays
+        // consistent.
+        let _ = state.sessions.disconnect(&session_id).await;
+        return Err(GhostFTPError::from(error));
+    }
     // Re-apply a previously-granted Agent Bridge access for this profile (session
     // ids are per-connect, so the bridge tracks the persistent grant by profile).
     state
