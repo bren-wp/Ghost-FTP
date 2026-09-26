@@ -265,7 +265,9 @@ export function TransferCenterDialog({ onClose }: Props) {
 
   const activeCount = transfers.filter(
     (transfer) =>
-      transfer.status === "transferring" || transfer.status === "queued"
+      transfer.status === "transferring" ||
+      transfer.status === "queued" ||
+      transfer.status === "paused"
   ).length;
 
   const canPauseSelected =
