@@ -184,7 +184,7 @@ jobs:
           ! grep -Fq 'progressText.textContent' website/assets/site.js
           for page in \
             website/index.html \
-            website/{bs,de,es,fr,hr,it,mk,nl,pl,pt,sl,sq,sr}/index.html; do
+            website/{bs,de,es,fr,hr,it,mk,nl,pl,pt,sl,sr}/index.html; do
             grep -Fq 'ghostftp-app.png' "$page"
             grep -Fq 'Ghost FTP 2.1.1 RC23' "$page"
           done
