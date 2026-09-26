@@ -303,9 +303,15 @@ func install(opts installOptions) error {
 				return fmt.Errorf("registering Apps & Features entry: %w", err)
 			}
 		}
-		if err := exec.Command("reg", "query", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/v", "UninstallString").Run(); err != nil {
+		query := exec.Command("reg", "query", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/v", "UninstallString")
+		output, err := query.CombinedOutput()
+		if err != nil {
 			rollback()
 			return fmt.Errorf("verifying uninstall registration: %w", err)
+		}
+		if !strings.Contains(string(output), uninstall) {
+			rollback()
+			return fmt.Errorf("verifying uninstall registration: unexpected UninstallString")
 		}
 	} else {
 		_ = exec.Command("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/f").Run()
