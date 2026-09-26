@@ -1588,6 +1588,9 @@ impl TransferManager {
         app: AppHandle,
     ) -> Result<Vec<String>> {
         let root_name = basename(&remote_root);
+        if root_name.is_empty() || matches!(root_name.as_str(), "." | "..") {
+            anyhow::bail!("directory download requires a named remote directory");
+        }
         let local_root = PathBuf::from(&local_dir).join(&root_name);
         tokio::fs::create_dir_all(&local_root)
             .await
@@ -1652,10 +1655,20 @@ impl TransferManager {
         app: AppHandle,
     ) -> Result<Vec<String>> {
         let local_root_path = PathBuf::from(&local_root);
+        let metadata = tokio::fs::metadata(&local_root_path)
+            .await
+            .with_context(|| format!("stat {}", local_root_path.display()))?;
+        if !metadata.is_dir() {
+            anyhow::bail!(
+                "directory upload source is not a directory: {}",
+                local_root_path.display()
+            );
+        }
         let root_name = local_root_path
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "upload".into());
+            .filter(|name| !name.is_empty() && !matches!(name.as_str(), "." | ".."))
+            .ok_or_else(|| anyhow::anyhow!("directory upload requires a named local directory"))?;
         let remote_root = join_remote(&remote_dir, &root_name);
 
         let fs = fs_for_session(&session);
