@@ -199,7 +199,7 @@ async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> 
                 while let Some(d) = stack.pop() {
                     // `-a`, so a directory holding only dotfiles isn't reported
                     // as empty and left behind by the RMD pass below.
-                    let listing = list_lines(stream, &d).unwrap_or_default();
+                    let listing = list_lines(stream, &d)\n                        .with_context(|| format!("FTP recursive LIST {d}"))?;
                     for line in listing {
                         let Some(entry) = entry_from_listing(&d, &line) else {
                             continue;
