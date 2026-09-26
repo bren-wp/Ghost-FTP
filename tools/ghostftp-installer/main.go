@@ -245,6 +245,13 @@ func install(opts installOptions) error {
 			bak := path + ".ghostftp-previous"
 			_ = os.Remove(bak)
 			if err := os.Rename(path, bak); err != nil {
+				// A previous shortcut in this loop may already have been moved aside.
+				// Restore every completed backup before rolling the application binary
+				// back so a failed upgrade cannot silently remove existing shortcuts.
+				for original, previous := range shortcutBackups {
+					_ = os.Remove(original)
+					_ = os.Rename(previous, original)
+				}
 				_ = os.Remove(exe)
 				if hadPrevious {
 					_ = os.Rename(backup, exe)
