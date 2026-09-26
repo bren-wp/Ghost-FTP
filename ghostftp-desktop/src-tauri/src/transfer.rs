@@ -3183,8 +3183,9 @@ fn is_transient(e: &anyhow::Error) -> bool {
 /// Shared download runner: admission → run loop → finalize → wake
 /// the queue. The loop re-runs the file from byte 0 after a resume-from-pause
 /// (Phase 2) and auto-retries transient errors with 5s/20s backoff.
-/// The concurrency permit is held through backoff — a deliberate trade-off so
-/// a retrying transfer keeps its slot.
+/// Retry backoff releases the concurrency permit so an unreachable server
+/// cannot reduce throughput for unrelated queued transfers. The transfer must
+/// reacquire a permit before its next network attempt.
 async fn run_download_task(
     mgr: Arc<TransferManager>,
     id: String,
@@ -3193,9 +3194,10 @@ async fn run_download_task(
     final_path: PathBuf,
     app: AppHandle,
 ) {
-    let Some(_permit) = mgr.admit(&id).await else {
+    let Some(initial_permit) = mgr.admit(&id).await else {
         return;
     };
+    let mut permit = Some(initial_permit);
     let mut auto_retries = 0u32;
     let max_auto_retries = mgr.max_auto_retries.load(Ordering::Relaxed) as u32;
     let res = loop {
@@ -3225,6 +3227,10 @@ async fn run_download_task(
                 if let Some(t) = mgr.get(&id).await {
                     let _ = app.emit("transfer://updated", &t);
                 }
+                // A retry that is only waiting must not occupy one of the
+                // global transfer slots. This keeps healthy sites moving when
+                // another endpoint is offline or timing out.
+                drop(permit.take());
                 tokio::time::sleep(Duration::from_secs(delay)).await;
                 // Cancel may abort this task, but also guard the state here so
                 // future lifecycle changes cannot accidentally revive a
@@ -3235,6 +3241,10 @@ async fn run_download_task(
                 ) {
                     return;
                 }
+                let Ok(next_permit) = mgr.semaphore.clone().acquire_owned().await else {
+                    return;
+                };
+                permit = Some(next_permit);
                 mgr.update(&id, |t| t.error = None).await;
                 continue;
             }
@@ -3254,9 +3264,10 @@ async fn run_upload_task(
     final_remote: String,
     app: AppHandle,
 ) {
-    let Some(_permit) = mgr.admit(&id).await else {
+    let Some(initial_permit) = mgr.admit(&id).await else {
         return;
     };
+    let mut permit = Some(initial_permit);
     let mut auto_retries = 0u32;
     let max_auto_retries = mgr.max_auto_retries.load(Ordering::Relaxed) as u32;
     let res = loop {
@@ -3286,6 +3297,10 @@ async fn run_upload_task(
                 if let Some(t) = mgr.get(&id).await {
                     let _ = app.emit("transfer://updated", &t);
                 }
+                // A retry that is only waiting must not occupy one of the
+                // global transfer slots. This keeps healthy sites moving when
+                // another endpoint is offline or timing out.
+                drop(permit.take());
                 tokio::time::sleep(Duration::from_secs(delay)).await;
                 // Cancel may abort this task, but also guard the state here so
                 // future lifecycle changes cannot accidentally revive a
@@ -3296,6 +3311,10 @@ async fn run_upload_task(
                 ) {
                     return;
                 }
+                let Ok(next_permit) = mgr.semaphore.clone().acquire_owned().await else {
+                    return;
+                };
+                permit = Some(next_permit);
                 mgr.update(&id, |t| t.error = None).await;
                 continue;
             }
