@@ -361,20 +361,11 @@ class ConnectionController {
                 val end = value.indexOf(']')
                 require(end > 1) { "Invalid IPv6 host." }
                 val remainder = value.substring(end + 1)
-                require(remainder.isBlank() || remainder.matches(Regex("^:\\d+$"))) {
-                    "Invalid host or port."
-                }
+                require(remainder.isBlank()) { "Enter the port in the Port field." }
                 value.substring(1, end)
             }
             value.count { it == ':' } > 1 -> value
-            ':' in value -> {
-                val hostPart = value.substringBeforeLast(':').trim()
-                val portPart = value.substringAfterLast(':').trim()
-                require(portPart.all(Char::isDigit) && portPart.isNotBlank()) {
-                    "Invalid host or port."
-                }
-                hostPart
-            }
+            ':' in value -> throw IllegalArgumentException("Enter the port in the Port field.")
             else -> value
         }.trim()
 
