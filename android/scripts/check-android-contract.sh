@@ -100,6 +100,9 @@ require_text "SFTP channel cleanup" "$CONNECTION_MODEL" 'channel?.disconnect()'
 require_text "SFTP session cleanup" "$CONNECTION_MODEL" 'session.disconnect()'
 require_text "host normalization" "$CONNECTION_MODEL" 'IDN.toASCII(value)'
 require_text "release signing configuration" "$ANDROID_DIR/app/build.gradle.kts" 'signingConfigs'
+require_text "release workflow production keystore" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'GHOSTFTP_ANDROID_KEYSTORE_B64'
+require_text "release workflow release build" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'assembleRelease'
+require_text "release workflow signed APK" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'app-release.apk'
 
 blocked_patterns=(
   'lorem'
