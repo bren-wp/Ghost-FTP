@@ -7,6 +7,19 @@ use std::path::Path;
 
 pub struct LocalFs;
 
+impl LocalFs {
+    fn reject_filesystem_root(path: &str, operation: &str) -> anyhow::Result<()> {
+        let candidate = Path::new(path);
+        if path.trim().is_empty() {
+            anyhow::bail!("{operation} path must not be empty");
+        }
+        if candidate.parent().is_none() && candidate.has_root() {
+            anyhow::bail!("{operation} refuses the local filesystem root");
+        }
+        Ok(())
+    }
+}
+
 #[async_trait]
 impl RemoteFs for LocalFs {
     async fn list_dir(&self, path: &str) -> anyhow::Result<Vec<DirEntry>> {
@@ -48,6 +61,8 @@ impl RemoteFs for LocalFs {
     }
 
     async fn rename(&self, from: &str, to: &str) -> anyhow::Result<()> {
+        Self::reject_filesystem_root(from, "rename")?;
+        Self::reject_filesystem_root(to, "rename")?;
         tokio::fs::rename(from, to)
             .await
             .with_context(|| format!("rename {from} -> {to}"))?;
@@ -55,6 +70,7 @@ impl RemoteFs for LocalFs {
     }
 
     async fn delete(&self, path: &str, recursive: bool) -> anyhow::Result<()> {
+        Self::reject_filesystem_root(path, "delete")?;
         let meta = tokio::fs::symlink_metadata(path)
             .await
             .with_context(|| format!("stat {path}"))?;
