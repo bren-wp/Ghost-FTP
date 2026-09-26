@@ -1130,6 +1130,9 @@ pub async fn transfer_set_concurrency(
     count: u32,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    if !(1..=32).contains(&count) {
+        return Err("transfer concurrency must be between 1 and 32".into());
+    }
     state.transfers.set_concurrency(count as usize);
     Ok(())
 }
@@ -1140,6 +1143,9 @@ pub async fn transfer_set_max_retries(
     attempts: u32,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    if attempts > 8 {
+        return Err("automatic retry attempts must be between 0 and 8".into());
+    }
     state.transfers.set_max_auto_retries(attempts as usize);
     Ok(())
 }
