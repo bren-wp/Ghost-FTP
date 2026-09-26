@@ -187,8 +187,18 @@ func install(opts installOptions) error {
 	if !filepath.IsAbs(dir) {
 		return fmt.Errorf("installation folder must be an absolute path")
 	}
-	volumeRoot := filepath.Clean(filepath.VolumeName(dir) + `\`)
-	if dir == volumeRoot || len(dir) <= len(volumeRoot)+3 {
+	volume := filepath.VolumeName(dir)
+	if volume == "" {
+		return fmt.Errorf("installation folder must use a local Windows volume")
+	}
+	// A per-user installer must not write through UNC/device paths or into an
+	// arbitrary volume root. Keeping the target on a normal drive also makes
+	// upgrade rollback and self-uninstall semantics deterministic.
+	if strings.HasPrefix(dir, `\\`) || strings.HasPrefix(dir, `\\?\`) || strings.HasPrefix(dir, `\\.\`) {
+		return fmt.Errorf("installation folder must use a local Windows drive")
+	}
+	volumeRoot := filepath.Clean(volume + `\`)
+	if strings.EqualFold(dir, volumeRoot) || len(dir) <= len(volumeRoot)+3 {
 		return fmt.Errorf("installation folder is not safe")
 	}
 	if err := os.MkdirAll(dir, 0755); err != nil {
