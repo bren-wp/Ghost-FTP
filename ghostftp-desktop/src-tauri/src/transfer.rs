@@ -3212,9 +3212,7 @@ async fn readmit_after_retry_backoff(
 
         let runnable = {
             let mut transfers = mgr.transfers.lock().await;
-            let Some(transfer) = transfers.get_mut(id) else {
-                return None;
-            };
+            let transfer = transfers.get_mut(id)?;
             match transfer.status {
                 TransferStatus::Paused => false,
                 TransferStatus::Queued | TransferStatus::Transferring => {
