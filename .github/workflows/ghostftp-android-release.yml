@@ -59,15 +59,38 @@ jobs:
         shell: bash
         run: bash android/scripts/check-android-contract.sh
 
-      - name: Build Android APK without external signing secrets
-        shell: bash
-        run: gradle -p android lintDebug assembleDebug
-
-      - name: Verify Android APK signature
+      - name: Configure Android release signing
+        env:
+          GHOSTFTP_ANDROID_KEYSTORE_B64: ${{ secrets.GHOSTFTP_ANDROID_KEYSTORE_B64 }}
+          GHOSTFTP_ANDROID_STORE_PASSWORD: ${{ secrets.GHOSTFTP_ANDROID_STORE_PASSWORD }}
+          GHOSTFTP_ANDROID_KEY_ALIAS: ${{ secrets.GHOSTFTP_ANDROID_KEY_ALIAS }}
+          GHOSTFTP_ANDROID_KEY_PASSWORD: ${{ secrets.GHOSTFTP_ANDROID_KEY_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -n "$GHOSTFTP_ANDROID_KEYSTORE_B64"
+          test -n "$GHOSTFTP_ANDROID_STORE_PASSWORD"
+          test -n "$GHOSTFTP_ANDROID_KEY_ALIAS"
+          test -n "$GHOSTFTP_ANDROID_KEY_PASSWORD"
+          printf '%s' "$GHOSTFTP_ANDROID_KEYSTORE_B64" | base64 --decode > android/release.keystore
+          chmod 600 android/release.keystore
+          cat > android/signing.properties <<EOF
+          storeFile=../release.keystore
+          storePassword=$GHOSTFTP_ANDROID_STORE_PASSWORD
+          keyAlias=$GHOSTFTP_ANDROID_KEY_ALIAS
+          keyPassword=$GHOSTFTP_ANDROID_KEY_PASSWORD
+          EOF
+          chmod 600 android/signing.properties
+
+      - name: Build signed Android release APK
+        shell: bash
+        run: gradle -p android lintRelease assembleRelease
+
+      - name: Verify Android release APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
 
@@ -77,7 +100,7 @@ jobs:
           set -euo pipefail
           mkdir -p dist/android
           APK="dist/android/GhostFTP-Android-${SAFE_TAG}.apk"
-          cp android/app/build/outputs/apk/debug/app-debug.apk "$APK"
+          cp android/app/build/outputs/apk/release/app-release.apk "$APK"
           test -s "$APK"
           sha256sum "$APK" > "${APK}.sha256"
 
