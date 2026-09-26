@@ -3180,6 +3180,66 @@ fn is_transient(e: &anyhow::Error) -> bool {
     )
 }
 
+/// Re-enter the global FIFO after retry backoff without monopolizing a
+/// concurrency slot. Keeping retries in the same queue as fresh work prevents
+/// an offline endpoint from repeatedly jumping ahead of already-waiting sites.
+///
+/// A transfer can be paused while it is sleeping or while it is waiting for
+/// readmission. In that case it stays queued until resume opens its gate; it
+/// must never silently lose its worker task.
+async fn readmit_after_retry_backoff(
+    mgr: &Arc<TransferManager>,
+    id: &str,
+    app: &AppHandle,
+) -> Option<OwnedSemaphorePermit> {
+    loop {
+        match mgr.get(id).await.map(|t| t.status) {
+            Some(TransferStatus::Transferring)
+            | Some(TransferStatus::Queued)
+            | Some(TransferStatus::Paused) => {}
+            _ => return None,
+        }
+
+        {
+            let mut waiting = mgr.waiting.lock().await;
+            if !waiting.iter().any(|queued| queued == id) {
+                waiting.push_back(id.to_string());
+            }
+        }
+        mgr.bump_queue(app).await;
+
+        let permit = mgr.admit(id).await?;
+
+        let runnable = {
+            let mut transfers = mgr.transfers.lock().await;
+            let Some(transfer) = transfers.get_mut(id) else {
+                return None;
+            };
+            match transfer.status {
+                TransferStatus::Paused => false,
+                TransferStatus::Queued | TransferStatus::Transferring => {
+                    transfer.status = TransferStatus::Transferring;
+                    transfer.error = None;
+                    true
+                }
+                _ => return None,
+            }
+        };
+
+        if runnable {
+            if let Some(t) = mgr.get(id).await {
+                let _ = app.emit("transfer://updated", &t);
+            }
+            return Some(permit);
+        }
+
+        // Pause raced with admission after the id was popped from the waiting queue.
+        // Release the slot and loop so the id is queued again behind work that
+        // was already waiting. resume() will wake admission through queue_gen.
+        drop(permit);
+    }
+}
+
 /// Shared download runner: admission → run loop → finalize → wake
 /// the queue. The loop re-runs the file from byte 0 after a resume-from-pause
 /// (Phase 2) and auto-retries transient errors with 5s/20s backoff.
@@ -3232,20 +3292,14 @@ async fn run_download_task(
                 // another endpoint is offline or timing out.
                 drop(permit.take());
                 tokio::time::sleep(Duration::from_secs(delay)).await;
-                // Cancel may abort this task, but also guard the state here so
-                // future lifecycle changes cannot accidentally revive a
-                // canceled/paused row after retry backoff.
-                if !matches!(
-                    mgr.get(&id).await.map(|t| t.status),
-                    Some(TransferStatus::Transferring)
-                ) {
-                    return;
-                }
-                let Ok(next_permit) = mgr.semaphore.clone().acquire_owned().await else {
+                // Re-enter through the same FIFO as every other transfer.
+                // This also keeps a transfer alive if the user pauses it during
+                // backoff: admission waits for resume instead of abandoning the
+                // worker and leaving a resumable-looking but inert row behind.
+                let Some(next_permit) = readmit_after_retry_backoff(&mgr, &id, &app).await else {
                     return;
                 };
                 permit = Some(next_permit);
-                mgr.update(&id, |t| t.error = None).await;
                 continue;
             }
             other => break other,
@@ -3302,20 +3356,14 @@ async fn run_upload_task(
                 // another endpoint is offline or timing out.
                 drop(permit.take());
                 tokio::time::sleep(Duration::from_secs(delay)).await;
-                // Cancel may abort this task, but also guard the state here so
-                // future lifecycle changes cannot accidentally revive a
-                // canceled/paused row after retry backoff.
-                if !matches!(
-                    mgr.get(&id).await.map(|t| t.status),
-                    Some(TransferStatus::Transferring)
-                ) {
-                    return;
-                }
-                let Ok(next_permit) = mgr.semaphore.clone().acquire_owned().await else {
+                // Re-enter through the same FIFO as every other transfer.
+                // This also keeps a transfer alive if the user pauses it during
+                // backoff: admission waits for resume instead of abandoning the
+                // worker and leaving a resumable-looking but inert row behind.
+                let Some(next_permit) = readmit_after_retry_backoff(&mgr, &id, &app).await else {
                     return;
                 };
                 permit = Some(next_permit);
-                mgr.update(&id, |t| t.error = None).await;
                 continue;
             }
             other => break other,
