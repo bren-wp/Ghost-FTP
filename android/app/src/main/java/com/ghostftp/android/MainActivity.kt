@@ -76,6 +76,8 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         activityClosing = true
+        operationGeneration += 1
+        operationInFlight = false
         selectedUploadUri = null
         activeProfile = null
         if (::passwordInput.isInitialized) passwordInput.text.clear()
@@ -316,8 +318,12 @@ class MainActivity : Activity() {
     }
 
     private fun openConnection() {
-        if (operationInFlight) return
         val profile = readProfile() ?: return
+        openConnection(profile)
+    }
+
+    private fun openConnection(profile: ConnectionProfile) {
+        if (operationInFlight) return
         val generation = ++operationGeneration
         operationInFlight = true
         setBusy(true)
@@ -351,8 +357,9 @@ class MainActivity : Activity() {
             return
         }
         val nextPath = remotePathInput.text.toString().trim().ifBlank { profile.remotePath }
-        activeProfile = profile.copy(remotePath = nextPath)
-        openConnection()
+        val refreshedProfile = profile.copy(remotePath = nextPath)
+        activeProfile = refreshedProfile
+        openConnection(refreshedProfile)
     }
 
     private fun disconnect() {
