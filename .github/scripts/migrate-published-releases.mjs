@@ -374,7 +374,10 @@ for (const item of mapping) {
     method: "PATCH",
     fields: [
       ["-f", "tag_name", newTag],
-      ["-f", "target_commitish", item.sourceSha],
+      // The canonical tag already exists and has been provenance-verified.
+      // Do not resend the historical source SHA as target_commitish here:
+      // GitHub re-evaluates workflow permissions against that field even when
+      // the destination tag already exists.
       ["-f", "name", `Ghost FTP ${item.canonical}`],
       ["-f", "body", body],
       ["-F", "prerelease", "false"],
