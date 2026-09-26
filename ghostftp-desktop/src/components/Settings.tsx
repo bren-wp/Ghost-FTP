@@ -20,7 +20,7 @@ import {
   APP_THEMES,
   useSettings,
 } from "@/stores/settingsStore";
-import { APP_LANGUAGE_OPTIONS, getLocale, saveLocale, type AppLocale } from "@/lib/i18n";
+import { APP_LANGUAGE_OPTIONS, getLocale, setLocale, type AppLocale } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
 import { useDialog } from "@/hooks/useDialog";
 import { requestDesktopNotificationPermission } from "@/lib/notifications";
@@ -47,8 +47,9 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
   const syncOnly = initialSection === "sync";
   const [pendingLocale, setPendingLocale] = useState(getLocale());
   const setLocaleNow = (value: AppLocale) => {
+    if (value === pendingLocale) return;
     setPendingLocale(value);
-    saveLocale(value);
+    setLocale(value);
   };
   const done = () => onClose();
   const [resetBusy, setResetBusy] = useState(false);
@@ -57,8 +58,10 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
     setResetBusy(true);
     try {
       await resetSettingsToDefaults();
-      setPendingLocale("en");
-      saveLocale("en");
+      if (pendingLocale !== "en") {
+        setPendingLocale("en");
+        setLocale("en");
+      }
     } finally {
       setResetBusy(false);
     }
