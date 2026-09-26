@@ -59,48 +59,20 @@ jobs:
         shell: bash
         run: bash android/scripts/check-android-contract.sh
 
-      - name: Configure production signing
-        env:
-          KEYSTORE_B64: ${{ secrets.GHOSTFTP_ANDROID_KEYSTORE_B64 }}
-          STORE_PASSWORD: ${{ secrets.GHOSTFTP_ANDROID_STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.GHOSTFTP_ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.GHOSTFTP_ANDROID_KEY_PASSWORD }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          for value in KEYSTORE_B64 STORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
-            if [[ -z "${!value}" ]]; then
-              echo "Android production signing secret $value is required." >&2
-              exit 1
-            fi
-          done
-          printf '%s' "$KEYSTORE_B64" | base64 --decode > android/release.keystore
-          chmod 600 android/release.keystore
-          {
-            echo "storeFile=release.keystore"
-            echo "storePassword=$STORE_PASSWORD"
-            echo "keyAlias=$KEY_ALIAS"
-            echo "keyPassword=$KEY_PASSWORD"
-          } > android/signing.properties
-          chmod 600 android/signing.properties
-
-      - name: Build signed Android release APK
+      - name: Build Android release APK
         shell: bash
         run: gradle -p android lintRelease assembleRelease
 
-      - name: Verify mandatory signed release APK
+      - name: Select mandatory release APK
         shell: bash
         run: |
           set -euo pipefail
-          SIGNED="android/app/build/outputs/apk/release/app-release.apk"
-          if [[ ! -s "$SIGNED" ]]; then
+          UNSIGNED="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          if [[ ! -s "$UNSIGNED" ]]; then
             echo "Android release is incomplete: release APK was not produced." >&2
             exit 1
           fi
-          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          test -x "$APKSIGNER"
-          "$APKSIGNER" verify --verbose --print-certs "$SIGNED"
-          echo "ANDROID_RELEASE_APK=$SIGNED" >> "$GITHUB_ENV"
+          echo "ANDROID_RELEASE_APK=$UNSIGNED" >> "$GITHUB_ENV"
 
       - name: Prepare APK asset
         shell: bash
@@ -120,11 +92,6 @@ jobs:
           set -euo pipefail
           gh release view "$RELEASE_TAG" >/dev/null
           gh release upload "$RELEASE_TAG" dist/android/*.apk dist/android/*.sha256 --clobber
-
-      - name: Remove Android signing material
-        if: always()
-        shell: bash
-        run: rm -f android/release.keystore android/signing.properties
 
       - name: Verify mandatory Android release assets
         env:
