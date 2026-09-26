@@ -236,11 +236,6 @@ impl FolderSync {
         Ok(())
     }
 
-    async fn persist(&self) -> Result<()> {
-        let settings = self.settings.lock().await.clone();
-        self.persist_snapshot(&settings)
-    }
-
     /// Bring up every pair the user left enabled.
     pub async fn auto_start_if_enabled(&self, app: AppHandle) {
         let pairs = self.settings.lock().await.pairs.clone();
