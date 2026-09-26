@@ -225,6 +225,29 @@ mod tests {
     }
 
     #[test]
+    fn rejects_insecure_grant_issuer() {
+        assert!(parse("ghostftp://grant?issuer=http://panel.example&token=abc123").is_none());
+    }
+
+    #[test]
+    fn rejects_grant_issuer_with_userinfo() {
+        assert!(parse("ghostftp://grant?issuer=https://user:pass@panel.example&token=abc123").is_none());
+    }
+
+    #[test]
+    fn rejects_missing_or_malformed_grant_token() {
+        assert!(parse("ghostftp://grant?issuer=https://panel.example").is_none());
+        assert!(parse("ghostftp://grant?issuer=https://panel.example&token=abc%2F123").is_none());
+    }
+
+    #[test]
+    fn rejects_oversized_grant_token() {
+        let token = "a".repeat(513);
+        let raw = format!("ghostftp://grant?issuer=https://panel.example&token={token}");
+        assert!(parse(&raw).is_none());
+    }
+
+    #[test]
     fn grant_link_still_strips_credentials() {
         let dl = parse(
             "ghostftp://grant?issuer=https://panel.example&token=abcDEF_123-xyz456&password=hunter2&secret=x",
