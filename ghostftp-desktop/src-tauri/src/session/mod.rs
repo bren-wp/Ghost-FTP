@@ -28,8 +28,8 @@ use crate::known_hosts;
 use crate::profiles::{AuthMethod, ConnectionProfile};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
+use russh::keys::{agent::AgentIdentity, Algorithm, PrivateKeyWithHashAlg, PublicKeyOrCertificate};
 use russh::{client, Channel, ChannelMsg};
-use russh_keys::key;
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -369,14 +369,30 @@ pub struct ClientHandler {
     verifier: Arc<dyn HostKeyVerifier>,
 }
 
-#[async_trait]
 impl client::Handler for ClientHandler {
     type Error = russh::Error;
 
     async fn check_server_key(
         &mut self,
-        server_public_key: &key::PublicKey,
+        server_public_key: &PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
+        // russh 0.63 surfaces host certificates separately from bare host keys.
+        // Ghost FTP currently implements strict known_hosts trust, not SSH CA
+        // trust, so accepting a certificate by stripping it to its embedded
+        // key would silently weaken the trust model. Refuse until a CA trust
+        // store and certificate validation policy are explicitly implemented.
+        let server_public_key = match server_public_key {
+            PublicKeyOrCertificate::PublicKey { key, .. } => key,
+            PublicKeyOrCertificate::Certificate(_) => {
+                tracing::warn!(
+                    host = %self.host,
+                    port = self.port,
+                    "SSH host certificate rejected because no trusted host CA is configured"
+                );
+                return Ok(false);
+            }
+        };
+
         let status = match known_hosts::check(&self.host, self.port, server_public_key) {
             Ok(status) => status,
             Err(error) => {
@@ -390,7 +406,7 @@ impl client::Handler for ClientHandler {
             }
         };
         let fingerprint = known_hosts::fingerprint(server_public_key);
-        let key_type = server_public_key.name().to_string();
+        let key_type = server_public_key.algorithm().as_str().to_string();
 
         let (kind, stored) = match status {
             known_hosts::HostKeyStatus::Match => return Ok(true),
@@ -1347,21 +1363,21 @@ pub async fn open_session(
 // ---- Connect ----
 
 #[cfg(unix)]
-async fn open_agent() -> Result<russh_keys::agent::client::AgentClient<tokio::net::UnixStream>> {
-    russh_keys::agent::client::AgentClient::connect_env()
+async fn open_agent() -> Result<russh::keys::agent::client::AgentClient<tokio::net::UnixStream>> {
+    russh::keys::agent::client::AgentClient::connect_env()
         .await
         .context("connecting to ssh-agent via $SSH_AUTH_SOCK")
 }
 
 #[cfg(windows)]
 async fn open_agent(
-) -> Result<russh_keys::agent::client::AgentClient<tokio::net::windows::named_pipe::NamedPipeClient>>
+) -> Result<russh::keys::agent::client::AgentClient<tokio::net::windows::named_pipe::NamedPipeClient>>
 {
     // First try OpenSSH-for-Windows (shipped with Win10/11) which listens
     // on a fixed pipe when the 'OpenSSH Authentication Agent' service runs.
     const OPENSSH_PIPE: &str = r"\\.\pipe\openssh-ssh-agent";
     if let Ok(stream) = tokio::net::windows::named_pipe::ClientOptions::new().open(OPENSSH_PIPE) {
-        return Ok(russh_keys::agent::client::AgentClient::connect(stream));
+        return Ok(russh::keys::agent::client::AgentClient::connect(stream));
     }
 
     // Fall back to PuTTY Pageant 0.78+, which uses pipes like
@@ -1370,7 +1386,7 @@ async fn open_agent(
     // Pageant (file-mapping IPC) is not supported.
     if let Some(pipe) = find_pageant_pipe() {
         if let Ok(stream) = tokio::net::windows::named_pipe::ClientOptions::new().open(&pipe) {
-            return Ok(russh_keys::agent::client::AgentClient::connect(stream));
+            return Ok(russh::keys::agent::client::AgentClient::connect(stream));
         }
     }
 
@@ -1413,12 +1429,30 @@ async fn authenticate_with_agent(
             "ssh-agent has no identities loaded (run `ssh-add`)"
         ));
     }
-    for id in identities {
-        let (next_agent, authed) = session.authenticate_future(username, id, agent).await;
-        agent = next_agent;
-        match authed {
-            Ok(true) => return Ok(true),
-            Ok(false) => continue,
+    for identity in identities {
+        let key = match identity {
+            AgentIdentity::PublicKey { key, .. } => key,
+            AgentIdentity::Certificate { .. } => {
+                // User certificates need certificate-aware auth/trust handling;
+                // do not silently downgrade them to their embedded public key.
+                continue;
+            }
+        };
+        let hash_alg = if matches!(key.algorithm(), Algorithm::Rsa { .. }) {
+            session
+                .best_supported_rsa_hash()
+                .await
+                .context("negotiating RSA hash for ssh-agent key")?
+                .flatten()
+        } else {
+            None
+        };
+        match session
+            .authenticate_publickey_with(username, key, hash_alg, &mut agent)
+            .await
+        {
+            Ok(result) if result.success() => return Ok(true),
+            Ok(_) => continue,
             Err(e) => {
                 tracing::debug!(?e, "agent identity failed, trying next");
                 continue;
@@ -1528,6 +1562,30 @@ pub async fn ssh_connect(
     })
 }
 
+async fn authenticate_private_key(
+    session: &mut client::Handle<ClientHandler>,
+    username: &str,
+    key: russh::keys::PrivateKey,
+) -> Result<bool> {
+    let hash_alg = if matches!(key.algorithm(), Algorithm::Rsa { .. }) {
+        session
+            .best_supported_rsa_hash()
+            .await
+            .context("negotiating RSA signature hash")?
+            .flatten()
+    } else {
+        None
+    };
+    Ok(session
+        .authenticate_publickey(
+            username,
+            PrivateKeyWithHashAlg::new(Arc::new(key), hash_alg),
+        )
+        .await
+        .context("SSH public-key authentication")?
+        .success())
+}
+
 /// Authenticate `session` with the profile's auth material, as `username`.
 /// Shared by the direct and bastion (ProxyJump) paths — both hops authenticate
 /// with the same material.
@@ -1542,7 +1600,8 @@ async fn authenticate(
             let ok = session
                 .authenticate_password(username, password)
                 .await
-                .context("password auth")?;
+                .context("password auth")?
+                .success();
             if ok {
                 true
             } else {
@@ -1558,10 +1617,9 @@ async fn authenticate(
             // absolute paths the in-app key generator writes) both load —
             // load_secret_key does no tilde expansion of its own.
             let resolved = crate::keys::expand_tilde(path);
-            let key = russh_keys::load_secret_key(&resolved, passphrase.as_deref())
+            let key = russh::keys::load_secret_key(&resolved, passphrase.as_deref())
                 .with_context(|| format!("load key {}", resolved.display()))?;
-            session
-                .authenticate_publickey(username, Arc::new(key))
+            authenticate_private_key(session, username, key)
                 .await
                 .context("publickey auth")?
         }
@@ -1576,10 +1634,9 @@ async fn authenticate(
                         "keychain entry {key_ref} is missing — the grant key may have been deleted"
                     )
                 })?;
-            let key = russh_keys::decode_secret_key(&pem, None)
+            let key = russh::keys::decode_secret_key(&pem, None)
                 .with_context(|| format!("decode key {key_ref}"))?;
-            session
-                .authenticate_publickey(username, Arc::new(key))
+            authenticate_private_key(session, username, key)
                 .await
                 .context("publickey auth")?
         }
@@ -1620,7 +1677,7 @@ async fn keyboard_interactive_auth(
                 }
                 return Ok(true);
             }
-            Kbi::Failure => return Ok(false),
+            Kbi::Failure { .. } => return Ok(false),
             Kbi::InfoRequest {
                 name,
                 instructions,

@@ -25,10 +25,7 @@ else
   git push origin "refs/tags/$TAG"
 fi
 
-ARGS=(--target "$SOURCE_SHA" --title "$RELEASE_NAME" --notes-file "$NOTES_FILE")
-if [[ "$VERSION" == 0.* ]]; then
-  ARGS+=(--prerelease)
-fi
+ARGS=(--target "$SOURCE_SHA" --title "$RELEASE_NAME" --notes-file "$NOTES_FILE" --latest)
 
 if gh release view "$TAG" >/dev/null 2>&1; then
   gh release edit "$TAG" "${ARGS[@]}"

@@ -1,0 +1,162 @@
+name: Backfill Ghost FTP 0.15.0
+
+on:
+  workflow_run:
+    workflows: ["Migrate published releases to canonical SemVer"]
+    types: [completed]
+  push:
+    branches:
+      - release/0x-published-migration-and-hardening
+    paths:
+      - '.github/workflows/backfill-0.15.0.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: ghostftp-backfill-0-15-0
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/release/0x-published-migration-and-hardening') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+    runs-on: ubuntu-22.04
+    env:
+      SOURCE_SHA: bd1358b7b9befed3a6dd2971e8f44e30b84e89c0
+      BUILD_SHA: 52eee77a56c4676a437509a7bd28d83d0dcf41a3
+      VERSION: 0.15.0
+      ANDROID_RUN_ID: "36269586968"
+      QUALITY_RUN_ID: "36269586985"
+      PROTOCOL_RUN_ID: "36269586972"
+      WINDOWS_HARDENING_RUN_ID: "36269586969"
+      NATIVE_PREVIEW_RUN_ID: "36269586971"
+      NATIVE_BUILD_RUN_ID: "36269587006"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify historical source and successful release gates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node -p 'require("./version.json").version')" = "$VERSION"
+          test -f "docs/releases/$VERSION.md"
+
+          SOURCE_TREE="$(git rev-parse "$SOURCE_SHA^{tree}")"
+          BUILD_TREE="$(git rev-parse "$BUILD_SHA^{tree}")"
+          test "$SOURCE_TREE" = "$BUILD_TREE"
+
+          verify_run() {
+            local id="$1"
+            local label="$2"
+            local conclusion head
+            conclusion="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.conclusion')"
+            head="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.head_sha')"
+            echo "$label: run=$id conclusion=$conclusion head=$head"
+            test "$conclusion" = "success"
+            test "$head" = "$BUILD_SHA"
+          }
+
+          verify_run "$QUALITY_RUN_ID" "quality"
+          verify_run "$PROTOCOL_RUN_ID" "protocol E2E"
+          verify_run "$WINDOWS_HARDENING_RUN_ID" "Windows hardening"
+          verify_run "$ANDROID_RUN_ID" "Android"
+          verify_run "$NATIVE_PREVIEW_RUN_ID" "native preview"
+          verify_run "$NATIVE_BUILD_RUN_ID" "native build"
+
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            existing="$(git ls-remote --tags origin "refs/tags/v$VERSION" | awk '{print $1}')"
+            test -n "$existing"
+            echo "v$VERSION already exists; publication step will verify/update assets idempotently."
+          fi
+
+      - name: Package canonical 0.15.0 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/raw/windows dist/raw/linux dist/raw/android
+          git archive --format=zip --output="dist/GhostFTP-v$VERSION-Source.zip" "$SOURCE_SHA"
+          zip -qr "dist/GhostFTP-v$VERSION-Desktop-Source.zip" ghostftp-desktop
+          zip -qr "dist/GhostFTP-v$VERSION-Android-Source.zip" android
+          zip -qr "dist/GhostFTP-v$VERSION-Website.zip" website
+          zip -qr "dist/GhostFTP-v$VERSION-Updates.zip" updates
+          zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+
+      - name: Download verified 0.15.0 binary artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "$NATIVE_PREVIEW_RUN_ID" --name GhostFTP-Windows-x64-Preview -D dist/raw/windows
+          gh run download "$NATIVE_PREVIEW_RUN_ID" --name GhostFTP-Linux-x86_64-Preview -D dist/raw/linux
+          gh run download "$ANDROID_RUN_ID" --name GhostFTP-Android-APK-Preview -D dist/raw/android
+          find dist/raw -type f -print
+
+      - name: Normalize canonical 0.15.0 assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          WIN_EXE="$(find dist/raw/windows -type f -iname 'ghostftp.exe' | head -n1)"
+          WIN_SETUP="$(find dist/raw/windows -type f -iname '*setup*.exe' | head -n1)"
+          LINUX_BIN="$(find dist/raw/linux -type f -name 'ghostftp' | head -n1)"
+          APPIMAGE="$(find dist/raw/linux -type f -iname '*.AppImage' | head -n1)"
+          DEB="$(find dist/raw/linux -type f -iname '*.deb' | head -n1)"
+          RPM="$(find dist/raw/linux -type f -iname '*.rpm' | head -n1)"
+          ANDROID_APK="$(find dist/raw/android -type f -iname '*Installable-Preview.apk' | head -n1)"
+
+          test -s "$WIN_EXE"; test -s "$WIN_SETUP"; test -s "$LINUX_BIN"
+          test -s "$APPIMAGE"; test -s "$DEB"; test -s "$RPM"; test -s "$ANDROID_APK"
+
+          cp "$WIN_EXE" "dist/GhostFTP-Windows-x64-Portable-v$VERSION.exe"
+          cp "$WIN_SETUP" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe"
+          cp "$LINUX_BIN" "dist/GhostFTP-Linux-x86_64-v$VERSION"
+          chmod +x "dist/GhostFTP-Linux-x86_64-v$VERSION"
+          cp "$APPIMAGE" "dist/GhostFTP-Linux-x86_64-v$VERSION.AppImage"
+          cp "$DEB" "dist/GhostFTP-Linux-amd64-v$VERSION.deb"
+          cp "$RPM" "dist/GhostFTP-Linux-x86_64-v$VERSION.rpm"
+          cp "$ANDROID_APK" "dist/GhostFTP-Android-v$VERSION.apk"
+
+          (cd dist && zip -q "GhostFTP-Windows-x64-v$VERSION.zip"             "GhostFTP-Windows-x64-Portable-v$VERSION.exe"             "GhostFTP-Windows-x64-Setup-v$VERSION.exe")
+          (cd dist && tar -czf "GhostFTP-Linux-x86_64-v$VERSION.tar.gz"             "GhostFTP-Linux-x86_64-v$VERSION"             "GhostFTP-Linux-x86_64-v$VERSION.AppImage"             "GhostFTP-Linux-amd64-v$VERSION.deb"             "GhostFTP-Linux-x86_64-v$VERSION.rpm")
+          rm -rf dist/raw
+
+      - name: Generate and verify SHA-256 manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd dist && find . -maxdepth 1 -type f ! -name "GhostFTP-v$VERSION-SHA256SUMS.txt" -printf '%f\0' | sort -z | xargs -0 sha256sum) > "dist/GhostFTP-v$VERSION-SHA256SUMS.txt"
+          (cd dist && sha256sum -c "GhostFTP-v$VERSION-SHA256SUMS.txt")
+
+      - name: Publish canonical 0.15.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: bash .github/scripts/publish-release.sh "$SOURCE_SHA"
+
+      - name: Verify canonical release identity and assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "v$VERSION" --json tagName,name,isDraft,isPrerelease             --jq 'select(.tagName == "v0.15.0" and .name == "Ghost FTP 0.15.0" and (.isDraft|not))' >/dev/null
+          RELEASE_ID="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$VERSION" --jq '.id')"
+          LOCAL_COUNT="$(find dist -maxdepth 1 -type f | wc -l | tr -d ' ')"
+          REMOTE_COUNT="$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?per_page=100" --jq 'length')"
+          test "$LOCAL_COUNT" = "$REMOTE_COUNT"
+          if gh release view "v$VERSION" --json assets --jq '.assets[].name' | grep -Eiq '2\.1\.1|RC[0-9]'; then
+            echo "Legacy RC asset name leaked into v$VERSION" >&2
+            exit 1
+          fi

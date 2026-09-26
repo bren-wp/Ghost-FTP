@@ -1,0 +1,50 @@
+name: Sync central product version
+
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - 'version.json'
+      - '.github/scripts/sync-version.mjs'
+      - '.github/workflows/version-sync.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ghostftp-version-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Synchronize all product metadata
+        run: |
+          set -euo pipefail
+          node .github/scripts/sync-version.mjs
+          node .github/scripts/sync-version.mjs --check
+
+      - name: Commit synchronized metadata
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ghostftp-desktop android tools updates website docs/releases
+          if git diff --cached --quiet; then
+            echo "All version metadata already synchronized."
+            exit 0
+          fi
+          git commit -m "release: sync metadata from central version"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

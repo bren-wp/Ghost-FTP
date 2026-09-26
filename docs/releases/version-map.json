@@ -1,26 +1,26 @@
 {
-  "policy": "Canonical pre-1.0 semantic version history. Canonical historical versions are assigned only to GitHub releases that were actually published. The next unreleased development line is 0.15.0; hotfixes use the patch component.",
+  "policy": "Canonical pre-1.0 semantic version history. Canonical historical versions are assigned only to GitHub releases that were actually published. Each mapping preserves the actual Git tag commit SHA; legacy release target_commitish metadata is not treated as authoritative. The current development line is 0.16.0; hotfixes use the patch component. Historical RC-to-0.x mutation remains audit-only until an administrator-authorized GitHub identity can create historical tag refs.",
   "versions": [
     {
       "canonical": "0.1.0",
       "legacy": "2.1.1-rc.8",
       "legacyDisplay": "2.1.1 RC8",
       "publishedAt": "2026-09-20T02:44:28Z",
-      "sourceSha": "6210baf3f55a75047940e2c7495c7cf2df49f8c4"
+      "sourceSha": "52a6bd80db8cb1f1d072ab5f0637ec49f805bf21"
     },
     {
       "canonical": "0.2.0",
       "legacy": "2.1.1-rc.10",
       "legacyDisplay": "2.1.1 RC10",
       "publishedAt": "2026-09-20T08:17:59Z",
-      "sourceSha": "64f3e4c873351425a15b1ce7569fcffce8aa986b"
+      "sourceSha": "0785d3da405855a668a07581f60dbe5a49aebeb1"
     },
     {
       "canonical": "0.3.0",
       "legacy": "2.1.1-rc.11",
       "legacyDisplay": "2.1.1 RC11",
       "publishedAt": "2026-09-20T20:04:08Z",
-      "sourceSha": "70f86623a340b30c46f34ea2df7b65bd07e78695"
+      "sourceSha": "dc66ea2200db1cce395becea07079c6d20cd55c7"
     },
     {
       "canonical": "0.4.0",
@@ -90,7 +90,7 @@
       "legacy": "2.1.1-rc.22",
       "legacyDisplay": "2.1.1 RC22",
       "publishedAt": "2026-09-24T22:23:20Z",
-      "sourceSha": "268cccefd4ef33c7bcdb7247d449df05b1843d9b"
+      "sourceSha": "a0853e50c6ce010877d7c0cfe7fcab872584e161"
     },
     {
       "canonical": "0.14.0",

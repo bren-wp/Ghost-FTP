@@ -1,6 +1,6 @@
 [package]
 name = "ghostftp"
-version = "0.15.0"
+version = "0.16.0"
 edition = "2021"
 description = "Ghost FTP — secure modern FTP, FTPS, SFTP and SSH file transfer client."
 authors = ["Brendigo LTD", "Brendigo, obrt za programiranje"]
@@ -52,9 +52,8 @@ async-trait = "0.1"
 futures = "0.3"
 
 # SSH / SFTP
-russh = "0.45"
-russh-keys = "0.45"
-russh-sftp = "2.0"
+russh = "=0.63.3"
+russh-sftp = "=2.4.0"
 # Native OpenSSH-format private-key writing for the in-app key generator. russh
 # can only *write* PKCS#8 PEM, which OpenSSH itself refuses to load for Ed25519
 # ("error in libcrypto") — so a key generated via russh wouldn't work with

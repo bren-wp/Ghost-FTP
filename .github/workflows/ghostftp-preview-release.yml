@@ -1,4 +1,4 @@
-name: Ghost FTP preview release
+name: Ghost FTP release
 
 on:
   workflow_run:
@@ -10,7 +10,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: ghostftp-preview-release
+  group: ghostftp-release
   cancel-in-progress: false
 
 jobs:
@@ -51,10 +51,28 @@ jobs:
             return 1
           }
 
-          wait_for_gate "Ghost FTP quality" "source audit"
-          wait_for_gate "Ghost FTP protocol E2E" "FTP/FTPS/SFTP E2E"
-          wait_for_gate "Ghost FTP Android" "Android"
-          wait_for_gate "Validate Windows hardening" "Windows hardening"
+          wait_for_gate "ghostftp-quality.yml" "source audit"
+          wait_for_gate "ghostftp-protocol-e2e.yml" "FTP/FTPS/SFTP E2E"
+          wait_for_gate "ghostftp-android.yml" "Android"
+          wait_for_gate "validate-win-hardening.yml" "Windows hardening"
+
+          PREVIOUS_VERSION="$(node -p 'require("./version.json").previousVersion || ""')"
+          if [ -n "$PREVIOUS_VERSION" ]; then
+            echo "Waiting for previous canonical release v$PREVIOUS_VERSION before publishing v$VERSION"
+            found_previous=false
+            for attempt in $(seq 1 90); do
+              if gh release view "v$PREVIOUS_VERSION" >/dev/null 2>&1; then
+                found_previous=true
+                break
+              fi
+              sleep 20
+            done
+            if [ "$found_previous" != "true" ]; then
+              echo "Previous release v$PREVIOUS_VERSION was not published in time." >&2
+              exit 1
+            fi
+          fi
+
           echo "SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
@@ -79,13 +97,13 @@ jobs:
           gh run download "${{ github.event.workflow_run.id }}" -D dist/native
           find dist/native -type f -print
 
-      - name: Download Android release-check APK
+      - name: Download verified installable Android APK
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          RUN_ID="$(gh run list --workflow "Ghost FTP Android" --commit "$SOURCE_SHA" --limit 10 --json databaseId,status,conclusion --jq 'map(select(.status == "completed" and .conclusion == "success")) | .[0].databaseId // ""')"
+          RUN_ID="$(gh run list --workflow "ghostftp-android.yml" --commit "$SOURCE_SHA" --limit 10 --json databaseId,status,conclusion --jq 'map(select(.status == "completed" and .conclusion == "success")) | .[0].databaseId // ""')"
           test -n "$RUN_ID"
           mkdir -p dist/android
           gh run download "$RUN_ID" --name GhostFTP-Android-APK-Preview -D dist/android
@@ -101,7 +119,7 @@ jobs:
           APPIMAGE="$(find dist/native -type f -iname '*.AppImage' | head -n1 || true)"
           DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
           RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
-          ANDROID_APK="$(find dist/android -type f -iname '*release-check.apk' | head -n1 || true)"
+          ANDROID_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$LINUX_BIN"
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"; test -n "$ANDROID_APK"
@@ -125,7 +143,7 @@ jobs:
           set -euo pipefail
           (cd dist && find . -maxdepth 1 -type f ! -name "GhostFTP-v$VERSION-SHA256SUMS.txt" -printf '%f\0' | sort -z | xargs -0 sha256sum) > "dist/GhostFTP-v$VERSION-SHA256SUMS.txt"
 
-      - name: Publish verified prerelease
+      - name: Publish verified release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash

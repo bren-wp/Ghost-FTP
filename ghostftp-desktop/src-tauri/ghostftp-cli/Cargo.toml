@@ -7,7 +7,7 @@
 # import name is preserved via `package = "ghostftp"` so the source needs no edits.
 [package]
 name = "ghostftp-cli"
-version = "0.15.0"
+version = "0.16.0"
 edition = "2021"
 description = "Ghost FTP CLI — SFTP / FTP / S3 / R2 / B2 / Azure Blob from the terminal."
 authors = ["Ghost FTP"]
@@ -29,7 +29,7 @@ futures = "0.3"
 # Backends the CLI talks to directly (object_store for S3/R2/B2/Azure puts/gets,
 # russh only for the `russh::Error` in the host-key verifier signature).
 object_store = { version = "0.11", features = ["aws", "azure"] }
-russh = "0.45"
+russh = "=0.63.3"
 bytes = "1"
 
 # CLI surface + progress bars.

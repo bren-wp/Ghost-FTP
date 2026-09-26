@@ -1,0 +1,57 @@
+name: Migrate published releases to canonical SemVer
+
+on:
+  pull_request:
+    paths:
+      - '.github/scripts/migrate-published-releases.mjs'
+      - '.github/workflows/migrate-published-releases.yml'
+      - 'docs/releases/version-map.json'
+  push:
+    branches:
+      - main
+      - release/0x-published-migration-and-hardening
+    paths:
+      - '.github/scripts/migrate-published-releases.mjs'
+      - '.github/workflows/migrate-published-releases.yml'
+      - 'docs/releases/version-map.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ghostftp-published-release-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate migration script syntax
+        run: node --check .github/scripts/migrate-published-releases.mjs
+
+      - name: Validate migration plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/migrate-published-releases.mjs
+
+      - name: Apply canonical published-release migration
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/0x-published-migration-and-hardening')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/migrate-published-releases.mjs --apply
+
+      - name: Verify canonical published releases
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/0x-published-migration-and-hardening')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/migrate-published-releases.mjs --verify

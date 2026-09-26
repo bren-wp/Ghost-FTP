@@ -17,8 +17,7 @@
 //! — exactly what `sshd` wants in `authorized_keys`.
 
 use anyhow::{anyhow, bail, Context, Result};
-use russh_keys::key::PublicKey;
-use russh_keys::PublicKeyBase64;
+use russh::keys::{PublicKey, PublicKeyBase64};
 use serde::{Deserialize, Serialize};
 use ssh_key::private::{KeypairData, RsaKeypair};
 use ssh_key::rand_core::OsRng;
@@ -31,7 +30,7 @@ const DEFAULT_RSA_BITS: usize = 4096;
 /// Expand a leading `~` / `~/` (or `~\` on Windows) to the user's home dir.
 /// Anything else is returned unchanged. Used both to resolve a save path for a
 /// generated key and — in the SSH connect path — so a stored `~/.ssh/…` key
-/// path actually loads (`russh_keys::load_secret_key` does no tilde expansion).
+/// path actually loads (`russh::keys::load_secret_key` does no tilde expansion).
 pub fn expand_tilde(path: &str) -> PathBuf {
     if path == "~" {
         if let Some(home) = dirs::home_dir() {
@@ -224,16 +223,14 @@ pub fn generate_ed25519_in_memory(comment: &str) -> Result<(String, String)> {
 pub fn public_key_for(path: &str, passphrase: Option<&str>) -> Result<GeneratedKey> {
     let priv_path = expand_tilde(path);
     let pass = passphrase.filter(|p| !p.is_empty());
-    let keypair = russh_keys::load_secret_key(&priv_path, pass)
+    let keypair = russh::keys::load_secret_key(&priv_path, pass)
         .with_context(|| format!("loading key {}", priv_path.display()))?;
-    let pk = keypair
-        .clone_public_key()
-        .map_err(|e| anyhow!("deriving public key: {e}"))?;
+    let pk = keypair.public_key().clone();
     Ok(GeneratedKey {
         path: priv_path.to_string_lossy().into_owned(),
         public_key: public_key_line(&pk, None),
         fingerprint: fingerprint(&pk),
-        key_type: type_token(&pk).to_string(),
+        key_type: type_token(&pk),
     })
 }
 
@@ -257,16 +254,11 @@ fn pub_path_for(priv_path: &Path) -> PathBuf {
     PathBuf::from(s)
 }
 
-/// The wire key-type token for an `authorized_keys` line. Derived from the key
-/// variant rather than `PublicKey::name()`, which returns the *signature* algo
-/// name for RSA (`rsa-sha2-256`) — wrong as an `authorized_keys` type token.
-fn type_token(pk: &PublicKey) -> &'static str {
-    match pk {
-        PublicKey::Ed25519(_) => "ssh-ed25519",
-        PublicKey::RSA { .. } => "ssh-rsa",
-        // We never generate EC keys; fall back to russh's own name.
-        other => other.name(),
-    }
+/// The wire key-type token for an `authorized_keys` line. Modern russh
+/// reexports `ssh_key::PublicKey`; its public-key algorithm is the wire
+/// algorithm (for RSA this is `ssh-rsa`, not a negotiated signature hash).
+fn type_token(pk: &PublicKey) -> String {
+    pk.algorithm().as_str().to_string()
 }
 
 /// Build the one-line OpenSSH public-key representation: `type base64 [comment]`.
@@ -282,7 +274,11 @@ fn public_key_line(pk: &PublicKey, comment: Option<&str>) -> String {
 /// OpenSSH-style `SHA256:<base64-nopad>` fingerprint. `PublicKey::fingerprint`
 /// already returns the base64-nopad SHA256 body.
 fn fingerprint(pk: &PublicKey) -> String {
-    format!("SHA256:{}", pk.fingerprint())
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(pk.public_key_bytes());
+    use base64::Engine;
+    let body = base64::engine::general_purpose::STANDARD_NO_PAD.encode(digest);
+    format!("SHA256:{body}")
 }
 
 /// First of `<base>`, `<base>_2`, `<base>_3`, … whose private *and* `.pub` paths
@@ -372,8 +368,8 @@ mod tests {
         assert!(pub_line.ends_with(" ghostftp-grant"));
         assert!(pem.starts_with("-----BEGIN OPENSSH PRIVATE KEY-----"));
         // The exact decode call the grant connect path makes on the stored PEM.
-        let keypair = russh_keys::decode_secret_key(&pem, None).expect("decode");
-        let derived = keypair.clone_public_key().expect("public key");
+        let keypair = russh::keys::decode_secret_key(&pem, None).expect("decode");
+        let derived = keypair.public_key().clone();
         let body = |line: &str| line.split(' ').take(2).collect::<Vec<_>>().join(" ");
         assert_eq!(
             body(&pub_line),

@@ -2,8 +2,8 @@ name: Refresh canonical Cargo lock
 
 on:
   push:
-    branches:
-      - hardening/rc23-security-reproducibility
+    branches-ignore:
+      - main
     paths:
       - 'ghostftp-desktop/src-tauri/**/Cargo.toml'
       - '.github/scripts/refresh-cargo-lock.sh'

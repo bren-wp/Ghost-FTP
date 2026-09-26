@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
-use russh_keys::key::PublicKey;
-use russh_keys::PublicKeyBase64;
+use russh::keys::{PublicKey, PublicKeyBase64};
 use std::collections::BTreeSet;
 #[cfg(unix)]
 use std::fs::File;
@@ -10,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 /// Path to `~/.ssh/known_hosts`. We use OpenSSH's standard location even on
 /// Windows so users get the same file OpenSSH-compatible clients already use.
-/// Matching is delegated to russh-keys so both plaintext and OpenSSH hashed
+/// Matching is delegated to russh so both plaintext and OpenSSH hashed
 /// (`|1|salt|hash`) host fields are honored.
 pub fn known_hosts_path() -> Option<PathBuf> {
     let home = dirs::home_dir()?;
@@ -32,7 +31,7 @@ pub fn check(host: &str, port: u16, key: &PublicKey) -> Result<HostKeyStatus> {
         return Ok(HostKeyStatus::Unknown);
     };
 
-    let recorded_keys = russh_keys::known_host_keys_path(host, port, &path)
+    let recorded_keys = russh::keys::known_hosts::known_host_keys_path(host, port, &path)
         .with_context(|| format!("reading host keys from {}", path.display()))?;
 
     let presented_b64 = key.public_key_base64();
@@ -70,7 +69,11 @@ pub fn append(host: &str, port: u16, key: &PublicKey) -> Result<()> {
     } else {
         format!("[{host}]:{port}")
     };
-    let line = format!("{host_field} {} {}\n", key.name(), key.public_key_base64());
+    let line = format!(
+        "{host_field} {} {}\n",
+        key.algorithm().as_str(),
+        key.public_key_base64()
+    );
 
     let mut options = OpenOptions::new();
     options.create(true).append(true);
@@ -89,7 +92,7 @@ pub fn append(host: &str, port: u16, key: &PublicKey) -> Result<()> {
 /// Replace every existing entry that matches `host:port` with the newly
 /// trusted key. The rewrite uses a sibling temporary file and a rollback
 /// backup so Windows and Unix both recover the original file if the final
-/// rename fails. Matching line numbers come from russh-keys, so hashed host
+/// rename fails. Matching line numbers come from russh, so hashed host
 /// fields are removed as safely as plaintext entries.
 pub fn replace(host: &str, port: u16, key: &PublicKey) -> Result<()> {
     let path = known_hosts_path().context("could not resolve ~/.ssh/known_hosts")?;
@@ -97,7 +100,7 @@ pub fn replace(host: &str, port: u16, key: &PublicKey) -> Result<()> {
         .with_context(|| format!("reading metadata for {}", path.display()))?;
     let contents =
         std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
-    let recorded_keys = russh_keys::known_host_keys_path(host, port, &path)
+    let recorded_keys = russh::keys::known_hosts::known_host_keys_path(host, port, &path)
         .with_context(|| format!("reading host keys from {}", path.display()))?;
 
     if recorded_keys.is_empty() {
@@ -121,7 +124,11 @@ pub fn replace(host: &str, port: u16, key: &PublicKey) -> Result<()> {
     } else {
         format!("[{host}]:{port}")
     };
-    let replacement = format!("{host_field} {} {}\n", key.name(), key.public_key_base64());
+    let replacement = format!(
+        "{host_field} {} {}\n",
+        key.algorithm().as_str(),
+        key.public_key_base64()
+    );
     let rewritten = rewrite_matching_lines(&contents, &matching_lines, &replacement)
         .context("matching known_hosts entry disappeared during replacement")?;
 

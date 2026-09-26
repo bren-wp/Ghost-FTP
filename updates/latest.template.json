@@ -1,6 +1,6 @@
 {
-  "version": "0.15.0",
-  "build": "2026.09.26.15",
+  "version": "0.16.0",
+  "build": "2026.09.26.16",
   "notes": "Ghost FTP 0.15.0",
   "pub_date": "REPLACE_WITH_RFC3339",
   "platforms": {
