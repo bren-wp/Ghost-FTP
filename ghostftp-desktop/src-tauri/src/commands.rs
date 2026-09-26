@@ -227,7 +227,13 @@ pub async fn duplicate_profile(
     profile.favorite = Some(false);
 
     protect_profile_secrets(&mut profile, &state)?;
-    state.profiles.upsert(profile.clone()).await.map_err(err)?;
+    if let Err(error) = state.profiles.upsert(profile.clone()).await {
+        // The duplicate id is new, so any secrets written above belong only to
+        // this failed copy and can be removed without touching the source.
+        delete_profile_secret(&profile_password_key(&profile.id), &state);
+        delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
+        return Err(err(error));
+    }
     Ok(profile)
 }
 
