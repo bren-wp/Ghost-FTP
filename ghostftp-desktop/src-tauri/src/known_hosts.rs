@@ -29,7 +29,7 @@ pub fn check(host: &str, port: u16, key: &PublicKey) -> HostKeyStatus {
         return HostKeyStatus::Unknown;
     };
 
-    let Ok(recorded_keys) = russh_keys::known_hosts::known_host_keys_path(host, port, &path) else {
+    let Ok(recorded_keys) = russh_keys::known_host_keys_path(host, port, &path) else {
         return HostKeyStatus::Unknown;
     };
 
