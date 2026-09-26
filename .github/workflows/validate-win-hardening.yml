@@ -1,0 +1,51 @@
+name: Validate Windows RC23 hardening
+
+on:
+  push:
+    branches: [fix/rc23-post-merge-hardening]
+    paths:
+      - '.github/workflows/validate-win-hardening.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/rc23-post-merge-hardening
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ghostftp-desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ghostftp-desktop/src-tauri
+      - name: Install frontend dependencies
+        working-directory: ghostftp-desktop
+        run: npm ci
+      - name: TypeScript and production frontend
+        working-directory: ghostftp-desktop
+        run: npm run build
+      - name: UI contracts
+        working-directory: ghostftp-desktop
+        run: npm run check:ui
+      - name: Rust formatting
+        working-directory: ghostftp-desktop/src-tauri
+        run: cargo fmt --all -- --check
+      - name: Rust tests
+        working-directory: ghostftp-desktop/src-tauri
+        run: cargo test --workspace --locked
+      - name: Windows NSIS production bundle
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: ghostftp-desktop
+          args: --bundles nsis
