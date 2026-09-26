@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import ts from "typescript";
 
-const read = (path) => fs.readFileSync(path, "utf8");
+const read = (path) => fs.readFileSync(path, "utf8").replace(/\r\n?/g, "\n");
 const failures = [];
 
 function walkSource(dir) {
@@ -817,10 +817,10 @@ for (const required of [
 ]) {
   if (!transferCenter.includes(required)) failures.push(`Transfer Center missing action/filter contract: ${required}`);
 }
-if (!transferCenter.includes('filtered.length === 0 ? (\n            <Empty />')) {
+if (!/filtered\.length\s*===\s*0\s*\?\s*\(\s*<Empty\s*\/>/.test(transferCenter)) {
   failures.push("Transfer Center empty state must render outside the wide transfer table so compact windows do not inherit table overflow.");
 }
-if (transferCenter.includes('<div className="min-w-[920px]">\n            {filtered.length === 0 ?')) {
+if (/<div className="min-w-\[920px\]">\s*\{filtered\.length\s*===\s*0\s*\?/.test(transferCenter)) {
   failures.push("Transfer Center empty state must not be wrapped in the 920px transfer-table width.");
 }
 
