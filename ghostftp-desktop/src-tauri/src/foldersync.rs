@@ -395,7 +395,7 @@ impl FolderSync {
             self.stop_pair(app, id).await;
             self.start_pair(app, &pair).await?;
         } else {
-            self.stop_pair(id).await;
+            self.stop_pair(app, id).await;
         }
         self.reconcile_virtualfs(app).await;
         Ok(())
