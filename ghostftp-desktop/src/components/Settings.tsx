@@ -51,10 +51,17 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
     saveLocale(value);
   };
   const done = () => onClose();
-  const reset = () => {
-    resetSettingsToDefaults();
-    setPendingLocale("en");
-    saveLocale("en");
+  const [resetBusy, setResetBusy] = useState(false);
+  const reset = async () => {
+    if (resetBusy) return;
+    setResetBusy(true);
+    try {
+      await resetSettingsToDefaults();
+      setPendingLocale("en");
+      saveLocale("en");
+    } finally {
+      setResetBusy(false);
+    }
   };
 
   useDialog(panelRef, { onClose: done, trapFocus: false });
@@ -93,7 +100,7 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
             {section === "sync" && <div className="mx-auto w-full max-w-5xl"><SyncSettings/></div>}
           </div>
           <div className="ghost-preferences-actions flex h-[58px] shrink-0 items-center border-t border-border bg-[#061a2d] px-4">
-            {!syncOnly && <button className="ghost-mini-button" onClick={reset}><RotateCcw size={14}/> Reset to Defaults</button>}
+            {!syncOnly && <button className="ghost-mini-button" disabled={resetBusy} onClick={() => void reset()}><RotateCcw size={14}/> {resetBusy ? "Resetting…" : "Reset to Defaults"}</button>}
             <div className="flex-1"/>
             <button className="ghost-primary-button" onClick={done}>Done</button>
           </div>
