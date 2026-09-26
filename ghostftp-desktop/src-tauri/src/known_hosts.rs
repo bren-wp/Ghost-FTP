@@ -93,8 +93,8 @@ pub fn replace(host: &str, port: u16, key: &PublicKey) -> Result<()> {
     let path = known_hosts_path().context("could not resolve ~/.ssh/known_hosts")?;
     let metadata_before = std::fs::metadata(&path)
         .with_context(|| format!("reading metadata for {}", path.display()))?;
-    let contents = std::fs::read_to_string(&path)
-        .with_context(|| format!("reading {}", path.display()))?;
+    let contents =
+        std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
     let recorded_keys = russh_keys::known_host_keys_path(host, port, &path)
         .with_context(|| format!("reading host keys from {}", path.display()))?;
 
@@ -102,8 +102,7 @@ pub fn replace(host: &str, port: u16, key: &PublicKey) -> Result<()> {
         anyhow::bail!("no existing host key entry to replace for {host}:{port}");
     }
 
-    let matching_lines: BTreeSet<usize> =
-        recorded_keys.into_iter().map(|(line, _)| line).collect();
+    let matching_lines: BTreeSet<usize> = recorded_keys.into_iter().map(|(line, _)| line).collect();
 
     // Avoid overwriting a file that another OpenSSH-compatible client changed
     // while Ghost FTP was preparing the replacement.
@@ -239,10 +238,7 @@ mod tests {
         let rewritten =
             rewrite_matching_lines(contents, &matching, replacement).expect("matching lines");
 
-        assert_eq!(
-            rewritten,
-            "alpha ssh-ed25519 new\nother ssh-rsa keep\n"
-        );
+        assert_eq!(rewritten, "alpha ssh-ed25519 new\nother ssh-rsa keep\n");
     }
 
     #[test]
