@@ -523,12 +523,34 @@ export const TERMINAL_THEMES: Record<
 /** Restore every user-facing preference to the Ghost FTP defaults and persist
  *  the reset to the native settings database. Live transfer limits are also
  *  applied immediately so Reset behaves as a real action rather than a reload. */
-export function resetSettingsToDefaults(): void {
-  useSettings.setState({ ...DEFAULTS } as Partial<SettingsState>);
-  for (const key of SETTINGS_KEYS) persistKey(key, DEFAULTS[key]);
-  ipc.transferSetConcurrency(DEFAULTS.transferConcurrency).catch((error) => toastError(error, "Couldn't reset transfer concurrency"));
-  ipc.transferSetMaxRetries(DEFAULTS.maxRetryAttempts).catch((error) => toastError(error, "Couldn't reset retry limit"));
-  ipc.transferSetThrottle(DEFAULTS.transferThrottleKbps).catch((error) => toastError(error, "Couldn't reset transfer speed limit"));
-  ipc.transferSetDeltaSync(DEFAULTS.deltaSync).catch((error) => toastError(error, "Couldn't reset delta synchronization"));
-  (DEFAULTS.shellIntegration ? ipc.pathAdd() : ipc.pathRemove()).catch((error) => toastError(error, "Couldn't reset shell integration"));
+export async function resetSettingsToDefaults(): Promise<void> {
+  const previous = captureSettingsSnapshot();
+  try {
+    // Persist the complete snapshot as one native transaction before changing
+    // the visible store. A partial reset must never survive a failed DB write.
+    await ipc.settingsSetAll(
+      Object.fromEntries(
+        SETTINGS_KEYS.map((key) => [String(key), JSON.stringify(DEFAULTS[key])])
+      )
+    );
+    useSettings.setState({ ...DEFAULTS } as Partial<SettingsState>);
+    await ipc.transferSetConcurrency(DEFAULTS.transferConcurrency);
+    await ipc.transferSetMaxRetries(DEFAULTS.maxRetryAttempts);
+    await ipc.transferSetThrottle(DEFAULTS.transferThrottleKbps);
+    await ipc.transferSetDeltaSync(DEFAULTS.deltaSync);
+    await (DEFAULTS.shellIntegration ? ipc.pathAdd() : ipc.pathRemove());
+  } catch (error) {
+    useSettings.setState({ ...previous } as Partial<SettingsState>);
+    void ipc.settingsSetAll(
+      Object.fromEntries(
+        SETTINGS_KEYS.map((key) => [String(key), JSON.stringify(previous[key])])
+      )
+    ).catch(() => {});
+    void ipc.transferSetConcurrency(previous.transferConcurrency).catch(() => {});
+    void ipc.transferSetMaxRetries(previous.maxRetryAttempts).catch(() => {});
+    void ipc.transferSetThrottle(previous.transferThrottleKbps).catch(() => {});
+    void ipc.transferSetDeltaSync(previous.deltaSync).catch(() => {});
+    toastError(error, "Couldn't reset preferences");
+    throw error;
+  }
 }
