@@ -108,6 +108,7 @@ require_text "release signing configuration" "$ANDROID_DIR/app/build.gradle.kts"
 require_text "release workflow release build" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'assembleRelease'
 require_text "mandatory release APK gate" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'Android release is incomplete: release APK was not produced.'
 require_text "release APK upload" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'dist/android/*.apk'
+require_text "release APK post-upload verification" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'Verify mandatory Android release assets'
 
 blocked_patterns=(
   'lorem'
