@@ -254,12 +254,59 @@ function pickKnown(obj: Partial<PersistedSettings>): Partial<PersistedSettings> 
   return out;
 }
 
+function finiteNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function normalizePersistedSettings(
+  candidate: Partial<PersistedSettings>
+): Partial<PersistedSettings> {
+  const known = pickKnown(candidate);
+  if (known.transferConcurrency !== undefined) {
+    known.transferConcurrency = Math.max(
+      1,
+      Math.min(32, Math.round(finiteNumber(known.transferConcurrency, DEFAULTS.transferConcurrency)))
+    );
+  }
+  if (known.maxRetryAttempts !== undefined) {
+    known.maxRetryAttempts = Math.max(
+      0,
+      Math.min(8, Math.round(finiteNumber(known.maxRetryAttempts, DEFAULTS.maxRetryAttempts)))
+    );
+  }
+  if (known.transferThrottleKbps !== undefined) {
+    known.transferThrottleKbps = Math.max(
+      0,
+      Math.round(finiteNumber(known.transferThrottleKbps, DEFAULTS.transferThrottleKbps))
+    );
+  }
+  if (known.terminalFontSize !== undefined) {
+    known.terminalFontSize = Math.max(
+      8,
+      Math.min(32, Math.round(finiteNumber(known.terminalFontSize, DEFAULTS.terminalFontSize)))
+    );
+  }
+  if (known.terminalScrollback !== undefined) {
+    known.terminalScrollback = Math.max(
+      100,
+      Math.min(100000, Math.round(finiteNumber(known.terminalScrollback, DEFAULTS.terminalScrollback)))
+    );
+  }
+  if (known.defaultPort !== undefined) {
+    known.defaultPort = Math.max(
+      1,
+      Math.min(65535, Math.round(finiteNumber(known.defaultPort, DEFAULTS.defaultPort)))
+    );
+  }
+  return known;
+}
+
 function load(): PersistedSettings {
   const injected = readInjected();
-  if (injected) return { ...DEFAULTS, ...pickKnown(injected) };
+  if (injected) return { ...DEFAULTS, ...normalizePersistedSettings(injected) };
   // If the native pre-paint snapshot is unavailable, start from defaults;
   // `hydrateFromDb()` below reconciles from ghostftp.db asynchronously.
-  return DEFAULTS;
+  return { ...DEFAULTS };
 }
 
 /** Persist one setting to ghostftp.db. The in-memory value applies immediately; native persistence errors are surfaced to the user. */
@@ -364,7 +411,7 @@ export async function hydrateFromDb(): Promise<void> {
         }
       }
     }
-    const known = pickKnown(parsed);
+    const known = normalizePersistedSettings(parsed);
     if (Object.keys(known).length) {
       useSettings.setState(known as Partial<SettingsState>);
     }
