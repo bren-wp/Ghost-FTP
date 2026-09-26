@@ -3198,6 +3198,15 @@ async fn run_download_task(
                     let _ = app.emit("transfer://updated", &t);
                 }
                 tokio::time::sleep(Duration::from_secs(delay)).await;
+                // Cancel may abort this task, but also guard the state here so
+                // future lifecycle changes cannot accidentally revive a
+                // canceled/paused row after retry backoff.
+                if !matches!(
+                    mgr.get(&id).await.map(|t| t.status),
+                    Some(TransferStatus::Transferring)
+                ) {
+                    return;
+                }
                 mgr.update(&id, |t| t.error = None).await;
                 continue;
             }
@@ -3250,6 +3259,15 @@ async fn run_upload_task(
                     let _ = app.emit("transfer://updated", &t);
                 }
                 tokio::time::sleep(Duration::from_secs(delay)).await;
+                // Cancel may abort this task, but also guard the state here so
+                // future lifecycle changes cannot accidentally revive a
+                // canceled/paused row after retry backoff.
+                if !matches!(
+                    mgr.get(&id).await.map(|t| t.status),
+                    Some(TransferStatus::Transferring)
+                ) {
+                    return;
+                }
                 mgr.update(&id, |t| t.error = None).await;
                 continue;
             }
