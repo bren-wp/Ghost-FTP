@@ -1580,7 +1580,13 @@ fn duplicate_local(path: &str) -> Result<(), String> {
 
 async fn duplicate_ssh(ssh: &Arc<SshSession>, path: &str) -> Result<(), String> {
     let path = path.trim_end_matches('/');
+    if path.is_empty() || matches!(path, "." | "..") {
+        return Err("Duplicate requires a named remote file or directory".into());
+    }
     let (parent, name) = split_remote(path);
+    if name.is_empty() || matches!(name, "." | "..") {
+        return Err("Duplicate requires a named remote file or directory".into());
+    }
     let mut n = 1;
     let dst = loop {
         let cand = format!("{parent}/{}", copy_name(name, n));
@@ -1661,10 +1667,13 @@ pub async fn start_archive_download(
         .ok_or_else(|| format!("session {session_id} not found"))?;
 
     let folder = remote_path.trim_end_matches('/');
-    if folder.is_empty() {
-        return Err("Can't archive the filesystem root".into());
+    if folder.is_empty() || matches!(folder, "." | "..") {
+        return Err("Can't archive a filesystem root or dot path".into());
     }
     let (parent, base) = split_remote(folder);
+    if base.is_empty() || matches!(base, "." | "..") {
+        return Err("Archive requires a named remote directory".into());
+    }
     let parent = if parent.is_empty() { "/" } else { parent };
 
     let is_zip = format == "zip";
