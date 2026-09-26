@@ -6,10 +6,9 @@ use std::io::Write;
 use std::path::PathBuf;
 
 /// Path to `~/.ssh/known_hosts`. We use OpenSSH's standard location even on
-/// Windows so users get the same file PuTTY-via-OpenSSH and ssh.exe already
-/// touch. Hashed (`|1|salt|hash`) host lines are out of scope for v0.3 — we
-/// match against unhashed `host` and `host,host2` entries only. Users with
-/// HashKnownHosts=yes won't get matches; that's acceptable until v0.4.
+/// Windows so users get the same file OpenSSH-compatible clients already use.
+/// Matching is delegated to russh-keys so both plaintext and OpenSSH hashed
+/// (`|1|salt|hash`) host fields are honored.
 pub fn known_hosts_path() -> Option<PathBuf> {
     let home = dirs::home_dir()?;
     Some(home.join(".ssh").join("known_hosts"))
@@ -29,46 +28,18 @@ pub fn check(host: &str, port: u16, key: &PublicKey) -> HostKeyStatus {
     let Some(path) = known_hosts_path() else {
         return HostKeyStatus::Unknown;
     };
-    let Ok(contents) = std::fs::read_to_string(&path) else {
+
+    let Ok(recorded_keys) = russh_keys::known_host_keys_path(host, port, &path) else {
         return HostKeyStatus::Unknown;
     };
 
-    let key_b64 = key.public_key_base64();
-    let needles = host_needles(host, port);
-
+    let presented_b64 = key.public_key_base64();
     let mut stored_fp: Option<String> = None;
-    for line in contents.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let mut parts = line.split_whitespace();
-        let Some(hosts_field) = parts.next() else {
-            continue;
-        };
-        let Some(_keytype) = parts.next() else {
-            continue;
-        };
-        let Some(stored_b64) = parts.next() else {
-            continue;
-        };
-
-        if hosts_field.starts_with("|1|") {
-            // Hashed host entry — out of scope for v0.3.
-            continue;
-        }
-
-        let hits = hosts_field
-            .split(',')
-            .any(|h| needles.iter().any(|n| n == h));
-        if !hits {
-            continue;
-        }
-
-        if stored_b64 == key_b64 {
+    for (_, recorded) in recorded_keys {
+        if recorded.public_key_base64() == presented_b64 {
             return HostKeyStatus::Match;
         }
-        stored_fp = Some(fingerprint_b64(stored_b64));
+        stored_fp = Some(fingerprint(&recorded));
     }
 
     match stored_fp {
@@ -99,9 +70,14 @@ pub fn append(host: &str, port: u16, key: &PublicKey) -> Result<()> {
     };
     let line = format!("{host_field} {} {}\n", key.name(), key.public_key_base64());
 
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
+    let mut options = OpenOptions::new();
+    options.create(true).append(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options
         .open(&path)
         .with_context(|| format!("opening {} for append", path.display()))?;
     file.write_all(line.as_bytes())?;
@@ -120,27 +96,7 @@ pub fn fingerprint(key: &PublicKey) -> String {
     format!("SHA256:{b64}")
 }
 
-fn fingerprint_b64(stored_b64: &str) -> String {
-    use base64::Engine;
-    use sha2::{Digest, Sha256};
-    let Ok(raw) = base64::engine::general_purpose::STANDARD.decode(stored_b64) else {
-        return "SHA256:<unparseable>".into();
-    };
-    let mut hasher = Sha256::new();
-    hasher.update(&raw);
-    let digest = hasher.finalize();
-    format!("SHA256:{}", base64_no_pad(&digest))
-}
-
 fn base64_no_pad(bytes: &[u8]) -> String {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD_NO_PAD.encode(bytes)
-}
-
-fn host_needles(host: &str, port: u16) -> Vec<String> {
-    let mut v = vec![host.to_string()];
-    if port != 22 {
-        v.push(format!("[{host}]:{port}"));
-    }
-    v
 }

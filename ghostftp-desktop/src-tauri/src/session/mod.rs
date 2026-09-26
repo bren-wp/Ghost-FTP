@@ -1762,10 +1762,13 @@ impl SessionManager {
         if profile.port == 0 {
             anyhow::bail!("connection port must be between 1 and 65535");
         }
-        if matches!(
-            profile.protocol.as_str(),
-            "sftp" | "ssh" | "ftp" | "ftps" | ""
-        ) && profile.username.trim().is_empty()
+        // Validate and dispatch from one canonical protocol value. Imported
+        // profiles can contain mixed case or surrounding whitespace; treating
+        // validation and transport selection differently is both confusing and
+        // an easy way for malformed profiles to bypass protocol-specific checks.
+        let protocol = profile.protocol.trim().to_ascii_lowercase();
+        if matches!(protocol.as_str(), "sftp" | "ssh" | "ftp" | "ftps" | "")
+            && profile.username.trim().is_empty()
         {
             anyhow::bail!("connection username must not be empty");
         }
@@ -1775,7 +1778,7 @@ impl SessionManager {
             }
         }
         let _ = app;
-        let session = match profile.protocol.as_str() {
+        let session = match protocol.as_str() {
             "sftp" | "ssh" | "" => {
                 let conn = ssh_connect(&profile, verifier, prompter).await?;
                 let id = Uuid::new_v4().to_string();

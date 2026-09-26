@@ -234,7 +234,17 @@ class ConnectionController {
     }
 
     private fun <T> withFtpClient(profile: ConnectionProfile, secure: Boolean, block: (FTPClient) -> T): T {
-        val client = if (secure) FTPSClient(false) else FTPClient()
+        val client = if (secure) {
+            FTPSClient(false).apply {
+                // Commons Net's FTPS defaults only check certificate dates and
+                // leave endpoint identification disabled. Use Android/JVM's
+                // platform trust store and verify the requested host name.
+                setTrustManager(null)
+                setEndpointCheckingEnabled(true)
+            }
+        } else {
+            FTPClient()
+        }
         client.connectTimeout = CONNECT_TIMEOUT_MS
         client.defaultTimeout = CONNECT_TIMEOUT_MS
         client.dataTimeout = Duration.ofMillis(CONNECT_TIMEOUT_MS.toLong())

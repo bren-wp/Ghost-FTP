@@ -1,6 +1,73 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 #[cfg(windows)]
+fn show_uninstall_error(error: &std::io::Error) {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
+
+    let title: Vec<u16> = OsStr::new("Ghost FTP Uninstall")
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let message = format!(
+        "Ghost FTP could not start the uninstall helper. No application files were removed.\n\n{error}"
+    );
+    let message: Vec<u16> = OsStr::new(&message)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+
+    unsafe {
+        MessageBoxW(
+            std::ptr::null_mut(),
+            message.as_ptr(),
+            title.as_ptr(),
+            MB_OK | MB_ICONERROR,
+        );
+    }
+}
+
+#[cfg(windows)]
+fn spawn_uninstall_helper(script: String) -> std::io::Result<()> {
+    let windows_dir = std::env::var_os("SystemRoot")
+        .or_else(|| std::env::var_os("WINDIR"))
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Windows system directory is unavailable",
+            )
+        })?;
+    let powershell = std::path::PathBuf::from(windows_dir)
+        .join("System32")
+        .join("WindowsPowerShell")
+        .join("v1.0")
+        .join("powershell.exe");
+
+    if !powershell.is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!(
+                "system PowerShell was not found at {}",
+                powershell.display()
+            ),
+        ));
+    }
+
+    std::process::Command::new(powershell)
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+        ])
+        .arg(script)
+        .spawn()
+        .map(|_| ())
+}
+
+#[cfg(windows)]
 fn run_uninstaller_if_requested() -> bool {
     if !std::env::args_os().skip(1).any(|arg| arg == "--uninstall") {
         return false;
@@ -55,16 +122,9 @@ fn run_uninstaller_if_requested() -> bool {
         quote(&install_dir)
     ));
 
-    let _ = std::process::Command::new("powershell.exe")
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-WindowStyle",
-            "Hidden",
-            "-Command",
-        ])
-        .arg(script)
-        .spawn();
+    if let Err(error) = spawn_uninstall_helper(script) {
+        show_uninstall_error(&error);
+    }
     true
 }
 
