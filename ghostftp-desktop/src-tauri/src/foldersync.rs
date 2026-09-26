@@ -268,6 +268,32 @@ impl FolderSync {
         out
     }
 
+    fn validate_pair(pair: &SyncPair) -> Result<()> {
+        if pair.name.trim().is_empty() {
+            anyhow::bail!("sync pair name must not be empty");
+        }
+        if pair.profile_id.trim().is_empty() {
+            anyhow::bail!("sync pair connection must not be empty");
+        }
+        let local = Path::new(pair.local_root.trim());
+        if pair.local_root.trim().is_empty() || !local.is_absolute() {
+            anyhow::bail!("sync local root must be an absolute path");
+        }
+        if pair.remote_root.trim().is_empty() {
+            anyhow::bail!("sync remote root must not be empty");
+        }
+        if matches!(pair.strategy, SyncStrategy::Mirror) {
+            let remote = pair.remote_root.trim().replace('\\', "/");
+            if remote == "/" || remote == "." || remote == ".." {
+                anyhow::bail!("mirror sync refuses a remote root path");
+            }
+            if local.parent().is_none() {
+                anyhow::bail!("mirror sync refuses a local filesystem root");
+            }
+        }
+        Ok(())
+    }
+
     /// Add or replace a pair. If it's enabled, (re)start it.
     pub async fn upsert(&self, app: &AppHandle, mut pair: SyncPair) -> Result<()> {
         if pair.id.is_empty() {
@@ -276,6 +302,7 @@ impl FolderSync {
         if pair.poll_interval_secs == 0 {
             pair.poll_interval_secs = DEFAULT_POLL_SECS;
         }
+        Self::validate_pair(&pair)?;
         {
             let mut s = self.settings.lock().await;
             match s.pairs.iter_mut().find(|p| p.id == pair.id) {
