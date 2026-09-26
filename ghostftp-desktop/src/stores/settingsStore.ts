@@ -345,24 +345,46 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setPromptOnOverwrite: (v) => mutate(set, get, "promptOnOverwrite", v),
   setTransferConcurrency: (n) => {
     const clamped = Math.max(1, Math.min(32, Math.round(finiteNumber(n, DEFAULTS.transferConcurrency))));
+    const previous = get().transferConcurrency;
     mutate(set, get, "transferConcurrency", clamped);
-    // Live-apply to the running queue; the persisted value covers next launch.
-    ipc.transferSetConcurrency(clamped).catch((error) => toastError(error, "Couldn't apply transfer concurrency"));
+    void ipc.transferSetConcurrency(clamped).catch((error) => {
+      set({ transferConcurrency: previous });
+      void persistKey("transferConcurrency", previous).catch(() => {});
+      void ipc.transferSetConcurrency(previous).catch(() => {});
+      toastError(error, "Couldn't apply transfer concurrency");
+    });
   },
   setMaxRetryAttempts: (n) => {
     const clamped = Math.max(0, Math.min(8, Math.round(finiteNumber(n, DEFAULTS.maxRetryAttempts))));
+    const previous = get().maxRetryAttempts;
     mutate(set, get, "maxRetryAttempts", clamped);
-    ipc.transferSetMaxRetries(clamped).catch((error) => toastError(error, "Couldn't apply retry limit"));
+    void ipc.transferSetMaxRetries(clamped).catch((error) => {
+      set({ maxRetryAttempts: previous });
+      void persistKey("maxRetryAttempts", previous).catch(() => {});
+      void ipc.transferSetMaxRetries(previous).catch(() => {});
+      toastError(error, "Couldn't apply retry limit");
+    });
   },
   setTransferThrottleKbps: (n) => {
     const clamped = Math.max(0, Math.round(finiteNumber(n, 0)));
+    const previous = get().transferThrottleKbps;
     mutate(set, get, "transferThrottleKbps", clamped);
-    ipc.transferSetThrottle(clamped).catch((error) => toastError(error, "Couldn't apply transfer speed limit"));
+    void ipc.transferSetThrottle(clamped).catch((error) => {
+      set({ transferThrottleKbps: previous });
+      void persistKey("transferThrottleKbps", previous).catch(() => {});
+      void ipc.transferSetThrottle(previous).catch(() => {});
+      toastError(error, "Couldn't apply transfer speed limit");
+    });
   },
   setDeltaSync: (v) => {
+    const previous = get().deltaSync;
     mutate(set, get, "deltaSync", v);
-    // Live-apply to the transfer engine; the persisted value covers next launch.
-    ipc.transferSetDeltaSync(v).catch((error) => toastError(error, "Couldn't apply delta synchronization"));
+    void ipc.transferSetDeltaSync(v).catch((error) => {
+      set({ deltaSync: previous });
+      void persistKey("deltaSync", previous).catch(() => {});
+      void ipc.transferSetDeltaSync(previous).catch(() => {});
+      toastError(error, "Couldn't apply delta synchronization");
+    });
   },
   setDefaultDownloadFolder: (s) =>
     mutate(set, get, "defaultDownloadFolder", s.trim()),
