@@ -207,9 +207,13 @@ jobs:
             echo "GHOSTFTP_E2E_KEY_PASSPHRASE=$KEYPASS"
           } >> "$GITHUB_ENV"
 
+      - name: Resolve Rust dependency graph
+        working-directory: ghostftp-desktop/src-tauri
+        run: cargo generate-lockfile
+
       - name: Run real protocol E2E
         working-directory: ghostftp-desktop/src-tauri
         shell: bash
         run: |
           set -euo pipefail
-          cargo test -p ghostftp --test protocol_e2e -- --nocapture
+          cargo test -p ghostftp --test protocol_e2e --locked -- --nocapture
