@@ -3,7 +3,11 @@ name: Validate Windows RC23 hardening
 on:
   push:
     branches: [fix/rc23-post-merge-hardening]
+  pull_request:
+    branches: [main]
     paths:
+      - 'ghostftp-desktop/**'
+      - 'tools/ghostftp-installer/**'
       - '.github/workflows/validate-win-hardening.yml'
 
 permissions:
