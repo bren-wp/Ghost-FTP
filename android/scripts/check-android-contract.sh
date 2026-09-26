@@ -74,6 +74,8 @@ require_text "picker metadata fallback" "$MAIN_ACTIVITY" 'displayNameFor(uri: Ur
 require_text "download folder fallback" "$MAIN_ACTIVITY" 'File(filesDir, "downloads")'
 
 require_text "download operation" "$CONNECTION_MODEL" 'fun downloadRemote'
+require_text "failed download cleanup" "$CONNECTION_MODEL" 'if (outputFile.exists()) outputFile.delete()'
+require_text "download directory validation" "$CONNECTION_MODEL" 'parent.exists() || parent.mkdirs()'
 require_text "upload operation" "$CONNECTION_MODEL" 'fun uploadRemote'
 require_text "delete operation" "$CONNECTION_MODEL" 'fun deleteRemoteFile'
 require_text "folder operation" "$CONNECTION_MODEL" 'fun createRemoteDirectory'
