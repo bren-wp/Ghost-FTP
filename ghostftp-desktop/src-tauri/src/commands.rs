@@ -1256,6 +1256,15 @@ pub async fn rename_path(
     to: String,
     state: State<'_, AppState>,
 ) -> Result<(), GhostFTPError> {
+    if from.trim().is_empty() || to.trim().is_empty() {
+        return Err(GhostFTPError::new(
+            ErrorKind::InvalidInput,
+            "rename source and destination must not be empty",
+        ));
+    }
+    if from == to {
+        return Ok(());
+    }
     let fs = fs_for(&session_id, &state).await?;
     fs.rename(&from, &to).await.map_err(GhostFTPError::from)
 }
@@ -1279,6 +1288,12 @@ pub async fn create_directory(
     path: String,
     state: State<'_, AppState>,
 ) -> Result<(), GhostFTPError> {
+    if path.trim().is_empty() || matches!(path.trim(), "." | "..") {
+        return Err(GhostFTPError::new(
+            ErrorKind::InvalidInput,
+            "directory path must identify a named directory",
+        ));
+    }
     let fs = fs_for(&session_id, &state).await?;
     fs.create_dir(&path).await.map_err(GhostFTPError::from)
 }
