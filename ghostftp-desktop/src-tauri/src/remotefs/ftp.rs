@@ -27,6 +27,12 @@ fn join(base: &str, name: &str) -> String {
     }
 }
 
+fn is_dot_listing(line: &str) -> bool {
+    FtpFile::try_from(line.to_string())
+        .map(|file| matches!(file.name(), "." | ".."))
+        .unwrap_or(false)
+}
+
 fn entry_from_listing(parent: &str, line: &str) -> Option<DirEntry> {
     // suppaftp::list::File parses Unix-style `ls -l` lines emitted by most FTP
     // daemons. Some servers (notably IIS in MS-DOS mode) use a different
@@ -202,6 +208,9 @@ async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> 
                     let listing = list_lines(stream, &d)
                         .with_context(|| format!("FTP recursive LIST {d}"))?;
                     for line in listing {
+                        if is_dot_listing(&line) {
+                            continue;
+                        }
                         let entry = entry_from_listing(&d, &line).ok_or_else(|| {
                             anyhow::anyhow!(
                                 "FTP recursive delete refused: unrecognized LIST entry in {d}"
