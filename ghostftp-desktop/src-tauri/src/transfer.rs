@@ -1645,14 +1645,12 @@ impl TransferManager {
 
         let fs = fs_for_session(&session);
 
-        // Existing roots are valid, but an actual create failure must not be
-        // silently ignored: otherwise child uploads can fail later with a much
-        // less useful error.
-        if fs.stat(&remote_root).await.is_err() {
-            fs.create_dir(&remote_root)
-                .await
-                .with_context(|| format!("create remote directory {remote_root}"))?;
-        }
+        // create_dir implementations are expected to tolerate an existing
+        // directory. Do not hide a real permission/path failure here: otherwise
+        // child uploads fail later with a misleading file-create error.
+        fs.create_dir(&remote_root)
+            .await
+            .with_context(|| format!("create remote directory {remote_root}"))?;
 
         let mut dirs_to_visit: Vec<PathBuf> = vec![local_root_path.clone()];
         let mut files: Vec<(PathBuf, String)> = Vec::new();
@@ -1684,11 +1682,9 @@ impl TransferManager {
 
         subdirs.sort_by_key(|s| s.matches('/').count());
         for sd in subdirs {
-            if fs.stat(&sd).await.is_err() {
-                fs.create_dir(&sd)
-                    .await
-                    .with_context(|| format!("create remote directory {sd}"))?;
-            }
+            fs.create_dir(&sd)
+                .await
+                .with_context(|| format!("create remote directory {sd}"))?;
         }
 
         let mut ids = Vec::with_capacity(files.len());
