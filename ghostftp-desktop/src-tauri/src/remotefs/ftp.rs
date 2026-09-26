@@ -1,6 +1,6 @@
 use super::{Capabilities, ChangeSignal, DirEntry, FileKind, RemoteFs};
 use crate::session::FtpSession;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use std::sync::Arc;
 use suppaftp::list::File as FtpFile;
@@ -125,9 +125,9 @@ impl RemoteFs for FtpFs {
 
     async fn delete(&self, path: &str, recursive: bool) -> Result<()> {
         super::validate_remote_delete_path(path)?;
-        // The FTP protocol distinguishes file deletion (DELE) from directory
-        // deletion (RMD), and has no native recursive variant. We probe the
-        // type via a CWD trick: if we can change into it, it's a directory.
+        // FTP distinguishes file deletion (DELE) from directory deletion
+        // (RMD) and has no native recursive delete command. Recursive removal
+        // therefore performs a guarded bottom-up traversal before removing root.
         let path = path.to_string();
         if recursive {
             // Recursive: walk children using a stack of (dir, listing-line)
@@ -235,11 +235,4 @@ async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> 
             Ok(())
         })
         .await
-}
-
-/// Helper to surface "unsupported" errors uniformly. Kept private to this
-/// module; callers should rely on capabilities() advertising the truth.
-#[allow(dead_code)]
-fn unsupported(action: &str) -> anyhow::Error {
-    anyhow!("FTP backend does not support {action}")
 }
