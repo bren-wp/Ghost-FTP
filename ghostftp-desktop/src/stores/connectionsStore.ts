@@ -126,6 +126,13 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
   },
 
   deleteProfile: async (id) => {
+    // A profile can own a live backend session. Disconnect those sessions first
+    // so deleting the saved profile cannot leave an orphaned connection/tab
+    // that no longer has profile metadata in the UI.
+    const live = get().sessions.filter((session) => session.profileId === id);
+    for (const session of live) {
+      await get().disconnect(session.sessionId);
+    }
     await ipc.deleteProfile(id);
     await get().loadProfiles();
   },
