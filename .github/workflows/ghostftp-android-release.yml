@@ -96,3 +96,15 @@ jobs:
           set -euo pipefail
           gh release view "$RELEASE_TAG" >/dev/null
           gh release upload "$RELEASE_TAG" dist/android/*.apk dist/android/*.sha256 --clobber
+
+      - name: Verify mandatory Android release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK_NAME="GhostFTP-Android-${SAFE_TAG}.apk"
+          SHA_NAME="${APK_NAME}.sha256"
+          ASSETS="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
+          grep -Fxq "$APK_NAME" <<<"$ASSETS"
+          grep -Fxq "$SHA_NAME" <<<"$ASSETS"
