@@ -349,8 +349,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
     mutate(set, get, "transferConcurrency", clamped);
     void ipc.transferSetConcurrency(clamped).catch((error) => {
       set({ transferConcurrency: previous });
-      void persistKey("transferConcurrency", previous).catch(() => {});
-      void ipc.transferSetConcurrency(previous).catch(() => {});
+      void persistKey("transferConcurrency", previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      void ipc.transferSetConcurrency(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
       toastError(error, "Couldn't apply transfer concurrency");
     });
   },
@@ -360,8 +360,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
     mutate(set, get, "maxRetryAttempts", clamped);
     void ipc.transferSetMaxRetries(clamped).catch((error) => {
       set({ maxRetryAttempts: previous });
-      void persistKey("maxRetryAttempts", previous).catch(() => {});
-      void ipc.transferSetMaxRetries(previous).catch(() => {});
+      void persistKey("maxRetryAttempts", previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      void ipc.transferSetMaxRetries(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
       toastError(error, "Couldn't apply retry limit");
     });
   },
@@ -371,8 +371,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
     mutate(set, get, "transferThrottleKbps", clamped);
     void ipc.transferSetThrottle(clamped).catch((error) => {
       set({ transferThrottleKbps: previous });
-      void persistKey("transferThrottleKbps", previous).catch(() => {});
-      void ipc.transferSetThrottle(previous).catch(() => {});
+      void persistKey("transferThrottleKbps", previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      void ipc.transferSetThrottle(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
       toastError(error, "Couldn't apply transfer speed limit");
     });
   },
@@ -381,8 +381,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
     mutate(set, get, "deltaSync", v);
     void ipc.transferSetDeltaSync(v).catch((error) => {
       set({ deltaSync: previous });
-      void persistKey("deltaSync", previous).catch(() => {});
-      void ipc.transferSetDeltaSync(previous).catch(() => {});
+      void persistKey("deltaSync", previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      void ipc.transferSetDeltaSync(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
       toastError(error, "Couldn't apply delta synchronization");
     });
   },
@@ -545,11 +545,11 @@ export async function resetSettingsToDefaults(): Promise<void> {
       Object.fromEntries(
         SETTINGS_KEYS.map((key) => [String(key), JSON.stringify(previous[key])])
       )
-    ).catch(() => {});
-    void ipc.transferSetConcurrency(previous.transferConcurrency).catch(() => {});
-    void ipc.transferSetMaxRetries(previous.maxRetryAttempts).catch(() => {});
-    void ipc.transferSetThrottle(previous.transferThrottleKbps).catch(() => {});
-    void ipc.transferSetDeltaSync(previous.deltaSync).catch(() => {});
+    ).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    void ipc.transferSetConcurrency(previous.transferConcurrency).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    void ipc.transferSetMaxRetries(previous.maxRetryAttempts).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    void ipc.transferSetThrottle(previous.transferThrottleKbps).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    void ipc.transferSetDeltaSync(previous.deltaSync).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
     toastError(error, "Couldn't reset preferences");
     throw error;
   }
