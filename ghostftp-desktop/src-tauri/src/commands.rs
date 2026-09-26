@@ -139,21 +139,25 @@ pub async fn save_profile(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     // If a key file changed and the editor intentionally supplied no new
-    // passphrase, do not accidentally reuse the previous key's passphrase.
-    if let Some(existing) = state.profiles.get(&profile.id).await.map_err(err)? {
-        if let (
-            AuthMethod::Key { path: old_path, .. },
-            AuthMethod::Key {
-                path: new_path,
-                passphrase: None,
-            },
-        ) = (&existing.auth, &profile.auth)
-        {
-            if old_path != new_path {
-                delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
-            }
-        }
-    }
+    // passphrase, defer removal of the old key's passphrase until metadata has
+    // committed. Otherwise a failed profiles.json write would leave the still-
+    // saved old key path without the credential it needs.
+    let clear_key_passphrase_after_save = if let Some(existing) =
+        state.profiles.get(&profile.id).await.map_err(err)?
+    {
+        matches!(
+            (&existing.auth, &profile.auth),
+            (
+                AuthMethod::Key { path: old_path, .. },
+                AuthMethod::Key {
+                    path: new_path,
+                    passphrase: None,
+                }
+            ) if old_path != new_path
+        )
+    } else {
+        false
+    };
     protect_profile_secrets(&mut profile, &state)?;
     // Commit secret-free metadata before removing credentials that belong to
     // the previous auth method. If persistence fails, the old saved profile
@@ -163,7 +167,12 @@ pub async fn save_profile(
         AuthMethod::Password { .. } => {
             delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state)
         }
-        AuthMethod::Key { .. } => delete_profile_secret(&profile_password_key(&profile.id), &state),
+        AuthMethod::Key { .. } => {
+            delete_profile_secret(&profile_password_key(&profile.id), &state);
+            if clear_key_passphrase_after_save {
+                delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
+            }
+        }
         AuthMethod::Agent | AuthMethod::KeyRef { .. } => {
             delete_profile_secret(&profile_password_key(&profile.id), &state);
             delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
