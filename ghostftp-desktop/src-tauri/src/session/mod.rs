@@ -377,7 +377,18 @@ impl client::Handler for ClientHandler {
         &mut self,
         server_public_key: &key::PublicKey,
     ) -> Result<bool, Self::Error> {
-        let status = known_hosts::check(&self.host, self.port, server_public_key);
+        let status = match known_hosts::check(&self.host, self.port, server_public_key) {
+            Ok(status) => status,
+            Err(error) => {
+                tracing::warn!(
+                    ?error,
+                    host = %self.host,
+                    port = self.port,
+                    "failed to verify SSH host key from known_hosts"
+                );
+                return Ok(false);
+            }
+        };
         let fingerprint = known_hosts::fingerprint(server_public_key);
         let key_type = server_public_key.name().to_string();
 

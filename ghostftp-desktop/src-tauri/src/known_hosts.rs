@@ -24,14 +24,13 @@ pub enum HostKeyStatus {
     Mismatch { stored_fingerprint: String },
 }
 
-pub fn check(host: &str, port: u16, key: &PublicKey) -> HostKeyStatus {
+pub fn check(host: &str, port: u16, key: &PublicKey) -> Result<HostKeyStatus> {
     let Some(path) = known_hosts_path() else {
-        return HostKeyStatus::Unknown;
+        return Ok(HostKeyStatus::Unknown);
     };
 
-    let Ok(recorded_keys) = russh_keys::known_host_keys_path(host, port, &path) else {
-        return HostKeyStatus::Unknown;
-    };
+    let recorded_keys = russh_keys::known_host_keys_path(host, port, &path)
+        .with_context(|| format!("reading host keys from {}", path.display()))?;
 
     let presented_b64 = key.public_key_base64();
     let mut stored_fp: Option<String> = None;
@@ -42,12 +41,12 @@ pub fn check(host: &str, port: u16, key: &PublicKey) -> HostKeyStatus {
         stored_fp = Some(fingerprint(&recorded));
     }
 
-    match stored_fp {
+    Ok(match stored_fp {
         Some(fp) => HostKeyStatus::Mismatch {
             stored_fingerprint: fp,
         },
         None => HostKeyStatus::Unknown,
-    }
+    })
 }
 
 /// Append a host entry. Writes `host[:port] <type> <base64>` in OpenSSH's
