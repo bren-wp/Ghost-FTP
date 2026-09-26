@@ -241,14 +241,18 @@ jobs:
         working-directory: ghostftp-desktop/src-tauri
         run: cargo fmt --all -- --check
 
+      - name: Resolve Rust dependency graph
+        working-directory: ghostftp-desktop/src-tauri
+        run: cargo generate-lockfile
+
       - name: Rust workspace check
         working-directory: ghostftp-desktop/src-tauri
-        run: cargo check --workspace --all-targets
+        run: cargo check --workspace --all-targets --locked
 
       - name: Rust workspace tests
         working-directory: ghostftp-desktop/src-tauri
-        run: cargo test --workspace
+        run: cargo test --workspace --locked
 
       - name: Clippy
         working-directory: ghostftp-desktop/src-tauri
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
