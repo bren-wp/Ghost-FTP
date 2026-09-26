@@ -10,6 +10,7 @@ on:
     branches:
       - main
       - release/0x-published-migration-and-hardening
+      - fix/canonical-release-migration
     paths:
       - '.github/scripts/migrate-published-releases.mjs'
       - '.github/workflows/migrate-published-releases.yml'
@@ -45,13 +46,13 @@ jobs:
         run: node .github/scripts/migrate-published-releases.mjs
 
       - name: Apply canonical published-release migration
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/0x-published-migration-and-hardening')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/0x-published-migration-and-hardening' || github.ref == 'refs/heads/fix/canonical-release-migration')
         env:
           GH_TOKEN: ${{ github.token }}
         run: node .github/scripts/migrate-published-releases.mjs --apply
 
       - name: Verify canonical published releases
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/0x-published-migration-and-hardening')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/0x-published-migration-and-hardening' || github.ref == 'refs/heads/fix/canonical-release-migration')
         env:
           GH_TOKEN: ${{ github.token }}
         run: node .github/scripts/migrate-published-releases.mjs --verify
