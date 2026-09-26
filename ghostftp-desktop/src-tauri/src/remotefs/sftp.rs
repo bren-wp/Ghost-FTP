@@ -129,7 +129,9 @@ impl RemoteFs for SftpFs {
                     .await
                     .with_context(|| format!("sftp remove_dir {path}"))?;
             } else {
-                sftp.remove_dir(path).await?;
+                sftp.remove_dir(path)
+                    .await
+                    .with_context(|| format!("sftp remove_dir {path}"))?;
             }
         } else {
             sftp.remove_file(path)
