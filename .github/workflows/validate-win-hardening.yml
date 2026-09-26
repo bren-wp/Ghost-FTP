@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: fix/rc23-post-merge-hardening
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -43,6 +43,9 @@ jobs:
       - name: Rust formatting
         working-directory: ghostftp-desktop/src-tauri
         run: cargo fmt --all -- --check
+      - name: Resolve Rust dependency graph
+        working-directory: ghostftp-desktop/src-tauri
+        run: cargo generate-lockfile
       - name: Rust tests
         working-directory: ghostftp-desktop/src-tauri
         run: cargo test --workspace --locked
