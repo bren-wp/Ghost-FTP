@@ -113,7 +113,14 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
       set({ status: "ready" });
     } catch (e) {
       const message = messageOf(e);
-      set({ status: "error", error: message });
+      // Keep the verified Update handle so a transient network/install error
+      // can be retried without discarding the already offered release.
+      set({
+        status: heldUpdate ? "available" : "error",
+        error: message,
+        downloaded: 0,
+        total: null,
+      });
       toast.error("Update download failed", message);
     }
   },
