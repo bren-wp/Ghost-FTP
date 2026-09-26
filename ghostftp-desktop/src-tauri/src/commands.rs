@@ -339,11 +339,11 @@ pub async fn test_profile_connection(
         .await
         .map_err(GhostFTPError::from)?;
 
-    state
-        .sessions
-        .disconnect(&session_id)
-        .await
-        .map_err(GhostFTPError::from)?;
+    // A successful connection is enough for the probe. Disconnect cleanup is
+    // best-effort because SessionManager removes the session from its live map
+    // before transport shutdown; a server that drops during QUIT must not turn
+    // a successful connection test into a false failure.
+    let _ = state.sessions.disconnect(&session_id).await;
     Ok(())
 }
 
@@ -402,11 +402,9 @@ pub async fn test_ephemeral_connection(
         .await
         .map_err(GhostFTPError::from)?;
 
-    state
-        .sessions
-        .disconnect(&session_id)
-        .await
-        .map_err(GhostFTPError::from)?;
+    // See test_profile_connection: probe success is determined by connect, not
+    // by the remote transport's response while the temporary session closes.
+    let _ = state.sessions.disconnect(&session_id).await;
     Ok(())
 }
 
