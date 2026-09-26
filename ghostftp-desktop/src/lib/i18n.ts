@@ -1,4 +1,21 @@
-export type AppLocale = "en" | "hr" | "de" | "fr" | "es" | "it" | "pt" | "nl" | "pl" | "sl" | "sr" | "bs" | "mk";
+export const APP_LOCALES = ["en","hr","de","fr","es","it","pt","nl","pl","sl","sr","bs","mk"] as const;
+export type AppLocale = (typeof APP_LOCALES)[number];
+
+export const APP_LANGUAGE_OPTIONS: ReadonlyArray<readonly [AppLocale, string]> = [
+  ["en", "English (English)"],
+  ["hr", "Hrvatski (Croatian)"],
+  ["de", "Deutsch (German)"],
+  ["fr", "Français (French)"],
+  ["es", "Español (Spanish)"],
+  ["it", "Italiano (Italian)"],
+  ["pt", "Português (Portuguese)"],
+  ["nl", "Nederlands (Dutch)"],
+  ["pl", "Polski (Polish)"],
+  ["sl", "Slovenščina (Slovenian)"],
+  ["sr", "Srpski (Serbian)"],
+  ["bs", "Bosanski (Bosnian)"],
+  ["mk", "Македонски (Macedonian)"],
+];
 
 const STORAGE_KEY = "ghostftp.locale";
 const HR: Record<string, string> = {
@@ -2347,7 +2364,7 @@ const ATTRS = ["title", "aria-label", "placeholder", "alt"];
 
 export function getLocale(): AppLocale {
   const value = localStorage.getItem(STORAGE_KEY);
-  return (["en","hr","de","fr","es","it","pt","nl","pl","sl","sr","bs","mk"] as const).includes(value as AppLocale) ? value as AppLocale : "en";
+  return APP_LOCALES.includes(value as AppLocale) ? value as AppLocale : "en";
 }
 
 export function saveLocale(locale: AppLocale): void {
