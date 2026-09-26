@@ -365,8 +365,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
     ipc.transferSetDeltaSync(v).catch((error) => toastError(error, "Couldn't apply delta synchronization"));
   },
   setDefaultDownloadFolder: (s) =>
-    mutate(set, get, "defaultDownloadFolder", s),
-  setDefaultEditor: (s) => mutate(set, get, "defaultEditor", s),
+    mutate(set, get, "defaultDownloadFolder", s.trim()),
+  setDefaultEditor: (s) => mutate(set, get, "defaultEditor", s.trim()),
   setShowHiddenFiles: (v) => mutate(set, get, "showHiddenFiles", v),
   setSortField: (f) => mutate(set, get, "sortField", f),
   setSortDirection: (d) => mutate(set, get, "sortDirection", d),
