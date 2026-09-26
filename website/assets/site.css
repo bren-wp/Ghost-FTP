@@ -141,3 +141,7 @@ select {
     border-radius: 14px;
   }
 }
+
+
+/* Verified native RC23 application gallery -------------------------------- */
+.native-gallery{width:min(1120px,92vw);margin:46px auto 0;text-align:left}.section-heading{max-width:720px;margin:0 auto 22px;text-align:center}.section-heading>span{display:block;color:#5fc2ff;font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}.section-heading h2{margin:8px 0 8px;font-size:34px;letter-spacing:-.025em}.section-heading p{margin:0;color:#8dbfe1;font-size:15px;line-height:1.6}.native-gallery-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.native-gallery figure{margin:0;overflow:hidden;border:1px solid rgba(70,164,226,.5);border-radius:16px;background:rgba(3,20,36,.86);box-shadow:0 18px 46px rgba(0,0,0,.28)}.native-gallery figure img{display:block;width:100%;height:auto;aspect-ratio:1290/852;object-fit:contain;background:#031424}.native-gallery figcaption{padding:11px 14px;border-top:1px solid rgba(70,164,226,.22);color:#b9def7;font-size:13px;font-weight:650}@media(max-width:700px){.native-gallery{width:100%;margin-top:34px}.section-heading h2{font-size:28px}.native-gallery-grid{grid-template-columns:1fr;gap:14px}.native-gallery figure{border-radius:13px}}
