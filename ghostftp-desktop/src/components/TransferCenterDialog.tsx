@@ -163,9 +163,10 @@ export function TransferCenterDialog({ onClose }: Props) {
     });
   }, [transfers, tab, query, directionFilter, timeFilter]);
 
-  const selected = selectedId
-    ? filtered.find((transfer) => transfer.id === selectedId) ?? null
-    : null;
+  // Keep the selected transfer stable when filters/search change. Actions and
+  // details must continue to refer to the real queue item, while the effect
+  // below clears selection once that item is no longer visible.
+  const selected = selectedId ? byId[selectedId] ?? null : null;
 
   useEffect(() => {
     if (selectedId && !filtered.some((transfer) => transfer.id === selectedId)) {
