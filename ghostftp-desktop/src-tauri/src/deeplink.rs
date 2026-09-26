@@ -76,6 +76,13 @@ pub fn parse(raw: &str) -> Option<DeepLink> {
         if v.is_empty() {
             continue;
         }
+        // Bound attacker-controlled protocol-handler input before it reaches
+        // React state or later network flows. Deep links may be invoked by any
+        // web page registered with the OS.
+        if v.len() > 4096 {
+            tracing::warn!("ignoring oversized '{k}' parameter in a ghostftp:// link");
+            continue;
+        }
         match k.as_ref() {
             "protocol" => dl.protocol = Some(v.to_lowercase()),
             "host" => dl.host = Some(v),
@@ -95,6 +102,27 @@ pub fn parse(raw: &str) -> Option<DeepLink> {
                 tracing::warn!("ignoring credential param '{k}' in a ghostftp:// link");
             }
             _ => {}
+        }
+    }
+    if dl.action == "grant" {
+        let issuer = dl.issuer.as_deref()?;
+        let issuer_url = Url::parse(issuer).ok()?;
+        if issuer_url.scheme() != "https"
+            || issuer_url.host_str().is_none()
+            || !issuer_url.username().is_empty()
+            || issuer_url.password().is_some()
+        {
+            tracing::warn!("ignoring grant deep link with unsafe issuer");
+            return None;
+        }
+        let token = dl.token.as_deref()?;
+        if token.len() > 512
+            || !token
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-'))
+        {
+            tracing::warn!("ignoring grant deep link with invalid token");
+            return None;
         }
     }
     Some(dl)
@@ -198,6 +226,31 @@ mod tests {
         // Neither param leaks into the host/code fields of other actions.
         assert!(dl.host.is_none());
         assert!(dl.code.is_none());
+    }
+
+    #[test]
+    fn rejects_insecure_grant_issuer() {
+        assert!(parse("ghostftp://grant?issuer=http://panel.example&token=abc123").is_none());
+    }
+
+    #[test]
+    fn rejects_grant_issuer_with_userinfo() {
+        assert!(
+            parse("ghostftp://grant?issuer=https://user:pass@panel.example&token=abc123").is_none()
+        );
+    }
+
+    #[test]
+    fn rejects_missing_or_malformed_grant_token() {
+        assert!(parse("ghostftp://grant?issuer=https://panel.example").is_none());
+        assert!(parse("ghostftp://grant?issuer=https://panel.example&token=abc%2F123").is_none());
+    }
+
+    #[test]
+    fn rejects_oversized_grant_token() {
+        let token = "a".repeat(513);
+        let raw = format!("ghostftp://grant?issuer=https://panel.example&token={token}");
+        assert!(parse(&raw).is_none());
     }
 
     #[test]

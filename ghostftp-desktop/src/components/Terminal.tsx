@@ -432,6 +432,7 @@ function TerminalLeaf({
   const fontSize = useSettings((s) => s.terminalFontSize);
   const fontFamily = useSettings((s) => s.terminalFontFamily);
   const themeKey = useSettings((s) => s.terminalTheme);
+  const scrollback = useSettings((s) => s.terminalScrollback);
 
   const setPaneActive = useTerminals((s) => s.setPaneActive);
   const closePane = useTerminals((s) => s.closePane);
@@ -491,8 +492,9 @@ function TerminalLeaf({
     entry.term.options.fontSize = fontSize;
     entry.term.options.fontFamily = fontFamily;
     entry.term.options.theme = TERMINAL_THEMES[themeKey];
+    entry.term.options.scrollback = scrollback;
     if (visible) entry.refit();
-  }, [fontSize, fontFamily, themeKey, visible, paneId]);
+  }, [fontSize, fontFamily, themeKey, scrollback, visible, paneId]);
 
   const theme = TERMINAL_THEMES[themeKey];
 

@@ -65,7 +65,7 @@ Android keeps the same primary product model as the desktop app:
 
 Every RC23 GitHub release must include Windows, Linux and Android APK assets plus SHA-256 checksums. The Android APK must come from the verified Android workflow artifact for the same release source commit.
 
-The Android release path must not require GitHub signing secrets. The release path is designed to produce an installable APK without manual key setup.
+Every Ghost FTP GitHub release must include an Android APK and its SHA-256 checksum. The release workflow builds the Android release variant automatically and fails the Android release job if no APK is produced. Production signing can be layered onto this release path when configured, but absence of signing configuration must not remove the required APK asset from the release.
 
 An Android APK or AAB must not be treated as final unless all of the following are true:
 

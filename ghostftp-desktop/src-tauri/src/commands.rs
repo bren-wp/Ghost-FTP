@@ -111,6 +111,15 @@ pub async fn list_profiles(state: State<'_, AppState>) -> Result<Vec<ConnectionP
 
 #[tauri::command]
 pub async fn export_profiles(path: String, state: State<'_, AppState>) -> Result<usize, String> {
+    let destination = Path::new(&path);
+    if path.trim().is_empty() || destination.file_name().is_none() {
+        return Err("export destination must identify a file".into());
+    }
+    if let Some(parent) = destination.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent).map_err(err)?;
+        }
+    }
     let profiles = state.profiles.list().await.map_err(err)?;
     let mut sanitized = Vec::with_capacity(profiles.len());
     for mut profile in profiles {
@@ -130,33 +139,45 @@ pub async fn save_profile(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     // If a key file changed and the editor intentionally supplied no new
-    // passphrase, do not accidentally reuse the previous key's passphrase.
-    if let Some(existing) = state.profiles.get(&profile.id).await.map_err(err)? {
-        if let (
-            AuthMethod::Key { path: old_path, .. },
-            AuthMethod::Key {
-                path: new_path,
-                passphrase: None,
-            },
-        ) = (&existing.auth, &profile.auth)
-        {
-            if old_path != new_path {
-                delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
-            }
-        }
-    }
+    // passphrase, defer removal of the old key's passphrase until metadata has
+    // committed. Otherwise a failed profiles.json write would leave the still-
+    // saved old key path without the credential it needs.
+    let clear_key_passphrase_after_save =
+        if let Some(existing) = state.profiles.get(&profile.id).await.map_err(err)? {
+            matches!(
+                (&existing.auth, &profile.auth),
+                (
+                    AuthMethod::Key { path: old_path, .. },
+                    AuthMethod::Key {
+                        path: new_path,
+                        passphrase: None,
+                    }
+                ) if old_path != new_path
+            )
+        } else {
+            false
+        };
     protect_profile_secrets(&mut profile, &state)?;
+    // Commit secret-free metadata before removing credentials that belong to
+    // the previous auth method. If persistence fails, the old saved profile
+    // remains usable instead of being left without its credential.
+    state.profiles.upsert(profile.clone()).await.map_err(err)?;
     match &profile.auth {
         AuthMethod::Password { .. } => {
             delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state)
         }
-        AuthMethod::Key { .. } => delete_profile_secret(&profile_password_key(&profile.id), &state),
+        AuthMethod::Key { .. } => {
+            delete_profile_secret(&profile_password_key(&profile.id), &state);
+            if clear_key_passphrase_after_save {
+                delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
+            }
+        }
         AuthMethod::Agent | AuthMethod::KeyRef { .. } => {
             delete_profile_secret(&profile_password_key(&profile.id), &state);
             delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
         }
     }
-    state.profiles.upsert(profile).await.map_err(err)
+    Ok(())
 }
 
 /// Persist the rail's drag-and-drop order: `ids` is every profile id in the
@@ -214,14 +235,25 @@ pub async fn duplicate_profile(
     profile.favorite = Some(false);
 
     protect_profile_secrets(&mut profile, &state)?;
-    state.profiles.upsert(profile.clone()).await.map_err(err)?;
+    if let Err(error) = state.profiles.upsert(profile.clone()).await {
+        // The duplicate id is new, so any secrets written above belong only to
+        // this failed copy and can be removed without touching the source.
+        delete_profile_secret(&profile_password_key(&profile.id), &state);
+        delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
+        return Err(err(error));
+    }
     Ok(profile)
 }
 
 #[tauri::command]
 pub async fn delete_profile(id: String, state: State<'_, AppState>) -> Result<(), String> {
-    // Clean up any keychain-stored OAuth tokens for this profile.
-    if let Ok(Some(p)) = state.profiles.get(&id).await {
+    // Delete durable profile metadata first. If that write fails, keep all
+    // credentials intact so the saved profile remains usable/recoverable.
+    let profile = state.profiles.get(&id).await.map_err(err)?;
+    state.profiles.delete(&id).await.map_err(err)?;
+
+    // Metadata is gone; credentials can now be cleaned up best-effort.
+    if let Some(p) = profile {
         match p.protocol.as_str() {
             "dropbox" => crate::oauth::delete_tokens(crate::session::dropbox::DROPBOX_SERVICE, &id),
             "onedrive" => {
@@ -248,7 +280,7 @@ pub async fn delete_profile(id: String, state: State<'_, AppState>) -> Result<()
     }
     delete_profile_secret(&profile_password_key(&id), &state);
     delete_profile_secret(&profile_key_passphrase_key(&id), &state);
-    state.profiles.delete(&id).await.map_err(err)
+    Ok(())
 }
 
 // ---------- SSH key generation ----------
@@ -315,11 +347,11 @@ pub async fn test_profile_connection(
         .await
         .map_err(GhostFTPError::from)?;
 
-    state
-        .sessions
-        .disconnect(&session_id)
-        .await
-        .map_err(GhostFTPError::from)?;
+    // A successful connection is enough for the probe. Disconnect cleanup is
+    // best-effort because SessionManager removes the session from its live map
+    // before transport shutdown; a server that drops during QUIT must not turn
+    // a successful connection test into a false failure.
+    let _ = state.sessions.disconnect(&session_id).await;
     Ok(())
 }
 
@@ -340,23 +372,29 @@ pub async fn connect(
                 format!("profile {profile_id} not found"),
             )
         })?;
-    // Record recency on the persisted, secret-free profile before credentials
-    // are hydrated from the OS keychain, so secrets can never leak to disk.
-    profile.last_used = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()
-        .map(|duration| duration.as_secs());
-    state
-        .profiles
-        .upsert(profile.clone())
-        .await
-        .map_err(GhostFTPError::from)?;
+    // Hydrate and establish the transport first. A failed connection attempt
+    // must not be recorded as "last used" because the UI sorts and labels sites
+    // from this value.
     hydrate_profile_secrets(&mut profile)?;
     let session_id = state
         .sessions
-        .connect(profile, app)
+        .connect(profile.clone(), app)
         .await
         .map_err(GhostFTPError::from)?;
+    // Persist only secret-free metadata after connection succeeds.
+    let mut persisted = profile.clone();
+    persisted.last_used = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|duration| duration.as_secs());
+    protect_profile_secrets(&mut persisted, &state)?;
+    if let Err(error) = state.profiles.upsert(persisted).await {
+        // The live transport is valid even if recency persistence fails; close
+        // it before returning the storage error so frontend/backend state stays
+        // consistent.
+        let _ = state.sessions.disconnect(&session_id).await;
+        return Err(GhostFTPError::from(error));
+    }
     // Re-apply a previously-granted Agent Bridge access for this profile (session
     // ids are per-connect, so the bridge tracks the persistent grant by profile).
     state
@@ -378,11 +416,9 @@ pub async fn test_ephemeral_connection(
         .await
         .map_err(GhostFTPError::from)?;
 
-    state
-        .sessions
-        .disconnect(&session_id)
-        .await
-        .map_err(GhostFTPError::from)?;
+    // See test_profile_connection: probe success is determined by connect, not
+    // by the remote transport's response while the temporary session closes.
+    let _ = state.sessions.disconnect(&session_id).await;
     Ok(())
 }
 
@@ -1102,6 +1138,9 @@ pub async fn transfer_set_concurrency(
     count: u32,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    if !(1..=32).contains(&count) {
+        return Err("transfer concurrency must be between 1 and 32".into());
+    }
     state.transfers.set_concurrency(count as usize);
     Ok(())
 }
@@ -1112,6 +1151,9 @@ pub async fn transfer_set_max_retries(
     attempts: u32,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    if attempts > 8 {
+        return Err("automatic retry attempts must be between 0 and 8".into());
+    }
     state.transfers.set_max_auto_retries(attempts as usize);
     Ok(())
 }
@@ -1256,6 +1298,15 @@ pub async fn rename_path(
     to: String,
     state: State<'_, AppState>,
 ) -> Result<(), GhostFTPError> {
+    if from.trim().is_empty() || to.trim().is_empty() {
+        return Err(GhostFTPError::new(
+            ErrorKind::InvalidInput,
+            "rename source and destination must not be empty",
+        ));
+    }
+    if from == to {
+        return Ok(());
+    }
     let fs = fs_for(&session_id, &state).await?;
     fs.rename(&from, &to).await.map_err(GhostFTPError::from)
 }
@@ -1279,6 +1330,12 @@ pub async fn create_directory(
     path: String,
     state: State<'_, AppState>,
 ) -> Result<(), GhostFTPError> {
+    if path.trim().is_empty() || matches!(path.trim(), "." | "..") {
+        return Err(GhostFTPError::new(
+            ErrorKind::InvalidInput,
+            "directory path must identify a named directory",
+        ));
+    }
     let fs = fs_for(&session_id, &state).await?;
     fs.create_dir(&path).await.map_err(GhostFTPError::from)
 }
@@ -1290,6 +1347,12 @@ pub async fn chmod_path(
     mode: u32,
     state: State<'_, AppState>,
 ) -> Result<(), GhostFTPError> {
+    if path.trim().is_empty() || matches!(path.trim(), "." | "..") || mode > 0o777 {
+        return Err(GhostFTPError::new(
+            ErrorKind::InvalidInput,
+            "permissions require a named path and a POSIX mode between 000 and 777",
+        ));
+    }
     let fs = fs_for(&session_id, &state).await?;
     fs.chmod(&path, mode).await.map_err(GhostFTPError::from)
 }
@@ -1305,10 +1368,20 @@ pub async fn chmod_path_recursive(
     mode: u32,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() || matches!(trimmed, "." | "..") || mode > 0o777 {
+        return Err(
+            "Recursive permissions require a named path and a POSIX mode between 000 and 777"
+                .into(),
+        );
+    }
     if session_id == LOCAL_SESSION {
         let path_for_task = path.clone();
         return tokio::task::spawn_blocking(move || -> Result<(), String> {
             let root = Path::new(&path_for_task);
+            if root.parent().is_none() && root.has_root() {
+                return Err("Recursive permissions refuse the local filesystem root".into());
+            }
             if !root.exists() {
                 return Err(format!("{path_for_task} does not exist"));
             }
@@ -1522,7 +1595,13 @@ fn duplicate_local(path: &str) -> Result<(), String> {
 
 async fn duplicate_ssh(ssh: &Arc<SshSession>, path: &str) -> Result<(), String> {
     let path = path.trim_end_matches('/');
+    if path.is_empty() || matches!(path, "." | "..") {
+        return Err("Duplicate requires a named remote file or directory".into());
+    }
     let (parent, name) = split_remote(path);
+    if name.is_empty() || matches!(name, "." | "..") {
+        return Err("Duplicate requires a named remote file or directory".into());
+    }
     let mut n = 1;
     let dst = loop {
         let cand = format!("{parent}/{}", copy_name(name, n));
@@ -1603,10 +1682,13 @@ pub async fn start_archive_download(
         .ok_or_else(|| format!("session {session_id} not found"))?;
 
     let folder = remote_path.trim_end_matches('/');
-    if folder.is_empty() {
-        return Err("Can't archive the filesystem root".into());
+    if folder.is_empty() || matches!(folder, "." | "..") {
+        return Err("Can't archive a filesystem root or dot path".into());
     }
     let (parent, base) = split_remote(folder);
+    if base.is_empty() || matches!(base, "." | "..") {
+        return Err("Archive requires a named remote directory".into());
+    }
     let parent = if parent.is_empty() { "/" } else { parent };
 
     let is_zip = format == "zip";

@@ -254,18 +254,66 @@ function pickKnown(obj: Partial<PersistedSettings>): Partial<PersistedSettings> 
   return out;
 }
 
+function finiteNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function normalizePersistedSettings(
+  candidate: Partial<PersistedSettings>
+): Partial<PersistedSettings> {
+  const known = pickKnown(candidate);
+  if (known.transferConcurrency !== undefined) {
+    known.transferConcurrency = Math.max(
+      1,
+      Math.min(32, Math.round(finiteNumber(known.transferConcurrency, DEFAULTS.transferConcurrency)))
+    );
+  }
+  if (known.maxRetryAttempts !== undefined) {
+    known.maxRetryAttempts = Math.max(
+      0,
+      Math.min(8, Math.round(finiteNumber(known.maxRetryAttempts, DEFAULTS.maxRetryAttempts)))
+    );
+  }
+  if (known.transferThrottleKbps !== undefined) {
+    known.transferThrottleKbps = Math.max(
+      0,
+      Math.round(finiteNumber(known.transferThrottleKbps, DEFAULTS.transferThrottleKbps))
+    );
+  }
+  if (known.terminalFontSize !== undefined) {
+    known.terminalFontSize = Math.max(
+      8,
+      Math.min(32, Math.round(finiteNumber(known.terminalFontSize, DEFAULTS.terminalFontSize)))
+    );
+  }
+  if (known.terminalScrollback !== undefined) {
+    known.terminalScrollback = Math.max(
+      100,
+      Math.min(100000, Math.round(finiteNumber(known.terminalScrollback, DEFAULTS.terminalScrollback)))
+    );
+  }
+  if (known.defaultPort !== undefined) {
+    known.defaultPort = Math.max(
+      1,
+      Math.min(65535, Math.round(finiteNumber(known.defaultPort, DEFAULTS.defaultPort)))
+    );
+  }
+  return known;
+}
+
 function load(): PersistedSettings {
   const injected = readInjected();
-  if (injected) return { ...DEFAULTS, ...pickKnown(injected) };
+  if (injected) return { ...DEFAULTS, ...normalizePersistedSettings(injected) };
   // If the native pre-paint snapshot is unavailable, start from defaults;
   // `hydrateFromDb()` below reconciles from ghostftp.db asynchronously.
-  return DEFAULTS;
+  return { ...DEFAULTS };
 }
 
 /** Persist one setting to ghostftp.db. The in-memory value applies immediately; native persistence errors are surfaced to the user. */
 function persistKey<K extends keyof PersistedSettings>(key: K, value: PersistedSettings[K]) {
-  ipc.settingsSet(String(key), JSON.stringify(value)).catch((error) => {
+  return ipc.settingsSet(String(key), JSON.stringify(value)).catch((error) => {
     toastError(error, `Couldn't save preference: ${String(key)}`);
+    throw error;
   });
 }
 
@@ -273,12 +321,19 @@ const initial = load();
 
 function mutate<K extends keyof PersistedSettings>(
   set: (fn: (s: SettingsState) => Partial<SettingsState>) => void,
-  _get: () => SettingsState,
+  get: () => SettingsState,
   key: K,
   value: PersistedSettings[K]
 ) {
+  const previous = structuredClone(
+    (get() as unknown as Record<string, unknown>)[key]
+  ) as PersistedSettings[K];
   set(() => ({ [key]: value }) as Partial<SettingsState>);
-  persistKey(key, value);
+  void persistKey(key, value).catch(() => {
+    // Keep the visible preference aligned with durable state when persistence
+    // fails. Without this rollback a click can look successful until restart.
+    set(() => ({ [key]: previous }) as Partial<SettingsState>);
+  });
 }
 
 export const useSettings = create<SettingsState>((set, get) => ({
@@ -289,29 +344,51 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setOverwritePolicy: (p) => mutate(set, get, "overwritePolicy", p),
   setPromptOnOverwrite: (v) => mutate(set, get, "promptOnOverwrite", v),
   setTransferConcurrency: (n) => {
-    const clamped = Math.max(1, Math.min(32, Math.round(n)));
+    const clamped = Math.max(1, Math.min(32, Math.round(finiteNumber(n, DEFAULTS.transferConcurrency))));
+    const previous = get().transferConcurrency;
     mutate(set, get, "transferConcurrency", clamped);
-    // Live-apply to the running queue; the persisted value covers next launch.
-    ipc.transferSetConcurrency(clamped).catch((error) => toastError(error, "Couldn't apply transfer concurrency"));
+    void ipc.transferSetConcurrency(clamped).catch((error) => {
+      set({ transferConcurrency: previous });
+      void persistKey("transferConcurrency", previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      void ipc.transferSetConcurrency(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      toastError(error, "Couldn't apply transfer concurrency");
+    });
   },
   setMaxRetryAttempts: (n) => {
-    const clamped = Math.max(0, Math.min(8, Math.round(n)));
+    const clamped = Math.max(0, Math.min(8, Math.round(finiteNumber(n, DEFAULTS.maxRetryAttempts))));
+    const previous = get().maxRetryAttempts;
     mutate(set, get, "maxRetryAttempts", clamped);
-    ipc.transferSetMaxRetries(clamped).catch((error) => toastError(error, "Couldn't apply retry limit"));
+    void ipc.transferSetMaxRetries(clamped).catch((error) => {
+      set({ maxRetryAttempts: previous });
+      void persistKey("maxRetryAttempts", previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      void ipc.transferSetMaxRetries(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      toastError(error, "Couldn't apply retry limit");
+    });
   },
   setTransferThrottleKbps: (n) => {
-    const clamped = Math.max(0, Math.round(n));
+    const clamped = Math.max(0, Math.round(finiteNumber(n, 0)));
+    const previous = get().transferThrottleKbps;
     mutate(set, get, "transferThrottleKbps", clamped);
-    ipc.transferSetThrottle(clamped).catch((error) => toastError(error, "Couldn't apply transfer speed limit"));
+    void ipc.transferSetThrottle(clamped).catch((error) => {
+      set({ transferThrottleKbps: previous });
+      void persistKey("transferThrottleKbps", previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      void ipc.transferSetThrottle(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      toastError(error, "Couldn't apply transfer speed limit");
+    });
   },
   setDeltaSync: (v) => {
+    const previous = get().deltaSync;
     mutate(set, get, "deltaSync", v);
-    // Live-apply to the transfer engine; the persisted value covers next launch.
-    ipc.transferSetDeltaSync(v).catch((error) => toastError(error, "Couldn't apply delta synchronization"));
+    void ipc.transferSetDeltaSync(v).catch((error) => {
+      set({ deltaSync: previous });
+      void persistKey("deltaSync", previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      void ipc.transferSetDeltaSync(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      toastError(error, "Couldn't apply delta synchronization");
+    });
   },
   setDefaultDownloadFolder: (s) =>
-    mutate(set, get, "defaultDownloadFolder", s),
-  setDefaultEditor: (s) => mutate(set, get, "defaultEditor", s),
+    mutate(set, get, "defaultDownloadFolder", s.trim()),
+  setDefaultEditor: (s) => mutate(set, get, "defaultEditor", s.trim()),
   setShowHiddenFiles: (v) => mutate(set, get, "showHiddenFiles", v),
   setSortField: (f) => mutate(set, get, "sortField", f),
   setSortDirection: (d) => mutate(set, get, "sortDirection", d),
@@ -320,7 +397,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setBrowserLayout: (l) => mutate(set, get, "browserLayout", l),
   setRemoteImagePreviews: (v) => mutate(set, get, "remoteImagePreviews", v),
   setTerminalFontSize: (n) =>
-    mutate(set, get, "terminalFontSize", Math.max(8, Math.min(32, Math.round(n)))),
+    mutate(set, get, "terminalFontSize", Math.max(8, Math.min(32, Math.round(finiteNumber(n, DEFAULTS.terminalFontSize))))),
   setTerminalFontFamily: (s) => mutate(set, get, "terminalFontFamily", s),
   setTerminalTheme: (t) => mutate(set, get, "terminalTheme", t),
   setTerminalScrollback: (n) =>
@@ -328,13 +405,13 @@ export const useSettings = create<SettingsState>((set, get) => ({
       set,
       get,
       "terminalScrollback",
-      Math.max(100, Math.min(100000, Math.round(n)))
+      Math.max(100, Math.min(100000, Math.round(finiteNumber(n, DEFAULTS.terminalScrollback))))
     ),
   setTerminalCopyOnSelect: (v) =>
     mutate(set, get, "terminalCopyOnSelect", v),
   setTerminalSuggestions: (v) =>
     mutate(set, get, "terminalSuggestions", v),
-  setDefaultPort: (n) => mutate(set, get, "defaultPort", Math.max(1, Math.min(65535, Math.round(n)))),
+  setDefaultPort: (n) => mutate(set, get, "defaultPort", Math.max(1, Math.min(65535, Math.round(finiteNumber(n, DEFAULTS.defaultPort))))),
   setShellIntegration: (v) => mutate(set, get, "shellIntegration", v),
   setNotifications: (v) => mutate(set, get, "notifications", v),
 }));
@@ -364,7 +441,7 @@ export async function hydrateFromDb(): Promise<void> {
         }
       }
     }
-    const known = pickKnown(parsed);
+    const known = normalizePersistedSettings(parsed);
     if (Object.keys(known).length) {
       useSettings.setState(known as Partial<SettingsState>);
     }
@@ -446,12 +523,34 @@ export const TERMINAL_THEMES: Record<
 /** Restore every user-facing preference to the Ghost FTP defaults and persist
  *  the reset to the native settings database. Live transfer limits are also
  *  applied immediately so Reset behaves as a real action rather than a reload. */
-export function resetSettingsToDefaults(): void {
-  useSettings.setState({ ...DEFAULTS } as Partial<SettingsState>);
-  for (const key of SETTINGS_KEYS) persistKey(key, DEFAULTS[key]);
-  ipc.transferSetConcurrency(DEFAULTS.transferConcurrency).catch((error) => toastError(error, "Couldn't reset transfer concurrency"));
-  ipc.transferSetMaxRetries(DEFAULTS.maxRetryAttempts).catch((error) => toastError(error, "Couldn't reset retry limit"));
-  ipc.transferSetThrottle(DEFAULTS.transferThrottleKbps).catch((error) => toastError(error, "Couldn't reset transfer speed limit"));
-  ipc.transferSetDeltaSync(DEFAULTS.deltaSync).catch((error) => toastError(error, "Couldn't reset delta synchronization"));
-  (DEFAULTS.shellIntegration ? ipc.pathAdd() : ipc.pathRemove()).catch((error) => toastError(error, "Couldn't reset shell integration"));
+export async function resetSettingsToDefaults(): Promise<void> {
+  const previous = captureSettingsSnapshot();
+  try {
+    // Persist the complete snapshot as one native transaction before changing
+    // the visible store. A partial reset must never survive a failed DB write.
+    await ipc.settingsSetAll(
+      Object.fromEntries(
+        SETTINGS_KEYS.map((key) => [String(key), JSON.stringify(DEFAULTS[key])])
+      )
+    );
+    useSettings.setState({ ...DEFAULTS } as Partial<SettingsState>);
+    await ipc.transferSetConcurrency(DEFAULTS.transferConcurrency);
+    await ipc.transferSetMaxRetries(DEFAULTS.maxRetryAttempts);
+    await ipc.transferSetThrottle(DEFAULTS.transferThrottleKbps);
+    await ipc.transferSetDeltaSync(DEFAULTS.deltaSync);
+    await (DEFAULTS.shellIntegration ? ipc.pathAdd() : ipc.pathRemove());
+  } catch (error) {
+    useSettings.setState({ ...previous } as Partial<SettingsState>);
+    void ipc.settingsSetAll(
+      Object.fromEntries(
+        SETTINGS_KEYS.map((key) => [String(key), JSON.stringify(previous[key])])
+      )
+    ).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    void ipc.transferSetConcurrency(previous.transferConcurrency).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    void ipc.transferSetMaxRetries(previous.maxRetryAttempts).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    void ipc.transferSetThrottle(previous.transferThrottleKbps).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    void ipc.transferSetDeltaSync(previous.deltaSync).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    toastError(error, "Couldn't reset preferences");
+    throw error;
+  }
 }

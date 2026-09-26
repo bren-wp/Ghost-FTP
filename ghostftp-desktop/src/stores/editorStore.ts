@@ -38,8 +38,10 @@ export const useEditor = create<EditorState>((set, get) => ({
 
   ensureListeners: async () => {
     if (get()._listenersWired) return;
-    set({ _listenersWired: true });
-    await onEditSaved((e) => {
+    // Mark the store wired only after both native listeners are installed. If
+    // either registration fails, a later edit attempt must be allowed to retry
+    // instead of permanently running without save/error feedback.
+    const unlistenSaved = await onEditSaved((e) => {
       // Make the round-trip visible: an external-editor save is silent
       // otherwise, so the user can't tell the change actually uploaded.
       toast.success(
@@ -62,19 +64,26 @@ export const useEditor = create<EditorState>((set, get) => ({
         };
       });
     });
-    await onEditError((e) => {
-      toast.error("Save failed", `${baseName(e.remotePath)} — ${e.message}`);
-      set((s) => {
-        const existing = s.edits[e.editId];
-        if (!existing) return s;
-        return {
-          edits: {
-            ...s.edits,
-            [e.editId]: { ...existing, lastError: e.message },
-          },
-        };
+    try {
+      await onEditError((e) => {
+        toast.error("Save failed", `${baseName(e.remotePath)} — ${e.message}`);
+        set((s) => {
+          const existing = s.edits[e.editId];
+          if (!existing) return s;
+          return {
+            edits: {
+              ...s.edits,
+              [e.editId]: { ...existing, lastError: e.message },
+            },
+          };
+        });
       });
-    });
+      set({ _listenersWired: true });
+    } catch (error) {
+      unlistenSaved();
+      set({ _listenersWired: false });
+      throw error;
+    }
   },
 
   startEditing: async (sessionId, remotePath) => {

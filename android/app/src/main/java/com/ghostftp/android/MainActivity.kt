@@ -59,6 +59,8 @@ class MainActivity : Activity() {
     private var selectedUploadUri: Uri? = null
     private var selectedUploadDisplayName: String = ""
     private var lastCompletedTransferPath: String = ""
+    private var operationGeneration: Long = 0
+    private var operationInFlight = false
 
     @Volatile
     private var activityClosing = false
@@ -74,6 +76,8 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         activityClosing = true
+        operationGeneration += 1
+        operationInFlight = false
         selectedUploadUri = null
         activeProfile = null
         if (::passwordInput.isInitialized) passwordInput.text.clear()
@@ -315,6 +319,13 @@ class MainActivity : Activity() {
 
     private fun openConnection() {
         val profile = readProfile() ?: return
+        openConnection(profile)
+    }
+
+    private fun openConnection(profile: ConnectionProfile) {
+        if (operationInFlight) return
+        val generation = ++operationGeneration
+        operationInFlight = true
         setBusy(true)
         statusTitle.text = "Opening ${profile.protocol.label}"
         statusDetail.text = "Loading ${profile.remotePath} from ${profile.host}:${profile.port}."
@@ -322,6 +333,8 @@ class MainActivity : Activity() {
         thread(name = "ghostftp-android-connect") {
             val result = runCatching { controller.listRemote(profile) }
             safeUi {
+                if (generation != operationGeneration) return@safeUi
+                operationInFlight = false
                 setBusy(false)
                 result.fold(
                     onSuccess = {
@@ -344,11 +357,14 @@ class MainActivity : Activity() {
             return
         }
         val nextPath = remotePathInput.text.toString().trim().ifBlank { profile.remotePath }
-        activeProfile = profile.copy(remotePath = nextPath)
-        openConnection()
+        val refreshedProfile = profile.copy(remotePath = nextPath)
+        activeProfile = refreshedProfile
+        openConnection(refreshedProfile)
     }
 
     private fun disconnect() {
+        operationGeneration += 1
+        operationInFlight = false
         activeProfile = null
         selectedUploadUri = null
         selectedUploadDisplayName = ""
@@ -441,7 +457,7 @@ class MainActivity : Activity() {
         if (!::connectButton.isInitialized) return
         connectButton.isEnabled = !busy
         refreshButton.isEnabled = !busy
-        disconnectButton.isEnabled = !busy
+        disconnectButton.isEnabled = true
         actionButtons.forEach { it.isEnabled = !busy }
     }
 
@@ -533,6 +549,9 @@ class MainActivity : Activity() {
     }
 
     private fun runTransfer(title: String, detail: String, refreshAfter: Boolean = false, action: () -> TransferResult) {
+        if (operationInFlight) return
+        val generation = ++operationGeneration
+        operationInFlight = true
         setBusy(true)
         statusTitle.text = title
         statusDetail.text = detail
@@ -541,6 +560,8 @@ class MainActivity : Activity() {
         thread(name = "ghostftp-android-transfer") {
             val result = runCatching { action() }
             safeUi {
+                if (generation != operationGeneration) return@safeUi
+                operationInFlight = false
                 setBusy(false)
                 result.fold(
                     onSuccess = { showTransferResult(it, refreshAfter) },

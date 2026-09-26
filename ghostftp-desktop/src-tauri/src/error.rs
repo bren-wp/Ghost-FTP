@@ -34,6 +34,8 @@ pub enum ErrorKind {
     Unsupported,
     /// The target already exists / a write conflicts with existing state.
     Conflict,
+    /// The caller supplied an invalid path/value for the requested operation.
+    InvalidInput,
     /// Anything not usefully categorised.
     Other,
 }
@@ -179,6 +181,17 @@ pub(crate) fn classify_message(message: &str) -> ErrorKind {
         return ErrorKind::Conflict;
     }
     if has(&[
+        "invalid input",
+        "must not be empty",
+        "must identify",
+        "requires a named",
+        "does not identify a file",
+        "not a regular file",
+        "is not a directory",
+    ]) {
+        return ErrorKind::InvalidInput;
+    }
+    if has(&[
         "unsupported",
         "not supported",
         "capability",
@@ -218,6 +231,14 @@ mod tests {
         assert_eq!(classify_message("operation timed out"), ErrorKind::Timeout);
         assert_eq!(classify_message("Connection refused"), ErrorKind::Network);
         assert_eq!(classify_message("file already exists"), ErrorKind::Conflict);
+        assert_eq!(
+            classify_message("rename source and destination must not be empty"),
+            ErrorKind::InvalidInput
+        );
+        assert_eq!(
+            classify_message("directory upload source is not a directory"),
+            ErrorKind::InvalidInput
+        );
         assert_eq!(
             classify_message("chmod is unsupported on this backend"),
             ErrorKind::Unsupported

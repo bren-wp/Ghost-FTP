@@ -34,7 +34,10 @@ export function FileBrowser() {
   const activeCount = useTransfers(
     (s) =>
       Object.values(s.byId).filter(
-        (t) => t.status === "transferring" || t.status === "queued"
+        (t) =>
+          t.status === "transferring" ||
+          t.status === "queued" ||
+          t.status === "paused"
       ).length
   );
 

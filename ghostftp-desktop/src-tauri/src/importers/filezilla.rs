@@ -151,7 +151,10 @@ impl ServerAccum {
     }
 
     fn into_preview(self, folder_stack: &[String]) -> Option<ProfilePreview> {
-        let host = self.host?;
+        let host = self.host?.trim().to_string();
+        if host.is_empty() {
+            return None;
+        }
         // FileZilla protocol numeric ids (see FileZilla source, ServerProtocol):
         //   0  = FTP
         //   1  = SFTP
@@ -168,7 +171,7 @@ impl ServerAccum {
         let mut p = ProfilePreview::new(self.name.unwrap_or_else(|| host.clone()));
         p.protocol = proto.into();
         p.host = host;
-        p.port = self.port.unwrap_or(default_port);
+        p.port = self.port.filter(|port| *port != 0).unwrap_or(default_port);
         p.username = self.user.unwrap_or_default();
         let breadcrumb = folder_stack
             .iter()

@@ -1,6 +1,6 @@
 use super::{Capabilities, ChangeSignal, DirEntry, FileKind, RemoteFs};
 use crate::session::FtpSession;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use std::sync::Arc;
 use suppaftp::list::File as FtpFile;
@@ -25,6 +25,12 @@ fn join(base: &str, name: &str) -> String {
             name.trim_start_matches('/')
         )
     }
+}
+
+fn is_dot_listing(line: &str) -> bool {
+    FtpFile::try_from(line.to_string())
+        .map(|file| matches!(file.name(), "." | ".."))
+        .unwrap_or(false)
 }
 
 fn entry_from_listing(parent: &str, line: &str) -> Option<DirEntry> {
@@ -125,9 +131,9 @@ impl RemoteFs for FtpFs {
 
     async fn delete(&self, path: &str, recursive: bool) -> Result<()> {
         super::validate_remote_delete_path(path)?;
-        // The FTP protocol distinguishes file deletion (DELE) from directory
-        // deletion (RMD), and has no native recursive variant. We probe the
-        // type via a CWD trick: if we can change into it, it's a directory.
+        // FTP distinguishes file deletion (DELE) from directory deletion
+        // (RMD) and has no native recursive delete command. Recursive removal
+        // therefore performs a guarded bottom-up traversal before removing root.
         let path = path.to_string();
         if recursive {
             // Recursive: walk children using a stack of (dir, listing-line)
@@ -199,11 +205,17 @@ async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> 
                 while let Some(d) = stack.pop() {
                     // `-a`, so a directory holding only dotfiles isn't reported
                     // as empty and left behind by the RMD pass below.
-                    let listing = list_lines(stream, &d).unwrap_or_default();
+                    let listing = list_lines(stream, &d)
+                        .with_context(|| format!("FTP recursive LIST {d}"))?;
                     for line in listing {
-                        let Some(entry) = entry_from_listing(&d, &line) else {
+                        if is_dot_listing(&line) {
                             continue;
-                        };
+                        }
+                        let entry = entry_from_listing(&d, &line).ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "FTP recursive delete refused: unrecognized LIST entry in {d}"
+                            )
+                        })?;
                         match entry.kind {
                             FileKind::Directory => {
                                 stack.push(entry.path.clone());
@@ -234,11 +246,4 @@ async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> 
             Ok(())
         })
         .await
-}
-
-/// Helper to surface "unsupported" errors uniformly. Kept private to this
-/// module; callers should rely on capabilities() advertising the truth.
-#[allow(dead_code)]
-fn unsupported(action: &str) -> anyhow::Error {
-    anyhow!("FTP backend does not support {action}")
 }

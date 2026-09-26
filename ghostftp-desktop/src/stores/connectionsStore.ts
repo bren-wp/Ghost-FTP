@@ -126,7 +126,14 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
   },
 
   deleteProfile: async (id) => {
+    // Delete durable profile data first. If deletion fails, keep any live
+    // session usable; if it succeeds, close sessions that no longer have saved
+    // metadata. This avoids disconnecting the user for a failed delete.
     await ipc.deleteProfile(id);
+    const live = get().sessions.filter((session) => session.profileId === id);
+    for (const session of live) {
+      await get().disconnect(session.sessionId);
+    }
     await get().loadProfiles();
   },
 

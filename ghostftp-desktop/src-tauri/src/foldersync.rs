@@ -173,6 +173,9 @@ struct Running {
     /// Kept alive so the filesystem watch stays registered.
     _watcher: Option<notify::RecommendedWatcher>,
     status: Arc<Mutex<RuntimeStatus>>,
+    /// Session created for this background pair. Shared with stop_pair so an
+    /// aborted reconcile cannot strand a hidden live connection.
+    session_id: Arc<Mutex<Option<String>>>,
 }
 
 pub struct FolderSync {
@@ -200,10 +203,36 @@ impl FolderSync {
         })
     }
 
-    async fn persist(&self) -> Result<()> {
-        let settings = self.settings.lock().await.clone();
-        std::fs::write(&self.settings_path, serde_json::to_vec_pretty(&settings)?)
-            .with_context(|| format!("write {}", self.settings_path.display()))?;
+    fn persist_snapshot(&self, settings: &Settings) -> Result<()> {
+        let bytes = serde_json::to_vec_pretty(settings)?;
+        let parent = self
+            .settings_path
+            .parent()
+            .context("folder sync settings path has no parent")?;
+        std::fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
+        let tmp = self.settings_path.with_extension("json.tmp");
+        let backup = self.settings_path.with_extension("json.bak");
+        std::fs::write(&tmp, bytes).with_context(|| format!("write {}", tmp.display()))?;
+
+        // Windows does not reliably allow rename(tmp, existing_target). Move the
+        // previous settings aside first, then commit the new snapshot and restore
+        // the backup if that commit fails.
+        let had_previous = self.settings_path.exists();
+        if had_previous {
+            let _ = std::fs::remove_file(&backup);
+            std::fs::rename(&self.settings_path, &backup)
+                .with_context(|| format!("backup {}", self.settings_path.display()))?;
+        }
+        if let Err(error) = std::fs::rename(&tmp, &self.settings_path) {
+            let _ = std::fs::remove_file(&tmp);
+            if had_previous {
+                let _ = std::fs::rename(&backup, &self.settings_path);
+            }
+            return Err(error).with_context(|| format!("replace {}", self.settings_path.display()));
+        }
+        if had_previous {
+            let _ = std::fs::remove_file(&backup);
+        }
         Ok(())
     }
 
@@ -268,6 +297,32 @@ impl FolderSync {
         out
     }
 
+    fn validate_pair(pair: &SyncPair) -> Result<()> {
+        if pair.name.trim().is_empty() {
+            anyhow::bail!("sync pair name must not be empty");
+        }
+        if pair.profile_id.trim().is_empty() {
+            anyhow::bail!("sync pair connection must not be empty");
+        }
+        let local = Path::new(pair.local_root.trim());
+        if pair.local_root.trim().is_empty() || !local.is_absolute() {
+            anyhow::bail!("sync local root must be an absolute path");
+        }
+        if pair.remote_root.trim().is_empty() {
+            anyhow::bail!("sync remote root must not be empty");
+        }
+        if matches!(pair.strategy, SyncStrategy::Mirror) {
+            let remote = pair.remote_root.trim().replace('\\', "/");
+            if remote == "/" || remote == "." || remote == ".." {
+                anyhow::bail!("mirror sync refuses a remote root path");
+            }
+            if local.parent().is_none() {
+                anyhow::bail!("mirror sync refuses a local filesystem root");
+            }
+        }
+        Ok(())
+    }
+
     /// Add or replace a pair. If it's enabled, (re)start it.
     pub async fn upsert(&self, app: &AppHandle, mut pair: SyncPair) -> Result<()> {
         if pair.id.is_empty() {
@@ -276,15 +331,20 @@ impl FolderSync {
         if pair.poll_interval_secs == 0 {
             pair.poll_interval_secs = DEFAULT_POLL_SECS;
         }
+        Self::validate_pair(&pair)?;
         {
             let mut s = self.settings.lock().await;
+            let previous = s.clone();
             match s.pairs.iter_mut().find(|p| p.id == pair.id) {
                 Some(existing) => *existing = pair.clone(),
                 None => s.pairs.push(pair.clone()),
             }
+            if let Err(error) = self.persist_snapshot(&s) {
+                *s = previous;
+                return Err(error);
+            }
         }
-        self.persist().await?;
-        self.stop_pair(&pair.id).await;
+        self.stop_pair(app, &pair.id).await;
         if pair.enabled {
             self.start_pair(app, &pair).await?;
         }
@@ -293,12 +353,16 @@ impl FolderSync {
     }
 
     pub async fn remove(&self, app: &AppHandle, id: &str) -> Result<()> {
-        self.stop_pair(id).await;
         {
             let mut s = self.settings.lock().await;
+            let previous = s.clone();
             s.pairs.retain(|p| p.id != id);
+            if let Err(error) = self.persist_snapshot(&s) {
+                *s = previous;
+                return Err(error);
+            }
         }
-        self.persist().await?;
+        self.stop_pair(app, id).await;
         // Unregister the OS sync root if this was an on-demand pair.
         self.reconcile_virtualfs(app).await;
         Ok(())
@@ -307,21 +371,26 @@ impl FolderSync {
     pub async fn set_enabled(&self, app: &AppHandle, id: &str, enabled: bool) -> Result<()> {
         let pair = {
             let mut s = self.settings.lock().await;
+            let previous = s.clone();
             let p = s.pairs.iter_mut().find(|p| p.id == id);
-            match p {
+            let pair = match p {
                 Some(p) => {
                     p.enabled = enabled;
                     p.clone()
                 }
                 None => anyhow::bail!("no such sync pair"),
+            };
+            if let Err(error) = self.persist_snapshot(&s) {
+                *s = previous;
+                return Err(error);
             }
+            pair
         };
-        self.persist().await?;
         if enabled {
-            self.stop_pair(id).await;
+            self.stop_pair(app, id).await;
             self.start_pair(app, &pair).await?;
         } else {
-            self.stop_pair(id).await;
+            self.stop_pair(app, id).await;
         }
         self.reconcile_virtualfs(app).await;
         Ok(())
@@ -339,9 +408,17 @@ impl FolderSync {
         }
     }
 
-    async fn stop_pair(&self, id: &str) {
+    async fn stop_pair(&self, app: &AppHandle, id: &str) {
         if let Some(r) = self.running.lock().await.remove(id) {
             r.task.abort();
+            if let Some(session_id) = r.session_id.lock().await.take() {
+                let state = app.state::<AppState>();
+                if let Err(error) = state.sessions.disconnect(&session_id).await {
+                    tracing::debug!(
+                        "folder sync '{id}': background session cleanup failed: {error:#}"
+                    );
+                }
+            }
             // Dropping `_watcher` unregisters the filesystem watch.
         }
     }
@@ -379,10 +456,12 @@ impl FolderSync {
         let task_app = app.clone();
         let task_pair = pair.clone();
         let task_status = status.clone();
+        let session_id = Arc::new(Mutex::new(None));
+        let task_session_id = session_id.clone();
         let poll = Duration::from_secs(pair.poll_interval_secs.max(1));
         let task = tauri::async_runtime::spawn(async move {
             // A live session for this pair, connected lazily and rebuilt on error.
-            let mut session_id: Option<String> = None;
+            let mut session_id = task_session_id.lock().await.take();
             // Reconcile once immediately on start.
             let mut pending = true;
             loop {
@@ -403,6 +482,7 @@ impl FolderSync {
                 }
                 pending = false;
                 reconcile(&task_app, &task_pair, &task_status, &mut session_id).await;
+                *task_session_id.lock().await = session_id.clone();
             }
         });
 
@@ -413,6 +493,7 @@ impl FolderSync {
                 trigger,
                 _watcher: watcher,
                 status,
+                session_id,
             },
         );
         Ok(())

@@ -94,7 +94,10 @@ impl RemoteFs for SftpFs {
                 let mut stack: Vec<String> = vec![path.to_string()];
                 let mut to_delete: Vec<(String, bool)> = Vec::new(); // (path, is_dir)
                 while let Some(d) = stack.pop() {
-                    let entries = sftp.read_dir(&d).await?;
+                    let entries = sftp
+                        .read_dir(&d)
+                        .await
+                        .with_context(|| format!("sftp recursive read_dir {d}"))?;
                     for e in entries {
                         let n = e.file_name();
                         if n == "." || n == ".." {
@@ -113,17 +116,27 @@ impl RemoteFs for SftpFs {
                 // Files first, then directories (in reverse for deepest-first).
                 for (p, is_dir) in to_delete.iter().rev() {
                     if *is_dir {
-                        sftp.remove_dir(p).await?;
+                        sftp.remove_dir(p)
+                            .await
+                            .with_context(|| format!("sftp remove_dir {p}"))?;
                     } else {
-                        sftp.remove_file(p).await?;
+                        sftp.remove_file(p)
+                            .await
+                            .with_context(|| format!("sftp remove_file {p}"))?;
                     }
                 }
-                sftp.remove_dir(path).await?;
+                sftp.remove_dir(path)
+                    .await
+                    .with_context(|| format!("sftp remove_dir {path}"))?;
             } else {
-                sftp.remove_dir(path).await?;
+                sftp.remove_dir(path)
+                    .await
+                    .with_context(|| format!("sftp remove_dir {path}"))?;
             }
         } else {
-            sftp.remove_file(path).await?;
+            sftp.remove_file(path)
+                .await
+                .with_context(|| format!("sftp remove_file {path}"))?;
         }
         Ok(())
     }

@@ -706,9 +706,17 @@ impl TransferManager {
         policy: OverwritePolicy,
         app: AppHandle,
     ) -> Result<String> {
+        let file_name = basename(&remote_path);
+        if file_name.is_empty() || matches!(file_name.as_str(), "." | "..") {
+            anyhow::bail!("download path does not identify a file: {remote_path}");
+        }
+        let local_root = PathBuf::from(&local_dir);
+        tokio::fs::create_dir_all(&local_root)
+            .await
+            .with_context(|| format!("create download directory {}", local_root.display()))?;
         let size = remote_size(&session, &remote_path).await.unwrap_or(0);
 
-        let initial = PathBuf::from(&local_dir).join(basename(&remote_path));
+        let initial = local_root.join(file_name);
         let (final_path, skip) = match policy {
             OverwritePolicy::Overwrite => (initial, false),
             OverwritePolicy::Skip => {
@@ -897,16 +905,23 @@ impl TransferManager {
         app: AppHandle,
     ) -> Result<String> {
         let local = PathBuf::from(&local_path);
-        let size = tokio::fs::metadata(&local)
+        let metadata = tokio::fs::metadata(&local)
             .await
-            .with_context(|| format!("stat {}", local.display()))?
-            .len();
+            .with_context(|| format!("stat {}", local.display()))?;
+        if !metadata.is_file() {
+            anyhow::bail!("upload source is not a regular file: {}", local.display());
+        }
+        let file_name = basename(&local_path);
+        if file_name.is_empty() || matches!(file_name.as_str(), "." | "..") {
+            anyhow::bail!("upload path does not identify a file: {}", local.display());
+        }
+        let size = metadata.len();
 
         // Join with the separator the destination already uses, and don't add a
         // second one. A Windows agent target spelled `C:\srv\` used to produce
         // `C:\srv\/file` — Win32 tolerates it, but it shows up in every error
         // message and audit line, and the mixed form trips path comparisons.
-        let initial_remote = join_remote(&remote_dir, &basename(&local_path));
+        let initial_remote = join_remote(&remote_dir, &file_name);
 
         let (final_remote, skip) = remote_resolve(&session, &initial_remote, policy).await?;
 
@@ -1573,6 +1588,9 @@ impl TransferManager {
         app: AppHandle,
     ) -> Result<Vec<String>> {
         let root_name = basename(&remote_root);
+        if root_name.is_empty() || matches!(root_name.as_str(), "." | "..") {
+            anyhow::bail!("directory download requires a named remote directory");
+        }
         let local_root = PathBuf::from(&local_dir).join(&root_name);
         tokio::fs::create_dir_all(&local_root)
             .await
@@ -1637,15 +1655,27 @@ impl TransferManager {
         app: AppHandle,
     ) -> Result<Vec<String>> {
         let local_root_path = PathBuf::from(&local_root);
+        let metadata = tokio::fs::metadata(&local_root_path)
+            .await
+            .with_context(|| format!("stat {}", local_root_path.display()))?;
+        if !metadata.is_dir() {
+            anyhow::bail!(
+                "directory upload source is not a directory: {}",
+                local_root_path.display()
+            );
+        }
         let root_name = local_root_path
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "upload".into());
+            .filter(|name| !name.is_empty() && !matches!(name.as_str(), "." | ".."))
+            .ok_or_else(|| anyhow::anyhow!("directory upload requires a named local directory"))?;
         let remote_root = join_remote(&remote_dir, &root_name);
 
         let fs = fs_for_session(&session);
 
-        // Best-effort: create the remote root.
+        // The selected upload root may already exist. Directory creation is
+        // therefore best-effort here; file creation below still surfaces a
+        // concrete permission/path error if the destination is unusable.
         let _ = fs.create_dir(&remote_root).await;
 
         let mut dirs_to_visit: Vec<PathBuf> = vec![local_root_path.clone()];
@@ -1678,6 +1708,9 @@ impl TransferManager {
 
         subdirs.sort_by_key(|s| s.matches('/').count());
         for sd in subdirs {
+            // Preserve compatibility with FTP/SFTP servers that report
+            // "already exists" as an error. Missing directories will still be
+            // diagnosed precisely when the child transfer is started.
             let _ = fs.create_dir(&sd).await;
         }
 
@@ -1712,21 +1745,12 @@ impl TransferManager {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
 
-        // FTP's data channel doesn't surface incremental progress easily without
-        // an extra control round-trip. We can still report mid-transfer by
-        // calling .size() up front, then bumping `transferred` to size on
-        // completion. For now we keep it simple: 0 -> size on done.
+        // FTP data transfer is performed inside the session's blocking stream
+        // worker, so progress is reported at completion rather than by sharing
+        // manager state across threads.
+        let _ = app;
         let final_path = local_path.to_path_buf();
         let path = remote_path.to_string();
-        let id_for_emit = id.to_string();
-        let app_for_emit = app.clone();
-        let mgr_for_emit: *const TransferManager = self;
-        // The pointer cast keeps the closure 'static — we re-form an Arc via
-        // the field on the manager's containing Arc inside the blocking task.
-        // Since the blocking task is awaited (not detached), the manager
-        // outlives the borrow. We update progress after the task returns.
-
-        let _ = (mgr_for_emit, id_for_emit, app_for_emit);
 
         self.checkpoint(id, 0).await?;
         let res: Result<u64> = session
@@ -3202,6 +3226,15 @@ async fn run_download_task(
                     let _ = app.emit("transfer://updated", &t);
                 }
                 tokio::time::sleep(Duration::from_secs(delay)).await;
+                // Cancel may abort this task, but also guard the state here so
+                // future lifecycle changes cannot accidentally revive a
+                // canceled/paused row after retry backoff.
+                if !matches!(
+                    mgr.get(&id).await.map(|t| t.status),
+                    Some(TransferStatus::Transferring)
+                ) {
+                    return;
+                }
                 mgr.update(&id, |t| t.error = None).await;
                 continue;
             }
@@ -3254,6 +3287,15 @@ async fn run_upload_task(
                     let _ = app.emit("transfer://updated", &t);
                 }
                 tokio::time::sleep(Duration::from_secs(delay)).await;
+                // Cancel may abort this task, but also guard the state here so
+                // future lifecycle changes cannot accidentally revive a
+                // canceled/paused row after retry backoff.
+                if !matches!(
+                    mgr.get(&id).await.map(|t| t.status),
+                    Some(TransferStatus::Transferring)
+                ) {
+                    return;
+                }
                 mgr.update(&id, |t| t.error = None).await;
                 continue;
             }

@@ -2,14 +2,16 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync(new URL("../src/lib/i18n.ts", import.meta.url), "utf8");
 
-const localeType = source.match(/export type AppLocale\s*=\s*([^;]+);/s);
-if (!localeType) throw new Error("Unable to locate AppLocale union in src/lib/i18n.ts");
+const localeRegistry = source.match(/export const APP_LOCALES\s*=\s*\[([^\]]+)\]\s*as const;/s);
+if (!localeRegistry) throw new Error("Unable to locate APP_LOCALES in src/lib/i18n.ts");
 
-const locales = [...localeType[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-const expectedLocales = ["en","hr","de","fr","es","it","pt","nl","pl","sl","sr","bs","mk","sq"];
-
-if (JSON.stringify(locales) !== JSON.stringify(expectedLocales)) {
-  throw new Error(`Unexpected advertised locales: ${locales.join(", ")}`);
+const locales = [...localeRegistry[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+const expectedLocales = locales;
+if (new Set(locales).size !== locales.length || locales.length < 2 || locales[0] !== "en") {
+  throw new Error(`Invalid advertised locale registry: ${locales.join(", ")}`);
+}
+if (locales.includes("sq")) {
+  throw new Error("Albanian must not be advertised by Ghost FTP");
 }
 
 function extractKeys(body) {

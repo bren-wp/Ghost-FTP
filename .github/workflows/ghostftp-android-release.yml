@@ -59,17 +59,20 @@ jobs:
         shell: bash
         run: bash android/scripts/check-android-contract.sh
 
-      - name: Build Android APK without external signing secrets
+      - name: Build Android release APK
         shell: bash
-        run: gradle -p android lintDebug assembleDebug
+        run: gradle -p android lintRelease assembleRelease
 
-      - name: Verify Android APK signature
+      - name: Select mandatory release APK
         shell: bash
         run: |
           set -euo pipefail
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$APK"
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
+          UNSIGNED="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          if [[ ! -s "$UNSIGNED" ]]; then
+            echo "Android release is incomplete: release APK was not produced." >&2
+            exit 1
+          fi
+          echo "ANDROID_RELEASE_APK=$UNSIGNED" >> "$GITHUB_ENV"
 
       - name: Prepare APK asset
         shell: bash
@@ -77,7 +80,7 @@ jobs:
           set -euo pipefail
           mkdir -p dist/android
           APK="dist/android/GhostFTP-Android-${SAFE_TAG}.apk"
-          cp android/app/build/outputs/apk/debug/app-debug.apk "$APK"
+          cp "$ANDROID_RELEASE_APK" "$APK"
           test -s "$APK"
           sha256sum "$APK" > "${APK}.sha256"
 
@@ -89,3 +92,15 @@ jobs:
           set -euo pipefail
           gh release view "$RELEASE_TAG" >/dev/null
           gh release upload "$RELEASE_TAG" dist/android/*.apk dist/android/*.sha256 --clobber
+
+      - name: Verify mandatory Android release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK_NAME="GhostFTP-Android-${SAFE_TAG}.apk"
+          SHA_NAME="${APK_NAME}.sha256"
+          ASSETS="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
+          grep -Fxq "$APK_NAME" <<<"$ASSETS"
+          grep -Fxq "$SHA_NAME" <<<"$ASSETS"

@@ -122,15 +122,20 @@ impl HostBlock {
         // target — that's how OpenSSH itself treats `ssh prod` where `prod`
         // is both the alias and the resolvable name.
         let host = self.hostname.unwrap_or_else(|| self.alias.clone());
-        if host.is_empty() {
+        let host = host.trim().to_string();
+        let alias = self.alias.trim().to_string();
+        if host.is_empty() || alias.is_empty() {
             return None;
         }
-        let mut p = ProfilePreview::new(self.alias);
+        let mut p = ProfilePreview::new(alias);
         p.protocol = "sftp".into();
         p.host = host;
-        p.port = self.port.unwrap_or(22);
+        p.port = self.port.filter(|port| *port != 0).unwrap_or(22);
         p.username = self.user.unwrap_or_default();
-        p.identity_file = self.identity;
+        p.identity_file = self
+            .identity
+            .map(|path| path.trim().to_string())
+            .filter(|path| !path.is_empty());
         p.note = Some(format!("from {source_label}"));
         Some(p)
     }

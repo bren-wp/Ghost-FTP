@@ -20,7 +20,7 @@ import {
   APP_THEMES,
   useSettings,
 } from "@/stores/settingsStore";
-import { getLocale, saveLocale } from "@/lib/i18n";
+import { APP_LANGUAGE_OPTIONS, getLocale, setLocale, type AppLocale } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
 import { useDialog } from "@/hooks/useDialog";
 import { requestDesktopNotificationPermission } from "@/lib/notifications";
@@ -46,15 +46,25 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
   const [section, setSection] = useState<Section>(initialSection);
   const syncOnly = initialSection === "sync";
   const [pendingLocale, setPendingLocale] = useState(getLocale());
-  const setLocaleNow = (value: any) => {
+  const setLocaleNow = (value: AppLocale) => {
+    if (value === pendingLocale) return;
     setPendingLocale(value);
-    saveLocale(value);
+    setLocale(value);
   };
   const done = () => onClose();
-  const reset = () => {
-    resetSettingsToDefaults();
-    setPendingLocale("en");
-    saveLocale("en");
+  const [resetBusy, setResetBusy] = useState(false);
+  const reset = async () => {
+    if (resetBusy) return;
+    setResetBusy(true);
+    try {
+      await resetSettingsToDefaults();
+      if (pendingLocale !== "en") {
+        setPendingLocale("en");
+        setLocale("en");
+      }
+    } finally {
+      setResetBusy(false);
+    }
   };
 
   useDialog(panelRef, { onClose: done, trapFocus: false });
@@ -93,7 +103,7 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
             {section === "sync" && <div className="mx-auto w-full max-w-5xl"><SyncSettings/></div>}
           </div>
           <div className="ghost-preferences-actions flex h-[58px] shrink-0 items-center border-t border-border bg-[#061a2d] px-4">
-            {!syncOnly && <button className="ghost-mini-button" onClick={reset}><RotateCcw size={14}/> Reset to Defaults</button>}
+            {!syncOnly && <button className="ghost-mini-button" disabled={resetBusy} onClick={() => void reset()}><RotateCcw size={14}/> {resetBusy ? "Resetting…" : "Reset to Defaults"}</button>}
             <div className="flex-1"/>
             <button className="ghost-primary-button" onClick={done}>Done</button>
           </div>
@@ -108,9 +118,9 @@ function Card({ icon, title, subtitle, children }: { icon: React.ReactNode; titl
   return <section className="rounded-lg border border-border bg-[#071f35] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.02)]"><div className="mb-3 flex items-center gap-2"><span className="text-accent">{icon}</span><div><div className="font-semibold text-accent">{title}</div><div className="text-[11px] text-text-muted">{subtitle}</div></div></div><div className="space-y-3">{children}</div></section>;
 }
 
-function LanguageCard({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }) {
-  const options = [['en','English (English)'],['hr','Hrvatski (Croatian)'],['de','Deutsch (German)'],['fr','Français (French)'],['es','Español (Spanish)'],['it','Italiano (Italian)'],['pt','Português (Portuguese)'],['nl','Nederlands (Dutch)'],['pl','Polski (Polish)'],['sl','Slovenščina (Slovenian)'],['sr','Srpski (Serbian)'],['bs','Bosanski (Bosnian)'],['mk','Македонски (Macedonian)'],['sq','Shqip (Albanian)']] as [string,string][];
-  return <Card icon={<Globe2 size={20}/>} title="Language" subtitle="Choose your preferred application language."><SelectRow label="Primary Language" value={locale} onChange={setLocale} options={options}/><div className="text-[10px] text-text-dim">Language changes are saved immediately. English remains the primary fallback language.</div></Card>;
+function LanguageCard({ locale, setLocale }: { locale: AppLocale; setLocale: (value: AppLocale) => void }) {
+  const options = APP_LANGUAGE_OPTIONS.map(([value, label]) => [value, label] as [string, string]);
+  return <Card icon={<Globe2 size={20}/>} title="Language" subtitle="Choose your preferred application language."><SelectRow label="Primary Language" value={locale} onChange={(value) => setLocale(value as AppLocale)} options={options}/><div className="text-[10px] text-text-dim">Language changes are saved immediately. English remains the primary fallback language.</div></Card>;
 }
 function AppearanceCard() {
   const s = useSettings();
@@ -352,7 +362,9 @@ function IntegrationsCard() {
     let active=true;
     void ipc.pathStatus().then((status)=>{
       if(!active)return;
-      s.setShellIntegration(status.managed);
+      // Reflect the OS state without persisting it again. pathStatus() is the
+      // source of truth and opening Settings must never mutate preferences.
+      useSettings.setState({ shellIntegration: status.managed });
       if(status.detail)setShellDetail(status.detail);
     }).catch((error)=>{
       if(active){
@@ -368,6 +380,9 @@ function IntegrationsCard() {
     setShellBusy(true);
     try{
       const status=enabled?await ipc.pathAdd():await ipc.pathRemove();
+      if(status.managed !== enabled){
+        throw new Error(status.detail ?? `Shell integration did not ${enabled ? "enable" : "disable"} as requested.`);
+      }
       s.setShellIntegration(status.managed);
       setShellDetail(status.detail ?? (status.managed?'Shell integration enabled.':'Shell integration disabled.'));
     }catch(error){
@@ -383,7 +398,7 @@ function IntegrationsCard() {
 function StatusRow({ label }: { label: string }){return <div className="flex min-h-8 items-center gap-3 rounded-md border border-border-subtle bg-[#051929] px-3 text-[12px]"><span className="h-2 w-2 shrink-0 rounded-full bg-success"/><span>{label}</span></div>}
 
 function AppearancePanel(){return <div className="mx-auto w-full max-w-4xl"><AppearanceCard/></div>}
-function LanguagePanel({ locale, setLocale }: { locale: string; setLocale: (value: any) => void }){return <div className="mx-auto w-full max-w-4xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
+function LanguagePanel({ locale, setLocale }: { locale: AppLocale; setLocale: (value: AppLocale) => void }){return <div className="mx-auto w-full max-w-4xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
 function TransfersPanel(){return <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-4"><PerformanceCard/><TransfersCard/></div>}
 function ConnectionPanel(){return <div className="mx-auto w-full max-w-4xl"><ConnectionCard/></div>}
 function SecurityPanel(){return <div className="mx-auto w-full max-w-4xl"><SecurityCard/></div>}
@@ -579,15 +594,32 @@ function TextRow({
   placeholder?: string;
   onChange: (v: string) => void;
 }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+
+  const commit = () => {
+    if (draft !== value) onChange(draft);
+  };
+
   return (
     <label className="grid grid-cols-[150px_1fr] items-center gap-3 text-[12px]">
       <span className="text-text-muted">{label}</span>
       <input
         className="min-w-0 rounded-md border border-border bg-[#051929] px-3 py-2"
         type="text"
-        value={value}
+        value={draft}
         placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit();
+            e.currentTarget.blur();
+          } else if (e.key === "Escape") {
+            setDraft(value);
+            e.currentTarget.blur();
+          }
+        }}
       />
     </label>
   );

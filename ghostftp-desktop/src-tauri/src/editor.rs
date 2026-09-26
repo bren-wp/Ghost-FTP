@@ -203,8 +203,14 @@ impl EditManager {
 
         // Spawn the editor — non-blocking; we keep watching regardless of
         // whether the editor process exits. Uses the configured editor command
-        // when set, else the OS default app.
-        spawn_editor(&local_path, editor.as_deref())?;
+        // when set, else the OS default app. If launch fails, explicitly drop
+        // the watcher and remove the downloaded temp copy; the edit was never
+        // registered in `sessions`, so stop() cannot clean it up later.
+        if let Err(error) = spawn_editor(&local_path, editor.as_deref()) {
+            drop(watcher);
+            let _ = std::fs::remove_dir_all(&base);
+            return Err(error);
+        }
 
         let started = EditStartedEvent {
             edit_id: edit_id.clone(),
@@ -250,13 +256,14 @@ fn is_write_event(event: &Event) -> bool {
 #[cfg(target_os = "windows")]
 fn spawn_editor(path: &std::path::Path, editor: Option<&str>) -> Result<()> {
     if let Some(cmd) = editor.map(str::trim).filter(|c| !c.is_empty()) {
-        // Route through `cmd /c` so PATH shims like `code` (code.cmd) resolve;
-        // a bare CreateProcess won't find a .cmd by name.
-        std::process::Command::new("cmd")
-            .args(["/c", cmd])
+        // Never pass a configured editor through cmd.exe: Settings is
+        // user-controlled and shell metacharacters must not become executable
+        // syntax. Direct CreateProcess/PATH lookup keeps the editor value an
+        // executable name/path and the file path a separate argument.
+        std::process::Command::new(cmd)
             .arg(path)
             .spawn()
-            .with_context(|| format!("spawn editor `{cmd}` for {}", path.display()))?;
+            .with_context(|| format!("spawn configured editor for {}", path.display()))?;
         return Ok(());
     }
     // `cmd /c start "" <path>` opens the file with its associated app.

@@ -34,13 +34,13 @@ tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 # failure) so they surface when Ghost FTP isn't focused. The events are decided +
 # gated frontend-side (focus + the `notifications` setting); this just exposes
 # the OS toast API to the webview.
-tauri-plugin-notification = "2"
+tauri-plugin-notification = "~2.3.0"
 # In-app auto-updater (Plan 16 Phase 1/2): checks a signed Ghost FTP release service
 # `latest.json`, downloads the signed artifact, verifies its minisign signature
 # against the pubkey in tauri.conf.json, and installs. `process` powers the
 # "Restart to update" relaunch. Signature verification is the whole security
 # model — the app never installs an unsigned/unverified update.
-tauri-plugin-updater = "2"
+tauri-plugin-updater = "~2.10.0"
 tauri-plugin-process = "2"
 url = "2"
 serde = { version = "1", features = ["derive"] }

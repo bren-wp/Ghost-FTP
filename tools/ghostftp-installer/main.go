@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const version = "2.1.1-rc.21"
+const version = "2.1.1-rc.23"
 
 //go:embed site/* site/assets/* payload/GhostFTP.exe
 var bundle embed.FS
@@ -187,8 +187,18 @@ func install(opts installOptions) error {
 	if !filepath.IsAbs(dir) {
 		return fmt.Errorf("installation folder must be an absolute path")
 	}
-	volumeRoot := filepath.Clean(filepath.VolumeName(dir) + `\`)
-	if dir == volumeRoot || len(dir) <= len(volumeRoot)+3 {
+	volume := filepath.VolumeName(dir)
+	if volume == "" {
+		return fmt.Errorf("installation folder must use a local Windows volume")
+	}
+	// A per-user installer must not write through UNC/device paths or into an
+	// arbitrary volume root. Keeping the target on a normal drive also makes
+	// upgrade rollback and self-uninstall semantics deterministic.
+	if strings.HasPrefix(dir, `\\`) || strings.HasPrefix(dir, `\\?\`) || strings.HasPrefix(dir, `\\.\`) {
+		return fmt.Errorf("installation folder must use a local Windows drive")
+	}
+	volumeRoot := filepath.Clean(volume + `\`)
+	if strings.EqualFold(dir, volumeRoot) || len(dir) <= len(volumeRoot)+3 {
 		return fmt.Errorf("installation folder is not safe")
 	}
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -222,18 +232,56 @@ func install(opts installOptions) error {
 	if _, oldErr := os.Stat(backup); oldErr == nil {
 		hadPrevious = true
 	}
-	rollback := func() {
-		_ = os.Remove(exe)
-		if hadPrevious {
-			_ = os.Rename(backup, exe)
-		}
-	}
 	// Product shortcuts are created through the Windows Script Host so no extra installer dependency is required.
 	desktop := filepath.Join(user, "Desktop", "Ghost FTP.lnk")
 	startDir := filepath.Join(appdata, "Microsoft", "Windows", "Start Menu", "Programs")
 	_ = os.MkdirAll(startDir, 0755)
 	start := filepath.Join(startDir, "Ghost FTP.lnk")
 	uninstallLink := filepath.Join(startDir, "Uninstall Ghost FTP.lnk")
+	shortcutPaths := []string{desktop, start, uninstallLink}
+	shortcutBackups := map[string]string{}
+	for _, path := range shortcutPaths {
+		if _, statErr := os.Stat(path); statErr == nil {
+			bak := path + ".ghostftp-previous"
+			_ = os.Remove(bak)
+			if err := os.Rename(path, bak); err != nil {
+				// A previous shortcut in this loop may already have been moved aside.
+				// Restore every completed backup before rolling the application binary
+				// back so a failed upgrade cannot silently remove existing shortcuts.
+				for original, previous := range shortcutBackups {
+					_ = os.Remove(original)
+					_ = os.Rename(previous, original)
+				}
+				_ = os.Remove(exe)
+				if hadPrevious {
+					_ = os.Rename(backup, exe)
+				}
+				return fmt.Errorf("preparing shortcut rollback: %w", err)
+			}
+			shortcutBackups[path] = bak
+		}
+	}
+	registryBackup := filepath.Join(os.TempDir(), fmt.Sprintf("ghostftp-uninstall-%d.reg", os.Getpid()))
+	_ = os.Remove(registryBackup)
+	hadRegistry := exec.Command("reg", "export", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, registryBackup, "/y").Run() == nil
+	rollback := func() {
+		_ = os.Remove(exe)
+		if hadPrevious {
+			_ = os.Rename(backup, exe)
+		}
+		for _, path := range shortcutPaths {
+			_ = os.Remove(path)
+			if bak, ok := shortcutBackups[path]; ok {
+				_ = os.Rename(bak, path)
+			}
+		}
+		if hadRegistry {
+			_ = exec.Command("reg", "import", registryBackup).Run()
+		} else {
+			_ = exec.Command("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/f").Run()
+		}
+		_ = os.Remove(registryBackup)
+	}
 	if opts.DesktopShortcut {
 		if err := shortcut(exe, desktop, ""); err != nil {
 			rollback()
@@ -255,7 +303,7 @@ func install(opts installOptions) error {
 		_ = os.Remove(start)
 		_ = os.Remove(uninstallLink)
 	}
-	uninstall := fmt.Sprintf(`\"%s\" --uninstall`, exe)
+	uninstall := fmt.Sprintf(`"%s" --uninstall`, exe)
 	if opts.RegisterApps {
 		args := [][]string{
 			{"add", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/v", "DisplayName", "/t", "REG_SZ", "/d", "Ghost FTP", "/f"},
@@ -272,14 +320,24 @@ func install(opts installOptions) error {
 				return fmt.Errorf("registering Apps & Features entry: %w", err)
 			}
 		}
-		if err := exec.Command("reg", "query", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/v", "UninstallString").Run(); err != nil {
+		query := exec.Command("reg", "query", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/v", "UninstallString")
+		output, err := query.CombinedOutput()
+		if err != nil {
 			rollback()
 			return fmt.Errorf("verifying uninstall registration: %w", err)
+		}
+		if !strings.Contains(string(output), uninstall) {
+			rollback()
+			return fmt.Errorf("verifying uninstall registration: unexpected UninstallString")
 		}
 	} else {
 		_ = exec.Command("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/f").Run()
 	}
 	_ = os.Remove(backup)
+	for _, bak := range shortcutBackups {
+		_ = os.Remove(bak)
+	}
+	_ = os.Remove(registryBackup)
 	return nil
 }
 

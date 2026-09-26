@@ -72,11 +72,18 @@ class ConnectionController {
     fun downloadRemote(profile: ConnectionProfile, remoteFilePath: String, outputFile: File): TransferResult {
         val normalized = normalizedProfile(profile)
         val target = normalizeRemoteTarget(remoteFilePath)
-        outputFile.parentFile?.mkdirs()
-        return when (normalized.protocol) {
-            ConnectionProtocol.FTP -> downloadFtp(normalized, secure = false, remoteFilePath = target, outputFile = outputFile)
-            ConnectionProtocol.EXPLICIT_FTPS -> downloadFtp(normalized, secure = true, remoteFilePath = target, outputFile = outputFile)
-            ConnectionProtocol.SFTP -> downloadSftp(normalized, remoteFilePath = target, outputFile = outputFile)
+        outputFile.parentFile?.let { parent ->
+            require(parent.exists() || parent.mkdirs()) { "Unable to create the download directory." }
+        }
+        return try {
+            when (normalized.protocol) {
+                ConnectionProtocol.FTP -> downloadFtp(normalized, secure = false, remoteFilePath = target, outputFile = outputFile)
+                ConnectionProtocol.EXPLICIT_FTPS -> downloadFtp(normalized, secure = true, remoteFilePath = target, outputFile = outputFile)
+                ConnectionProtocol.SFTP -> downloadSftp(normalized, remoteFilePath = target, outputFile = outputFile)
+            }
+        } catch (error: Throwable) {
+            runCatching { if (outputFile.exists()) outputFile.delete() }
+            throw error
         }
     }
 
@@ -336,14 +343,34 @@ class ConnectionController {
     }
 
     private fun normalizeHost(input: String): String {
-        val value = input.trim()
-            .removePrefix("ftp://")
-            .removePrefix("ftps://")
-            .removePrefix("sftp://")
-            .substringBefore('/')
-            .substringBefore(':')
-            .trim()
-        return if (value.isBlank()) "" else IDN.toASCII(value)
+        var value = input.trim()
+        if (value.isBlank()) return ""
+
+        val schemeIndex = value.indexOf("://")
+        if (schemeIndex >= 0) {
+            val scheme = value.substring(0, schemeIndex).lowercase()
+            require(scheme in setOf("ftp", "ftps", "sftp")) { "Unsupported host scheme." }
+            value = value.substring(schemeIndex + 3)
+        }
+
+        value = value.substringBefore('/').trim()
+        require('@' !in value) { "Credentials must not be embedded in the host." }
+
+        val host = when {
+            value.startsWith('[') -> {
+                val end = value.indexOf(']')
+                require(end > 1) { "Invalid IPv6 host." }
+                val remainder = value.substring(end + 1)
+                require(remainder.isBlank()) { "Enter the port in the Port field." }
+                value.substring(1, end)
+            }
+            value.count { it == ':' } > 1 -> value
+            ':' in value -> throw IllegalArgumentException("Enter the port in the Port field.")
+            else -> value
+        }.trim()
+
+        if (host.isBlank()) return ""
+        return if (':' in host) host else IDN.toASCII(host)
     }
 
     private fun normalizeRemoteDirectory(input: String): String {

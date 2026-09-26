@@ -27,6 +27,11 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
   const [port, setPort] = useState(prefill?.port ?? PROTOCOL_DEFAULT_PORT[initialProtocol]);
   const [username, setUsername] = useState(prefill?.username ?? "");
   const [password, setPassword] = useState(prefill?.auth?.kind === "password" ? prefill.auth.password : "");
+  const passwordRef = useRef(password);
+  const setPasswordValue = (value: string) => {
+    passwordRef.current = value;
+    setPassword(value);
+  };
   const [showPassword, setShowPassword] = useState(false);
   const [useKey, setUseKey] = useState(prefill?.auth?.kind === "key");
   const [keyPath, setKeyPath] = useState(prefill?.auth?.kind === "key" ? prefill.auth.path : "");
@@ -70,6 +75,13 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
   useEffect(() => {
     setTestStatus("idle");
   }, [protocol, host, port, username, password, useKey, keyPath, keyPassphrase, remotePath]);
+
+  useEffect(() => () => {
+    // Quick-connect credentials are intentionally memory-only. Clear the local
+    // secret reference as soon as the dialog unmounts so it cannot be reused by
+    // stale callbacks after close.
+    passwordRef.current = "";
+  }, []);
 
   const submit = async (connectNow: boolean) => {
     if (!canConnect || actionBusy) return;
@@ -182,7 +194,7 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
                 </div>
               </Field>
             ) : (
-              <Field label="Password"><div className="relative"><input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/><button type="button" disabled={actionBusy} aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim disabled:cursor-not-allowed disabled:opacity-50" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></Field>
+              <Field label="Password"><div className="relative"><input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPasswordValue(e.target.value)} placeholder="Enter password" className="pr-10"/><button type="button" disabled={actionBusy} aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim disabled:cursor-not-allowed disabled:opacity-50" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></Field>
             )}
           </div>
 
@@ -190,7 +202,7 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
             <div className="mt-3">
               <Field label="Password">
                 <div className="relative">
-                  <input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/>
+                  <input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPasswordValue(e.target.value)} placeholder="Enter password" className="pr-10"/>
                   <button type="button" disabled={actionBusy} aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim disabled:cursor-not-allowed disabled:opacity-50" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button>
                 </div>
               </Field>
