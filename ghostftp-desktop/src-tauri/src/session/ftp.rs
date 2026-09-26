@@ -1,6 +1,8 @@
 use crate::profiles::{AuthMethod, ConnectionProfile};
 use anyhow::{anyhow, Context, Result};
+use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::{Arc, Mutex as StdMutex};
+use std::time::Duration;
 use suppaftp::native_tls::TlsConnector;
 use suppaftp::types::FileType;
 use suppaftp::{FtpStream, NativeTlsConnector, NativeTlsFtpStream};
@@ -102,6 +104,34 @@ fn into_anyhow(e: suppaftp::FtpError) -> anyhow::Error {
     anyhow!(e.to_string())
 }
 
+const FTP_CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
+const FTP_IO_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// Resolve the host ourselves so every FTP/FTPS control connection gets a
+/// bounded TCP connect plus read/write deadlines. Platform-default socket
+/// waits can otherwise make an unreachable site look like a frozen app.
+fn connect_control_socket(host: &str, port: u16) -> Result<TcpStream> {
+    let addrs = (host, port)
+        .to_socket_addrs()
+        .with_context(|| format!("resolve FTP host {host}"))?;
+    let mut last_error = None;
+    for addr in addrs {
+        match TcpStream::connect_timeout(&addr, FTP_CONNECT_TIMEOUT) {
+            Ok(stream) => {
+                stream.set_read_timeout(Some(FTP_IO_TIMEOUT)).context("set FTP control read timeout")?;
+                stream.set_write_timeout(Some(FTP_IO_TIMEOUT)).context("set FTP control write timeout")?;
+                stream.set_nodelay(true).context("set FTP control TCP_NODELAY")?;
+                return Ok(stream);
+            }
+            Err(error) => last_error = Some(error),
+        }
+    }
+    match last_error {
+        Some(error) => Err(error).with_context(|| format!("FTP connect {host}:{port}")),
+        None => Err(anyhow!("FTP host {host} resolved to no addresses")),
+    }
+}
+
 impl FtpSession {
     /// Run a closure with mutable access to the underlying FTP stream on a
     /// blocking thread. Use this for any FTP operation — it ensures the
@@ -151,12 +181,13 @@ pub async fn ftp_connect(profile: &ConnectionProfile) -> Result<FtpSession> {
     let host_for_blocking = host.clone();
     let stream = tokio::task::spawn_blocking(move || -> Result<FtpStreamKind> {
         let addr = format!("{host_for_blocking}:{port}");
+        let tcp = connect_control_socket(&host_for_blocking, port)?;
         if want_tls {
             // Explicit FTPS: connect as a NativeTlsFtpStream-typed stream
             // (still plain TCP at this point), then issue AUTH TLS via
             // into_secure. NativeTlsFtpStream and FtpStream are different
             // generic instantiations, so the type has to be picked up front.
-            let s = NativeTlsFtpStream::connect(&addr)
+            let s = NativeTlsFtpStream::connect_with_stream(tcp)
                 .with_context(|| format!("FTP connect {addr}"))?;
             let tls_connector = TlsConnector::new().map_err(|e| anyhow!("TLS init: {e}"))?;
             let secured = s
@@ -166,7 +197,8 @@ pub async fn ftp_connect(profile: &ConnectionProfile) -> Result<FtpSession> {
             login(&mut tls, &username, &password)?;
             Ok(tls)
         } else {
-            let s = FtpStream::connect(&addr).with_context(|| format!("FTP connect {addr}"))?;
+            let s = FtpStream::connect_with_stream(tcp)
+                .with_context(|| format!("FTP connect {addr}"))?;
             let mut plain = FtpStreamKind::Plain(s);
             login(&mut plain, &username, &password)?;
             Ok(plain)
