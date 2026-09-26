@@ -49,7 +49,9 @@ fn run_uninstaller_if_requested() -> bool {
         r" Remove-Item -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP' -Recurse -Force;",
     );
     script.push_str(&format!(
-        " Remove-Item -LiteralPath '{}' -Force -ErrorAction SilentlyContinue;",
+        " if ((Test-Path -LiteralPath '{}') -and -not (Get-ChildItem -LiteralPath '{}' -Force | Select-Object -First 1)) {{ Remove-Item -LiteralPath '{}' -Force -Confirm:$false -ErrorAction SilentlyContinue; }}",
+        quote(&install_dir),
+        quote(&install_dir),
         quote(&install_dir)
     ));
 
