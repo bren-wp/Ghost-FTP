@@ -311,8 +311,9 @@ function load(): PersistedSettings {
 
 /** Persist one setting to ghostftp.db. The in-memory value applies immediately; native persistence errors are surfaced to the user. */
 function persistKey<K extends keyof PersistedSettings>(key: K, value: PersistedSettings[K]) {
-  ipc.settingsSet(String(key), JSON.stringify(value)).catch((error) => {
+  return ipc.settingsSet(String(key), JSON.stringify(value)).catch((error) => {
     toastError(error, `Couldn't save preference: ${String(key)}`);
+    throw error;
   });
 }
 
