@@ -142,9 +142,7 @@ fn connect_control_socket(host: &str, port: u16) -> Result<TcpStream> {
 /// the control channel. SuppaFTP's default passive builder uses an unbounded
 /// TcpStream::connect, which can otherwise leave LIST/RETR/STOR stuck long
 /// after the control connection itself is healthy.
-fn connect_data_socket(
-    addr: SocketAddr,
-) -> std::result::Result<TcpStream, suppaftp::FtpError> {
+fn connect_data_socket(addr: SocketAddr) -> std::result::Result<TcpStream, suppaftp::FtpError> {
     let stream = TcpStream::connect_timeout(&addr, FTP_CONNECT_TIMEOUT)
         .map_err(suppaftp::FtpError::ConnectionError)?;
     stream
