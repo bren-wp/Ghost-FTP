@@ -180,12 +180,16 @@ impl ProfileStore {
 
     pub async fn upsert(&self, profile: ConnectionProfile) -> Result<()> {
         let mut g = self.inner.lock().await;
+        let previous = g.clone();
         if let Some(existing) = g.iter_mut().find(|p| p.id == profile.id) {
             *existing = profile;
         } else {
             g.push(profile);
         }
-        self.write(&g)?;
+        if let Err(error) = self.write(&g) {
+            *g = previous;
+            return Err(error);
+        }
         Ok(())
     }
 
@@ -193,19 +197,27 @@ impl ProfileStore {
     /// its index. Ids not in the store are skipped; one write for the batch.
     pub async fn reorder(&self, ids: &[String]) -> Result<()> {
         let mut g = self.inner.lock().await;
+        let previous = g.clone();
         for (i, id) in ids.iter().enumerate() {
             if let Some(p) = g.iter_mut().find(|p| &p.id == id) {
                 p.sort_order = Some(i as u32);
             }
         }
-        self.write(&g)?;
+        if let Err(error) = self.write(&g) {
+            *g = previous;
+            return Err(error);
+        }
         Ok(())
     }
 
     pub async fn delete(&self, id: &str) -> Result<()> {
         let mut g = self.inner.lock().await;
+        let previous = g.clone();
         g.retain(|p| p.id != id);
-        self.write(&g)?;
+        if let Err(error) = self.write(&g) {
+            *g = previous;
+            return Err(error);
+        }
         Ok(())
     }
 
