@@ -1,11 +1,2 @@
-(() => {
-  document.querySelectorAll("[data-language-select]").forEach((element) => {
-    if (!(element instanceof HTMLSelectElement)) return;
-
-    element.addEventListener("change", () => {
-      const destination = element.value.trim();
-      if (!destination) return;
-      window.location.assign(destination);
-    });
-  });
-})();
+(()=>{const bar=document.querySelector('.progress span');const text=document.getElementById('progressText');if(!bar||!text)return;let value=78;setInterval(()=>{value=value<92?value+1:value;bar.style.width=value+'%';text.textContent=value+'%'},1100)})();
+;document.querySelectorAll('[data-language-select]').forEach((select)=>select.addEventListener('change',()=>{if(select.value)window.location.assign(select.value)}));

@@ -1,7 +1,7 @@
 {
-  "version": "0.16.0",
-  "build": "2026.09.26.16",
-  "notes": "Ghost FTP 0.15.0",
+  "version": "2.1.1-rc.4",
+  "build": "2026.09.20.4",
+  "notes": "REPLACE_WITH_RELEASE_NOTES",
   "pub_date": "REPLACE_WITH_RFC3339",
   "platforms": {
     "windows-x86_64": {

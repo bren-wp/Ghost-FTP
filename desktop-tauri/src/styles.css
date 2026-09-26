@@ -1,0 +1,1881 @@
+@import "@xterm/xterm/css/xterm.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+[data-theme="dark"] {
+  --bg: 9 10 15;
+  --bg-panel: 17 19 28;
+  --bg-subtle: 24 27 40;
+  --bg-hover: 34 37 54;
+  --border: 38 43 58;
+  --border-subtle: 27 31 42;
+  --text: 234 236 242;
+  --text-muted: 153 161 178;
+  --text-dim: 128 137 156;
+  --accent: 104 79 255;
+  --accent-hover: 126 104 255;
+  --accent-strong: 86 62 235;
+  --accent-glow: 104 79 255;
+  --danger: 248 113 113;
+  --success: 52 211 153;
+  --warning: 251 191 36;
+  --info: 96 165 250;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg: 250 250 252;
+  --bg-panel: 255 255 255;
+  --bg-subtle: 244 246 250;
+  --bg-hover: 233 237 244;
+  --border: 213 219 229;
+  --border-subtle: 227 232 240;
+  --text: 23 28 36;
+  --text-muted: 80 90 105;
+  --text-dim: 98 107 124;
+  --accent: 99 88 220;
+  --accent-hover: 79 70 200;
+  --accent-strong: 79 70 200;
+  --accent-glow: 139 127 246;
+  --danger: 220 38 38;
+  --success: 4 120 87;
+  --warning: 180 83 9;
+  --info: 37 99 235;
+  --shadow: 30 41 59;
+  color-scheme: light;
+}
+
+/* --- Additional named themes. Same token contract as dark/light; each just
+   re-tints the ~14 vars, so every surface (scrollbars, focus rings, selection,
+   accent gradient) follows automatically. Authored in Ghost FTP's RGB-triple format. */
+[data-theme="tokyo"] {
+  --bg: 26 27 38;
+  --bg-panel: 31 35 53;
+  --bg-subtle: 36 40 59;
+  --bg-hover: 47 53 73;
+  --border: 59 66 97;
+  --border-subtle: 42 47 69;
+  --text: 192 202 245;
+  --text-muted: 154 165 206;
+  --text-dim: 138 149 184;
+  --accent: 122 162 247;
+  --accent-hover: 106 146 231;
+  --accent-strong: 71 102 214;
+  --accent-glow: 122 162 247;
+  --danger: 247 118 142;
+  --success: 158 206 106;
+  --warning: 224 175 104;
+  --info: 125 207 255;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+[data-theme="nord"] {
+  --bg: 46 52 64;
+  --bg-panel: 52 59 73;
+  --bg-subtle: 59 66 82;
+  --bg-hover: 67 76 94;
+  --border: 76 86 106;
+  --border-subtle: 59 66 82;
+  --text: 236 239 244;
+  --text-muted: 216 222 233;
+  --text-dim: 168 178 198;
+  --accent: 136 192 208;
+  --accent-hover: 121 176 192;
+  --accent-strong: 76 110 156;
+  --accent-glow: 136 192 208;
+  --danger: 191 97 106;
+  --success: 163 190 140;
+  --warning: 235 203 139;
+  --info: 140 175 205;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+[data-theme="dracula"] {
+  --bg: 40 42 54;
+  --bg-panel: 45 47 61;
+  --bg-subtle: 52 55 70;
+  --bg-hover: 60 63 81;
+  --border: 68 71 90;
+  --border-subtle: 52 55 70;
+  --text: 248 248 242;
+  --text-muted: 184 185 196;
+  --text-dim: 156 161 188;
+  --accent: 189 147 249;
+  --accent-hover: 168 127 228;
+  --accent-strong: 124 85 214;
+  --accent-glow: 189 147 249;
+  --danger: 255 85 85;
+  --success: 80 250 123;
+  --warning: 255 184 108;
+  --info: 139 233 253;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+[data-theme="catppuccin"] {
+  --bg: 30 30 46;
+  --bg-panel: 36 37 58;
+  --bg-subtle: 49 50 68;
+  --bg-hover: 58 60 81;
+  --border: 69 71 90;
+  --border-subtle: 49 50 68;
+  --text: 205 214 244;
+  --text-muted: 166 173 200;
+  --text-dim: 151 156 182;
+  --accent: 203 166 247;
+  --accent-hover: 183 146 227;
+  --accent-strong: 130 88 216;
+  --accent-glow: 203 166 247;
+  --danger: 243 139 168;
+  --success: 166 227 161;
+  --warning: 250 179 135;
+  --info: 137 180 250;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+[data-theme="gruvbox"] {
+  --bg: 40 40 40;
+  --bg-panel: 50 48 47;
+  --bg-subtle: 60 56 54;
+  --bg-hover: 80 73 69;
+  --border: 80 73 69;
+  --border-subtle: 60 56 54;
+  --text: 235 219 178;
+  --text-muted: 213 196 161;
+  --text-dim: 168 153 132;
+  --accent: 254 128 25;
+  --accent-hover: 245 116 24;
+  --accent-strong: 175 58 3;
+  --accent-glow: 254 128 25;
+  --danger: 251 73 52;
+  --success: 184 187 38;
+  --warning: 250 189 47;
+  --info: 131 165 152;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+[data-theme="solarized"] {
+  --bg: 0 43 54;
+  --bg-panel: 7 54 66;
+  --bg-subtle: 10 66 80;
+  --bg-hover: 19 78 92;
+  --border: 28 91 105;
+  --border-subtle: 10 66 80;
+  --text: 147 161 161;
+  --text-muted: 131 148 150;
+  --text-dim: 101 123 131;
+  --accent: 38 139 210;
+  --accent-hover: 31 126 192;
+  --accent-strong: 27 102 153;
+  --accent-glow: 38 139 210;
+  --danger: 220 50 47;
+  --success: 133 153 0;
+  --warning: 181 137 0;
+  --info: 42 161 152;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+[data-theme="onedark"] {
+  --bg: 40 44 52;
+  --bg-panel: 44 49 58;
+  --bg-subtle: 51 56 66;
+  --bg-hover: 62 68 81;
+  --border: 62 68 81;
+  --border-subtle: 51 56 66;
+  --text: 171 178 191;
+  --text-muted: 157 165 180;
+  --text-dim: 127 132 142;
+  --accent: 97 175 239;
+  --accent-hover: 79 159 229;
+  --accent-strong: 47 109 181;
+  --accent-glow: 97 175 239;
+  --danger: 224 108 117;
+  --success: 152 195 121;
+  --warning: 229 192 123;
+  --info: 86 182 194;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+[data-theme="rosepine"] {
+  --bg: 25 23 36;
+  --bg-panel: 31 29 46;
+  --bg-subtle: 38 35 58;
+  --bg-hover: 57 53 82;
+  --border: 64 61 82;
+  --border-subtle: 38 35 58;
+  --text: 224 222 244;
+  --text-muted: 144 140 170;
+  --text-dim: 110 106 134;
+  --accent: 196 167 231;
+  --accent-hover: 178 148 220;
+  --accent-strong: 110 80 155;
+  --accent-glow: 196 167 231;
+  --danger: 235 111 146;
+  --success: 156 207 216;
+  --warning: 246 193 119;
+  --info: 49 116 143;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+[data-theme="everforest"] {
+  --bg: 45 53 59;
+  --bg-panel: 52 63 68;
+  --bg-subtle: 61 72 77;
+  --bg-hover: 71 82 88;
+  --border: 79 88 94;
+  --border-subtle: 61 72 77;
+  --text: 211 198 170;
+  --text-muted: 157 169 160;
+  --text-dim: 133 146 137;
+  --accent: 167 192 128;
+  --accent-hover: 151 176 111;
+  --accent-strong: 79 107 63;
+  --accent-glow: 167 192 128;
+  --danger: 230 126 128;
+  --success: 167 192 128;
+  --warning: 219 188 127;
+  --info: 127 187 179;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+[data-theme="ghost-ice"] {
+  --bg: 246 248 250;
+  --bg-panel: 255 255 255;
+  --bg-subtle: 240 243 246;
+  --bg-hover: 234 238 242;
+  --border: 208 215 222;
+  --border-subtle: 225 228 232;
+  --text: 31 35 40;
+  --text-muted: 87 96 106;
+  --text-dim: 110 119 129;
+  --accent: 9 105 218;
+  --accent-hover: 8 91 192;
+  --accent-strong: 8 96 200;
+  --accent-glow: 9 105 218;
+  --danger: 207 34 46;
+  --success: 26 127 55;
+  --warning: 154 103 0;
+  --info: 9 105 218;
+  --shadow: 30 41 59;
+  color-scheme: light;
+}
+
+[data-theme="monokai"] {
+  --bg: 39 40 34;
+  --bg-panel: 45 46 40;
+  --bg-subtle: 52 53 46;
+  --bg-hover: 62 63 55;
+  --border: 73 72 62;
+  --border-subtle: 52 53 46;
+  --text: 248 248 242;
+  --text-muted: 201 202 188;
+  --text-dim: 144 138 122;
+  --accent: 249 38 114;
+  --accent-hover: 226 30 104;
+  --accent-strong: 176 18 80;
+  --accent-glow: 249 38 114;
+  --danger: 255 97 136;
+  --success: 166 226 46;
+  --warning: 230 219 116;
+  --info: 102 217 239;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+[data-theme="ayu"] {
+  --bg: 31 36 48;
+  --bg-panel: 35 40 52;
+  --bg-subtle: 42 49 64;
+  --bg-hover: 51 60 82;
+  --border: 61 71 96;
+  --border-subtle: 42 49 64;
+  --text: 204 202 194;
+  --text-muted: 165 174 184;
+  --text-dim: 112 122 140;
+  --accent: 255 167 89;
+  --accent-hover: 240 151 74;
+  --accent-strong: 181 83 26;
+  --accent-glow: 255 167 89;
+  --danger: 255 102 102;
+  --success: 166 204 112;
+  --warning: 255 204 102;
+  --info: 92 207 230;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+[data-theme="palenight"] {
+  --bg: 41 45 62;
+  --bg-panel: 47 52 71;
+  --bg-subtle: 53 59 82;
+  --bg-hover: 62 69 101;
+  --border: 68 74 107;
+  --border-subtle: 53 59 82;
+  --text: 166 172 205;
+  --text-muted: 143 150 179;
+  --text-dim: 103 110 149;
+  --accent: 130 170 255;
+  --accent-hover: 111 155 245;
+  --accent-strong: 63 95 181;
+  --accent-glow: 130 170 255;
+  --danger: 240 113 120;
+  --success: 195 232 141;
+  --warning: 255 203 107;
+  --info: 137 221 255;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+[data-theme="ghost-midnight"] {
+  --bg: 13 17 23;
+  --bg-panel: 22 27 34;
+  --bg-subtle: 28 33 40;
+  --bg-hover: 33 38 45;
+  --border: 48 54 61;
+  --border-subtle: 33 38 45;
+  --text: 230 237 243;
+  --text-muted: 139 148 158;
+  --text-dim: 110 119 129;
+  --accent: 47 129 247;
+  --accent-hover: 40 114 224;
+  --accent-strong: 17 88 199;
+  --accent-glow: 47 129 247;
+  --danger: 248 81 73;
+  --success: 63 185 80;
+  --warning: 210 153 34;
+  --info: 47 129 247;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+/* Motion system. Theme-independent. Exponential ease-out curves read as
+   "confident and decisive" — they decelerate hard at the end, which suits a
+   tool that should feel instant. Durations stay in the product range (snappy,
+   never choreographed); see the prefers-reduced-motion block at the end. */
+:root {
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 220ms;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: rgb(var(--bg));
+  color: rgb(var(--text));
+  font-family:
+    "Inter",
+    BlinkMacSystemFont,
+    "Segoe UI Variable",
+    "Segoe UI",
+    Roboto,
+    system-ui,
+    sans-serif;
+  font-size: 13px;
+  font-feature-settings:
+    "cv02",
+    "cv03",
+    "cv04",
+    "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* Theme crossfade. The transition is applied ONLY while <html> carries the
+   `.theming` class (main.tsx adds it for ~260ms when the theme changes), so
+   during normal use nothing carries a transition: hovers and selection are
+   instant, and a directory with thousands of rows isn't styling thousands of
+   idle transition declarations. */
+html.theming,
+html.theming *,
+html.theming *::before,
+html.theming *::after {
+  transition:
+    background-color var(--dur-base) var(--ease-out-quart),
+    border-color var(--dur-base) var(--ease-out-quart),
+    color var(--dur-base) var(--ease-out-quart);
+}
+/* Exclude xterm — it has its own renderer and any transition causes flicker. */
+.xterm,
+.xterm * {
+  transition: none !important;
+}
+/* But don't transition transforms or opacity globally — keep micro-animations
+   snappy. */
+button,
+[role="button"] {
+  transition:
+    background-color var(--dur-fast) var(--ease-out-quart),
+    color var(--dur-fast) var(--ease-out-quart),
+    border-color var(--dur-fast) var(--ease-out-quart),
+    transform 80ms var(--ease-out-quart),
+    filter var(--dur-fast) var(--ease-out-quart),
+    box-shadow var(--dur-fast) var(--ease-out-quart);
+}
+button:active,
+[role="button"]:active {
+  transform: scale(0.97);
+}
+
+/* Subtle film grain on the whole window. Sits above all panels via fixed +
+   blend so the grain shows on every surface. The user almost can't see it —
+   it just makes flat panels feel slightly less plastic. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  /* Above the tooltip layer (90) so the texture sits over every surface;
+     pointer-events:none keeps it from blocking anything. */
+  z-index: 100;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-size: 256px 256px;
+}
+[data-theme="light"] body::after,
+[data-theme="ghost-ice"] body::after {
+  opacity: 0.06;
+}
+
+/* The whole app is chrome by default — no accidental text selection when
+   clicking-and-dragging on buttons, headers, rows, etc. Selection is
+   re-enabled below for places where the user actually needs to copy text. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+.selectable,
+.selectable *,
+.xterm,
+.xterm * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+input,
+select,
+textarea {
+  background: rgb(var(--bg-subtle));
+}
+
+/* Scrollbars — themed via CSS vars. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--text-dim));
+  background-clip: content-box;
+}
+
+/* Focus ring — scoped to interactive elements only, and explicitly excluding
+   xterm's helper textarea (which is 1×1 at the cursor and would otherwise
+   show a tiny blue outline). */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible:not(.xterm-helper-textarea),
+[role="button"]:focus-visible,
+[tabindex]:focus-visible:not(.xterm-helper-textarea) {
+  outline: 2px solid rgb(var(--accent) / 0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Belt and suspenders. xterm's own CSS hides this element via left:-9999em,
+   but we make doubly sure no outline/background lights it up. We do NOT set
+   `pointer-events: none` — xterm needs the textarea to capture keystrokes. */
+.xterm-helper-textarea,
+.xterm-helper-textarea:focus,
+.xterm-helper-textarea:focus-visible {
+  outline: none !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Selection */
+::selection {
+  background: rgb(var(--accent) / 0.35);
+}
+
+/* Primary-action fill. Uses --accent-strong (a deeper shade of the accent that
+   clears 4.5:1 against white text in every theme — the lighter --accent stays
+   the tint/text/ring color). The top highlight fades out by 45% height so it
+   never sits over the label and pulls contrast back down. */
+.btn-accent {
+  background-color: rgb(var(--accent-strong));
+  background-image: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.12) 0%,
+    rgb(255 255 255 / 0) 45%
+  );
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.16),
+    0 1px 2px -1px rgb(var(--shadow) / 0.4);
+}
+.btn-accent:hover {
+  filter: brightness(1.08);
+}
+
+/* A subtle glow used for the active connection chip / accent dot. */
+.glow-accent {
+  box-shadow: 0 0 0 2px rgb(var(--bg-panel)), 0 0 12px rgb(var(--accent-glow) / 0.4);
+}
+
+/* Modal/popover entrance. Expo ease-out: a quick rise that settles decisively,
+   so a dialog feels like it snaps into place rather than drifting in. */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.anim-modal {
+  animation: fadeInUp var(--dur-base) var(--ease-out-expo);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.anim-fade {
+  animation: fadeIn 160ms var(--ease-out-quart);
+}
+
+/* Toast / transfer-panel entrance — rises from the edge it's anchored to. */
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.anim-slide-up {
+  animation: slideInFromBottom var(--dur-slow) var(--ease-out-expo);
+}
+
+/* Skeleton shimmer — a moving highlight band over a base block. Tints with the
+   theme because it interpolates between two theme tokens. */
+@keyframes ghostftpShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.ghostftp-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgb(var(--bg-subtle)) 0%,
+    rgb(var(--bg-hover)) 50%,
+    rgb(var(--bg-subtle)) 100%
+  );
+  background-size: 200% 100%;
+  animation: ghostftpShimmer 1.4s ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced motion. Honors the OS "reduce motion" preference. The strategy is not
+   to freeze everything — a frozen spinner reads as "hung" — but to strip motion
+   that TRAVELS (slides, scale pops, the expanding connection ping) while keeping
+   in-place, non-vestibular cues (a gentle opacity breathe, a slow spinner) so
+   "loading" and "active" still read.
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* No layout-jumping press feedback, no hover brightness pulse. */
+  button:active,
+  [role="button"]:active {
+    transform: none !important;
+  }
+  .btn-accent:hover {
+    filter: none !important;
+  }
+
+  /* Entrances become a soft in-place crossfade, never a slide or scale pop. */
+  .anim-modal,
+  .anim-fade,
+  .anim-slide-up {
+    animation: ghostftpFadeReduced 140ms var(--ease-out-quart) !important;
+  }
+
+  /* Skeletons keep signalling "loading" with an in-place breathe instead of a
+     highlight that sweeps across the screen. */
+  .ghostftp-shimmer {
+    background-image: none !important;
+    background: rgb(var(--bg-hover)) !important;
+    animation: ghostftpBreatheReduced 1.6s ease-in-out infinite !important;
+  }
+
+  /* Spinners are small, essential, and rotate in place — keep them turning
+     (a touch slower) rather than freezing mid-load. */
+  .animate-spin {
+    animation: spin 1.4s linear infinite !important;
+  }
+}
+
+@keyframes ghostftpFadeReduced {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ghostftpBreatheReduced {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ========================================================================== */
+/* Ghost FTP 2026 visual system — reference implementation                    */
+/* Mirrors the approved Windows/Linux concept artwork supplied for the app.   */
+/* ========================================================================== */
+:root,
+[data-theme="dark"] {
+  --bg: 4 17 30;
+  --bg-panel: 5 24 42;
+  --bg-subtle: 7 32 54;
+  --bg-hover: 10 47 77;
+  --border: 24 73 112;
+  --border-subtle: 17 53 83;
+  --text: 232 246 255;
+  --text-muted: 170 204 229;
+  --text-dim: 111 159 195;
+  --accent: 49 170 255;
+  --accent-hover: 80 190 255;
+  --accent-strong: 2 123 244;
+  --accent-glow: 36 166 255;
+  --danger: 255 90 101;
+  --success: 38 220 143;
+  --warning: 255 184 67;
+  --info: 66 183 255;
+  --shadow: 0 8 30;
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  background:
+    radial-gradient(circle at 52% -30%, rgb(22 105 171 / 0.18), transparent 46%),
+    linear-gradient(180deg, #061b2e 0%, #04111e 100%);
+}
+
+body::after { opacity: 0.018; }
+
+.ghost-app-header {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 55;
+  border-bottom: 1px solid rgb(47 130 190 / 0.35);
+  background:
+    linear-gradient(180deg, rgb(7 30 52 / 0.99), rgb(4 22 39 / 0.995));
+  box-shadow: 0 10px 34px rgb(0 0 0 / 0.24), inset 0 -1px 0 rgb(80 180 255 / 0.06);
+}
+
+.ghost-title-row,
+.ghost-quick-row,
+.ghost-toolbar-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.ghost-title-row {
+  height: 46px;
+  padding: 0 10px 0 13px;
+  gap: 12px;
+  border-bottom: 1px solid rgb(39 103 150 / 0.26);
+}
+
+.ghost-title-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ghost-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #e7f7ff;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  text-shadow: 0 0 14px rgb(57 176 255 / 0.22);
+}
+.ghost-wordmark strong { color: #70c4ff; font-weight: 760; }
+
+.ghost-menu {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: 100%;
+}
+.ghost-menu button {
+  height: 30px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  padding: 0 9px;
+  color: rgb(207 228 243);
+  font-size: 12px;
+}
+.ghost-menu button:hover { background: rgb(25 77 114 / .58); color: white; }
+
+.ghost-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.ghost-mini-button,
+.ghost-language-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  border: 1px solid rgb(38 93 133 / .76);
+  border-radius: 6px;
+  background: rgb(5 27 46 / .95);
+  color: rgb(215 235 249);
+  padding: 0 9px;
+  font-size: 11.5px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .025);
+}
+.ghost-mini-button:hover,
+.ghost-language-menu:hover { border-color: rgb(50 155 228 / .8); background: rgb(8 42 70); }
+.ghost-language-menu select {
+  appearance: none;
+  min-width: 132px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.ghost-language-menu option { background: #071d31; }
+
+.ghost-window-controls { display: flex; height: 34px; margin-left: 3px; }
+.ghost-window-controls button {
+  width: 42px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: rgb(187 215 235);
+  display: grid;
+  place-items: center;
+}
+.ghost-window-controls button:hover { background: rgb(38 85 120 / .5); color: white; }
+.ghost-window-controls button.danger:hover { background: #c42b35; }
+
+.ghost-quick-row {
+  min-height: 45px;
+  padding: 7px 14px;
+  gap: 8px;
+  border-bottom: 1px solid rgb(29 78 115 / .4);
+}
+.ghost-quick-row label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: rgb(199 221 237);
+  font-size: 11.5px;
+  min-width: 0;
+}
+.ghost-quick-row input,
+.ghost-quick-row select {
+  height: 31px;
+  min-width: 128px;
+  border: 1px solid rgb(40 91 128 / .92);
+  border-radius: 5px;
+  background: #071a2b;
+  padding: 0 10px;
+  color: #e6f5ff;
+  outline: 0;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / .2);
+}
+.ghost-quick-row input:focus,
+.ghost-quick-row select:focus { border-color: #2aa7ff; box-shadow: 0 0 0 2px rgb(42 167 255 / .12); }
+.ghost-port-field input { width: 80px; min-width: 80px; }
+.ghost-protocol-field select { min-width: 92px; }
+.ghost-primary-button {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #2daaff;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #1d9cff, #0877e6);
+  color: white;
+  padding: 0 17px;
+  font-size: 12px;
+  font-weight: 650;
+  box-shadow: 0 0 18px rgb(26 143 255 / .2), inset 0 1px 0 rgb(255 255 255 / .2);
+}
+.ghost-primary-button:hover { filter: brightness(1.08); }
+
+.ghost-toolbar-row {
+  min-height: 55px;
+  padding: 4px 11px;
+  gap: 1px;
+}
+.ghost-toolbar-spacer { flex: 1; }
+.ghost-tool-button {
+  min-width: 69px;
+  height: 46px;
+  border: 0;
+  border-right: 1px solid rgb(37 82 115 / .35);
+  background: transparent;
+  color: rgb(203 226 242);
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 10px;
+}
+.ghost-tool-button svg { color: #53b7ff; }
+.ghost-tool-button:hover:not(:disabled) { background: rgb(23 72 108 / .5); color: white; }
+.ghost-tool-button:disabled { opacity: .35; cursor: default; }
+
+/* Existing panes inherit the Ghost FTP reference geometry and surface finish. */
+.bg-bg-panel { background-color: rgb(var(--bg-panel) / .96) !important; }
+.bg-bg-subtle { background-color: rgb(var(--bg-subtle) / .96) !important; }
+.border-border { border-color: rgb(var(--border) / .72) !important; }
+.border-border-subtle { border-color: rgb(var(--border-subtle) / .76) !important; }
+.text-accent { color: rgb(var(--accent)) !important; }
+
+/* App-level modal restyle shared by legacy/advanced dialogs. */
+.fixed.inset-0.z-modal > [role="dialog"] {
+  border-color: rgb(48 167 244 / .72) !important;
+  background: linear-gradient(180deg, rgb(7 31 53 / .995), rgb(4 22 39 / .995)) !important;
+  box-shadow: 0 0 0 1px rgb(62 181 255 / .1), 0 22px 70px rgb(0 0 0 / .55), 0 0 40px rgb(20 137 234 / .12) !important;
+}
+
+/* Slightly narrower UI below 1180px without sacrificing desktop fidelity. */
+@media (max-width: 1180px) {
+  .ghost-quick-row label { gap: 4px; }
+  .ghost-quick-row input { min-width: 94px; }
+  .ghost-language-menu select { min-width: 105px; }
+}
+.ghost-ref-input {
+  width: 100%;
+  height: 36px;
+  border: 1px solid rgb(var(--border) / .92);
+  border-radius: 6px;
+  background: #051929;
+  padding: 0 11px;
+  color: rgb(var(--text));
+  outline: none;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / .18);
+}
+.ghost-ref-input:focus { border-color: #2baaff; box-shadow: 0 0 0 2px rgb(43 170 255 / .12); }
+.ghost-ref-field input,
+.ghost-ref-field select {
+  width: 100%;
+  height: 36px;
+  border: 1px solid rgb(var(--border) / .92);
+  border-radius: 6px;
+  background: #051929;
+  padding: 0 11px;
+  color: rgb(var(--text));
+  outline: none;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / .18);
+}
+.ghost-ref-field input:focus,
+.ghost-ref-field select:focus { border-color: #2baaff; box-shadow: 0 0 0 2px rgb(43 170 255 / .12); }
+
+/* Ghost FTP desktop shell: all controls are real DOM/Tauri UI components. */
+.ghost-app-shell { background: linear-gradient(180deg, #061b2f 0%, #041321 100%); }
+
+.ghost-window-titlebar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  padding-left: 16px;
+  border-bottom: 1px solid rgb(38 91 131 / .56);
+  background: linear-gradient(180deg, #08203a 0%, #06172a 100%);
+}
+.ghost-window-title-spacer { flex: 1; min-width: 40px; }
+.ghost-menu-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 42px;
+  padding: 0 12px 0 13px;
+  border-bottom: 1px solid rgb(36 82 119 / .47);
+  background: #051728;
+}
+.ghost-menu-wrap { position: relative; height: 100%; display: flex; align-items: center; }
+.ghost-menu button.active { background: rgb(22 76 116 / .72); color: #fff; }
+.ghost-menu-popover {
+  position: absolute;
+  top: 35px;
+  left: 0;
+  z-index: 120;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid rgb(42 116 169 / .9);
+  border-radius: 7px;
+  background: #061c30;
+  box-shadow: 0 15px 38px rgb(0 0 0 / .5), 0 0 18px rgb(28 155 246 / .1);
+}
+.ghost-menu-popover button {
+  width: 100%;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 5px;
+  color: #cbe5f7;
+  background: transparent;
+  font-size: 12px;
+  text-align: left;
+}
+.ghost-menu-popover button:hover:not(:disabled) { background: #0b3557; color: #fff; }
+.ghost-menu-popover button:disabled { opacity: .38; }
+.ghost-menu-popover button svg { color: #58baff; }
+.ghost-title-actions { margin-left: auto; }
+
+.ghost-quick-row {
+  height: 48px;
+  min-height: 48px;
+  padding: 7px 16px;
+  gap: 12px;
+  background: #061a2d;
+}
+.ghost-quick-row label { flex: 1; max-width: 295px; gap: 8px; }
+.ghost-quick-row label:first-child { max-width: 300px; }
+.ghost-quick-row input { width: 100%; min-width: 0; }
+.ghost-port-field { flex: 0 0 auto !important; max-width: none !important; }
+.ghost-port-field input { width: 82px; }
+.ghost-quick-connect { height: 34px; min-width: 165px; margin-left: 4px; }
+.ghost-protocol-pill {
+  height: 32px;
+  min-width: 54px;
+  border: 1px solid rgb(45 118 169 / .8);
+  border-radius: 5px;
+  background: #061a2d;
+  color: #91cfff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+.ghost-toolbar-row {
+  height: 62px;
+  min-height: 62px;
+  padding: 5px 8px;
+  border-bottom: 1px solid rgb(34 83 120 / .62);
+  background: linear-gradient(180deg,#071d32,#051728);
+}
+.ghost-tool-button { min-width: 74px; height: 50px; font-size: 10px; }
+.ghost-tool-button svg { width: 17px; height: 17px; }
+
+.ghost-sites-panel {
+  flex: 0 0 205px;
+  width: 205px;
+  min-width: 205px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid rgb(30 80 116 / .74);
+  background: #041526;
+}
+.ghost-sites-head {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 11px;
+  border-bottom: 1px solid rgb(24 68 100 / .68);
+}
+.ghost-sites-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #dff3ff;
+  font-size: 12px;
+  font-weight: 650;
+  background: transparent;
+  border: 0;
+}
+.ghost-sites-title svg { color: #2faeff; }
+.ghost-sites-head-actions { margin-left: auto; display: flex; gap: 2px; }
+.ghost-sites-head-actions button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #8ebbd8;
+}
+.ghost-sites-head-actions button:hover { background: #0b3455; color: #fff; }
+.ghost-sites-group {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: #b8d8ed;
+  font-size: 11px;
+  text-align: left;
+}
+.ghost-sites-group svg:nth-of-type(2) { color: #6cbfff; }
+.ghost-sites-list { padding: 0 8px 8px 16px; }
+.ghost-site-row {
+  width: 100%;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 9px;
+  margin: 2px 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: #b9d2e4;
+  font-size: 11px;
+  text-align: left;
+}
+.ghost-site-row svg { color: #8acbff; flex: 0 0 auto; }
+.ghost-site-row:hover { background: #0a2c49; color: #fff; }
+.ghost-site-row.active {
+  border-color: rgb(31 117 214 / .55);
+  background: linear-gradient(90deg,#0a4a91,#0b3564);
+  color: #fff;
+}
+.ghost-site-row i {
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: #48667b;
+}
+.ghost-site-row i.online { background: #25dc8d; box-shadow: 0 0 8px rgb(37 220 141 / .45); }
+.ghost-site-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ghost-site-empty { border-style: dashed; border-color: #184a70; color: #80b8d9; }
+.ghost-sites-spacer { flex: 1; }
+.ghost-site-manager-link {
+  margin: 8px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid #16476b;
+  border-radius: 6px;
+  background: #061c30;
+  color: #a9cce4;
+  font-size: 11px;
+}
+.ghost-site-manager-link:hover { border-color: #219cf0; color: #fff; }
+
+.ghost-dual-browser { background: #041526; }
+.ghost-file-pane {
+  border: 1px solid rgb(34 83 120 / .86);
+  border-radius: 7px;
+  overflow: hidden;
+  background: #061a2d !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .02);
+}
+.ghost-pane-header {
+  min-height: 34px;
+  padding: 0 10px !important;
+  background: #08223a !important;
+}
+.ghost-pane-header > span:first-child {
+  color: #9bd7ff !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-size: 12px !important;
+}
+.ghost-pane-pathbar {
+  min-height: 38px;
+  padding: 4px 8px !important;
+  background: #051929;
+}
+.ghost-pane-pathbar > div:first-of-type,
+.ghost-pane-pathbar input { min-height: 28px; }
+.ghost-pane-columns {
+  min-height: 30px;
+  background: #082039 !important;
+  color: #9ebdd3 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-size: 10.5px !important;
+}
+.ghost-pane-list { background: #06192b; }
+.ghost-file-row {
+  min-height: 29px;
+  background: transparent;
+  font-size: 11px !important;
+}
+.ghost-file-row[aria-selected="true"] {
+  background: linear-gradient(90deg, rgb(9 80 154 / .9), rgb(7 61 112 / .9)) !important;
+  box-shadow: inset 2px 0 #30aaff;
+}
+.ghost-file-row:hover { background: #0a2b48 !important; }
+.ghost-file-row img { width: 16px; height: 16px; }
+
+/* Main transfer tray: same compact tabbed band as the reference image. */
+.ghost-app-shell .anim-slide-up {
+  max-height: 190px !important;
+  border-top-color: rgb(34 95 138 / .85) !important;
+  background: #051728 !important;
+}
+.ghost-app-shell .anim-slide-up > div:first-child { min-height: 34px; background: #082039 !important; }
+
+/* Default status bar geometry from the reference. */
+.ghost-app-shell footer,
+.ghost-app-shell [data-statusbar] { background: #06182a; }
+
+
+@media (max-width: 1050px) {
+  .ghost-sites-panel { flex-basis: 174px; width: 174px; min-width: 174px; }
+  .ghost-menu button { padding: 0 6px; font-size: 11px; }
+  .ghost-title-actions .ghost-mini-button span { display: none; }
+  .ghost-language-menu select { min-width: 110px; }
+  .ghost-tool-button { min-width: 60px; }
+}
+
+/* ========================================================================== */
+/* Ghost FTP v9 canonical desktop geometry — measured from the approved 1290×852 application frame. */
+/* ========================================================================== */
+
+.ghost-app-shell {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #041425;
+}
+.ghost-app-header {
+  flex: 0 0 205px !important;
+  height: 205px !important;
+  min-height: 205px !important;
+  background: #06182b !important;
+}
+.ghost-title-row {
+  height: 51px !important;
+  min-height: 51px !important;
+  padding: 0 5px 0 18px !important;
+  background: linear-gradient(180deg,#08203a,#06172a) !important;
+  border-bottom: 1px solid rgba(42,91,126,.58) !important;
+}
+.ghost-title-left img,
+.ghost-title-left svg {
+  width: 36px !important;
+  height: 36px !important;
+}
+.ghost-title-left strong,
+.ghost-title-left .font-semibold {
+  font-size: 21px !important;
+  letter-spacing: -.25px !important;
+}
+.ghost-window-controls button {
+  width: 43px !important;
+  height: 51px !important;
+  border-radius: 0 !important;
+}
+.ghost-menu-row {
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 8px 0 12px !important;
+  background: #06172a !important;
+  border-bottom: 1px solid rgba(38,84,119,.58) !important;
+}
+.ghost-menu-anchor > button {
+  height: 31px !important;
+  padding: 0 11px !important;
+  font-size: 13.5px !important;
+}
+.ghost-title-actions .ghost-mini-button,
+.ghost-language-menu {
+  height: 31px !important;
+  border-radius: 6px !important;
+}
+.ghost-quick-row {
+  height: 50px !important;
+  min-height: 50px !important;
+  padding: 5px 13px 5px 19px !important;
+  gap: 15px !important;
+  background: #06192b !important;
+  border-bottom: 1px solid #1c5378 !important;
+}
+.ghost-quick-row label {
+  max-width: none !important;
+  font-size: 13px !important;
+  gap: 9px !important;
+}
+.ghost-quick-row label:nth-child(1) { flex: 0 0 230px !important; }
+.ghost-quick-row label:nth-child(2) { flex: 0 0 214px !important; }
+.ghost-quick-row label:nth-child(3) { flex: 0 0 209px !important; }
+.ghost-quick-row label:nth-child(4) { flex: 0 0 127px !important; }
+.ghost-quick-row input,
+.ghost-quick-row select {
+  height: 35px !important;
+  border-radius: 6px !important;
+}
+.ghost-quick-row > .ghost-primary-button {
+  width: 162px !important;
+  min-width: 162px !important;
+  height: 36px !important;
+  border-radius: 7px !important;
+}
+.ghost-toolbar-row {
+  height: 62px !important;
+  min-height: 62px !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  background: linear-gradient(180deg,#071d32,#051628) !important;
+  border-bottom: 1px solid #1a4b6c !important;
+}
+.ghost-sites-toolbar-head {
+  flex: 0 0 216px !important;
+  width: 216px !important;
+  height: 62px !important;
+  padding: 0 10px !important;
+  border-right: 1px solid #173f5b !important;
+  background: #041526 !important;
+}
+.ghost-tool-button {
+  width: 80px !important;
+  min-width: 80px !important;
+  height: 62px !important;
+  gap: 5px !important;
+  border-right: 1px solid #173d59 !important;
+  border-radius: 0 !important;
+}
+.ghost-tool-button svg { width: 22px !important; height: 22px !important; }
+.ghost-tool-button span { font-size: 11.5px !important; }
+
+.ghost-main-workspace {
+  flex: 0 0 416px !important;
+  height: 416px !important;
+  min-height: 416px !important;
+  background: #041526 !important;
+}
+.ghost-reference-sidebar,
+.ghost-sites-panel {
+  width: 216px !important;
+  min-width: 216px !important;
+  flex: 0 0 216px !important;
+  background: #041526 !important;
+  border-right: 1px solid #1a4c6e !important;
+}
+.ghost-sites-group {
+  height: 39px !important;
+  min-height: 39px !important;
+  padding: 0 13px !important;
+  font-size: 13px !important;
+}
+.ghost-site-row {
+  height: 34px !important;
+  margin: 1px 8px 1px 15px !important;
+  padding: 0 9px !important;
+  border-radius: 5px !important;
+  font-size: 13px !important;
+}
+.ghost-site-row.active {
+  border-color: #166fc5 !important;
+  background: linear-gradient(90deg,#0b4f98,#0b3767) !important;
+  box-shadow: inset 2px 0 #24a8ff !important;
+}
+
+.ghost-file-pane {
+  border-color: #23577d !important;
+  border-radius: 7px !important;
+  background: #061a2d !important;
+}
+.ghost-pane-header {
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 11px !important;
+  background: #08223a !important;
+  border-bottom: 1px solid #174768 !important;
+}
+.ghost-pane-header > span:first-child {
+  color: #a5dcff !important;
+  font-size: 14px !important;
+  font-weight: 650 !important;
+}
+.ghost-pane-pathbar {
+  height: 45px !important;
+  min-height: 45px !important;
+  padding: 5px 7px !important;
+  background: #061a2d !important;
+  border-bottom: 1px solid #164566 !important;
+}
+.ghost-pane-pathbar > div:first-of-type,
+.ghost-pane-pathbar input { min-height: 34px !important; height: 34px !important; }
+.ghost-pane-columns {
+  height: 31px !important;
+  min-height: 31px !important;
+  background: #09223b !important;
+  border-bottom: 1px solid #113b59 !important;
+  font-size: 12px !important;
+}
+.ghost-file-row-details {
+  height: 28px !important;
+  min-height: 28px !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  font-size: 12.5px !important;
+  border-bottom-color: #0f3855 !important;
+}
+
+.ghost-bottom-band {
+  flex: 0 0 191px !important;
+  height: 191px !important;
+  min-height: 191px !important;
+  grid-template-columns: minmax(0,2.17fr) minmax(300px,1fr) !important;
+  gap: 6px !important;
+  padding: 0 4px 3px 4px !important;
+  background: #041526 !important;
+}
+.ghost-transfer-box,
+.ghost-server-log {
+  border-color: #23577d !important;
+  border-radius: 7px !important;
+}
+.ghost-transfer-tabs,
+.ghost-log-head {
+  height: 42px !important;
+  min-height: 42px !important;
+  background: #08223a !important;
+  border-bottom-color: #23577d !important;
+}
+.ghost-transfer-tabs button,
+.ghost-log-head button {
+  padding: 0 14px !important;
+  font-size: 12px !important;
+}
+.ghost-transfer-head {
+  height: 35px !important;
+  min-height: 35px !important;
+  background: #071c30 !important;
+  font-size: 12px !important;
+}
+.ghost-transfer-row {
+  height: 34px !important;
+  min-height: 34px !important;
+  font-size: 12px !important;
+}
+.ghost-transfer-rows { height: calc(100% - 77px) !important; }
+.ghost-log-lines {
+  height: calc(100% - 42px) !important;
+  padding: 8px 10px !important;
+  font: 11px/1.42 Consolas,"Cascadia Mono",monospace !important;
+}
+.ghost-reference-statusbar {
+  flex: 0 0 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 11px 0 14px !important;
+  border-top: 1px solid #194c70 !important;
+  background: #06182a !important;
+  font-size: 12px !important;
+}
+
+@media (max-width: 1289px), (max-height: 851px) {
+  .ghost-app-header { flex-basis: auto !important; height: auto !important; min-height: 0 !important; }
+  .ghost-main-workspace { flex: 1 1 auto !important; height: auto !important; min-height: 0 !important; }
+  .ghost-bottom-band { flex: 0 0 190px !important; height: 190px !important; min-height: 190px !important; }
+}
+@media (max-width: 1040px) {
+  .ghost-sites-toolbar-head,
+  .ghost-reference-sidebar,
+  .ghost-sites-panel { width: 180px !important; min-width: 180px !important; flex-basis: 180px !important; }
+  .ghost-tool-button { width: 64px !important; min-width: 64px !important; }
+  .ghost-quick-row label:nth-child(n) { flex: 1 1 auto !important; }
+  .ghost-quick-row > .ghost-primary-button { width: 145px !important; min-width: 145px !important; }
+}
+
+
+/* Ghost FTP compact/adaptive geometry. The 1290×852 desktop reference remains
+   unchanged above these breakpoints; smaller windows compress controls rather
+   than dropping actions or allowing the whole application to overflow. */
+@media (max-width: 900px) {
+  .ghost-menu-row { padding-inline: 7px !important; }
+  .ghost-menu { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .ghost-menu::-webkit-scrollbar { display: none; }
+  .ghost-menu button { padding: 0 6px !important; font-size: 10.5px !important; white-space: nowrap; }
+  .ghost-title-actions { flex: 0 0 auto; }
+  .ghost-title-actions .ghost-mini-button span { display: none !important; }
+  .ghost-language-menu select { min-width: 96px !important; max-width: 118px; }
+  .ghost-quick-row { gap: 5px !important; padding-inline: 7px !important; overflow-x: auto; scrollbar-width: none; }
+  .ghost-quick-row::-webkit-scrollbar { display: none; }
+  .ghost-quick-row label { min-width: 118px !important; }
+  .ghost-quick-row .ghost-port-field { min-width: 72px !important; flex: 0 0 72px !important; }
+  .ghost-quick-row > .ghost-primary-button { min-width: 120px !important; width: 120px !important; }
+  .ghost-toolbar-row { overflow-x: auto !important; scrollbar-width: thin; }
+  .ghost-sites-toolbar-head { width: 150px !important; min-width: 150px !important; flex-basis: 150px !important; }
+  .ghost-tool-button { width: 58px !important; min-width: 58px !important; }
+  .ghost-tool-button span { font-size: 9.5px !important; }
+  .ghost-reference-sidebar, .ghost-sites-panel { width: 150px !important; min-width: 150px !important; flex-basis: 150px !important; }
+  .ghost-site-row { margin-left: 7px !important; margin-right: 7px !important; padding-inline: 7px !important; }
+  .ghost-bottom-band { grid-template-columns: minmax(0,1.6fr) minmax(220px,.85fr) !important; }
+}
+@media (max-width: 760px) {
+  .ghost-title-left { min-width: 0; }
+  .ghost-title-left span { font-size: 15px !important; }
+  .ghost-language-menu select { width: 86px !important; min-width: 86px !important; }
+  .ghost-reference-sidebar, .ghost-sites-panel,
+  .ghost-sites-toolbar-head { width: 116px !important; min-width: 116px !important; flex-basis: 116px !important; }
+  .ghost-sites-group span, .ghost-site-name { display: block !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ghost-site-row { justify-content: flex-start !important; }
+  .ghost-site-row i { display: inline-flex !important; }
+  .ghost-tool-button { width: 52px !important; min-width: 52px !important; flex: 0 0 52px !important; }
+  .ghost-tool-button span { font-size: 9px !important; }
+  .ghost-main-workspace { min-height: 0 !important; }
+  .ghost-toolbar-row { overflow-x: auto !important; overflow-y: hidden !important; scrollbar-width: thin; }
+  .ghost-bottom-band { grid-template-columns: 1fr !important; grid-template-rows: minmax(0,1fr) minmax(92px,.72fr); overflow: auto !important; }
+  .ghost-bottom-band .ghost-server-log { min-height: 92px; }
+  .fixed.inset-0.z-modal { padding: 8px !important; }
+  .fixed.inset-0.z-modal > [role="dialog"] { width: calc(100vw - 16px) !important; max-width: none !important; max-height: calc(100dvh - 16px) !important; overflow: auto !important; }
+}
+@media (max-width: 640px) {
+  .ghost-title-row { height: 45px !important; min-height: 45px !important; padding-left: 9px !important; }
+  .ghost-menu-row { height: 38px !important; }
+  .ghost-quick-row { min-height: 49px !important; }
+  .ghost-toolbar-row { min-height: 53px !important; }
+  .ghost-window-controls button { width: 36px !important; }
+  .ghost-reference-sidebar, .ghost-sites-panel,
+  .ghost-sites-toolbar-head { width: 112px !important; min-width: 112px !important; flex-basis: 112px !important; }
+  .ghost-sites-group span, .ghost-site-name { font-size: 10px !important; }
+  .ghost-sites-group { padding-inline: 5px !important; }
+  .ghost-site-row { padding-inline: 5px !important; margin-inline: 4px !important; }
+  .ghost-file-row-details { font-size: 11px !important; }
+  .ghost-reference-statusbar { font-size: 10px !important; padding-inline: 7px !important; }
+}
+@media (max-width: 540px) {
+  .ghost-title-left { min-width: 92px; }
+  .ghost-title-left span { max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ghost-title-actions .ghost-mini-button { display: inline-flex !important; width: 34px !important; min-width: 34px !important; padding: 0 !important; justify-content: center; }
+  .ghost-title-actions .ghost-mini-button span { display: none !important; }
+  .ghost-language-menu select { width: 78px !important; min-width: 78px !important; font-size: 10px !important; }
+  .ghost-menu button { font-size: 10px !important; padding-inline: 5px !important; }
+  .ghost-reference-sidebar, .ghost-sites-panel,
+  .ghost-sites-toolbar-head { width: 108px !important; min-width: 108px !important; flex-basis: 108px !important; }
+  .ghost-sites-group { padding-inline: 5px !important; }
+  .ghost-sites-group span, .ghost-site-name { display: block !important; font-size: 9.5px !important; }
+  .ghost-site-row { justify-content: flex-start !important; padding-inline: 5px !important; }
+  .ghost-site-row i { display: inline-flex !important; }
+  .ghost-menu, .ghost-quick-row, .ghost-toolbar-row { overflow-x: auto !important; scrollbar-width: thin; }
+  .ghost-window-controls { flex: 0 0 auto; }
+  .ghost-window-controls button { min-width: 32px !important; }
+  .ghost-bottom-band { flex-basis: 165px !important; height: 165px !important; min-height: 165px !important; }
+  .fixed.inset-0.z-modal { align-items: flex-start !important; overflow-y: auto !important; padding: 6px !important; }
+  .fixed.inset-0.z-modal > [role="dialog"] { width: calc(100vw - 12px) !important; max-height: calc(100dvh - 12px) !important; overflow: auto !important; }
+}
+@media (max-width: 480px) {
+  .ghost-title-row { padding-left: 6px !important; }
+  .ghost-title-left img { width: 26px !important; height: 26px !important; }
+  .ghost-window-controls button { width: 32px !important; }
+  .ghost-menu-row { padding-inline: 4px !important; }
+  .ghost-language-menu { padding-inline: 4px !important; }
+  .ghost-language-menu select { width: 72px !important; min-width: 72px !important; }
+  .ghost-reference-sidebar, .ghost-sites-panel,
+  .ghost-sites-toolbar-head { width: 102px !important; min-width: 102px !important; flex-basis: 102px !important; }
+  .ghost-site-name { max-width: 70px; }
+  .ghost-pane-header > span:first-child { font-size: 12px !important; }
+  .ghost-file-row-details { padding-inline: 7px !important; }
+  .ghost-tool-button { width: 48px !important; min-width: 48px !important; }
+  .ghost-reference-statusbar { overflow-x: auto !important; white-space: nowrap; }
+}
+
+/* Split Quick Connect control from the approved desktop reference. The primary
+   action performs an ephemeral connection; the narrow arrow selects protocol. */
+.ghost-quick-connect {
+  position: relative;
+  display: flex;
+  flex: 0 0 162px;
+  width: 162px;
+  min-width: 162px;
+  height: 36px !important;
+  margin-left: 0;
+  align-self: center;
+}
+.ghost-quick-connect-main,
+.ghost-quick-connect-menu {
+  border: 1px solid #209eff;
+  background: linear-gradient(180deg,#168dff,#0875e7);
+  color: #fff;
+  box-shadow: inset 0 1px rgb(255 255 255 / .13), 0 0 18px rgb(17 140 255 / .14);
+}
+.ghost-quick-connect-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-radius: 7px 0 0 7px;
+  border-right: 0;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.ghost-quick-connect-menu {
+  width: 37px;
+  flex: 0 0 37px;
+  border-radius: 0 7px 7px 0;
+  border-left-color: rgb(255 255 255 / .2);
+  display: grid;
+  place-items: center;
+}
+.ghost-quick-connect-main:hover:not(:disabled),
+.ghost-quick-connect-menu:hover:not(:disabled) { background: linear-gradient(180deg,#249aff,#0d80ef); }
+.ghost-quick-connect-main:focus-visible,
+.ghost-quick-connect-menu:focus-visible { outline: 2px solid #7dccff; outline-offset: 2px; }
+.ghost-quick-connect-main:disabled { opacity: .68; cursor: wait; }
+.ghost-quick-protocol-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 5px);
+  z-index: 70;
+  min-width: 138px;
+  padding: 5px;
+  border: 1px solid #23618c;
+  border-radius: 7px;
+  background: #061b2f;
+  box-shadow: 0 14px 36px rgb(0 0 0 / .5), 0 0 22px rgb(28 154 255 / .08);
+}
+.ghost-quick-protocol-menu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 5px;
+  padding: 7px 9px;
+  background: transparent;
+  color: #cae5f8;
+  font-size: 11px;
+}
+.ghost-quick-protocol-menu button:hover,
+.ghost-quick-protocol-menu button.active { background: #0b3557; color: #fff; }
+.ghost-quick-protocol-menu span { color: #70bdf1; font-variant-numeric: tabular-nums; }
+@media (max-width: 1040px) {
+  .ghost-quick-connect { flex-basis: 145px; width: 145px; min-width: 145px; }
+}
+@media (max-width: 900px) {
+  .ghost-quick-connect { flex-basis: 120px; width: 120px; min-width: 120px; }
+  .ghost-quick-connect-menu { width: 32px; flex-basis: 32px; }
+}
+
+/* Ghost FTP RC7 — standalone reference views ---------------------------------
+   Site Manager, Preferences, Transfer Center and About are full application
+   surfaces in the approved references. They intentionally do not render as
+   generic centered web modals. */
+.ghost-standalone-view {
+  isolation: isolate;
+  color: #eaf6ff;
+  background: #041425;
+}
+.ghost-standalone-titlebar {
+  height: 51px;
+  min-height: 51px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #153e5c;
+  background: linear-gradient(180deg,#071d33 0%,#06182a 100%);
+  box-shadow: inset 0 1px rgb(255 255 255 / .025);
+  user-select: none;
+}
+.ghost-standalone-brand {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 16px;
+}
+.ghost-standalone-brand .ghost-wordmark { pointer-events: none; }
+.ghost-standalone-suffix {
+  color: #d7ebfb;
+  font-size: 17px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.ghost-window-title-spacer { flex: 1 1 auto; height: 100%; }
+.ghost-standalone-menubar {
+  height: 42px;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 14px;
+  border-bottom: 1px solid #143b58;
+  background: #06192b;
+  overflow: visible;
+}
+.ghost-site-manager-hero { height: 69px; min-height: 69px; }
+.ghost-site-manager > .grid { min-height: 0; }
+.ghost-site-manager-nav,
+.ghost-site-manager-table,
+.ghost-site-manager-details { min-height: 0; }
+
+.ghost-preferences-body { min-height: 0; }
+.ghost-preferences-nav { width: 214px !important; min-width: 214px; }
+.ghost-preferences-heading { height: 78px; min-height: 78px; }
+.ghost-preferences-content { scrollbar-gutter: stable; }
+.ghost-preferences-content > .grid { align-items: start; }
+.ghost-preferences-actions { height: 58px; min-height: 58px; }
+
+.ghost-about-body { min-height: 0; }
+.ghost-about-nav { width: 214px !important; min-width: 214px; padding-top: 18px !important; }
+.ghost-about-content { scrollbar-gutter: stable; }
+
+.ghost-transfer-center-heading { height: 78px; min-height: 78px; }
+.ghost-transfer-center > .min-h-0.flex-1 { scrollbar-gutter: stable; }
+
+/* Pixel-reference dialogs. */
+.ghost-new-connection-dialog {
+  width: min(752px, calc(100vw - 24px)) !important;
+  max-height: min(628px, calc(100dvh - 24px)) !important;
+}
+.ghost-properties-dialog {
+  width: min(530px, calc(100vw - 20px)) !important;
+  max-height: min(770px, calc(100dvh - 20px)) !important;
+}
+
+@media (max-width: 980px) {
+  .ghost-site-manager > .grid { grid-template-columns: 184px minmax(420px,1fr) 300px !important; overflow-x: auto; }
+  .ghost-preferences-nav, .ghost-about-nav { width: 180px !important; min-width: 180px; }
+  .ghost-preferences-content { padding: 12px !important; }
+  .ghost-preferences-content > .grid { grid-template-columns: 1fr !important; }
+  .ghost-about-content > .grid { grid-template-columns: 1fr !important; }
+  .ghost-transfer-center-heading { overflow-x: auto; gap: 8px !important; }
+  .ghost-transfer-center-heading > div:first-child { min-width: 290px; }
+  .ghost-transfer-center > div:nth-child(3) { overflow-x: auto; white-space: nowrap; }
+}
+@media (max-width: 760px) {
+  .ghost-standalone-titlebar { height: 46px; min-height: 46px; }
+  .ghost-standalone-suffix { font-size: 14px; }
+  .ghost-standalone-menubar { height: 38px; min-height: 38px; padding-inline: 5px; }
+  .ghost-site-manager-hero { height: auto; min-height: 64px; overflow-x: auto; padding: 8px !important; }
+  .ghost-site-manager-hero > div:nth-child(2) { min-width: 240px; }
+  .ghost-site-manager > .grid { grid-template-columns: 150px minmax(390px,1fr) 270px !important; }
+  .ghost-preferences-nav, .ghost-about-nav { width: 146px !important; min-width: 146px; padding: 8px !important; }
+  .ghost-preferences-nav button, .ghost-about-nav button { gap: 7px !important; padding-inline: 8px !important; font-size: 11px; }
+  .ghost-preferences-heading { height: 66px; min-height: 66px; padding-inline: 12px !important; }
+  .ghost-preferences-heading .text-\[22px\] { font-size: 18px !important; }
+  .ghost-preferences-actions { padding-inline: 8px !important; }
+  .ghost-about-content { padding: 10px !important; }
+  .ghost-transfer-center-heading { height: 68px; min-height: 68px; padding-inline: 8px !important; }
+  .ghost-transfer-center > .grid { overflow-x: auto; }
+}
+@media (max-width: 560px) {
+  .ghost-standalone-brand { padding-left: 8px; }
+  .ghost-standalone-brand .ghost-wordmark span { font-size: 14px !important; }
+  .ghost-standalone-suffix { max-width: 104px; overflow: hidden; text-overflow: ellipsis; }
+  .ghost-preferences-body, .ghost-about-body { overflow-x: auto; }
+  .ghost-preferences-nav, .ghost-about-nav { width: 124px !important; min-width: 124px; }
+  .ghost-preferences-nav button span, .ghost-about-nav button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ghost-preferences-content, .ghost-about-content { min-width: 390px; }
+  .ghost-preferences-actions { min-width: 390px; }
+  .ghost-site-manager > .grid { grid-template-columns: 124px minmax(360px,1fr) 260px !important; }
+}
+
+/* Transfer Center uses its own one-row application header in the reference. */
+.ghost-transfer-titlebar {
+  height: 64px;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #174361;
+  background: linear-gradient(180deg,#061c31,#061729);
+  user-select: none;
+}
+.ghost-transfer-brand {
+  width: 192px;
+  min-width: 192px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 16px;
+}
+.ghost-transfer-brand > div > div:first-child { font-size: 18px; line-height: 20px; color: #eef8ff; }
+.ghost-transfer-brand > div > div:last-child { font-size: 10px; line-height: 13px; color: #7fb5dc; }
+.ghost-transfer-nav { height: 100%; display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1 1 auto; overflow-x: auto; scrollbar-width: none; }
+.ghost-transfer-nav::-webkit-scrollbar { display: none; }
+.ghost-transfer-nav-item { height: 38px; display: flex; align-items: center; gap: 7px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #b7d2e6; padding: 0 12px; font-size: 11px; white-space: nowrap; }
+.ghost-transfer-nav-item:hover { background: #0a2c49; color: #fff; }
+.ghost-transfer-nav-item.active { border-color: #148efa; background: linear-gradient(180deg,#127fec,#086bcf); color: white; box-shadow: 0 0 18px rgb(23 146 255 / .15); }
+.ghost-transfer-language { height: 34px; min-width: 160px; display: flex; align-items: center; gap: 6px; padding: 0 9px; margin-right: 4px; border: 1px solid #1b4b6c; border-radius: 6px; color: #a9cce5; background: #071d31; }
+.ghost-transfer-language select { width: 126px; min-width: 0; border: 0; outline: none; background: transparent; color: #dceefa; font-size: 10.5px; }
+@media (max-width: 1020px) {
+  .ghost-transfer-brand { width: 160px; min-width: 160px; }
+  .ghost-transfer-nav-item { padding-inline: 8px; }
+  .ghost-transfer-language { min-width: 110px; }
+  .ghost-transfer-language select { width: 80px; }
+}
+@media (max-width: 720px) {
+  .ghost-transfer-titlebar { height: 54px; min-height: 54px; }
+  .ghost-transfer-brand { width: 126px; min-width: 126px; padding-left: 8px; gap: 6px; }
+  .ghost-transfer-brand > svg { width: 28px; height: 28px; }
+  .ghost-transfer-brand > div > div:first-child { font-size: 14px; }
+  .ghost-transfer-brand > div > div:last-child { font-size: 8px; }
+  .ghost-transfer-nav-item span { display: none; }
+  .ghost-transfer-nav-item { width: 34px; padding: 0; justify-content: center; }
+  .ghost-transfer-language { min-width: 76px; width: 76px; padding-inline: 5px; }
+  .ghost-transfer-language select { width: 50px; font-size: 9px; }
+}
+
+/* ========================================================================== */
+/* Ghost FTP RC7 — reference parity polish                                    */
+/* Keeps the measured 1290×852 geometry while tightening palette, glow,       */
+/* controls and standalone application surfaces to the approved references.   */
+/* ========================================================================== */
+:root {
+  --ghost-electric-blue: #38ABFF;
+  --ghost-deep-navy: #0B1E36;
+  --ghost-slate-blue: #132D52;
+  --ghost-ice-white: #EAF6FF;
+  --ghost-line: rgba(56,171,255,.34);
+  --ghost-line-strong: rgba(56,171,255,.62);
+}
+.ghost-app-shell,
+.ghost-standalone-view {
+  color: var(--ghost-ice-white);
+  background: linear-gradient(180deg,#06182b 0%,#041323 100%);
+}
+.ghost-app-shell {
+  border: 1px solid rgba(56,171,255,.92);
+  border-radius: 14px;
+  box-shadow: 0 0 0 1px rgba(56,171,255,.12),0 0 24px rgba(33,155,255,.22),0 18px 50px rgba(0,0,0,.36);
+}
+.ghost-title-row,.ghost-standalone-titlebar {
+  background: linear-gradient(180deg,#09223d 0%,#06182b 100%) !important;
+  border-bottom-color: rgba(56,171,255,.24) !important;
+}
+.ghost-menu-row,.ghost-standalone-menubar {
+  background: #071a2e !important;
+  border-bottom-color: rgba(56,171,255,.22) !important;
+}
+.ghost-file-pane,.ghost-transfer-box,.ghost-server-log,
+.ghost-site-manager-nav,.ghost-site-manager-table,.ghost-site-manager-details,
+.ghost-settings-card,.ghost-about-card {
+  border-color: rgba(56,171,255,.35) !important;
+  box-shadow: inset 0 1px rgba(255,255,255,.012);
+}
+.ghost-pane-header,.ghost-transfer-tabs,.ghost-log-head {
+  background: linear-gradient(180deg,#0a2945,#082039) !important;
+}
+.ghost-primary-button,.ghost-quick-connect-main,.ghost-quick-connect-menu {
+  border-color: #38ABFF !important;
+  background: linear-gradient(180deg,#209BFF 0%,#0876E8 100%) !important;
+  box-shadow: inset 0 1px rgba(255,255,255,.18),0 0 16px rgba(56,171,255,.18) !important;
+}
+.ghost-primary-button:hover:not(:disabled),
+.ghost-quick-connect-main:hover:not(:disabled),.ghost-quick-connect-menu:hover:not(:disabled) {
+  background: linear-gradient(180deg,#35A9FF 0%,#1084F1 100%) !important;
+}
+.ghost-input:focus,.ghost-select:focus,input:focus-visible,select:focus-visible,textarea:focus-visible {
+  outline: none !important;
+  border-color: #38ABFF !important;
+  box-shadow: 0 0 0 2px rgba(56,171,255,.14) !important;
+}
+.ghost-site-manager-hero {
+  padding: 10px 16px !important;
+  background: linear-gradient(180deg,rgba(9,33,57,.96),rgba(6,24,43,.96));
+  border-bottom: 1px solid rgba(56,171,255,.25);
+}
+.ghost-site-manager-hero h1,.ghost-transfer-center-heading h1 { letter-spacing: -.35px; }
+.ghost-site-manager > .grid { grid-template-columns: 242px minmax(0,1fr) 348px !important; }
+.ghost-site-manager-nav { background:#06182b !important; }
+.ghost-site-manager-table { background:#061729 !important; }
+.ghost-site-manager-details { background:#071a2e !important; }
+.ghost-preferences-nav,.ghost-about-nav { background:linear-gradient(180deg,#071a2e,#051526) !important; }
+.ghost-preferences-heading,.ghost-transfer-center-heading { border-bottom-color:rgba(56,171,255,.24) !important; }
+.ghost-preferences-content { padding: 14px 16px !important; }
+.ghost-preferences-content > .grid { gap: 10px !important; }
+.ghost-preferences-content section { border-color:rgba(56,171,255,.33) !important; border-radius:8px !important; }
+.ghost-transfer-center > .min-h-0.flex-1 { background:#041526; }
+.ghost-new-connection-dialog,.ghost-properties-dialog {
+  border:1px solid rgba(56,171,255,.92) !important;
+  box-shadow:0 0 0 1px rgba(56,171,255,.12),0 0 26px rgba(31,155,255,.24),0 24px 70px rgba(0,0,0,.58) !important;
+}
+.ghost-new-connection-dialog { width:min(752px,calc(100vw - 24px)) !important; }
+.ghost-properties-dialog { width:min(530px,calc(100vw - 24px)) !important; }
+.ghost-standalone-view .ghost-window-controls button:hover { background:rgba(56,171,255,.12) !important; }
+.ghost-standalone-view .ghost-window-controls button:last-child:hover { background:#c42b3b !important; }
+@media (max-width: 1100px) {
+  .ghost-site-manager > .grid { grid-template-columns: 190px minmax(430px,1fr) 300px !important; }
+}
+@media (max-width: 760px) {
+  .ghost-site-manager > .grid { grid-template-columns: 132px minmax(390px,1fr) 276px !important; }
+  .ghost-new-connection-dialog,.ghost-properties-dialog { width:calc(100vw - 12px) !important; }
+}

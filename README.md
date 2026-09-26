@@ -1,133 +1,67 @@
-<div align="center">
-
-<img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="430">
-
-### More Than Transfer. Total Control.
-
-**A modern, privacy-first FTP / FTPS / SFTP client for Windows, Linux and Android.**
-
-[Website](https://ghostftp.com/) ·
-[Releases](https://github.com/bren-wp/Ghost-FTP/releases) ·
-[Documentation](docs/README.md) ·
-[Security](SECURITY.md) ·
-[Changelog](CHANGELOG.md)
-
-</div>
+# Ghost FTP 2.1.1 RC8
 
 <p align="center">
-  <a href="docs/assets/screenshots/ghostftp-native-files.png"><img src="docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP native Files workspace" width="100%"></a>
+  <img src="docs/screenshots/09-brand-board.png" alt="Ghost FTP brand identity" width="100%">
 </p>
 
-<p align="center"><sub><strong>Actual native application screenshot.</strong> Captured automatically from the Windows native QA workflow at the canonical 1290×852 viewport.</sub></p>
+**Ghost FTP** is a privacy-first desktop file-transfer client for Windows and Linux, built around a native React + Tauri + Rust implementation with FTP, FTPS and SFTP support. The approved UI target is the Ghost FTP visual system in `docs/screenshots/`, with a canonical 1290 × 852 desktop frame and adaptive layouts for smaller windows.
 
-## Ghost FTP 2.1.1 RC23
+Official product site: **https://ghostftp.com/**  
+Publisher: **Brendigo LTD** and **Brendigo, obrt za programiranje**
 
-Ghost FTP 2.1.1 RC23 is the all-platform production-hardening release line for:
+<p align="center">
+  <img src="docs/screenshots/01-main-file-manager.png" alt="Ghost FTP main file manager" width="100%">
+</p>
 
-- Windows x64 portable executable.
-- Windows x64 setup executable.
-- Linux x86_64 binary.
-- Linux x86_64 AppImage.
-- Linux amd64 DEB package.
-- Linux x86_64 RPM package.
-- Android APK.
-- Website, update templates, source, documentation and SHA-256 checksum bundles.
+## Product scope
 
-RC23 keeps the Windows/Linux desktop release path, includes the native Android app in the same release train, and updates the public website so the production download, security and support routes exist. Android is built from `/android`, uses the same Ghost FTP / Brendigo product identity, and is released as an installable APK without requiring GitHub signing secrets.
+Ghost FTP includes saved connection profiles, Quick Connect, Site Manager, local/remote file browsing, upload and download queues, pause/resume/cancel/retry paths, file operations, permissions where supported, checksum tools, transfer history, preferences, update integration, accessibility hooks and Windows/Linux distribution targets. The native Tauri window is frameless (`decorations(false)`) so the Ghost FTP custom titlebar is the only application titlebar.
 
-## Core product
+The production desktop application is `desktop-tauri/`. The `runtime/` and `installer/` directories are developer/compatibility tooling only and are not accepted as production GUI releases. Browser-host compatibility executables are deliberately excluded from the public GUI release because visible browser/origin chrome breaks the required frameless 1:1 Ghost FTP presentation.
 
-Ghost FTP brings secure server connections, dual-pane file management, saved sites, transfer queues, synchronization, checksums, permissions, terminal tools and practical server workflows into one consistent product.
+### RC8 engineering pass
 
-<table>
-<tr><td width="52"><img src="website/assets/icons/security.svg" width="30" alt=""></td><td><strong>Secure connections</strong><br>FTP, explicit FTPS and SFTP with native TLS/SSH verification paths and protected credential handling where supported.</td></tr>
-<tr><td><img src="website/assets/icons/speed.svg" width="30" alt=""></td><td><strong>Fast transfers</strong><br>Concurrent queues, pause/resume, retries, conflict handling and bandwidth controls.</td></tr>
-<tr><td><img src="website/assets/icons/features.svg" width="30" alt=""></td><td><strong>One workspace</strong><br>Local and remote browsing, Site Manager, permissions, checksums, sync, search and terminal tools.</td></tr>
-<tr><td><img src="website/assets/icons/privacy.svg" width="30" alt=""></td><td><strong>Privacy first</strong><br>No required analytics or telemetry. Sensitive profile secrets stay outside ordinary profile JSON where supported.</td></tr>
-<tr><td><img src="website/assets/icons/download.svg" width="30" alt=""></td><td><strong>Desktop + mobile</strong><br>Windows, Linux and Android release artifacts are generated through GitHub Actions.</td></tr>
-</table>
+RC8 continues the existing production source and concentrates on visual parity, responsive behavior and truthful file-operation features. Site Manager, Preferences, Transfer Center and About now use dedicated full-window application surfaces instead of generic centered dialogs; New Connection and File Properties retain reference-sized modal geometry. The shared custom Ghost FTP titlebar remains the only intended native titlebar. File Properties now includes real General/Checksums tabs, real SHA-256 support where the active backend supports it, numeric chmod controls and recursive chmod for local/SFTP paths. The compatibility host mirrors the same full-window structure so fallback QA does not drift into a separate visual product.
 
-## Android RC23
+## Design references
 
-The Android app is native Kotlin and uses a single mobile-first application surface:
+The ten retained QA references cover Main File Manager, Site Manager, New Connection, Preferences, Transfer Center, File Properties, About/Updates/Help, Windows/Linux setup, brand identity and web loading. They are QA/design inputs only; production runtime code does not use a full reference screenshot as an application background or click map.
 
-- Header with Ghost FTP RC23 release identity.
-- Connection card for FTP, explicit FTPS and SFTP.
-- SFTP SHA-256 host key fingerprint field with strict host-key checking.
-- Remote workspace with folder listing, tap-to-open folders and tap-to-select files.
-- Real transfer actions: download, upload, delete and create remote folder.
-- Guarded upload and delete confirmations.
-- Bounded activity log and lifecycle-safe UI updates.
-- Brendigo footer.
-- No analytics, no telemetry and no account requirement.
+## Security and privacy
 
-Android credentials are passed only into the active connection or transfer action. Passwords are cleared on disconnect. FTP/FTPS use production timeouts, passive binary transfers and cleanup; explicit FTPS keeps the protected data channel enabled.
+Ghost FTP is configured around local profile/settings storage, OS-protected credential facilities where supported, normal TLS/SSH identity verification paths in the native engine, signed update verification through the Tauri updater, masked credential fields, and no required analytics/telemetry. Sensitive credentials must not be written to application logs. See `SECURITY.md` and `PRIVACY.md`.
 
-## Website RC23
+## Update system
 
-The `website/` source includes production routes for:
+The native updater is configured for `https://ghostftp.com/updates/latest.json`. The Tauri updater plugin verifies the signed update artifact before installation. A failed update must not replace the currently working installation. See `UPDATE_POLICY.md` and `desktop-tauri/src/stores/updaterStore.ts`.
 
-- `/download/` — Windows, Linux, Android and checksum guidance.
-- `/security/` — SFTP, FTPS, FTP and privacy safeguards.
-- `/support/` — install, verify, connect and issue-reporting guidance.
+## Windows and Linux
 
-The sitemap includes the new production routes plus the localized landing pages.
+Native bundle targets are Windows NSIS/MSI and Linux DEB/RPM/AppImage. GitHub Actions is the authoritative native build path and installs the Rust/Cargo, Node/npm and platform prerequisites required by Tauri. End-user releases must use those native bundles; compatibility browser-host binaries are not an acceptable substitute. See `BUILD_STATUS.md`.
 
-## Build
+## Languages
 
-Desktop:
+English is the primary language. The selector exposes English, Hrvatski, Deutsch, Français, Español, Italiano, Português, Nederlands, Polski, Slovenščina, Srpski, Bosanski, Македонски and Shqip. Browser auto-translation is disabled on embedded/web runtime surfaces. The native non-English dictionaries now share the same 185-key canonical coverage set. Translation terminology/clipping is still reviewed during target-OS visual QA; details are tracked in `LANGUAGE_AUDIT.md`.
 
-```bash
-cd ghostftp-desktop
-npm ci
-npm run build
-```
+## Installation and removal
 
-Android:
+Windows production packages are generated by the native Tauri bundle pipeline. The project still keeps its installer/EULA requirements and no-separate-`uninstall.exe` rule, but public Windows GUI builds must not be the browser-host compatibility runtime. Linux production packages are generated as native Tauri DEB/RPM/AppImage bundles. See `INSTALLATION.md` and `UNINSTALL.md`.
 
-```bash
-gradle -p android lintDebug lintRelease assembleDebug assembleRelease
-```
+## Build and QA truth
 
-## Release gates
+`BUILD_STATUS.md` is authoritative. It records which artifacts were actually built, which checks were executed, and which release gates remain blocked. The absence of an online Windows test host and Rust/Tauri toolchain means the Windows frameless-titlebar screenshot gate, native protocol integration tests, native installer verification and native Linux AppImage/RPM generation are **not** claimed as passed in this package.
 
-RC23 release is valid only after these GitHub Actions pass for the same source commit:
+## Documentation
 
-- Ghost FTP quality.
-- Ghost FTP protocol E2E.
-- Ghost FTP native build RC23.
-- Ghost FTP Android.
-- RC23 release packaging.
+- `LICENSE.txt` / `EULA.txt` — commercial software licence agreement.
+- `PRIVACY.md` — privacy and local-data model.
+- `SECURITY.md` — security architecture and reporting guidance.
+- `UPDATE_POLICY.md` — signed update flow and rollback expectations.
+- `INSTALLATION.md` / `UNINSTALL.md` — platform deployment and removal.
+- `SUPPORT.md` — support routes and diagnostic guidance.
+- `CHANGELOG.md` — release history.
+- `THIRD_PARTY_NOTICES.md` — interoperability and third-party notice policy.
+- `CLICK_QA.md`, `TRANSFER_QA.md`, `INSTALLER_QA.md`, `RESPONSIVE_QA.md`, `PIXEL_QA.md`, `TITLEBAR_QA.md` — release-gate evidence.
+- `BRANDING_AUDIT.md`, `CODE_AUDIT.md`, `SECURITY_AUDIT.md`, `LANGUAGE_AUDIT.md` — source audits.
 
-The release must include SHA-256 checksums for the published artifacts. RC23 publication is tied to the latest `main` commit that includes the Windows/Linux/Android version bump, Android production protocol contract, website production routes and RC23 release workflow. RC23 packaging must pull the verified Android APK artifact directly into the GitHub Release so the published asset set includes Windows, Linux and APK files.
-
-## Repository layout
-
-```text
-Ghost-FTP/
-├── android/                 Native Android application and APK workflow
-├── ghostftp-desktop/        Production Windows/Linux desktop application
-├── website/                 ghostftp.com source
-├── updates/                 Update channels, manifest schema and tools
-├── tools/                   Runtime and installer support tooling
-├── docs/                    Product, QA, release, legal and development docs
-├── .github/workflows/       Quality, native build, Android and release automation
-├── README.md
-├── CHANGELOG.md
-├── SECURITY.md
-├── LICENSE.txt
-└── EULA.txt
-```
-
-Use **Ghost FTP** in user-facing copy and **GhostFTP** in executable/archive names. Framework-specific names are kept only where the build ecosystem requires them internally.
-
-<div align="center">
-
-**Ghost FTP**  
-*More Than Transfer. Total Control.*  
-**Simple. Secure. Powerful.**
-
-Publisher: **Brendigo**  
-Official website: **https://ghostftp.com/**
-
-</div>
+Copyright © 2026 Brendigo LTD and Brendigo, obrt za programiranje. All rights reserved.
