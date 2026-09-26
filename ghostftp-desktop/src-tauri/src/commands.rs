@@ -142,22 +142,21 @@ pub async fn save_profile(
     // passphrase, defer removal of the old key's passphrase until metadata has
     // committed. Otherwise a failed profiles.json write would leave the still-
     // saved old key path without the credential it needs.
-    let clear_key_passphrase_after_save = if let Some(existing) =
-        state.profiles.get(&profile.id).await.map_err(err)?
-    {
-        matches!(
-            (&existing.auth, &profile.auth),
-            (
-                AuthMethod::Key { path: old_path, .. },
-                AuthMethod::Key {
-                    path: new_path,
-                    passphrase: None,
-                }
-            ) if old_path != new_path
-        )
-    } else {
-        false
-    };
+    let clear_key_passphrase_after_save =
+        if let Some(existing) = state.profiles.get(&profile.id).await.map_err(err)? {
+            matches!(
+                (&existing.auth, &profile.auth),
+                (
+                    AuthMethod::Key { path: old_path, .. },
+                    AuthMethod::Key {
+                        path: new_path,
+                        passphrase: None,
+                    }
+                ) if old_path != new_path
+            )
+        } else {
+            false
+        };
     protect_profile_secrets(&mut profile, &state)?;
     // Commit secret-free metadata before removing credentials that belong to
     // the previous auth method. If persistence fails, the old saved profile
@@ -1371,7 +1370,10 @@ pub async fn chmod_path_recursive(
 ) -> Result<(), String> {
     let trimmed = path.trim();
     if trimmed.is_empty() || matches!(trimmed, "." | "..") || mode > 0o777 {
-        return Err("Recursive permissions require a named path and a POSIX mode between 000 and 777".into());
+        return Err(
+            "Recursive permissions require a named path and a POSIX mode between 000 and 777"
+                .into(),
+        );
     }
     if session_id == LOCAL_SESSION {
         let path_for_task = path.clone();
