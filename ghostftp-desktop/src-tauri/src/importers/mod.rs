@@ -50,7 +50,12 @@ impl ProfilePreview {
     /// further from the connection sidebar; here we just produce a sensible
     /// default with an empty password / passphrase.
     pub fn into_profile(self) -> ConnectionProfile {
-        let auth = if let Some(path) = self.identity_file.clone() {
+        let identity_file = self
+            .identity_file
+            .clone()
+            .map(|path| path.trim().to_string())
+            .filter(|path| !path.is_empty());
+        let auth = if let Some(path) = identity_file {
             AuthMethod::Key {
                 path,
                 passphrase: None,
