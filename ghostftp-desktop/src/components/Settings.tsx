@@ -584,15 +584,32 @@ function TextRow({
   placeholder?: string;
   onChange: (v: string) => void;
 }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+
+  const commit = () => {
+    if (draft !== value) onChange(draft);
+  };
+
   return (
     <label className="grid grid-cols-[150px_1fr] items-center gap-3 text-[12px]">
       <span className="text-text-muted">{label}</span>
       <input
         className="min-w-0 rounded-md border border-border bg-[#051929] px-3 py-2"
         type="text"
-        value={value}
+        value={draft}
         placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit();
+            e.currentTarget.blur();
+          } else if (e.key === "Escape") {
+            setDraft(value);
+            e.currentTarget.blur();
+          }
+        }}
       />
     </label>
   );
