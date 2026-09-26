@@ -6,7 +6,7 @@ const localeType = source.match(/export type AppLocale\s*=\s*([^;]+);/s);
 if (!localeType) throw new Error("Unable to locate AppLocale union in src/lib/i18n.ts");
 
 const locales = [...localeType[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-const expectedLocales = ["en","hr","de","fr","es","it","pt","nl","pl","sl","sr","bs","mk","sq"];
+const expectedLocales = ["en","hr","de","fr","es","it","pt","nl","pl","sl","sr","bs","mk"];
 
 if (JSON.stringify(locales) !== JSON.stringify(expectedLocales)) {
   throw new Error(`Unexpected advertised locales: ${locales.join(", ")}`);
