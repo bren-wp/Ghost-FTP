@@ -118,9 +118,15 @@ fn connect_control_socket(host: &str, port: u16) -> Result<TcpStream> {
     for addr in addrs {
         match TcpStream::connect_timeout(&addr, FTP_CONNECT_TIMEOUT) {
             Ok(stream) => {
-                stream.set_read_timeout(Some(FTP_IO_TIMEOUT)).context("set FTP control read timeout")?;
-                stream.set_write_timeout(Some(FTP_IO_TIMEOUT)).context("set FTP control write timeout")?;
-                stream.set_nodelay(true).context("set FTP control TCP_NODELAY")?;
+                stream
+                    .set_read_timeout(Some(FTP_IO_TIMEOUT))
+                    .context("set FTP control read timeout")?;
+                stream
+                    .set_write_timeout(Some(FTP_IO_TIMEOUT))
+                    .context("set FTP control write timeout")?;
+                stream
+                    .set_nodelay(true)
+                    .context("set FTP control TCP_NODELAY")?;
                 return Ok(stream);
             }
             Err(error) => last_error = Some(error),
