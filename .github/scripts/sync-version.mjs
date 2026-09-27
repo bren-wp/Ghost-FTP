@@ -99,26 +99,9 @@ updateJson("updates/latest.template.json", (j) => {
     `https://github.com/bren-wp/Ghost-FTP/releases/download/v${version}/GhostFTP-Linux-x86_64-v${version}.AppImage`;
 });
 
-const websitePages = [
-  "website/index.html","website/bs/index.html","website/de/index.html","website/es/index.html",
-  "website/fr/index.html","website/hr/index.html","website/it/index.html","website/mk/index.html",
-  "website/nl/index.html","website/pl/index.html","website/pt/index.html","website/sl/index.html",
-  "website/sr/index.html","website/download/index.html","website/security/index.html","website/support/index.html",
-];
-for (const rel of websitePages) {
-  let text = read(rel);
-  for (const old of [previousVersion, legacyVersion, legacyDisplay]) {
-    if (old) text = text.split(old).join(version);
-  }
-  // Public pages describe the currently distributed Ghost FTP build.
-  // Normalize any stale product SemVer/legacy RC label so version.json stays
-  // the single source of truth even when a page skipped an intermediate bump.
-  text = text
-    .replace(/Ghost FTP \d+\.\d+\.\d+(?:-rc\.\d+| RC\d+)?/g, `Ghost FTP ${version}`)
-    .replace(/\b\d+\.\d+\.\d+(?:-rc\.\d+)?\b/g, version)
-    .replace(/\bRC\d+\b/g, version);
-  apply(rel, text);
-}
+// Public website screenshots and their surrounding release copy intentionally stay
+// pinned to the newest published release. Development version bumps must not
+// relabel release-proven imagery before that version is actually published.
 
 if (baseVersion) {
   const parse = (v) => {
