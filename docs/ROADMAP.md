@@ -1,56 +1,65 @@
 # Ghost FTP Roadmap
 
-This roadmap separates the shipped/current RC21 release-candidate work from future work. Items under Planned, Recommended and Long-term are not claims of implemented functionality.
+This roadmap separates the current **0.17.0 development** state from future work. Planned, recommended and long-term items are not claims of implemented functionality.
 
 ## Implemented
 
 - Native React + TypeScript + Tauri + Rust desktop application for Windows and Linux.
+- Native Kotlin Android application.
 - FTP, explicit FTPS and SFTP connection paths.
-- SFTP password and private-key authentication, including optional key passphrase input.
-- Ephemeral Quick Connect by default; saved profiles remain an explicit choice.
-- Site Manager with favorites, recent metadata, bookmarks, tags, folders, import/export and connection testing.
-- Dual-pane local/remote file management, transfers, queue/history, retry/cancel/pause/resume controls and bandwidth settings.
+- SFTP password/private-key authentication and host-key verification.
+- Ephemeral Quick Connect by default with explicitly saved profiles.
+- Sites management with favorites, recent metadata, bookmarks, tags, folders, import/export and connection testing.
+- Dual-pane local/remote file management, queue/history, retry/cancel/pause/resume controls and bandwidth settings.
 - SHA-256, file properties and supported permission/chmod workflows.
 - OS credential/keychain-backed secret separation where supported.
 - Custom frameless Ghost FTP titlebar and adaptive desktop layouts.
-- 14 advertised interface locales with automated key-parity CI.
+- Advertised interface locales with automated key-parity CI.
 - Native Windows NSIS and Linux executable/AppImage/DEB/RPM build targets.
-- Quality, native-build and release GitHub Actions gates.
+- Installable Android APK build path with package/signature verification in CI.
+- Quality, protocol E2E, native preview/native build, Android and Windows hardening gates.
 - Privacy-first default: no required analytics or telemetry.
 
-## Planned
+## Current hardening focus
 
-These are release-candidate acceptance items and should not be presented as completed until evidence exists.
+- Keep Windows helper/background processes free of unintended console-window flashes.
+- Keep dependency graphs locked and reproducible enough for exact-SHA CI verification.
+- Keep active documentation synchronized with `version.json`, workflow names and published release state.
+- Maintain real FTP/explicit-FTPS/SFTP E2E coverage for release-relevant source.
+- Maintain Android lint/build/package verification on every pull request to `main`.
 
-- Extend protocol E2E with explicit overwrite/resume/reconnect failure-injection scenarios.
-- Maintain explicit FTPS certificate identity and failure-path coverage in every release candidate.
-- Maintain SFTP password/private-key/host-key acceptance in every release candidate.
-- Windows 10/11 custom-titlebar screenshot acceptance for portable and installed builds.
-- Windows clean install, upgrade, reinstall and Apps & Features uninstall acceptance.
-- Responsive/pixel acceptance across all documented target sizes.
-- Linguistic and clipping review across all 14 locales.
-- Production signing decision and target-OS update verification.
+## Before stable 1.0
+
+These remain acceptance requirements rather than completed claims:
+
+- Windows 10/11 clean install, upgrade, reinstall and uninstall lifecycle acceptance.
+- Windows installed + portable visual acceptance including titlebar and snap behavior.
+- Linux package install/update/remove acceptance on target distributions.
+- Android install/upgrade/storage/protocol acceptance on target devices.
+- Security failure-path review on target systems.
+- Production signing policy and verification.
+- Final accessibility/keyboard/high-contrast review.
+- Broader protocol failure-injection/overwrite/resume/reconnect coverage.
+- Reproducible-build/provenance documentation with independently repeatable verification.
 
 ## Recommended
 
 - Per-profile reconnect and keep-alive policy.
 - Transfer-history export and richer schedule management.
 - Per-profile bandwidth limits.
-- Verify-after-transfer checksum where both sides support it.
+- Verify-after-transfer checksums where both sides support them.
 - Batch rename and remote-edit conflict detection.
 - Encrypted selected-profile import/export.
-- Duplicate-profile detection and richer Site Manager templates/search.
-- Full keyboard, screen-reader, high-contrast and Windows snap-layout audits.
-- SBOM, dependency vulnerability scanning, secret scanning and reproducible-build documentation.
-- Containerized FTP/FTPS/SFTP integration servers for repeatable CI.
+- Duplicate-profile detection and richer Sites templates/search.
+- Full screen-reader, high-contrast and touch-target audits.
+- SBOM, dependency vulnerability scanning, secret scanning and provenance attestations.
+- Optional managed Linux repositories when distribution policy requires them.
 
 ## Long-term
 
 - Signed Windows binaries and signed Linux repository metadata where applicable.
-- Optional managed APT/RPM repositories.
-- Stronger visual-regression automation against approved Ghost FTP references.
+- Stronger visual-regression automation against approved native references.
 - Advanced proxy/bastion workflows driven by user demand.
-- Expanded sync/automation policies with clear conflict recovery.
-- Release provenance/attestation and reproducible artifact verification.
+- Expanded sync/automation policies with explicit conflict recovery.
 
-For the detailed engineering backlog, see [product/ROADMAP.md](product/ROADMAP.md). For the authoritative current release state, see [product/STATUS_AND_NEXT.md](product/STATUS_AND_NEXT.md).
+For the detailed engineering backlog, see [product/ROADMAP.md](product/ROADMAP.md). For authoritative current source/build state, see [product/STATUS_AND_NEXT.md](product/STATUS_AND_NEXT.md) and [build/STATUS.md](build/STATUS.md).
