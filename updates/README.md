@@ -12,7 +12,7 @@ The Windows and Linux applications expose only simple product language such as â
 - Linux update package: canonical signed AppImage
 - Signature verification: mandatory Tauri updater signature verification
 - Public key: embedded in the desktop application
-- Private key: GitHub Actions secret only; never committed or uploaded to the website
+- Private key: GitHub Actions secret only; never committed or uploaded to the update-service host
 - Android: distributed independently as a verified APK release asset; Android does not use this desktop updater contract
 
 The public service follows the Tauri v2 updater contract: `version`, optional human-readable `notes` / `pub_date`, and per-platform `url` + signature content.
@@ -39,7 +39,7 @@ The former separate preview/stable template files were removed because the deskt
 4. The release workflow verifies all exact-SHA gates.
 5. The release workflow normalizes packages and signatures, then generates a web-ready update response.
 6. The release publishes versioned packages/signatures plus `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Update-Service.zip`.
-7. Only releases that contain both signed Windows/Linux updater artifacts receive a web update bundle. After that GitHub Release and its asset digests are verified, the website operator may atomically replace `/updates/latest.json`.
+7. Only releases that contain both signed Windows/Linux updater artifacts receive an update-service bundle. After that GitHub Release and its asset digests are verified, the update-service operator may atomically replace `/updates/latest.json`.
 
 See `DEPLOYMENT.md` for the update-service hosting procedure.
 
@@ -48,7 +48,7 @@ See `DEPLOYMENT.md` for the update-service hosting procedure.
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` when the key is password protected
 
-The private key must never be stored in source, release assets, website files, workflow logs or documentation examples.
+The private key must never be stored in source, release assets, update-service files, workflow logs or documentation examples.
 
 ## Failure behavior
 
