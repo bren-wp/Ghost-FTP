@@ -25,6 +25,22 @@ The production desktop GUI is the native React + TypeScript + Tauri + Rust appli
 
 The obsolete duplicate Windows/Linux native build workflow has been removed. The canonical native build now supplies both release binaries and Windows native-window QA evidence.
 
+## 0.19.0 packaging and size hardening
+
+Windows Setup now uses the canonical Tauri NSIS package with Ghost FTP branding, installer/uninstaller icons, branded header/sidebar bitmaps and `EULA.txt` as the interactive licence page. The canonical native build silently installs and uninstalls that exact Setup package as a CI lifecycle smoke test.
+
+Linux CI now verifies AppImage runtime metadata, DEB package metadata/install/remove behavior and RPM metadata before native artifacts are uploaded.
+
+The published 0.18.0 size baseline is approximately:
+
+- Windows portable executable: **22.93 MiB**
+- Windows NSIS Setup: **7.60 MiB**
+- Linux native executable: **25.73 MiB**
+- Linux AppImage: **86.67 MiB**
+- Linux DEB/RPM: **about 11.11 MiB each**
+
+0.19.0 uses Cargo `opt-level = "s"` with LTO, one codegen unit, panic abort and stripped symbols. Optional AppImage media-framework bundling remains disabled. CI also enforces conservative upper size budgets and reports exact package sizes for every canonical native build. These budgets prevent accidental growth; they are not release-size targets.
+
 ## Documentation image provenance
 
 Quality CI resolves the newest non-draft GitHub Release tag and verifies:

@@ -28,11 +28,16 @@ Full capability detail: [FEATURES.md](FEATURES.md).
 ## 0.19.0 hardening in source
 
 - Uses one authoritative Windows/Linux production build instead of compiling the same native bundles twice.
-- Keeps Windows native-window QA inside that canonical build and packages QA evidence with releases.
+- Brands the canonical Windows NSIS Setup with Ghost FTP artwork and interactive EULA acceptance.
+- Smoke-tests the exact Windows Setup install/uninstall lifecycle produced by the release build.
+- Verifies Linux AppImage metadata plus DEB install/remove and RPM metadata in CI.
+- Refreshes Android FTP/FTPS and SFTP libraries to maintained releases.
+- Uses size-focused native release codegen and keeps optional AppImage media bundling disabled.
+- Uploads only final native package files from CI and enforces artifact-size budgets.
+- Keeps Windows native-window QA inside the canonical build and packages QA evidence with releases.
 - Verifies documentation image blobs against the newest published release.
 - Makes central version synchronization refresh Cargo.lock atomically with Cargo metadata.
-- Removes ignored release-note staging from version-sync.
-- Removes stale legacy preview source-package naming from the active build path.
+- Fixes updater note synchronization and rebases bot metadata commits before push to avoid branch races.
 - Keeps existing tag immutability and exact-SHA release gating.
 
 ## Gates before stable / FINAL
