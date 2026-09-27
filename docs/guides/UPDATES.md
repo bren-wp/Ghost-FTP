@@ -1,9 +1,26 @@
-# Ghost FTP Update Policy
+# Ghost FTP Updates
 
-The native Ghost FTP updater is configured to query **https://ghostftp.com/updates/latest.json**. Release metadata should include the version/build, platform, architecture, package URL, SHA-256, Tauri-compatible signature, release notes and minimum supported version.
+Ghost FTP desktop uses the native Tauri updater path. User-facing application copy intentionally describes this only as the official update service and verified update packages; transport/file-format details remain in operator documentation under `updates/`.
 
-The intended flow is: check metadata, compare versions, download the platform-specific package, verify integrity/signature, stage, apply, restart, and retain a rollback/recovery path if the apply phase fails. Unsigned or invalidly signed native packages must not be installed by the updater.
+## Desktop contract
 
-The source uses `@tauri-apps/plugin-updater` for signed package verification and separates manual update checks from background/quiet checks. Update UI must not claim that the current build is up to date until an actual check has completed successfully.
+- Windows/Linux packages are built from the exact release source SHA.
+- In-app updater publication requires real Tauri signatures for both the Windows Setup and Linux AppImage.
+- If signing secrets are not configured, ordinary GitHub Release packages may still be published, but the in-app update deployment bundle is omitted.
+- Existing version tags are immutable.
+- Failed update checks or verification must leave the installed application usable.
 
-The Go compatibility fallback does not install application updates; its About view routes the user to the official download area and states that update installation belongs to the native build.
+Operator details:
+
+- `updates/README.md`
+- `updates/RELEASE_RUNBOOK.md`
+- `updates/SECURITY.md`
+- `updates/WEB_DEPLOYMENT.md`
+
+## Android
+
+Android is distributed as the verified APK release asset produced by the Android gate. Android does not consume the desktop Tauri updater contract.
+
+## Verification
+
+Always verify the release checksum file before manual installation or redistribution. A release must not be advertised as stable/FINAL merely because an update package exists.
