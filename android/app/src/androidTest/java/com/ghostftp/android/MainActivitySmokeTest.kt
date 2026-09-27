@@ -53,7 +53,7 @@ class MainActivitySmokeTest {
     @Test
     fun guardedFileActionsRequireActiveSession() {
         for (label in listOf("Download", "New Folder", "Delete")) {
-            onView(allOf(withText(label), isDisplayed())).perform(click())
+            onView(withText(label)).perform(scrollTo(), click())
             onView(withText("Connect first")).check(matches(isDisplayed()))
             onView(withText("Disconnect")).perform(scrollTo(), click())
             onView(withText("Ready")).check(matches(isDisplayed()))
