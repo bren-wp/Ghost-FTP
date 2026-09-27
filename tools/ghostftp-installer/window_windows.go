@@ -12,6 +12,17 @@ import (
 	"unsafe"
 )
 
+const createNoWindow uint32 = 0x08000000
+
+func hiddenCommand(name string, args ...string) *exec.Cmd {
+	cmd := exec.Command(name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:     true,
+		CreationFlags: createNoWindow,
+	}
+	return cmd
+}
+
 var u32 = syscall.NewLazyDLL("user32.dll")
 var enumW = u32.NewProc("EnumWindows")
 var getText = u32.NewProc("GetWindowTextW")
@@ -90,8 +101,7 @@ func chooseInstallFolder() (string, error) {
 	start := os.ExpandEnv(`%LOCALAPPDATA%\Programs\Ghost FTP`)
 	esc := strings.ReplaceAll(start, "'", "''")
 	ps := fmt.Sprintf(`Add-Type -AssemblyName System.Windows.Forms;$d=New-Object System.Windows.Forms.FolderBrowserDialog;$d.Description='Choose the Ghost FTP installation folder';$d.SelectedPath='%s';$d.ShowNewFolderButton=$true;if($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){[Console]::Write($d.SelectedPath)}`, esc)
-	cmd := exec.Command("powershell", "-NoProfile", "-STA", "-WindowStyle", "Hidden", "-Command", ps)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
+	cmd := hiddenCommand("powershell", "-NoProfile", "-STA", "-WindowStyle", "Hidden", "-Command", ps)
 	out, err := cmd.Output()
 	if err != nil {
 		return "", err
