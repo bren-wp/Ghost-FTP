@@ -12,7 +12,7 @@ public_html/
     └── latest.json
 ```
 
-The Windows/Linux package URLs inside that file point to immutable, versioned GitHub Release assets. This keeps the Ghost FTP web server small and avoids duplicating large binaries on shared hosting.
+The Windows/Linux package URLs inside that file must point only to versioned first-party Ghost FTP package paths under `https://ghostftp.com/updates/package/`. The website backend may resolve the corresponding canonical GitHub Release asset internally, but it must validate the allowlisted repository, immutable release metadata, expected size and SHA-256 before streaming. Public clients must never receive the upstream GitHub URL.
 
 The release workflow produces `GhostFTP-v<version>-Web-Update.zip` with exactly:
 
@@ -42,14 +42,17 @@ Signature text inside `latest.json` and public `.sig` release assets are safe to
 
 1. Confirm the new GitHub Release exists and its tag points to the intended source SHA.
 2. Confirm Windows Setup, Linux AppImage and their signature assets exist.
-3. Verify release checksums/digests.
-4. Download `GhostFTP-v<version>-Web-Update.zip`.
-5. Extract it outside the live web root.
-6. From a repository checkout, run `node updates/scripts/verify-manifest.mjs <path>/updates/latest.json --expected-version=<version>`.
-7. Upload the new file as a temporary name, for example `/updates/latest.json.new`.
-8. Atomically rename/replace it to `/updates/latest.json`.
-9. Request the public URL over HTTPS and confirm HTTP 200.
-10. Open Ghost FTP → Updates and run a manual check on Windows and Linux.
+3. Verify release checksums/digests and confirm both updater signature assets exist.
+4. Confirm the deployed Ghost FTP website package bridge is enabled and accepts only canonical Ghost FTP updater package names.
+5. Download `GhostFTP-v<version>-Web-Update.zip`.
+6. Extract it outside the live web root.
+7. From a repository checkout, run `node updates/scripts/verify-manifest.mjs <path>/updates/latest.json --expected-version=<version>`.
+8. Confirm every package URL in the response starts with `https://ghostftp.com/updates/package/` and contains no GitHub host.
+9. Upload the new file as a temporary name, for example `/updates/latest.json.new`.
+10. Atomically rename/replace it to `/updates/latest.json`.
+11. Request the public URL over HTTPS and confirm HTTP 200.
+12. Request each first-party package URL and verify the returned digest/size against the canonical release.
+13. Open Ghost FTP → Updates and run a manual check on Windows and Linux.
 
 Do not update `latest.json` before the immutable release assets are available; clients could otherwise be offered an incomplete release.
 
@@ -89,7 +92,7 @@ Do **not** retarget or rewrite an existing Git tag.
 If the latest release must stop being offered:
 
 1. restore the previously known-good `latest.json`;
-2. verify its package URLs/signatures still point to immutable published assets;
+2. verify its first-party package URLs/signatures still resolve through the verified Ghost FTP bridge to immutable published assets;
 3. investigate/fix the new release in a new version.
 
 This changes only what the update service offers; it does not delete installed files or rewrite release history.
