@@ -90,11 +90,13 @@ updateJson("ghostftp-desktop/src-tauri/tauri.conf.json", (j) => { j.version = ve
 for (const rel of ["tools/ghostftp-runtime/main.go", "tools/ghostftp-installer/main.go"]) {
   apply(rel, replaceRequired(read(rel), /const version = "[^"]+"/, `const version = "${version}"`, rel));
 }
-updateJson("updates/channels/preview.template.json", (j) => { j.version = version; j.notes = `Ghost FTP ${version}`; });
 updateJson("updates/latest.template.json", (j) => {
   j.version = version;
-  j.build = build;
   j.notes = `Ghost FTP ${version}`;
+  j.platforms["windows-x86_64"].url =
+    `https://github.com/bren-wp/Ghost-FTP/releases/download/v${version}/GhostFTP-Windows-x64-Setup-v${version}.exe`;
+  j.platforms["linux-x86_64"].url =
+    `https://github.com/bren-wp/Ghost-FTP/releases/download/v${version}/GhostFTP-Linux-x86_64-v${version}.AppImage`;
 });
 
 const websitePages = [
