@@ -1,80 +1,72 @@
 # Ghost FTP Android parity
 
-Ghost FTP Android follows the same product identity and file-action model as the Windows and Linux app while using a mobile-first native layout.
+Ghost FTP Android follows the same product identity and file-action model as the Windows/Linux app while using a mobile-first native Kotlin layout.
 
-## Identity contract
+## Current identity contract
 
-- Product name: Ghost FTP
-- Brand owner label: Brendigo
-- Version: 2.1.1-rc.23
-- Display version: 2.1.1 RC23
-- Badge: RC23
-- Build: 2026.09.25.23
+- Product name: **Ghost FTP**
+- Brand owner label: **Brendigo**
+- Active source version: **0.17.0**
+- Version source of truth: root `version.json`
+- Android source: `android/`
+- Canonical release asset: `GhostFTP-Android-v<version>.apk`
+
+Android UI must not display legacy release-candidate badges or maintain an independent product version scheme.
 
 ## Interface contract
 
-Android keeps the same primary product model as the desktop app:
+Android keeps the same primary product model as desktop where it makes sense on mobile:
 
-- One application surface.
-- Ghost mark and Ghost FTP wordmark.
-- RC23 badge in the top shell.
-- `Files` workspace label.
-- Desktop-aligned toolbar actions: Refresh, Upload, Download, New Folder and Delete.
-- `Sites` connection card.
-- FTP, explicit FTPS and SFTP protocol choices.
-- SFTP host key fingerprint field for server identity verification.
-- `Files` listing card with tap-to-open folders and tap-to-select files.
-- `Transfers` card for selected file, upload target, folder target and activity state.
-- Guarded confirmation for Upload writes and Delete removals.
-- Bounded activity log for long mobile sessions.
-- Clear disconnect behavior.
-- No account requirement.
-- No telemetry requirement.
+- one application surface;
+- Ghost mark and Ghost FTP wordmark;
+- Files workspace;
+- connection surface for FTP, explicit FTPS and SFTP;
+- SFTP host-key fingerprint input/verification;
+- remote listing with folder navigation and file selection;
+- Refresh, Upload, Download, New Folder and Delete actions;
+- guarded confirmation for remote writes/removals;
+- bounded activity log;
+- clear disconnect behavior;
+- no required account;
+- no required telemetry.
 
 ## Mobile layout rules
 
-- Prioritize one-handed use.
-- Keep Connect, Disconnect and Refresh visible in the Sites card.
-- Keep the main file toolbar aligned to the desktop action names: Refresh, Upload, Download, New Folder and Delete.
-- Avoid desktop-only window controls in Android copy.
-- Keep session, file and transfer state visible in the same screen.
-- Use confirmation dialogs only for actions that write to or remove remote content.
-- Keep the activity log bounded so repeated actions do not push the UI into an unstable long-scroll state.
-- Do not persist passwords in ordinary app storage.
-- Do not show sample hosts, sample accounts, demo copy or placeholder copy in the app UI.
+- Prioritize one-handed use and readable touch targets.
+- Keep connection/session state visible.
+- Avoid desktop-only window controls/copy.
+- Keep transfer/file actions consistent with desktop terminology.
+- Do not persist passwords in ordinary application storage.
+- Do not show sample hosts, sample accounts, demo copy or placeholder production text.
 
 ## Protocol contract
 
-- FTP must open a session and list the selected remote path.
-- FTP must download, upload, delete a remote file and create a remote folder.
-- FTP and explicit FTPS must enforce timeouts, passive mode and binary file transfers.
-- Explicit FTPS must open a protected session and list the selected remote path.
-- Explicit FTPS must download, upload, delete a remote file and create a remote folder over protected data channels.
-- Explicit FTPS must keep `PBSZ 0` and `PROT P` enabled for production data channels.
-- FTP/FTPS sessions must attempt logout and disconnect cleanup.
-- SFTP must open an SSH file-transfer session, verify the SHA-256 host key fingerprint and list the selected remote path.
-- SFTP must download, upload, delete a remote file and create a remote folder without disabling strict host-key checking.
-- SFTP channels and sessions must use timeouts and cleanup after each action.
-- Passwords must stay in memory for the active action and be cleared on disconnect.
-- Android downloads must go into Android download storage.
-- Android uploads must use the Android document picker and show the selected local file before upload.
-- Remote targets containing `.` or `..` path segments must be rejected before transfer execution.
-- Upload, Delete and New Folder must refresh the Files listing after success.
+- FTP opens a real session and supports listing, download, upload, delete and remote-folder creation.
+- FTP/explicit FTPS enforce timeouts, passive mode and binary transfers.
+- Explicit FTPS keeps `PBSZ 0` and protected data channel `PROT P`.
+- FTP/FTPS attempt logout/disconnect cleanup.
+- SFTP verifies the supplied SHA-256 host-key fingerprint and keeps strict host-key checking enabled.
+- SFTP supports listing, download, upload, delete and remote-folder creation.
+- SFTP channels/sessions use timeouts and cleanup.
+- Passwords remain in memory only for the active session/action and are cleared on disconnect.
+- Android downloads use Android download storage.
+- Android uploads use the document picker.
+- Unsafe remote path segments such as `.` and `..` are rejected before transfer execution.
+- Mutating operations refresh the listing after success.
 
-## Release contract
+## CI/release contract
 
-Every RC23 GitHub release must include Windows, Linux and Android APK assets plus SHA-256 checksums. The Android APK must come from the verified Android workflow artifact for the same release source commit.
+The **Ghost FTP Android** workflow runs for every pull request to `main` and validates the same PR HEAD used by the rest of the release gates.
 
-Every Ghost FTP GitHub release must include an Android APK and its SHA-256 checksum. The release workflow builds the Android release variant automatically and fails the Android release job if no APK is produced. Production signing can be layered onto this release path when configured, but absence of signing configuration must not remove the required APK asset from the release.
+It must:
 
-An Android APK or AAB must not be treated as final unless all of the following are true:
+- run the Android production contract;
+- lint/build debug, release and preview variants;
+- verify the preview APK with `apksigner`;
+- confirm the release-check APK is unsigned;
+- confirm the preview package id;
+- upload the installable preview APK artifact.
 
-- Android native build passes.
-- Android UI review confirms the mobile layout matches the Ghost FTP desktop product identity.
-- FTP, explicit FTPS and SFTP protocol acceptance passes on Android.
-- Download, Upload, Delete and New Folder pass on Android.
-- SFTP host-key fingerprint verification is active.
-- Guarded remote write/delete confirmation and bounded activity log are present.
-- Windows, Linux and real FTP/FTPS/SFTP protocol E2E gates are green for the same source commit.
-- Android release artifacts and checksums are generated by a dedicated release workflow.
-- Documentation clearly separates Android artifacts from Windows and Linux artifacts.
+The canonical Ghost FTP release workflow consumes the verified installable APK for the exact source SHA and publishes it with Windows/Linux/source/checksum assets.
+
+Stable/FINAL mobile status additionally requires device-level install/upgrade/storage/protocol acceptance and a production signing-key continuity decision.

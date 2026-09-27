@@ -115,12 +115,19 @@ require_text "installable preview build type" "$ANDROID_DIR/app/build.gradle.kts
 require_text "installable preview package isolation" "$ANDROID_DIR/app/build.gradle.kts" 'applicationIdSuffix = ".preview"'
 require_text "installable preview signing" "$ANDROID_DIR/app/build.gradle.kts" 'signingConfig = signingConfigs.getByName("debug")'
 require_text "preview remains non-debuggable" "$ANDROID_DIR/app/build.gradle.kts" 'isDebuggable = false'
-require_text "release workflow builds preview" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'assemblePreview'
-require_text "release workflow retains unsigned release-check" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'app-release-unsigned.apk'
-require_text "release workflow verifies installable signature" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'apksigner'
-require_text "unsigned APK is clearly non-installable" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'Release-Unsigned.apk.unsigned'
-require_absent "release signing secret dependency" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'GHOSTFTP_ANDROID_KEYSTORE_B64'
-require_text "release APK post-upload verification" "$ROOT/.github/workflows/ghostftp-android-release.yml" 'Verify mandatory Android release assets'
+ANDROID_WORKFLOW="$ROOT/.github/workflows/ghostftp-android.yml"
+CANONICAL_RELEASE_WORKFLOW="$ROOT/.github/workflows/ghostftp-preview-release.yml"
+PUBLISH_SCRIPT="$ROOT/.github/scripts/publish-release.sh"
+
+require_text "Android workflow builds preview" "$ANDROID_WORKFLOW" 'assemblePreview'
+require_text "Android workflow retains unsigned release-check" "$ANDROID_WORKFLOW" 'app-release-unsigned.apk'
+require_text "Android workflow verifies installable signature" "$ANDROID_WORKFLOW" 'apksigner'
+require_text "unsigned APK is clearly non-installable" "$ANDROID_WORKFLOW" 'Release-Unsigned.apk.unsigned'
+require_absent "Android signing secret dependency" "$ANDROID_WORKFLOW" 'GHOSTFTP_ANDROID_KEYSTORE_B64'
+require_text "canonical release consumes verified Android artifact" "$CANONICAL_RELEASE_WORKFLOW" 'GhostFTP-Android-APK-Preview'
+require_text "canonical release publishes normalized Android APK" "$CANONICAL_RELEASE_WORKFLOW" 'GhostFTP-Android-v$VERSION.apk'
+require_text "canonical release delegates digest verification" "$CANONICAL_RELEASE_WORKFLOW" 'publish-release.sh'
+require_text "release upload digest verification" "$PUBLISH_SCRIPT" 'REMOTE_DIGEST'
 
 blocked_patterns=(
   'lorem'

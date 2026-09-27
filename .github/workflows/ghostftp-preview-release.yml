@@ -79,6 +79,7 @@ jobs:
 
           wait_for_gate "ghostftp-quality.yml" "source audit"
           wait_for_gate "ghostftp-protocol-e2e.yml" "FTP/FTPS/SFTP E2E"
+          wait_for_gate "ghostftp-build.yml" "native production build"
           wait_for_gate "ghostftp-android.yml" "Android"
           wait_for_gate "validate-win-hardening.yml" "Windows hardening"
 

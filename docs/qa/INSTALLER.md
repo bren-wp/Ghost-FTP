@@ -1,13 +1,13 @@
-# Ghost FTP Installer QA — RC12
+# Ghost FTP Installer QA
 
 ## Production packaging
 
 Windows production packaging is generated from the authoritative Ghost FTP desktop build and publishes:
 
-- `GhostFTP-Windows-x64-Portable-v2.1.1-RC12.exe`
-- `GhostFTP-Windows-x64-Setup-v2.1.1-RC12.exe`
+- `GhostFTP-Windows-x64-Portable-v<version>.exe`
+- `GhostFTP-Windows-x64-Setup-v<version>.exe`
 
-The Setup package is generated as an NSIS bundle. MSI is intentionally omitted for prerelease versions because the prerelease version identifier is not accepted by the MSI/WiX version path used here.
+The current production Windows packaging path generates an NSIS Setup bundle. The active workflow does not publish MSI packages.
 
 Linux production packaging publishes the native executable, AppImage, DEB and RPM.
 
@@ -27,7 +27,7 @@ Before FINAL, test on Windows 10 and Windows 11:
 3. Installation location and invalid/unwritable paths.
 4. Start Menu / desktop shortcut behavior.
 5. Launch-after-install.
-6. Upgrade from the previous RC.
+6. Upgrade from the previous published version.
 7. Reinstall / repair-equivalent behavior.
 8. Cancel during setup.
 9. Rollback after failed replacement.

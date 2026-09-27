@@ -1,10 +1,10 @@
 # Ghost FTP QA Index
 
-This directory tracks the evidence and acceptance criteria used by the current Ghost FTP release-candidate line.
+This directory tracks evidence and acceptance criteria for the current Ghost FTP development/release line.
 
 ## Automated release gates
 
-Every current RC must pass the exact-head quality workflow, real FTP / explicit FTPS / SFTP E2E and native Windows/Linux build workflow before publication.
+Every release source must pass the exact-head quality, protocol E2E, native preview/native build, Android and Windows hardening gates before publication.
 
 Windows native QA covers seven critical surfaces:
 

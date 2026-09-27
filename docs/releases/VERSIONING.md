@@ -1,24 +1,35 @@
-# Ghost FTP versioning
+# Ghost FTP Versioning
 
 Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
-- Every meaningful development/release cycle changes the central version together with real code/product changes; there are no version-only commits.
-- A new development/feature release advances the minor component: `0.14.0` → `0.15.0` → `0.16.0`.
-- A hotfix to an already published release advances only the patch component: `0.15.0` → `0.15.1` → `0.15.2`.
-- `1.0.0` is reserved for the first fully production-stable release.
-- Root `version.json` is the single source of truth for the active product version and build metadata.
+## Rules
+
+- Root `version.json` is the single source of truth for the active product version/build metadata.
+- A meaningful new development/feature cycle advances the minor component: `0.15.0 → 0.16.0 → 0.17.0`.
+- A hotfix to an already published release advances the patch component.
+- Meaningful fixes may remain within the already-active development version; version-only commits are not required.
+- `1.0.0` is reserved for the first production-stable release.
 - CI rejects metadata drift and invalid version progression.
-- Historical canonical versions are assigned only to releases that actually exist on GitHub. Missing legacy RC numbers do not consume a canonical `0.x.0` version.
-- Legacy `2.1.1-rc.*` identifiers remain compatibility aliases for already-published assets and links.
+- Publication is sequential: the declared previous canonical release must exist before the next release is published.
 
-The verified mapping is recorded in `docs/releases/version-map.json`.
+## Current state
 
+- Active source: **0.17.0 development**
+- Previous canonical version: **0.16.0**
+- Latest published GitHub release: **0.16.0**
+- `0.17.0` is not published until `v0.17.0` exists and release asset verification succeeds.
 
 ## Published-history migration
 
-The public GitHub release history was migrated and verified on 27 September 2026.
+The public GitHub history was migrated/verified on 27 September 2026.
 
-- Legacy published RC releases now use the canonical sequence `v0.1.0` through `v0.14.0`.
-- The already published next release remains `v0.15.0`.
-- Legacy RC release automation, approval markers and one-time migration tooling were removed after successful verification so they cannot publish or fail against the active 0.x train.
-- Historical provenance remains recorded in `version-map.json`; migrated release assets retain their verified GitHub SHA-256 digests.
+- Previously published legacy releases were mapped in order to canonical `v0.1.0` through `v0.14.0`.
+- `v0.15.0` and `v0.16.0` are canonical releases in the new train.
+- Legacy `2.1.1-rc.*` identifiers are historical aliases/provenance only.
+- Their verified mapping is recorded in `version-map.json`.
+- Historical release-note files with legacy identifiers are retained as archive snapshots and must not drive active build/release instructions.
+- One-time migration/backfill workflows are removed after verification and must not remain part of the active release surface.
+
+## Provenance
+
+`version-map.json` records the legacy-to-canonical mapping and original source provenance for migrated releases. Canonical GitHub Releases are the authoritative public asset/download history.
