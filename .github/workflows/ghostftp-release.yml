@@ -188,9 +188,9 @@ jobs:
             --version="$VERSION" \
             --notes="Ghost FTP $VERSION" \
             --pub-date="$PUB_DATE" \
-            --windows-url="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/GhostFTP-Windows-x64-Setup-v$VERSION.exe" \
+            --windows-url="https://ghostftp.com/updates/package/GhostFTP-Windows-x64-Setup-v$VERSION.exe" \
             --windows-signature-file="dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe.sig" \
-            --linux-url="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/GhostFTP-Linux-x86_64-v$VERSION.AppImage" \
+            --linux-url="https://ghostftp.com/updates/package/GhostFTP-Linux-x86_64-v$VERSION.AppImage" \
             --linux-signature-file="dist/GhostFTP-Linux-x86_64-v$VERSION.AppImage.sig" \
             --out="dist/web/updates/latest.json"
           node updates/scripts/verify-manifest.mjs "dist/web/updates/latest.json" --expected-version="$VERSION"
