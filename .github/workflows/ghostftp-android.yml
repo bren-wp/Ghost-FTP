@@ -2,11 +2,7 @@ name: Ghost FTP Android
 
 on:
   pull_request:
-    paths:
-      - 'android/**'
-      - 'docs/mobile/**'
-      - '.github/workflows/ghostftp-android.yml'
-      - '.github/workflows/ghostftp-android-release.yml'
+    branches: [main]
   push:
     branches: [main]
     paths:
