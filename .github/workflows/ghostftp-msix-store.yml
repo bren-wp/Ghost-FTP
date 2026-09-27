@@ -1,0 +1,96 @@
+name: Ghost FTP Store MSIX
+
+on:
+  workflow_dispatch:
+    inputs:
+      identity_name:
+        description: Exact Package/Identity/Name from Microsoft Partner Center
+        required: true
+        type: string
+      publisher:
+        description: Exact Package/Identity/Publisher from Microsoft Partner Center
+        required: true
+        type: string
+      publisher_display_name:
+        description: Store publisher display name
+        required: true
+        default: Brendigo
+        type: string
+      min_version:
+        description: Windows.Desktop minimum version approved for this package
+        required: true
+        type: string
+      max_version_tested:
+        description: Windows.Desktop maximum version tested
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-store-msix:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ghostftp-desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Validate canonical version metadata
+        shell: bash
+        run: node .github/scripts/sync-version.mjs --check
+
+      - name: Install frontend dependencies
+        working-directory: ghostftp-desktop
+        run: npm ci
+
+      - name: Validate and build frontend
+        working-directory: ghostftp-desktop
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run check:i18n
+          npm run check:ui
+          npm run check
+          npm run build
+
+      - name: Build release executable
+        working-directory: ghostftp-desktop/src-tauri
+        shell: bash
+        run: cargo build --release --locked
+
+      - name: Build Store submission MSIX
+        shell: pwsh
+        env:
+          IDENTITY_NAME: ${{ inputs.identity_name }}
+          PUBLISHER: ${{ inputs.publisher }}
+          PUBLISHER_DISPLAY_NAME: ${{ inputs.publisher_display_name }}
+          MIN_VERSION: ${{ inputs.min_version }}
+          MAX_VERSION_TESTED: ${{ inputs.max_version_tested }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $canonicalVersion = (Get-Content version.json -Raw | ConvertFrom-Json).version
+          if ($canonicalVersion -notmatch '^(\d+)\.(\d+)\.(\d+)$') { throw "Canonical version is not a three-part semantic version: $canonicalVersion" }
+          $packageVersion = "$($Matches[1]).$($Matches[2]).$($Matches[3]).0"
+          ./tools/msix/build-store-msix.ps1 -InputExe "ghostftp-desktop/src-tauri/target/release/ghostftp.exe" -IdentityName $env:IDENTITY_NAME -Publisher $env:PUBLISHER -PublisherDisplayName $env:PUBLISHER_DISPLAY_NAME -PackageVersion $packageVersion -MinVersion $env:MIN_VERSION -MaxVersionTested $env:MAX_VERSION_TESTED -OutputPath "dist/GhostFTP-Windows-x64-Store-v$canonicalVersion.msix"
+
+      - name: Verify package hash
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $package = Get-ChildItem dist\GhostFTP-Windows-x64-Store-v*.msix | Select-Object -First 1
+          if (-not $package) { throw 'Store MSIX was not generated.' }
+          Get-FileHash $package.FullName -Algorithm SHA256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GhostFTP-Windows-x64-Store-MSIX
+          path: dist/GhostFTP-Windows-x64-Store-v*.msix
+          if-no-files-found: error
+          retention-days: 14
