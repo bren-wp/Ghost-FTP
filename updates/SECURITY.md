@@ -28,6 +28,13 @@ These are safe/required to publish:
 
 The updater response must contain the **signature file contents**, not a path or URL to the signature.
 
+
+## Public URL boundary
+
+The update response consumed by Ghost FTP must expose only HTTPS URLs on `ghostftp.com`. Upstream GitHub API and release-storage URLs are server-side implementation details and must never be copied into the public updater response.
+
+The website package bridge must fail closed unless the requested filename is an allowlisted Ghost FTP updater package from the canonical repository/release and its expected release digest is available. It must verify the downloaded bytes before serving them to the application. Arbitrary URL proxying is prohibited.
+
 ## Key loss
 
 If the private signing key is lost, existing installed clients cannot verify packages signed only by a replacement key.
