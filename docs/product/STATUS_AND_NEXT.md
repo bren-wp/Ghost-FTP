@@ -2,7 +2,7 @@
 
 This document describes the current **0.19.0 development** source. Historical release details belong in `docs/releases/`.
 
-Latest published canonical release: **0.18.0**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.18.0**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
