@@ -34,12 +34,12 @@ The former separate preview/stable template files were removed because the deskt
 ## CI/release flow
 
 1. Pull requests build and test normal Windows/Linux packages without access to signing secrets.
-2. A canonical build on `main` requires the Tauri signing secret and uses `src-tauri/updater-release.conf.json`.
-3. Tauri produces the normal NSIS Setup/AppImage plus their signature files.
+2. A canonical build on `main` always produces the normal Windows/Linux release packages. When the Tauri signing secret is configured it additionally uses `src-tauri/updater-release.conf.json` to produce signed in-app updater artifacts.
+3. With signing enabled, Tauri produces the normal NSIS Setup/AppImage plus their signature files; without signing, the normal packages still build but no web in-app update package is published.
 4. The release workflow verifies all exact-SHA gates.
 5. The release workflow normalizes packages and signatures, then generates a web-ready update response.
 6. The release publishes versioned packages/signatures plus `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Web-Update.zip`.
-7. Only after the GitHub Release and asset digests are verified should the website operator atomically replace `/updates/latest.json`.
+7. Only releases that contain both signed Windows/Linux updater artifacts receive a web update bundle. After that GitHub Release and its asset digests are verified, the website operator may atomically replace `/updates/latest.json`.
 
 See `WEB_DEPLOYMENT.md` for the web-server procedure.
 
