@@ -49,6 +49,9 @@ jobs:
       - name: Documentation and release alignment
         shell: bash
         run: node .github/scripts/check-docs-alignment.mjs
+      - name: Desktop update service contract
+        shell: bash
+        run: node .github/scripts/check-update-contract.mjs
 
       - name: Latest-release documentation image provenance
         env:
