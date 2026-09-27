@@ -26,6 +26,7 @@ Each is captured at canonical, compact and near-minimum viewport sizes by the ca
 - [Transfer QA](TRANSFERS.md)
 - [Installer QA](INSTALLER.md)
 - [Protocol E2E](PROTOCOL_E2E.md)
+- [Android QA](ANDROID.md)
 
 ## Visual acceptance
 
