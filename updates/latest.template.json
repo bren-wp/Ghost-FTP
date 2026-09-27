@@ -4,11 +4,11 @@
   "pub_date": "REPLACE_WITH_RFC3339",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/bren-wp/Ghost-FTP/releases/download/v0.19.0/GhostFTP-Windows-x64-Setup-v0.19.0.exe",
+      "url": "https://ghostftp.com/updates/package/GhostFTP-Windows-x64-Setup-v0.19.0.exe",
       "signature": "REPLACE_WITH_CONTENTS_OF_WINDOWS_SIG"
     },
     "linux-x86_64": {
-      "url": "https://github.com/bren-wp/Ghost-FTP/releases/download/v0.19.0/GhostFTP-Linux-x86_64-v0.19.0.AppImage",
+      "url": "https://ghostftp.com/updates/package/GhostFTP-Linux-x86_64-v0.19.0.AppImage",
       "signature": "REPLACE_WITH_CONTENTS_OF_LINUX_SIG"
     }
   }
