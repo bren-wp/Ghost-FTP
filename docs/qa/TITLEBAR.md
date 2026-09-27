@@ -1,4 +1,4 @@
-# Ghost FTP Native Titlebar QA — RC11
+# Ghost FTP Native Titlebar QA
 
 ## Required product behavior
 
@@ -29,6 +29,6 @@ For both the portable and installed Windows builds:
 
 ## Remaining FINAL evidence
 
-Native Windows 10/11 screenshots of the actual RC11 executable are still required before a pixel-perfect/FINAL claim is made.
+Native Windows 10/11 screenshots of the exact release executable remain required before a pixel-perfect/FINAL claim is made.
 
 Status: **source/build architecture is correct; Windows screenshot acceptance remains open.**
