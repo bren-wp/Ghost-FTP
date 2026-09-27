@@ -19,7 +19,7 @@ The production desktop GUI is the native React + TypeScript + Tauri + Rust appli
 - Canonical Windows/Linux build + native-window QA: `.github/workflows/ghostftp-build.yml` — **Ghost FTP native build**
 - Android: `.github/workflows/ghostftp-android.yml` — **Ghost FTP Android**
 - Windows hardening: `.github/workflows/validate-win-hardening.yml` — **Validate Windows hardening**
-- Canonical release orchestration: `.github/workflows/ghostftp-preview-release.yml` — **Ghost FTP release**
+- Canonical release orchestration: `.github/workflows/ghostftp-release.yml` — **Ghost FTP release**
 - Version/Cargo metadata synchronization: `.github/workflows/version-sync.yml`
 - Dependency-manifest Cargo lock refresh: `.github/workflows/cargo-lock-refresh.yml`
 
