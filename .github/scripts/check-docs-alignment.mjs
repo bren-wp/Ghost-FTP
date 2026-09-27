@@ -47,6 +47,7 @@ const operationalDocs = [
   "docs/product/STATUS_AND_NEXT.md",
   "docs/product/UI_UX.md",
   "docs/qa/README.md",
+  "docs/qa/ANDROID.md",
   "docs/qa/CLICK.md",
   "docs/qa/INSTALLER.md",
   "docs/qa/PIXEL_PARITY.md",
