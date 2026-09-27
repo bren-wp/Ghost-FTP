@@ -17,8 +17,7 @@ Latest published canonical release: **0.18.0**. Live publication state is determ
 | Productivity | Docked terminal, command palette, snippets, shortcuts and shell integration |
 | Preferences | Themes, language, transfer limits, security settings, notifications and advanced controls |
 | Security/privacy | OS credential storage where supported, CSP, signed-updater path, credential redaction and no required telemetry |
-| Android | Native FTP, explicit FTPS and SFTP listing/download/upload/delete/new-folder actions |
-| Website | Landing/localized pages plus download, security, support and sitemap routes |
+| Android | Native FTP, explicit FTPS and SFTP connection/listing/download/upload/delete/new-folder actions aligned to desktop Files/Sites/Transfers terminology |
 | Platforms | Windows portable + NSIS Setup; Linux binary/AppImage/DEB/RPM; Android APK |
 | Release QA | Quality, protocol E2E, canonical native build, Android and Windows hardening exact-head gates |
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
