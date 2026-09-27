@@ -37,7 +37,6 @@ For future releases substitute the canonical `0.x`/later semantic version.
 - `android/`
 - `tools/ghostftp-runtime/`
 - `tools/ghostftp-installer/`
-- `website/`
 - `updates/`
 
 ## Framework-required names that remain
@@ -71,4 +70,3 @@ Current migration-sensitive identifiers include:
 
 - desktop bundle identifier: `com.ghostftp.desktop`
 - deep-link scheme: `ghostftp://`
-- public domain: `ghostftp.com`
