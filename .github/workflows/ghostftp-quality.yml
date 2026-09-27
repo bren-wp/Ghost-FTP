@@ -50,6 +50,17 @@ jobs:
         shell: bash
         run: node .github/scripts/check-docs-alignment.mjs
 
+      - name: Latest-release documentation image provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          LATEST_TAG="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq 'map(select(.draft == false)) | sort_by(.published_at) | reverse | .[0].tag_name // empty')"
+          test -n "$LATEST_TAG"
+          git fetch --force origin "refs/tags/$LATEST_TAG:refs/tags/$LATEST_TAG" --depth=1
+          GHOSTFTP_LATEST_RELEASE_TAG="$LATEST_TAG" node .github/scripts/check-release-images.mjs
+
       - name: Reject legacy/demo branding
         shell: bash
         run: |
