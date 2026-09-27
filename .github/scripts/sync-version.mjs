@@ -116,11 +116,14 @@ if (baseVersion) {
   };
   const [bm,bn,bp] = parse(baseVersion);
   const [m,n,p] = parse(version);
+  const sameVersion = m === bm && n === bn && p === bp;
   const nextMinor = m === bm && n === bn + 1 && p === 0;
   const nextPatch = m === bm && n === bn && p === bp + 1;
   const firstStable = bm === 0 && m === 1 && n === 0 && p === 0;
-  if (!nextMinor && !nextPatch && !firstStable) {
-    throw new Error(`invalid version step ${baseVersion} -> ${version}; use next minor for development or next patch for hotfix`);
+  if (!sameVersion && !nextMinor && !nextPatch && !firstStable) {
+    throw new Error(
+      `invalid version step ${baseVersion} -> ${version}; keep the active development version, use next minor for a new development release, or next patch for a hotfix`,
+    );
   }
 }
 const notes = path.join(root, "docs", "releases", `${version}.md`);

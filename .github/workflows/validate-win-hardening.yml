@@ -8,6 +8,7 @@ on:
     paths:
       - 'ghostftp-desktop/**'
       - 'tools/ghostftp-installer/**'
+      - 'tools/ghostftp-runtime/**'
       - '.github/workflows/validate-win-hardening.yml'
 
 permissions:
@@ -25,6 +26,9 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: ghostftp-desktop/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -40,6 +44,18 @@ jobs:
       - name: UI contracts
         working-directory: ghostftp-desktop
         run: npm run check:ui
+      - name: Windows helper process hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tools/ghostftp-installer/payload
+          : > tools/ghostftp-installer/payload/GhostFTP.exe
+          (cd tools/ghostftp-installer && go test ./...)
+          (cd tools/ghostftp-runtime && go test ./...)
+          grep -Fq 'CREATE_NO_WINDOW' ghostftp-desktop/src-tauri/ghostftp-agentd/src/jobs.rs
+          ! grep -En 'exec\.Command\("(rundll32|reg|powershell|cmd(\.exe)?)"' \
+            tools/ghostftp-installer/main.go \
+            tools/ghostftp-runtime/main.go
       - name: Rust formatting
         working-directory: ghostftp-desktop/src-tauri
         run: cargo fmt --all -- --check
