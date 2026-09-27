@@ -80,3 +80,42 @@ jobs:
         with:
           projectPath: ghostftp-desktop
           args: --bundles nsis
+      - name: Windows Setup install and uninstall smoke
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/nsis' -Filter '*.exe' -Recurse |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $setup) { throw 'NSIS Setup executable was not produced.' }
+
+          $installDir = Join-Path $env:RUNNER_TEMP 'GhostFTP-Setup-Smoke'
+          Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+
+          $install = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$installDir") -PassThru -Wait
+          if ($install.ExitCode -ne 0) {
+            throw "Ghost FTP Setup failed with exit code $($install.ExitCode)"
+          }
+
+          $installedExe = Get-ChildItem $installDir -Filter '*.exe' -Recurse |
+            Where-Object { $_.Name -notmatch 'uninstall' } |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $installedExe -or $installedExe.Length -le 0) {
+            throw 'Ghost FTP executable was not installed by Setup.'
+          }
+
+          $uninstaller = Get-ChildItem $installDir -Filter '*uninstall*.exe' -Recurse | Select-Object -First 1
+          if (-not $uninstaller) { throw 'Ghost FTP uninstaller was not installed.' }
+
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) {
+            throw "Ghost FTP uninstaller failed with exit code $($uninstall.ExitCode)"
+          }
+
+          for ($attempt = 0; $attempt -lt 20 -and (Test-Path $installedExe.FullName); $attempt++) {
+            Start-Sleep -Milliseconds 500
+          }
+          if (Test-Path $installedExe.FullName) {
+            throw 'Ghost FTP executable remained after silent uninstall.'
+          }
