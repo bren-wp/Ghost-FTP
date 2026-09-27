@@ -12,6 +12,12 @@ const { version, previousVersion, build, releaseDate, androidVersionCode, legacy
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 if (!semverPattern.test(version)) throw new Error(`invalid SemVer: ${version}`);
+if (previousVersion && !semverPattern.test(previousVersion)) {
+  throw new Error(`invalid previous SemVer: ${previousVersion}`);
+}
+if (previousVersion === version) {
+  throw new Error("previousVersion must not equal the active version");
+}
 if (!Number.isInteger(androidVersionCode) || androidVersionCode <= 0) throw new Error("androidVersionCode must be positive");
 
 const drift = [];

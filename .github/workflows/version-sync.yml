@@ -7,6 +7,7 @@ on:
     paths:
       - 'version.json'
       - '.github/scripts/sync-version.mjs'
+      - '.github/scripts/refresh-cargo-lock.sh'
       - '.github/workflows/version-sync.yml'
 
 permissions:
@@ -30,18 +31,24 @@ jobs:
         with:
           node-version: '22'
 
+      - uses: dtolnay/rust-toolchain@stable
+
       - name: Synchronize all product metadata
         run: |
           set -euo pipefail
           node .github/scripts/sync-version.mjs
           node .github/scripts/sync-version.mjs --check
 
+      - name: Refresh canonical Cargo lockfile
+        shell: bash
+        run: bash .github/scripts/refresh-cargo-lock.sh
+
       - name: Commit synchronized metadata
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ghostftp-desktop android tools updates website docs/releases
+          git add ghostftp-desktop android tools updates website ghostftp-desktop/src-tauri/Cargo.lock
           if git diff --cached --quiet; then
             echo "All version metadata already synchronized."
             exit 0

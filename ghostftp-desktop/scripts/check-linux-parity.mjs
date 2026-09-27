@@ -12,8 +12,8 @@ const expect = (label, ok) => checks.push({ label, ok: Boolean(ok) });
 const contains = (file, text) => read(file).includes(text);
 const matches = (file, pattern) => pattern.test(read(file));
 
-const nativeWorkflow = '../.github/workflows/ghostftp-native-preview.yml';
-const releaseWorkflow = '../.github/workflows/ghostftp-preview-release.yml';
+const nativeWorkflow = '../.github/workflows/ghostftp-build.yml';
+const releaseWorkflow = '../.github/workflows/ghostftp-release.yml';
 
 expect('package version matches central version', contains('package.json', `"version": "${version}"`));
 expect('release metadata matches central version', contains('src/lib/release.ts', `PRODUCT_VERSION = "${version}"`));
@@ -26,10 +26,10 @@ expect('Linux latest update manifest matches central version', contains('../upda
 expect('Linux latest update build matches central build', contains('../updates/latest.template.json', `"build": "${build}"`));
 expect('native build includes AppImage', matches(nativeWorkflow, /--bundles deb,rpm,appimage/));
 expect('native build uploads Linux preview artifact', contains(nativeWorkflow, 'GhostFTP-Linux-x86_64-Preview'));
-expect('preview release normalizes Linux binary', contains(releaseWorkflow, 'GhostFTP-Linux-x86_64-v$VERSION'));
-expect('preview release normalizes Linux AppImage', contains(releaseWorkflow, 'GhostFTP-Linux-x86_64-v$VERSION.AppImage'));
-expect('preview release normalizes Linux deb', contains(releaseWorkflow, 'GhostFTP-Linux-amd64-v$VERSION.deb'));
-expect('preview release normalizes Linux rpm', contains(releaseWorkflow, 'GhostFTP-Linux-x86_64-v$VERSION.rpm'));
+expect('canonical release normalizes Linux binary', contains(releaseWorkflow, 'GhostFTP-Linux-x86_64-v$VERSION'));
+expect('canonical release normalizes Linux AppImage', contains(releaseWorkflow, 'GhostFTP-Linux-x86_64-v$VERSION.AppImage'));
+expect('canonical release normalizes Linux deb', contains(releaseWorkflow, 'GhostFTP-Linux-amd64-v$VERSION.deb'));
+expect('canonical release normalizes Linux rpm', contains(releaseWorkflow, 'GhostFTP-Linux-x86_64-v$VERSION.rpm'));
 expect('single native entrypoint is shared across platforms', contains('src-tauri/src/lib.rs', 'tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())'));
 expect('single main window contract remains shared', contains('src-tauri/src/lib.rs', '.inner_size(1290.0, 852.0)'));
 expect('minimum size contract remains shared', contains('src-tauri/src/lib.rs', '.min_inner_size(480.0, 600.0)'));

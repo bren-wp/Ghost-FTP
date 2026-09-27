@@ -1,28 +1,34 @@
 # Changelog
 
-## 0.17.0 — development — 27 September 2026
+## 0.18.0 — development — 27 September 2026
 
-0.17.0 is the active development cycle. It is not published as a GitHub Release yet.
+0.18.0 is a meaningful development cycle after published 0.17.0.
 
-- Completed and verified the canonical public-history migration while keeping `version.json` as the active version source of truth.
-- Removed reliance on legacy release-candidate naming from the active development/release model.
-- Hardened Windows background helper processes so Ghost FTP does not flash unintended CMD/PowerShell windows during normal GUI operations.
-- Added Windows regression checks for hidden helper process creation and shell-free PATH detection.
-- Made the Android platform gate run on every pull request to `main`, so Windows/Linux/Android validation can refer to the same exact PR HEAD.
-- Updated version progression checks so meaningful fixes can remain within the active development version instead of requiring a version-only bump.
-- Kept the committed Cargo dependency graph and exact-SHA quality/protocol/platform gates mandatory.
-- Synchronized active documentation with the canonical `0.x` train and current repository/workflow layout.
+- Added CI provenance validation that keeps README/documentation images byte-identical to the newest published Ghost FTP release tag.
+- Consolidated duplicate Windows/Linux Tauri build paths into one canonical production native build.
+- Kept Windows native-window screenshot QA in the canonical build and added its evidence archive to release packaging.
+- Removed the obsolete duplicate native build workflow and stale RC-era workflow references.
+- Removed hard-coded `v2.1.1-Preview` source package naming from the active build path.
+- Fixed version synchronization so ignored release-note paths no longer break the bot commit.
+- Made version synchronization refresh and commit the canonical Cargo.lock atomically with Cargo metadata changes.
+- Kept exact-SHA quality, real protocol E2E, Android and Windows hardening around the canonical native build.
+- Continued the no-version-only policy.
+
+See [docs/releases/0.18.0.md](docs/releases/0.18.0.md).
+
+## 0.17.0 — published — 27 September 2026
+
+- Completed the canonical public-history migration.
+- Hardened Windows background helper processes against unintended console flashes.
+- Added Windows helper-process regression checks.
+- Made Android validation run on every pull request to `main`.
+- Allowed meaningful fixes to remain within the active development version without forcing a version-only bump.
+- Published normalized Windows, Linux, Android, source, documentation and SHA-256 assets.
 
 See [docs/releases/0.17.0.md](docs/releases/0.17.0.md).
 
-## 0.16.0 — published — 26 September 2026
-
-0.16.0 is the latest published GitHub release at the start of the 0.17.0 development cycle.
-
-See [docs/releases/0.16.0.md](docs/releases/0.16.0.md) and the canonical GitHub Releases page for the published asset set and checksums.
-
 ## Older canonical history
 
-Canonical release notes for `0.1.0` through `0.15.0` are retained under `docs/releases/`.
+Canonical release notes for `0.1.0` through `0.16.0` are retained under `docs/releases/`.
 
 The older `2.1.1-rc.*` identifiers are historical aliases only. Their verified mapping/provenance is recorded in `docs/releases/version-map.json`; they are not the active version scheme.

@@ -9,21 +9,21 @@ A successful compile is not equivalent to stable/FINAL acceptance.
 1. Start from current `main`.
 2. Make meaningful product/code/documentation changes.
 3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
-4. Open a PR.
-5. Require exact-head success for:
+4. Keep the previous canonical release recorded in `previousVersion` (currently `0.17.0` for the 0.18.0 cycle).
+5. Open a PR.
+6. Require exact-head success for:
    - Ghost FTP quality
    - Ghost FTP protocol E2E
-   - Ghost FTP native preview build
    - Ghost FTP native build
    - Ghost FTP Android
    - Validate Windows hardening
-6. Read and fix concrete workflow logs if any gate fails.
-7. Merge only the tested source.
-8. On `main`, the canonical **Ghost FTP release** workflow is triggered from the successful native-preview build and verifies the release source/gates before publication.
-9. Require the previous canonical release to exist before publishing the next version.
-10. Package normalized Windows/Linux/Android/source/documentation assets and SHA-256 checksums from the verified source SHA.
-11. Publish/update the version tag `v<version>` at that exact source SHA and verify uploaded asset digests/count.
-12. Do not retarget older tags/releases to newer source.
+7. Read and fix concrete workflow logs if any gate fails.
+8. Merge only the tested source.
+9. On `main`, the successful **Ghost FTP native build** triggers the canonical **Ghost FTP release** workflow.
+10. The release job waits for the remaining exact-SHA gates and requires the previous canonical release to exist.
+11. Package normalized Windows/Linux/Android/source/documentation/native-QA assets and SHA-256 checksums from the verified source SHA.
+12. Publish `v<version>` at that exact source SHA and verify uploaded asset digests/count.
+13. Never retarget an existing version tag to different source.
 
 ## Canonical asset names
 
@@ -34,6 +34,7 @@ For version `<version>`:
 - `GhostFTP-Windows-x64-Portable-v<version>.exe`
 - `GhostFTP-Windows-x64-Setup-v<version>.exe`
 - `GhostFTP-Windows-x64-v<version>.zip`
+- `GhostFTP-Windows-x64-v<version>-Native-QA.zip`
 
 ### Linux x86-64
 
@@ -57,23 +58,24 @@ For version `<version>`:
 - `GhostFTP-v<version>-Documentation.zip`
 - `GhostFTP-v<version>-SHA256SUMS.txt`
 
-## Current release state
+## Current release cycle
 
-- Active source: **0.17.0 development**
-- Latest published release: **0.16.0**
-- `0.17.0` must not be described as published until `v0.17.0` exists and its canonical assets/digests have been verified.
+- Active source/release cycle: **0.18.0**
+- Previous canonical release: **0.17.0**
+- Live publication state is determined by GitHub Releases and exact tag/source verification.
+
+## Release integrity
+
+- End-user desktop GUI assets come from `ghostftp-desktop/`.
+- Canonical Windows/Linux binaries and native QA evidence come from the same successful native build run.
+- Canonical Android APK comes from the verified Android artifact for the same release SHA.
+- Support/browser-host tooling is not a production desktop release asset.
+- Publication fails if required artifacts/gates are missing.
+- Existing tags are never moved.
+- Public filenames use `GhostFTP`; product copy uses `Ghost FTP`.
 
 ## Stable / FINAL gates
 
 Do not label an artifact FINAL until evidence exists for required installer lifecycle, target-OS visual acceptance, security failure paths, update/signing verification and accessibility acceptance.
 
 Blocked gates are BLOCKED, not PASS.
-
-## Release integrity
-
-- End-user desktop GUI assets come from `ghostftp-desktop/`.
-- Canonical Android APK comes from the verified Android artifact for the same release SHA.
-- Support/browser-host tooling is not a production desktop release asset.
-- Publication fails if required artifacts/gates are missing.
-- Public filenames use `GhostFTP`; product copy uses `Ghost FTP`.
-- Legacy release-candidate identifiers are historical aliases only.

@@ -23,11 +23,11 @@ Use **GhostFTP** for:
 
 Canonical examples:
 
-- `GhostFTP-Windows-x64-Portable-v0.16.0.exe`
-- `GhostFTP-Windows-x64-Setup-v0.16.0.exe`
-- `GhostFTP-Linux-x86_64-v0.16.0.AppImage`
-- `GhostFTP-Android-v0.16.0.apk`
-- `GhostFTP-v0.16.0-Desktop-Source.zip`
+- `GhostFTP-Windows-x64-Portable-v<version>.exe`
+- `GhostFTP-Windows-x64-Setup-v<version>.exe`
+- `GhostFTP-Linux-x86_64-v<version>.AppImage`
+- `GhostFTP-Android-v<version>.apk`
+- `GhostFTP-v<version>-Desktop-Source.zip`
 
 For future releases substitute the canonical `0.x`/later semantic version.
 

@@ -1,7 +1,7 @@
 name: Ghost FTP native build
 
-# Preview production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
-# Preview release build stamp: 2026-09-25.23
+# Canonical Windows/Linux production build + native-window QA gate.
+# This is the single native build consumed by the release workflow.
 
 on:
   workflow_dispatch:
@@ -9,16 +9,17 @@ on:
     branches: [main]
     paths:
       - 'ghostftp-desktop/**'
+      - 'version.json'
       - 'README.md'
+      - 'CHANGELOG.md'
+      - 'docs/releases/**'
       - 'docs/assets/screenshots/**'
+      - '.github/scripts/sync-version.mjs'
+      - '.github/scripts/refresh-cargo-lock.sh'
       - '.github/workflows/ghostftp-build.yml'
+      - '.github/workflows/ghostftp-release.yml'
   pull_request:
-    paths:
-      - 'ghostftp-desktop/**'
-      - 'README.md'
-      - 'docs/assets/screenshots/**'
-      - '.github/workflows/ghostftp-build.yml'
-      - '.github/workflows/ghostftp-preview-release.yml'
+    branches: [main]
 
 permissions:
   contents: read
@@ -59,12 +60,22 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: Validate central version metadata
+        shell: bash
+        run: node .github/scripts/sync-version.mjs --check
+
       - name: Install frontend dependencies
         working-directory: ghostftp-desktop
         run: npm ci
       - name: TypeScript/frontend build
         working-directory: ghostftp-desktop
-        run: npm run build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run check:i18n
+          npm run check:ui
+          npm run check
+          npm run build
       - name: Verify committed Rust dependency graph
         working-directory: ghostftp-desktop/src-tauri
         shell: bash
@@ -647,70 +658,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Verify README screenshots against native Preview QA
-        if: runner.os == 'Windows' && success()
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          Add-Type -AssemblyName System.Drawing
-
-          $screenshots = @(
-            @{ Source = 'GhostFTP-Windows-Preview-Native-Window.png'; Dest = 'ghostftp-native-files.png' },
-            @{ Source = 'GhostFTP-Windows-Preview-Site-Manager.png'; Dest = 'ghostftp-native-sites.png' },
-            @{ Source = 'GhostFTP-Windows-Preview-New-Connection.png'; Dest = 'ghostftp-native-new-connection.png' },
-            @{ Source = 'GhostFTP-Windows-Preview-Preferences.png'; Dest = 'ghostftp-native-settings.png' },
-            @{ Source = 'GhostFTP-Windows-Preview-Transfer-Center.png'; Dest = 'ghostftp-native-transfers.png' },
-            @{ Source = 'GhostFTP-Windows-Preview-File-Properties.png'; Dest = 'ghostftp-native-file-properties.png' },
-            @{ Source = 'GhostFTP-Windows-Preview-About.png'; Dest = 'ghostftp-native-about.png' }
-          )
-
-          foreach ($shot in $screenshots) {
-            $freshPath = Join-Path $env:GITHUB_WORKSPACE ('qa\' + $shot.Source)
-            $trackedPath = Join-Path $env:GITHUB_WORKSPACE ('docs\assets\screenshots\' + $shot.Dest)
-
-            if (-not (Test-Path $freshPath)) {
-              throw "Required native QA screenshot missing: $($shot.Source)"
-            }
-            if (-not (Test-Path $trackedPath)) {
-              throw "README native screenshot missing from repository: $($shot.Dest)"
-            }
-
-            $fresh = [System.Drawing.Bitmap]::FromFile($freshPath)
-            $tracked = [System.Drawing.Bitmap]::FromFile($trackedPath)
-            try {
-              if ($fresh.Width -ne $tracked.Width -or $fresh.Height -ne $tracked.Height) {
-                throw "README screenshot dimensions drifted for $($shot.Dest): tracked=$($tracked.Width)x$($tracked.Height), fresh=$($fresh.Width)x$($fresh.Height)"
-              }
-
-              $samples = 0
-              $changed = 0
-              # Sample the rendered app densely while ignoring only the final
-              # status-bar strip where the clock/ephemeral counters change.
-              $compareHeight = [Math]::Max(0, $fresh.Height - 36)
-              for ($y = 0; $y -lt $compareHeight; $y += 6) {
-                for ($x = 0; $x -lt $fresh.Width; $x += 6) {
-                  $a = $fresh.GetPixel($x, $y)
-                  $b = $tracked.GetPixel($x, $y)
-                  $delta =
-                    [Math]::Abs([int]$a.R - [int]$b.R) +
-                    [Math]::Abs([int]$a.G - [int]$b.G) +
-                    [Math]::Abs([int]$a.B - [int]$b.B)
-                  $samples++
-                  if ($delta -gt 48) { $changed++ }
-                }
-              }
-
-              if ($samples -le 0) { throw "No screenshot comparison samples for $($shot.Dest)" }
-              $ratio = [double]$changed / [double]$samples
-              Write-Host ("README screenshot " + $shot.Dest + " changed-pixel ratio=" + [Math]::Round($ratio, 5))
-              if ($ratio -gt 0.05) {
-                throw "README screenshot $($shot.Dest) no longer matches the native Preview UI closely enough; refresh it from reviewed QA evidence."
-              }
-            } finally {
-              $fresh.Dispose()
-              $tracked.Dispose()
-            }
-          }
+      # Documentation screenshots intentionally remain pinned to the newest
+      # published release. Fresh screenshots from this unreleased build are
+      # validated and uploaded above as QA evidence, but are not compared
+      # against release-proven README images here.
 
       - name: Upload native bundles
         uses: actions/upload-artifact@v4
@@ -722,28 +673,3 @@ jobs:
             ghostftp-desktop/src-tauri/target/release/ghostftp.exe
             ghostftp-desktop/src-tauri/target/release/ghostftp
           if-no-files-found: error
-
-  source-packages:
-    name: Preview source packages
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Package Preview source and documentation
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          git archive --format=zip --output=dist/GhostFTP-v2.1.1-Preview-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-Preview-Desktop-Source.zip ghostftp-desktop
-          zip -qr dist/GhostFTP-v2.1.1-Preview-Website.zip website
-          zip -qr dist/GhostFTP-v2.1.1-Preview-Updates.zip updates
-          zip -qr dist/GhostFTP-v2.1.1-Preview-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
-      - name: Upload Preview source packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: GhostFTP-Preview-Source-Packages
-          path: dist/*
-          if-no-files-found: error
-          retention-days: 14

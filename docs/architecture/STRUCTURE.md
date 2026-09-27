@@ -75,10 +75,10 @@ Use **Ghost FTP** for user-facing copy and **GhostFTP** for technical/public art
 
 Examples:
 
-- `GhostFTP-Windows-x64-Portable-v0.16.0.exe`
-- `GhostFTP-Windows-x64-Setup-v0.16.0.exe`
-- `GhostFTP-Linux-x86_64-v0.16.0.AppImage`
-- `GhostFTP-Android-v0.16.0.apk`
+- `GhostFTP-Windows-x64-Portable-v<version>.exe`
+- `GhostFTP-Windows-x64-Setup-v<version>.exe`
+- `GhostFTP-Linux-x86_64-v<version>.AppImage`
+- `GhostFTP-Android-v<version>.apk`
 
 See [NAMING.md](NAMING.md).
 

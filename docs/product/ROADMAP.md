@@ -1,6 +1,6 @@
 # Ghost FTP — Recommended Next Work
 
-This is the prioritized improvement backlog for the Ghost FTP 0.17.0 development line. Items here are recommendations, not claims of completed functionality.
+This is the prioritized improvement backlog for the Ghost FTP 0.18.0 development line. Items here are recommendations, not claims of completed functionality.
 
 ## Release blockers before FINAL
 

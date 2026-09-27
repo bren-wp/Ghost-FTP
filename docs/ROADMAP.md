@@ -1,6 +1,6 @@
 # Ghost FTP Roadmap
 
-This roadmap separates the current **0.17.0 development** state from future work. Planned, recommended and long-term items are not claims of implemented functionality.
+This roadmap separates the current **0.18.0 development** state from future work. Planned, recommended and long-term items are not claims of implemented functionality.
 
 ## Implemented
 
@@ -17,20 +17,20 @@ This roadmap separates the current **0.17.0 development** state from future work
 - Advertised interface locales with automated key-parity CI.
 - Native Windows NSIS and Linux executable/AppImage/DEB/RPM build targets.
 - Installable Android APK build path with package/signature verification in CI.
-- Quality, protocol E2E, native preview/native build, Android and Windows hardening gates.
+- Quality, protocol E2E, canonical native build, Android and Windows hardening gates.
+- Release-image provenance checks for README/documentation images.
 - Privacy-first default: no required analytics or telemetry.
 
 ## Current hardening focus
 
+- Keep one authoritative Windows/Linux production build path with native-window QA evidence.
+- Keep documentation imagery pinned to the latest published release.
 - Keep Windows helper/background processes free of unintended console-window flashes.
-- Keep dependency graphs locked and reproducible enough for exact-SHA CI verification.
-- Keep active documentation synchronized with `version.json`, workflow names and published release state.
+- Keep dependency graphs locked and version/Cargo metadata synchronized atomically.
 - Maintain real FTP/explicit-FTPS/SFTP E2E coverage for release-relevant source.
 - Maintain Android lint/build/package verification on every pull request to `main`.
 
 ## Before stable 1.0
-
-These remain acceptance requirements rather than completed claims:
 
 - Windows 10/11 clean install, upgrade, reinstall and uninstall lifecycle acceptance.
 - Windows installed + portable visual acceptance including titlebar and snap behavior.
@@ -54,12 +54,5 @@ These remain acceptance requirements rather than completed claims:
 - Full screen-reader, high-contrast and touch-target audits.
 - SBOM, dependency vulnerability scanning, secret scanning and provenance attestations.
 - Optional managed Linux repositories when distribution policy requires them.
-
-## Long-term
-
-- Signed Windows binaries and signed Linux repository metadata where applicable.
-- Stronger visual-regression automation against approved native references.
-- Advanced proxy/bastion workflows driven by user demand.
-- Expanded sync/automation policies with explicit conflict recovery.
 
 For the detailed engineering backlog, see [product/ROADMAP.md](product/ROADMAP.md). For authoritative current source/build state, see [product/STATUS_AND_NEXT.md](product/STATUS_AND_NEXT.md) and [build/STATUS.md](build/STATUS.md).
