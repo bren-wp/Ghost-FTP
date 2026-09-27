@@ -49,8 +49,8 @@ for (const rel of [
   "updates/schema/latest.schema.json",
   "updates/scripts/build-manifest.mjs",
   "updates/scripts/verify-manifest.mjs",
-  "updates/web/.htaccess.example",
-  "updates/web/nginx.conf.example",
+  "updates/hosting/.htaccess.example",
+  "updates/hosting/nginx.conf.example",
 ]) {
   if (!exists(rel)) failures.push(`missing update-system file: ${rel}`);
 }
