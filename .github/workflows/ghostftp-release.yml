@@ -110,7 +110,6 @@ jobs:
           git archive --format=zip --output="dist/GhostFTP-v$VERSION-Source.zip" HEAD
           zip -qr "dist/GhostFTP-v$VERSION-Desktop-Source.zip" ghostftp-desktop
           zip -qr "dist/GhostFTP-v$VERSION-Android-Source.zip" android
-          zip -qr "dist/GhostFTP-v$VERSION-Website.zip" website
           zip -qr "dist/GhostFTP-v$VERSION-Updates.zip" updates
           zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
 
