@@ -80,17 +80,6 @@ if (fs.existsSync(screenshotDir)) {
   }
 }
 
-const websiteAssetDir = path.join(root, "website", "assets");
-if (fs.existsSync(websiteAssetDir)) {
-  for (const entry of fs.readdirSync(websiteAssetDir, { withFileTypes: true })) {
-    if (!entry.isFile()) continue;
-    const relative = path.posix.join("website/assets", entry.name);
-    if ([".png", ".jpg", ".jpeg", ".webp", ".avif"].includes(path.extname(relative).toLowerCase()) && !candidates.has(relative)) {
-      candidates.set(relative, ["website/assets/* release-proven product imagery"]);
-    }
-  }
-}
-
 const failures = [];
 for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.localeCompare(b))) {
   const absolute = path.join(root, relative);
