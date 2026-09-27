@@ -225,7 +225,11 @@ fn configure_process_tree(cmd: &mut tokio::process::Command) {
 }
 
 #[cfg(windows)]
-fn configure_process_tree(_cmd: &mut tokio::process::Command) {}
+fn configure_process_tree(cmd: &mut tokio::process::Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    cmd.as_std_mut().creation_flags(CREATE_NO_WINDOW);
+}
 
 #[cfg(unix)]
 async fn terminate_process_tree(child: &mut tokio::process::Child) {
@@ -244,7 +248,9 @@ async fn terminate_process_tree(child: &mut tokio::process::Child) {
 #[cfg(windows)]
 async fn terminate_process_tree(child: &mut tokio::process::Child) {
     if let Some(pid) = child.id() {
-        let _ = tokio::process::Command::new("taskkill")
+        let mut command = tokio::process::Command::new("taskkill");
+        configure_process_tree(&mut command);
+        let _ = command
             .args(["/PID", &pid.to_string(), "/T", "/F"])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
