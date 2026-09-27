@@ -43,7 +43,7 @@ if (releaseConfig.bundle?.createUpdaterArtifacts !== true) {
 
 for (const rel of [
   "updates/README.md",
-  "updates/WEB_DEPLOYMENT.md",
+  "updates/DEPLOYMENT.md",
   "updates/RELEASE_RUNBOOK.md",
   "updates/SECURITY.md",
   "updates/schema/latest.schema.json",
@@ -74,7 +74,7 @@ for (const rel of userFacing) {
 for (const [rel, needle] of [
   [".github/workflows/ghostftp-build.yml", "TAURI_SIGNING_PRIVATE_KEY"],
   [".github/workflows/ghostftp-build.yml", "updater-release.conf.json"],
-  [".github/workflows/ghostftp-release.yml", "GhostFTP-v$VERSION-Web-Update.zip"],
+  [".github/workflows/ghostftp-release.yml", "GhostFTP-v$VERSION-Update-Service.zip"],
   [".github/workflows/ghostftp-release.yml", "updates/scripts/build-manifest.mjs"],
 ]) {
   if (!read(rel).includes(needle)) failures.push(`${rel}: missing update release contract: ${needle}`);
