@@ -26,8 +26,8 @@ The public service follows the Tauri v2 updater contract: `version`, optional hu
 - `DEPLOYMENT.md` — exact update-service paths, headers, Apache/Nginx examples and atomic upload procedure
 - `RELEASE_RUNBOOK.md` — end-to-end release/operator procedure
 - `SECURITY.md` — signing-key handling, signature rules and recovery/rotation policy
-- `web/.htaccess.example` — shared-hosting/Apache example
-- `web/nginx.conf.example` — Nginx example
+- `hosting/.htaccess.example` — shared-hosting/Apache example
+- `hosting/nginx.conf.example` — Nginx example
 
 The former separate preview/stable template files were removed because the desktop application currently has one canonical public update service. Channel policy belongs in release/version metadata, not in a second incompatible wire format.
 
@@ -37,7 +37,7 @@ The former separate preview/stable template files were removed because the deskt
 2. A canonical build on `main` always produces the normal Windows/Linux release packages. When the Tauri signing secret is configured it additionally uses `src-tauri/updater-release.conf.json` to produce signed in-app updater artifacts.
 3. With signing enabled, Tauri produces the normal NSIS Setup/AppImage plus their signature files; without signing, the normal packages still build but no web in-app update package is published.
 4. The release workflow verifies all exact-SHA gates.
-5. The release workflow normalizes packages and signatures, then generates a web-ready update response.
+5. The release workflow normalizes packages and signatures, then generates an update-service response.
 6. The release publishes versioned packages/signatures plus `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Update-Service.zip`.
 7. Only releases that contain both signed Windows/Linux updater artifacts receive an update-service bundle. After that GitHub Release and its asset digests are verified, the update-service operator may atomically replace `/updates/latest.json`.
 
