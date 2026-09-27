@@ -99,9 +99,9 @@ updateJson("updates/latest.template.json", (j) => {
     `https://github.com/bren-wp/Ghost-FTP/releases/download/v${version}/GhostFTP-Linux-x86_64-v${version}.AppImage`;
 });
 
-// Public website screenshots and their surrounding release copy intentionally stay
-// pinned to the newest published release. Development version bumps must not
-// relabel release-proven imagery before that version is actually published.
+// Documentation screenshots intentionally stay pinned to the newest published
+// release. Development version bumps must not relabel release-proven imagery
+// before that version is actually published.
 
 if (baseVersion) {
   const parse = (v) => {
