@@ -116,7 +116,7 @@ require_text "installable preview package isolation" "$ANDROID_DIR/app/build.gra
 require_text "installable preview signing" "$ANDROID_DIR/app/build.gradle.kts" 'signingConfig = signingConfigs.getByName("debug")'
 require_text "preview remains non-debuggable" "$ANDROID_DIR/app/build.gradle.kts" 'isDebuggable = false'
 ANDROID_WORKFLOW="$ROOT/.github/workflows/ghostftp-android.yml"
-CANONICAL_RELEASE_WORKFLOW="$ROOT/.github/workflows/ghostftp-preview-release.yml"
+CANONICAL_RELEASE_WORKFLOW="$ROOT/.github/workflows/ghostftp-release.yml"
 PUBLISH_SCRIPT="$ROOT/.github/scripts/publish-release.sh"
 
 require_text "Android workflow builds preview" "$ANDROID_WORKFLOW" 'assemblePreview'
