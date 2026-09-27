@@ -53,7 +53,6 @@ For version `<version>`:
 - `GhostFTP-v<version>-Source.zip`
 - `GhostFTP-v<version>-Desktop-Source.zip`
 - `GhostFTP-v<version>-Android-Source.zip`
-- `GhostFTP-v<version>-Website.zip`
 - `GhostFTP-v<version>-Updates.zip`
 - `GhostFTP-v<version>-Documentation.zip`
 - `GhostFTP-v<version>-SHA256SUMS.txt`
