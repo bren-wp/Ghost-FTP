@@ -57,6 +57,7 @@ const forbidden = [
   [/ghostftp-native-rc\d*/i, "obsolete RC native workflow"],
   [/ghostftp-rc\d*-release/i, "obsolete RC release workflow"],
   [/Ghost-FTP-Premium/, "obsolete Premium repository reference"],
+  [/ghostftp-native-preview/i, "obsolete duplicate native-build workflow"],
 ];
 
 for (const rel of operationalDocs) {
@@ -94,24 +95,24 @@ for (const rel of [
 
 requireFile("docs/releases/README.md");
 requireFile("docs/releases/version-map.json");
-requireFile(".github/workflows/ghostftp-preview-release.yml");
+requireFile(".github/workflows/ghostftp-release.yml");
 
 for (const obsolete of [
-  ".github/workflows/ghostftp-release.yml",
   ".github/workflows/backfill-0.15.0.yml",
   ".github/workflows/ghostftp-android-release.yml",
   ".github/workflows/ghostftp-native-preview.yml",
+  ".github/workflows/ghostftp-preview-release.yml",
 ]) {
   if (exists(obsolete)) failures.push(`obsolete workflow must be removed: ${obsolete}`);
 }
 
 requireIncludes(
-  ".github/workflows/ghostftp-preview-release.yml",
+  ".github/workflows/ghostftp-release.yml",
   'workflows: ["Ghost FTP native build"]',
   "canonical native-build release trigger",
 );
 requireIncludes(
-  ".github/workflows/ghostftp-preview-release.yml",
+  ".github/workflows/ghostftp-release.yml",
   "gh run list --workflow ghostftp-build.yml",
   "newest exact-SHA native-build selector",
 );
