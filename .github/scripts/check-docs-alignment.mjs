@@ -12,6 +12,9 @@ const version = meta.version;
 const previousVersion = meta.previousVersion;
 
 const failures = [];
+if (exists("website")) {
+  failures.push("obsolete website/ source tree must remain removed");
+}
 const requireFile = (rel) => {
   if (!exists(rel)) failures.push(`missing required documentation/release file: ${rel}`);
 };
@@ -58,6 +61,8 @@ const forbidden = [
   [/ghostftp-rc\d*-release/i, "obsolete RC release workflow"],
   [/Ghost-FTP-Premium/, "obsolete Premium repository reference"],
   [/ghostftp-native-preview/i, "obsolete duplicate native-build workflow"],
+  [/\bwebsite\//i, "obsolete website source path"],
+  [/GhostFTP-v<version>-Website\.zip/i, "obsolete website release archive"],
 ];
 
 for (const rel of operationalDocs) {
