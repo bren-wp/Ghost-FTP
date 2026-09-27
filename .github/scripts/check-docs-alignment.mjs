@@ -100,14 +100,20 @@ for (const obsolete of [
   ".github/workflows/ghostftp-release.yml",
   ".github/workflows/backfill-0.15.0.yml",
   ".github/workflows/ghostftp-android-release.yml",
+  ".github/workflows/ghostftp-native-preview.yml",
 ]) {
   if (exists(obsolete)) failures.push(`obsolete workflow must be removed: ${obsolete}`);
 }
 
 requireIncludes(
   ".github/workflows/ghostftp-preview-release.yml",
-  'wait_for_gate "ghostftp-build.yml" "native production build"',
-  "exact-SHA native production release gate",
+  'workflows: ["Ghost FTP native build"]',
+  "canonical native-build release trigger",
+);
+requireIncludes(
+  ".github/workflows/ghostftp-preview-release.yml",
+  "gh run list --workflow ghostftp-build.yml",
+  "newest exact-SHA native-build selector",
 );
 
 if (failures.length) {
