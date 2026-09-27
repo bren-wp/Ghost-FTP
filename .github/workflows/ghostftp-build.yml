@@ -729,13 +729,71 @@ jobs:
       # validated and uploaded above as QA evidence, but are not compared
       # against release-proven README images here.
 
+      - name: Collect Windows release-native artifacts
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force dist/native | Out-Null
+          $portable = 'ghostftp-desktop/src-tauri/target/release/ghostftp.exe'
+          if (-not (Test-Path $portable)) { throw "Missing portable executable: $portable" }
+          Copy-Item $portable 'dist/native/ghostftp.exe'
+
+          $setup = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/nsis' -Filter '*.exe' -Recurse |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $setup) { throw 'Missing NSIS Setup executable.' }
+          Copy-Item $setup.FullName 'dist/native/GhostFTP-Windows-x64-Setup.exe'
+
+          $portableBytes = (Get-Item 'dist/native/ghostftp.exe').Length
+          $setupBytes = (Get-Item 'dist/native/GhostFTP-Windows-x64-Setup.exe').Length
+          if ($portableBytes -gt 29360128) { throw "Portable executable exceeds 28 MiB budget: $portableBytes bytes" }
+          if ($setupBytes -gt 12582912) { throw "Setup executable exceeds 12 MiB budget: $setupBytes bytes" }
+
+          "### Windows native artifact sizes" >> $env:GITHUB_STEP_SUMMARY
+          "- portable.exe: $([Math]::Round($portableBytes / 1MB, 2)) MiB" >> $env:GITHUB_STEP_SUMMARY
+          "- setup.exe: $([Math]::Round($setupBytes / 1MB, 2)) MiB" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Collect Linux release-native artifacts
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/native
+
+          BIN='ghostftp-desktop/src-tauri/target/release/ghostftp'
+          APPIMAGE="$(find ghostftp-desktop/src-tauri/target/release/bundle/appimage -type f -iname '*.AppImage' | head -n1)"
+          DEB="$(find ghostftp-desktop/src-tauri/target/release/bundle/deb -type f -iname '*.deb' | head -n1)"
+          RPM="$(find ghostftp-desktop/src-tauri/target/release/bundle/rpm -type f -iname '*.rpm' | head -n1)"
+
+          test -s "$BIN"; test -s "$APPIMAGE"; test -s "$DEB"; test -s "$RPM"
+          cp "$BIN" dist/native/ghostftp
+          cp "$APPIMAGE" dist/native/GhostFTP-Linux-x86_64.AppImage
+          cp "$DEB" dist/native/GhostFTP-Linux-amd64.deb
+          cp "$RPM" dist/native/GhostFTP-Linux-x86_64.rpm
+          chmod +x dist/native/ghostftp dist/native/GhostFTP-Linux-x86_64.AppImage
+
+          bin_bytes="$(stat -c %s dist/native/ghostftp)"
+          appimage_bytes="$(stat -c %s dist/native/GhostFTP-Linux-x86_64.AppImage)"
+          deb_bytes="$(stat -c %s dist/native/GhostFTP-Linux-amd64.deb)"
+          rpm_bytes="$(stat -c %s dist/native/GhostFTP-Linux-x86_64.rpm)"
+
+          test "$bin_bytes" -le 31457280
+          test "$appimage_bytes" -le 99614720
+          test "$deb_bytes" -le 15728640
+          test "$rpm_bytes" -le 15728640
+
+          {
+            echo '### Linux native artifact sizes'
+            awk "BEGIN { printf \"- native binary: %.2f MiB\\n\", $bin_bytes/1048576 }"
+            awk "BEGIN { printf \"- AppImage: %.2f MiB\\n\", $appimage_bytes/1048576 }"
+            awk "BEGIN { printf \"- DEB: %.2f MiB\\n\", $deb_bytes/1048576 }"
+            awk "BEGIN { printf \"- RPM: %.2f MiB\\n\", $rpm_bytes/1048576 }"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload native bundles
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: |
-            ghostftp-desktop/src-tauri/target/release/bundle/**
-            ghostftp-desktop/src-tauri/Cargo.lock
-            ghostftp-desktop/src-tauri/target/release/ghostftp.exe
-            ghostftp-desktop/src-tauri/target/release/ghostftp
+          path: dist/native/*
           if-no-files-found: error
