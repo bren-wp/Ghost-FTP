@@ -22,6 +22,7 @@ android {
         targetSdk = 35
         versionCode = 211028
         versionName = "0.19.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -71,4 +72,8 @@ android {
 dependencies {
     implementation("commons-net:commons-net:3.13.0")
     implementation("com.github.mwiede:jsch:2.28.7")
+
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
 }
