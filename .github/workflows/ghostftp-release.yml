@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: ghostftp-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   select-trigger:
@@ -60,6 +60,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          CURRENT_MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$CURRENT_MAIN_SHA" != "$SOURCE_SHA" ]; then
+            echo "Refusing stale release source $SOURCE_SHA; current main is $CURRENT_MAIN_SHA." >&2
+            exit 1
+          fi
           node .github/scripts/sync-version.mjs --check
           VERSION="$(node -p 'require("./version.json").version')"
           test -f "docs/releases/$VERSION.md"
