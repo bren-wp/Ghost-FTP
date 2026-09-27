@@ -46,6 +46,10 @@ jobs:
             node .github/scripts/sync-version.mjs --check-next "$BASE_VERSION"
           fi
 
+      - name: Documentation and release alignment
+        shell: bash
+        run: node .github/scripts/check-docs-alignment.mjs
+
       - name: Reject legacy/demo branding
         shell: bash
         run: |
