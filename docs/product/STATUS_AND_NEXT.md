@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.18.0 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.19.0 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.17.0**. Live publication state is determined from GitHub Releases.
+Latest published canonical release: **0.18.0**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -25,7 +25,7 @@ Previous canonical release: **0.17.0**. Live publication state is determined fro
 
 Full capability detail: [FEATURES.md](FEATURES.md).
 
-## 0.18.0 hardening in source
+## 0.19.0 hardening in source
 
 - Uses one authoritative Windows/Linux production build instead of compiling the same native bundles twice.
 - Keeps Windows native-window QA inside that canonical build and packages QA evidence with releases.
