@@ -1,6 +1,6 @@
 # Ghost FTP Repository Naming Policy
 
-Ghost FTP uses a simple naming rule so the repository stays branded without destabilizing framework-required build internals.
+Ghost FTP keeps product-facing naming consistent without destabilizing framework-required internals.
 
 ## Product-facing naming
 
@@ -21,37 +21,35 @@ Use **GhostFTP** for:
 - CI artifact names;
 - executable names.
 
-Examples:
+Canonical examples:
 
-- `GhostFTP-Windows-x64-Portable-v2.1.1-RC21.exe`
-- `GhostFTP-Windows-x64-Setup-v2.1.1-RC21.exe`
-- `GhostFTP-Linux-x86_64-v2.1.1-RC21.AppImage`
-- `GhostFTP-v2.1.1-RC21-Desktop-Source.zip`
+- `GhostFTP-Windows-x64-Portable-v0.16.0.exe`
+- `GhostFTP-Windows-x64-Setup-v0.16.0.exe`
+- `GhostFTP-Linux-x86_64-v0.16.0.AppImage`
+- `GhostFTP-Android-v0.16.0.apk`
+- `GhostFTP-v0.16.0-Desktop-Source.zip`
+
+For future releases substitute the canonical `0.x`/later semantic version.
 
 ## Branded top-level source paths
 
-Current repository source roots are intentionally branded:
-
 - `ghostftp-desktop/`
+- `android/`
 - `tools/ghostftp-runtime/`
 - `tools/ghostftp-installer/`
 - `website/`
 - `updates/`
 
-These names replace generic or framework-first top-level paths and make the repository easier to understand at a glance.
-
 ## Framework-required names that remain
 
-A small number of internal names remain because they are consumed directly by the desktop framework or its ecosystem:
+Internal names consumed by Tauri/ecosystem remain unchanged:
 
 - `src-tauri/`
 - `tauri.conf.json`
 - `@tauri-apps/*`
 - `tauri-apps/tauri-action`
 
-They are implementation details, not Ghost FTP branding. Renaming them only for appearance would add build and maintenance risk.
-
-## Naming rules for future files
+## Future naming rules
 
 Prefer:
 
@@ -60,17 +58,17 @@ Prefer:
 
 Avoid:
 
-- generic names such as `app-final-new2.zip`;
+- generic temporary/final names;
 - framework-first public filenames;
 - versionless release executables;
-- filenames that do not communicate platform or architecture.
+- legacy release-candidate identifiers in new product assets.
 
 ## Stability rule
 
-Do not rename persisted identifiers, bundle identifiers, updater identifiers or protocol/deep-link schemes unless there is a migration plan.
+Do not rename persisted identifiers, bundle identifiers, updater identifiers or protocol/deep-link schemes without a migration plan.
 
-Current stable identifiers include:
+Current migration-sensitive identifiers include:
 
-- bundle identifier: `com.ghostftp.desktop`
+- desktop bundle identifier: `com.ghostftp.desktop`
 - deep-link scheme: `ghostftp://`
 - public domain: `ghostftp.com`
