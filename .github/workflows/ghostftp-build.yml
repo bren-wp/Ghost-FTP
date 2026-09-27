@@ -84,13 +84,36 @@ jobs:
           test -s Cargo.lock
           cargo metadata --locked --format-version 1 >/dev/null
 
+      - name: Verify desktop update signing secrets
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$TAURI_SIGNING_PRIVATE_KEY"
+          echo "Desktop update signing key is configured."
+
       - name: Build Ghost FTP desktop bundle
+        if: github.event_name != 'push'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: ghostftp-desktop
           args: ${{ matrix.args }}
+
+      - name: Build signed Ghost FTP desktop and updater bundle
+        if: github.event_name == 'push'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: ghostftp-desktop
+          args: --config src-tauri/updater-release.conf.json ${{ matrix.args }}
       - name: Windows Setup install and uninstall smoke
         if: runner.os == 'Windows'
         shell: pwsh
@@ -745,6 +768,13 @@ jobs:
           if (-not $setup) { throw 'Missing NSIS Setup executable.' }
           Copy-Item $setup.FullName 'dist/native/GhostFTP-Windows-x64-Setup.exe'
 
+          if ('${{ github.event_name }}' -eq 'push') {
+            $setupSig = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/nsis' -Filter '*.exe.sig' -Recurse |
+              Select-Object -First 1
+            if (-not $setupSig) { throw 'Signed Windows updater signature was not produced.' }
+            Copy-Item $setupSig.FullName 'dist/native/GhostFTP-Windows-x64-Setup.exe.sig'
+          }
+
           $portableBytes = (Get-Item 'dist/native/ghostftp.exe').Length
           $setupBytes = (Get-Item 'dist/native/GhostFTP-Windows-x64-Setup.exe').Length
           if ($portableBytes -gt 29360128) { throw "Portable executable exceeds 28 MiB budget: $portableBytes bytes" }
@@ -772,6 +802,12 @@ jobs:
           cp "$DEB" dist/native/GhostFTP-Linux-amd64.deb
           cp "$RPM" dist/native/GhostFTP-Linux-x86_64.rpm
           chmod +x dist/native/ghostftp dist/native/GhostFTP-Linux-x86_64.AppImage
+
+          if [ "${{ github.event_name }}" = "push" ]; then
+            APPIMAGE_SIG="$(find ghostftp-desktop/src-tauri/target/release/bundle/appimage -type f -iname '*.AppImage.sig' | head -n1)"
+            test -s "$APPIMAGE_SIG"
+            cp "$APPIMAGE_SIG" dist/native/GhostFTP-Linux-x86_64.AppImage.sig
+          fi
 
           bin_bytes="$(stat -c %s dist/native/ghostftp)"
           appimage_bytes="$(stat -c %s dist/native/GhostFTP-Linux-x86_64.AppImage)"
