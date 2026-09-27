@@ -1,7 +1,21 @@
 # Ghost FTP Support
 
-Official product information and support are provided through **https://ghostftp.com/** and its documented support pages.
+Canonical downloads and release history are provided through **GitHub Releases** for this repository.
 
-When reporting a problem, include the Ghost FTP version/build, operating system and architecture, the protocol involved (FTP, FTPS or SFTP), a concise reproduction sequence, the exact sanitized error message and whether the issue reproduces with a second known-good server. Do not send passwords, private keys, recovery codes, customer file contents or unredacted production logs.
+Before reporting an issue:
 
-For transfer failures, record whether DNS resolution, TCP reachability, TLS/SSH identity validation and authentication succeeded before the operation failed. For installer issues, include the failing wizard step and target folder. For UI/titlebar issues, include a screenshot that shows the full application frame including the top edge of the window.
+1. Confirm the exact Ghost FTP version/build and operating system.
+2. Reproduce with the newest published release when safe to do so.
+3. Check the relevant guide under `docs/` and the known release notes under `docs/releases/`.
+4. Remove passwords, private keys, tokens, customer data and sensitive server details from screenshots/logs.
+5. For security-sensitive reports, follow the repository `SECURITY.md` instructions rather than posting secrets in a public issue.
+
+Useful repository locations:
+
+- downloads/releases: `https://github.com/bren-wp/Ghost-FTP/releases`
+- documentation: `docs/README.md`
+- security: `SECURITY.md`
+- privacy: `docs/legal/PRIVACY.md`
+- release notes: `docs/releases/`
+
+The repository does not maintain a separate website application.
