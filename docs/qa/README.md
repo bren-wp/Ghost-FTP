@@ -4,7 +4,9 @@ This directory tracks evidence and acceptance criteria for the current Ghost FTP
 
 ## Automated release gates
 
-Every release source must pass the exact-head quality, protocol E2E, native preview/native build, Android and Windows hardening gates before publication.
+Every release source must pass the exact-head quality, real FTP/explicit FTPS/SFTP E2E, canonical Windows/Linux native build, Android and Windows hardening workflows before publication.
+
+The quality gate also verifies that local README/documentation images are byte-identical to the newest published release tag.
 
 Windows native QA covers seven critical surfaces:
 
@@ -16,7 +18,7 @@ Windows native QA covers seven critical surfaces:
 - File Properties
 - Help & About
 
-Each is captured at canonical, compact and near-minimum viewport sizes.
+Each is captured at canonical, compact and near-minimum viewport sizes by the canonical native build.
 
 ## Interaction and functionality
 
@@ -37,7 +39,7 @@ Each is captured at canonical, compact and near-minimum viewport sizes.
 
 ## Release truth
 
-The authoritative current source/build state is [Build Status](../build/STATUS.md). Historical QA documents can describe older candidates; they must not be interpreted as proof for a newer release unless the corresponding exact-head workflow produced fresh evidence.
+The authoritative current source/build state is [Build Status](../build/STATUS.md). Historical QA documents are not proof for a newer release unless the corresponding exact-head workflow produced fresh evidence.
 
 ## FINAL rule
 
