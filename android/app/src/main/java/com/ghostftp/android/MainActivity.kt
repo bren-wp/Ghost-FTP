@@ -897,6 +897,7 @@ class MainActivity : Activity() {
 
     private fun toolbarButton(value: String, destructive: Boolean = false, onClick: () -> Unit): Button = Button(this).apply {
         text = value
+        contentDescription = "$value action"
         setTextColor(if (destructive) Brand.danger else Brand.text)
         textSize = 12f
         typeface = Typeface.DEFAULT_BOLD
