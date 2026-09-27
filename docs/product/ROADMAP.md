@@ -105,17 +105,6 @@ Recommended:
 - Secret scanning and SBOM generation.
 - Optional encrypted export of settings/profiles with documented recovery rules.
 
-## Website improvements
-
-Recommended:
-
-- Replace the current loading-style landing surface with the full product/download site once release distribution is stable.
-- Add structured data for SoftwareApplication.
-- Add release/download metadata and checksums.
-- Add product screenshots from real native RC/FINAL builds, not design references.
-- Add localized legal pages and accessibility statement.
-- Add lightweight performance budget CI.
-
 ## Repository/engineering improvements
 
 Recommended:
