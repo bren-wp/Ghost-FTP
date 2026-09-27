@@ -84,10 +84,36 @@ jobs:
           test -s Cargo.lock
           cargo metadata --locked --format-version 1 >/dev/null
 
-      - name: Build Ghost FTP desktop bundle
+      - name: Require updater signing key for production native builds
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "TAURI_SIGNING_PRIVATE_KEY is required for production updater artifacts." >&2
+            exit 1
+          fi
+
+      - name: Build Ghost FTP desktop bundle (PR validation)
+        if: github.event_name == 'pull_request'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: ghostftp-desktop
+          args: >-
+            ${{ matrix.args }}
+            --config {"bundle":{"createUpdaterArtifacts":false}}
+
+      - name: Build Ghost FTP desktop bundle (signed production)
+        if: github.event_name != 'pull_request'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: ghostftp-desktop
           args: ${{ matrix.args }}
