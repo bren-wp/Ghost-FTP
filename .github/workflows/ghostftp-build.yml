@@ -171,13 +171,24 @@ jobs:
           rpm -qip "$RPM" >/dev/null
 
           PACKAGE_NAME="$(dpkg-deb -f "$DEB" Package)"
-          INSTALLED_BIN="$(dpkg-deb --contents "$DEB" | awk '$NF ~ /^\.\/usr\/bin\// { sub(/^\./, "", $NF); print $NF; exit }')"
           test -n "$PACKAGE_NAME"
-          test -n "$INSTALLED_BIN"
 
           sudo apt-get install -y "$DEB"
           dpkg-query -W -f='${Status}' "$PACKAGE_NAME" | grep -Fq 'install ok installed'
-          test -x "$INSTALLED_BIN"
+
+          INSTALLED_BIN=""
+          while IFS= read -r installed_path; do
+            if [ -f "$installed_path" ] && [ -x "$installed_path" ]; then
+              INSTALLED_BIN="$installed_path"
+              break
+            fi
+          done < <(dpkg-query -L "$PACKAGE_NAME")
+          if [ -z "$INSTALLED_BIN" ]; then
+            echo "No executable file was installed by DEB package $PACKAGE_NAME." >&2
+            dpkg-query -L "$PACKAGE_NAME" >&2
+            exit 1
+          fi
+          echo "Installed Ghost FTP executable: $INSTALLED_BIN"
 
           sudo apt-get remove -y "$PACKAGE_NAME"
           if dpkg-query -W -f='${Status}' "$PACKAGE_NAME" 2>/dev/null | grep -Fq 'install ok installed'; then
