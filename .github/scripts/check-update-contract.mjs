@@ -57,7 +57,6 @@ for (const rel of [
 
 const userFacing = [
   "ghostftp-desktop/src/components/AboutDialog.tsx",
-  "website/support/index.html",
 ];
 for (const rel of userFacing) {
   const source = read(rel);
