@@ -2,7 +2,7 @@ name: Ghost FTP release
 
 on:
   workflow_run:
-    workflows: ["Ghost FTP native preview build"]
+    workflows: ["Ghost FTP native build"]
     types: [completed]
 
 permissions:
@@ -21,7 +21,7 @@ jobs:
       should_publish: ${{ steps.latest.outputs.should_publish }}
     steps:
       - id: latest
-        name: Accept only the newest native-preview run for this source SHA
+        name: Accept only the newest native-build run for this source SHA
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          LATEST_ID="$(gh run list --workflow ghostftp-native-preview.yml --commit "$SOURCE_SHA" --limit 20 --json databaseId,createdAt --jq 'sort_by(.createdAt) | reverse | .[0].databaseId // ""')"
+          LATEST_ID="$(gh run list --workflow ghostftp-build.yml --commit "$SOURCE_SHA" --limit 20 --json databaseId,createdAt --jq 'sort_by(.createdAt) | reverse | .[0].databaseId // ""')"
           test -n "$LATEST_ID"
           if [ "$LATEST_ID" = "$TRIGGER_RUN_ID" ]; then
             echo "should_publish=true" >> "$GITHUB_OUTPUT"
@@ -79,7 +79,6 @@ jobs:
 
           wait_for_gate "ghostftp-quality.yml" "source audit"
           wait_for_gate "ghostftp-protocol-e2e.yml" "FTP/FTPS/SFTP E2E"
-          wait_for_gate "ghostftp-build.yml" "native production build"
           wait_for_gate "ghostftp-android.yml" "Android"
           wait_for_gate "validate-win-hardening.yml" "Windows hardening"
 
@@ -159,6 +158,17 @@ jobs:
           cp "$DEB" "dist/GhostFTP-Linux-amd64-v$VERSION.deb"
           cp "$RPM" "dist/GhostFTP-Linux-x86_64-v$VERSION.rpm"
           cp "$ANDROID_APK" "dist/GhostFTP-Android-v$VERSION.apk"
+
+          QA_DIR="$(find dist/native -type d -name 'GhostFTP-Windows-x64-Preview-QA' | head -n1 || true)"
+          test -n "$QA_DIR"
+          QA_PNG_COUNT="$(find "$QA_DIR" -type f -iname '*.png' | wc -l | tr -d ' ')"
+          QA_TXT_COUNT="$(find "$QA_DIR" -type f -iname '*.txt' | wc -l | tr -d ' ')"
+          test "$QA_PNG_COUNT" -ge 7
+          test "$QA_TXT_COUNT" -ge 7
+          (
+            cd "$QA_DIR"
+            zip -q "$GITHUB_WORKSPACE/dist/GhostFTP-Windows-x64-v$VERSION-Native-QA.zip" ./*
+          )
 
           (cd dist && zip -q "GhostFTP-Windows-x64-v$VERSION.zip" "GhostFTP-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.exe")
           (cd dist && tar -czf "GhostFTP-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Linux-x86_64-v$VERSION" "GhostFTP-Linux-x86_64-v$VERSION.AppImage" "GhostFTP-Linux-amd64-v$VERSION.deb" "GhostFTP-Linux-x86_64-v$VERSION.rpm")
