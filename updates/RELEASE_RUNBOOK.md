@@ -23,13 +23,12 @@ Pull requests:
 
 `main`:
 
-- requires the Tauri signing private key;
-- builds through `src-tauri/updater-release.conf.json`;
-- produces the normal Windows NSIS Setup and Linux AppImage;
-- produces a signature file for each update package;
-- uploads packages/signatures as native-build artifacts.
+- always builds the normal Windows NSIS Setup, Linux AppImage/DEB/RPM and native executables;
+- when the Tauri signing private key is configured, also builds through `src-tauri/updater-release.conf.json`;
+- with signing enabled, produces a signature file for the Windows Setup and Linux AppImage;
+- uploads the normal packages in either mode and the signature files only when they actually exist.
 
-If the signing secret is missing, the canonical main build must fail rather than publish an update that installed clients cannot verify.
+If the signing secret is missing, the canonical native build remains valid for ordinary GitHub Release packages, but the release workflow deliberately omits the in-app web update bundle. This prevents an unsigned package from ever being advertised through the signed desktop updater.
 
 ## Release workflow
 
@@ -39,10 +38,9 @@ The release workflow:
 2. downloads the signed native artifacts from the successful main build;
 3. normalizes versioned public asset names;
 4. publishes Windows Setup/AppImage and their signature files;
-5. creates the Tauri-compatible web update response from the **contents** of the signature files;
+5. when both updater signatures are present, creates the Tauri-compatible web update response from the **contents** of the signature files;
 6. validates that response;
-7. creates `GhostFTP-v<version>-latest.json`;
-8. creates `GhostFTP-v<version>-Web-Update.zip` containing `updates/latest.json`;
+7. creates `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Web-Update.zip` only in signed-updater mode;
 9. generates SHA-256 checksums;
 10. creates/updates the immutable version release at the exact source SHA;
 11. verifies GitHub asset digests.
