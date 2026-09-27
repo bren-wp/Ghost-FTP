@@ -18,17 +18,32 @@
   <a href="docs/assets/screenshots/ghostftp-native-files.png"><img src="docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP native Files workspace" width="100%"></a>
 </p>
 
-<p align="center"><sub><strong>Actual native application screenshot.</strong> Captured from the native Windows QA path at the canonical 1290×852 viewport.</sub></p>
+<p align="center"><sub><strong>Release-proven native application screenshot.</strong> Local documentation images are CI-verified to be byte-identical to files contained in the newest published Ghost FTP release tag.</sub></p>
 
 ## Current status
 
-- **Active source version:** `0.17.0` — development preview.
-- **Latest published GitHub release:** `0.16.0`.
+- **Active source/release cycle:** `0.18.0`.
+- **Previous canonical release:** `0.17.0`.
+- **Live published release status:** [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases) is authoritative and is queried dynamically by CI.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/`.
 - **Production Android source:** `android/`.
 
 Ghost FTP uses a pre-1.0 semantic-version train. Meaningful development cycles advance the minor version, published hotfixes advance the patch version, and version-only commits are not used.
+
+## Documentation image provenance
+
+README and active documentation must never show screenshots or local product images that are newer than the latest published Ghost FTP release.
+
+The quality workflow:
+
+- resolves the newest non-draft GitHub Release tag;
+- scans repository Markdown image references;
+- validates the full `docs/assets/screenshots/` set;
+- compares every local image Git blob with the same path in that release tag;
+- fails if a referenced image is missing from the latest release or has drifted.
+
+This keeps documentation visuals tied to released product state instead of unreleased UI.
 
 ## Core product
 
@@ -54,13 +69,9 @@ The native desktop build produces the executable plus AppImage, DEB and RPM pack
 
 ### Android
 
-The native Kotlin application supports FTP, explicit FTPS and SFTP file workflows. The CI artifact used by the canonical release path is an installable preview APK verified with `apksigner`; the separate unsigned release variant is a validation artifact and is not the canonical end-user APK.
+The native Kotlin application supports FTP, explicit FTPS and SFTP file workflows. CI verifies the installable preview APK with `apksigner`; the separate unsigned release variant is a validation artifact and is not the canonical end-user APK.
 
 Production mobile signing policy remains a stable-release acceptance item.
-
-## Website
-
-The `website/` source contains the public landing pages and production routes for download, security and support, together with localized landing pages and sitemap metadata.
 
 ## Build
 
@@ -99,20 +110,19 @@ gradle -p android lintDebug lintRelease lintPreview assembleDebug assembleReleas
 
 Changes intended for `main` are validated against the exact PR HEAD by:
 
-- **Ghost FTP quality**
-- **Ghost FTP protocol E2E**
-- **Ghost FTP native preview build**
-- **Ghost FTP native build**
-- **Ghost FTP Android**
-- **Validate Windows hardening**
+- **Ghost FTP quality** — version/docs/image provenance, frontend, Go and Rust workspace checks.
+- **Ghost FTP protocol E2E** — real FTP, explicit FTPS and SFTP roundtrips.
+- **Ghost FTP native build** — Windows/Linux production bundles plus Windows native-window QA evidence.
+- **Ghost FTP Android** — Android contract, lint/build, signature/package and APK artifact verification.
+- **Validate Windows hardening** — Windows-specific process, UI, Rust and NSIS hardening.
 
 A successful compile alone is not a stable/FINAL acceptance claim.
 
 ## Release model
 
-The canonical release workflow is **Ghost FTP release**. It publishes versioned Windows, Linux, Android, source, website, update, documentation and SHA-256 assets from a verified source SHA. Existing tags/releases are not retargeted to newer source.
+The canonical release workflow is **Ghost FTP release**. It is triggered by the successful production native build on `main`, waits for the remaining exact-SHA gates, consumes that same build's Windows/Linux artifacts, adds the verified Android APK and native QA evidence, and publishes normalized source/documentation/checksum assets.
 
-Published legacy release identifiers were migrated to the canonical `0.x` history. Historical alias/provenance information is kept in `docs/releases/version-map.json`; active product documentation uses only the canonical version train.
+Existing version tags are immutable: publication refuses to retarget a tag to different source.
 
 ## Repository layout
 
