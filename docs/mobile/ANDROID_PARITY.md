@@ -21,6 +21,10 @@ Android keeps the same primary product model as desktop where it makes sense on 
 - one application surface;
 - Ghost mark and Ghost FTP wordmark;
 - Files workspace;
+- Sites workspace/navigation;
+- Transfers workspace/navigation;
+- Settings security/privacy surface;
+- Help & About product/release surface;
 - connection surface for FTP, explicit FTPS and SFTP;
 - SFTP host-key fingerprint input/verification;
 - remote listing with folder navigation and file selection;
