@@ -44,7 +44,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 35
-          target: google_apis
+          target: aosp_atd
           arch: x86_64
           disable-animations: true
           pre-emulator-launch-script: |
@@ -53,14 +53,46 @@ jobs:
             adb version
             adb devices
           script: |
-            set -euo pipefail
-            gradle -p android connectedDebugAndroidTest
-            mkdir -p dist/android
+            set -uo pipefail
+            mkdir -p dist/android/diagnostics
+
+            adb wait-for-device
+            adb shell input keyevent KEYCODE_WAKEUP || true
+            adb shell wm dismiss-keyguard || true
+            adb shell svc power stayon true || true
+            adb shell settings put system screen_off_timeout 2147483647 || true
+            adb shell settings put global window_animation_scale 0.0 || true
+            adb shell settings put global transition_animation_scale 0.0 || true
+            adb shell settings put global animator_duration_scale 0.0 || true
+
+            set +e
+            gradle -p android connectedDebugAndroidTest --stacktrace
+            TEST_EXIT=$?
+            set -e
+
+            adb shell dumpsys window windows > dist/android/diagnostics/window.txt || true
+            adb shell dumpsys activity activities > dist/android/diagnostics/activities.txt || true
+            adb logcat -d -v threadtime > dist/android/diagnostics/logcat.txt || true
+            adb exec-out screencap -p > dist/android/diagnostics/post-test-screen.png || true
+
+            if [ "$TEST_EXIT" -ne 0 ]; then
+              exit "$TEST_EXIT"
+            fi
+
             adb shell am force-stop com.ghostftp.android || true
-            adb shell monkey -p com.ghostftp.android 1 >/dev/null
+            adb shell am start -W -n com.ghostftp.android/.MainActivity
             sleep 2
             adb exec-out screencap -p > dist/android/GhostFTP-Android-UI-Smoke.png
             test -s dist/android/GhostFTP-Android-UI-Smoke.png
+      - name: Upload Android instrumentation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GhostFTP-Android-Instrumentation-Diagnostics
+          path: |
+            dist/android/diagnostics/*
+          if-no-files-found: ignore
+
       - name: Prepare Android APK artifacts
         shell: bash
         run: |
