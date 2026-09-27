@@ -3,7 +3,7 @@ Version 1.0 — Effective 19 September 2026
 
 IMPORTANT — READ CAREFULLY BEFORE INSTALLING OR USING GHOST FTP.
 
-This Commercial Software License Agreement (the “Agreement”) is a legally binding agreement governing the installation, access to, and use of the Ghost FTP desktop application, installers, updates, documentation, associated command-line components, and related materials (collectively, the “Software”).
+This Commercial Software License Agreement (the “Agreement”) is a legally binding agreement governing the installation, access to, and use of the Ghost FTP applications for Windows, Linux and Android, their installers/packages, updates, documentation, associated command-line components, and related materials (collectively, the “Software”).
 
 LICENSOR
 “Licensor” means Brendigo LTD and Brendigo, obrt za programiranje, acting individually or together as applicable to the order, invoice, subscription, licence key, distribution channel, or other commercial arrangement under which the Software is supplied. The entity identified on the applicable commercial document is the contracting licensor. Where no entity is identified, Brendigo LTD and Brendigo, obrt za programiranje jointly administer the licence for the Ghost FTP product.
