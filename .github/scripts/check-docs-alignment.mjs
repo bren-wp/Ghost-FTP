@@ -24,6 +24,12 @@ const requireIncludes = (rel, needle, label) => {
 
 const operationalDocs = [
   "README.md",
+  "CHANGELOG.md",
+  "SECURITY.md",
+  "LICENSE.txt",
+  "EULA.txt",
+  "docs/legal/PRIVACY.md",
+  "docs/legal/THIRD_PARTY_NOTICES.md",
   "docs/README.md",
   "docs/ROADMAP.md",
   "docs/architecture/NAMING.md",
@@ -63,6 +69,7 @@ const forbidden = [
   [/ghostftp-native-preview/i, "obsolete duplicate native-build workflow"],
   [/\bwebsite\//i, "obsolete website source path"],
   [/GhostFTP-v<version>-Website\.zip/i, "obsolete website release archive"],
+  [/https?:\/\/(?:www\.)?ghostftp\.com/i, "retired public website URL"],
 ];
 
 for (const rel of operationalDocs) {
