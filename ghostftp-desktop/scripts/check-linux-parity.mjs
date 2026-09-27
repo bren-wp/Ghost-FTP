@@ -21,9 +21,11 @@ expect('release build stamp matches central build', contains('src/lib/release.ts
 expect('Linux Tauri package version matches central version', contains('src-tauri/tauri.conf.json', `"version": "${version}"`));
 expect('Linux Rust package version matches central version', contains('src-tauri/Cargo.toml', `version = "${version}"`));
 expect('fallback runtime helper matches central version', contains('../tools/ghostftp-runtime/main.go', `const version = "${version}"`));
-expect('Linux update channel matches central version', contains('../updates/channels/preview.template.json', `"version": "${version}"`));
-expect('Linux latest update manifest matches central version', contains('../updates/latest.template.json', `"version": "${version}"`));
-expect('Linux latest update build matches central build', contains('../updates/latest.template.json', `"build": "${build}"`));
+expect('Linux latest update service template matches central version', contains('../updates/latest.template.json', `"version": "${version}"`));
+expect(
+  'Linux latest update service points at the canonical versioned AppImage',
+  contains('../updates/latest.template.json', `GhostFTP-Linux-x86_64-v${version}.AppImage`)
+);
 expect('native build includes AppImage', matches(nativeWorkflow, /--bundles deb,rpm,appimage/));
 expect('native build uploads Linux preview artifact', contains(nativeWorkflow, 'GhostFTP-Linux-x86_64-Preview'));
 expect('canonical release normalizes Linux binary', contains(releaseWorkflow, 'GhostFTP-Linux-x86_64-v$VERSION'));
