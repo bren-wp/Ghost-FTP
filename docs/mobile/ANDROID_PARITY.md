@@ -6,8 +6,8 @@ Ghost FTP Android follows the same product identity and file-action model as the
 
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
-- Active source version: **0.18.0**
-- Previous canonical release: **0.17.0**
+- Active source version: **0.19.0**
+- Latest published canonical release: **0.18.0**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical release asset: `GhostFTP-Android-v<version>.apk`

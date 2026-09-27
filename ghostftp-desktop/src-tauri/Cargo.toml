@@ -1,6 +1,6 @@
 [package]
 name = "ghostftp"
-version = "0.18.0"
+version = "0.19.0"
 edition = "2021"
 description = "Ghost FTP — secure modern FTP, FTPS, SFTP and SSH file transfer client."
 authors = ["Brendigo LTD", "Brendigo, obrt za programiranje"]
@@ -184,5 +184,6 @@ incremental = true
 [profile.release]
 lto = true
 codegen-units = 1
+opt-level = "s"
 panic = "abort"
 strip = true

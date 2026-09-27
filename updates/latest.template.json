@@ -1,19 +1,15 @@
 {
-  "version": "0.18.0",
-  "build": "2026.09.27.18",
-  "notes": "Ghost FTP 0.17.0",
+  "version": "0.19.0",
+  "notes": "Ghost FTP 0.19.0",
   "pub_date": "REPLACE_WITH_RFC3339",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://ghostftp.com/REPLACE_WITH_SIGNED_WINDOWS_PACKAGE",
-      "signature": "REPLACE_WITH_TAURI_SIGNATURE",
-      "sha256": "REPLACE_WITH_SHA256"
+      "url": "https://github.com/bren-wp/Ghost-FTP/releases/download/v0.19.0/GhostFTP-Windows-x64-Setup-v0.19.0.exe",
+      "signature": "REPLACE_WITH_CONTENTS_OF_WINDOWS_SIG"
     },
     "linux-x86_64": {
-      "url": "https://ghostftp.com/REPLACE_WITH_SIGNED_LINUX_PACKAGE",
-      "signature": "REPLACE_WITH_TAURI_SIGNATURE",
-      "sha256": "REPLACE_WITH_SHA256"
+      "url": "https://github.com/bren-wp/Ghost-FTP/releases/download/v0.19.0/GhostFTP-Linux-x86_64-v0.19.0.AppImage",
+      "signature": "REPLACE_WITH_CONTENTS_OF_LINUX_SIG"
     }
-  },
-  "minimum_supported_version": "REPLACE_WITH_MIN_VERSION"
+  }
 }

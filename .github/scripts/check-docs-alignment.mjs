@@ -96,6 +96,11 @@ for (const rel of [
 requireFile("docs/releases/README.md");
 requireFile("docs/releases/version-map.json");
 requireFile(".github/workflows/ghostftp-release.yml");
+requireFile("updates/README.md");
+requireFile("updates/WEB_DEPLOYMENT.md");
+requireFile("updates/RELEASE_RUNBOOK.md");
+requireFile("updates/SECURITY.md");
+requireFile("updates/latest.template.json");
 
 for (const obsolete of [
   ".github/workflows/backfill-0.15.0.yml",

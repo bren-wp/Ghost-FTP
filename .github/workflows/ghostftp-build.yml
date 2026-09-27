@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - 'ghostftp-desktop/**'
+      - 'updates/**'
       - 'version.json'
       - 'README.md'
       - 'CHANGELOG.md'
@@ -59,7 +60,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm
       - name: Validate central version metadata
         shell: bash
         run: node .github/scripts/sync-version.mjs --check
@@ -84,13 +85,121 @@ jobs:
           test -s Cargo.lock
           cargo metadata --locked --format-version 1 >/dev/null
 
+      - name: Verify desktop update signing secrets
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$TAURI_SIGNING_PRIVATE_KEY"
+          echo "Desktop update signing key is configured."
+
       - name: Build Ghost FTP desktop bundle
+        if: github.event_name != 'push'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: ghostftp-desktop
           args: ${{ matrix.args }}
+
+      - name: Build signed Ghost FTP desktop and updater bundle
+        if: github.event_name == 'push'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: ghostftp-desktop
+          args: --config src-tauri/updater-release.conf.json ${{ matrix.args }}
+      - name: Windows Setup install and uninstall smoke
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/nsis' -Filter '*.exe' -Recurse |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $setup) { throw 'NSIS Setup executable was not produced.' }
+
+          $installDir = Join-Path $env:RUNNER_TEMP 'GhostFTP-Setup-Smoke'
+          Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+
+          $install = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$installDir") -PassThru -Wait
+          if ($install.ExitCode -ne 0) { throw "Ghost FTP Setup failed with exit code $($install.ExitCode)" }
+
+          $installedExe = Get-ChildItem $installDir -Filter '*.exe' -Recurse |
+            Where-Object { $_.Name -notmatch 'uninstall' } |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $installedExe -or $installedExe.Length -le 0) {
+            throw 'Ghost FTP executable was not installed by Setup.'
+          }
+
+          $uninstaller = Get-ChildItem $installDir -Filter '*uninstall*.exe' -Recurse | Select-Object -First 1
+          if (-not $uninstaller) { throw 'Ghost FTP uninstaller was not installed.' }
+
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Ghost FTP uninstaller failed with exit code $($uninstall.ExitCode)" }
+
+          for ($attempt = 0; $attempt -lt 20 -and (Test-Path $installedExe.FullName); $attempt++) {
+            Start-Sleep -Milliseconds 500
+          }
+          if (Test-Path $installedExe.FullName) {
+            throw 'Ghost FTP executable remained after silent uninstall.'
+          }
+
+      - name: Linux package lifecycle smoke
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPIMAGE="$(realpath "$(find ghostftp-desktop/src-tauri/target/release/bundle/appimage -type f -iname '*.AppImage' | head -n1)")"
+          DEB="$(realpath "$(find ghostftp-desktop/src-tauri/target/release/bundle/deb -type f -iname '*.deb' | head -n1)")"
+          RPM="$(realpath "$(find ghostftp-desktop/src-tauri/target/release/bundle/rpm -type f -iname '*.rpm' | head -n1)")"
+
+          test -s "$APPIMAGE"
+          test -s "$DEB"
+          test -s "$RPM"
+
+          chmod +x "$APPIMAGE"
+          "$APPIMAGE" --appimage-version
+          dpkg-deb --info "$DEB" >/dev/null
+          rpm -qip "$RPM" >/dev/null
+
+          PACKAGE_NAME="$(dpkg-deb -f "$DEB" Package)"
+          test -n "$PACKAGE_NAME"
+
+          sudo apt-get install -y "$DEB"
+          dpkg-query -W -f='${Status}' "$PACKAGE_NAME" | grep -Fq 'install ok installed'
+
+          INSTALLED_BIN=""
+          while IFS= read -r installed_path; do
+            if [ -f "$installed_path" ] && [ -x "$installed_path" ]; then
+              INSTALLED_BIN="$installed_path"
+              break
+            fi
+          done < <(dpkg-query -L "$PACKAGE_NAME")
+          if [ -z "$INSTALLED_BIN" ]; then
+            echo "No executable file was installed by DEB package $PACKAGE_NAME." >&2
+            dpkg-query -L "$PACKAGE_NAME" >&2
+            exit 1
+          fi
+          echo "Installed Ghost FTP executable: $INSTALLED_BIN"
+
+          sudo apt-get remove -y "$PACKAGE_NAME"
+          if dpkg-query -W -f='${Status}' "$PACKAGE_NAME" 2>/dev/null | grep -Fq 'install ok installed'; then
+            echo "Ghost FTP package still reports installed after remove." >&2
+            exit 1
+          fi
+          if [ -e "$INSTALLED_BIN" ]; then
+            echo "Ghost FTP executable remains after package removal: $INSTALLED_BIN" >&2
+            exit 1
+          fi
+
       - name: Capture Windows native-window QA evidence
         if: runner.os == 'Windows'
         shell: pwsh
@@ -663,13 +772,84 @@ jobs:
       # validated and uploaded above as QA evidence, but are not compared
       # against release-proven README images here.
 
+      - name: Collect Windows release-native artifacts
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force dist/native | Out-Null
+          $portable = 'ghostftp-desktop/src-tauri/target/release/ghostftp.exe'
+          if (-not (Test-Path $portable)) { throw "Missing portable executable: $portable" }
+          Copy-Item $portable 'dist/native/ghostftp.exe'
+
+          $setup = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/nsis' -Filter '*.exe' -Recurse |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $setup) { throw 'Missing NSIS Setup executable.' }
+          Copy-Item $setup.FullName 'dist/native/GhostFTP-Windows-x64-Setup.exe'
+
+          if ('${{ github.event_name }}' -eq 'push') {
+            $setupSig = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/nsis' -Filter '*.exe.sig' -Recurse |
+              Select-Object -First 1
+            if (-not $setupSig) { throw 'Signed Windows updater signature was not produced.' }
+            Copy-Item $setupSig.FullName 'dist/native/GhostFTP-Windows-x64-Setup.exe.sig'
+          }
+
+          $portableBytes = (Get-Item 'dist/native/ghostftp.exe').Length
+          $setupBytes = (Get-Item 'dist/native/GhostFTP-Windows-x64-Setup.exe').Length
+          if ($portableBytes -gt 29360128) { throw "Portable executable exceeds 28 MiB budget: $portableBytes bytes" }
+          if ($setupBytes -gt 12582912) { throw "Setup executable exceeds 12 MiB budget: $setupBytes bytes" }
+
+          "### Windows native artifact sizes" >> $env:GITHUB_STEP_SUMMARY
+          "- portable.exe: $([Math]::Round($portableBytes / 1MB, 2)) MiB" >> $env:GITHUB_STEP_SUMMARY
+          "- setup.exe: $([Math]::Round($setupBytes / 1MB, 2)) MiB" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Collect Linux release-native artifacts
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/native
+
+          BIN='ghostftp-desktop/src-tauri/target/release/ghostftp'
+          APPIMAGE="$(find ghostftp-desktop/src-tauri/target/release/bundle/appimage -type f -iname '*.AppImage' | head -n1)"
+          DEB="$(find ghostftp-desktop/src-tauri/target/release/bundle/deb -type f -iname '*.deb' | head -n1)"
+          RPM="$(find ghostftp-desktop/src-tauri/target/release/bundle/rpm -type f -iname '*.rpm' | head -n1)"
+
+          test -s "$BIN"; test -s "$APPIMAGE"; test -s "$DEB"; test -s "$RPM"
+          cp "$BIN" dist/native/ghostftp
+          cp "$APPIMAGE" dist/native/GhostFTP-Linux-x86_64.AppImage
+          cp "$DEB" dist/native/GhostFTP-Linux-amd64.deb
+          cp "$RPM" dist/native/GhostFTP-Linux-x86_64.rpm
+          chmod +x dist/native/ghostftp dist/native/GhostFTP-Linux-x86_64.AppImage
+
+          if [ "${{ github.event_name }}" = "push" ]; then
+            APPIMAGE_SIG="$(find ghostftp-desktop/src-tauri/target/release/bundle/appimage -type f -iname '*.AppImage.sig' | head -n1)"
+            test -s "$APPIMAGE_SIG"
+            cp "$APPIMAGE_SIG" dist/native/GhostFTP-Linux-x86_64.AppImage.sig
+          fi
+
+          bin_bytes="$(stat -c %s dist/native/ghostftp)"
+          appimage_bytes="$(stat -c %s dist/native/GhostFTP-Linux-x86_64.AppImage)"
+          deb_bytes="$(stat -c %s dist/native/GhostFTP-Linux-amd64.deb)"
+          rpm_bytes="$(stat -c %s dist/native/GhostFTP-Linux-x86_64.rpm)"
+
+          test "$bin_bytes" -le 31457280
+          test "$appimage_bytes" -le 99614720
+          test "$deb_bytes" -le 15728640
+          test "$rpm_bytes" -le 15728640
+
+          {
+            echo '### Linux native artifact sizes'
+            awk "BEGIN { printf \"- native binary: %.2f MiB\\n\", $bin_bytes/1048576 }"
+            awk "BEGIN { printf \"- AppImage: %.2f MiB\\n\", $appimage_bytes/1048576 }"
+            awk "BEGIN { printf \"- DEB: %.2f MiB\\n\", $deb_bytes/1048576 }"
+            awk "BEGIN { printf \"- RPM: %.2f MiB\\n\", $rpm_bytes/1048576 }"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload native bundles
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: |
-            ghostftp-desktop/src-tauri/target/release/bundle/**
-            ghostftp-desktop/src-tauri/Cargo.lock
-            ghostftp-desktop/src-tauri/target/release/ghostftp.exe
-            ghostftp-desktop/src-tauri/target/release/ghostftp
+          path: dist/native/*
           if-no-files-found: error

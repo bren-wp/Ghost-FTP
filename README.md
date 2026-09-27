@@ -22,8 +22,8 @@
 
 ## Current status
 
-- **Active source/release cycle:** `0.18.0`.
-- **Previous canonical release:** `0.17.0`.
+- **Active source/release cycle:** `0.19.0`.
+- **Latest published canonical release:** `0.18.0`.
 - **Live published release status:** [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases) is authoritative and is queried dynamically by CI.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/`.
@@ -61,11 +61,11 @@ Ghost FTP combines secure server connections, dual-pane file management, saved s
 
 ### Windows x64
 
-The production Windows application is the native Tauri desktop build. Release packaging provides a portable executable and an NSIS Setup executable. Background helper processes are hardened to avoid unintended console-window flashes.
+The production Windows application is the native Tauri desktop build. Release packaging provides a portable executable and a branded NSIS Setup executable with EULA acceptance, Ghost FTP artwork and install/uninstall lifecycle smoke coverage. Background helper processes are hardened to avoid unintended console-window flashes.
 
 ### Linux x86-64
 
-The native desktop build produces the executable plus AppImage, DEB and RPM packages.
+The native desktop build produces the executable plus AppImage, DEB and RPM packages. Release CI also validates AppImage metadata and DEB install/remove behavior, while RPM metadata is verified before publication.
 
 ### Android
 

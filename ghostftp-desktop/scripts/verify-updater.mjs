@@ -121,6 +121,12 @@ async function main() {
     // ---- 1. Up to date: no mock update → "latest version" ----
     await drive(() => { delete window.__mockUpdate; });
     check("idle state offers a 'Check for updates' button", /Check for updates/.test(await text()));
+    const updateViewText = await text();
+    check(
+      "user-facing updater hides transport implementation details",
+      !/latest\.json|\bjson\b|\bmanifest\b|update endpoint/i.test(updateViewText),
+      updateViewText.match(/latest\.json|\bjson\b|\bmanifest\b|update endpoint/i)?.[0] ?? ""
+    );
     await clickButton("Check for updates");
     await sleep(400);
     check("no update available → 'latest version'", /latest version/i.test(await text()));

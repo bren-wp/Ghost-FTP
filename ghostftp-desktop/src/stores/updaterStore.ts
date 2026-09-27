@@ -7,8 +7,9 @@ import { messageOf } from "@/lib/errors";
 
 // In-app auto-updater. The persistent application shell performs a throttled,
 // quiet launch check; Help & About → Updates owns all user-facing update actions.
-// Tauri verifies the signed artifact against the public key in tauri.conf.json
-// before installation, and the process plugin performs the explicit restart.
+// The native updater verifies each offered package before installation, while
+// the process plugin performs the explicit restart. Transport details are never
+// surfaced in user-facing messages.
 //
 // `heldUpdate` keeps the non-serializable plugin Update object between the
 // check and download; only plain, renderable fields live in the store.
@@ -18,6 +19,35 @@ let heldUpdate: Update | null = null;
 /** How long to wait between quiet launch checks (persisted via `lastUpdateCheck`
  *  in ghostftp.db so it survives restarts, per the plan). */
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+function friendlyUpdateError(error: unknown, phase: "check" | "download"): string {
+  const detail = messageOf(error);
+  console.warn(`Ghost FTP updater ${phase} detail:`, detail);
+  const normalized = detail.toLowerCase();
+
+  if (
+    normalized.includes("signature") ||
+    normalized.includes("verify") ||
+    normalized.includes("public key") ||
+    normalized.includes("tamper")
+  ) {
+    return "Ghost FTP couldn't verify the update package. Nothing was installed.";
+  }
+  if (
+    normalized.includes("network") ||
+    normalized.includes("http") ||
+    normalized.includes("request") ||
+    normalized.includes("connect") ||
+    normalized.includes("timeout") ||
+    normalized.includes("404") ||
+    normalized.includes("dns")
+  ) {
+    return "Ghost FTP couldn't reach the update service. Check your internet connection and try again.";
+  }
+  return phase === "download"
+    ? "Ghost FTP couldn't install the update. Your current installation was left unchanged."
+    : "Ghost FTP couldn't complete the update check. Please try again later.";
+}
 
 export type UpdaterStatus =
   | "idle" // no check run yet, or up to date
@@ -81,12 +111,13 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
       }
     } catch (e) {
       heldUpdate = null;
-      // A missing/unbuilt latest.json (404) is expected until the signed release
-      // pipeline is live — never nag on launch. Manual checks show the error.
+      // Quiet launch checks never nag. Manual checks show only a safe,
+      // user-facing summary; technical transport details stay in the console.
       if (quiet) {
+        console.warn("Quiet update check failed", messageOf(e));
         set({ status: "idle" });
       } else {
-        const message = messageOf(e);
+        const message = friendlyUpdateError(e, "check");
         set({ status: "error", error: message });
         toast.error("Update check failed", message);
       }
@@ -112,7 +143,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
       heldUpdate = null;
       set({ status: "ready" });
     } catch (e) {
-      const message = messageOf(e);
+      const message = friendlyUpdateError(e, "download");
       // Keep the verified Update handle so a transient network/install error
       // can be retried without discarding the already offered release.
       set({

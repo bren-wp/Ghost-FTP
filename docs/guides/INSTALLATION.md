@@ -28,6 +28,8 @@ The Setup executable is the production **native Tauri NSIS package**. It is not 
 
 The portable executable runs without an installation workflow. The Setup executable installs the application using the native package configuration and should be used when normal installed-app integration is preferred.
 
+The interactive Setup is branded with Ghost FTP artwork and follows a guided Windows installer flow. Before installation it presents the Ghost FTP EULA from the repository root; installation must not continue interactively unless the user accepts the licence terms. The installer uses the Ghost FTP application icon, branded header/sidebar artwork, a Ghost FTP Start Menu folder, and automatically follows the supported Windows locale (English/Croatian installer resources are enabled).
+
 Production-signing policy is tracked separately from package generation; do not treat an unsigned development artifact as a stable/FINAL signing claim.
 
 ## Linux x86-64

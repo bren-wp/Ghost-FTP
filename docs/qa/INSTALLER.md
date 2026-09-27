@@ -9,6 +9,17 @@ Windows production packaging is generated from the authoritative Ghost FTP deskt
 
 The current production Windows packaging path generates an NSIS Setup bundle. The active workflow does not publish MSI packages.
 
+The Setup contract requires:
+
+- Ghost FTP installer and uninstaller icons;
+- Ghost FTP header/sidebar branding artwork;
+- `EULA.txt` as the NSIS licence page source;
+- English and Croatian installer language resources;
+- current-user installation by default, avoiding unnecessary elevation;
+- Ghost FTP Start Menu grouping;
+- CI validation of the branding/EULA configuration and bitmap dimensions;
+- a real silent install/uninstall smoke test of the produced Setup executable.
+
 Linux production packaging publishes the native executable, AppImage, DEB and RPM.
 
 ## Product policy

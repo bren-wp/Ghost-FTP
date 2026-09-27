@@ -20,8 +20,8 @@ android {
         applicationId = "com.ghostftp.android"
         minSdk = 26
         targetSdk = 35
-        versionCode = 211027
-        versionName = "0.18.0"
+        versionCode = 211028
+        versionName = "0.19.0"
     }
 
     signingConfigs {
@@ -69,6 +69,6 @@ android {
 }
 
 dependencies {
-    implementation("commons-net:commons-net:3.11.1")
-    implementation("com.jcraft:jsch:0.1.55")
+    implementation("commons-net:commons-net:3.13.0")
+    implementation("com.github.mwiede:jsch:2.28.7")
 }

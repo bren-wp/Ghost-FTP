@@ -1,8 +1,25 @@
 # Changelog
 
-## 0.18.0 — development — 27 September 2026
+## 0.19.0 — development — 27 September 2026
 
-0.18.0 is a meaningful development cycle after published 0.17.0.
+0.19.0 is the active development cycle after published 0.18.0.
+
+- Branded the canonical Windows NSIS Setup with Ghost FTP installer/uninstaller icons, header/sidebar artwork and the root EULA as the interactive licence page.
+- Added real silent Setup install/uninstall smoke coverage to the canonical Windows native build.
+- Added Linux AppImage/DEB/RPM lifecycle and package metadata checks.
+- Updated Android FTP/FTPS and SFTP libraries to maintained releases.
+- Switched native release codegen to size-focused `opt-level = "s"` while retaining LTO, one codegen unit, panic abort and stripped symbols.
+- Explicitly disabled optional AppImage media-framework bundling because Ghost FTP does not require audio/video playback.
+- Reduced CI native artifact staging to final package files instead of expanded bundle directories.
+- Added artifact size budgets and build-summary size reporting.
+- Fixed updater note synchronization and hardened version-sync against concurrent branch pushes.
+- Kept README/documentation imagery pinned to the newest published release tag.
+
+See [docs/releases/0.19.0.md](docs/releases/0.19.0.md).
+
+## 0.18.0 — published — 27 September 2026
+
+0.18.0 was published after 0.17.0 and established the canonical release-image provenance/native-build flow.
 
 - Added CI provenance validation that keeps README/documentation images byte-identical to the newest published Ghost FTP release tag.
 - Consolidated duplicate Windows/Linux Tauri build paths into one canonical production native build.

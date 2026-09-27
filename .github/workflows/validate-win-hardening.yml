@@ -73,10 +73,3 @@ jobs:
           cargo test -p ghostftp-cli --no-default-features --lib --locked
           # Still compile-check the complete CLI runtime and ghostftp_lib integration.
           cargo check -p ghostftp-cli --locked
-      - name: Windows NSIS production bundle
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          projectPath: ghostftp-desktop
-          args: --bundles nsis
