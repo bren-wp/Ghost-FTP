@@ -31,6 +31,8 @@ Full capability detail: [FEATURES.md](FEATURES.md).
 - Smoke-tests the exact Windows Setup install/uninstall lifecycle produced by the release build.
 - Verifies Linux AppImage metadata plus DEB install/remove and RPM metadata in CI.
 - Refreshes Android FTP/FTPS and SFTP libraries to maintained releases.
+- Aligns Android navigation to Files, Sites, Transfers, Settings and Help & About and validates core actions in an emulator click-through smoke.
+- Removes the obsolete website application, website CI/release archive and website roadmap surface.
 - Uses size-focused native release codegen and keeps optional AppImage media bundling disabled.
 - Uploads only final native package files from CI and enforces artifact-size budgets.
 - Keeps Windows native-window QA inside the canonical build and packages QA evidence with releases.
