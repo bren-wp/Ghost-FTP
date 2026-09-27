@@ -22,7 +22,7 @@ The production desktop GUI is the native React + TypeScript + Tauri + Rust appli
 - Version/Cargo metadata synchronization: `.github/workflows/version-sync.yml`
 - Dependency-manifest Cargo lock refresh: `.github/workflows/cargo-lock-refresh.yml`
 
-The obsolete duplicate Windows/Linux native build workflow has been removed. The canonical native build now supplies both release binaries and Windows native-window QA evidence.
+The obsolete duplicate Windows/Linux native build workflow and website application surface have been removed. The canonical native build now supplies both release binaries and Windows native-window QA evidence. Android runs on every release-relevant PR and every `main` push and includes an emulator click-through smoke.
 
 ## 0.19.0 packaging and size hardening
 
@@ -83,7 +83,8 @@ Evidence applies only to the exact tested source SHA.
 
 - installable APK from the verified Android workflow artifact;
 - package/signature checks via `apksigner`;
-- separate unsigned release-check APK used for validation, not as the canonical end-user APK.
+- separate unsigned release-check APK used for validation, not as the canonical end-user APK;
+- emulator click-through test and real emulator UI screenshot evidence in the Android CI artifact.
 
 ### Source/support assets
 
