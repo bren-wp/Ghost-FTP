@@ -1,57 +1,48 @@
-# Ghost FTP Build Status — 25 September 2026
+# Ghost FTP Build Status — 27 September 2026
 
-## Authoritative source status
+## Authoritative current state
 
-**Ghost FTP 2.1.1 RC23 — all-platform release candidate. NOT FINAL until all gates and release packaging pass.**
+- **Active source:** Ghost FTP **0.17.0** development preview.
+- **Latest published release:** Ghost FTP **0.16.0**.
+- **Version source of truth:** `version.json`.
+- **Desktop production source:** `ghostftp-desktop/`.
+- **Android production source:** `android/`.
+- **Website source:** `website/`.
 
-The authoritative desktop application is `ghostftp-desktop/`. Production end-user GUI releases come from the native React + TypeScript + Tauri + Rust path, not a localhost/browser-shell compatibility host.
+The production desktop GUI is the native React + TypeScript + Tauri + Rust application. Go tooling under `tools/` is support/compatibility tooling and is not the authoritative end-user desktop GUI.
 
-The authoritative Android application is `android/`. Production Android release assets come from the native Android workflow and are pulled into the same GitHub Release as the Windows and Linux assets.
+## Current CI / build organization
 
-The authoritative public website source is `website/`. RC23 includes production routes for `/download/`, `/security/` and `/support/` plus the localized landing pages.
+- Quality: `.github/workflows/ghostftp-quality.yml` — **Ghost FTP quality**
+- Protocol E2E: `.github/workflows/ghostftp-protocol-e2e.yml` — **Ghost FTP protocol E2E**
+- Native preview bundles: `.github/workflows/ghostftp-native-preview.yml` — **Ghost FTP native preview build**
+- Native production build gate: `.github/workflows/ghostftp-build.yml` — **Ghost FTP native build**
+- Android: `.github/workflows/ghostftp-android.yml` — **Ghost FTP Android**
+- Windows hardening: `.github/workflows/validate-win-hardening.yml` — **Validate Windows hardening**
+- Canonical release orchestration: `.github/workflows/ghostftp-preview-release.yml` — **Ghost FTP release**
+- Version synchronization: `.github/workflows/version-sync.yml`
 
-## Build organization
+## Exact-head evidence
 
-- Desktop source: `ghostftp-desktop/`
-- Android source: `android/`
-- Website source: `website/`
-- Update manifest templates: `updates/`
-- Quality workflow: `.github/workflows/ghostftp-quality.yml`
-- Protocol E2E workflow: Ghost FTP protocol E2E
-- Historical native build workflow: `.github/workflows/ghostftp-build.yml`
-- RC23 native build workflow: `.github/workflows/ghostftp-native-rc23.yml`
-- Android workflow: `.github/workflows/ghostftp-android.yml`
-- Versioned release workflow: `.github/workflows/ghostftp-rc23-release.yml`
+PR #37 head `d471fdd77c0d99b2ca2834a71eb528e04813b936` passed all six primary gates before merge:
 
-## RC23 quality gates
+- Ghost FTP quality
+- Ghost FTP protocol E2E
+- Ghost FTP native preview build
+- Ghost FTP native build
+- Ghost FTP Android
+- Validate Windows hardening
 
-The exact RC23 candidate must pass:
+That evidence applies to that exact source SHA. Future changes require fresh exact-head validation.
 
-- npm clean install;
-- npm production dependency audit at high severity;
-- i18n parity check;
-- single-window/UI contract and privacy/security regression guards;
-- TypeScript typecheck and production frontend build;
-- Go tests and `go vet` for repository tooling;
-- website syntax and markup policy checks;
-- update-script syntax checks;
-- Rust formatting;
-- Rust workspace check;
-- Rust workspace tests;
-- Clippy with warnings denied;
-- real FTP, explicit FTPS and SFTP roundtrip E2E;
-- Windows x64 RC23 native bundle;
-- Linux x86-64 RC23 native binary/AppImage/DEB/RPM;
-- Android lint/build and APK artifact generation;
-- RC23 source, website, update, documentation and checksum packages.
-
-## RC23 platform scope
+## Platform artifact scope
 
 ### Windows x64
 
-- portable Ghost FTP EXE;
-- NSIS Setup EXE;
-- Windows bundle ZIP.
+- native portable executable;
+- NSIS Setup executable;
+- Windows archive;
+- native-window QA evidence where produced by the build workflow.
 
 ### Linux x86-64
 
@@ -59,28 +50,27 @@ The exact RC23 candidate must pass:
 - AppImage;
 - DEB;
 - RPM;
-- Linux bundle archive.
+- Linux archive.
 
 ### Android
 
-- installable APK;
-- FTP, explicit FTPS and SFTP listing/download/upload/delete/new-folder actions;
-- strict SFTP host-key fingerprint verification;
-- explicit FTPS protected data channel;
-- guarded upload/delete UX;
-- bounded activity log and lifecycle-safe UI updates.
+- installable APK from the verified Android workflow artifact;
+- package id `com.ghostftp.android.preview` for the installable preview artifact;
+- signature verification via `apksigner`;
+- separate unsigned release-check APK used for validation, not as the canonical end-user APK.
 
-### Website
+### Source/support assets
 
-- English homepage with Windows/Linux/Android RC23 copy;
-- Croatian homepage with Windows/Linux/Android RC23 copy;
-- `/download/` page;
-- `/security/` page;
-- `/support/` page;
-- sitemap entries for production pages and localized landing pages.
+- full source archive;
+- desktop source archive;
+- Android source archive;
+- website archive;
+- update metadata archive;
+- documentation archive;
+- SHA-256 checksum file.
 
 ## Release truth
 
-A successful build does not equal FINAL acceptance. RC23 publication uses an immutable version tag pointing at the exact source commit that passed the required workflows. Earlier release candidates remain unchanged.
+`0.17.0` is **not published** merely because the source version exists or CI compiles. The latest published release remains `0.16.0` until the canonical release workflow creates and verifies `v0.17.0`.
 
-RC23 must not be described as issued until `v2.1.1-rc.23` exists as a GitHub pre-release and includes Windows, Linux, Android, website/source/documentation and SHA-256 checksum assets.
+Stable/FINAL status is separate from publishing a development release and still requires the target-OS lifecycle, visual, security, accessibility and signing acceptance described in the QA/release documentation.
