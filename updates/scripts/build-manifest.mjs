@@ -22,9 +22,24 @@ if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(args.version)) {
 if (Number.isNaN(Date.parse(args["pub-date"]))) {
   throw new Error("pub-date must be an RFC 3339 date/time");
 }
+const expectedPackagePath = {
+  "windows-url": `/updates/package/GhostFTP-Windows-x64-Setup-v${args.version}.exe`,
+  "linux-url": `/updates/package/GhostFTP-Linux-x86_64-v${args.version}.AppImage`
+};
 for (const key of ["windows-url", "linux-url"]) {
   const url = new URL(args[key]);
-  if (url.protocol !== "https:") throw new Error(`${key} must use HTTPS`);
+  if (
+    url.protocol !== "https:" ||
+    url.hostname !== "ghostftp.com" ||
+    url.port !== "" ||
+    url.username !== "" ||
+    url.password !== "" ||
+    url.search !== "" ||
+    url.hash !== "" ||
+    url.pathname !== expectedPackagePath[key]
+  ) {
+    throw new Error(`${key} must use the canonical first-party ghostftp.com update package URL`);
+  }
 }
 
 const signature = (file, label) => {
