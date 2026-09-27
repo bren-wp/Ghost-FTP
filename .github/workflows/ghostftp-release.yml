@@ -149,12 +149,16 @@ jobs:
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$LINUX_BIN"
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"; test -n "$ANDROID_APK"
+          test -s "$WIN_SETUP.sig"
+          test -s "$APPIMAGE.sig"
 
           cp "$WIN_EXE" "dist/GhostFTP-Windows-x64-Portable-v$VERSION.exe"
           cp "$WIN_SETUP" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe"
+          cp "$WIN_SETUP.sig" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe.sig"
           cp "$LINUX_BIN" "dist/GhostFTP-Linux-x86_64-v$VERSION"
           chmod +x "dist/GhostFTP-Linux-x86_64-v$VERSION"
           cp "$APPIMAGE" "dist/GhostFTP-Linux-x86_64-v$VERSION.AppImage"
+          cp "$APPIMAGE.sig" "dist/GhostFTP-Linux-x86_64-v$VERSION.AppImage.sig"
           cp "$DEB" "dist/GhostFTP-Linux-amd64-v$VERSION.deb"
           cp "$RPM" "dist/GhostFTP-Linux-x86_64-v$VERSION.rpm"
           cp "$ANDROID_APK" "dist/GhostFTP-Android-v$VERSION.apk"
