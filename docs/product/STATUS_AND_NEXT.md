@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.17.0 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.18.0 development** source. Historical release details belong in `docs/releases/`.
 
-Latest published release at this point: **0.16.0**.
+Previous canonical release: **0.17.0**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -18,24 +18,22 @@ Latest published release at this point: **0.16.0**.
 | Preferences | Themes, language, transfer limits, security settings, notifications and advanced controls |
 | Security/privacy | OS credential storage where supported, CSP, signed-updater path, credential redaction and no required telemetry |
 | Android | Native FTP, explicit FTPS and SFTP listing/download/upload/delete/new-folder actions |
-| Android security | SHA-256 SFTP host-key verification, strict checking, FTPS protected data channel, timeouts and cleanup |
 | Website | Landing/localized pages plus download, security, support and sitemap routes |
 | Platforms | Windows portable + NSIS Setup; Linux binary/AppImage/DEB/RPM; Android APK |
-| Release QA | Quality, protocol E2E, native preview, native build, Android and Windows hardening exact-head gates |
+| Release QA | Quality, protocol E2E, canonical native build, Android and Windows hardening exact-head gates |
+| Documentation provenance | Local README/docs images are verified against the latest published release tag |
 
 Full capability detail: [FEATURES.md](FEATURES.md).
 
-## 0.17.0 hardening completed in source
+## 0.18.0 hardening in source
 
-- Canonical `0.x` release history is the active public version model.
-- `version.json` is the version/build source of truth.
-- Cargo dependency resolution is committed and checked with `--locked`.
-- Windows background helper processes use no-console hardening where required.
-- PATH detection avoids spawning `where.exe` merely to render status.
-- Android validation runs on every PR to `main`.
-- Version progression checks allow meaningful fixes to stay within the active development version and still reject invalid jumps.
-- Release publication is exact-SHA gated and sequential.
-- Active documentation is synchronized to canonical versions/workflow names.
+- Uses one authoritative Windows/Linux production build instead of compiling the same native bundles twice.
+- Keeps Windows native-window QA inside that canonical build and packages QA evidence with releases.
+- Verifies documentation image blobs against the newest published release.
+- Makes central version synchronization refresh Cargo.lock atomically with Cargo metadata.
+- Removes ignored release-note staging from version-sync.
+- Removes stale legacy preview source-package naming from the active build path.
+- Keeps existing tag immutability and exact-SHA release gating.
 
 ## Gates before stable / FINAL
 
@@ -62,11 +60,3 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 - Linux desktop integration acceptance.
 - SBOM/provenance, secret scanning and reproducible-build verification.
 - Optional managed package repositories when distribution policy requires them.
-
-## Repository rules
-
-- Product-facing names: Ghost FTP / GhostFTP.
-- Framework-specific internal names only where technically required.
-- Implemented features and planned work remain clearly separated.
-- No fake servers, fake transfers or fake connection state in production UI.
-- Never label a build FINAL solely because it compiles/packages.
