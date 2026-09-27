@@ -149,16 +149,27 @@ jobs:
           RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
           ANDROID_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
 
-          test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_SETUP_SIG"; test -n "$LINUX_BIN"
-          test -n "$APPIMAGE"; test -n "$APPIMAGE_SIG"; test -n "$DEB"; test -n "$RPM"; test -n "$ANDROID_APK"
+          test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$LINUX_BIN"
+          test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"; test -n "$ANDROID_APK"
+          if [ -n "$WIN_SETUP_SIG" ] || [ -n "$APPIMAGE_SIG" ]; then
+            test -n "$WIN_SETUP_SIG"
+            test -n "$APPIMAGE_SIG"
+            echo "Signed desktop updater artifacts detected."
+          else
+            echo "::warning::Signed desktop updater artifacts are unavailable; this release will omit the web in-app update bundle."
+          fi
 
           cp "$WIN_EXE" "dist/GhostFTP-Windows-x64-Portable-v$VERSION.exe"
           cp "$WIN_SETUP" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe"
-          cp "$WIN_SETUP_SIG" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe.sig"
+          if [ -n "$WIN_SETUP_SIG" ]; then
+            cp "$WIN_SETUP_SIG" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe.sig"
+          fi
           cp "$LINUX_BIN" "dist/GhostFTP-Linux-x86_64-v$VERSION"
           chmod +x "dist/GhostFTP-Linux-x86_64-v$VERSION"
           cp "$APPIMAGE" "dist/GhostFTP-Linux-x86_64-v$VERSION.AppImage"
-          cp "$APPIMAGE_SIG" "dist/GhostFTP-Linux-x86_64-v$VERSION.AppImage.sig"
+          if [ -n "$APPIMAGE_SIG" ]; then
+            cp "$APPIMAGE_SIG" "dist/GhostFTP-Linux-x86_64-v$VERSION.AppImage.sig"
+          fi
           cp "$DEB" "dist/GhostFTP-Linux-amd64-v$VERSION.deb"
           cp "$RPM" "dist/GhostFTP-Linux-x86_64-v$VERSION.rpm"
           cp "$ANDROID_APK" "dist/GhostFTP-Android-v$VERSION.apk"
@@ -179,6 +190,7 @@ jobs:
           rm -rf dist/native dist/android
 
       - name: Build web update package
+        if: ${{ hashFiles('dist/GhostFTP-Windows-x64-Setup-v*.exe.sig') != '' && hashFiles('dist/GhostFTP-Linux-x86_64-v*.AppImage.sig') != '' }}
         shell: bash
         run: |
           set -euo pipefail
