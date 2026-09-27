@@ -91,7 +91,11 @@ for (const rel of ["tools/ghostftp-runtime/main.go", "tools/ghostftp-installer/m
   apply(rel, replaceRequired(read(rel), /const version = "[^"]+"/, `const version = "${version}"`, rel));
 }
 updateJson("updates/channels/preview.template.json", (j) => { j.version = version; j.notes = `Ghost FTP ${version}`; });
-updateJson("updates/latest.template.json", (j) => { j.version = version; j.build = build; });
+updateJson("updates/latest.template.json", (j) => {
+  j.version = version;
+  j.build = build;
+  j.notes = `Ghost FTP ${version}`;
+});
 
 const websitePages = [
   "website/index.html","website/bs/index.html","website/de/index.html","website/es/index.html",
