@@ -1,24 +1,59 @@
-# Ghost FTP Updates
+# Ghost FTP Desktop Update System
 
-This folder contains the public update-channel contract for Ghost FTP.
+This directory is the **operator/developer source of truth** for the Ghost FTP desktop update service.
 
-The desktop application checks the official Ghost FTP update endpoint and accepts update metadata only when it matches the expected channel format. Production update artifacts are intended to be signed before publication.
+The Windows and Linux applications expose only simple product language such as “Check for Updates”, “Download & install”, verification status and restart status. File formats, service paths, signatures and publishing mechanics documented here are not shown in the application UI.
 
-## Layout
+## Current production contract
 
-- `channels/preview.template.json` — release-candidate channel template.
-- `channels/stable.template.json` — stable channel template.
-- `schema/latest.schema.json` — update manifest schema.
-- `scripts/build-manifest.mjs` — deterministic manifest generator.
-- `scripts/verify-manifest.mjs` — manifest validator.
+- Desktop application service: `https://ghostftp.com/updates/latest.json`
+- Supported updater targets: `windows-x86_64` and `linux-x86_64`
+- Windows update package: canonical signed NSIS Setup executable
+- Linux update package: canonical signed AppImage
+- Signature verification: mandatory Tauri updater signature verification
+- Public key: embedded in the desktop application
+- Private key: GitHub Actions secret only; never committed or uploaded to the website
+- Android: distributed independently as a verified APK release asset; Android does not use this desktop updater contract
 
-## Update policy
+The public service follows the Tauri v2 updater contract: `version`, optional human-readable `notes` / `pub_date`, and per-platform `url` + signature content.
 
-- Preview and stable channels are separate.
-- Every manifest identifies a version, publication time, minimum supported version and platform packages.
-- Package URLs must use HTTPS.
-- Signatures are required before a manifest is production-ready.
-- Older releases remain available in GitHub Releases for manual rollback/install.
-- Update-service failure must never prevent Ghost FTP from starting.
+## Directory layout
 
-Signing private keys and other secrets do not belong in this repository.
+- `latest.template.json` — canonical public-service template synchronized from `version.json`
+- `schema/latest.schema.json` — strict schema matching the public desktop updater response
+- `scripts/build-manifest.mjs` — creates a production response from signed package files
+- `scripts/verify-manifest.mjs` — validates a generated response before deployment
+- `WEB_DEPLOYMENT.md` — exact website paths, headers, Apache/Nginx examples and atomic upload procedure
+- `RELEASE_RUNBOOK.md` — end-to-end release/operator procedure
+- `SECURITY.md` — signing-key handling, signature rules and recovery/rotation policy
+- `web/.htaccess.example` — shared-hosting/Apache example
+- `web/nginx.conf.example` — Nginx example
+
+The former separate preview/stable template files were removed because the desktop application currently has one canonical public update service. Channel policy belongs in release/version metadata, not in a second incompatible wire format.
+
+## CI/release flow
+
+1. Pull requests build and test normal Windows/Linux packages without access to signing secrets.
+2. A canonical build on `main` requires the Tauri signing secret and uses `src-tauri/updater-release.conf.json`.
+3. Tauri produces the normal NSIS Setup/AppImage plus their signature files.
+4. The release workflow verifies all exact-SHA gates.
+5. The release workflow normalizes packages and signatures, then generates a web-ready update response.
+6. The release publishes versioned packages/signatures plus `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Web-Update.zip`.
+7. Only after the GitHub Release and asset digests are verified should the website operator atomically replace `/updates/latest.json`.
+
+See `WEB_DEPLOYMENT.md` for the web-server procedure.
+
+## Required GitHub Actions secrets
+
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` when the key is password protected
+
+The private key must never be stored in source, release assets, website files, workflow logs or documentation examples.
+
+## Failure behavior
+
+- If the update service is unavailable, Ghost FTP still starts and transfers files normally.
+- Quiet background checks never interrupt startup.
+- Manual checks show a safe user-facing error without revealing service paths or transport implementation details.
+- An update that cannot be cryptographically verified is not installed.
+- Older releases remain available in GitHub Releases for manual reinstall/rollback procedures.
