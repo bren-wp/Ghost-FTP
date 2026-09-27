@@ -1,28 +1,46 @@
 # Ghost FTP Click / Interaction QA
 
-## Verified in source and CI
+## Automated evidence for 0.19.0
 
-The Ghost FTP desktop source contains real controls for the Main File Manager, Site Manager, New Connection, Preferences, Transfer Center, File Properties, About/Updates and the custom window chrome.
+Ghost FTP uses real application components; reference screenshots are never runtime backgrounds or click maps.
 
-Current automated checks verify that the frontend typechecks and builds successfully and that Rust/Go unit and workspace checks execute in CI.
+### Windows desktop
 
-The production UI is built from real components. Reference screenshots are never used as runtime backgrounds or click maps.
+The canonical Windows native build launches the real Tauri executable and captures fresh native-window evidence for seven critical surfaces:
 
-## Current interaction areas
+- Files
+- Sites
+- New Connection
+- Settings
+- Transfers
+- File Properties
+- Help & About
 
-- Main menu and toolbar.
-- Quick Connect.
-- Site Manager list/search/details actions.
-- New Connection protocol/host/port/credential controls.
-- Preferences categories, Apply, Cancel and Reset.
-- Transfer Queue and Transfer Center actions.
-- File Properties General/Checksums/permissions workflows.
-- About/Updates actions.
-- Native minimize, maximize/restore, close and titlebar drag paths.
-- Keyboard shortcut infrastructure and command palette.
+The same build verifies the real NSIS Setup install/uninstall lifecycle and native window geometry.
 
-## Remaining target-OS acceptance
+Source interaction contracts additionally require the primary navigation/actions to remain wired to real stores/handlers rather than dead buttons.
 
-Before FINAL, execute a complete Windows/Linux pointer and keyboard sweep of every visible action, including repeated modal open/close cycles, focus traversal, destructive confirmations, disabled states and all advertised language layouts.
+### Linux desktop
 
-Status: **component/source coverage exists; full native click-by-click acceptance remains a FINAL gate.**
+Linux uses the same React/TypeScript desktop UI and Rust workspace as Windows. The exact source is typechecked, built and tested once for product behavior, then Linux-specific packaging is separately validated through AppImage metadata, DEB install/remove and RPM metadata checks.
+
+### Android
+
+The Android gate now runs an emulator instrumentation smoke test that opens `MainActivity` and performs real click actions for:
+
+- connection validation;
+- disconnect/idle recovery;
+- refresh in idle state;
+- guarded Download;
+- guarded New Folder;
+- guarded Delete.
+
+The production contract also verifies Files/Sites/Transfers/Settings/Help & About mobile navigation, upload/document-picker wiring, confirmation guards, lifecycle cleanup and real FTP/FTPS/SFTP protocol calls.
+
+## Manual acceptance still required for stable / FINAL
+
+Automation cannot prove every OS compositor, accessibility technology, language expansion, file picker/provider, server implementation or destructive-operation confirmation on physical devices.
+
+Before a stable/FINAL claim, perform a complete Windows/Linux pointer + keyboard sweep and Android physical-device sweep, including repeated open/close cycles, focus traversal, destructive confirmations, disabled states, file picker/storage behavior and supported languages.
+
+For the pre-1.0 0.19.0 release, automated exact-SHA gates are mandatory and manual stable/FINAL acceptance remains a separate criterion.
