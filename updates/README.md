@@ -8,8 +8,8 @@ The Windows and Linux applications expose only simple product language such as â
 
 - Desktop application service: `https://ghostftp.com/updates/latest.json`
 - Supported updater targets: `windows-x86_64` and `linux-x86_64`
-- Windows update package: canonical signed NSIS Setup executable
-- Linux update package: canonical signed AppImage
+- Windows update package: canonical signed NSIS Setup executable delivered through a first-party `ghostftp.com/updates/package/...` URL
+- Linux update package: canonical signed AppImage delivered through a first-party `ghostftp.com/updates/package/...` URL
 - Signature verification: mandatory Tauri updater signature verification
 - Public key: embedded in the desktop application
 - Private key: GitHub Actions secret only; never committed or uploaded to the website
@@ -39,7 +39,8 @@ The former separate preview/stable template files were removed because the deskt
 4. The release workflow verifies all exact-SHA gates.
 5. The release workflow normalizes packages and signatures, then generates a web-ready update response.
 6. The release publishes versioned packages/signatures plus `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Web-Update.zip`.
-7. Only after the GitHub Release and asset digests are verified should the website operator atomically replace `/updates/latest.json`.
+7. The public manifest contains only `ghostftp.com` package URLs; the website bridge resolves and verifies the canonical release asset server-side.
+8. Only after the release, signatures, digests and first-party package bridge are verified should the website operator atomically replace `/updates/latest.json`.
 
 See `WEB_DEPLOYMENT.md` for the web-server procedure.
 
