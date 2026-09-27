@@ -47,7 +47,15 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          script: gradle -p android connectedDebugAndroidTest
+          script: |
+            set -euo pipefail
+            gradle -p android connectedDebugAndroidTest
+            mkdir -p dist/android
+            adb shell am force-stop com.ghostftp.android || true
+            adb shell monkey -p com.ghostftp.android 1 >/dev/null
+            sleep 2
+            adb exec-out screencap -p > dist/android/GhostFTP-Android-UI-Smoke.png
+            test -s dist/android/GhostFTP-Android-UI-Smoke.png
       - name: Prepare Android APK artifacts
         shell: bash
         run: |
