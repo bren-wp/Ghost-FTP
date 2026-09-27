@@ -1,4 +1,4 @@
-# Ghost FTP Pixel-Parity QA — RC12
+# Ghost FTP Pixel-Parity QA
 
 The approved images under `docs/assets/screenshots/` are the visual specification. They are documentation/QA references only and are never loaded as application backgrounds or used as click maps.
 
@@ -47,7 +47,7 @@ Current branded reference files cover:
 
 ## Acceptance rule
 
-RC12 does **not** claim pixel-perfect FINAL acceptance yet.
+The current development line does **not** claim pixel-perfect FINAL acceptance yet.
 
 Before FINAL, capture real native Windows renders at 100% display scale and compare:
 
@@ -75,6 +75,6 @@ At every documented viewport size:
 - screenshots used for comparison are specifications only; production UI must remain real React/Tauri controls.
 
 
-## RC12 compositor hardening
+## Current compositor hardening
 
 Menu and protocol popovers use explicit high stacking contexts and overflow-visible ancestors. Critical standalone/dialog surfaces do not use transform entrance animations, and press feedback no longer scales controls. These are source-level flicker mitigations; real Windows/Linux soak and screenshot comparison remain required before pixel-perfect acceptance.
