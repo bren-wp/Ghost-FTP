@@ -46,6 +46,13 @@ if (rustReq !== "=2.11.4") {
   throw new Error(`Rust tauri must stay pinned to the last verified coherent core patch (=2.11.4); found ${rustReq}`);
 }
 
+if (!/\[profile\.release\][\s\S]*?opt-level\s*=\s*"s"/m.test(cargo)) {
+  throw new Error('release profile must keep opt-level = "s" for size-optimized native binaries');
+}
+if (tauriConfig.bundle?.linux?.appimage?.bundleMediaFramework !== false) {
+  throw new Error("AppImage media framework must remain disabled unless Ghost FTP gains an actual audio/video requirement");
+}
+
 const bundle = tauriConfig.bundle ?? {};
 const nsis = bundle.windows?.nsis ?? {};
 const requiredBundleValues = {
