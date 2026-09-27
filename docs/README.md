@@ -1,6 +1,17 @@
 # Ghost FTP Documentation
 
-Ghost FTP is a commercial desktop product. Public documentation is intentionally concise: it explains supported workflows, installation, updates, privacy and release status without publishing unnecessary implementation detail.
+Ghost FTP documentation is organized around the current canonical product state, stable operational guidance and historical provenance.
+
+## Current state
+
+- Active source version: **0.17.0 development preview**
+- Latest published release: **0.16.0**
+- Version source of truth: `/version.json`
+- Production desktop source: `/ghostftp-desktop`
+- Production Android source: `/android`
+- Canonical downloads: GitHub Releases
+
+Current status documents must use the canonical `0.x` version train. Historical release-candidate identifiers are retained only in explicitly historical release/audit records.
 
 ## Product
 
@@ -13,7 +24,9 @@ Ghost FTP is a commercial desktop product. Public documentation is intentionally
 ## Development and release
 
 - [Building from source](development/BUILDING.md)
+- [Build status](build/STATUS.md)
 - [Release process](release/PROCESS.md)
+- [Versioning](releases/VERSIONING.md)
 - [QA evidence index](qa/README.md)
 
 ## Guides
@@ -30,16 +43,20 @@ Ghost FTP is a commercial desktop product. Public documentation is intentionally
 - Commercial licence/EULA: `LICENSE.txt` and `EULA.txt`
 - Security reporting: `SECURITY.md`
 
-## Releases
+## Releases and historical records
 
-Release notes are retained in [releases](releases/). GitHub Releases is the canonical source for downloadable binaries and checksums. Older published releases remain available when a newer release is added.
+- Canonical release notes live in [releases](releases/).
+- [Version mapping/provenance](releases/version-map.json) records the verified legacy-to-canonical migration.
+- Files named `2.1.1-rc.*` under `docs/releases/` are historical snapshots only and must not be used as current build/release instructions.
+- `docs/audits/` contains point-in-time audit records. Their version labels describe the audited snapshot, not the active product version.
 
 ## Repository areas
 
 - `ghostftp-desktop/` — production desktop application.
+- `android/` — production Android application.
 - `website/` — public Ghost FTP website.
-- `updates/` — preview/stable update channel contract.
-- `tools/` — non-production developer compatibility utilities.
-- `docs/` — public product documentation and release records.
+- `updates/` — update channel contract.
+- `tools/` — developer/runtime/installer support tooling; not the authoritative production desktop GUI.
+- `docs/` — product documentation and historical records.
 
-Framework-specific internal names are left unchanged only where renaming them would create build compatibility risk.
+Framework-specific internal names remain unchanged only where renaming them would create build compatibility risk.
