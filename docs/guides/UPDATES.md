@@ -15,7 +15,7 @@ Operator details:
 - `updates/README.md`
 - `updates/RELEASE_RUNBOOK.md`
 - `updates/SECURITY.md`
-- `updates/WEB_DEPLOYMENT.md`
+- `updates/DEPLOYMENT.md`
 
 ## Android
 
