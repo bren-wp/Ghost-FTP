@@ -48,6 +48,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p tools/ghostftp-installer/payload
+          : > tools/ghostftp-installer/payload/GhostFTP.exe
           (cd tools/ghostftp-installer && go test ./...)
           (cd tools/ghostftp-runtime && go test ./...)
           grep -Fq 'CREATE_NO_WINDOW' ghostftp-desktop/src-tauri/ghostftp-agentd/src/jobs.rs
