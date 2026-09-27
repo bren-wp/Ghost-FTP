@@ -410,7 +410,7 @@ func launchAppWindow(url string) error {
 				return nil
 			}
 		}
-		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+		return hiddenCommand("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	case "linux":
 		for _, name := range []string{"chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "brave-browser"} {
 			if p, err := exec.LookPath(name); err == nil {
@@ -455,7 +455,7 @@ func launchAppWindow(url string) error {
 func openExternal(url string) {
 	switch runtime.GOOS {
 	case "windows":
-		_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+		_ = hiddenCommand("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	case "linux":
 		_ = exec.Command("xdg-open", url).Start()
 	}
@@ -483,11 +483,23 @@ func uninstallWindows() error {
 	_ = os.Remove(desktop)
 	_ = os.Remove(start)
 	_ = os.Remove(uninstallLink)
-	_ = exec.Command("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/f").Run()
+	_ = hiddenCommand("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/f").Run()
 	exe, _ := os.Executable()
-	cmd := fmt.Sprintf(`timeout /t 1 /nobreak >nul & rmdir /s /q "%s"`, strings.ReplaceAll(installDir, `"`, ``))
 	if strings.HasPrefix(strings.ToLower(exe), strings.ToLower(installDir)) {
-		_ = exec.Command("cmd", "/C", "start", "", "/min", "cmd", "/C", cmd).Start()
+		// The running executable cannot remove its own directory. Launch one
+		// hidden cleanup helper after exit, with the target path passed as a
+		// literal argument instead of interpolating it into shell syntax.
+		const cleanupScript = `param([string]$Target); Start-Sleep -Milliseconds 1200; Remove-Item -LiteralPath $Target -Recurse -Force -ErrorAction SilentlyContinue`
+		_ = hiddenCommand(
+			"powershell",
+			"-NoProfile",
+			"-NonInteractive",
+			"-WindowStyle",
+			"Hidden",
+			"-Command",
+			cleanupScript,
+			installDir,
+		).Start()
 	} else {
 		_ = os.RemoveAll(installDir)
 	}
@@ -501,7 +513,7 @@ func showWindowsMessage(title, message string) {
 	}
 	esc := func(s string) string { return strings.ReplaceAll(s, "'", "''") }
 	script := fmt.Sprintf(`Add-Type -AssemblyName PresentationFramework; [System.Windows.MessageBox]::Show('%s','%s') | Out-Null`, esc(message), esc(title))
-	_ = exec.Command("powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", script).Run()
+	_ = hiddenCommand("powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", script).Run()
 }
 
 func duplicatePath(src string) (string, error) {
