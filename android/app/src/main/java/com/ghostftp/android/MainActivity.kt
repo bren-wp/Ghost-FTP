@@ -277,9 +277,15 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(14), 0, 0)
         }
-        connectButton = primaryButton("Connect") { openConnection() }
-        disconnectButton = secondaryButton("Disconnect") { disconnect() }
-        refreshButton = secondaryButton("Refresh") { refreshActive() }
+        connectButton = primaryButton("Connect") { openConnection() }.apply {
+            contentDescription = "Connect to server"
+        }
+        disconnectButton = secondaryButton("Disconnect") { disconnect() }.apply {
+            contentDescription = "Disconnect from server"
+        }
+        refreshButton = secondaryButton("Refresh") { refreshActive() }.apply {
+            contentDescription = "Refresh current session"
+        }
         actions.addView(connectButton, buttonParams(weight = 1f))
         actions.addView(gap(8))
         actions.addView(disconnectButton, buttonParams(weight = 1f))
