@@ -19,7 +19,8 @@ It verifies:
 - maintained protocol dependency contract;
 - installable preview APK signature/package identity;
 - intentionally unsigned release-check APK;
-- emulator instrumentation click-through smoke.
+- emulator instrumentation click-through smoke;
+- real emulator UI screenshot artifact captured after the smoke run.
 
 ## Emulator click-through smoke
 
