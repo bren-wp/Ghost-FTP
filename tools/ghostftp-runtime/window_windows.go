@@ -3,11 +3,23 @@
 package main
 
 import (
+	"os/exec"
 	"strings"
 	"syscall"
 	"time"
 	"unsafe"
 )
+
+const createNoWindow uint32 = 0x08000000
+
+func hiddenCommand(name string, args ...string) *exec.Cmd {
+	cmd := exec.Command(name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:     true,
+		CreationFlags: createNoWindow,
+	}
+	return cmd
+}
 
 var (
 	user32              = syscall.NewLazyDLL("user32.dll")
