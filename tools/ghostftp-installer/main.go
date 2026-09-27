@@ -124,7 +124,7 @@ func main() {
 	if os.Getenv("GHOSTFTP_SETUP_HEADLESS") == "1" {
 		fmt.Println(url)
 	} else if err := openWindow(url); err != nil {
-		_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+		_ = hiddenCommand("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	}
 	<-time.After(30 * time.Minute)
 	shutdown()
@@ -263,7 +263,7 @@ func install(opts installOptions) error {
 	}
 	registryBackup := filepath.Join(os.TempDir(), fmt.Sprintf("ghostftp-uninstall-%d.reg", os.Getpid()))
 	_ = os.Remove(registryBackup)
-	hadRegistry := exec.Command("reg", "export", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, registryBackup, "/y").Run() == nil
+	hadRegistry := hiddenCommand("reg", "export", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, registryBackup, "/y").Run() == nil
 	rollback := func() {
 		_ = os.Remove(exe)
 		if hadPrevious {
@@ -276,9 +276,9 @@ func install(opts installOptions) error {
 			}
 		}
 		if hadRegistry {
-			_ = exec.Command("reg", "import", registryBackup).Run()
+			_ = hiddenCommand("reg", "import", registryBackup).Run()
 		} else {
-			_ = exec.Command("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/f").Run()
+			_ = hiddenCommand("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/f").Run()
 		}
 		_ = os.Remove(registryBackup)
 	}
@@ -315,12 +315,12 @@ func install(opts installOptions) error {
 			{"add", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/v", "UninstallString", "/t", "REG_SZ", "/d", uninstall, "/f"},
 		}
 		for _, a := range args {
-			if err := exec.Command("reg", a...).Run(); err != nil {
+			if err := hiddenCommand("reg", a...).Run(); err != nil {
 				rollback()
 				return fmt.Errorf("registering Apps & Features entry: %w", err)
 			}
 		}
-		query := exec.Command("reg", "query", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/v", "UninstallString")
+		query := hiddenCommand("reg", "query", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/v", "UninstallString")
 		output, err := query.CombinedOutput()
 		if err != nil {
 			rollback()
@@ -331,7 +331,7 @@ func install(opts installOptions) error {
 			return fmt.Errorf("verifying uninstall registration: unexpected UninstallString")
 		}
 	} else {
-		_ = exec.Command("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/f").Run()
+		_ = hiddenCommand("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`, "/f").Run()
 	}
 	_ = os.Remove(backup)
 	for _, bak := range shortcutBackups {
@@ -344,7 +344,7 @@ func install(opts installOptions) error {
 func shortcut(target, path, args string) error {
 	esc := func(s string) string { return strings.ReplaceAll(s, "'", "''") }
 	ps := fmt.Sprintf(`$w=New-Object -ComObject WScript.Shell;$s=$w.CreateShortcut('%s');$s.TargetPath='%s';$s.WorkingDirectory='%s';$s.Arguments='%s';$s.Description='Ghost FTP';$s.Save()`, esc(path), esc(target), esc(filepath.Dir(target)), esc(args))
-	return exec.Command("powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps).Run()
+	return hiddenCommand("powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps).Run()
 }
 
 func launchInstalled(requested string) {
