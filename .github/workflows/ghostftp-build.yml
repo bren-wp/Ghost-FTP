@@ -157,9 +157,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APPIMAGE="$(find ghostftp-desktop/src-tauri/target/release/bundle/appimage -type f -iname '*.AppImage' | head -n1)"
-          DEB="$(find ghostftp-desktop/src-tauri/target/release/bundle/deb -type f -iname '*.deb' | head -n1)"
-          RPM="$(find ghostftp-desktop/src-tauri/target/release/bundle/rpm -type f -iname '*.rpm' | head -n1)"
+          APPIMAGE="$(realpath "$(find ghostftp-desktop/src-tauri/target/release/bundle/appimage -type f -iname '*.AppImage' | head -n1)")"
+          DEB="$(realpath "$(find ghostftp-desktop/src-tauri/target/release/bundle/deb -type f -iname '*.deb' | head -n1)")"
+          RPM="$(realpath "$(find ghostftp-desktop/src-tauri/target/release/bundle/rpm -type f -iname '*.rpm' | head -n1)")"
 
           test -s "$APPIMAGE"
           test -s "$DEB"
@@ -171,13 +171,21 @@ jobs:
           rpm -qip "$RPM" >/dev/null
 
           PACKAGE_NAME="$(dpkg-deb -f "$DEB" Package)"
+          INSTALLED_BIN="$(dpkg-deb --contents "$DEB" | awk '$NF ~ /^\.\/usr\/bin\// { sub(/^\./, "", $NF); print $NF; exit }')"
           test -n "$PACKAGE_NAME"
+          test -n "$INSTALLED_BIN"
+
           sudo apt-get install -y "$DEB"
           dpkg-query -W -f='${Status}' "$PACKAGE_NAME" | grep -Fq 'install ok installed'
-          command -v ghostftp >/dev/null
+          test -x "$INSTALLED_BIN"
+
           sudo apt-get remove -y "$PACKAGE_NAME"
           if dpkg-query -W -f='${Status}' "$PACKAGE_NAME" 2>/dev/null | grep -Fq 'install ok installed'; then
             echo "Ghost FTP package still reports installed after remove." >&2
+            exit 1
+          fi
+          if [ -e "$INSTALLED_BIN" ]; then
+            echo "Ghost FTP executable remains after package removal: $INSTALLED_BIN" >&2
             exit 1
           fi
 
