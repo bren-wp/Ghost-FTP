@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - 'ghostftp-desktop/**'
+      - 'updates/**'
       - 'version.json'
       - 'README.md'
       - 'CHANGELOG.md'
