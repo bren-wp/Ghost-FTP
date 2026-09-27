@@ -59,7 +59,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm
       - name: Validate central version metadata
         shell: bash
         run: node .github/scripts/sync-version.mjs --check
@@ -91,6 +91,72 @@ jobs:
         with:
           projectPath: ghostftp-desktop
           args: ${{ matrix.args }}
+      - name: Windows Setup install and uninstall smoke
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/nsis' -Filter '*.exe' -Recurse |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $setup) { throw 'NSIS Setup executable was not produced.' }
+
+          $installDir = Join-Path $env:RUNNER_TEMP 'GhostFTP-Setup-Smoke'
+          Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+
+          $install = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$installDir") -PassThru -Wait
+          if ($install.ExitCode -ne 0) { throw "Ghost FTP Setup failed with exit code $($install.ExitCode)" }
+
+          $installedExe = Get-ChildItem $installDir -Filter '*.exe' -Recurse |
+            Where-Object { $_.Name -notmatch 'uninstall' } |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $installedExe -or $installedExe.Length -le 0) {
+            throw 'Ghost FTP executable was not installed by Setup.'
+          }
+
+          $uninstaller = Get-ChildItem $installDir -Filter '*uninstall*.exe' -Recurse | Select-Object -First 1
+          if (-not $uninstaller) { throw 'Ghost FTP uninstaller was not installed.' }
+
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Ghost FTP uninstaller failed with exit code $($uninstall.ExitCode)" }
+
+          for ($attempt = 0; $attempt -lt 20 -and (Test-Path $installedExe.FullName); $attempt++) {
+            Start-Sleep -Milliseconds 500
+          }
+          if (Test-Path $installedExe.FullName) {
+            throw 'Ghost FTP executable remained after silent uninstall.'
+          }
+
+      - name: Linux package lifecycle smoke
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPIMAGE="$(find ghostftp-desktop/src-tauri/target/release/bundle/appimage -type f -iname '*.AppImage' | head -n1)"
+          DEB="$(find ghostftp-desktop/src-tauri/target/release/bundle/deb -type f -iname '*.deb' | head -n1)"
+          RPM="$(find ghostftp-desktop/src-tauri/target/release/bundle/rpm -type f -iname '*.rpm' | head -n1)"
+
+          test -s "$APPIMAGE"
+          test -s "$DEB"
+          test -s "$RPM"
+
+          chmod +x "$APPIMAGE"
+          "$APPIMAGE" --appimage-version
+          dpkg-deb --info "$DEB" >/dev/null
+          rpm -qip "$RPM" >/dev/null
+
+          PACKAGE_NAME="$(dpkg-deb -f "$DEB" Package)"
+          test -n "$PACKAGE_NAME"
+          sudo apt-get install -y "$DEB"
+          dpkg-query -W -f='${Status}' "$PACKAGE_NAME" | grep -Fq 'install ok installed'
+          command -v ghostftp >/dev/null
+          sudo apt-get remove -y "$PACKAGE_NAME"
+          if dpkg-query -W -f='${Status}' "$PACKAGE_NAME" 2>/dev/null | grep -Fq 'install ok installed'; then
+            echo "Ghost FTP package still reports installed after remove." >&2
+            exit 1
+          fi
+
       - name: Capture Windows native-window QA evidence
         if: runner.os == 'Windows'
         shell: pwsh
