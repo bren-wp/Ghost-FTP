@@ -1,28 +1,28 @@
 # Changelog
 
-## 2.1.1 RC23 — 2026-09-25
+## 0.17.0 — development — 27 September 2026
 
-- Added RC23 release line for Windows, Linux and Android production hardening.
-- Bumped desktop, Tauri, Rust crate and Android metadata to `2.1.1-rc.23` / `2.1.1 RC23` / `2026.09.25.23`.
-- Merged Android transfer completion, guarded transfer UX and lifecycle stability improvements into `main`.
-- Added Android production protocol safeguards for FTP, explicit FTPS and SFTP.
-- Locked FTP/FTPS timeouts, passive mode, binary transfers, login validation and cleanup in the Android production contract.
-- Locked explicit FTPS `PBSZ 0` and protected data channel `PROT P` in the Android production contract.
-- Locked SFTP fingerprint verification, strict host-key checking, connection timeouts and cleanup in the Android production contract.
-- Updated Android README and Android parity documentation for RC23 release readiness.
-- Requires Android, quality and real FTP/FTPS/SFTP protocol E2E gates before release publication.
+0.17.0 is the active development cycle. It is not published as a GitHub Release yet.
 
-## 2.1.1 RC22 — 2026-09-24
+- Completed and verified the canonical public-history migration while keeping `version.json` as the active version source of truth.
+- Removed reliance on legacy release-candidate naming from the active development/release model.
+- Hardened Windows background helper processes so Ghost FTP does not flash unintended CMD/PowerShell windows during normal GUI operations.
+- Added Windows regression checks for hidden helper process creation and shell-free PATH detection.
+- Made the Android platform gate run on every pull request to `main`, so Windows/Linux/Android validation can refer to the same exact PR HEAD.
+- Updated version progression checks so meaningful fixes can remain within the active development version instead of requiring a version-only bump.
+- Kept the committed Cargo dependency graph and exact-SHA quality/protocol/platform gates mandatory.
+- Synchronized active documentation with the canonical `0.x` train and current repository/workflow layout.
 
-- Added RC22 release line for Windows, Linux and Android APK artifacts.
-- Bumped desktop, Tauri, Rust crate, update-template and Android metadata to `2.1.1-rc.22` / `2.1.1 RC22` / `2026.09.24.22`.
-- Fixed Android Kotlin build errors in FTP timeout handling and EditText single-line setup.
-- Kept native Android FTP, explicit FTPS and SFTP remote listing support.
-- Kept SFTP SHA-256 host key fingerprint verification and strict host-key checking on Android.
-- Added Android APK release workflow without GitHub signing secrets.
-- Added RC22 release workflow for Windows/Linux assets, source bundles, documentation bundles and SHA-256 checksums.
-- Updated root README, Android README, Android parity docs and RC22 release notes.
+See [docs/releases/0.17.0.md](docs/releases/0.17.0.md).
 
-## Older releases
+## 0.16.0 — published — 26 September 2026
 
-Historical release notes are retained under `docs/releases/`.
+0.16.0 is the latest published GitHub release at the start of the 0.17.0 development cycle.
+
+See [docs/releases/0.16.0.md](docs/releases/0.16.0.md) and the canonical GitHub Releases page for the published asset set and checksums.
+
+## Older canonical history
+
+Canonical release notes for `0.1.0` through `0.15.0` are retained under `docs/releases/`.
+
+The older `2.1.1-rc.*` identifiers are historical aliases only. Their verified mapping/provenance is recorded in `docs/releases/version-map.json`; they are not the active version scheme.
