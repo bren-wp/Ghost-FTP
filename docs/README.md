@@ -4,14 +4,16 @@ Ghost FTP documentation is organized around the current canonical product state,
 
 ## Current state
 
-- Active source version: **0.17.0 development preview**
-- Latest published release: **0.16.0**
+- Active source/release cycle: **0.18.0**
+- Previous canonical release: **0.17.0**
+- Live publication state: GitHub Releases is authoritative
 - Version source of truth: `/version.json`
 - Production desktop source: `/ghostftp-desktop`
 - Production Android source: `/android`
-- Canonical downloads: GitHub Releases
 
-Current status documents must use the canonical `0.x` version train. Historical release-candidate identifiers are retained only in explicitly historical release/audit records.
+Current status documents use the canonical `0.x` version train. Historical release-candidate identifiers remain only in explicitly historical release/audit records.
+
+All local README/documentation images are checked against the newest non-draft GitHub Release tag. A documentation image that is missing from or differs from that release fails CI.
 
 ## Product
 
@@ -47,16 +49,5 @@ Current status documents must use the canonical `0.x` version train. Historical 
 
 - Canonical release notes live in [releases](releases/).
 - [Version mapping/provenance](releases/version-map.json) records the verified legacy-to-canonical migration.
-- Files named `2.1.1-rc.*` under `docs/releases/` are historical snapshots only and must not be used as current build/release instructions.
-- `docs/audits/` contains point-in-time audit records. Their version labels describe the audited snapshot, not the active product version.
-
-## Repository areas
-
-- `ghostftp-desktop/` — production desktop application.
-- `android/` — production Android application.
-- `website/` — public Ghost FTP website.
-- `updates/` — update channel contract.
-- `tools/` — developer/runtime/installer support tooling; not the authoritative production desktop GUI.
-- `docs/` — product documentation and historical records.
-
-Framework-specific internal names remain unchanged only where renaming them would create build compatibility risk.
+- Files named `2.1.1-rc.*` under `docs/releases/` are historical snapshots only.
+- `docs/audits/` contains point-in-time audit records whose labels describe the audited snapshot, not the active version.
