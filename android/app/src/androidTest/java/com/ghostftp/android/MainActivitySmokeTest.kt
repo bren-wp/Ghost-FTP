@@ -57,10 +57,10 @@ class MainActivitySmokeTest {
 
     @Test
     fun connectionValidationAndIdleRecoveryWorkClickByClick() {
-        onView(withText("Connect")).perform(scrollTo(), click())
+        onView(withContentDescription("Connect to server")).perform(scrollTo(), click())
         onView(withText("Host is required")).check(matches(isDisplayed()))
 
-        onView(withText("Disconnect")).perform(scrollTo(), click())
+        onView(withContentDescription("Disconnect from server")).perform(scrollTo(), click())
         onView(withText("Ready")).check(matches(isDisplayed()))
 
         onView(withContentDescription("Refresh action")).perform(scrollTo(), click())
@@ -72,7 +72,7 @@ class MainActivitySmokeTest {
         for (label in listOf("Download", "New Folder", "Delete")) {
             onView(withContentDescription("$label action")).perform(scrollTo(), click())
             onView(withText("Connect first")).check(matches(isDisplayed()))
-            onView(withText("Disconnect")).perform(scrollTo(), click())
+            onView(withContentDescription("Disconnect from server")).perform(scrollTo(), click())
             onView(withText("Ready")).check(matches(isDisplayed()))
         }
     }
