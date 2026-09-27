@@ -39,19 +39,19 @@ class MainActivitySmokeTest {
 
     @Test
     fun workspaceNavigationWorksClickByClick() {
-        onView(withContentDescription("Open Sites workspace")).perform(click())
+        onView(withContentDescription("Open Sites workspace")).perform(scrollTo(), click())
         onView(withText("Protocol")).perform(scrollTo()).check(matches(isDisplayed()))
 
-        onView(withContentDescription("Open Transfers workspace")).perform(click())
+        onView(withContentDescription("Open Transfers workspace")).perform(scrollTo(), click())
         onView(withText("No transfer started.")).perform(scrollTo()).check(matches(isDisplayed()))
 
-        onView(withContentDescription("Open Settings workspace")).perform(click())
+        onView(withContentDescription("Open Settings workspace")).perform(scrollTo(), click())
         onView(withText("No required tracking, analytics or telemetry.")).perform(scrollTo()).check(matches(isDisplayed()))
 
-        onView(withContentDescription("Open Help & About workspace")).perform(click())
+        onView(withContentDescription("Open Help & About workspace")).perform(scrollTo(), click())
         onView(withText("Ghost FTP by Brendigo")).perform(scrollTo()).check(matches(isDisplayed()))
 
-        onView(withContentDescription("Open Files workspace")).perform(click())
+        onView(withContentDescription("Open Files workspace")).perform(scrollTo(), click())
         onView(withText("Connect to a server to load remote files.")).perform(scrollTo()).check(matches(isDisplayed()))
     }
 
