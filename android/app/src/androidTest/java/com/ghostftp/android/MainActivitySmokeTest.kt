@@ -9,7 +9,6 @@ import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import org.hamcrest.Matchers.allOf
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -34,8 +33,26 @@ class MainActivitySmokeTest {
         onView(withText("Ghost FTP")).check(matches(isDisplayed()))
         onView(withContentDescription("Open Files workspace")).check(matches(isDisplayed()))
         for (label in listOf("Refresh", "Upload", "Download", "New Folder", "Delete")) {
-            onView(allOf(withText(label), isDisplayed())).check(matches(isDisplayed()))
+            onView(withContentDescription("$label action")).check(matches(isDisplayed()))
         }
+    }
+
+    @Test
+    fun workspaceNavigationWorksClickByClick() {
+        onView(withContentDescription("Open Sites workspace")).perform(click())
+        onView(withText("Protocol")).perform(scrollTo()).check(matches(isDisplayed()))
+
+        onView(withContentDescription("Open Transfers workspace")).perform(click())
+        onView(withText("No transfer started.")).perform(scrollTo()).check(matches(isDisplayed()))
+
+        onView(withContentDescription("Open Settings workspace")).perform(click())
+        onView(withText("No required tracking, analytics or telemetry.")).perform(scrollTo()).check(matches(isDisplayed()))
+
+        onView(withContentDescription("Open Help & About workspace")).perform(click())
+        onView(withText("Ghost FTP by Brendigo")).perform(scrollTo()).check(matches(isDisplayed()))
+
+        onView(withContentDescription("Open Files workspace")).perform(click())
+        onView(withText("Connect to a server to load remote files.")).perform(scrollTo()).check(matches(isDisplayed()))
     }
 
     @Test
@@ -46,14 +63,14 @@ class MainActivitySmokeTest {
         onView(withText("Disconnect")).perform(scrollTo(), click())
         onView(withText("Ready")).check(matches(isDisplayed()))
 
-        onView(allOf(withText("Refresh"), isDisplayed())).perform(click())
+        onView(withContentDescription("Refresh action")).perform(scrollTo(), click())
         onView(withText("Ready")).check(matches(isDisplayed()))
     }
 
     @Test
     fun guardedFileActionsRequireActiveSession() {
         for (label in listOf("Download", "New Folder", "Delete")) {
-            onView(withText(label)).perform(scrollTo(), click())
+            onView(withContentDescription("$label action")).perform(scrollTo(), click())
             onView(withText("Connect first")).check(matches(isDisplayed()))
             onView(withText("Disconnect")).perform(scrollTo(), click())
             onView(withText("Ready")).check(matches(isDisplayed()))
