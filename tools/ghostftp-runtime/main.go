@@ -487,10 +487,11 @@ func uninstallWindows() error {
 	exe, _ := os.Executable()
 	if strings.HasPrefix(strings.ToLower(exe), strings.ToLower(installDir)) {
 		// The running executable cannot remove its own directory. Launch one
-		// hidden cleanup helper after exit, with the target path passed as a
-		// literal argument instead of interpolating it into shell syntax.
-		const cleanupScript = `param([string]$Target); Start-Sleep -Milliseconds 1200; Remove-Item -LiteralPath $Target -Recurse -Force -ErrorAction SilentlyContinue`
-		_ = hiddenCommand(
+		// hidden cleanup helper after exit. The target travels only through the
+		// child environment, never through PowerShell syntax, so unusual custom
+		// install paths cannot become shell input.
+		const cleanupScript = `Start-Sleep -Milliseconds 1200; Remove-Item -LiteralPath $env:GHOSTFTP_CLEANUP_TARGET -Recurse -Force -ErrorAction SilentlyContinue`
+		cleanup := hiddenCommand(
 			"powershell",
 			"-NoProfile",
 			"-NonInteractive",
@@ -498,8 +499,9 @@ func uninstallWindows() error {
 			"Hidden",
 			"-Command",
 			cleanupScript,
-			installDir,
-		).Start()
+		)
+		cleanup.Env = append(os.Environ(), "GHOSTFTP_CLEANUP_TARGET="+installDir)
+		_ = cleanup.Start()
 	} else {
 		_ = os.RemoveAll(installDir)
 	}
