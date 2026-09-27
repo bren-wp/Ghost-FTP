@@ -1,7 +1,7 @@
 name: Ghost FTP native build
 
-# Preview production release gate: only Ghost FTP desktop bundles are eligible for end-user releases.
-# Preview release build stamp: 2026-09-25.23
+# Canonical Windows/Linux production build + native-window QA gate.
+# This is the single native build consumed by the release workflow.
 
 on:
   workflow_dispatch:
@@ -9,16 +9,17 @@ on:
     branches: [main]
     paths:
       - 'ghostftp-desktop/**'
+      - 'version.json'
       - 'README.md'
+      - 'CHANGELOG.md'
+      - 'docs/releases/**'
       - 'docs/assets/screenshots/**'
-      - '.github/workflows/ghostftp-build.yml'
-  pull_request:
-    paths:
-      - 'ghostftp-desktop/**'
-      - 'README.md'
-      - 'docs/assets/screenshots/**'
+      - '.github/scripts/sync-version.mjs'
+      - '.github/scripts/refresh-cargo-lock.sh'
       - '.github/workflows/ghostftp-build.yml'
       - '.github/workflows/ghostftp-preview-release.yml'
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -59,12 +60,22 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: Validate central version metadata
+        shell: bash
+        run: node .github/scripts/sync-version.mjs --check
+
       - name: Install frontend dependencies
         working-directory: ghostftp-desktop
         run: npm ci
       - name: TypeScript/frontend build
         working-directory: ghostftp-desktop
-        run: npm run build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run check:i18n
+          npm run check:ui
+          npm run check
+          npm run build
       - name: Verify committed Rust dependency graph
         working-directory: ghostftp-desktop/src-tauri
         shell: bash
@@ -722,28 +733,3 @@ jobs:
             ghostftp-desktop/src-tauri/target/release/ghostftp.exe
             ghostftp-desktop/src-tauri/target/release/ghostftp
           if-no-files-found: error
-
-  source-packages:
-    name: Preview source packages
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Package Preview source and documentation
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          git archive --format=zip --output=dist/GhostFTP-v2.1.1-Preview-Source.zip HEAD
-          zip -qr dist/GhostFTP-v2.1.1-Preview-Desktop-Source.zip ghostftp-desktop
-          zip -qr dist/GhostFTP-v2.1.1-Preview-Website.zip website
-          zip -qr dist/GhostFTP-v2.1.1-Preview-Updates.zip updates
-          zip -qr dist/GhostFTP-v2.1.1-Preview-Documentation.zip docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
-      - name: Upload Preview source packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: GhostFTP-Preview-Source-Packages
-          path: dist/*
-          if-no-files-found: error
-          retention-days: 14
