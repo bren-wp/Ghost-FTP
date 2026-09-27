@@ -7,6 +7,7 @@ on:
     paths:
       - 'version.json'
       - '.github/scripts/sync-version.mjs'
+      - '.github/scripts/refresh-cargo-lock.sh'
       - '.github/workflows/version-sync.yml'
 
 permissions:
