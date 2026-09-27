@@ -57,11 +57,12 @@ Android keeps the same primary product model as desktop where it makes sense on 
 
 ## CI/release contract
 
-The **Ghost FTP Android** workflow runs for every pull request to `main` and validates the same PR HEAD used by the other required gates.
+The **Ghost FTP Android** workflow runs for every pull request to `main` and every `main` push, so both PR acceptance and release orchestration have an exact-SHA Android gate.
 
 It must:
 
 - run the Android production contract;
+- run an Android emulator click-through smoke for core workspace/action validation;
 - lint/build debug, release and preview variants;
 - verify the preview APK with `apksigner`;
 - confirm the release-check APK is unsigned;
