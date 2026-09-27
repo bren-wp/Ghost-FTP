@@ -8,7 +8,6 @@
 - **Version source of truth:** `version.json`.
 - **Desktop production source:** `ghostftp-desktop/`.
 - **Android production source:** `android/`.
-- **Website source:** `website/`.
 
 The production desktop GUI is the native React + TypeScript + Tauri + Rust application. Go tooling under `tools/` is support/compatibility tooling and is not the authoritative end-user desktop GUI.
 
@@ -91,8 +90,7 @@ Evidence applies only to the exact tested source SHA.
 - full source archive;
 - desktop source archive;
 - Android source archive;
-- website archive;
-- update metadata archive;
+- update-service metadata/tooling archive;
 - documentation archive;
 - SHA-256 checksum file.
 
