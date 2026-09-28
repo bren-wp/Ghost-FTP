@@ -4,7 +4,7 @@ use ghostftp_lib::profiles::{AuthMethod, ConnectionProfile};
 use ghostftp_lib::remotefs::{ftp::FtpFs, sftp::SftpFs, RemoteFs};
 use ghostftp_lib::session::ftp::FtpTransferControl;
 use ghostftp_lib::session::{open_session, HostDecision, HostKeyVerifier, HostPromptKind, Session};
-use std::io::{Cursor, Seek, SeekFrom};
+use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use uuid::Uuid;
@@ -39,6 +39,47 @@ fn port(name: &str) -> Result<u16> {
     required(name)?
         .parse()
         .with_context(|| format!("invalid port in {name}"))
+}
+
+struct FailAfterWriter {
+    limit: usize,
+    written: usize,
+}
+
+impl Write for FailAfterWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        if self.written >= self.limit {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "intentional Ghost FTP E2E destination failure",
+            ));
+        }
+        let allowed = (self.limit - self.written).min(buf.len());
+        self.written += allowed;
+        Ok(allowed)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+struct FailAfterReader {
+    inner: Cursor<Vec<u8>>,
+    limit: u64,
+}
+
+impl Read for FailAfterReader {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if self.inner.position() >= self.limit {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "intentional Ghost FTP E2E source failure",
+            ));
+        }
+        let remaining = (self.limit - self.inner.position()) as usize;
+        self.inner.read(&mut buf[..buf.len().min(remaining)])
+    }
 }
 
 fn profile(
@@ -282,6 +323,69 @@ async fn ftp_roundtrip(
     .await
     .with_context(|| format!("{protocol} control channel reuse after ABOR"))?;
 
+    // I/O failures must also retire the raw data stream before propagating the
+    // error. Otherwise a pending 426/226 response can poison the next command
+    // on this same FTP control connection.
+    let download_failure_path = resume_path.clone();
+    let download_failure = ftp
+        .with_stream(move |stream| {
+            let mut writer = FailAfterWriter {
+                limit: 96 * 1024,
+                written: 0,
+            };
+            stream.retr_resumable(
+                &download_failure_path,
+                0,
+                &mut writer,
+                |_| FtpTransferControl::Continue,
+            )
+        })
+        .await;
+    if download_failure.is_ok() {
+        return Err(anyhow!(
+            "{protocol} download destination failure unexpectedly succeeded"
+        ));
+    }
+    let resume_path_after_download_error = resume_path.clone();
+    ftp.with_stream(move |stream| {
+        let _ = stream.size(&resume_path_after_download_error)?;
+        Ok(())
+    })
+    .await
+    .with_context(|| {
+        format!("{protocol} control channel reuse after download I/O failure")
+    })?;
+
+    let io_failure_path = format!("{base}/io-failure.bin");
+    let io_failure_target = io_failure_path.clone();
+    let io_failure_payload = resume_payload.clone();
+    let upload_failure = ftp
+        .with_stream(move |stream| {
+            let mut reader = FailAfterReader {
+                inner: Cursor::new(io_failure_payload),
+                limit: 96 * 1024,
+            };
+            stream.stor_resumable(
+                &io_failure_target,
+                0,
+                &mut reader,
+                |_| FtpTransferControl::Continue,
+            )
+        })
+        .await;
+    if upload_failure.is_ok() {
+        return Err(anyhow!(
+            "{protocol} upload source failure unexpectedly succeeded"
+        ));
+    }
+    let io_failure_path_for_size = io_failure_path.clone();
+    ftp.with_stream(move |stream| {
+        let _ = stream.size(&io_failure_path_for_size)?;
+        Ok(())
+    })
+    .await
+    .with_context(|| format!("{protocol} control channel reuse after upload I/O failure"))?;
+
     fs.delete(&renamed, false)
         .await
         .context("FTP delete file")?;
@@ -291,6 +395,9 @@ async fn ftp_roundtrip(
     fs.delete(&cancel_path, false)
         .await
         .context("FTP delete canceled file")?;
+    fs.delete(&io_failure_path, false)
+        .await
+        .context("FTP delete I/O failure file")?;
     fs.delete(&base, false)
         .await
         .context("FTP delete directory")?;
