@@ -3105,7 +3105,10 @@ fn supports_delta(session: &Session) -> bool {
 /// explicit ReadChunk/WriteChunk offsets. Other backends retain the safe
 /// restart-from-zero fallback until equivalent tests exist.
 fn supports_byte_resume(session: &Session) -> bool {
-    matches!(session, Session::Ssh(_) | Session::Ftp(_) | Session::Agent(_))
+    matches!(
+        session,
+        Session::Ssh(_) | Session::Ftp(_) | Session::Agent(_)
+    )
 }
 
 /// Stat a path on a Ghost FTP Agent daemon, returning its size and whether it exists.
