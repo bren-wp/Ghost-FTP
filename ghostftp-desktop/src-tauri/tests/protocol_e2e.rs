@@ -221,9 +221,7 @@ async fn ftp_roundtrip(
     // which may legitimately be below the local pause threshold. Some servers
     // discard the interrupted STOR entirely, in which case zero is the only
     // safe restart offset and Ghost FTP deliberately restarts from the start.
-    if upload_pause.control != FtpTransferControl::Pause
-        || upload_pause.transferred > pause_after
-    {
+    if upload_pause.control != FtpTransferControl::Pause || upload_pause.transferred > pause_after {
         return Err(anyhow!(
             "{protocol} upload did not report a valid server-committed pause offset"
         ));
@@ -249,7 +247,7 @@ async fn ftp_roundtrip(
             })
         })
         .await
-        .with_context(|| format!("{protocol} REST + STOR upload resume"))?;
+        .with_context(|| format!("{protocol} verified APPE upload resume"))?;
     if upload_done.control != FtpTransferControl::Continue
         || upload_done.transferred != resume_payload.len() as u64
     {
@@ -257,7 +255,7 @@ async fn ftp_roundtrip(
     }
 
     // Verify upload resume independently before using the same file to test
-    // download resume. This keeps a corrupt REST+STOR result from being
+    // download resume. This keeps a corrupt resumed upload result from being
     // misdiagnosed later as a REST+RETR failure.
     let verify_upload_path = resume_path.clone();
     let uploaded_bytes = ftp
