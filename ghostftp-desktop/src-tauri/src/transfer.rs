@@ -2058,37 +2058,52 @@ impl TransferManager {
 
             outcome = session
                 .with_stream(move |stream| {
+                    if retry_canceled.load(Ordering::Acquire) {
+                        return Ok(crate::session::ftp::FtpTransferOutcome {
+                            transferred: 0,
+                            control: FtpTransferControl::Cancel,
+                        });
+                    }
+                    if retry_pause_all.is_paused()
+                        || retry_pause
+                            .as_ref()
+                            .is_some_and(|gate| gate.is_paused())
+                    {
+                        return Ok(crate::session::ftp::FtpTransferOutcome {
+                            transferred: 0,
+                            control: FtpTransferControl::Pause,
+                        });
+                    }
+
+                    // The bounded writer already proved unreliable for this
+                    // server/session combination. Recovery deliberately uses
+                    // SuppaFTP's established full-upload path on a fresh
+                    // connection, then verifies both bytes sent and remote SIZE.
                     let restart_file = std::fs::File::open(&retry_local)
                         .with_context(|| format!("reopen {}", retry_local.display()))?;
                     let mut restart_reader = std::io::BufReader::new(restart_file);
-                    let restarted =
-                        stream.stor_resumable(&retry_remote, 0, &mut restart_reader, |_| {
-                            if retry_canceled.load(Ordering::Acquire) {
-                                FtpTransferControl::Cancel
-                            } else if retry_pause_all.is_paused()
-                                || retry_pause
-                                    .as_ref()
-                                    .is_some_and(|gate| gate.is_paused())
-                            {
-                                FtpTransferControl::Pause
-                            } else {
-                                FtpTransferControl::Continue
-                            }
-                        })?;
-
-                    if restarted.control == FtpTransferControl::Continue {
-                        if let Ok(size) = stream.size(&retry_remote) {
-                            if size as u64 != local_len {
-                                anyhow::bail!(
-                                    "FTP upload verification failed after reconnect: remote size {} != local size {}",
-                                    size,
-                                    local_len
-                                );
-                            }
+                    let written = stream.put_from_reader(&retry_remote, &mut restart_reader)?;
+                    if written != local_len {
+                        anyhow::bail!(
+                            "FTP recovery upload wrote {} bytes, expected {}",
+                            written,
+                            local_len
+                        );
+                    }
+                    if let Ok(size) = stream.size(&retry_remote) {
+                        if size as u64 != local_len {
+                            anyhow::bail!(
+                                "FTP upload verification failed after reconnect: remote size {} != local size {}",
+                                size,
+                                local_len
+                            );
                         }
                     }
 
-                    Ok(restarted)
+                    Ok(crate::session::ftp::FtpTransferOutcome {
+                        transferred: local_len,
+                        control: FtpTransferControl::Continue,
+                    })
                 })
                 .await?;
         }
