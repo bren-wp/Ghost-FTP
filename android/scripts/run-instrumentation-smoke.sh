@@ -35,23 +35,16 @@ test -s "$DEBUG_APK"
 adb install -r "$DEBUG_APK" >/dev/null
 adb shell pm path com.ghostftp.android | grep -Fq 'package:'
 
-LAUNCH_COMPONENT="$(
-  adb shell cmd package resolve-activity --brief \
+adb shell am force-stop com.ghostftp.android || true
+LAUNCH_OUTPUT="$(
+  adb shell am start -W \
     -a android.intent.action.MAIN \
     -c android.intent.category.LAUNCHER \
-    com.ghostftp.android | tr -d '\r' | tail -n1
+    -p com.ghostftp.android
 )"
-test -n "$LAUNCH_COMPONENT"
-case "$LAUNCH_COMPONENT" in
-  *MainActivity) ;;
-  *)
-    echo "Unexpected Ghost FTP launcher component: $LAUNCH_COMPONENT" >&2
-    exit 1
-    ;;
-esac
-
-adb shell am force-stop com.ghostftp.android || true
-adb shell am start -W -n "$LAUNCH_COMPONENT"
+printf '%s\n' "$LAUNCH_OUTPUT"
+echo "$LAUNCH_OUTPUT" | grep -Fq 'Status: ok'
+echo "$LAUNCH_OUTPUT" | grep -Fq 'com.ghostftp.android'
 sleep 2
 
 FOCUSED_WINDOW="$(adb shell dumpsys window | grep -m1 -E 'mCurrentFocus|mFocusedApp' || true)"
