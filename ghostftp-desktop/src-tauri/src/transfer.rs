@@ -4201,6 +4201,66 @@ mod tests {
         assert!(err.downcast_ref::<RestartFromPause>().is_some());
     }
 
+    // ---------- Durable restart recovery ----------
+
+    #[tokio::test]
+    async fn durable_recovery_preserves_verified_offset_without_credentials() {
+        let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+        let id = "recover-me";
+
+        {
+            let mgr = TransferManager::with_db(db.clone());
+            mgr.persisted_retry.lock().await.insert(
+                id.to_string(),
+                PersistedRetryInfo::Download {
+                    profile_id: "profile-1".to_string(),
+                    remote_path: "/srv/archive.bin".to_string(),
+                    final_path: PathBuf::from("/tmp/archive.bin"),
+                },
+            );
+            mgr.insert(Transfer {
+                id: id.to_string(),
+                kind: TransferKind::Download,
+                source: "/srv/archive.bin".to_string(),
+                destination: "/tmp/archive.bin".to_string(),
+                size: 1024 * 1024,
+                transferred: 256 * 1024,
+                status: TransferStatus::Transferring,
+                error: None,
+                retry_attempt: Some(1),
+                delta: None,
+                started_at: 123,
+            })
+            .await;
+
+            let rows = db.transfer_ledger_list().unwrap();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].0, id);
+            assert!(rows[0].1.contains("profile-1"));
+            assert!(!rows[0].1.contains("password"));
+            assert!(!rows[0].1.contains("passphrase"));
+            assert!(!rows[0].1.contains("token"));
+        }
+
+        // A fresh manager simulates the next application process after a crash
+        // or update. The row must not pretend to still be actively transferring.
+        let recovered = TransferManager::with_db(db);
+        let row = recovered.snapshot(id).await.unwrap();
+        assert_eq!(row.status, TransferStatus::Error);
+        assert_eq!(row.transferred, 256 * 1024);
+        assert_eq!(row.retry_attempt, None);
+        assert!(
+            row.error
+                .as_deref()
+                .is_some_and(|message| message.contains("interrupted"))
+        );
+        assert_eq!(
+            recovered.recovery_profile_id(id).await.as_deref(),
+            Some("profile-1")
+        );
+        assert!(recovered.recovered_retry.lock().await.contains(id));
+    }
+
     // ---------- FIFO admission ----------
 
     #[tokio::test]
