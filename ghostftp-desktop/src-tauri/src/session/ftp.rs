@@ -64,6 +64,44 @@ fn normalize_abort_result(result: std::result::Result<(), FtpError>) -> Result<(
     }
 }
 
+/// Resolve the only upload offset that is safe to resume from after ABOR:
+/// the size the server reports after the data channel has been closed.
+///
+/// A server that does not support SIZE cannot prove the committed prefix, so
+/// Ghost FTP deliberately falls back to offset 0. Likewise, an impossible
+/// remote size (before the requested REST floor or beyond bytes written) is
+/// treated as unverified and forces a safe restart instead of risking
+/// corruption.
+fn verified_upload_prefix_after_abort(
+    size_result: std::result::Result<usize, FtpError>,
+    restart_floor: u64,
+    attempted: u64,
+) -> Result<u64> {
+    match size_result {
+        Ok(size) => {
+            let size = size as u64;
+            if size >= restart_floor && size <= attempted {
+                Ok(size)
+            } else {
+                Ok(0)
+            }
+        }
+        Err(FtpError::UnexpectedResponse(response))
+            if matches!(
+                response.status,
+                Status::BadCommand
+                    | Status::BadArguments
+                    | Status::NotImplemented
+                    | Status::NotImplementedParameter
+                    | Status::FileUnavailable
+            ) =>
+        {
+            Ok(0)
+        }
+        Err(error) => Err(into_anyhow(error).context("verify FTP upload prefix after ABOR")),
+    }
+}
+
 impl FtpStreamKind {
     pub fn list(&mut self, path: Option<&str>) -> Result<Vec<String>> {
         match self {
@@ -282,8 +320,13 @@ impl FtpStreamKind {
                         FtpTransferControl::Continue => {}
                         stop => {
                             normalize_abort_result(stream.abort(data))?;
-                            return Ok(FtpTransferOutcome {
+                            let committed = verified_upload_prefix_after_abort(
+                                stream.size(path),
+                                offset,
                                 transferred,
+                            )?;
+                            return Ok(FtpTransferOutcome {
+                                transferred: committed,
                                 control: stop,
                             });
                         }
@@ -335,8 +378,13 @@ impl FtpStreamKind {
                         FtpTransferControl::Continue => {}
                         stop => {
                             normalize_abort_result(stream.abort(data))?;
-                            return Ok(FtpTransferOutcome {
+                            let committed = verified_upload_prefix_after_abort(
+                                stream.size(path),
+                                offset,
                                 transferred,
+                            )?;
+                            return Ok(FtpTransferOutcome {
+                                transferred: committed,
                                 control: stop,
                             });
                         }
