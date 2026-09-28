@@ -94,6 +94,7 @@ export function TitleBar() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [morePosition, setMorePosition] = useState({ top: 0, left: 0 });
   const moreRef = useRef<HTMLDivElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
   const positionMoreMenu = () => {
@@ -130,6 +131,11 @@ export function TitleBar() {
 
   useEffect(() => {
     if (!moreOpen) return;
+    const focusRaf = requestAnimationFrame(() => {
+      moreMenuRef.current
+        ?.querySelector<HTMLButtonElement>('button[role="menuitem"]:not(:disabled)')
+        ?.focus();
+    });
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       if (!moreRef.current?.contains(target) && !moreMenuRef.current?.contains(target)) {
@@ -139,19 +145,39 @@ export function TitleBar() {
     const onLayout = () => positionMoreMenu();
     positionMoreMenu();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMoreOpen(false);
+      if (event.key === "Escape") {
+        setMoreOpen(false);
+        moreButtonRef.current?.focus();
+      }
     };
     window.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("resize", onLayout);
     window.addEventListener("scroll", onLayout, true);
     return () => {
+      cancelAnimationFrame(focusRaf);
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", onLayout);
       window.removeEventListener("scroll", onLayout, true);
     };
   }, [moreOpen]);
+
+  const onMoreMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const items = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]:not(:disabled)')
+    );
+    if (items.length === 0) return;
+    event.preventDefault();
+    const current = items.indexOf(document.activeElement as HTMLButtonElement);
+    let next = current;
+    if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = items.length - 1;
+    else if (event.key === "ArrowDown") next = current < 0 ? 0 : (current + 1) % items.length;
+    else next = current <= 0 ? items.length - 1 : current - 1;
+    items[next]?.focus();
+  };
 
   useEffect(() => {
     if (workspace !== "Files") setMoreOpen(false);
@@ -231,6 +257,7 @@ export function TitleBar() {
           <Tool icon={<FolderPlus size={17}/>} label="New Folder" disabled={!paneState.canCreateDirectory} onClick={() => fileAction("newFolder", effectivePane)}/>
           <div ref={moreRef} className="ghost-toolbar-more">
             <button
+              ref={moreButtonRef}
               type="button"
               className={`ghost-tool-button ${moreOpen ? "active" : ""}`}
               aria-label="More file actions"
@@ -251,6 +278,7 @@ export function TitleBar() {
                 className="ghost-toolbar-more-menu"
                 role="menu"
                 aria-label="More file actions"
+                onKeyDown={onMoreMenuKeyDown}
                 style={{ position: "fixed", top: morePosition.top, left: morePosition.left, right: "auto", zIndex: 200 }}
               >
                 <MoreAction
