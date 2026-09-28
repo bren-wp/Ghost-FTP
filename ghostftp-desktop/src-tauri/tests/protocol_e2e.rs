@@ -2,8 +2,9 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use ghostftp_lib::profiles::{AuthMethod, ConnectionProfile};
 use ghostftp_lib::remotefs::{ftp::FtpFs, sftp::SftpFs, RemoteFs};
+use ghostftp_lib::session::ftp::FtpTransferControl;
 use ghostftp_lib::session::{open_session, HostDecision, HostKeyVerifier, HostPromptKind, Session};
-use std::io::{Cursor, SeekFrom};
+use std::io::{Cursor, Seek, SeekFrom};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use uuid::Uuid;
@@ -136,9 +137,160 @@ async fn ftp_roundtrip(
         return Err(anyhow!("{protocol} download content mismatch"));
     }
 
+    // Exercise the same SuppaFTP 6.3 REST + streaming primitives production
+    // pause/resume uses. ftp_roundtrip runs once for plain FTP and once for
+    // explicit FTPS, so both transport variants must survive ABOR and reuse the
+    // same control connection for a non-zero-offset continuation.
+    let resume_path = format!("{base}/resume.bin");
+    let resume_payload: Vec<u8> = (0..(512 * 1024))
+        .map(|index| ((index * 19 + 23) % 251) as u8)
+        .collect();
+    let pause_after = 128 * 1024u64;
+
+    let upload_path = resume_path.clone();
+    let upload_payload = resume_payload.clone();
+    let upload_pause = ftp
+        .with_stream(move |stream| {
+            let mut reader = Cursor::new(upload_payload);
+            stream.stor_resumable(&upload_path, 0, &mut reader, |transferred| {
+                if transferred >= pause_after {
+                    FtpTransferControl::Pause
+                } else {
+                    FtpTransferControl::Continue
+                }
+            })
+        })
+        .await
+        .with_context(|| format!("{protocol} ABOR partial upload"))?;
+    if upload_pause.control != FtpTransferControl::Pause
+        || upload_pause.transferred < pause_after
+    {
+        return Err(anyhow!(
+            "{protocol} upload did not stop at a committed pause offset"
+        ));
+    }
+
+    let upload_path = resume_path.clone();
+    let upload_payload = resume_payload.clone();
+    let upload_offset = upload_pause.transferred;
+    let upload_done = ftp
+        .with_stream(move |stream| {
+            let remote_size = stream.size(&upload_path)? as u64;
+            if remote_size != upload_offset {
+                return Err(anyhow!(
+                    "remote prefix mismatch before {protocol} resume: {remote_size} != {upload_offset}"
+                ));
+            }
+            let mut reader = Cursor::new(upload_payload);
+            reader.seek(SeekFrom::Start(upload_offset))?;
+            stream.stor_resumable(
+                &upload_path,
+                upload_offset,
+                &mut reader,
+                |_| FtpTransferControl::Continue,
+            )
+        })
+        .await
+        .with_context(|| format!("{protocol} REST + STOR upload resume"))?;
+    if upload_done.control != FtpTransferControl::Continue
+        || upload_done.transferred != resume_payload.len() as u64
+    {
+        return Err(anyhow!("{protocol} resumed upload length mismatch"));
+    }
+
+    let download_path = resume_path.clone();
+    let download_pause = ftp
+        .with_stream(move |stream| {
+            let mut bytes = Vec::new();
+            let outcome = stream.retr_resumable(
+                &download_path,
+                0,
+                &mut bytes,
+                |transferred| {
+                    if transferred >= pause_after {
+                        FtpTransferControl::Pause
+                    } else {
+                        FtpTransferControl::Continue
+                    }
+                },
+            )?;
+            Ok((outcome, bytes))
+        })
+        .await
+        .with_context(|| format!("{protocol} ABOR partial download"))?;
+    if download_pause.0.control != FtpTransferControl::Pause
+        || download_pause.0.transferred != download_pause.1.len() as u64
+    {
+        return Err(anyhow!(
+            "{protocol} download did not stop at its committed local prefix"
+        ));
+    }
+
+    let download_path = resume_path.clone();
+    let download_offset = download_pause.0.transferred;
+    let mut rebuilt = download_pause.1;
+    let download_done = ftp
+        .with_stream(move |stream| {
+            stream.retr_resumable(
+                &download_path,
+                download_offset,
+                &mut rebuilt,
+                |_| FtpTransferControl::Continue,
+            )
+            .map(|outcome| (outcome, rebuilt))
+        })
+        .await
+        .with_context(|| format!("{protocol} REST + RETR download resume"))?;
+    if download_done.0.control != FtpTransferControl::Continue
+        || download_done.1 != resume_payload
+    {
+        return Err(anyhow!("{protocol} resumed download content mismatch"));
+    }
+
+    // Cancel uses the same cooperative ABOR path as Pause but intentionally
+    // keeps a distinct control result. Prove ABOR leaves the control channel
+    // reusable by issuing SIZE immediately afterwards.
+    let cancel_path = format!("{base}/cancel.bin");
+    let cancel_payload = resume_payload.clone();
+    let cancel_path_for_transfer = cancel_path.clone();
+    let cancel_outcome = ftp
+        .with_stream(move |stream| {
+            let mut reader = Cursor::new(cancel_payload);
+            stream.stor_resumable(
+                &cancel_path_for_transfer,
+                0,
+                &mut reader,
+                |transferred| {
+                    if transferred >= 64 * 1024 {
+                        FtpTransferControl::Cancel
+                    } else {
+                        FtpTransferControl::Continue
+                    }
+                },
+            )
+        })
+        .await
+        .with_context(|| format!("{protocol} cooperative upload cancel"))?;
+    if cancel_outcome.control != FtpTransferControl::Cancel {
+        return Err(anyhow!("{protocol} cancel did not return Cancel control"));
+    }
+    let cancel_path_for_size = cancel_path.clone();
+    ftp.with_stream(move |stream| {
+        let _ = stream.size(&cancel_path_for_size)?;
+        Ok(())
+    })
+    .await
+    .with_context(|| format!("{protocol} control channel reuse after ABOR"))?;
+
     fs.delete(&renamed, false)
         .await
         .context("FTP delete file")?;
+    fs.delete(&resume_path, false)
+        .await
+        .context("FTP delete resume file")?;
+    fs.delete(&cancel_path, false)
+        .await
+        .context("FTP delete canceled file")?;
     fs.delete(&base, false)
         .await
         .context("FTP delete directory")?;
