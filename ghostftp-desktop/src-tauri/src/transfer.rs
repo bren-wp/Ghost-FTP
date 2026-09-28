@@ -4049,6 +4049,95 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn agent_download_resumes_from_committed_offset() {
+        let dir = test_dirs("resume-down");
+        let local = dir.join("local/file.bin");
+        let remote = dir.join("remote/file.bin");
+        let remote_s = remote.to_string_lossy().into_owned();
+        let content = det_bytes(0xA11CE, 768 * 1024);
+        let offset = 192 * 1024;
+
+        std::fs::write(&remote, &content).unwrap();
+        std::fs::write(&local, &content[..offset]).unwrap();
+
+        let session = delta_test_session(false).await;
+        let mgr = delta_test_manager(
+            "resume-down",
+            TransferKind::Download,
+            &remote_s,
+            &local.to_string_lossy(),
+            content.len() as u64,
+        )
+        .await;
+        mgr.update("resume-down", |t| t.transferred = offset as u64)
+            .await;
+
+        // Drive the same delta-aware entry point production dispatch uses. A
+        // non-zero committed offset must bypass delta and continue ReadChunk
+        // requests from the verified local prefix.
+        mgr.agent_download_with_delta_core(
+            "resume-down",
+            &session,
+            &remote_s,
+            &local,
+            None,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(std::fs::read(&local).unwrap(), content);
+        assert_eq!(
+            mgr.get("resume-down").await.unwrap().transferred,
+            content.len() as u64
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn agent_upload_resumes_from_committed_offset() {
+        let dir = test_dirs("resume-up");
+        let local = dir.join("local/file.bin");
+        let remote = dir.join("remote/file.bin");
+        let remote_s = remote.to_string_lossy().into_owned();
+        let content = det_bytes(0xBEE5, 768 * 1024);
+        let offset = 192 * 1024;
+
+        std::fs::write(&local, &content).unwrap();
+        std::fs::write(&remote, &content[..offset]).unwrap();
+
+        let session = delta_test_session(false).await;
+        let mgr = delta_test_manager(
+            "resume-up",
+            TransferKind::Upload,
+            &local.to_string_lossy(),
+            &remote_s,
+            content.len() as u64,
+        )
+        .await;
+        mgr.update("resume-up", |t| t.transferred = offset as u64)
+            .await;
+
+        // Production dispatch is delta-aware, but an interrupted whole-file
+        // upload must keep its exact prefix and continue WriteChunk at offset.
+        mgr.agent_upload_with_delta_core(
+            "resume-up",
+            &session,
+            &local,
+            &remote_s,
+            None,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(std::fs::read(&remote).unwrap(), content);
+        assert_eq!(
+            mgr.get("resume-up").await.unwrap().transferred,
+            content.len() as u64
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// Delta upload: 20 MiB up whole-file, mutate 1 KiB, up again — the second
     /// run must reassemble a byte-equal remote file with < 10% of the bytes
     /// crossing the wire (the patch is the ONLY WriteChunk traffic).
