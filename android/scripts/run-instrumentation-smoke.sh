@@ -6,6 +6,7 @@ DEBUG_APK="android/app/build/outputs/apk/debug/app-debug.apk"
 PREVIEW_APK="android/app/build/outputs/apk/preview/app-preview.apk"
 PACKAGE_ID="com.ghostftp.android"
 PREVIEW_PACKAGE_ID="com.ghostftp.android.preview"
+PREVIEW_ACTIVITY_CLASS="com.ghostftp.android.MainActivity"
 
 mkdir -p "$DIAG_DIR"
 
@@ -257,13 +258,10 @@ if [ "$PREVIEW_DECLARED_PACKAGE" != "$PREVIEW_PACKAGE_ID" ]; then
   echo "Release-candidate APK package mismatch: expected $PREVIEW_PACKAGE_ID, got $PREVIEW_DECLARED_PACKAGE" >&2
   exit 1
 fi
-case "$PREVIEW_LAUNCH_ACTIVITY" in
-  "$PREVIEW_PACKAGE_ID".*) ;;
-  *)
-    echo "Release-candidate APK does not expose the expected launchable activity: $PREVIEW_LAUNCH_ACTIVITY" >&2
-    exit 1
-    ;;
-esac
+if [ "$PREVIEW_LAUNCH_ACTIVITY" != "$PREVIEW_ACTIVITY_CLASS" ]; then
+  echo "Release-candidate APK launcher mismatch: expected $PREVIEW_ACTIVITY_CLASS, got $PREVIEW_LAUNCH_ACTIVITY" >&2
+  exit 1
+fi
 if grep -Fq "application-debuggable" <<< "$PREVIEW_BADGING"; then
   echo "Release-candidate APK must remain non-debuggable." >&2
   exit 1
