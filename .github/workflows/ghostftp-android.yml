@@ -190,9 +190,9 @@ jobs:
             # skipping continuity would make an otherwise valid APK non-upgradeable.
             if [ "$GITHUB_EVENT_NAME" = "push" ] && [ -n "$PREVIOUS_VERSION" ] && gh release view "v$PREVIOUS_VERSION" >/dev/null 2>&1; then
               PREVIOUS_ASSET="GhostFTP-Android-v$PREVIOUS_VERSION.apk"
-              PREVIOUS_HAS_STABLE="$(gh release view "v$PREVIOUS_VERSION" --json assets --jq --arg asset "$PREVIOUS_ASSET" 'any(.assets[]; .name == $asset)')"
+              PREVIOUS_ASSETS="$(gh release view "v$PREVIOUS_VERSION" --json assets --jq '.assets[].name')"
 
-              if [ "$PREVIOUS_HAS_STABLE" = "true" ]; then
+              if grep -Fxq "$PREVIOUS_ASSET" <<< "$PREVIOUS_ASSETS"; then
                 PREVIOUS_DIR="$RUNNER_TEMP/ghostftp-previous-android"
                 rm -rf "$PREVIOUS_DIR"
                 mkdir -p "$PREVIOUS_DIR"
