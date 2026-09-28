@@ -98,13 +98,7 @@ jobs:
           test "$VERSION_NAME" = "${VERSION}-preview"
           test "$MIN_SDK" = "26"
           test "$TARGET_SDK" = "35"
-          case "$LAUNCH_ACTIVITY" in
-            "$PACKAGE_ID".*) ;;
-            *)
-              echo "Preview APK launchable activity does not belong to $PACKAGE_ID: $LAUNCH_ACTIVITY" >&2
-              exit 1
-              ;;
-          esac
+          test "$LAUNCH_ACTIVITY" = "com.ghostftp.android.MainActivity"
           if grep -Fq "application-debuggable" <<< "$BADGING"; then
             echo "Installable preview APK unexpectedly remains debuggable." >&2
             exit 1
