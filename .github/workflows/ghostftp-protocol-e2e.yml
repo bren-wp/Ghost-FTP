@@ -205,6 +205,24 @@ jobs:
             fi
           done
 
+          # Guard the fixture itself: pyftpdlib issue #602 makes TLS 1.3
+          # uploads unreliable, so this server must remain TLS 1.2-only.
+          TLS12_PROBE="$(printf 'QUIT\r\n' | openssl s_client \
+            -starttls ftp -connect 127.0.0.1:2122 -tls1_2 -brief 2>&1 || true)"
+          if ! grep -q "Protocol version: TLSv1.2" <<<"$TLS12_PROBE"; then
+            echo "FTPS E2E fixture did not negotiate TLS 1.2" >&2
+            printf '%s\n' "$TLS12_PROBE" >&2
+            exit 1
+          fi
+
+          TLS13_PROBE="$(printf 'QUIT\r\n' | openssl s_client \
+            -starttls ftp -connect 127.0.0.1:2122 -tls1_3 -brief 2>&1 || true)"
+          if grep -q "Protocol version: TLSv1.3" <<<"$TLS13_PROBE"; then
+            echo "FTPS E2E fixture unexpectedly negotiated TLS 1.3" >&2
+            printf '%s\n' "$TLS13_PROBE" >&2
+            exit 1
+          fi
+
           {
             echo "GHOSTFTP_PROTOCOL_E2E=1"
             echo "GHOSTFTP_E2E_USERNAME=$USERNAME"
