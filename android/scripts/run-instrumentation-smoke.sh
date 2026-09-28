@@ -4,6 +4,7 @@ set -euo pipefail
 DIAG_DIR="dist/android/diagnostics"
 DEBUG_APK="android/app/build/outputs/apk/debug/app-debug.apk"
 PREVIEW_APK="android/app/build/outputs/apk/preview/app-preview.apk"
+SIGNED_RELEASE_APK="android/app/build/outputs/apk/release/app-release.apk"
 PACKAGE_ID="com.ghostftp.android"
 PREVIEW_PACKAGE_ID="com.ghostftp.android.preview"
 PREVIEW_ACTIVITY_CLASS="com.ghostftp.android.MainActivity"
@@ -360,6 +361,105 @@ test -n "$PREVIEW_PID"
 printf 'Ghost FTP release-candidate PID: %s\n' "$PREVIEW_PID"
 adb exec-out screencap -p > dist/android/GhostFTP-Android-Release-Candidate-Smoke.png
 test -s dist/android/GhostFTP-Android-Release-Candidate-Smoke.png
+
+# On main, persistent release-signing secrets produce app-release.apk. Exercise
+# that exact stable package too. Pull requests intentionally have only the
+# unsigned release-check APK, so this block is skipped there.
+if [ -s "$SIGNED_RELEASE_APK" ]; then
+  APKSIGNER="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -n1)"
+  test -x "$APKSIGNER"
+  "$APKSIGNER" verify --verbose --print-certs "$SIGNED_RELEASE_APK"
+
+  STABLE_BADGING="$("$AAPT" dump badging "$SIGNED_RELEASE_APK")"
+  STABLE_PACKAGE_ID=""
+  STABLE_LAUNCH_ACTIVITY=""
+  while IFS= read -r badging_line; do
+    case "$badging_line" in
+      package:*)
+        package_value="${badging_line#*name=\'}"
+        STABLE_PACKAGE_ID="${package_value%%\'*}"
+        ;;
+      launchable-activity:*)
+        launch_value="${badging_line#*name=\'}"
+        STABLE_LAUNCH_ACTIVITY="${launch_value%%\'*}"
+        ;;
+    esac
+  done <<< "$STABLE_BADGING"
+
+  if [ "$STABLE_PACKAGE_ID" != "$PACKAGE_ID" ]; then
+    echo "Stable release package mismatch: expected $PACKAGE_ID, got $STABLE_PACKAGE_ID" >&2
+    exit 1
+  fi
+  if [ "$STABLE_LAUNCH_ACTIVITY" != "$PREVIEW_ACTIVITY_CLASS" ]; then
+    echo "Stable release launcher mismatch: expected $PREVIEW_ACTIVITY_CLASS, got $STABLE_LAUNCH_ACTIVITY" >&2
+    exit 1
+  fi
+  if grep -Fq "application-debuggable" <<< "$STABLE_BADGING"; then
+    echo "Stable release APK must remain non-debuggable." >&2
+    exit 1
+  fi
+
+  # Debug instrumentation uses the same base package id with a different key;
+  # remove it before installing the persistently signed stable package.
+  adb uninstall "$PACKAGE_ID" >/dev/null 2>&1 || true
+  STABLE_INSTALL_OUTPUT="$(adb install "$SIGNED_RELEASE_APK" 2>&1)"
+  printf '%s\n' "$STABLE_INSTALL_OUTPUT"
+  case "$STABLE_INSTALL_OUTPUT" in
+    *Success*) ;;
+    *)
+      echo "Ghost FTP stable signed APK clean install did not report Success." >&2
+      exit 1
+      ;;
+  esac
+
+  STABLE_REINSTALL_OUTPUT="$(adb install -r "$SIGNED_RELEASE_APK" 2>&1)"
+  printf '%s\n' "$STABLE_REINSTALL_OUTPUT"
+  case "$STABLE_REINSTALL_OUTPUT" in
+    *Success*) ;;
+    *)
+      echo "Ghost FTP stable signed APK same-signature reinstall did not report Success." >&2
+      exit 1
+      ;;
+  esac
+
+  STABLE_COMPONENT="$PACKAGE_ID/$STABLE_LAUNCH_ACTIVITY"
+  adb shell am force-stop "$PACKAGE_ID" || true
+  STABLE_LAUNCH_OUTPUT="$(adb shell am start -W -n "$STABLE_COMPONENT" 2>&1)"
+  printf '%s\n' "$STABLE_LAUNCH_OUTPUT"
+  case "$STABLE_LAUNCH_OUTPUT" in
+    *"Status: ok"*"$PACKAGE_ID"*) ;;
+    *)
+      echo "Ghost FTP stable signed MainActivity did not report a successful launch." >&2
+      exit 1
+      ;;
+  esac
+
+  STABLE_RESUMED=""
+  for _ in {1..20}; do
+    STABLE_ACTIVITY_DUMP="$(adb shell dumpsys activity activities 2>&1)"
+    while IFS= read -r activity_line; do
+      case "$activity_line" in
+        *ResumedActivity*"$PACKAGE_ID/"*|*topResumedActivity*"$PACKAGE_ID/"*)
+          STABLE_RESUMED="$activity_line"
+          break
+          ;;
+      esac
+    done <<< "$STABLE_ACTIVITY_DUMP"
+    [ -n "$STABLE_RESUMED" ] && break
+    sleep 0.25
+  done
+  if [ -z "$STABLE_RESUMED" ]; then
+    printf '%s\n' "$STABLE_ACTIVITY_DUMP" > "$DIAG_DIR/stable-release-activities.txt"
+    echo "Ghost FTP stable signed MainActivity did not reach RESUMED state." >&2
+    exit 1
+  fi
+
+  STABLE_PID="$(adb shell pidof "$PACKAGE_ID" 2>/dev/null || true)"
+  test -n "$STABLE_PID"
+  adb exec-out screencap -p > dist/android/GhostFTP-Android-Stable-Release-Smoke.png
+  test -s dist/android/GhostFTP-Android-Stable-Release-Smoke.png
+  echo "Ghost FTP stable signed Android release install/reinstall/launch smoke OK"
+fi
 
 trap - EXIT
 echo "Ghost FTP Android instrumentation, release-candidate install and launch smoke OK"
