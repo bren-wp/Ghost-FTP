@@ -111,6 +111,16 @@ const MIGRATIONS: &[&str] = &[
         vtype        INTEGER NOT NULL,
         backed_up_ms INTEGER NOT NULL
     ) WITHOUT ROWID;",
+    // v7 — durable transfer ledger. Payload JSON contains only transfer
+    // metadata plus profile ids/resolved paths; credentials and OAuth tokens
+    // remain exclusively in the OS credential store.
+    "CREATE TABLE transfer_ledger (
+        id         TEXT PRIMARY KEY,
+        payload    TEXT    NOT NULL,
+        updated_ms INTEGER NOT NULL
+    ) WITHOUT ROWID;
+    CREATE INDEX transfer_ledger_updated_idx
+        ON transfer_ledger(updated_ms DESC);",
 ];
 
 /// A persisted per-file sync record — what the source looked like the last time
@@ -400,6 +410,66 @@ impl Db {
     pub fn settings_delete(&self, key: &str) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute("DELETE FROM settings WHERE key = ?1", [key])?;
+        Ok(())
+    }
+
+    // ---- Durable transfer ledger (cross-restart recovery) ----
+
+    /// Persist one credential-free transfer snapshot. `payload` is opaque,
+    /// versioned JSON owned by TransferManager.
+    pub fn transfer_ledger_upsert(&self, id: &str, payload: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO transfer_ledger (id, payload, updated_ms) VALUES (?1, ?2, ?3)
+             ON CONFLICT(id) DO UPDATE SET
+                 payload = excluded.payload,
+                 updated_ms = excluded.updated_ms",
+            rusqlite::params![id, payload, now_ms()],
+        )?;
+        Ok(())
+    }
+
+    /// Load every durable transfer snapshot, newest first.
+    pub fn transfer_ledger_list(&self) -> Result<Vec<(String, String, i64)>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, payload, updated_ms
+               FROM transfer_ledger
+              ORDER BY updated_ms DESC, id ASC",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    pub fn transfer_ledger_delete(&self, id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM transfer_ledger WHERE id = ?1", [id])?;
+        Ok(())
+    }
+
+    /// Bound local transfer history so long-running clients cannot grow the
+    /// ledger indefinitely.
+    pub fn transfer_ledger_prune(&self, keep: usize) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id FROM transfer_ledger
+              ORDER BY updated_ms DESC, id ASC
+              LIMIT -1 OFFSET ?1",
+        )?;
+        let stale: Vec<String> = stmt
+            .query_map([keep as i64], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        drop(stmt);
+        for id in stale {
+            conn.execute("DELETE FROM transfer_ledger WHERE id = ?1", [id])?;
+        }
         Ok(())
     }
 
@@ -756,6 +826,38 @@ mod tests {
         cleared.sort();
         assert_eq!(cleared, vec!["k1".to_string(), "k3".to_string()]);
         assert!(!db.thumb_touch("k1").unwrap());
+    }
+
+    #[test]
+    fn transfer_ledger_round_trips_updates_and_prunes() {
+        let db = Db::open_in_memory().unwrap();
+        assert!(db.transfer_ledger_list().unwrap().is_empty());
+
+        db.transfer_ledger_upsert("a", r#"{"state":"queued"}"#)
+            .unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        db.transfer_ledger_upsert("b", r#"{"state":"done"}"#)
+            .unwrap();
+
+        let rows = db.transfer_ledger_list().unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].0, "b");
+        assert_eq!(rows[1].0, "a");
+
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        db.transfer_ledger_upsert("a", r#"{"state":"error"}"#)
+            .unwrap();
+        let rows = db.transfer_ledger_list().unwrap();
+        assert_eq!(rows[0].0, "a");
+        assert_eq!(rows[0].1, r#"{"state":"error"}"#);
+
+        db.transfer_ledger_prune(1).unwrap();
+        let rows = db.transfer_ledger_list().unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].0, "a");
+
+        db.transfer_ledger_delete("a").unwrap();
+        assert!(db.transfer_ledger_list().unwrap().is_empty());
     }
 
     #[test]
