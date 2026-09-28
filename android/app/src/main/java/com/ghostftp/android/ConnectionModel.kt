@@ -485,7 +485,7 @@ class ConnectionController {
 
     private fun localTemporarySibling(target: File, purpose: String): File {
         val parent = target.parentFile ?: throw IOException("Download target has no parent directory.")
-        return File(parent, ".${target.name}.ghostftp-$purpose-${UUID.randomUUID()}.part")
+        return File(parent, ".ghostftp-$purpose-${UUID.randomUUID()}.part")
     }
 
     private fun commitLocalReplacement(temporary: File, target: File) {
@@ -519,8 +519,7 @@ class ConnectionController {
     private fun remoteTemporarySibling(target: String, purpose: String): String {
         val slash = target.lastIndexOf('/')
         val parent = if (slash >= 0) target.substring(0, slash + 1) else ""
-        val name = target.substring(slash + 1)
-        return "$parent.$name.ghostftp-$purpose-${UUID.randomUUID()}.part"
+        return "$parent.ghostftp-$purpose-${UUID.randomUUID()}.part"
     }
 
     private fun copyCancelable(
