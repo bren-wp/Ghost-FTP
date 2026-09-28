@@ -202,9 +202,16 @@ async fn ftp_roundtrip(
         })
         .await
         .with_context(|| format!("{protocol} ABOR partial upload"))?;
-    if upload_pause.control != FtpTransferControl::Pause || upload_pause.transferred < pause_after {
+    // Bytes accepted by the local data socket can be ahead of bytes the FTP
+    // server has durably committed when ABOR closes the transfer. The
+    // production resumable path therefore reports the server-confirmed SIZE,
+    // which may legitimately be below the local pause threshold.
+    if upload_pause.control != FtpTransferControl::Pause
+        || upload_pause.transferred == 0
+        || upload_pause.transferred > pause_after
+    {
         return Err(anyhow!(
-            "{protocol} upload did not stop at a committed pause offset"
+            "{protocol} upload did not report a valid server-committed pause offset"
         ));
     }
 
