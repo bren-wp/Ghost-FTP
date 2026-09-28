@@ -619,15 +619,45 @@ impl Db {
     }
 }
 
-/// Apply every migration whose index is `>= user_version`, bumping the pragma in
-/// lockstep so a half-applied run resumes cleanly on the next open.
+/// Apply one schema migration and its `user_version` bump atomically.
+///
+/// Some migrations contain multiple SQL statements. A process crash or statement
+/// failure must never leave half of a migration committed while `user_version`
+/// still points at the previous schema, because the next startup would retry the
+/// already-applied DDL and could incorrectly quarantine a healthy database.
+fn apply_migration(conn: &Connection, target_version: i64, sql: &str) -> Result<()> {
+    conn.execute_batch("BEGIN IMMEDIATE TRANSACTION")
+        .with_context(|| format!("begin migration v{target_version}"))?;
+
+    let result = (|| -> Result<()> {
+        conn.execute_batch(sql)
+            .with_context(|| format!("apply migration v{target_version}"))?;
+        // `user_version` cannot be a bound parameter. `target_version` is
+        // derived only from our static migration index.
+        conn.pragma_update(None, "user_version", target_version)
+            .with_context(|| format!("mark migration v{target_version}"))?;
+        Ok(())
+    })();
+
+    if let Err(error) = result {
+        let _ = conn.execute_batch("ROLLBACK");
+        return Err(error);
+    }
+
+    if let Err(error) = conn.execute_batch("COMMIT") {
+        let _ = conn.execute_batch("ROLLBACK");
+        return Err(error).with_context(|| format!("commit migration v{target_version}"));
+    }
+    Ok(())
+}
+
+/// Apply every migration whose index is `>= user_version`. Each schema change
+/// and version bump is one SQLite transaction, so a failed/interrupted run can
+/// always be retried safely on the next open.
 fn migrate(conn: &Connection) -> Result<()> {
     let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
     for (i, sql) in MIGRATIONS.iter().enumerate().skip(version as usize) {
-        conn.execute_batch(sql)
-            .with_context(|| format!("apply migration v{}", i + 1))?;
-        // `user_version` can't be a bound parameter — the value is our own index.
-        conn.pragma_update(None, "user_version", (i + 1) as i64)?;
+        apply_migration(conn, (i + 1) as i64, sql)?;
     }
     Ok(())
 }
@@ -886,6 +916,46 @@ mod tests {
         let (val, vtype) = db.env_backup_get("other_key").unwrap().unwrap();
         assert_eq!(val, None);
         assert_eq!(vtype, 1);
+    }
+
+    #[test]
+    fn migration_step_rolls_back_schema_and_version_on_failure() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        let error = apply_migration(
+            &conn,
+            1,
+            "CREATE TABLE should_rollback (id INTEGER PRIMARY KEY);
+             THIS IS INTENTIONALLY INVALID SQL;",
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("apply migration v1"));
+
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master
+                  WHERE type = 'table' AND name = 'should_rollback'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(exists, 0, "failed migration must roll back its DDL");
+
+        let version: i64 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 0, "failed migration must not advance user_version");
+
+        apply_migration(
+            &conn,
+            1,
+            "CREATE TABLE should_commit (id INTEGER PRIMARY KEY);",
+        )
+        .unwrap();
+        let version: i64 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 1);
     }
 
     #[test]
