@@ -129,34 +129,44 @@ class ConnectionController {
         input: InputStream,
         remoteFilePath: String,
         cancellation: OperationCancellation = OperationCancellation()
-    ): TransferResult {
+    ): TransferResult = input.use { source ->
         cancellation.throwIfCanceled()
         val normalized = normalizedProfile(profile)
         val target = normalizeRemoteTarget(remoteFilePath)
-        return when (normalized.protocol) {
-            ConnectionProtocol.FTP -> uploadFtp(normalized, secure = false, input = input, remoteFilePath = target, cancellation = cancellation)
-            ConnectionProtocol.EXPLICIT_FTPS -> uploadFtp(normalized, secure = true, input = input, remoteFilePath = target, cancellation = cancellation)
-            ConnectionProtocol.SFTP -> uploadSftp(normalized, input = input, remoteFilePath = target, cancellation = cancellation)
+        when (normalized.protocol) {
+            ConnectionProtocol.FTP -> uploadFtp(normalized, secure = false, input = source, remoteFilePath = target, cancellation = cancellation)
+            ConnectionProtocol.EXPLICIT_FTPS -> uploadFtp(normalized, secure = true, input = source, remoteFilePath = target, cancellation = cancellation)
+            ConnectionProtocol.SFTP -> uploadSftp(normalized, input = source, remoteFilePath = target, cancellation = cancellation)
         }
     }
 
-    fun deleteRemoteFile(profile: ConnectionProfile, remoteFilePath: String): TransferResult {
+    fun deleteRemoteFile(
+        profile: ConnectionProfile,
+        remoteFilePath: String,
+        cancellation: OperationCancellation = OperationCancellation()
+    ): TransferResult {
+        cancellation.throwIfCanceled()
         val normalized = normalizedProfile(profile)
         val target = normalizeRemoteDeleteTarget(remoteFilePath)
         return when (normalized.protocol) {
-            ConnectionProtocol.FTP -> deleteFtp(normalized, secure = false, remoteFilePath = target)
-            ConnectionProtocol.EXPLICIT_FTPS -> deleteFtp(normalized, secure = true, remoteFilePath = target)
-            ConnectionProtocol.SFTP -> deleteSftp(normalized, remoteFilePath = target)
+            ConnectionProtocol.FTP -> deleteFtp(normalized, secure = false, remoteFilePath = target, cancellation = cancellation)
+            ConnectionProtocol.EXPLICIT_FTPS -> deleteFtp(normalized, secure = true, remoteFilePath = target, cancellation = cancellation)
+            ConnectionProtocol.SFTP -> deleteSftp(normalized, remoteFilePath = target, cancellation = cancellation)
         }
     }
 
-    fun createRemoteDirectory(profile: ConnectionProfile, remoteDirectoryPath: String): TransferResult {
+    fun createRemoteDirectory(
+        profile: ConnectionProfile,
+        remoteDirectoryPath: String,
+        cancellation: OperationCancellation = OperationCancellation()
+    ): TransferResult {
+        cancellation.throwIfCanceled()
         val normalized = normalizedProfile(profile)
         val target = normalizeRemoteTarget(remoteDirectoryPath)
         return when (normalized.protocol) {
-            ConnectionProtocol.FTP -> mkdirFtp(normalized, secure = false, remoteDirectoryPath = target)
-            ConnectionProtocol.EXPLICIT_FTPS -> mkdirFtp(normalized, secure = true, remoteDirectoryPath = target)
-            ConnectionProtocol.SFTP -> mkdirSftp(normalized, remoteDirectoryPath = target)
+            ConnectionProtocol.FTP -> mkdirFtp(normalized, secure = false, remoteDirectoryPath = target, cancellation = cancellation)
+            ConnectionProtocol.EXPLICIT_FTPS -> mkdirFtp(normalized, secure = true, remoteDirectoryPath = target, cancellation = cancellation)
+            ConnectionProtocol.SFTP -> mkdirSftp(normalized, remoteDirectoryPath = target, cancellation = cancellation)
         }
     }
 
@@ -248,10 +258,8 @@ class ConnectionController {
         try {
             val remote = client.storeFileStream(temporaryPath)
                 ?: throw IOException("Upload failed for $remoteFilePath: server did not open a data stream.")
-            input.use { source ->
-                remote.use { output ->
-                    copyCancelable(source, output, cancellation)
-                }
+            remote.use { output ->
+                copyCancelable(input, output, cancellation)
             }
             cancellation.throwIfCanceled()
             require(client.completePendingCommand()) {
@@ -293,7 +301,13 @@ class ConnectionController {
         )
     }
 
-    private fun deleteFtp(profile: ConnectionProfile, secure: Boolean, remoteFilePath: String): TransferResult = withFtpClient(profile, secure, OperationCancellation()) { client ->
+    private fun deleteFtp(
+        profile: ConnectionProfile,
+        secure: Boolean,
+        remoteFilePath: String,
+        cancellation: OperationCancellation
+    ): TransferResult = withFtpClient(profile, secure, cancellation) { client ->
+        cancellation.throwIfCanceled()
         require(client.deleteFile(remoteFilePath)) {
             "Delete failed for $remoteFilePath."
         }
@@ -304,7 +318,13 @@ class ConnectionController {
         )
     }
 
-    private fun mkdirFtp(profile: ConnectionProfile, secure: Boolean, remoteDirectoryPath: String): TransferResult = withFtpClient(profile, secure, OperationCancellation()) { client ->
+    private fun mkdirFtp(
+        profile: ConnectionProfile,
+        secure: Boolean,
+        remoteDirectoryPath: String,
+        cancellation: OperationCancellation
+    ): TransferResult = withFtpClient(profile, secure, cancellation) { client ->
+        cancellation.throwIfCanceled()
         require(client.makeDirectory(remoteDirectoryPath)) {
             "Folder creation failed for $remoteDirectoryPath."
         }
@@ -344,10 +364,8 @@ class ConnectionController {
         val backupPath = remoteTemporarySibling(remoteFilePath, "backup")
         var backupCreated = false
         try {
-            input.use { source ->
-                channel.put(temporaryPath).use { output ->
-                    copyCancelable(source, output, cancellation)
-                }
+            channel.put(temporaryPath).use { output ->
+                copyCancelable(input, output, cancellation)
             }
             cancellation.throwIfCanceled()
 
@@ -385,7 +403,12 @@ class ConnectionController {
         )
     }
 
-    private fun deleteSftp(profile: ConnectionProfile, remoteFilePath: String): TransferResult = withSftpChannel(profile, OperationCancellation()) { channel ->
+    private fun deleteSftp(
+        profile: ConnectionProfile,
+        remoteFilePath: String,
+        cancellation: OperationCancellation
+    ): TransferResult = withSftpChannel(profile, cancellation) { channel ->
+        cancellation.throwIfCanceled()
         channel.rm(remoteFilePath)
         TransferResult(
             title = "Remote file deleted",
@@ -394,7 +417,12 @@ class ConnectionController {
         )
     }
 
-    private fun mkdirSftp(profile: ConnectionProfile, remoteDirectoryPath: String): TransferResult = withSftpChannel(profile, OperationCancellation()) { channel ->
+    private fun mkdirSftp(
+        profile: ConnectionProfile,
+        remoteDirectoryPath: String,
+        cancellation: OperationCancellation
+    ): TransferResult = withSftpChannel(profile, cancellation) { channel ->
+        cancellation.throwIfCanceled()
         channel.mkdir(remoteDirectoryPath)
         TransferResult(
             title = "Remote folder created",
