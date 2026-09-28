@@ -268,12 +268,9 @@ async fn sftp_password_roundtrip(
         if metadata.size.unwrap_or(0) != resume_offset as u64 {
             return Err(anyhow!("SFTP partial upload size mismatch before resume"));
         }
-        sftp.open_with_flags(
-            &resume_path,
-            russh_sftp::protocol::OpenFlags::WRITE,
-        )
-        .await
-        .context("SFTP reopen partial upload for resume")?
+        sftp.open_with_flags(&resume_path, russh_sftp::protocol::OpenFlags::WRITE)
+            .await
+            .context("SFTP reopen partial upload for resume")?
     };
     resumed_remote
         .seek(SeekFrom::Start(resume_offset as u64))
