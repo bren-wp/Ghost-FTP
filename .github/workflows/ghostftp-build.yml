@@ -62,7 +62,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm xvfb xauth
       - name: Validate central version metadata
         shell: bash
         run: node .github/scripts/sync-version.mjs --check
@@ -140,6 +140,32 @@ jobs:
             throw 'Ghost FTP executable was not installed by Setup.'
           }
 
+          # Prove the NSIS-installed binary itself launches as a GUI application,
+          # not only the unpackaged target/release executable used by later QA.
+          $installedProc = Start-Process -FilePath $installedExe.FullName -PassThru
+          try {
+            $opened = $false
+            for ($attempt = 0; $attempt -lt 40; $attempt++) {
+              Start-Sleep -Milliseconds 250
+              $installedProc.Refresh()
+              if ($installedProc.HasExited) {
+                throw "NSIS-installed Ghost FTP exited during launch smoke with code $($installedProc.ExitCode)"
+              }
+              if ($installedProc.MainWindowHandle -ne 0 -and $installedProc.MainWindowTitle -eq 'Ghost FTP') {
+                $opened = $true
+                break
+              }
+            }
+            if (-not $opened) {
+              throw 'NSIS-installed Ghost FTP did not expose its main GUI window.'
+            }
+          } finally {
+            if (-not $installedProc.HasExited) {
+              Stop-Process -Id $installedProc.Id -Force -ErrorAction SilentlyContinue
+              $installedProc.WaitForExit()
+            }
+          }
+
           $uninstaller = Get-ChildItem $installDir -Filter '*uninstall*.exe' -Recurse | Select-Object -First 1
           if (-not $uninstaller) { throw 'Ghost FTP uninstaller was not installed.' }
 
@@ -203,6 +229,34 @@ jobs:
           "$APPIMAGE" --appimage-version
           dpkg-deb --info "$DEB" >/dev/null
           rpm -qip "$RPM" >/dev/null
+          rpm -qpl "$RPM" | grep -E '/(usr/)?bin/[^/]*ghost' >/dev/null
+
+          smoke_linux_gui() {
+            local label="$1"
+            shift
+            local log="$RUNNER_TEMP/ghostftp-${label// /-}-launch.log"
+            local home="$RUNNER_TEMP/ghostftp-${label// /-}-home"
+            rm -rf "$home"
+            mkdir -p "$home"
+
+            set +e
+            HOME="$home" timeout --signal=TERM --kill-after=3s 10s xvfb-run -a "$@" >"$log" 2>&1
+            local exit_code=$?
+            set -e
+
+            # A healthy desktop app remains alive until timeout terminates it.
+            # Any early exit (including loader/WebKit/package errors) is a failure.
+            if [ "$exit_code" -ne 124 ]; then
+              cat "$log" >&2 || true
+              echo "$label GUI launch smoke exited early with code $exit_code." >&2
+              exit 1
+            fi
+            echo "$label GUI launch stayed alive until the smoke timeout."
+          }
+
+          # GitHub runners may not expose FUSE. Extract-and-run still executes the
+          # exact AppImage payload and its bundled desktop application.
+          smoke_linux_gui "AppImage" env APPIMAGE_EXTRACT_AND_RUN=1 "$APPIMAGE"
 
           PACKAGE_NAME="$(dpkg-deb -f "$DEB" Package)"
           test -n "$PACKAGE_NAME"
@@ -223,6 +277,7 @@ jobs:
             exit 1
           fi
           echo "Installed Ghost FTP executable: $INSTALLED_BIN"
+          smoke_linux_gui "DEB-installed" "$INSTALLED_BIN"
 
           sudo apt-get remove -y "$PACKAGE_NAME"
           if dpkg-query -W -f='${Status}' "$PACKAGE_NAME" 2>/dev/null | grep -Fq 'install ok installed'; then
