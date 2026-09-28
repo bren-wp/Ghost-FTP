@@ -185,29 +185,53 @@ jobs:
             # Once a stable com.ghostftp.android APK has been published, require
             # every future release to use the same signing certificate. Historic
             # preview APKs used com.ghostftp.android.preview and intentionally do
-            # not establish the stable package identity.
+            # not establish the stable package identity. If a previous stable
+            # package exists, failure to download or inspect it is fatal: silently
+            # skipping continuity would make an otherwise valid APK non-upgradeable.
             if [ "$GITHUB_EVENT_NAME" = "push" ] && [ -n "$PREVIOUS_VERSION" ] && gh release view "v$PREVIOUS_VERSION" >/dev/null 2>&1; then
-              PREVIOUS_DIR="$RUNNER_TEMP/ghostftp-previous-android"
-              rm -rf "$PREVIOUS_DIR"
-              mkdir -p "$PREVIOUS_DIR"
-              if gh release download "v$PREVIOUS_VERSION"                 --pattern "GhostFTP-Android-v$PREVIOUS_VERSION.apk"                 --dir "$PREVIOUS_DIR" >/dev/null 2>&1
-              then
-                PREVIOUS_APK="$PREVIOUS_DIR/GhostFTP-Android-v$PREVIOUS_VERSION.apk"
-                if [ -s "$PREVIOUS_APK" ]; then
-                  PREVIOUS_BADGING="$("$AAPT" dump badging "$PREVIOUS_APK" || true)"
-                  PREVIOUS_PACKAGE_ID="$(sed -n "s/package: name='\([^']*\)'.*/\1/p" <<< "$PREVIOUS_BADGING" | head -n1)"
-                  if [ "$PREVIOUS_PACKAGE_ID" = "com.ghostftp.android" ]; then
-                    PREVIOUS_CERT="$("$APKSIGNER" verify --print-certs "$PREVIOUS_APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1)"
-                    test -n "$PREVIOUS_CERT"
-                    if [ "$PREVIOUS_CERT" != "$CURRENT_CERT" ]; then
-                      echo "::error::Android stable signing certificate changed from v$PREVIOUS_VERSION. Refusing a non-upgradeable release."
-                      exit 1
-                    fi
-                    echo "Android stable signing continuity verified against v$PREVIOUS_VERSION."
-                  else
-                    echo "Previous Android release used package ${PREVIOUS_PACKAGE_ID:-unknown}; stable com.ghostftp.android signing identity begins with this signed release."
-                  fi
+              PREVIOUS_ASSET="GhostFTP-Android-v$PREVIOUS_VERSION.apk"
+              PREVIOUS_HAS_STABLE="$(gh release view "v$PREVIOUS_VERSION" --json assets --jq --arg asset "$PREVIOUS_ASSET" 'any(.assets[]; .name == $asset)')"
+
+              if [ "$PREVIOUS_HAS_STABLE" = "true" ]; then
+                PREVIOUS_DIR="$RUNNER_TEMP/ghostftp-previous-android"
+                rm -rf "$PREVIOUS_DIR"
+                mkdir -p "$PREVIOUS_DIR"
+
+                if ! gh release download "v$PREVIOUS_VERSION" --pattern "$PREVIOUS_ASSET" --dir "$PREVIOUS_DIR"; then
+                  echo "::error::Could not download the previously published stable Android APK from v$PREVIOUS_VERSION. Refusing to skip signing continuity."
+                  exit 1
                 fi
+
+                PREVIOUS_APK="$PREVIOUS_DIR/$PREVIOUS_ASSET"
+                if [ ! -s "$PREVIOUS_APK" ]; then
+                  echo "::error::Previously published stable Android APK from v$PREVIOUS_VERSION is missing or empty."
+                  exit 1
+                fi
+
+                if ! "$APKSIGNER" verify --verbose --print-certs "$PREVIOUS_APK" >/dev/null; then
+                  echo "::error::Previously published stable Android APK from v$PREVIOUS_VERSION failed signature verification."
+                  exit 1
+                fi
+
+                PREVIOUS_BADGING="$("$AAPT" dump badging "$PREVIOUS_APK")"
+                PREVIOUS_PACKAGE_ID="$(sed -n "s/package: name='\([^']*\)'.*/\1/p" <<< "$PREVIOUS_BADGING" | head -n1)"
+                if [ "$PREVIOUS_PACKAGE_ID" != "com.ghostftp.android" ]; then
+                  echo "::error::Expected the previous stable Android package to be com.ghostftp.android, found ${PREVIOUS_PACKAGE_ID:-unknown}."
+                  exit 1
+                fi
+
+                PREVIOUS_CERT="$("$APKSIGNER" verify --print-certs "$PREVIOUS_APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1)"
+                if [ -z "$PREVIOUS_CERT" ]; then
+                  echo "::error::Could not read the previous stable Android signing certificate."
+                  exit 1
+                fi
+                if [ "$PREVIOUS_CERT" != "$CURRENT_CERT" ]; then
+                  echo "::error::Android stable signing certificate changed from v$PREVIOUS_VERSION. Refusing a non-upgradeable release."
+                  exit 1
+                fi
+                echo "Android stable signing continuity verified against v$PREVIOUS_VERSION."
+              else
+                echo "v$PREVIOUS_VERSION has no stable com.ghostftp.android APK asset; stable signing identity begins with this signed release."
               fi
             fi
           else
