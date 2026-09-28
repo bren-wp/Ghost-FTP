@@ -1963,6 +1963,18 @@ impl SessionManager {
         self.sessions.lock().await.get(id).cloned()
     }
 
+    /// Find an already-connected session by its persistent profile id. Session
+    /// ids are per-connect, while transfer recovery stores only the profile id
+    /// so no credentials or ephemeral session identifiers need to be persisted.
+    pub async fn get_by_profile_id(&self, profile_id: &str) -> Option<Arc<Session>> {
+        self.sessions
+            .lock()
+            .await
+            .values()
+            .find(|session| session.profile().id == profile_id)
+            .cloned()
+    }
+
     /// Convenience accessor when the caller specifically needs an SSH session
     /// (e.g. opening a PTY). Returns None if the session is FTP or missing.
     pub async fn get_ssh(&self, id: &str) -> Option<Arc<SshSession>> {
