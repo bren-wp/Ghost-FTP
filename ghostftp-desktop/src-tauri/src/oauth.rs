@@ -288,9 +288,10 @@ pub fn is_expired(tokens: &TokenSet) -> bool {
 fn open_url(url: &str) -> Result<()> {
     #[cfg(target_os = "windows")]
     let mut cmd = {
-        let mut c = std::process::Command::new("rundll32");
-        c.args(["url.dll,FileProtocolHandler", url]);
-        c
+        let mut command = std::process::Command::new("rundll32");
+        crate::windows_process::hide_console(&mut command);
+        command.args(["url.dll,FileProtocolHandler", url]);
+        command
     };
     #[cfg(unix)]
     let mut cmd = {
