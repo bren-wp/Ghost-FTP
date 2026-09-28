@@ -533,28 +533,7 @@ fn configure_tls_data_channel(
     stream
 }
 
-impl FtpSession {
-    /// Run a closure with mutable access to the underlying FTP stream on a
-    /// blocking thread. Use this for any FTP operation — it ensures the
-    /// blocking syscalls don't pin a tokio worker.
-    pub async fn with_stream<F, T>(&self, f: F) -> Result<T>
-    where
-        F: FnOnce(&mut FtpStreamKind) -> Result<T> + Send + 'static,
-        T: Send + 'static,
-    {
-        let inner = self.inner.clone();
-        tokio::task::spawn_blocking(move || {
-            let mut g = inner
-                .lock()
-                .map_err(|_| anyhow!("FTP stream lock poisoned"))?;
-            f(&mut g)
-        })
-        .await
-        .map_err(|e| anyhow!("FTP task join failed: {e}"))?
-    }
-}
-
-pub async fn ftp_connect(profile: &ConnectionProfile) -> Result<FtpSession> {
+fn connect_profile_stream(profile: &ConnectionProfile) -> Result<FtpStreamKind> {
     let host = profile.host.clone();
     let port = profile.port;
     let username = profile.username.clone();
@@ -577,45 +556,88 @@ pub async fn ftp_connect(profile: &ConnectionProfile) -> Result<FtpSession> {
         }
     };
     let want_tls = profile.protocol.eq_ignore_ascii_case("ftps");
+    let addr = format!("{host}:{port}");
+    let tcp = connect_control_socket(&host, port)?;
+    let peer_is_ipv6 = tcp
+        .peer_addr()
+        .with_context(|| format!("FTP peer address {addr}"))?
+        .is_ipv6();
 
-    let id = uuid::Uuid::new_v4().to_string();
-    let host_for_blocking = host.clone();
-    let stream = tokio::task::spawn_blocking(move || -> Result<FtpStreamKind> {
-        let addr = format!("{host_for_blocking}:{port}");
-        let tcp = connect_control_socket(&host_for_blocking, port)?;
-        let peer_is_ipv6 = tcp
-            .peer_addr()
-            .with_context(|| format!("FTP peer address {addr}"))?
-            .is_ipv6();
-        if want_tls {
-            // Explicit FTPS: connect as a NativeTlsFtpStream-typed stream
-            // (still plain TCP at this point), then issue AUTH TLS via
-            // into_secure. NativeTlsFtpStream and FtpStream are different
-            // generic instantiations, so the type has to be picked up front.
-            let s = NativeTlsFtpStream::connect_with_stream(tcp)
-                .with_context(|| format!("FTP connect {addr}"))?;
-            let s = configure_tls_data_channel(s, peer_is_ipv6);
-            let tls_connector = TlsConnector::new().map_err(|e| anyhow!("TLS init: {e}"))?;
-            let secured = s
-                .into_secure(NativeTlsConnector::from(tls_connector), &host_for_blocking)
-                .map_err(|e| anyhow!("FTPS AUTH TLS: {e}"))?;
-            let mut tls = FtpStreamKind::Tls(secured);
-            login(&mut tls, &username, &password)?;
-            Ok(tls)
-        } else {
-            let s = FtpStream::connect_with_stream(tcp)
-                .with_context(|| format!("FTP connect {addr}"))?;
-            let s = configure_plain_data_channel(s, peer_is_ipv6);
-            let mut plain = FtpStreamKind::Plain(s);
-            login(&mut plain, &username, &password)?;
-            Ok(plain)
-        }
-    })
-    .await
-    .map_err(|e| anyhow!("FTP connect task: {e}"))??;
+    if want_tls {
+        // Explicit FTPS: connect as a NativeTlsFtpStream-typed stream
+        // (still plain TCP at this point), then issue AUTH TLS via
+        // into_secure. NativeTlsFtpStream and FtpStream are different
+        // generic instantiations, so the type has to be picked up front.
+        let s = NativeTlsFtpStream::connect_with_stream(tcp)
+            .with_context(|| format!("FTP connect {addr}"))?;
+        let s = configure_tls_data_channel(s, peer_is_ipv6);
+        let tls_connector = TlsConnector::new().map_err(|e| anyhow!("TLS init: {e}"))?;
+        let secured = s
+            .into_secure(NativeTlsConnector::from(tls_connector), &host)
+            .map_err(|e| anyhow!("FTPS AUTH TLS: {e}"))?;
+        let mut tls = FtpStreamKind::Tls(secured);
+        login(&mut tls, &username, &password)?;
+        Ok(tls)
+    } else {
+        let s = FtpStream::connect_with_stream(tcp)
+            .with_context(|| format!("FTP connect {addr}"))?;
+        let s = configure_plain_data_channel(s, peer_is_ipv6);
+        let mut plain = FtpStreamKind::Plain(s);
+        login(&mut plain, &username, &password)?;
+        Ok(plain)
+    }
+}
+
+impl FtpSession {
+    /// Run a closure with mutable access to the underlying FTP stream on a
+    /// blocking thread. Use this for any FTP operation — it ensures the
+    /// blocking syscalls don't pin a tokio worker.
+    pub async fn with_stream<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&mut FtpStreamKind) -> Result<T> + Send + 'static,
+        T: Send + 'static,
+    {
+        let inner = self.inner.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut g = inner
+                .lock()
+                .map_err(|_| anyhow!("FTP stream lock poisoned"))?;
+            f(&mut g)
+        })
+        .await
+        .map_err(|e| anyhow!("FTP task join failed: {e}"))?
+    }
+
+    /// Replace the control/data session with a freshly authenticated
+    /// connection. This is used after a server acknowledges a resumed upload
+    /// but the resulting remote SIZE proves that the session cannot be trusted
+    /// for an in-place retry.
+    pub async fn reconnect(&self) -> Result<()> {
+        let inner = self.inner.clone();
+        let profile = self.profile.clone();
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let mut current = inner
+                .lock()
+                .map_err(|_| anyhow!("FTP stream lock poisoned"))?;
+            let replacement = connect_profile_stream(&profile)
+                .context("reconnect FTP session")?;
+            let stale = std::mem::replace(&mut *current, replacement);
+            drop(stale);
+            Ok(())
+        })
+        .await
+        .map_err(|e| anyhow!("FTP reconnect task join failed: {e}"))?
+    }
+}
+
+pub async fn ftp_connect(profile: &ConnectionProfile) -> Result<FtpSession> {
+    let profile_for_blocking = profile.clone();
+    let stream = tokio::task::spawn_blocking(move || connect_profile_stream(&profile_for_blocking))
+        .await
+        .map_err(|e| anyhow!("FTP connect task: {e}"))??;
 
     Ok(FtpSession {
-        id,
+        id: uuid::Uuid::new_v4().to_string(),
         profile: profile.clone(),
         inner: Arc::new(StdMutex::new(stream)),
     })
