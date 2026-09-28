@@ -145,7 +145,18 @@ impl FtpStreamKind {
                             });
                         }
                     }
-                    let read = data.read(&mut buf).context("read FTP data stream")?;
+                    let read = match data.read(&mut buf) {
+                        Ok(read) => read,
+                        Err(error) => {
+                            let abort_error = stream.abort(data).err();
+                            return Err(match abort_error {
+                                Some(abort_error) => anyhow!(
+                                    "read FTP data stream: {error}; FTP ABOR after read failure also failed: {abort_error}"
+                                ),
+                                None => anyhow!(error).context("read FTP data stream"),
+                            });
+                        }
+                    };
                     if read == 0 {
                         stream.finalize_retr_stream(data).map_err(into_anyhow)?;
                         return Ok(FtpTransferOutcome {
@@ -153,8 +164,15 @@ impl FtpStreamKind {
                             control: FtpTransferControl::Continue,
                         });
                     }
-                    sink.write_all(&buf[..read])
-                        .context("write FTP download destination")?;
+                    if let Err(error) = sink.write_all(&buf[..read]) {
+                        let abort_error = stream.abort(data).err();
+                        return Err(match abort_error {
+                            Some(abort_error) => anyhow!(
+                                "write FTP download destination: {error}; FTP ABOR after destination failure also failed: {abort_error}"
+                            ),
+                            None => anyhow!(error).context("write FTP download destination"),
+                        });
+                    }
                     transferred += read as u64;
                 }
             }
@@ -180,7 +198,18 @@ impl FtpStreamKind {
                             });
                         }
                     }
-                    let read = data.read(&mut buf).context("read FTPS data stream")?;
+                    let read = match data.read(&mut buf) {
+                        Ok(read) => read,
+                        Err(error) => {
+                            let abort_error = stream.abort(data).err();
+                            return Err(match abort_error {
+                                Some(abort_error) => anyhow!(
+                                    "read FTPS data stream: {error}; FTPS ABOR after read failure also failed: {abort_error}"
+                                ),
+                                None => anyhow!(error).context("read FTPS data stream"),
+                            });
+                        }
+                    };
                     if read == 0 {
                         stream.finalize_retr_stream(data).map_err(into_anyhow)?;
                         return Ok(FtpTransferOutcome {
@@ -188,8 +217,15 @@ impl FtpStreamKind {
                             control: FtpTransferControl::Continue,
                         });
                     }
-                    sink.write_all(&buf[..read])
-                        .context("write FTPS download destination")?;
+                    if let Err(error) = sink.write_all(&buf[..read]) {
+                        let abort_error = stream.abort(data).err();
+                        return Err(match abort_error {
+                            Some(abort_error) => anyhow!(
+                                "write FTPS download destination: {error}; FTPS ABOR after destination failure also failed: {abort_error}"
+                            ),
+                            None => anyhow!(error).context("write FTPS download destination"),
+                        });
+                    }
                     transferred += read as u64;
                 }
             }
@@ -232,7 +268,18 @@ impl FtpStreamKind {
                             });
                         }
                     }
-                    let read = source.read(&mut buf).context("read FTP upload source")?;
+                    let read = match source.read(&mut buf) {
+                        Ok(read) => read,
+                        Err(error) => {
+                            let abort_error = stream.abort(data).err();
+                            return Err(match abort_error {
+                                Some(abort_error) => anyhow!(
+                                    "read FTP upload source: {error}; FTP ABOR after source failure also failed: {abort_error}"
+                                ),
+                                None => anyhow!(error).context("read FTP upload source"),
+                            });
+                        }
+                    };
                     if read == 0 {
                         stream.finalize_put_stream(data).map_err(into_anyhow)?;
                         return Ok(FtpTransferOutcome {
@@ -240,8 +287,15 @@ impl FtpStreamKind {
                             control: FtpTransferControl::Continue,
                         });
                     }
-                    data.write_all(&buf[..read])
-                        .context("write FTP data stream")?;
+                    if let Err(error) = data.write_all(&buf[..read]) {
+                        let abort_error = stream.abort(data).err();
+                        return Err(match abort_error {
+                            Some(abort_error) => anyhow!(
+                                "write FTP data stream: {error}; FTP ABOR after data-write failure also failed: {abort_error}"
+                            ),
+                            None => anyhow!(error).context("write FTP data stream"),
+                        });
+                    }
                     transferred += read as u64;
                 }
             }
@@ -267,7 +321,18 @@ impl FtpStreamKind {
                             });
                         }
                     }
-                    let read = source.read(&mut buf).context("read FTPS upload source")?;
+                    let read = match source.read(&mut buf) {
+                        Ok(read) => read,
+                        Err(error) => {
+                            let abort_error = stream.abort(data).err();
+                            return Err(match abort_error {
+                                Some(abort_error) => anyhow!(
+                                    "read FTPS upload source: {error}; FTPS ABOR after source failure also failed: {abort_error}"
+                                ),
+                                None => anyhow!(error).context("read FTPS upload source"),
+                            });
+                        }
+                    };
                     if read == 0 {
                         stream.finalize_put_stream(data).map_err(into_anyhow)?;
                         return Ok(FtpTransferOutcome {
@@ -275,8 +340,15 @@ impl FtpStreamKind {
                             control: FtpTransferControl::Continue,
                         });
                     }
-                    data.write_all(&buf[..read])
-                        .context("write FTPS data stream")?;
+                    if let Err(error) = data.write_all(&buf[..read]) {
+                        let abort_error = stream.abort(data).err();
+                        return Err(match abort_error {
+                            Some(abort_error) => anyhow!(
+                                "write FTPS data stream: {error}; FTPS ABOR after data-write failure also failed: {abort_error}"
+                            ),
+                            None => anyhow!(error).context("write FTPS data stream"),
+                        });
+                    }
                     transferred += read as u64;
                 }
             }
