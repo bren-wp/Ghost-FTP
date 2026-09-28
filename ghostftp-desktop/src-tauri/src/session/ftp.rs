@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 use suppaftp::native_tls::TlsConnector;
 use suppaftp::types::{FileType, Mode};
-use suppaftp::{FtpStream, NativeTlsConnector, NativeTlsFtpStream};
+use suppaftp::{FtpError, FtpStream, NativeTlsConnector, NativeTlsFtpStream, Status};
 
 /// One FTP control connection. suppaftp is synchronous; we wrap it in a
 /// `std::sync::Mutex` and route every operation through `spawn_blocking` so
@@ -43,6 +43,28 @@ pub struct FtpTransferOutcome {
 }
 
 const FTP_TRANSFER_CHUNK: usize = 64 * 1024;
+
+/// SuppaFTP 6.x treats FTP 225 as an unexpected ABOR reply even though
+/// RFC 959 defines it as "data connection open; no transfer in progress".
+/// Some servers (including pyftpdlib) return 225 after the data socket is
+/// closed as part of ABOR. At that point the reply has already been consumed,
+/// so the control channel is synchronized and the abort is complete.
+///
+/// Keep every other SuppaFTP error fatal: only the exact 225 status is
+/// normalized to success.
+fn normalize_abort_result(
+    result: std::result::Result<(), FtpError>,
+) -> Result<()> {
+    match result {
+        Ok(()) => Ok(()),
+        Err(FtpError::UnexpectedResponse(response))
+            if response.status == Status::DataConnectionOpen =>
+        {
+            Ok(())
+        }
+        Err(error) => Err(into_anyhow(error)),
+    }
+}
 
 impl FtpStreamKind {
     pub fn list(&mut self, path: Option<&str>) -> Result<Vec<String>> {
@@ -138,7 +160,7 @@ impl FtpStreamKind {
                     match control(transferred) {
                         FtpTransferControl::Continue => {}
                         stop => {
-                            stream.abort(data).map_err(into_anyhow)?;
+                            normalize_abort_result(stream.abort(data))?;
                             return Ok(FtpTransferOutcome {
                                 transferred,
                                 control: stop,
@@ -148,7 +170,7 @@ impl FtpStreamKind {
                     let read = match data.read(&mut buf) {
                         Ok(read) => read,
                         Err(error) => {
-                            let abort_error = stream.abort(data).err();
+                            let abort_error = normalize_abort_result(stream.abort(data)).err();
                             return Err(match abort_error {
                                 Some(abort_error) => anyhow!(
                                     "read FTP data stream: {error}; FTP ABOR after read failure also failed: {abort_error}"
@@ -165,7 +187,7 @@ impl FtpStreamKind {
                         });
                     }
                     if let Err(error) = sink.write_all(&buf[..read]) {
-                        let abort_error = stream.abort(data).err();
+                        let abort_error = normalize_abort_result(stream.abort(data)).err();
                         return Err(match abort_error {
                             Some(abort_error) => anyhow!(
                                 "write FTP download destination: {error}; FTP ABOR after destination failure also failed: {abort_error}"
@@ -191,7 +213,7 @@ impl FtpStreamKind {
                     match control(transferred) {
                         FtpTransferControl::Continue => {}
                         stop => {
-                            stream.abort(data).map_err(into_anyhow)?;
+                            normalize_abort_result(stream.abort(data))?;
                             return Ok(FtpTransferOutcome {
                                 transferred,
                                 control: stop,
@@ -201,7 +223,7 @@ impl FtpStreamKind {
                     let read = match data.read(&mut buf) {
                         Ok(read) => read,
                         Err(error) => {
-                            let abort_error = stream.abort(data).err();
+                            let abort_error = normalize_abort_result(stream.abort(data)).err();
                             return Err(match abort_error {
                                 Some(abort_error) => anyhow!(
                                     "read FTPS data stream: {error}; FTPS ABOR after read failure also failed: {abort_error}"
@@ -218,7 +240,7 @@ impl FtpStreamKind {
                         });
                     }
                     if let Err(error) = sink.write_all(&buf[..read]) {
-                        let abort_error = stream.abort(data).err();
+                        let abort_error = normalize_abort_result(stream.abort(data)).err();
                         return Err(match abort_error {
                             Some(abort_error) => anyhow!(
                                 "write FTPS download destination: {error}; FTPS ABOR after destination failure also failed: {abort_error}"
@@ -261,7 +283,7 @@ impl FtpStreamKind {
                     match control(transferred) {
                         FtpTransferControl::Continue => {}
                         stop => {
-                            stream.abort(data).map_err(into_anyhow)?;
+                            normalize_abort_result(stream.abort(data))?;
                             return Ok(FtpTransferOutcome {
                                 transferred,
                                 control: stop,
@@ -271,7 +293,7 @@ impl FtpStreamKind {
                     let read = match source.read(&mut buf) {
                         Ok(read) => read,
                         Err(error) => {
-                            let abort_error = stream.abort(data).err();
+                            let abort_error = normalize_abort_result(stream.abort(data)).err();
                             return Err(match abort_error {
                                 Some(abort_error) => anyhow!(
                                     "read FTP upload source: {error}; FTP ABOR after source failure also failed: {abort_error}"
@@ -288,7 +310,7 @@ impl FtpStreamKind {
                         });
                     }
                     if let Err(error) = data.write_all(&buf[..read]) {
-                        let abort_error = stream.abort(data).err();
+                        let abort_error = normalize_abort_result(stream.abort(data)).err();
                         return Err(match abort_error {
                             Some(abort_error) => anyhow!(
                                 "write FTP data stream: {error}; FTP ABOR after data-write failure also failed: {abort_error}"
@@ -314,7 +336,7 @@ impl FtpStreamKind {
                     match control(transferred) {
                         FtpTransferControl::Continue => {}
                         stop => {
-                            stream.abort(data).map_err(into_anyhow)?;
+                            normalize_abort_result(stream.abort(data))?;
                             return Ok(FtpTransferOutcome {
                                 transferred,
                                 control: stop,
@@ -324,7 +346,7 @@ impl FtpStreamKind {
                     let read = match source.read(&mut buf) {
                         Ok(read) => read,
                         Err(error) => {
-                            let abort_error = stream.abort(data).err();
+                            let abort_error = normalize_abort_result(stream.abort(data)).err();
                             return Err(match abort_error {
                                 Some(abort_error) => anyhow!(
                                     "read FTPS upload source: {error}; FTPS ABOR after source failure also failed: {abort_error}"
@@ -341,7 +363,7 @@ impl FtpStreamKind {
                         });
                     }
                     if let Err(error) = data.write_all(&buf[..read]) {
-                        let abort_error = stream.abort(data).err();
+                        let abort_error = normalize_abort_result(stream.abort(data)).err();
                         return Err(match abort_error {
                             Some(abort_error) => anyhow!(
                                 "write FTPS data stream: {error}; FTPS ABOR after data-write failure also failed: {abort_error}"
