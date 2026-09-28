@@ -6,12 +6,13 @@ use crate::session::{
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
+use std::io::SeekFrom;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
@@ -44,15 +45,15 @@ pub enum TransferStatus {
     Canceled,
 }
 
-/// Marker error: a paused transfer was resumed — the copy loop unwinds with
-/// this and the runner re-runs the file from byte 0.
-/// Honest on every backend: no per-backend seek support needed.
+/// Marker error: a paused transfer was resumed. The active copy loop unwinds
+/// so the runner can reopen the backend. Backends with proven ranged-resume
+/// support continue from the last committed byte; all others restart safely.
 #[derive(Debug)]
 struct RestartFromPause;
 
 impl std::fmt::Display for RestartFromPause {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("transfer resumed after pause; restarting file from the beginning")
+        f.write_str("transfer resumed after pause")
     }
 }
 
@@ -529,8 +530,9 @@ impl TransferManager {
         Ok(())
     }
 
-    /// Resume a paused transfer. A parked one re-runs its file from byte 0;
-    /// a queued one re-enters FIFO admission.
+    /// Resume a paused transfer. Backends with byte-range support retain the
+    /// committed offset; unsupported backends are reset by the runner before
+    /// the next attempt. A queued transfer simply re-enters FIFO admission.
     pub async fn resume(&self, id: &str, app: &AppHandle) -> Result<()> {
         if self.get(id).await.map(|t| t.status) != Some(TransferStatus::Paused) {
             anyhow::bail!("transfer {id} is not paused");
@@ -549,7 +551,6 @@ impl TransferManager {
             } else {
                 TransferStatus::Transferring
             };
-            t.transferred = 0;
         })
         .await;
         gate.set(false);
@@ -800,10 +801,27 @@ impl TransferManager {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
 
-        let mut local_file = tokio::fs::File::create(local_path)
+        let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
+        let local_len = tokio::fs::metadata(local_path).await.ok().map(|m| m.len());
+        let mut offset = if requested_offset > 0 && local_len.is_some_and(|len| len >= requested_offset) {
+            requested_offset
+        } else {
+            0
+        };
+        if offset != requested_offset {
+            self.update(id, |t| t.transferred = offset).await;
+        }
+        let mut local_file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(offset == 0)
+            .open(local_path)
             .await
-            .with_context(|| format!("create {}", local_path.display()))?;
-        let mut offset: u64 = 0;
+            .with_context(|| format!("open {}", local_path.display()))?;
+        if offset > 0 {
+            local_file.set_len(offset).await?;
+            local_file.seek(SeekFrom::Start(offset)).await?;
+        }
         let mut last_emit = Instant::now();
         loop {
             let resp = session
@@ -831,8 +849,8 @@ impl TransferManager {
             if !bytes.is_empty() {
                 local_file.write_all(&bytes).await?;
                 offset += bytes.len() as u64;
+                self.update(id, |t| t.transferred = offset).await;
                 if last_emit.elapsed() > Duration::from_millis(100) {
-                    self.update(id, |t| t.transferred = offset).await;
                     if let Some(app) = app {
                         if let Some(t) = self.get(id).await {
                             let _ = app.emit("transfer://progress", &t);
@@ -861,6 +879,17 @@ impl TransferManager {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
 
+        let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
+        let local_len = tokio::fs::metadata(local_path).await.ok().map(|m| m.len());
+        let resume_offset = if requested_offset > 0 && local_len.is_some_and(|len| len >= requested_offset) {
+            requested_offset
+        } else {
+            0
+        };
+        if resume_offset != requested_offset {
+            self.update(id, |t| t.transferred = resume_offset).await;
+        }
+
         let sftp_cell = session.ensure_sftp().await?;
         let mut remote_file = {
             let sftp = sftp_cell.lock().await;
@@ -868,12 +897,24 @@ impl TransferManager {
                 .await
                 .with_context(|| format!("open remote {remote_path}"))?
         };
-        let mut local_file = tokio::fs::File::create(local_path)
+        if resume_offset > 0 {
+            remote_file.seek(SeekFrom::Start(resume_offset)).await?;
+        }
+
+        let mut local_file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(resume_offset == 0)
+            .open(local_path)
             .await
-            .with_context(|| format!("create {}", local_path.display()))?;
+            .with_context(|| format!("open {}", local_path.display()))?;
+        if resume_offset > 0 {
+            local_file.set_len(resume_offset).await?;
+            local_file.seek(SeekFrom::Start(resume_offset)).await?;
+        }
 
         let mut buf = vec![0u8; 64 * 1024];
-        let mut transferred: u64 = 0;
+        let mut transferred: u64 = resume_offset;
         let mut last_emit = Instant::now();
         loop {
             let n = remote_file.read(&mut buf).await?;
@@ -883,8 +924,8 @@ impl TransferManager {
             self.checkpoint(id, n as u64).await?;
             local_file.write_all(&buf[..n]).await?;
             transferred += n as u64;
+            self.update(id, |t| t.transferred = transferred).await;
             if last_emit.elapsed() > Duration::from_millis(100) {
-                self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
                     let _ = app.emit("transfer://progress", &t);
                 }
@@ -997,14 +1038,38 @@ impl TransferManager {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
 
+        let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
+        let local_len = tokio::fs::metadata(local_path)
+            .await
+            .with_context(|| format!("stat {}", local_path.display()))?
+            .len();
+        let remote_len = if requested_offset > 0 {
+            agent_stat(session, remote_path).await.0
+        } else {
+            0
+        };
+        let mut offset = if requested_offset > 0
+            && local_len >= requested_offset
+            && remote_len >= requested_offset
+        {
+            requested_offset
+        } else {
+            0
+        };
+        if offset != requested_offset {
+            self.update(id, |t| t.transferred = offset).await;
+        }
+
         let mut local_file = tokio::fs::File::open(local_path)
             .await
             .with_context(|| format!("open {}", local_path.display()))?;
+        if offset > 0 {
+            local_file.seek(SeekFrom::Start(offset)).await?;
+        }
         // 128 KiB plaintext keeps each request comfortably under the daemon's
         // per-chunk cap while amortising the round-trip.
         let mut buf = vec![0u8; 128 * 1024];
-        let mut offset: u64 = 0;
-        let mut first = true;
+        let mut first = offset == 0;
         let mut last_emit = Instant::now();
         loop {
             let n = local_file.read(&mut buf).await?;
@@ -1035,8 +1100,8 @@ impl TransferManager {
             }
             offset += n as u64;
             first = false;
+            self.update(id, |t| t.transferred = offset).await;
             if last_emit.elapsed() > Duration::from_millis(100) {
-                self.update(id, |t| t.transferred = offset).await;
                 if let Some(app) = app {
                     if let Some(t) = self.get(id).await {
                         let _ = app.emit("transfer://progress", &t);
@@ -1540,19 +1605,52 @@ impl TransferManager {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
 
+        let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
+        let local_len = tokio::fs::metadata(local_path)
+            .await
+            .with_context(|| format!("stat {}", local_path.display()))?
+            .len();
+
         let sftp_cell = session.ensure_sftp().await?;
+        let mut resume_offset = requested_offset.min(local_len);
         let mut remote_file = {
             let sftp = sftp_cell.lock().await;
-            sftp.create(remote_path)
-                .await
-                .with_context(|| format!("create remote {remote_path}"))?
+            let remote_len = if resume_offset > 0 {
+                sftp.metadata(remote_path)
+                    .await
+                    .ok()
+                    .and_then(|metadata| metadata.size)
+                    .unwrap_or(0)
+            } else {
+                0
+            };
+            if resume_offset > 0 && remote_len >= resume_offset {
+                sftp.open_with_flags(remote_path, russh_sftp::protocol::OpenFlags::WRITE)
+                    .await
+                    .with_context(|| format!("open remote {remote_path} for resume"))?
+            } else {
+                resume_offset = 0;
+                sftp.create(remote_path)
+                    .await
+                    .with_context(|| format!("create remote {remote_path}"))?
+            }
         };
+        if resume_offset != requested_offset {
+            self.update(id, |t| t.transferred = resume_offset).await;
+        }
+        if resume_offset > 0 {
+            remote_file.seek(SeekFrom::Start(resume_offset)).await?;
+        }
+
         let mut local_file = tokio::fs::File::open(local_path)
             .await
             .with_context(|| format!("open {}", local_path.display()))?;
+        if resume_offset > 0 {
+            local_file.seek(SeekFrom::Start(resume_offset)).await?;
+        }
 
         let mut buf = vec![0u8; 64 * 1024];
-        let mut transferred: u64 = 0;
+        let mut transferred: u64 = resume_offset;
         let mut last_emit = Instant::now();
         loop {
             let n = local_file.read(&mut buf).await?;
@@ -1562,8 +1660,8 @@ impl TransferManager {
             self.checkpoint(id, n as u64).await?;
             remote_file.write_all(&buf[..n]).await?;
             transferred += n as u64;
+            self.update(id, |t| t.transferred = transferred).await;
             if last_emit.elapsed() > Duration::from_millis(100) {
-                self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
                     let _ = app.emit("transfer://progress", &t);
                 }
@@ -2852,6 +2950,14 @@ fn supports_delta(session: &Session) -> bool {
     matches!(session, Session::Agent(_))
 }
 
+/// Byte-range pause/resume is enabled only where Ghost FTP can prove exact
+/// offset semantics today. SFTP exposes seekable file handles and Agent uses
+/// explicit ReadChunk/WriteChunk offsets. Other backends retain the safe
+/// restart-from-zero fallback until equivalent tests exist.
+fn supports_byte_resume(session: &Session) -> bool {
+    matches!(session, Session::Ssh(_) | Session::Agent(_))
+}
+
 /// Stat a path on a Ghost FTP Agent daemon, returning its size and whether it exists.
 async fn agent_stat(session: &Arc<crate::session::AgentSession>, path: &str) -> (u64, bool) {
     use ghostftp_agent_proto::msg::{Request, Response};
@@ -3262,7 +3368,9 @@ async fn run_download_task(
         let attempt = dispatch_download(&mgr, &id, &session, &remote_path, &final_path, &app).await;
         match attempt {
             Err(e) if e.downcast_ref::<RestartFromPause>().is_some() => {
-                mgr.update(&id, |t| t.transferred = 0).await;
+                if !supports_byte_resume(&session) {
+                    mgr.update(&id, |t| t.transferred = 0).await;
+                }
                 continue;
             }
             Err(e) if auto_retries < max_auto_retries && is_transient(&e) => {
