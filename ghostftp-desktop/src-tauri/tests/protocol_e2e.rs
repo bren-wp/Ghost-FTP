@@ -182,7 +182,7 @@ async fn ftp_roundtrip(
                 ));
             }
             let mut reader = Cursor::new(upload_payload);
-            reader.seek(SeekFrom::Start(upload_offset))?;
+            std::io::Seek::seek(&mut reader, SeekFrom::Start(upload_offset))?;
             stream.stor_resumable(
                 &upload_path,
                 upload_offset,
