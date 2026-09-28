@@ -2014,7 +2014,7 @@ impl TransferManager {
                     file.seek(SeekFrom::Start(offset))?;
                 }
                 let mut reader = std::io::BufReader::new(file);
-                stream.stor_resumable(&remote, offset, &mut reader, |_| {
+                let outcome = stream.stor_resumable(&remote, offset, &mut reader, |_| {
                     if canceled.load(Ordering::Acquire) {
                         FtpTransferControl::Cancel
                     } else if pause_all.is_paused()
@@ -2024,7 +2024,58 @@ impl TransferManager {
                     } else {
                         FtpTransferControl::Continue
                     }
-                })
+                })?;
+
+                // A server can acknowledge a resumed APPE/REST-style upload
+                // while persisting fewer bytes than the client wrote. Never
+                // surface that as success: verify the final remote SIZE and,
+                // for a resumed transfer, retry once from byte zero when the
+                // committed result is not exactly the local file length.
+                if outcome.control == FtpTransferControl::Continue {
+                    let final_size = stream.size(&remote).ok().map(|size| size as u64);
+                    if offset > 0 && final_size != Some(local_len) {
+                        let restart_file = std::fs::File::open(&local)
+                            .with_context(|| format!("reopen {}", local.display()))?;
+                        let mut restart_reader = std::io::BufReader::new(restart_file);
+                        let restarted =
+                            stream.stor_resumable(&remote, 0, &mut restart_reader, |_| {
+                                if canceled.load(Ordering::Acquire) {
+                                    FtpTransferControl::Cancel
+                                } else if pause_all.is_paused()
+                                    || pause.as_ref().is_some_and(|gate| gate.is_paused())
+                                {
+                                    FtpTransferControl::Pause
+                                } else {
+                                    FtpTransferControl::Continue
+                                }
+                            })?;
+
+                        if restarted.control == FtpTransferControl::Continue {
+                            if let Ok(size) = stream.size(&remote) {
+                                if size as u64 != local_len {
+                                    anyhow::bail!(
+                                        "FTP upload verification failed after safe restart: remote size {} != local size {}",
+                                        size,
+                                        local_len
+                                    );
+                                }
+                            }
+                        }
+                        return Ok(restarted);
+                    }
+
+                    if let Some(size) = final_size {
+                        if size != local_len {
+                            anyhow::bail!(
+                                "FTP upload verification failed: remote size {} != local size {}",
+                                size,
+                                local_len
+                            );
+                        }
+                    }
+                }
+
+                Ok(outcome)
             })
             .await?;
 
