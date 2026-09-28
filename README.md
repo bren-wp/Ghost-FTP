@@ -70,7 +70,7 @@ No required analytics or telemetry. Sensitive diagnostic text is redacted and se
 
 ### Windows x64
 
-The production Windows application is the native Tauri desktop build. Release packaging provides a portable executable and a branded NSIS Setup with Ghost FTP artwork, interactive EULA acceptance and real CI install/uninstall smoke coverage.
+The production Windows application is the native Tauri desktop build. Release packaging provides a portable executable, a branded NSIS Setup and a Windows Installer (`.msi`) package. CI performs real silent install/uninstall smoke coverage for both installer formats before either can reach a release.
 
 ### Linux x86-64
 
@@ -107,7 +107,7 @@ Required exact-head gates:
 - **Ghost FTP Android**
 - **Validate Windows hardening**
 
-The Windows/Linux build additionally performs Windows Setup lifecycle smoke tests, Linux package lifecycle checks, native QA evidence capture and artifact-size budget checks.
+The Windows/Linux build additionally performs Windows NSIS/MSI lifecycle smoke tests, Linux package lifecycle checks, native QA evidence capture and artifact-size budget checks.
 
 ## Release model
 
