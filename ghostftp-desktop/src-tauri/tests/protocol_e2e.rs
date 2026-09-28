@@ -49,8 +49,7 @@ struct FailAfterWriter {
 impl Write for FailAfterWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         if self.written >= self.limit {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(std::io::Error::other(
                 "intentional Ghost FTP E2E destination failure",
             ));
         }
@@ -72,8 +71,7 @@ struct FailAfterReader {
 impl Read for FailAfterReader {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if self.inner.position() >= self.limit {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(std::io::Error::other(
                 "intentional Ghost FTP E2E source failure",
             ));
         }
