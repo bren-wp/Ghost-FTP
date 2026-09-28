@@ -216,7 +216,7 @@ impl FtpStreamKind {
                         }
                     };
                     if read == 0 {
-                        stream.finalize_retr_stream(data).map_err(into_anyhow)?;
+                        data.finish().map_err(into_anyhow)?;
                         return Ok(FtpTransferOutcome {
                             transferred,
                             control: FtpTransferControl::Continue,
@@ -269,7 +269,7 @@ impl FtpStreamKind {
                         }
                     };
                     if read == 0 {
-                        stream.finalize_retr_stream(data).map_err(into_anyhow)?;
+                        data.finish().map_err(into_anyhow)?;
                         return Ok(FtpTransferOutcome {
                             transferred,
                             control: FtpTransferControl::Continue,
@@ -355,7 +355,7 @@ impl FtpStreamKind {
                                 None => anyhow!(error).context("flush FTP data stream"),
                             });
                         }
-                        stream.finalize_put_stream(data).map_err(into_anyhow)?;
+                        data.finish().map_err(into_anyhow)?;
                         return Ok(FtpTransferOutcome {
                             transferred,
                             control: FtpTransferControl::Continue,
@@ -419,7 +419,7 @@ impl FtpStreamKind {
                                 None => anyhow!(error).context("flush FTPS data stream"),
                             });
                         }
-                        stream.finalize_put_stream(data).map_err(into_anyhow)?;
+                        data.finish().map_err(into_anyhow)?;
                         return Ok(FtpTransferOutcome {
                             transferred,
                             control: FtpTransferControl::Continue,
