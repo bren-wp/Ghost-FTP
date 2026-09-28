@@ -1,0 +1,43 @@
+name: Temporary SuppaFTP lock refresh
+
+on:
+  push:
+    branches:
+      - fix/ftp-ftps-byte-resume-cancel
+    paths:
+      - ghostftp-desktop/src-tauri/Cargo.toml
+      - .github/workflows/temp-suppaftp-lock.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lock:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/ftp-ftps-byte-resume-cancel
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Refresh SuppaFTP lock and format Rust
+        working-directory: ghostftp-desktop/src-tauri
+        run: |
+          cargo update -p suppaftp --precise 12.0.0
+          cargo fmt --all
+
+      - name: Commit generated dependency lock
+        run: |
+          if git diff --quiet -- ghostftp-desktop/src-tauri/Cargo.lock ghostftp-desktop/src-tauri/src; then
+            echo "No generated changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ghostftp-desktop/src-tauri/Cargo.lock ghostftp-desktop/src-tauri/src
+          git commit -m "build(ftp): refresh SuppaFTP 12 lockfile"
+          git push origin HEAD:fix/ftp-ftps-byte-resume-cancel
