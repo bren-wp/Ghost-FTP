@@ -414,6 +414,7 @@ impl TransferManager {
 
         if let Some(store) = db.as_ref() {
             if let Ok(rows) = store.transfer_ledger_list() {
+                let mut terminal_kept = 0usize;
                 for (row_id, payload, _) in rows {
                     let Ok(mut envelope) =
                         serde_json::from_str::<PersistedTransferEnvelope>(&payload)
@@ -426,28 +427,48 @@ impl TransferManager {
                         continue;
                     }
 
-                    if matches!(
+                    let was_active = matches!(
                         envelope.transfer.status,
                         TransferStatus::Queued
                             | TransferStatus::Transferring
                             | TransferStatus::Paused
-                    ) {
+                    );
+
+                    // Always retain rows that were active when the previous
+                    // process stopped, even if they are older than the history
+                    // budget. Only terminal history is bounded.
+                    if !was_active {
+                        if terminal_kept >= TRANSFER_LEDGER_KEEP {
+                            let _ = store.transfer_ledger_delete(&row_id);
+                            continue;
+                        }
+                        terminal_kept += 1;
+                    }
+
+                    let needs_session_reattach = was_active
+                        || matches!(
+                            envelope.transfer.status,
+                            TransferStatus::Error | TransferStatus::Canceled
+                        );
+
+                    if was_active {
                         envelope.transfer.status = TransferStatus::Error;
                         envelope.transfer.retry_attempt = None;
                         envelope.transfer.error = Some(
                             "Transfer was interrupted by the previous Ghost FTP process. Retry will reconnect the saved profile and continue from the last verified byte when the backend supports ranged resume."
                                 .to_string(),
                         );
-                        recovered_retry.insert(row_id.clone());
                         if let Ok(normalized) = serde_json::to_string(&envelope) {
                             let _ = store.transfer_ledger_upsert(&row_id, &normalized);
                         }
                     }
 
+                    if needs_session_reattach {
+                        recovered_retry.insert(row_id.clone());
+                    }
                     persisted_retry.insert(row_id.clone(), envelope.retry);
                     transfers.insert(row_id, envelope.transfer);
                 }
-                let _ = store.transfer_ledger_prune(TRANSFER_LEDGER_KEEP);
             }
         }
 
@@ -4196,6 +4217,50 @@ mod tests {
     }
 
     // ---------- Durable restart recovery ----------
+
+    #[tokio::test]
+    async fn persisted_failed_transfer_can_reattach_after_restart() {
+        let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+        let envelope = PersistedTransferEnvelope {
+            schema: TRANSFER_LEDGER_SCHEMA,
+            transfer: Transfer {
+                id: "failed-before-restart".to_string(),
+                kind: TransferKind::Upload,
+                source: "/tmp/source.bin".to_string(),
+                destination: "/remote/source.bin".to_string(),
+                size: 4096,
+                transferred: 2048,
+                status: TransferStatus::Error,
+                error: Some("connection reset by peer".to_string()),
+                retry_attempt: Some(2),
+                delta: None,
+                started_at: 10,
+            },
+            retry: PersistedRetryInfo::Upload {
+                profile_id: "profile-retry".to_string(),
+                local: PathBuf::from("/tmp/source.bin"),
+                final_remote: "/remote/source.bin".to_string(),
+            },
+        };
+        db.transfer_ledger_upsert(
+            "failed-before-restart",
+            &serde_json::to_string(&envelope).unwrap(),
+        )
+        .unwrap();
+
+        let recovered = TransferManager::with_db(db);
+        assert_eq!(
+            recovered
+                .recovery_profile_id("failed-before-restart")
+                .await
+                .as_deref(),
+            Some("profile-retry")
+        );
+        let row = recovered.snapshot("failed-before-restart").await.unwrap();
+        assert_eq!(row.status, TransferStatus::Error);
+        assert_eq!(row.transferred, 2048);
+        assert_eq!(row.error.as_deref(), Some("connection reset by peer"));
+    }
 
     #[tokio::test]
     async fn durable_recovery_preserves_verified_offset_without_credentials() {
