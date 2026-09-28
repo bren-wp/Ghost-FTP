@@ -52,9 +52,7 @@ const FTP_TRANSFER_CHUNK: usize = 64 * 1024;
 ///
 /// Keep every other SuppaFTP error fatal: only the exact 225 status is
 /// normalized to success.
-fn normalize_abort_result(
-    result: std::result::Result<(), FtpError>,
-) -> Result<()> {
+fn normalize_abort_result(result: std::result::Result<(), FtpError>) -> Result<()> {
     match result {
         Ok(()) => Ok(()),
         Err(FtpError::UnexpectedResponse(response))
