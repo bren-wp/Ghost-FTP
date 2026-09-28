@@ -4474,7 +4474,10 @@ mod tests {
                 .count(),
             TRANSFER_LEDGER_KEEP
         );
-        assert_eq!(db.transfer_ledger_list().unwrap().len(), TRANSFER_LEDGER_KEEP + 1);
+        assert_eq!(
+            db.transfer_ledger_list().unwrap().len(),
+            TRANSFER_LEDGER_KEEP + 1
+        );
     }
 
     // ---------- FIFO admission ----------
