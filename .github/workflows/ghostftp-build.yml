@@ -36,7 +36,7 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            args: '--bundles nsis'
+            args: '--bundles nsis,msi'
             artifact: 'GhostFTP-Windows-x64-Preview'
           - os: ubuntu-22.04
             args: '--bundles deb,rpm,appimage'
@@ -116,7 +116,7 @@ jobs:
         with:
           projectPath: ghostftp-desktop
           args: --config src-tauri/updater-release.conf.json ${{ matrix.args }}
-      - name: Windows Setup install and uninstall smoke
+      - name: Windows NSIS and MSI install/uninstall smoke
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -151,6 +151,39 @@ jobs:
           }
           if (Test-Path $installedExe.FullName) {
             throw 'Ghost FTP executable remained after silent uninstall.'
+          }
+
+          $msi = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/msi' -Filter '*.msi' -Recurse |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $msi -or $msi.Length -le 0) { throw 'MSI installer was not produced.' }
+
+          $msiInstallLog = Join-Path $env:RUNNER_TEMP 'GhostFTP-MSI-install.log'
+          $msiInstall = Start-Process -FilePath 'msiexec.exe' -ArgumentList @(
+            '/i',
+            ('"' + $msi.FullName + '"'),
+            '/qn',
+            '/norestart',
+            '/L*v',
+            ('"' + $msiInstallLog + '"')
+          ) -PassThru -Wait
+          if ($msiInstall.ExitCode -notin @(0, 3010)) {
+            Get-Content $msiInstallLog -Tail 120 -ErrorAction SilentlyContinue
+            throw "Ghost FTP MSI install failed with exit code $($msiInstall.ExitCode)"
+          }
+
+          $msiUninstallLog = Join-Path $env:RUNNER_TEMP 'GhostFTP-MSI-uninstall.log'
+          $msiUninstall = Start-Process -FilePath 'msiexec.exe' -ArgumentList @(
+            '/x',
+            ('"' + $msi.FullName + '"'),
+            '/qn',
+            '/norestart',
+            '/L*v',
+            ('"' + $msiUninstallLog + '"')
+          ) -PassThru -Wait
+          if ($msiUninstall.ExitCode -notin @(0, 3010)) {
+            Get-Content $msiUninstallLog -Tail 120 -ErrorAction SilentlyContinue
+            throw "Ghost FTP MSI uninstall failed with exit code $($msiUninstall.ExitCode)"
           }
 
       - name: Linux package lifecycle smoke
@@ -789,6 +822,12 @@ jobs:
           if (-not $setup) { throw 'Missing NSIS Setup executable.' }
           Copy-Item $setup.FullName 'dist/native/GhostFTP-Windows-x64-Setup.exe'
 
+          $msi = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/msi' -Filter '*.msi' -Recurse |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $msi) { throw 'Missing MSI installer.' }
+          Copy-Item $msi.FullName 'dist/native/GhostFTP-Windows-x64-Setup.msi'
+
           if ('${{ github.event_name }}' -eq 'push' -and '${{ env.HAS_TAURI_SIGNING_KEY }}' -eq 'true') {
             $setupSig = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/nsis' -Filter '*.exe.sig' -Recurse |
               Select-Object -First 1
@@ -798,12 +837,15 @@ jobs:
 
           $portableBytes = (Get-Item 'dist/native/ghostftp.exe').Length
           $setupBytes = (Get-Item 'dist/native/GhostFTP-Windows-x64-Setup.exe').Length
+          $msiBytes = (Get-Item 'dist/native/GhostFTP-Windows-x64-Setup.msi').Length
           if ($portableBytes -gt 29360128) { throw "Portable executable exceeds 28 MiB budget: $portableBytes bytes" }
           if ($setupBytes -gt 12582912) { throw "Setup executable exceeds 12 MiB budget: $setupBytes bytes" }
+          if ($msiBytes -gt 25165824) { throw "MSI installer exceeds 24 MiB budget: $msiBytes bytes" }
 
           "### Windows native artifact sizes" >> $env:GITHUB_STEP_SUMMARY
           "- portable.exe: $([Math]::Round($portableBytes / 1MB, 2)) MiB" >> $env:GITHUB_STEP_SUMMARY
           "- setup.exe: $([Math]::Round($setupBytes / 1MB, 2)) MiB" >> $env:GITHUB_STEP_SUMMARY
+          "- setup.msi: $([Math]::Round($msiBytes / 1MB, 2)) MiB" >> $env:GITHUB_STEP_SUMMARY
 
       - name: Collect Linux release-native artifacts
         if: runner.os == 'Linux'
