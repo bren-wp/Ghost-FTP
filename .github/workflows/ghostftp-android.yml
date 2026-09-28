@@ -68,6 +68,7 @@ jobs:
           set -euo pipefail
           mkdir -p dist/android
           VERSION="$(node -p 'require("./version.json").version')"
+          ANDROID_VERSION_CODE="$(node -p 'require("./version.json").androidVersionCode')"
           PREVIEW_APK="android/app/build/outputs/apk/preview/app-preview.apk"
           RELEASE_APK="android/app/build/outputs/apk/release/app-release-unsigned.apk"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -n1)"
@@ -84,8 +85,30 @@ jobs:
             exit 1
           fi
 
-          PACKAGE_ID="$("$AAPT" dump badging "$PREVIEW_APK" | sed -n "s/package: name='\([^']*\)'.*/\1/p" | head -n1)"
+          BADGING="$("$AAPT" dump badging "$PREVIEW_APK")"
+          PACKAGE_ID="$(sed -n "s/package: name='\([^']*\)'.*/\1/p" <<< "$BADGING" | head -n1)"
+          VERSION_CODE="$(sed -n "s/package: .*versionCode='\([^']*\)'.*/\1/p" <<< "$BADGING" | head -n1)"
+          VERSION_NAME="$(sed -n "s/package: .*versionName='\([^']*\)'.*/\1/p" <<< "$BADGING" | head -n1)"
+          MIN_SDK="$(sed -n "s/sdkVersion:'\([^']*\)'.*/\1/p" <<< "$BADGING" | head -n1)"
+          TARGET_SDK="$(sed -n "s/targetSdkVersion:'\([^']*\)'.*/\1/p" <<< "$BADGING" | head -n1)"
+          LAUNCH_ACTIVITY="$(sed -n "s/launchable-activity: name='\([^']*\)'.*/\1/p" <<< "$BADGING" | head -n1)"
+
           test "$PACKAGE_ID" = "com.ghostftp.android.preview"
+          test "$VERSION_CODE" = "$ANDROID_VERSION_CODE"
+          test "$VERSION_NAME" = "${VERSION}-preview"
+          test "$MIN_SDK" = "26"
+          test "$TARGET_SDK" = "35"
+          case "$LAUNCH_ACTIVITY" in
+            "$PACKAGE_ID".*) ;;
+            *)
+              echo "Preview APK launchable activity does not belong to $PACKAGE_ID: $LAUNCH_ACTIVITY" >&2
+              exit 1
+              ;;
+          esac
+          if grep -Fq "application-debuggable" <<< "$BADGING"; then
+            echo "Installable preview APK unexpectedly remains debuggable." >&2
+            exit 1
+          fi
 
           cp "$PREVIEW_APK" "dist/android/GhostFTP-Android-v${VERSION}-Installable-Preview.apk"
           cp "$RELEASE_APK" "dist/android/GhostFTP-Android-v${VERSION}-Release-Unsigned.apk.unsigned"
