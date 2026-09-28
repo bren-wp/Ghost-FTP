@@ -90,7 +90,7 @@ LAUNCH_COMPONENT="$(
   adb shell cmd package resolve-activity --brief \
     -a android.intent.action.MAIN \
     -c android.intent.category.LAUNCHER \
-    "$PACKAGE_ID" 2>&1
+    -p "$PACKAGE_ID" 2>&1
 )"
 RESOLVE_EXIT=$?
 set -e
