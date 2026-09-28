@@ -1050,7 +1050,7 @@ impl TransferManager {
         };
         let mut offset = if requested_offset > 0
             && local_len >= requested_offset
-            && remote_len >= requested_offset
+            && remote_len == requested_offset
         {
             requested_offset
         } else {
@@ -1641,7 +1641,7 @@ impl TransferManager {
             } else {
                 0
             };
-            if resume_offset > 0 && remote_len >= resume_offset {
+            if resume_offset > 0 && remote_len == resume_offset {
                 sftp.open_with_flags(remote_path, russh_sftp::protocol::OpenFlags::WRITE)
                     .await
                     .with_context(|| format!("open remote {remote_path} for resume"))?
