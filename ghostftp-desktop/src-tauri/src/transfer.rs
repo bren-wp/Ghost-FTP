@@ -310,8 +310,10 @@ pub struct TransferManager {
     /// Credential-free retry descriptors survive process restarts. They contain
     /// only profile ids and resolved paths; secrets remain in the OS keychain.
     persisted_retry: Mutex<HashMap<String, PersistedRetryInfo>>,
-    /// Rows restored from a previous process keep their committed byte offset
-    /// on the first explicit retry so ranged backends can continue safely.
+    /// Rows restored from a previous process require a live-session reattach
+    /// before retry. Their historical byte count is display-only: without a
+    /// persisted source identity/change signal, cross-process retry restarts at
+    /// byte zero to avoid combining an old prefix with changed content.
     recovered_retry: Mutex<HashSet<String>>,
     /// Optional shared SQLite store. Unit tests that don't exercise persistence
     /// use `new()`; the desktop app uses `with_db()`.
@@ -455,7 +457,7 @@ impl TransferManager {
                         envelope.transfer.status = TransferStatus::Error;
                         envelope.transfer.retry_attempt = None;
                         envelope.transfer.error = Some(
-                            "Transfer was interrupted by the previous Ghost FTP process. Retry will reconnect the saved profile and continue from the last verified byte when the backend supports ranged resume."
+                            "Transfer was interrupted by the previous Ghost FTP process. Retry will reconnect the saved profile and restart safely from byte zero because cross-process file identity was not verified."
                                 .to_string(),
                         );
                         if let Ok(normalized) = serde_json::to_string(&envelope) {
@@ -561,7 +563,84 @@ impl TransferManager {
             retry,
         };
         if let Ok(payload) = serde_json::to_string(&envelope) {
-            let _ = db.transfer_ledger_upsert(&envelope.transfer.id, &payload);
+            if db
+                .transfer_ledger_upsert(&envelope.transfer.id, &payload)
+                .is_ok()
+                && matches!(
+                    envelope.transfer.status,
+                    TransferStatus::Done
+                        | TransferStatus::Skipped
+                        | TransferStatus::Error
+                        | TransferStatus::Canceled
+                )
+            {
+                self.prune_terminal_history().await;
+            }
+        }
+    }
+
+    /// Keep at most TRANSFER_LEDGER_KEEP terminal rows while preserving every
+    /// active row. This bounds both SQLite and the in-memory transfer panel for
+    /// long-running clients instead of waiting for the next application start.
+    async fn prune_terminal_history(&self) {
+        let stale = {
+            let mut transfers = self.transfers.lock().await;
+            let mut terminal: Vec<(String, i64)> = transfers
+                .values()
+                .filter(|transfer| {
+                    matches!(
+                        transfer.status,
+                        TransferStatus::Done
+                            | TransferStatus::Skipped
+                            | TransferStatus::Error
+                            | TransferStatus::Canceled
+                    )
+                })
+                .map(|transfer| (transfer.id.clone(), transfer.started_at))
+                .collect();
+
+            terminal.sort_by(|(left_id, left_started), (right_id, right_started)| {
+                right_started
+                    .cmp(left_started)
+                    .then_with(|| right_id.cmp(left_id))
+            });
+
+            let stale: Vec<String> = terminal
+                .into_iter()
+                .skip(TRANSFER_LEDGER_KEEP)
+                .map(|(id, _)| id)
+                .collect();
+            for id in &stale {
+                transfers.remove(id);
+            }
+            stale
+        };
+
+        if stale.is_empty() {
+            return;
+        }
+
+        {
+            let mut retry = self.retry.lock().await;
+            let mut persisted_retry = self.persisted_retry.lock().await;
+            let mut recovered_retry = self.recovered_retry.lock().await;
+            let mut pauses = self.pauses.lock().await;
+            let mut cancels = self.cancels.lock().await;
+            let mut persisted_at = self.persisted_at.lock().await;
+            for id in &stale {
+                retry.remove(id);
+                persisted_retry.remove(id);
+                recovered_retry.remove(id);
+                pauses.remove(id);
+                cancels.remove(id);
+                persisted_at.remove(id);
+            }
+        }
+
+        if let Some(db) = self.db.as_ref() {
+            for id in stale {
+                let _ = db.transfer_ledger_delete(&id);
+            }
         }
     }
 
@@ -834,12 +913,14 @@ impl TransferManager {
             .await
             .insert(id.to_string(), Arc::new(AtomicBool::new(false)));
 
-        let preserve_recovered_offset = self.recovered_retry.lock().await.remove(id);
+        // A recovered byte count is not proof that the source object is still
+        // the same object after a process restart. Until the ledger persists a
+        // backend-specific immutable identity/change signal, always restart the
+        // first recovered retry from zero rather than risk a hybrid file.
+        self.recovered_retry.lock().await.remove(id);
         self.update(id, |t| {
             t.status = TransferStatus::Queued;
-            if !preserve_recovered_offset {
-                t.transferred = 0;
-            }
+            t.transferred = 0;
             t.error = None;
             t.retry_attempt = None;
         })
@@ -4263,7 +4344,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn durable_recovery_preserves_verified_offset_without_credentials() {
+    async fn durable_recovery_keeps_progress_for_display_but_requires_safe_restart() {
         let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
         let id = "recover-me";
 
@@ -4317,6 +4398,83 @@ mod tests {
             Some("profile-1")
         );
         assert!(recovered.recovered_retry.lock().await.contains(id));
+        assert!(row
+            .error
+            .as_deref()
+            .is_some_and(|message| message.contains("restart safely from byte zero")));
+    }
+
+    #[tokio::test]
+    async fn terminal_history_is_pruned_during_runtime_without_dropping_active_rows() {
+        let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+        let mgr = TransferManager::with_db(db.clone());
+
+        mgr.persisted_retry.lock().await.insert(
+            "active".to_string(),
+            PersistedRetryInfo::Upload {
+                profile_id: "p".to_string(),
+                local: PathBuf::from("/tmp/active"),
+                final_remote: "/active".to_string(),
+            },
+        );
+        mgr.insert(Transfer {
+            id: "active".to_string(),
+            kind: TransferKind::Upload,
+            source: "/tmp/active".to_string(),
+            destination: "/active".to_string(),
+            size: 10,
+            transferred: 1,
+            status: TransferStatus::Transferring,
+            error: None,
+            retry_attempt: None,
+            delta: None,
+            started_at: 1,
+        })
+        .await;
+
+        for index in 0..=TRANSFER_LEDGER_KEEP {
+            let id = format!("done-{index:04}");
+            mgr.persisted_retry.lock().await.insert(
+                id.clone(),
+                PersistedRetryInfo::Download {
+                    profile_id: "p".to_string(),
+                    remote_path: format!("/remote/{index}"),
+                    final_path: PathBuf::from(format!("/tmp/{index}")),
+                },
+            );
+            mgr.insert(Transfer {
+                id,
+                kind: TransferKind::Download,
+                source: format!("/remote/{index}"),
+                destination: format!("/tmp/{index}"),
+                size: 1,
+                transferred: 1,
+                status: TransferStatus::Done,
+                error: None,
+                retry_attempt: None,
+                delta: None,
+                started_at: index as i64 + 10,
+            })
+            .await;
+        }
+
+        let list = mgr.list().await;
+        assert!(list.iter().any(|transfer| transfer.id == "active"));
+        assert_eq!(
+            list.iter()
+                .filter(|transfer| {
+                    matches!(
+                        transfer.status,
+                        TransferStatus::Done
+                            | TransferStatus::Skipped
+                            | TransferStatus::Error
+                            | TransferStatus::Canceled
+                    )
+                })
+                .count(),
+            TRANSFER_LEDGER_KEEP
+        );
+        assert_eq!(db.transfer_ledger_list().unwrap().len(), TRANSFER_LEDGER_KEEP + 1);
     }
 
     // ---------- FIFO admission ----------
