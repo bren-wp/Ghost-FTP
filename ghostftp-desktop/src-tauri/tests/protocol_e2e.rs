@@ -218,9 +218,10 @@ async fn ftp_roundtrip(
     // Bytes accepted by the local data socket can be ahead of bytes the FTP
     // server has durably committed when ABOR closes the transfer. The
     // production resumable path therefore reports the server-confirmed SIZE,
-    // which may legitimately be below the local pause threshold.
+    // which may legitimately be below the local pause threshold. Some servers
+    // discard the interrupted STOR entirely, in which case zero is the only
+    // safe restart offset and Ghost FTP deliberately restarts from the start.
     if upload_pause.control != FtpTransferControl::Pause
-        || upload_pause.transferred == 0
         || upload_pause.transferred > pause_after
     {
         return Err(anyhow!(
@@ -233,11 +234,13 @@ async fn ftp_roundtrip(
     let upload_offset = upload_pause.transferred;
     let upload_done = ftp
         .with_stream(move |stream| {
-            let remote_size = stream.size(&upload_path)? as u64;
-            if remote_size != upload_offset {
-                return Err(anyhow!(
-                    "remote prefix mismatch before FTP resume: {remote_size} != {upload_offset}"
-                ));
+            if upload_offset > 0 {
+                let remote_size = stream.size(&upload_path)? as u64;
+                if remote_size != upload_offset {
+                    return Err(anyhow!(
+                        "remote prefix mismatch before FTP resume: {remote_size} != {upload_offset}"
+                    ));
+                }
             }
             let mut reader = Cursor::new(upload_payload);
             std::io::Seek::seek(&mut reader, SeekFrom::Start(upload_offset))?;
