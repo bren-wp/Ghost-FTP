@@ -1,3 +1,4 @@
+use crate::session::ftp::FtpTransferControl;
 use crate::session::{
     BoxSession, DropboxSession, DynamicsSession, FtpSession, GDriveSession, HttpSession,
     HubSpotSession, ObjectSession, OneDriveSession, Session, ShopifySession, SshSession,
@@ -6,7 +7,7 @@ use crate::session::{
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
-use std::io::SeekFrom;
+use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -240,6 +241,9 @@ pub struct TransferManager {
     pause_all: PauseGate,
     /// Per-transfer pause gates, created at enqueue time.
     pauses: Mutex<HashMap<String, PauseGate>>,
+    /// Cooperative cancellation flags. These matter most for FTP/FTPS where
+    /// spawn_blocking cannot be force-aborted once a data stream is active.
+    cancels: Mutex<HashMap<String, Arc<AtomicBool>>>,
     /// Original resolved inputs per transfer, for manual retry.
     retry: Mutex<HashMap<String, RetryInfo>>,
     /// Bumped on every queue change so admission waiters re-check their turn.
@@ -331,6 +335,7 @@ impl TransferManager {
             concurrency: AtomicUsize::new(DEFAULT_CONCURRENCY),
             pause_all: PauseGate::new(),
             pauses: Mutex::new(HashMap::new()),
+            cancels: Mutex::new(HashMap::new()),
             retry: Mutex::new(HashMap::new()),
             queue_gen: watch::channel(0).0,
             bucket: TokenBucket::new(),
@@ -584,6 +589,13 @@ impl TransferManager {
         if let Some(g) = self.pauses.lock().await.get(id) {
             g.set(false);
         }
+        // Never reuse the canceled Arc: a previous FTP spawn_blocking worker
+        // may still own it while finishing ABOR cleanup. A fresh token prevents
+        // a fast Cancel -> Retry from resurrecting that old worker.
+        self.cancels
+            .lock()
+            .await
+            .insert(id.to_string(), Arc::new(AtomicBool::new(false)));
         self.update(id, |t| {
             t.status = TransferStatus::Queued;
             t.transferred = 0;
@@ -673,6 +685,12 @@ impl TransferManager {
     }
 
     pub async fn cancel(&self, id: &str, app: &AppHandle) -> Result<()> {
+        // Set the cooperative flag before aborting the async wrapper. A
+        // spawn_blocking FTP/FTPS data loop keeps running after JoinHandle::abort,
+        // so it must observe this flag and issue ABOR itself.
+        if let Some(flag) = self.cancels.lock().await.get(id) {
+            flag.store(true, Ordering::Release);
+        }
         {
             let mut w = self.waiting.lock().await;
             if let Some(pos) = w.iter().position(|x| x == id) {
@@ -766,6 +784,10 @@ impl TransferManager {
             .lock()
             .await
             .insert(id.clone(), PauseGate::new());
+        self.cancels
+            .lock()
+            .await
+            .insert(id.clone(), Arc::new(AtomicBool::new(false)));
         self.bump_queue(&app).await;
 
         let mgr = Arc::clone(self);
@@ -1007,6 +1029,10 @@ impl TransferManager {
             .lock()
             .await
             .insert(id.clone(), PauseGate::new());
+        self.cancels
+            .lock()
+            .await
+            .insert(id.clone(), Arc::new(AtomicBool::new(false)));
         self.bump_queue(&app).await;
 
         let mgr = Arc::clone(self);
@@ -1861,27 +1887,80 @@ impl TransferManager {
     ) -> Result<()> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
+        self.checkpoint(id, 0).await?;
 
-        // FTP data transfer is performed inside the session's blocking stream
-        // worker, so progress is reported at completion rather than by sharing
-        // manager state across threads.
-        let _ = app;
+        let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
+        let local_len = tokio::fs::metadata(local_path).await.ok().map(|m| m.len());
+        let candidate_offset =
+            if requested_offset > 0 && local_len.is_some_and(|len| len >= requested_offset) {
+                requested_offset
+            } else {
+                0
+            };
+        let pause = self.pauses.lock().await.get(id).cloned();
+        let pause_all = self.pause_all.clone();
+        let canceled = self
+            .cancels
+            .lock()
+            .await
+            .get(id)
+            .cloned()
+            .unwrap_or_else(|| Arc::new(AtomicBool::new(false)));
         let final_path = local_path.to_path_buf();
         let path = remote_path.to_string();
 
-        self.checkpoint(id, 0).await?;
-        let res: Result<u64> = session
+        let outcome = session
             .with_stream(move |stream| {
-                let file = std::fs::File::create(&final_path)
-                    .with_context(|| format!("create {}", final_path.display()))?;
-                let written = stream.retr_to_writer(&path, std::io::BufWriter::new(file))?;
-                Ok(written)
-            })
-            .await;
+                let remote_len = stream.size(&path).ok().map(|size| size as u64);
+                let offset = if candidate_offset > 0
+                    && remote_len.is_some_and(|len| len >= candidate_offset)
+                {
+                    candidate_offset
+                } else {
+                    0
+                };
 
-        let written = res?;
-        self.update(id, |t| t.transferred = written).await;
-        Ok(())
+                let mut file = std::fs::OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(offset == 0)
+                    .open(&final_path)
+                    .with_context(|| format!("open {}", final_path.display()))?;
+                if offset > 0 {
+                    file.set_len(offset)?;
+                    file.seek(SeekFrom::Start(offset))?;
+                }
+                let mut writer = std::io::BufWriter::new(file);
+                let outcome = stream.retr_resumable(&path, offset, &mut writer, |_| {
+                    if canceled.load(Ordering::Acquire) {
+                        FtpTransferControl::Cancel
+                    } else if pause_all.is_paused()
+                        || pause.as_ref().is_some_and(|gate| gate.is_paused())
+                    {
+                        FtpTransferControl::Pause
+                    } else {
+                        FtpTransferControl::Continue
+                    }
+                })?;
+                writer.flush().context("flush FTP download destination")?;
+                Ok(outcome)
+            })
+            .await?;
+
+        self.update(id, |t| t.transferred = outcome.transferred)
+            .await;
+        if let Some(t) = self.get(id).await {
+            let _ = app.emit("transfer://progress", &t);
+        }
+
+        match outcome.control {
+            FtpTransferControl::Continue => Ok(()),
+            FtpTransferControl::Pause => {
+                self.checkpoint(id, 0).await?;
+                Err(RestartFromPause.into())
+            }
+            FtpTransferControl::Cancel => anyhow::bail!("transfer canceled"),
+        }
     }
 
     async fn run_ftp_upload(
@@ -1894,23 +1973,155 @@ impl TransferManager {
     ) -> Result<()> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
-        let _ = app; // progress events come at completion for FTP
-
         self.checkpoint(id, 0).await?;
+
+        let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
+        let local_len = tokio::fs::metadata(local_path)
+            .await
+            .with_context(|| format!("stat {}", local_path.display()))?
+            .len();
+        let candidate_offset = requested_offset.min(local_len);
+        let pause = self.pauses.lock().await.get(id).cloned();
+        let pause_all = self.pause_all.clone();
+        let canceled = self
+            .cancels
+            .lock()
+            .await
+            .get(id)
+            .cloned()
+            .unwrap_or_else(|| Arc::new(AtomicBool::new(false)));
         let local = local_path.to_path_buf();
         let remote = remote_path.to_string();
-        let res: Result<u64> = session
+
+        let retry_pause = pause.clone();
+        let retry_pause_all = pause_all.clone();
+        let retry_canceled = canceled.clone();
+        let retry_local = local.clone();
+        let retry_remote = remote.clone();
+
+        let (mut outcome, needs_fresh_restart) = session
             .with_stream(move |stream| {
-                let file = std::fs::File::open(&local)
+                // Resume only when the remote file is exactly the committed
+                // prefix. Otherwise overwrite from zero.
+                let remote_len = if candidate_offset > 0 {
+                    stream.size(&remote).ok().map(|size| size as u64)
+                } else {
+                    None
+                };
+                let offset = if remote_len == Some(candidate_offset) {
+                    candidate_offset
+                } else {
+                    0
+                };
+
+                let mut file = std::fs::File::open(&local)
                     .with_context(|| format!("open {}", local.display()))?;
+                if offset > 0 {
+                    file.seek(SeekFrom::Start(offset))?;
+                }
                 let mut reader = std::io::BufReader::new(file);
-                let written = stream.put_from_reader(&remote, &mut reader)?;
-                Ok(written)
+                let outcome = stream.stor_resumable(&remote, offset, &mut reader, |_| {
+                    if canceled.load(Ordering::Acquire) {
+                        FtpTransferControl::Cancel
+                    } else if pause_all.is_paused()
+                        || pause.as_ref().is_some_and(|gate| gate.is_paused())
+                    {
+                        FtpTransferControl::Pause
+                    } else {
+                        FtpTransferControl::Continue
+                    }
+                })?;
+
+                // Some FTP/FTPS servers can acknowledge a resumed transfer but
+                // persist fewer bytes than the client wrote. A resumed upload
+                // is complete only when SIZE confirms the exact local length.
+                // If SIZE itself becomes unavailable after a resumed attempt,
+                // also distrust the session and retry on a fresh connection.
+                let needs_fresh_restart = if outcome.control == FtpTransferControl::Continue {
+                    match stream.size(&remote).ok().map(|size| size as u64) {
+                        Some(size) => size != local_len,
+                        None => offset > 0,
+                    }
+                } else {
+                    false
+                };
+
+                Ok((outcome, needs_fresh_restart))
             })
+            .await?;
+
+        if needs_fresh_restart {
+            session
+                .reconnect()
+                .await
+                .context("reconnect FTP session before safe upload restart")?;
+
+            outcome = session
+                .with_stream(move |stream| {
+                    if retry_canceled.load(Ordering::Acquire) {
+                        return Ok(crate::session::ftp::FtpTransferOutcome {
+                            transferred: 0,
+                            control: FtpTransferControl::Cancel,
+                        });
+                    }
+                    if retry_pause_all.is_paused()
+                        || retry_pause
+                            .as_ref()
+                            .is_some_and(|gate| gate.is_paused())
+                    {
+                        return Ok(crate::session::ftp::FtpTransferOutcome {
+                            transferred: 0,
+                            control: FtpTransferControl::Pause,
+                        });
+                    }
+
+                    // The bounded writer already proved unreliable for this
+                    // server/session combination. Recovery deliberately uses
+                    // SuppaFTP's established full-upload path on a fresh
+                    // connection, then verifies both bytes sent and remote SIZE.
+                    let restart_file = std::fs::File::open(&retry_local)
+                        .with_context(|| format!("reopen {}", retry_local.display()))?;
+                    let mut restart_reader = std::io::BufReader::new(restart_file);
+                    let written = stream.put_from_reader(&retry_remote, &mut restart_reader)?;
+                    if written != local_len {
+                        anyhow::bail!(
+                            "FTP recovery upload wrote {} bytes, expected {}",
+                            written,
+                            local_len
+                        );
+                    }
+                    if let Ok(size) = stream.size(&retry_remote) {
+                        if size as u64 != local_len {
+                            anyhow::bail!(
+                                "FTP upload verification failed after reconnect: remote size {} != local size {}",
+                                size,
+                                local_len
+                            );
+                        }
+                    }
+
+                    Ok(crate::session::ftp::FtpTransferOutcome {
+                        transferred: local_len,
+                        control: FtpTransferControl::Continue,
+                    })
+                })
+                .await?;
+        }
+
+        self.update(id, |t| t.transferred = outcome.transferred)
             .await;
-        let written = res?;
-        self.update(id, |t| t.transferred = written).await;
-        Ok(())
+        if let Some(t) = self.get(id).await {
+            let _ = app.emit("transfer://progress", &t);
+        }
+
+        match outcome.control {
+            FtpTransferControl::Continue => Ok(()),
+            FtpTransferControl::Pause => {
+                self.checkpoint(id, 0).await?;
+                Err(RestartFromPause.into())
+            }
+            FtpTransferControl::Cancel => anyhow::bail!("transfer canceled"),
+        }
     }
 
     async fn run_object_download(
@@ -2974,7 +3185,10 @@ fn supports_delta(session: &Session) -> bool {
 /// explicit ReadChunk/WriteChunk offsets. Other backends retain the safe
 /// restart-from-zero fallback until equivalent tests exist.
 fn supports_byte_resume(session: &Session) -> bool {
-    matches!(session, Session::Ssh(_) | Session::Agent(_))
+    matches!(
+        session,
+        Session::Ssh(_) | Session::Ftp(_) | Session::Agent(_)
+    )
 }
 
 /// Stat a path on a Ghost FTP Agent daemon, returning its size and whether it exists.
@@ -3633,6 +3847,13 @@ async fn dispatch_upload(
 }
 
 async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result: Result<()>) {
+    // Cancel updates the row immediately. Cooperative blocking transports (FTP)
+    // may finish ABOR cleanup after that; never let their late result overwrite
+    // the user-visible Canceled state.
+    if mgr.get(id).await.map(|t| t.status) == Some(TransferStatus::Canceled) {
+        mgr.tasks.lock().await.remove(id);
+        return;
+    }
     match result {
         Ok(()) => {
             mgr.update(id, |t| {
