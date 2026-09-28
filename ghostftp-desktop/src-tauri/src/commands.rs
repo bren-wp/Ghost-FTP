@@ -1100,6 +1100,39 @@ pub async fn transfer_retry(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    if let Some(profile_id) = state.transfers.recovery_profile_id(&transfer_id).await {
+        let session = if let Some(session) = state.sessions.get_by_profile_id(&profile_id).await {
+            session
+        } else {
+            let mut profile = state
+                .profiles
+                .get(&profile_id)
+                .await
+                .map_err(err)?
+                .ok_or_else(|| {
+                    format!(
+                        "Saved profile {profile_id} no longer exists; reconnect the destination manually before retrying this interrupted transfer"
+                    )
+                })?;
+            hydrate_profile_secrets(&mut profile).map_err(err)?;
+            let session_id = state
+                .sessions
+                .connect(profile, app.clone())
+                .await
+                .map_err(err)?;
+            state
+                .sessions
+                .get(&session_id)
+                .await
+                .ok_or_else(|| "Recovered session disappeared before retry".to_string())?
+        };
+        state
+            .transfers
+            .attach_recovered_session(&transfer_id, session)
+            .await
+            .map_err(err)?;
+    }
+
     state.transfers.retry(&transfer_id, &app).await.map_err(err)
 }
 
