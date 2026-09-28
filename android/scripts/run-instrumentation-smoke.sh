@@ -31,6 +31,44 @@ adb shell settings put global window_animation_scale 0.0 || true
 adb shell settings put global transition_animation_scale 0.0 || true
 adb shell settings put global animator_duration_scale 0.0 || true
 
+# ATD can surface unrelated background-system crash dialogs (observed from
+# com.android.bluetooth) that steal Espresso's window focus. Suppress those
+# dialogs and stop the unused Bluetooth stack before launching instrumentation.
+adb shell settings put global hide_error_dialogs 1
+HIDE_ERROR_DIALOGS="$(adb shell settings get global hide_error_dialogs 2>/dev/null || true)"
+case "$HIDE_ERROR_DIALOGS" in
+  1*) ;;
+  *)
+    echo "Unable to enable Android global hide_error_dialogs before UI tests." >&2
+    exit 1
+    ;;
+esac
+adb shell settings put global show_first_crash_dialog 0 || true
+adb shell settings put global show_restart_in_crash_dialog 0 || true
+adb shell cmd bluetooth_manager disable || true
+adb shell am force-stop com.android.bluetooth || true
+adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true
+
+PRETEST_WINDOW_DUMP=""
+for _ in {1..4}; do
+  PRETEST_WINDOW_DUMP="$(adb shell dumpsys window windows 2>&1)"
+  case "$PRETEST_WINDOW_DUMP" in
+    *"Application Error:"*)
+      adb shell input keyevent KEYCODE_BACK || true
+      adb shell am force-stop com.android.bluetooth || true
+      sleep 0.5
+      ;;
+    *) break ;;
+  esac
+done
+case "$PRETEST_WINDOW_DUMP" in
+  *"Application Error:"*)
+    printf '%s\n' "$PRETEST_WINDOW_DUMP" > "$DIAG_DIR/pre-test-window.txt"
+    echo "A system crash dialog still owns the emulator before instrumentation." >&2
+    exit 1
+    ;;
+esac
+
 set +e
 gradle -p android connectedDebugAndroidTest --stacktrace
 TEST_EXIT=$?
