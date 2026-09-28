@@ -73,7 +73,7 @@ ghostftp-agentd = { path = "ghostftp-agentd" }
 mdns-sd = "0.11"
 
 # FTP / FTPS — sync API, driven from tokio via spawn_blocking.
-suppaftp = { version = "6", features = ["native-tls"] }
+suppaftp = { version = "12", features = ["native-tls"] }
 
 # S3 / R2 / B2 — Apache Arrow's polymorphic object_store crate. The same crate
 # backs Azure Blob (`azure` feature) and native Google Cloud Storage (`gcp`).
