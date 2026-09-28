@@ -190,7 +190,7 @@ async fn ftp_roundtrip(
         return Err(anyhow!("{protocol} download content mismatch"));
     }
 
-    // Exercise the same SuppaFTP 6.3 REST + streaming primitives production
+    // Exercise the same SuppaFTP 12 restart + transfer-stream primitives production
     // pause/resume uses. ftp_roundtrip runs once for plain FTP and once for
     // explicit FTPS, so both transport variants must survive ABOR and reuse the
     // same control connection for a non-zero-offset continuation.
