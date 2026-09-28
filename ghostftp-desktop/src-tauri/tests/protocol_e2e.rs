@@ -41,6 +41,19 @@ fn port(name: &str) -> Result<u16> {
         .with_context(|| format!("invalid port in {name}"))
 }
 
+fn byte_mismatch(actual: &[u8], expected: &[u8]) -> String {
+    let first = actual
+        .iter()
+        .zip(expected.iter())
+        .position(|(actual, expected)| actual != expected)
+        .or_else(|| (actual.len() != expected.len()).then_some(actual.len().min(expected.len())));
+    format!(
+        "actual_len={}, expected_len={}, first_mismatch={first:?}",
+        actual.len(),
+        expected.len()
+    )
+}
+
 struct FailAfterWriter {
     limit: usize,
     written: usize,
@@ -240,6 +253,25 @@ async fn ftp_roundtrip(
         return Err(anyhow!("{protocol} resumed upload length mismatch"));
     }
 
+    // Verify upload resume independently before using the same file to test
+    // download resume. This keeps a corrupt REST+STOR result from being
+    // misdiagnosed later as a REST+RETR failure.
+    let verify_upload_path = resume_path.clone();
+    let uploaded_bytes = ftp
+        .with_stream(move |stream| {
+            let mut bytes = Vec::new();
+            stream.retr_to_writer(&verify_upload_path, &mut bytes)?;
+            Ok(bytes)
+        })
+        .await
+        .with_context(|| format!("{protocol} verify resumed upload content"))?;
+    if uploaded_bytes != resume_payload {
+        return Err(anyhow!(
+            "{protocol} resumed upload content mismatch ({})",
+            byte_mismatch(&uploaded_bytes, &resume_payload)
+        ));
+    }
+
     let download_path = resume_path.clone();
     let download_pause = ftp
         .with_stream(move |stream| {
@@ -278,7 +310,10 @@ async fn ftp_roundtrip(
         .with_context(|| format!("{protocol} REST + RETR download resume"))?;
     if download_done.0.control != FtpTransferControl::Continue || download_done.1 != resume_payload
     {
-        return Err(anyhow!("{protocol} resumed download content mismatch"));
+        return Err(anyhow!(
+            "{protocol} resumed download content mismatch ({})",
+            byte_mismatch(&download_done.1, &resume_payload)
+        ));
     }
 
     // Cancel uses the same cooperative ABOR path as Pause but intentionally
