@@ -1993,10 +1993,16 @@ impl TransferManager {
         let local = local_path.to_path_buf();
         let remote = remote_path.to_string();
 
-        let outcome = session
+        let retry_pause = pause.clone();
+        let retry_pause_all = pause_all.clone();
+        let retry_canceled = canceled.clone();
+        let retry_local = local.clone();
+        let retry_remote = remote.clone();
+
+        let (mut outcome, needs_fresh_restart) = session
             .with_stream(move |stream| {
-                // RFC-style upload restart is safe only when the remote file is
-                // exactly the committed prefix. Otherwise overwrite from zero.
+                // Resume only when the remote file is exactly the committed
+                // prefix. Otherwise overwrite from zero.
                 let remote_len = if candidate_offset > 0 {
                     stream.size(&remote).ok().map(|size| size as u64)
                 } else {
@@ -2026,58 +2032,66 @@ impl TransferManager {
                     }
                 })?;
 
-                // A server can acknowledge a resumed APPE/REST-style upload
-                // while persisting fewer bytes than the client wrote. Never
-                // surface that as success: verify the final remote SIZE and,
-                // for a resumed transfer, retry once from byte zero when the
-                // committed result is not exactly the local file length.
-                if outcome.control == FtpTransferControl::Continue {
-                    let final_size = stream.size(&remote).ok().map(|size| size as u64);
-                    if offset > 0 && final_size != Some(local_len) {
-                        let restart_file = std::fs::File::open(&local)
-                            .with_context(|| format!("reopen {}", local.display()))?;
-                        let mut restart_reader = std::io::BufReader::new(restart_file);
-                        let restarted =
-                            stream.stor_resumable(&remote, 0, &mut restart_reader, |_| {
-                                if canceled.load(Ordering::Acquire) {
-                                    FtpTransferControl::Cancel
-                                } else if pause_all.is_paused()
-                                    || pause.as_ref().is_some_and(|gate| gate.is_paused())
-                                {
-                                    FtpTransferControl::Pause
-                                } else {
-                                    FtpTransferControl::Continue
-                                }
-                            })?;
-
-                        if restarted.control == FtpTransferControl::Continue {
-                            if let Ok(size) = stream.size(&remote) {
-                                if size as u64 != local_len {
-                                    anyhow::bail!(
-                                        "FTP upload verification failed after safe restart: remote size {} != local size {}",
-                                        size,
-                                        local_len
-                                    );
-                                }
-                            }
-                        }
-                        return Ok(restarted);
+                // Some FTP/FTPS servers can acknowledge a resumed transfer but
+                // persist fewer bytes than the client wrote. A resumed upload
+                // is complete only when SIZE confirms the exact local length.
+                // If SIZE itself becomes unavailable after a resumed attempt,
+                // also distrust the session and retry on a fresh connection.
+                let needs_fresh_restart = if outcome.control == FtpTransferControl::Continue {
+                    match stream.size(&remote).ok().map(|size| size as u64) {
+                        Some(size) => size != local_len,
+                        None => offset > 0,
                     }
+                } else {
+                    false
+                };
 
-                    if let Some(size) = final_size {
-                        if size != local_len {
-                            anyhow::bail!(
-                                "FTP upload verification failed: remote size {} != local size {}",
-                                size,
-                                local_len
-                            );
-                        }
-                    }
-                }
-
-                Ok(outcome)
+                Ok((outcome, needs_fresh_restart))
             })
             .await?;
+
+        if needs_fresh_restart {
+            session
+                .reconnect()
+                .await
+                .context("reconnect FTP session before safe upload restart")?;
+
+            outcome = session
+                .with_stream(move |stream| {
+                    let restart_file = std::fs::File::open(&retry_local)
+                        .with_context(|| format!("reopen {}", retry_local.display()))?;
+                    let mut restart_reader = std::io::BufReader::new(restart_file);
+                    let restarted =
+                        stream.stor_resumable(&retry_remote, 0, &mut restart_reader, |_| {
+                            if retry_canceled.load(Ordering::Acquire) {
+                                FtpTransferControl::Cancel
+                            } else if retry_pause_all.is_paused()
+                                || retry_pause
+                                    .as_ref()
+                                    .is_some_and(|gate| gate.is_paused())
+                            {
+                                FtpTransferControl::Pause
+                            } else {
+                                FtpTransferControl::Continue
+                            }
+                        })?;
+
+                    if restarted.control == FtpTransferControl::Continue {
+                        if let Ok(size) = stream.size(&retry_remote) {
+                            if size as u64 != local_len {
+                                anyhow::bail!(
+                                    "FTP upload verification failed after reconnect: remote size {} != local size {}",
+                                    size,
+                                    local_len
+                                );
+                            }
+                        }
+                    }
+
+                    Ok(restarted)
+                })
+                .await?;
+        }
 
         self.update(id, |t| t.transferred = outcome.transferred)
             .await;
