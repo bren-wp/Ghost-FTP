@@ -139,6 +139,16 @@ jobs:
           node --check updates/scripts/verify-manifest.mjs
           bash -n .github/scripts/publish-release.sh
 
+      - name: Windows release package contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq '"msi"' ghostftp-desktop/src-tauri/tauri.conf.json
+          grep -Fq "args: '--bundles nsis,msi'" .github/workflows/ghostftp-build.yml
+          grep -Fq 'Windows NSIS and MSI install/uninstall smoke' .github/workflows/ghostftp-build.yml
+          grep -Fq 'GhostFTP-Windows-x64-Setup.msi' .github/workflows/ghostftp-build.yml
+          grep -Fq 'GhostFTP-Windows-x64-Setup-v$VERSION.msi' .github/workflows/ghostftp-release.yml
+
       - name: Native frontend typecheck and production build
         working-directory: ghostftp-desktop
         shell: bash
