@@ -290,8 +290,13 @@ impl FtpStreamKind {
         }
     }
 
-    /// Upload with REST + STOR continuation. The caller validates that the
-    /// remote file is exactly offset bytes before using a non-zero marker.
+    /// Upload continuation with an exact-prefix append. The caller validates
+    /// that the remote file is exactly offset bytes before a non-zero resume.
+    ///
+    /// APPE is used for resumed uploads instead of REST + STOR. In practice this
+    /// avoids server-specific REST/STOR truncation behavior (especially over
+    /// explicit TLS) while remaining byte-accurate because Ghost FTP resumes
+    /// only after the remote SIZE exactly matches the committed local offset.
     pub fn stor_resumable<R, C>(
         &mut self,
         path: &str,
@@ -305,14 +310,11 @@ impl FtpStreamKind {
     {
         match self {
             Self::Plain(stream) => {
-                if offset > 0 {
-                    stream
-                        .resume_transfer(
-                            usize::try_from(offset).context("FTP resume offset too large")?,
-                        )
-                        .map_err(into_anyhow)?;
-                }
-                let mut data = stream.put_with_stream(path).map_err(into_anyhow)?;
+                let mut data = if offset > 0 {
+                    stream.append_with_stream(path).map_err(into_anyhow)?
+                } else {
+                    stream.put_with_stream(path).map_err(into_anyhow)?
+                };
                 let mut transferred = offset;
                 let mut buf = vec![0u8; FTP_TRANSFER_CHUNK];
                 loop {
@@ -363,14 +365,11 @@ impl FtpStreamKind {
                 }
             }
             Self::Tls(stream) => {
-                if offset > 0 {
-                    stream
-                        .resume_transfer(
-                            usize::try_from(offset).context("FTPS resume offset too large")?,
-                        )
-                        .map_err(into_anyhow)?;
-                }
-                let mut data = stream.put_with_stream(path).map_err(into_anyhow)?;
+                let mut data = if offset > 0 {
+                    stream.append_with_stream(path).map_err(into_anyhow)?
+                } else {
+                    stream.put_with_stream(path).map_err(into_anyhow)?
+                };
                 let mut transferred = offset;
                 let mut buf = vec![0u8; FTP_TRANSFER_CHUNK];
                 loop {
