@@ -579,8 +579,8 @@ fn connect_profile_stream(profile: &ConnectionProfile) -> Result<FtpStreamKind> 
         login(&mut tls, &username, &password)?;
         Ok(tls)
     } else {
-        let s = FtpStream::connect_with_stream(tcp)
-            .with_context(|| format!("FTP connect {addr}"))?;
+        let s =
+            FtpStream::connect_with_stream(tcp).with_context(|| format!("FTP connect {addr}"))?;
         let s = configure_plain_data_channel(s, peer_is_ipv6);
         let mut plain = FtpStreamKind::Plain(s);
         login(&mut plain, &username, &password)?;
@@ -619,8 +619,7 @@ impl FtpSession {
             let mut current = inner
                 .lock()
                 .map_err(|_| anyhow!("FTP stream lock poisoned"))?;
-            let replacement = connect_profile_stream(&profile)
-                .context("reconnect FTP session")?;
+            let replacement = connect_profile_stream(&profile).context("reconnect FTP session")?;
             let stale = std::mem::replace(&mut *current, replacement);
             drop(stale);
             Ok(())
