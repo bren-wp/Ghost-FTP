@@ -117,9 +117,13 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != PICK_UPLOAD_REQUEST || resultCode != RESULT_OK || !uiReady()) return
         val uri = data?.data ?: return
-        val persistableFlags = data.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION
-        if (persistableFlags != 0) {
-            runCatching { contentResolver.takePersistableUriPermission(uri, persistableFlags) }
+        if (data.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0) {
+            runCatching {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
         }
         selectedUploadUri = uri
         selectedUploadDisplayName = displayNameFor(uri)
