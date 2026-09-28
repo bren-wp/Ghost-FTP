@@ -1139,6 +1139,15 @@ impl TransferManager {
         remote_path: &str,
         app: Option<&AppHandle>,
     ) -> Result<()> {
+        // Resume an interrupted whole-file transfer from its committed prefix.
+        // Delta mode compares complete old/new files and must not reinterpret
+        // a partial destination as a valid delta basis.
+        if self.get(id).await.is_some_and(|t| t.transferred > 0) {
+            return self
+                .agent_upload_core(id, session, local_path, remote_path, app)
+                .await;
+        }
+
         let size = tokio::fs::metadata(local_path)
             .await
             .map(|m| m.len())
@@ -1372,6 +1381,14 @@ impl TransferManager {
         local_path: &Path,
         app: Option<&AppHandle>,
     ) -> Result<()> {
+        // Continue an interrupted whole-file download from the verified local
+        // prefix. Delta mode is reserved for complete prior-file bases.
+        if self.get(id).await.is_some_and(|t| t.transferred > 0) {
+            return self
+                .agent_download_core(id, session, remote_path, local_path, app)
+                .await;
+        }
+
         let (size, remote_exists) = agent_stat(session, remote_path).await;
         let basis_exists = tokio::fs::metadata(local_path).await.is_ok();
         if remote_exists
@@ -3434,7 +3451,9 @@ async fn run_upload_task(
         let attempt = dispatch_upload(&mgr, &id, &session, &local, &final_remote, &app).await;
         match attempt {
             Err(e) if e.downcast_ref::<RestartFromPause>().is_some() => {
-                mgr.update(&id, |t| t.transferred = 0).await;
+                if !supports_byte_resume(&session) {
+                    mgr.update(&id, |t| t.transferred = 0).await;
+                }
                 continue;
             }
             Err(e) if auto_retries < max_auto_retries && is_transient(&e) => {
