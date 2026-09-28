@@ -44,7 +44,7 @@ pub struct FtpTransferOutcome {
 
 const FTP_TRANSFER_CHUNK: usize = 64 * 1024;
 
-/// SuppaFTP 6.x treats FTP 225 as an unexpected ABOR reply even though
+/// SuppaFTP 12.x still treats FTP 225 as an unexpected ABOR reply even though
 /// RFC 959 defines it as "data connection open; no transfer in progress".
 /// Some servers (including pyftpdlib) return 225 after the data socket is
 /// closed as part of ABOR. At that point the reply has already been consumed,
@@ -166,7 +166,7 @@ impl FtpStreamKind {
         }
     }
 
-    /// Download with explicit STREAM restart semantics. SuppaFTP 6.3.0 exposes
+    /// Download with explicit STREAM restart semantics. SuppaFTP 12 exposes
     /// REST plus a raw RETR data stream; Ghost FTP reads bounded chunks so
     /// Pause/Cancel can cooperatively ABOR instead of leaving RETR running.
     pub fn retr_resumable<W, C>(
