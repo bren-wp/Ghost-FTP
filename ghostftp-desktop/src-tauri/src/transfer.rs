@@ -589,9 +589,13 @@ impl TransferManager {
         if let Some(g) = self.pauses.lock().await.get(id) {
             g.set(false);
         }
-        if let Some(flag) = self.cancels.lock().await.get(id) {
-            flag.store(false, Ordering::Release);
-        }
+        // Never reuse the canceled Arc: a previous FTP spawn_blocking worker
+        // may still own it while finishing ABOR cleanup. A fresh token prevents
+        // a fast Cancel -> Retry from resurrecting that old worker.
+        self.cancels
+            .lock()
+            .await
+            .insert(id.to_string(), Arc::new(AtomicBool::new(false)));
         self.update(id, |t| {
             t.status = TransferStatus::Queued;
             t.transferred = 0;
