@@ -45,9 +45,8 @@ fi
 
 test -s "$DEBUG_APK"
 
-# connectedDebugAndroidTest can remove the target application as part of test
-# cleanup. Reinstall the exact debug APK that passed instrumentation before
-# validating a real launcher start and screenshot.
+# connectedDebugAndroidTest can remove the target package during cleanup.
+# Reinstall the exact APK that passed instrumentation before the final launch smoke.
 set +e
 INSTALL_OUTPUT="$(adb install -r "$DEBUG_APK" 2>&1)"
 INSTALL_EXIT=$?
@@ -70,7 +69,6 @@ set +e
 PACKAGE_PATH="$(adb shell pm path "$PACKAGE_ID" 2>&1)"
 PACKAGE_EXIT=$?
 set -e
-PACKAGE_PATH="${PACKAGE_PATH//$'\r'/}"
 printf 'Installed package path: %s\n' "$PACKAGE_PATH"
 
 if [ "$PACKAGE_EXIT" -ne 0 ]; then
@@ -85,72 +83,31 @@ case "$PACKAGE_PATH" in
     ;;
 esac
 
-set +e
-LAUNCH_COMPONENT="$(
-  adb shell cmd package resolve-activity --brief \
-    -a android.intent.action.MAIN \
-    -c android.intent.category.LAUNCHER \
-    -p "$PACKAGE_ID" 2>&1
-)"
-RESOLVE_EXIT=$?
-set -e
-LAUNCH_COMPONENT="${LAUNCH_COMPONENT//
-FOCUSED_WINDOW=""
-WINDOW_DUMP=""
-for _ in {1..20}; do
-  WINDOW_DUMP="$(adb shell dumpsys window 2>&1)"
-  while IFS= read -r window_line; do
-    case "$window_line" in
-      *mCurrentFocus*|*mFocusedApp*)
-        FOCUSED_WINDOW="$window_line"
-        break
-        ;;
-    esac
-  done <<< "$WINDOW_DUMP"
+AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n1)"
+test -x "$AAPT"
 
-  case "$FOCUSED_WINDOW" in
-    *"$PACKAGE_ID"*) break ;;
+APK_BADGING="$("$AAPT" dump badging "$DEBUG_APK")"
+LAUNCH_ACTIVITY=""
+while IFS= read -r badging_line; do
+  case "$badging_line" in
+    launchable-activity:*)
+      launch_value="${badging_line#*name=\'}"
+      LAUNCH_ACTIVITY="${launch_value%%\'*}"
+      break
+      ;;
   esac
+done <<< "$APK_BADGING"
 
-  FOCUSED_WINDOW=""
-  sleep 0.25
-done
-
-printf 'Focused window: %s\n' "$FOCUSED_WINDOW"
-case "$FOCUSED_WINDOW" in
-  *"$PACKAGE_ID"*) ;;
+case "$LAUNCH_ACTIVITY" in
+  "$PACKAGE_ID".*) ;;
   *)
-    printf '%s\n' "$WINDOW_DUMP" > "$DIAG_DIR/post-launch-window.txt"
-    echo "Ghost FTP did not own the focused window after launch." >&2
+    echo "Debug APK does not expose the expected Ghost FTP launchable activity: $LAUNCH_ACTIVITY" >&2
     exit 1
     ;;
 esac
 
-APP_PID="$(adb shell pidof "$PACKAGE_ID" 2>/dev/null || true)"
-APP_PID="${APP_PID//$'\r'/}"
-test -n "$APP_PID"
-printf 'Ghost FTP PID: %s\n' "$APP_PID"
-
-adb shell dumpsys window windows > "$DIAG_DIR/post-launch-window.txt" || true
-adb exec-out screencap -p > dist/android/GhostFTP-Android-UI-Smoke.png
-test -s dist/android/GhostFTP-Android-UI-Smoke.png
-
-trap - EXIT
-echo "Ghost FTP Android instrumentation and post-launch smoke OK"
-\r'/}"
-printf 'Resolved launcher component: %s\n' "$LAUNCH_COMPONENT"
-
-if [ "$RESOLVE_EXIT" -ne 0 ]; then
-  echo "Package Manager could not resolve the Ghost FTP launcher activity." >&2
-  exit "$RESOLVE_EXIT"
-fi
-case "$LAUNCH_COMPONENT" in
-  "$PACKAGE_ID"/*) ;;
-  *)
-    echo "Unexpected Ghost FTP launcher component: $LAUNCH_COMPONENT" >&2
-    exit 1
-    ;;
-esac
+LAUNCH_COMPONENT="$PACKAGE_ID/$LAUNCH_ACTIVITY"
+printf 'APK launcher component: %s\n' "$LAUNCH_COMPONENT"
 
 adb shell am force-stop "$PACKAGE_ID" || true
 
@@ -204,7 +161,6 @@ case "$FOCUSED_WINDOW" in
 esac
 
 APP_PID="$(adb shell pidof "$PACKAGE_ID" 2>/dev/null || true)"
-APP_PID="${APP_PID//$'\r'/}"
 test -n "$APP_PID"
 printf 'Ghost FTP PID: %s\n' "$APP_PID"
 
