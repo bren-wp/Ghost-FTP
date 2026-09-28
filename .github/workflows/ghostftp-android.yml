@@ -89,7 +89,13 @@ jobs:
 
           cp "$PREVIEW_APK" "dist/android/GhostFTP-Android-v${VERSION}-Installable-Preview.apk"
           cp "$RELEASE_APK" "dist/android/GhostFTP-Android-v${VERSION}-Release-Unsigned.apk.unsigned"
-          sha256sum dist/android/* > dist/android/GhostFTP-Android-Preview-SHA256SUMS.txt
+          (
+            cd dist/android
+            find . -maxdepth 1 -type f ! -name 'GhostFTP-Android-Preview-SHA256SUMS.txt' -print0 \
+              | sort -z \
+              | xargs -0 sha256sum
+          ) > dist/android/GhostFTP-Android-Preview-SHA256SUMS.txt
+          test -s dist/android/GhostFTP-Android-Preview-SHA256SUMS.txt
       - name: Upload Android APK artifacts
         uses: actions/upload-artifact@v4
         with:
