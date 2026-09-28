@@ -202,6 +202,33 @@ async fn ftp_roundtrip(
 
     let upload_path = resume_path.clone();
     let upload_payload = resume_payload.clone();
+    let upload_pause = ftp
+        .with_stream(move |stream| {
+            let mut reader = Cursor::new(upload_payload);
+            stream.stor_resumable(&upload_path, 0, &mut reader, |transferred| {
+                if transferred >= pause_after {
+                    FtpTransferControl::Pause
+                } else {
+                    FtpTransferControl::Continue
+                }
+            })
+        })
+        .await
+        .with_context(|| format!("{protocol} ABOR partial upload"))?;
+    // Bytes accepted by the local data socket can be ahead of bytes the FTP
+    // server has durably committed when ABOR closes the transfer. The
+    // production resumable path therefore reports the server-confirmed SIZE,
+    // which may legitimately be below the local pause threshold. Some servers
+    // discard the interrupted STOR entirely, in which case zero is the only
+    // safe restart offset and Ghost FTP deliberately restarts from the start.
+    if upload_pause.control != FtpTransferControl::Pause || upload_pause.transferred > pause_after {
+        return Err(anyhow!(
+            "{protocol} upload did not report a valid server-committed pause offset"
+        ));
+    }
+
+    let upload_path = resume_path.clone();
+    let upload_payload = resume_payload.clone();
     let upload_offset = upload_pause.transferred;
     let (mut upload_done, needs_fresh_restart) = ftp
         .with_stream(move |stream| {
