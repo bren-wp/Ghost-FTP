@@ -6,7 +6,7 @@ use crate::session::{
 };
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
@@ -27,14 +27,14 @@ pub enum OverwritePolicy {
     Rename,
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TransferKind {
     Download,
     Upload,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum TransferStatus {
     Queued,
@@ -169,7 +169,7 @@ impl PauseGate {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Transfer {
     pub id: String,
@@ -194,7 +194,7 @@ pub struct Transfer {
 }
 
 /// Delta-sync outcome attached to a finished [`Transfer`] (Agent backend only).
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeltaStats {
     /// Literal bytes that crossed the wire.
@@ -219,6 +219,67 @@ enum RetryInfo {
         final_remote: String,
     },
 }
+
+/// Credential-free recovery descriptor persisted beside each transfer row.
+/// The profile id reconnects through the existing ProfileStore/OS credential
+/// path only when the user explicitly retries after a restart.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+enum PersistedRetryInfo {
+    Download {
+        profile_id: String,
+        remote_path: String,
+        final_path: PathBuf,
+    },
+    Upload {
+        profile_id: String,
+        local: PathBuf,
+        final_remote: String,
+    },
+}
+
+impl PersistedRetryInfo {
+    fn profile_id(&self) -> &str {
+        match self {
+            Self::Download { profile_id, .. } | Self::Upload { profile_id, .. } => profile_id,
+        }
+    }
+
+    fn with_session(&self, session: Arc<Session>) -> RetryInfo {
+        match self {
+            Self::Download {
+                remote_path,
+                final_path,
+                ..
+            } => RetryInfo::Download {
+                session,
+                remote_path: remote_path.clone(),
+                final_path: final_path.clone(),
+            },
+            Self::Upload {
+                local,
+                final_remote,
+                ..
+            } => RetryInfo::Upload {
+                session,
+                local: local.clone(),
+                final_remote: final_remote.clone(),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PersistedTransferEnvelope {
+    schema: u32,
+    transfer: Transfer,
+    retry: PersistedRetryInfo,
+}
+
+const TRANSFER_LEDGER_SCHEMA: u32 = 1;
+const TRANSFER_LEDGER_KEEP: usize = 500;
+const TRANSFER_LEDGER_PROGRESS_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Default bound on concurrently running transfers; the rest wait
 /// in the FIFO as `Queued`. Overridden by the `transferConcurrency` setting.
@@ -246,6 +307,20 @@ pub struct TransferManager {
     cancels: Mutex<HashMap<String, Arc<AtomicBool>>>,
     /// Original resolved inputs per transfer, for manual retry.
     retry: Mutex<HashMap<String, RetryInfo>>,
+    /// Credential-free retry descriptors survive process restarts. They contain
+    /// only profile ids and resolved paths; secrets remain in the OS keychain.
+    persisted_retry: Mutex<HashMap<String, PersistedRetryInfo>>,
+    /// Rows restored from a previous process require a live-session reattach
+    /// before retry. Their historical byte count is display-only: without a
+    /// persisted source identity/change signal, cross-process retry restarts at
+    /// byte zero to avoid combining an old prefix with changed content.
+    recovered_retry: Mutex<HashSet<String>>,
+    /// Optional shared SQLite store. Unit tests that don't exercise persistence
+    /// use `new()`; the desktop app uses `with_db()`.
+    db: Option<Arc<crate::db::Db>>,
+    /// Throttle progress persistence to avoid turning a fast transfer into a
+    /// high-frequency SQLite writer. State transitions still flush immediately.
+    persisted_at: Mutex<HashMap<String, Instant>>,
     /// Bumped on every queue change so admission waiters re-check their turn.
     queue_gen: watch::Sender<u64>,
     /// Global bandwidth cap every copy loop draws from per chunk.
@@ -327,8 +402,80 @@ async fn resolve_remote_rename(sftp: &russh_sftp::client::SftpSession, path: &st
 
 impl TransferManager {
     pub fn new() -> Self {
+        Self::from_db(None)
+    }
+
+    pub fn with_db(db: Arc<crate::db::Db>) -> Self {
+        Self::from_db(Some(db))
+    }
+
+    fn from_db(db: Option<Arc<crate::db::Db>>) -> Self {
+        let mut transfers = HashMap::new();
+        let mut persisted_retry = HashMap::new();
+        let mut recovered_retry = HashSet::new();
+
+        if let Some(store) = db.as_ref() {
+            if let Ok(rows) = store.transfer_ledger_list() {
+                let mut terminal_kept = 0usize;
+                for (row_id, payload, _) in rows {
+                    let Ok(mut envelope) =
+                        serde_json::from_str::<PersistedTransferEnvelope>(&payload)
+                    else {
+                        let _ = store.transfer_ledger_delete(&row_id);
+                        continue;
+                    };
+                    if envelope.schema != TRANSFER_LEDGER_SCHEMA || envelope.transfer.id != row_id {
+                        let _ = store.transfer_ledger_delete(&row_id);
+                        continue;
+                    }
+
+                    let was_active = matches!(
+                        envelope.transfer.status,
+                        TransferStatus::Queued
+                            | TransferStatus::Transferring
+                            | TransferStatus::Paused
+                    );
+
+                    // Always retain rows that were active when the previous
+                    // process stopped, even if they are older than the history
+                    // budget. Only terminal history is bounded.
+                    if !was_active {
+                        if terminal_kept >= TRANSFER_LEDGER_KEEP {
+                            let _ = store.transfer_ledger_delete(&row_id);
+                            continue;
+                        }
+                        terminal_kept += 1;
+                    }
+
+                    let needs_session_reattach = was_active
+                        || matches!(
+                            envelope.transfer.status,
+                            TransferStatus::Error | TransferStatus::Canceled
+                        );
+
+                    if was_active {
+                        envelope.transfer.status = TransferStatus::Error;
+                        envelope.transfer.retry_attempt = None;
+                        envelope.transfer.error = Some(
+                            "Transfer was interrupted by the previous Ghost FTP process. Retry will reconnect the saved profile and restart safely from byte zero because cross-process file identity was not verified."
+                                .to_string(),
+                        );
+                        if let Ok(normalized) = serde_json::to_string(&envelope) {
+                            let _ = store.transfer_ledger_upsert(&row_id, &normalized);
+                        }
+                    }
+
+                    if needs_session_reattach {
+                        recovered_retry.insert(row_id.clone());
+                    }
+                    persisted_retry.insert(row_id.clone(), envelope.retry);
+                    transfers.insert(row_id, envelope.transfer);
+                }
+            }
+        }
+
         Self {
-            transfers: Mutex::new(HashMap::new()),
+            transfers: Mutex::new(transfers),
             tasks: Mutex::new(HashMap::new()),
             waiting: Mutex::new(VecDeque::new()),
             semaphore: Arc::new(Semaphore::new(DEFAULT_CONCURRENCY)),
@@ -337,6 +484,10 @@ impl TransferManager {
             pauses: Mutex::new(HashMap::new()),
             cancels: Mutex::new(HashMap::new()),
             retry: Mutex::new(HashMap::new()),
+            persisted_retry: Mutex::new(persisted_retry),
+            recovered_retry: Mutex::new(recovered_retry),
+            db,
+            persisted_at: Mutex::new(HashMap::new()),
             queue_gen: watch::channel(0).0,
             bucket: TokenBucket::new(),
             max_auto_retries: AtomicUsize::new(DEFAULT_MAX_AUTO_RETRIES),
@@ -361,13 +512,173 @@ impl TransferManager {
     }
 
     async fn update<F: FnOnce(&mut Transfer)>(&self, id: &str, f: F) {
-        if let Some(t) = self.transfers.lock().await.get_mut(id) {
-            f(t);
+        let snapshot = {
+            let mut transfers = self.transfers.lock().await;
+            transfers.get_mut(id).map(|transfer| {
+                f(transfer);
+                transfer.clone()
+            })
+        };
+        if let Some(transfer) = snapshot {
+            let force = transfer.status != TransferStatus::Transferring
+                || transfer.transferred >= transfer.size;
+            self.persist_snapshot(transfer, force).await;
         }
     }
 
     async fn insert(&self, t: Transfer) {
-        self.transfers.lock().await.insert(t.id.clone(), t);
+        self.transfers.lock().await.insert(t.id.clone(), t.clone());
+        self.persist_snapshot(t, true).await;
+    }
+
+    async fn persist_snapshot(&self, transfer: Transfer, force: bool) {
+        let Some(db) = self.db.as_ref() else {
+            return;
+        };
+        let retry = self.persisted_retry.lock().await.get(&transfer.id).cloned();
+        let Some(retry) = retry else {
+            return;
+        };
+
+        if !force {
+            let now = Instant::now();
+            let mut persisted_at = self.persisted_at.lock().await;
+            if persisted_at
+                .get(&transfer.id)
+                .is_some_and(|last| now.duration_since(*last) < TRANSFER_LEDGER_PROGRESS_INTERVAL)
+            {
+                return;
+            }
+            persisted_at.insert(transfer.id.clone(), now);
+        } else {
+            self.persisted_at
+                .lock()
+                .await
+                .insert(transfer.id.clone(), Instant::now());
+        }
+
+        let envelope = PersistedTransferEnvelope {
+            schema: TRANSFER_LEDGER_SCHEMA,
+            transfer,
+            retry,
+        };
+        if let Ok(payload) = serde_json::to_string(&envelope) {
+            if db
+                .transfer_ledger_upsert(&envelope.transfer.id, &payload)
+                .is_ok()
+                && matches!(
+                    envelope.transfer.status,
+                    TransferStatus::Done
+                        | TransferStatus::Skipped
+                        | TransferStatus::Error
+                        | TransferStatus::Canceled
+                )
+            {
+                self.prune_terminal_history().await;
+            }
+        }
+    }
+
+    /// Keep at most TRANSFER_LEDGER_KEEP terminal rows while preserving every
+    /// active row. This bounds both SQLite and the in-memory transfer panel for
+    /// long-running clients instead of waiting for the next application start.
+    async fn prune_terminal_history(&self) {
+        let stale = {
+            let mut transfers = self.transfers.lock().await;
+            let mut terminal: Vec<(String, i64)> = transfers
+                .values()
+                .filter(|transfer| {
+                    matches!(
+                        transfer.status,
+                        TransferStatus::Done
+                            | TransferStatus::Skipped
+                            | TransferStatus::Error
+                            | TransferStatus::Canceled
+                    )
+                })
+                .map(|transfer| (transfer.id.clone(), transfer.started_at))
+                .collect();
+
+            terminal.sort_by(|(left_id, left_started), (right_id, right_started)| {
+                right_started
+                    .cmp(left_started)
+                    .then_with(|| right_id.cmp(left_id))
+            });
+
+            let stale: Vec<String> = terminal
+                .into_iter()
+                .skip(TRANSFER_LEDGER_KEEP)
+                .map(|(id, _)| id)
+                .collect();
+            for id in &stale {
+                transfers.remove(id);
+            }
+            stale
+        };
+
+        if stale.is_empty() {
+            return;
+        }
+
+        {
+            let mut retry = self.retry.lock().await;
+            let mut persisted_retry = self.persisted_retry.lock().await;
+            let mut recovered_retry = self.recovered_retry.lock().await;
+            let mut pauses = self.pauses.lock().await;
+            let mut cancels = self.cancels.lock().await;
+            let mut persisted_at = self.persisted_at.lock().await;
+            for id in &stale {
+                retry.remove(id);
+                persisted_retry.remove(id);
+                recovered_retry.remove(id);
+                pauses.remove(id);
+                cancels.remove(id);
+                persisted_at.remove(id);
+            }
+        }
+
+        if let Some(db) = self.db.as_ref() {
+            for id in stale {
+                let _ = db.transfer_ledger_delete(&id);
+            }
+        }
+    }
+
+    /// Profile needed to retry a row restored from a previous process.
+    pub async fn recovery_profile_id(&self, id: &str) -> Option<String> {
+        if !self.recovered_retry.lock().await.contains(id) {
+            return None;
+        }
+        self.persisted_retry
+            .lock()
+            .await
+            .get(id)
+            .map(|retry| retry.profile_id().to_string())
+    }
+
+    /// Bind a freshly reconnected live session to a persisted retry descriptor.
+    /// The profile id must match so a recovered transfer can never be redirected
+    /// to a different saved site by mistake.
+    pub async fn attach_recovered_session(&self, id: &str, session: Arc<Session>) -> Result<()> {
+        let descriptor = self
+            .persisted_retry
+            .lock()
+            .await
+            .get(id)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("transfer {id} has no recovery metadata"))?;
+        if descriptor.profile_id() != session.profile().id {
+            anyhow::bail!(
+                "recovery profile mismatch for transfer {id}: expected {}, got {}",
+                descriptor.profile_id(),
+                session.profile().id
+            );
+        }
+        self.retry
+            .lock()
+            .await
+            .insert(id.to_string(), descriptor.with_session(session));
+        Ok(())
     }
 
     // ---------- Queue scheduling ----------
@@ -585,9 +896,14 @@ impl TransferManager {
         if let Some(h) = self.tasks.lock().await.remove(id) {
             h.abort();
         }
-        // A cancel-while-paused leaves the gate closed — reopen it.
-        if let Some(g) = self.pauses.lock().await.get(id) {
-            g.set(false);
+        // A cancel-while-paused leaves the gate closed — reopen it. A row
+        // restored from SQLite has no in-memory gate yet, so recreate one.
+        {
+            let mut pauses = self.pauses.lock().await;
+            pauses
+                .entry(id.to_string())
+                .or_insert_with(PauseGate::new)
+                .set(false);
         }
         // Never reuse the canceled Arc: a previous FTP spawn_blocking worker
         // may still own it while finishing ABOR cleanup. A fresh token prevents
@@ -596,6 +912,12 @@ impl TransferManager {
             .lock()
             .await
             .insert(id.to_string(), Arc::new(AtomicBool::new(false)));
+
+        // A recovered byte count is not proof that the source object is still
+        // the same object after a process restart. Until the ledger persists a
+        // backend-specific immutable identity/change signal, always restart the
+        // first recovered retry from zero rather than risk a hybrid file.
+        self.recovered_retry.lock().await.remove(id);
         self.update(id, |t| {
             t.status = TransferStatus::Queued;
             t.transferred = 0;
@@ -763,6 +1085,14 @@ impl TransferManager {
             delta: None,
             started_at: now_ts(),
         };
+        self.persisted_retry.lock().await.insert(
+            id.clone(),
+            PersistedRetryInfo::Download {
+                profile_id: session.profile().id.clone(),
+                remote_path: remote_path.clone(),
+                final_path: final_path.clone(),
+            },
+        );
         self.insert(transfer.clone()).await;
         let _ = app.emit("transfer://added", &transfer);
 
@@ -1008,6 +1338,14 @@ impl TransferManager {
             delta: None,
             started_at: now_ts(),
         };
+        self.persisted_retry.lock().await.insert(
+            id.clone(),
+            PersistedRetryInfo::Upload {
+                profile_id: session.profile().id.clone(),
+                local: local.clone(),
+                final_remote: final_remote.clone(),
+            },
+        );
         self.insert(transfer.clone()).await;
         let _ = app.emit("transfer://added", &transfer);
 
@@ -3957,6 +4295,189 @@ mod tests {
         mgr.pauses.lock().await.get("t1").unwrap().set(false);
         let err = handle.await.unwrap().unwrap_err();
         assert!(err.downcast_ref::<RestartFromPause>().is_some());
+    }
+
+    // ---------- Durable restart recovery ----------
+
+    #[tokio::test]
+    async fn persisted_failed_transfer_can_reattach_after_restart() {
+        let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+        let envelope = PersistedTransferEnvelope {
+            schema: TRANSFER_LEDGER_SCHEMA,
+            transfer: Transfer {
+                id: "failed-before-restart".to_string(),
+                kind: TransferKind::Upload,
+                source: "/tmp/source.bin".to_string(),
+                destination: "/remote/source.bin".to_string(),
+                size: 4096,
+                transferred: 2048,
+                status: TransferStatus::Error,
+                error: Some("connection reset by peer".to_string()),
+                retry_attempt: Some(2),
+                delta: None,
+                started_at: 10,
+            },
+            retry: PersistedRetryInfo::Upload {
+                profile_id: "profile-retry".to_string(),
+                local: PathBuf::from("/tmp/source.bin"),
+                final_remote: "/remote/source.bin".to_string(),
+            },
+        };
+        db.transfer_ledger_upsert(
+            "failed-before-restart",
+            &serde_json::to_string(&envelope).unwrap(),
+        )
+        .unwrap();
+
+        let recovered = TransferManager::with_db(db);
+        assert_eq!(
+            recovered
+                .recovery_profile_id("failed-before-restart")
+                .await
+                .as_deref(),
+            Some("profile-retry")
+        );
+        let row = recovered.snapshot("failed-before-restart").await.unwrap();
+        assert_eq!(row.status, TransferStatus::Error);
+        assert_eq!(row.transferred, 2048);
+        assert_eq!(row.error.as_deref(), Some("connection reset by peer"));
+    }
+
+    #[tokio::test]
+    async fn durable_recovery_keeps_progress_for_display_but_requires_safe_restart() {
+        let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+        let id = "recover-me";
+
+        {
+            let mgr = TransferManager::with_db(db.clone());
+            mgr.persisted_retry.lock().await.insert(
+                id.to_string(),
+                PersistedRetryInfo::Download {
+                    profile_id: "profile-1".to_string(),
+                    remote_path: "/srv/archive.bin".to_string(),
+                    final_path: PathBuf::from("/tmp/archive.bin"),
+                },
+            );
+            mgr.insert(Transfer {
+                id: id.to_string(),
+                kind: TransferKind::Download,
+                source: "/srv/archive.bin".to_string(),
+                destination: "/tmp/archive.bin".to_string(),
+                size: 1024 * 1024,
+                transferred: 256 * 1024,
+                status: TransferStatus::Transferring,
+                error: None,
+                retry_attempt: Some(1),
+                delta: None,
+                started_at: 123,
+            })
+            .await;
+
+            let rows = db.transfer_ledger_list().unwrap();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].0, id);
+            assert!(rows[0].1.contains("profile-1"));
+            assert!(!rows[0].1.contains("password"));
+            assert!(!rows[0].1.contains("passphrase"));
+            assert!(!rows[0].1.contains("token"));
+        }
+
+        // A fresh manager simulates the next application process after a crash
+        // or update. The row must not pretend to still be actively transferring.
+        let recovered = TransferManager::with_db(db);
+        let row = recovered.snapshot(id).await.unwrap();
+        assert_eq!(row.status, TransferStatus::Error);
+        assert_eq!(row.transferred, 256 * 1024);
+        assert_eq!(row.retry_attempt, None);
+        assert!(row
+            .error
+            .as_deref()
+            .is_some_and(|message| message.contains("interrupted")));
+        assert_eq!(
+            recovered.recovery_profile_id(id).await.as_deref(),
+            Some("profile-1")
+        );
+        assert!(recovered.recovered_retry.lock().await.contains(id));
+        assert!(row
+            .error
+            .as_deref()
+            .is_some_and(|message| message.contains("restart safely from byte zero")));
+    }
+
+    #[tokio::test]
+    async fn terminal_history_is_pruned_during_runtime_without_dropping_active_rows() {
+        let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+        let mgr = TransferManager::with_db(db.clone());
+
+        mgr.persisted_retry.lock().await.insert(
+            "active".to_string(),
+            PersistedRetryInfo::Upload {
+                profile_id: "p".to_string(),
+                local: PathBuf::from("/tmp/active"),
+                final_remote: "/active".to_string(),
+            },
+        );
+        mgr.insert(Transfer {
+            id: "active".to_string(),
+            kind: TransferKind::Upload,
+            source: "/tmp/active".to_string(),
+            destination: "/active".to_string(),
+            size: 10,
+            transferred: 1,
+            status: TransferStatus::Transferring,
+            error: None,
+            retry_attempt: None,
+            delta: None,
+            started_at: 1,
+        })
+        .await;
+
+        for index in 0..=TRANSFER_LEDGER_KEEP {
+            let id = format!("done-{index:04}");
+            mgr.persisted_retry.lock().await.insert(
+                id.clone(),
+                PersistedRetryInfo::Download {
+                    profile_id: "p".to_string(),
+                    remote_path: format!("/remote/{index}"),
+                    final_path: PathBuf::from(format!("/tmp/{index}")),
+                },
+            );
+            mgr.insert(Transfer {
+                id,
+                kind: TransferKind::Download,
+                source: format!("/remote/{index}"),
+                destination: format!("/tmp/{index}"),
+                size: 1,
+                transferred: 1,
+                status: TransferStatus::Done,
+                error: None,
+                retry_attempt: None,
+                delta: None,
+                started_at: index as i64 + 10,
+            })
+            .await;
+        }
+
+        let list = mgr.list().await;
+        assert!(list.iter().any(|transfer| transfer.id == "active"));
+        assert_eq!(
+            list.iter()
+                .filter(|transfer| {
+                    matches!(
+                        transfer.status,
+                        TransferStatus::Done
+                            | TransferStatus::Skipped
+                            | TransferStatus::Error
+                            | TransferStatus::Canceled
+                    )
+                })
+                .count(),
+            TRANSFER_LEDGER_KEEP
+        );
+        assert_eq!(
+            db.transfer_ledger_list().unwrap().len(),
+            TRANSFER_LEDGER_KEEP + 1
+        );
     }
 
     // ---------- FIFO admission ----------

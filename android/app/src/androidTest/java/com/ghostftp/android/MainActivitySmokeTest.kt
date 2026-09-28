@@ -4,11 +4,13 @@ import android.graphics.Rect
 import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -89,6 +91,50 @@ class MainActivitySmokeTest {
             assertTextPresent("Ready")
         }
     }
+
+    @Test
+    fun activityRecreationRestoresNonSecretFieldsButNotPassword() {
+        scenario.onActivity { activity ->
+            val host = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "Host"
+            } as? EditText
+            val username = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "Username"
+            } as? EditText
+            val password = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "Password"
+            } as? EditText
+
+            assertNotNull("Host input missing", host)
+            assertNotNull("Username input missing", username)
+            assertNotNull("Password input missing", password)
+            host!!.setText("ftp.lifecycle.test")
+            username!!.setText("ghost-user")
+            password!!.setText("must-not-survive")
+        }
+
+        scenario.recreate()
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        SystemClock.sleep(120)
+
+        scenario.onActivity { activity ->
+            val host = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "Host"
+            } as EditText
+            val username = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "Username"
+            } as EditText
+            val password = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "Password"
+            } as EditText
+
+            assertEquals("ftp.lifecycle.test", host.text.toString())
+            assertEquals("ghost-user", username.text.toString())
+            assertTrue("Password must never survive Activity recreation.", password.text.isEmpty())
+        }
+        assertTextPresent("Android restored non-secret workspace state. Reconnect to authenticate before remote actions.")
+    }
+
 
     private fun clickByDescription(description: String) {
         scenario.onActivity { activity ->

@@ -111,6 +111,16 @@ const MIGRATIONS: &[&str] = &[
         vtype        INTEGER NOT NULL,
         backed_up_ms INTEGER NOT NULL
     ) WITHOUT ROWID;",
+    // v7 — durable transfer ledger. Payload JSON contains only transfer
+    // metadata plus profile ids/resolved paths; credentials and OAuth tokens
+    // remain exclusively in the OS credential store.
+    "CREATE TABLE transfer_ledger (
+        id         TEXT PRIMARY KEY,
+        payload    TEXT    NOT NULL,
+        updated_ms INTEGER NOT NULL
+    ) WITHOUT ROWID;
+    CREATE INDEX transfer_ledger_updated_idx
+        ON transfer_ledger(updated_ms DESC);",
 ];
 
 /// A persisted per-file sync record — what the source looked like the last time
@@ -403,6 +413,66 @@ impl Db {
         Ok(())
     }
 
+    // ---- Durable transfer ledger (cross-restart recovery) ----
+
+    /// Persist one credential-free transfer snapshot. `payload` is opaque,
+    /// versioned JSON owned by TransferManager.
+    pub fn transfer_ledger_upsert(&self, id: &str, payload: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO transfer_ledger (id, payload, updated_ms) VALUES (?1, ?2, ?3)
+             ON CONFLICT(id) DO UPDATE SET
+                 payload = excluded.payload,
+                 updated_ms = excluded.updated_ms",
+            rusqlite::params![id, payload, now_ms()],
+        )?;
+        Ok(())
+    }
+
+    /// Load every durable transfer snapshot, newest first.
+    pub fn transfer_ledger_list(&self) -> Result<Vec<(String, String, i64)>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, payload, updated_ms
+               FROM transfer_ledger
+              ORDER BY updated_ms DESC, id ASC",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    pub fn transfer_ledger_delete(&self, id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM transfer_ledger WHERE id = ?1", [id])?;
+        Ok(())
+    }
+
+    /// Bound local transfer history so long-running clients cannot grow the
+    /// ledger indefinitely.
+    pub fn transfer_ledger_prune(&self, keep: usize) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id FROM transfer_ledger
+              ORDER BY updated_ms DESC, id ASC
+              LIMIT -1 OFFSET ?1",
+        )?;
+        let stale: Vec<String> = stmt
+            .query_map([keep as i64], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        drop(stmt);
+        for id in stale {
+            conn.execute("DELETE FROM transfer_ledger WHERE id = ?1", [id])?;
+        }
+        Ok(())
+    }
+
     // ---- Environment-value backup (Plan 16 Phase 4, PATH install) ----
 
     /// Snapshot the prior environment value **once**, before Ghost FTP's first write.
@@ -549,15 +619,45 @@ impl Db {
     }
 }
 
-/// Apply every migration whose index is `>= user_version`, bumping the pragma in
-/// lockstep so a half-applied run resumes cleanly on the next open.
+/// Apply one schema migration and its `user_version` bump atomically.
+///
+/// Some migrations contain multiple SQL statements. A process crash or statement
+/// failure must never leave half of a migration committed while `user_version`
+/// still points at the previous schema, because the next startup would retry the
+/// already-applied DDL and could incorrectly quarantine a healthy database.
+fn apply_migration(conn: &Connection, target_version: i64, sql: &str) -> Result<()> {
+    conn.execute_batch("BEGIN IMMEDIATE TRANSACTION")
+        .with_context(|| format!("begin migration v{target_version}"))?;
+
+    let result = (|| -> Result<()> {
+        conn.execute_batch(sql)
+            .with_context(|| format!("apply migration v{target_version}"))?;
+        // `user_version` cannot be a bound parameter. `target_version` is
+        // derived only from our static migration index.
+        conn.pragma_update(None, "user_version", target_version)
+            .with_context(|| format!("mark migration v{target_version}"))?;
+        Ok(())
+    })();
+
+    if let Err(error) = result {
+        let _ = conn.execute_batch("ROLLBACK");
+        return Err(error);
+    }
+
+    if let Err(error) = conn.execute_batch("COMMIT") {
+        let _ = conn.execute_batch("ROLLBACK");
+        return Err(error).with_context(|| format!("commit migration v{target_version}"));
+    }
+    Ok(())
+}
+
+/// Apply every migration whose index is `>= user_version`. Each schema change
+/// and version bump is one SQLite transaction, so a failed/interrupted run can
+/// always be retried safely on the next open.
 fn migrate(conn: &Connection) -> Result<()> {
     let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
     for (i, sql) in MIGRATIONS.iter().enumerate().skip(version as usize) {
-        conn.execute_batch(sql)
-            .with_context(|| format!("apply migration v{}", i + 1))?;
-        // `user_version` can't be a bound parameter — the value is our own index.
-        conn.pragma_update(None, "user_version", (i + 1) as i64)?;
+        apply_migration(conn, (i + 1) as i64, sql)?;
     }
     Ok(())
 }
@@ -759,6 +859,38 @@ mod tests {
     }
 
     #[test]
+    fn transfer_ledger_round_trips_updates_and_prunes() {
+        let db = Db::open_in_memory().unwrap();
+        assert!(db.transfer_ledger_list().unwrap().is_empty());
+
+        db.transfer_ledger_upsert("a", r#"{"state":"queued"}"#)
+            .unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        db.transfer_ledger_upsert("b", r#"{"state":"done"}"#)
+            .unwrap();
+
+        let rows = db.transfer_ledger_list().unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].0, "b");
+        assert_eq!(rows[1].0, "a");
+
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        db.transfer_ledger_upsert("a", r#"{"state":"error"}"#)
+            .unwrap();
+        let rows = db.transfer_ledger_list().unwrap();
+        assert_eq!(rows[0].0, "a");
+        assert_eq!(rows[0].1, r#"{"state":"error"}"#);
+
+        db.transfer_ledger_prune(1).unwrap();
+        let rows = db.transfer_ledger_list().unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].0, "a");
+
+        db.transfer_ledger_delete("a").unwrap();
+        assert!(db.transfer_ledger_list().unwrap().is_empty());
+    }
+
+    #[test]
     fn env_backup_captures_once() {
         let db = Db::open_in_memory().unwrap();
         assert!(db.env_backup_get("windows_user_path").unwrap().is_none());
@@ -784,6 +916,46 @@ mod tests {
         let (val, vtype) = db.env_backup_get("other_key").unwrap().unwrap();
         assert_eq!(val, None);
         assert_eq!(vtype, 1);
+    }
+
+    #[test]
+    fn migration_step_rolls_back_schema_and_version_on_failure() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        let error = apply_migration(
+            &conn,
+            1,
+            "CREATE TABLE should_rollback (id INTEGER PRIMARY KEY);
+             THIS IS INTENTIONALLY INVALID SQL;",
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("apply migration v1"));
+
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master
+                  WHERE type = 'table' AND name = 'should_rollback'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(exists, 0, "failed migration must roll back its DDL");
+
+        let version: i64 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 0, "failed migration must not advance user_version");
+
+        apply_migration(
+            &conn,
+            1,
+            "CREATE TABLE should_commit (id INTEGER PRIMARY KEY);",
+        )
+        .unwrap();
+        let version: i64 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 1);
     }
 
     #[test]

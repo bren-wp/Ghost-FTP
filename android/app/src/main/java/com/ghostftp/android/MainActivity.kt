@@ -68,6 +68,7 @@ class MainActivity : Activity() {
     private var lastCompletedTransferPath: String = ""
     private var operationGeneration: Long = 0
     private var operationInFlight = false
+    private var activeCancellation: OperationCancellation? = null
 
     @Volatile
     private var activityClosing = false
@@ -79,12 +80,33 @@ class MainActivity : Activity() {
         window.navigationBarColor = Brand.background
         setContentView(buildContent())
         showIdleState()
+        if (savedInstanceState != null) restoreUiState(savedInstanceState)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        if (::protocolSpinner.isInitialized) outState.putInt(STATE_PROTOCOL, protocolSpinner.selectedItemPosition)
+        if (::hostInput.isInitialized) outState.putString(STATE_HOST, hostInput.text.toString())
+        if (::portInput.isInitialized) outState.putString(STATE_PORT, portInput.text.toString())
+        if (::usernameInput.isInitialized) outState.putString(STATE_USERNAME, usernameInput.text.toString())
+        if (::hostKeyFingerprintInput.isInitialized) outState.putString(STATE_FINGERPRINT, hostKeyFingerprintInput.text.toString())
+        if (::remotePathInput.isInitialized) outState.putString(STATE_REMOTE_PATH, remotePathInput.text.toString())
+        if (::transferRemotePathInput.isInitialized) outState.putString(STATE_TRANSFER_REMOTE_PATH, transferRemotePathInput.text.toString())
+        if (::uploadRemoteNameInput.isInitialized) outState.putString(STATE_UPLOAD_REMOTE_NAME, uploadRemoteNameInput.text.toString())
+        if (::mkdirNameInput.isInitialized) outState.putString(STATE_MKDIR_NAME, mkdirNameInput.text.toString())
+        outState.putString(STATE_UPLOAD_URI, selectedUploadUri?.toString())
+        outState.putString(STATE_UPLOAD_DISPLAY_NAME, selectedUploadDisplayName)
+        outState.putString(STATE_LAST_COMPLETED_PATH, lastCompletedTransferPath)
+        // Intentionally never persist passwordInput or activeProfile: a recreated
+        // Activity must require a fresh authenticated connection.
+        super.onSaveInstanceState(outState)
     }
 
     override fun onDestroy() {
         activityClosing = true
         operationGeneration += 1
         operationInFlight = false
+        activeCancellation?.cancel()
+        activeCancellation = null
         selectedUploadUri = null
         activeProfile = null
         if (::passwordInput.isInitialized) passwordInput.text.clear()
@@ -95,6 +117,14 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != PICK_UPLOAD_REQUEST || resultCode != RESULT_OK || !uiReady()) return
         val uri = data?.data ?: return
+        if (data.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0) {
+            runCatching {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+        }
         selectedUploadUri = uri
         selectedUploadDisplayName = displayNameFor(uri)
         uploadSelectionText.text = "Selected local file: $selectedUploadDisplayName"
@@ -392,15 +422,18 @@ class MainActivity : Activity() {
     private fun openConnection(profile: ConnectionProfile) {
         if (operationInFlight) return
         val generation = ++operationGeneration
+        val cancellation = OperationCancellation()
+        activeCancellation = cancellation
         operationInFlight = true
         setBusy(true)
         statusTitle.text = "Opening ${profile.protocol.label}"
         statusDetail.text = "Loading ${profile.remotePath} from ${profile.host}:${profile.port}."
 
         thread(name = "ghostftp-android-connect") {
-            val result = runCatching { controller.listRemote(profile) }
+            val result = runCatching { controller.listRemote(profile, cancellation) }
             safeUi {
                 if (generation != operationGeneration) return@safeUi
+                activeCancellation = null
                 operationInFlight = false
                 setBusy(false)
                 result.fold(
@@ -432,6 +465,8 @@ class MainActivity : Activity() {
     private fun disconnect() {
         operationGeneration += 1
         operationInFlight = false
+        activeCancellation?.cancel()
+        activeCancellation = null
         activeProfile = null
         selectedUploadUri = null
         selectedUploadDisplayName = ""
@@ -539,8 +574,8 @@ class MainActivity : Activity() {
         runTransfer(
             title = "Downloading",
             detail = "Saving $remotePath to Android downloads."
-        ) {
-            controller.downloadRemote(profile, remotePath, outputFile)
+        ) { cancellation ->
+            controller.downloadRemote(profile, remotePath, outputFile, cancellation)
         }
     }
 
@@ -558,10 +593,10 @@ class MainActivity : Activity() {
                 title = "Uploading",
                 detail = "Sending $uploadName to $remoteTarget.",
                 refreshAfter = true
-            ) {
+            ) { cancellation ->
                 val input = contentResolver.openInputStream(uri)
                     ?: throw IllegalStateException("Unable to open selected Android document.")
-                controller.uploadRemote(profile, input, remoteTarget)
+                controller.uploadRemote(profile, input, remoteTarget, cancellation)
             }
         }
     }
@@ -582,8 +617,8 @@ class MainActivity : Activity() {
                 title = "Deleting",
                 detail = "Removing $remotePath from the active server.",
                 refreshAfter = true
-            ) {
-                controller.deleteRemoteFile(profile, remotePath)
+            ) { cancellation ->
+                controller.deleteRemoteFile(profile, remotePath, cancellation)
             }
         }
     }
@@ -600,8 +635,8 @@ class MainActivity : Activity() {
             title = "Creating folder",
             detail = "Creating $remoteTarget on the active server.",
             refreshAfter = true
-        ) {
-            controller.createRemoteDirectory(profile, remoteTarget)
+        ) { cancellation ->
+            controller.createRemoteDirectory(profile, remoteTarget, cancellation)
         }
     }
 
@@ -610,14 +645,22 @@ class MainActivity : Activity() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "*/*"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }
         runCatching { startActivityForResult(intent, PICK_UPLOAD_REQUEST) }
             .onFailure { showMessage("File picker unavailable", it.message ?: "Android could not open a document picker.") }
     }
 
-    private fun runTransfer(title: String, detail: String, refreshAfter: Boolean = false, action: () -> TransferResult) {
+    private fun runTransfer(
+        title: String,
+        detail: String,
+        refreshAfter: Boolean = false,
+        action: (OperationCancellation) -> TransferResult
+    ) {
         if (operationInFlight) return
         val generation = ++operationGeneration
+        val cancellation = OperationCancellation()
+        activeCancellation = cancellation
         operationInFlight = true
         setBusy(true)
         statusTitle.text = title
@@ -625,9 +668,10 @@ class MainActivity : Activity() {
         transferStateText.text = detail
         appendActivity(title, detail)
         thread(name = "ghostftp-android-transfer") {
-            val result = runCatching { action() }
+            val result = runCatching { action(cancellation) }
             safeUi {
                 if (generation != operationGeneration) return@safeUi
+                activeCancellation = null
                 operationInFlight = false
                 setBusy(false)
                 result.fold(
@@ -650,11 +694,45 @@ class MainActivity : Activity() {
 
     private fun showTransferFailure(error: Throwable) {
         if (!uiReady()) return
-        val detail = error.message ?: "The transfer action did not complete."
-        statusTitle.text = "Transfer failed"
+        val canceled = error is OperationCanceledException
+        val detail = error.message ?: if (canceled) "Operation canceled." else "The transfer action did not complete."
+        statusTitle.text = if (canceled) "Transfer canceled" else "Transfer failed"
         statusDetail.text = detail
         transferStateText.text = detail
-        appendActivity("Transfer failed", detail)
+        appendActivity(if (canceled) "Transfer canceled" else "Transfer failed", detail)
+    }
+
+    private fun restoreUiState(state: Bundle) {
+        protocolSpinner.setSelection(state.getInt(STATE_PROTOCOL, 0))
+        hostInput.setText(state.getString(STATE_HOST).orEmpty())
+        portInput.setText(state.getString(STATE_PORT).orEmpty())
+        usernameInput.setText(state.getString(STATE_USERNAME).orEmpty())
+        hostKeyFingerprintInput.setText(state.getString(STATE_FINGERPRINT).orEmpty())
+        remotePathInput.setText(state.getString(STATE_REMOTE_PATH).orEmpty().ifBlank { "/" })
+        transferRemotePathInput.setText(state.getString(STATE_TRANSFER_REMOTE_PATH).orEmpty())
+        uploadRemoteNameInput.setText(state.getString(STATE_UPLOAD_REMOTE_NAME).orEmpty())
+        mkdirNameInput.setText(state.getString(STATE_MKDIR_NAME).orEmpty())
+        selectedUploadDisplayName = state.getString(STATE_UPLOAD_DISPLAY_NAME).orEmpty()
+        selectedUploadUri = state.getString(STATE_UPLOAD_URI)
+            ?.takeIf { it.isNotBlank() }
+            ?.let(Uri::parse)
+        lastCompletedTransferPath = state.getString(STATE_LAST_COMPLETED_PATH).orEmpty()
+
+        passwordInput.text.clear()
+        activeProfile = null
+        activeCancellation = null
+        operationInFlight = false
+        if (selectedUploadUri != null && selectedUploadDisplayName.isNotBlank()) {
+            uploadSelectionText.text = "Selected local file: $selectedUploadDisplayName"
+        }
+        statusTitle.text = "Ready"
+        statusDetail.text = "Android restored non-secret workspace state. Reconnect to authenticate before remote actions."
+        transferStateText.text = if (lastCompletedTransferPath.isBlank()) {
+            "Previous session ended. Reconnect to continue."
+        } else {
+            "Last completed remote path: $lastCompletedTransferPath"
+        }
+        setBusy(false)
     }
 
     private fun requiredRemoteFilePath(profile: ConnectionProfile): String? {
@@ -959,6 +1037,19 @@ class MainActivity : Activity() {
         const val PICK_UPLOAD_REQUEST = 22091
         const val MAX_ACTIVITY_ROWS = 8
         const val MAX_QUEUE_ROWS = MAX_ACTIVITY_ROWS
+
+        const val STATE_PROTOCOL = "ghostftp.protocol"
+        const val STATE_HOST = "ghostftp.host"
+        const val STATE_PORT = "ghostftp.port"
+        const val STATE_USERNAME = "ghostftp.username"
+        const val STATE_FINGERPRINT = "ghostftp.fingerprint"
+        const val STATE_REMOTE_PATH = "ghostftp.remotePath"
+        const val STATE_TRANSFER_REMOTE_PATH = "ghostftp.transferRemotePath"
+        const val STATE_UPLOAD_REMOTE_NAME = "ghostftp.uploadRemoteName"
+        const val STATE_MKDIR_NAME = "ghostftp.mkdirName"
+        const val STATE_UPLOAD_URI = "ghostftp.uploadUri"
+        const val STATE_UPLOAD_DISPLAY_NAME = "ghostftp.uploadDisplayName"
+        const val STATE_LAST_COMPLETED_PATH = "ghostftp.lastCompletedPath"
     }
 }
 

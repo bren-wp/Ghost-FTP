@@ -300,7 +300,7 @@ pub fn run() {
                 sessions: Arc::new(session::SessionManager::new()),
                 ptys: Arc::new(terminal::PtyManager::new()),
                 profiles: profile_store,
-                transfers: Arc::new(transfer::TransferManager::new()),
+                transfers: Arc::new(transfer::TransferManager::with_db(db.clone())),
                 editors: Arc::new(editor::EditManager::new()),
                 bridge: Arc::new(bridge::BridgeState::load_or_create(&handle).unwrap_or_default()),
                 agent_host: Arc::new(agent_host::AgentHost::load(&handle)?),

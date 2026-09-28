@@ -127,7 +127,7 @@ jobs:
           gh run download "${{ github.event.workflow_run.id }}" -D dist/native
           find dist/native -type f -print
 
-      - name: Download verified installable Android APK
+      - name: Download verified Android APK artifacts
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -136,8 +136,13 @@ jobs:
           RUN_ID="$(gh run list --workflow "ghostftp-android.yml" --commit "$SOURCE_SHA" --limit 10 --json databaseId,status,conclusion --jq 'map(select(.status == "completed" and .conclusion == "success")) | .[0].databaseId // ""')"
           test -n "$RUN_ID"
           mkdir -p dist/android
-          gh run download "$RUN_ID" --name GhostFTP-Android-APK-Preview -D dist/android
+          gh run download "$RUN_ID" --name GhostFTP-Android-APK -D dist/android
           find dist/android -type f -print
+          SIGNED_ANDROID_APK="$(find dist/android -type f -iname '*Release-Signed.apk' | head -n1 || true)"
+          if [ -z "$SIGNED_ANDROID_APK" ]; then
+            echo "::error::Stable Android release signing is not configured. Canonical releases require a signed com.ghostftp.android APK produced from persistent GitHub Secrets."
+            exit 1
+          fi
 
       - name: Normalize release artifacts
         shell: bash
@@ -152,7 +157,7 @@ jobs:
           APPIMAGE_SIG="$(find dist/native -type f -iname '*.AppImage.sig' | head -n1 || true)"
           DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
           RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
-          ANDROID_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
+          ANDROID_APK="$(find dist/android -type f -iname '*Release-Signed.apk' | head -n1 || true)"
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"; test -n "$ANDROID_APK"

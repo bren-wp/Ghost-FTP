@@ -11,12 +11,16 @@ import org.apache.commons.net.ftp.FTPFile
 import org.apache.commons.net.ftp.FTPReply
 import org.apache.commons.net.ftp.FTPSClient
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
+import java.io.OutputStream
 import java.net.IDN
 import java.security.MessageDigest
 import java.time.Duration
 import java.util.Base64
+import java.util.UUID
 import java.util.Vector
+import java.util.concurrent.atomic.AtomicBoolean
 
 enum class ConnectionProtocol(val label: String, val defaultPort: Int) {
     FTP("FTP", 21),
@@ -59,65 +63,119 @@ data class TransferResult(
     val remotePath: String
 )
 
+class OperationCancellation {
+    private val canceled = AtomicBoolean(false)
+
+    fun cancel() {
+        canceled.set(true)
+    }
+
+    fun throwIfCanceled() {
+        if (canceled.get()) throw OperationCanceledException()
+    }
+
+    fun isCanceled(): Boolean = canceled.get()
+}
+
+class OperationCanceledException : IOException("Operation canceled.")
+
 class ConnectionController {
-    fun listRemote(profile: ConnectionProfile): ConnectionProbeResult {
+    fun listRemote(
+        profile: ConnectionProfile,
+        cancellation: OperationCancellation = OperationCancellation()
+    ): ConnectionProbeResult {
+        cancellation.throwIfCanceled()
         val normalized = normalizedProfile(profile)
         return when (normalized.protocol) {
-            ConnectionProtocol.FTP -> listFtp(normalized, secure = false)
-            ConnectionProtocol.EXPLICIT_FTPS -> listFtp(normalized, secure = true)
-            ConnectionProtocol.SFTP -> listSftp(normalized)
+            ConnectionProtocol.FTP -> listFtp(normalized, secure = false, cancellation = cancellation)
+            ConnectionProtocol.EXPLICIT_FTPS -> listFtp(normalized, secure = true, cancellation = cancellation)
+            ConnectionProtocol.SFTP -> listSftp(normalized, cancellation)
         }
     }
 
-    fun downloadRemote(profile: ConnectionProfile, remoteFilePath: String, outputFile: File): TransferResult {
+    fun downloadRemote(
+        profile: ConnectionProfile,
+        remoteFilePath: String,
+        outputFile: File,
+        cancellation: OperationCancellation = OperationCancellation()
+    ): TransferResult {
+        cancellation.throwIfCanceled()
         val normalized = normalizedProfile(profile)
         val target = normalizeRemoteTarget(remoteFilePath)
         outputFile.parentFile?.let { parent ->
             require(parent.exists() || parent.mkdirs()) { "Unable to create the download directory." }
         }
+        val temporaryFile = localTemporarySibling(outputFile, "download")
+        runCatching { if (temporaryFile.exists()) temporaryFile.delete() }
         return try {
-            when (normalized.protocol) {
-                ConnectionProtocol.FTP -> downloadFtp(normalized, secure = false, remoteFilePath = target, outputFile = outputFile)
-                ConnectionProtocol.EXPLICIT_FTPS -> downloadFtp(normalized, secure = true, remoteFilePath = target, outputFile = outputFile)
-                ConnectionProtocol.SFTP -> downloadSftp(normalized, remoteFilePath = target, outputFile = outputFile)
+            val result = when (normalized.protocol) {
+                ConnectionProtocol.FTP -> downloadFtp(normalized, secure = false, remoteFilePath = target, outputFile = temporaryFile, cancellation = cancellation)
+                ConnectionProtocol.EXPLICIT_FTPS -> downloadFtp(normalized, secure = true, remoteFilePath = target, outputFile = temporaryFile, cancellation = cancellation)
+                ConnectionProtocol.SFTP -> downloadSftp(normalized, remoteFilePath = target, outputFile = temporaryFile, cancellation = cancellation)
             }
+            cancellation.throwIfCanceled()
+            commitLocalReplacement(temporaryFile, outputFile)
+            result.copy(
+                detail = "Saved ${formatBytes(outputFile.length())} to ${outputFile.name}."
+            )
         } catch (error: Throwable) {
-            runCatching { if (outputFile.exists()) outputFile.delete() }
+            runCatching { if (temporaryFile.exists()) temporaryFile.delete() }
             throw error
         }
     }
 
-    fun uploadRemote(profile: ConnectionProfile, input: InputStream, remoteFilePath: String): TransferResult {
+    fun uploadRemote(
+        profile: ConnectionProfile,
+        input: InputStream,
+        remoteFilePath: String,
+        cancellation: OperationCancellation = OperationCancellation()
+    ): TransferResult = input.use { source ->
+        cancellation.throwIfCanceled()
         val normalized = normalizedProfile(profile)
         val target = normalizeRemoteTarget(remoteFilePath)
-        return when (normalized.protocol) {
-            ConnectionProtocol.FTP -> uploadFtp(normalized, secure = false, input = input, remoteFilePath = target)
-            ConnectionProtocol.EXPLICIT_FTPS -> uploadFtp(normalized, secure = true, input = input, remoteFilePath = target)
-            ConnectionProtocol.SFTP -> uploadSftp(normalized, input = input, remoteFilePath = target)
+        when (normalized.protocol) {
+            ConnectionProtocol.FTP -> uploadFtp(normalized, secure = false, input = source, remoteFilePath = target, cancellation = cancellation)
+            ConnectionProtocol.EXPLICIT_FTPS -> uploadFtp(normalized, secure = true, input = source, remoteFilePath = target, cancellation = cancellation)
+            ConnectionProtocol.SFTP -> uploadSftp(normalized, input = source, remoteFilePath = target, cancellation = cancellation)
         }
     }
 
-    fun deleteRemoteFile(profile: ConnectionProfile, remoteFilePath: String): TransferResult {
+    fun deleteRemoteFile(
+        profile: ConnectionProfile,
+        remoteFilePath: String,
+        cancellation: OperationCancellation = OperationCancellation()
+    ): TransferResult {
+        cancellation.throwIfCanceled()
         val normalized = normalizedProfile(profile)
         val target = normalizeRemoteDeleteTarget(remoteFilePath)
         return when (normalized.protocol) {
-            ConnectionProtocol.FTP -> deleteFtp(normalized, secure = false, remoteFilePath = target)
-            ConnectionProtocol.EXPLICIT_FTPS -> deleteFtp(normalized, secure = true, remoteFilePath = target)
-            ConnectionProtocol.SFTP -> deleteSftp(normalized, remoteFilePath = target)
+            ConnectionProtocol.FTP -> deleteFtp(normalized, secure = false, remoteFilePath = target, cancellation = cancellation)
+            ConnectionProtocol.EXPLICIT_FTPS -> deleteFtp(normalized, secure = true, remoteFilePath = target, cancellation = cancellation)
+            ConnectionProtocol.SFTP -> deleteSftp(normalized, remoteFilePath = target, cancellation = cancellation)
         }
     }
 
-    fun createRemoteDirectory(profile: ConnectionProfile, remoteDirectoryPath: String): TransferResult {
+    fun createRemoteDirectory(
+        profile: ConnectionProfile,
+        remoteDirectoryPath: String,
+        cancellation: OperationCancellation = OperationCancellation()
+    ): TransferResult {
+        cancellation.throwIfCanceled()
         val normalized = normalizedProfile(profile)
         val target = normalizeRemoteTarget(remoteDirectoryPath)
         return when (normalized.protocol) {
-            ConnectionProtocol.FTP -> mkdirFtp(normalized, secure = false, remoteDirectoryPath = target)
-            ConnectionProtocol.EXPLICIT_FTPS -> mkdirFtp(normalized, secure = true, remoteDirectoryPath = target)
-            ConnectionProtocol.SFTP -> mkdirSftp(normalized, remoteDirectoryPath = target)
+            ConnectionProtocol.FTP -> mkdirFtp(normalized, secure = false, remoteDirectoryPath = target, cancellation = cancellation)
+            ConnectionProtocol.EXPLICIT_FTPS -> mkdirFtp(normalized, secure = true, remoteDirectoryPath = target, cancellation = cancellation)
+            ConnectionProtocol.SFTP -> mkdirSftp(normalized, remoteDirectoryPath = target, cancellation = cancellation)
         }
     }
 
-    private fun listFtp(profile: ConnectionProfile, secure: Boolean): ConnectionProbeResult = withFtpClient(profile, secure) { client ->
+    private fun listFtp(
+        profile: ConnectionProfile,
+        secure: Boolean,
+        cancellation: OperationCancellation
+    ): ConnectionProbeResult = withFtpClient(profile, secure, cancellation) { client ->
+        cancellation.throwIfCanceled()
         val requestedPath = profile.remotePath.ifBlank { "/" }
         if (requestedPath != "/") {
             require(client.changeWorkingDirectory(requestedPath)) {
@@ -134,7 +192,11 @@ class ConnectionController {
         )
     }
 
-    private fun listSftp(profile: ConnectionProfile): ConnectionProbeResult = withSftpChannel(profile) { channel ->
+    private fun listSftp(
+        profile: ConnectionProfile,
+        cancellation: OperationCancellation
+    ): ConnectionProbeResult = withSftpChannel(profile, cancellation) { channel ->
+        cancellation.throwIfCanceled()
         val requestedPath = profile.remotePath.ifBlank { "/" }
         if (requestedPath != "/") {
             channel.cd(requestedPath)
@@ -149,11 +211,29 @@ class ConnectionController {
         )
     }
 
-    private fun downloadFtp(profile: ConnectionProfile, secure: Boolean, remoteFilePath: String, outputFile: File): TransferResult = withFtpClient(profile, secure) { client ->
-        outputFile.outputStream().use { output ->
-            require(client.retrieveFile(remoteFilePath, output)) {
+    private fun downloadFtp(
+        profile: ConnectionProfile,
+        secure: Boolean,
+        remoteFilePath: String,
+        outputFile: File,
+        cancellation: OperationCancellation
+    ): TransferResult = withFtpClient(profile, secure, cancellation) { client ->
+        cancellation.throwIfCanceled()
+        val remote = client.retrieveFileStream(remoteFilePath)
+            ?: throw IOException("Download failed for $remoteFilePath: server did not open a data stream.")
+        try {
+            remote.use { source ->
+                outputFile.outputStream().use { output ->
+                    copyCancelable(source, output, cancellation)
+                }
+            }
+            cancellation.throwIfCanceled()
+            require(client.completePendingCommand()) {
                 "Download failed for $remoteFilePath."
             }
+        } catch (error: Throwable) {
+            runCatching { if (client.isConnected) client.abort() }
+            throw error
         }
         TransferResult(
             title = "Download complete",
@@ -162,11 +242,57 @@ class ConnectionController {
         )
     }
 
-    private fun uploadFtp(profile: ConnectionProfile, secure: Boolean, input: InputStream, remoteFilePath: String): TransferResult = withFtpClient(profile, secure) { client ->
-        input.use { source ->
-            require(client.storeFile(remoteFilePath, source)) {
+    private fun uploadFtp(
+        profile: ConnectionProfile,
+        secure: Boolean,
+        input: InputStream,
+        remoteFilePath: String,
+        cancellation: OperationCancellation
+    ): TransferResult = withFtpClient(profile, secure, cancellation) { client ->
+        cancellation.throwIfCanceled()
+        val temporaryPath = remoteTemporarySibling(remoteFilePath, "upload")
+        val backupPath = remoteTemporarySibling(remoteFilePath, "backup")
+        var dataCommandCompleted = false
+        var backupCreated = false
+
+        try {
+            val remote = client.storeFileStream(temporaryPath)
+                ?: throw IOException("Upload failed for $remoteFilePath: server did not open a data stream.")
+            remote.use { output ->
+                copyCancelable(input, output, cancellation)
+            }
+            cancellation.throwIfCanceled()
+            require(client.completePendingCommand()) {
                 "Upload failed for $remoteFilePath."
             }
+            dataCommandCompleted = true
+            cancellation.throwIfCanceled()
+
+            // Preserve an existing target until the complete temporary upload is
+            // known-good. If the target does not exist, the backup rename simply
+            // returns false and the temporary file can be promoted directly.
+            backupCreated = runCatching { client.rename(remoteFilePath, backupPath) }
+                .getOrDefault(false)
+            cancellation.throwIfCanceled()
+
+            if (!client.rename(temporaryPath, remoteFilePath)) {
+                if (backupCreated) {
+                    runCatching { client.rename(backupPath, remoteFilePath) }
+                }
+                throw IOException("Upload completed but could not promote the temporary file to $remoteFilePath.")
+            }
+            if (backupCreated) {
+                runCatching { client.deleteFile(backupPath) }
+            }
+        } catch (error: Throwable) {
+            if (!dataCommandCompleted) {
+                runCatching { if (client.isConnected) client.abort() }
+            }
+            runCatching { if (client.isConnected) client.deleteFile(temporaryPath) }
+            if (backupCreated) {
+                runCatching { if (client.isConnected) client.rename(backupPath, remoteFilePath) }
+            }
+            throw error
         }
         TransferResult(
             title = "Upload complete",
@@ -175,7 +301,13 @@ class ConnectionController {
         )
     }
 
-    private fun deleteFtp(profile: ConnectionProfile, secure: Boolean, remoteFilePath: String): TransferResult = withFtpClient(profile, secure) { client ->
+    private fun deleteFtp(
+        profile: ConnectionProfile,
+        secure: Boolean,
+        remoteFilePath: String,
+        cancellation: OperationCancellation
+    ): TransferResult = withFtpClient(profile, secure, cancellation) { client ->
+        cancellation.throwIfCanceled()
         require(client.deleteFile(remoteFilePath)) {
             "Delete failed for $remoteFilePath."
         }
@@ -186,7 +318,13 @@ class ConnectionController {
         )
     }
 
-    private fun mkdirFtp(profile: ConnectionProfile, secure: Boolean, remoteDirectoryPath: String): TransferResult = withFtpClient(profile, secure) { client ->
+    private fun mkdirFtp(
+        profile: ConnectionProfile,
+        secure: Boolean,
+        remoteDirectoryPath: String,
+        cancellation: OperationCancellation
+    ): TransferResult = withFtpClient(profile, secure, cancellation) { client ->
+        cancellation.throwIfCanceled()
         require(client.makeDirectory(remoteDirectoryPath)) {
             "Folder creation failed for $remoteDirectoryPath."
         }
@@ -197,8 +335,18 @@ class ConnectionController {
         )
     }
 
-    private fun downloadSftp(profile: ConnectionProfile, remoteFilePath: String, outputFile: File): TransferResult = withSftpChannel(profile) { channel ->
-        channel.get(remoteFilePath, outputFile.absolutePath)
+    private fun downloadSftp(
+        profile: ConnectionProfile,
+        remoteFilePath: String,
+        outputFile: File,
+        cancellation: OperationCancellation
+    ): TransferResult = withSftpChannel(profile, cancellation) { channel ->
+        cancellation.throwIfCanceled()
+        channel.get(remoteFilePath).use { source ->
+            outputFile.outputStream().use { output ->
+                copyCancelable(source, output, cancellation)
+            }
+        }
         TransferResult(
             title = "Download complete",
             detail = "Saved ${formatBytes(outputFile.length())} to ${outputFile.name}.",
@@ -206,8 +354,48 @@ class ConnectionController {
         )
     }
 
-    private fun uploadSftp(profile: ConnectionProfile, input: InputStream, remoteFilePath: String): TransferResult = withSftpChannel(profile) { channel ->
-        input.use { source -> channel.put(source, remoteFilePath) }
+    private fun uploadSftp(
+        profile: ConnectionProfile,
+        input: InputStream,
+        remoteFilePath: String,
+        cancellation: OperationCancellation
+    ): TransferResult = withSftpChannel(profile, cancellation) { channel ->
+        val temporaryPath = remoteTemporarySibling(remoteFilePath, "upload")
+        val backupPath = remoteTemporarySibling(remoteFilePath, "backup")
+        var backupCreated = false
+        try {
+            channel.put(temporaryPath).use { output ->
+                copyCancelable(input, output, cancellation)
+            }
+            cancellation.throwIfCanceled()
+
+            backupCreated = runCatching {
+                channel.rename(remoteFilePath, backupPath)
+                true
+            }.getOrDefault(false)
+            cancellation.throwIfCanceled()
+
+            try {
+                channel.rename(temporaryPath, remoteFilePath)
+            } catch (error: Throwable) {
+                if (backupCreated) {
+                    runCatching { channel.rename(backupPath, remoteFilePath) }
+                }
+                throw IOException(
+                    "Upload completed but could not promote the temporary file to $remoteFilePath.",
+                    error
+                )
+            }
+            if (backupCreated) {
+                runCatching { channel.rm(backupPath) }
+            }
+        } catch (error: Throwable) {
+            runCatching { channel.rm(temporaryPath) }
+            if (backupCreated) {
+                runCatching { channel.rename(backupPath, remoteFilePath) }
+            }
+            throw error
+        }
         TransferResult(
             title = "Upload complete",
             detail = "Uploaded file to $remoteFilePath.",
@@ -215,7 +403,12 @@ class ConnectionController {
         )
     }
 
-    private fun deleteSftp(profile: ConnectionProfile, remoteFilePath: String): TransferResult = withSftpChannel(profile) { channel ->
+    private fun deleteSftp(
+        profile: ConnectionProfile,
+        remoteFilePath: String,
+        cancellation: OperationCancellation
+    ): TransferResult = withSftpChannel(profile, cancellation) { channel ->
+        cancellation.throwIfCanceled()
         channel.rm(remoteFilePath)
         TransferResult(
             title = "Remote file deleted",
@@ -224,7 +417,12 @@ class ConnectionController {
         )
     }
 
-    private fun mkdirSftp(profile: ConnectionProfile, remoteDirectoryPath: String): TransferResult = withSftpChannel(profile) { channel ->
+    private fun mkdirSftp(
+        profile: ConnectionProfile,
+        remoteDirectoryPath: String,
+        cancellation: OperationCancellation
+    ): TransferResult = withSftpChannel(profile, cancellation) { channel ->
+        cancellation.throwIfCanceled()
         channel.mkdir(remoteDirectoryPath)
         TransferResult(
             title = "Remote folder created",
@@ -233,7 +431,12 @@ class ConnectionController {
         )
     }
 
-    private fun <T> withFtpClient(profile: ConnectionProfile, secure: Boolean, block: (FTPClient) -> T): T {
+    private fun <T> withFtpClient(
+        profile: ConnectionProfile,
+        secure: Boolean,
+        cancellation: OperationCancellation,
+        block: (FTPClient) -> T
+    ): T {
         val client = if (secure) {
             FTPSClient(false).apply {
                 // Commons Net's FTPS defaults only check certificate dates and
@@ -249,13 +452,16 @@ class ConnectionController {
         client.defaultTimeout = CONNECT_TIMEOUT_MS
         client.dataTimeout = Duration.ofMillis(CONNECT_TIMEOUT_MS.toLong())
         try {
+            cancellation.throwIfCanceled()
             client.connect(profile.host, profile.port)
+            cancellation.throwIfCanceled()
             require(FTPReply.isPositiveCompletion(client.replyCode)) {
                 "Server rejected connection: ${client.replyString.trim()}"
             }
             require(profile.username.isNotBlank()) { "Username is required." }
             require(profile.password.isNotBlank()) { "Password is required." }
             require(client.login(profile.username, profile.password)) { "Login failed for ${profile.protocol.label}." }
+            cancellation.throwIfCanceled()
 
             if (secure && client is FTPSClient) {
                 client.execPBSZ(0)
@@ -264,6 +470,7 @@ class ConnectionController {
 
             client.enterLocalPassiveMode()
             client.setFileType(FTP.BINARY_FILE_TYPE)
+            cancellation.throwIfCanceled()
             return block(client)
         } finally {
             runCatching { if (client.isConnected) client.logout() }
@@ -271,7 +478,11 @@ class ConnectionController {
         }
     }
 
-    private fun <T> withSftpChannel(profile: ConnectionProfile, block: (ChannelSftp) -> T): T {
+    private fun <T> withSftpChannel(
+        profile: ConnectionProfile,
+        cancellation: OperationCancellation,
+        block: (ChannelSftp) -> T
+    ): T {
         require(profile.username.isNotBlank()) { "SFTP username is required." }
         require(profile.password.isNotBlank()) { "SFTP password is required." }
         require(profile.hostKeyFingerprint.isNotBlank()) {
@@ -287,14 +498,76 @@ class ConnectionController {
 
         var channel: ChannelSftp? = null
         try {
+            cancellation.throwIfCanceled()
             session.connect(CONNECT_TIMEOUT_MS)
+            cancellation.throwIfCanceled()
             channel = session.openChannel("sftp") as ChannelSftp
             channel.connect(CONNECT_TIMEOUT_MS)
+            cancellation.throwIfCanceled()
             return block(channel)
         } finally {
             runCatching { channel?.disconnect() }
             runCatching { session.disconnect() }
         }
+    }
+
+    private fun localTemporarySibling(target: File, purpose: String): File {
+        val parent = target.parentFile ?: throw IOException("Download target has no parent directory.")
+        return File(parent, ".ghostftp-$purpose-${UUID.randomUUID()}.part")
+    }
+
+    private fun commitLocalReplacement(temporary: File, target: File) {
+        val backup = localTemporarySibling(target, "backup")
+        var backupCreated = false
+        try {
+            if (target.exists()) {
+                if (!target.renameTo(backup)) {
+                    throw IOException("Unable to preserve existing local file before replacement: ${target.name}")
+                }
+                backupCreated = true
+            }
+            if (!temporary.renameTo(target)) {
+                if (backupCreated) {
+                    runCatching { backup.renameTo(target) }
+                }
+                throw IOException("Unable to promote completed download to ${target.name}.")
+            }
+            if (backupCreated) {
+                runCatching { backup.delete() }
+            }
+        } catch (error: Throwable) {
+            runCatching { if (temporary.exists()) temporary.delete() }
+            if (backupCreated && !target.exists()) {
+                runCatching { backup.renameTo(target) }
+            }
+            throw error
+        }
+    }
+
+    private fun remoteTemporarySibling(target: String, purpose: String): String {
+        val slash = target.lastIndexOf('/')
+        val parent = if (slash >= 0) target.substring(0, slash + 1) else ""
+        return "$parent.ghostftp-$purpose-${UUID.randomUUID()}.part"
+    }
+
+    private fun copyCancelable(
+        input: InputStream,
+        output: OutputStream,
+        cancellation: OperationCancellation
+    ): Long {
+        val buffer = ByteArray(64 * 1024)
+        var total = 0L
+        while (true) {
+            cancellation.throwIfCanceled()
+            val read = input.read(buffer)
+            if (read < 0) break
+            if (read == 0) continue
+            output.write(buffer, 0, read)
+            total += read
+        }
+        output.flush()
+        cancellation.throwIfCanceled()
+        return total
     }
 
     private fun ftpRows(path: String, files: Array<FTPFile>): List<RemoteRow> {
