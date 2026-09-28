@@ -125,7 +125,10 @@ require_text "preview remains non-debuggable" "$ANDROID_DIR/app/build.gradle.kts
 require_text "current Apache Commons Net dependency" "$ANDROID_DIR/app/build.gradle.kts" 'commons-net:commons-net:3.13.0'
 require_text "maintained JSch dependency" "$ANDROID_DIR/app/build.gradle.kts" 'com.github.mwiede:jsch:2.28.7'
 require_text "Android instrumentation runner" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test.runner.AndroidJUnitRunner'
-require_text "Android Espresso UI test dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test.espresso:espresso-core:3.6.1'
+require_text "AndroidX test core dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test:core:1.7.0'
+require_text "AndroidX test runner dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test:runner:1.7.0'
+require_text "AndroidX JUnit dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test.ext:junit:1.3.0'
+require_text "Android Espresso UI test dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test.espresso:espresso-core:3.7.0'
 test -s "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt"
 ANDROID_WORKFLOW="$ROOT/.github/workflows/ghostftp-android.yml"
 require_text "Android click-through workflow" "$ANDROID_WORKFLOW" 'connectedDebugAndroidTest'
