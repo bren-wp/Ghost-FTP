@@ -178,7 +178,7 @@ async fn ftp_roundtrip(
             let remote_size = stream.size(&upload_path)? as u64;
             if remote_size != upload_offset {
                 return Err(anyhow!(
-                    "remote prefix mismatch before {protocol} resume: {remote_size} != {upload_offset}"
+                    "remote prefix mismatch before FTP resume: {remote_size} != {upload_offset}"
                 ));
             }
             let mut reader = Cursor::new(upload_payload);
