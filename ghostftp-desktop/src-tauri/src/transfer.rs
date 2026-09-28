@@ -803,11 +803,12 @@ impl TransferManager {
 
         let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
         let local_len = tokio::fs::metadata(local_path).await.ok().map(|m| m.len());
-        let mut offset = if requested_offset > 0 && local_len.is_some_and(|len| len >= requested_offset) {
-            requested_offset
-        } else {
-            0
-        };
+        let mut offset =
+            if requested_offset > 0 && local_len.is_some_and(|len| len >= requested_offset) {
+                requested_offset
+            } else {
+                0
+            };
         if offset != requested_offset {
             self.update(id, |t| t.transferred = offset).await;
         }
@@ -881,11 +882,12 @@ impl TransferManager {
 
         let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
         let local_len = tokio::fs::metadata(local_path).await.ok().map(|m| m.len());
-        let resume_offset = if requested_offset > 0 && local_len.is_some_and(|len| len >= requested_offset) {
-            requested_offset
-        } else {
-            0
-        };
+        let resume_offset =
+            if requested_offset > 0 && local_len.is_some_and(|len| len >= requested_offset) {
+                requested_offset
+            } else {
+                0
+            };
         if resume_offset != requested_offset {
             self.update(id, |t| t.transferred = resume_offset).await;
         }
@@ -4076,15 +4078,9 @@ mod tests {
         // Drive the same delta-aware entry point production dispatch uses. A
         // non-zero committed offset must bypass delta and continue ReadChunk
         // requests from the verified local prefix.
-        mgr.agent_download_with_delta_core(
-            "resume-down",
-            &session,
-            &remote_s,
-            &local,
-            None,
-        )
-        .await
-        .unwrap();
+        mgr.agent_download_with_delta_core("resume-down", &session, &remote_s, &local, None)
+            .await
+            .unwrap();
 
         assert_eq!(std::fs::read(&local).unwrap(), content);
         assert_eq!(
@@ -4120,15 +4116,9 @@ mod tests {
 
         // Production dispatch is delta-aware, but an interrupted whole-file
         // upload must keep its exact prefix and continue WriteChunk at offset.
-        mgr.agent_upload_with_delta_core(
-            "resume-up",
-            &session,
-            &local,
-            &remote_s,
-            None,
-        )
-        .await
-        .unwrap();
+        mgr.agent_upload_with_delta_core("resume-up", &session, &local, &remote_s, None)
+            .await
+            .unwrap();
 
         assert_eq!(std::fs::read(&remote).unwrap(), content);
         assert_eq!(
