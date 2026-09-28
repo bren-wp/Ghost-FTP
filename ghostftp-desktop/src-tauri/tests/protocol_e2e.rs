@@ -78,7 +78,8 @@ impl Read for FailAfterReader {
             ));
         }
         let remaining = (self.limit - self.inner.position()) as usize;
-        self.inner.read(&mut buf[..buf.len().min(remaining)])
+        let allowed = buf.len().min(remaining);
+        self.inner.read(&mut buf[..allowed])
     }
 }
 
