@@ -613,8 +613,8 @@ class MainActivity : Activity() {
                 title = "Deleting",
                 detail = "Removing $remotePath from the active server.",
                 refreshAfter = true
-            ) { _ ->
-                controller.deleteRemoteFile(profile, remotePath)
+            ) { cancellation ->
+                controller.deleteRemoteFile(profile, remotePath, cancellation)
             }
         }
     }
@@ -631,8 +631,8 @@ class MainActivity : Activity() {
             title = "Creating folder",
             detail = "Creating $remoteTarget on the active server.",
             refreshAfter = true
-        ) { _ ->
-            controller.createRemoteDirectory(profile, remoteTarget)
+        ) { cancellation ->
+            controller.createRemoteDirectory(profile, remoteTarget, cancellation)
         }
     }
 
