@@ -131,7 +131,10 @@ require_text "AndroidX JUnit dependency" "$ANDROID_DIR/app/build.gradle.kts" 'an
 require_text "Android Espresso UI test dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test.espresso:espresso-core:3.7.0'
 test -s "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt"
 ANDROID_WORKFLOW="$ROOT/.github/workflows/ghostftp-android.yml"
-require_text "Android click-through workflow" "$ANDROID_WORKFLOW" 'connectedDebugAndroidTest'
+ANDROID_SMOKE_SCRIPT="$ANDROID_DIR/scripts/run-instrumentation-smoke.sh"
+require_text "Android click-through workflow" "$ANDROID_WORKFLOW" 'bash android/scripts/run-instrumentation-smoke.sh'
+require_text "Android connected instrumentation" "$ANDROID_SMOKE_SCRIPT" 'connectedDebugAndroidTest'
+require_text "Android instrumentation diagnostics" "$ANDROID_SMOKE_SCRIPT" 'dist/android/diagnostics'
 CANONICAL_RELEASE_WORKFLOW="$ROOT/.github/workflows/ghostftp-release.yml"
 PUBLISH_SCRIPT="$ROOT/.github/scripts/publish-release.sh"
 
