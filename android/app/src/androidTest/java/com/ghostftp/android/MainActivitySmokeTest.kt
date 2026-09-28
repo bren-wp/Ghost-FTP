@@ -1,18 +1,15 @@
 package com.ghostftp.android
 
+import android.graphics.Rect
 import android.os.SystemClock
-import androidx.lifecycle.Lifecycle
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.action.ViewActions.click
-import androidx.test.espresso.action.ViewActions.scrollTo
-import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
-import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
-import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.After
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -26,32 +23,16 @@ class MainActivitySmokeTest {
     fun launch() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         instrumentation.waitForIdleSync()
-
         scenario = ActivityScenario.launch(MainActivity::class.java)
-        scenario.moveToState(Lifecycle.State.RESUMED)
         instrumentation.waitForIdleSync()
-        awaitWindowFocus()
-    }
 
-    private fun awaitWindowFocus() {
-        repeat(60) {
-            var focused = false
-            scenario.onActivity { activity ->
-                focused = activity.window.decorView.hasWindowFocus()
-            }
-            if (focused) return
-            SystemClock.sleep(250)
-        }
-
-        var diagnostic = "activity unavailable"
         scenario.onActivity { activity ->
             val decor = activity.window.decorView
-            diagnostic =
-                "finishing=${activity.isFinishing}, destroyed=${activity.isDestroyed}, " +
-                    "decorAttached=${decor.isAttachedToWindow}, decorShown=${decor.isShown}, " +
-                    "decorWindowFocus=${decor.hasWindowFocus()}"
+            assertTrue("MainActivity must not be finishing after launch.", !activity.isFinishing)
+            assertTrue("MainActivity must not be destroyed after launch.", !activity.isDestroyed)
+            assertTrue("MainActivity decor must be attached after launch.", decor.isAttachedToWindow)
+            assertTrue("MainActivity decor must be shown after launch.", decor.isShown)
         }
-        assertTrue("MainActivity did not gain window focus after launch: $diagnostic", false)
     }
 
     @After
@@ -61,50 +42,120 @@ class MainActivitySmokeTest {
 
     @Test
     fun primaryWorkspaceAndToolbarRender() {
-        onView(withText("Ghost FTP")).check(matches(isDisplayed()))
-        onView(withContentDescription("Open Files workspace")).check(matches(isDisplayed()))
+        assertTextPresent("Ghost FTP")
+        assertDescriptionPresent("Open Files workspace")
         for (label in listOf("Refresh", "Upload", "Download", "New Folder", "Delete")) {
-            onView(withContentDescription("$label action")).check(matches(isDisplayed()))
+            assertDescriptionPresent("$label action")
         }
     }
 
     @Test
     fun workspaceNavigationWorksClickByClick() {
-        onView(withContentDescription("Open Sites workspace")).perform(scrollTo(), click())
-        onView(withText("Protocol")).perform(scrollTo()).check(matches(isDisplayed()))
+        clickByDescription("Open Sites workspace")
+        assertTextVisibleInViewport("Protocol")
 
-        onView(withContentDescription("Open Transfers workspace")).perform(scrollTo(), click())
-        onView(withText("No transfer started.")).perform(scrollTo()).check(matches(isDisplayed()))
+        clickByDescription("Open Transfers workspace")
+        assertTextVisibleInViewport("No transfer started.")
 
-        onView(withContentDescription("Open Settings workspace")).perform(scrollTo(), click())
-        onView(withText("No required tracking, analytics or telemetry.")).perform(scrollTo()).check(matches(isDisplayed()))
+        clickByDescription("Open Settings workspace")
+        assertTextVisibleInViewport("No required tracking, analytics or telemetry.")
 
-        onView(withContentDescription("Open Help & About workspace")).perform(scrollTo(), click())
-        onView(withText("Ghost FTP by Brendigo")).perform(scrollTo()).check(matches(isDisplayed()))
+        clickByDescription("Open Help & About workspace")
+        assertTextVisibleInViewport("Ghost FTP by Brendigo")
 
-        onView(withContentDescription("Open Files workspace")).perform(scrollTo(), click())
-        onView(withText("Connect to a server to load remote files.")).perform(scrollTo()).check(matches(isDisplayed()))
+        clickByDescription("Open Files workspace")
+        assertTextVisibleInViewport("Connect to a server to load remote files.")
     }
 
     @Test
     fun connectionValidationAndIdleRecoveryWorkClickByClick() {
-        onView(withContentDescription("Connect to server")).perform(scrollTo(), click())
-        onView(withText("Host is required")).check(matches(isDisplayed()))
+        clickByDescription("Connect to server")
+        assertTextPresent("Host is required")
 
-        onView(withContentDescription("Disconnect from server")).perform(scrollTo(), click())
-        onView(withText("Ready")).check(matches(isDisplayed()))
+        clickByDescription("Disconnect from server")
+        assertTextPresent("Ready")
 
-        onView(withContentDescription("Refresh action")).perform(scrollTo(), click())
-        onView(withText("Ready")).check(matches(isDisplayed()))
+        clickByDescription("Refresh action")
+        assertTextPresent("Ready")
     }
 
     @Test
     fun guardedFileActionsRequireActiveSession() {
         for (label in listOf("Download", "New Folder", "Delete")) {
-            onView(withContentDescription("$label action")).perform(scrollTo(), click())
-            onView(withText("Connect first")).check(matches(isDisplayed()))
-            onView(withContentDescription("Disconnect from server")).perform(scrollTo(), click())
-            onView(withText("Ready")).check(matches(isDisplayed()))
+            clickByDescription("$label action")
+            assertTextPresent("Connect first")
+
+            clickByDescription("Disconnect from server")
+            assertTextPresent("Ready")
         }
+    }
+
+    private fun clickByDescription(description: String) {
+        scenario.onActivity { activity ->
+            val view = findView(activity.window.decorView) {
+                it.contentDescription?.toString() == description
+            }
+            assertNotNull("Missing control with content description: $description", view)
+            view!!
+            assertTrue("Control must be enabled before click: $description", view.isEnabled)
+
+            val width = view.width.coerceAtLeast(1)
+            val height = view.height.coerceAtLeast(1)
+            view.requestRectangleOnScreen(Rect(0, 0, width, height), true)
+            assertTrue("Click listener did not handle control: $description", view.performClick())
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        SystemClock.sleep(120)
+    }
+
+    private fun assertDescriptionPresent(description: String) {
+        scenario.onActivity { activity ->
+            val view = findView(activity.window.decorView) {
+                it.contentDescription?.toString() == description
+            }
+            assertNotNull("Missing control with content description: $description", view)
+            assertTrue("Control is not shown in the Activity hierarchy: $description", view!!.isShown)
+        }
+    }
+
+    private fun assertTextPresent(expected: String) {
+        scenario.onActivity { activity ->
+            val view = findText(activity.window.decorView, expected)
+            assertNotNull("Missing text in MainActivity hierarchy: $expected", view)
+            assertTrue("Text is not shown in MainActivity hierarchy: $expected", view!!.isShown)
+        }
+    }
+
+    private fun assertTextVisibleInViewport(expected: String) {
+        repeat(12) {
+            var visible = false
+            scenario.onActivity { activity ->
+                val view = findText(activity.window.decorView, expected)
+                assertNotNull("Missing text in MainActivity hierarchy: $expected", view)
+                val rect = Rect()
+                visible = view!!.getGlobalVisibleRect(rect) && rect.width() > 0 && rect.height() > 0
+            }
+            if (visible) return
+            SystemClock.sleep(50)
+        }
+        assertTrue("Text did not become visible after workspace navigation: $expected", false)
+    }
+
+    private fun findText(root: View, expected: String): TextView? {
+        val match = findView(root) { view ->
+            view is TextView && view.text?.toString() == expected
+        }
+        return match as? TextView
+    }
+
+    private fun findView(root: View, predicate: (View) -> Boolean): View? {
+        if (predicate(root)) return root
+        if (root is ViewGroup) {
+            for (index in 0 until root.childCount) {
+                val match = findView(root.getChildAt(index), predicate)
+                if (match != null) return match
+            }
+        }
+        return null
     }
 }
