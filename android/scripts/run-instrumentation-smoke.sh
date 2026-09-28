@@ -26,8 +26,38 @@ if [ "$test_exit" -ne 0 ]; then
   exit "$test_exit"
 fi
 
+DEBUG_APK="android/app/build/outputs/apk/debug/app-debug.apk"
+test -s "$DEBUG_APK"
+
+# connectedDebugAndroidTest may uninstall the target package during cleanup.
+# Reinstall the exact debug APK that passed instrumentation before the
+# post-test launch/screenshot smoke so the final UI check validates a real app.
+adb install -r "$DEBUG_APK" >/dev/null
+adb shell pm path com.ghostftp.android | grep -Fq 'package:'
+
+LAUNCH_COMPONENT="$(
+  adb shell cmd package resolve-activity --brief \
+    -a android.intent.action.MAIN \
+    -c android.intent.category.LAUNCHER \
+    com.ghostftp.android | tr -d '\r' | tail -n1
+)"
+test -n "$LAUNCH_COMPONENT"
+case "$LAUNCH_COMPONENT" in
+  *MainActivity) ;;
+  *)
+    echo "Unexpected Ghost FTP launcher component: $LAUNCH_COMPONENT" >&2
+    exit 1
+    ;;
+esac
+
 adb shell am force-stop com.ghostftp.android || true
-adb shell am start -W -n com.ghostftp.android/.MainActivity
+adb shell am start -W -n "$LAUNCH_COMPONENT"
 sleep 2
+
+FOCUSED_WINDOW="$(adb shell dumpsys window | grep -m1 -E 'mCurrentFocus|mFocusedApp' || true)"
+echo "Focused window: $FOCUSED_WINDOW"
+echo "$FOCUSED_WINDOW" | grep -Fq 'com.ghostftp.android'
+
+adb shell dumpsys window windows > dist/android/diagnostics/post-launch-window.txt || true
 adb exec-out screencap -p > dist/android/GhostFTP-Android-UI-Smoke.png
 test -s dist/android/GhostFTP-Android-UI-Smoke.png
