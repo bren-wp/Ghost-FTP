@@ -802,9 +802,14 @@ impl TransferManager {
         if let Some(h) = self.tasks.lock().await.remove(id) {
             h.abort();
         }
-        // A cancel-while-paused leaves the gate closed — reopen it.
-        if let Some(g) = self.pauses.lock().await.get(id) {
-            g.set(false);
+        // A cancel-while-paused leaves the gate closed — reopen it. A row
+        // restored from SQLite has no in-memory gate yet, so recreate one.
+        {
+            let mut pauses = self.pauses.lock().await;
+            pauses
+                .entry(id.to_string())
+                .or_insert_with(PauseGate::new)
+                .set(false);
         }
         // Never reuse the canceled Arc: a previous FTP spawn_blocking worker
         // may still own it while finishing ABOR cleanup. A fresh token prevents
@@ -813,9 +818,13 @@ impl TransferManager {
             .lock()
             .await
             .insert(id.to_string(), Arc::new(AtomicBool::new(false)));
+
+        let preserve_recovered_offset = self.recovered_retry.lock().await.remove(id);
         self.update(id, |t| {
             t.status = TransferStatus::Queued;
-            t.transferred = 0;
+            if !preserve_recovered_offset {
+                t.transferred = 0;
+            }
             t.error = None;
             t.retry_attempt = None;
         })
@@ -980,6 +989,14 @@ impl TransferManager {
             delta: None,
             started_at: now_ts(),
         };
+        self.persisted_retry.lock().await.insert(
+            id.clone(),
+            PersistedRetryInfo::Download {
+                profile_id: session.profile().id.clone(),
+                remote_path: remote_path.clone(),
+                final_path: final_path.clone(),
+            },
+        );
         self.insert(transfer.clone()).await;
         let _ = app.emit("transfer://added", &transfer);
 
@@ -1225,6 +1242,14 @@ impl TransferManager {
             delta: None,
             started_at: now_ts(),
         };
+        self.persisted_retry.lock().await.insert(
+            id.clone(),
+            PersistedRetryInfo::Upload {
+                profile_id: session.profile().id.clone(),
+                local: local.clone(),
+                final_remote: final_remote.clone(),
+            },
+        );
         self.insert(transfer.clone()).await;
         let _ = app.emit("transfer://added", &transfer);
 
