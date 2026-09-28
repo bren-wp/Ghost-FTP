@@ -48,6 +48,18 @@ jobs:
           (cd tools/ghostftp-installer && go test ./...)
           (cd tools/ghostftp-runtime && go test ./...)
           grep -Fq 'CREATE_NO_WINDOW' ghostftp-desktop/src-tauri/ghostftp-agentd/src/jobs.rs
+
+          # Native GUI process launches must stay windowless on Windows. These
+          # contracts cover runtime surfaces that have historically flashed a
+          # console-subsystem helper during normal GUI workflows.
+          test "$(grep -Fc 'crate::windows_process::hide_console(&mut command);' ghostftp-desktop/src-tauri/src/editor.rs)" -ge 2
+          grep -Fq 'crate::windows_process::hide_console(&mut command);' ghostftp-desktop/src-tauri/src/oauth.rs
+          grep -Fq 'crate::windows_process::hide_console(&mut command);' ghostftp-desktop/src-tauri/src/commands.rs
+          grep -Fq 'crate::windows_process::hide_console(&mut command);' ghostftp-desktop/src-tauri/src/lib.rs
+          grep -Fq 'creation_flags(CREATE_NO_WINDOW)' ghostftp-desktop/src-tauri/src/main.rs
+          ! grep -Fq 'Command::new("where")' ghostftp-desktop/src-tauri/src/path_integration.rs
+          ! grep -Fq 'Command::new("which")' ghostftp-desktop/src-tauri/src/path_integration.rs
+
           ! grep -En 'exec\.Command\("(rundll32|reg|powershell|cmd(\.exe)?)"' \
             tools/ghostftp-installer/main.go \
             tools/ghostftp-runtime/main.go

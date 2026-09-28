@@ -260,7 +260,9 @@ fn spawn_editor(path: &std::path::Path, editor: Option<&str>) -> Result<()> {
         // user-controlled and shell metacharacters must not become executable
         // syntax. Direct CreateProcess/PATH lookup keeps the editor value an
         // executable name/path and the file path a separate argument.
-        std::process::Command::new(cmd)
+        let mut command = std::process::Command::new(cmd);
+        crate::windows_process::hide_console(&mut command);
+        command
             .arg(path)
             .spawn()
             .with_context(|| format!("spawn configured editor for {}", path.display()))?;

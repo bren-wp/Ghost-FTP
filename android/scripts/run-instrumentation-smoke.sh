@@ -3,7 +3,10 @@ set -euo pipefail
 
 DIAG_DIR="dist/android/diagnostics"
 DEBUG_APK="android/app/build/outputs/apk/debug/app-debug.apk"
+PREVIEW_APK="android/app/build/outputs/apk/preview/app-preview.apk"
 PACKAGE_ID="com.ghostftp.android"
+PREVIEW_PACKAGE_ID="com.ghostftp.android.preview"
+PREVIEW_ACTIVITY_CLASS="com.ghostftp.android.MainActivity"
 
 mkdir -p "$DIAG_DIR"
 
@@ -230,5 +233,133 @@ adb shell dumpsys window windows > "$DIAG_DIR/post-launch-window.txt" || true
 adb exec-out screencap -p > dist/android/GhostFTP-Android-UI-Smoke.png
 test -s dist/android/GhostFTP-Android-UI-Smoke.png
 
+# The public release workflow publishes the non-debuggable preview APK, not the
+# debug APK exercised by instrumentation. Validate that exact release candidate
+# on the same emulator so a green build cannot ship an APK that Package Manager
+# rejects or that cannot reach MainActivity.
+test -s "$PREVIEW_APK"
+PREVIEW_BADGING="$("$AAPT" dump badging "$PREVIEW_APK")"
+PREVIEW_DECLARED_PACKAGE=""
+PREVIEW_LAUNCH_ACTIVITY=""
+while IFS= read -r badging_line; do
+  case "$badging_line" in
+    package:*)
+      package_value="${badging_line#*name=\'}"
+      PREVIEW_DECLARED_PACKAGE="${package_value%%\'*}"
+      ;;
+    launchable-activity:*)
+      launch_value="${badging_line#*name=\'}"
+      PREVIEW_LAUNCH_ACTIVITY="${launch_value%%\'*}"
+      ;;
+  esac
+done <<< "$PREVIEW_BADGING"
+
+if [ "$PREVIEW_DECLARED_PACKAGE" != "$PREVIEW_PACKAGE_ID" ]; then
+  echo "Release-candidate APK package mismatch: expected $PREVIEW_PACKAGE_ID, got $PREVIEW_DECLARED_PACKAGE" >&2
+  exit 1
+fi
+if [ "$PREVIEW_LAUNCH_ACTIVITY" != "$PREVIEW_ACTIVITY_CLASS" ]; then
+  echo "Release-candidate APK launcher mismatch: expected $PREVIEW_ACTIVITY_CLASS, got $PREVIEW_LAUNCH_ACTIVITY" >&2
+  exit 1
+fi
+if grep -Fq "application-debuggable" <<< "$PREVIEW_BADGING"; then
+  echo "Release-candidate APK must remain non-debuggable." >&2
+  exit 1
+fi
+
+# Start from a clean package state, then immediately exercise -r as well. The
+# first command proves clean installability; the second proves that the exact
+# published APK can be reinstalled/updated without Package Manager rejecting it.
+adb uninstall "$PREVIEW_PACKAGE_ID" >/dev/null 2>&1 || true
+set +e
+PREVIEW_INSTALL_OUTPUT="$(adb install "$PREVIEW_APK" 2>&1)"
+PREVIEW_INSTALL_EXIT=$?
+set -e
+printf '%s\n' "$PREVIEW_INSTALL_OUTPUT"
+if [ "$PREVIEW_INSTALL_EXIT" -ne 0 ]; then
+  echo "Ghost FTP release-candidate APK clean install failed." >&2
+  exit "$PREVIEW_INSTALL_EXIT"
+fi
+case "$PREVIEW_INSTALL_OUTPUT" in
+  *Success*) ;;
+  *)
+    echo "Ghost FTP release-candidate APK clean install did not report Success." >&2
+    exit 1
+    ;;
+esac
+
+set +e
+PREVIEW_REINSTALL_OUTPUT="$(adb install -r "$PREVIEW_APK" 2>&1)"
+PREVIEW_REINSTALL_EXIT=$?
+set -e
+printf '%s\n' "$PREVIEW_REINSTALL_OUTPUT"
+if [ "$PREVIEW_REINSTALL_EXIT" -ne 0 ]; then
+  echo "Ghost FTP release-candidate APK reinstall failed." >&2
+  exit "$PREVIEW_REINSTALL_EXIT"
+fi
+case "$PREVIEW_REINSTALL_OUTPUT" in
+  *Success*) ;;
+  *)
+    echo "Ghost FTP release-candidate APK reinstall did not report Success." >&2
+    exit 1
+    ;;
+esac
+
+PREVIEW_PACKAGE_PATH="$(adb shell pm path "$PREVIEW_PACKAGE_ID" 2>&1)"
+case "$PREVIEW_PACKAGE_PATH" in
+  package:*) ;;
+  *)
+    printf 'Package Manager output: %s\n' "$PREVIEW_PACKAGE_PATH" >&2
+    echo "Release-candidate package is missing after install." >&2
+    exit 1
+    ;;
+esac
+
+PREVIEW_COMPONENT="$PREVIEW_PACKAGE_ID/$PREVIEW_LAUNCH_ACTIVITY"
+adb shell am force-stop "$PREVIEW_PACKAGE_ID" || true
+set +e
+PREVIEW_LAUNCH_OUTPUT="$(adb shell am start -W -n "$PREVIEW_COMPONENT" 2>&1)"
+PREVIEW_LAUNCH_EXIT=$?
+set -e
+printf '%s\n' "$PREVIEW_LAUNCH_OUTPUT"
+if [ "$PREVIEW_LAUNCH_EXIT" -ne 0 ]; then
+  echo "Ghost FTP release-candidate launcher command failed." >&2
+  exit "$PREVIEW_LAUNCH_EXIT"
+fi
+case "$PREVIEW_LAUNCH_OUTPUT" in
+  *"Status: ok"*"$PREVIEW_PACKAGE_ID"*) ;;
+  *)
+    echo "Ghost FTP release-candidate MainActivity did not report a successful launch." >&2
+    exit 1
+    ;;
+esac
+
+PREVIEW_RESUMED=""
+for _ in {1..20}; do
+  PREVIEW_ACTIVITY_DUMP="$(adb shell dumpsys activity activities 2>&1)"
+  while IFS= read -r activity_line; do
+    case "$activity_line" in
+      *ResumedActivity*"$PREVIEW_PACKAGE_ID/"*|*topResumedActivity*"$PREVIEW_PACKAGE_ID/"*)
+        PREVIEW_RESUMED="$activity_line"
+        break
+        ;;
+    esac
+  done <<< "$PREVIEW_ACTIVITY_DUMP"
+  [ -n "$PREVIEW_RESUMED" ] && break
+  sleep 0.25
+done
+printf 'Release-candidate resumed activity: %s\n' "$PREVIEW_RESUMED"
+if [ -z "$PREVIEW_RESUMED" ]; then
+  printf '%s\n' "$PREVIEW_ACTIVITY_DUMP" > "$DIAG_DIR/release-candidate-activities.txt"
+  echo "Ghost FTP release-candidate MainActivity did not reach RESUMED state." >&2
+  exit 1
+fi
+
+PREVIEW_PID="$(adb shell pidof "$PREVIEW_PACKAGE_ID" 2>/dev/null || true)"
+test -n "$PREVIEW_PID"
+printf 'Ghost FTP release-candidate PID: %s\n' "$PREVIEW_PID"
+adb exec-out screencap -p > dist/android/GhostFTP-Android-Release-Candidate-Smoke.png
+test -s dist/android/GhostFTP-Android-Release-Candidate-Smoke.png
+
 trap - EXIT
-echo "Ghost FTP Android instrumentation and post-launch smoke OK"
+echo "Ghost FTP Android instrumentation, release-candidate install and launch smoke OK"
