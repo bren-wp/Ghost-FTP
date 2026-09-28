@@ -274,22 +274,25 @@ async fn ftp_roundtrip(
             .with_stream(move |stream| {
                 let expected_len = restart_payload.len() as u64;
                 let mut reader = Cursor::new(restart_payload);
-                let restarted =
-                    stream.stor_resumable(&restart_path, 0, &mut reader, |_| {
-                        FtpTransferControl::Continue
-                    })?;
-                if restarted.control == FtpTransferControl::Continue {
-                    let verified = stream.size(&restart_path)? as u64;
-                    if verified != expected_len {
-                        return Err(anyhow!(
-                            "fresh-session FTP restart verification mismatch: {verified} != {expected_len}"
-                        ));
-                    }
+                let written = stream.put_from_reader(&restart_path, &mut reader)?;
+                if written != expected_len {
+                    return Err(anyhow!(
+                        "fresh-session FTP recovery wrote {written} bytes, expected {expected_len}"
+                    ));
                 }
-                Ok(restarted)
+                let verified = stream.size(&restart_path)? as u64;
+                if verified != expected_len {
+                    return Err(anyhow!(
+                        "fresh-session FTP restart verification mismatch: {verified} != {expected_len}"
+                    ));
+                }
+                Ok(ghostftp_lib::session::ftp::FtpTransferOutcome {
+                    transferred: expected_len,
+                    control: FtpTransferControl::Continue,
+                })
             })
             .await
-            .with_context(|| format!("{protocol} full upload retry on fresh session"))?;
+            .with_context(|| format!("{protocol} trusted full upload retry on fresh session"))?;
     }
     if upload_done.control != FtpTransferControl::Continue
         || upload_done.transferred != resume_payload.len() as u64
