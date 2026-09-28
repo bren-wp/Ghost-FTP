@@ -6,7 +6,7 @@ use crate::session::{
 };
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
@@ -27,14 +27,14 @@ pub enum OverwritePolicy {
     Rename,
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TransferKind {
     Download,
     Upload,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum TransferStatus {
     Queued,
@@ -169,7 +169,7 @@ impl PauseGate {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Transfer {
     pub id: String,
@@ -194,7 +194,7 @@ pub struct Transfer {
 }
 
 /// Delta-sync outcome attached to a finished [`Transfer`] (Agent backend only).
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeltaStats {
     /// Literal bytes that crossed the wire.
@@ -219,6 +219,67 @@ enum RetryInfo {
         final_remote: String,
     },
 }
+
+/// Credential-free recovery descriptor persisted beside each transfer row.
+/// The profile id reconnects through the existing ProfileStore/OS credential
+/// path only when the user explicitly retries after a restart.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+enum PersistedRetryInfo {
+    Download {
+        profile_id: String,
+        remote_path: String,
+        final_path: PathBuf,
+    },
+    Upload {
+        profile_id: String,
+        local: PathBuf,
+        final_remote: String,
+    },
+}
+
+impl PersistedRetryInfo {
+    fn profile_id(&self) -> &str {
+        match self {
+            Self::Download { profile_id, .. } | Self::Upload { profile_id, .. } => profile_id,
+        }
+    }
+
+    fn with_session(&self, session: Arc<Session>) -> RetryInfo {
+        match self {
+            Self::Download {
+                remote_path,
+                final_path,
+                ..
+            } => RetryInfo::Download {
+                session,
+                remote_path: remote_path.clone(),
+                final_path: final_path.clone(),
+            },
+            Self::Upload {
+                local,
+                final_remote,
+                ..
+            } => RetryInfo::Upload {
+                session,
+                local: local.clone(),
+                final_remote: final_remote.clone(),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PersistedTransferEnvelope {
+    schema: u32,
+    transfer: Transfer,
+    retry: PersistedRetryInfo,
+}
+
+const TRANSFER_LEDGER_SCHEMA: u32 = 1;
+const TRANSFER_LEDGER_KEEP: usize = 500;
+const TRANSFER_LEDGER_PROGRESS_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Default bound on concurrently running transfers; the rest wait
 /// in the FIFO as `Queued`. Overridden by the `transferConcurrency` setting.
