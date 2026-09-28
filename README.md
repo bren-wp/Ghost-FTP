@@ -4,12 +4,12 @@
 
 ### More Than Transfer. Total Control.
 
-**A modern, privacy-first FTP / FTPS / SFTP client for Windows, Linux and Android.**
+**A privacy-first FTP / FTPS / SFTP client for Windows, Linux and Android.**
 
-[Website](https://ghostftp.com/) ·
 [Releases](https://github.com/bren-wp/Ghost-FTP/releases) ·
 [Documentation](docs/README.md) ·
 [Security](SECURITY.md) ·
+[Privacy](docs/legal/PRIVACY.md) ·
 [Changelog](CHANGELOG.md)
 
 </div>
@@ -18,64 +18,71 @@
   <a href="docs/assets/screenshots/ghostftp-native-files.png"><img src="docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP native Files workspace" width="100%"></a>
 </p>
 
-<p align="center"><sub><strong>Release-proven native application screenshot.</strong> Local documentation images are CI-verified to be byte-identical to files contained in the newest published Ghost FTP release tag.</sub></p>
+<p align="center"><sub><strong>Real native application screenshot.</strong> README/documentation images are CI-verified against the newest published Ghost FTP release tag.</sub></p>
+
+## Application gallery
+
+<table>
+<tr>
+<td width="50%"><a href="docs/assets/screenshots/ghostftp-native-new-connection.png"><img src="docs/assets/screenshots/ghostftp-native-new-connection.png" alt="Ghost FTP New Connection"></a><br><strong>New Connection</strong></td>
+<td width="50%"><a href="docs/assets/screenshots/ghostftp-native-sites.png"><img src="docs/assets/screenshots/ghostftp-native-sites.png" alt="Ghost FTP Sites"></a><br><strong>Sites</strong></td>
+</tr>
+<tr>
+<td><a href="docs/assets/screenshots/ghostftp-native-transfers.png"><img src="docs/assets/screenshots/ghostftp-native-transfers.png" alt="Ghost FTP Transfers"></a><br><strong>Transfers</strong></td>
+<td><a href="docs/assets/screenshots/ghostftp-native-settings.png"><img src="docs/assets/screenshots/ghostftp-native-settings.png" alt="Ghost FTP Settings"></a><br><strong>Settings</strong></td>
+</tr>
+<tr>
+<td><a href="docs/assets/screenshots/ghostftp-native-file-properties.png"><img src="docs/assets/screenshots/ghostftp-native-file-properties.png" alt="Ghost FTP File Properties"></a><br><strong>File properties</strong></td>
+<td><a href="docs/assets/screenshots/ghostftp-native-about.png"><img src="docs/assets/screenshots/ghostftp-native-about.png" alt="Ghost FTP Help and About"></a><br><strong>Help & About</strong></td>
+</tr>
+</table>
 
 ## Current status
 
 - **Active source/release cycle:** `0.19.0`.
-- **Latest published canonical release:** `0.18.0`.
-- **Live published release status:** [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases) is authoritative and is queried dynamically by CI.
+- **Previous canonical release:** `0.18.0`.
 - **Version source of truth:** root `version.json`.
-- **Production desktop source:** `ghostftp-desktop/`.
-- **Production Android source:** `android/`.
+- **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
+- **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
+- **No website application is maintained in this repository.** Releases, source, documentation and support/security material live in GitHub/repository artifacts.
 
-Ghost FTP uses a pre-1.0 semantic-version train. Meaningful development cycles advance the minor version, published hotfixes advance the patch version, and version-only commits are not used.
+## Product scope
 
-## Documentation image provenance
+Ghost FTP combines secure server connections, local/remote file management, saved Sites, transfer queues, synchronization, checksums, permissions, terminal tools and server workflows in a single desktop product. Android follows the same core connection/file-action terminology using a touch-first layout.
 
-README and active documentation must never show screenshots or local product images that are newer than the latest published Ghost FTP release.
+### Secure connections
 
-The quality workflow:
+FTP, explicit FTPS and SFTP with TLS/SSH verification, protected credential handling where supported, timeout/cleanup controls and guarded remote mutations.
 
-- resolves the newest non-draft GitHub Release tag;
-- scans repository Markdown image references;
-- validates the full `docs/assets/screenshots/` set;
-- compares every local image Git blob with the same path in that release tag;
-- fails if a referenced image is missing from the latest release or has drifted.
+### Files and transfers
 
-This keeps documentation visuals tied to released product state instead of unreleased UI.
+Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls.
 
-## Core product
+### Productivity
 
-Ghost FTP combines secure server connections, dual-pane file management, saved sites, transfer queues, synchronization, checksums, permissions, terminal tools and server workflows in one native product.
+Sites, Sync & Backup, terminal tools, command palette, snippets, shortcuts, checksums, permissions and platform integration.
 
-<table>
-<tr><td width="52"><img src="website/assets/icons/security.svg" width="30" alt=""></td><td><strong>Secure connections</strong><br>FTP, explicit FTPS and SFTP with native TLS/SSH verification paths and protected credential handling where supported.</td></tr>
-<tr><td><img src="website/assets/icons/speed.svg" width="30" alt=""></td><td><strong>Fast transfers</strong><br>Concurrent queues, pause/resume, retries, conflict handling and bandwidth controls.</td></tr>
-<tr><td><img src="website/assets/icons/features.svg" width="30" alt=""></td><td><strong>One workspace</strong><br>Local and remote browsing, Sites, permissions, checksums, sync, search and terminal tools.</td></tr>
-<tr><td><img src="website/assets/icons/privacy.svg" width="30" alt=""></td><td><strong>Privacy first</strong><br>No required analytics or telemetry. Sensitive profile secrets stay outside ordinary profile JSON where supported.</td></tr>
-<tr><td><img src="website/assets/icons/download.svg" width="30" alt=""></td><td><strong>Desktop + mobile</strong><br>Windows, Linux and Android artifacts are generated and verified through GitHub Actions.</td></tr>
-</table>
+### Privacy
+
+No required analytics or telemetry. Sensitive diagnostic text is redacted and secrets are kept out of ordinary profile storage where supported.
 
 ## Platform scope
 
 ### Windows x64
 
-The production Windows application is the native Tauri desktop build. Release packaging provides a portable executable and a branded NSIS Setup executable with EULA acceptance, Ghost FTP artwork and install/uninstall lifecycle smoke coverage. Background helper processes are hardened to avoid unintended console-window flashes.
+The production Windows application is the native Tauri desktop build. Release packaging provides a portable executable, a branded NSIS Setup and a Windows Installer (`.msi`) package. CI performs real silent install/uninstall smoke coverage for both installer formats before either can reach a release.
 
 ### Linux x86-64
 
-The native desktop build produces the executable plus AppImage, DEB and RPM packages. Release CI also validates AppImage metadata and DEB install/remove behavior, while RPM metadata is verified before publication.
+Linux uses the same desktop frontend and Rust/native engine as Windows. Release packaging provides the native executable, AppImage, DEB and RPM packages. CI validates package metadata and lifecycle behavior before publication.
 
 ### Android
 
-The native Kotlin application supports FTP, explicit FTPS and SFTP file workflows. CI verifies the installable preview APK with `apksigner`; the separate unsigned release variant is a validation artifact and is not the canonical end-user APK.
+The native Kotlin application supports FTP, explicit FTPS and SFTP connection/listing workflows plus upload, download, new-folder, delete, refresh and guarded session handling. Android keeps the same product terminology and branding while using a mobile-first layout.
 
-Production mobile signing policy remains a stable-release acceptance item.
+## Verification
 
-## Build
-
-Desktop frontend and type checks:
+Desktop:
 
 ```bash
 cd ghostftp-desktop
@@ -86,56 +93,39 @@ npm run check
 npm run build
 ```
 
-Windows bundle:
-
-```bash
-cd ghostftp-desktop
-npm run build:windows
-```
-
-Linux bundles:
-
-```bash
-cd ghostftp-desktop
-npm run build:linux
-```
-
-Android validation/build:
+Android:
 
 ```bash
 gradle -p android lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview
 ```
 
-## Required PR gates
+Required exact-head gates:
 
-Changes intended for `main` are validated against the exact PR HEAD by:
+- **Ghost FTP quality**
+- **Ghost FTP protocol E2E**
+- **Ghost FTP native build**
+- **Ghost FTP Android**
+- **Validate Windows hardening**
 
-- **Ghost FTP quality** — version/docs/image provenance, frontend, Go and Rust workspace checks.
-- **Ghost FTP protocol E2E** — real FTP, explicit FTPS and SFTP roundtrips.
-- **Ghost FTP native build** — Windows/Linux production bundles plus Windows native-window QA evidence.
-- **Ghost FTP Android** — Android contract, lint/build, signature/package and APK artifact verification.
-- **Validate Windows hardening** — Windows-specific process, UI, Rust and NSIS hardening.
-
-A successful compile alone is not a stable/FINAL acceptance claim.
+The Windows/Linux build additionally performs Windows NSIS/MSI lifecycle smoke tests, Linux package lifecycle checks, native QA evidence capture and artifact-size budget checks.
 
 ## Release model
 
-The canonical release workflow is **Ghost FTP release**. It is triggered by the successful production native build on `main`, waits for the remaining exact-SHA gates, consumes that same build's Windows/Linux artifacts, adds the verified Android APK and native QA evidence, and publishes normalized source/documentation/checksum assets.
+The canonical **Ghost FTP release** workflow runs only from a successful native build on `main`, waits for every required exact-SHA gate, consumes the same Windows/Linux artifacts, adds the verified Android APK and publishes normalized source/documentation/update/checksum assets.
 
-Existing version tags are immutable: publication refuses to retarget a tag to different source.
+Version tags are immutable. A published tag is never retargeted to newer source.
 
 ## Repository layout
 
 ```text
 Ghost-FTP/
 ├── android/                 Native Android application
-├── ghostftp-desktop/        Production Windows/Linux desktop application
-├── website/                 ghostftp.com source
-├── updates/                 Update channels, manifest schema and tools
-├── tools/                   Developer/runtime/installer support tooling
+├── ghostftp-desktop/        Native Windows/Linux application
+├── updates/                 Desktop update-service tooling and operator docs
+├── tools/                   Support/runtime/installer tooling
 ├── docs/                    Product, QA, release, legal and development docs
 ├── version.json             Canonical active version/build metadata
-├── .github/workflows/       Quality, platform build and release automation
+├── .github/workflows/       Quality, build, platform and release automation
 ├── README.md
 ├── CHANGELOG.md
 ├── SECURITY.md
@@ -143,7 +133,7 @@ Ghost-FTP/
 └── EULA.txt
 ```
 
-Use **Ghost FTP** in user-facing copy and **GhostFTP** in executable/archive names. Framework-specific names remain only where the build ecosystem requires them internally.
+Use **Ghost FTP** in user-facing copy and **GhostFTP** in executable/archive names.
 
 <div align="center">
 
@@ -152,6 +142,6 @@ Use **Ghost FTP** in user-facing copy and **GhostFTP** in executable/archive nam
 **Simple. Secure. Powerful.**
 
 Publisher: **Brendigo**  
-Official website: **https://ghostftp.com/**
+Canonical downloads: **GitHub Releases**
 
 </div>

@@ -3,12 +3,11 @@
 ## Authoritative current state
 
 - **Active source/release cycle:** Ghost FTP **0.19.0**.
-- **Latest published canonical release:** Ghost FTP **0.18.0**.
+- **Previous canonical release:** Ghost FTP **0.18.0**.
 - **Live publication status:** GitHub Releases is authoritative and queried by CI.
 - **Version source of truth:** `version.json`.
 - **Desktop production source:** `ghostftp-desktop/`.
 - **Android production source:** `android/`.
-- **Website source:** `website/`.
 
 The production desktop GUI is the native React + TypeScript + Tauri + Rust application. Go tooling under `tools/` is support/compatibility tooling and is not the authoritative end-user desktop GUI.
 
@@ -23,7 +22,7 @@ The production desktop GUI is the native React + TypeScript + Tauri + Rust appli
 - Version/Cargo metadata synchronization: `.github/workflows/version-sync.yml`
 - Dependency-manifest Cargo lock refresh: `.github/workflows/cargo-lock-refresh.yml`
 
-The obsolete duplicate Windows/Linux native build workflow has been removed. The canonical native build now supplies both release binaries and Windows native-window QA evidence.
+The obsolete duplicate Windows/Linux native build workflow and website application surface have been removed. The canonical native build now supplies both release binaries and Windows native-window QA evidence. Android runs on every release-relevant PR and every `main` push and includes an emulator click-through smoke.
 
 ## 0.19.0 packaging and size hardening
 
@@ -84,20 +83,20 @@ Evidence applies only to the exact tested source SHA.
 
 - installable APK from the verified Android workflow artifact;
 - package/signature checks via `apksigner`;
-- separate unsigned release-check APK used for validation, not as the canonical end-user APK.
+- separate unsigned release-check APK used for validation, not as the canonical end-user APK;
+- emulator click-through test and real emulator UI screenshot evidence in the Android CI artifact.
 
 ### Source/support assets
 
 - full source archive;
 - desktop source archive;
 - Android source archive;
-- website archive;
-- update metadata archive;
+- update-service metadata/tooling archive;
 - documentation archive;
 - SHA-256 checksum file.
 
 ## Release truth
 
-`0.19.0` is the active cycle after published `0.18.0`. Whether a version is currently published is determined by the canonical GitHub Release/tag, not by documentation wording or a successful compile.
+`0.19.0` is the active cycle after `0.18.0`. Live publication status is determined by the canonical GitHub Release/tag, not by documentation wording or a successful compile.
 
 Existing version tags are immutable. Stable/FINAL status is separate from publishing a pre-1.0 release and still requires the target-OS lifecycle, visual, security, accessibility and signing acceptance described in QA/release documentation.

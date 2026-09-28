@@ -24,6 +24,7 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Spinner
@@ -55,6 +56,12 @@ class MainActivity : Activity() {
     private lateinit var refreshButton: Button
     private lateinit var remoteRows: LinearLayout
     private lateinit var activityRows: LinearLayout
+    private lateinit var contentScroll: ScrollView
+    private lateinit var sitesSection: View
+    private lateinit var filesSection: View
+    private lateinit var transfersSection: View
+    private lateinit var settingsSection: View
+    private lateinit var aboutSection: View
     private var activeProfile: ConnectionProfile? = null
     private var selectedUploadUri: Uri? = null
     private var selectedUploadDisplayName: String = ""
@@ -98,29 +105,45 @@ class MainActivity : Activity() {
         appendActivity("Upload", "Selected $selectedUploadDisplayName from Android document storage.")
     }
 
-    private fun buildContent(): View = ScrollView(this).apply {
-        setBackgroundColor(Brand.background)
-        addView(
-            LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(14), dp(14), dp(14), dp(22))
-                addView(buildHeader())
-                addView(space(12))
-                addView(buildStatusCard())
-                addView(space(12))
-                addView(buildConnectionCard())
-                addView(space(12))
-                addView(buildFilesCard())
-                addView(space(12))
-                addView(buildTransfersCard())
-                addView(space(12))
-                addView(buildFooter())
-            },
+    private fun buildContent(): View {
+        contentScroll = ScrollView(this).apply {
+            setBackgroundColor(Brand.background)
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(14), dp(14), dp(22))
+        }
+
+        sitesSection = buildConnectionCard()
+        filesSection = buildFilesCard()
+        transfersSection = buildTransfersCard()
+        settingsSection = buildSettingsCard()
+        aboutSection = buildAboutCard()
+
+        content.addView(buildHeader())
+        content.addView(space(12))
+        content.addView(buildStatusCard())
+        content.addView(space(12))
+        content.addView(sitesSection)
+        content.addView(space(12))
+        content.addView(filesSection)
+        content.addView(space(12))
+        content.addView(transfersSection)
+        content.addView(space(12))
+        content.addView(settingsSection)
+        content.addView(space(12))
+        content.addView(aboutSection)
+        content.addView(space(12))
+        content.addView(buildFooter())
+
+        contentScroll.addView(
+            content,
             ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
         )
+        return contentScroll
     }
 
     private fun buildHeader(): View = panel(strong = true).apply {
@@ -139,19 +162,34 @@ class MainActivity : Activity() {
         titleRow.addView(badge(ReleaseInfo.VERSION_BADGE))
         addView(titleRow)
 
+        val workspaceScroll = HorizontalScrollView(this@MainActivity).apply {
+            isHorizontalScrollBarEnabled = false
+            setPadding(0, dp(10), 0, 0)
+        }
         val workspaceRow = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(10), 0, 0)
         }
-        workspaceRow.addView(workspaceChip("Files"))
-        workspaceRow.addView(gap(8))
+        val workspaceTargets = listOf(
+            "Files" to { filesSection },
+            "Sites" to { sitesSection },
+            "Transfers" to { transfersSection },
+            "Settings" to { settingsSection },
+            "Help & About" to { aboutSection }
+        )
+        workspaceTargets.forEachIndexed { index, (label, target) ->
+            if (index > 0) workspaceRow.addView(gap(8))
+            workspaceRow.addView(workspaceNavChip(label) { scrollToSection(target()) })
+        }
+        workspaceRow.addView(gap(10))
         workspaceRow.addView(TextView(this@MainActivity).apply {
             text = ReleaseInfo.VERSION_DISPLAY
             setTextColor(Brand.muted)
             textSize = 13f
+            gravity = Gravity.CENTER_VERTICAL
         })
-        addView(workspaceRow)
+        workspaceScroll.addView(workspaceRow)
+        addView(workspaceScroll)
 
         addView(space(12))
         val toolbar = LinearLayout(this@MainActivity).apply {
@@ -239,9 +277,15 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(14), 0, 0)
         }
-        connectButton = primaryButton("Connect") { openConnection() }
-        disconnectButton = secondaryButton("Disconnect") { disconnect() }
-        refreshButton = secondaryButton("Refresh") { refreshActive() }
+        connectButton = primaryButton("Connect") { openConnection() }.apply {
+            contentDescription = "Connect to server"
+        }
+        disconnectButton = secondaryButton("Disconnect") { disconnect() }.apply {
+            contentDescription = "Disconnect from server"
+        }
+        refreshButton = secondaryButton("Refresh") { refreshActive() }.apply {
+            contentDescription = "Refresh current session"
+        }
         actions.addView(connectButton, buttonParams(weight = 1f))
         actions.addView(gap(8))
         actions.addView(disconnectButton, buttonParams(weight = 1f))
@@ -306,6 +350,29 @@ class MainActivity : Activity() {
             setPadding(0, dp(12), 0, 0)
         }
         addView(activityRows)
+    }
+
+    private fun buildSettingsCard(): View = panel().apply {
+        addView(sectionTitle("Settings"))
+        addView(sectionDescription("Security and privacy protections shared with Ghost FTP desktop."))
+        addView(row("Privacy", "No required tracking, analytics or telemetry."))
+        addView(row("Credentials", "Session passwords stay in memory and are cleared on disconnect or Activity destruction."))
+        addView(row("Connection safety", "Remote mutations are guarded and SFTP requires strict host-key verification."))
+    }
+
+    private fun buildAboutCard(): View = panel().apply {
+        addView(sectionTitle("Help & About"))
+        addView(sectionDescription("Ghost FTP ${ReleaseInfo.VERSION_DISPLAY} · Build ${ReleaseInfo.BUILD}"))
+        addView(row("Product", "Ghost FTP by Brendigo"))
+        addView(row("Protocols", "FTP · Explicit FTPS · SFTP"))
+        addView(row("Release", "Use the verified GitHub release package for Android distribution."))
+    }
+
+    private fun scrollToSection(target: View) {
+        contentScroll.post {
+            contentScroll.smoothScrollTo(0, target.top)
+            target.requestFocus()
+        }
     }
 
     private fun buildFooter(): View = panel().apply {
@@ -803,14 +870,18 @@ class MainActivity : Activity() {
         background = rounded(Brand.badge, dp(999), Brand.border)
     }
 
-    private fun workspaceChip(value: String): TextView = TextView(this).apply {
+    private fun workspaceNavChip(value: String, onClick: () -> Unit): TextView = TextView(this).apply {
         text = value
-        setTextColor(Brand.background)
+        contentDescription = "Open $value workspace"
+        setTextColor(Brand.text)
         textSize = 13f
         typeface = Typeface.DEFAULT_BOLD
         gravity = Gravity.CENTER
         setPadding(dp(12), dp(6), dp(12), dp(6))
-        background = rounded(Brand.accent, dp(999), Brand.accent)
+        background = rounded(Brand.badge, dp(999), Brand.border)
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { onClick() }
     }
 
     private fun primaryButton(value: String, onClick: () -> Unit): Button = Button(this).apply {
@@ -832,6 +903,7 @@ class MainActivity : Activity() {
 
     private fun toolbarButton(value: String, destructive: Boolean = false, onClick: () -> Unit): Button = Button(this).apply {
         text = value
+        contentDescription = "$value action"
         setTextColor(if (destructive) Brand.danger else Brand.text)
         textSize = 12f
         typeface = Typeface.DEFAULT_BOLD

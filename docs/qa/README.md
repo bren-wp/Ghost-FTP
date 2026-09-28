@@ -4,7 +4,7 @@ This directory tracks evidence and acceptance criteria for the current Ghost FTP
 
 ## Automated release gates
 
-Every release source must pass the exact-head quality, real FTP/explicit FTPS/SFTP E2E, canonical Windows/Linux native build, Android and Windows hardening workflows before publication.
+Every release source must pass the exact-head quality, real FTP/explicit FTPS/SFTP E2E, canonical Windows/Linux native build, Android and Windows hardening workflows before publication. The Android gate includes an emulator click-through smoke on the same tested source.
 
 The quality gate also verifies that local README/documentation images are byte-identical to the newest published release tag.
 
@@ -26,6 +26,7 @@ Each is captured at canonical, compact and near-minimum viewport sizes by the ca
 - [Transfer QA](TRANSFERS.md)
 - [Installer QA](INSTALLER.md)
 - [Protocol E2E](PROTOCOL_E2E.md)
+- [Android QA](ANDROID.md)
 
 ## Visual acceptance
 

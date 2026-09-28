@@ -12,6 +12,9 @@ const version = meta.version;
 const previousVersion = meta.previousVersion;
 
 const failures = [];
+if (exists("website")) {
+  failures.push("obsolete website/ source tree must remain removed");
+}
 const requireFile = (rel) => {
   if (!exists(rel)) failures.push(`missing required documentation/release file: ${rel}`);
 };
@@ -21,6 +24,12 @@ const requireIncludes = (rel, needle, label) => {
 
 const operationalDocs = [
   "README.md",
+  "CHANGELOG.md",
+  "SECURITY.md",
+  "LICENSE.txt",
+  "EULA.txt",
+  "docs/legal/PRIVACY.md",
+  "docs/legal/THIRD_PARTY_NOTICES.md",
   "docs/README.md",
   "docs/ROADMAP.md",
   "docs/architecture/NAMING.md",
@@ -38,6 +47,7 @@ const operationalDocs = [
   "docs/product/STATUS_AND_NEXT.md",
   "docs/product/UI_UX.md",
   "docs/qa/README.md",
+  "docs/qa/ANDROID.md",
   "docs/qa/CLICK.md",
   "docs/qa/INSTALLER.md",
   "docs/qa/PIXEL_PARITY.md",
@@ -58,6 +68,9 @@ const forbidden = [
   [/ghostftp-rc\d*-release/i, "obsolete RC release workflow"],
   [/Ghost-FTP-Premium/, "obsolete Premium repository reference"],
   [/ghostftp-native-preview/i, "obsolete duplicate native-build workflow"],
+  [/\bwebsite\//i, "obsolete website source path"],
+  [/GhostFTP-v<version>-Website\.zip/i, "obsolete website release archive"],
+  [/https?:\/\/(?:www\.)?ghostftp\.com/i, "retired public website URL"],
 ];
 
 for (const rel of operationalDocs) {
@@ -97,7 +110,7 @@ requireFile("docs/releases/README.md");
 requireFile("docs/releases/version-map.json");
 requireFile(".github/workflows/ghostftp-release.yml");
 requireFile("updates/README.md");
-requireFile("updates/WEB_DEPLOYMENT.md");
+requireFile("updates/DEPLOYMENT.md");
 requireFile("updates/RELEASE_RUNBOOK.md");
 requireFile("updates/SECURITY.md");
 requireFile("updates/latest.template.json");

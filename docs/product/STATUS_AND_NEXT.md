@@ -2,7 +2,7 @@
 
 This document describes the current **0.19.0 development** source. Historical release details belong in `docs/releases/`.
 
-Latest published canonical release: **0.18.0**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.18.0**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -17,8 +17,7 @@ Latest published canonical release: **0.18.0**. Live publication state is determ
 | Productivity | Docked terminal, command palette, snippets, shortcuts and shell integration |
 | Preferences | Themes, language, transfer limits, security settings, notifications and advanced controls |
 | Security/privacy | OS credential storage where supported, CSP, signed-updater path, credential redaction and no required telemetry |
-| Android | Native FTP, explicit FTPS and SFTP listing/download/upload/delete/new-folder actions |
-| Website | Landing/localized pages plus download, security, support and sitemap routes |
+| Android | Native FTP, explicit FTPS and SFTP connection/listing/download/upload/delete/new-folder actions aligned to desktop Files/Sites/Transfers terminology |
 | Platforms | Windows portable + NSIS Setup; Linux binary/AppImage/DEB/RPM; Android APK |
 | Release QA | Quality, protocol E2E, canonical native build, Android and Windows hardening exact-head gates |
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
@@ -32,6 +31,8 @@ Full capability detail: [FEATURES.md](FEATURES.md).
 - Smoke-tests the exact Windows Setup install/uninstall lifecycle produced by the release build.
 - Verifies Linux AppImage metadata plus DEB install/remove and RPM metadata in CI.
 - Refreshes Android FTP/FTPS and SFTP libraries to maintained releases.
+- Aligns Android navigation to Files, Sites, Transfers, Settings and Help & About and validates core actions in an emulator click-through smoke.
+- Removes the obsolete website application, website CI/release archive and website roadmap surface.
 - Uses size-focused native release codegen and keeps optional AppImage media bundling disabled.
 - Uploads only final native package files from CI and enforces artifact-size budgets.
 - Keeps Windows native-window QA inside the canonical build and packages QA evidence with releases.

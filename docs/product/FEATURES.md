@@ -165,13 +165,13 @@ Implemented architectural controls include:
 - Restricted developer compatibility API and mutation authorization.
 - No production dependency on a browser-host `127.0.0.1` GUI wrapper.
 
-## Current 0.18.0 hardening
+## Current 0.19.0 hardening
 
 - Recurring transfer schedules honor their configured start date and wait for the initial backend snapshot.
 - Concurrent native connection attempts for the same profile are deduplicated.
 - Native OS notification and updater diagnostic text is credential-redacted.
 
-0.18.0 retains the single-window architecture and further hardens:
+0.19.0 retains the single-window architecture and further hardens:
 
 - Terminal transfer rows no longer show a meaningless Cancel action after completion.
 - Skipped and canceled transfers have explicit labels.
@@ -186,5 +186,3 @@ Implemented architectural controls include:
 - Startup removes legacy persisted terminal/notification history left by older release candidates.
 - Terminal and transfer listener startup is disposal/race-aware so late async initialization cannot leak listeners or overwrite newer live transfer state.
 - Reduced-motion support is applied to desktop UI transitions.
-- Website loading animation stops when complete instead of running an interval forever.
-- Website loading animation respects `prefers-reduced-motion`.

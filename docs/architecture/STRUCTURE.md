@@ -11,7 +11,6 @@ Ghost-FTP/
 ├── tools/
 │   ├── ghostftp-runtime/      Support/compatibility runtime tooling
 │   └── ghostftp-installer/    Support/compatibility installer tooling
-├── website/                   ghostftp.com website source
 ├── updates/                   Update-manifest templates/tools
 ├── docs/                      Product, QA, build, legal and historical docs
 ├── version.json               Canonical active version/build metadata
@@ -41,13 +40,9 @@ Support/compatibility tooling. It must not replace or be described as the produc
 
 Support/compatibility installer tooling. Production Windows end-user packaging comes from the native desktop/Tauri NSIS build.
 
-### `website/`
-
-Static ghostftp.com source and local assets.
-
 ### `updates/`
 
-Update-manifest templates and release metadata helpers.
+Desktop update-service templates, signing/deployment tooling and operator documentation. No separate website application is maintained in this repository.
 
 ### `docs/`
 

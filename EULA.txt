@@ -3,12 +3,12 @@ Version 1.0 — Effective 19 September 2026
 
 IMPORTANT — READ CAREFULLY BEFORE INSTALLING OR USING GHOST FTP.
 
-This Commercial Software License Agreement (the “Agreement”) is a legally binding agreement governing the installation, access to, and use of the Ghost FTP desktop application, installers, updates, documentation, associated command-line components, and related materials (collectively, the “Software”).
+This Commercial Software License Agreement (the “Agreement”) is a legally binding agreement governing the installation, access to, and use of the Ghost FTP applications for Windows, Linux and Android, their installers/packages, updates, documentation, associated command-line components, and related materials (collectively, the “Software”).
 
 LICENSOR
 “Licensor” means Brendigo LTD and Brendigo, obrt za programiranje, acting individually or together as applicable to the order, invoice, subscription, licence key, distribution channel, or other commercial arrangement under which the Software is supplied. The entity identified on the applicable commercial document is the contracting licensor. Where no entity is identified, Brendigo LTD and Brendigo, obrt za programiranje jointly administer the licence for the Ghost FTP product.
 
-Ghost FTP is an official Ghost FTP product. Official product information, downloads, support information and policies are published through https://ghostftp.com/.
+Ghost FTP is an official Ghost FTP product. Canonical product source, verified downloads, documentation, support references and policy files are maintained through the Ghost FTP GitHub repository and its Releases.
 
 1. ACCEPTANCE
 1.1 By selecting “I accept”, installing, copying, accessing, activating, or using the Software, you confirm that you have read and understood this Agreement and agree to be bound by it.
@@ -54,13 +54,13 @@ Except to the extent a restriction is prohibited by mandatory law, you must not,
 7.2 The Software does not grant Licensor ownership of files, credentials, server content, connection profiles, or other customer data processed through the Software.
 7.3 Analytics and telemetry are disabled by default in the Ghost FTP product configuration supplied under this Agreement unless a user or administrator expressly enables an optional feature that states otherwise.
 7.4 Network connections initiated by the Software may necessarily disclose technical information to the destination server, certificate authority, update service, operating-system service, or other endpoint involved in performing the requested function.
-7.5 Privacy practices for Licensor-operated online services are described in the privacy information published at https://ghostftp.com/privacy/.
+7.5 Privacy practices for Licensor-operated online services are described in the privacy information published at https://github.com/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md.
 
 8. SECURITY
 8.1 You must protect passwords, SSH keys, certificates, tokens, recovery data, and other credentials used with the Software.
 8.2 You are responsible for verifying server identities, SSH host keys, TLS certificates, paths, permissions, and transfer destinations before approving sensitive operations.
 8.3 You must promptly install security updates that are designated as important or critical where reasonably practicable.
-8.4 No software can be guaranteed to be completely free of vulnerabilities. Security reports should be submitted using the official Ghost FTP support or security contact published at https://ghostftp.com/.
+8.4 No software can be guaranteed to be completely free of vulnerabilities. Security reports should be submitted using the official Ghost FTP support or security contact published at https://github.com/bren-wp/Ghost-FTP.
 
 9. UPDATES, UPGRADES, AND CHANGES
 9.1 Licensor may provide maintenance releases, security fixes, compatibility updates, or feature updates. An update may replace or modify earlier Software components.
@@ -132,10 +132,11 @@ You may not assign or transfer this Agreement or the Software except with Licens
 23. CONTACT AND OFFICIAL PRODUCT INFORMATION
 Product: Ghost FTP
 Licensor: Brendigo LTD and Brendigo, obrt za programiranje, as applicable to the commercial transaction
-Official website: https://ghostftp.com/
-Documentation: https://ghostftp.com/docs/
-Support: https://ghostftp.com/support/
-Privacy: https://ghostftp.com/privacy/
+Canonical repository: https://github.com/bren-wp/Ghost-FTP
+Releases: https://github.com/bren-wp/Ghost-FTP/releases
+Documentation: https://github.com/bren-wp/Ghost-FTP/tree/main/docs
+Security: https://github.com/bren-wp/Ghost-FTP/blob/main/SECURITY.md
+Privacy: https://github.com/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md
 
 Copyright © 2026 Brendigo LTD and Brendigo, obrt za programiranje. All rights reserved.
 Ghost FTP and associated product branding are proprietary to their respective Licensor owner(s).

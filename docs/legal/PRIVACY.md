@@ -1,27 +1,37 @@
 # Ghost FTP Privacy
 
-Ghost FTP is designed as a desktop file-transfer client. Connection profiles and application settings are stored on the user's device. Files transferred through the native protocol engine are sent between the user's device and the endpoints the user chooses; Ghost FTP does not need a Brendigo-hosted proxy to perform ordinary FTP, FTPS or SFTP transfers.
+Ghost FTP is designed as a local-first file-transfer application for Windows, Linux and Android. Connection profiles, settings and transfer state are stored on the user's device. Ordinary FTP, explicit FTPS and SFTP transfers run between the user's device and the endpoint selected by the user; Ghost FTP does not require a Brendigo-hosted transfer proxy.
 
 ## Credentials
 
-Where supported by the native build, secrets should be stored through operating-system credential facilities or protected references instead of plain profile JSON. Password fields are masked in the UI. Passwords, SSH private-key contents and equivalent secrets must not be written to normal application or crash logs.
+Where supported by the desktop build, secrets are stored through operating-system credential facilities or protected references instead of ordinary profile data. Password fields are masked. Android session passwords remain in memory for the active session and are cleared on disconnect or Activity destruction.
+
+Passwords, passphrases, SSH private-key contents, tokens and equivalent secrets must not be written to normal application, notification or crash logs.
 
 ## Telemetry
 
-Analytics and telemetry are disabled by default in the supplied product configuration. The application should not silently enable analytics. If an optional diagnostic or usage feature is introduced later, it must be explicit, documented and separable from core transfer functionality.
+Ghost FTP does not require analytics or telemetry for core operation. The supplied production configuration does not silently enable usage tracking.
+
+If optional diagnostics are introduced in a future version, they must be explicit, documented and separable from core transfer functionality.
 
 ## Network activity
 
-User-requested connections necessarily disclose technical connection information to the selected server and the network infrastructure required to reach it. Update checks contact the official Ghost FTP update service at `ghostftp.com`. Links opened from Help/About are restricted to the official Ghost FTP site in the product-facing code audited for this package.
+User-requested connections necessarily disclose connection information to the selected server and the network infrastructure required to reach it. Desktop update checks contact the configured official Ghost FTP update service and accept installation only through the updater's verification path.
+
+Help & About remains inside the native desktop application. Canonical downloads are published through GitHub Releases; the repository does not contain a separate public website application.
 
 ## Local data
 
-Local settings, profile metadata, transfer state and required caches are stored on the user's device. The profile store uses staged writes with a backup/recovery path to reduce corruption risk.
+Local settings, profile metadata, transfer state and required caches are stored on the user's device. Desktop profile writes use staged/backup recovery paths to reduce corruption risk.
 
-Terminal suggestion history is **session-only** in RC18: entered shell commands are not persisted to WebView storage, and credential-looking commands are excluded even from the in-memory suggestion list. Notification-center history is also session-only. On upgrade, Ghost FTP removes legacy terminal/notification history keys created by older release candidates.
+Terminal suggestion history is session-only and credential-looking commands are excluded from in-memory suggestions. Notification-center history is session-only. Startup cleanup removes legacy terminal/notification history keys created by older development builds.
 
-User-facing diagnostic text passes through credential redaction for common password, passphrase, token, API-key, Authorization/Bearer, credential-URL and private-key patterns. This filtering is defense in depth and does not replace the rule that secrets should not be included in errors or logs in the first place.
+User-facing diagnostics pass through credential redaction for common password, passphrase, token, API-key, authorization, credential-URL and private-key patterns. Redaction is defense in depth and does not replace the rule that secrets must not be included in errors or logs.
 
-Users remain responsible for backups of their own files and credentials.
+## Files and servers
 
-For official privacy information, use **https://ghostftp.com/privacy/**. This project document describes the supplied software configuration and is not a substitute for the public website policy that applies to hosted Ghost FTP services.
+Ghost FTP does not claim ownership of files, server data, connection profiles or credentials processed by the application. Users remain responsible for authorization, server identity verification, backups and the consequences of requested file operations.
+
+## Canonical privacy record
+
+This file is the canonical privacy description for the Ghost FTP software configuration distributed from this repository. Hosted services, if introduced separately in the future, require their own service-specific privacy terms.

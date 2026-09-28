@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.19.0 — development — 27 September 2026
+## 0.19.0 — release cycle — 27 September 2026
 
-0.19.0 is the active development cycle after published 0.18.0.
+0.19.0 follows canonical 0.18.0; live publication status is determined by GitHub Releases.
 
 - Branded the canonical Windows NSIS Setup with Ghost FTP installer/uninstaller icons, header/sidebar artwork and the root EULA as the interactive licence page.
 - Added real silent Setup install/uninstall smoke coverage to the canonical Windows native build.
@@ -14,6 +14,12 @@
 - Added artifact size budgets and build-summary size reporting.
 - Fixed updater note synchronization and hardened version-sync against concurrent branch pushes.
 - Kept README/documentation imagery pinned to the newest published release tag.
+- Removed the obsolete website application source, website CI/release packaging and active website roadmap/docs.
+- Added release-proven real native application screenshot gallery to the root README.
+- Added Android emulator click-through instrumentation and desktop-aligned Files/Sites/Transfers/Settings/Help & About navigation.
+- Made Android run on every `main` push so exact-SHA release orchestration always has a mobile gate.
+- Removed a dead preview verifier that depended on a non-existent mock runtime.
+- Updated EULA, commercial licence, privacy, security, support and third-party notices for the app-only distribution model.
 
 See [docs/releases/0.19.0.md](docs/releases/0.19.0.md).
 

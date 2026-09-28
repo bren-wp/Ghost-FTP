@@ -5,11 +5,6 @@ on:
     branches: [main]
   push:
     branches: [main]
-    paths:
-      - 'android/**'
-      - 'docs/mobile/**'
-      - '.github/workflows/ghostftp-android.yml'
-      - '.github/workflows/ghostftp-android-release.yml'
 
 permissions:
   contents: read
@@ -20,7 +15,7 @@ concurrency:
 
 jobs:
   android:
-    runs-on: ubuntu-22.04
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,6 +40,28 @@ jobs:
       - name: Native Android lint and APK build
         shell: bash
         run: gradle -p android lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview
+      - name: Android click-through emulator smoke
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 35
+          target: aosp_atd
+          arch: x86_64
+          disable-animations: true
+          pre-emulator-launch-script: |
+            set -euo pipefail
+            adb start-server
+            adb version
+            adb devices
+          script: bash android/scripts/run-instrumentation-smoke.sh
+      - name: Upload Android instrumentation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GhostFTP-Android-Instrumentation-Diagnostics
+          path: |
+            dist/android/diagnostics/*
+          if-no-files-found: ignore
+
       - name: Prepare Android APK artifacts
         shell: bash
         run: |

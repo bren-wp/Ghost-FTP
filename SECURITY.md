@@ -14,7 +14,7 @@ Notification-center history is also session-only. User-facing diagnostics are fi
 
 ## Updates
 
-Native update metadata is retrieved only from the configured official `https://ghostftp.com/updates/latest.json` endpoint. The Tauri updater verifies the configured signature before installing an artifact. Package SHA-256 values should also be published with releases. A failed download, checksum/signature verification or apply step must leave the currently installed version usable.
+Native update metadata is retrieved only from the configured official Ghost FTP update service. The Tauri updater verifies the configured signature before installing an artifact. Package SHA-256 values are published with canonical releases. A failed download, checksum/signature verification or apply step must leave the currently installed version usable.
 
 ## Local runtime boundary
 
@@ -22,6 +22,6 @@ The Go compatibility runtime binds its local control server only to `127.0.0.1` 
 
 ## Reporting
 
-Security reports should be submitted through the official Ghost FTP support/security route published at **https://ghostftp.com/**. Do not include production passwords, SSH private keys or customer data in a report. Include the Ghost FTP version, OS, reproducible steps and sanitized logs where possible.
+Security reports should follow **SECURITY.md** in this repository and may be submitted through the repository's documented security/support route. Do not include production passwords, SSH private keys or customer data in a report. Include the Ghost FTP version, OS, reproducible steps and sanitized logs where possible.
 
 No statement in this file claims that the software is vulnerability-free or that this package received an independent security certification.

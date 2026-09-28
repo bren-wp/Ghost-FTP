@@ -1,10 +1,10 @@
-# Ghost FTP Update Service — Web Deployment
+# Ghost FTP Update Service — Deployment
 
 This document is for the person or automation that manages **ghostftp.com**. It is intentionally technical and must not be copied into user-facing application screens.
 
 ## Recommended production layout
 
-Only one mutable machine-consumed file is required on the Ghost FTP website:
+Only one mutable machine-consumed file is required on the Ghost FTP update-service host:
 
 ```text
 public_html/
@@ -12,22 +12,22 @@ public_html/
     └── latest.json
 ```
 
-The Windows/Linux package URLs inside that file point to immutable, versioned GitHub Release assets. This keeps the Ghost FTP web server small and avoids duplicating large binaries on shared hosting.
+The Windows/Linux package URLs inside that file point to immutable, versioned GitHub Release assets. This keeps the Ghost FTP update-service host small and avoids duplicating large binaries on shared hosting.
 
-The release workflow produces `GhostFTP-v<version>-Web-Update.zip` with exactly:
+The release workflow produces `GhostFTP-v<version>-Update-Service.zip` with exactly:
 
 ```text
 updates/
 └── latest.json
 ```
 
-Extract that archive into the website document root so the resulting public URL is:
+Extract that archive into the update-service hosting root so the resulting public URL is:
 
 `https://ghostftp.com/updates/latest.json`
 
 ## What must NOT be uploaded
 
-Never upload any of these to the website:
+Never upload any of these to the update-service host:
 
 - Tauri private signing key;
 - signing-key password;
@@ -43,8 +43,8 @@ Signature text inside `latest.json` and public `.sig` release assets are safe to
 1. Confirm the new GitHub Release exists and its tag points to the intended source SHA.
 2. Confirm Windows Setup, Linux AppImage and their signature assets exist.
 3. Verify release checksums/digests.
-4. Download `GhostFTP-v<version>-Web-Update.zip`.
-5. Extract it outside the live web root.
+4. Download `GhostFTP-v<version>-Update-Service.zip`.
+5. Extract it outside the live update-service root.
 6. From a repository checkout, run `node updates/scripts/verify-manifest.mjs <path>/updates/latest.json --expected-version=<version>`.
 7. Upload the new file as a temporary name, for example `/updates/latest.json.new`.
 8. Atomically rename/replace it to `/updates/latest.json`.
@@ -68,7 +68,7 @@ The desktop updater is a native client, so browser CORS is not required for the 
 
 ## Shared hosting / Apache
 
-Use `updates/web/.htaccess.example` as the basis for `public_html/updates/.htaccess`.
+Use `updates/hosting/.htaccess.example` as the basis for `public_html/updates/.htaccess`.
 
 Recommended deployed directory:
 
@@ -80,7 +80,7 @@ public_html/updates/
 
 ## Nginx
 
-Use `updates/web/nginx.conf.example` inside the Ghost FTP server configuration.
+Use `updates/hosting/nginx.conf.example` inside the Ghost FTP server configuration.
 
 ## Rollback
 

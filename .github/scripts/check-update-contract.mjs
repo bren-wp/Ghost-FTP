@@ -43,21 +43,20 @@ if (releaseConfig.bundle?.createUpdaterArtifacts !== true) {
 
 for (const rel of [
   "updates/README.md",
-  "updates/WEB_DEPLOYMENT.md",
+  "updates/DEPLOYMENT.md",
   "updates/RELEASE_RUNBOOK.md",
   "updates/SECURITY.md",
   "updates/schema/latest.schema.json",
   "updates/scripts/build-manifest.mjs",
   "updates/scripts/verify-manifest.mjs",
-  "updates/web/.htaccess.example",
-  "updates/web/nginx.conf.example",
+  "updates/hosting/.htaccess.example",
+  "updates/hosting/nginx.conf.example",
 ]) {
   if (!exists(rel)) failures.push(`missing update-system file: ${rel}`);
 }
 
 const userFacing = [
   "ghostftp-desktop/src/components/AboutDialog.tsx",
-  "website/support/index.html",
 ];
 for (const rel of userFacing) {
   const source = read(rel);
@@ -74,7 +73,7 @@ for (const rel of userFacing) {
 for (const [rel, needle] of [
   [".github/workflows/ghostftp-build.yml", "TAURI_SIGNING_PRIVATE_KEY"],
   [".github/workflows/ghostftp-build.yml", "updater-release.conf.json"],
-  [".github/workflows/ghostftp-release.yml", "GhostFTP-v$VERSION-Web-Update.zip"],
+  [".github/workflows/ghostftp-release.yml", "GhostFTP-v$VERSION-Update-Service.zip"],
   [".github/workflows/ghostftp-release.yml", "updates/scripts/build-manifest.mjs"],
 ]) {
   if (!read(rel).includes(needle)) failures.push(`${rel}: missing update release contract: ${needle}`);

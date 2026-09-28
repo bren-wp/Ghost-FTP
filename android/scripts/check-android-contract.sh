@@ -17,6 +17,19 @@ require_text() {
   fi
 }
 
+require_exact_count() {
+  local label="$1"
+  local file="$2"
+  local text="$3"
+  local expected="$4"
+  local actual
+  actual="$(grep -Fc "$text" "$file" || true)"
+  if [ "$actual" -ne "$expected" ]; then
+    echo "Android contract failed: $label expected $expected occurrence(s), found $actual in $file"
+    exit 1
+  fi
+}
+
 require_absent() {
   local label="$1"
   local path="$2"
@@ -44,7 +57,14 @@ require_text "ftps protocol" "$CONNECTION_MODEL" 'EXPLICIT_FTPS("Explicit FTPS",
 require_text "sftp protocol" "$CONNECTION_MODEL" 'SFTP("SFTP", 22)'
 
 require_text "desktop parity ghost mark" "$MAIN_ACTIVITY" 'GhostMarkView'
-require_text "desktop parity workspace" "$MAIN_ACTIVITY" 'workspaceChip("Files")'
+require_text "desktop parity Files workspace" "$MAIN_ACTIVITY" '"Files" to { filesSection }'
+require_text "desktop parity Sites workspace" "$MAIN_ACTIVITY" '"Sites" to { sitesSection }'
+require_text "desktop parity Transfers workspace" "$MAIN_ACTIVITY" '"Transfers" to { transfersSection }'
+require_text "desktop parity Settings workspace" "$MAIN_ACTIVITY" '"Settings" to { settingsSection }'
+require_text "desktop parity Help workspace" "$MAIN_ACTIVITY" '"Help & About" to { aboutSection }'
+require_text "desktop parity workspace navigation" "$MAIN_ACTIVITY" 'workspaceNavChip(label)'
+require_text "mobile Settings surface" "$MAIN_ACTIVITY" 'buildSettingsCard()'
+require_text "mobile Help surface" "$MAIN_ACTIVITY" 'buildAboutCard()'
 require_text "desktop parity refresh toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Refresh")'
 require_text "desktop parity upload toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Upload")'
 require_text "desktop parity download toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Download")'
@@ -117,7 +137,25 @@ require_text "installable preview signing" "$ANDROID_DIR/app/build.gradle.kts" '
 require_text "preview remains non-debuggable" "$ANDROID_DIR/app/build.gradle.kts" 'isDebuggable = false'
 require_text "current Apache Commons Net dependency" "$ANDROID_DIR/app/build.gradle.kts" 'commons-net:commons-net:3.13.0'
 require_text "maintained JSch dependency" "$ANDROID_DIR/app/build.gradle.kts" 'com.github.mwiede:jsch:2.28.7'
+require_text "Android instrumentation runner" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test.runner.AndroidJUnitRunner'
+require_text "AndroidX test core dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test:core:1.7.0'
+require_text "AndroidX test runner dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test:runner:1.7.0'
+require_text "AndroidX JUnit dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test.ext:junit:1.3.0'
+require_text "Android Espresso UI test dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test.espresso:espresso-core:3.7.0'
+test -s "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt"
+SMOKE_SCRIPT="$ANDROID_DIR/scripts/run-instrumentation-smoke.sh"
+bash -n "$SMOKE_SCRIPT"
+require_exact_count "single instrumentation execution" "$SMOKE_SCRIPT" 'gradle -p android connectedDebugAndroidTest --stacktrace' 1
+require_exact_count "single APK reinstall" "$SMOKE_SCRIPT" 'INSTALL_OUTPUT="$(adb install -r "$DEBUG_APK" 2>&1)"' 1
+require_exact_count "single launcher execution" "$SMOKE_SCRIPT" 'LAUNCH_OUTPUT="$(' 1
+require_exact_count "single UI smoke screenshot" "$SMOKE_SCRIPT" 'adb exec-out screencap -p > dist/android/GhostFTP-Android-UI-Smoke.png' 1
+require_text "post-launch success marker" "$SMOKE_SCRIPT" 'Ghost FTP Android instrumentation and post-launch smoke OK'
+
 ANDROID_WORKFLOW="$ROOT/.github/workflows/ghostftp-android.yml"
+ANDROID_SMOKE_SCRIPT="$ANDROID_DIR/scripts/run-instrumentation-smoke.sh"
+require_text "Android click-through workflow" "$ANDROID_WORKFLOW" 'bash android/scripts/run-instrumentation-smoke.sh'
+require_text "Android connected instrumentation" "$ANDROID_SMOKE_SCRIPT" 'connectedDebugAndroidTest'
+require_text "Android instrumentation diagnostics" "$ANDROID_SMOKE_SCRIPT" 'dist/android/diagnostics'
 CANONICAL_RELEASE_WORKFLOW="$ROOT/.github/workflows/ghostftp-release.yml"
 PUBLISH_SCRIPT="$ROOT/.github/scripts/publish-release.sh"
 

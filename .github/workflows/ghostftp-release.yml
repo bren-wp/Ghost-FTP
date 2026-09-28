@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: ghostftp-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   select-trigger:
@@ -60,6 +60,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          CURRENT_MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$CURRENT_MAIN_SHA" != "$SOURCE_SHA" ]; then
+            echo "Refusing stale release source $SOURCE_SHA; current main is $CURRENT_MAIN_SHA." >&2
+            exit 1
+          fi
           node .github/scripts/sync-version.mjs --check
           VERSION="$(node -p 'require("./version.json").version')"
           test -f "docs/releases/$VERSION.md"
@@ -110,7 +115,6 @@ jobs:
           git archive --format=zip --output="dist/GhostFTP-v$VERSION-Source.zip" HEAD
           zip -qr "dist/GhostFTP-v$VERSION-Desktop-Source.zip" ghostftp-desktop
           zip -qr "dist/GhostFTP-v$VERSION-Android-Source.zip" android
-          zip -qr "dist/GhostFTP-v$VERSION-Website.zip" website
           zip -qr "dist/GhostFTP-v$VERSION-Updates.zip" updates
           zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
 
@@ -141,6 +145,7 @@ jobs:
           set -euo pipefail
           WIN_EXE="$(find dist/native -type f -iname 'ghostftp.exe' | head -n1 || true)"
           WIN_SETUP="$(find dist/native -type f -iname '*setup*.exe' ! -iname '*.sig' | head -n1 || true)"
+          WIN_MSI="$(find dist/native -type f -iname '*.msi' | head -n1 || true)"
           WIN_SETUP_SIG="$(find dist/native -type f -iname '*setup*.exe.sig' | head -n1 || true)"
           LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
           APPIMAGE="$(find dist/native -type f -iname '*.AppImage' ! -iname '*.sig' | head -n1 || true)"
@@ -149,7 +154,7 @@ jobs:
           RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
           ANDROID_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
 
-          test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$LINUX_BIN"
+          test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"; test -n "$ANDROID_APK"
           if [ -n "$WIN_SETUP_SIG" ] || [ -n "$APPIMAGE_SIG" ]; then
             test -n "$WIN_SETUP_SIG"
@@ -161,6 +166,7 @@ jobs:
 
           cp "$WIN_EXE" "dist/GhostFTP-Windows-x64-Portable-v$VERSION.exe"
           cp "$WIN_SETUP" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe"
+          cp "$WIN_MSI" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.msi"
           if [ -n "$WIN_SETUP_SIG" ]; then
             cp "$WIN_SETUP_SIG" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe.sig"
           fi
@@ -185,16 +191,16 @@ jobs:
             zip -q "$GITHUB_WORKSPACE/dist/GhostFTP-Windows-x64-v$VERSION-Native-QA.zip" ./*
           )
 
-          (cd dist && zip -q "GhostFTP-Windows-x64-v$VERSION.zip" "GhostFTP-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.exe")
+          (cd dist && zip -q "GhostFTP-Windows-x64-v$VERSION.zip" "GhostFTP-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.msi")
           (cd dist && tar -czf "GhostFTP-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Linux-x86_64-v$VERSION" "GhostFTP-Linux-x86_64-v$VERSION.AppImage" "GhostFTP-Linux-amd64-v$VERSION.deb" "GhostFTP-Linux-x86_64-v$VERSION.rpm")
           rm -rf dist/native dist/android
 
-      - name: Build web update package
+      - name: Build update-service deployment package
         if: ${{ hashFiles('dist/GhostFTP-Windows-x64-Setup-v*.exe.sig') != '' && hashFiles('dist/GhostFTP-Linux-x86_64-v*.AppImage.sig') != '' }}
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p dist/web/updates
+          mkdir -p dist/update-service/updates
           PUB_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           node updates/scripts/build-manifest.mjs \
             --version="$VERSION" \
@@ -204,11 +210,11 @@ jobs:
             --windows-signature-file="dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe.sig" \
             --linux-url="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/GhostFTP-Linux-x86_64-v$VERSION.AppImage" \
             --linux-signature-file="dist/GhostFTP-Linux-x86_64-v$VERSION.AppImage.sig" \
-            --out="dist/web/updates/latest.json"
-          node updates/scripts/verify-manifest.mjs "dist/web/updates/latest.json" --expected-version="$VERSION"
-          cp "dist/web/updates/latest.json" "dist/GhostFTP-v$VERSION-latest.json"
-          (cd dist/web && zip -qr "../GhostFTP-v$VERSION-Web-Update.zip" updates)
-          rm -rf dist/web
+            --out="dist/update-service/updates/latest.json"
+          node updates/scripts/verify-manifest.mjs "dist/update-service/updates/latest.json" --expected-version="$VERSION"
+          cp "dist/update-service/updates/latest.json" "dist/GhostFTP-v$VERSION-latest.json"
+          (cd dist/update-service && zip -qr "../GhostFTP-v$VERSION-Update-Service.zip" updates)
+          rm -rf dist/update-service
 
       - name: Generate SHA-256 checksums
         shell: bash

@@ -7,7 +7,7 @@ Ghost FTP Android follows the same product identity and file-action model as the
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
 - Active source version: **0.19.0**
-- Latest published canonical release: **0.18.0**
+- Previous canonical release: **0.18.0**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical release asset: `GhostFTP-Android-v<version>.apk`
@@ -21,6 +21,10 @@ Android keeps the same primary product model as desktop where it makes sense on 
 - one application surface;
 - Ghost mark and Ghost FTP wordmark;
 - Files workspace;
+- Sites workspace/navigation;
+- Transfers workspace/navigation;
+- Settings security/privacy surface;
+- Help & About product/release surface;
 - connection surface for FTP, explicit FTPS and SFTP;
 - SFTP host-key fingerprint input/verification;
 - remote listing with folder navigation and file selection;
@@ -57,11 +61,12 @@ Android keeps the same primary product model as desktop where it makes sense on 
 
 ## CI/release contract
 
-The **Ghost FTP Android** workflow runs for every pull request to `main` and validates the same PR HEAD used by the other required gates.
+The **Ghost FTP Android** workflow runs for every pull request to `main` and every `main` push, so both PR acceptance and release orchestration have an exact-SHA Android gate.
 
 It must:
 
 - run the Android production contract;
+- run an Android emulator click-through smoke for core workspace/action validation;
 - lint/build debug, release and preview variants;
 - verify the preview APK with `apksigner`;
 - confirm the release-check APK is unsigned;

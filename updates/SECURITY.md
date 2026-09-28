@@ -10,8 +10,8 @@ The public key is safe to distribute. The matching private key is the release si
 
 - Store the private key only in an approved secret manager / GitHub Actions repository secret.
 - Never commit it.
-- Never put it in `updates/`, `website/`, release assets or CI logs.
-- Never send it to the web server.
+- Never put it in `updates/`, release assets, update-service hosting files or CI logs.
+- Never send it to the update-service host.
 - Limit workflows that receive it to trusted `main` release builds.
 - Pull-request builds must not receive it.
 
@@ -45,7 +45,7 @@ A safe rotation requires a transition release that existing clients can verify a
 If compromise is suspected:
 
 1. stop publishing new update responses;
-2. restore the website to a previously known-good update response or remove it temporarily;
+2. restore the update-service host to a previously known-good update response or remove it temporarily;
 3. protect/revoke the compromised secret in CI;
 4. investigate release/tag/account integrity;
 5. prepare a reviewed key-rotation/recovery release;

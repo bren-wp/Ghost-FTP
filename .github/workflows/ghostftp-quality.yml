@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  web-and-go:
-    name: Web + compatibility tooling
+  product-and-go:
+    name: Product + compatibility tooling
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -69,7 +69,7 @@ jobs:
         run: |
           set -euo pipefail
           ! grep -RniE 'Faro|example\.com|Production Server|Staging Server|Design Assets|Cloud Server|C:\\Users\\Alex' \
-            ghostftp-desktop/src ghostftp-desktop/src-tauri tools/ghostftp-runtime tools/ghostftp-installer website \
+            ghostftp-desktop/src ghostftp-desktop/src-tauri tools/ghostftp-runtime tools/ghostftp-installer \
             --exclude-dir=node_modules --exclude-dir=target
 
           ! grep -Rni 'Ghost-FTP-Premium' \
@@ -131,79 +131,23 @@ jobs:
           go vet ./...
           node --check site/setup.js
 
-      - name: Website syntax and markup policy
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Update and release-tool syntax
         shell: bash
         run: |
           set -euo pipefail
-          node --check website/assets/site.js
-          python - <<'PY'
-          from html.parser import HTMLParser
-          from pathlib import Path
-
-          errors = []
-
-          class AuditParser(HTMLParser):
-              def __init__(self, path):
-                  super().__init__(convert_charrefs=True)
-                  self.path = path
-
-              def handle_starttag(self, tag, attrs):
-                  attrs = dict(attrs)
-                  if "style" in attrs:
-                      errors.append(f"{self.path}: inline style attribute is not allowed")
-                  if tag == "script" and not attrs.get("src"):
-                      errors.append(f"{self.path}: inline script block is not allowed")
-
-          for path in Path("website").rglob("*.html"):
-              parser = AuditParser(path)
-              parser.feed(path.read_text(encoding="utf-8"))
-
-          required = [
-              Path("website/assets/ghostftp-symbol.svg"),
-              Path("website/assets/ghostftp-app.png"),
-              Path("website/assets/icons/download.svg"),
-              Path("website/assets/icons/features.svg"),
-              Path("website/assets/icons/security.svg"),
-              Path("website/assets/icons/help.svg"),
-              Path("website/assets/icons/speed.svg"),
-              Path("website/assets/icons/privacy.svg"),
-              Path("website/assets/icons/globe.svg"),
-              Path("website/download/index.html"),
-              Path("website/security/index.html"),
-              Path("website/support/index.html"),
-          ]
-          for path in required:
-              if not path.is_file() or path.stat().st_size == 0:
-                  errors.append(f"missing website asset/page: {path}")
-
-          if errors:
-              raise SystemExit("\n".join(errors))
-          PY
-
-          test -s website/assets/ghostftp-app.png
-          ! grep -Fq 'scene-left.webp' website/assets/site.css
-          ! grep -Fq 'scene-right.webp' website/assets/site.css
-          ! grep -Fq 'scene-bottom.webp' website/assets/site.css
-          ! grep -Fq 'setInterval' website/assets/site.js
-          ! grep -Fq 'progressText.textContent' website/assets/site.js
-          LATEST_TAG="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq 'map(select(.draft == false)) | sort_by(.published_at) | reverse | .[0].tag_name // empty')"
-          test -n "$LATEST_TAG"
-          PUBLISHED_VERSION="${LATEST_TAG#v}"
-          for page in \
-            website/index.html \
-            website/{bs,de,es,fr,hr,it,mk,nl,pl,pt,sl,sr}/index.html; do
-            grep -Fq 'ghostftp-app.png' "$page"
-            grep -Fq "Ghost FTP $PUBLISHED_VERSION" "$page"
-          done
-          bash -n .github/scripts/publish-release.sh
-
-      - name: Update-tool syntax
-        shell: bash
-        run: |
           node --check updates/scripts/build-manifest.mjs
           node --check updates/scripts/verify-manifest.mjs
+          bash -n .github/scripts/publish-release.sh
+
+      - name: Windows release package contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq '"msi"' ghostftp-desktop/src-tauri/tauri.conf.json
+          grep -Fq "args: '--bundles nsis,msi'" .github/workflows/ghostftp-build.yml
+          grep -Fq 'Windows NSIS and MSI install/uninstall smoke' .github/workflows/ghostftp-build.yml
+          grep -Fq 'GhostFTP-Windows-x64-Setup.msi' .github/workflows/ghostftp-build.yml
+          grep -Fq 'GhostFTP-Windows-x64-Setup-v$VERSION.msi' .github/workflows/ghostftp-release.yml
 
       - name: Native frontend typecheck and production build
         working-directory: ghostftp-desktop

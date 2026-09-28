@@ -48,12 +48,22 @@ For version `<version>`:
 
 - `GhostFTP-Android-v<version>.apk`
 
+### Signed desktop updater assets
+
+When the production Tauri signing key is configured, the release additionally contains:
+
+- `GhostFTP-Windows-x64-Setup-v<version>.exe.sig`
+- `GhostFTP-Linux-x86_64-v<version>.AppImage.sig`
+- `GhostFTP-v<version>-latest.json`
+- `GhostFTP-v<version>-Update-Service.zip`
+
+If the signing key is not configured, these four updater-service assets are omitted. Ordinary Windows/Linux/Android packages and checksums remain publishable; an unsigned package is never advertised through the signed in-app updater.
+
 ### Source/documentation
 
 - `GhostFTP-v<version>-Source.zip`
 - `GhostFTP-v<version>-Desktop-Source.zip`
 - `GhostFTP-v<version>-Android-Source.zip`
-- `GhostFTP-v<version>-Website.zip`
 - `GhostFTP-v<version>-Updates.zip`
 - `GhostFTP-v<version>-Documentation.zip`
 - `GhostFTP-v<version>-SHA256SUMS.txt`
@@ -61,7 +71,7 @@ For version `<version>`:
 ## Current release cycle
 
 - Active source/release cycle: **0.19.0**
-- Latest published canonical release: **0.18.0**
+- Previous canonical release: **0.18.0**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Release integrity

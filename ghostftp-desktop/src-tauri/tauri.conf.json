@@ -37,6 +37,7 @@
     "active": true,
     "targets": [
       "nsis",
+      "msi",
       "deb",
       "rpm",
       "appimage"
@@ -48,7 +49,7 @@
       "icons/icon.ico"
     ],
     "publisher": "Brendigo",
-    "homepage": "https://ghostftp.com/",
+    "homepage": "https://github.com/bren-wp/Ghost-FTP",
     "category": "Utility",
     "copyright": "Copyright © 2026 Brendigo. All rights reserved.",
     "shortDescription": "Ghost FTP — secure FTP, FTPS and SFTP file transfer for Windows and Linux.",

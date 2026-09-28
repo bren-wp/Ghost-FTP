@@ -12,7 +12,7 @@ The Windows and Linux applications expose only simple product language such as �
 - Linux update package: canonical signed AppImage
 - Signature verification: mandatory Tauri updater signature verification
 - Public key: embedded in the desktop application
-- Private key: GitHub Actions secret only; never committed or uploaded to the website
+- Private key: GitHub Actions secret only; never committed or uploaded to the update-service host
 - Android: distributed independently as a verified APK release asset; Android does not use this desktop updater contract
 
 The public service follows the Tauri v2 updater contract: `version`, optional human-readable `notes` / `pub_date`, and per-platform `url` + signature content.
@@ -23,11 +23,11 @@ The public service follows the Tauri v2 updater contract: `version`, optional hu
 - `schema/latest.schema.json` — strict schema matching the public desktop updater response
 - `scripts/build-manifest.mjs` — creates a production response from signed package files
 - `scripts/verify-manifest.mjs` — validates a generated response before deployment
-- `WEB_DEPLOYMENT.md` — exact website paths, headers, Apache/Nginx examples and atomic upload procedure
+- `DEPLOYMENT.md` — exact update-service paths, headers, Apache/Nginx examples and atomic upload procedure
 - `RELEASE_RUNBOOK.md` — end-to-end release/operator procedure
 - `SECURITY.md` — signing-key handling, signature rules and recovery/rotation policy
-- `web/.htaccess.example` — shared-hosting/Apache example
-- `web/nginx.conf.example` — Nginx example
+- `hosting/.htaccess.example` — shared-hosting/Apache example
+- `hosting/nginx.conf.example` — Nginx example
 
 The former separate preview/stable template files were removed because the desktop application currently has one canonical public update service. Channel policy belongs in release/version metadata, not in a second incompatible wire format.
 
@@ -35,20 +35,20 @@ The former separate preview/stable template files were removed because the deskt
 
 1. Pull requests build and test normal Windows/Linux packages without access to signing secrets.
 2. A canonical build on `main` always produces the normal Windows/Linux release packages. When the Tauri signing secret is configured it additionally uses `src-tauri/updater-release.conf.json` to produce signed in-app updater artifacts.
-3. With signing enabled, Tauri produces the normal NSIS Setup/AppImage plus their signature files; without signing, the normal packages still build but no web in-app update package is published.
+3. With signing enabled, Tauri produces the normal NSIS Setup/AppImage plus their signature files; without signing, the normal packages still build but no in-app update-service package is published.
 4. The release workflow verifies all exact-SHA gates.
-5. The release workflow normalizes packages and signatures, then generates a web-ready update response.
-6. The release publishes versioned packages/signatures plus `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Web-Update.zip`.
-7. Only releases that contain both signed Windows/Linux updater artifacts receive a web update bundle. After that GitHub Release and its asset digests are verified, the website operator may atomically replace `/updates/latest.json`.
+5. The release workflow normalizes packages and signatures, then generates an update-service response.
+6. The release publishes versioned packages/signatures plus `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Update-Service.zip`.
+7. Only releases that contain both signed Windows/Linux updater artifacts receive an update-service bundle. After that GitHub Release and its asset digests are verified, the update-service operator may atomically replace `/updates/latest.json`.
 
-See `WEB_DEPLOYMENT.md` for the web-server procedure.
+See `DEPLOYMENT.md` for the update-service hosting procedure.
 
 ## Required GitHub Actions secrets
 
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` when the key is password protected
 
-The private key must never be stored in source, release assets, website files, workflow logs or documentation examples.
+The private key must never be stored in source, release assets, update-service files, workflow logs or documentation examples.
 
 ## Failure behavior
 
