@@ -421,9 +421,7 @@ impl TransferManager {
                         let _ = store.transfer_ledger_delete(&row_id);
                         continue;
                     };
-                    if envelope.schema != TRANSFER_LEDGER_SCHEMA
-                        || envelope.transfer.id != row_id
-                    {
+                    if envelope.schema != TRANSFER_LEDGER_SCHEMA || envelope.transfer.id != row_id {
                         let _ = store.transfer_ledger_delete(&row_id);
                         continue;
                     }
@@ -561,11 +559,7 @@ impl TransferManager {
     /// Bind a freshly reconnected live session to a persisted retry descriptor.
     /// The profile id must match so a recovered transfer can never be redirected
     /// to a different saved site by mistake.
-    pub async fn attach_recovered_session(
-        &self,
-        id: &str,
-        session: Arc<Session>,
-    ) -> Result<()> {
+    pub async fn attach_recovered_session(&self, id: &str, session: Arc<Session>) -> Result<()> {
         let descriptor = self
             .persisted_retry
             .lock()
@@ -4249,11 +4243,10 @@ mod tests {
         assert_eq!(row.status, TransferStatus::Error);
         assert_eq!(row.transferred, 256 * 1024);
         assert_eq!(row.retry_attempt, None);
-        assert!(
-            row.error
-                .as_deref()
-                .is_some_and(|message| message.contains("interrupted"))
-        );
+        assert!(row
+            .error
+            .as_deref()
+            .is_some_and(|message| message.contains("interrupted")));
         assert_eq!(
             recovered.recovery_profile_id(id).await.as_deref(),
             Some("profile-1")
