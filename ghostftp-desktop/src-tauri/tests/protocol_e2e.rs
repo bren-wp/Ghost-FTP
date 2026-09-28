@@ -240,14 +240,38 @@ async fn ftp_roundtrip(
                     ));
                 }
             }
+            let expected_len = upload_payload.len() as u64;
             let mut reader = Cursor::new(upload_payload);
             std::io::Seek::seek(&mut reader, SeekFrom::Start(upload_offset))?;
-            stream.stor_resumable(&upload_path, upload_offset, &mut reader, |_| {
-                FtpTransferControl::Continue
-            })
+            let outcome =
+                stream.stor_resumable(&upload_path, upload_offset, &mut reader, |_| {
+                    FtpTransferControl::Continue
+                })?;
+
+            if outcome.control == FtpTransferControl::Continue && upload_offset > 0 {
+                let remote_size = stream.size(&upload_path).ok().map(|size| size as u64);
+                if remote_size != Some(expected_len) {
+                    reader.set_position(0);
+                    let restarted =
+                        stream.stor_resumable(&upload_path, 0, &mut reader, |_| {
+                            FtpTransferControl::Continue
+                        })?;
+                    if restarted.control == FtpTransferControl::Continue {
+                        let verified = stream.size(&upload_path)? as u64;
+                        if verified != expected_len {
+                            return Err(anyhow!(
+                                "full FTP restart verification mismatch: {verified} != {expected_len}"
+                            ));
+                        }
+                    }
+                    return Ok(restarted);
+                }
+            }
+
+            Ok(outcome)
         })
         .await
-        .with_context(|| format!("{protocol} verified APPE upload resume"))?;
+        .with_context(|| format!("{protocol} verified upload resume with safe restart fallback"))?;
     if upload_done.control != FtpTransferControl::Continue
         || upload_done.transferred != resume_payload.len() as u64
     {
