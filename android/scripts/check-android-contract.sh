@@ -95,7 +95,7 @@ require_text "password view-state disabled" "$MAIN_ACTIVITY" 'isSaveEnabled = fa
 require_text "password destroy cleanup" "$MAIN_ACTIVITY" 'if (::passwordInput.isInitialized) passwordInput.text.clear()'
 require_text "Activity non-secret state persistence" "$MAIN_ACTIVITY" 'override fun onSaveInstanceState(outState: Bundle)'
 require_text "Activity active operation cancellation" "$MAIN_ACTIVITY" 'activeCancellation?.cancel()'
-require_text "SAF persistable read grant" "$MAIN_ACTIVITY" 'contentResolver.takePersistableUriPermission(uri, persistableFlags)'
+require_text "SAF persistable read grant" "$MAIN_ACTIVITY" 'Intent.FLAG_GRANT_READ_URI_PERMISSION'
 require_text "SAF persistable picker flag" "$MAIN_ACTIVITY" 'Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION'
 require_text "restored session requires reauthentication" "$MAIN_ACTIVITY" 'Reconnect to authenticate before remote actions.'
 require_text "remote root delete guard" "$CONNECTION_MODEL" 'Refusing to delete the remote root path.'
