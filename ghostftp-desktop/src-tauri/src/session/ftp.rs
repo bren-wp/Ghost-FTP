@@ -1,5 +1,6 @@
 use crate::profiles::{AuthMethod, ConnectionProfile};
 use anyhow::{anyhow, Context, Result};
+use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
@@ -24,6 +25,24 @@ pub enum FtpStreamKind {
     Plain(FtpStream),
     Tls(NativeTlsFtpStream),
 }
+
+/// Cooperative decision returned by Ghost FTP after each committed FTP chunk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FtpTransferControl {
+    Continue,
+    Pause,
+    Cancel,
+}
+
+/// Result of one FTP/FTPS stream attempt. transferred is the absolute
+/// committed byte offset, including any prefix established via REST.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FtpTransferOutcome {
+    pub transferred: u64,
+    pub control: FtpTransferControl,
+}
+
+const FTP_TRANSFER_CHUNK: usize = 64 * 1024;
 
 impl FtpStreamKind {
     pub fn list(&mut self, path: Option<&str>) -> Result<Vec<String>> {
@@ -88,6 +107,160 @@ impl FtpStreamKind {
             Self::Tls(s) => s.put_file(path, reader).map_err(into_anyhow),
         }
     }
+
+    /// Download with explicit STREAM restart semantics. SuppaFTP 6.3.0 exposes
+    /// REST plus a raw RETR data stream; Ghost FTP reads bounded chunks so
+    /// Pause/Cancel can cooperatively ABOR instead of leaving RETR running.
+    pub fn retr_resumable<W, C>(
+        &mut self,
+        path: &str,
+        offset: u64,
+        sink: &mut W,
+        mut control: C,
+    ) -> Result<FtpTransferOutcome>
+    where
+        W: Write,
+        C: FnMut(u64) -> FtpTransferControl,
+    {
+        match self {
+            Self::Plain(stream) => {
+                if offset > 0 {
+                    stream
+                        .resume_transfer(usize::try_from(offset).context("FTP resume offset too large")?)
+                        .map_err(into_anyhow)?;
+                }
+                let mut data = stream.retr_as_stream(path).map_err(into_anyhow)?;
+                let mut transferred = offset;
+                let mut buf = vec![0u8; FTP_TRANSFER_CHUNK];
+                loop {
+                    match control(transferred) {
+                        FtpTransferControl::Continue => {}
+                        stop => {
+                            stream.abort(data).map_err(into_anyhow)?;
+                            return Ok(FtpTransferOutcome { transferred, control: stop });
+                        }
+                    }
+                    let read = data.read(&mut buf).context("read FTP data stream")?;
+                    if read == 0 {
+                        stream.finalize_retr_stream(data).map_err(into_anyhow)?;
+                        return Ok(FtpTransferOutcome {
+                            transferred,
+                            control: FtpTransferControl::Continue,
+                        });
+                    }
+                    sink.write_all(&buf[..read])
+                        .context("write FTP download destination")?;
+                    transferred += read as u64;
+                }
+            }
+            Self::Tls(stream) => {
+                if offset > 0 {
+                    stream
+                        .resume_transfer(usize::try_from(offset).context("FTPS resume offset too large")?)
+                        .map_err(into_anyhow)?;
+                }
+                let mut data = stream.retr_as_stream(path).map_err(into_anyhow)?;
+                let mut transferred = offset;
+                let mut buf = vec![0u8; FTP_TRANSFER_CHUNK];
+                loop {
+                    match control(transferred) {
+                        FtpTransferControl::Continue => {}
+                        stop => {
+                            stream.abort(data).map_err(into_anyhow)?;
+                            return Ok(FtpTransferOutcome { transferred, control: stop });
+                        }
+                    }
+                    let read = data.read(&mut buf).context("read FTPS data stream")?;
+                    if read == 0 {
+                        stream.finalize_retr_stream(data).map_err(into_anyhow)?;
+                        return Ok(FtpTransferOutcome {
+                            transferred,
+                            control: FtpTransferControl::Continue,
+                        });
+                    }
+                    sink.write_all(&buf[..read])
+                        .context("write FTPS download destination")?;
+                    transferred += read as u64;
+                }
+            }
+        }
+    }
+
+    /// Upload with REST + STOR continuation. The caller validates that the
+    /// remote file is exactly offset bytes before using a non-zero marker.
+    pub fn stor_resumable<R, C>(
+        &mut self,
+        path: &str,
+        offset: u64,
+        source: &mut R,
+        mut control: C,
+    ) -> Result<FtpTransferOutcome>
+    where
+        R: Read,
+        C: FnMut(u64) -> FtpTransferControl,
+    {
+        match self {
+            Self::Plain(stream) => {
+                if offset > 0 {
+                    stream
+                        .resume_transfer(usize::try_from(offset).context("FTP resume offset too large")?)
+                        .map_err(into_anyhow)?;
+                }
+                let mut data = stream.put_with_stream(path).map_err(into_anyhow)?;
+                let mut transferred = offset;
+                let mut buf = vec![0u8; FTP_TRANSFER_CHUNK];
+                loop {
+                    match control(transferred) {
+                        FtpTransferControl::Continue => {}
+                        stop => {
+                            stream.abort(data).map_err(into_anyhow)?;
+                            return Ok(FtpTransferOutcome { transferred, control: stop });
+                        }
+                    }
+                    let read = source.read(&mut buf).context("read FTP upload source")?;
+                    if read == 0 {
+                        stream.finalize_put_stream(data).map_err(into_anyhow)?;
+                        return Ok(FtpTransferOutcome {
+                            transferred,
+                            control: FtpTransferControl::Continue,
+                        });
+                    }
+                    data.write_all(&buf[..read]).context("write FTP data stream")?;
+                    transferred += read as u64;
+                }
+            }
+            Self::Tls(stream) => {
+                if offset > 0 {
+                    stream
+                        .resume_transfer(usize::try_from(offset).context("FTPS resume offset too large")?)
+                        .map_err(into_anyhow)?;
+                }
+                let mut data = stream.put_with_stream(path).map_err(into_anyhow)?;
+                let mut transferred = offset;
+                let mut buf = vec![0u8; FTP_TRANSFER_CHUNK];
+                loop {
+                    match control(transferred) {
+                        FtpTransferControl::Continue => {}
+                        stop => {
+                            stream.abort(data).map_err(into_anyhow)?;
+                            return Ok(FtpTransferOutcome { transferred, control: stop });
+                        }
+                    }
+                    let read = source.read(&mut buf).context("read FTPS upload source")?;
+                    if read == 0 {
+                        stream.finalize_put_stream(data).map_err(into_anyhow)?;
+                        return Ok(FtpTransferOutcome {
+                            transferred,
+                            control: FtpTransferControl::Continue,
+                        });
+                    }
+                    data.write_all(&buf[..read]).context("write FTPS data stream")?;
+                    transferred += read as u64;
+                }
+            }
+        }
+    }
+
     pub fn quit(&mut self) {
         match self {
             Self::Plain(s) => {
