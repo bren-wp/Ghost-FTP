@@ -3,9 +3,9 @@ use async_trait::async_trait;
 use ghostftp_lib::profiles::{AuthMethod, ConnectionProfile};
 use ghostftp_lib::remotefs::{ftp::FtpFs, sftp::SftpFs, RemoteFs};
 use ghostftp_lib::session::{open_session, HostDecision, HostKeyVerifier, HostPromptKind, Session};
-use std::io::Cursor;
+use std::io::{Cursor, SeekFrom};
 use std::sync::Arc;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use uuid::Uuid;
 
 #[derive(Clone, Copy)]
@@ -235,9 +235,82 @@ async fn sftp_password_roundtrip(
         return Err(anyhow!("SFTP download content mismatch"));
     }
 
+    // Prove the exact SFTP primitives used by production pause/resume against
+    // a real OpenSSH internal-sftp server: reopen a partial remote file without
+    // truncating it, seek both sides to the committed byte and append the rest.
+    let resume_path = format!("{base}/resume.bin");
+    let resume_payload: Vec<u8> = (0..(512 * 1024))
+        .map(|index| ((index * 31 + 17) % 251) as u8)
+        .collect();
+    let resume_offset = 128 * 1024;
+
+    let cell = ssh.ensure_sftp().await?;
+    let mut partial = {
+        let sftp = cell.lock().await;
+        sftp.create(&resume_path)
+            .await
+            .context("SFTP create resume target")?
+    };
+    partial
+        .write_all(&resume_payload[..resume_offset])
+        .await
+        .context("SFTP seed partial upload")?;
+    partial.flush().await?;
+    drop(partial);
+
+    let cell = ssh.ensure_sftp().await?;
+    let mut resumed_remote = {
+        let sftp = cell.lock().await;
+        let metadata = sftp
+            .metadata(&resume_path)
+            .await
+            .context("SFTP stat partial upload")?;
+        if metadata.size.unwrap_or(0) != resume_offset as u64 {
+            return Err(anyhow!("SFTP partial upload size mismatch before resume"));
+        }
+        sftp.open_with_flags(&resume_path, russh_sftp::protocol::OpenFlags::WRITE)
+            .await
+            .context("SFTP reopen partial upload for resume")?
+    };
+    resumed_remote
+        .seek(SeekFrom::Start(resume_offset as u64))
+        .await
+        .context("SFTP seek remote upload to committed offset")?;
+    resumed_remote
+        .write_all(&resume_payload[resume_offset..])
+        .await
+        .context("SFTP append resumed upload")?;
+    resumed_remote.flush().await?;
+    drop(resumed_remote);
+
+    // Download from a non-zero remote offset too. This is the inverse primitive
+    // used when a local partial download already contains the committed prefix.
+    let cell = ssh.ensure_sftp().await?;
+    let mut resumed_download = {
+        let sftp = cell.lock().await;
+        sftp.open(&resume_path)
+            .await
+            .context("SFTP reopen completed upload for ranged download")?
+    };
+    resumed_download
+        .seek(SeekFrom::Start(resume_offset as u64))
+        .await
+        .context("SFTP seek remote download to committed offset")?;
+    let mut rebuilt = resume_payload[..resume_offset].to_vec();
+    resumed_download
+        .read_to_end(&mut rebuilt)
+        .await
+        .context("SFTP ranged download remainder")?;
+    if rebuilt != resume_payload {
+        return Err(anyhow!("SFTP byte-range resume content mismatch"));
+    }
+
     fs.delete(&renamed, false)
         .await
         .context("SFTP delete file")?;
+    fs.delete(&resume_path, false)
+        .await
+        .context("SFTP delete resume file")?;
     fs.delete(&base, false)
         .await
         .context("SFTP delete directory")?;
