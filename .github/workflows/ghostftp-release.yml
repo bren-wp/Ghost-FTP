@@ -145,6 +145,7 @@ jobs:
           set -euo pipefail
           WIN_EXE="$(find dist/native -type f -iname 'ghostftp.exe' | head -n1 || true)"
           WIN_SETUP="$(find dist/native -type f -iname '*setup*.exe' ! -iname '*.sig' | head -n1 || true)"
+          WIN_MSI="$(find dist/native -type f -iname '*.msi' | head -n1 || true)"
           WIN_SETUP_SIG="$(find dist/native -type f -iname '*setup*.exe.sig' | head -n1 || true)"
           LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
           APPIMAGE="$(find dist/native -type f -iname '*.AppImage' ! -iname '*.sig' | head -n1 || true)"
@@ -153,7 +154,7 @@ jobs:
           RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
           ANDROID_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
 
-          test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$LINUX_BIN"
+          test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"; test -n "$ANDROID_APK"
           if [ -n "$WIN_SETUP_SIG" ] || [ -n "$APPIMAGE_SIG" ]; then
             test -n "$WIN_SETUP_SIG"
@@ -165,6 +166,7 @@ jobs:
 
           cp "$WIN_EXE" "dist/GhostFTP-Windows-x64-Portable-v$VERSION.exe"
           cp "$WIN_SETUP" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe"
+          cp "$WIN_MSI" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.msi"
           if [ -n "$WIN_SETUP_SIG" ]; then
             cp "$WIN_SETUP_SIG" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe.sig"
           fi
@@ -189,7 +191,7 @@ jobs:
             zip -q "$GITHUB_WORKSPACE/dist/GhostFTP-Windows-x64-v$VERSION-Native-QA.zip" ./*
           )
 
-          (cd dist && zip -q "GhostFTP-Windows-x64-v$VERSION.zip" "GhostFTP-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.exe")
+          (cd dist && zip -q "GhostFTP-Windows-x64-v$VERSION.zip" "GhostFTP-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.msi")
           (cd dist && tar -czf "GhostFTP-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Linux-x86_64-v$VERSION" "GhostFTP-Linux-x86_64-v$VERSION.AppImage" "GhostFTP-Linux-amd64-v$VERSION.deb" "GhostFTP-Linux-x86_64-v$VERSION.rpm")
           rm -rf dist/native dist/android
 
