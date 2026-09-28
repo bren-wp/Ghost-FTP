@@ -32,24 +32,59 @@ test -s "$DEBUG_APK"
 # connectedDebugAndroidTest may uninstall the target package during cleanup.
 # Reinstall the exact debug APK that passed instrumentation before the
 # post-test launch/screenshot smoke so the final UI check validates a real app.
-adb install -r "$DEBUG_APK" >/dev/null
-adb shell pm path com.ghostftp.android | grep -Fq 'package:'
+INSTALL_OUTPUT=""
+if ! INSTALL_OUTPUT="$(adb install -r "$DEBUG_APK" 2>&1)"; then
+  printf '%s\n' "$INSTALL_OUTPUT" >&2
+  echo "Ghost FTP debug APK reinstall failed after instrumentation cleanup." >&2
+  exit 1
+fi
+printf '%s\n' "$INSTALL_OUTPUT"
+case "$INSTALL_OUTPUT" in
+  *Success*) ;;
+  *)
+    echo "Ghost FTP debug APK reinstall did not report Success." >&2
+    exit 1
+    ;;
+esac
+
+PACKAGE_PATH="$(adb shell pm path com.ghostftp.android 2>&1 | tr -d '\r')"
+printf 'Installed package path: %s\n' "$PACKAGE_PATH"
+case "$PACKAGE_PATH" in
+  package:*) ;;
+  *)
+    echo "Ghost FTP package is not installed after instrumentation cleanup recovery." >&2
+    exit 1
+    ;;
+esac
 
 adb shell am force-stop com.ghostftp.android || true
 LAUNCH_OUTPUT="$(
   adb shell am start -W \
     -a android.intent.action.MAIN \
     -c android.intent.category.LAUNCHER \
-    -p com.ghostftp.android
+    -p com.ghostftp.android 2>&1
 )"
 printf '%s\n' "$LAUNCH_OUTPUT"
-echo "$LAUNCH_OUTPUT" | grep -Fq 'Status: ok'
-echo "$LAUNCH_OUTPUT" | grep -Fq 'com.ghostftp.android'
+case "$LAUNCH_OUTPUT" in
+  *"Status: ok"*"com.ghostftp.android"*) ;;
+  *)
+    echo "Ghost FTP launcher intent did not report a successful app launch." >&2
+    exit 1
+    ;;
+esac
 sleep 2
 
-FOCUSED_WINDOW="$(adb shell dumpsys window | grep -m1 -E 'mCurrentFocus|mFocusedApp' || true)"
-echo "Focused window: $FOCUSED_WINDOW"
-echo "$FOCUSED_WINDOW" | grep -Fq 'com.ghostftp.android'
+WINDOW_DUMP="$(adb shell dumpsys window 2>&1)"
+FOCUSED_WINDOW="$(printf '%s\n' "$WINDOW_DUMP" | sed -n -E '/mCurrentFocus|mFocusedApp/{p;q;}')"
+printf 'Focused window: %s\n' "$FOCUSED_WINDOW"
+case "$FOCUSED_WINDOW" in
+  *com.ghostftp.android*) ;;
+  *)
+    printf '%s\n' "$WINDOW_DUMP" > dist/android/diagnostics/post-launch-window.txt
+    echo "Ghost FTP did not own the focused window after launch." >&2
+    exit 1
+    ;;
+esac
 
 adb shell dumpsys window windows > dist/android/diagnostics/post-launch-window.txt || true
 adb exec-out screencap -p > dist/android/GhostFTP-Android-UI-Smoke.png
