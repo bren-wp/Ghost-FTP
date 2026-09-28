@@ -126,7 +126,9 @@ impl FtpStreamKind {
             Self::Plain(stream) => {
                 if offset > 0 {
                     stream
-                        .resume_transfer(usize::try_from(offset).context("FTP resume offset too large")?)
+                        .resume_transfer(
+                            usize::try_from(offset).context("FTP resume offset too large")?,
+                        )
                         .map_err(into_anyhow)?;
                 }
                 let mut data = stream.retr_as_stream(path).map_err(into_anyhow)?;
@@ -137,7 +139,10 @@ impl FtpStreamKind {
                         FtpTransferControl::Continue => {}
                         stop => {
                             stream.abort(data).map_err(into_anyhow)?;
-                            return Ok(FtpTransferOutcome { transferred, control: stop });
+                            return Ok(FtpTransferOutcome {
+                                transferred,
+                                control: stop,
+                            });
                         }
                     }
                     let read = data.read(&mut buf).context("read FTP data stream")?;
@@ -156,7 +161,9 @@ impl FtpStreamKind {
             Self::Tls(stream) => {
                 if offset > 0 {
                     stream
-                        .resume_transfer(usize::try_from(offset).context("FTPS resume offset too large")?)
+                        .resume_transfer(
+                            usize::try_from(offset).context("FTPS resume offset too large")?,
+                        )
                         .map_err(into_anyhow)?;
                 }
                 let mut data = stream.retr_as_stream(path).map_err(into_anyhow)?;
@@ -167,7 +174,10 @@ impl FtpStreamKind {
                         FtpTransferControl::Continue => {}
                         stop => {
                             stream.abort(data).map_err(into_anyhow)?;
-                            return Ok(FtpTransferOutcome { transferred, control: stop });
+                            return Ok(FtpTransferOutcome {
+                                transferred,
+                                control: stop,
+                            });
                         }
                     }
                     let read = data.read(&mut buf).context("read FTPS data stream")?;
@@ -203,7 +213,9 @@ impl FtpStreamKind {
             Self::Plain(stream) => {
                 if offset > 0 {
                     stream
-                        .resume_transfer(usize::try_from(offset).context("FTP resume offset too large")?)
+                        .resume_transfer(
+                            usize::try_from(offset).context("FTP resume offset too large")?,
+                        )
                         .map_err(into_anyhow)?;
                 }
                 let mut data = stream.put_with_stream(path).map_err(into_anyhow)?;
@@ -214,7 +226,10 @@ impl FtpStreamKind {
                         FtpTransferControl::Continue => {}
                         stop => {
                             stream.abort(data).map_err(into_anyhow)?;
-                            return Ok(FtpTransferOutcome { transferred, control: stop });
+                            return Ok(FtpTransferOutcome {
+                                transferred,
+                                control: stop,
+                            });
                         }
                     }
                     let read = source.read(&mut buf).context("read FTP upload source")?;
@@ -225,14 +240,17 @@ impl FtpStreamKind {
                             control: FtpTransferControl::Continue,
                         });
                     }
-                    data.write_all(&buf[..read]).context("write FTP data stream")?;
+                    data.write_all(&buf[..read])
+                        .context("write FTP data stream")?;
                     transferred += read as u64;
                 }
             }
             Self::Tls(stream) => {
                 if offset > 0 {
                     stream
-                        .resume_transfer(usize::try_from(offset).context("FTPS resume offset too large")?)
+                        .resume_transfer(
+                            usize::try_from(offset).context("FTPS resume offset too large")?,
+                        )
                         .map_err(into_anyhow)?;
                 }
                 let mut data = stream.put_with_stream(path).map_err(into_anyhow)?;
@@ -243,7 +261,10 @@ impl FtpStreamKind {
                         FtpTransferControl::Continue => {}
                         stop => {
                             stream.abort(data).map_err(into_anyhow)?;
-                            return Ok(FtpTransferOutcome { transferred, control: stop });
+                            return Ok(FtpTransferOutcome {
+                                transferred,
+                                control: stop,
+                            });
                         }
                     }
                     let read = source.read(&mut buf).context("read FTPS upload source")?;
@@ -254,7 +275,8 @@ impl FtpStreamKind {
                             control: FtpTransferControl::Continue,
                         });
                     }
-                    data.write_all(&buf[..read]).context("write FTPS data stream")?;
+                    data.write_all(&buf[..read])
+                        .context("write FTPS data stream")?;
                     transferred += read as u64;
                 }
             }
