@@ -202,35 +202,8 @@ async fn ftp_roundtrip(
 
     let upload_path = resume_path.clone();
     let upload_payload = resume_payload.clone();
-    let upload_pause = ftp
-        .with_stream(move |stream| {
-            let mut reader = Cursor::new(upload_payload);
-            stream.stor_resumable(&upload_path, 0, &mut reader, |transferred| {
-                if transferred >= pause_after {
-                    FtpTransferControl::Pause
-                } else {
-                    FtpTransferControl::Continue
-                }
-            })
-        })
-        .await
-        .with_context(|| format!("{protocol} ABOR partial upload"))?;
-    // Bytes accepted by the local data socket can be ahead of bytes the FTP
-    // server has durably committed when ABOR closes the transfer. The
-    // production resumable path therefore reports the server-confirmed SIZE,
-    // which may legitimately be below the local pause threshold. Some servers
-    // discard the interrupted STOR entirely, in which case zero is the only
-    // safe restart offset and Ghost FTP deliberately restarts from the start.
-    if upload_pause.control != FtpTransferControl::Pause || upload_pause.transferred > pause_after {
-        return Err(anyhow!(
-            "{protocol} upload did not report a valid server-committed pause offset"
-        ));
-    }
-
-    let upload_path = resume_path.clone();
-    let upload_payload = resume_payload.clone();
     let upload_offset = upload_pause.transferred;
-    let upload_done = ftp
+    let (mut upload_done, needs_fresh_restart) = ftp
         .with_stream(move |stream| {
             if upload_offset > 0 {
                 let remote_size = stream.size(&upload_path)? as u64;
@@ -240,6 +213,7 @@ async fn ftp_roundtrip(
                     ));
                 }
             }
+
             let expected_len = upload_payload.len() as u64;
             let mut reader = Cursor::new(upload_payload);
             std::io::Seek::seek(&mut reader, SeekFrom::Start(upload_offset))?;
@@ -248,30 +222,48 @@ async fn ftp_roundtrip(
                     FtpTransferControl::Continue
                 })?;
 
-            if outcome.control == FtpTransferControl::Continue && upload_offset > 0 {
-                let remote_size = stream.size(&upload_path).ok().map(|size| size as u64);
-                if remote_size != Some(expected_len) {
-                    reader.set_position(0);
-                    let restarted =
-                        stream.stor_resumable(&upload_path, 0, &mut reader, |_| {
-                            FtpTransferControl::Continue
-                        })?;
-                    if restarted.control == FtpTransferControl::Continue {
-                        let verified = stream.size(&upload_path)? as u64;
-                        if verified != expected_len {
-                            return Err(anyhow!(
-                                "full FTP restart verification mismatch: {verified} != {expected_len}"
-                            ));
-                        }
-                    }
-                    return Ok(restarted);
+            let needs_fresh_restart = if outcome.control == FtpTransferControl::Continue {
+                match stream.size(&upload_path).ok().map(|size| size as u64) {
+                    Some(size) => size != expected_len,
+                    None => upload_offset > 0,
                 }
-            }
+            } else {
+                false
+            };
 
-            Ok(outcome)
+            Ok((outcome, needs_fresh_restart))
         })
         .await
-        .with_context(|| format!("{protocol} verified upload resume with safe restart fallback"))?;
+        .with_context(|| format!("{protocol} verify resumed upload result"))?;
+
+    if needs_fresh_restart {
+        ftp.reconnect()
+            .await
+            .with_context(|| format!("{protocol} reconnect before full upload retry"))?;
+
+        let restart_path = resume_path.clone();
+        let restart_payload = resume_payload.clone();
+        upload_done = ftp
+            .with_stream(move |stream| {
+                let expected_len = restart_payload.len() as u64;
+                let mut reader = Cursor::new(restart_payload);
+                let restarted =
+                    stream.stor_resumable(&restart_path, 0, &mut reader, |_| {
+                        FtpTransferControl::Continue
+                    })?;
+                if restarted.control == FtpTransferControl::Continue {
+                    let verified = stream.size(&restart_path)? as u64;
+                    if verified != expected_len {
+                        return Err(anyhow!(
+                            "fresh-session FTP restart verification mismatch: {verified} != {expected_len}"
+                        ));
+                    }
+                }
+                Ok(restarted)
+            })
+            .await
+            .with_context(|| format!("{protocol} full upload retry on fresh session"))?;
+    }
     if upload_done.control != FtpTransferControl::Continue
         || upload_done.transferred != resume_payload.len() as u64
     {
