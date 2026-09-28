@@ -4,7 +4,7 @@ use ghostftp_lib::profiles::{AuthMethod, ConnectionProfile};
 use ghostftp_lib::remotefs::{ftp::FtpFs, sftp::SftpFs, RemoteFs};
 use ghostftp_lib::session::ftp::FtpTransferControl;
 use ghostftp_lib::session::{open_session, HostDecision, HostKeyVerifier, HostPromptKind, Session};
-use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+use std::io::{Cursor, Read, SeekFrom, Write};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use uuid::Uuid;
@@ -77,7 +77,7 @@ impl Read for FailAfterReader {
         }
         let remaining = (self.limit - self.inner.position()) as usize;
         let allowed = buf.len().min(remaining);
-        self.inner.read(&mut buf[..allowed])
+        std::io::Read::read(&mut self.inner, &mut buf[..allowed])
     }
 }
 
@@ -202,9 +202,7 @@ async fn ftp_roundtrip(
         })
         .await
         .with_context(|| format!("{protocol} ABOR partial upload"))?;
-    if upload_pause.control != FtpTransferControl::Pause
-        || upload_pause.transferred < pause_after
-    {
+    if upload_pause.control != FtpTransferControl::Pause || upload_pause.transferred < pause_after {
         return Err(anyhow!(
             "{protocol} upload did not stop at a committed pause offset"
         ));
@@ -223,12 +221,9 @@ async fn ftp_roundtrip(
             }
             let mut reader = Cursor::new(upload_payload);
             std::io::Seek::seek(&mut reader, SeekFrom::Start(upload_offset))?;
-            stream.stor_resumable(
-                &upload_path,
-                upload_offset,
-                &mut reader,
-                |_| FtpTransferControl::Continue,
-            )
+            stream.stor_resumable(&upload_path, upload_offset, &mut reader, |_| {
+                FtpTransferControl::Continue
+            })
         })
         .await
         .with_context(|| format!("{protocol} REST + STOR upload resume"))?;
@@ -242,18 +237,13 @@ async fn ftp_roundtrip(
     let download_pause = ftp
         .with_stream(move |stream| {
             let mut bytes = Vec::new();
-            let outcome = stream.retr_resumable(
-                &download_path,
-                0,
-                &mut bytes,
-                |transferred| {
-                    if transferred >= pause_after {
-                        FtpTransferControl::Pause
-                    } else {
-                        FtpTransferControl::Continue
-                    }
-                },
-            )?;
+            let outcome = stream.retr_resumable(&download_path, 0, &mut bytes, |transferred| {
+                if transferred >= pause_after {
+                    FtpTransferControl::Pause
+                } else {
+                    FtpTransferControl::Continue
+                }
+            })?;
             Ok((outcome, bytes))
         })
         .await
@@ -271,18 +261,15 @@ async fn ftp_roundtrip(
     let mut rebuilt = download_pause.1;
     let download_done = ftp
         .with_stream(move |stream| {
-            stream.retr_resumable(
-                &download_path,
-                download_offset,
-                &mut rebuilt,
-                |_| FtpTransferControl::Continue,
-            )
-            .map(|outcome| (outcome, rebuilt))
+            stream
+                .retr_resumable(&download_path, download_offset, &mut rebuilt, |_| {
+                    FtpTransferControl::Continue
+                })
+                .map(|outcome| (outcome, rebuilt))
         })
         .await
         .with_context(|| format!("{protocol} REST + RETR download resume"))?;
-    if download_done.0.control != FtpTransferControl::Continue
-        || download_done.1 != resume_payload
+    if download_done.0.control != FtpTransferControl::Continue || download_done.1 != resume_payload
     {
         return Err(anyhow!("{protocol} resumed download content mismatch"));
     }
@@ -296,18 +283,13 @@ async fn ftp_roundtrip(
     let cancel_outcome = ftp
         .with_stream(move |stream| {
             let mut reader = Cursor::new(cancel_payload);
-            stream.stor_resumable(
-                &cancel_path_for_transfer,
-                0,
-                &mut reader,
-                |transferred| {
-                    if transferred >= 64 * 1024 {
-                        FtpTransferControl::Cancel
-                    } else {
-                        FtpTransferControl::Continue
-                    }
-                },
-            )
+            stream.stor_resumable(&cancel_path_for_transfer, 0, &mut reader, |transferred| {
+                if transferred >= 64 * 1024 {
+                    FtpTransferControl::Cancel
+                } else {
+                    FtpTransferControl::Continue
+                }
+            })
         })
         .await
         .with_context(|| format!("{protocol} cooperative upload cancel"))?;
@@ -332,12 +314,9 @@ async fn ftp_roundtrip(
                 limit: 96 * 1024,
                 written: 0,
             };
-            stream.retr_resumable(
-                &download_failure_path,
-                0,
-                &mut writer,
-                |_| FtpTransferControl::Continue,
-            )
+            stream.retr_resumable(&download_failure_path, 0, &mut writer, |_| {
+                FtpTransferControl::Continue
+            })
         })
         .await;
     if download_failure.is_ok() {
@@ -351,9 +330,7 @@ async fn ftp_roundtrip(
         Ok(())
     })
     .await
-    .with_context(|| {
-        format!("{protocol} control channel reuse after download I/O failure")
-    })?;
+    .with_context(|| format!("{protocol} control channel reuse after download I/O failure"))?;
 
     let io_failure_path = format!("{base}/io-failure.bin");
     let io_failure_target = io_failure_path.clone();
@@ -364,12 +341,9 @@ async fn ftp_roundtrip(
                 inner: Cursor::new(io_failure_payload),
                 limit: 96 * 1024,
             };
-            stream.stor_resumable(
-                &io_failure_target,
-                0,
-                &mut reader,
-                |_| FtpTransferControl::Continue,
-            )
+            stream.stor_resumable(&io_failure_target, 0, &mut reader, |_| {
+                FtpTransferControl::Continue
+            })
         })
         .await;
     if upload_failure.is_ok() {
