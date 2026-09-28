@@ -414,9 +414,9 @@ impl FtpStreamKind {
                             let abort_error = normalize_abort_result(stream.abort(data)).err();
                             return Err(match abort_error {
                                 Some(abort_error) => anyhow!(
-                                    "flush FTP data stream: {error}; FTP ABOR after flush failure also failed: {abort_error}"
+                                    "flush FTPS data stream: {error}; FTPS ABOR after flush failure also failed: {abort_error}"
                                 ),
-                                None => anyhow!(error).context("flush FTP data stream"),
+                                None => anyhow!(error).context("flush FTPS data stream"),
                             });
                         }
                         stream.finalize_put_stream(data).map_err(into_anyhow)?;
