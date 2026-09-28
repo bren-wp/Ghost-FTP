@@ -155,6 +155,7 @@ require_exact_count "single debug UI smoke screenshot" "$SMOKE_SCRIPT" 'adb exec
 require_exact_count "single release-candidate UI smoke screenshot" "$SMOKE_SCRIPT" 'adb exec-out screencap -p > dist/android/GhostFTP-Android-Release-Candidate-Smoke.png' 1
 require_text "release-candidate APK path" "$SMOKE_SCRIPT" 'PREVIEW_APK="android/app/build/outputs/apk/preview/app-preview.apk"'
 require_text "release-candidate package id" "$SMOKE_SCRIPT" 'PREVIEW_PACKAGE_ID="com.ghostftp.android.preview"'
+require_text "release-candidate launcher class" "$SMOKE_SCRIPT" 'PREVIEW_ACTIVITY_CLASS="com.ghostftp.android.MainActivity"'
 require_text "release-candidate non-debuggable gate" "$SMOKE_SCRIPT" 'Release-candidate APK must remain non-debuggable.'
 require_text "post-launch success marker" "$SMOKE_SCRIPT" 'Ghost FTP Android instrumentation, release-candidate install and launch smoke OK'
 require_text "post-launch resumed activity gate" "$SMOKE_SCRIPT" 'Ghost FTP MainActivity did not reach RESUMED state after launch.'
@@ -178,6 +179,7 @@ require_text "Android workflow verifies preview version code" "$ANDROID_WORKFLOW
 require_text "Android workflow verifies preview version name" "$ANDROID_WORKFLOW" 'test "$VERSION_NAME" = "${VERSION}-preview"'
 require_text "Android workflow verifies preview minSdk" "$ANDROID_WORKFLOW" 'test "$MIN_SDK" = "26"'
 require_text "Android workflow verifies preview targetSdk" "$ANDROID_WORKFLOW" 'test "$TARGET_SDK" = "35"'
+require_text "Android workflow verifies preview launcher" "$ANDROID_WORKFLOW" 'test "$LAUNCH_ACTIVITY" = "com.ghostftp.android.MainActivity"'
 require_text "Android workflow rejects debuggable preview" "$ANDROID_WORKFLOW" 'Installable preview APK unexpectedly remains debuggable.'
 require_text "unsigned APK is clearly non-installable" "$ANDROID_WORKFLOW" 'Release-Unsigned.apk.unsigned'
 require_absent "Android signing secret dependency" "$ANDROID_WORKFLOW" 'GHOSTFTP_ANDROID_KEYSTORE_B64'
