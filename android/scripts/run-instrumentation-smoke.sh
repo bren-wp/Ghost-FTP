@@ -31,6 +31,44 @@ adb shell settings put global window_animation_scale 0.0 || true
 adb shell settings put global transition_animation_scale 0.0 || true
 adb shell settings put global animator_duration_scale 0.0 || true
 
+# ATD can surface unrelated background-system crash dialogs (observed from
+# com.android.bluetooth) that steal Espresso's window focus. Suppress those
+# dialogs and stop the unused Bluetooth stack before launching instrumentation.
+adb shell settings put global hide_error_dialogs 1
+HIDE_ERROR_DIALOGS="$(adb shell settings get global hide_error_dialogs 2>/dev/null || true)"
+case "$HIDE_ERROR_DIALOGS" in
+  1*) ;;
+  *)
+    echo "Unable to enable Android global hide_error_dialogs before UI tests." >&2
+    exit 1
+    ;;
+esac
+adb shell settings put global show_first_crash_dialog 0 || true
+adb shell settings put global show_restart_in_crash_dialog 0 || true
+adb shell cmd bluetooth_manager disable || true
+adb shell am force-stop com.android.bluetooth || true
+adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true
+
+PRETEST_WINDOW_DUMP=""
+for _ in {1..4}; do
+  PRETEST_WINDOW_DUMP="$(adb shell dumpsys window windows 2>&1)"
+  case "$PRETEST_WINDOW_DUMP" in
+    *"Application Error:"*)
+      adb shell input keyevent KEYCODE_BACK || true
+      adb shell am force-stop com.android.bluetooth || true
+      sleep 0.5
+      ;;
+    *) break ;;
+  esac
+done
+case "$PRETEST_WINDOW_DUMP" in
+  *"Application Error:"*)
+    printf '%s\n' "$PRETEST_WINDOW_DUMP" > "$DIAG_DIR/pre-test-window.txt"
+    echo "A system crash dialog still owns the emulator before instrumentation." >&2
+    exit 1
+    ;;
+esac
+
 set +e
 gradle -p android connectedDebugAndroidTest --stacktrace
 TEST_EXIT=$?
@@ -129,41 +167,65 @@ case "$LAUNCH_OUTPUT" in
     ;;
 esac
 
-FOCUSED_WINDOW=""
-WINDOW_DUMP=""
+RESUMED_ACTIVITY=""
+ACTIVITY_DUMP=""
 for _ in {1..20}; do
-  WINDOW_DUMP="$(adb shell dumpsys window 2>&1)"
+  ACTIVITY_DUMP="$(adb shell dumpsys activity activities 2>&1)"
+  while IFS= read -r activity_line; do
+    case "$activity_line" in
+      *ResumedActivity*"$PACKAGE_ID/"*|*topResumedActivity*"$PACKAGE_ID/"*)
+        RESUMED_ACTIVITY="$activity_line"
+        break
+        ;;
+    esac
+  done <<< "$ACTIVITY_DUMP"
+
+  if [ -n "$RESUMED_ACTIVITY" ]; then
+    break
+  fi
+
+  sleep 0.25
+done
+
+printf 'Resumed activity: %s\n' "$RESUMED_ACTIVITY"
+if [ -z "$RESUMED_ACTIVITY" ]; then
+  printf '%s\n' "$ACTIVITY_DUMP" > "$DIAG_DIR/post-launch-activities.txt"
+  echo "Ghost FTP MainActivity did not reach RESUMED state after launch." >&2
+  exit 1
+fi
+
+# Android ATD images can surface an unrelated com.android.bluetooth crash dialog
+# above the app. It must not invalidate Ghost FTP instrumentation, but dismiss
+# that known emulator-only overlay before collecting visual evidence.
+for _ in {1..3}; do
+  WINDOW_DUMP="$(adb shell dumpsys window windows 2>&1)"
+  CURRENT_FOCUS=""
   while IFS= read -r window_line; do
     case "$window_line" in
-      *mCurrentFocus*|*mFocusedApp*)
-        FOCUSED_WINDOW="$window_line"
+      *mCurrentFocus*)
+        CURRENT_FOCUS="$window_line"
         break
         ;;
     esac
   done <<< "$WINDOW_DUMP"
 
-  case "$FOCUSED_WINDOW" in
-    *"$PACKAGE_ID"*) break ;;
+  case "$CURRENT_FOCUS" in
+    *"Application Error: com.android.bluetooth"*)
+      echo "Dismissing Android ATD Bluetooth crash overlay before screenshot."
+      adb shell input keyevent KEYCODE_BACK || true
+      sleep 0.25
+      ;;
+    *)
+      break
+      ;;
   esac
-
-  FOCUSED_WINDOW=""
-  sleep 0.25
 done
-
-printf 'Focused window: %s\n' "$FOCUSED_WINDOW"
-case "$FOCUSED_WINDOW" in
-  *"$PACKAGE_ID"*) ;;
-  *)
-    printf '%s\n' "$WINDOW_DUMP" > "$DIAG_DIR/post-launch-window.txt"
-    echo "Ghost FTP did not own the focused window after launch." >&2
-    exit 1
-    ;;
-esac
 
 APP_PID="$(adb shell pidof "$PACKAGE_ID" 2>/dev/null || true)"
 test -n "$APP_PID"
 printf 'Ghost FTP PID: %s\n' "$APP_PID"
 
+adb shell dumpsys activity activities > "$DIAG_DIR/post-launch-activities.txt" || true
 adb shell dumpsys window windows > "$DIAG_DIR/post-launch-window.txt" || true
 adb exec-out screencap -p > dist/android/GhostFTP-Android-UI-Smoke.png
 test -s dist/android/GhostFTP-Android-UI-Smoke.png

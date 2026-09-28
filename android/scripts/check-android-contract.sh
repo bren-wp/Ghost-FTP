@@ -150,6 +150,10 @@ require_exact_count "single APK reinstall" "$SMOKE_SCRIPT" 'INSTALL_OUTPUT="$(ad
 require_exact_count "single launcher execution" "$SMOKE_SCRIPT" 'LAUNCH_OUTPUT="$(' 1
 require_exact_count "single UI smoke screenshot" "$SMOKE_SCRIPT" 'adb exec-out screencap -p > dist/android/GhostFTP-Android-UI-Smoke.png' 1
 require_text "post-launch success marker" "$SMOKE_SCRIPT" 'Ghost FTP Android instrumentation and post-launch smoke OK'
+require_text "post-launch resumed activity gate" "$SMOKE_SCRIPT" 'Ghost FTP MainActivity did not reach RESUMED state after launch.'
+require_text "ATD Bluetooth overlay handling" "$SMOKE_SCRIPT" 'Application Error: com.android.bluetooth'
+require_absent "window-focus instrumentation dependency" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'hasWindowFocus()'
+require_absent "window-focus smoke gate" "$SMOKE_SCRIPT" 'Ghost FTP did not own the focused window after launch.'
 
 ANDROID_WORKFLOW="$ROOT/.github/workflows/ghostftp-android.yml"
 ANDROID_SMOKE_SCRIPT="$ANDROID_DIR/scripts/run-instrumentation-smoke.sh"
