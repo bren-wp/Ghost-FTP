@@ -17,6 +17,19 @@ require_text() {
   fi
 }
 
+require_exact_count() {
+  local label="$1"
+  local file="$2"
+  local text="$3"
+  local expected="$4"
+  local actual
+  actual="$(grep -Fc "$text" "$file" || true)"
+  if [ "$actual" -ne "$expected" ]; then
+    echo "Android contract failed: $label expected $expected occurrence(s), found $actual in $file"
+    exit 1
+  fi
+}
+
 require_absent() {
   local label="$1"
   local path="$2"
@@ -130,6 +143,14 @@ require_text "AndroidX test runner dependency" "$ANDROID_DIR/app/build.gradle.kt
 require_text "AndroidX JUnit dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test.ext:junit:1.3.0'
 require_text "Android Espresso UI test dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test.espresso:espresso-core:3.7.0'
 test -s "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt"
+SMOKE_SCRIPT="$ANDROID_DIR/scripts/run-instrumentation-smoke.sh"
+bash -n "$SMOKE_SCRIPT"
+require_exact_count "single instrumentation execution" "$SMOKE_SCRIPT" 'gradle -p android connectedDebugAndroidTest --stacktrace' 1
+require_exact_count "single APK reinstall" "$SMOKE_SCRIPT" 'INSTALL_OUTPUT="$(adb install -r "$DEBUG_APK" 2>&1)"' 1
+require_exact_count "single launcher execution" "$SMOKE_SCRIPT" 'LAUNCH_OUTPUT="$(' 1
+require_exact_count "single UI smoke screenshot" "$SMOKE_SCRIPT" 'adb exec-out screencap -p > dist/android/GhostFTP-Android-UI-Smoke.png' 1
+require_text "post-launch success marker" "$SMOKE_SCRIPT" 'Ghost FTP Android instrumentation and post-launch smoke OK'
+
 ANDROID_WORKFLOW="$ROOT/.github/workflows/ghostftp-android.yml"
 ANDROID_SMOKE_SCRIPT="$ANDROID_DIR/scripts/run-instrumentation-smoke.sh"
 require_text "Android click-through workflow" "$ANDROID_WORKFLOW" 'bash android/scripts/run-instrumentation-smoke.sh'
