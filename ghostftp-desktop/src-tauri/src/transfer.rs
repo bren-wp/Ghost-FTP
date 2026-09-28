@@ -307,6 +307,18 @@ pub struct TransferManager {
     cancels: Mutex<HashMap<String, Arc<AtomicBool>>>,
     /// Original resolved inputs per transfer, for manual retry.
     retry: Mutex<HashMap<String, RetryInfo>>,
+    /// Credential-free retry descriptors survive process restarts. They contain
+    /// only profile ids and resolved paths; secrets remain in the OS keychain.
+    persisted_retry: Mutex<HashMap<String, PersistedRetryInfo>>,
+    /// Rows restored from a previous process keep their committed byte offset
+    /// on the first explicit retry so ranged backends can continue safely.
+    recovered_retry: Mutex<HashSet<String>>,
+    /// Optional shared SQLite store. Unit tests that don't exercise persistence
+    /// use `new()`; the desktop app uses `with_db()`.
+    db: Option<Arc<crate::db::Db>>,
+    /// Throttle progress persistence to avoid turning a fast transfer into a
+    /// high-frequency SQLite writer. State transitions still flush immediately.
+    persisted_at: Mutex<HashMap<String, Instant>>,
     /// Bumped on every queue change so admission waiters re-check their turn.
     queue_gen: watch::Sender<u64>,
     /// Global bandwidth cap every copy loop draws from per chunk.
@@ -388,8 +400,61 @@ async fn resolve_remote_rename(sftp: &russh_sftp::client::SftpSession, path: &st
 
 impl TransferManager {
     pub fn new() -> Self {
+        Self::from_db(None)
+    }
+
+    pub fn with_db(db: Arc<crate::db::Db>) -> Self {
+        Self::from_db(Some(db))
+    }
+
+    fn from_db(db: Option<Arc<crate::db::Db>>) -> Self {
+        let mut transfers = HashMap::new();
+        let mut persisted_retry = HashMap::new();
+        let mut recovered_retry = HashSet::new();
+
+        if let Some(store) = db.as_ref() {
+            if let Ok(rows) = store.transfer_ledger_list() {
+                for (row_id, payload, _) in rows {
+                    let Ok(mut envelope) =
+                        serde_json::from_str::<PersistedTransferEnvelope>(&payload)
+                    else {
+                        let _ = store.transfer_ledger_delete(&row_id);
+                        continue;
+                    };
+                    if envelope.schema != TRANSFER_LEDGER_SCHEMA
+                        || envelope.transfer.id != row_id
+                    {
+                        let _ = store.transfer_ledger_delete(&row_id);
+                        continue;
+                    }
+
+                    if matches!(
+                        envelope.transfer.status,
+                        TransferStatus::Queued
+                            | TransferStatus::Transferring
+                            | TransferStatus::Paused
+                    ) {
+                        envelope.transfer.status = TransferStatus::Error;
+                        envelope.transfer.retry_attempt = None;
+                        envelope.transfer.error = Some(
+                            "Transfer was interrupted by the previous Ghost FTP process. Retry will reconnect the saved profile and continue from the last verified byte when the backend supports ranged resume."
+                                .to_string(),
+                        );
+                        recovered_retry.insert(row_id.clone());
+                        if let Ok(normalized) = serde_json::to_string(&envelope) {
+                            let _ = store.transfer_ledger_upsert(&row_id, &normalized);
+                        }
+                    }
+
+                    persisted_retry.insert(row_id.clone(), envelope.retry);
+                    transfers.insert(row_id, envelope.transfer);
+                }
+                let _ = store.transfer_ledger_prune(TRANSFER_LEDGER_KEEP);
+            }
+        }
+
         Self {
-            transfers: Mutex::new(HashMap::new()),
+            transfers: Mutex::new(transfers),
             tasks: Mutex::new(HashMap::new()),
             waiting: Mutex::new(VecDeque::new()),
             semaphore: Arc::new(Semaphore::new(DEFAULT_CONCURRENCY)),
@@ -398,6 +463,10 @@ impl TransferManager {
             pauses: Mutex::new(HashMap::new()),
             cancels: Mutex::new(HashMap::new()),
             retry: Mutex::new(HashMap::new()),
+            persisted_retry: Mutex::new(persisted_retry),
+            recovered_retry: Mutex::new(recovered_retry),
+            db,
+            persisted_at: Mutex::new(HashMap::new()),
             queue_gen: watch::channel(0).0,
             bucket: TokenBucket::new(),
             max_auto_retries: AtomicUsize::new(DEFAULT_MAX_AUTO_RETRIES),
@@ -422,13 +491,100 @@ impl TransferManager {
     }
 
     async fn update<F: FnOnce(&mut Transfer)>(&self, id: &str, f: F) {
-        if let Some(t) = self.transfers.lock().await.get_mut(id) {
-            f(t);
+        let snapshot = {
+            let mut transfers = self.transfers.lock().await;
+            transfers.get_mut(id).map(|transfer| {
+                f(transfer);
+                transfer.clone()
+            })
+        };
+        if let Some(transfer) = snapshot {
+            let force = transfer.status != TransferStatus::Transferring
+                || transfer.transferred >= transfer.size;
+            self.persist_snapshot(transfer, force).await;
         }
     }
 
     async fn insert(&self, t: Transfer) {
-        self.transfers.lock().await.insert(t.id.clone(), t);
+        self.transfers.lock().await.insert(t.id.clone(), t.clone());
+        self.persist_snapshot(t, true).await;
+    }
+
+    async fn persist_snapshot(&self, transfer: Transfer, force: bool) {
+        let Some(db) = self.db.as_ref() else {
+            return;
+        };
+        let retry = self.persisted_retry.lock().await.get(&transfer.id).cloned();
+        let Some(retry) = retry else {
+            return;
+        };
+
+        if !force {
+            let now = Instant::now();
+            let mut persisted_at = self.persisted_at.lock().await;
+            if persisted_at
+                .get(&transfer.id)
+                .is_some_and(|last| now.duration_since(*last) < TRANSFER_LEDGER_PROGRESS_INTERVAL)
+            {
+                return;
+            }
+            persisted_at.insert(transfer.id.clone(), now);
+        } else {
+            self.persisted_at
+                .lock()
+                .await
+                .insert(transfer.id.clone(), Instant::now());
+        }
+
+        let envelope = PersistedTransferEnvelope {
+            schema: TRANSFER_LEDGER_SCHEMA,
+            transfer,
+            retry,
+        };
+        if let Ok(payload) = serde_json::to_string(&envelope) {
+            let _ = db.transfer_ledger_upsert(&envelope.transfer.id, &payload);
+        }
+    }
+
+    /// Profile needed to retry a row restored from a previous process.
+    pub async fn recovery_profile_id(&self, id: &str) -> Option<String> {
+        if !self.recovered_retry.lock().await.contains(id) {
+            return None;
+        }
+        self.persisted_retry
+            .lock()
+            .await
+            .get(id)
+            .map(|retry| retry.profile_id().to_string())
+    }
+
+    /// Bind a freshly reconnected live session to a persisted retry descriptor.
+    /// The profile id must match so a recovered transfer can never be redirected
+    /// to a different saved site by mistake.
+    pub async fn attach_recovered_session(
+        &self,
+        id: &str,
+        session: Arc<Session>,
+    ) -> Result<()> {
+        let descriptor = self
+            .persisted_retry
+            .lock()
+            .await
+            .get(id)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("transfer {id} has no recovery metadata"))?;
+        if descriptor.profile_id() != session.profile().id {
+            anyhow::bail!(
+                "recovery profile mismatch for transfer {id}: expected {}, got {}",
+                descriptor.profile_id(),
+                session.profile().id
+            );
+        }
+        self.retry
+            .lock()
+            .await
+            .insert(id.to_string(), descriptor.with_session(session));
+        Ok(())
     }
 
     // ---------- Queue scheduling ----------
