@@ -39,8 +39,8 @@
 
 ## Current status
 
-- **Active source/release cycle:** `0.19.0`.
-- **Previous canonical release:** `0.18.0`.
+- **Active source/release cycle:** `0.20.0`.
+- **Previous canonical release:** `0.19.0`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
@@ -56,7 +56,7 @@ FTP, explicit FTPS and SFTP with TLS/SSH verification, protected credential hand
 
 ### Files and transfers
 
-Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls.
+Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven.
 
 ### Productivity
 
@@ -78,7 +78,7 @@ Linux uses the same desktop frontend and Rust/native engine as Windows. Release 
 
 ### Android
 
-The native Kotlin application supports FTP, explicit FTPS and SFTP connection/listing workflows plus upload, download, new-folder, delete, refresh and guarded session handling. Android keeps the same product terminology and branding while using a mobile-first layout.
+The native Kotlin application supports FTP, explicit FTPS and SFTP connection/listing workflows plus upload, download, new-folder, delete, refresh and guarded session handling. Uploads/downloads use staged replacement, lifecycle cancellation propagates into remote mutations, and persisted document access keeps SAF permissions without storing session credentials. Android keeps the same product terminology and branding while using a mobile-first layout.
 
 ## Verification
 

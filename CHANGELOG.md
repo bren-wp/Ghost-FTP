@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.20.0 — release cycle — 30 September 2026
+
+0.20.0 follows canonical 0.19.0; live publication status is determined by GitHub Releases.
+
+- Added a durable, credential-free desktop transfer ledger in SQLite so interrupted queue/history state survives process restart and application updates.
+- Recovered transfers now reconnect through the saved profile and OS credential store; cross-process retries restart safely from byte zero when source identity cannot be proven, preventing hybrid/corrupted files.
+- Bounded terminal transfer history during runtime while preserving active transfers, avoiding unbounded in-memory and SQLite growth in long-running clients.
+- Made FTP and explicit FTPS pause/resume byte-accurate, including cooperative ABOR cleanup and verified resumed uploads with safe full-restart fallback when the remote final size is wrong.
+- Expanded real FTP/explicit-FTPS/SFTP protocol E2E coverage for pause/resume, cancellation, control-channel synchronization and I/O failure cleanup.
+- Hardened Android transfers with staged upload/download replacement, lifecycle-aware cancellation for upload/download/delete/new-folder actions, and deterministic stream cleanup.
+- Corrected Android SAF persisted-permission handling so the picker keeps persistable access while `takePersistableUriPermission` receives only valid READ/WRITE grant modes.
+- Tightened Android stable-signing continuity so an existing stable APK must be downloadable, inspectable and signed by the same certificate; failures now block release rather than silently skipping the check.
+- Kept Windows console-free helper hardening, Windows NSIS/MSI lifecycle smoke, Linux AppImage/DEB/RPM lifecycle smoke and exact-head release gates mandatory.
+- Updated release/version metadata, documentation and updater templates for 0.20.0.
+
+See [docs/releases/0.20.0.md](docs/releases/0.20.0.md).
+
 ## 0.19.0 — release cycle — 27 September 2026
 
 0.19.0 follows canonical 0.18.0; live publication status is determined by GitHub Releases.

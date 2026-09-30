@@ -6,8 +6,8 @@ Ghost FTP Android follows the same product identity and file-action model as the
 
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
-- Active source version: **0.19.0**
-- Previous canonical release: **0.18.0**
+- Active source version: **0.20.0**
+- Previous canonical release: **0.19.0**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical release asset: `GhostFTP-Android-v<version>.apk`
@@ -58,6 +58,15 @@ Android keeps the same primary product model as desktop where it makes sense on 
 - Android uploads use the document picker.
 - Unsafe remote path segments such as `.` and `..` are rejected before transfer execution.
 - Mutating operations refresh the listing after success.
+
+## 0.20.0 reliability hardening
+
+- Uploads are staged to a temporary remote object and promoted only after the transfer completes; an existing target is preserved for rollback while promotion is in progress.
+- Downloads are staged locally and promoted only after completion, so a failed transfer does not destroy the existing destination.
+- Activity destruction/disconnect cancellation propagates through upload, download, delete and folder-creation operations.
+- Upload input streams are owned and closed at the controller boundary even when cancellation wins before protocol setup.
+- Persisted SAF access keeps only valid READ grant modes in `takePersistableUriPermission` while the picker intent still requests persistable access.
+- Stable Android release signing continuity is fail-closed once a canonical stable APK asset exists.
 
 ## CI/release contract
 
