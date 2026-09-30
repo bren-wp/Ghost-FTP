@@ -9,6 +9,7 @@
 - Advanced desktop, Rust workspace, Android, compatibility-tool and updater metadata to 0.20.1 with Android `versionCode` 211030.
 - Simplified Android release packaging so it no longer depends on private `ANDROID_RELEASE_*` secrets or a second optional signing branch.
 - The Android gate now always verifies an intentionally unsigned production `com.ghostftp.android` APK plus a non-debuggable installable preview used for clean-install/reinstall/launch smoke; canonical release naming keeps the unsigned production artifact explicitly marked `.unsigned`.
+- Reworked the Android shell into separate Files, Sites, Transfers, Settings and Help & About workspaces behind a persistent left navigation rail, with workspace state preserved across Activity recreation without persisting credentials.
 - Refreshed build, QA, product, versioning and release documentation for the patch cycle while keeping documentation imagery pinned to the latest published release until new release-proven captures can replace it.
 
 See [docs/releases/0.20.1.md](docs/releases/0.20.1.md).
