@@ -209,7 +209,7 @@ class MainActivity : Activity() {
     private fun buildNavigationRail(): View = ScrollView(this).apply {
         isFillViewport = true
         isVerticalScrollBarEnabled = false
-        contentDescription = "Workspace navigation"
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         background = rounded(Brand.panelStrong, 0, Brand.border)
 
         val rail = LinearLayout(this@MainActivity).apply {
