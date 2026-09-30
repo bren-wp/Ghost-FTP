@@ -69,6 +69,23 @@ fn normalize_abort_result(result: std::result::Result<(), FtpError>) -> Result<(
     }
 }
 
+/// Finalizing a RETR/STOR data stream can hit the same completion/ABOR race as
+/// cooperative interruption: the transfer is already closed and the server
+/// answers 225 "No transfer to abort". SuppaFTP reports that as unexpected even
+/// though there is no remaining data-channel work. Normalize only that exact
+/// idle status; every other finalization error remains fatal.
+fn normalize_data_finish_result(result: std::result::Result<(), FtpError>) -> Result<()> {
+    match result {
+        Ok(()) => Ok(()),
+        Err(FtpError::UnexpectedResponse(response))
+            if response.status == Status::DataConnectionOpen || response.status.code() == 225 =>
+        {
+            Ok(())
+        }
+        Err(error) => Err(into_anyhow(error)),
+    }
+}
+
 /// Resolve the only upload offset that is safe to resume from after ABOR:
 /// the size the server reports after the data channel has been closed.
 ///
@@ -221,7 +238,7 @@ impl FtpStreamKind {
                         }
                     };
                     if read == 0 {
-                        data.finish().map_err(into_anyhow)?;
+                        normalize_data_finish_result(data.finish())?;
                         return Ok(FtpTransferOutcome {
                             transferred,
                             control: FtpTransferControl::Continue,
@@ -274,7 +291,7 @@ impl FtpStreamKind {
                         }
                     };
                     if read == 0 {
-                        data.finish().map_err(into_anyhow)?;
+                        normalize_data_finish_result(data.finish())?;
                         return Ok(FtpTransferOutcome {
                             transferred,
                             control: FtpTransferControl::Continue,
@@ -360,7 +377,7 @@ impl FtpStreamKind {
                                 None => anyhow!(error).context("flush FTP data stream"),
                             });
                         }
-                        data.finish().map_err(into_anyhow)?;
+                        normalize_data_finish_result(data.finish())?;
                         return Ok(FtpTransferOutcome {
                             transferred,
                             control: FtpTransferControl::Continue,
@@ -424,7 +441,7 @@ impl FtpStreamKind {
                                 None => anyhow!(error).context("flush FTPS data stream"),
                             });
                         }
-                        data.finish().map_err(into_anyhow)?;
+                        normalize_data_finish_result(data.finish())?;
                         return Ok(FtpTransferOutcome {
                             transferred,
                             control: FtpTransferControl::Continue,
