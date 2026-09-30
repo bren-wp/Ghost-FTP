@@ -168,7 +168,7 @@ Implemented architectural controls include:
 ## 0.20.1 patch hardening
 
 - Transfer worker registration is race-safe when a very fast worker completes before its `JoinHandle` reaches the task map.
-- Completed-before-registration workers are removed immediately instead of leaving stale lifecycle state in memory.
+- The task-map lock is acquired before `tokio::spawn`, so an immediately scheduled worker cannot reach cleanup before its `JoinHandle` is registered.
 - Stable-channel Android publication remains gated on a persistently signed `com.ghostftp.android` APK; the preview package is CI evidence only.
 
 ## 0.20.0 hardening retained
