@@ -38,6 +38,10 @@ Android keeps the same primary product model as desktop where it makes sense on 
 
 ## Mobile layout rules
 
+- Use a persistent left navigation rail for Files, Sites, Transfers, Settings and Help & About.
+- Render only the active workspace in the main content area instead of stacking every workspace in one long screen.
+- Keep the selected workspace across Activity recreation while never persisting the password or authenticated session.
+- Return to Files after a successful connection and move to Transfers after the document picker returns an upload selection.
 - Prioritize one-handed use and readable touch targets.
 - Keep connection/session state visible.
 - Avoid desktop-only window controls/copy.

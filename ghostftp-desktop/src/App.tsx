@@ -10,7 +10,7 @@ import { AuthPromptModal } from "./components/AuthPromptModal";
 import { TitleBar } from "./components/TitleBar";
 import { useConnections } from "./stores/connectionsStore";
 import { useTransfers } from "./stores/transfersStore";
-import { type AppDialog, useLayout } from "./stores/layoutStore";
+import { useLayout } from "./stores/layoutStore";
 import { useSync } from "./stores/syncStore";
 import { applyTransferEngineSettings, useSettings } from "./stores/settingsStore";
 import { onDeepLink } from "./lib/ipc";
@@ -43,22 +43,7 @@ import { ImportDialog } from "./components/ImportDialog";
 import { AboutDialog } from "./components/AboutDialog";
 import { useUpdater } from "./stores/updaterStore";
 import { WorkspaceErrorBoundary } from "./components/WorkspaceErrorBoundary";
-
-const WORKSPACE_DIALOGS = new Set<AppDialog>([
-  "settings",
-  "siteManager",
-  "transferCenter",
-  "sync",
-  "help",
-  "updates",
-  "about",
-]);
-
-function workspaceFor(dialog: AppDialog | null, returnDialog: AppDialog | null): AppDialog | null {
-  if (dialog && WORKSPACE_DIALOGS.has(dialog)) return dialog;
-  if (returnDialog && WORKSPACE_DIALOGS.has(returnDialog)) return returnDialog;
-  return null;
-}
+import { resolveWorkspaceDialog } from "./lib/workspaces";
 
 export default function App() {
   const activeSessionId = useConnections((s) => s.activeSessionId);
@@ -76,7 +61,7 @@ export default function App() {
   const closeDialog = useLayout((s) => s.closeDialog);
   const showFiles = useLayout((s) => s.showFiles);
   const connectionPrefill = useLayout((s) => s.connectionPrefill);
-  const workspace = workspaceFor(dialog, returnDialog);
+  const workspace = resolveWorkspaceDialog(dialog, returnDialog);
   const fileManager = workspace === null;
   const workspaceLabel =
     workspace === "settings"

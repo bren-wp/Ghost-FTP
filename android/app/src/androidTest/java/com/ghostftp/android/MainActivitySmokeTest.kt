@@ -71,6 +71,7 @@ class MainActivitySmokeTest {
 
     @Test
     fun connectionValidationAndIdleRecoveryWorkClickByClick() {
+        clickByDescription("Open Sites workspace")
         clickByDescription("Connect to server")
         assertTextPresent("Host is required")
 
@@ -87,13 +88,29 @@ class MainActivitySmokeTest {
             clickByDescription("$label action")
             assertTextPresent("Connect first")
 
+            clickByDescription("Open Sites workspace")
             clickByDescription("Disconnect from server")
             assertTextPresent("Ready")
         }
     }
 
     @Test
+    fun workspacesAreExclusiveInsteadOfOneLongScreen() {
+        assertTextVisibleInViewport("Connect to a server to load remote files.")
+        assertTextNotShown("Protocol")
+
+        clickByDescription("Open Sites workspace")
+        assertTextVisibleInViewport("Protocol")
+        assertTextNotShown("Connect to a server to load remote files.")
+
+        clickByDescription("Open Transfers workspace")
+        assertTextVisibleInViewport("No transfer started.")
+        assertTextNotShown("Protocol")
+    }
+
+    @Test
     fun activityRecreationRestoresNonSecretFieldsButNotPassword() {
+        clickByDescription("Open Sites workspace")
         scenario.onActivity { activity ->
             val host = findView(activity.window.decorView) {
                 it is EditText && it.hint?.toString() == "Host"
@@ -133,8 +150,17 @@ class MainActivitySmokeTest {
             assertTrue("Password must never survive Activity recreation.", password.text.isEmpty())
         }
         assertTextPresent("Android restored non-secret workspace state. Reconnect to authenticate before remote actions.")
+        assertTextVisibleInViewport("Protocol")
     }
 
+    private fun assertTextNotShown(expected: String) {
+        scenario.onActivity { activity ->
+            val view = findText(activity.window.decorView, expected)
+            if (view != null) {
+                assertTrue("Text should not be shown in the active workspace: $expected", !view.isShown)
+            }
+        }
+    }
 
     private fun clickByDescription(description: String) {
         scenario.onActivity { activity ->

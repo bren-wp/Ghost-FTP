@@ -8,17 +8,8 @@ import {
   Settings,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { type AppDialog, useLayout } from "@/stores/layoutStore";
-
-const WORKSPACE_DIALOGS = new Set<AppDialog>([
-  "settings", "siteManager", "transferCenter", "sync", "help", "updates", "about",
-]);
-
-function workspace(dialog: AppDialog | null, returnDialog: AppDialog | null): AppDialog | null {
-  if (dialog && WORKSPACE_DIALOGS.has(dialog)) return dialog;
-  if (returnDialog && WORKSPACE_DIALOGS.has(returnDialog)) return returnDialog;
-  return null;
-}
+import { useLayout } from "@/stores/layoutStore";
+import { resolveWorkspaceDialog } from "@/lib/workspaces";
 
 export function ReferenceSiteSidebar() {
   const dialog = useLayout((s) => s.dialog);
@@ -26,7 +17,7 @@ export function ReferenceSiteSidebar() {
   const openDialog = useLayout((s) => s.openDialog);
   const openNewConnection = useLayout((s) => s.openNewConnection);
   const showFiles = useLayout((s) => s.showFiles);
-  const current = workspace(dialog, returnDialog);
+  const current = resolveWorkspaceDialog(dialog, returnDialog);
 
   return (
     <aside className="ghost-sites-panel ghost-primary-sidebar" aria-label="Ghost FTP navigation">

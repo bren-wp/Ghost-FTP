@@ -78,8 +78,11 @@ requireIncludes(
     "createPortal(",
     "document.body",
     'style={{ position: "fixed"',
+    "const disconnectActive = () =>",
+    'toastError(error, "Couldn\'t disconnect from the active site")',
+    'label="Disconnect" onClick={disconnectActive}',
   ],
-  "More actions overflow-safe portal contract"
+  "Title bar overflow and disconnect failure-handling contract"
 );
 
 requireIncludes(

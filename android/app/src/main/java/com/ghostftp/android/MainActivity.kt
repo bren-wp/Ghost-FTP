@@ -24,7 +24,6 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
-import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Spinner
@@ -35,6 +34,14 @@ import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
 class MainActivity : Activity() {
+    private enum class Workspace(val label: String) {
+        FILES("Files"),
+        SITES("Sites"),
+        TRANSFERS("Transfers"),
+        SETTINGS("Settings"),
+        ABOUT("Help & About")
+    }
+
     private val controller = ConnectionController()
     private val actionButtons = mutableListOf<Button>()
     private lateinit var statusTitle: TextView
@@ -57,6 +64,10 @@ class MainActivity : Activity() {
     private lateinit var remoteRows: LinearLayout
     private lateinit var activityRows: LinearLayout
     private lateinit var contentScroll: ScrollView
+    private lateinit var workspaceContainer: LinearLayout
+    private lateinit var workspaceTitle: TextView
+    private val workspaceNavButtons = mutableMapOf<Workspace, TextView>()
+    private var activeWorkspace = Workspace.FILES
     private lateinit var sitesSection: View
     private lateinit var filesSection: View
     private lateinit var transfersSection: View
@@ -96,6 +107,7 @@ class MainActivity : Activity() {
         outState.putString(STATE_UPLOAD_URI, selectedUploadUri?.toString())
         outState.putString(STATE_UPLOAD_DISPLAY_NAME, selectedUploadDisplayName)
         outState.putString(STATE_LAST_COMPLETED_PATH, lastCompletedTransferPath)
+        outState.putString(STATE_WORKSPACE, activeWorkspace.name)
         // Intentionally never persist passwordInput or activeProfile: a recreated
         // Activity must require a fresh authenticated connection.
         super.onSaveInstanceState(outState)
@@ -127,6 +139,7 @@ class MainActivity : Activity() {
         }
         selectedUploadUri = uri
         selectedUploadDisplayName = displayNameFor(uri)
+        setWorkspace(Workspace.TRANSFERS)
         uploadSelectionText.text = "Selected local file: $selectedUploadDisplayName"
         if (uploadRemoteNameInput.text.toString().isBlank()) {
             uploadRemoteNameInput.setText(selectedUploadDisplayName)
@@ -136,34 +149,46 @@ class MainActivity : Activity() {
     }
 
     private fun buildContent(): View {
-        contentScroll = ScrollView(this).apply {
-            setBackgroundColor(Brand.background)
-        }
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(14), dp(14), dp(22))
-        }
-
         sitesSection = buildConnectionCard()
         filesSection = buildFilesCard()
         transfersSection = buildTransfersCard()
         settingsSection = buildSettingsCard()
         aboutSection = buildAboutCard()
 
+        workspaceContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(filesSection)
+            addView(sitesSection)
+            addView(transfersSection)
+            addView(settingsSection)
+            addView(aboutSection)
+        }
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(Brand.background)
+        }
+        val railWidth = if (resources.configuration.screenWidthDp >= 600) dp(184) else dp(104)
+        root.addView(
+            buildNavigationRail(),
+            LinearLayout.LayoutParams(railWidth, ViewGroup.LayoutParams.MATCH_PARENT)
+        )
+
+        contentScroll = ScrollView(this).apply {
+            setBackgroundColor(Brand.background)
+            isFillViewport = true
+        }
+        val outerPadding = if (resources.configuration.screenWidthDp < 480) dp(10) else dp(14)
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(outerPadding, dp(14), outerPadding, dp(22))
+        }
         content.addView(buildHeader())
-        content.addView(space(12))
+        content.addView(space(10))
         content.addView(buildStatusCard())
-        content.addView(space(12))
-        content.addView(sitesSection)
-        content.addView(space(12))
-        content.addView(filesSection)
-        content.addView(space(12))
-        content.addView(transfersSection)
-        content.addView(space(12))
-        content.addView(settingsSection)
-        content.addView(space(12))
-        content.addView(aboutSection)
-        content.addView(space(12))
+        content.addView(space(10))
+        content.addView(workspaceContainer)
+        content.addView(space(10))
         content.addView(buildFooter())
 
         contentScroll.addView(
@@ -173,7 +198,69 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
         )
-        return contentScroll
+        root.addView(
+            contentScroll,
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+        )
+        setWorkspace(activeWorkspace, announce = false)
+        return root
+    }
+
+    private fun buildNavigationRail(): View = ScrollView(this).apply {
+        isFillViewport = true
+        isVerticalScrollBarEnabled = false
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        background = rounded(Brand.panelStrong, 0, Brand.border)
+
+        val rail = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(8), dp(14), dp(8), dp(14))
+
+            addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(42), dp(42)))
+            addView(space(8))
+            addView(TextView(this@MainActivity).apply {
+                text = "Ghost FTP"
+                setTextColor(Brand.text)
+                textSize = 14f
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = ReleaseInfo.VERSION_DISPLAY
+                setTextColor(Brand.muted)
+                textSize = 11f
+                gravity = Gravity.CENTER
+            })
+            addView(space(18))
+
+            Workspace.entries.forEach { workspace ->
+                addView(
+                    workspaceNavItem(workspace),
+                    LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        dp(if (resources.configuration.screenWidthDp >= 600) 50 else 56)
+                    )
+                )
+                addView(space(6))
+            }
+
+            addView(space(12))
+            addView(TextView(this@MainActivity).apply {
+                text = "Private\nsession"
+                setTextColor(Brand.muted)
+                textSize = 10f
+                gravity = Gravity.CENTER
+                setLineSpacing(0f, 1.08f)
+            })
+        }
+        addView(
+            rail,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
     }
 
     private fun buildHeader(): View = panel(strong = true).apply {
@@ -192,34 +279,14 @@ class MainActivity : Activity() {
         titleRow.addView(badge(ReleaseInfo.VERSION_BADGE))
         addView(titleRow)
 
-        val workspaceScroll = HorizontalScrollView(this@MainActivity).apply {
-            isHorizontalScrollBarEnabled = false
-            setPadding(0, dp(10), 0, 0)
-        }
-        val workspaceRow = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        val workspaceTargets = listOf(
-            "Files" to { filesSection },
-            "Sites" to { sitesSection },
-            "Transfers" to { transfersSection },
-            "Settings" to { settingsSection },
-            "Help & About" to { aboutSection }
-        )
-        workspaceTargets.forEachIndexed { index, (label, target) ->
-            if (index > 0) workspaceRow.addView(gap(8))
-            workspaceRow.addView(workspaceNavChip(label) { scrollToSection(target()) })
-        }
-        workspaceRow.addView(gap(10))
-        workspaceRow.addView(TextView(this@MainActivity).apply {
-            text = ReleaseInfo.VERSION_DISPLAY
-            setTextColor(Brand.muted)
+        workspaceTitle = TextView(this@MainActivity).apply {
+            text = activeWorkspace.label
+            setTextColor(Brand.textSoft)
             textSize = 13f
-            gravity = Gravity.CENTER_VERTICAL
-        })
-        workspaceScroll.addView(workspaceRow)
-        addView(workspaceScroll)
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding(0, dp(8), 0, 0)
+        }
+        addView(workspaceTitle)
 
         addView(space(12))
         val toolbar = LinearLayout(this@MainActivity).apply {
@@ -398,10 +465,37 @@ class MainActivity : Activity() {
         addView(row("Release", "Use the verified GitHub release package for Android distribution."))
     }
 
-    private fun scrollToSection(target: View) {
-        contentScroll.post {
-            contentScroll.smoothScrollTo(0, target.top)
-            target.requestFocus()
+    private fun setWorkspace(workspace: Workspace, announce: Boolean = true) {
+        activeWorkspace = workspace
+        val targets = mapOf(
+            Workspace.FILES to filesSection,
+            Workspace.SITES to sitesSection,
+            Workspace.TRANSFERS to transfersSection,
+            Workspace.SETTINGS to settingsSection,
+            Workspace.ABOUT to aboutSection
+        )
+        targets.forEach { (key, view) ->
+            view.visibility = if (key == workspace) View.VISIBLE else View.GONE
+        }
+        workspaceNavButtons.forEach { (key, view) ->
+            styleWorkspaceNavItem(view, selected = key == workspace)
+        }
+        if (::workspaceTitle.isInitialized) workspaceTitle.text = workspace.label
+        if (::workspaceContainer.isInitialized) {
+            workspaceContainer.contentDescription = "${workspace.label} workspace content"
+        }
+        if (::contentScroll.isInitialized) {
+            contentScroll.post {
+                val workspaceTop = if (::workspaceContainer.isInitialized) {
+                    workspaceContainer.top
+                } else {
+                    0
+                }
+                contentScroll.scrollTo(0, workspaceTop)
+                if (announce && ::workspaceContainer.isInitialized) {
+                    workspaceContainer.announceForAccessibility("${workspace.label} workspace")
+                }
+            }
         }
     }
 
@@ -440,6 +534,7 @@ class MainActivity : Activity() {
                     onSuccess = {
                         activeProfile = profile
                         showReachable(profile, it)
+                        setWorkspace(Workspace.FILES)
                     },
                     onFailure = {
                         activeProfile = null
@@ -717,6 +812,10 @@ class MainActivity : Activity() {
             ?.takeIf { it.isNotBlank() }
             ?.let(Uri::parse)
         lastCompletedTransferPath = state.getString(STATE_LAST_COMPLETED_PATH).orEmpty()
+        activeWorkspace = state.getString(STATE_WORKSPACE)
+            ?.let { saved -> runCatching { Workspace.valueOf(saved) }.getOrNull() }
+            ?: Workspace.FILES
+        setWorkspace(activeWorkspace, announce = false)
 
         passwordInput.text.clear()
         activeProfile = null
@@ -948,18 +1047,30 @@ class MainActivity : Activity() {
         background = rounded(Brand.badge, dp(999), Brand.border)
     }
 
-    private fun workspaceNavChip(value: String, onClick: () -> Unit): TextView = TextView(this).apply {
-        text = value
-        contentDescription = "Open $value workspace"
-        setTextColor(Brand.text)
-        textSize = 13f
-        typeface = Typeface.DEFAULT_BOLD
-        gravity = Gravity.CENTER
-        setPadding(dp(12), dp(6), dp(12), dp(6))
-        background = rounded(Brand.badge, dp(999), Brand.border)
-        isClickable = true
-        isFocusable = true
-        setOnClickListener { onClick() }
+    private fun workspaceNavItem(workspace: Workspace): TextView {
+        val view = TextView(this).apply {
+            text = workspace.label
+            contentDescription = "Open ${workspace.label} workspace"
+            textSize = if (resources.configuration.screenWidthDp >= 600) 13f else 11f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding(dp(6), dp(8), dp(6), dp(8))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { setWorkspace(workspace) }
+        }
+        workspaceNavButtons[workspace] = view
+        styleWorkspaceNavItem(view, selected = workspace == activeWorkspace)
+        return view
+    }
+
+    private fun styleWorkspaceNavItem(view: TextView, selected: Boolean) {
+        view.setTextColor(if (selected) Brand.accent else Brand.textSoft)
+        view.background = rounded(
+            if (selected) Brand.accentSurface else Brand.panel,
+            dp(14),
+            if (selected) Brand.accent else Brand.borderSubtle
+        )
     }
 
     private fun primaryButton(value: String, onClick: () -> Unit): Button = Button(this).apply {
@@ -1026,6 +1137,7 @@ class MainActivity : Activity() {
         val border: Int = Color.rgb(48, 54, 61)
         val borderSubtle: Int = Color.rgb(33, 38, 45)
         val accent: Int = Color.rgb(47, 129, 247)
+        val accentSurface: Int = Color.rgb(15, 39, 68)
         val danger: Int = Color.rgb(248, 81, 73)
         val dangerSurface: Int = Color.rgb(48, 27, 32)
         val text: Int = Color.rgb(230, 237, 243)
@@ -1050,6 +1162,7 @@ class MainActivity : Activity() {
         const val STATE_UPLOAD_URI = "ghostftp.uploadUri"
         const val STATE_UPLOAD_DISPLAY_NAME = "ghostftp.uploadDisplayName"
         const val STATE_LAST_COMPLETED_PATH = "ghostftp.lastCompletedPath"
+        const val STATE_WORKSPACE = "ghostftp.workspace"
     }
 }
 
