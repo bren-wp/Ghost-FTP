@@ -138,6 +138,7 @@ require_text "FTP binary transfer mode" "$CONNECTION_MODEL" 'setFileType(FTP.BIN
 require_text "FTP logout cleanup" "$CONNECTION_MODEL" 'client.logout()'
 require_text "FTP disconnect cleanup" "$CONNECTION_MODEL" 'client.disconnect()'
 require_text "Explicit FTPS client mode" "$CONNECTION_MODEL" 'FTPSClient(false)'
+require_text "FTPS hostname verification" "$CONNECTION_MODEL" 'setEndpointCheckingEnabled(true)'
 require_text "Explicit FTPS PBSZ" "$CONNECTION_MODEL" 'execPBSZ(0)'
 require_text "Explicit FTPS protected data channel" "$CONNECTION_MODEL" 'execPROT("P")'
 require_text "SFTP host key verification" "$CONNECTION_MODEL" 'StrictHostKeyChecking", "yes"'
