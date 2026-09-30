@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.20.3 — file-action reliability hardening — 1 October 2026
+
+0.20.3 follows published 0.20.2 with shared file-browser interaction hardening and release-documentation alignment.
+
+- Serialized shared file-browser confirmation and prompt actions so asynchronous operations cannot be submitted twice while still running.
+- Kept rename, new-folder, chmod and delete dialogs open when the underlying filesystem operation fails, allowing a safe retry instead of presenting a premature close as success.
+- Added generic in-dialog failure feedback without exposing raw backend errors; detailed errors continue through the existing file-pane error path.
+- Removed redundant prompt focus logic and kept focus trapping/restoration under the shared dialog hook.
+- Added interaction-contract guards for shared file-ui async action locking and failure propagation.
+- Corrected Android release documentation to match the current unsigned production APK plus separate installable-preview validation policy.
+
+See [docs/releases/0.20.3.md](docs/releases/0.20.3.md).
+
 ## 0.20.2 — UI and launch-smoke hardening — 1 October 2026
 
 0.20.2 follows published 0.20.1 and carries the post-0.20.1 Android/desktop polish that was merged after the 0.20.1 tag.
