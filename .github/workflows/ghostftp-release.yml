@@ -72,13 +72,19 @@ jobs:
           wait_for_gate() {
             local workflow="$1"
             local label="$2"
-            for attempt in $(seq 1 60); do
+            local state run_url
+            for attempt in $(seq 1 270); do
               state="$(gh run list --workflow "$workflow" --commit "$SOURCE_SHA" --limit 1 --json status,conclusion --jq '.[0] | ((.status // "") + ":" + (.conclusion // ""))' || true)"
-              echo "$label for $SOURCE_SHA: ${state:-not-found}"
+              run_url="$(gh run list --workflow "$workflow" --commit "$SOURCE_SHA" --limit 1 --json url --jq '.[0].url // ""' || true)"
+              echo "$label for $SOURCE_SHA: ${state:-not-found} ${run_url:+($run_url)}"
               if [ "$state" = "completed:success" ]; then return 0; fi
-              if [[ "$state" == completed:* ]] && [ "$state" != "completed:success" ]; then return 1; fi
+              if [[ "$state" == completed:* ]] && [ "$state" != "completed:success" ]; then
+                echo "::error::$label failed for release source $SOURCE_SHA: $state ${run_url:+$run_url}"
+                return 1
+              fi
               sleep 20
             done
+            echo "::error::Timed out after 90 minutes waiting for $label on release source $SOURCE_SHA."
             return 1
           }
 
