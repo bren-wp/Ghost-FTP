@@ -172,7 +172,7 @@ Implemented architectural controls include:
 - Recovered retries reconnect through saved profiles and the OS credential store, while the first cross-process retry restarts from byte zero when file identity cannot be proven.
 - Runtime pruning bounds terminal transfer history while preserving all active transfer rows.
 - FTP and explicit FTPS pause/resume use cooperative bounded chunks, ABOR cleanup and final-size verification with safe full-restart fallback when a server persists the wrong byte count.
-- Real FTP, explicit FTPS and SFTP E2E coverage verifies pause/resume, cancellation, control-channel reuse and I/O-failure cleanup.
+- Real FTP and explicit FTPS E2E coverage verifies pause/resume, cancellation, control-channel reuse and I/O-failure cleanup; real OpenSSH SFTP E2E separately verifies the non-zero-offset seek/read/write primitives used by production byte-range resume.
 - Android uploads/downloads use staged replacement so incomplete transfers do not replace known-good targets.
 - Android lifecycle/disconnect cancellation propagates through upload, download, delete and folder creation.
 - Android upload streams are closed at the controller ownership boundary on all early-cancellation paths.
