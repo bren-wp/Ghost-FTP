@@ -50,7 +50,7 @@ The canonical release asset is:
 
 - `GhostFTP-Android-v<version>.apk`
 
-The release workflow obtains this APK from the verified Android CI artifact for the same source SHA. CI verifies the installable preview signature/package contract before release packaging.
+The release workflow obtains this APK from the verified Android CI artifact for the same source SHA. On the current `preview` channel, it may use the verified non-debuggable `com.ghostftp.android.preview` APK when production signing secrets are not configured. Non-preview channels require the persistently signed `com.ghostftp.android` release APK. Preview-channel publication does not claim cross-release Android upgrade continuity.
 
 The separate unsigned Android release-check APK is a CI validation artifact and is not the canonical end-user APK.
 
