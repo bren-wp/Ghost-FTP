@@ -486,7 +486,12 @@ class MainActivity : Activity() {
         }
         if (::contentScroll.isInitialized) {
             contentScroll.post {
-                contentScroll.scrollTo(0, 0)
+                val workspaceTop = if (::workspaceContainer.isInitialized) {
+                    workspaceContainer.top
+                } else {
+                    0
+                }
+                contentScroll.scrollTo(0, workspaceTop)
                 if (announce && ::workspaceContainer.isInitialized) {
                     workspaceContainer.announceForAccessibility("${workspace.label} workspace")
                 }
