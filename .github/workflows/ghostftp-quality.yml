@@ -180,8 +180,30 @@ jobs:
       - name: Linux desktop prerequisites
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          set -euo pipefail
+
+          apt_retry() {
+            local attempt
+            for attempt in 1 2 3; do
+              echo "APT attempt $attempt/3: $*"
+              if sudo env DEBIAN_FRONTEND=noninteractive \
+                timeout --signal=TERM --kill-after=30s 8m \
+                apt-get -o Acquire::Retries=3 \
+                  -o Acquire::http::Timeout=30 \
+                  -o Acquire::https::Timeout=30 \
+                  -o Dpkg::Use-Pty=0 "$@"; then
+                return 0
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                sleep $((attempt * 10))
+              fi
+            done
+            echo "::error::APT prerequisites failed after 3 bounded attempts."
+            return 1
+          }
+
+          apt_retry update
+          apt_retry install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
       - name: Prepare desktop frontendDist for Rust checks
         shell: bash
