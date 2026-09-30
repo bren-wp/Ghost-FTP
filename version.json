@@ -4,5 +4,5 @@
   "build": "2026.09.30.21",
   "releaseDate": "30 September 2026",
   "androidVersionCode": 211030,
-  "channel": "preview"
+  "channel": "stable"
 }
