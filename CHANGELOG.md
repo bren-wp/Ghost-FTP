@@ -13,6 +13,7 @@
 - Corrected Android SAF persisted-permission handling so the picker keeps persistable access while `takePersistableUriPermission` receives only valid READ/WRITE grant modes.
 - Tightened Android stable-signing continuity so an existing stable APK must be downloadable, inspectable and signed by the same certificate; failures now block release rather than silently skipping the check.
 - Kept Windows console-free helper hardening, Windows NSIS/MSI lifecycle smoke, Linux AppImage/DEB/RPM lifecycle smoke and exact-head release gates mandatory.
+- Hardened release CI against transient Ubuntu APT stalls with bounded retries/timeouts and extended exact-SHA gate waiting so valid Windows/Linux/Android release candidates are not dropped by a premature orchestration timeout.
 - Updated release/version metadata, documentation and updater templates for 0.20.0.
 
 See [docs/releases/0.20.0.md](docs/releases/0.20.0.md).
