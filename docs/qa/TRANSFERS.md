@@ -18,8 +18,8 @@ Rust workspace tests and frontend production builds are release quality gates. C
 
 ## 0.20.1 task lifecycle regression coverage
 
-- Spawned transfer workers are registered through a race-safe helper that immediately drops an already-finished handle if completion won the spawn-to-registration race.
-- The helper and `finalize()` share the same task-map lock, so a worker still finishing cleanup removes itself after registration releases the lock rather than leaving stale task state.
+- Spawned transfer workers are registered through a race-safe helper that locks the task map before `tokio::spawn`, eliminating the completion-before-registration window.
+- The helper and `finalize()` share the same task-map lock, so an immediately scheduled worker blocks until registration completes and then removes its own handle during cleanup.
 - A Tokio regression test covers the completed-before-registration interleaving.
 
 ## 0.20.0 restart/recovery contract
