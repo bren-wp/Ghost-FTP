@@ -17,7 +17,8 @@ import {
   X,
 } from "lucide-react";
 import { GhostWordmark } from "./GhostBrand";
-import { type AppDialog, useLayout } from "@/stores/layoutStore";
+import { useLayout } from "@/stores/layoutStore";
+import { workspaceLabel } from "@/lib/workspaces";
 import { useConnections } from "@/stores/connectionsStore";
 import { useSettings } from "@/stores/settingsStore";
 import { PRODUCT_VERSION_BADGE } from "@/lib/release";
@@ -33,20 +34,6 @@ type PaneActionState = {
   canCreateDirectory: boolean;
   focused: boolean;
 };
-
-const WORKSPACE_DIALOGS = new Set<AppDialog>([
-  "settings", "siteManager", "transferCenter", "sync", "help", "updates", "about",
-]);
-
-function currentWorkspace(dialog: AppDialog | null, returnDialog: AppDialog | null) {
-  const active = dialog && WORKSPACE_DIALOGS.has(dialog) ? dialog : returnDialog;
-  if (active === "siteManager") return "Sites";
-  if (active === "transferCenter") return "Transfers";
-  if (active === "sync") return "Sync & Backup";
-  if (active === "settings") return "Settings";
-  if (active === "about" || active === "help" || active === "updates") return "Help & About";
-  return "Files";
-}
 
 function fileAction(action: FileAction, pane: PaneTarget = "active") {
   const target = pane === "active" ? undefined : pane;
@@ -76,7 +63,7 @@ export function TitleBar() {
   const profiles = useConnections((s) => s.profiles);
   const disconnect = useConnections((s) => s.disconnect);
   const profile = profiles.find((item) => item.id === activeProfileId) ?? null;
-  const workspace = currentWorkspace(dialog, returnDialog);
+  const workspace = workspaceLabel(dialog, returnDialog);
 
   const disconnectActive = () => {
     void disconnect().catch((error) => {
