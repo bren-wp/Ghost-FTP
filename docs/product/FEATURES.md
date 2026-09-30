@@ -1,6 +1,6 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 0.20.0 development/release source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.20.1 development/release source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Connection and profile management
 
@@ -165,7 +165,13 @@ Implemented architectural controls include:
 - Restricted developer compatibility API and mutation authorization.
 - No production dependency on a browser-host `127.0.0.1` GUI wrapper.
 
-## Current 0.20.0 hardening
+## 0.20.1 patch hardening
+
+- Transfer worker registration is race-safe when a very fast worker completes before its `JoinHandle` reaches the task map.
+- Completed-before-registration workers are removed immediately instead of leaving stale lifecycle state in memory.
+- Stable-channel Android publication remains gated on a persistently signed `com.ghostftp.android` APK; the preview package is CI evidence only.
+
+## 0.20.0 hardening retained
 
 - Desktop transfer queue/history state is persisted in SQLite without passwords, tokens or private-key material.
 - Interrupted transfers restored after restart/update are shown as recovery/error rows rather than falsely remaining active.
