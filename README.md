@@ -39,8 +39,8 @@
 
 ## Current status
 
-- **Active source/release cycle:** `0.20.0`.
-- **Previous canonical release:** `0.19.0`.
+- **Active source/release cycle:** `0.20.1`.
+- **Previous canonical release:** `0.20.0`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
@@ -56,7 +56,7 @@ FTP, explicit FTPS and SFTP with TLS/SSH verification, protected credential hand
 
 ### Files and transfers
 
-Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven.
+Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.20.1 patch cycle also closes the worker-registration/finalization race so a transfer that completes immediately cannot leave a stale completed task handle in memory.
 
 ### Productivity
 

@@ -16,6 +16,12 @@ The current transfer implementation also enforces:
 
 Rust workspace tests and frontend production builds are release quality gates. Compatibility tooling does not simulate successful file transfers and is not used as proof of protocol correctness.
 
+## 0.20.1 task lifecycle regression coverage
+
+- Spawned transfer workers are registered through a race-safe helper that locks the task map before `tokio::spawn`, eliminating the completion-before-registration window.
+- The helper and `finalize()` share the same task-map lock, so an immediately scheduled worker blocks until registration completes and then removes its own handle during cleanup.
+- A Tokio regression test covers the completed-before-registration interleaving.
+
 ## 0.20.0 restart/recovery contract
 
 - Desktop transfer snapshots are persisted in SQLite without passwords, tokens or private-key material.

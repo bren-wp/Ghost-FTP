@@ -9,7 +9,7 @@ A successful compile is not equivalent to stable/FINAL acceptance.
 1. Start from current `main`.
 2. Make meaningful product/code/documentation changes.
 3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
-4. Keep the previous canonical release recorded in `previousVersion` (currently `0.19.0` for the 0.20.0 cycle).
+4. Keep the previous canonical release recorded in `previousVersion` (currently `0.20.0` for the 0.20.1 cycle).
 5. Open a PR.
 6. Require exact-head success for:
    - Ghost FTP quality
@@ -70,15 +70,15 @@ If the signing key is not configured, these four updater-service assets are omit
 
 ## Current release cycle
 
-- Active source/release cycle: **0.20.0**
-- Previous canonical release: **0.19.0**
+- Active source/release cycle: **0.20.1**
+- Previous canonical release: **0.20.0**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Release integrity
 
 - End-user desktop GUI assets come from `ghostftp-desktop/`.
 - Canonical Windows/Linux binaries and native QA evidence come from the same successful native build run.
-- Canonical Android APK comes from the verified Android artifact for the same release SHA.
+- Stable-channel canonical Android APK must be the persistently signed `com.ghostftp.android` artifact from the verified Android run for the same release SHA; a `.preview` package is not a stable release substitute.
 - Support/browser-host tooling is not a production desktop release asset.
 - Publication fails if required artifacts/gates are missing.
 - Existing tags are never moved.

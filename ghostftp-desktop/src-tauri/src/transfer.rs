@@ -7,6 +7,7 @@ use crate::session::{
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::future::Future;
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
@@ -531,6 +532,22 @@ impl TransferManager {
         self.persist_snapshot(t, true).await;
     }
 
+    /// Spawn and register a transfer worker while holding the task-map lock.
+    ///
+    /// Tokio may poll a spawned future immediately. Taking this lock before
+    /// `tokio::spawn` guarantees a very fast worker that reaches `finalize()`
+    /// blocks on the same map until its JoinHandle is registered. Once this
+    /// method releases the lock, `finalize()` can deterministically remove the
+    /// registered handle; there is no completion-before-registration window.
+    async fn spawn_registered<F>(&self, id: String, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        let mut tasks = self.tasks.lock().await;
+        let task = tokio::spawn(future);
+        tasks.insert(id, task);
+    }
+
     async fn persist_snapshot(&self, transfer: Transfer, force: bool) {
         let Some(db) = self.db.as_ref() else {
             return;
@@ -933,33 +950,37 @@ impl TransferManager {
         let mgr = Arc::clone(self);
         let id_for_task = id.to_string();
         let app_for_task = app.clone();
-        let task = match info {
+        match info {
             RetryInfo::Download {
                 session,
                 remote_path,
                 final_path,
-            } => tokio::spawn(run_download_task(
-                mgr,
-                id_for_task,
-                session,
-                remote_path,
-                final_path,
-                app_for_task,
-            )),
+            } => {
+                self.spawn_registered(
+                    id.to_string(),
+                    run_download_task(
+                        mgr,
+                        id_for_task,
+                        session,
+                        remote_path,
+                        final_path,
+                        app_for_task,
+                    ),
+                )
+                .await;
+            }
             RetryInfo::Upload {
                 session,
                 local,
                 final_remote,
-            } => tokio::spawn(run_upload_task(
-                mgr,
-                id_for_task,
-                session,
-                local,
-                final_remote,
-                app_for_task,
-            )),
-        };
-        self.tasks.lock().await.insert(id.to_string(), task);
+            } => {
+                self.spawn_registered(
+                    id.to_string(),
+                    run_upload_task(mgr, id_for_task, session, local, final_remote, app_for_task),
+                )
+                .await;
+            }
+        }
         Ok(())
     }
 
@@ -1122,15 +1143,11 @@ impl TransferManager {
 
         let mgr = Arc::clone(self);
         let id_for_task = id.clone();
-        let task = tokio::spawn(run_download_task(
-            mgr,
-            id_for_task,
-            session,
-            remote_path,
-            final_path,
-            app,
-        ));
-        self.tasks.lock().await.insert(id.clone(), task);
+        self.spawn_registered(
+            id.clone(),
+            run_download_task(mgr, id_for_task, session, remote_path, final_path, app),
+        )
+        .await;
         Ok(id)
     }
 
@@ -1375,15 +1392,11 @@ impl TransferManager {
 
         let mgr = Arc::clone(self);
         let id_for_task = id.clone();
-        let task = tokio::spawn(run_upload_task(
-            mgr,
-            id_for_task,
-            session,
-            local,
-            final_remote,
-            app,
-        ));
-        self.tasks.lock().await.insert(id.clone(), task);
+        self.spawn_registered(
+            id.clone(),
+            run_upload_task(mgr, id_for_task, session, local, final_remote, app),
+        )
+        .await;
         Ok(id)
     }
 
@@ -4263,6 +4276,27 @@ async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn spawn_registered_makes_handle_visible_before_worker_cleanup() {
+        let mgr = Arc::new(TransferManager::new());
+        let worker_mgr = Arc::clone(&mgr);
+        let id = "immediate-worker".to_string();
+        let worker_id = id.clone();
+        let (tx, rx) = tokio::sync::oneshot::channel();
+
+        mgr.spawn_registered(id, async move {
+            let registered = worker_mgr.tasks.lock().await.remove(&worker_id).is_some();
+            let _ = tx.send(registered);
+        })
+        .await;
+
+        assert_eq!(
+            rx.await,
+            Ok(true),
+            "worker cleanup must observe its registered JoinHandle even when the worker runs immediately"
+        );
+    }
 
     // ---------- TokenBucket ----------
 

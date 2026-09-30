@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.20.0 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.20.1 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.19.0**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.20.0**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -24,7 +24,13 @@ Previous canonical release: **0.19.0**. Live publication state is determined fro
 
 Full capability detail: [FEATURES.md](FEATURES.md).
 
-## 0.20.0 hardening in source
+## 0.20.1 patch hardening in source
+
+- Closes a desktop transfer-worker registration/finalization race that could retain an already-completed `JoinHandle` when a very fast transfer finished before task-map registration.
+- Adds a regression test for the completed-before-registration interleaving.
+- Moves the 0.20.1 candidate to the stable release channel so canonical publication fails closed unless Android produces the persistently signed `com.ghostftp.android` APK.
+
+## 0.20.0 hardening retained
 
 - Persists desktop transfer rows and retry descriptors without credentials so restart/update recovery retains user-visible history.
 - Reconnects recovered retries through saved profiles and the OS credential store, while restarting from zero when cross-process file identity is not provable.

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.20.1 — patch cycle — 30 September 2026
+
+0.20.1 follows canonical 0.20.0. It is not considered published until the exact-source GitHub Release and required assets exist.
+
+- Closed a desktop transfer worker-registration/finalization race where an immediately completed worker could finish before its `JoinHandle` was recorded, leaving stale completed task state in memory.
+- Added Tokio regression coverage for the completed-before-registration interleaving and routed download, upload and manual-retry workers through the race-safe registration helper.
+- Advanced desktop, Rust workspace, Android, compatibility-tool and updater metadata to 0.20.1 with Android `versionCode` 211030.
+- Set the 0.20.1 release channel to stable so canonical publication requires the persistently signed `com.ghostftp.android` APK; `com.ghostftp.android.preview` remains CI/preview evidence and is not an acceptable stable release substitute.
+- Made the Android exact-SHA gate itself fail closed on stable/non-preview cycles when persistent release signing is unavailable, so a green Android gate proves the stable signing prerequisite instead of merely producing a preview APK.
+- Refreshed build, QA, product, versioning and release documentation for the patch cycle while keeping documentation imagery pinned to the latest published release until new release-proven captures can replace it.
+
+See [docs/releases/0.20.1.md](docs/releases/0.20.1.md).
+
 ## 0.20.0 — release cycle — 30 September 2026
 
 0.20.0 follows canonical 0.19.0; live publication status is determined by GitHub Releases.

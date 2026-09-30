@@ -18,10 +18,12 @@ It verifies:
 - debug, release and installable preview lint/build;
 - maintained protocol dependency contract;
 - installable preview APK signature/package identity, versionCode/versionName, minSdk/targetSdk and non-debuggable state;
-- intentionally unsigned release-check APK;
+- intentionally unsigned release-check APK when persistent signing is unavailable on a preview cycle;
+- a fail-closed stable-channel signing gate: any non-preview channel requires all four persistent `ANDROID_RELEASE_*` secrets;
+- signed stable APK signature, `com.ghostftp.android` identity, version and non-debuggable verification when stable signing is enabled;
 - emulator instrumentation click-through smoke;
-- clean install, same-build reinstall and launch of the exact installable preview APK that the release workflow publishes;
-- real emulator UI screenshot artifacts for both the debug instrumentation target and the release candidate.
+- clean install, same-build reinstall and launch for the preview candidate, plus the exact persistently signed stable APK when present;
+- real emulator UI screenshot artifacts for debug, preview candidate and signed stable release where applicable.
 
 ## Emulator click-through smoke
 
@@ -43,15 +45,11 @@ After instrumentation, CI removes any existing preview package, installs the exa
 
 ## Release artifact
 
-The Android gate creates:
+The Android gate always creates the non-debuggable isolated preview APK as CI evidence. On a preview channel without persistent release signing it also retains a clearly named unsigned release-check artifact.
 
-- installable non-debuggable preview APK used as the canonical pre-1.0 Android release artifact;
-- separate unsigned release-check APK used only to prove the release variant remains unsigned until production signing policy is configured;
-- checksum file for the Android CI artifacts.
+For a stable/non-preview channel, the Android gate now fails immediately unless all four persistent `ANDROID_RELEASE_*` secrets are available. With signing enabled it additionally creates and verifies the persistently signed `com.ghostftp.android` APK, exercises clean install, same-signature reinstall and launcher/RESUMED smoke on the emulator, records its certificate SHA-256 digest and makes that signed package the only acceptable canonical stable Android input.
 
-The canonical release workflow downloads the installable APK from the successful Android run for the exact release SHA.
-
-The current pre-1.0 preview channel still uses Gradle's CI debug signing identity. Automated QA now proves clean installability and same-build reinstallability of the exact release candidate, but cryptographic upgrade continuity between separately generated release builds cannot be guaranteed without a persistent signing identity. Do not claim cross-release upgrade continuity until that identity is available through the existing secure release infrastructure; never commit a keystore or signing password to the repository.
+The canonical release workflow downloads the verified Android artifact bundle for the exact release SHA and, on the stable channel, normalizes only the signed `com.ghostftp.android` APK into `GhostFTP-Android-v<version>.apk`. Never commit a keystore or signing password to the repository.
 
 ## 0.20.0 transfer/lifecycle regression coverage
 

@@ -53,11 +53,15 @@ jobs:
             fi
           done
 
+          CHANNEL="$(python3 -c 'import json; print(json.load(open("version.json", encoding="utf-8"))["channel"])')"
+
           if [ "$configured" -eq 0 ]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
-              echo "::warning::Persistent Android release-signing secrets are not configured. Stable APK publication will remain blocked."
+            if [ "$CHANNEL" != "preview" ]; then
+              echo "::error::Android release signing is required for channel '$CHANNEL'. Configure all four ANDROID_RELEASE_* secrets so CI can prove the stable com.ghostftp.android APK identity."
+              exit 1
             fi
+            echo "::warning::Persistent Android release-signing secrets are not configured. Preview APK validation will continue, but stable publication remains blocked."
             exit 0
           fi
           if [ "$configured" -ne 4 ]; then
