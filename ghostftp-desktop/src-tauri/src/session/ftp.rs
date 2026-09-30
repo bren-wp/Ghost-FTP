@@ -55,8 +55,13 @@ const FTP_TRANSFER_CHUNK: usize = 64 * 1024;
 fn normalize_abort_result(result: std::result::Result<(), FtpError>) -> Result<()> {
     match result {
         Ok(()) => Ok(()),
+        // RFC 959 code 225 means the data connection is already idle / there is
+        // no transfer left to abort. Some servers (including pyftpdlib) return
+        // this when the final data bytes raced with Ghost FTP's cooperative
+        // pause/cancel checkpoint. Treat only this exact ABOR response as a
+        // successful cleanup; every other unexpected status remains fatal.
         Err(FtpError::UnexpectedResponse(response))
-            if response.status == Status::DataConnectionOpen =>
+            if response.status == Status::DataConnectionOpen || response.status.code() == 225 =>
         {
             Ok(())
         }
