@@ -2289,7 +2289,7 @@ impl TransferManager {
             Err(error) => {
                 return Err(match session.reconnect().await {
                     Ok(()) => error,
-                    Err(reconnect_error) => anyhow!(
+                    Err(reconnect_error) => anyhow::anyhow!(
                         "{error:#}; additionally failed to reconnect FTP session after download failure: {reconnect_error:#}"
                     ),
                 });
@@ -2414,7 +2414,7 @@ impl TransferManager {
             Err(error) => {
                 return Err(match session.reconnect().await {
                     Ok(()) => error,
-                    Err(reconnect_error) => anyhow!(
+                    Err(reconnect_error) => anyhow::anyhow!(
                         "{error:#}; additionally failed to reconnect FTP session after upload failure: {reconnect_error:#}"
                     ),
                 });
