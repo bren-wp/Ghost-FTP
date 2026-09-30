@@ -1,6 +1,6 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 0.18.0 development source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.20.0 development/release source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Connection and profile management
 
@@ -165,7 +165,21 @@ Implemented architectural controls include:
 - Restricted developer compatibility API and mutation authorization.
 - No production dependency on a browser-host `127.0.0.1` GUI wrapper.
 
-## Current 0.19.0 hardening
+## Current 0.20.0 hardening
+
+- Desktop transfer queue/history state is persisted in SQLite without passwords, tokens or private-key material.
+- Interrupted transfers restored after restart/update are shown as recovery/error rows rather than falsely remaining active.
+- Recovered retries reconnect through saved profiles and the OS credential store, while the first cross-process retry restarts from byte zero when file identity cannot be proven.
+- Runtime pruning bounds terminal transfer history while preserving all active transfer rows.
+- FTP and explicit FTPS pause/resume use cooperative bounded chunks, ABOR cleanup and final-size verification with safe full-restart fallback when a server persists the wrong byte count.
+- Real FTP and explicit FTPS E2E coverage verifies pause/resume, cancellation, control-channel reuse and I/O-failure cleanup; real OpenSSH SFTP E2E separately verifies the non-zero-offset seek/read/write primitives used by production byte-range resume.
+- Android uploads/downloads use staged replacement so incomplete transfers do not replace known-good targets.
+- Android lifecycle/disconnect cancellation propagates through upload, download, delete and folder creation.
+- Android upload streams are closed at the controller ownership boundary on all early-cancellation paths.
+- Android SAF persistence uses valid READ grant modes while the picker still requests persistable document access.
+- Stable Android signing continuity is fail-closed once a canonical stable APK exists.
+
+## 0.19.0 hardening retained in 0.20.0
 
 - Recurring transfer schedules honor their configured start date and wait for the initial backend snapshot.
 - Concurrent native connection attempts for the same profile are deduplicated.

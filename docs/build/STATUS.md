@@ -1,4 +1,4 @@
-# Ghost FTP Build Status — 27 September 2026
+# Ghost FTP Build Status — 30 September 2026
 
 ## Authoritative current state
 
@@ -26,7 +26,7 @@ The obsolete duplicate Windows/Linux native build workflow and website applicati
 
 ## 0.20.0 recovery and cross-platform hardening
 
-The 0.20.0 cycle adds durable credential-free desktop transfer recovery, safe cross-process retry semantics, runtime-bounded transfer history, stricter FTP/FTPS resume verification and broader real-protocol E2E coverage. Android now uses lifecycle-aware cancellation through remote mutations, closes upload streams at the ownership boundary, preserves document-picker access with lint-safe SAF grant modes, and fails closed when stable signing continuity cannot be verified.
+The 0.20.0 cycle adds durable credential-free desktop transfer recovery, safe cross-process retry semantics, runtime-bounded transfer history, stricter FTP/FTPS resume verification, real FTP/explicit-FTPS pause/cancel/cleanup E2E coverage and real OpenSSH SFTP non-zero-offset resume primitive coverage. Android now uses lifecycle-aware cancellation through remote mutations, closes upload streams at the ownership boundary, preserves document-picker access with lint-safe SAF grant modes, and fails closed when stable signing continuity cannot be verified.
 
 The same exact-source Windows/Linux native build, Android, Quality, Protocol E2E and Windows hardening gates remain release blockers.
 
