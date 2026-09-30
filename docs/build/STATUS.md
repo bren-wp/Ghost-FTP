@@ -1,4 +1,4 @@
-# Ghost FTP Build Status — 27 September 2026
+# Ghost FTP Build Status — 30 September 2026
 
 ## Authoritative current state
 
