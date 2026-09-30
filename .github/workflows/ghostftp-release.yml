@@ -152,20 +152,11 @@ jobs:
           mkdir -p dist/android
           gh run download "$RUN_ID" --name GhostFTP-Android-APK -D dist/android
           find dist/android -type f -print
-          RELEASE_CHANNEL="$(node -p 'require("./version.json").channel || ""')"
-          SIGNED_ANDROID_APK="$(find dist/android -type f -iname '*Release-Signed.apk' | head -n1 || true)"
+          UNSIGNED_ANDROID_APK="$(find dist/android -type f -iname '*Release-Unsigned.apk.unsigned' | head -n1 || true)"
           PREVIEW_ANDROID_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
-
-          if [ -z "$SIGNED_ANDROID_APK" ]; then
-            if [ "$RELEASE_CHANNEL" = "preview" ]; then
-              test -n "$PREVIEW_ANDROID_APK"
-              test -s "$PREVIEW_ANDROID_APK"
-              echo "::warning::Publishing the verified non-debuggable preview Android APK because production release signing is not configured. Cross-release upgrade continuity is not claimed."
-            else
-              echo "::error::Stable Android release signing is not configured. Non-preview channels require a signed com.ghostftp.android APK produced from persistent GitHub Secrets."
-              exit 1
-            fi
-          fi
+          test -n "$UNSIGNED_ANDROID_APK"; test -s "$UNSIGNED_ANDROID_APK"
+          test -n "$PREVIEW_ANDROID_APK"; test -s "$PREVIEW_ANDROID_APK"
+          echo "::notice::Android production package is intentionally unsigned; installable preview evidence is retained separately."
 
       - name: Normalize release artifacts
         shell: bash
@@ -180,14 +171,12 @@ jobs:
           APPIMAGE_SIG="$(find dist/native -type f -iname '*.AppImage.sig' | head -n1 || true)"
           DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
           RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
-          RELEASE_CHANNEL="$(node -p 'require("./version.json").channel || ""')"
-          ANDROID_APK="$(find dist/android -type f -iname '*Release-Signed.apk' | head -n1 || true)"
-          if [ -z "$ANDROID_APK" ] && [ "$RELEASE_CHANNEL" = "preview" ]; then
-            ANDROID_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
-          fi
+          ANDROID_UNSIGNED_APK="$(find dist/android -type f -iname '*Release-Unsigned.apk.unsigned' | head -n1 || true)"
+          ANDROID_PREVIEW_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
-          test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"; test -n "$ANDROID_APK"
+          test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"
+          test -n "$ANDROID_UNSIGNED_APK"; test -n "$ANDROID_PREVIEW_APK"
           if [ -n "$WIN_SETUP_SIG" ] || [ -n "$APPIMAGE_SIG" ]; then
             test -n "$WIN_SETUP_SIG"
             test -n "$APPIMAGE_SIG"
@@ -210,7 +199,8 @@ jobs:
           fi
           cp "$DEB" "dist/GhostFTP-Linux-amd64-v$VERSION.deb"
           cp "$RPM" "dist/GhostFTP-Linux-x86_64-v$VERSION.rpm"
-          cp "$ANDROID_APK" "dist/GhostFTP-Android-v$VERSION.apk"
+          cp "$ANDROID_UNSIGNED_APK" "dist/GhostFTP-Android-v$VERSION.apk.unsigned"
+          cp "$ANDROID_PREVIEW_APK" "dist/GhostFTP-Android-v$VERSION-Installable-Preview.apk"
 
           QA_DIR="$(find dist/native -type d -name 'GhostFTP-Windows-x64-Preview-QA' | head -n1 || true)"
           test -n "$QA_DIR"

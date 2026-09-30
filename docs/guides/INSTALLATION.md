@@ -30,7 +30,7 @@ The portable executable runs without an installation workflow. The Setup executa
 
 The interactive Setup is branded with Ghost FTP artwork and follows a guided Windows installer flow. Before installation it presents the Ghost FTP EULA from the repository root; installation must not continue interactively unless the user accepts the licence terms. The installer uses the Ghost FTP application icon, branded header/sidebar artwork, a Ghost FTP Start Menu folder, and automatically follows the supported Windows locale (English/Croatian installer resources are enabled).
 
-Production-signing policy is tracked separately from package generation; do not treat an unsigned development artifact as a stable/FINAL signing claim.
+Android production builds are intentionally delivered without a private release-signing key. The unsigned production package is build evidence and is not directly installable by Android; CI separately keeps a non-debuggable installable preview, signed only with the standard development key, for functional install/reinstall/launch verification.
 
 ## Linux x86-64
 
@@ -48,11 +48,12 @@ Use the package format appropriate to the target distribution/environment and ve
 
 The canonical release asset is:
 
-- `GhostFTP-Android-v<version>.apk`
+- `GhostFTP-Android-v<version>.apk.unsigned`
+- `GhostFTP-Android-v<version>-Installable-Preview.apk`
 
-The release workflow obtains this APK from the verified Android CI artifact for the same source SHA. The active 0.20.1 cycle uses the `stable` channel, so canonical publication requires the persistently signed `com.ghostftp.android` release APK and signing-continuity checks. The verified non-debuggable `com.ghostftp.android.preview` APK remains CI/preview evidence only and must not be published as the stable 0.20.1 Android asset.
+The release workflow obtains both Android artifacts from the verified Android CI run for the same source SHA. `GhostFTP-Android-v<version>.apk.unsigned` is the production `com.ghostftp.android` build with no private release signature. `GhostFTP-Android-v<version>-Installable-Preview.apk` is kept separately as the non-debuggable install/reinstall/launch-tested package and uses only the standard development signing identity.
 
-The separate unsigned Android release-check APK is a CI validation artifact and is not the canonical end-user APK.
+Android itself requires a signature before an APK can be installed. Therefore the intentionally unsigned production artifact is not presented as directly installable; no private keystore, signing password, user PIN or activation code is required by this project.
 
 ## Building instead of installing
 

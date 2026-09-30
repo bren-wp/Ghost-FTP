@@ -26,7 +26,8 @@ Canonical examples:
 - `GhostFTP-Windows-x64-Portable-v<version>.exe`
 - `GhostFTP-Windows-x64-Setup-v<version>.exe`
 - `GhostFTP-Linux-x86_64-v<version>.AppImage`
-- `GhostFTP-Android-v<version>.apk`
+- `GhostFTP-Android-v<version>.apk.unsigned` — production `com.ghostftp.android` build without a private release signature; not directly installable by Android
+- `GhostFTP-Android-v<version>-Installable-Preview.apk` — non-debuggable install/reinstall/launch-tested CI package, using only the standard development signing identity
 - `GhostFTP-v<version>-Desktop-Source.zip`
 
 For future releases substitute the canonical `0.x`/later semantic version.

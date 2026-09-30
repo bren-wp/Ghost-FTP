@@ -16,11 +16,6 @@ concurrency:
 jobs:
   android:
     runs-on: macos-15-intel
-    env:
-      ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
-      ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
-      ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
-      ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,59 +34,6 @@ jobs:
         shell: bash
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0"
-
-      - id: release-signing
-        name: Configure persistent Android release signing
-        shell: bash
-        run: |
-          set -euo pipefail
-          configured=0
-          for name in             ANDROID_RELEASE_KEYSTORE_BASE64             ANDROID_RELEASE_STORE_PASSWORD             ANDROID_RELEASE_KEY_ALIAS             ANDROID_RELEASE_KEY_PASSWORD
-          do
-            if [ -n "${!name:-}" ]; then
-              configured=$((configured + 1))
-            fi
-          done
-
-          CHANNEL="$(python3 -c 'import json; print(json.load(open("version.json", encoding="utf-8"))["channel"])')"
-
-          if [ "$configured" -eq 0 ]; then
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            if [ "$CHANNEL" != "preview" ]; then
-              echo "::error::Android release signing is required for channel '$CHANNEL'. Configure all four ANDROID_RELEASE_* secrets so CI can prove the stable com.ghostftp.android APK identity."
-              exit 1
-            fi
-            echo "::warning::Persistent Android release-signing secrets are not configured. Preview APK validation will continue, but stable publication remains blocked."
-            exit 0
-          fi
-          if [ "$configured" -ne 4 ]; then
-            echo "::error::Android release signing is partially configured. Configure all four ANDROID_RELEASE_* secrets or none of them."
-            exit 1
-          fi
-
-          KEYSTORE_PATH="$RUNNER_TEMP/GhostFTP-Android-Release.jks"
-          export KEYSTORE_PATH
-          python3 - <<'PY'
-          import base64
-          import os
-          from pathlib import Path
-
-          raw = os.environ["ANDROID_RELEASE_KEYSTORE_BASE64"]
-          Path(os.environ["KEYSTORE_PATH"]).write_bytes(base64.b64decode(raw, validate=True))
-          PY
-          chmod 600 "$KEYSTORE_PATH"
-          test -s "$KEYSTORE_PATH"
-
-          {
-            printf 'storeFile=%s\n' "$KEYSTORE_PATH"
-            printf 'storePassword=%s\n' "$ANDROID_RELEASE_STORE_PASSWORD"
-            printf 'keyAlias=%s\n' "$ANDROID_RELEASE_KEY_ALIAS"
-            printf 'keyPassword=%s\n' "$ANDROID_RELEASE_KEY_PASSWORD"
-          } > android/signing.properties
-          chmod 600 android/signing.properties
-
-          keytool -list             -keystore "$KEYSTORE_PATH"             -storepass "$ANDROID_RELEASE_STORE_PASSWORD"             -alias "$ANDROID_RELEASE_KEY_ALIAS" >/dev/null
-          echo "enabled=true" >> "$GITHUB_OUTPUT"
 
       - name: Android production contract
         shell: bash
@@ -122,19 +64,14 @@ jobs:
           if-no-files-found: ignore
 
       - name: Prepare Android APK artifacts
-        env:
-          SIGNING_ENABLED: ${{ steps.release-signing.outputs.enabled }}
-          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist/android
           VERSION="$(node -p 'require("./version.json").version')"
-          PREVIOUS_VERSION="$(node -p 'require("./version.json").previousVersion || ""')"
           ANDROID_VERSION_CODE="$(node -p 'require("./version.json").androidVersionCode')"
           PREVIEW_APK="android/app/build/outputs/apk/preview/app-preview.apk"
           UNSIGNED_RELEASE_APK="android/app/build/outputs/apk/release/app-release-unsigned.apk"
-          SIGNED_RELEASE_APK="android/app/build/outputs/apk/release/app-release.apk"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -n1)"
           AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n1)"
 
@@ -163,89 +100,31 @@ jobs:
           fi
           cp "$PREVIEW_APK" "dist/android/GhostFTP-Android-v${VERSION}-Installable-Preview.apk"
 
-          if [ "$SIGNING_ENABLED" = "true" ]; then
-            test -s "$SIGNED_RELEASE_APK"
-            "$APKSIGNER" verify --verbose --print-certs "$SIGNED_RELEASE_APK"
-
-            RELEASE_BADGING="$("$AAPT" dump badging "$SIGNED_RELEASE_APK")"
-            RELEASE_PACKAGE_ID="$(sed -n "s/package: name='\([^']*\)'.*/\1/p" <<< "$RELEASE_BADGING" | head -n1)"
-            RELEASE_VERSION_CODE="$(sed -n "s/package: .*versionCode='\([^']*\)'.*/\1/p" <<< "$RELEASE_BADGING" | head -n1)"
-            RELEASE_VERSION_NAME="$(sed -n "s/package: .*versionName='\([^']*\)'.*/\1/p" <<< "$RELEASE_BADGING" | head -n1)"
-            RELEASE_LAUNCH_ACTIVITY="$(sed -n "s/launchable-activity: name='\([^']*\)'.*/\1/p" <<< "$RELEASE_BADGING" | head -n1)"
-            test "$RELEASE_PACKAGE_ID" = "com.ghostftp.android"
-            test "$RELEASE_VERSION_CODE" = "$ANDROID_VERSION_CODE"
-            test "$RELEASE_VERSION_NAME" = "$VERSION"
-            test "$RELEASE_LAUNCH_ACTIVITY" = "com.ghostftp.android.MainActivity"
-            if grep -Fq "application-debuggable" <<< "$RELEASE_BADGING"; then
-              echo "Stable release APK unexpectedly remains debuggable." >&2
-              exit 1
-            fi
-
-            CURRENT_CERT="$("$APKSIGNER" verify --print-certs "$SIGNED_RELEASE_APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1)"
-            test -n "$CURRENT_CERT"
-            printf '%s\n' "$CURRENT_CERT" > dist/android/GhostFTP-Android-Release-Certificate-SHA256.txt
-            cp "$SIGNED_RELEASE_APK" "dist/android/GhostFTP-Android-v${VERSION}-Release-Signed.apk"
-
-            # Once a stable com.ghostftp.android APK has been published, require
-            # every future release to use the same signing certificate. Historic
-            # preview APKs used com.ghostftp.android.preview and intentionally do
-            # not establish the stable package identity. If a previous stable
-            # package exists, failure to download or inspect it is fatal: silently
-            # skipping continuity would make an otherwise valid APK non-upgradeable.
-            if [ "$GITHUB_EVENT_NAME" = "push" ] && [ -n "$PREVIOUS_VERSION" ] && gh release view "v$PREVIOUS_VERSION" >/dev/null 2>&1; then
-              PREVIOUS_ASSET="GhostFTP-Android-v$PREVIOUS_VERSION.apk"
-              PREVIOUS_ASSETS="$(gh release view "v$PREVIOUS_VERSION" --json assets --jq '.assets[].name')"
-
-              if grep -Fxq "$PREVIOUS_ASSET" <<< "$PREVIOUS_ASSETS"; then
-                PREVIOUS_DIR="$RUNNER_TEMP/ghostftp-previous-android"
-                rm -rf "$PREVIOUS_DIR"
-                mkdir -p "$PREVIOUS_DIR"
-
-                if ! gh release download "v$PREVIOUS_VERSION" --pattern "$PREVIOUS_ASSET" --dir "$PREVIOUS_DIR"; then
-                  echo "::error::Could not download the previously published stable Android APK from v$PREVIOUS_VERSION. Refusing to skip signing continuity."
-                  exit 1
-                fi
-
-                PREVIOUS_APK="$PREVIOUS_DIR/$PREVIOUS_ASSET"
-                if [ ! -s "$PREVIOUS_APK" ]; then
-                  echo "::error::Previously published stable Android APK from v$PREVIOUS_VERSION is missing or empty."
-                  exit 1
-                fi
-
-                if ! "$APKSIGNER" verify --verbose --print-certs "$PREVIOUS_APK" >/dev/null; then
-                  echo "::error::Previously published stable Android APK from v$PREVIOUS_VERSION failed signature verification."
-                  exit 1
-                fi
-
-                PREVIOUS_BADGING="$("$AAPT" dump badging "$PREVIOUS_APK")"
-                PREVIOUS_PACKAGE_ID="$(sed -n "s/package: name='\([^']*\)'.*/\1/p" <<< "$PREVIOUS_BADGING" | head -n1)"
-                if [ "$PREVIOUS_PACKAGE_ID" != "com.ghostftp.android" ]; then
-                  echo "::error::Expected the previous stable Android package to be com.ghostftp.android, found ${PREVIOUS_PACKAGE_ID:-unknown}."
-                  exit 1
-                fi
-
-                PREVIOUS_CERT="$("$APKSIGNER" verify --print-certs "$PREVIOUS_APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1)"
-                if [ -z "$PREVIOUS_CERT" ]; then
-                  echo "::error::Could not read the previous stable Android signing certificate."
-                  exit 1
-                fi
-                if [ "$PREVIOUS_CERT" != "$CURRENT_CERT" ]; then
-                  echo "::error::Android stable signing certificate changed from v$PREVIOUS_VERSION. Refusing a non-upgradeable release."
-                  exit 1
-                fi
-                echo "Android stable signing continuity verified against v$PREVIOUS_VERSION."
-              else
-                echo "v$PREVIOUS_VERSION has no stable com.ghostftp.android APK asset; stable signing identity begins with this signed release."
-              fi
-            fi
-          else
-            test -s "$UNSIGNED_RELEASE_APK"
-            if "$APKSIGNER" verify "$UNSIGNED_RELEASE_APK" >/dev/null 2>&1; then
-              echo "Unsigned release-check APK unexpectedly contains a signature." >&2
-              exit 1
-            fi
-            cp "$UNSIGNED_RELEASE_APK" "dist/android/GhostFTP-Android-v${VERSION}-Release-Unsigned.apk.unsigned"
+          test -s "$UNSIGNED_RELEASE_APK"
+          if "$APKSIGNER" verify "$UNSIGNED_RELEASE_APK" >/dev/null 2>&1; then
+            echo "Unsigned release APK unexpectedly contains a signature." >&2
+            exit 1
           fi
+
+          RELEASE_BADGING="$("$AAPT" dump badging "$UNSIGNED_RELEASE_APK")"
+          RELEASE_PACKAGE_ID="$(sed -n "s/package: name='\\([^']*\\)'.*/\\1/p" <<< "$RELEASE_BADGING" | head -n1)"
+          RELEASE_VERSION_CODE="$(sed -n "s/package: .*versionCode='\\([^']*\\)'.*/\\1/p" <<< "$RELEASE_BADGING" | head -n1)"
+          RELEASE_VERSION_NAME="$(sed -n "s/package: .*versionName='\\([^']*\\)'.*/\\1/p" <<< "$RELEASE_BADGING" | head -n1)"
+          RELEASE_MIN_SDK="$(sed -n "s/sdkVersion:'\\([^']*\\)'.*/\\1/p" <<< "$RELEASE_BADGING" | head -n1)"
+          RELEASE_TARGET_SDK="$(sed -n "s/targetSdkVersion:'\\([^']*\\)'.*/\\1/p" <<< "$RELEASE_BADGING" | head -n1)"
+          RELEASE_LAUNCH_ACTIVITY="$(sed -n "s/launchable-activity: name='\\([^']*\\)'.*/\\1/p" <<< "$RELEASE_BADGING" | head -n1)"
+
+          test "$RELEASE_PACKAGE_ID" = "com.ghostftp.android"
+          test "$RELEASE_VERSION_CODE" = "$ANDROID_VERSION_CODE"
+          test "$RELEASE_VERSION_NAME" = "$VERSION"
+          test "$RELEASE_MIN_SDK" = "26"
+          test "$RELEASE_TARGET_SDK" = "35"
+          test "$RELEASE_LAUNCH_ACTIVITY" = "com.ghostftp.android.MainActivity"
+          if grep -Fq "application-debuggable" <<< "$RELEASE_BADGING"; then
+            echo "Unsigned release APK unexpectedly remains debuggable." >&2
+            exit 1
+          fi
+          cp "$UNSIGNED_RELEASE_APK" "dist/android/GhostFTP-Android-v${VERSION}-Release-Unsigned.apk.unsigned"
 
           (
             cd dist/android

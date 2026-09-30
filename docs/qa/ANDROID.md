@@ -18,12 +18,11 @@ It verifies:
 - debug, release and installable preview lint/build;
 - maintained protocol dependency contract;
 - installable preview APK signature/package identity, versionCode/versionName, minSdk/targetSdk and non-debuggable state;
-- intentionally unsigned release-check APK when persistent signing is unavailable on a preview cycle;
-- a fail-closed stable-channel signing gate: any non-preview channel requires all four persistent `ANDROID_RELEASE_*` secrets;
-- signed stable APK signature, `com.ghostftp.android` identity, version and non-debuggable verification when stable signing is enabled;
+- intentionally unsigned production `com.ghostftp.android` release-check APK on every cycle;
+- unsigned production APK package identity, version, SDK levels, launcher and non-debuggable verification;
 - emulator instrumentation click-through smoke;
-- clean install, same-build reinstall and launch for the preview candidate, plus the exact persistently signed stable APK when present;
-- real emulator UI screenshot artifacts for debug, preview candidate and signed stable release where applicable.
+- clean install, same-build reinstall and launch for the non-debuggable preview candidate;
+- real emulator UI screenshot artifacts for debug and the preview candidate.
 
 ## Emulator click-through smoke
 
@@ -45,17 +44,15 @@ After instrumentation, CI removes any existing preview package, installs the exa
 
 ## Release artifact
 
-The Android gate always creates the non-debuggable isolated preview APK as CI evidence. On a preview channel without persistent release signing it also retains a clearly named unsigned release-check artifact.
+The Android gate always creates two distinct artifacts: a non-debuggable installable preview used for clean-install/reinstall/launcher smoke, and an intentionally unsigned production `com.ghostftp.android` package whose identity/version/SDK/launcher metadata are verified. No private release keystore or signing secret is required.
 
-For a stable/non-preview channel, the Android gate now fails immediately unless all four persistent `ANDROID_RELEASE_*` secrets are available. With signing enabled it additionally creates and verifies the persistently signed `com.ghostftp.android` APK, exercises clean install, same-signature reinstall and launcher/RESUMED smoke on the emulator, records its certificate SHA-256 digest and makes that signed package the only acceptable canonical stable Android input.
-
-The canonical release workflow downloads the verified Android artifact bundle for the exact release SHA and, on the stable channel, normalizes only the signed `com.ghostftp.android` APK into `GhostFTP-Android-v<version>.apk`. Never commit a keystore or signing password to the repository.
+The canonical release workflow downloads both artifacts for the exact release SHA. It publishes the production build as `GhostFTP-Android-v<version>.apk.unsigned` and keeps the tested installable preview separately as `GhostFTP-Android-v<version>-Installable-Preview.apk`. Android requires a signature for installation, so the unsigned production file is not described as directly installable.
 
 ## 0.20.0 transfer/lifecycle regression coverage
 
 The Android transfer layer stages downloads locally and uploads remotely before promotion, preserving existing targets until a completed replacement is ready. Activity destruction and disconnect propagate cooperative cancellation through upload, download, delete and folder creation. Upload document streams are closed at the controller ownership boundary even when cancellation occurs before protocol setup.
 
-The document picker still requests persistable URI access, while `takePersistableUriPermission` is called only with valid READ/WRITE grant modes. Release signing continuity is fail-closed once a previous stable `com.ghostftp.android` APK exists: inability to download, verify or inspect that APK blocks publication instead of silently skipping the comparison.
+The document picker still requests persistable URI access, while `takePersistableUriPermission` is called only with valid READ/WRITE grant modes. Android release validation no longer has a second optional production-signing code path, reducing CI/release branching while preserving package metadata and emulator installability checks.
 
 ## Stable / FINAL acceptance
 
@@ -66,4 +63,4 @@ Before a stable/FINAL claim, also test on representative physical Android device
 - background/interruption behavior;
 - real FTP/FTPS/SFTP servers over Wi-Fi/mobile/VPN as applicable;
 - accessibility, font scaling and rotation;
-- production signing-key continuity.
+- installation behavior for the chosen distribution/signing method, if a future production signing policy is introduced.

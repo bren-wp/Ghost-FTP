@@ -10,7 +10,8 @@ Ghost FTP Android follows the same product identity and file-action model as the
 - Previous canonical release: **0.20.0**
 - Version source of truth: root `version.json`
 - Android source: `android/`
-- Canonical release asset: `GhostFTP-Android-v<version>.apk`
+- Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`
+- Installability evidence asset: `GhostFTP-Android-v<version>-Installable-Preview.apk`
 
 Android UI must not display legacy release-candidate badges or maintain an independent product version scheme.
 
@@ -66,7 +67,7 @@ Android keeps the same primary product model as desktop where it makes sense on 
 - Activity destruction/disconnect cancellation propagates through upload, download, delete and folder-creation operations.
 - Upload input streams are owned and closed at the controller boundary even when cancellation wins before protocol setup.
 - Persisted SAF access keeps only valid READ grant modes in `takePersistableUriPermission` while the picker intent still requests persistable access.
-- Stable Android release signing continuity is fail-closed once a canonical stable APK asset exists.
+- Production Android package metadata is verified even though the release-check APK is intentionally unsigned.
 
 ## CI/release contract
 
@@ -78,13 +79,12 @@ It must:
 - run an Android emulator click-through smoke for core workspace/action validation;
 - lint/build debug, release and preview variants;
 - verify the preview APK with `apksigner`;
-- confirm the release-check APK is unsigned when the cycle is preview-only;
+- confirm the production release-check APK is unsigned on every cycle;
 - confirm the preview package id;
-- fail closed on every stable/non-preview cycle when persistent Android release signing is unavailable;
-- verify the signed stable APK is `com.ghostftp.android`, non-debuggable and certificate-valid when signing is enabled;
-- clean-install, reinstall and launch-smoke the signed stable APK on the emulator;
+- verify the unsigned production APK is `com.ghostftp.android`, non-debuggable and has the expected version/SDK/launcher metadata;
+- clean-install, reinstall and launch-smoke the non-debuggable installable preview on the emulator;
 - upload the verified Android artifact bundle for exact-SHA release consumption.
 
-For stable-channel publication, the canonical Ghost FTP release workflow requires the persistently signed `com.ghostftp.android` APK for the exact source SHA. The `com.ghostftp.android.preview` artifact remains CI/preview evidence only and must not be normalized into a stable release asset.
+For publication, the canonical Ghost FTP release workflow requires both Android artifacts from the exact source SHA: the intentionally unsigned production `com.ghostftp.android` build and the non-debuggable installable preview used for emulator install/reinstall/launch proof. No private Android signing secrets are part of the release pipeline.
 
-Stable/FINAL mobile status additionally requires device-level install/upgrade/storage/protocol acceptance and a production signing-key continuity decision.
+Stable/FINAL mobile status additionally requires device-level install/upgrade/storage/protocol acceptance. Android itself still requires a signature for any APK that is installed on a device, so the unsigned production artifact is distributed as build evidence rather than falsely labeled installable.
