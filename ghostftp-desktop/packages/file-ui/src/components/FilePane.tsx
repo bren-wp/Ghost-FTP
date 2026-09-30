@@ -918,6 +918,7 @@ export function FilePane({
       await load(path);
     } catch (e) {
       setError(errorText(e));
+      throw e;
     }
   };
 
@@ -930,6 +931,7 @@ export function FilePane({
       await load(path);
     } catch (e) {
       setError(errorText(e));
+      throw e;
     }
   };
 
@@ -950,6 +952,7 @@ export function FilePane({
       await load(path);
     } catch (e) {
       setError(errorText(e));
+      throw e;
     }
   };
 
@@ -957,14 +960,16 @@ export function FilePane({
     if (!sessionId) return;
     const mode = parseInt(modeText, 8);
     if (Number.isNaN(mode)) {
-      setError(`invalid mode "${modeText}" — use octal like 755`);
-      return;
+      const error = new Error(`invalid mode "${modeText}" — use octal like 755`);
+      setError(error.message);
+      throw error;
     }
     try {
       await fs.chmod(sessionId, entry.path, mode);
       await load(path);
     } catch (e) {
       setError(errorText(e));
+      throw e;
     }
   };
 
