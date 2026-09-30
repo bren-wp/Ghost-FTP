@@ -6,8 +6,8 @@ Ghost FTP Android follows the same product identity and file-action model as the
 
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
-- Active source version: **0.20.0**
-- Previous canonical release: **0.19.0**
+- Active source version: **0.20.1**
+- Previous canonical release: **0.20.0**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical release asset: `GhostFTP-Android-v<version>.apk`
@@ -82,6 +82,6 @@ It must:
 - confirm the preview package id;
 - upload the installable preview APK artifact.
 
-The canonical Ghost FTP release workflow consumes the verified installable APK for the exact source SHA and publishes it with Windows/Linux/source/checksum assets.
+For stable-channel publication, the canonical Ghost FTP release workflow requires the persistently signed `com.ghostftp.android` APK for the exact source SHA. The `com.ghostftp.android.preview` artifact remains CI/preview evidence only and must not be normalized into a stable release asset.
 
 Stable/FINAL mobile status additionally requires device-level install/upgrade/storage/protocol acceptance and a production signing-key continuity decision.
