@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.20.2 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.20.3 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.20.1**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.20.2**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -23,6 +23,14 @@ Previous canonical release: **0.20.1**. Live publication state is determined fro
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
 
 Full capability detail: [FEATURES.md](FEATURES.md).
+
+## 0.20.3 file-action reliability hardening in source
+
+- Shared file-browser prompt and confirmation actions now await asynchronous rename, new-folder, chmod and delete operations before closing.
+- In-flight actions disable repeat submission and prevent backdrop/Escape cancellation until the operation settles.
+- Failed filesystem mutations keep the dialog available for retry while the existing file-pane error surface retains the detailed backend-safe message.
+- Shared interaction contract checks prevent regressions back to fire-and-forget modal operations.
+- Android release documentation now matches the unsigned production artifact and separate installable-preview validation policy.
 
 ## 0.20.2 UI and launch hardening in source
 
