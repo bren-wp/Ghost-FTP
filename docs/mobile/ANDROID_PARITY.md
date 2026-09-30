@@ -78,9 +78,12 @@ It must:
 - run an Android emulator click-through smoke for core workspace/action validation;
 - lint/build debug, release and preview variants;
 - verify the preview APK with `apksigner`;
-- confirm the release-check APK is unsigned;
+- confirm the release-check APK is unsigned when the cycle is preview-only;
 - confirm the preview package id;
-- upload the installable preview APK artifact.
+- fail closed on every stable/non-preview cycle when persistent Android release signing is unavailable;
+- verify the signed stable APK is `com.ghostftp.android`, non-debuggable and certificate-valid when signing is enabled;
+- clean-install, reinstall and launch-smoke the signed stable APK on the emulator;
+- upload the verified Android artifact bundle for exact-SHA release consumption.
 
 For stable-channel publication, the canonical Ghost FTP release workflow requires the persistently signed `com.ghostftp.android` APK for the exact source SHA. The `com.ghostftp.android.preview` artifact remains CI/preview evidence only and must not be normalized into a stable release asset.
 
