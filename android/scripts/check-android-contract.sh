@@ -215,6 +215,7 @@ require_text "persistent release keystore secret" "$ANDROID_WORKFLOW" 'ANDROID_R
 require_text "persistent release store password secret" "$ANDROID_WORKFLOW" 'ANDROID_RELEASE_STORE_PASSWORD'
 require_text "persistent release key alias secret" "$ANDROID_WORKFLOW" 'ANDROID_RELEASE_KEY_ALIAS'
 require_text "persistent release key password secret" "$ANDROID_WORKFLOW" 'ANDROID_RELEASE_KEY_PASSWORD'
+require_text "stable channel requires persistent signing" "$ANDROID_WORKFLOW" 'Android release signing is required for channel'
 require_text "stable release package verification" "$ANDROID_WORKFLOW" 'test "$RELEASE_PACKAGE_ID" = "com.ghostftp.android"'
 require_text "stable release signing continuity gate" "$ANDROID_WORKFLOW" 'Android stable signing certificate changed'
 require_text "stable signing prior APK fail-closed download" "$ANDROID_WORKFLOW" 'if ! gh release download "v$PREVIOUS_VERSION"'
