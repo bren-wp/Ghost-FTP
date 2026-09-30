@@ -47,8 +47,13 @@ const FTP_TRANSFER_CHUNK: usize = 64 * 1024;
 /// SuppaFTP 12.x still treats FTP 225 as an unexpected ABOR reply even though
 /// RFC 959 defines it as "data connection open; no transfer in progress".
 /// Some servers (including pyftpdlib) return 225 after the data socket is
-/// closed as part of ABOR. At that point the reply has already been consumed,
-/// so the control channel is synchronized and the abort is complete.
+/// closed as part of ABOR. When SuppaFTP surfaces that exact response here,
+/// the reply itself has been consumed and the abort can be treated as complete.
+///
+/// A separate race exists when the server queues the transfer's 226 immediately
+/// before the ABOR 225: SuppaFTP can accept the 226 as the abort completion and
+/// leave 225 pending. Production therefore retires/reconnects the FTP session
+/// after every interrupted transfer instead of assuming same-control reuse.
 ///
 /// Keep every other SuppaFTP error fatal: only the exact 225 status is
 /// normalized to success.
@@ -191,6 +196,8 @@ impl FtpStreamKind {
     /// Download with explicit STREAM restart semantics. SuppaFTP 12 exposes
     /// REST plus a raw RETR data stream; Ghost FTP reads bounded chunks so
     /// Pause/Cancel can cooperatively ABOR instead of leaving RETR running.
+    /// A Pause/Cancel outcome intentionally requires the owning FtpSession to
+    /// reconnect before issuing another command, avoiding ABOR/completion races.
     pub fn retr_resumable<W, C>(
         &mut self,
         path: &str,
@@ -319,6 +326,8 @@ impl FtpStreamKind {
     /// avoids server-specific REST/STOR truncation behavior (especially over
     /// explicit TLS) while remaining byte-accurate because Ghost FTP resumes
     /// only after the remote SIZE exactly matches the committed local offset.
+    /// A Pause/Cancel outcome requires the owning FtpSession to reconnect before
+    /// subsequent commands for the same ABOR/completion-race reason as RETR.
     pub fn stor_resumable<R, C>(
         &mut self,
         path: &str,
