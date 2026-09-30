@@ -54,9 +54,11 @@ requireIncludes(
 requireIncludes(
   "packages/file-ui/src/components/FilePane.tsx",
   [
-    "setError(errorText(e));\n      throw e;",
+    "setError(errorText(e));",
+    "throw e;",
     "const error = new Error(`invalid mode",
-    "setError(error.message);\n      throw error;",
+    "setError(error.message);",
+    "throw error;",
   ],
   "shared file-ui operation failure propagation"
 );
