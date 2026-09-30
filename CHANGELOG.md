@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.20.2 — UI and launch-smoke hardening — 1 October 2026
+
+0.20.2 follows published 0.20.1 and carries the post-0.20.1 Android/desktop polish that was merged after the 0.20.1 tag.
+
+- Reworked Android into exclusive Files, Sites, Transfers, Settings and Help & About workspaces behind a persistent left navigation rail instead of one long stacked screen.
+- Preserved only non-secret Android workspace state across Activity recreation while keeping passwords and authenticated sessions out of saved state.
+- Fixed Android workspace navigation so the selected workspace is scrolled into the visible content area, including the Transfers viewport case caught by emulator instrumentation.
+- Made the Android launcher smoke verify the real package-specific RESUMED Activity state and live PID instead of depending on unstable human-readable `am start -W` output formatting.
+- Kept Android production contract, lint/APK build, click-through instrumentation, clean install, reinstall and launch proof as release blockers.
+- Hardened the shared Windows/Linux Disconnect action so async disconnect errors are surfaced through the normal redacted error path.
+- Centralized Windows/Linux workspace resolution for the app shell, primary sidebar and title bar to remove duplicated navigation-state mapping.
+- Retained the 0.20.1 transfer worker-registration race fix and exact-SHA Quality, protocol E2E, native build, Android and Windows hardening gates.
+
+See [docs/releases/0.20.2.md](docs/releases/0.20.2.md).
+
 ## 0.20.1 — patch cycle — 30 September 2026
 
 0.20.1 follows canonical 0.20.0. It is not considered published until the exact-source GitHub Release and required assets exist.

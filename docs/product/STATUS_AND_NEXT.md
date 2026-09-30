@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.20.1 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.20.2 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.20.0**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.20.1**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -23,6 +23,13 @@ Previous canonical release: **0.20.0**. Live publication state is determined fro
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
 
 Full capability detail: [FEATURES.md](FEATURES.md).
+
+## 0.20.2 UI and launch hardening in source
+
+- Keeps Android Files, Sites, Transfers, Settings and Help & About as exclusive workspaces behind the persistent left navigation rail.
+- Fixes workspace navigation so the selected Android workspace is brought into the visible content area after a rail action.
+- Makes Android post-instrumentation launch verification state-based: command exit status, package-specific RESUMED Activity and live PID instead of brittle `am start -W` text parsing.
+- Retains the shared Windows/Linux Disconnect rejection handler and centralized workspace resolver introduced after the 0.20.1 tag.
 
 ## 0.20.1 patch hardening in source
 

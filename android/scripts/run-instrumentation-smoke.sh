@@ -162,13 +162,9 @@ if [ "$LAUNCH_EXIT" -ne 0 ]; then
   echo "Ghost FTP launcher command failed with exit code $LAUNCH_EXIT." >&2
   exit "$LAUNCH_EXIT"
 fi
-case "$LAUNCH_OUTPUT" in
-  *"Status: ok"*"$PACKAGE_ID"*) ;;
-  *)
-    echo "Ghost FTP launcher activity did not report a successful app launch." >&2
-    exit 1
-    ;;
-esac
+# Do not parse the human-readable am start -W output: its fields vary by
+# Android/emulator version. The command exit code above plus the RESUMED
+# activity and PID checks below are the authoritative launch proof.
 
 RESUMED_ACTIVITY=""
 ACTIVITY_DUMP=""
@@ -326,13 +322,8 @@ if [ "$PREVIEW_LAUNCH_EXIT" -ne 0 ]; then
   echo "Ghost FTP release-candidate launcher command failed." >&2
   exit "$PREVIEW_LAUNCH_EXIT"
 fi
-case "$PREVIEW_LAUNCH_OUTPUT" in
-  *"Status: ok"*"$PREVIEW_PACKAGE_ID"*) ;;
-  *)
-    echo "Ghost FTP release-candidate MainActivity did not report a successful launch." >&2
-    exit 1
-    ;;
-esac
+# The preview launch is proven below by the package-specific RESUMED state and
+# a live process, rather than by unstable am start -W presentation text.
 
 PREVIEW_RESUMED=""
 for _ in {1..20}; do
