@@ -26,6 +26,42 @@ requireIncludes(
 );
 
 requireIncludes(
+  "packages/file-ui/src/components/ConfirmModal.tsx",
+  [
+    "const [submitting, setSubmitting] = useState(false)",
+    "await onConfirm();",
+    "disabled={submitting}",
+    "aria-busy={submitting}",
+    "Action failed. Please try again.",
+    "Working…",
+  ],
+  "shared file-ui confirm serialization"
+);
+
+requireIncludes(
+  "packages/file-ui/src/components/PromptModal.tsx",
+  [
+    "const [submitting, setSubmitting] = useState(false)",
+    "await onSubmit(value);",
+    "disabled={submitting}",
+    "aria-busy={submitting}",
+    "Action failed. Please try again.",
+    "Working…",
+  ],
+  "shared file-ui prompt serialization"
+);
+
+requireIncludes(
+  "packages/file-ui/src/components/FilePane.tsx",
+  [
+    "setError(errorText(e));\n      throw e;",
+    "const error = new Error(`invalid mode",
+    "setError(error.message);\n      throw error;",
+  ],
+  "shared file-ui operation failure propagation"
+);
+
+requireIncludes(
   "src/components/AuthPromptModal.tsx",
   [
     "messageOf(error)",
