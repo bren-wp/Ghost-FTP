@@ -976,14 +976,7 @@ impl TransferManager {
             } => {
                 self.spawn_registered(
                     id.to_string(),
-                    run_upload_task(
-                        mgr,
-                        id_for_task,
-                        session,
-                        local,
-                        final_remote,
-                        app_for_task,
-                    ),
+                    run_upload_task(mgr, id_for_task, session, local, final_remote, app_for_task),
                 )
                 .await;
             }
