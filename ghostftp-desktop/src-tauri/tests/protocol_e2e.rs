@@ -191,9 +191,11 @@ async fn ftp_roundtrip(
     }
 
     // Exercise the same SuppaFTP 12 restart + transfer-stream primitives production
-    // pause/resume uses. ftp_roundtrip runs once for plain FTP and once for
-    // explicit FTPS, so both transport variants must survive ABOR and reuse the
-    // same control connection for a non-zero-offset continuation.
+    // pause/resume uses. An interrupted transfer deliberately reconnects before
+    // the next command: if the server completed the data socket just before ABOR,
+    // SuppaFTP can consume the queued 226 as the ABOR reply and leave the ABOR
+    // 225 queued. A fresh authenticated control connection removes that race
+    // while preserving the server-confirmed byte offset.
     let resume_path = format!("{base}/resume.bin");
     let resume_payload: Vec<u8> = (0..(512 * 1024))
         .map(|index| ((index * 19 + 23) % 251) as u8)
@@ -226,6 +228,9 @@ async fn ftp_roundtrip(
             "{protocol} upload did not report a valid server-committed pause offset"
         ));
     }
+    ftp.reconnect()
+        .await
+        .with_context(|| format!("{protocol} reconnect after paused upload"))?;
 
     let upload_path = resume_path.clone();
     let upload_payload = resume_payload.clone();
@@ -341,6 +346,9 @@ async fn ftp_roundtrip(
             "{protocol} download did not stop at its committed local prefix"
         ));
     }
+    ftp.reconnect()
+        .await
+        .with_context(|| format!("{protocol} reconnect after paused download"))?;
 
     let download_path = resume_path.clone();
     let download_offset = download_pause.0.transferred;
@@ -364,8 +372,9 @@ async fn ftp_roundtrip(
     }
 
     // Cancel uses the same cooperative ABOR path as Pause but intentionally
-    // keeps a distinct control result. Prove ABOR leaves the control channel
-    // reusable by issuing SIZE immediately afterwards.
+    // keeps a distinct control result. Production retires the interrupted
+    // control connection before any subsequent command, so verify the fresh
+    // authenticated session can immediately inspect the canceled target.
     let cancel_path = format!("{base}/cancel.bin");
     let cancel_payload = resume_payload.clone();
     let cancel_path_for_transfer = cancel_path.clone();
@@ -385,17 +394,20 @@ async fn ftp_roundtrip(
     if cancel_outcome.control != FtpTransferControl::Cancel {
         return Err(anyhow!("{protocol} cancel did not return Cancel control"));
     }
+    ftp.reconnect()
+        .await
+        .with_context(|| format!("{protocol} reconnect after canceled upload"))?;
     let cancel_path_for_size = cancel_path.clone();
     ftp.with_stream(move |stream| {
         let _ = stream.size(&cancel_path_for_size)?;
         Ok(())
     })
     .await
-    .with_context(|| format!("{protocol} control channel reuse after ABOR"))?;
+    .with_context(|| format!("{protocol} fresh control channel after ABOR"))?;
 
-    // I/O failures must also retire the raw data stream before propagating the
-    // error. Otherwise a pending 426/226 response can poison the next command
-    // on this same FTP control connection.
+    // I/O failures must retire the raw data stream and the control connection
+    // before the next command. This avoids carrying an ABOR/completion reply
+    // race into unrelated work on the session.
     let download_failure_path = resume_path.clone();
     let download_failure = ftp
         .with_stream(move |stream| {
@@ -413,13 +425,16 @@ async fn ftp_roundtrip(
             "{protocol} download destination failure unexpectedly succeeded"
         ));
     }
+    ftp.reconnect()
+        .await
+        .with_context(|| format!("{protocol} reconnect after download I/O failure"))?;
     let resume_path_after_download_error = resume_path.clone();
     ftp.with_stream(move |stream| {
         let _ = stream.size(&resume_path_after_download_error)?;
         Ok(())
     })
     .await
-    .with_context(|| format!("{protocol} control channel reuse after download I/O failure"))?;
+    .with_context(|| format!("{protocol} fresh control channel after download I/O failure"))?;
 
     let io_failure_path = format!("{base}/io-failure.bin");
     let io_failure_target = io_failure_path.clone();
@@ -440,13 +455,16 @@ async fn ftp_roundtrip(
             "{protocol} upload source failure unexpectedly succeeded"
         ));
     }
+    ftp.reconnect()
+        .await
+        .with_context(|| format!("{protocol} reconnect after upload I/O failure"))?;
     let io_failure_path_for_size = io_failure_path.clone();
     ftp.with_stream(move |stream| {
         let _ = stream.size(&io_failure_path_for_size)?;
         Ok(())
     })
     .await
-    .with_context(|| format!("{protocol} control channel reuse after upload I/O failure"))?;
+    .with_context(|| format!("{protocol} fresh control channel after upload I/O failure"))?;
 
     fs.delete(&renamed, false)
         .await

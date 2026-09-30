@@ -2247,7 +2247,7 @@ impl TransferManager {
         let final_path = local_path.to_path_buf();
         let path = remote_path.to_string();
 
-        let outcome = session
+        let outcome = match session
             .with_stream(move |stream| {
                 let remote_len = stream.size(&path).ok().map(|size| size as u64);
                 let offset = if candidate_offset > 0
@@ -2283,7 +2283,18 @@ impl TransferManager {
                 writer.flush().context("flush FTP download destination")?;
                 Ok(outcome)
             })
-            .await?;
+            .await
+        {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                return Err(match session.reconnect().await {
+                    Ok(()) => error,
+                    Err(reconnect_error) => anyhow::anyhow!(
+                        "{error:#}; additionally failed to reconnect FTP session after download failure: {reconnect_error:#}"
+                    ),
+                });
+            }
+        };
 
         self.update(id, |t| t.transferred = outcome.transferred)
             .await;
@@ -2295,9 +2306,19 @@ impl TransferManager {
             FtpTransferControl::Continue => Ok(()),
             FtpTransferControl::Pause => {
                 self.checkpoint(id, 0).await?;
+                session
+                    .reconnect()
+                    .await
+                    .context("reconnect FTP session after paused download")?;
                 Err(RestartFromPause.into())
             }
-            FtpTransferControl::Cancel => anyhow::bail!("transfer canceled"),
+            FtpTransferControl::Cancel => {
+                session
+                    .reconnect()
+                    .await
+                    .context("reconnect FTP session after canceled download")?;
+                anyhow::bail!("transfer canceled")
+            }
         }
     }
 
@@ -2337,7 +2358,7 @@ impl TransferManager {
         let retry_local = local.clone();
         let retry_remote = remote.clone();
 
-        let (mut outcome, needs_fresh_restart) = session
+        let attempt = session
             .with_stream(move |stream| {
                 // Resume only when the remote file is exactly the committed
                 // prefix. Otherwise overwrite from zero.
@@ -2386,7 +2407,19 @@ impl TransferManager {
 
                 Ok((outcome, needs_fresh_restart))
             })
-            .await?;
+            .await;
+
+        let (mut outcome, needs_fresh_restart) = match attempt {
+            Ok(result) => result,
+            Err(error) => {
+                return Err(match session.reconnect().await {
+                    Ok(()) => error,
+                    Err(reconnect_error) => anyhow::anyhow!(
+                        "{error:#}; additionally failed to reconnect FTP session after upload failure: {reconnect_error:#}"
+                    ),
+                });
+            }
+        };
 
         if needs_fresh_restart {
             session
@@ -2456,9 +2489,19 @@ impl TransferManager {
             FtpTransferControl::Continue => Ok(()),
             FtpTransferControl::Pause => {
                 self.checkpoint(id, 0).await?;
+                session
+                    .reconnect()
+                    .await
+                    .context("reconnect FTP session after paused upload")?;
                 Err(RestartFromPause.into())
             }
-            FtpTransferControl::Cancel => anyhow::bail!("transfer canceled"),
+            FtpTransferControl::Cancel => {
+                session
+                    .reconnect()
+                    .await
+                    .context("reconnect FTP session after canceled upload")?;
+                anyhow::bail!("transfer canceled")
+            }
         }
     }
 
