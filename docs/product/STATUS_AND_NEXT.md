@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.19.0 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.20.0 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.18.0**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.19.0**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -12,7 +12,7 @@ Previous canonical release: **0.18.0**. Live publication state is determined fro
 | Desktop shell | One persistent native window for Files, Sites, Transfers, Sync & Backup, Settings and Help & About |
 | Desktop file browser | Local/remote browsing, upload/download, folder operations, rename, delete, duplicate, hidden files and multiple views |
 | Desktop file properties | SHA-256 plus supported chmod/permission and owner/group workflows |
-| Desktop transfers | Concurrent queue, pause/resume, retry, retry-all, cancel, bandwidth control, conflicts, scheduling and live speed/ETA |
+| Desktop transfers | Concurrent queue, pause/resume, retry, retry-all, cancel, bandwidth control, conflicts, scheduling, live speed/ETA and credential-free restart recovery history |
 | Sync & analysis | Folder sync, directory comparison, duplicate detection and disk analysis |
 | Productivity | Docked terminal, command palette, snippets, shortcuts and shell integration |
 | Preferences | Themes, language, transfer limits, security settings, notifications and advanced controls |
@@ -23,6 +23,15 @@ Previous canonical release: **0.18.0**. Live publication state is determined fro
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
 
 Full capability detail: [FEATURES.md](FEATURES.md).
+
+## 0.20.0 hardening in source
+
+- Persists desktop transfer rows and retry descriptors without credentials so restart/update recovery retains user-visible history.
+- Reconnects recovered retries through saved profiles and the OS credential store, while restarting from zero when cross-process file identity is not provable.
+- Bounds completed/error/canceled/skipped transfer history during runtime without dropping active transfers.
+- Verifies resumed FTP/explicit-FTPS uploads and safely restarts from zero if the server accepts the resume command but persists the wrong final size.
+- Extends real protocol E2E coverage for cancellation, ABOR cleanup and post-error control-channel synchronization.
+- Hardens Android staged transfers, lifecycle cancellation, stream cleanup, SAF persistence and release-signing continuity.
 
 ## 0.19.0 hardening in source
 
