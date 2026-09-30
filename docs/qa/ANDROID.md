@@ -28,6 +28,7 @@ It verifies:
 
 The test opens the real `MainActivity` and checks:
 
+0. The app starts in the Files workspace with a persistent left navigation rail; non-active workspaces are hidden rather than stacked in one long scroll.
 1. Ghost FTP application shell renders.
 2. desktop-aligned Files workspace navigation renders.
 3. primary toolbar actions render.
