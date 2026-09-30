@@ -78,6 +78,12 @@ export function TitleBar() {
   const profile = profiles.find((item) => item.id === activeProfileId) ?? null;
   const workspace = currentWorkspace(dialog, returnDialog);
 
+  const disconnectActive = () => {
+    void disconnect().catch((error) => {
+      toastError(error, "Couldn't disconnect from the active site");
+    });
+  };
+
   const emptyPane = (paneId: "local" | "remote"): PaneActionState => ({
     paneId,
     selectedCount: 0,
@@ -233,7 +239,7 @@ export function TitleBar() {
             </button>
           )}
           {activeSessionId && (
-            <Tool icon={<X size={16}/>} label="Disconnect" onClick={() => void disconnect()}/>
+            <Tool icon={<X size={16}/>} label="Disconnect" onClick={disconnectActive}/>
           )}
           <Tool icon={<RefreshCw size={17}/>} label="Refresh" onClick={() => fileAction("refresh", effectivePane)}/>
           <Tool
