@@ -1,6 +1,6 @@
 # Ghost FTP platform parity
 
-Last reviewed: 2026-09-28
+Last reviewed: 2026-09-30
 Source version: 0.20.0
 Primary platforms: Windows, Linux, Android
 
