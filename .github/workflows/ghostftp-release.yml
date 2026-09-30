@@ -144,10 +144,19 @@ jobs:
           mkdir -p dist/android
           gh run download "$RUN_ID" --name GhostFTP-Android-APK -D dist/android
           find dist/android -type f -print
+          RELEASE_CHANNEL="$(node -p 'require("./version.json").channel || "preview"')"
           SIGNED_ANDROID_APK="$(find dist/android -type f -iname '*Release-Signed.apk' | head -n1 || true)"
+          PREVIEW_ANDROID_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
+
           if [ -z "$SIGNED_ANDROID_APK" ]; then
-            echo "::error::Stable Android release signing is not configured. Canonical releases require a signed com.ghostftp.android APK produced from persistent GitHub Secrets."
-            exit 1
+            if [ "$RELEASE_CHANNEL" = "preview" ]; then
+              test -n "$PREVIEW_ANDROID_APK"
+              test -s "$PREVIEW_ANDROID_APK"
+              echo "::warning::Publishing the verified non-debuggable preview Android APK because production release signing is not configured. Cross-release upgrade continuity is not claimed."
+            else
+              echo "::error::Stable Android release signing is not configured. Non-preview channels require a signed com.ghostftp.android APK produced from persistent GitHub Secrets."
+              exit 1
+            fi
           fi
 
       - name: Normalize release artifacts
@@ -163,7 +172,11 @@ jobs:
           APPIMAGE_SIG="$(find dist/native -type f -iname '*.AppImage.sig' | head -n1 || true)"
           DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
           RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
+          RELEASE_CHANNEL="$(node -p 'require("./version.json").channel || "preview"')"
           ANDROID_APK="$(find dist/android -type f -iname '*Release-Signed.apk' | head -n1 || true)"
+          if [ -z "$ANDROID_APK" ] && [ "$RELEASE_CHANNEL" = "preview" ]; then
+            ANDROID_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
+          fi
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"; test -n "$ANDROID_APK"
