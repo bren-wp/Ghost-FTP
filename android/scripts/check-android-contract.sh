@@ -209,6 +209,12 @@ require_text "unsigned release package verification" "$ANDROID_WORKFLOW" 'test "
 require_text "unsigned release version verification" "$ANDROID_WORKFLOW" 'test "$RELEASE_VERSION_NAME" = "$VERSION"'
 require_text "canonical release publishes unsigned Android artifact" "$CANONICAL_RELEASE_WORKFLOW" 'GhostFTP-Android-v$VERSION.apk.unsigned'
 require_text "canonical release retains installable Android preview" "$CANONICAL_RELEASE_WORKFLOW" 'GhostFTP-Android-v$VERSION-Installable-Preview.apk'
+NAMING_DOC="$ROOT/docs/architecture/NAMING.md"
+STRUCTURE_DOC="$ROOT/docs/architecture/STRUCTURE.md"
+require_text "canonical naming documents unsigned Android artifact" "$NAMING_DOC" 'GhostFTP-Android-v<version>.apk.unsigned'
+require_text "canonical naming documents installable Android preview" "$NAMING_DOC" 'GhostFTP-Android-v<version>-Installable-Preview.apk'
+require_text "architecture structure documents unsigned Android artifact" "$STRUCTURE_DOC" 'GhostFTP-Android-v<version>.apk.unsigned'
+require_text "architecture structure documents installable Android preview" "$STRUCTURE_DOC" 'GhostFTP-Android-v<version>-Installable-Preview.apk'
 require_absent "private Android release-signing secrets" "$ANDROID_WORKFLOW" 'ANDROID_RELEASE_'
 require_absent "Android signing properties file" "$ANDROID_DIR/app/build.gradle.kts" 'signing.properties'
 require_text "generic verified Android artifact bundle" "$ANDROID_WORKFLOW" 'name: GhostFTP-Android-APK'
