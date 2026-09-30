@@ -73,7 +73,8 @@ Examples:
 - `GhostFTP-Windows-x64-Portable-v<version>.exe`
 - `GhostFTP-Windows-x64-Setup-v<version>.exe`
 - `GhostFTP-Linux-x86_64-v<version>.AppImage`
-- `GhostFTP-Android-v<version>.apk`
+- `GhostFTP-Android-v<version>.apk.unsigned` — unsigned production build artifact
+- `GhostFTP-Android-v<version>-Installable-Preview.apk` — separately installable CI validation artifact
 
 See [NAMING.md](NAMING.md).
 
