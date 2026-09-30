@@ -2,7 +2,7 @@
 
 GitHub Releases is the canonical source for published Ghost FTP binaries and checksums.
 
-Use the newest non-draft GitHub Release as the canonical published build. The active source/release cycle is **0.20.1** and the previous canonical release is **0.20.0**. Publication of 0.20.1 is authoritative only when the immutable `v0.20.1` GitHub Release/tag exists.
+Use the newest non-draft GitHub Release as the canonical published build. The active source/release cycle is **0.20.2** and the previous canonical release is **0.20.1**. Publication of 0.20.2 is authoritative only when the immutable `v0.20.2` GitHub Release/tag exists.
 
 ## Verify downloads
 
