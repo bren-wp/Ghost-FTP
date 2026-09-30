@@ -206,48 +206,61 @@ class MainActivity : Activity() {
         return root
     }
 
-    private fun buildNavigationRail(): View = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER_HORIZONTAL
-        setPadding(dp(8), dp(14), dp(8), dp(14))
+    private fun buildNavigationRail(): View = ScrollView(this).apply {
+        isFillViewport = true
+        isVerticalScrollBarEnabled = false
+        contentDescription = "Workspace navigation"
         background = rounded(Brand.panelStrong, 0, Brand.border)
 
-        addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(42), dp(42)))
-        addView(space(8))
-        addView(TextView(this@MainActivity).apply {
-            text = "Ghost FTP"
-            setTextColor(Brand.text)
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-        })
-        addView(TextView(this@MainActivity).apply {
-            text = ReleaseInfo.VERSION_DISPLAY
-            setTextColor(Brand.muted)
-            textSize = 11f
-            gravity = Gravity.CENTER
-        })
-        addView(space(18))
+        val rail = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(8), dp(14), dp(8), dp(14))
 
-        Workspace.entries.forEach { workspace ->
-            addView(
-                workspaceNavItem(workspace),
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    dp(if (resources.configuration.screenWidthDp >= 600) 50 else 56)
+            addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(42), dp(42)))
+            addView(space(8))
+            addView(TextView(this@MainActivity).apply {
+                text = "Ghost FTP"
+                setTextColor(Brand.text)
+                textSize = 14f
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = ReleaseInfo.VERSION_DISPLAY
+                setTextColor(Brand.muted)
+                textSize = 11f
+                gravity = Gravity.CENTER
+            })
+            addView(space(18))
+
+            Workspace.entries.forEach { workspace ->
+                addView(
+                    workspaceNavItem(workspace),
+                    LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        dp(if (resources.configuration.screenWidthDp >= 600) 50 else 56)
+                    )
                 )
-            )
-            addView(space(6))
-        }
+                addView(space(6))
+            }
 
-        addView(View(this@MainActivity), LinearLayout.LayoutParams(1, 0, 1f))
-        addView(TextView(this@MainActivity).apply {
-            text = "Private\nsession"
-            setTextColor(Brand.muted)
-            textSize = 10f
-            gravity = Gravity.CENTER
-            setLineSpacing(0f, 1.08f)
-        })
+            addView(space(12))
+            addView(TextView(this@MainActivity).apply {
+                text = "Private\nsession"
+                setTextColor(Brand.muted)
+                textSize = 10f
+                gravity = Gravity.CENTER
+                setLineSpacing(0f, 1.08f)
+            })
+        }
+        addView(
+            rail,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
     }
 
     private fun buildHeader(): View = panel(strong = true).apply {
