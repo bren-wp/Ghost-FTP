@@ -273,7 +273,7 @@ for (const required of [
   "<ReferenceSiteSidebar />",
   "ghost-app-body",
   "ghost-content-shell",
-  "workspaceFor(",
+  "resolveWorkspaceDialog(",
   "<WorkspaceErrorBoundary",
   "onReturnToFiles={showFiles}",
 ]) {
@@ -375,6 +375,20 @@ for (const forbidden of ["cloudStorage", "schedules", "activityLogs"]) {
     if (source.includes(forbidden)) {
       failures.push(`${label} still contains obsolete hidden workspace alias: ${forbidden}`);
     }
+  }
+}
+
+const workspaces = read("src/lib/workspaces.ts");
+for (const required of ["resolveWorkspaceDialog(", "workspaceLabel(", '"siteManager"', '"transferCenter"', '"sync"', '"settings"', '"about"']) {
+  if (!workspaces.includes(required)) failures.push(`Shared workspace resolver missing: ${required}`);
+}
+for (const [label, source] of [
+  ["app shell", app],
+  ["title bar", read("src/components/TitleBar.tsx")],
+  ["primary sidebar", read("src/components/ReferenceSiteSidebar.tsx")],
+]) {
+  if (source.includes("WORKSPACE_DIALOGS")) {
+    failures.push(`${label} reintroduced duplicated workspace-resolution state; use src/lib/workspaces.ts`);
   }
 }
 
