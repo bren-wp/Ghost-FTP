@@ -531,6 +531,21 @@ impl TransferManager {
         self.persist_snapshot(t, true).await;
     }
 
+    /// Register a spawned transfer worker without leaving a completed JoinHandle
+    /// behind when the worker wins the spawn -> registration race. A very fast
+    /// transfer can reach finalize() before its caller acquires the task-map lock;
+    /// in that case finalize() has nothing to remove. Re-checking is_finished()
+    /// while holding the same lock closes both interleavings:
+    /// - already-finished workers are removed here;
+    /// - workers blocked in finalize() remove themselves after this lock is released.
+    async fn register_task(&self, id: String, task: JoinHandle<()>) {
+        let mut tasks = self.tasks.lock().await;
+        tasks.insert(id.clone(), task);
+        if tasks.get(&id).is_some_and(|handle| handle.is_finished()) {
+            tasks.remove(&id);
+        }
+    }
+
     async fn persist_snapshot(&self, transfer: Transfer, force: bool) {
         let Some(db) = self.db.as_ref() else {
             return;
@@ -959,7 +974,7 @@ impl TransferManager {
                 app_for_task,
             )),
         };
-        self.tasks.lock().await.insert(id.to_string(), task);
+        self.register_task(id.to_string(), task).await;
         Ok(())
     }
 
@@ -1130,7 +1145,7 @@ impl TransferManager {
             final_path,
             app,
         ));
-        self.tasks.lock().await.insert(id.clone(), task);
+        self.register_task(id.clone(), task).await;
         Ok(id)
     }
 
@@ -1383,7 +1398,7 @@ impl TransferManager {
             final_remote,
             app,
         ));
-        self.tasks.lock().await.insert(id.clone(), task);
+        self.register_task(id.clone(), task).await;
         Ok(id)
     }
 
@@ -4263,6 +4278,22 @@ async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn task_registration_drops_worker_that_finished_before_registration() {
+        let mgr = TransferManager::new();
+        let task = tokio::spawn(async {});
+
+        while !task.is_finished() {
+            tokio::task::yield_now().await;
+        }
+
+        mgr.register_task("already-finished".to_string(), task).await;
+        assert!(
+            !mgr.tasks.lock().await.contains_key("already-finished"),
+            "a worker that completed before task-map registration must not leave a stale JoinHandle"
+        );
+    }
 
     // ---------- TokenBucket ----------
 
