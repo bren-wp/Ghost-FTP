@@ -2,8 +2,8 @@
 
 ## Authoritative current state
 
-- **Active source/release cycle:** Ghost FTP **0.19.0**.
-- **Previous canonical release:** Ghost FTP **0.18.0**.
+- **Active source/release cycle:** Ghost FTP **0.20.0**.
+- **Previous canonical release:** Ghost FTP **0.19.0**.
 - **Live publication status:** GitHub Releases is authoritative and queried by CI.
 - **Version source of truth:** `version.json`.
 - **Desktop production source:** `ghostftp-desktop/`.
@@ -23,6 +23,12 @@ The production desktop GUI is the native React + TypeScript + Tauri + Rust appli
 - Dependency-manifest Cargo lock refresh: `.github/workflows/cargo-lock-refresh.yml`
 
 The obsolete duplicate Windows/Linux native build workflow and website application surface have been removed. The canonical native build now supplies both release binaries and Windows native-window QA evidence. Android runs on every release-relevant PR and every `main` push and includes an emulator click-through smoke.
+
+## 0.20.0 recovery and cross-platform hardening
+
+The 0.20.0 cycle adds durable credential-free desktop transfer recovery, safe cross-process retry semantics, runtime-bounded transfer history, stricter FTP/FTPS resume verification and broader real-protocol E2E coverage. Android now uses lifecycle-aware cancellation through remote mutations, closes upload streams at the ownership boundary, preserves document-picker access with lint-safe SAF grant modes, and fails closed when stable signing continuity cannot be verified.
+
+The same exact-source Windows/Linux native build, Android, Quality, Protocol E2E and Windows hardening gates remain release blockers.
 
 ## 0.19.0 packaging and size hardening
 
@@ -97,6 +103,6 @@ Evidence applies only to the exact tested source SHA.
 
 ## Release truth
 
-`0.19.0` is the active cycle after `0.18.0`. Live publication status is determined by the canonical GitHub Release/tag, not by documentation wording or a successful compile.
+`0.20.0` is the active cycle after `0.19.0`. Live publication status is determined by the canonical GitHub Release/tag, not by documentation wording or a successful compile.
 
 Existing version tags are immutable. Stable/FINAL status is separate from publishing a pre-1.0 release and still requires the target-OS lifecycle, visual, security, accessibility and signing acceptance described in QA/release documentation.
