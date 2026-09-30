@@ -53,6 +53,12 @@ The canonical release workflow downloads the installable APK from the successful
 
 The current pre-1.0 preview channel still uses Gradle's CI debug signing identity. Automated QA now proves clean installability and same-build reinstallability of the exact release candidate, but cryptographic upgrade continuity between separately generated release builds cannot be guaranteed without a persistent signing identity. Do not claim cross-release upgrade continuity until that identity is available through the existing secure release infrastructure; never commit a keystore or signing password to the repository.
 
+## 0.20.0 transfer/lifecycle regression coverage
+
+The Android transfer layer stages downloads locally and uploads remotely before promotion, preserving existing targets until a completed replacement is ready. Activity destruction and disconnect propagate cooperative cancellation through upload, download, delete and folder creation. Upload document streams are closed at the controller ownership boundary even when cancellation occurs before protocol setup.
+
+The document picker still requests persistable URI access, while `takePersistableUriPermission` is called only with valid READ/WRITE grant modes. Release signing continuity is fail-closed once a previous stable `com.ghostftp.android` APK exists: inability to download, verify or inspect that APK blocks publication instead of silently skipping the comparison.
+
 ## Stable / FINAL acceptance
 
 Before a stable/FINAL claim, also test on representative physical Android devices:
