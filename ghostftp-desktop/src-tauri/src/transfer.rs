@@ -7,6 +7,7 @@ use crate::session::{
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::future::Future;
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
@@ -531,19 +532,20 @@ impl TransferManager {
         self.persist_snapshot(t, true).await;
     }
 
-    /// Register a spawned transfer worker without leaving a completed JoinHandle
-    /// behind when the worker wins the spawn -> registration race. A very fast
-    /// transfer can reach finalize() before its caller acquires the task-map lock;
-    /// in that case finalize() has nothing to remove. Re-checking is_finished()
-    /// while holding the same lock closes both interleavings:
-    /// - already-finished workers are removed here;
-    /// - workers blocked in finalize() remove themselves after this lock is released.
-    async fn register_task(&self, id: String, task: JoinHandle<()>) {
+    /// Spawn and register a transfer worker while holding the task-map lock.
+    ///
+    /// Tokio may poll a spawned future immediately. Taking this lock before
+    /// `tokio::spawn` guarantees a very fast worker that reaches `finalize()`
+    /// blocks on the same map until its JoinHandle is registered. Once this
+    /// method releases the lock, `finalize()` can deterministically remove the
+    /// registered handle; there is no completion-before-registration window.
+    async fn spawn_registered<F>(&self, id: String, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
         let mut tasks = self.tasks.lock().await;
-        tasks.insert(id.clone(), task);
-        if tasks.get(&id).is_some_and(|handle| handle.is_finished()) {
-            tasks.remove(&id);
-        }
+        let task = tokio::spawn(future);
+        tasks.insert(id, task);
     }
 
     async fn persist_snapshot(&self, transfer: Transfer, force: bool) {
@@ -948,33 +950,44 @@ impl TransferManager {
         let mgr = Arc::clone(self);
         let id_for_task = id.to_string();
         let app_for_task = app.clone();
-        let task = match info {
+        match info {
             RetryInfo::Download {
                 session,
                 remote_path,
                 final_path,
-            } => tokio::spawn(run_download_task(
-                mgr,
-                id_for_task,
-                session,
-                remote_path,
-                final_path,
-                app_for_task,
-            )),
+            } => {
+                self.spawn_registered(
+                    id.to_string(),
+                    run_download_task(
+                        mgr,
+                        id_for_task,
+                        session,
+                        remote_path,
+                        final_path,
+                        app_for_task,
+                    ),
+                )
+                .await;
+            }
             RetryInfo::Upload {
                 session,
                 local,
                 final_remote,
-            } => tokio::spawn(run_upload_task(
-                mgr,
-                id_for_task,
-                session,
-                local,
-                final_remote,
-                app_for_task,
-            )),
-        };
-        self.register_task(id.to_string(), task).await;
+            } => {
+                self.spawn_registered(
+                    id.to_string(),
+                    run_upload_task(
+                        mgr,
+                        id_for_task,
+                        session,
+                        local,
+                        final_remote,
+                        app_for_task,
+                    ),
+                )
+                .await;
+            }
+        }
         Ok(())
     }
 
@@ -1137,15 +1150,11 @@ impl TransferManager {
 
         let mgr = Arc::clone(self);
         let id_for_task = id.clone();
-        let task = tokio::spawn(run_download_task(
-            mgr,
-            id_for_task,
-            session,
-            remote_path,
-            final_path,
-            app,
-        ));
-        self.register_task(id.clone(), task).await;
+        self.spawn_registered(
+            id.clone(),
+            run_download_task(mgr, id_for_task, session, remote_path, final_path, app),
+        )
+        .await;
         Ok(id)
     }
 
@@ -1390,15 +1399,11 @@ impl TransferManager {
 
         let mgr = Arc::clone(self);
         let id_for_task = id.clone();
-        let task = tokio::spawn(run_upload_task(
-            mgr,
-            id_for_task,
-            session,
-            local,
-            final_remote,
-            app,
-        ));
-        self.register_task(id.clone(), task).await;
+        self.spawn_registered(
+            id.clone(),
+            run_upload_task(mgr, id_for_task, session, local, final_remote, app),
+        )
+        .await;
         Ok(id)
     }
 
@@ -4280,18 +4285,23 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn task_registration_drops_worker_that_finished_before_registration() {
-        let mgr = TransferManager::new();
-        let task = tokio::spawn(async {});
+    async fn spawn_registered_makes_handle_visible_before_worker_cleanup() {
+        let mgr = Arc::new(TransferManager::new());
+        let worker_mgr = Arc::clone(&mgr);
+        let id = "immediate-worker".to_string();
+        let worker_id = id.clone();
+        let (tx, rx) = tokio::sync::oneshot::channel();
 
-        while !task.is_finished() {
-            tokio::task::yield_now().await;
-        }
+        mgr.spawn_registered(id, async move {
+            let registered = worker_mgr.tasks.lock().await.remove(&worker_id).is_some();
+            let _ = tx.send(registered);
+        })
+        .await;
 
-        mgr.register_task("already-finished".to_string(), task).await;
-        assert!(
-            !mgr.tasks.lock().await.contains_key("already-finished"),
-            "a worker that completed before task-map registration must not leave a stale JoinHandle"
+        assert_eq!(
+            rx.await,
+            Ok(true),
+            "worker cleanup must observe its registered JoinHandle even when the worker runs immediately"
         );
     }
 
