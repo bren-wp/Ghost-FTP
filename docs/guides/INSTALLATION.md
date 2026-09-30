@@ -2,7 +2,7 @@
 
 GitHub Releases is the canonical source for published Ghost FTP binaries and checksums.
 
-Use the newest non-draft GitHub Release as the canonical published build. The active source/release cycle is **0.20.0** and the previous canonical release is **0.19.0**. Publication of 0.20.0 is authoritative only when the immutable `v0.20.0` GitHub Release/tag exists.
+Use the newest non-draft GitHub Release as the canonical published build. The active source/release cycle is **0.20.1** and the previous canonical release is **0.20.0**. Publication of 0.20.1 is authoritative only when the immutable `v0.20.1` GitHub Release/tag exists.
 
 ## Verify downloads
 
@@ -50,7 +50,7 @@ The canonical release asset is:
 
 - `GhostFTP-Android-v<version>.apk`
 
-The release workflow obtains this APK from the verified Android CI artifact for the same source SHA. On the current `preview` channel, it may use the verified non-debuggable `com.ghostftp.android.preview` APK when production signing secrets are not configured. Non-preview channels require the persistently signed `com.ghostftp.android` release APK. Preview-channel publication does not claim cross-release Android upgrade continuity.
+The release workflow obtains this APK from the verified Android CI artifact for the same source SHA. The active 0.20.1 cycle uses the `stable` channel, so canonical publication requires the persistently signed `com.ghostftp.android` release APK and signing-continuity checks. The verified non-debuggable `com.ghostftp.android.preview` APK remains CI/preview evidence only and must not be published as the stable 0.20.1 Android asset.
 
 The separate unsigned Android release-check APK is a CI validation artifact and is not the canonical end-user APK.
 
