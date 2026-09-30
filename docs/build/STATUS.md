@@ -2,8 +2,8 @@
 
 ## Authoritative current state
 
-- **Active source/release cycle:** Ghost FTP **0.20.2**.
-- **Previous canonical release:** Ghost FTP **0.20.1**.
+- **Active source/release cycle:** Ghost FTP **0.20.3**.
+- **Previous canonical release:** Ghost FTP **0.20.2**.
 - **Live publication status:** GitHub Releases is authoritative and queried by CI.
 - **Version source of truth:** `version.json`.
 - **Desktop production source:** `ghostftp-desktop/`.
@@ -87,9 +87,9 @@ Evidence applies only to the exact tested source SHA.
 
 ### Android
 
-- installable APK from the verified Android workflow artifact;
-- package/signature checks via `apksigner`;
-- separate unsigned release-check APK used for validation, not as the canonical end-user APK;
+- intentionally unsigned production APK named `GhostFTP-Android-v<version>.apk.unsigned`, verified as the production `com.ghostftp.android` package but not presented as directly installable;
+- separate non-debuggable installable preview APK used only for clean-install, reinstall and launch validation;
+- package identity and APK structure checks via Android build tooling;
 - emulator click-through test and real emulator UI screenshot evidence in the Android CI artifact.
 
 ### Source/support assets
@@ -103,6 +103,6 @@ Evidence applies only to the exact tested source SHA.
 
 ## Release truth
 
-`0.20.2` is the active cycle after published `0.20.1`. Live publication status is determined by the canonical GitHub Release/tag, not by documentation wording or a successful compile.
+`0.20.3` is the active cycle after published `0.20.2`. Live publication status is determined by the canonical GitHub Release/tag, not by documentation wording or a successful compile.
 
 Existing version tags are immutable. Stable/FINAL status is separate from publishing a pre-1.0 release and still requires the target-OS lifecycle, visual, security, accessibility and signing acceptance described in QA/release documentation.
