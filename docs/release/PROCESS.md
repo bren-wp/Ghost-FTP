@@ -46,7 +46,8 @@ For version `<version>`:
 
 ### Android
 
-- `GhostFTP-Android-v<version>.apk`
+- `GhostFTP-Android-v<version>.apk.unsigned`
+- `GhostFTP-Android-v<version>-Installable-Preview.apk`
 
 ### Signed desktop updater assets
 
@@ -78,7 +79,7 @@ If the signing key is not configured, these four updater-service assets are omit
 
 - End-user desktop GUI assets come from `ghostftp-desktop/`.
 - Canonical Windows/Linux binaries and native QA evidence come from the same successful native build run.
-- Stable-channel canonical Android APK must be the persistently signed `com.ghostftp.android` artifact from the verified Android run for the same release SHA; a `.preview` package is not a stable release substitute.
+- Android publication must contain the verified unsigned production `com.ghostftp.android` build and the separately verified installable preview from the same release SHA. The unsigned production file must remain explicitly suffixed `.unsigned` so it is never misrepresented as directly installable.
 - Support/browser-host tooling is not a production desktop release asset.
 - Publication fails if required artifacts/gates are missing.
 - Existing tags are never moved.
