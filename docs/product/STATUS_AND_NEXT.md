@@ -30,7 +30,7 @@ Full capability detail: [FEATURES.md](FEATURES.md).
 - Reconnects recovered retries through saved profiles and the OS credential store, while restarting from zero when cross-process file identity is not provable.
 - Bounds completed/error/canceled/skipped transfer history during runtime without dropping active transfers.
 - Verifies resumed FTP/explicit-FTPS uploads and safely restarts from zero if the server accepts the resume command but persists the wrong final size.
-- Extends real protocol E2E coverage for cancellation, ABOR cleanup and post-error control-channel synchronization.
+- Extends real FTP/explicit-FTPS E2E coverage for cancellation, ABOR cleanup and post-error control-channel synchronization, while real OpenSSH SFTP E2E verifies non-zero-offset resume primitives.
 - Hardens Android staged transfers, lifecycle cancellation, stream cleanup, SAF persistence and release-signing continuity.
 
 ## 0.19.0 hardening in source
