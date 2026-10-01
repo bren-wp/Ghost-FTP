@@ -13,6 +13,33 @@ test -d dist
 test -s "dist/$CHECKSUM_FILE"
 (cd dist && sha256sum -c "$CHECKSUM_FILE")
 
+REQUIRED_CORE_FILES=(
+  "GhostFTP-Windows-x64-Portable-v${VERSION}.exe"
+  "GhostFTP-Windows-x64-Setup-v${VERSION}.exe"
+  "GhostFTP-Windows-x64-Setup-v${VERSION}.msi"
+  "GhostFTP-Windows-x64-v${VERSION}.zip"
+  "GhostFTP-Windows-x64-v${VERSION}-Native-QA.zip"
+  "GhostFTP-Linux-x86_64-v${VERSION}"
+  "GhostFTP-Linux-x86_64-v${VERSION}.AppImage"
+  "GhostFTP-Linux-amd64-v${VERSION}.deb"
+  "GhostFTP-Linux-x86_64-v${VERSION}.rpm"
+  "GhostFTP-Linux-x86_64-v${VERSION}.tar.gz"
+  "GhostFTP-Android-v${VERSION}.apk.unsigned"
+  "GhostFTP-Android-v${VERSION}-Installable-Preview.apk"
+  "GhostFTP-v${VERSION}-Source.zip"
+  "GhostFTP-v${VERSION}-Desktop-Source.zip"
+  "GhostFTP-v${VERSION}-Android-Source.zip"
+  "GhostFTP-v${VERSION}-Updates.zip"
+  "GhostFTP-v${VERSION}-Documentation.zip"
+  "$CHECKSUM_FILE"
+)
+for required in "${REQUIRED_CORE_FILES[@]}"; do
+  if [ ! -s "dist/$required" ]; then
+    echo "Required release artifact is missing or empty: dist/$required" >&2
+    exit 1
+  fi
+done
+
 UPDATER_FILES=(
   "GhostFTP-Windows-x64-Setup-v${VERSION}.exe.sig"
   "GhostFTP-Linux-x86_64-v${VERSION}.AppImage.sig"
