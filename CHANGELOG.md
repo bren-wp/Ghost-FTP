@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.20.7 — dead-code and source-reachability hardening — 1 October 2026
+
+0.20.7 follows published 0.20.6 with repository-wide TypeScript dead-code enforcement and source reachability checks.
+
+- Enables TypeScript unused-local diagnostics for the desktop application and shared file-ui package.
+- Adds a production Quality gate that walks desktop TypeScript entrypoints and fails on source files that are not reachable from the active application/package graph.
+- Keeps cleanup evidence compiler- and entrypoint-driven so files are deleted only when they are demonstrably unused.
+- Preserves the 0.20.6 production bundle budget and all exact-SHA release gates.
+
+The audit removed 11 unreachable frontend files: `IconPicker.tsx`, `KeyboardSettings.tsx`, `ProfileEditor.tsx`, `PromptModal.tsx`, `RemoteControlSettings.tsx`, `ui/Badge.tsx`, `ui/Skeleton.tsx`, `ui/Tooltip.tsx`, `brandIconData.ts`, `brandIcons.tsx` and the legacy host `lib/fileIcons.tsx` shim.
+
+TypeScript also identified 21 unused imports/declarations across active files. Those were removed from FilePane, Settings, Site Manager, Terminal and settingsStore, together with the now-unreferenced breadcrumb parser/helper chain.
+
+See [docs/releases/0.20.7.md](docs/releases/0.20.7.md).
+
 ## 0.20.6 — frontend bundle-size hardening — 1 October 2026
 
 0.20.6 follows published 0.20.5 with measurable desktop frontend bundle-size hardening.

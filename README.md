@@ -39,8 +39,8 @@
 
 ## Current status
 
-- **Active source/release cycle:** `0.20.6`.
-- **Previous canonical release:** `0.20.5`.
+- **Active source/release cycle:** `0.20.7`.
+- **Previous canonical release:** `0.20.6`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
@@ -56,7 +56,7 @@ FTP, explicit FTPS and SFTP with TLS/SSH verification, protected credential hand
 
 ### Files and transfers
 
-Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.20.1 transfer-worker race fix, 0.20.2 Android/desktop launch hardening, 0.20.3 async file-action hardening, 0.20.4 CI runtime modernization and 0.20.5 Android API hardening remain in 0.20.6. The current patch reduces desktop frontend bundle bloat, curates offline file-type icons and enforces a 500 KiB production JavaScript chunk budget.
+Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.20.1 transfer-worker race fix through 0.20.6 frontend bundle hardening remain in 0.20.7. The current patch adds compiler-level unused-local checks and an entrypoint-based source reachability gate so dead frontend code is detected and removed instead of accumulating.
 
 ### Productivity
 

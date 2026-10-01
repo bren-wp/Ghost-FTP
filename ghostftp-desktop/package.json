@@ -1,7 +1,7 @@
 {
   "name": "ghostftp-desktop",
   "private": true,
-  "version": "0.20.6",
+  "version": "0.20.7",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -22,7 +22,8 @@
     "check": "tsc --noEmit",
     "version:sync": "node ../.github/scripts/sync-version.mjs",
     "version:check": "node ../.github/scripts/sync-version.mjs --check",
-    "check:bundle": "node scripts/check-bundle-size.mjs"
+    "check:bundle": "node scripts/check-bundle-size.mjs",
+    "check:dead": "node scripts/check-source-reachability.mjs"
   },
   "dependencies": {
     "@ghostftp/file-ui": "*",

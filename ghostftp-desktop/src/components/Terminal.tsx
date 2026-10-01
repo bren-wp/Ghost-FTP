@@ -17,7 +17,6 @@ import {
 } from "@/lib/terminalRegistry";
 import { noteTerminalFocus } from "@/lib/termInput";
 import { useSettings, TERMINAL_THEMES } from "@/stores/settingsStore";
-import { useConnections } from "@/stores/connectionsStore";
 import { useSnippets } from "@/stores/snippetsStore";
 import {
   useTerminals,
@@ -25,7 +24,6 @@ import {
   type PaneNode,
   type SplitDir,
 } from "@/stores/terminalsStore";
-import { toast } from "@/stores/toastStore";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { cn } from "@/lib/cn";
 

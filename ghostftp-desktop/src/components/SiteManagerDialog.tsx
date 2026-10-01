@@ -9,7 +9,6 @@ import {
   Edit3,
   Eye,
   EyeOff,
-  Folder,
   Link2,
   Plus,
   RadioTower,
@@ -17,7 +16,6 @@ import {
   Search,
   Server,
   Star,
-  Tag,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -811,39 +809,6 @@ function SiteSortHeader({
   );
 }
 
-function SideItem({
-  icon,
-  label,
-  count,
-  active = false,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  count: number;
-  active?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-current={active ? "page" : undefined}
-      className={`mb-1 flex w-full items-center gap-2 rounded-md border px-2.5 py-2 text-left text-[12px] ${
-        active
-          ? "border-accent/35 bg-accent/15 text-white"
-          : "border-transparent text-text-muted hover:bg-bg-hover hover:text-white"
-      }`}
-    >
-      <span className="[&>svg]:h-4 [&>svg]:w-4 text-accent">{icon}</span>
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      <span className="rounded bg-[#0a2d4b] px-1.5 py-.5 text-[10px]">
-        {count}
-      </span>
-    </button>
-  );
-}
-
 function SiteRow({
   profile,
   active,
@@ -940,17 +905,6 @@ function tagToneClass(label: string) {
   ];
   const hash = Array.from(normalized).reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return palette[hash % palette.length];
-}
-
-function TagDot({ label }: { label: string }) {
-  const tone = tagToneClass(label);
-  const background =
-    tone.includes("emerald") ? "bg-emerald-400" :
-    tone.includes("violet") ? "bg-violet-400" :
-    tone.includes("orange") ? "bg-orange-400" :
-    tone.includes("pink") ? "bg-pink-400" :
-    tone.includes("rose") ? "bg-rose-400" : "bg-sky-400";
-  return <span className={`inline-block h-3 w-3 rounded-full shadow-[0_0_8px_currentColor] ${background}`} aria-hidden="true"/>;
 }
 
 function formatLastUsed(value?: number) {

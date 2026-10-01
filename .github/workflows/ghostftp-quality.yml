@@ -162,6 +162,7 @@ jobs:
           npm audit --audit-level=high
           npm run check:i18n
           npm run check:ui
+          npm run check:dead
           npm run check
           npm run build
 
