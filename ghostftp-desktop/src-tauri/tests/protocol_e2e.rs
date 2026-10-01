@@ -160,6 +160,16 @@ async fn ftp_roundtrip(
 
     fs.create_dir(&base).await.context("FTP mkdir")?;
 
+    let denied_child = format!(
+        "ghostftp-e2e-readonly/should-fail-{}",
+        Uuid::new_v4().simple()
+    );
+    if fs.create_dir(&denied_child).await.is_ok() {
+        return Err(anyhow!(
+            "{protocol} unexpectedly created a directory inside the read-only fixture"
+        ));
+    }
+
     let upload_path = upload.clone();
     let upload_payload = payload.clone();
     ftp.with_stream(move |stream| {
@@ -593,6 +603,16 @@ async fn sftp_password_roundtrip(
     let payload = b"Ghost FTP SFTP E2E payload\n".to_vec();
 
     fs.create_dir(&base).await.context("SFTP mkdir")?;
+
+    let denied_child = format!(
+        "ghostftp-e2e-readonly/should-fail-{}",
+        Uuid::new_v4().simple()
+    );
+    if fs.create_dir(&denied_child).await.is_ok() {
+        return Err(anyhow!(
+            "SFTP unexpectedly created a directory inside the read-only fixture"
+        ));
+    }
 
     let cell = ssh.ensure_sftp().await?;
     let mut remote = {
