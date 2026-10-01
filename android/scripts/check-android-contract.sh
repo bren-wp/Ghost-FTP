@@ -43,6 +43,8 @@ require_absent() {
 MAIN_ACTIVITY="$ANDROID_DIR/app/src/main/java/com/ghostftp/android/MainActivity.kt"
 CONNECTION_MODEL="$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ConnectionModel.kt"
 RELEASE_INFO="$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt"
+DESKTOP_ADAPTER="$ROOT/ghostftp-desktop/src/lib/fileUiAdapter.ts"
+DESKTOP_BROWSER="$ROOT/ghostftp-desktop/src/components/FileBrowser.tsx"
 
 require_text "product name" "$RELEASE_INFO" 'PRODUCT_NAME = "Ghost FTP"'
 require_text "brand" "$RELEASE_INFO" 'BRAND = "Brendigo"'
@@ -55,6 +57,11 @@ require_text "app label" "$ANDROID_DIR/app/src/main/res/values/strings.xml" '<st
 require_text "ftp protocol" "$CONNECTION_MODEL" 'FTP("FTP", 21)'
 require_text "ftps protocol" "$CONNECTION_MODEL" 'EXPLICIT_FTPS("Explicit FTPS", 21)'
 require_text "sftp protocol" "$CONNECTION_MODEL" 'SFTP("SFTP", 22)'
+require_text "desktop shared rename action" "$DESKTOP_ADAPTER" 'rename: (sessionId, from, to) => ipc.renamePath(sessionId, from, to)'
+require_text "desktop shared delete action" "$DESKTOP_ADAPTER" 'ipc.deletePath(sessionId, path, recursive)'
+require_text "desktop shared new-folder action" "$DESKTOP_ADAPTER" 'mkdir: (sessionId, path) => ipc.createDirectory(sessionId, path)'
+require_text "desktop shared upload action" "$DESKTOP_BROWSER" 'await enqueueUploads(serverSid, items, serverRemotePath)'
+require_text "desktop shared download action" "$DESKTOP_BROWSER" 'await enqueueDownloads(serverSid, entries.map(toTransferItem), dest)'
 
 require_text "desktop parity ghost mark" "$MAIN_ACTIVITY" 'GhostMarkView'
 require_text "left workspace navigation rail" "$MAIN_ACTIVITY" 'buildNavigationRail()'
