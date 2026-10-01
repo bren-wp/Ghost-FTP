@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.20.3 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.20.4 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.20.2**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.20.3**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -23,6 +23,13 @@ Previous canonical release: **0.20.2**. Live publication state is determined fro
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
 
 Full capability detail: [FEATURES.md](FEATURES.md).
+
+## 0.20.4 CI runtime and build-config hardening in source
+
+- Release-relevant workflows now use current supported major trains for first-party GitHub Actions instead of deprecated Node 20 action runtimes.
+- Go setup caching is disabled for the two small helper-tool workflows because those modules intentionally have no `go.sum`.
+- Vite configuration resolves its directory through ESM-safe `fileURLToPath(import.meta.url)` instead of `__dirname`.
+- A dedicated CI/runtime contract prevents stale action majors, unsupported Go cache assumptions and Vite `__dirname` from being reintroduced.
 
 ## 0.20.3 file-action reliability hardening in source
 
