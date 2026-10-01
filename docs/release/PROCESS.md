@@ -51,16 +51,16 @@ For version `<version>`:
 
 ### Signed desktop updater assets
 
-For `channel: stable`, publication requires all four updater assets below:
+When in-app updater signing is enabled, publication requires all four updater assets below:
 
 - `GhostFTP-Windows-x64-Setup-v<version>.exe.sig`
 - `GhostFTP-Linux-x86_64-v<version>.AppImage.sig`
 - `GhostFTP-v<version>-latest.json`
 - `GhostFTP-v<version>-Update-Service.zip`
 
-The stable release workflow and the final publication script both fail closed before a tag/release can be created or updated if any of these files are missing. The manifest is validated for the exact version, and the copy packaged inside Update-Service must match the separately published manifest byte-for-byte.
+The release workflow and final publication script fail closed if this optional updater set is partial or inconsistent. The manifest is validated for the exact version, and the copy packaged inside Update-Service must match the separately published manifest byte-for-byte.
 
-Preview/CI builds may omit signed updater assets only when they are explicitly non-stable. Normal application packages can still be produced for QA, but they are not eligible for stable publication without the updater proof.
+If no updater signatures are present, the stable GitHub release may still publish the normal verified application packages, checksums and QA evidence. In that mode no updater manifest or Update-Service bundle is emitted.
 
 ### Source/documentation
 
@@ -83,6 +83,8 @@ Preview/CI builds may omit signed updater assets only when they are explicitly n
 - Canonical Windows/Linux binaries and native QA evidence come from the same successful native build run.
 - Android publication must contain the verified unsigned production `com.ghostftp.android` build and the separately verified installable preview from the same release SHA. The unsigned production file must remain explicitly suffixed `.unsigned` so it is never misrepresented as directly installable.
 - Support/browser-host tooling is not a production desktop release asset.
+- The final publication script verifies the checksum file and independently requires every core Windows/Linux/Android/source/documentation/native-QA asset to exist and be non-empty before it can touch a version tag.
+- Optional signed updater assets are all-or-nothing and are verified separately from the required core asset set.
 - Publication fails if required artifacts/gates are missing.
 - Existing tags are never moved.
 - Public filenames use `GhostFTP`; product copy uses `Ghost FTP`.

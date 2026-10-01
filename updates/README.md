@@ -35,21 +35,21 @@ The former separate preview/stable template files were removed because the deskt
 
 1. Pull requests build and test normal Windows/Linux packages without access to signing secrets.
 2. A canonical build on `main` always produces the normal Windows/Linux packages. When the Tauri signing secret is configured it additionally uses `src-tauri/updater-release.conf.json` to produce signed in-app updater artifacts.
-3. With signing enabled, Tauri produces the normal NSIS Setup/AppImage plus their signature files. Without signing, normal packages may still be used for CI/preview QA, but a `stable` release is not publishable.
+3. With signing enabled, Tauri produces the normal NSIS Setup/AppImage plus their signature files. Without signing, the verified normal packages remain eligible for a stable manual GitHub release; only the in-app updater bundle is omitted.
 4. The release workflow verifies all exact-SHA gates.
-5. The release workflow normalizes packages and signatures, then generates an update-service response.
-6. The release publishes versioned packages/signatures plus `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Update-Service.zip`.
-7. `channel: stable` requires both signed Windows/Linux updater artifacts, a verified manifest and the matching Update-Service package. Missing proof aborts before stable tag/release publication. Explicit preview/CI builds may omit that bundle.
-8. After the GitHub Release and its asset digests are verified, the update-service operator may atomically replace `/updates/latest.json`.
+5. The release workflow normalizes the verified packages and detects whether a complete signed updater pair exists.
+6. If both signatures exist, it generates and verifies `GhostFTP-v<version>-latest.json` plus `GhostFTP-v<version>-Update-Service.zip`; if signatures are absent, those updater assets are deliberately omitted.
+7. Partial updater proof is forbidden: signatures, manifest and Update-Service package must be all present and consistent or all absent. This does not block the normal stable package release.
+8. Only after a signed updater bundle exists and its release asset digests are verified may the update-service operator atomically replace `/updates/latest.json`.
 
 See `DEPLOYMENT.md` for the update-service hosting procedure.
 
-## Required GitHub Actions secrets for stable publication
+## Optional GitHub Actions secrets for in-app updater publication
 
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` when the key is password protected
 
-The private key must never be stored in source, release assets, update-service files, workflow logs or documentation examples.
+These secrets are not required for the normal stable GitHub release. They are required only to produce the cryptographically signed Windows/Linux in-app updater bundle. The private key must never be stored in source, release assets, update-service files, workflow logs or documentation examples.
 
 ## Failure behavior
 

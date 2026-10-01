@@ -4,14 +4,14 @@
 
 This is the operator checklist for publishing a Windows/Linux in-app update after the source has passed the normal Ghost FTP release gates.
 
-## One-time repository setup
+## Optional in-app updater signing
 
-Configure GitHub Actions repository secrets:
+The normal stable GitHub release does not require private updater keys. To additionally publish the Windows/Linux in-app update bundle, configure these GitHub Actions repository secrets:
 
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if the private key is encrypted
 
-The public verification key is embedded in the desktop application. The private key must stay outside the repository and update-service host.
+The public verification key is embedded in the desktop application. If updater signing is enabled, the private key must stay outside the repository and update-service host.
 
 ## Build behavior
 
@@ -28,7 +28,9 @@ Pull requests:
 - with signing enabled, produces a signature file for the Windows Setup and Linux AppImage;
 - uploads the normal packages in either mode and the signature files only when they actually exist.
 
-If the signing secret is missing, the canonical native build remains useful for CI/preview QA, but a `stable` release must stop. Stable publication requires both updater signatures, the verified manifest and the matching Update-Service package; the release workflow must fail before tag/release publication rather than silently omitting them.
+Pull requests remain secret-free and build normal packages. On `main`, missing updater-signing secrets do not block a stable GitHub release; the release contains the verified application packages, checksums and QA evidence but deliberately omits the in-app update-service bundle.
+
+If either updater signature is present, both signatures, the exact-version manifest and the matching Update-Service package become an all-or-nothing set. Partial updater proof fails closed before tag/release publication.
 
 ## Release workflow
 
@@ -37,19 +39,19 @@ The release workflow:
 1. waits for exact-SHA quality, protocol, Android and Windows hardening gates;
 2. downloads native artifacts from the successful exact-SHA main build;
 3. normalizes versioned public asset names;
-4. requires both updater signatures when `channel: stable`;
-5. creates the Tauri-compatible update-service response from the **contents** of those signature files;
+4. detects whether both updater signatures are available;
+5. when signed updater artifacts exist, creates the Tauri-compatible update-service response from the signature contents;
 6. validates the response against the exact version;
-7. creates `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Update-Service.zip`;
-8. for stable, re-checks all four updater assets and verifies the manifest embedded in Update-Service matches the published manifest;
+7. when signing is enabled, creates `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Update-Service.zip`;
+8. enforces that signatures, manifest and Update-Service package are either all present and consistent or all absent;
 9. generates SHA-256 checksums;
-10. invokes a second fail-closed stable updater check in `publish-release.sh` before touching the tag;
+10. re-validates the optional updater set in `publish-release.sh` before touching the tag;
 11. creates/updates the immutable version release at the exact source SHA;
 12. verifies GitHub asset digests.
 
 ## Update-service publication
 
-After the GitHub release succeeds, deploy only the update-service package as described in `DEPLOYMENT.md`.
+If the release contains the signed Update-Service package, it may be deployed as described in `DEPLOYMENT.md`. A release without that package remains a valid manual GitHub release and must not publish an unsigned in-app update manifest.
 
 Recommended hosting model:
 

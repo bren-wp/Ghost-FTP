@@ -14,7 +14,7 @@ public_html/
 
 The Windows/Linux package URLs inside that file point to immutable, versioned GitHub Release assets. This keeps the Ghost FTP update-service host small and avoids duplicating large binaries on shared hosting.
 
-The release workflow produces `GhostFTP-v<version>-Update-Service.zip` with exactly:
+When updater signing is enabled and both platform signatures are present, the release workflow produces `GhostFTP-v<version>-Update-Service.zip` with exactly:
 
 ```text
 updates/
@@ -39,6 +39,8 @@ Never upload any of these to the update-service host:
 Signature text inside `latest.json` and public `.sig` release assets are safe to publish.
 
 ## Deployment order
+
+Use this procedure only for a release that includes the signed updater bundle. A stable GitHub release without updater signatures remains valid for manual installation, but there is nothing to deploy to `ghostftp.com/updates/` for that version.
 
 1. Confirm the new GitHub Release exists and its tag points to the intended source SHA.
 2. Confirm Windows Setup, Linux AppImage and their signature assets exist.

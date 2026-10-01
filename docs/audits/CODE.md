@@ -21,8 +21,8 @@ No file is deleted merely because it looks old. Removal requires compiler/linter
 
 - Transfer history export is a real end-to-end path: Transfer Center → Zustand state → Tauri IPC → Rust persisted transfer ledger.
 - Exported CSV omits raw backend error strings and neutralizes spreadsheet-formula prefixes in user/server-controlled cells.
-- Stable publication is fail-closed when desktop updater signatures, exact-version manifest or Update-Service proof is missing.
-- The publication script re-validates updater proof before tag mutation, providing defense in depth after workflow packaging.
+- Stable package publication remains valid without updater-signing secrets; in that mode the in-app updater bundle is deliberately omitted.
+- When signed updater artifacts are present, the workflow and publication script require the signatures, exact-version manifest and Update-Service package as an all-or-nothing verified set before tag mutation.
 
 ## Remaining refactor work
 

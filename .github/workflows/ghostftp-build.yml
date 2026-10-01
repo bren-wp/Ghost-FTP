@@ -53,6 +53,7 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: ghostftp-desktop/package-lock.json
+
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
         with:

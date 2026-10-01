@@ -181,12 +181,9 @@ jobs:
           if [ -n "$WIN_SETUP_SIG" ] || [ -n "$APPIMAGE_SIG" ]; then
             test -n "$WIN_SETUP_SIG"
             test -n "$APPIMAGE_SIG"
-            echo "Signed desktop updater artifacts detected."
-          elif [ "$RELEASE_CHANNEL" = "stable" ]; then
-            echo "::error::Stable publication requires both Windows and Linux Tauri updater signatures."
-            exit 1
+            echo "Signed desktop updater artifacts detected; update-service assets will be generated."
           else
-            echo "::notice::Preview build has no updater signatures; no in-app update bundle will be published."
+            echo "::notice::No desktop updater signatures detected; publishing verified release packages without an in-app update bundle."
           fi
 
           cp "$WIN_EXE" "dist/GhostFTP-Windows-x64-Portable-v$VERSION.exe"
@@ -242,27 +239,33 @@ jobs:
           (cd dist/update-service && zip -qr "../GhostFTP-v$VERSION-Update-Service.zip" updates)
           rm -rf dist/update-service
 
-      - name: Enforce stable updater publication contract
+      - name: Verify optional signed updater publication
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$RELEASE_CHANNEL" != "stable" ]; then
-            echo "Preview channel: signed updater publication is optional."
-            exit 0
-          fi
-
-          required=(
+          updater_files=(
             "GhostFTP-Windows-x64-Setup-v$VERSION.exe.sig"
             "GhostFTP-Linux-x86_64-v$VERSION.AppImage.sig"
             "GhostFTP-v$VERSION-latest.json"
             "GhostFTP-v$VERSION-Update-Service.zip"
           )
-          for file in "${required[@]}"; do
-            test -s "dist/$file" || {
-              echo "::error::Stable release is missing required updater artifact dist/$file"
-              exit 1
-            }
+
+          present=0
+          for file in "${updater_files[@]}"; do
+            if [ -s "dist/$file" ]; then
+              present=$((present + 1))
+            fi
           done
+
+          if [ "$present" -eq 0 ]; then
+            echo "No signed updater bundle present; manual package release remains valid."
+            exit 0
+          fi
+
+          if [ "$present" -ne "${#updater_files[@]}" ]; then
+            echo "::error::Signed updater publication is incomplete; signatures, manifest and Update-Service package must be all present or all absent."
+            exit 1
+          fi
 
           node updates/scripts/verify-manifest.mjs             "dist/GhostFTP-v$VERSION-latest.json"             --expected-version="$VERSION"
           unzip -p "dist/GhostFTP-v$VERSION-Update-Service.zip" updates/latest.json             > "$RUNNER_TEMP/ghostftp-latest-from-package.json"

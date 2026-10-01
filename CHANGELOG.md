@@ -1,11 +1,11 @@
-## 0.20.9 — transfer history and stable updater hardening — 1 October 2026
+## 0.20.9 — transfer history and release/updater hardening — 1 October 2026
 
-0.20.9 follows published 0.20.8 with a real transfer-history export and fail-closed stable updater publication.
+0.20.9 follows published 0.20.8 with a real transfer-history export and hardened release/updater publication.
 
 - Adds end-to-end desktop CSV transfer-history export through Transfer Center, state, IPC and the persisted Rust transfer ledger.
 - Neutralizes spreadsheet-formula prefixes in exported path cells and excludes raw backend error text from the shareable CSV.
-- Requires both Tauri updater signatures, a verified exact-version manifest and the matching Update-Service package for `channel: stable`.
-- Re-verifies updater proof in the final publish script before any stable tag/release mutation.
+- Stable GitHub packages may publish without private updater keys; unsigned in-app updater metadata is never generated.
+- When updater signing is enabled, signatures, exact-version manifest and Update-Service package are required as an all-or-nothing set and re-verified in the final publish script before tag mutation.
 - Extends source reachability to Rust crate module graphs and referenced CI/update/Android helper scripts.
 - Expands operational Node/MJS and shell syntax checks.
 - Adds Android JVM unit tests for connection input/path safety and cooperative cancellation, and makes `testDebugUnitTest` part of the Android gate.
