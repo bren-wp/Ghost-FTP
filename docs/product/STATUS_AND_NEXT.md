@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.20.6 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.20.7 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.20.5**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.20.6**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -23,6 +23,14 @@ Previous canonical release: **0.20.5**. Live publication state is determined fro
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
 
 Full capability detail: [FEATURES.md](FEATURES.md).
+
+## 0.20.7 dead-code and reachability hardening in source
+
+- Enables TypeScript unused-local diagnostics across the desktop app and shared file-ui package.
+- Adds an entrypoint/import-graph Quality gate for desktop TypeScript source files.
+- Fails CI when a source file is not reachable from the production app or shared package entrypoint.
+- Uses compiler/reachability evidence before deleting code, avoiding destructive “cleanup” based only on similar filenames.
+- Keeps the 500 KiB JavaScript chunk budget and existing exact-SHA release requirements.
 
 ## 0.20.6 frontend bundle-size hardening in source
 
