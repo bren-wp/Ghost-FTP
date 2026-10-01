@@ -35,11 +35,11 @@ The former separate preview/stable template files were removed because the deskt
 
 1. Pull requests build and test normal Windows/Linux packages without access to signing secrets.
 2. A canonical build on `main` always produces the normal Windows/Linux release packages. When the Tauri signing secret is configured it additionally uses `src-tauri/updater-release.conf.json` to produce signed in-app updater artifacts.
-3. With signing enabled, Tauri produces the normal NSIS Setup/AppImage plus their signature files; without signing, the normal packages still build but no in-app update-service package is published.
+3. With signing enabled, Tauri produces the normal NSIS Setup/AppImage plus their signature files. Without signing, normal packages may still build for CI or preview use, but a `channel: stable` release is rejected before tag/release creation.
 4. The release workflow verifies all exact-SHA gates.
 5. The release workflow normalizes packages and signatures, then generates an update-service response.
 6. The release publishes versioned packages/signatures plus `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Update-Service.zip`.
-7. Only releases that contain both signed Windows/Linux updater artifacts receive an update-service bundle. After that GitHub Release and its asset digests are verified, the update-service operator may atomically replace `/updates/latest.json`.
+7. Stable releases are publishable only when both signed Windows/Linux updater artifacts and the verified update-service bundle exist. After that GitHub Release and its asset digests are verified, the update-service operator may atomically replace `/updates/latest.json`.
 
 See `DEPLOYMENT.md` for the update-service hosting procedure.
 
@@ -47,6 +47,8 @@ See `DEPLOYMENT.md` for the update-service hosting procedure.
 
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` when the key is password protected
+
+For `channel: stable`, the signing key is a publication requirement: the release script fails closed if the signed Windows/Linux updater artifacts or generated update-service bundle are missing.
 
 The private key must never be stored in source, release assets, update-service files, workflow logs or documentation examples.
 
