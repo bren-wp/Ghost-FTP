@@ -1,6 +1,6 @@
-# Ghost FTP Security Audit — 0.20.9
+# Ghost FTP Security Audit — 0.20.10
 
-Previous canonical release: **0.20.8**.
+Previous canonical release: **0.20.9**.
 
 ## Current controls
 
@@ -25,7 +25,7 @@ The production-identity `com.ghostftp.android` CI artifact remains intentionally
 ## Remaining security acceptance
 
 - Real FTPS certificate-failure matrix.
-- Unknown/changed SFTP host-key acceptance.
+- Keep changed SFTP host-key mismatch/replacement coverage enforced in real protocol E2E.
 - Broader reconnect/timeout/server-disconnect transfer recovery.
 - Dependency vulnerability/SBOM/provenance expansion across npm, Cargo, Gradle/Maven and Go.
 - Target-OS signed-update/install acceptance and any future Android production-key continuity validation.
