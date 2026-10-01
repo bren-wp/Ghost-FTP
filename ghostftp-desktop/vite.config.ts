@@ -14,7 +14,7 @@ export default defineConfig(() => ({
       // Consume the workspace package straight from its TS source during dev —
       // edit a component once and both the app and the package see it instantly.
       "@ghostftp/file-ui": path.resolve(
-        __dirname,
+        rootDir,
         "packages/file-ui/src/index.ts"
       ),
     },
