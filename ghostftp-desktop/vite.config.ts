@@ -36,7 +36,6 @@ export default defineConfig(() => ({
           if (
             normalized.includes("react-dom") ||
             normalized.includes("/react/") ||
-            normalized.includes("/react/") ||
             normalized.includes("zustand")
           ) {
             return "ui-vendor";
