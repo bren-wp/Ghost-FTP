@@ -83,6 +83,8 @@ for (const [rel, needle] of [
   [".github/workflows/ghostftp-release.yml", "Verify optional signed updater publication"],
   [".github/workflows/ghostftp-release.yml", "Signed updater publication is incomplete; signatures, manifest and Update-Service package must be all present or all absent."],
   [".github/workflows/ghostftp-release.yml", "No signed updater bundle present; manual package release remains valid."],
+  [".github/scripts/publish-release.sh", "REQUIRED_CORE_FILES"],
+  [".github/scripts/publish-release.sh", "Required release artifact is missing or empty:"],
   [".github/scripts/publish-release.sh", "UPDATER_PRESENT"],
   [".github/scripts/publish-release.sh", "Signed updater publication is incomplete; updater proof must be all present or all absent."],
   [".github/scripts/publish-release.sh", "Publishing verified packages without a signed in-app updater bundle."],
