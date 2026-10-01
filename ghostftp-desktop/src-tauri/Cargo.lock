@@ -2433,7 +2433,7 @@ dependencies = [
 
 [[package]]
 name = "ghostftp"
-version = "0.20.9"
+version = "0.20.10"
 dependencies = [
  "aes-gcm 0.10.3",
  "anyhow",
@@ -2487,7 +2487,7 @@ dependencies = [
 
 [[package]]
 name = "ghostftp-agent-proto"
-version = "0.20.9"
+version = "0.20.10"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -2504,7 +2504,7 @@ dependencies = [
 
 [[package]]
 name = "ghostftp-agentd"
-version = "0.20.9"
+version = "0.20.10"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -2523,7 +2523,7 @@ dependencies = [
 
 [[package]]
 name = "ghostftp-cli"
-version = "0.20.9"
+version = "0.20.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3575,9 +3575,9 @@ dependencies = [
 
 [[package]]
 name = "lazy_static"
-version = "1.5.0"
+version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
+checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
 dependencies = [
  "spin",
 ]

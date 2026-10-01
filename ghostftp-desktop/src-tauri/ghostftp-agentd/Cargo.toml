@@ -1,6 +1,6 @@
 [package]
 name = "ghostftp-agentd"
-version = "0.20.9"
+version = "0.20.10"
 edition = "2021"
 license = "MIT"
 description = "Ghost FTP remote-agent daemon — run on a machine to control it from Ghost FTP over an encrypted, paired connection."

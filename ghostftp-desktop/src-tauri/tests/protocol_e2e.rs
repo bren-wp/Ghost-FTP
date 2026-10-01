@@ -5,6 +5,7 @@ use ghostftp_lib::remotefs::{ftp::FtpFs, sftp::SftpFs, RemoteFs};
 use ghostftp_lib::session::ftp::FtpTransferControl;
 use ghostftp_lib::session::{open_session, HostDecision, HostKeyVerifier, HostPromptKind, Session};
 use std::io::{Cursor, Read, SeekFrom, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use uuid::Uuid;
@@ -26,6 +27,50 @@ impl HostKeyVerifier for FixedVerifier {
         Ok(self.0)
     }
 }
+
+#[derive(Clone)]
+struct MismatchTrackingVerifier {
+    decision: HostDecision,
+    saw_mismatch: Arc<AtomicBool>,
+    saw_stored_fingerprint: Arc<AtomicBool>,
+}
+
+impl MismatchTrackingVerifier {
+    fn new(decision: HostDecision) -> (Self, Arc<AtomicBool>, Arc<AtomicBool>) {
+        let saw_mismatch = Arc::new(AtomicBool::new(false));
+        let saw_stored_fingerprint = Arc::new(AtomicBool::new(false));
+        (
+            Self {
+                decision,
+                saw_mismatch: Arc::clone(&saw_mismatch),
+                saw_stored_fingerprint: Arc::clone(&saw_stored_fingerprint),
+            },
+            saw_mismatch,
+            saw_stored_fingerprint,
+        )
+    }
+}
+
+#[async_trait]
+impl HostKeyVerifier for MismatchTrackingVerifier {
+    async fn decide(
+        &self,
+        _host: &str,
+        _port: u16,
+        _key_type: &str,
+        _fingerprint: &str,
+        stored_fingerprint: Option<&str>,
+        kind: HostPromptKind,
+    ) -> Result<HostDecision, russh::Error> {
+        self.saw_mismatch
+            .store(matches!(kind, HostPromptKind::Mismatch), Ordering::SeqCst);
+        self.saw_stored_fingerprint
+            .store(stored_fingerprint.is_some(), Ordering::SeqCst);
+        Ok(self.decision)
+    }
+}
+
+const MULTI_CHUNK_E2E_BYTES: usize = 2 * 1024 * 1024 + 257;
 
 fn enabled() -> bool {
     std::env::var("GHOSTFTP_PROTOCOL_E2E").as_deref() == Ok("1")
@@ -160,6 +205,16 @@ async fn ftp_roundtrip(
 
     fs.create_dir(&base).await.context("FTP mkdir")?;
 
+    let denied_child = format!(
+        "ghostftp-e2e-readonly/should-fail-{}",
+        Uuid::new_v4().simple()
+    );
+    if fs.create_dir(&denied_child).await.is_ok() {
+        return Err(anyhow!(
+            "{protocol} unexpectedly created a directory inside the read-only fixture"
+        ));
+    }
+
     let upload_path = upload.clone();
     let upload_payload = payload.clone();
     ftp.with_stream(move |stream| {
@@ -190,14 +245,75 @@ async fn ftp_roundtrip(
         return Err(anyhow!("{protocol} download content mismatch"));
     }
 
+    // Edge-case coverage: zero-byte objects and UTF-8 names with spaces must
+    // survive create/list/download/delete through the real FTP/FTPS server.
+    let zero_path = format!("{base}/zero-byte.bin");
+    let zero_upload_path = zero_path.clone();
+    ftp.with_stream(move |stream| {
+        let mut reader = Cursor::new(Vec::<u8>::new());
+        let written = stream.put_from_reader(&zero_upload_path, &mut reader)?;
+        if written != 0 {
+            return Err(anyhow!("zero-byte FTP upload reported {written} bytes"));
+        }
+        Ok(())
+    })
+    .await
+    .with_context(|| format!("{protocol} zero-byte upload"))?;
+
+    let zero_size_path = zero_path.clone();
+    let zero_size = ftp
+        .with_stream(move |stream| Ok(stream.size(&zero_size_path)? as u64))
+        .await
+        .with_context(|| format!("{protocol} zero-byte stat"))?;
+    if zero_size != 0 {
+        return Err(anyhow!("{protocol} zero-byte upload has size {zero_size}"));
+    }
+
+    let unicode_name = "čćžšđ 文件 name.txt";
+    let unicode_path = format!("{base}/{unicode_name}");
+    let unicode_payload = "Ghost FTP UTF-8 remote name payload\n".as_bytes().to_vec();
+    let unicode_upload_path = unicode_path.clone();
+    let unicode_upload_payload = unicode_payload.clone();
+    ftp.with_stream(move |stream| {
+        let mut reader = Cursor::new(unicode_upload_payload);
+        stream.put_from_reader(&unicode_upload_path, &mut reader)?;
+        Ok(())
+    })
+    .await
+    .with_context(|| format!("{protocol} Unicode-name upload"))?;
+
+    let edge_listing = fs
+        .list_dir(&base)
+        .await
+        .with_context(|| format!("{protocol} Unicode-name list"))?;
+    if !edge_listing.iter().any(|entry| entry.name == unicode_name) {
+        return Err(anyhow!(
+            "{protocol} LIST did not preserve Unicode remote name"
+        ));
+    }
+
+    let unicode_download_path = unicode_path.clone();
+    let unicode_downloaded = ftp
+        .with_stream(move |stream| {
+            let mut bytes = Vec::new();
+            stream.retr_to_writer(&unicode_download_path, &mut bytes)?;
+            Ok(bytes)
+        })
+        .await
+        .with_context(|| format!("{protocol} Unicode-name download"))?;
+    if unicode_downloaded != unicode_payload {
+        return Err(anyhow!("{protocol} Unicode-name download content mismatch"));
+    }
+
     // Exercise the same SuppaFTP 12 restart + transfer-stream primitives production
-    // pause/resume uses. An interrupted transfer deliberately reconnects before
+    // pause/resume uses. The non-aligned multi-MiB payload crosses many 64/256 KiB
+    // boundaries and leaves a final tail instead of ending exactly on a chunk edge. An interrupted transfer deliberately reconnects before
     // the next command: if the server completed the data socket just before ABOR,
     // SuppaFTP can consume the queued 226 as the ABOR reply and leave the ABOR
     // 225 queued. A fresh authenticated control connection removes that race
     // while preserving the server-confirmed byte offset.
     let resume_path = format!("{base}/resume.bin");
-    let resume_payload: Vec<u8> = (0..(512 * 1024))
+    let resume_payload: Vec<u8> = (0..MULTI_CHUNK_E2E_BYTES)
         .map(|index| ((index * 19 + 23) % 251) as u8)
         .collect();
     let pause_after = 128 * 1024u64;
@@ -469,6 +585,12 @@ async fn ftp_roundtrip(
     fs.delete(&renamed, false)
         .await
         .context("FTP delete file")?;
+    fs.delete(&zero_path, false)
+        .await
+        .context("FTP delete zero-byte file")?;
+    fs.delete(&unicode_path, false)
+        .await
+        .context("FTP delete Unicode-name file")?;
     fs.delete(&resume_path, false)
         .await
         .context("FTP delete resume file")?;
@@ -507,17 +629,40 @@ async fn sftp_password_roundtrip(
         },
     );
 
-    // Unknown host keys must really pass through the verifier.
-    let rejected = open_session(&p, Arc::new(FixedVerifier(HostDecision::Reject))).await;
-    if rejected.is_ok() {
+    // The CI fixture pre-seeds known_hosts with a different key for this
+    // exact host:port. Prove a changed key is surfaced as Mismatch with the
+    // previous fingerprint and is rejected when the user chooses Reject.
+    let (reject_verifier, saw_mismatch, saw_stored_fingerprint) =
+        MismatchTrackingVerifier::new(HostDecision::Reject);
+    let rejected = open_session(&p, Arc::new(reject_verifier)).await;
+    if rejected.is_ok()
+        || !saw_mismatch.load(Ordering::SeqCst)
+        || !saw_stored_fingerprint.load(Ordering::SeqCst)
+    {
         return Err(anyhow!(
-            "SFTP unknown host key was accepted after explicit rejection"
+            "SFTP changed host key did not fail closed as a fingerprint mismatch"
         ));
     }
 
-    let session = open_session(&p, Arc::new(FixedVerifier(HostDecision::Accept)))
+    // An explicit Trust decision for a mismatch must replace the stale
+    // known_hosts entry. A subsequent connection uses a rejecting verifier:
+    // it can succeed only if the new server key now short-circuits as Match.
+    let (trust_verifier, saw_trust_mismatch, saw_trust_stored_fingerprint) =
+        MismatchTrackingVerifier::new(HostDecision::Trust);
+    open_session(&p, Arc::new(trust_verifier))
         .await
-        .context("SFTP password connect")?;
+        .context("SFTP trust changed host key")?;
+    if !saw_trust_mismatch.load(Ordering::SeqCst)
+        || !saw_trust_stored_fingerprint.load(Ordering::SeqCst)
+    {
+        return Err(anyhow!(
+            "SFTP Trust did not observe the changed stored host fingerprint"
+        ));
+    }
+
+    let session = open_session(&p, Arc::new(FixedVerifier(HostDecision::Reject)))
+        .await
+        .context("SFTP password connect after trusted key replacement")?;
     let Session::Ssh(ssh) = session else {
         return Err(anyhow!("SFTP did not open an SSH session"));
     };
@@ -529,6 +674,16 @@ async fn sftp_password_roundtrip(
     let payload = b"Ghost FTP SFTP E2E payload\n".to_vec();
 
     fs.create_dir(&base).await.context("SFTP mkdir")?;
+
+    let denied_child = format!(
+        "ghostftp-e2e-readonly/should-fail-{}",
+        Uuid::new_v4().simple()
+    );
+    if fs.create_dir(&denied_child).await.is_ok() {
+        return Err(anyhow!(
+            "SFTP unexpectedly created a directory inside the read-only fixture"
+        ));
+    }
 
     let cell = ssh.ensure_sftp().await?;
     let mut remote = {
@@ -574,11 +729,79 @@ async fn sftp_password_roundtrip(
         return Err(anyhow!("SFTP download content mismatch"));
     }
 
+    // Edge-case coverage mirrors FTP/FTPS: zero-byte objects and UTF-8 names
+    // with spaces must survive real OpenSSH internal-sftp operations.
+    let zero_path = format!("{base}/zero-byte.bin");
+    let cell = ssh.ensure_sftp().await?;
+    let mut zero_remote = {
+        let sftp = cell.lock().await;
+        sftp.create(&zero_path)
+            .await
+            .context("SFTP create zero-byte file")?
+    };
+    zero_remote
+        .flush()
+        .await
+        .context("SFTP flush zero-byte file")?;
+    drop(zero_remote);
+
+    let cell = ssh.ensure_sftp().await?;
+    let zero_size = {
+        let sftp = cell.lock().await;
+        sftp.metadata(&zero_path)
+            .await
+            .context("SFTP stat zero-byte file")?
+            .size
+            .unwrap_or(0)
+    };
+    if zero_size != 0 {
+        return Err(anyhow!("SFTP zero-byte upload has size {zero_size}"));
+    }
+
+    let unicode_name = "čćžšđ 文件 name.txt";
+    let unicode_path = format!("{base}/{unicode_name}");
+    let unicode_payload = "Ghost FTP UTF-8 remote name payload\n".as_bytes().to_vec();
+    let cell = ssh.ensure_sftp().await?;
+    let mut unicode_remote = {
+        let sftp = cell.lock().await;
+        sftp.create(&unicode_path)
+            .await
+            .context("SFTP create Unicode-name file")?
+    };
+    unicode_remote
+        .write_all(&unicode_payload)
+        .await
+        .context("SFTP upload Unicode-name file")?;
+    unicode_remote.flush().await?;
+    drop(unicode_remote);
+
+    let edge_listing = fs.list_dir(&base).await.context("SFTP Unicode-name list")?;
+    if !edge_listing.iter().any(|entry| entry.name == unicode_name) {
+        return Err(anyhow!("SFTP list did not preserve Unicode remote name"));
+    }
+
+    let cell = ssh.ensure_sftp().await?;
+    let mut unicode_remote = {
+        let sftp = cell.lock().await;
+        sftp.open(&unicode_path)
+            .await
+            .context("SFTP open Unicode-name file")?
+    };
+    let mut unicode_downloaded = Vec::new();
+    unicode_remote
+        .read_to_end(&mut unicode_downloaded)
+        .await
+        .context("SFTP download Unicode-name file")?;
+    if unicode_downloaded != unicode_payload {
+        return Err(anyhow!("SFTP Unicode-name download content mismatch"));
+    }
+
     // Prove the exact SFTP primitives used by production pause/resume against
-    // a real OpenSSH internal-sftp server: reopen a partial remote file without
+    // a real OpenSSH internal-sftp server. The non-aligned multi-MiB payload
+    // crosses repeated transfer-chunk boundaries: reopen a partial remote file without
     // truncating it, seek both sides to the committed byte and append the rest.
     let resume_path = format!("{base}/resume.bin");
-    let resume_payload: Vec<u8> = (0..(512 * 1024))
+    let resume_payload: Vec<u8> = (0..MULTI_CHUNK_E2E_BYTES)
         .map(|index| ((index * 31 + 17) % 251) as u8)
         .collect();
     let resume_offset = 128 * 1024;
@@ -647,6 +870,12 @@ async fn sftp_password_roundtrip(
     fs.delete(&renamed, false)
         .await
         .context("SFTP delete file")?;
+    fs.delete(&zero_path, false)
+        .await
+        .context("SFTP delete zero-byte file")?;
+    fs.delete(&unicode_path, false)
+        .await
+        .context("SFTP delete Unicode-name file")?;
     fs.delete(&resume_path, false)
         .await
         .context("SFTP delete resume file")?;
