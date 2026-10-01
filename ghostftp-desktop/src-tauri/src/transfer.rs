@@ -4668,6 +4668,31 @@ mod tests {
         );
     }
 
+    #[test]
+    fn local_rename_exhaustion_fails_instead_of_overwriting() {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-rename-exhaustion-{}-{}",
+            std::process::id(),
+            Uuid::new_v4().simple()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let original = dir.join("collision.txt");
+        std::fs::write(&original, b"original").unwrap();
+        for i in 1..=MAX_RENAME_CANDIDATES {
+            std::fs::write(dir.join(format!("collision_{i}.txt")), b"occupied").unwrap();
+        }
+
+        let error = resolve_local_rename(&original).unwrap_err();
+        assert!(
+            error.to_string().contains("no free rename target"),
+            "unexpected exhaustion error: {error:#}"
+        );
+        assert_eq!(std::fs::read(&original).unwrap(), b"original");
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     // ---------- Delta sync transfer paths ----------
 
     /// Deterministic pseudo-random bytes (xorshift64*), so tests need no
