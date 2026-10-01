@@ -28,22 +28,24 @@ Pull requests:
 - with signing enabled, produces a signature file for the Windows Setup and Linux AppImage;
 - uploads the normal packages in either mode and the signature files only when they actually exist.
 
-If the signing secret is missing, the canonical native build remains valid for ordinary GitHub Release packages, but the release workflow deliberately omits the in-app update-service bundle. This prevents an unsigned package from ever being advertised through the signed desktop updater.
+If the signing secret is missing, the canonical native build remains useful for CI/preview QA, but a `stable` release must stop. Stable publication requires both updater signatures, the verified manifest and the matching Update-Service package; the release workflow must fail before tag/release publication rather than silently omitting them.
 
 ## Release workflow
 
 The release workflow:
 
 1. waits for exact-SHA quality, protocol, Android and Windows hardening gates;
-2. downloads the signed native artifacts from the successful main build;
+2. downloads native artifacts from the successful exact-SHA main build;
 3. normalizes versioned public asset names;
-4. publishes Windows Setup/AppImage and their signature files;
-5. when both updater signatures are present, creates the Tauri-compatible update-service response from the **contents** of the signature files;
-6. validates that response;
-7. creates `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Update-Service.zip` only in signed-updater mode;
+4. requires both updater signatures when `channel: stable`;
+5. creates the Tauri-compatible update-service response from the **contents** of those signature files;
+6. validates the response against the exact version;
+7. creates `GhostFTP-v<version>-latest.json` and `GhostFTP-v<version>-Update-Service.zip`;
+8. for stable, re-checks all four updater assets and verifies the manifest embedded in Update-Service matches the published manifest;
 9. generates SHA-256 checksums;
-10. creates/updates the immutable version release at the exact source SHA;
-11. verifies GitHub asset digests.
+10. invokes a second fail-closed stable updater check in `publish-release.sh` before touching the tag;
+11. creates/updates the immutable version release at the exact source SHA;
+12. verifies GitHub asset digests.
 
 ## Update-service publication
 
