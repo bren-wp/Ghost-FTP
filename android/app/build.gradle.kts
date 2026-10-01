@@ -50,6 +50,8 @@ dependencies {
     implementation("commons-net:commons-net:3.13.0")
     implementation("com.github.mwiede:jsch:2.28.7")
 
+    testImplementation("junit:junit:4.13.2")
+
     androidTestImplementation("androidx.test:core:1.7.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
