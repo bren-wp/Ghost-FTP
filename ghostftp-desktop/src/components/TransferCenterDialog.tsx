@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import {
   Activity,
   CheckCircle2,
   FolderTree,
+  FileDown,
   Pause,
   Play,
   Plus,
@@ -19,6 +20,7 @@ import { useConnections } from "@/stores/connectionsStore";
 import type { Transfer } from "@/lib/types";
 import { useDialog } from "@/hooks/useDialog";
 import { toastError } from "@/lib/errors";
+import { toast } from "@/stores/toastStore";
 import { useTransferSchedule } from "@/stores/transferScheduleStore";
 
 type FilterTab = "all" | "active" | "completed" | "failed";
@@ -35,6 +37,7 @@ export function TransferCenterDialog({ onClose }: Props) {
   const byId = useTransfers((state) => state.byId);
   const rateById = useTransfers((state) => state.rateById);
   const clearCompleted = useTransfers((state) => state.clearCompleted);
+  const exportHistory = useTransfers((state) => state.exportHistory);
   const pauseAll = useTransfers((state) => state.pauseAll);
   const resumeAll = useTransfers((state) => state.resumeAll);
   const pausedAll = useTransfers((state) => state.pausedAll);
@@ -122,6 +125,25 @@ export function TransferCenterDialog({ onClose }: Props) {
             ? (Math.max(current, -1) + 1) % items.length
             : (current <= 0 ? items.length : current) - 1;
     items[next]?.focus();
+  };
+
+  const exportTransferHistory = async () => {
+    const path = await save({
+      title: "Export transfer history",
+      defaultPath: "GhostFTP-transfer-history.csv",
+      filters: [{ name: "CSV", extensions: ["csv"] }],
+    });
+    if (!path) return;
+
+    try {
+      const count = await exportHistory(path);
+      toast.success(
+        "Transfer history exported",
+        `${count} transfer${count === 1 ? "" : "s"} saved`,
+      );
+    } catch (error) {
+      toastError(error, "Couldn't export transfer history");
+    }
   };
 
   const transfers = useMemo(() => Object.values(byId), [byId]);
@@ -367,6 +389,17 @@ export function TransferCenterDialog({ onClose }: Props) {
                 >
                   {pausedAll ? <Play size={14}/> : <Pause size={14}/>}
                   <span>{pausedAll ? "Resume All" : "Pause All"}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    void exportTransferHistory();
+                  }}
+                >
+                  <FileDown size={14}/>
+                  <span>Export History…</span>
                 </button>
                 <button
                   type="button"
