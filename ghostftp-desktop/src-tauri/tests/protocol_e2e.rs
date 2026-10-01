@@ -5,6 +5,7 @@ use ghostftp_lib::remotefs::{ftp::FtpFs, sftp::SftpFs, RemoteFs};
 use ghostftp_lib::session::ftp::FtpTransferControl;
 use ghostftp_lib::session::{open_session, HostDecision, HostKeyVerifier, HostPromptKind, Session};
 use std::io::{Cursor, Read, SeekFrom, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use uuid::Uuid;
@@ -24,6 +25,48 @@ impl HostKeyVerifier for FixedVerifier {
         _kind: HostPromptKind,
     ) -> Result<HostDecision, russh::Error> {
         Ok(self.0)
+    }
+}
+
+#[derive(Clone)]
+struct MismatchTrackingVerifier {
+    decision: HostDecision,
+    saw_mismatch: Arc<AtomicBool>,
+    saw_stored_fingerprint: Arc<AtomicBool>,
+}
+
+impl MismatchTrackingVerifier {
+    fn new(decision: HostDecision) -> (Self, Arc<AtomicBool>, Arc<AtomicBool>) {
+        let saw_mismatch = Arc::new(AtomicBool::new(false));
+        let saw_stored_fingerprint = Arc::new(AtomicBool::new(false));
+        (
+            Self {
+                decision,
+                saw_mismatch: Arc::clone(&saw_mismatch),
+                saw_stored_fingerprint: Arc::clone(&saw_stored_fingerprint),
+            },
+            saw_mismatch,
+            saw_stored_fingerprint,
+        )
+    }
+}
+
+#[async_trait]
+impl HostKeyVerifier for MismatchTrackingVerifier {
+    async fn decide(
+        &self,
+        _host: &str,
+        _port: u16,
+        _key_type: &str,
+        _fingerprint: &str,
+        stored_fingerprint: Option<&str>,
+        kind: HostPromptKind,
+    ) -> Result<HostDecision, russh::Error> {
+        self.saw_mismatch
+            .store(matches!(kind, HostPromptKind::Mismatch), Ordering::SeqCst);
+        self.saw_stored_fingerprint
+            .store(stored_fingerprint.is_some(), Ordering::SeqCst);
+        Ok(self.decision)
     }
 }
 
@@ -583,17 +626,40 @@ async fn sftp_password_roundtrip(
         },
     );
 
-    // Unknown host keys must really pass through the verifier.
-    let rejected = open_session(&p, Arc::new(FixedVerifier(HostDecision::Reject))).await;
-    if rejected.is_ok() {
+    // The CI fixture pre-seeds known_hosts with a different key for this
+    // exact host:port. Prove a changed key is surfaced as Mismatch with the
+    // previous fingerprint and is rejected when the user chooses Reject.
+    let (reject_verifier, saw_mismatch, saw_stored_fingerprint) =
+        MismatchTrackingVerifier::new(HostDecision::Reject);
+    let rejected = open_session(&p, Arc::new(reject_verifier)).await;
+    if rejected.is_ok()
+        || !saw_mismatch.load(Ordering::SeqCst)
+        || !saw_stored_fingerprint.load(Ordering::SeqCst)
+    {
         return Err(anyhow!(
-            "SFTP unknown host key was accepted after explicit rejection"
+            "SFTP changed host key did not fail closed as a fingerprint mismatch"
         ));
     }
 
-    let session = open_session(&p, Arc::new(FixedVerifier(HostDecision::Accept)))
+    // An explicit Trust decision for a mismatch must replace the stale
+    // known_hosts entry. A subsequent connection uses a rejecting verifier:
+    // it can succeed only if the new server key now short-circuits as Match.
+    let (trust_verifier, saw_trust_mismatch, saw_trust_stored_fingerprint) =
+        MismatchTrackingVerifier::new(HostDecision::Trust);
+    open_session(&p, Arc::new(trust_verifier))
         .await
-        .context("SFTP password connect")?;
+        .context("SFTP trust changed host key")?;
+    if !saw_trust_mismatch.load(Ordering::SeqCst)
+        || !saw_trust_stored_fingerprint.load(Ordering::SeqCst)
+    {
+        return Err(anyhow!(
+            "SFTP Trust did not observe the changed stored host fingerprint"
+        ));
+    }
+
+    let session = open_session(&p, Arc::new(FixedVerifier(HostDecision::Reject)))
+        .await
+        .context("SFTP password connect after trusted key replacement")?;
     let Session::Ssh(ssh) = session else {
         return Err(anyhow!("SFTP did not open an SSH session"));
     };
