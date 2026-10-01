@@ -69,6 +69,7 @@ jobs:
 
           sudo useradd -m -s /bin/bash "$USERNAME"
           echo "$USERNAME:$PASSWORD" | sudo chpasswd
+          sudo install -d -m 0555 -o root -g root "/home/$USERNAME/ghostftp-e2e-readonly"
 
           # SFTP password + encrypted OpenSSH private-key authentication.
           sudo mkdir -p /run/sshd
@@ -167,6 +168,8 @@ jobs:
           FTP_HOME="$RUNNER_TEMP/ghostftp-ftp-home"
           mkdir -p "$FTP_HOME"
           chmod 700 "$FTP_HOME"
+          mkdir -p "$FTP_HOME/ghostftp-e2e-readonly"
+          chmod 0555 "$FTP_HOME/ghostftp-e2e-readonly"
 
           export GHOSTFTP_SERVER_USERNAME="$USERNAME"
           export GHOSTFTP_SERVER_PASSWORD="$PASSWORD"
