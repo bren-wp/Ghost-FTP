@@ -4633,10 +4633,7 @@ mod tests {
             remote_rename_candidate("/srv/archive.tar.gz", 1),
             "/srv/archive.tar_1.gz"
         );
-        assert_eq!(
-            remote_rename_candidate("/srv/.env", 1),
-            "/srv/.env_1"
-        );
+        assert_eq!(remote_rename_candidate("/srv/.env", 1), "/srv/.env_1");
         assert_eq!(remote_rename_candidate(".env", 2), ".env_2");
         assert_eq!(
             remote_rename_candidate(r"C:\dir.v1\file.txt", 3),
