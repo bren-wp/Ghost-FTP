@@ -1,6 +1,21 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 0.20.1 development/release source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.20.8 development/release source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+
+## Cross-app shared actions
+
+Implemented on Windows, Linux and Android:
+
+- FTP, explicit FTPS and SFTP connect/disconnect.
+- Remote folder listing and refresh.
+- Upload and download.
+- Remote folder creation.
+- Remote Rename.
+- Remote Delete for files; Android also safely falls back to empty-folder removal without recursive deletion.
+- Guarded destructive actions and remote-root protection.
+- Release-gated interaction checks so exposed Android actions are backed by real handlers rather than static UI.
+
+Desktop retains additional productivity, analysis, terminal and agent workflows that are not falsely presented as completed Android features.
 
 ## Connection and profile management
 
