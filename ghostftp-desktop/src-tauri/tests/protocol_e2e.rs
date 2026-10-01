@@ -242,7 +242,9 @@ async fn ftp_roundtrip(
         .await
         .with_context(|| format!("{protocol} Unicode-name list"))?;
     if !edge_listing.iter().any(|entry| entry.name == unicode_name) {
-        return Err(anyhow!("{protocol} LIST did not preserve Unicode remote name"));
+        return Err(anyhow!(
+            "{protocol} LIST did not preserve Unicode remote name"
+        ));
     }
 
     let unicode_download_path = unicode_path.clone();
@@ -668,7 +670,10 @@ async fn sftp_password_roundtrip(
             .await
             .context("SFTP create zero-byte file")?
     };
-    zero_remote.flush().await.context("SFTP flush zero-byte file")?;
+    zero_remote
+        .flush()
+        .await
+        .context("SFTP flush zero-byte file")?;
     drop(zero_remote);
 
     let cell = ssh.ensure_sftp().await?;
