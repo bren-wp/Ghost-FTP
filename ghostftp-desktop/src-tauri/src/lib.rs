@@ -478,6 +478,7 @@ pub fn run() {
             commands::start_directory_upload,
             commands::cancel_transfer,
             commands::list_transfers,
+            commands::export_transfer_history,
             commands::transfer_move,
             commands::transfer_pause,
             commands::transfer_resume,
