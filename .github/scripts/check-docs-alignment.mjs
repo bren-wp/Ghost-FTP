@@ -24,6 +24,7 @@ const requireIncludes = (rel, needle, label) => {
 
 const operationalDocs = [
   "README.md",
+  "ghostftp-desktop/README.md",
   "CHANGELOG.md",
   "SECURITY.md",
   "LICENSE.txt",
@@ -32,6 +33,11 @@ const operationalDocs = [
   "docs/legal/THIRD_PARTY_NOTICES.md",
   "docs/README.md",
   "docs/ROADMAP.md",
+  "docs/audits/BRANDING.md",
+  "docs/audits/CODE.md",
+  "docs/audits/LANGUAGE.md",
+  "docs/audits/PROJECT.md",
+  "docs/audits/SECURITY.md",
   "docs/architecture/NAMING.md",
   "docs/architecture/STRUCTURE.md",
   "docs/build/REFERENCE_RUNTIME.md",
@@ -82,12 +88,38 @@ for (const rel of operationalDocs) {
   }
 }
 
+const currentClaimPatterns = [
+  [/Active source\/release cycle:[^\n]*?(\d+\.\d+\.\d+)/gi, version, "active source/release cycle"],
+  [/Current development line:[^\n]*?(\d+\.\d+\.\d+)/gi, version, "current development line"],
+  [/Previous canonical release:[^\n]*?(\d+\.\d+\.\d+)/gi, previousVersion, "previous canonical release"],
+];
+
+for (const rel of operationalDocs) {
+  if (!exists(rel)) continue;
+  const source = read(rel);
+  for (const [pattern, expected, label] of currentClaimPatterns) {
+    pattern.lastIndex = 0;
+    let match;
+    while ((match = pattern.exec(source))) {
+      if (expected && match[1] !== expected) {
+        failures.push(`${rel}: stale ${label} ${match[1]}; expected ${expected}`);
+      }
+    }
+  }
+}
+
 for (const rel of [
   "README.md",
+  "ghostftp-desktop/README.md",
   "docs/README.md",
   "docs/build/STATUS.md",
   "docs/mobile/ANDROID_PARITY.md",
   "docs/product/STATUS_AND_NEXT.md",
+  "docs/ROADMAP.md",
+  "docs/product/ROADMAP.md",
+  "docs/audits/CODE.md",
+  "docs/audits/PROJECT.md",
+  "docs/audits/SECURITY.md",
   "docs/releases/VERSIONING.md",
   `docs/releases/${version}.md`,
 ]) {
