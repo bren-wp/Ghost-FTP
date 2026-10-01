@@ -2,8 +2,8 @@
 
 ## Authoritative current state
 
-- **Active source/release cycle:** Ghost FTP **0.20.3**.
-- **Previous canonical release:** Ghost FTP **0.20.2**.
+- **Active source/release cycle:** Ghost FTP **0.20.4**.
+- **Previous canonical release:** Ghost FTP **0.20.3**.
 - **Live publication status:** GitHub Releases is authoritative and queried by CI.
 - **Version source of truth:** `version.json`.
 - **Desktop production source:** `ghostftp-desktop/`.
@@ -103,6 +103,6 @@ Evidence applies only to the exact tested source SHA.
 
 ## Release truth
 
-`0.20.3` is the active cycle after published `0.20.2`. Live publication status is determined by the canonical GitHub Release/tag, not by documentation wording or a successful compile.
+`0.20.4` is the active cycle after published `0.20.3`. Live publication status is determined by the canonical GitHub Release/tag, not by documentation wording or a successful compile.
 
 Existing version tags are immutable. Stable/FINAL status is separate from publishing a pre-1.0 release and still requires the target-OS lifecycle, visual, security, accessibility and signing acceptance described in QA/release documentation.
