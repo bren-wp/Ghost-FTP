@@ -72,8 +72,6 @@ for (const rel of userFacing) {
 
 for (const [rel, needle] of [
   [".github/workflows/ghostftp-build.yml", "TAURI_SIGNING_PRIVATE_KEY"],
-  [".github/workflows/ghostftp-build.yml", "Enforce stable update signing preflight"],
-  [".github/workflows/ghostftp-build.yml", "Stable main build requires TAURI_SIGNING_PRIVATE_KEY before native packaging."],
   [".github/workflows/ghostftp-build.yml", "updater-release.conf.json"],
   [".github/workflows/ghostftp-release.yml", "GhostFTP-v$VERSION-Update-Service.zip"],
   [".github/workflows/ghostftp-release.yml", "updates/scripts/build-manifest.mjs"],
@@ -82,10 +80,12 @@ for (const [rel, needle] of [
 }
 
 for (const [rel, needle] of [
-  [".github/workflows/ghostftp-release.yml", "Enforce stable updater publication contract"],
-  [".github/workflows/ghostftp-release.yml", "RELEASE_CHANNEL=$RELEASE_CHANNEL"],
-  [".github/workflows/ghostftp-release.yml", "Stable publication requires both Windows and Linux Tauri updater signatures."],
-  [".github/scripts/publish-release.sh", 'if [ "$CHANNEL" = "stable" ]; then'],
+  [".github/workflows/ghostftp-release.yml", "Verify optional signed updater publication"],
+  [".github/workflows/ghostftp-release.yml", "updater proof must be all present or all absent"],
+  [".github/workflows/ghostftp-release.yml", "No signed updater bundle present; manual package release remains valid."],
+  [".github/scripts/publish-release.sh", "UPDATER_PRESENT"],
+  [".github/scripts/publish-release.sh", "Signed updater publication is incomplete; updater proof must be all present or all absent."],
+  [".github/scripts/publish-release.sh", "Publishing verified packages without a signed in-app updater bundle."],
   [".github/scripts/publish-release.sh", "GhostFTP-Windows-x64-Setup-v${VERSION}.exe.sig"],
   [".github/scripts/publish-release.sh", "GhostFTP-Linux-x86_64-v${VERSION}.AppImage.sig"],
   [".github/scripts/publish-release.sh", "GhostFTP-v${VERSION}-latest.json"],
@@ -93,7 +93,7 @@ for (const [rel, needle] of [
   [".github/scripts/publish-release.sh", "updates/scripts/verify-manifest.mjs"],
 ]) {
   if (!read(rel).includes(needle)) {
-    failures.push(`${rel}: stable release must fail closed without updater proof: ${needle}`);
+    failures.push(`${rel}: optional updater publication contract missing: ${needle}`);
   }
 }
 
