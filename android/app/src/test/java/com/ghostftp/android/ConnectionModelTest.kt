@@ -86,6 +86,15 @@ class ConnectionModelTest {
     }
 
     @Test
+    fun remoteParentAndNameSplitsRootAndNestedTargets() {
+        assertEquals("/" to "file.txt", controller.remoteParentAndName("/file.txt"))
+        assertEquals("/folder" to "file.txt", controller.remoteParentAndName("/folder/file.txt"))
+        assertThrows(IllegalArgumentException::class.java) {
+            controller.remoteParentAndName("/")
+        }
+    }
+
+    @Test
     fun remotePathJoinNeverDuplicatesSeparators() {
         assertEquals("/file.txt", controller.joinRemotePath("/", "file.txt"))
         assertEquals("/folder/file.txt", controller.joinRemotePath("/folder/", "/file.txt"))
