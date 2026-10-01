@@ -1,68 +1,31 @@
-# Ghost FTP Code Audit — RC10
+# Ghost FTP Code Audit — 0.20.9
 
 ## Scope
 
-RC10 continues the existing Ghost FTP production source. The authoritative desktop application now lives in `ghostftp-desktop/`. The Go-based `tools/ghostftp-runtime/` and `tools/ghostftp-installer/` trees are retained only as developer/compatibility tooling and are not shipped as the production desktop GUI.
+This audit covers the current Ghost FTP 0.20.9 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.20.8**.
 
-## Corrected and hardened
+## Dead-code and reachability evidence
 
-- Removed the old save-connect-delete workaround for temporary Quick Connect sessions; ephemeral profiles remain memory-only.
-- Persisted Site Manager favorites, bookmarks, tags, folders and last-used metadata.
-- Re-applied transfer concurrency, retry, throttle and delta-sync settings to the native engine at startup.
-- Preferences Cancel restores the captured settings snapshot; Reset reapplies Ghost FTP defaults.
-- Shell integration is wired to the real per-user PATH integration path.
-- Corrected the managed PATH comparison so historical `Ghost FTP` and `GhostFTP` app-directory aliases are treated as the same Ghost FTP-owned segment without stripping spaces from unrelated Windows paths.
-- Corrupt profile metadata and SQLite state are preserved/quarantined instead of causing a startup crash.
-- Passwords and SSH passphrases remain outside ordinary profile JSON and use OS-protected credential storage where supported.
-- File Properties uses real SHA-256 and permission operations where the active backend supports them; unsupported operations return explicit errors.
-- Removed an unused Rust agent-service constant.
-- Removed a redundant dark-theme token block that was fully overridden by the canonical Ghost FTP visual-system block.
-- Corrected Transfer Queue UX/state behavior around completed, skipped and canceled transfers.
-- Completed transfers no longer expose a meaningless Cancel action.
-- Added Retry All for failed transfers.
-- Replaced dynamic inline-width transfer progress with semantic progress controls and centralized CSS.
-- Validated transfer-throttle input before applying it.
-- Exposed existing browser-layout, hidden-file, preview, download-folder and editor settings in Preferences.
-- Website timer cleanup stops background interval work after completion and respects reduced-motion preferences.
-- Removed the browser-host GUI from the production release path after the visible `127.0.0.1` chrome regression was reproduced.
-- Reorganized source roots under GhostFTP-branded directories without changing migration-sensitive product identifiers.
+- TypeScript keeps `noUnusedLocals` plus production entrypoint/import-graph reachability.
+- Rust keeps `cargo fmt`, locked metadata, all-target checks, tests and Clippy with warnings denied.
+- 0.20.9 adds a Rust crate module-graph guard so orphan `.rs` files that are never compiled cannot silently remain in `src/`.
+- CI/update/Android MJS and shell entrypoints must have a real workflow, package, runbook or helper reference.
+- Operational MJS and shell files receive syntax checks in Quality.
+- Android remains Gradle-source-set compiled and gated by lint/build, the Android production contract and emulator instrumentation.
+- Go runtime/installer compatibility tools remain covered by `go test` and `go vet`.
+- CSS remains exercised through the production frontend build and UI contract checks rather than being deleted by selector-name heuristics.
 
-## Repository naming hardening
+No file is deleted merely because it looks old. Removal requires compiler/linter, module/import graph, workflow/build reference or test evidence proving it is outside runtime/build/test/release/migration/compatibility paths.
 
-Product-facing source roots are now:
+## 0.20.9 functional changes
 
-- `ghostftp-desktop/`
-- `tools/ghostftp-runtime/`
-- `tools/ghostftp-installer/`
-- `website/`
-- `updates/`
+- Transfer history export is a real end-to-end path: Transfer Center → Zustand state → Tauri IPC → Rust persisted transfer ledger.
+- Exported CSV omits raw backend error strings and neutralizes spreadsheet-formula prefixes in user/server-controlled cells.
+- Stable publication is fail-closed when desktop updater signatures, exact-version manifest or Update-Service proof is missing.
+- The publication script re-validates updater proof before tag mutation, providing defense in depth after workflow packaging.
 
-Public artifacts follow:
+## Remaining refactor work
 
-`GhostFTP-<Platform>-<Arch>-<Role>-v<Version>.<ext>`
+Large hotspots such as `bridge.rs`, `transfer.rs`, CLI `main.rs`, `commands.rs`, `session/mod.rs`, `i18n.ts`, `styles.css`, Android `MainActivity.kt`, `AgentBridge.tsx` and shared `FilePane.tsx` remain candidates for incremental, test-first decomposition. They are not considered dead solely because of size.
 
-Internal framework-required names remain only where the build ecosystem consumes them directly.
-
-## CI quality gates
-
-`.github/workflows/ghostftp-quality.yml` runs:
-
-- Go tests and `go vet` for GhostFTP runtime/installer tooling;
-- JavaScript syntax checks for runtime, installer and website;
-- website markup policy checks;
-- `npm ci`, TypeScript typecheck and production Vite build;
-- Rust formatting check;
-- Rust workspace check;
-- Rust workspace tests;
-- Clippy with warnings denied;
-- legacy/demo-branding scans across production source surfaces.
-
-`.github/workflows/ghostftp-build.yml` separately produces the Windows and Linux production bundles used for release publication.
-
-## Current quality truth
-
-An earlier RC9 quality run exposed PATH-integration failures and later RC9 validation narrowed the remaining gate to two CLI Clippy findings. RC10 contains both corrections and still requires a fully successful current quality run before publication.
-
-## Remaining engineering validation
-
-Code-level CI does not replace target-OS acceptance. FINAL still requires real Windows visual/titlebar acceptance, installer lifecycle acceptance and real FTP/FTPS/SFTP integration tests.
+Status: current source has stronger cross-language reachability and action wiring guards; exact-SHA CI remains authoritative for acceptance.
