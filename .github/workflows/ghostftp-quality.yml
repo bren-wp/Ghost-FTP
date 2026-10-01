@@ -135,13 +135,16 @@ jobs:
           go vet ./...
           node --check site/setup.js
 
-      - name: Update and release-tool syntax
+      - name: Operational script syntax
         shell: bash
         run: |
           set -euo pipefail
-          node --check updates/scripts/build-manifest.mjs
-          node --check updates/scripts/verify-manifest.mjs
-          bash -n .github/scripts/publish-release.sh
+          while IFS= read -r -d '' script; do
+            node --check "$script"
+          done < <(find .github/scripts updates/scripts ghostftp-desktop/scripts -type f -name '*.mjs' -print0)
+          while IFS= read -r -d '' script; do
+            bash -n "$script"
+          done < <(find .github/scripts updates/scripts android/scripts ghostftp-desktop/scripts -type f -name '*.sh' -print0)
 
       - name: Windows release package contract
         shell: bash
