@@ -24,16 +24,19 @@ export default defineConfig(() => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (!id.includes("node_modules")) return undefined;
-          if (id.includes("@xterm")) return "terminal-vendor";
-          if (id.includes("material-icon-theme")) return "file-icon-theme";
-          if (id.includes("@iconify")) return "icon-vendor";
-          if (id.includes("@tauri-apps")) return "tauri-vendor";
+          const normalized = id.replaceAll("\\", "/");
+          if (normalized.includes("/packages/file-ui/src/")) return "file-ui";
+          if (normalized.endsWith("/src/lib/i18n.ts")) return "i18n";
+          if (normalized.endsWith("/src/lib/brandIconData.ts")) return "brand-icons";
+          if (!normalized.includes("/node_modules/")) return undefined;
+          if (normalized.includes("@xterm")) return "terminal-vendor";
+          if (normalized.includes("material-icon-theme")) return "file-icon-theme";
+          if (normalized.includes("@iconify")) return "icon-vendor";
+          if (normalized.includes("@tauri-apps")) return "tauri-vendor";
           if (
-            id.includes("react-dom") ||
-            id.includes("/react/") ||
-            id.includes("\\react\\") ||
-            id.includes("zustand")
+            normalized.includes("react-dom") ||
+            normalized.includes("/react/") ||
+            normalized.includes("zustand")
           ) {
             return "ui-vendor";
           }

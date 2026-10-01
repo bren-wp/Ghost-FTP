@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.20.5 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.20.6 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.20.4**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.20.5**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -23,6 +23,14 @@ Previous canonical release: **0.20.4**. Live publication state is determined fro
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
 
 Full capability detail: [FEATURES.md](FEATURES.md).
+
+## 0.20.6 frontend bundle-size hardening in source
+
+- Replaces the eager full Material Icon Theme manifest/glob with an explicit offline set for common code, document, media, archive and creative formats.
+- Retains the existing Lucide fallback for unmatched files instead of shipping the entire upstream icon catalog.
+- Emits file-browser, i18n and generated brand-icon data as dedicated production chunks.
+- Enforces a 500 KiB maximum for every emitted production JavaScript chunk after Vite build.
+- Keeps icon rendering local/offline and does not add runtime CDN or telemetry dependencies.
 
 ## 0.20.5 Android API and edge-to-edge hardening in source
 

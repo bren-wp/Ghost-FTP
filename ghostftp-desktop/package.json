@@ -1,14 +1,14 @@
 {
   "name": "ghostftp-desktop",
   "private": true,
-  "version": "0.20.5",
+  "version": "0.20.6",
   "type": "module",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/check-tauri-alignment.mjs && tsc --noEmit && vite build",
+    "build": "node scripts/check-tauri-alignment.mjs && tsc --noEmit && vite build && node scripts/check-bundle-size.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "gen:brand-icons": "node scripts/gen-brand-icons.mjs",
@@ -21,7 +21,8 @@
     "build:linux": "tauri build --bundles deb,rpm,appimage",
     "check": "tsc --noEmit",
     "version:sync": "node ../.github/scripts/sync-version.mjs",
-    "version:check": "node ../.github/scripts/sync-version.mjs --check"
+    "version:check": "node ../.github/scripts/sync-version.mjs --check",
+    "check:bundle": "node scripts/check-bundle-size.mjs"
   },
   "dependencies": {
     "@ghostftp/file-ui": "*",
