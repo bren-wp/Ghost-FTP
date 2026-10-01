@@ -8,6 +8,7 @@
 - Re-verifies updater proof in the final publish script before any stable tag/release mutation.
 - Extends source reachability to Rust crate module graphs and referenced CI/update/Android helper scripts.
 - Expands operational Node/MJS and shell syntax checks.
+- Adds Android JVM unit tests for connection input/path safety and cooperative cancellation, and makes `testDebugUnitTest` part of the Android gate.
 - Refreshes active documentation from stale RC/current-cycle claims to the 0.20.9 / previous 0.20.8 line.
 - Keeps Android production and installable-preview signing semantics explicitly separate.
 
