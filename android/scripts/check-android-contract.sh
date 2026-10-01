@@ -206,6 +206,12 @@ require_text "AndroidX test core dependency" "$ANDROID_DIR/app/build.gradle.kts"
 require_text "AndroidX test runner dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test:runner:1.7.0'
 require_text "AndroidX JUnit dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test.ext:junit:1.3.0'
 require_text "Android Espresso UI test dependency" "$ANDROID_DIR/app/build.gradle.kts" 'androidx.test.espresso:espresso-core:3.7.0'
+require_text "Android JVM JUnit dependency" "$ANDROID_DIR/app/build.gradle.kts" 'testImplementation("junit:junit:4.13.2")'
+UNIT_TEST="$ANDROID_DIR/app/src/test/java/com/ghostftp/android/ConnectionModelTest.kt"
+test -s "$UNIT_TEST"
+require_text "Android cancellation unit coverage" "$UNIT_TEST" 'cancellationBecomesStickyAndThrows'
+require_text "Android path traversal unit coverage" "$UNIT_TEST" 'remoteTargetsRejectDotSegmentsAndRootDestruction'
+require_text "Android host validation unit coverage" "$UNIT_TEST" 'hostNormalizationRejectsEmbeddedCredentialsPortsAndSchemes'
 test -s "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt"
 SMOKE_SCRIPT="$ANDROID_DIR/scripts/run-instrumentation-smoke.sh"
 bash -n "$SMOKE_SCRIPT"
@@ -240,6 +246,7 @@ require_absent "window-focus smoke gate" "$SMOKE_SCRIPT" 'Ghost FTP did not own 
 ANDROID_WORKFLOW="$ROOT/.github/workflows/ghostftp-android.yml"
 ANDROID_SMOKE_SCRIPT="$ANDROID_DIR/scripts/run-instrumentation-smoke.sh"
 require_text "Android click-through workflow" "$ANDROID_WORKFLOW" 'bash android/scripts/run-instrumentation-smoke.sh'
+require_text "Android JVM unit-test workflow" "$ANDROID_WORKFLOW" 'testDebugUnitTest'
 require_text "Android connected instrumentation" "$ANDROID_SMOKE_SCRIPT" 'connectedDebugAndroidTest'
 require_text "Android instrumentation diagnostics" "$ANDROID_SMOKE_SCRIPT" 'dist/android/diagnostics'
 CANONICAL_RELEASE_WORKFLOW="$ROOT/.github/workflows/ghostftp-release.yml"
