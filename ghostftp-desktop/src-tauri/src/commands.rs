@@ -1224,6 +1224,76 @@ pub async fn list_transfers(state: State<'_, AppState>) -> Result<Vec<Transfer>,
     Ok(state.transfers.list().await)
 }
 
+fn transfer_history_csv_cell(value: &str) -> String {
+    let mut safe = value.to_string();
+    if matches!(
+        safe.chars().next(),
+        Some('=' | '+' | '-' | '@' | '\t' | '\r')
+    ) {
+        safe.insert(0, '\'');
+    }
+
+    if safe
+        .chars()
+        .any(|ch| matches!(ch, ',' | '"' | '\n' | '\r'))
+    {
+        format!("\"{}\"", safe.replace('"', "\"\""))
+    } else {
+        safe
+    }
+}
+
+/// Export the persisted transfer ledger to a user-selected CSV file.
+///
+/// Raw backend error strings are intentionally excluded because they may contain
+/// transport/server details that do not belong in a shareable history export.
+#[tauri::command]
+pub async fn export_transfer_history(
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<usize, String> {
+    if path.trim().is_empty() {
+        return Err("transfer history export path is empty".into());
+    }
+
+    let transfers = state.transfers.list().await;
+    let mut csv = String::from(
+        "\u{feff}id,started_at_unix,kind,status,source,destination,size_bytes,transferred_bytes,delta_sent_bytes,delta_reused_bytes\n",
+    );
+
+    for transfer in &transfers {
+        let kind = format!("{:?}", transfer.kind).to_ascii_lowercase();
+        let status = format!("{:?}", transfer.status).to_ascii_lowercase();
+        let delta_sent = transfer
+            .delta
+            .as_ref()
+            .map(|delta| delta.sent.to_string())
+            .unwrap_or_default();
+        let delta_reused = transfer
+            .delta
+            .as_ref()
+            .map(|delta| delta.reused.to_string())
+            .unwrap_or_default();
+
+        csv.push_str(&format!(
+            "{},{},{},{},{},{},{},{},{},{}\n",
+            transfer_history_csv_cell(&transfer.id),
+            transfer.started_at,
+            transfer_history_csv_cell(&kind),
+            transfer_history_csv_cell(&status),
+            transfer_history_csv_cell(&transfer.source),
+            transfer_history_csv_cell(&transfer.destination),
+            transfer.size,
+            transfer.transferred,
+            delta_sent,
+            delta_reused,
+        ));
+    }
+
+    std::fs::write(Path::new(&path), csv).map_err(err)?;
+    Ok(transfers.len())
+}
+
 #[tauri::command]
 pub async fn start_directory_download(
     session_id: String,
@@ -2399,4 +2469,24 @@ pub async fn bridge_register_mcp(url: String, token: String) -> Result<String, S
     Err(format!(
         "Couldn't register the MCP server automatically. Make sure Claude Code is installed and on your PATH. {last_err}"
     ))
+}
+
+#[cfg(test)]
+mod transfer_history_export_tests {
+    use super::transfer_history_csv_cell;
+
+    #[test]
+    fn csv_cell_escapes_delimiters_quotes_and_newlines() {
+        assert_eq!(
+            transfer_history_csv_cell("folder/a,\"b\"\n.txt"),
+            "\"folder/a,\"\"b\"\"\n.txt\""
+        );
+    }
+
+    #[test]
+    fn csv_cell_neutralizes_spreadsheet_formulas() {
+        assert_eq!(transfer_history_csv_cell("=SUM(A1:A2)"), "'=SUM(A1:A2)");
+        assert_eq!(transfer_history_csv_cell("@cmd"), "'@cmd");
+        assert_eq!(transfer_history_csv_cell("/safe/path"), "/safe/path");
+    }
 }
