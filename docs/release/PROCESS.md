@@ -83,6 +83,8 @@ If no updater signatures are present, the stable GitHub release may still publis
 - Canonical Windows/Linux binaries and native QA evidence come from the same successful native build run.
 - Android publication must contain the verified unsigned production `com.ghostftp.android` build and the separately verified installable preview from the same release SHA. The unsigned production file must remain explicitly suffixed `.unsigned` so it is never misrepresented as directly installable.
 - Support/browser-host tooling is not a production desktop release asset.
+- The final publication script verifies the checksum file and independently requires every core Windows/Linux/Android/source/documentation/native-QA asset to exist and be non-empty before it can touch a version tag.
+- Optional signed updater assets are all-or-nothing and are verified separately from the required core asset set.
 - Publication fails if required artifacts/gates are missing.
 - Existing tags are never moved.
 - Public filenames use `GhostFTP`; product copy uses `Ghost FTP`.
