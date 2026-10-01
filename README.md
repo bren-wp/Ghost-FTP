@@ -39,8 +39,8 @@
 
 ## Current status
 
-- **Active source/release cycle:** `0.20.10`.
-- **Previous canonical release:** `0.20.9`.
+- **Active source/release cycle:** `0.30.1`.
+- **Previous canonical release:** `0.20.10`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
@@ -56,7 +56,7 @@ FTP, explicit FTPS and SFTP with TLS/SSH verification, protected credential hand
 
 ### Files and transfers
 
-Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.20.10 development line extends the published 0.20.9 foundation with stricter transfer conflict safety, real changed-host-key/permission/Unicode/zero-byte protocol coverage and non-aligned multi-chunk resume tests. Stable GitHub packages do not require private updater keys; signed in-app updater assets are published only when the complete verified signature/manifest/package set exists.
+Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.30.1 development line extends the published 0.20.9 foundation with stricter transfer conflict safety, real changed-host-key/permission/Unicode/zero-byte protocol coverage and non-aligned multi-chunk resume tests. Stable GitHub packages do not require private updater keys; signed in-app updater assets are published only when the complete verified signature/manifest/package set exists.
 
 ### Productivity
 
