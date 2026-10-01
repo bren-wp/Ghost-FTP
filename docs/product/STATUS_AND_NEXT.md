@@ -28,8 +28,8 @@ Full capability detail: [FEATURES.md](FEATURES.md).
 
 - Adds a real desktop CSV transfer-history export through Transfer Center → state → IPC → Rust persisted transfer ledger.
 - Neutralizes spreadsheet-formula prefixes in exported user/server-controlled path cells and excludes raw backend error text from the shareable CSV.
-- Makes stable publication fail closed unless both Tauri updater signatures, a verified `latest.json` and the matching Update-Service package exist.
-- Verifies that the manifest inside the Update-Service package is byte-identical to the separately published manifest before the release script can touch a stable tag.
+- Keeps stable GitHub package publication independent of private updater keys; without them the signed in-app updater bundle is omitted rather than faked.
+- When updater signing is enabled, both signatures, verified `latest.json` and matching Update-Service package are required as an all-or-nothing set, and the embedded manifest must match byte-for-byte before tag mutation.
 - Extends source reachability from TypeScript to Rust crate module graphs and requires operational CI/update/Android helper scripts to have a real workflow/package/runbook reference.
 - Adds Android `ConnectionModel` JVM tests for cancellation, host/port validation, Unicode/IDN normalization, remote path traversal guards and root-delete rejection; the Android workflow runs them before APK packaging.
 - Keeps Android production output explicitly unsigned and the debug-key-signed, non-debuggable package explicitly labeled as an installable preview.
