@@ -72,6 +72,8 @@ for (const rel of userFacing) {
 
 for (const [rel, needle] of [
   [".github/workflows/ghostftp-build.yml", "TAURI_SIGNING_PRIVATE_KEY"],
+  [".github/workflows/ghostftp-build.yml", "Enforce stable update signing preflight"],
+  [".github/workflows/ghostftp-build.yml", "Stable main build requires TAURI_SIGNING_PRIVATE_KEY before native packaging."],
   [".github/workflows/ghostftp-build.yml", "updater-release.conf.json"],
   [".github/workflows/ghostftp-release.yml", "GhostFTP-v$VERSION-Update-Service.zip"],
   [".github/workflows/ghostftp-release.yml", "updates/scripts/build-manifest.mjs"],
