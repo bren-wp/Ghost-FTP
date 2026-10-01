@@ -22,18 +22,10 @@ import {
   X,
   ChevronUp,
   ChevronDown,
-  Pencil,
   Monitor,
   Server,
   Inbox,
   SearchX,
-  List,
-  Table2,
-  AlignJustify,
-  LayoutGrid,
-  Upload,
-  Download,
-  Image as ImageIcon,
 } from "lucide-react";
 import type {
   Capabilities,
@@ -63,56 +55,12 @@ import { FileListSkeleton } from "./Skeleton";
 import { EmptyState } from "./EmptyState";
 import { Thumbnail } from "./Thumbnail";
 
-interface Segment {
-  label: string;
-  path: string;
-}
-
 // A drive-letter (C:\ or C:/) or UNC (\\server\share) path is Windows-style
 // regardless of whether the session is local — a Ghost FTP Agent on a Windows host
 // serves these too, so the separator must be inferred from the path itself,
 // never from the session kind.
 function isWindowsPath(path: string): boolean {
   return /^[a-zA-Z]:/.test(path) || path.startsWith("\\\\");
-}
-
-// Build clickable breadcrumb segments for the address bar. Windows-style
-// paths keep drive/UNC prefix + backslashes, everything else is POSIX "/".
-// Relative POSIX paths (e.g. "." or "./public_html" — the SFTP default home
-// when the profile has no start dir) must stay relative: turning them
-// absolute ("/./...") would point the backend at a nonexistent path.
-function parseSegments(path: string): Segment[] {
-  if (!path || path === ".") return [{ label: path || "/", path: path || "/" }];
-  if (path === "/") return [{ label: "/", path: "/" }];
-  const parts = path.split(/[/\\]/).filter(Boolean);
-  const segs: Segment[] = [];
-  if (isWindowsPath(path)) {
-    // UNC: \\server\share is the smallest listable root, so it's one crumb.
-    const isUnc = path.startsWith("\\\\");
-    let acc = isUnc
-      ? "\\\\" + parts.slice(0, 2).join("\\")
-      : parts[0] + "\\";
-    segs.push({ label: isUnc ? acc : parts[0], path: acc });
-    for (let i = isUnc ? 2 : 1; i < parts.length; i++) {
-      acc = acc.endsWith("\\") ? acc + parts[i] : acc + "\\" + parts[i];
-      segs.push({ label: parts[i], path: acc });
-    }
-  } else if (!path.startsWith("/")) {
-    // Relative POSIX path: no root crumb, segments accumulate relatively.
-    let acc = "";
-    for (const p of parts) {
-      acc = acc ? acc + "/" + p : p;
-      segs.push({ label: p, path: acc });
-    }
-  } else {
-    segs.push({ label: "/", path: "/" });
-    let acc = "";
-    for (const p of parts) {
-      acc = acc + "/" + p;
-      segs.push({ label: p, path: acc });
-    }
-  }
-  return segs;
 }
 
 const DRAG_MIME = "application/x-ghostftp";
@@ -181,11 +129,8 @@ export function FilePane({
     setSortDirection,
     paneViewMode,
     paneDensity,
-    setPaneViewMode,
-    setPaneDensity,
     editorLabel,
     remoteImagePreviews,
-    setRemoteImagePreviews,
     keyBindings,
   } = settings;
 
@@ -552,12 +497,6 @@ export function FilePane({
       return;
     }
     onTransfer?.([entry]);
-  };
-
-  const transferSelection = () => {
-    const items = visible.filter((e) => selected.has(e.path));
-    if (items.length === 0) return;
-    onTransfer?.(items);
   };
 
   // Keep the shared application toolbar honest: publish only the capabilities
@@ -976,7 +915,6 @@ export function FilePane({
   const selectionCount = selected.size;
   const activeIdx = anchor ? visible.findIndex((v) => v.path === anchor) : -1;
   const activeDescId = activeIdx >= 0 ? `${paneId}-row-${activeIdx}` : undefined;
-  const segments = parseSegments(path);
   const hasPerms =
     !!sessionId && caps?.canChmod !== false && visible.some((e) => e.mode != null);
   // Columns yield as the pane narrows so the filename never gets crushed:
