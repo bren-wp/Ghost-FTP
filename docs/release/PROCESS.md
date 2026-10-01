@@ -9,7 +9,7 @@ A successful compile is not equivalent to stable/FINAL acceptance.
 1. Start from current `main`.
 2. Make meaningful product/code/documentation changes.
 3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
-4. Keep the previous canonical release recorded in `previousVersion` (currently `0.20.2` for the 0.20.3 cycle).
+4. Keep the previous canonical release recorded in `previousVersion` (currently `0.20.3` for the 0.20.4 cycle).
 5. Open a PR.
 6. Require exact-head success for:
    - Ghost FTP quality
@@ -71,8 +71,8 @@ If the signing key is not configured, these four updater-service assets are omit
 
 ## Current release cycle
 
-- Active source/release cycle: **0.20.3**
-- Previous canonical release: **0.20.2**
+- Active source/release cycle: **0.20.4**
+- Previous canonical release: **0.20.3**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Release integrity
