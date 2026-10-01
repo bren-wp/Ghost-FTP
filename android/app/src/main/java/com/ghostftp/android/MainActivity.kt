@@ -57,6 +57,7 @@ class MainActivity : Activity() {
     private lateinit var transferRemotePathInput: EditText
     private lateinit var uploadRemoteNameInput: EditText
     private lateinit var mkdirNameInput: EditText
+    private lateinit var renameRemoteNameInput: EditText
     private lateinit var uploadSelectionText: TextView
     private lateinit var transferStateText: TextView
     private lateinit var protocolSpinner: Spinner
@@ -113,6 +114,7 @@ class MainActivity : Activity() {
         if (::transferRemotePathInput.isInitialized) outState.putString(STATE_TRANSFER_REMOTE_PATH, transferRemotePathInput.text.toString())
         if (::uploadRemoteNameInput.isInitialized) outState.putString(STATE_UPLOAD_REMOTE_NAME, uploadRemoteNameInput.text.toString())
         if (::mkdirNameInput.isInitialized) outState.putString(STATE_MKDIR_NAME, mkdirNameInput.text.toString())
+        if (::renameRemoteNameInput.isInitialized) outState.putString(STATE_RENAME_REMOTE_NAME, renameRemoteNameInput.text.toString())
         outState.putString(STATE_UPLOAD_URI, selectedUploadUri?.toString())
         outState.putString(STATE_UPLOAD_DISPLAY_NAME, selectedUploadDisplayName)
         outState.putString(STATE_LAST_COMPLETED_PATH, lastCompletedTransferPath)
@@ -316,6 +318,8 @@ class MainActivity : Activity() {
         }
         toolbarMore.addView(track(toolbarButton("New Folder") { createRemoteFolder() }), buttonParams(weight = 1f))
         toolbarMore.addView(gap(8))
+        toolbarMore.addView(track(toolbarButton("Rename") { renameRemoteEntry() }), buttonParams(weight = 1f))
+        toolbarMore.addView(gap(8))
         toolbarMore.addView(track(toolbarButton("Delete", destructive = true) { deleteRemoteFile() }), buttonParams(weight = 1f))
         addView(toolbarMore)
     }
@@ -411,9 +415,9 @@ class MainActivity : Activity() {
 
     private fun buildTransfersCard(): View = panel().apply {
         addView(sectionTitle("Transfers"))
-        addView(sectionDescription("Manage the selected remote file, upload target and remote folder action for the active session."))
+        addView(sectionDescription("Manage the selected remote entry, upload target, rename target and remote folder action for the active session."))
 
-        transferRemotePathInput = input("/remote/file.txt", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        transferRemotePathInput = input("/remote/file-or-folder", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         addView(formLabel("Remote file path"))
         addView(transferRemotePathInput)
 
@@ -424,6 +428,10 @@ class MainActivity : Activity() {
         mkdirNameInput = input("New remote folder", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         addView(formLabel("Folder name or path"))
         addView(mkdirNameInput)
+
+        renameRemoteNameInput = input("New remote name or path", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        addView(formLabel("Rename target name or path"))
+        addView(renameRemoteNameInput)
 
         uploadSelectionText = TextView(this@MainActivity).apply {
             text = "No local upload file selected."
@@ -446,9 +454,13 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(10), 0, 0)
         }
-        uploadRow.addView(track(secondaryButton("Pick file") { selectUploadFile() }), buttonParams(weight = 1f))
+        uploadRow.addView(track(secondaryButton("Pick file") { selectUploadFile() }.apply {
+            contentDescription = "Pick upload file"
+        }), buttonParams(weight = 1f))
         uploadRow.addView(gap(8))
-        uploadRow.addView(track(secondaryButton("Upload") { uploadSelectedFile() }), buttonParams(weight = 1f))
+        uploadRow.addView(track(secondaryButton("Upload") { uploadSelectedFile() }.apply {
+            contentDescription = "Upload selected file"
+        }), buttonParams(weight = 1f))
         addView(uploadRow)
 
         activityRows = LinearLayout(this@MainActivity).apply {
@@ -460,10 +472,38 @@ class MainActivity : Activity() {
 
     private fun buildSettingsCard(): View = panel().apply {
         addView(sectionTitle("Settings"))
-        addView(sectionDescription("Security and privacy protections shared with Ghost FTP desktop."))
+        addView(sectionDescription("Working session and privacy controls aligned with Ghost FTP desktop safety rules."))
         addView(row("Privacy", "No required tracking, analytics or telemetry."))
         addView(row("Credentials", "Session passwords stay in memory and are cleared on disconnect or Activity destruction."))
         addView(row("Connection safety", "Remote mutations are guarded and SFTP requires strict host-key verification."))
+
+        val firstRow = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(12), 0, 0)
+        }
+        firstRow.addView(secondaryButton("Clear Activity") { clearActivityLog() }.apply {
+            contentDescription = "Clear activity log"
+        }, buttonParams(weight = 1f))
+        firstRow.addView(gap(8))
+        firstRow.addView(secondaryButton("Reset Transfers") { resetTransferFields() }.apply {
+            contentDescription = "Reset transfer fields"
+        }, buttonParams(weight = 1f))
+        addView(firstRow)
+
+        val secondRow = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(8), 0, 0)
+        }
+        secondRow.addView(secondaryButton("Reset Connection") { resetConnectionForm() }.apply {
+            contentDescription = "Reset connection form"
+        }, buttonParams(weight = 1f))
+        secondRow.addView(gap(8))
+        secondRow.addView(secondaryButton("Disconnect") { disconnect() }.apply {
+            contentDescription = "Settings disconnect session"
+        }, buttonParams(weight = 1f))
+        addView(secondRow)
     }
 
     private fun buildAboutCard(): View = panel().apply {
@@ -579,6 +619,35 @@ class MainActivity : Activity() {
         if (::uploadSelectionText.isInitialized) uploadSelectionText.text = "No local upload file selected."
         if (::transferStateText.isInitialized) transferStateText.text = "No transfer started."
         showIdleState()
+    }
+
+    private fun clearActivityLog() {
+        if (::activityRows.isInitialized) activityRows.removeAllViews()
+        showMessage("Activity cleared", "Activity log cleared.")
+    }
+
+    private fun resetTransferFields() {
+        selectedUploadUri = null
+        selectedUploadDisplayName = ""
+        lastCompletedTransferPath = ""
+        if (::transferRemotePathInput.isInitialized) transferRemotePathInput.text.clear()
+        if (::uploadRemoteNameInput.isInitialized) uploadRemoteNameInput.text.clear()
+        if (::mkdirNameInput.isInitialized) mkdirNameInput.text.clear()
+        if (::renameRemoteNameInput.isInitialized) renameRemoteNameInput.text.clear()
+        if (::uploadSelectionText.isInitialized) uploadSelectionText.text = "No local upload file selected."
+        if (::transferStateText.isInitialized) transferStateText.text = "No transfer started."
+        showMessage("Transfers reset", "Transfer fields reset.")
+    }
+
+    private fun resetConnectionForm() {
+        disconnect()
+        if (::protocolSpinner.isInitialized) protocolSpinner.setSelection(ConnectionProtocol.FTP.ordinal)
+        if (::hostInput.isInitialized) hostInput.text.clear()
+        if (::portInput.isInitialized) portInput.setText(ConnectionProtocol.FTP.defaultPort.toString())
+        if (::usernameInput.isInitialized) usernameInput.text.clear()
+        if (::hostKeyFingerprintInput.isInitialized) hostKeyFingerprintInput.text.clear()
+        if (::remotePathInput.isInitialized) remotePathInput.setText("/")
+        showMessage("Connection reset", "Connection form reset.")
     }
 
     private fun readProfile(): ConnectionProfile? {
@@ -713,8 +782,8 @@ class MainActivity : Activity() {
             return
         }
         confirmDestructiveRemoteAction(
-            title = "Delete remote file?",
-            message = "This permanently removes $remotePath from the active server.",
+            title = "Delete remote entry?",
+            message = "This permanently removes $remotePath from the active server. Empty folders are supported; non-empty folders are never removed recursively.",
             confirmLabel = "Delete"
         ) {
             runTransfer(
@@ -723,6 +792,38 @@ class MainActivity : Activity() {
                 refreshAfter = true
             ) { cancellation ->
                 controller.deleteRemoteFile(profile, remotePath, cancellation)
+            }
+        }
+    }
+
+    private fun renameRemoteEntry() {
+        val profile = activeTransferProfile() ?: return
+        val sourcePath = requiredRemoteFilePath(profile) ?: return
+        if (sourcePath.split('/').filter { it.isNotBlank() }.isEmpty()) {
+            showMessage("Unsafe rename blocked", "Ghost FTP will not rename the remote root path.")
+            return
+        }
+        val rawTarget = renameRemoteNameInput.text.toString().trim()
+        if (rawTarget.isBlank()) {
+            showMessage("Rename target is required", "Enter a new remote name or absolute remote path.")
+            return
+        }
+        val destinationPath = normalizeRemoteInput(rawTarget, profile.remotePath) ?: return
+        if (destinationPath == sourcePath) {
+            showMessage("Rename target is unchanged", "Choose a different remote name or path.")
+            return
+        }
+        confirmDestructiveRemoteAction(
+            title = "Rename remote entry?",
+            message = "Rename $sourcePath to $destinationPath?",
+            confirmLabel = "Rename"
+        ) {
+            runTransfer(
+                title = "Renaming",
+                detail = "Renaming $sourcePath to $destinationPath.",
+                refreshAfter = true
+            ) { cancellation ->
+                controller.renameRemote(profile, sourcePath, destinationPath, cancellation)
             }
         }
     }
@@ -816,6 +917,7 @@ class MainActivity : Activity() {
         transferRemotePathInput.setText(state.getString(STATE_TRANSFER_REMOTE_PATH).orEmpty())
         uploadRemoteNameInput.setText(state.getString(STATE_UPLOAD_REMOTE_NAME).orEmpty())
         mkdirNameInput.setText(state.getString(STATE_MKDIR_NAME).orEmpty())
+        renameRemoteNameInput.setText(state.getString(STATE_RENAME_REMOTE_NAME).orEmpty())
         selectedUploadDisplayName = state.getString(STATE_UPLOAD_DISPLAY_NAME).orEmpty()
         selectedUploadUri = state.getString(STATE_UPLOAD_URI)
             ?.takeIf { it.isNotBlank() }
@@ -846,7 +948,7 @@ class MainActivity : Activity() {
     private fun requiredRemoteFilePath(profile: ConnectionProfile): String? {
         val raw = transferRemotePathInput.text.toString().trim()
         if (raw.isBlank()) {
-            showMessage("Remote file path is required", "Tap a remote file row or enter an absolute remote file path.")
+            showMessage("Remote path is required", "Select a remote file or folder, or enter an absolute remote path.")
             return null
         }
         return normalizeRemoteInput(raw, profile.remotePath)
@@ -894,16 +996,33 @@ class MainActivity : Activity() {
     private fun remoteRow(item: RemoteRow): View = row(item.name, item.detail).apply {
         val target = item.remotePath ?: return@apply
         when {
-            item.isDirectory -> setOnClickListener {
-                remotePathInput.setText(target)
-                openConnection()
+            item.isDirectory -> {
+                setOnClickListener {
+                    remotePathInput.setText(target)
+                    openConnection()
+                }
+                setOnLongClickListener {
+                    selectRemoteEntry(item)
+                    setWorkspace(Workspace.TRANSFERS)
+                    true
+                }
             }
             item.isFile -> setOnClickListener {
-                transferRemotePathInput.setText(target)
-                transferStateText.text = "Selected remote file: $target"
-                appendActivity("Selected", target)
+                selectRemoteEntry(item)
             }
         }
+    }
+
+    private fun selectRemoteEntry(item: RemoteRow) {
+        val target = item.remotePath ?: return
+        transferRemotePathInput.setText(target)
+        renameRemoteNameInput.setText(item.name)
+        transferStateText.text = if (item.isDirectory) {
+            "Selected remote folder: $target"
+        } else {
+            "Selected remote file: $target"
+        }
+        appendActivity("Selected", target)
     }
 
     private fun appendActivity(title: String, detail: String) {
@@ -1168,6 +1287,7 @@ class MainActivity : Activity() {
         const val STATE_TRANSFER_REMOTE_PATH = "ghostftp.transferRemotePath"
         const val STATE_UPLOAD_REMOTE_NAME = "ghostftp.uploadRemoteName"
         const val STATE_MKDIR_NAME = "ghostftp.mkdirName"
+        const val STATE_RENAME_REMOTE_NAME = "ghostftp.renameRemoteName"
         const val STATE_UPLOAD_URI = "ghostftp.uploadUri"
         const val STATE_UPLOAD_DISPLAY_NAME = "ghostftp.uploadDisplayName"
         const val STATE_LAST_COMPLETED_PATH = "ghostftp.lastCompletedPath"
