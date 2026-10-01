@@ -1,3 +1,18 @@
+## 0.20.9 — transfer history and stable updater hardening — 1 October 2026
+
+0.20.9 follows published 0.20.8 with a real transfer-history export and fail-closed stable updater publication.
+
+- Adds end-to-end desktop CSV transfer-history export through Transfer Center, state, IPC and the persisted Rust transfer ledger.
+- Neutralizes spreadsheet-formula prefixes in exported path cells and excludes raw backend error text from the shareable CSV.
+- Requires both Tauri updater signatures, a verified exact-version manifest and the matching Update-Service package for `channel: stable`.
+- Re-verifies updater proof in the final publish script before any stable tag/release mutation.
+- Extends source reachability to Rust crate module graphs and referenced CI/update/Android helper scripts.
+- Expands operational Node/MJS and shell syntax checks.
+- Refreshes active documentation from stale RC/current-cycle claims to the 0.20.9 / previous 0.20.8 line.
+- Keeps Android production and installable-preview signing semantics explicitly separate.
+
+See [docs/releases/0.20.9.md](docs/releases/0.20.9.md).
+
 # Changelog
 
 ## 0.20.8 — cross-app action parity hardening — 1 October 2026
