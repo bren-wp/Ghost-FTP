@@ -69,11 +69,22 @@ jobs:
 
           sudo useradd -m -s /bin/bash "$USERNAME"
           echo "$USERNAME:$PASSWORD" | sudo chpasswd
+          sudo install -d -m 0555 -o root -g root "/home/$USERNAME/ghostftp-e2e-readonly"
 
           # SFTP password + encrypted OpenSSH private-key authentication.
           sudo mkdir -p /run/sshd
           sudo ssh-keygen -A
           ssh-keygen -q -t ed25519 -N "$KEYPASS" -f "$RUNNER_TEMP/ghostftp_e2e_ed25519"
+
+          # Seed the runner's known_hosts with a deliberately stale key for the
+          # test SFTP endpoint. The Rust E2E must reject this mismatch, then an
+          # explicit Trust decision must atomically replace it with the real key.
+          ssh-keygen -q -t ed25519 -N '' -f "$RUNNER_TEMP/ghostftp_e2e_stale_host"
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          awk '{ print "[127.0.0.1]:2222 " $1 " " $2 }'             "$RUNNER_TEMP/ghostftp_e2e_stale_host.pub" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
           sudo install -d -m 700 -o "$USERNAME" -g "$USERNAME" "/home/$USERNAME/.ssh"
           sudo install -m 600 -o "$USERNAME" -g "$USERNAME" \
             "$RUNNER_TEMP/ghostftp_e2e_ed25519.pub" "/home/$USERNAME/.ssh/authorized_keys"
@@ -167,6 +178,8 @@ jobs:
           FTP_HOME="$RUNNER_TEMP/ghostftp-ftp-home"
           mkdir -p "$FTP_HOME"
           chmod 700 "$FTP_HOME"
+          mkdir -p "$FTP_HOME/ghostftp-e2e-readonly"
+          chmod 0555 "$FTP_HOME/ghostftp-e2e-readonly"
 
           export GHOSTFTP_SERVER_USERNAME="$USERNAME"
           export GHOSTFTP_SERVER_PASSWORD="$PASSWORD"
