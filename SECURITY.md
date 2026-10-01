@@ -14,7 +14,7 @@ Notification-center history is also session-only. User-facing diagnostics are fi
 
 ## Updates
 
-Native update metadata is retrieved only from the configured official Ghost FTP update service. The Tauri updater verifies the configured signature before installing an artifact. Package SHA-256 values are published with canonical releases. A failed download, checksum/signature verification or apply step must leave the currently installed version usable.
+Native update metadata is retrieved only from the configured official Ghost FTP update service. The Tauri updater verifies the configured signature before installing an artifact. For `channel: stable`, release automation now fails closed before tag/release mutation unless both desktop updater signatures, a verified exact-version manifest and the matching Update-Service package are present and consistent. Package SHA-256 values are published with canonical releases. A failed download, checksum/signature verification or apply step must leave the currently installed version usable.
 
 ## Local runtime boundary
 

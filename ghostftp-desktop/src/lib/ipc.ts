@@ -254,6 +254,9 @@ export const ipc = {
 
   listTransfers: () => invoke<Transfer[]>("list_transfers"),
 
+  exportTransferHistory: (path: string) =>
+    invoke<number>("export_transfer_history", { path }),
+
   transferPause: (transferId: string) =>
     invoke<void>("transfer_pause", { transferId }),
 

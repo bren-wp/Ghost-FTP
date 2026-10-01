@@ -6,8 +6,8 @@ Ghost FTP Android follows the same product identity and file-action model as the
 
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
-- Active source version: **0.20.8**
-- Previous canonical release: **0.20.7**
+- Active source version: **0.20.9**
+- Previous canonical release: **0.20.8**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`
@@ -73,6 +73,12 @@ Android keeps the same primary product model as desktop where it makes sense on 
 - Rename uses the real FTP/FTPS/SFTP rename operation; Delete supports files and empty folders without recursive deletion.
 - Long-press folder selection exposes folder rename/delete without replacing normal tap-to-open navigation.
 - Settings exposes working Clear Activity, Reset Transfers, Reset Connection and Disconnect controls.
+
+## 0.20.9 validation hardening
+
+- `testDebugUnitTest` runs in the canonical Android workflow before lint/build and emulator instrumentation.
+- `ConnectionModelTest` covers cooperative cancellation, protocol-index fallback, host normalization and embedded-credential/port rejection, invalid ports, remote dot-segment rejection, root-delete protection and remote path joining.
+- Activity recreation remains covered by instrumentation and restores only non-secret UI state while clearing the password/authenticated session.
 
 ## 0.20.0 reliability hardening
 

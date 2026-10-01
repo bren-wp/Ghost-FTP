@@ -1,6 +1,6 @@
-# Ghost FTP Audit Index — RC10
+# Ghost FTP Audit Index — 0.20.9
 
-Ghost FTP separates audits by concern so findings stay actionable and release claims remain traceable.
+This index describes the current 0.20.9 source line. Previous canonical release: **0.20.8**.
 
 - [Code audit](CODE.md)
 - [Security audit](SECURITY.md)
@@ -13,4 +13,4 @@ Ghost FTP separates audits by concern so findings stay actionable and release cl
 
 ## Audit principle
 
-Implemented behavior, source inspection, automated CI and target-OS acceptance are recorded separately. Missing evidence is kept as an open gate instead of being silently marked complete.
+Implemented behavior, source inspection, automated CI and target-OS acceptance are recorded separately. Historical release records live under `docs/releases/`; active audits must not use legacy RC labels as current state. Missing evidence remains an open gate rather than being silently marked PASS.

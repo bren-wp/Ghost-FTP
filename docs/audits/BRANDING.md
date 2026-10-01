@@ -1,12 +1,12 @@
-# Branding Audit
+# Ghost FTP Branding Audit — 0.20.9
 
-Scope: full source tree, runtime, installer, website, release-facing docs and generated binaries/source strings where inspectable.
+Scope: current application source, installers, Android package metadata, release-facing documentation and compatibility tooling.
 
-- Product name, public host, bundle identifier and deep-link scheme are Ghost FTP / ghostftp.com / `com.ghostftp.desktop` / `ghostftp://` in the native source.
-- Full-tree text scan found no legacy product identifier from the previous codebase in executable/source code.
-- Product-facing ghostftp-runtime/site/setup pages contain no `example.com`, demo user, Production Server, Staging Server, Design Assets or Cloud Server seed profile.
-- Site Manager initializes from actual stored profiles and is empty for a new profile store.
-- Third-party names retained in native source are interoperability/import references (for example FileZilla/PuTTY) rather than product branding.
-- Official public navigation in audited product-facing code targets ghostftp.com.
+- Product-facing identity remains **Ghost FTP** / **GhostFTP** for artifact names.
+- Canonical repository and support links point to `bren-wp/Ghost-FTP` and `ghostftp.com`.
+- Desktop bundle identifier remains `com.ghostftp.desktop`; Android production package remains `com.ghostftp.android`.
+- Framework/toolchain path names such as `src-tauri` are implementation details, not public product branding.
+- The removed website application is not treated as an active product surface.
+- Third-party product names are retained only where required for interoperability/imports.
 
-Status: **source branding audit passed for the scanned tree; binary GUI visual verification still requires target-OS execution.**
+Status: source branding is CI-scanned; target-OS visual acceptance remains a separate QA gate.

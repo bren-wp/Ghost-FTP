@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.20.8 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.20.9 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.20.7**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.20.8**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -23,6 +23,16 @@ Previous canonical release: **0.20.7**. Live publication state is determined fro
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
 
 Full capability detail: [FEATURES.md](FEATURES.md).
+
+## 0.20.9 transfer-history and release-integrity hardening in source
+
+- Adds a real desktop CSV transfer-history export through Transfer Center → state → IPC → Rust persisted transfer ledger.
+- Neutralizes spreadsheet-formula prefixes in exported user/server-controlled path cells and excludes raw backend error text from the shareable CSV.
+- Makes stable publication fail closed unless both Tauri updater signatures, a verified `latest.json` and the matching Update-Service package exist.
+- Verifies that the manifest inside the Update-Service package is byte-identical to the separately published manifest before the release script can touch a stable tag.
+- Extends source reachability from TypeScript to Rust crate module graphs and requires operational CI/update/Android helper scripts to have a real workflow/package/runbook reference.
+- Adds Android `ConnectionModel` JVM tests for cancellation, host/port validation, Unicode/IDN normalization, remote path traversal guards and root-delete rejection; the Android workflow runs them before APK packaging.
+- Keeps Android production output explicitly unsigned and the debug-key-signed, non-debuggable package explicitly labeled as an installable preview.
 
 ## 0.20.8 cross-app action parity hardening in source
 
@@ -84,7 +94,7 @@ Full capability detail: [FEATURES.md](FEATURES.md).
 
 - Closes a desktop transfer-worker registration/finalization race that could retain an already-completed `JoinHandle` when a very fast transfer finished before task-map registration.
 - Adds a regression test for the completed-before-registration interleaving.
-- Moves the 0.20.1 candidate to the stable release channel so canonical publication fails closed unless Android produces the persistently signed `com.ghostftp.android` APK.
+- The historical 0.20.1 Android signing experiment is superseded by the current explicit policy: production package verification remains unsigned unless a persistent production key is deliberately introduced, while the separately signed CI package is labeled preview.
 
 ## 0.20.0 hardening retained
 
@@ -128,7 +138,7 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 ## Recommended next improvements
 
 - Per-profile reconnect/keep-alive policies and connection-health state.
-- Per-profile bandwidth limits and transfer-history export.
+- Per-profile bandwidth limits.
 - Verify-after-transfer checksums where both endpoints support them.
 - Batch rename and remote-edit conflict detection.
 - Encrypted selected-profile import/export and duplicate detection.

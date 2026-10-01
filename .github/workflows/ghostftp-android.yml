@@ -40,7 +40,7 @@ jobs:
         run: bash android/scripts/check-android-contract.sh
       - name: Native Android lint and APK build
         shell: bash
-        run: gradle -p android lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview
+        run: gradle -p android testDebugUnitTest lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview
       - name: Android click-through emulator smoke
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:

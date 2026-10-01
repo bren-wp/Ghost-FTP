@@ -9,7 +9,6 @@
 <p align="center">
   <a href="../README.md">Product README</a> ·
   <a href="../docs/README.md">Documentation</a> ·
-  <a href="https://ghostftp.com/">Website</a> ·
   <a href="https://github.com/bren-wp/Ghost-FTP/releases">Releases</a>
 </p>
 
@@ -21,16 +20,16 @@ This directory contains the authoritative **Ghost FTP desktop application**.
 
 The release line opens as a real desktop window. It does not launch the production GUI through a localhost browser wrapper, and it must not expose a visible `127.0.0.1` address/origin bar.
 
-Current development line: **2.1.1 RC21**.
+Current development line: **0.20.9**. Previous canonical release: **0.20.8**.
 
 ## Platform deliverables
 
 | Platform | Deliverables |
 | --- | --- |
-| Windows 10/11 x64 | portable `ghostftp.exe`, NSIS Setup EXE |
+| Windows 10/11 x64 | portable `ghostftp.exe`, NSIS Setup EXE, MSI |
 | Linux x86-64 | native executable, AppImage, DEB, RPM |
 
-MSI is intentionally excluded from prerelease RC packaging because the current MSI/WiX version path does not accept the `rc.N` prerelease identifier.
+MSI is part of the canonical Windows package set and is covered by install/uninstall smoke validation in the native build workflow.
 
 ## Core capabilities
 
@@ -49,10 +48,10 @@ MSI is intentionally excluded from prerelease RC packaging because the current M
 
 ## Visual contract
 
-The repository keeps **actual native screenshots** under **[`../docs/assets/screenshots/`](../docs/assets/screenshots/)**. The RC Windows QA workflow refreshes them from the real executable; they are documentation evidence only and are never used as runtime screenshot backgrounds or click maps.
+The repository keeps **actual native screenshots** under **[`../docs/assets/screenshots/`](../docs/assets/screenshots/)**. The Windows QA workflow refreshes them from the real executable; they are documentation evidence only and are never used as runtime screenshot backgrounds or click maps.
 
 <p align="center">
-  <a href="../docs/assets/screenshots/ghostftp-native-files.png"><img src="../docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP native Files workspace — actual RC21 build" width="100%"></a>
+  <a href="../docs/assets/screenshots/ghostftp-native-files.png"><img src="../docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP native Files workspace — release-proven build" width="100%"></a>
 </p>
 
 <p align="center">
@@ -70,9 +69,9 @@ The repository keeps **actual native screenshots** under **[`../docs/assets/scre
   <a href="../docs/assets/screenshots/ghostftp-native-about.png"><img src="../docs/assets/screenshots/ghostftp-native-about.png" alt="Ghost FTP native Help and About workspace" width="49%"></a>
 </p>
 
-<p align="center"><sub>All seven images are direct 1290×852 captures from the native RC21 Windows QA build. Click any image for the original full-resolution PNG.</sub></p>
+<p align="center"><sub>All seven images are direct 1290×852 captures from the release-proven Windows QA build. Click any image for the original full-resolution PNG.</sub></p>
 
-The canonical desktop reference is **1290×852** and the production window minimum is **480×600**. RC21 keeps one persistent native application window: Files, Sites, Transfers, Sync & Backup, Settings and Help & About switch inside the main workspace; New Connection and File Properties remain transient overlays inside that same window.
+The canonical desktop reference is **1290×852** and the production window minimum is **480×600**. Ghost FTP keeps one persistent native application window: Files, Sites, Transfers, Sync & Backup, Settings and Help & About switch inside the main workspace; New Connection and File Properties remain transient overlays inside that same window.
 
 Native Windows QA captures all seven critical surfaces at three viewport classes:
 
@@ -164,7 +163,7 @@ Build the current platform:
 npm run tauri build
 ```
 
-Windows RC package:
+Windows packages:
 
 ```powershell
 npm run build:windows

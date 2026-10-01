@@ -6,6 +6,10 @@ The authoritative Ghost FTP desktop source contains real FTP, FTPS and SFTP sess
 
 The current transfer implementation also enforces:
 
+- Transfer Center → state → IPC → Rust wiring for CSV transfer-history export.
+- CSV export reads the persisted transfer ledger, handles Unicode as UTF-8 with BOM, neutralizes spreadsheet-formula prefixes and excludes raw backend error strings.
+- Interaction-contract checks prevent the export menu action from regressing into dead UI.
+
 - Completed rows do not expose Cancel.
 - Skipped and Canceled are explicit terminal states.
 - Retry All is available for failed transfers.

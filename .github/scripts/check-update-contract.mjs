@@ -79,6 +79,22 @@ for (const [rel, needle] of [
   if (!read(rel).includes(needle)) failures.push(`${rel}: missing update release contract: ${needle}`);
 }
 
+for (const [rel, needle] of [
+  [".github/workflows/ghostftp-release.yml", "Enforce stable updater publication contract"],
+  [".github/workflows/ghostftp-release.yml", "RELEASE_CHANNEL=$RELEASE_CHANNEL"],
+  [".github/workflows/ghostftp-release.yml", "Stable publication requires both Windows and Linux Tauri updater signatures."],
+  [".github/scripts/publish-release.sh", 'if [ "$CHANNEL" = "stable" ]; then'],
+  [".github/scripts/publish-release.sh", "GhostFTP-Windows-x64-Setup-v${VERSION}.exe.sig"],
+  [".github/scripts/publish-release.sh", "GhostFTP-Linux-x86_64-v${VERSION}.AppImage.sig"],
+  [".github/scripts/publish-release.sh", "GhostFTP-v${VERSION}-latest.json"],
+  [".github/scripts/publish-release.sh", "GhostFTP-v${VERSION}-Update-Service.zip"],
+  [".github/scripts/publish-release.sh", "updates/scripts/verify-manifest.mjs"],
+]) {
+  if (!read(rel).includes(needle)) {
+    failures.push(`${rel}: stable release must fail closed without updater proof: ${needle}`);
+  }
+}
+
 if (failures.length) {
   console.error("Desktop update contract failed:");
   for (const failure of failures) console.error(` - ${failure}`);

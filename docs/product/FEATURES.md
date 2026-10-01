@@ -1,6 +1,6 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 0.20.8 development/release source. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.20.9 development/release source. Previous canonical release: **0.20.8**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cross-app shared actions
 
@@ -189,6 +189,7 @@ Implemented architectural controls include:
 ## 0.20.0 hardening retained
 
 - Desktop transfer queue/history state is persisted in SQLite without passwords, tokens or private-key material.
+- Transfer Center exports the real persisted transfer ledger to CSV through Rust IPC; exported path cells are spreadsheet-formula neutralized and raw backend error strings are excluded.
 - Interrupted transfers restored after restart/update are shown as recovery/error rows rather than falsely remaining active.
 - Recovered retries reconnect through saved profiles and the OS credential store, while the first cross-process retry restarts from byte zero when file identity cannot be proven.
 - Runtime pruning bounds terminal transfer history while preserving all active transfer rows.

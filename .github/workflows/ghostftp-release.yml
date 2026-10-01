@@ -120,6 +120,7 @@ jobs:
 
           echo "SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "RELEASE_CHANNEL=$RELEASE_CHANNEL" >> "$GITHUB_ENV"
 
       - name: Package source and documentation
         shell: bash
@@ -181,8 +182,11 @@ jobs:
             test -n "$WIN_SETUP_SIG"
             test -n "$APPIMAGE_SIG"
             echo "Signed desktop updater artifacts detected."
+          elif [ "$RELEASE_CHANNEL" = "stable" ]; then
+            echo "::error::Stable publication requires both Windows and Linux Tauri updater signatures."
+            exit 1
           else
-            echo "::warning::Signed desktop updater artifacts are unavailable; this release will omit the web in-app update bundle."
+            echo "::notice::Preview build has no updater signatures; no in-app update bundle will be published."
           fi
 
           cp "$WIN_EXE" "dist/GhostFTP-Windows-x64-Portable-v$VERSION.exe"
@@ -237,6 +241,32 @@ jobs:
           cp "dist/update-service/updates/latest.json" "dist/GhostFTP-v$VERSION-latest.json"
           (cd dist/update-service && zip -qr "../GhostFTP-v$VERSION-Update-Service.zip" updates)
           rm -rf dist/update-service
+
+      - name: Enforce stable updater publication contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RELEASE_CHANNEL" != "stable" ]; then
+            echo "Preview channel: signed updater publication is optional."
+            exit 0
+          fi
+
+          required=(
+            "GhostFTP-Windows-x64-Setup-v$VERSION.exe.sig"
+            "GhostFTP-Linux-x86_64-v$VERSION.AppImage.sig"
+            "GhostFTP-v$VERSION-latest.json"
+            "GhostFTP-v$VERSION-Update-Service.zip"
+          )
+          for file in "${required[@]}"; do
+            test -s "dist/$file" || {
+              echo "::error::Stable release is missing required updater artifact dist/$file"
+              exit 1
+            }
+          done
+
+          node updates/scripts/verify-manifest.mjs             "dist/GhostFTP-v$VERSION-latest.json"             --expected-version="$VERSION"
+          unzip -p "dist/GhostFTP-v$VERSION-Update-Service.zip" updates/latest.json             > "$RUNNER_TEMP/ghostftp-latest-from-package.json"
+          cmp "$RUNNER_TEMP/ghostftp-latest-from-package.json"             "dist/GhostFTP-v$VERSION-latest.json"
 
       - name: Generate SHA-256 checksums
         shell: bash

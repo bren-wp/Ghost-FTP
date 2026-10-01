@@ -55,6 +55,7 @@ interface TransfersState {
 
   initListeners: () => Promise<() => void>;
   loadInitial: () => Promise<void>;
+  exportHistory: (path: string) => Promise<number>;
 
   // Low-level starts. `policy` overrides the default overwrite policy for this
   // one transfer (used after the user answers the conflict prompt).
@@ -366,6 +367,8 @@ export const useTransfers = create<TransfersState>((set, get) => ({
       };
     });
   },
+
+  exportHistory: async (path) => ipc.exportTransferHistory(path),
 
   download: async (sessionId, remotePath, localDir, policy) => {
     const p = policy ?? useSettings.getState().overwritePolicy;
