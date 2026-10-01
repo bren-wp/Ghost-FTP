@@ -10,18 +10,13 @@ Previous canonical release: **0.20.8**.
 - SSH host-key and TLS verification failures are handled as security failures rather than success states.
 - Diagnostic/user-facing error handling retains credential redaction.
 - Transfer-history CSV export excludes raw backend error text and neutralizes spreadsheet-formula prefixes from user/server-controlled path cells.
-- The desktop updater keeps its public verification key embedded in application configuration; private updater signing material belongs only in CI secrets.
+- The desktop updater keeps its public verification key embedded in application configuration. Private updater signing material is optional and, when used, belongs only in CI secrets.
 
-## Stable updater hardening
+## Updater publication hardening
 
-For `channel: stable`, release orchestration now requires:
+A stable GitHub release does not require private updater signing keys. When signing material is absent, verified Windows/Linux packages, Android assets, checksums and QA evidence may still be published while the in-app updater manifest and Update-Service package are omitted.
 
-- signed Windows NSIS updater artifact;
-- signed Linux AppImage updater artifact;
-- exact-version verified `latest.json`;
-- matching Update-Service package containing the same manifest.
-
-Both the release workflow and `.github/scripts/publish-release.sh` fail closed before stable tag/release mutation if updater proof is missing or inconsistent. Explicit preview/CI builds may omit updater signatures only when they are not stable publications.
+If updater signing is enabled, release orchestration requires an all-or-nothing set: signed Windows NSIS updater artifact, signed Linux AppImage updater artifact, exact-version verified `latest.json`, and matching Update-Service package containing the same manifest. Both the release workflow and `.github/scripts/publish-release.sh` fail closed if that optional set is partial or inconsistent.
 
 ## Android signing semantics
 
