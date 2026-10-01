@@ -5,6 +5,7 @@
 - Makes Android FTP/FTPS/SFTP staged upload replacement fail closed when an existing remote target cannot be safely preserved.
 - Requires explicit remote-target existence verification before promotion instead of interpreting backup-rename failure as target absence.
 - Refuses promotion when a target appears during an in-progress upload.
+- Reports failed backup restoration and preserves the remote backup path for manual recovery instead of silently discarding recovery failure.
 - Adds Android regression coverage and production-contract checks for staged replacement safety.
 - Allows intentional forward SemVer jumps only when the new version is strictly newer and `previousVersion` matches the exact published base.
 
