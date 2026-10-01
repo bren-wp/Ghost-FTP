@@ -28,7 +28,9 @@ Pull requests:
 - with signing enabled, produces a signature file for the Windows Setup and Linux AppImage;
 - uploads the normal packages in either mode and the signature files only when they actually exist.
 
-If the signing secret is missing, the canonical native build remains useful for CI/preview QA, but a `stable` release must stop. Stable publication requires both updater signatures, the verified manifest and the matching Update-Service package; the release workflow must fail before tag/release publication rather than silently omitting them.
+Pull requests remain secret-free and build the normal preview packages. On a push to `main`, a `stable` channel now fails at the native-build signing preflight when `TAURI_SIGNING_PRIVATE_KEY` is missing, before expensive packaging starts. Non-stable channels may still build normal unsigned preview packages.
+
+Stable publication also requires both updater signatures, the verified manifest and the matching Update-Service package; the release workflow independently fails before tag/release publication rather than silently omitting them. This second check remains defense in depth even though stable `main` builds now fail earlier.
 
 ## Release workflow
 
