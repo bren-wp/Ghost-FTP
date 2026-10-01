@@ -388,12 +388,8 @@ async fn resolve_remote_rename(sftp: &russh_sftp::client::SftpSession, path: &st
     if sftp.metadata(path).await.is_err() {
         return path.to_string();
     }
-    let (stem, ext) = match path.rfind('.') {
-        Some(dot) if dot > path.rfind('/').unwrap_or(0) => (&path[..dot], &path[dot..]),
-        _ => (path, ""),
-    };
     for i in 1..=999 {
-        let candidate = format!("{stem}_{i}{ext}");
+        let candidate = remote_rename_candidate(path, i);
         if sftp.metadata(&candidate).await.is_err() {
             return candidate;
         }
@@ -3675,8 +3671,7 @@ async fn remote_resolve(
                     let mut candidate = initial_remote.to_string();
                     let session = ftp.clone();
                     for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                        candidate = remote_rename_candidate(initial_remote, i);
                         let probe = candidate.clone();
                         let found = session
                             .with_stream(move |s| Ok(s.size(&probe).is_ok()))
@@ -3700,8 +3695,7 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let mut candidate = initial_remote.to_string();
                     for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                        candidate = remote_rename_candidate(initial_remote, i);
                         let key = candidate.trim_start_matches('/');
                         let p = object_store::path::Path::from(key);
                         if obj.store.head(&p).await.is_err() {
@@ -3721,8 +3715,7 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let mut candidate = initial_remote.to_string();
                     for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                        candidate = remote_rename_candidate(initial_remote, i);
                         if !webdav_head(dav, &candidate).await.1 {
                             break;
                         }
@@ -3746,8 +3739,7 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let mut candidate = initial_remote.to_string();
                     for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                        candidate = remote_rename_candidate(initial_remote, i);
                         let p = crate::remotefs::dropbox::dropbox_api_path(&candidate);
                         if !dbx.exists(&p).await {
                             break;
@@ -3768,8 +3760,7 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let mut candidate = initial_remote.to_string();
                     for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                        candidate = remote_rename_candidate(initial_remote, i);
                         if !od
                             .exists(&crate::remotefs::onedrive::item_ref(&candidate))
                             .await
@@ -3790,8 +3781,7 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let mut candidate = initial_remote.to_string();
                     for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                        candidate = remote_rename_candidate(initial_remote, i);
                         if !gd.exists(&candidate).await {
                             break;
                         }
@@ -3809,8 +3799,7 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let mut candidate = initial_remote.to_string();
                     for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                        candidate = remote_rename_candidate(initial_remote, i);
                         if !bx.exists(&candidate).await {
                             break;
                         }
@@ -3828,8 +3817,7 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let mut candidate = initial_remote.to_string();
                     for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                        candidate = remote_rename_candidate(initial_remote, i);
                         if !crate::remotefs::shopify::asset_exists(sh, &candidate).await {
                             break;
                         }
@@ -3847,8 +3835,7 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let mut candidate = initial_remote.to_string();
                     for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                        candidate = remote_rename_candidate(initial_remote, i);
                         if !crate::remotefs::hubspot::file_exists(hs, &candidate).await {
                             break;
                         }
@@ -3866,8 +3853,7 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let mut candidate = initial_remote.to_string();
                     for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                        candidate = remote_rename_candidate(initial_remote, i);
                         if !crate::remotefs::dynamics::file_exists(dynm, &candidate).await {
                             break;
                         }
@@ -3885,8 +3871,7 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let mut candidate = initial_remote.to_string();
                     for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                        candidate = remote_rename_candidate(initial_remote, i);
                         if !agent_stat(agent, &candidate).await.1 {
                             break;
                         }
@@ -3898,10 +3883,22 @@ async fn remote_resolve(
     }
 }
 fn split_ext(path: &str) -> (&str, &str) {
-    match path.rfind('.') {
-        Some(dot) if dot > path.rfind('/').unwrap_or(0) => (&path[..dot], &path[dot..]),
+    let basename_start = path.rfind(['/', '\\']).map_or(0, |index| index + 1);
+    let basename = &path[basename_start..];
+
+    match basename.rfind('.') {
+        // A leading dot is part of a hidden filename, not an extension.
+        Some(relative_dot) if relative_dot > 0 => {
+            let dot = basename_start + relative_dot;
+            (&path[..dot], &path[dot..])
+        }
         _ => (path, ""),
     }
+}
+
+fn remote_rename_candidate(path: &str, index: usize) -> String {
+    let (stem, ext) = split_ext(path);
+    format!("{stem}_{index}{ext}")
 }
 
 /// Transient = worth an auto-retry (structured IPC error kinds):
@@ -4628,6 +4625,27 @@ mod tests {
         // Forward-slashed Windows paths are already unambiguous — leave them be.
         assert_eq!(join_remote("C:/srv", "a.txt"), "C:/srv/a.txt");
         assert_eq!(join_remote("", "a.txt"), "a.txt");
+    }
+
+    #[test]
+    fn remote_rename_candidates_respect_hidden_files_and_path_style() {
+        assert_eq!(
+            remote_rename_candidate("/srv/archive.tar.gz", 1),
+            "/srv/archive.tar_1.gz"
+        );
+        assert_eq!(
+            remote_rename_candidate("/srv/.env", 1),
+            "/srv/.env_1"
+        );
+        assert_eq!(remote_rename_candidate(".env", 2), ".env_2");
+        assert_eq!(
+            remote_rename_candidate(r"C:\dir.v1\file.txt", 3),
+            r"C:\dir.v1\file_3.txt"
+        );
+        assert_eq!(
+            remote_rename_candidate(r"C:\dir.v1\file", 4),
+            r"C:\dir.v1\file_4"
+        );
     }
 
     // ---------- Delta sync transfer paths ----------
