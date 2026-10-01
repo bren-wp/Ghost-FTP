@@ -45,10 +45,10 @@ jobs:
     env:
       HAS_TAURI_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -849,7 +849,7 @@ jobs:
 
       - name: Upload Windows native-window QA evidence
         if: runner.os == 'Windows' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: GhostFTP-Windows-x64-Preview-QA
           path: qa/*
@@ -946,7 +946,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload native bundles
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: dist/native/*
