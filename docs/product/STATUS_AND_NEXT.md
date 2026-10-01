@@ -31,6 +31,7 @@ Full capability detail: [FEATURES.md](FEATURES.md).
 - Makes stable publication fail closed unless both Tauri updater signatures, a verified `latest.json` and the matching Update-Service package exist.
 - Verifies that the manifest inside the Update-Service package is byte-identical to the separately published manifest before the release script can touch a stable tag.
 - Extends source reachability from TypeScript to Rust crate module graphs and requires operational CI/update/Android helper scripts to have a real workflow/package/runbook reference.
+- Adds Android `ConnectionModel` JVM tests for cancellation, host/port validation, Unicode/IDN normalization, remote path traversal guards and root-delete rejection; the Android workflow runs them before APK packaging.
 - Keeps Android production output explicitly unsigned and the debug-key-signed, non-debuggable package explicitly labeled as an installable preview.
 
 ## 0.20.8 cross-app action parity hardening in source
