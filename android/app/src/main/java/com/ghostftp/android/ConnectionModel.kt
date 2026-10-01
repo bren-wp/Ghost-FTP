@@ -178,8 +178,14 @@ class ConnectionController {
     ): TransferResult {
         cancellation.throwIfCanceled()
         val normalized = normalizedProfile(profile)
-        val source = normalizeRemoteDeleteTarget(sourcePath)
+        val source = normalizeRemoteTarget(sourcePath)
         val destination = normalizeRemoteTarget(destinationPath)
+        require(source.split('/').any { it.isNotBlank() }) {
+            "Refusing to rename the remote root path."
+        }
+        require(destination.split('/').any { it.isNotBlank() }) {
+            "Refusing to rename to the remote root path."
+        }
         require(source != destination) { "Source and destination paths must differ." }
         return when (normalized.protocol) {
             ConnectionProtocol.FTP -> renameFtp(normalized, secure = false, sourcePath = source, destinationPath = destination, cancellation = cancellation)
