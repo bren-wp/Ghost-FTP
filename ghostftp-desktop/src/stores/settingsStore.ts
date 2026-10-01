@@ -164,8 +164,6 @@ interface SettingsState {
   setNotifications: (v: NotificationSettings) => void;
 }
 
-const STORAGE_KEY = "ghostftp.settings.v1";
-
 export type PersistedSettings = Omit<
   SettingsState,
   | "setAppTheme"
