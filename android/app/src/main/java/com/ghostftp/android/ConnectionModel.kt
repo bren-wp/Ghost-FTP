@@ -170,6 +170,30 @@ class ConnectionController {
         }
     }
 
+    fun renameRemote(
+        profile: ConnectionProfile,
+        sourcePath: String,
+        destinationPath: String,
+        cancellation: OperationCancellation = OperationCancellation()
+    ): TransferResult {
+        cancellation.throwIfCanceled()
+        val normalized = normalizedProfile(profile)
+        val source = normalizeRemoteTarget(sourcePath)
+        val destination = normalizeRemoteTarget(destinationPath)
+        require(source.split('/').any { it.isNotBlank() }) {
+            "Refusing to rename the remote root path."
+        }
+        require(destination.split('/').any { it.isNotBlank() }) {
+            "Refusing to rename to the remote root path."
+        }
+        require(source != destination) { "Source and destination paths must differ." }
+        return when (normalized.protocol) {
+            ConnectionProtocol.FTP -> renameFtp(normalized, secure = false, sourcePath = source, destinationPath = destination, cancellation = cancellation)
+            ConnectionProtocol.EXPLICIT_FTPS -> renameFtp(normalized, secure = true, sourcePath = source, destinationPath = destination, cancellation = cancellation)
+            ConnectionProtocol.SFTP -> renameSftp(normalized, sourcePath = source, destinationPath = destination, cancellation = cancellation)
+        }
+    }
+
     private fun listFtp(
         profile: ConnectionProfile,
         secure: Boolean,
@@ -308,13 +332,33 @@ class ConnectionController {
         cancellation: OperationCancellation
     ): TransferResult = withFtpClient(profile, secure, cancellation) { client ->
         cancellation.throwIfCanceled()
-        require(client.deleteFile(remoteFilePath)) {
-            "Delete failed for $remoteFilePath."
+        val deletedAsFile = client.deleteFile(remoteFilePath)
+        val deletedAsDirectory = !deletedAsFile && client.removeDirectory(remoteFilePath)
+        require(deletedAsFile || deletedAsDirectory) {
+            "Delete failed for $remoteFilePath. Non-empty folders are not removed recursively."
         }
         TransferResult(
-            title = "Remote file deleted",
+            title = if (deletedAsDirectory) "Remote folder deleted" else "Remote file deleted",
             detail = "Deleted $remoteFilePath.",
             remotePath = remoteFilePath
+        )
+    }
+
+    private fun renameFtp(
+        profile: ConnectionProfile,
+        secure: Boolean,
+        sourcePath: String,
+        destinationPath: String,
+        cancellation: OperationCancellation
+    ): TransferResult = withFtpClient(profile, secure, cancellation) { client ->
+        cancellation.throwIfCanceled()
+        require(client.rename(sourcePath, destinationPath)) {
+            "Rename failed from $sourcePath to $destinationPath."
+        }
+        TransferResult(
+            title = "Remote entry renamed",
+            detail = "Renamed $sourcePath to $destinationPath.",
+            remotePath = destinationPath
         )
     }
 
@@ -409,11 +453,33 @@ class ConnectionController {
         cancellation: OperationCancellation
     ): TransferResult = withSftpChannel(profile, cancellation) { channel ->
         cancellation.throwIfCanceled()
-        channel.rm(remoteFilePath)
+        val deletedAsDirectory = runCatching {
+            channel.rm(remoteFilePath)
+            false
+        }.getOrElse {
+            cancellation.throwIfCanceled()
+            channel.rmdir(remoteFilePath)
+            true
+        }
         TransferResult(
-            title = "Remote file deleted",
+            title = if (deletedAsDirectory) "Remote folder deleted" else "Remote file deleted",
             detail = "Deleted $remoteFilePath.",
             remotePath = remoteFilePath
+        )
+    }
+
+    private fun renameSftp(
+        profile: ConnectionProfile,
+        sourcePath: String,
+        destinationPath: String,
+        cancellation: OperationCancellation
+    ): TransferResult = withSftpChannel(profile, cancellation) { channel ->
+        cancellation.throwIfCanceled()
+        channel.rename(sourcePath, destinationPath)
+        TransferResult(
+            title = "Remote entry renamed",
+            detail = "Renamed $sourcePath to $destinationPath.",
+            remotePath = destinationPath
         )
     }
 

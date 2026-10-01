@@ -39,8 +39,8 @@
 
 ## Current status
 
-- **Active source/release cycle:** `0.20.7`.
-- **Previous canonical release:** `0.20.6`.
+- **Active source/release cycle:** `0.20.8`.
+- **Previous canonical release:** `0.20.7`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
@@ -56,7 +56,7 @@ FTP, explicit FTPS and SFTP with TLS/SSH verification, protected credential hand
 
 ### Files and transfers
 
-Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.20.1 transfer-worker race fix through 0.20.6 frontend bundle hardening remain in 0.20.7. The current patch adds compiler-level unused-local checks and an entrypoint-based source reachability gate so dead frontend code is detected and removed instead of accumulating.
+Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.20.1 transfer-worker race fix through 0.20.7 dead-code hardening remain in 0.20.8. The current patch strengthens cross-app action parity: Android now exposes a real Rename action, safe empty-folder deletion, working Settings controls and click-through regression coverage.
 
 ### Productivity
 

@@ -43,6 +43,8 @@ require_absent() {
 MAIN_ACTIVITY="$ANDROID_DIR/app/src/main/java/com/ghostftp/android/MainActivity.kt"
 CONNECTION_MODEL="$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ConnectionModel.kt"
 RELEASE_INFO="$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt"
+DESKTOP_ADAPTER="$ROOT/ghostftp-desktop/src/lib/fileUiAdapter.ts"
+DESKTOP_BROWSER="$ROOT/ghostftp-desktop/src/components/FileBrowser.tsx"
 
 require_text "product name" "$RELEASE_INFO" 'PRODUCT_NAME = "Ghost FTP"'
 require_text "brand" "$RELEASE_INFO" 'BRAND = "Brendigo"'
@@ -55,6 +57,11 @@ require_text "app label" "$ANDROID_DIR/app/src/main/res/values/strings.xml" '<st
 require_text "ftp protocol" "$CONNECTION_MODEL" 'FTP("FTP", 21)'
 require_text "ftps protocol" "$CONNECTION_MODEL" 'EXPLICIT_FTPS("Explicit FTPS", 21)'
 require_text "sftp protocol" "$CONNECTION_MODEL" 'SFTP("SFTP", 22)'
+require_text "desktop shared rename action" "$DESKTOP_ADAPTER" 'rename: (sessionId, from, to) => ipc.renamePath(sessionId, from, to)'
+require_text "desktop shared delete action" "$DESKTOP_ADAPTER" 'ipc.deletePath(sessionId, path, recursive)'
+require_text "desktop shared new-folder action" "$DESKTOP_ADAPTER" 'mkdir: (sessionId, path) => ipc.createDirectory(sessionId, path)'
+require_text "desktop shared upload action" "$DESKTOP_BROWSER" 'await enqueueUploads(serverSid, items, serverRemotePath)'
+require_text "desktop shared download action" "$DESKTOP_BROWSER" 'await enqueueDownloads(serverSid, entries.map(toTransferItem), dest)'
 
 require_text "desktop parity ghost mark" "$MAIN_ACTIVITY" 'GhostMarkView'
 require_text "left workspace navigation rail" "$MAIN_ACTIVITY" 'buildNavigationRail()'
@@ -78,6 +85,7 @@ require_text "desktop parity refresh toolbar" "$MAIN_ACTIVITY" 'toolbarButton("R
 require_text "desktop parity upload toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Upload")'
 require_text "desktop parity download toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Download")'
 require_text "desktop parity new folder toolbar" "$MAIN_ACTIVITY" 'toolbarButton("New Folder")'
+require_text "desktop parity rename toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Rename")'
 require_text "desktop parity delete toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Delete", destructive = true)'
 require_text "desktop parity ghost midnight background" "$MAIN_ACTIVITY" 'Color.rgb(13, 17, 23)'
 require_text "desktop parity ghost midnight accent" "$MAIN_ACTIVITY" 'Color.rgb(47, 129, 247)'
@@ -87,6 +95,10 @@ require_text "disconnect action" "$MAIN_ACTIVITY" 'secondaryButton("Disconnect")
 require_text "refresh action" "$MAIN_ACTIVITY" 'secondaryButton("Refresh")'
 require_text "upload pick action" "$MAIN_ACTIVITY" 'secondaryButton("Pick file")'
 require_text "upload action" "$MAIN_ACTIVITY" 'secondaryButton("Upload")'
+require_text "working Android Settings clear activity action" "$MAIN_ACTIVITY" 'contentDescription = "Clear activity log"'
+require_text "working Android Settings reset transfers action" "$MAIN_ACTIVITY" 'contentDescription = "Reset transfer fields"'
+require_text "working Android Settings reset connection action" "$MAIN_ACTIVITY" 'contentDescription = "Reset connection form"'
+require_text "working Android Settings disconnect action" "$MAIN_ACTIVITY" 'contentDescription = "Settings disconnect session"'
 require_text "Android document picker" "$MAIN_ACTIVITY" 'Intent.ACTION_OPEN_DOCUMENT'
 require_text "transfer state text" "$MAIN_ACTIVITY" 'transferStateText'
 require_text "destructive action confirmation" "$MAIN_ACTIVITY" 'confirmDestructiveRemoteAction'
@@ -135,7 +147,15 @@ require_text "download directory validation" "$CONNECTION_MODEL" 'parent.exists(
 require_text "upload operation" "$CONNECTION_MODEL" 'fun uploadRemote'
 require_text "upload stream ownership" "$CONNECTION_MODEL" '): TransferResult = input.use { source ->'
 require_text "delete operation" "$CONNECTION_MODEL" 'fun deleteRemoteFile'
+require_text "FTP empty-folder delete parity" "$CONNECTION_MODEL" 'client.removeDirectory(remoteFilePath)'
+require_text "SFTP empty-folder delete parity" "$CONNECTION_MODEL" 'channel.rmdir(remoteFilePath)'
 require_text "delete lifecycle cancellation" "$MAIN_ACTIVITY" 'controller.deleteRemoteFile(profile, remotePath, cancellation)'
+require_text "rename operation" "$CONNECTION_MODEL" 'fun renameRemote'
+require_text "FTP rename parity" "$CONNECTION_MODEL" 'client.rename(sourcePath, destinationPath)'
+require_text "SFTP rename parity" "$CONNECTION_MODEL" 'channel.rename(sourcePath, destinationPath)'
+require_text "rename lifecycle cancellation" "$MAIN_ACTIVITY" 'controller.renameRemote(profile, sourcePath, destinationPath, cancellation)'
+require_text "rename source root guard" "$CONNECTION_MODEL" 'Refusing to rename the remote root path.'
+require_text "rename destination root guard" "$CONNECTION_MODEL" 'Refusing to rename to the remote root path.'
 require_text "folder operation" "$CONNECTION_MODEL" 'fun createRemoteDirectory'
 require_text "folder lifecycle cancellation" "$MAIN_ACTIVITY" 'controller.createRemoteDirectory(profile, remoteTarget, cancellation)'
 require_text "FTP connect timeout" "$CONNECTION_MODEL" 'connectTimeout = CONNECT_TIMEOUT_MS'
@@ -211,6 +231,9 @@ require_text "preview process liveness gate" "$SMOKE_SCRIPT" 'PREVIEW_PID="$(adb
 require_text "ATD Bluetooth overlay handling" "$SMOKE_SCRIPT" 'Application Error: com.android.bluetooth'
 require_text "Activity recreation credential regression" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'Password must never survive Activity recreation.'
 require_text "exclusive workspace smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'workspacesAreExclusiveInsteadOfOneLongScreen'
+require_text "working action smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'transferAndSettingsActionsAreWiredClickByClick'
+require_text "rename smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" '"Rename"'
+require_text "Settings reset smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" '"Reset connection form"'
 require_absent "window-focus instrumentation dependency" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'hasWindowFocus()'
 require_absent "window-focus smoke gate" "$SMOKE_SCRIPT" 'Ghost FTP did not own the focused window after launch.'
 

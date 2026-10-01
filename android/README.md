@@ -2,70 +2,104 @@
 
 Native Android application for Ghost FTP.
 
-The Android app is aligned with the Windows and Linux Ghost FTP product identity:
+## Product identity
 
 - Product: Ghost FTP
 - Brand: Brendigo
-- Version: 2.1.1-rc.23
-- Display: 2.1.1 RC23
-- Build: 2026.09.25.23
+- Active source/release cycle: 0.20.8
+- Previous canonical release: 0.20.7
+- Version source of truth: ../version.json
+- Release identity is rendered from `ReleaseInfo.kt`; this document does not carry an independent version badge.
 
-## Android surface
+## Android workspaces
 
-The Android surface uses a mobile version of the desktop Ghost FTP shell:
+The Android application uses the same primary product vocabulary as the Windows/Linux application:
 
-- Ghost mark and Ghost FTP wordmark.
-- RC23 badge.
-- `Files` workspace label.
-- Desktop-aligned toolbar actions: Refresh, Upload, Download, New Folder and Delete.
-- `Sites` card for FTP, explicit FTPS and SFTP endpoint control.
-- SFTP host key fingerprint field for explicit server identity verification.
-- `Files` card for the current remote listing.
-- Tap-to-open remote folders and tap-to-select remote files.
-- `Transfers` card for the selected remote file, upload target and folder target.
-- Android document picker upload flow.
-- Android download storage for received files.
-- Transfer-state text for the last selected, running, completed or failed operation.
-- Bounded activity log so long sessions keep a stable mobile layout.
-- Brendigo footer.
-- Passwords kept in memory only for the active session and cleared on disconnect.
-- No analytics, telemetry or required account sign-in.
+- **Files** — remote listing, folder navigation and remote-entry selection.
+- **Sites** — FTP, explicit FTPS and SFTP connection form.
+- **Transfers** — selected remote entry, upload target, folder creation and rename target.
+- **Settings** — working session/privacy controls.
+- **Help & About** — product, protocol and verified-release information.
+
+Only the active workspace is visible. Workspace state can survive Activity recreation, while passwords and authenticated sessions never do.
+
+## Shared working actions
+
+The Android action surface is backed by real protocol operations:
+
+- Refresh the active remote listing.
+- Upload a selected Android document.
+- Download a selected remote file.
+- Create a remote folder.
+- Rename a remote file or folder.
+- Delete a remote file or an empty remote folder.
+- Connect and disconnect FTP, explicit FTPS and SFTP sessions.
+
+Normal tap opens a remote folder. Long-press selects a folder for rename/delete without changing the current folder first.
+
+Non-empty folders are not deleted recursively. Root-path delete and rename are blocked.
+
+## Settings actions
+
+Android Settings is an actionable workspace, not an informational placeholder:
+
+- **Clear Activity** removes the bounded session activity log.
+- **Reset Transfers** clears transfer/rename targets and the selected local upload document.
+- **Reset Connection** disconnects, clears the connection form and restores FTP/port 21 plus remote path `/`.
+- **Disconnect** cancels the active operation and clears the authenticated in-memory session.
 
 ## Protocol support
 
-The Android app uses native protocol clients:
+### FTP
 
-- FTP remote login, folder listing, download, upload, file delete and folder creation.
-- Explicit FTPS remote login, protected data-channel listing, download, upload, file delete and folder creation.
-- SFTP remote login, folder listing, download, upload, file delete and folder creation with SHA-256 host key fingerprint verification.
+- Login and remote folder listing.
+- Passive binary transfer mode.
+- Upload/download.
+- File delete and empty-folder delete.
+- Folder creation.
+- Rename.
+- Connect/default/data timeouts.
+- Logout/disconnect cleanup.
 
-Credentials are passed only into the active connection or transfer action. The app does not add telemetry, accounts or password persistence.
+### Explicit FTPS
 
-## Production safeguards
+- FTP behavior above over explicit TLS.
+- `PBSZ 0` and `PROT P` protected data channel.
+- Upload/download, create, rename, file delete and empty-folder delete.
 
-RC23 locks the production protocol behavior in the Android contract:
+### SFTP
 
-- FTP and explicit FTPS use connect/default/data timeouts.
-- FTP and explicit FTPS require login success before file actions.
-- FTP and explicit FTPS use passive mode and binary file transfers.
-- Explicit FTPS uses `PBSZ 0` and protected data channel mode `PROT P`.
-- FTP/FTPS sessions always attempt logout and disconnect cleanup.
-- SFTP requires a SHA-256 host key fingerprint, strict host-key checking and session/channel timeouts.
-- SFTP channels and sessions are cleaned up after each action.
-- Host input is normalized through IDN handling before connecting.
+- Strict host-key checking with required SHA-256 fingerprint.
+- Folder listing.
+- Upload/download.
+- File delete and empty-folder delete.
+- Folder creation.
+- Rename.
+- Session/channel timeout and cleanup.
 
-## Safety UX
+## Transfer safety
 
-The Android transfer surface includes guarded actions for higher-risk operations:
+- Uploads are staged to a temporary remote path and promoted after completion.
+- Downloads are staged locally and promoted only after completion.
+- Lifecycle/disconnect cancellation propagates through active operations.
+- Upload streams are closed at the controller ownership boundary.
+- Relative targets are resolved from the current remote folder.
+- `.` and `..` target segments are rejected.
+- Delete and rename refuse the remote root path.
+- Upload and destructive actions require explicit confirmation where applicable.
+- Mutating operations refresh the remote listing after success.
+- The activity log is capped by `MAX_ACTIVITY_ROWS`.
 
-- Delete requires an explicit confirmation dialog before the server action runs.
-- Upload shows the selected local file and asks for confirmation before writing to the remote target.
-- Upload, Delete and New Folder refresh the current Files listing after success.
-- Relative remote targets are resolved from the current remote folder.
-- Remote targets containing `.` or `..` path segments are rejected before a transfer action starts.
-- The activity log is capped by `MAX_ACTIVITY_ROWS` so repeated actions do not expand the mobile layout without limit.
+## Privacy and credentials
 
-## Build
+- No required analytics or telemetry.
+- No required Ghost FTP account.
+- Passwords stay in memory only for the active session.
+- Passwords are cleared on disconnect and Activity destruction.
+- Android view-state persistence is disabled for the password field.
+- Non-secret form/transfer state can survive Activity recreation.
+
+## Build and QA
 
 From the repository root:
 
@@ -73,51 +107,25 @@ From the repository root:
 gradle -p android lintDebug lintRelease assembleDebug assembleRelease
 ```
 
-The pull-request Android workflow runs the Android contract, both lint variants and both APK builds. It uploads installable RC23 APK artifacts and checksums for review.
+Release-relevant CI additionally runs:
 
-RC23 Android lint validates minSdk 26 compatibility. API 27+ navigation-bar light/dark behavior is kept in the `values-v27` resource override so the base theme remains valid for Android 8.0 devices.
+- `android/scripts/check-android-contract.sh`
+- Android lint for debug/release
+- debug/release APK builds
+- emulator click-through instrumentation smoke
+- exact-SHA artifact packaging for the canonical release workflow
 
-## Release rule without external keys
+The contract requires the working shared action surface, rename backends for FTP/FTPS/SFTP, empty-folder delete support, Settings controls, lifecycle safety rules and smoke coverage.
 
-Every GitHub release must include an Android APK asset. The RC23 release workflow must download the verified Android workflow artifact for the same release source commit and publish it as `GhostFTP-Android-v2.1.1-RC23.apk` together with the Windows, Linux and checksum assets.
+## Release artifacts
 
-No repository keystore, GitHub secret or manual signing key is required for this release path.
+Canonical release naming:
 
-For long-term Android upgrade continuity, a stable signing key can be introduced later. Without a stable saved signing key, Android may treat APKs from different release runs as separately signed builds.
+- `GhostFTP-Android-v<version>.apk.unsigned` — unsigned production output used for release verification.
+- `GhostFTP-Android-v<version>-Installable-Preview.apk` — release-optimized, non-debuggable installable CI preview using the isolated `com.ghostftp.android.preview` application id.
 
-## Completion checklist
+The preview signing identity is intentionally ephemeral. A persistent production upgrade identity requires a persistent signing key and is never silently simulated by the keyless CI workflow.
 
-Before treating the Android app as release-ready, confirm:
+## Completion gate
 
-- FTP, explicit FTPS and SFTP can list a remote path.
-- The top shell shows Ghost mark, Ghost FTP wordmark, RC23 badge and the `Files` workspace.
-- Toolbar action names match desktop: Refresh, Upload, Download, New Folder and Delete.
-- Tapping a folder opens that remote path.
-- Tapping a file selects it for transfer actions.
-- Download saves into Android downloads.
-- Upload uses the Android document picker and writes to the selected remote target after confirmation.
-- Delete requires confirmation and returns a clear success or failure state.
-- New Folder returns a clear success or failure state and refreshes the remote listing.
-- Unsafe remote target paths with `.` or `..` segments are rejected.
-- FTP/FTPS binary passive transfers remain enforced.
-- Explicit FTPS protected data channel remains enforced.
-- SFTP strict host-key checking remains active.
-- Password is cleared on disconnect.
-
-
-## Installable CI preview
-
-For direct device installation, use the artifact named
-`GhostFTP-Android-v<version>-Installable-Preview.apk`. It is built from the
-release-optimized configuration, is non-debuggable, is signed with Gradle's
-ephemeral debug signing identity, and uses the isolated application id
-`com.ghostftp.android.preview`.
-
-The `*-Release-Unsigned.apk.unsigned` file is intentionally unsigned and is
-kept only to verify the keyless production output. Android will not install
-that file, and Ghost FTP must never present it as the primary installable APK.
-
-Because the preview signing key is intentionally ephemeral, replacing an older
-preview from another CI runner can require uninstalling that prior preview
-first. A persistent production upgrade identity requires a persistent signing
-key and is not silently simulated by this keyless workflow.
+An Android release candidate is not accepted merely because it compiles. The exact release SHA must pass the Android production contract, lint/build, emulator click-through smoke and the repository-wide release gates before the canonical GitHub Release can be published.

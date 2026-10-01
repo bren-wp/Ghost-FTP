@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.20.7 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.20.8 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.20.6**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.20.7**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -23,6 +23,15 @@ Previous canonical release: **0.20.6**. Live publication state is determined fro
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
 
 Full capability detail: [FEATURES.md](FEATURES.md).
+
+## 0.20.8 cross-app action parity hardening in source
+
+- Android Rename is protocol-backed for FTP, explicit FTPS and SFTP.
+- Android Delete handles remote files and empty remote folders while refusing recursive folder deletion.
+- Long-pressing a folder selects it for transfer actions without changing the current folder first.
+- Android Settings now contains working Clear Activity, Reset Transfers, Reset Connection and Disconnect actions.
+- Emulator smoke and the production contract enforce the new actions so dead UI cannot silently ship.
+- Password/session secrecy rules remain unchanged across Activity recreation and disconnect.
 
 ## 0.20.7 dead-code and reachability hardening in source
 

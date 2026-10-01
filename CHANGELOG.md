@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.20.8 — cross-app action parity hardening — 1 October 2026
+
+0.20.8 follows published 0.20.7 with Android action parity and stronger click-through enforcement.
+
+- Adds remote Rename on Android for FTP, explicit FTPS and SFTP using the real protocol clients.
+- Expands Android Delete to remove either a remote file or an empty remote folder; non-empty folders are never removed recursively.
+- Adds long-press folder selection so directory rename/delete actions can target a folder without navigating into it first.
+- Replaces the informational-only Android Settings workspace with working Clear Activity, Reset Transfers, Reset Connection and Disconnect controls.
+- Persists the non-secret rename target across Activity recreation while continuing to clear passwords and authenticated session state.
+- Expands instrumentation smoke coverage and the Android production contract so these actions cannot silently regress into dead UI.
+
+See [docs/releases/0.20.8.md](docs/releases/0.20.8.md).
+
 ## 0.20.7 — dead-code and source-reachability hardening — 1 October 2026
 
 0.20.7 follows published 0.20.6 with repository-wide TypeScript dead-code enforcement and source reachability checks.
