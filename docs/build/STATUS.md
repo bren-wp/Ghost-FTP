@@ -2,8 +2,8 @@
 
 ## Authoritative current state
 
-- **Active source/release cycle:** Ghost FTP **0.20.7**.
-- **Previous canonical release:** Ghost FTP **0.20.6**.
+- **Active source/release cycle:** Ghost FTP **0.20.8**.
+- **Previous canonical release:** Ghost FTP **0.20.7**.
 - **Live publication status:** GitHub Releases is authoritative and queried by CI.
 - **Version source of truth:** `version.json`.
 - **Desktop production source:** `ghostftp-desktop/`.
@@ -23,6 +23,12 @@ The production desktop GUI is the native React + TypeScript + Tauri + Rust appli
 - Dependency-manifest Cargo lock refresh: `.github/workflows/cargo-lock-refresh.yml`
 
 The obsolete duplicate Windows/Linux native build workflow and website application surface have been removed. The canonical native build now supplies both release binaries and Windows native-window QA evidence. Android runs on every release-relevant PR and every `main` push and includes an emulator click-through smoke.
+
+## 0.20.8 cross-app action parity hardening
+
+Android now exposes real protocol-backed Rename for FTP, explicit FTPS and SFTP, safe deletion of files or empty folders, and working Settings actions instead of an informational-only Settings surface. Folder rows support long-press selection so folder rename/delete actions can target a directory without navigating into it.
+
+The Android production contract and emulator smoke now require the shared action surface and Settings controls to remain wired and clickable. Non-secret rename state survives Activity recreation; passwords and authenticated sessions still do not.
 
 ## 0.20.7 dead-code and source-reachability hardening
 
