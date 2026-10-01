@@ -14,6 +14,7 @@ import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.OpenableColumns
@@ -21,6 +22,7 @@ import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -87,9 +89,16 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         activityClosing = false
-        window.statusBarColor = Brand.background
-        window.navigationBarColor = Brand.background
-        setContentView(buildContent())
+        val content = buildContent()
+        if (Build.VERSION.SDK_INT >= 35) {
+            content.setOnApplyWindowInsetsListener { view, insets ->
+                val bars = insets.getInsets(WindowInsets.Type.systemBars())
+                view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                insets
+            }
+        }
+        setContentView(content)
+        if (Build.VERSION.SDK_INT >= 35) content.requestApplyInsets()
         showIdleState()
         if (savedInstanceState != null) restoreUiState(savedInstanceState)
     }
