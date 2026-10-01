@@ -5,7 +5,7 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 ## Rules
 
 - Root `version.json` is the single source of truth for the active product version/build metadata.
-- A meaningful new development/feature cycle advances the minor component: `0.18.0 → 0.19.0 → 0.20.0`.
+- A meaningful new development/feature cycle may advance to a later SemVer line chosen for the planned scope. CI requires the new version to be strictly newer than the base release and `previousVersion` to identify that exact published base.
 - A hotfix to an already published release advances the patch component.
 - Meaningful fixes may remain within an already-active unpublished development version; version-only commits are not required.
 - Once a version tag is published, that tag is immutable and may not be retargeted to newer source.
@@ -16,8 +16,8 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
 ## Current cycle
 
-- Active source/release cycle: **0.20.10**
-- Previous canonical release: **0.20.9**
+- Active source/release cycle: **0.30.1**
+- Previous canonical release: **0.20.10**
 - Live publication state: GitHub Releases is authoritative.
 
 ## Published-history migration
