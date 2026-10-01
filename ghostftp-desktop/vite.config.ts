@@ -1,14 +1,16 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const host = process.env.TAURI_DEV_HOST;
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(() => ({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
+      "@": path.resolve(rootDir, "src"),
       // Consume the workspace package straight from its TS source during dev —
       // edit a component once and both the app and the package see it instantly.
       "@ghostftp/file-ui": path.resolve(
