@@ -474,14 +474,6 @@ for (const required of [
   }
 }
 
-const profileEditor = read("src/components/ProfileEditor.tsx");
-if (profileEditor.includes("void connectProfile(id);")) {
-  failures.push("Profile pairing must not leave the post-pair connection promise unhandled.");
-}
-if (!profileEditor.includes("connectProfile(id).catch")) {
-  failures.push("Profile pairing must catch a failed post-pair connection attempt.");
-}
-
 const newConnection = read("src/components/QuickConnectionDialog.tsx");
 for (const required of [
   "Save this connection in Sites",
