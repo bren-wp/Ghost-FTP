@@ -686,7 +686,7 @@ class ConnectionController {
         }
     }
 
-    private fun normalizedProfile(profile: ConnectionProfile): ConnectionProfile {
+    internal fun normalizedProfile(profile: ConnectionProfile): ConnectionProfile {
         val normalizedHost = normalizeHost(profile.host)
         require(normalizedHost.isNotBlank()) { "Host is required." }
         require(profile.port in 1..65535) { "Port must be between 1 and 65535." }
@@ -696,7 +696,7 @@ class ConnectionController {
         )
     }
 
-    private fun normalizeHost(input: String): String {
+    internal fun normalizeHost(input: String): String {
         var value = input.trim()
         if (value.isBlank()) return ""
 
@@ -727,22 +727,22 @@ class ConnectionController {
         return if (':' in host) host else IDN.toASCII(host)
     }
 
-    private fun normalizeRemoteDirectory(input: String): String {
+    internal fun normalizeRemoteDirectory(input: String): String {
         val value = input.trim().ifBlank { "/" }
-        return if (value.startsWith('/')) value else "/$value"
-    }
-
-    private fun normalizeRemoteTarget(input: String): String {
-        val value = input.trim()
-        require(value.isNotBlank()) { "Remote path is required." }
         val target = if (value.startsWith('/')) value else "/$value"
-        require(target.split('/').filter { it.isNotBlank() }.none { it == "." || it == ".." }) {
-            "Remote path must not contain dot path segments."
-        }
+        requireSafeRemoteSegments(target)
         return target
     }
 
-    private fun normalizeRemoteDeleteTarget(input: String): String {
+    internal fun normalizeRemoteTarget(input: String): String {
+        val value = input.trim()
+        require(value.isNotBlank()) { "Remote path is required." }
+        val target = if (value.startsWith('/')) value else "/$value"
+        requireSafeRemoteSegments(target)
+        return target
+    }
+
+    internal fun normalizeRemoteDeleteTarget(input: String): String {
         val target = normalizeRemoteTarget(input)
         require(target.split('/').any { it.isNotBlank() }) {
             "Refusing to delete the remote root path."
@@ -750,10 +750,16 @@ class ConnectionController {
         return target
     }
 
-    private fun joinRemotePath(directory: String, child: String): String {
+    internal fun joinRemotePath(directory: String, child: String): String {
         val safeChild = child.trim().trimStart('/')
         val base = directory.ifBlank { "/" }.trimEnd('/')
         return if (base.isBlank()) "/$safeChild" else "$base/$safeChild"
+    }
+
+    private fun requireSafeRemoteSegments(path: String) {
+        require(path.split('/').filter { it.isNotBlank() }.none { it == "." || it == ".." }) {
+            "Remote path must not contain dot path segments."
+        }
     }
 
     private fun redactHost(host: String): String {
