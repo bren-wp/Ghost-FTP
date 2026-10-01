@@ -144,6 +144,9 @@ requireIncludes(
     "disabled={!cancelable}",
     "role=\"menuitem\"",
     "disabled={scheduleMode === \"off\" || !selected}",
+    "Export History…",
+    "void exportTransferHistory();",
+    "const count = await exportHistory(path);",
   ],
   "transfer-row and scheduler button contracts"
 );
