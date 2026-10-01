@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.20.6 — frontend bundle-size hardening — 1 October 2026
+
+0.20.6 follows published 0.20.5 with measurable desktop frontend bundle-size hardening.
+
+- Replaced the eager full Material Icon Theme manifest and ~900-icon glob with a curated offline icon set for common development, document, media, archive and creative file types.
+- Preserved Ghost FTP's existing Lucide fallback for file types outside the curated branded set.
+- Split file-browser, i18n and generated brand-icon data into dedicated stable production chunks instead of keeping them in the main application chunk.
+- Added a hard production JavaScript bundle budget: any emitted JS chunk above 500 KiB fails the desktop build instead of only producing a Vite warning.
+- Kept all file icons local to the application; no runtime icon network requests were introduced.
+
+See [docs/releases/0.20.6.md](docs/releases/0.20.6.md).
+
 ## 0.20.5 — Android API and edge-to-edge hardening — 1 October 2026
 
 0.20.5 follows published 0.20.4 with Android 15 system-bar compatibility and SFTP credential API hardening.
