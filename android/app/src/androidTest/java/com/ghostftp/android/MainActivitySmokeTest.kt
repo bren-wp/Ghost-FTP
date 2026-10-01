@@ -46,7 +46,7 @@ class MainActivitySmokeTest {
     fun primaryWorkspaceAndToolbarRender() {
         assertTextPresent("Ghost FTP")
         assertDescriptionPresent("Open Files workspace")
-        for (label in listOf("Refresh", "Upload", "Download", "New Folder", "Delete")) {
+        for (label in listOf("Refresh", "Upload", "Download", "New Folder", "Rename", "Delete")) {
             assertDescriptionPresent("$label action")
         }
     }
@@ -61,6 +61,10 @@ class MainActivitySmokeTest {
 
         clickByDescription("Open Settings workspace")
         assertTextVisibleInViewport("No required tracking, analytics or telemetry.")
+        assertDescriptionPresent("Clear activity log")
+        assertDescriptionPresent("Reset transfer fields")
+        assertDescriptionPresent("Reset connection form")
+        assertDescriptionPresent("Settings disconnect session")
 
         clickByDescription("Open Help & About workspace")
         assertTextVisibleInViewport("Ghost FTP by Brendigo")
@@ -84,7 +88,7 @@ class MainActivitySmokeTest {
 
     @Test
     fun guardedFileActionsRequireActiveSession() {
-        for (label in listOf("Download", "New Folder", "Delete")) {
+        for (label in listOf("Download", "New Folder", "Rename", "Delete")) {
             clickByDescription("$label action")
             assertTextPresent("Connect first")
 
@@ -92,6 +96,28 @@ class MainActivitySmokeTest {
             clickByDescription("Disconnect from server")
             assertTextPresent("Ready")
         }
+    }
+
+    @Test
+    fun transferAndSettingsActionsAreWiredClickByClick() {
+        clickByDescription("Open Transfers workspace")
+        assertDescriptionPresent("Pick upload file")
+        assertDescriptionPresent("Upload selected file")
+        clickByDescription("Upload selected file")
+        assertTextPresent("Connect first")
+
+        clickByDescription("Open Settings workspace")
+        clickByDescription("Clear activity log")
+        assertTextPresent("Activity log cleared.")
+
+        clickByDescription("Reset transfer fields")
+        assertTextPresent("Transfer fields reset.")
+
+        clickByDescription("Reset connection form")
+        assertTextPresent("Connection form reset.")
+
+        clickByDescription("Settings disconnect session")
+        assertTextPresent("Ready")
     }
 
     @Test
@@ -121,13 +147,18 @@ class MainActivitySmokeTest {
             val password = findView(activity.window.decorView) {
                 it is EditText && it.hint?.toString() == "Password"
             } as? EditText
+            val renameTarget = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "New remote name or path"
+            } as? EditText
 
             assertNotNull("Host input missing", host)
             assertNotNull("Username input missing", username)
             assertNotNull("Password input missing", password)
+            assertNotNull("Rename target input missing", renameTarget)
             host!!.setText("ftp.lifecycle.test")
             username!!.setText("ghost-user")
             password!!.setText("must-not-survive")
+            renameTarget!!.setText("renamed.txt")
         }
 
         scenario.recreate()
@@ -144,9 +175,13 @@ class MainActivitySmokeTest {
             val password = findView(activity.window.decorView) {
                 it is EditText && it.hint?.toString() == "Password"
             } as EditText
+            val renameTarget = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "New remote name or path"
+            } as EditText
 
             assertEquals("ftp.lifecycle.test", host.text.toString())
             assertEquals("ghost-user", username.text.toString())
+            assertEquals("renamed.txt", renameTarget.text.toString())
             assertTrue("Password must never survive Activity recreation.", password.text.isEmpty())
         }
         assertTextPresent("Android restored non-secret workspace state. Reconnect to authenticate before remote actions.")
