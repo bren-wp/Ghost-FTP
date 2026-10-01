@@ -56,7 +56,7 @@ FTP, explicit FTPS and SFTP with TLS/SSH verification, protected credential hand
 
 ### Files and transfers
 
-Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.20.9 development line adds a real CSV transfer-history export through UI → state → IPC → Rust backend, while stable publication now fails closed unless the signed desktop updater artifacts and verified manifest/package are present.
+Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.20.9 development line adds a real CSV transfer-history export through UI → state → IPC → Rust backend. Stable GitHub packages do not require private updater keys; signed in-app updater assets are published only when the complete verified signature/manifest/package set exists.
 
 ### Productivity
 
