@@ -1,3 +1,13 @@
+## 0.20.10 — protocol edge cases and conflict safety — 2 October 2026
+
+0.20.10 follows published 0.20.9 with real protocol edge-case coverage and stricter fail-closed conflict handling.
+
+- Adds zero-byte, Unicode remote-name and permission-denied FTP/FTPS/SFTP E2E coverage.
+- Proves changed SFTP host keys are surfaced as mismatches, rejected by default and replaced only after explicit trust.
+- Expands pause/resume coverage to a non-aligned multi-MiB payload spanning repeated chunk boundaries.
+- Fixes remote conflict rename semantics for dotfiles and Windows-style paths.
+- Prevents exhausted Rename candidate searches from falling back to a colliding existing path.
+
 ## 0.20.9 — transfer history and release/updater hardening — 1 October 2026
 
 0.20.9 follows published 0.20.8 with a real transfer-history export and hardened release/updater publication.
