@@ -51,16 +51,16 @@ For version `<version>`:
 
 ### Signed desktop updater assets
 
-For `channel: stable`, publication requires all four updater assets below:
+When in-app updater signing is enabled, publication requires all four updater assets below:
 
 - `GhostFTP-Windows-x64-Setup-v<version>.exe.sig`
 - `GhostFTP-Linux-x86_64-v<version>.AppImage.sig`
 - `GhostFTP-v<version>-latest.json`
 - `GhostFTP-v<version>-Update-Service.zip`
 
-The stable release workflow and the final publication script both fail closed before a tag/release can be created or updated if any of these files are missing. The manifest is validated for the exact version, and the copy packaged inside Update-Service must match the separately published manifest byte-for-byte.
+The release workflow and final publication script fail closed if this optional updater set is partial or inconsistent. The manifest is validated for the exact version, and the copy packaged inside Update-Service must match the separately published manifest byte-for-byte.
 
-Preview/CI builds may omit signed updater assets only when they are explicitly non-stable. Normal application packages can still be produced for QA, but they are not eligible for stable publication without the updater proof.
+If no updater signatures are present, the stable GitHub release may still publish the normal verified application packages, checksums and QA evidence. In that mode no updater manifest or Update-Service bundle is emitted.
 
 ### Source/documentation
 
