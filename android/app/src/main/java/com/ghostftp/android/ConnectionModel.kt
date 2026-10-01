@@ -4,6 +4,7 @@ import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.HostKey
 import com.jcraft.jsch.HostKeyRepository
 import com.jcraft.jsch.JSch
+import com.jcraft.jsch.SftpException
 import com.jcraft.jsch.UserInfo
 import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
@@ -293,11 +294,25 @@ class ConnectionController {
             cancellation.throwIfCanceled()
 
             // Preserve an existing target until the complete temporary upload is
-            // known-good. If the target does not exist, the backup rename simply
-            // returns false and the temporary file can be promoted directly.
-            backupCreated = runCatching { client.rename(remoteFilePath, backupPath) }
-                .getOrDefault(false)
+            // known-good. Absence must be proven by a successful parent listing;
+            // a failed backup rename is never treated as "target missing".
+            if (ftpRemoteTargetExists(client, remoteFilePath)) {
+                if (!client.rename(remoteFilePath, backupPath)) {
+                    throw IOException(
+                        "Upload completed but could not preserve the existing remote file before replacement."
+                    )
+                }
+                backupCreated = true
+            }
             cancellation.throwIfCanceled()
+
+            // Re-check the absent-target case so a file that appeared while the
+            // upload was in progress is not silently overwritten.
+            if (!backupCreated && ftpRemoteTargetExists(client, remoteFilePath)) {
+                throw IOException(
+                    "Remote upload target appeared during transfer; refusing to overwrite it."
+                )
+            }
 
             if (!client.rename(temporaryPath, remoteFilePath)) {
                 if (backupCreated) {
@@ -413,11 +428,24 @@ class ConnectionController {
             }
             cancellation.throwIfCanceled()
 
-            backupCreated = runCatching {
-                channel.rename(remoteFilePath, backupPath)
-                true
-            }.getOrDefault(false)
+            if (sftpRemoteTargetExists(channel, remoteFilePath)) {
+                try {
+                    channel.rename(remoteFilePath, backupPath)
+                    backupCreated = true
+                } catch (error: Throwable) {
+                    throw IOException(
+                        "Upload completed but could not preserve the existing remote file before replacement.",
+                        error
+                    )
+                }
+            }
             cancellation.throwIfCanceled()
+
+            if (!backupCreated && sftpRemoteTargetExists(channel, remoteFilePath)) {
+                throw IOException(
+                    "Remote upload target appeared during transfer; refusing to overwrite it."
+                )
+            }
 
             try {
                 channel.rename(temporaryPath, remoteFilePath)
@@ -619,6 +647,52 @@ class ConnectionController {
         val slash = target.lastIndexOf('/')
         val parent = if (slash >= 0) target.substring(0, slash + 1) else ""
         return "$parent.ghostftp-$purpose-${UUID.randomUUID()}.part"
+    }
+
+    internal fun remoteParentAndName(target: String): Pair<String, String> {
+        val slash = target.lastIndexOf('/')
+        val parent = when {
+            slash < 0 -> "/"
+            slash == 0 -> "/"
+            else -> target.substring(0, slash)
+        }
+        val name = target.substring(slash + 1)
+        require(name.isNotBlank()) { "Remote file name is required." }
+        return parent to name
+    }
+
+    private fun ftpRemoteTargetExists(client: FTPClient, remoteFilePath: String): Boolean {
+        val (parent, name) = remoteParentAndName(remoteFilePath)
+        val entries = client.listFiles(parent)
+        if (!FTPReply.isPositiveCompletion(client.replyCode)) {
+            throw IOException(
+                "Unable to verify the existing remote upload target before replacement."
+            )
+        }
+        val target = entries.firstOrNull { it.name == name } ?: return false
+        if (!target.isFile) {
+            throw IOException("Remote upload target is not a regular file: $remoteFilePath")
+        }
+        return true
+    }
+
+    private fun sftpRemoteTargetExists(channel: ChannelSftp, remoteFilePath: String): Boolean {
+        return try {
+            val attrs = channel.lstat(remoteFilePath)
+            if (attrs.isDir || attrs.isLink) {
+                throw IOException("Remote upload target is not a regular file: $remoteFilePath")
+            }
+            true
+        } catch (error: SftpException) {
+            if (error.id == ChannelSftp.SSH_FX_NO_SUCH_FILE) {
+                false
+            } else {
+                throw IOException(
+                    "Unable to verify the existing remote upload target before replacement.",
+                    error
+                )
+            }
+        }
     }
 
     private fun copyCancelable(
