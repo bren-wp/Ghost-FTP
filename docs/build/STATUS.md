@@ -2,8 +2,8 @@
 
 ## Authoritative current state
 
-- **Active source/release cycle:** Ghost FTP **0.20.5**.
-- **Previous canonical release:** Ghost FTP **0.20.4**.
+- **Active source/release cycle:** Ghost FTP **0.20.6**.
+- **Previous canonical release:** Ghost FTP **0.20.5**.
 - **Live publication status:** GitHub Releases is authoritative and queried by CI.
 - **Version source of truth:** `version.json`.
 - **Desktop production source:** `ghostftp-desktop/`.
@@ -23,6 +23,12 @@ The production desktop GUI is the native React + TypeScript + Tauri + Rust appli
 - Dependency-manifest Cargo lock refresh: `.github/workflows/cargo-lock-refresh.yml`
 
 The obsolete duplicate Windows/Linux native build workflow and website application surface have been removed. The canonical native build now supplies both release binaries and Windows native-window QA evidence. Android runs on every release-relevant PR and every `main` push and includes an emulator click-through smoke.
+
+## 0.20.6 frontend bundle-size hardening
+
+Desktop production builds no longer eager-bundle the complete Material Icon Theme catalog. Ghost FTP ships an explicit offline subset for common file types and uses the existing Lucide fallback for unmatched files. File-browser, i18n and generated brand-icon data are emitted as dedicated chunks.
+
+Every production desktop build now runs a post-build JavaScript budget check and fails if any emitted JS chunk exceeds 500 KiB.
 
 ## 0.20.5 Android API hardening
 
