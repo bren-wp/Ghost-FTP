@@ -315,9 +315,6 @@ class ConnectionController {
             }
 
             if (!client.rename(temporaryPath, remoteFilePath)) {
-                if (backupCreated) {
-                    runCatching { client.rename(backupPath, remoteFilePath) }
-                }
                 throw IOException("Upload completed but could not promote the temporary file to $remoteFilePath.")
             }
             if (backupCreated) {
@@ -329,7 +326,17 @@ class ConnectionController {
             }
             runCatching { if (client.isConnected) client.deleteFile(temporaryPath) }
             if (backupCreated) {
-                runCatching { if (client.isConnected) client.rename(backupPath, remoteFilePath) }
+                val restored = runCatching {
+                    client.isConnected && client.rename(backupPath, remoteFilePath)
+                }.getOrDefault(false)
+                if (!restored) {
+                    val recoveryError = IOException(
+                        "Upload failed and the original remote file could not be restored automatically. " +
+                            "Original remote file preserved at $backupPath for manual recovery."
+                    )
+                    recoveryError.addSuppressed(error)
+                    throw recoveryError
+                }
             }
             throw error
         }
@@ -450,9 +457,6 @@ class ConnectionController {
             try {
                 channel.rename(temporaryPath, remoteFilePath)
             } catch (error: Throwable) {
-                if (backupCreated) {
-                    runCatching { channel.rename(backupPath, remoteFilePath) }
-                }
                 throw IOException(
                     "Upload completed but could not promote the temporary file to $remoteFilePath.",
                     error
@@ -464,7 +468,18 @@ class ConnectionController {
         } catch (error: Throwable) {
             runCatching { channel.rm(temporaryPath) }
             if (backupCreated) {
-                runCatching { channel.rename(backupPath, remoteFilePath) }
+                val restored = runCatching {
+                    channel.rename(backupPath, remoteFilePath)
+                    true
+                }.getOrDefault(false)
+                if (!restored) {
+                    val recoveryError = IOException(
+                        "Upload failed and the original remote file could not be restored automatically. " +
+                            "Original remote file preserved at $backupPath for manual recovery."
+                    )
+                    recoveryError.addSuppressed(error)
+                    throw recoveryError
+                }
             }
             throw error
         }
