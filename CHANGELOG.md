@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.20.5 — Android API and edge-to-edge hardening — 1 October 2026
+
+0.20.5 follows published 0.20.4 with Android 15 system-bar compatibility and SFTP credential API hardening.
+
+- Replaced the deprecated JSch String password setter with the byte-array API and zeroed the temporary UTF-8 password buffer immediately after JSch copied it.
+- Removed direct deprecated Android status/navigation bar color assignments from the Activity.
+- Added Android 15 system-bar inset handling so the programmatic root layout remains clear of enforced edge-to-edge system UI on API 35+.
+- Added an API 35 theme override that keeps Ghost FTP's dark system-bar icon contract without deprecated status/navigation bar color attributes.
+- Added Android production-contract checks that reject reintroduction of deprecated SFTP password and system-bar APIs.
+- Preserved the existing FTP/FTPS/SFTP behavior, Android emulator click-through smoke, clean install/reinstall checks and exact-SHA release gates.
+
+See [docs/releases/0.20.5.md](docs/releases/0.20.5.md).
+
 ## 0.20.4 — CI runtime and build-config hardening — 1 October 2026
 
 0.20.4 follows published 0.20.3 with CI runtime modernization and build-configuration cleanup.
