@@ -360,10 +360,13 @@ fn basename(path: &str) -> String {
     path.rsplit(['/', '\\']).next().unwrap_or(path).to_string()
 }
 
-/// Append _1, _2, … to the stem until a free local path is found.
-fn resolve_local_rename(path: &Path) -> PathBuf {
+const MAX_RENAME_CANDIDATES: usize = 999;
+
+/// Append _1, _2, … to the stem until a free local path is found. Never fall
+/// back to the colliding original path: Rename must not silently become Overwrite.
+fn resolve_local_rename(path: &Path) -> Result<PathBuf> {
     if !path.exists() {
-        return path.to_path_buf();
+        return Ok(path.to_path_buf());
     }
     let parent = path.parent().unwrap_or(Path::new("."));
     let stem = path
@@ -374,31 +377,36 @@ fn resolve_local_rename(path: &Path) -> PathBuf {
         .extension()
         .map(|e| format!(".{}", e.to_string_lossy()))
         .unwrap_or_default();
-    for i in 1..=999 {
+    for i in 1..=MAX_RENAME_CANDIDATES {
         let candidate = parent.join(format!("{stem}_{i}{ext}"));
         if !candidate.exists() {
-            return candidate;
+            return Ok(candidate);
         }
     }
-    path.to_path_buf()
+    anyhow::bail!(
+        "no free rename target after {MAX_RENAME_CANDIDATES} candidates for {}",
+        path.display()
+    )
 }
 
-/// Same idea for a remote path. Uses sftp.metadata to probe existence.
-async fn resolve_remote_rename(sftp: &russh_sftp::client::SftpSession, path: &str) -> String {
+/// Same idea for a remote path. Uses sftp.metadata to probe existence and fails
+/// closed when every bounded candidate already exists.
+async fn resolve_remote_rename(
+    sftp: &russh_sftp::client::SftpSession,
+    path: &str,
+) -> Result<String> {
     if sftp.metadata(path).await.is_err() {
-        return path.to_string();
+        return Ok(path.to_string());
     }
-    let (stem, ext) = match path.rfind('.') {
-        Some(dot) if dot > path.rfind('/').unwrap_or(0) => (&path[..dot], &path[dot..]),
-        _ => (path, ""),
-    };
-    for i in 1..=999 {
-        let candidate = format!("{stem}_{i}{ext}");
+    for i in 1..=MAX_RENAME_CANDIDATES {
+        let candidate = remote_rename_candidate(path, i);
         if sftp.metadata(&candidate).await.is_err() {
-            return candidate;
+            return Ok(candidate);
         }
     }
-    path.to_string()
+    anyhow::bail!(
+        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {path}"
+    )
 }
 
 impl TransferManager {
@@ -1085,7 +1093,7 @@ impl TransferManager {
                 let exists = initial.exists();
                 (initial, exists)
             }
-            OverwritePolicy::Rename => (resolve_local_rename(&initial), false),
+            OverwritePolicy::Rename => (resolve_local_rename(&initial)?, false),
         };
 
         let id = Uuid::new_v4().to_string();
@@ -3659,7 +3667,7 @@ async fn remote_resolve(
                     (initial_remote.to_string(), exists)
                 }
                 OverwritePolicy::Rename => {
-                    let renamed = resolve_remote_rename(&sftp, initial_remote).await;
+                    let renamed = resolve_remote_rename(&sftp, initial_remote).await?;
                     (renamed, false)
                 }
             })
@@ -3672,20 +3680,20 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let mut candidate = initial_remote.to_string();
                     let session = ftp.clone();
-                    for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                    for i in 1..=MAX_RENAME_CANDIDATES {
+                        let candidate = remote_rename_candidate(initial_remote, i);
                         let probe = candidate.clone();
                         let found = session
                             .with_stream(move |s| Ok(s.size(&probe).is_ok()))
                             .await?;
                         if !found {
-                            break;
+                            return Ok((candidate, false));
                         }
                     }
-                    (candidate, false)
+                    anyhow::bail!(
+                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
+                    )
                 }
             })
         }
@@ -3698,17 +3706,17 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let mut candidate = initial_remote.to_string();
-                    for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                    for i in 1..=MAX_RENAME_CANDIDATES {
+                        let candidate = remote_rename_candidate(initial_remote, i);
                         let key = candidate.trim_start_matches('/');
                         let p = object_store::path::Path::from(key);
                         if obj.store.head(&p).await.is_err() {
-                            break;
+                            return Ok((candidate, false));
                         }
                     }
-                    (candidate, false)
+                    anyhow::bail!(
+                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
+                    )
                 }
             })
         }
@@ -3719,15 +3727,15 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let mut candidate = initial_remote.to_string();
-                    for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                    for i in 1..=MAX_RENAME_CANDIDATES {
+                        let candidate = remote_rename_candidate(initial_remote, i);
                         if !webdav_head(dav, &candidate).await.1 {
-                            break;
+                            return Ok((candidate, false));
                         }
                     }
-                    (candidate, false)
+                    anyhow::bail!(
+                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
+                    )
                 }
             })
         }
@@ -3744,16 +3752,16 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let mut candidate = initial_remote.to_string();
-                    for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                    for i in 1..=MAX_RENAME_CANDIDATES {
+                        let candidate = remote_rename_candidate(initial_remote, i);
                         let p = crate::remotefs::dropbox::dropbox_api_path(&candidate);
                         if !dbx.exists(&p).await {
-                            break;
+                            return Ok((candidate, false));
                         }
                     }
-                    (candidate, false)
+                    anyhow::bail!(
+                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
+                    )
                 }
             })
         }
@@ -3766,18 +3774,18 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let mut candidate = initial_remote.to_string();
-                    for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                    for i in 1..=MAX_RENAME_CANDIDATES {
+                        let candidate = remote_rename_candidate(initial_remote, i);
                         if !od
                             .exists(&crate::remotefs::onedrive::item_ref(&candidate))
                             .await
                         {
-                            break;
+                            return Ok((candidate, false));
                         }
                     }
-                    (candidate, false)
+                    anyhow::bail!(
+                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
+                    )
                 }
             })
         }
@@ -3788,15 +3796,15 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let mut candidate = initial_remote.to_string();
-                    for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                    for i in 1..=MAX_RENAME_CANDIDATES {
+                        let candidate = remote_rename_candidate(initial_remote, i);
                         if !gd.exists(&candidate).await {
-                            break;
+                            return Ok((candidate, false));
                         }
                     }
-                    (candidate, false)
+                    anyhow::bail!(
+                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
+                    )
                 }
             })
         }
@@ -3807,15 +3815,15 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let mut candidate = initial_remote.to_string();
-                    for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                    for i in 1..=MAX_RENAME_CANDIDATES {
+                        let candidate = remote_rename_candidate(initial_remote, i);
                         if !bx.exists(&candidate).await {
-                            break;
+                            return Ok((candidate, false));
                         }
                     }
-                    (candidate, false)
+                    anyhow::bail!(
+                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
+                    )
                 }
             })
         }
@@ -3826,15 +3834,15 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let mut candidate = initial_remote.to_string();
-                    for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                    for i in 1..=MAX_RENAME_CANDIDATES {
+                        let candidate = remote_rename_candidate(initial_remote, i);
                         if !crate::remotefs::shopify::asset_exists(sh, &candidate).await {
-                            break;
+                            return Ok((candidate, false));
                         }
                     }
-                    (candidate, false)
+                    anyhow::bail!(
+                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
+                    )
                 }
             })
         }
@@ -3845,15 +3853,15 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let mut candidate = initial_remote.to_string();
-                    for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                    for i in 1..=MAX_RENAME_CANDIDATES {
+                        let candidate = remote_rename_candidate(initial_remote, i);
                         if !crate::remotefs::hubspot::file_exists(hs, &candidate).await {
-                            break;
+                            return Ok((candidate, false));
                         }
                     }
-                    (candidate, false)
+                    anyhow::bail!(
+                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
+                    )
                 }
             })
         }
@@ -3864,15 +3872,15 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let mut candidate = initial_remote.to_string();
-                    for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                    for i in 1..=MAX_RENAME_CANDIDATES {
+                        let candidate = remote_rename_candidate(initial_remote, i);
                         if !crate::remotefs::dynamics::file_exists(dynm, &candidate).await {
-                            break;
+                            return Ok((candidate, false));
                         }
                     }
-                    (candidate, false)
+                    anyhow::bail!(
+                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
+                    )
                 }
             })
         }
@@ -3883,25 +3891,37 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let mut candidate = initial_remote.to_string();
-                    for i in 1..=999 {
-                        let (stem, ext) = split_ext(initial_remote);
-                        candidate = format!("{stem}_{i}{ext}");
+                    for i in 1..=MAX_RENAME_CANDIDATES {
+                        let candidate = remote_rename_candidate(initial_remote, i);
                         if !agent_stat(agent, &candidate).await.1 {
-                            break;
+                            return Ok((candidate, false));
                         }
                     }
-                    (candidate, false)
+                    anyhow::bail!(
+                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
+                    )
                 }
             })
         }
     }
 }
 fn split_ext(path: &str) -> (&str, &str) {
-    match path.rfind('.') {
-        Some(dot) if dot > path.rfind('/').unwrap_or(0) => (&path[..dot], &path[dot..]),
+    let basename_start = path.rfind(['/', '\\']).map_or(0, |index| index + 1);
+    let basename = &path[basename_start..];
+
+    match basename.rfind('.') {
+        // A leading dot is part of a hidden filename, not an extension.
+        Some(relative_dot) if relative_dot > 0 => {
+            let dot = basename_start + relative_dot;
+            (&path[..dot], &path[dot..])
+        }
         _ => (path, ""),
     }
+}
+
+fn remote_rename_candidate(path: &str, index: usize) -> String {
+    let (stem, ext) = split_ext(path);
+    format!("{stem}_{index}{ext}")
 }
 
 /// Transient = worth an auto-retry (structured IPC error kinds):
@@ -4628,6 +4648,49 @@ mod tests {
         // Forward-slashed Windows paths are already unambiguous — leave them be.
         assert_eq!(join_remote("C:/srv", "a.txt"), "C:/srv/a.txt");
         assert_eq!(join_remote("", "a.txt"), "a.txt");
+    }
+
+    #[test]
+    fn remote_rename_candidates_respect_hidden_files_and_path_style() {
+        assert_eq!(
+            remote_rename_candidate("/srv/archive.tar.gz", 1),
+            "/srv/archive.tar_1.gz"
+        );
+        assert_eq!(remote_rename_candidate("/srv/.env", 1), "/srv/.env_1");
+        assert_eq!(remote_rename_candidate(".env", 2), ".env_2");
+        assert_eq!(
+            remote_rename_candidate(r"C:\dir.v1\file.txt", 3),
+            r"C:\dir.v1\file_3.txt"
+        );
+        assert_eq!(
+            remote_rename_candidate(r"C:\dir.v1\file", 4),
+            r"C:\dir.v1\file_4"
+        );
+    }
+
+    #[test]
+    fn local_rename_exhaustion_fails_instead_of_overwriting() {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-rename-exhaustion-{}-{}",
+            std::process::id(),
+            Uuid::new_v4().simple()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let original = dir.join("collision.txt");
+        std::fs::write(&original, b"original").unwrap();
+        for i in 1..=MAX_RENAME_CANDIDATES {
+            std::fs::write(dir.join(format!("collision_{i}.txt")), b"occupied").unwrap();
+        }
+
+        let error = resolve_local_rename(&original).unwrap_err();
+        assert!(
+            error.to_string().contains("no free rename target"),
+            "unexpected exhaustion error: {error:#}"
+        );
+        assert_eq!(std::fs::read(&original).unwrap(), b"original");
+
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     // ---------- Delta sync transfer paths ----------
