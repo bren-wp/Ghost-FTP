@@ -1233,10 +1233,7 @@ fn transfer_history_csv_cell(value: &str) -> String {
         safe.insert(0, '\'');
     }
 
-    if safe
-        .chars()
-        .any(|ch| matches!(ch, ',' | '"' | '\n' | '\r'))
-    {
+    if safe.chars().any(|ch| matches!(ch, ',' | '"' | '\n' | '\r')) {
         format!("\"{}\"", safe.replace('"', "\"\""))
     } else {
         safe
