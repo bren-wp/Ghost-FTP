@@ -6,7 +6,7 @@ Ghost FTP desktop uses the native Tauri updater path. User-facing application co
 
 - Windows/Linux packages are built from the exact release source SHA.
 - In-app updater publication requires real Tauri signatures for both the Windows Setup and Linux AppImage.
-- If signing secrets are not configured, ordinary packages may still be built for explicit preview/CI QA, but `channel: stable` publication must fail before tag/release mutation. Stable requires both updater signatures, a verified exact-version manifest and the matching Update-Service package.
+- If signing secrets are not configured, verified ordinary packages may still be published as the stable GitHub release. The in-app updater bundle is omitted. If any updater proof is present, both signatures, the exact-version manifest and matching Update-Service package must all be present and consistent.
 - Existing version tags are immutable.
 - Failed update checks or verification must leave the installed application usable.
 
