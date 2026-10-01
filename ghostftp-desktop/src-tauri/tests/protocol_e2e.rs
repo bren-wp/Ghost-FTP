@@ -190,6 +190,64 @@ async fn ftp_roundtrip(
         return Err(anyhow!("{protocol} download content mismatch"));
     }
 
+    // Edge-case coverage: zero-byte objects and UTF-8 names with spaces must
+    // survive create/list/download/delete through the real FTP/FTPS server.
+    let zero_path = format!("{base}/zero-byte.bin");
+    let zero_upload_path = zero_path.clone();
+    ftp.with_stream(move |stream| {
+        let mut reader = Cursor::new(Vec::<u8>::new());
+        let written = stream.put_from_reader(&zero_upload_path, &mut reader)?;
+        if written != 0 {
+            return Err(anyhow!("zero-byte FTP upload reported {written} bytes"));
+        }
+        Ok(())
+    })
+    .await
+    .with_context(|| format!("{protocol} zero-byte upload"))?;
+
+    let zero_size_path = zero_path.clone();
+    let zero_size = ftp
+        .with_stream(move |stream| Ok(stream.size(&zero_size_path)? as u64))
+        .await
+        .with_context(|| format!("{protocol} zero-byte stat"))?;
+    if zero_size != 0 {
+        return Err(anyhow!("{protocol} zero-byte upload has size {zero_size}"));
+    }
+
+    let unicode_name = "čćžšđ 文件 name.txt";
+    let unicode_path = format!("{base}/{unicode_name}");
+    let unicode_payload = "Ghost FTP UTF-8 remote name payload\n".as_bytes().to_vec();
+    let unicode_upload_path = unicode_path.clone();
+    let unicode_upload_payload = unicode_payload.clone();
+    ftp.with_stream(move |stream| {
+        let mut reader = Cursor::new(unicode_upload_payload);
+        stream.put_from_reader(&unicode_upload_path, &mut reader)?;
+        Ok(())
+    })
+    .await
+    .with_context(|| format!("{protocol} Unicode-name upload"))?;
+
+    let edge_listing = fs
+        .list_dir(&base)
+        .await
+        .with_context(|| format!("{protocol} Unicode-name list"))?;
+    if !edge_listing.iter().any(|entry| entry.name == unicode_name) {
+        return Err(anyhow!("{protocol} LIST did not preserve Unicode remote name"));
+    }
+
+    let unicode_download_path = unicode_path.clone();
+    let unicode_downloaded = ftp
+        .with_stream(move |stream| {
+            let mut bytes = Vec::new();
+            stream.retr_to_writer(&unicode_download_path, &mut bytes)?;
+            Ok(bytes)
+        })
+        .await
+        .with_context(|| format!("{protocol} Unicode-name download"))?;
+    if unicode_downloaded != unicode_payload {
+        return Err(anyhow!("{protocol} Unicode-name download content mismatch"));
+    }
+
     // Exercise the same SuppaFTP 12 restart + transfer-stream primitives production
     // pause/resume uses. An interrupted transfer deliberately reconnects before
     // the next command: if the server completed the data socket just before ABOR,
@@ -469,6 +527,12 @@ async fn ftp_roundtrip(
     fs.delete(&renamed, false)
         .await
         .context("FTP delete file")?;
+    fs.delete(&zero_path, false)
+        .await
+        .context("FTP delete zero-byte file")?;
+    fs.delete(&unicode_path, false)
+        .await
+        .context("FTP delete Unicode-name file")?;
     fs.delete(&resume_path, false)
         .await
         .context("FTP delete resume file")?;
@@ -574,6 +638,70 @@ async fn sftp_password_roundtrip(
         return Err(anyhow!("SFTP download content mismatch"));
     }
 
+    // Edge-case coverage mirrors FTP/FTPS: zero-byte objects and UTF-8 names
+    // with spaces must survive real OpenSSH internal-sftp operations.
+    let zero_path = format!("{base}/zero-byte.bin");
+    let cell = ssh.ensure_sftp().await?;
+    let mut zero_remote = {
+        let sftp = cell.lock().await;
+        sftp.create(&zero_path)
+            .await
+            .context("SFTP create zero-byte file")?
+    };
+    zero_remote.flush().await.context("SFTP flush zero-byte file")?;
+    drop(zero_remote);
+
+    let cell = ssh.ensure_sftp().await?;
+    let zero_size = {
+        let sftp = cell.lock().await;
+        sftp.metadata(&zero_path)
+            .await
+            .context("SFTP stat zero-byte file")?
+            .size
+            .unwrap_or(0)
+    };
+    if zero_size != 0 {
+        return Err(anyhow!("SFTP zero-byte upload has size {zero_size}"));
+    }
+
+    let unicode_name = "čćžšđ 文件 name.txt";
+    let unicode_path = format!("{base}/{unicode_name}");
+    let unicode_payload = "Ghost FTP UTF-8 remote name payload\n".as_bytes().to_vec();
+    let cell = ssh.ensure_sftp().await?;
+    let mut unicode_remote = {
+        let sftp = cell.lock().await;
+        sftp.create(&unicode_path)
+            .await
+            .context("SFTP create Unicode-name file")?
+    };
+    unicode_remote
+        .write_all(&unicode_payload)
+        .await
+        .context("SFTP upload Unicode-name file")?;
+    unicode_remote.flush().await?;
+    drop(unicode_remote);
+
+    let edge_listing = fs.list_dir(&base).await.context("SFTP Unicode-name list")?;
+    if !edge_listing.iter().any(|entry| entry.name == unicode_name) {
+        return Err(anyhow!("SFTP list did not preserve Unicode remote name"));
+    }
+
+    let cell = ssh.ensure_sftp().await?;
+    let mut unicode_remote = {
+        let sftp = cell.lock().await;
+        sftp.open(&unicode_path)
+            .await
+            .context("SFTP open Unicode-name file")?
+    };
+    let mut unicode_downloaded = Vec::new();
+    unicode_remote
+        .read_to_end(&mut unicode_downloaded)
+        .await
+        .context("SFTP download Unicode-name file")?;
+    if unicode_downloaded != unicode_payload {
+        return Err(anyhow!("SFTP Unicode-name download content mismatch"));
+    }
+
     // Prove the exact SFTP primitives used by production pause/resume against
     // a real OpenSSH internal-sftp server: reopen a partial remote file without
     // truncating it, seek both sides to the committed byte and append the rest.
@@ -647,6 +775,12 @@ async fn sftp_password_roundtrip(
     fs.delete(&renamed, false)
         .await
         .context("SFTP delete file")?;
+    fs.delete(&zero_path, false)
+        .await
+        .context("SFTP delete zero-byte file")?;
+    fs.delete(&unicode_path, false)
+        .await
+        .context("SFTP delete Unicode-name file")?;
     fs.delete(&resume_path, false)
         .await
         .context("SFTP delete resume file")?;
