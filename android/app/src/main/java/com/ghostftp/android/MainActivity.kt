@@ -1016,7 +1016,7 @@ class MainActivity : Activity() {
     private fun selectRemoteEntry(item: RemoteRow) {
         val target = item.remotePath ?: return
         transferRemotePathInput.setText(target)
-        renameRemoteNameInput.setText(item.name)
+        renameRemoteNameInput.setText(target.substringAfterLast('/'))
         transferStateText.text = if (item.isDirectory) {
             "Selected remote folder: $target"
         } else {
