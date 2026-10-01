@@ -4,7 +4,6 @@ import {
   Globe2,
   Keyboard,
   Monitor,
-  Palette,
   Plug,
   RotateCcw,
   Settings2,
