@@ -31,6 +31,7 @@ Full capability detail: [FEATURES.md](FEATURES.md).
 - Fails CI when a source file is not reachable from the production app or shared package entrypoint.
 - Uses compiler/reachability evidence before deleting code, avoiding destructive “cleanup” based only on similar filenames.
 - Keeps the 500 KiB JavaScript chunk budget and existing exact-SHA release requirements.
+- First enforced audit result: 11 unreachable frontend files deleted, 21 compiler-reported unused imports/declarations removed, and 102 TypeScript files remain reachable from production entrypoints.
 
 ## 0.20.6 frontend bundle-size hardening in source
 
