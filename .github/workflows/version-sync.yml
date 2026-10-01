@@ -1,6 +1,7 @@
 name: Sync central product version
 
 on:
+  workflow_dispatch:
   push:
     branches-ignore:
       - main
