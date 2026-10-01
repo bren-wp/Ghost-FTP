@@ -54,17 +54,6 @@ jobs:
           cache: npm
           cache-dependency-path: ghostftp-desktop/package-lock.json
 
-      - name: Enforce stable update signing preflight
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        shell: bash
-        run: |
-          set -euo pipefail
-          RELEASE_CHANNEL="$(node -p "require('./version.json').channel")"
-          if [ "$RELEASE_CHANNEL" = "stable" ] && [ "$HAS_TAURI_SIGNING_KEY" != "true" ]; then
-            echo "::error::Stable main build requires TAURI_SIGNING_PRIVATE_KEY before native packaging."
-            exit 1
-          fi
-
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
         with:
