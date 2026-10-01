@@ -4,7 +4,7 @@
 
 Ghost FTP desktop updates are accepted only when the package signature validates against the public key embedded in the installed application.
 
-The public key is safe to distribute. The matching private key is the release signing secret and must remain confidential.
+The public key is safe to distribute. The matching private key is needed only when publishing the optional in-app updater bundle and must remain confidential.
 
 ## Private-key rules
 
@@ -15,16 +15,16 @@ The public key is safe to distribute. The matching private key is the release si
 - Limit workflows that receive it to trusted `main` release builds.
 - Pull-request builds must not receive it.
 
-## Public artifacts
+## Public updater artifacts
 
-These are safe/required to publish:
+When in-app updater publication is enabled, these are safe and required as one complete set:
 
-- signed Windows NSIS Setup;
-- Windows Setup `.sig`;
-- signed Linux AppImage;
-- Linux AppImage `.sig`;
+- Windows NSIS Setup and its `.sig`;
+- Linux AppImage and its `.sig`;
 - public update response containing signature text;
 - public updater verification key already embedded in the application.
+
+A normal stable GitHub release may omit this entire updater-specific set when no private updater key is configured. It must never publish unsigned updater metadata.
 
 The updater response must contain the **signature file contents**, not a path or URL to the signature.
 
