@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.20.4 — CI runtime and build-config hardening — 1 October 2026
+
+0.20.4 follows published 0.20.3 with CI runtime modernization and build-configuration cleanup.
+
+- Updated first-party GitHub Actions used by the release-relevant workflows to their current supported major trains: checkout/setup-node/setup-go v7, setup-java v6, setup-android v4, Gradle Actions v6 and upload-artifact v7.
+- Disabled setup-go dependency caching in the two helper-tool workflows because the helper modules intentionally have no `go.sum`, eliminating the recurring false cache warning.
+- Replaced Vite config `__dirname` usage with ESM-safe `fileURLToPath(import.meta.url)` directory resolution so Vite 8 native config loading no longer reports the compatibility warning.
+- Added a CI/runtime regression contract that rejects stale action majors, re-enabled unsupported Go cache behavior and reintroduction of Vite `__dirname`.
+- Preserved the existing exact-SHA Quality, protocol E2E, native build, Android and Windows hardening release gates.
+
+See [docs/releases/0.20.4.md](docs/releases/0.20.4.md).
+
 ## 0.20.3 — file-action reliability hardening — 1 October 2026
 
 0.20.3 follows published 0.20.2 with shared file-browser interaction hardening and release-documentation alignment.
