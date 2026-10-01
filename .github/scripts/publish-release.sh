@@ -13,6 +13,24 @@ test -d dist
 test -s "dist/$CHECKSUM_FILE"
 (cd dist && sha256sum -c "$CHECKSUM_FILE")
 
+CHANNEL="$(node -p 'require("./version.json").channel || ""')"
+if [ "$CHANNEL" = "stable" ]; then
+  REQUIRED_UPDATER_FILES=(
+    "GhostFTP-Windows-x64-Setup-v${VERSION}.exe.sig"
+    "GhostFTP-Linux-x86_64-v${VERSION}.AppImage.sig"
+    "GhostFTP-v${VERSION}-latest.json"
+    "GhostFTP-v${VERSION}-Update-Service.zip"
+  )
+  for required in "${REQUIRED_UPDATER_FILES[@]}"; do
+    if [ ! -s "dist/$required" ]; then
+      echo "Stable release requires the signed desktop updater artifact dist/$required." >&2
+      echo "Configure TAURI_SIGNING_PRIVATE_KEY (and its password when applicable) before publishing a stable release." >&2
+      exit 1
+    fi
+  done
+  node updates/scripts/verify-manifest.mjs "dist/GhostFTP-v${VERSION}-latest.json" --expected-version="$VERSION"
+fi
+
 git fetch --tags --force
 if git show-ref --verify --quiet "refs/tags/$TAG"; then
   TAG_SHA="$(git rev-list -n1 "$TAG")"
