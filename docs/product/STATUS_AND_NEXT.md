@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.20.4 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.20.5 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.20.3**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.20.4**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -23,6 +23,14 @@ Previous canonical release: **0.20.3**. Live publication state is determined fro
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
 
 Full capability detail: [FEATURES.md](FEATURES.md).
+
+## 0.20.5 Android API and edge-to-edge hardening in source
+
+- Replaces deprecated JSch String password handoff with the byte-array API and clears the temporary UTF-8 password buffer after the Session copies it.
+- Removes direct deprecated status/navigation bar color assignments from the Android Activity.
+- Applies Android 15 system-bar insets to the root layout so enforced edge-to-edge UI cannot obscure Ghost FTP controls.
+- Adds API 35-specific theme resources without deprecated system-bar color attributes.
+- Extends the Android production contract so deprecated password/system-bar APIs cannot be reintroduced silently.
 
 ## 0.20.4 CI runtime and build-config hardening in source
 

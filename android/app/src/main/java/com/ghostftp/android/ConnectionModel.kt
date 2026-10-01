@@ -492,7 +492,12 @@ class ConnectionController {
         val jsch = JSch()
         jsch.hostKeyRepository = FingerprintHostKeyRepository(profile.hostKeyFingerprint)
         val session = jsch.getSession(profile.username, profile.host, profile.port)
-        session.setPassword(profile.password)
+        val passwordBytes = profile.password.toByteArray(Charsets.UTF_8)
+        try {
+            session.setPassword(passwordBytes)
+        } finally {
+            passwordBytes.fill(0)
+        }
         session.setConfig("StrictHostKeyChecking", "yes")
         session.timeout = CONNECT_TIMEOUT_MS
 

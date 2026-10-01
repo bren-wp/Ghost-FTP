@@ -6,14 +6,21 @@ Ghost FTP Android follows the same product identity and file-action model as the
 
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
-- Active source version: **0.20.4**
-- Previous canonical release: **0.20.3**
+- Active source version: **0.20.5**
+- Previous canonical release: **0.20.4**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`
 - Installability evidence asset: `GhostFTP-Android-v<version>-Installable-Preview.apk`
 
 Android UI must not display legacy release-candidate badges or maintain an independent product version scheme.
+
+## Android 15 system UI contract
+
+- API 35+ uses enforced edge-to-edge layout with explicit system-bar inset padding on the root view.
+- API 35 theme resources do not depend on deprecated status/navigation bar color attributes.
+- System-bar icon appearance remains dark-theme appropriate.
+- SFTP password handoff uses JSch's byte-array API; the temporary UTF-8 buffer is zeroed immediately after JSch copies it.
 
 ## Interface contract
 

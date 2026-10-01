@@ -2,8 +2,8 @@
 
 ## Authoritative current state
 
-- **Active source/release cycle:** Ghost FTP **0.20.4**.
-- **Previous canonical release:** Ghost FTP **0.20.3**.
+- **Active source/release cycle:** Ghost FTP **0.20.5**.
+- **Previous canonical release:** Ghost FTP **0.20.4**.
 - **Live publication status:** GitHub Releases is authoritative and queried by CI.
 - **Version source of truth:** `version.json`.
 - **Desktop production source:** `ghostftp-desktop/`.
@@ -23,6 +23,12 @@ The production desktop GUI is the native React + TypeScript + Tauri + Rust appli
 - Dependency-manifest Cargo lock refresh: `.github/workflows/cargo-lock-refresh.yml`
 
 The obsolete duplicate Windows/Linux native build workflow and website application surface have been removed. The canonical native build now supplies both release binaries and Windows native-window QA evidence. Android runs on every release-relevant PR and every `main` push and includes an emulator click-through smoke.
+
+## 0.20.5 Android API hardening
+
+Android API 35+ now applies system-bar insets to the programmatic root view instead of relying on deprecated status/navigation bar color setters. The API 35 theme keeps the dark Ghost FTP system-bar appearance without deprecated color attributes. SFTP password handoff now uses JSch's byte-array API and clears the temporary UTF-8 buffer after the library copies it.
+
+The Android production contract rejects the deprecated String password setter and direct system-bar color setters so this behavior cannot silently regress.
 
 ## 0.20.0 recovery and cross-platform hardening
 

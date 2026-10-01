@@ -39,8 +39,8 @@
 
 ## Current status
 
-- **Active source/release cycle:** `0.20.4`.
-- **Previous canonical release:** `0.20.3`.
+- **Active source/release cycle:** `0.20.5`.
+- **Previous canonical release:** `0.20.4`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
@@ -56,7 +56,7 @@ FTP, explicit FTPS and SFTP with TLS/SSH verification, protected credential hand
 
 ### Files and transfers
 
-Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.20.1 transfer-worker race fix, 0.20.2 Android/desktop launch hardening and 0.20.3 async file-action hardening remain in 0.20.4. The current patch modernizes CI action runtimes, removes obsolete Go-cache warnings and makes the Vite configuration compatible with native ESM config loading.
+Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.20.1 transfer-worker race fix, 0.20.2 Android/desktop launch hardening, 0.20.3 async file-action hardening and 0.20.4 CI runtime modernization remain in 0.20.5. The current patch hardens Android 15 edge-to-edge insets and moves SFTP password handoff to JSch's byte-array API with temporary-buffer cleanup.
 
 ### Productivity
 
