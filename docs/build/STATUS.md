@@ -28,7 +28,7 @@ The obsolete duplicate Windows/Linux native build workflow and website applicati
 
 Quality now treats unused TypeScript locals and unreachable frontend source files as release-blocking failures. The source-reachability check starts from the production desktop entrypoint and the shared file-ui package entrypoint, resolves project aliases/relative imports, and rejects TypeScript files outside that active graph.
 
-The cleanup is intentionally evidence-driven: host/package utility copies that serve different boundaries are retained, while only demonstrably unreachable files or unused symbols are removed.
+The cleanup is intentionally evidence-driven: host/package utility copies that serve different boundaries are retained, while only demonstrably unreachable files or unused symbols are removed. The first enforced audit removed 11 unreachable frontend files and 21 compiler-reported unused imports/declarations; the resulting production graph reports 102 reachable TypeScript files.
 
 ## 0.20.6 frontend bundle-size hardening
 
