@@ -8,6 +8,7 @@
 - Reports failed backup restoration and preserves the remote backup path for manual recovery instead of silently discarding recovery failure.
 - Adds Android regression coverage and production-contract checks for staged replacement safety.
 - Allows intentional forward SemVer jumps only when the new version is strictly newer and `previousVersion` matches the exact published base.
+- Adds Windows-hardening concurrency so superseded PR/ref runs are canceled instead of consuming runners.
 
 See [docs/releases/0.30.1.md](docs/releases/0.30.1.md).
 
