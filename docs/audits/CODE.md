@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit covers the current Ghost FTP 0.20.10 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.20.9**.
+This audit covers the current Ghost FTP 0.30.1 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.20.10**.
 
 ## Dead-code and reachability evidence
 
