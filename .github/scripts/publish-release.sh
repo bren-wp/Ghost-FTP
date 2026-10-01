@@ -13,23 +13,30 @@ test -d dist
 test -s "dist/$CHECKSUM_FILE"
 (cd dist && sha256sum -c "$CHECKSUM_FILE")
 
-CHANNEL="$(node -p 'require("./version.json").channel || ""')"
-if [ "$CHANNEL" = "stable" ]; then
-  REQUIRED_UPDATER_FILES=(
-    "GhostFTP-Windows-x64-Setup-v${VERSION}.exe.sig"
-    "GhostFTP-Linux-x86_64-v${VERSION}.AppImage.sig"
-    "GhostFTP-v${VERSION}-latest.json"
-    "GhostFTP-v${VERSION}-Update-Service.zip"
-  )
-  for required in "${REQUIRED_UPDATER_FILES[@]}"; do
-    if [ ! -s "dist/$required" ]; then
-      echo "Stable release requires signed updater artifact dist/$required." >&2
-      exit 1
-    fi
-  done
+UPDATER_FILES=(
+  "GhostFTP-Windows-x64-Setup-v${VERSION}.exe.sig"
+  "GhostFTP-Linux-x86_64-v${VERSION}.AppImage.sig"
+  "GhostFTP-v${VERSION}-latest.json"
+  "GhostFTP-v${VERSION}-Update-Service.zip"
+)
+UPDATER_PRESENT=0
+for updater in "${UPDATER_FILES[@]}"; do
+  if [ -s "dist/$updater" ]; then
+    UPDATER_PRESENT=$((UPDATER_PRESENT + 1))
+  fi
+done
+
+if [ "$UPDATER_PRESENT" -ne 0 ] && [ "$UPDATER_PRESENT" -ne "${#UPDATER_FILES[@]}" ]; then
+  echo "Signed updater publication is incomplete; updater proof must be all present or all absent." >&2
+  exit 1
+fi
+
+if [ "$UPDATER_PRESENT" -eq "${#UPDATER_FILES[@]}" ]; then
   node updates/scripts/verify-manifest.mjs     "dist/GhostFTP-v${VERSION}-latest.json"     --expected-version="$VERSION"
   unzip -p "dist/GhostFTP-v${VERSION}-Update-Service.zip" updates/latest.json     > "$RUNNER_TEMP/ghostftp-latest-from-package.json"
   cmp "$RUNNER_TEMP/ghostftp-latest-from-package.json"     "dist/GhostFTP-v${VERSION}-latest.json"
+else
+  echo "Publishing verified packages without a signed in-app updater bundle."
 fi
 
 git fetch --tags --force
