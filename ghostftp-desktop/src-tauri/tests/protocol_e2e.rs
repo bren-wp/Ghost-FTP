@@ -70,6 +70,8 @@ impl HostKeyVerifier for MismatchTrackingVerifier {
     }
 }
 
+const MULTI_CHUNK_E2E_BYTES: usize = 2 * 1024 * 1024 + 257;
+
 fn enabled() -> bool {
     std::env::var("GHOSTFTP_PROTOCOL_E2E").as_deref() == Ok("1")
 }
@@ -304,13 +306,14 @@ async fn ftp_roundtrip(
     }
 
     // Exercise the same SuppaFTP 12 restart + transfer-stream primitives production
-    // pause/resume uses. An interrupted transfer deliberately reconnects before
+    // pause/resume uses. The non-aligned multi-MiB payload crosses many 64/256 KiB
+    // boundaries and leaves a final tail instead of ending exactly on a chunk edge. An interrupted transfer deliberately reconnects before
     // the next command: if the server completed the data socket just before ABOR,
     // SuppaFTP can consume the queued 226 as the ABOR reply and leave the ABOR
     // 225 queued. A fresh authenticated control connection removes that race
     // while preserving the server-confirmed byte offset.
     let resume_path = format!("{base}/resume.bin");
-    let resume_payload: Vec<u8> = (0..(512 * 1024))
+    let resume_payload: Vec<u8> = (0..MULTI_CHUNK_E2E_BYTES)
         .map(|index| ((index * 19 + 23) % 251) as u8)
         .collect();
     let pause_after = 128 * 1024u64;
@@ -794,10 +797,11 @@ async fn sftp_password_roundtrip(
     }
 
     // Prove the exact SFTP primitives used by production pause/resume against
-    // a real OpenSSH internal-sftp server: reopen a partial remote file without
+    // a real OpenSSH internal-sftp server. The non-aligned multi-MiB payload
+    // crosses repeated transfer-chunk boundaries: reopen a partial remote file without
     // truncating it, seek both sides to the committed byte and append the rest.
     let resume_path = format!("{base}/resume.bin");
-    let resume_payload: Vec<u8> = (0..(512 * 1024))
+    let resume_payload: Vec<u8> = (0..MULTI_CHUNK_E2E_BYTES)
         .map(|index| ((index * 31 + 17) % 251) as u8)
         .collect();
     let resume_offset = 128 * 1024;
