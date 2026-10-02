@@ -109,15 +109,22 @@ if (baseVersion) {
     if (!m) throw new Error(`invalid base version: ${v}`);
     return m.slice(1).map(Number);
   };
-  const [bm,bn,bp] = parse(baseVersion);
-  const [m,n,p] = parse(version);
-  const sameVersion = m === bm && n === bn && p === bp;
-  const nextMinor = m === bm && n === bn + 1 && p === 0;
-  const nextPatch = m === bm && n === bn && p === bp + 1;
-  const firstStable = bm === 0 && m === 1 && n === 0 && p === 0;
-  if (!sameVersion && !nextMinor && !nextPatch && !firstStable) {
+  const compareSemver = (left, right) => {
+    const a = parse(left);
+    const b = parse(right);
+    for (let index = 0; index < 3; index += 1) {
+      if (a[index] !== b[index]) return a[index] > b[index] ? 1 : -1;
+    }
+    return 0;
+  };
+
+  const relation = compareSemver(version, baseVersion);
+  if (relation < 0) {
+    throw new Error(`invalid version rollback ${baseVersion} -> ${version}`);
+  }
+  if (relation > 0 && previousVersion !== baseVersion) {
     throw new Error(
-      `invalid version step ${baseVersion} -> ${version}; keep the active development version, use next minor for a new development release, or next patch for a hotfix`,
+      `new development version ${version} must declare previousVersion ${baseVersion}; found ${previousVersion || "none"}`,
     );
   }
 }

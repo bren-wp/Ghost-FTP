@@ -1,3 +1,17 @@
+## 0.30.1 — staged-upload safety and version-line hardening — 2 October 2026
+
+0.30.1 follows published 0.20.10 and starts a broader hardening cycle.
+
+- Makes Android FTP/FTPS/SFTP staged upload replacement fail closed when an existing remote target cannot be safely preserved.
+- Requires explicit remote-target existence verification before promotion instead of interpreting backup-rename failure as target absence.
+- Refuses promotion when a target appears during an in-progress upload.
+- Reports failed backup restoration and preserves the remote backup path for manual recovery instead of silently discarding recovery failure.
+- Adds Android regression coverage and production-contract checks for staged replacement safety.
+- Allows intentional forward SemVer jumps only when the new version is strictly newer and `previousVersion` matches the exact published base.
+- Adds Windows-hardening concurrency so superseded PR/ref runs are canceled instead of consuming runners.
+
+See [docs/releases/0.30.1.md](docs/releases/0.30.1.md).
+
 ## 0.20.10 — protocol edge cases and conflict safety — 2 October 2026
 
 0.20.10 follows published 0.20.9 with real protocol edge-case coverage and stricter fail-closed conflict handling.
