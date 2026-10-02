@@ -360,6 +360,74 @@ fn basename(path: &str) -> String {
     path.rsplit(['/', '\\']).next().unwrap_or(path).to_string()
 }
 
+fn download_staging_path(final_path: &Path, id: &str) -> PathBuf {
+    let parent = final_path.parent().unwrap_or(Path::new("."));
+    parent.join(format!(".ghostftp-download-{id}.part"))
+}
+
+fn download_backup_path(final_path: &Path, id: &str) -> PathBuf {
+    let parent = final_path.parent().unwrap_or(Path::new("."));
+    parent.join(format!(".ghostftp-download-{id}.backup"))
+}
+
+async fn local_path_exists_fail_closed(path: &Path) -> Result<bool> {
+    match tokio::fs::metadata(path).await {
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error)
+            .with_context(|| format!("stat local download target {}", path.display())),
+    }
+}
+
+async fn promote_staged_download(staging: &Path, final_path: &Path, id: &str) -> Result<()> {
+    let backup = download_backup_path(final_path, id);
+    let mut backup_created = false;
+
+    if local_path_exists_fail_closed(final_path).await? {
+        let _ = tokio::fs::remove_file(&backup).await;
+        tokio::fs::rename(final_path, &backup)
+            .await
+            .with_context(|| {
+                format!(
+                    "preserve existing local download target {} before replacement",
+                    final_path.display()
+                )
+            })?;
+        backup_created = true;
+    }
+
+    if let Err(error) = tokio::fs::rename(staging, final_path).await {
+        if backup_created {
+            match tokio::fs::rename(&backup, final_path).await {
+                Ok(()) => {
+                    return Err(error).with_context(|| {
+                        format!(
+                            "promote staged download over {}; original target was restored",
+                            final_path.display()
+                        )
+                    });
+                }
+                Err(restore_error) => {
+                    return Err(anyhow::anyhow!(
+                        "failed to promote staged download over {}; original target could not be restored automatically and remains at {}: {}; restore error: {}",
+                        final_path.display(),
+                        backup.display(),
+                        error,
+                        restore_error
+                    ));
+                }
+            }
+        }
+        return Err(error)
+            .with_context(|| format!("promote staged download to {}", final_path.display()));
+    }
+
+    if backup_created {
+        let _ = tokio::fs::remove_file(&backup).await;
+    }
+    Ok(())
+}
+
 pub(crate) fn require_directory_upload_metadata(
     path: &Path,
     metadata: std::io::Result<std::fs::Metadata>,
@@ -4043,8 +4111,18 @@ async fn run_download_task(
     let mut permit = Some(initial_permit);
     let mut auto_retries = 0u32;
     let max_auto_retries = mgr.max_auto_retries.load(Ordering::Relaxed) as u32;
+    // Agent delta-download uses the existing destination as its block-level
+    // basis and already assembles into its own verified temporary file. Every
+    // other backend writes a whole-file stream, so route it through a sibling
+    // staging file and promote only after the complete backend operation succeeds.
+    let staged_download = !matches!(&*session, Session::Agent(_));
+    let working_path = if staged_download {
+        download_staging_path(&final_path, &id)
+    } else {
+        final_path.clone()
+    };
     let res = loop {
-        let attempt = dispatch_download(&mgr, &id, &session, &remote_path, &final_path, &app).await;
+        let attempt = dispatch_download(&mgr, &id, &session, &remote_path, &working_path, &app).await;
         match attempt {
             Err(e) if e.downcast_ref::<RestartFromPause>().is_some() => {
                 if !supports_byte_resume(&session) {
@@ -4089,6 +4167,17 @@ async fn run_download_task(
             }
             other => break other,
         }
+    };
+    let res = if staged_download {
+        match res {
+            Ok(()) => promote_staged_download(&working_path, &final_path, &id).await,
+            Err(error) => {
+                let _ = tokio::fs::remove_file(&working_path).await;
+                Err(error)
+            }
+        }
+    } else {
+        res
     };
     finalize(&mgr, &id, &app, res).await;
     mgr.bump_queue(&app).await;
@@ -4347,6 +4436,56 @@ mod tests {
             rx.await,
             Ok(true),
             "worker cleanup must observe its registered JoinHandle even when the worker runs immediately"
+        );
+    }
+
+    #[tokio::test]
+    async fn staged_download_promotion_replaces_only_after_complete_temp_exists() {
+        let root = std::env::temp_dir().join(format!("ghostftp-stage-test-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let final_path = root.join("file.bin");
+        let staging = download_staging_path(&final_path, "t1");
+        tokio::fs::write(&final_path, b"old").await.unwrap();
+        tokio::fs::write(&staging, b"new-complete").await.unwrap();
+
+        promote_staged_download(&staging, &final_path, "t1")
+            .await
+            .unwrap();
+
+        assert_eq!(tokio::fs::read(&final_path).await.unwrap(), b"new-complete");
+        assert!(!staging.exists());
+        assert!(!download_backup_path(&final_path, "t1").exists());
+        let _ = tokio::fs::remove_dir_all(&root).await;
+    }
+
+    #[tokio::test]
+    async fn staged_download_failure_before_promotion_leaves_original_untouched() {
+        let root = std::env::temp_dir().join(format!("ghostftp-stage-test-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let final_path = root.join("file.bin");
+        let staging = download_staging_path(&final_path, "t2");
+        tokio::fs::write(&final_path, b"old-safe").await.unwrap();
+        tokio::fs::write(&staging, b"partial").await.unwrap();
+
+        // Simulate a failed/canceled backend before promotion: only the staging
+        // file is discarded by the runner; the visible destination is untouched.
+        tokio::fs::remove_file(&staging).await.unwrap();
+
+        assert_eq!(tokio::fs::read(&final_path).await.unwrap(), b"old-safe");
+        assert!(!staging.exists());
+        let _ = tokio::fs::remove_dir_all(&root).await;
+    }
+
+    #[tokio::test]
+    async fn staged_download_paths_are_sibling_scoped_and_transfer_specific() {
+        let final_path = PathBuf::from("/tmp/downloads/report.bin");
+        assert_eq!(
+            download_staging_path(&final_path, "abc"),
+            PathBuf::from("/tmp/downloads/.ghostftp-download-abc.part")
+        );
+        assert_eq!(
+            download_backup_path(&final_path, "abc"),
+            PathBuf::from("/tmp/downloads/.ghostftp-download-abc.backup")
         );
     }
 
