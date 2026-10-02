@@ -374,8 +374,9 @@ async fn local_path_exists_fail_closed(path: &Path) -> Result<bool> {
     match tokio::fs::metadata(path).await {
         Ok(_) => Ok(true),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(error) => Err(error)
-            .with_context(|| format!("stat local download target {}", path.display())),
+        Err(error) => {
+            Err(error).with_context(|| format!("stat local download target {}", path.display()))
+        }
     }
 }
 
@@ -4145,7 +4146,8 @@ async fn run_download_task(
         final_path.clone()
     };
     let res = loop {
-        let attempt = dispatch_download(&mgr, &id, &session, &remote_path, &working_path, &app).await;
+        let attempt =
+            dispatch_download(&mgr, &id, &session, &remote_path, &working_path, &app).await;
         match attempt {
             Err(e) if e.downcast_ref::<RestartFromPause>().is_some() => {
                 if !supports_byte_resume(&session) {
