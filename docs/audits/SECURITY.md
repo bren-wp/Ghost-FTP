@@ -12,6 +12,7 @@ Previous canonical release: **0.20.10**.
 - Transfer-history CSV export excludes raw backend error text and neutralizes spreadsheet-formula prefixes from user/server-controlled path cells.
 - The desktop updater keeps its public verification key embedded in application configuration. Private updater signing material is optional and, when used, belongs only in CI secrets.
 - Android FTP/FTPS/SFTP staged uploads verify remote-target state before promotion and fail closed if an existing target cannot be preserved or restored.
+- Desktop SFTP Rename conflict probing distinguishes protocol-confirmed absence from permission/connection/protocol failures; ambiguous probes fail closed rather than selecting a potentially colliding path.
 
 ## Updater publication hardening
 
