@@ -7,6 +7,8 @@
 - Refuses promotion when a target appears during an in-progress upload.
 - Reports failed backup restoration and preserves the remote backup path for manual recovery instead of silently discarding recovery failure.
 - Adds Android regression coverage and production-contract checks for staged replacement safety.
+- Centralizes staged remote replacement across FTP/FTPS/SFTP so backup, promotion, rollback and temporary cleanup use one fail-closed transaction.
+- Adds JVM regressions for existence-check denial, backup/promotion failures, rollback success/failure, late target races and SFTP `NO_SUCH_FILE` versus permission/protocol failures.
 - Allows intentional forward SemVer jumps only when the new version is strictly newer and `previousVersion` matches the exact published base.
 - Adds Windows-hardening concurrency so superseded PR/ref runs are canceled instead of consuming runners.
 

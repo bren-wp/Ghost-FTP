@@ -138,6 +138,8 @@ require_text "FTP staged upload promotion" "$CONNECTION_MODEL" 'client.rename(te
 require_text "FTP existing-target backup" "$CONNECTION_MODEL" 'client.rename(remoteFilePath, backupPath)'
 require_text "FTP target existence proof" "$CONNECTION_MODEL" 'ftpRemoteTargetExists(client, remoteFilePath)'
 require_text "SFTP target existence proof" "$CONNECTION_MODEL" 'sftpRemoteTargetExists(channel, remoteFilePath)'
+require_exact_count "shared staged replacement definition and integrations" "$CONNECTION_MODEL" 'commitStagedRemoteReplacement(' 3
+require_text "SFTP no-such-file classifier" "$CONNECTION_MODEL" 'sftpTargetExistsFromLookupFailure(error)'
 require_absent "ambiguous FTP backup rename fallback" "$CONNECTION_MODEL" 'runCatching { client.rename(remoteFilePath, backupPath) }'
 require_text "staged upload recovery failure visibility" "$CONNECTION_MODEL" 'Original remote file preserved at $backupPath for manual recovery.'
 require_text "SFTP streaming download" "$CONNECTION_MODEL" 'channel.get(remoteFilePath).use'
@@ -216,6 +218,15 @@ test -s "$UNIT_TEST"
 require_text "Android cancellation unit coverage" "$UNIT_TEST" 'cancellationBecomesStickyAndThrows'
 require_text "Android path traversal unit coverage" "$UNIT_TEST" 'remoteTargetsRejectDotSegmentsAndRootDestruction'
 require_text "Android host validation unit coverage" "$UNIT_TEST" 'hostNormalizationRejectsEmbeddedCredentialsPortsAndSchemes'
+require_text "Android staged absent-target coverage" "$UNIT_TEST" 'stagedReplacementPromotesWhenTargetIsAbsent'
+require_text "Android staged existing-target coverage" "$UNIT_TEST" 'stagedReplacementBacksUpExistingTargetBeforePromotion'
+require_text "Android staged existence-failure coverage" "$UNIT_TEST" 'stagedReplacementFailsClosedWhenExistenceCheckFails'
+require_text "Android staged backup-failure coverage" "$UNIT_TEST" 'stagedReplacementCleansTemporaryWhenBackupRenameFails'
+require_text "Android staged promotion rollback coverage" "$UNIT_TEST" 'stagedReplacementRestoresOriginalWhenPromotionFails'
+require_text "Android staged rollback-failure coverage" "$UNIT_TEST" 'stagedReplacementPreservesBackupWhenRollbackFails'
+require_text "Android staged late-target coverage" "$UNIT_TEST" 'stagedReplacementRejectsTargetThatAppearsDuringTransfer'
+require_text "Android SFTP no-such-file coverage" "$UNIT_TEST" 'sftpNoSuchFileMeansTargetAbsent'
+require_text "Android SFTP error fail-closed coverage" "$UNIT_TEST" 'sftpPermissionAndProtocolErrorsFailClosed'
 test -s "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt"
 SMOKE_SCRIPT="$ANDROID_DIR/scripts/run-instrumentation-smoke.sh"
 bash -n "$SMOKE_SCRIPT"
