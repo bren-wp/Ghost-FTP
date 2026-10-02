@@ -360,6 +360,18 @@ fn basename(path: &str) -> String {
     path.rsplit(['/', '\\']).next().unwrap_or(path).to_string()
 }
 
+pub(crate) fn require_directory_upload_metadata(
+    path: &Path,
+    metadata: std::io::Result<std::fs::Metadata>,
+) -> Result<std::fs::Metadata> {
+    metadata.with_context(|| {
+        format!(
+            "stat directory upload entry {}; refusing to continue with an incomplete source tree",
+            path.display()
+        )
+    })
+}
+
 const MAX_RENAME_CANDIDATES: usize = 999;
 
 /// Append _1, _2, … to the stem until a free local path is found. Never fall
@@ -2212,10 +2224,7 @@ impl TransferManager {
                 .with_context(|| format!("read_dir {}", d.display()))?;
             while let Some(entry) = rd.next_entry().await? {
                 let p = entry.path();
-                let meta = match entry.metadata().await {
-                    Ok(m) => m,
-                    Err(_) => continue,
-                };
+                let meta = require_directory_upload_metadata(&p, entry.metadata().await)?;
                 let rel = p
                     .strip_prefix(&local_root_path)
                     .unwrap_or(&p)
@@ -4658,6 +4667,25 @@ mod tests {
             "Permission denied (os error 13)"
         )));
         assert!(!is_transient(&anyhow::anyhow!("No such file or directory")));
+    }
+
+    #[test]
+    fn directory_upload_metadata_failure_is_not_silently_skipped() {
+        let path = PathBuf::from("/source/private.txt");
+        let error = require_directory_upload_metadata(
+            &path,
+            Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "permission denied",
+            )),
+        )
+        .unwrap_err();
+
+        let message = format!("{error:#}");
+        assert!(message.contains("stat directory upload entry"));
+        assert!(message.contains("private.txt"));
+        assert!(message.contains("permission denied"));
+        assert!(message.contains("incomplete source tree"));
     }
 
     #[test]
