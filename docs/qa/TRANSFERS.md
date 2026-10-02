@@ -36,6 +36,7 @@ Rust workspace tests and frontend production builds are release quality gates. C
 - FTP/explicit-FTPS resumed uploads verify the final remote size and fall back to a safe full restart when a server accepts resume semantics but persists the wrong byte count.
 - FTP/FTPS cancellation and chunk I/O failures issue ABOR/cleanup so the control connection remains synchronized for subsequent commands.
 - SFTP Rename conflict resolution treats only a protocol-proven missing path as free; permission, timeout, connection and other probe failures abort candidate selection fail closed.
+- Directory upload source traversal fails closed on local metadata/stat errors; Agent Bridge preflight uses the same guard so file/byte approval counts and queued uploads cannot silently diverge.
 
 ## Real-server acceptance still required
 
