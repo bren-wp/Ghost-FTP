@@ -35,6 +35,7 @@ Rust workspace tests and frontend production builds are release quality gates. C
 - Terminal history is pruned during runtime to a bounded budget while every active transfer remains retained.
 - FTP/explicit-FTPS resumed uploads verify the final remote size and fall back to a safe full restart when a server accepts resume semantics but persists the wrong byte count.
 - FTP/FTPS cancellation and chunk I/O failures issue ABOR/cleanup so the control connection remains synchronized for subsequent commands.
+- SFTP Rename conflict resolution treats only a protocol-proven missing path as free; permission, timeout, connection and other probe failures abort candidate selection fail closed.
 
 ## Real-server acceptance still required
 
