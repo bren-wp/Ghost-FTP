@@ -80,6 +80,72 @@ class OperationCancellation {
 
 class OperationCanceledException : IOException("Operation canceled.")
 
+internal fun commitStagedRemoteReplacement(
+    remoteFilePath: String,
+    backupPath: String,
+    targetExists: () -> Boolean,
+    backupTarget: () -> Unit,
+    promoteTemporary: () -> Unit,
+    restoreBackup: () -> Unit,
+    cleanupTemporary: () -> Unit,
+    cleanupBackup: () -> Unit,
+    checkpoint: () -> Unit = {}
+) {
+    var backupCreated = false
+    try {
+        checkpoint()
+        if (targetExists()) {
+            try {
+                backupTarget()
+            } catch (error: Throwable) {
+                throw IOException(
+                    "Upload completed but could not preserve the existing remote file before replacement.",
+                    error
+                )
+            }
+            backupCreated = true
+        }
+
+        checkpoint()
+        if (!backupCreated && targetExists()) {
+            throw IOException(
+                "Remote upload target appeared during transfer; refusing to overwrite it."
+            )
+        }
+
+        checkpoint()
+        try {
+            promoteTemporary()
+        } catch (error: Throwable) {
+            throw IOException(
+                "Upload completed but could not promote the temporary file to $remoteFilePath.",
+                error
+            )
+        }
+
+        if (backupCreated) {
+            runCatching { cleanupBackup() }
+        }
+    } catch (error: Throwable) {
+        runCatching { cleanupTemporary() }
+        if (backupCreated) {
+            val restored = runCatching {
+                restoreBackup()
+                true
+            }.getOrDefault(false)
+            if (!restored) {
+                val recoveryError = IOException(
+                    "Upload failed and the original remote file could not be restored automatically. " +
+                        "Original remote file preserved at $backupPath for manual recovery."
+                )
+                recoveryError.addSuppressed(error)
+                throw recoveryError
+            }
+        }
+        throw error
+    }
+}
+
 class ConnectionController {
     fun listRemote(
         profile: ConnectionProfile,
@@ -278,7 +344,6 @@ class ConnectionController {
         val temporaryPath = remoteTemporarySibling(remoteFilePath, "upload")
         val backupPath = remoteTemporarySibling(remoteFilePath, "backup")
         var dataCommandCompleted = false
-        var backupCreated = false
 
         try {
             val remote = client.storeFileStream(temporaryPath)
@@ -292,54 +357,42 @@ class ConnectionController {
             }
             dataCommandCompleted = true
             cancellation.throwIfCanceled()
-
-            // Preserve an existing target until the complete temporary upload is
-            // known-good. Absence must be proven by a successful parent listing;
-            // a failed backup rename is never treated as "target missing".
-            if (ftpRemoteTargetExists(client, remoteFilePath)) {
-                if (!client.rename(remoteFilePath, backupPath)) {
-                    throw IOException(
-                        "Upload completed but could not preserve the existing remote file before replacement."
-                    )
-                }
-                backupCreated = true
-            }
-            cancellation.throwIfCanceled()
-
-            // Re-check the absent-target case so a file that appeared while the
-            // upload was in progress is not silently overwritten.
-            if (!backupCreated && ftpRemoteTargetExists(client, remoteFilePath)) {
-                throw IOException(
-                    "Remote upload target appeared during transfer; refusing to overwrite it."
-                )
-            }
-
-            if (!client.rename(temporaryPath, remoteFilePath)) {
-                throw IOException("Upload completed but could not promote the temporary file to $remoteFilePath.")
-            }
-            if (backupCreated) {
-                runCatching { client.deleteFile(backupPath) }
-            }
         } catch (error: Throwable) {
             if (!dataCommandCompleted) {
                 runCatching { if (client.isConnected) client.abort() }
             }
             runCatching { if (client.isConnected) client.deleteFile(temporaryPath) }
-            if (backupCreated) {
-                val restored = runCatching {
-                    client.isConnected && client.rename(backupPath, remoteFilePath)
-                }.getOrDefault(false)
-                if (!restored) {
-                    val recoveryError = IOException(
-                        "Upload failed and the original remote file could not be restored automatically. " +
-                            "Original remote file preserved at $backupPath for manual recovery."
-                    )
-                    recoveryError.addSuppressed(error)
-                    throw recoveryError
-                }
-            }
             throw error
         }
+
+        commitStagedRemoteReplacement(
+            remoteFilePath = remoteFilePath,
+            backupPath = backupPath,
+            targetExists = { ftpRemoteTargetExists(client, remoteFilePath) },
+            backupTarget = {
+                if (!client.rename(remoteFilePath, backupPath)) {
+                    throw IOException("FTP server rejected backup rename.")
+                }
+            },
+            promoteTemporary = {
+                if (!client.rename(temporaryPath, remoteFilePath)) {
+                    throw IOException("FTP server rejected temporary-file promotion.")
+                }
+            },
+            restoreBackup = {
+                if (!client.isConnected || !client.rename(backupPath, remoteFilePath)) {
+                    throw IOException("FTP server rejected backup restoration.")
+                }
+            },
+            cleanupTemporary = {
+                if (client.isConnected) client.deleteFile(temporaryPath)
+            },
+            cleanupBackup = {
+                if (client.isConnected) client.deleteFile(backupPath)
+            },
+            checkpoint = { cancellation.throwIfCanceled() }
+        )
+
         TransferResult(
             title = "Upload complete",
             detail = "Uploaded file to $remoteFilePath.",
@@ -428,61 +481,29 @@ class ConnectionController {
     ): TransferResult = withSftpChannel(profile, cancellation) { channel ->
         val temporaryPath = remoteTemporarySibling(remoteFilePath, "upload")
         val backupPath = remoteTemporarySibling(remoteFilePath, "backup")
-        var backupCreated = false
+
         try {
             channel.put(temporaryPath).use { output ->
                 copyCancelable(input, output, cancellation)
             }
             cancellation.throwIfCanceled()
-
-            if (sftpRemoteTargetExists(channel, remoteFilePath)) {
-                try {
-                    channel.rename(remoteFilePath, backupPath)
-                    backupCreated = true
-                } catch (error: Throwable) {
-                    throw IOException(
-                        "Upload completed but could not preserve the existing remote file before replacement.",
-                        error
-                    )
-                }
-            }
-            cancellation.throwIfCanceled()
-
-            if (!backupCreated && sftpRemoteTargetExists(channel, remoteFilePath)) {
-                throw IOException(
-                    "Remote upload target appeared during transfer; refusing to overwrite it."
-                )
-            }
-
-            try {
-                channel.rename(temporaryPath, remoteFilePath)
-            } catch (error: Throwable) {
-                throw IOException(
-                    "Upload completed but could not promote the temporary file to $remoteFilePath.",
-                    error
-                )
-            }
-            if (backupCreated) {
-                runCatching { channel.rm(backupPath) }
-            }
         } catch (error: Throwable) {
             runCatching { channel.rm(temporaryPath) }
-            if (backupCreated) {
-                val restored = runCatching {
-                    channel.rename(backupPath, remoteFilePath)
-                    true
-                }.getOrDefault(false)
-                if (!restored) {
-                    val recoveryError = IOException(
-                        "Upload failed and the original remote file could not be restored automatically. " +
-                            "Original remote file preserved at $backupPath for manual recovery."
-                    )
-                    recoveryError.addSuppressed(error)
-                    throw recoveryError
-                }
-            }
             throw error
         }
+
+        commitStagedRemoteReplacement(
+            remoteFilePath = remoteFilePath,
+            backupPath = backupPath,
+            targetExists = { sftpRemoteTargetExists(channel, remoteFilePath) },
+            backupTarget = { channel.rename(remoteFilePath, backupPath) },
+            promoteTemporary = { channel.rename(temporaryPath, remoteFilePath) },
+            restoreBackup = { channel.rename(backupPath, remoteFilePath) },
+            cleanupTemporary = { channel.rm(temporaryPath) },
+            cleanupBackup = { channel.rm(backupPath) },
+            checkpoint = { cancellation.throwIfCanceled() }
+        )
+
         TransferResult(
             title = "Upload complete",
             detail = "Uploaded file to $remoteFilePath.",
@@ -699,15 +720,18 @@ class ConnectionController {
             }
             true
         } catch (error: SftpException) {
-            if (error.id == ChannelSftp.SSH_FX_NO_SUCH_FILE) {
-                false
-            } else {
-                throw IOException(
-                    "Unable to verify the existing remote upload target before replacement.",
-                    error
-                )
-            }
+            sftpTargetExistsFromLookupFailure(error)
         }
+    }
+
+    internal fun sftpTargetExistsFromLookupFailure(error: SftpException): Boolean {
+        if (error.id == ChannelSftp.SSH_FX_NO_SUCH_FILE) {
+            return false
+        }
+        throw IOException(
+            "Unable to verify the existing remote upload target before replacement.",
+            error
+        )
     }
 
     private fun copyCancelable(
