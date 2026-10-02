@@ -389,24 +389,47 @@ fn resolve_local_rename(path: &Path) -> Result<PathBuf> {
     )
 }
 
-/// Same idea for a remote path. Uses sftp.metadata to probe existence and fails
-/// closed when every bounded candidate already exists.
+/// Resolve Rename without ever treating an ambiguous remote probe failure as
+/// proof that a candidate is free. The probe returns `Ok(false)` only for a
+/// protocol-proven absent path; permission, timeout, connection and other
+/// errors propagate fail-closed instead of degrading Rename into Overwrite.
+async fn resolve_remote_rename_with_probe<F, Fut, E>(
+    path: &str,
+    mut probe_exists: F,
+) -> Result<String>
+where
+    F: FnMut(String) -> Fut,
+    Fut: Future<Output = std::result::Result<bool, E>>,
+    E: std::fmt::Display,
+{
+    let original = path.to_string();
+    let original_exists = probe_exists(original.clone()).await.map_err(|error| {
+        anyhow::anyhow!("unable to verify remote rename target {original}: {error}")
+    })?;
+    if !original_exists {
+        return Ok(original);
+    }
+
+    for i in 1..=MAX_RENAME_CANDIDATES {
+        let candidate = remote_rename_candidate(path, i);
+        let exists = probe_exists(candidate.clone()).await.map_err(|error| {
+            anyhow::anyhow!("unable to verify remote rename candidate {candidate}: {error}")
+        })?;
+        if !exists {
+            return Ok(candidate);
+        }
+    }
+
+    anyhow::bail!(
+        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {path}"
+    )
+}
+
 async fn resolve_remote_rename(
     sftp: &russh_sftp::client::SftpSession,
     path: &str,
 ) -> Result<String> {
-    if sftp.metadata(path).await.is_err() {
-        return Ok(path.to_string());
-    }
-    for i in 1..=MAX_RENAME_CANDIDATES {
-        let candidate = remote_rename_candidate(path, i);
-        if sftp.metadata(&candidate).await.is_err() {
-            return Ok(candidate);
-        }
-    }
-    anyhow::bail!(
-        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {path}"
-    )
+    resolve_remote_rename_with_probe(path, |candidate| sftp.try_exists(candidate)).await
 }
 
 impl TransferManager {
@@ -4665,6 +4688,95 @@ mod tests {
         assert_eq!(
             remote_rename_candidate(r"C:\dir.v1\file", 4),
             r"C:\dir.v1\file_4"
+        );
+    }
+
+    #[tokio::test]
+    async fn remote_rename_returns_original_only_after_proven_absence() {
+        let mut probes = Vec::new();
+        let resolved = resolve_remote_rename_with_probe("/srv/file.txt", |candidate| {
+            probes.push(candidate);
+            std::future::ready(Ok::<bool, std::io::Error>(false))
+        })
+        .await
+        .unwrap();
+
+        assert_eq!(resolved, "/srv/file.txt");
+        assert_eq!(probes, vec!["/srv/file.txt"]);
+    }
+
+    #[tokio::test]
+    async fn remote_rename_skips_collisions_until_a_proven_free_candidate() {
+        let mut probes = Vec::new();
+        let resolved = resolve_remote_rename_with_probe("/srv/file.txt", |candidate| {
+            let exists = matches!(
+                candidate.as_str(),
+                "/srv/file.txt" | "/srv/file_1.txt" | "/srv/file_2.txt"
+            );
+            probes.push(candidate);
+            std::future::ready(Ok::<bool, std::io::Error>(exists))
+        })
+        .await
+        .unwrap();
+
+        assert_eq!(resolved, "/srv/file_3.txt");
+        assert_eq!(
+            probes,
+            vec![
+                "/srv/file.txt",
+                "/srv/file_1.txt",
+                "/srv/file_2.txt",
+                "/srv/file_3.txt"
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn remote_rename_probe_failure_is_fail_closed() {
+        let mut probes = 0usize;
+        let error = resolve_remote_rename_with_probe("/srv/file.txt", |_candidate| {
+            probes += 1;
+            std::future::ready(Err::<bool, std::io::Error>(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "permission denied",
+            )))
+        })
+        .await
+        .unwrap_err();
+
+        assert_eq!(probes, 1);
+        assert!(
+            error
+                .to_string()
+                .contains("unable to verify remote rename target"),
+            "unexpected probe error: {error:#}"
+        );
+    }
+
+    #[tokio::test]
+    async fn remote_rename_candidate_probe_failure_is_fail_closed() {
+        let mut probes = 0usize;
+        let error = resolve_remote_rename_with_probe("/srv/file.txt", |_candidate| {
+            probes += 1;
+            let result = if probes == 1 {
+                Ok(true)
+            } else {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::ConnectionReset,
+                    "connection reset",
+                ))
+            };
+            std::future::ready(result)
+        })
+        .await
+        .unwrap_err();
+
+        assert_eq!(probes, 2);
+        assert!(
+            error
+                .to_string()
+                .contains("unable to verify remote rename candidate /srv/file_1.txt"),
+            "unexpected candidate probe error: {error:#}"
         );
     }
 
