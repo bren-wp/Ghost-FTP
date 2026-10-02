@@ -37,7 +37,7 @@ use uuid::Uuid;
 
 use crate::session::{ExecStream, Session};
 use crate::sync::{SyncDirection, SyncStrategy};
-use crate::transfer::OverwritePolicy;
+use crate::transfer::{require_directory_upload_metadata, OverwritePolicy};
 
 const APPROVAL_TIMEOUT: Duration = Duration::from_secs(120);
 const MAX_ACTIVITY: usize = 200;
@@ -3945,8 +3945,9 @@ fn upload_dir_summary(
 }
 
 /// Count the files/bytes a directory upload would queue. Mirrors the walk in
-/// `TransferManager::start_directory_upload` (skips symlinks and unreadable
-/// entries) so the approval summary matches what actually uploads.
+/// `TransferManager::start_directory_upload`: symlinks remain outside the
+/// regular-file tree, while unreadable entries fail closed so the approval
+/// summary can never authorize a silently incomplete upload.
 async fn count_local_tree(root: &std::path::Path) -> Result<(usize, u64)> {
     let mut dirs_to_visit: Vec<PathBuf> = vec![root.to_path_buf()];
     let mut files: usize = 0;
@@ -3956,12 +3957,10 @@ async fn count_local_tree(root: &std::path::Path) -> Result<(usize, u64)> {
             .await
             .with_context(|| format!("read_dir {}", d.display()))?;
         while let Some(entry) = rd.next_entry().await? {
-            let meta = match entry.metadata().await {
-                Ok(m) => m,
-                Err(_) => continue,
-            };
+            let path = entry.path();
+            let meta = require_directory_upload_metadata(&path, entry.metadata().await)?;
             if meta.is_dir() {
-                dirs_to_visit.push(entry.path());
+                dirs_to_visit.push(path);
             } else if meta.is_file() {
                 files += 1;
                 bytes = bytes.saturating_add(meta.len());
