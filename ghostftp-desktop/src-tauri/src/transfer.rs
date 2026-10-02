@@ -1847,6 +1847,29 @@ impl TransferManager {
         Ok(())
     }
 
+    async fn run_agent_full_download_staged(
+        &self,
+        id: &str,
+        session: &Arc<crate::session::AgentSession>,
+        remote_path: &str,
+        local_path: &Path,
+        app: Option<&AppHandle>,
+    ) -> Result<()> {
+        let staging = download_staging_path(local_path, id);
+        let result = self
+            .agent_download_core(id, session, remote_path, &staging, app)
+            .await;
+        match result {
+            Ok(()) => promote_staged_download(&staging, local_path, id).await,
+            Err(error) => {
+                if error.downcast_ref::<RestartFromPause>().is_none() {
+                    let _ = tokio::fs::remove_file(&staging).await;
+                }
+                Err(error)
+            }
+        }
+    }
+
     /// Agent download entry point (delta sync): mirror of
     /// [`Self::run_agent_upload_with_delta`].
     async fn run_agent_download_with_delta(
@@ -1875,7 +1898,7 @@ impl TransferManager {
         // prefix. Delta mode is reserved for complete prior-file bases.
         if self.get(id).await.is_some_and(|t| t.transferred > 0) {
             return self
-                .agent_download_core(id, session, remote_path, local_path, app)
+                .run_agent_full_download_staged(id, session, remote_path, local_path, app)
                 .await;
         }
 
@@ -1896,7 +1919,7 @@ impl TransferManager {
                 }
             }
         }
-        self.agent_download_core(id, session, remote_path, local_path, app)
+        self.run_agent_full_download_staged(id, session, remote_path, local_path, app)
             .await
     }
 
