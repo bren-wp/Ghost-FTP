@@ -13,6 +13,8 @@
 - Adds Rust regressions proving only a positively classified missing path may be selected by the bounded Rename candidate search.
 - Stops directory uploads from silently skipping local entries whose metadata cannot be read; the operation now fails closed with the affected source path.
 - Aligns Agent Bridge directory-upload preflight with the same metadata guard so its approval summary cannot authorize a silently incomplete source tree.
+- Stages desktop whole-file downloads into transfer-specific sibling files and promotes them only after successful completion, so failed/canceled overwrite downloads cannot truncate an existing local destination.
+- Uses backup-before-promotion rollback for local replacement and routes the Ghost FTP Agent whole-file fallback through the same staged protection while preserving its existing hash-verified delta path.
 - Allows intentional forward SemVer jumps only when the new version is strictly newer and `previousVersion` matches the exact published base.
 - Adds Windows-hardening concurrency so superseded PR/ref runs are canceled instead of consuming runners.
 
