@@ -218,6 +218,11 @@ export function TitleBar() {
                 }
                 openDialog("siteManager");
               }}
+              aria-label={
+                singlePane && activeSessionId && browseLocal
+                  ? `Show ${profile.name} server files`
+                  : `Open ${profile.name} in Sites`
+              }
               title={singlePane && activeSessionId && browseLocal ? "Show server files" : "Open this site in Sites"}
             >
               <Server size={15}/>
