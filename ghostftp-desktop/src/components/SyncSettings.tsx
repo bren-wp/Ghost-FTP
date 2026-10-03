@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowLeft,
@@ -87,6 +87,7 @@ function PairRow({ pair }: { pair: PairView }) {
   const syncNow = useSync((s) => s.syncNow);
   const [freeing, setFreeing] = useState(false);
   const [mutating, setMutating] = useState<"toggle" | "sync" | "remove" | null>(null);
+  const mutationInFlight = useRef(false);
 
   const profile = profiles.find((p) => p.id === pair.profileId);
   const Arrow = pair.direction === "localToRemote" ? ArrowRight : ArrowLeft;
@@ -97,11 +98,13 @@ function PairRow({ pair }: { pair: PairView }) {
     kind: "toggle" | "sync" | "remove",
     action: () => Promise<void>
   ) => {
-    if (mutating !== null) return;
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
     setMutating(kind);
     try {
       await action();
     } finally {
+      mutationInFlight.current = false;
       setMutating(null);
     }
   };
