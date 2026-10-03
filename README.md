@@ -39,8 +39,8 @@
 
 ## Current status
 
-- **Active source/release cycle:** `0.30.1`.
-- **Previous canonical release:** `0.20.10`.
+- **Active source/release cycle:** `0.30.2`.
+- **Previous canonical release:** `0.30.1`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
@@ -56,7 +56,7 @@ FTP, explicit FTPS and SFTP with TLS/SSH verification, protected credential hand
 
 ### Files and transfers
 
-Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.30.1 development line extends the published 0.20.10 foundation with fail-closed Android staged-upload replacement while retaining strict transfer-conflict safety, changed-host-key/permission/Unicode/zero-byte protocol coverage and non-aligned multi-chunk resume tests. Stable GitHub packages do not require private updater keys; signed in-app updater assets are published only when the complete verified signature/manifest/package set exists.
+Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.30.2 development line extends the published 0.30.1 foundation with fail-safe local download promotion, stricter remote replacement checks and protocol-aware Android connection UX while retaining strict transfer-conflict safety, changed-host-key/permission/Unicode/zero-byte protocol coverage and non-aligned multi-chunk resume tests. Stable GitHub packages do not require private updater keys; signed in-app updater assets are published only when the complete verified signature/manifest/package set exists.
 
 ### Productivity
 
