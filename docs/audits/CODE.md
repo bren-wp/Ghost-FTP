@@ -1,4 +1,4 @@
-# Ghost FTP Code Audit — 0.30.2
+# Ghost FTP Code Audit — 0.30.3
 
 ## Scope
 
