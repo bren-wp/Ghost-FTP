@@ -3,6 +3,7 @@
 - Fixes Android action availability so disconnected sessions no longer expose Refresh, Disconnect or remote file operations as actionable controls.
 - Keeps the local Android file picker available before connection while guarding remote Upload until a session exists.
 - Adds click-by-click instrumentation for disconnected and invalid-session enabled states.
+- Serializes Windows/Linux Sync pair toggle, Sync now and Remove actions so duplicate/conflicting IPC mutations cannot race from rapid clicks.
 - Adds an Android private Kotlin symbol audit so declaration-only private functions and fields fail the production contract.
 - Preserves the existing cross-platform exact-head quality, real protocol E2E, native build, Android and Windows hardening release gates.
 
