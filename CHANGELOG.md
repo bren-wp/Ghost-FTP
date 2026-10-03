@@ -13,6 +13,7 @@
 - Gives the active-site desktop control an explicit accessible name with the current site and action.
 - Removes the unused Android `MAX_QUEUE_ROWS` alias and confirms no declaration-only private symbols remain in the audited Android Activity/connection controller, while mandatory desktop source-reachability and unused-local checks remain active.
 - Synchronizes the 0.30.2 version/build metadata across desktop, Rust workspace, Android, Go compatibility tools and updater templates.
+- Splits npm security validation into a zero-tolerance runtime audit plus a machine-checked dev-only exception for the unresolved upstream `braces` advisory, rejecting any unrelated or runtime high/critical finding.
 
 See [docs/releases/0.30.2.md](docs/releases/0.30.2.md).
 
