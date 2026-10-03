@@ -162,7 +162,8 @@ jobs:
         run: |
           set -euo pipefail
           npm ci
-          npm audit --audit-level=high
+          npm audit --omit=dev --audit-level=high
+          node ../.github/scripts/check-npm-dev-audit.mjs
           npm run check:i18n
           npm run check:ui
           npm run check:dead
