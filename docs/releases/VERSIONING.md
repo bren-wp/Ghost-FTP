@@ -16,8 +16,8 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
 ## Current cycle
 
-- Active source/release cycle: **0.30.1**
-- Previous canonical release: **0.20.10**
+- Active source/release cycle: **0.30.2**
+- Previous canonical release: **0.30.1**
 - Live publication state: GitHub Releases is authoritative.
 
 ## Published-history migration

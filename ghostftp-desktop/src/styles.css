@@ -5028,3 +5028,59 @@ input.ghost-pane-address:focus-visible {
     font-size: 10px !important;
   }
 }
+
+
+/* 0.30.2 compact Files toolbar accessibility:
+   keep every contextual file action reachable at the minimum native width
+   without forcing horizontal toolbar panning. Labels remain available through
+   each control's accessible name/title while the visible layout becomes icon-first. */
+@media (max-width: 620px) {
+  .ghost-simple-toolbar {
+    height: 48px !important;
+    min-height: 48px !important;
+    gap: 2px !important;
+    padding: 4px !important;
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+  }
+
+  .ghost-simple-toolbar .ghost-tool-button {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 40px !important;
+    flex: 0 0 42px !important;
+    border-right: 0 !important;
+  }
+
+  .ghost-simple-toolbar .ghost-tool-button > span {
+    display: none !important;
+  }
+
+  .ghost-simple-toolbar .ghost-active-site-chip {
+    min-width: 72px;
+    max-width: 108px;
+    height: 36px;
+    flex: 1 1 108px;
+    margin-right: 2px;
+    padding-inline: 8px;
+  }
+
+  .ghost-simple-toolbar .ghost-toolbar-spacer {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .ghost-simple-toolbar .ghost-active-site-chip {
+    width: 38px;
+    min-width: 38px;
+    max-width: 38px;
+    flex: 0 0 38px;
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .ghost-simple-toolbar .ghost-active-site-chip span {
+    display: none;
+  }
+}

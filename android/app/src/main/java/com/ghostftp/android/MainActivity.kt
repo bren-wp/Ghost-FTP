@@ -23,6 +23,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -53,6 +54,7 @@ class MainActivity : Activity() {
     private lateinit var usernameInput: EditText
     private lateinit var passwordInput: EditText
     private lateinit var hostKeyFingerprintInput: EditText
+    private lateinit var sftpFingerprintGroup: View
     private lateinit var remotePathInput: EditText
     private lateinit var transferRemotePathInput: EditText
     private lateinit var uploadRemoteNameInput: EditText
@@ -83,6 +85,7 @@ class MainActivity : Activity() {
     private var operationGeneration: Long = 0
     private var operationInFlight = false
     private var activeCancellation: OperationCancellation? = null
+    private var selectedProtocol = ConnectionProtocol.FTP
 
     @Volatile
     private var activityClosing = false
@@ -102,6 +105,7 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= 35) content.requestApplyInsets()
         showIdleState()
         if (savedInstanceState != null) restoreUiState(savedInstanceState)
+        installProtocolSelectionBehavior(seedDefaultPort = savedInstanceState == null)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -345,6 +349,7 @@ class MainActivity : Activity() {
         addView(sectionDescription("Connect to FTP, explicit FTPS or SFTP. Passwords stay in memory for the active session and are cleared on disconnect."))
 
         protocolSpinner = Spinner(this@MainActivity).apply {
+            contentDescription = "Connection protocol"
             adapter = ArrayAdapter(
                 this@MainActivity,
                 android.R.layout.simple_spinner_item,
@@ -374,8 +379,12 @@ class MainActivity : Activity() {
         addView(passwordInput)
 
         hostKeyFingerprintInput = input("SHA256 fingerprint for SFTP", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
-        addView(formLabel("SFTP host key fingerprint"))
-        addView(hostKeyFingerprintInput)
+        sftpFingerprintGroup = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(formLabel("SFTP host key fingerprint"))
+            addView(hostKeyFingerprintInput)
+        }
+        addView(sftpFingerprintGroup)
 
         remotePathInput = input("/", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         remotePathInput.setText("/")
@@ -402,6 +411,41 @@ class MainActivity : Activity() {
         actions.addView(gap(8))
         actions.addView(refreshButton, buttonParams(weight = 1f))
         addView(actions)
+    }
+
+    private fun installProtocolSelectionBehavior(seedDefaultPort: Boolean) {
+        selectedProtocol = ConnectionProtocol.fromIndex(protocolSpinner.selectedItemPosition)
+        updateProtocolSpecificFields(selectedProtocol)
+
+        if (seedDefaultPort && portInput.text.toString().isBlank()) {
+            portInput.setText(selectedProtocol.defaultPort.toString())
+        }
+
+        protocolSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                val nextProtocol = ConnectionProtocol.fromIndex(position)
+                val currentPort = portInput.text.toString().trim()
+                if (currentPort.isBlank() || currentPort == selectedProtocol.defaultPort.toString()) {
+                    portInput.setText(nextProtocol.defaultPort.toString())
+                }
+                selectedProtocol = nextProtocol
+                updateProtocolSpecificFields(nextProtocol)
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+        }
+    }
+
+    private fun updateProtocolSpecificFields(protocol: ConnectionProtocol) {
+        if (::sftpFingerprintGroup.isInitialized) {
+            sftpFingerprintGroup.visibility =
+                if (protocol == ConnectionProtocol.SFTP) View.VISIBLE else View.GONE
+        }
     }
 
     private fun buildFilesCard(): View = panel().apply {
@@ -1276,7 +1320,6 @@ class MainActivity : Activity() {
     private companion object {
         const val PICK_UPLOAD_REQUEST = 22091
         const val MAX_ACTIVITY_ROWS = 8
-        const val MAX_QUEUE_ROWS = MAX_ACTIVITY_ROWS
 
         const val STATE_PROTOCOL = "ghostftp.protocol"
         const val STATE_HOST = "ghostftp.host"

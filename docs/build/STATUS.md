@@ -1,9 +1,9 @@
-# Ghost FTP Build Status — 2 October 2026
+# Ghost FTP Build Status — 3 October 2026
 
 ## Authoritative current state
 
-- **Active source/release cycle:** Ghost FTP **0.30.1**.
-- **Previous canonical release:** Ghost FTP **0.20.10**.
+- **Active source/release cycle:** Ghost FTP **0.30.2**.
+- **Previous canonical release:** Ghost FTP **0.30.1**.
 - **Live publication status:** GitHub Releases is authoritative and queried by CI.
 - **Version source of truth:** `version.json`.
 - **Desktop production source:** `ghostftp-desktop/`.

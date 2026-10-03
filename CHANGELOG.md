@@ -1,3 +1,21 @@
+## 0.30.2 — cross-platform UX and transfer-integrity hardening — 3 October 2026
+
+0.30.2 follows published 0.30.1 and packages the safety and polish completed after that canonical tag.
+
+- Protects desktop overwrite downloads with sibling staging, backup-before-promotion and rollback so failed/canceled transfers cannot truncate an existing local destination.
+- Extends staged local replacement to Ghost FTP Agent whole-file fallback while preserving the hash-verified delta path.
+- Makes desktop SFTP Rename conflict probing and directory-upload metadata handling fail closed on ambiguous errors.
+- Keeps Android FTP/FTPS/SFTP staged replacement fail closed with explicit existence classification, backup, promotion and rollback recovery.
+- Adds a bounded Android instrumentation retry only for the confirmed Package Manager split-APK `Broken pipe` transport failure; real test failures stay blocking.
+- Makes the Android connection form protocol-aware: FTP/FTPS/SFTP default ports follow 21/21/22 without overwriting custom ports, and SFTP fingerprint input appears only when relevant.
+- Adds click-through instrumentation and production-contract coverage for protocol switching, custom-port preservation and SFTP security-field visibility.
+- Compacts the shared Windows/Linux Files toolbar at minimum native widths so all contextual actions remain reachable without horizontal panning.
+- Gives the active-site desktop control an explicit accessible name with the current site and action.
+- Removes the unused Android `MAX_QUEUE_ROWS` alias and confirms no declaration-only private symbols remain in the audited Android Activity/connection controller, while mandatory desktop source-reachability and unused-local checks remain active.
+- Synchronizes the 0.30.2 version/build metadata across desktop, Rust workspace, Android, Go compatibility tools and updater templates.
+
+See [docs/releases/0.30.2.md](docs/releases/0.30.2.md).
+
 ## 0.30.1 — staged-upload safety and version-line hardening — 2 October 2026
 
 0.30.1 follows published 0.20.10 and starts a broader hardening cycle.

@@ -5,6 +5,7 @@ import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.Spinner
 import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
@@ -71,6 +72,63 @@ class MainActivitySmokeTest {
 
         clickByDescription("Open Files workspace")
         assertTextVisibleInViewport("Connect to a server to load remote files.")
+    }
+
+    @Test
+    fun protocolSelectionUpdatesDefaultsWithoutClobberingCustomPort() {
+        clickByDescription("Open Sites workspace")
+
+        scenario.onActivity { activity ->
+            val protocol = findView(activity.window.decorView) {
+                it is Spinner && it.contentDescription?.toString() == "Connection protocol"
+            } as? Spinner
+            val port = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "21"
+            } as? EditText
+            val fingerprint = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "SHA256 fingerprint for SFTP"
+            } as? EditText
+
+            assertNotNull("Protocol selector missing", protocol)
+            assertNotNull("Port input missing", port)
+            assertNotNull("SFTP fingerprint input missing", fingerprint)
+            assertEquals("21", port!!.text.toString())
+            assertTrue("SFTP fingerprint must stay hidden for FTP.", !fingerprint!!.isShown)
+
+            protocol!!.setSelection(ConnectionProtocol.SFTP.ordinal)
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        SystemClock.sleep(120)
+
+        scenario.onActivity { activity ->
+            val port = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "21"
+            } as EditText
+            val fingerprint = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "SHA256 fingerprint for SFTP"
+            } as EditText
+            assertEquals("22", port.text.toString())
+            assertTrue("SFTP fingerprint must become visible for SFTP.", fingerprint.isShown)
+
+            port.setText("2222")
+            val protocol = findView(activity.window.decorView) {
+                it is Spinner && it.contentDescription?.toString() == "Connection protocol"
+            } as Spinner
+            protocol.setSelection(ConnectionProtocol.FTP.ordinal)
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        SystemClock.sleep(120)
+
+        scenario.onActivity { activity ->
+            val port = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "21"
+            } as EditText
+            val fingerprint = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "SHA256 fingerprint for SFTP"
+            } as EditText
+            assertEquals("2222", port.text.toString())
+            assertTrue("SFTP fingerprint must hide again for FTP.", !fingerprint.isShown)
+        }
     }
 
     @Test
