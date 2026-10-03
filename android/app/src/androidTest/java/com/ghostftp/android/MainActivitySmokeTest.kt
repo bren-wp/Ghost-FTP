@@ -137,23 +137,20 @@ class MainActivitySmokeTest {
         clickByDescription("Connect to server")
         assertTextPresent("Host is required")
 
-        clickByDescription("Disconnect from server")
-        assertTextPresent("Ready")
-
-        clickByDescription("Refresh action")
-        assertTextPresent("Ready")
+        assertDescriptionEnabled("Disconnect from server", false)
+        assertDescriptionEnabled("Refresh current session", false)
+        assertDescriptionEnabled("Refresh action", false)
     }
 
     @Test
-    fun guardedFileActionsRequireActiveSession() {
-        for (label in listOf("Download", "New Folder", "Rename", "Delete")) {
-            clickByDescription("$label action")
-            assertTextPresent("Connect first")
-
-            clickByDescription("Open Sites workspace")
-            clickByDescription("Disconnect from server")
-            assertTextPresent("Ready")
+    fun guardedFileActionsStayDisabledWithoutActiveSession() {
+        for (label in listOf("Refresh", "Upload", "Download", "New Folder", "Rename", "Delete")) {
+            assertDescriptionEnabled("$label action", false)
         }
+
+        clickByDescription("Open Transfers workspace")
+        assertDescriptionEnabled("Pick upload file", true)
+        assertDescriptionEnabled("Upload selected file", false)
     }
 
     @Test
@@ -161,8 +158,8 @@ class MainActivitySmokeTest {
         clickByDescription("Open Transfers workspace")
         assertDescriptionPresent("Pick upload file")
         assertDescriptionPresent("Upload selected file")
-        clickByDescription("Upload selected file")
-        assertTextPresent("Connect first")
+        assertDescriptionEnabled("Pick upload file", true)
+        assertDescriptionEnabled("Upload selected file", false)
 
         clickByDescription("Open Settings workspace")
         clickByDescription("Clear activity log")
@@ -271,6 +268,20 @@ class MainActivitySmokeTest {
         }
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
         SystemClock.sleep(120)
+    }
+
+    private fun assertDescriptionEnabled(description: String, expected: Boolean) {
+        scenario.onActivity { activity ->
+            val view = findView(activity.window.decorView) {
+                it.contentDescription?.toString() == description
+            }
+            assertNotNull("Missing control with content description: $description", view)
+            assertEquals(
+                "Unexpected enabled state for control: $description",
+                expected,
+                view!!.isEnabled
+            )
+        }
     }
 
     private fun assertDescriptionPresent(description: String) {

@@ -46,7 +46,7 @@ class MainActivity : Activity() {
     }
 
     private val controller = ConnectionController()
-    private val actionButtons = mutableListOf<Button>()
+    private val remoteActionButtons = mutableListOf<Button>()
     private lateinit var statusTitle: TextView
     private lateinit var statusDetail: TextView
     private lateinit var hostInput: EditText
@@ -308,11 +308,11 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        toolbar.addView(toolbarButton("Refresh") { refreshActive() }, buttonParams(weight = 1f))
+        toolbar.addView(trackRemoteAction(toolbarButton("Refresh") { refreshActive() }), buttonParams(weight = 1f))
         toolbar.addView(gap(8))
-        toolbar.addView(track(toolbarButton("Upload") { uploadOrPickFile() }), buttonParams(weight = 1f))
+        toolbar.addView(trackRemoteAction(toolbarButton("Upload") { uploadOrPickFile() }), buttonParams(weight = 1f))
         toolbar.addView(gap(8))
-        toolbar.addView(track(toolbarButton("Download") { downloadRemoteFile() }), buttonParams(weight = 1f))
+        toolbar.addView(trackRemoteAction(toolbarButton("Download") { downloadRemoteFile() }), buttonParams(weight = 1f))
         addView(toolbar)
 
         val toolbarMore = LinearLayout(this@MainActivity).apply {
@@ -320,11 +320,11 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(8), 0, 0)
         }
-        toolbarMore.addView(track(toolbarButton("New Folder") { createRemoteFolder() }), buttonParams(weight = 1f))
+        toolbarMore.addView(trackRemoteAction(toolbarButton("New Folder") { createRemoteFolder() }), buttonParams(weight = 1f))
         toolbarMore.addView(gap(8))
-        toolbarMore.addView(track(toolbarButton("Rename") { renameRemoteEntry() }), buttonParams(weight = 1f))
+        toolbarMore.addView(trackRemoteAction(toolbarButton("Rename") { renameRemoteEntry() }), buttonParams(weight = 1f))
         toolbarMore.addView(gap(8))
-        toolbarMore.addView(track(toolbarButton("Delete", destructive = true) { deleteRemoteFile() }), buttonParams(weight = 1f))
+        toolbarMore.addView(trackRemoteAction(toolbarButton("Delete", destructive = true) { deleteRemoteFile() }), buttonParams(weight = 1f))
         addView(toolbarMore)
     }
 
@@ -498,11 +498,11 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(10), 0, 0)
         }
-        uploadRow.addView(track(secondaryButton("Pick file") { selectUploadFile() }.apply {
+        uploadRow.addView(secondaryButton("Pick file") { selectUploadFile() }.apply {
             contentDescription = "Pick upload file"
-        }), buttonParams(weight = 1f))
+        }, buttonParams(weight = 1f))
         uploadRow.addView(gap(8))
-        uploadRow.addView(track(secondaryButton("Upload") { uploadSelectedFile() }.apply {
+        uploadRow.addView(trackRemoteAction(secondaryButton("Upload") { uploadSelectedFile() }.apply {
             contentDescription = "Upload selected file"
         }), buttonParams(weight = 1f))
         addView(uploadRow)
@@ -622,7 +622,6 @@ class MainActivity : Activity() {
                 if (generation != operationGeneration) return@safeUi
                 activeCancellation = null
                 operationInFlight = false
-                setBusy(false)
                 result.fold(
                     onSuccess = {
                         activeProfile = profile
@@ -634,6 +633,7 @@ class MainActivity : Activity() {
                         showConnectionError(it)
                     }
                 )
+                setBusy(false)
             }
         }
     }
@@ -774,10 +774,11 @@ class MainActivity : Activity() {
 
     private fun setBusy(busy: Boolean) {
         if (!::connectButton.isInitialized) return
-        connectButton.isEnabled = !busy
-        refreshButton.isEnabled = !busy
-        disconnectButton.isEnabled = true
-        actionButtons.forEach { it.isEnabled = !busy }
+        val hasActiveSession = activeProfile != null
+        connectButton.isEnabled = !busy && !hasActiveSession
+        refreshButton.isEnabled = !busy && hasActiveSession
+        disconnectButton.isEnabled = hasActiveSession
+        remoteActionButtons.forEach { it.isEnabled = !busy && hasActiveSession }
     }
 
     private fun uploadOrPickFile() {
@@ -1272,8 +1273,8 @@ class MainActivity : Activity() {
         setOnClickListener { onClick() }
     }
 
-    private fun track(button: Button): Button {
-        actionButtons.add(button)
+    private fun trackRemoteAction(button: Button): Button {
+        remoteActionButtons.add(button)
         return button
     }
 

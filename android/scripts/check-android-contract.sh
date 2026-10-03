@@ -40,6 +40,41 @@ require_absent() {
   fi
 }
 
+audit_private_kotlin_symbols() {
+  local root="$1"
+  python3 - "$root" <<'PY'
+import pathlib
+import re
+import sys
+
+root = pathlib.Path(sys.argv[1])
+dead = []
+declaration = re.compile(
+    r"(?m)^\s*private\s+(?:(?:lateinit|const|suspend|inline|tailrec|operator|infix)\s+)*(?:fun|val|var)\s+([A-Za-z_][A-Za-z0-9_]*)\b"
+)
+
+for path in sorted(root.rglob("*.kt")):
+    source = path.read_text(encoding="utf-8")
+    code = re.sub(r"/\*[\s\S]*?\*/", " ", source)
+    code = re.sub(r"//[^\n]*", " ", code)
+    code = re.sub(r'"(?:\\.|[^"\\])*"', '""', code)
+    for match in declaration.finditer(code):
+        name = match.group(1)
+        if len(re.findall(rf"\b{re.escape(name)}\b", code)) < 2:
+            dead.append(f"{path.relative_to(root)}: {name}")
+
+if dead:
+    print("Android contract failed: declaration-only private Kotlin symbols detected:", file=sys.stderr)
+    for item in dead:
+        print(f" - {item}", file=sys.stderr)
+    sys.exit(1)
+
+print("Android private Kotlin symbol audit OK")
+PY
+}
+
+audit_private_kotlin_symbols "$APP_DIR/java"
+
 MAIN_ACTIVITY="$ANDROID_DIR/app/src/main/java/com/ghostftp/android/MainActivity.kt"
 CONNECTION_MODEL="$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ConnectionModel.kt"
 RELEASE_INFO="$ANDROID_DIR/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt"
@@ -85,7 +120,11 @@ require_text "accessible protocol selector" "$MAIN_ACTIVITY" 'contentDescription
 require_text "protocol default-port behavior" "$MAIN_ACTIVITY" 'currentPort == selectedProtocol.defaultPort.toString()'
 require_text "protocol-specific SFTP security field" "$MAIN_ACTIVITY" 'if (protocol == ConnectionProtocol.SFTP) View.VISIBLE else View.GONE'
 require_absent "obsolete Android queue-row alias" "$MAIN_ACTIVITY" 'MAX_QUEUE_ROWS'
-require_text "desktop parity refresh toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Refresh")'
+require_text "session-aware connect availability" "$MAIN_ACTIVITY" 'connectButton.isEnabled = !busy && !hasActiveSession'
+require_text "session-aware refresh availability" "$MAIN_ACTIVITY" 'refreshButton.isEnabled = !busy && hasActiveSession'
+require_text "session-aware disconnect availability" "$MAIN_ACTIVITY" 'disconnectButton.isEnabled = hasActiveSession'
+require_text "session-aware remote actions" "$MAIN_ACTIVITY" 'remoteActionButtons.forEach { it.isEnabled = !busy && hasActiveSession }'
+require_text "desktop parity refresh toolbar" "$MAIN_ACTIVITY" 'trackRemoteAction(toolbarButton("Refresh")'
 require_text "desktop parity upload toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Upload")'
 require_text "desktop parity download toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Download")'
 require_text "desktop parity new folder toolbar" "$MAIN_ACTIVITY" 'toolbarButton("New Folder")'
@@ -258,6 +297,7 @@ require_text "Activity recreation credential regression" "$ANDROID_DIR/app/src/a
 require_text "protocol-aware form smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'protocolSelectionUpdatesDefaultsWithoutClobberingCustomPort'
 require_text "exclusive workspace smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'workspacesAreExclusiveInsteadOfOneLongScreen'
 require_text "working action smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'transferAndSettingsActionsAreWiredClickByClick'
+require_text "idle action-state smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'guardedFileActionsStayDisabledWithoutActiveSession'
 require_text "rename smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" '"Rename"'
 require_text "Settings reset smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" '"Reset connection form"'
 require_absent "window-focus instrumentation dependency" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'hasWindowFocus()'

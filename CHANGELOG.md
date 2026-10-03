@@ -1,3 +1,15 @@
+## 0.30.3 — Android interaction-state and dead-code hardening — 3 October 2026
+
+- Fixes Android action availability so disconnected sessions no longer expose Refresh, Disconnect or remote file operations as actionable controls.
+- Keeps the local Android file picker available before connection while guarding remote Upload until a session exists.
+- Adds click-by-click instrumentation for disconnected and invalid-session enabled states.
+- Serializes Windows/Linux Sync pair toggle, Sync now and Remove actions so duplicate/conflicting IPC mutations cannot race from rapid clicks.
+- Adds an Android private Kotlin symbol audit so declaration-only private functions and fields fail the production contract.
+- Keeps runtime npm high/critical findings release-blocking while machine-checking the temporary dev-only upstream `braces` advisory exception.
+- Preserves the existing cross-platform exact-head quality, real protocol E2E, native build, Android and Windows hardening release gates.
+
+See [docs/releases/0.30.3.md](docs/releases/0.30.3.md).
+
 ## 0.30.2 — cross-platform UX and transfer-integrity hardening — 3 October 2026
 
 0.30.2 follows published 0.30.1 and packages the safety and polish completed after that canonical tag.

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowLeft,
@@ -86,13 +86,31 @@ function PairRow({ pair }: { pair: PairView }) {
   const remove = useSync((s) => s.remove);
   const syncNow = useSync((s) => s.syncNow);
   const [freeing, setFreeing] = useState(false);
+  const [mutating, setMutating] = useState<"toggle" | "sync" | "remove" | null>(null);
+  const mutationInFlight = useRef(false);
 
   const profile = profiles.find((p) => p.id === pair.profileId);
   const Arrow = pair.direction === "localToRemote" ? ArrowRight : ArrowLeft;
   const syncing = pair.state === "syncing";
   const isOnDemand = pair.mode === "onDemand";
 
+  const runPairMutation = async (
+    kind: "toggle" | "sync" | "remove",
+    action: () => Promise<void>
+  ) => {
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
+    setMutating(kind);
+    try {
+      await action();
+    } finally {
+      mutationInFlight.current = false;
+      setMutating(null);
+    }
+  };
+
   const freeUpSpace = async () => {
+    if (mutating !== null || freeing) return;
     setFreeing(true);
     try {
       await ipc.virtualFsFreeUpSpace(pair.id);
@@ -104,7 +122,7 @@ function PairRow({ pair }: { pair: PairView }) {
   };
 
   return (
-    <div className="rounded-lg border border-border bg-bg-subtle p-3">
+    <div className="rounded-lg border border-border bg-bg-subtle p-3" aria-busy={mutating !== null || freeing}>
       <div className="flex items-start gap-3">
         <StatusDot pair={pair} />
         <div className="min-w-0 flex-1">
@@ -162,7 +180,7 @@ function PairRow({ pair }: { pair: PairView }) {
             <button
               type="button"
               onClick={freeUpSpace}
-              disabled={!pair.enabled || freeing}
+              disabled={!pair.enabled || freeing || mutating !== null}
               title="Free up space — evict downloaded files back to placeholders"
               className="flex items-center gap-1 rounded-md border border-border bg-bg-panel px-2 py-1 text-[11px] text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
             >
@@ -172,8 +190,8 @@ function PairRow({ pair }: { pair: PairView }) {
           ) : (
             <button
               type="button"
-              onClick={() => syncNow(pair.id)}
-              disabled={!pair.enabled || syncing}
+              onClick={() => void runPairMutation("sync", () => syncNow(pair.id))}
+              disabled={!pair.enabled || syncing || mutating !== null || freeing}
               title="Sync now"
               className="flex items-center gap-1 rounded-md border border-border bg-bg-panel px-2 py-1 text-[11px] text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
             >
@@ -183,13 +201,15 @@ function PairRow({ pair }: { pair: PairView }) {
           )}
           <Toggle
             checked={pair.enabled}
-            onChange={(v) => setEnabled(pair.id, v)}
+            disabled={mutating !== null || freeing}
+            onChange={(v) => void runPairMutation("toggle", () => setEnabled(pair.id, v))}
           />
           <button
             type="button"
-            onClick={() => remove(pair.id)}
+            onClick={() => void runPairMutation("remove", () => remove(pair.id))}
+            disabled={mutating !== null || freeing}
             title="Remove this sync pair"
-            className="flex items-center rounded-md p-1.5 text-text-dim hover:bg-danger/10 hover:text-danger"
+            className="flex items-center rounded-md p-1.5 text-text-dim hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Trash2 size={12} />
           </button>
@@ -585,18 +605,21 @@ function Segmented<T extends string>({
 function Toggle({
   checked,
   onChange,
+  disabled = false,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative h-5 w-9 shrink-0 rounded-full border transition-colors",
+        "relative h-5 w-9 shrink-0 rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         checked
           ? "bg-accent border-accent"
           : "bg-bg-subtle border-border hover:border-text-dim"

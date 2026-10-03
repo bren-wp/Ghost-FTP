@@ -124,6 +124,24 @@ requireIncludes(
 );
 
 requireIncludes(
+  "src/components/SyncSettings.tsx",
+  [
+    'const [mutating, setMutating] = useState<"toggle" | "sync" | "remove" | null>(null)',
+    "const mutationInFlight = useRef(false)",
+    "if (mutationInFlight.current) return;",
+    "mutationInFlight.current = true;",
+    "mutationInFlight.current = false;",
+    'runPairMutation("sync"',
+    'runPairMutation("toggle"',
+    'runPairMutation("remove"',
+    "aria-busy={mutating !== null || freeing}",
+    "disabled={mutating !== null || freeing}",
+    "disabled?: boolean",
+  ],
+  "sync-pair mutation serialization"
+);
+
+requireIncludes(
   "src-tauri/src/path_integration.rs",
   [
     "std::env::split_paths(&path)",
