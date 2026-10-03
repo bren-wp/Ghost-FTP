@@ -5,6 +5,7 @@
 - Adds click-by-click instrumentation for disconnected and invalid-session enabled states.
 - Serializes Windows/Linux Sync pair toggle, Sync now and Remove actions so duplicate/conflicting IPC mutations cannot race from rapid clicks.
 - Adds an Android private Kotlin symbol audit so declaration-only private functions and fields fail the production contract.
+- Keeps runtime npm high/critical findings release-blocking while machine-checking the temporary dev-only upstream `braces` advisory exception.
 - Preserves the existing cross-platform exact-head quality, real protocol E2E, native build, Android and Windows hardening release gates.
 
 See [docs/releases/0.30.3.md](docs/releases/0.30.3.md).
