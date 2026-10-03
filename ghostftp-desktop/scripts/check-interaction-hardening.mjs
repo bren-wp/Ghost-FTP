@@ -127,7 +127,10 @@ requireIncludes(
   "src/components/SyncSettings.tsx",
   [
     'const [mutating, setMutating] = useState<"toggle" | "sync" | "remove" | null>(null)',
-    "if (mutating !== null) return;",
+    "const mutationInFlight = useRef(false)",
+    "if (mutationInFlight.current) return;",
+    "mutationInFlight.current = true;",
+    "mutationInFlight.current = false;",
     'runPairMutation("sync"',
     'runPairMutation("toggle"',
     'runPairMutation("remove"',
