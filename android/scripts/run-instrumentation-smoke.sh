@@ -72,10 +72,62 @@ case "$PRETEST_WINDOW_DUMP" in
     ;;
 esac
 
+run_instrumentation_attempt() {
+  local attempt="$1"
+  local log_file="$DIAG_DIR/instrumentation-attempt-${attempt}.log"
+
+  echo "Running Android instrumentation attempt ${attempt}."
+  gradle -p android connectedDebugAndroidTest --stacktrace 2>&1 | tee "$log_file"
+  return "${PIPESTATUS[0]}"
+}
+
+is_retryable_package_transport_failure() {
+  local log_file="$1"
+
+  grep -Fq "Failed to install split APK(s)" "$log_file" \
+    && grep -Fq "Broken pipe" "$log_file"
+}
+
+recover_android_package_transport() {
+  local ready=0
+
+  echo "Recovering ADB and Android Package Manager after transient install transport failure."
+  adb kill-server >/dev/null 2>&1 || true
+  adb start-server
+  adb wait-for-device
+
+  for _ in {1..20}; do
+    if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] \
+      && adb shell pm list packages >/dev/null 2>&1; then
+      ready=1
+      break
+    fi
+    sleep 1
+  done
+
+  if [ "$ready" -ne 1 ]; then
+    echo "Android Package Manager did not recover after the install transport failure." >&2
+    return 1
+  fi
+
+  adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true
+}
+
 set +e
-gradle -p android connectedDebugAndroidTest --stacktrace
+run_instrumentation_attempt 1
 TEST_EXIT=$?
 set -e
+
+if [ "$TEST_EXIT" -ne 0 ] \
+  && is_retryable_package_transport_failure "$DIAG_DIR/instrumentation-attempt-1.log"; then
+  echo "Detected transient Android package-install Broken pipe; retrying instrumentation once."
+  recover_android_package_transport
+
+  set +e
+  run_instrumentation_attempt 2
+  TEST_EXIT=$?
+  set -e
+fi
 
 collect_diagnostics
 
