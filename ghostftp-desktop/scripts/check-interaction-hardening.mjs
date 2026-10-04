@@ -143,20 +143,23 @@ requireIncludes(
   [
     "let settingsPersistenceTail: Promise<void> = Promise.resolve()",
     "let transferEngineSettingsTail: Promise<void> = Promise.resolve()",
-    "function enqueueSettingsPersistence(task: () => Promise<void>): Promise<void>",
+    "function enqueueSettingsPersistence<T>(task: () => Promise<T>): Promise<T>",
     "function enqueueTransferEngineSettings(task: () => Promise<void>): Promise<void>",
     "const durableSettings = structuredClone(initial)",
     "const settingsMutationRevision = new Map<keyof PersistedSettings, number>()",
     "function rememberDurableSetting<K extends keyof PersistedSettings>(",
+    "function mutateLiveTransferSetting<K extends keyof PersistedSettings>(",
+    "rollbackValue = await persistence;",
     "if (settingsMutationRevision.get(key) !== revision) return;",
-    "return enqueueSettingsPersistence(() =>",
-    "void enqueueTransferEngineSettings(() => ipc.transferSetConcurrency(clamped))",
-    "void enqueueTransferEngineSettings(() => ipc.transferSetMaxRetries(clamped))",
-    "void enqueueTransferEngineSettings(() => ipc.transferSetThrottle(clamped))",
-    "void enqueueTransferEngineSettings(() => ipc.transferSetDeltaSync(v))",
+    "await persistKey(key, rollbackValue);",
+    "await applyNative(rollbackValue);",
+    '"transferConcurrency",',
+    '"maxRetryAttempts",',
+    '"transferThrottleKbps",',
+    '"deltaSync",',
     "async function applyTransferEngineSnapshot(snapshot: PersistedSettings): Promise<void>",
   ],
-  "settings persistence and live transfer-engine serialization"
+  "transactional Settings persistence and live transfer-engine serialization"
 );
 
 requireIncludes(
