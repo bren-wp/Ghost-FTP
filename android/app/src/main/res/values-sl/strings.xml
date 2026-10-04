@@ -17,15 +17,15 @@
     <string name="action_disconnect">Prekini povezavo</string>
     <string name="action_pick_file">Izberi datoteko</string>
     
-    <string name="action_upload">Naloži</string>
-    <string name="action_download">Prenesi</string>
-    <string name="action_new_folder">Nova mapa</string>
-    <string name="action_rename">Preimenuj</string>
-    <string name="action_delete">Izbriši</string>
-    <string name="action_cancel">Prekliči</string>
-    <string name="action_connect">Poveži</string>
-    <string name="action_disconnect">Prekini</string>
-    <string name="label_support">Podpora</string>
+    
+
+
+
+
+
+
+
+<string name="label_support">Podpora</string>
     <string name="label_documentation">Dokumentacija</string>
     <string name="label_privacy_policy">Pravilnik o zasebnosti</string>
     <string name="label_official_website">Uradna spletna stran</string>

@@ -17,15 +17,15 @@
     <string name="action_disconnect">Trennen</string>
     <string name="action_pick_file">Datei auswählen</string>
     
-    <string name="action_upload">Hochladen</string>
-    <string name="action_download">Herunterladen</string>
-    <string name="action_new_folder">Neuer Ordner</string>
-    <string name="action_rename">Umbenennen</string>
-    <string name="action_delete">Löschen</string>
-    <string name="action_cancel">Abbrechen</string>
-    <string name="action_connect">Verbinden</string>
-    <string name="action_disconnect">Trennen</string>
-    <string name="label_support">Support</string>
+    
+
+
+
+
+
+
+
+<string name="label_support">Support</string>
     <string name="label_documentation">Dokumentation</string>
     <string name="label_privacy_policy">Datenschutzrichtlinie</string>
     <string name="label_official_website">Offizielle Website</string>

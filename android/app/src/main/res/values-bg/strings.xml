@@ -17,15 +17,15 @@
     <string name="action_disconnect">Прекъсни</string>
     <string name="action_pick_file">Избери файл</string>
     
-    <string name="action_upload">Качване</string>
-    <string name="action_download">Изтегляне</string>
-    <string name="action_new_folder">Нова папка</string>
-    <string name="action_rename">Преименувай</string>
-    <string name="action_delete">Изтрий</string>
-    <string name="action_cancel">Отказ</string>
-    <string name="action_connect">Свържи</string>
-    <string name="action_disconnect">Прекъсни</string>
-    <string name="label_support">Поддръжка</string>
+    
+
+
+
+
+
+
+
+<string name="label_support">Поддръжка</string>
     <string name="label_documentation">Документация</string>
     <string name="label_privacy_policy">Политика за поверителност</string>
     <string name="label_official_website">Официален уебсайт</string>

@@ -40,6 +40,61 @@ require_absent() {
   fi
 }
 
+audit_android_locale_parity() {
+  local res_dir="$1"
+  shift
+  python3 - "$res_dir" "$@" <<'PY'
+import pathlib
+import re
+import sys
+
+res_dir = pathlib.Path(sys.argv[1])
+locales = sys.argv[2:]
+pattern = re.compile(r'<string\\s+name="([^"]+)"')
+
+def read_keys(path: pathlib.Path):
+    text = path.read_text(encoding="utf-8")
+    names = pattern.findall(text)
+    seen = set()
+    duplicates = []
+    for name in names:
+        if name in seen and name not in duplicates:
+            duplicates.append(name)
+        seen.add(name)
+    if duplicates:
+        print(
+            f"Android contract failed: duplicate string resource(s) in {path}: "
+            + ", ".join(sorted(duplicates)),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return set(names)
+
+base_file = res_dir / "values" / "strings.xml"
+base_keys = read_keys(base_file)
+if not base_keys:
+    print(f"Android contract failed: no canonical strings found in {base_file}", file=sys.stderr)
+    sys.exit(1)
+
+for locale in locales:
+    locale_file = res_dir / f"values-{locale}" / "strings.xml"
+    if not locale_file.is_file():
+        print(f"Android contract failed: missing localization resource {locale_file}", file=sys.stderr)
+        sys.exit(1)
+    locale_keys = read_keys(locale_file)
+    missing = sorted(base_keys - locale_keys)
+    if missing:
+        print(
+            f"Android contract failed: {locale} locale missing canonical key(s): "
+            + ", ".join(missing),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+print(f"Android locale parity OK for {len(locales)} locales and {len(base_keys)} canonical keys")
+PY
+}
+
 audit_private_kotlin_symbols() {
   local root="$1"
   python3 - "$root" <<'PY'
@@ -102,6 +157,7 @@ for key in "${localization_keys[@]}"; do
 done
 
 android_locales=(hr cs sk hu ro bg el tr uk da sv no de fr es it pt nl pl sl sr bs mk)
+audit_android_locale_parity "$ANDROID_DIR/app/src/main/res" "${android_locales[@]}"
 for locale in "${android_locales[@]}"; do
   locale_file="$ANDROID_DIR/app/src/main/res/values-$locale/strings.xml"
   test -s "$locale_file" || {
