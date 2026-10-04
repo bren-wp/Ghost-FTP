@@ -75,6 +75,10 @@ export function TransferCenterDialog({ onClose }: Props) {
   const setScheduleArmed = useTransferSchedule((state) => state.setArmed);
   const [logClearedAt, setLogClearedAt] = useState(0);
   const [bandwidthHistory, setBandwidthHistory] = useState<BandwidthSample[]>([]);
+  const backendActionInFlight = useRef(new Set<string>());
+  const [backendActionBusy, setBackendActionBusy] = useState<Set<string>>(
+    () => new Set()
+  );
 
   useDialog(panelRef, { onClose, trapFocus: false });
 
@@ -239,13 +243,20 @@ export function TransferCenterDialog({ onClose }: Props) {
   }, [hasLiveTransfer]);
 
   const runBackendAction = async (
+    key: string,
     failureTitle: string,
     operation: () => Promise<void>
   ) => {
+    if (backendActionInFlight.current.has(key)) return;
+    backendActionInFlight.current.add(key);
+    setBackendActionBusy(new Set(backendActionInFlight.current));
     try {
       await operation();
     } catch (error) {
       toastError(error, failureTitle);
+    } finally {
+      backendActionInFlight.current.delete(key);
+      setBackendActionBusy(new Set(backendActionInFlight.current));
     }
   };
 
@@ -378,10 +389,12 @@ export function TransferCenterDialog({ onClose }: Props) {
                 <button
                   type="button"
                   role="menuitem"
-                  disabled={activeCount === 0 && !pausedAll}
+                  disabled={(activeCount === 0 && !pausedAll) || backendActionBusy.has("queue")}
+                  aria-busy={backendActionBusy.has("queue")}
                   onClick={() => {
                     setMoreOpen(false);
                     void runBackendAction(
+                      "queue",
                       pausedAll ? "Couldn't resume the transfer queue" : "Couldn't pause the transfer queue",
                       () => pausedAll ? resumeAll() : pauseAll()
                     );
@@ -503,12 +516,22 @@ export function TransferCenterDialog({ onClose }: Props) {
                     index={index + 1}
                     selected={selected?.id === transfer.id}
                     onClick={() => setSelectedId(transfer.id)}
+                    busy={backendActionBusy.has(`transfer:${transfer.id}`)}
                     onPauseResume={() => void runBackendAction(
+                      `transfer:${transfer.id}`,
                       transfer.status === "paused" ? "Couldn't resume transfer" : "Couldn't pause transfer",
                       () => transfer.status === "paused" ? resume(transfer.id) : pause(transfer.id)
                     )}
-                    onCancel={() => void runBackendAction("Couldn't cancel transfer", () => cancel(transfer.id))}
-                    onRetry={() => void runBackendAction("Couldn't retry transfer", () => retry(transfer.id))}
+                    onCancel={() => void runBackendAction(
+                      `transfer:${transfer.id}`,
+                      "Couldn't cancel transfer",
+                      () => cancel(transfer.id)
+                    )}
+                    onRetry={() => void runBackendAction(
+                      `transfer:${transfer.id}`,
+                      "Couldn't retry transfer",
+                      () => retry(transfer.id)
+                    )}
                   />
                 ))}
               </div>
@@ -550,10 +573,12 @@ export function TransferCenterDialog({ onClose }: Props) {
               <button
                 type="button"
                 className="ghost-primary-button"
-                disabled={!selected || !canPauseSelected}
+                disabled={!selected || !canPauseSelected || (selected ? backendActionBusy.has(`transfer:${selected.id}`) : false)}
+                aria-busy={selected ? backendActionBusy.has(`transfer:${selected.id}`) : false}
                 onClick={() =>
                   selected &&
                   void runBackendAction(
+                    `transfer:${selected.id}`,
                     selected.status === "paused" ? "Couldn't resume transfer" : "Couldn't pause transfer",
                     () => selected.status === "paused" ? resume(selected.id) : pause(selected.id)
                   )
@@ -569,16 +594,26 @@ export function TransferCenterDialog({ onClose }: Props) {
               <button
                 type="button"
                 className="ghost-mini-button"
-                disabled={!selected || !canCancelSelected}
-                onClick={() => selected && void runBackendAction("Couldn't cancel transfer", () => cancel(selected.id))}
+                disabled={!selected || !canCancelSelected || (selected ? backendActionBusy.has(`transfer:${selected.id}`) : false)}
+                aria-busy={selected ? backendActionBusy.has(`transfer:${selected.id}`) : false}
+                onClick={() => selected && void runBackendAction(
+                  `transfer:${selected.id}`,
+                  "Couldn't cancel transfer",
+                  () => cancel(selected.id)
+                )}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 className="ghost-mini-button"
-                disabled={!selected || selected.status !== "error"}
-                onClick={() => selected && void runBackendAction("Couldn't retry transfer", () => retry(selected.id))}
+                disabled={!selected || selected.status !== "error" || (selected ? backendActionBusy.has(`transfer:${selected.id}`) : false)}
+                aria-busy={selected ? backendActionBusy.has(`transfer:${selected.id}`) : false}
+                onClick={() => selected && void runBackendAction(
+                  `transfer:${selected.id}`,
+                  "Couldn't retry transfer",
+                  () => retry(selected.id)
+                )}
               >
                 <RotateCcw size={14} /> Retry
               </button>
@@ -588,11 +623,19 @@ export function TransferCenterDialog({ onClose }: Props) {
               <select
                 className="ghost-ref-input h-8"
                 defaultValue="normal"
-                disabled={!selected}
+                disabled={!selected || (selected ? backendActionBusy.has(`transfer:${selected.id}`) : false)}
                 onChange={(event) => {
                   if (!selected) return;
-                  if (event.target.value === "high") void runBackendAction("Couldn't raise transfer priority", () => move(selected.id, "up"));
-                  if (event.target.value === "low") void runBackendAction("Couldn't lower transfer priority", () => move(selected.id, "down"));
+                  if (event.target.value === "high") void runBackendAction(
+                    `transfer:${selected.id}`,
+                    "Couldn't raise transfer priority",
+                    () => move(selected.id, "up")
+                  );
+                  if (event.target.value === "low") void runBackendAction(
+                    `transfer:${selected.id}`,
+                    "Couldn't lower transfer priority",
+                    () => move(selected.id, "down")
+                  );
                   event.currentTarget.value = "normal";
                 }}
               >
@@ -789,6 +832,7 @@ function TransferRow({
   rate,
   index,
   selected,
+  busy,
   onClick,
   onPauseResume,
   onCancel,
@@ -798,6 +842,7 @@ function TransferRow({
   rate: number;
   index: number;
   selected: boolean;
+  busy: boolean;
   onClick: () => void;
   onPauseResume: () => void;
   onCancel: () => void;
@@ -823,6 +868,7 @@ function TransferRow({
         }
       }}
       aria-selected={selected}
+      aria-busy={busy}
       className={`grid w-full grid-cols-[36px_minmax(220px,1.4fr)_95px_90px_160px_90px_90px_100px_106px] items-center border-b border-border-subtle px-2 py-2.5 text-left text-[11.5px] outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent ${
         selected ? "bg-accent/10" : "bg-transparent hover:bg-bg-hover"
       }`}
@@ -867,7 +913,7 @@ function TransferRow({
         <button
           type="button"
           className="ghost-row-action"
-          disabled={!pausable}
+          disabled={!pausable || busy}
           aria-label={transfer.status === "paused" ? "Resume transfer" : "Pause transfer"}
           title={transfer.status === "paused" ? "Resume" : "Pause"}
           onClick={(event) => { event.stopPropagation(); onPauseResume(); }}
@@ -877,7 +923,7 @@ function TransferRow({
         <button
           type="button"
           className="ghost-row-action"
-          disabled={!retryable}
+          disabled={!retryable || busy}
           aria-label="Retry transfer"
           title="Retry"
           onClick={(event) => { event.stopPropagation(); onRetry(); }}
@@ -887,7 +933,7 @@ function TransferRow({
         <button
           type="button"
           className="ghost-row-action"
-          disabled={!cancelable}
+          disabled={!cancelable || busy}
           aria-label="Cancel transfer"
           title="Cancel"
           onClick={(event) => { event.stopPropagation(); onCancel(); }}
