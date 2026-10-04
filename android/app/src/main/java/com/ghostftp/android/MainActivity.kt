@@ -154,6 +154,16 @@ class MainActivity : Activity() {
                 )
             }
         }
+        if (!canReadUploadUri(uri)) {
+            selectedUploadUri = null
+            selectedUploadDisplayName = ""
+            showMessage(
+                "Selected file unavailable",
+                "Android did not grant readable access to the selected document. Choose the file again."
+            )
+            appendActivity("Upload selection rejected", "Selected Android document is not readable.")
+            return
+        }
         selectedUploadUri = uri
         selectedUploadDisplayName = displayNameFor(uri)
         setWorkspace(Workspace.TRANSFERS)
@@ -967,10 +977,13 @@ class MainActivity : Activity() {
         uploadRemoteNameInput.setText(state.getString(STATE_UPLOAD_REMOTE_NAME).orEmpty())
         mkdirNameInput.setText(state.getString(STATE_MKDIR_NAME).orEmpty())
         renameRemoteNameInput.setText(state.getString(STATE_RENAME_REMOTE_NAME).orEmpty())
-        selectedUploadDisplayName = state.getString(STATE_UPLOAD_DISPLAY_NAME).orEmpty()
-        selectedUploadUri = state.getString(STATE_UPLOAD_URI)
+        val restoredUploadDisplayName = state.getString(STATE_UPLOAD_DISPLAY_NAME).orEmpty()
+        val restoredUploadUri = state.getString(STATE_UPLOAD_URI)
             ?.takeIf { it.isNotBlank() }
             ?.let(Uri::parse)
+        val restoredUploadReadable = restoredUploadUri?.let(::canReadUploadUri) == true
+        selectedUploadUri = restoredUploadUri?.takeIf { restoredUploadReadable }
+        selectedUploadDisplayName = restoredUploadDisplayName.takeIf { restoredUploadReadable }.orEmpty()
         lastCompletedTransferPath = state.getString(STATE_LAST_COMPLETED_PATH).orEmpty()
         activeWorkspace = state.getString(STATE_WORKSPACE)
             ?.let { saved -> runCatching { Workspace.valueOf(saved) }.getOrNull() }
@@ -985,7 +998,11 @@ class MainActivity : Activity() {
             uploadSelectionText.text = "Selected local file: $selectedUploadDisplayName"
         }
         statusTitle.text = "Ready"
-        statusDetail.text = "Android restored non-secret workspace state. Reconnect to authenticate before remote actions."
+        statusDetail.text = if (restoredUploadUri != null && !restoredUploadReadable) {
+            "Android restored non-secret workspace state, but the previous local file is no longer readable. Choose it again before uploading."
+        } else {
+            "Android restored non-secret workspace state. Reconnect to authenticate before remote actions."
+        }
         transferStateText.text = if (lastCompletedTransferPath.isBlank()) {
             "Previous session ended. Reconnect to continue."
         } else {
@@ -1100,6 +1117,10 @@ class MainActivity : Activity() {
         }
         return candidate
     }
+
+    private fun canReadUploadUri(uri: Uri): Boolean = runCatching {
+        contentResolver.openInputStream(uri)?.use { true } ?: false
+    }.getOrDefault(false)
 
     private fun displayNameFor(uri: Uri): String {
         return runCatching {
