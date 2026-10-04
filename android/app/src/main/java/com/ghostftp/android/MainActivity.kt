@@ -1,7 +1,6 @@
 package com.ghostftp.android
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
@@ -73,6 +72,14 @@ class MainActivity : Activity() {
     private lateinit var contentScroll: ScrollView
     private lateinit var workspaceContainer: LinearLayout
     private lateinit var workspaceTitle: TextView
+    private lateinit var navigationRail: View
+    private lateinit var navigationToggleButton: Button
+    private var navigationOpen = false
+    private lateinit var confirmationPanel: LinearLayout
+    private lateinit var confirmationTitle: TextView
+    private lateinit var confirmationDetail: TextView
+    private lateinit var confirmationAction: Button
+    private var pendingConfirmation: (() -> Unit)? = null
     private val workspaceNavButtons = mutableMapOf<Workspace, TextView>()
     private var activeWorkspace = Workspace.FILES
     private lateinit var sitesSection: View
@@ -125,6 +132,7 @@ class MainActivity : Activity() {
         outState.putString(STATE_UPLOAD_DISPLAY_NAME, selectedUploadDisplayName)
         outState.putString(STATE_LAST_COMPLETED_PATH, lastCompletedTransferPath)
         outState.putString(STATE_WORKSPACE, activeWorkspace.name)
+        outState.putBoolean(STATE_NAVIGATION_OPEN, navigationOpen)
         // Intentionally never persist passwordInput or activeProfile: a recreated
         // Activity must require a fresh authenticated connection.
         super.onSaveInstanceState(outState)
@@ -136,6 +144,7 @@ class MainActivity : Activity() {
         operationInFlight = false
         activeCancellation?.cancel()
         activeCancellation = null
+        pendingConfirmation = null
         selectedUploadUri = null
         activeProfile = null
         if (::passwordInput.isInitialized) passwordInput.text.clear()
@@ -195,9 +204,13 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             setBackgroundColor(Brand.background)
         }
-        val railWidth = if (resources.configuration.screenWidthDp >= 600) dp(184) else dp(104)
+        navigationOpen = resources.configuration.screenWidthDp >= 600
+        val railWidth = if (resources.configuration.screenWidthDp >= 600) dp(184) else dp(152)
+        navigationRail = buildNavigationRail().apply {
+            visibility = if (navigationOpen) View.VISIBLE else View.GONE
+        }
         root.addView(
-            buildNavigationRail(),
+            navigationRail,
             LinearLayout.LayoutParams(railWidth, ViewGroup.LayoutParams.MATCH_PARENT)
         )
 
@@ -213,6 +226,8 @@ class MainActivity : Activity() {
         content.addView(buildHeader())
         content.addView(space(10))
         content.addView(buildStatusCard())
+        content.addView(space(10))
+        content.addView(buildInlineConfirmationCard())
         content.addView(space(10))
         content.addView(workspaceContainer)
         content.addView(space(10))
@@ -230,6 +245,7 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
         )
         setWorkspace(activeWorkspace, announce = false)
+        setNavigationOpen(navigationOpen, announce = false)
         return root
     }
 
@@ -295,6 +311,16 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
+        navigationToggleButton = secondaryButton("☰") {
+            setNavigationOpen(!navigationOpen)
+        }.apply {
+            contentDescription = if (navigationOpen) "Close navigation menu" else "Open navigation menu"
+            textSize = 20f
+            minWidth = 0
+            minimumWidth = 0
+        }
+        titleRow.addView(navigationToggleButton, LinearLayout.LayoutParams(dp(48), dp(44)))
+        titleRow.addView(gap(8))
         titleRow.addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(44), dp(44)))
         titleRow.addView(gap(10))
         titleRow.addView(TextView(this@MainActivity).apply {
@@ -354,6 +380,71 @@ class MainActivity : Activity() {
         }
         addView(statusTitle)
         addView(statusDetail)
+    }
+
+    private fun buildInlineConfirmationCard(): View = panel(strong = true).apply {
+        visibility = View.GONE
+        contentDescription = "Inline action confirmation"
+
+        confirmationTitle = TextView(this@MainActivity).apply {
+            setTextColor(Brand.text)
+            textSize = 17f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        confirmationDetail = TextView(this@MainActivity).apply {
+            setTextColor(Brand.textSoft)
+            textSize = 13f
+            setLineSpacing(0f, 1.14f)
+            setPadding(0, dp(6), 0, dp(12))
+        }
+        addView(confirmationTitle)
+        addView(confirmationDetail)
+
+        val actions = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        actions.addView(secondaryButton("Cancel") {
+            clearInlineConfirmation()
+        }.apply {
+            contentDescription = "Cancel inline confirmation"
+        }, buttonParams(weight = 1f))
+        actions.addView(gap(8))
+        confirmationAction = primaryButton("Confirm") {
+            val action = pendingConfirmation
+            clearInlineConfirmation()
+            if (!closingOrDestroyed()) action?.invoke()
+        }.apply {
+            contentDescription = "Confirm inline action"
+        }
+        actions.addView(confirmationAction, buttonParams(weight = 1f))
+        addView(actions)
+    }
+
+    private fun requestInlineConfirmation(
+        title: String,
+        detail: String,
+        confirmLabel: String,
+        onConfirm: () -> Unit
+    ) {
+        if (closingOrDestroyed() || !::confirmationPanel.isInitialized) return
+        pendingConfirmation = onConfirm
+        confirmationTitle.text = title
+        confirmationDetail.text = detail
+        confirmationAction.text = confirmLabel
+        confirmationAction.contentDescription = "$confirmLabel inline action"
+        confirmationPanel.visibility = View.VISIBLE
+        confirmationPanel.isFocusable = true
+        confirmationPanel.requestFocus()
+        confirmationPanel.announceForAccessibility("$title $detail")
+    }
+
+    private fun clearInlineConfirmation() {
+        pendingConfirmation = null
+        if (::confirmationPanel.isInitialized) {
+            confirmationPanel.visibility = View.GONE
+            confirmationPanel.isFocusable = false
+        }
     }
 
     private fun buildConnectionCard(): View = panel().apply {
@@ -567,7 +658,11 @@ class MainActivity : Activity() {
         addView(sectionDescription("Ghost FTP ${ReleaseInfo.VERSION_DISPLAY} · Build ${ReleaseInfo.BUILD}"))
         addView(row("Product", "Ghost FTP by Brendigo"))
         addView(row("Protocols", "FTP · Explicit FTPS · SFTP"))
-        addView(row("Release", "Use the verified GitHub release package for Android distribution."))
+        addView(officialLinkRow("Support", "Guides, troubleshooting and product support.", SUPPORT_URL))
+        addView(officialLinkRow("Documentation", "Official Ghost FTP documentation.", DOCUMENTATION_URL))
+        addView(officialLinkRow("Privacy", "Read the official privacy information.", PRIVACY_URL))
+        addView(officialLinkRow("Terms of use / EULA", "Read the canonical Ghost FTP software licence terms.", EULA_URL))
+        addView(officialLinkRow("Official website", "Ghost FTP product website.", WEBSITE_URL))
     }
 
     private fun setWorkspace(workspace: Workspace, announce: Boolean = true) {
@@ -600,6 +695,26 @@ class MainActivity : Activity() {
                 if (announce && ::workspaceContainer.isInitialized) {
                     workspaceContainer.announceForAccessibility("${workspace.label} workspace")
                 }
+            }
+        }
+        if (announce && resources.configuration.screenWidthDp < 600) {
+            setNavigationOpen(false, announce = false)
+        }
+    }
+
+    private fun setNavigationOpen(open: Boolean, announce: Boolean = true) {
+        navigationOpen = open
+        if (::navigationRail.isInitialized) {
+            navigationRail.visibility = if (open) View.VISIBLE else View.GONE
+        }
+        if (::navigationToggleButton.isInitialized) {
+            navigationToggleButton.text = if (open) "←" else "☰"
+            navigationToggleButton.contentDescription =
+                if (open) "Close navigation menu" else "Open navigation menu"
+            if (announce) {
+                navigationToggleButton.announceForAccessibility(
+                    if (open) "Navigation menu opened" else "Navigation menu closed"
+                )
             }
         }
     }
@@ -989,6 +1104,10 @@ class MainActivity : Activity() {
             ?.let { saved -> runCatching { Workspace.valueOf(saved) }.getOrNull() }
             ?: Workspace.FILES
         setWorkspace(activeWorkspace, announce = false)
+        setNavigationOpen(
+            state.getBoolean(STATE_NAVIGATION_OPEN, resources.configuration.screenWidthDp >= 600),
+            announce = false
+        )
 
         passwordInput.text.clear()
         activeProfile = null
@@ -1040,23 +1159,26 @@ class MainActivity : Activity() {
     }
 
     private fun confirmUploadTarget(remoteTarget: String, localName: String, onConfirm: () -> Unit) {
-        if (closingOrDestroyed()) return
-        AlertDialog.Builder(this)
-            .setTitle("Upload to remote path?")
-            .setMessage("Upload $localName to $remoteTarget on the active server.")
-            .setNegativeButton("Cancel", null)
-            .setPositiveButton("Upload") { _, _ -> if (!closingOrDestroyed()) onConfirm() }
-            .show()
+        requestInlineConfirmation(
+            title = "Upload to remote path?",
+            detail = "Upload $localName to $remoteTarget on the active server.",
+            confirmLabel = "Upload",
+            onConfirm = onConfirm
+        )
     }
 
-    private fun confirmDestructiveRemoteAction(title: String, message: String, confirmLabel: String, onConfirm: () -> Unit) {
-        if (closingOrDestroyed()) return
-        AlertDialog.Builder(this)
-            .setTitle(title)
-            .setMessage(message)
-            .setNegativeButton("Cancel", null)
-            .setPositiveButton(confirmLabel) { _, _ -> if (!closingOrDestroyed()) onConfirm() }
-            .show()
+    private fun confirmDestructiveRemoteAction(
+        title: String,
+        message: String,
+        confirmLabel: String,
+        onConfirm: () -> Unit
+    ) {
+        requestInlineConfirmation(
+            title = title,
+            detail = message,
+            confirmLabel = confirmLabel,
+            onConfirm = onConfirm
+        )
     }
 
     private fun remoteRow(item: RemoteRow): View = row(item.name, item.detail).apply {
@@ -1193,6 +1315,33 @@ class MainActivity : Activity() {
         )
         params.setMargins(0, dp(8), 0, 0)
         layoutParams = params
+    }
+
+    private fun officialLinkRow(title: String, detail: String, url: String): View =
+        row(title, detail).apply {
+            isClickable = true
+            isFocusable = true
+            contentDescription = "Open Ghost FTP $title"
+            setOnClickListener { openOfficialLink(url) }
+        }
+
+    private fun openOfficialLink(url: String) {
+        if (url !in OFFICIAL_LINKS) {
+            showMessage("Link blocked", "Ghost FTP refused to open an unapproved external address.")
+            return
+        }
+        val uri = Uri.parse(url)
+        if (uri.scheme != "https") {
+            showMessage("Link blocked", "Ghost FTP only opens secure HTTPS product links.")
+            return
+        }
+        runCatching {
+            startActivity(Intent(Intent.ACTION_VIEW, uri).apply {
+                addCategory(Intent.CATEGORY_BROWSABLE)
+            })
+        }.onFailure {
+            showMessage("Unable to open link", "No browser is available for this Ghost FTP link.")
+        }
     }
 
     private fun input(hintText: String, type: Int): EditText = EditText(this).apply {
@@ -1371,6 +1520,20 @@ class MainActivity : Activity() {
         const val STATE_UPLOAD_DISPLAY_NAME = "ghostftp.uploadDisplayName"
         const val STATE_LAST_COMPLETED_PATH = "ghostftp.lastCompletedPath"
         const val STATE_WORKSPACE = "ghostftp.workspace"
+        const val STATE_NAVIGATION_OPEN = "ghostftp.navigationOpen"
+
+        const val WEBSITE_URL = "https://ghostftp.com/"
+        const val SUPPORT_URL = "https://ghostftp.com/support/"
+        const val DOCUMENTATION_URL = "https://ghostftp.com/docs/"
+        const val PRIVACY_URL = "https://ghostftp.com/privacy/"
+        const val EULA_URL = "https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt"
+        val OFFICIAL_LINKS = setOf(
+            WEBSITE_URL,
+            SUPPORT_URL,
+            DOCUMENTATION_URL,
+            PRIVACY_URL,
+            EULA_URL
+        )
     }
 }
 
