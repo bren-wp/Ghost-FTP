@@ -20,4 +20,24 @@
     <string name="action_connect">Connect</string>
     <string name="action_disconnect">Disconnect</string>
     <string name="action_pick_file">Pick file</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_upload">Upload</string>
+    <string name="action_download">Download</string>
+    <string name="action_new_folder">New Folder</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="label_support">Support</string>
+    <string name="label_documentation">Documentation</string>
+    <string name="label_privacy_policy">Privacy Policy</string>
+    <string name="label_official_website">Official website</string>
+    <string name="field_host">Host</string>
+    <string name="field_port">Port</string>
+    <string name="field_username">Username</string>
+    <string name="field_password">Password</string>
+    <string name="field_protocol">Protocol</string>
+    <string name="label_security">Security</string>
+    <string name="label_connection">Connection</string>
 </resources>

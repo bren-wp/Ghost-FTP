@@ -506,7 +506,7 @@ class MainActivity : Activity() {
                 ConnectionProtocol.entries.map { it.label }
             ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
         }
-        addView(formLabel("Protocol"))
+        addView(formLabel(getString(R.string.field_protocol)))
         addView(protocolSpinner)
         protocolSecurityText = TextView(this@MainActivity).apply {
             textSize = 12f
@@ -514,23 +514,23 @@ class MainActivity : Activity() {
         }
         addView(protocolSecurityText)
 
-        hostInput = input("Host", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
-        addView(formLabel("Host"))
+        hostInput = input(getString(R.string.field_host), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        addView(formLabel(getString(R.string.field_host)))
         addView(hostInput)
 
         portInput = input("21", InputType.TYPE_CLASS_NUMBER)
-        addView(formLabel("Port"))
+        addView(formLabel(getString(R.string.field_port)))
         addView(portInput)
 
-        usernameInput = input("Username", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
-        addView(formLabel("Username"))
+        usernameInput = input(getString(R.string.field_username), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
+        addView(formLabel(getString(R.string.field_username)))
         addView(usernameInput)
 
-        passwordInput = input("Password", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD).apply {
+        passwordInput = input(getString(R.string.field_password), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD).apply {
             // Never let Activity view-state persistence retain a session password.
             isSaveEnabled = false
         }
-        addView(formLabel("Password"))
+        addView(formLabel(getString(R.string.field_password)))
         addView(passwordInput)
 
         hostKeyFingerprintInput = input("SHA256 fingerprint for SFTP", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
@@ -687,7 +687,7 @@ class MainActivity : Activity() {
         addView(sectionDescription("Working session and privacy controls aligned with Ghost FTP desktop safety rules."))
         addView(row("Privacy", "No required tracking, analytics or telemetry."))
         addView(row("Credentials", "Session passwords stay in memory and are cleared on disconnect or Activity destruction."))
-        addView(row("Connection safety", "Remote mutations are guarded and SFTP requires strict host-key verification."))
+        addView(row(getString(R.string.label_security), "Remote mutations are guarded and SFTP requires strict host-key verification."))
 
         val firstRow = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -723,11 +723,11 @@ class MainActivity : Activity() {
         addView(sectionDescription("Ghost FTP ${ReleaseInfo.VERSION_DISPLAY} · Build ${ReleaseInfo.BUILD}"))
         addView(row("Product", "Ghost FTP by Brendigo"))
         addView(row("Protocols", "FTP · Explicit FTPS · SFTP"))
-        addView(officialLinkRow("Support", "Guides, troubleshooting and product support.", SUPPORT_URL))
-        addView(officialLinkRow("Documentation", "Official Ghost FTP documentation.", DOCUMENTATION_URL))
-        addView(officialLinkRow("Privacy", "Read the official privacy information.", PRIVACY_URL))
+        addView(officialLinkRow(getString(R.string.label_support), "Guides, troubleshooting and product support.", SUPPORT_URL))
+        addView(officialLinkRow(getString(R.string.label_documentation), "Official Ghost FTP documentation.", DOCUMENTATION_URL))
+        addView(officialLinkRow(getString(R.string.label_privacy_policy), "Read the official privacy information.", PRIVACY_URL))
         addView(officialLinkRow("Terms of use / EULA", "Read the canonical Ghost FTP software licence terms.", EULA_URL))
-        addView(officialLinkRow("Official website", "Ghost FTP product website.", WEBSITE_URL))
+        addView(officialLinkRow(getString(R.string.label_official_website), "Ghost FTP product website.", WEBSITE_URL))
     }
 
     private fun setWorkspace(workspace: Workspace, announce: Boolean = true) {

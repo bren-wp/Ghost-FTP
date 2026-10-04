@@ -16,4 +16,24 @@
     <string name="action_connect">Підключитися</string>
     <string name="action_disconnect">Відключитися</string>
     <string name="action_pick_file">Вибрати файл</string>
+    <string name="action_refresh">Оновити</string>
+    <string name="action_upload">Вивантажити</string>
+    <string name="action_download">Завантажити</string>
+    <string name="action_new_folder">Нова папка</string>
+    <string name="action_rename">Перейменувати</string>
+    <string name="action_delete">Видалити</string>
+    <string name="action_cancel">Скасувати</string>
+    <string name="action_connect">Підключитися</string>
+    <string name="action_disconnect">Відключитися</string>
+    <string name="label_support">Підтримка</string>
+    <string name="label_documentation">Документація</string>
+    <string name="label_privacy_policy">Політика конфіденційності</string>
+    <string name="label_official_website">Офіційний вебсайт</string>
+    <string name="field_host">Хост</string>
+    <string name="field_port">Порт</string>
+    <string name="field_username">Ім’я користувача</string>
+    <string name="field_password">Пароль</string>
+    <string name="field_protocol">Протокол</string>
+    <string name="label_security">Безпека</string>
+    <string name="label_connection">З’єднання</string>
 </resources>

@@ -16,4 +16,24 @@
     <string name="action_connect">Поврзи се</string>
     <string name="action_disconnect">Прекини врска</string>
     <string name="action_pick_file">Избери датотека</string>
+    <string name="action_refresh">Освежи</string>
+    <string name="action_upload">Прикачи</string>
+    <string name="action_download">Преземи</string>
+    <string name="action_new_folder">Нова папка</string>
+    <string name="action_rename">Преименувај</string>
+    <string name="action_delete">Избриши</string>
+    <string name="action_cancel">Откажи</string>
+    <string name="action_connect">Поврзи</string>
+    <string name="action_disconnect">Исклучи</string>
+    <string name="label_support">Поддршка</string>
+    <string name="label_documentation">Документација</string>
+    <string name="label_privacy_policy">Политика за приватност</string>
+    <string name="label_official_website">Официјална веб-страница</string>
+    <string name="field_host">Сервер</string>
+    <string name="field_port">Порта</string>
+    <string name="field_username">Корисничко име</string>
+    <string name="field_password">Лозинка</string>
+    <string name="field_protocol">Протокол</string>
+    <string name="label_security">Безбедност</string>
+    <string name="label_connection">Врска</string>
 </resources>

@@ -16,4 +16,24 @@
     <string name="action_connect">Poveži se</string>
     <string name="action_disconnect">Prekini vezu</string>
     <string name="action_pick_file">Odaberi datoteku</string>
+    <string name="action_refresh">Osvježi</string>
+    <string name="action_upload">Pošalji</string>
+    <string name="action_download">Preuzmi</string>
+    <string name="action_new_folder">Nova mapa</string>
+    <string name="action_rename">Preimenuj</string>
+    <string name="action_delete">Izbriši</string>
+    <string name="action_cancel">Odustani</string>
+    <string name="action_connect">Poveži</string>
+    <string name="action_disconnect">Prekini</string>
+    <string name="label_support">Podrška</string>
+    <string name="label_documentation">Dokumentacija</string>
+    <string name="label_privacy_policy">Pravila privatnosti</string>
+    <string name="label_official_website">Službena stranica</string>
+    <string name="field_host">Server</string>
+    <string name="field_port">Port</string>
+    <string name="field_username">Korisničko ime</string>
+    <string name="field_password">Lozinka</string>
+    <string name="field_protocol">Protokol</string>
+    <string name="label_security">Sigurnost</string>
+    <string name="label_connection">Veza</string>
 </resources>

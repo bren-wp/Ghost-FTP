@@ -16,4 +16,24 @@
     <string name="action_connect">Připojit</string>
     <string name="action_disconnect">Odpojit</string>
     <string name="action_pick_file">Vybrat soubor</string>
+    <string name="action_refresh">Obnovit</string>
+    <string name="action_upload">Nahrát</string>
+    <string name="action_download">Stáhnout</string>
+    <string name="action_new_folder">Nová složka</string>
+    <string name="action_rename">Přejmenovat</string>
+    <string name="action_delete">Odstranit</string>
+    <string name="action_cancel">Zrušit</string>
+    <string name="action_connect">Připojit</string>
+    <string name="action_disconnect">Odpojit</string>
+    <string name="label_support">Podpora</string>
+    <string name="label_documentation">Dokumentace</string>
+    <string name="label_privacy_policy">Zásady ochrany osobních údajů</string>
+    <string name="label_official_website">Oficiální web</string>
+    <string name="field_host">Hostitel</string>
+    <string name="field_port">Port</string>
+    <string name="field_username">Uživatelské jméno</string>
+    <string name="field_password">Heslo</string>
+    <string name="field_protocol">Protokol</string>
+    <string name="label_security">Zabezpečení</string>
+    <string name="label_connection">Připojení</string>
 </resources>

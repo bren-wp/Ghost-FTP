@@ -93,6 +93,9 @@ localization_keys=(
   workspace_files workspace_sites workspace_transfers workspace_settings workspace_about
   action_refresh action_upload action_download action_new_folder action_rename action_delete
   action_cancel action_confirm action_connect action_disconnect action_pick_file
+  label_support label_documentation label_privacy_policy label_official_website
+  field_host field_port field_username field_password field_protocol
+  label_security label_connection
 )
 for key in "${localization_keys[@]}"; do
   require_text "default Android localization key $key" "$ANDROID_STRINGS" "<string name=\"$key\">"
@@ -129,6 +132,14 @@ require_text "Sites workspace localization" "$MAIN_ACTIVITY" 'SITES(R.string.wor
 require_text "Transfers workspace localization" "$MAIN_ACTIVITY" 'TRANSFERS(R.string.workspace_transfers)'
 require_text "Settings workspace localization" "$MAIN_ACTIVITY" 'SETTINGS(R.string.workspace_settings)'
 require_text "Help workspace localization" "$MAIN_ACTIVITY" 'ABOUT(R.string.workspace_about)'
+require_text "localized protocol field" "$MAIN_ACTIVITY" 'formLabel(getString(R.string.field_protocol))'
+require_text "localized host field" "$MAIN_ACTIVITY" 'formLabel(getString(R.string.field_host))'
+require_text "localized username field" "$MAIN_ACTIVITY" 'formLabel(getString(R.string.field_username))'
+require_text "localized password field" "$MAIN_ACTIVITY" 'formLabel(getString(R.string.field_password))'
+require_text "localized support link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_support)'
+require_text "localized documentation link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_documentation)'
+require_text "localized privacy link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_privacy_policy)'
+require_text "localized website link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_official_website)'
 require_text "exclusive workspace visibility" "$MAIN_ACTIVITY" 'view.visibility = if (key == workspace) View.VISIBLE else View.GONE'
 require_text "workspace navigation control" "$MAIN_ACTIVITY" 'workspaceNavItem(workspace)'
 require_text "workspace state persistence" "$MAIN_ACTIVITY" 'STATE_WORKSPACE'

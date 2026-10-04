@@ -16,4 +16,24 @@
     <string name="action_connect">Csatlakozás</string>
     <string name="action_disconnect">Leválasztás</string>
     <string name="action_pick_file">Fájl kiválasztása</string>
+    <string name="action_refresh">Frissítés</string>
+    <string name="action_upload">Feltöltés</string>
+    <string name="action_download">Letöltés</string>
+    <string name="action_new_folder">Új mappa</string>
+    <string name="action_rename">Átnevezés</string>
+    <string name="action_delete">Törlés</string>
+    <string name="action_cancel">Mégse</string>
+    <string name="action_connect">Csatlakozás</string>
+    <string name="action_disconnect">Kapcsolat bontása</string>
+    <string name="label_support">Támogatás</string>
+    <string name="label_documentation">Dokumentáció</string>
+    <string name="label_privacy_policy">Adatvédelmi irányelvek</string>
+    <string name="label_official_website">Hivatalos weboldal</string>
+    <string name="field_host">Gazdagép</string>
+    <string name="field_port">Port</string>
+    <string name="field_username">Felhasználónév</string>
+    <string name="field_password">Jelszó</string>
+    <string name="field_protocol">Protokoll</string>
+    <string name="label_security">Biztonság</string>
+    <string name="label_connection">Kapcsolat</string>
 </resources>

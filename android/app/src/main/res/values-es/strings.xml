@@ -16,4 +16,24 @@
     <string name="action_connect">Conectar</string>
     <string name="action_disconnect">Desconectar</string>
     <string name="action_pick_file">Elegir archivo</string>
+    <string name="action_refresh">Actualizar</string>
+    <string name="action_upload">Subir</string>
+    <string name="action_download">Descargar</string>
+    <string name="action_new_folder">Nueva carpeta</string>
+    <string name="action_rename">Renombrar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_connect">Conectar</string>
+    <string name="action_disconnect">Desconectar</string>
+    <string name="label_support">Soporte</string>
+    <string name="label_documentation">Documentación</string>
+    <string name="label_privacy_policy">Política de privacidad</string>
+    <string name="label_official_website">Sitio web oficial</string>
+    <string name="field_host">Host</string>
+    <string name="field_port">Puerto</string>
+    <string name="field_username">Usuario</string>
+    <string name="field_password">Contraseña</string>
+    <string name="field_protocol">Protocolo</string>
+    <string name="label_security">Seguridad</string>
+    <string name="label_connection">Conexión</string>
 </resources>

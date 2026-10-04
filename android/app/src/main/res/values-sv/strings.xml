@@ -16,4 +16,24 @@
     <string name="action_connect">Anslut</string>
     <string name="action_disconnect">Koppla från</string>
     <string name="action_pick_file">Välj fil</string>
+    <string name="action_refresh">Uppdatera</string>
+    <string name="action_upload">Ladda upp</string>
+    <string name="action_download">Ladda ner</string>
+    <string name="action_new_folder">Ny mapp</string>
+    <string name="action_rename">Byt namn</string>
+    <string name="action_delete">Ta bort</string>
+    <string name="action_cancel">Avbryt</string>
+    <string name="action_connect">Anslut</string>
+    <string name="action_disconnect">Koppla från</string>
+    <string name="label_support">Support</string>
+    <string name="label_documentation">Dokumentation</string>
+    <string name="label_privacy_policy">Integritetspolicy</string>
+    <string name="label_official_website">Officiell webbplats</string>
+    <string name="field_host">Värd</string>
+    <string name="field_port">Port</string>
+    <string name="field_username">Användarnamn</string>
+    <string name="field_password">Lösenord</string>
+    <string name="field_protocol">Protokoll</string>
+    <string name="label_security">Säkerhet</string>
+    <string name="label_connection">Anslutning</string>
 </resources>
