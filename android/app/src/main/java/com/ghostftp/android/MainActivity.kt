@@ -380,7 +380,7 @@ class MainActivity : Activity() {
         addView(titleRow)
 
         workspaceTitle = TextView(this@MainActivity).apply {
-            text = activeWorkspace.label
+            text = getString(activeWorkspace.labelRes)
             setTextColor(Brand.textSoft)
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
