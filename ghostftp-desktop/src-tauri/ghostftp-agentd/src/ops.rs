@@ -223,6 +223,9 @@ async fn stat(path: &str) -> Response {
                 entry: dir_entry(p, &name, &md),
             }
         }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            Response::not_found(format!("stat {path}: {e}"))
+        }
         Err(e) => Response::error(format!("stat {path}: {e}")),
     }
 }

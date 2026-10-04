@@ -312,10 +312,40 @@ impl HubSpotSession {
         self.metadata.lock().unwrap().retain(|(e, _), _| e != env);
     }
 
-    /// Metadata stat for one path, or `None` when the portal 404s — the
-    /// `exists()` primitive for transfer overwrite policies.
+    /// Metadata stat for one design path.
+    ///
+    /// Only an explicit 404 is absence. Authentication, permission, transport
+    /// and malformed-response failures propagate so overwrite checks fail closed.
+    pub async fn stat_checked(&self, env: &str, path: &str) -> Result<Option<NodeMeta>> {
+        if path.is_empty() {
+            return Ok(Some(self.metadata(env, path).await?));
+        }
+        let api_path = format!("/cms/v3/source-code/{env}/metadata/{}", urlenc_path(path));
+        let resp = self.send(Method::GET, &api_path, None).await?;
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if status == StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        if !status.is_success() {
+            return Err(anyhow!(
+                "hubspot {api_path} existence check failed ({}): {text}",
+                status.as_u16()
+            ));
+        }
+        let value: Value =
+            serde_json::from_str(&text).with_context(|| format!("parse hubspot {api_path}"))?;
+        let node = node_from_json(&value)
+            .ok_or_else(|| anyhow!("hubspot {env}/{path}: malformed metadata"))?;
+        self.metadata.lock().unwrap().insert(
+            (env.to_string(), path.to_string()),
+            (Instant::now(), Arc::new(node.clone())),
+        );
+        Ok(Some(node))
+    }
+
     pub async fn stat(&self, env: &str, path: &str) -> Option<NodeMeta> {
-        self.metadata(env, path).await.ok()
+        self.stat_checked(env, path).await.ok().flatten()
     }
 
     /// Read one file's bytes (`Accept: application/octet-stream`).
@@ -490,22 +520,28 @@ impl HubSpotSession {
         Ok(out)
     }
 
-    /// Stat one File Manager path (file or folder), or `None` — the
-    /// `exists()` primitive for the transfer overwrite policies.
-    pub async fn files_stat(&self, path: &str) -> Option<FileEntry> {
+    /// Stat one File Manager path (file or folder).
+    ///
+    /// A successful parent listing proves absence when the requested entry is
+    /// not present; listing/auth/network failures remain errors.
+    pub async fn files_stat_checked(&self, path: &str) -> Result<Option<FileEntry>> {
         let path = path.trim_matches('/');
         if path.is_empty() {
-            return None; // the files root — handled by the caller
+            return Ok(None); // the files root — handled by the caller
         }
         let (parent, name) = match path.rsplit_once('/') {
             Some((p, n)) => (p, n),
             None => ("", path),
         };
-        self.files_list(parent)
-            .await
-            .ok()?
+        Ok(self
+            .files_list(parent)
+            .await?
             .into_iter()
-            .find(|e| e.name == name)
+            .find(|e| e.name == name))
+    }
+
+    pub async fn files_stat(&self, path: &str) -> Option<FileEntry> {
+        self.files_stat_checked(path).await.ok().flatten()
     }
 
     /// Read one File Manager file's bytes. Public files come straight off
@@ -811,14 +847,20 @@ impl HubSpotSession {
         Ok(out)
     }
 
-    /// Stat one table by its virtual file name (`pricing.csv`), or `None`.
-    pub async fn hubdb_stat(&self, file_name: &str) -> Option<HubDbTable> {
-        let name = file_name.strip_suffix(".csv")?;
-        self.hubdb_list()
-            .await
-            .ok()?
+    /// Stat one table by its virtual file name (`pricing.csv`).
+    pub async fn hubdb_stat_checked(&self, file_name: &str) -> Result<Option<HubDbTable>> {
+        let Some(name) = file_name.strip_suffix(".csv") else {
+            return Ok(None);
+        };
+        Ok(self
+            .hubdb_list()
+            .await?
             .into_iter()
-            .find(|t| t.name == name)
+            .find(|t| t.name == name))
+    }
+
+    pub async fn hubdb_stat(&self, file_name: &str) -> Option<HubDbTable> {
+        self.hubdb_stat_checked(file_name).await.ok().flatten()
     }
 
     /// Read one HubDB table as CSV bytes (see [`hubdb_to_csv`]). Uses the

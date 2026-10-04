@@ -101,22 +101,18 @@ pub async fn asset_size(session: &ShopifySession, ghostftp_path: &str) -> u64 {
 }
 
 /// Whether a path exists — as an asset key, or as a key prefix (directory).
-pub async fn asset_exists(session: &ShopifySession, ghostftp_path: &str) -> bool {
-    match resolve(session, ghostftp_path) {
-        Ok((_, key)) if key.is_empty() => true, // a known theme
-        Ok((theme, key)) => {
-            let prefix = format!("{key}/");
-            session
-                .assets(theme.id)
-                .await
-                .map(|list| {
-                    list.iter()
-                        .any(|a| a.key == key || a.key.starts_with(&prefix))
-                })
-                .unwrap_or(false)
-        }
-        Err(_) => false,
+///
+/// API/auth/network failures propagate so overwrite decisions remain fail-closed.
+pub async fn asset_exists(session: &ShopifySession, ghostftp_path: &str) -> Result<bool> {
+    let (theme, key) = resolve(session, ghostftp_path)?;
+    if key.is_empty() {
+        return Ok(true); // a known theme
     }
+    let prefix = format!("{key}/");
+    let list = session.assets(theme.id).await?;
+    Ok(list
+        .iter()
+        .any(|a| a.key == key || a.key.starts_with(&prefix)))
 }
 
 #[async_trait]
@@ -499,13 +495,19 @@ mod tests {
         fs.rename("/Draft/assets/rl429.txt", "/Draft/assets/moved.txt")
             .await
             .expect("rename");
-        assert!(asset_exists(&session, "/Draft/assets/moved.txt").await);
-        assert!(!asset_exists(&session, "/Draft/assets/rl429.txt").await);
+        assert!(asset_exists(&session, "/Draft/assets/moved.txt")
+            .await
+            .expect("moved exists"));
+        assert!(!asset_exists(&session, "/Draft/assets/rl429.txt")
+            .await
+            .expect("old path absent"));
 
         fs.delete("/Draft/assets/moved.txt", false)
             .await
             .expect("delete");
-        assert!(!asset_exists(&session, "/Draft/assets/moved.txt").await);
+        assert!(!asset_exists(&session, "/Draft/assets/moved.txt")
+            .await
+            .expect("deleted asset absent"));
 
         // mkdir materializes a hidden placeholder; recursive delete walks it.
         fs.create_dir("/Draft/snippets/ghostftp-dir")
@@ -521,7 +523,9 @@ mod tests {
         fs.delete("/Draft/snippets/ghostftp-dir", true)
             .await
             .expect("rmdir");
-        assert!(!asset_exists(&session, "/Draft/snippets/ghostftp-dir").await);
+        assert!(!asset_exists(&session, "/Draft/snippets/ghostftp-dir")
+            .await
+            .expect("deleted directory absent"));
 
         // Static-token flavor: the secret passes through untouched.
         let pid2 = "shopify-mock-static";

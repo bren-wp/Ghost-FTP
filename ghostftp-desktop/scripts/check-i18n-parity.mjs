@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
 
 const source = readFileSync(new URL("../src/lib/i18n.ts", import.meta.url), "utf8");
+const completionSource = readFileSync(
+  new URL("../src/lib/i18n-reference-completion.ts", import.meta.url),
+  "utf8"
+);
 
 const localeRegistry = source.match(/export const APP_LOCALES\s*=\s*\[([^\]]+)\]\s*as const;/s);
 if (!localeRegistry) throw new Error("Unable to locate APP_LOCALES in src/lib/i18n.ts");
@@ -63,4 +67,40 @@ for (const locale of expectedLocales.filter((value) => value !== "en" && value !
   }
 }
 
-console.log(`Ghost FTP locale parity OK: ${canonical.length} keys across ${expectedLocales.length} advertised locales.`);
+const referenceMatch = source.match(
+  /const REFERENCE_UI_TRANSLATIONS:[^{]+\{([\s\S]*?)^\};/m
+);
+if (!referenceMatch) throw new Error("Unable to locate reference UI translations");
+const referenceKeys = extractKeys(referenceMatch[1]);
+if (referenceKeys.length === 0) throw new Error("Reference UI translation set is empty");
+
+const completionLocales = ["cs", "sk", "hu", "ro", "bg", "el", "tr", "uk", "da", "sv", "no"];
+for (const locale of completionLocales) {
+  if (!expectedLocales.includes(locale)) {
+    throw new Error(`Completion dictionary exists for unadvertised locale: ${locale}`);
+  }
+  const match = completionSource.match(new RegExp(
+    `^  ${locale}: \\{([\\s\\S]*?)^  \\},?`,
+    "m"
+  ));
+  if (!match) throw new Error(`Missing reference completion dictionary for ${locale}`);
+  const keys = extractKeys(match[1]);
+  const missing = referenceKeys.filter((key) => !keys.includes(key));
+  const extraKeys = keys.filter((key) => !referenceKeys.includes(key));
+  const duplicates = keys.filter((key, index) => keys.indexOf(key) !== index);
+  if (missing.length || extraKeys.length || duplicates.length || keys.length !== referenceKeys.length) {
+    throw new Error(
+      `${locale} reference UI mismatch: ` +
+      [
+        missing.length ? `missing=${missing.join(" | ")}` : "",
+        extraKeys.length ? `extra=${extraKeys.join(" | ")}` : "",
+        duplicates.length ? `duplicates=${[...new Set(duplicates)].join(" | ")}` : "",
+        `count=${keys.length}/${referenceKeys.length}`,
+      ].filter(Boolean).join("; ")
+    );
+  }
+}
+
+console.log(
+  `Ghost FTP locale parity OK: ${canonical.length} core keys and ${referenceKeys.length} reference UI keys across ${expectedLocales.length} advertised locales.`
+);

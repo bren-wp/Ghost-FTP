@@ -138,8 +138,22 @@ impl OneDriveSession {
     }
 
     /// Whether the item at a Graph item-ref exists.
-    pub async fn exists(&self, item_ref: &str) -> bool {
-        self.rpc(Method::GET, item_ref, None).await.is_ok()
+    ///
+    /// Only Graph 404 is absence; every other failure propagates fail-closed.
+    pub async fn try_exists(&self, item_ref: &str) -> Result<bool> {
+        let resp = self.send(Method::GET, item_ref, None).await?;
+        let status = resp.status();
+        if status.is_success() {
+            return Ok(true);
+        }
+        if status == reqwest::StatusCode::NOT_FOUND {
+            return Ok(false);
+        }
+        let code = status.as_u16();
+        let text = resp.text().await.unwrap_or_default();
+        Err(anyhow!(
+            "graph {item_ref} existence check failed ({code}): {text}"
+        ))
     }
 
     /// Size of the item at a Graph item-ref, or 0.

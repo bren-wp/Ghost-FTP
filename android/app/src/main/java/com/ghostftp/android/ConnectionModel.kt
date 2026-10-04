@@ -629,6 +629,10 @@ class ConnectionController {
             passwordBytes.fill(0)
         }
         session.setConfig("StrictHostKeyChecking", "yes")
+        // Android currently exposes password authentication only. Restrict JSch
+        // to that method so an untrusted SSH server cannot steer pre-auth into
+        // keyboard-interactive parsing that Ghost FTP does not need.
+        session.setConfig("PreferredAuthentications", "password")
         session.timeout = CONNECT_TIMEOUT_MS
 
         var channel: ChannelSftp? = null

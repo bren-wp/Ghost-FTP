@@ -108,7 +108,16 @@ impl RemoteFs for ObjectFs {
     async fn delete(&self, path: &str, recursive: bool) -> Result<()> {
         let key = normalize_prefix(path);
         let target = ObjPath::from(key.as_str());
-        let is_object = self.session.store.head(&target).await.is_ok();
+        // Only an explicit object-store NotFound proves that the target is a
+        // prefix. Permission, network and provider failures must fail closed
+        // instead of being reinterpreted as "not an object".
+        let is_object = match self.session.store.head(&target).await {
+            Ok(_) => true,
+            Err(object_store::Error::NotFound { .. }) => false,
+            Err(error) => {
+                return Err(error).with_context(|| format!("verify object target {target}"));
+            }
+        };
 
         if is_object {
             self.session

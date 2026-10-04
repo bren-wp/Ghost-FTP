@@ -238,10 +238,6 @@ impl BoxSession {
         }
         0
     }
-
-    pub async fn exists(&self, ghostftp_path: &str) -> bool {
-        matches!(self.resolve_item(ghostftp_path).await, Ok(Some(_)))
-    }
 }
 
 pub async fn box_connect(profile: &ConnectionProfile) -> Result<BoxSession> {

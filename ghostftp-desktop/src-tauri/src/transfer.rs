@@ -1535,7 +1535,7 @@ impl TransferManager {
             .with_context(|| format!("stat {}", local_path.display()))?
             .len();
         let remote_len = if requested_offset > 0 {
-            agent_stat(session, remote_path).await.0
+            agent_stat(session, remote_path).await?.0
         } else {
             0
         };
@@ -1643,7 +1643,7 @@ impl TransferManager {
             .await
             .map(|m| m.len())
             .unwrap_or(0);
-        let (_basis_size, basis_exists) = agent_stat(session, remote_path).await;
+        let (_basis_size, basis_exists) = agent_stat(session, remote_path).await?;
         if self.delta_enabled()
             && ghostftp_agent_proto::delta::should_attempt_delta(size, basis_exists, true)
         {
@@ -1903,7 +1903,7 @@ impl TransferManager {
                 .await;
         }
 
-        let (size, remote_exists) = agent_stat(session, remote_path).await;
+        let (size, remote_exists) = agent_stat(session, remote_path).await?;
         let basis_exists = tokio::fs::metadata(local_path).await.is_ok();
         if remote_exists
             && self.delta_enabled()
@@ -3664,21 +3664,45 @@ fn fs_for_session(session: &Arc<Session>) -> Box<dyn crate::remotefs::RemoteFs> 
     }
 }
 
-/// HEAD a WebDAV resource, returning its size (from Content-Length) and whether
-/// it exists. Best-effort: a server that rejects HEAD reports (0, false).
-async fn webdav_head(session: &Arc<WebdavSession>, path: &str) -> (u64, bool) {
+/// HEAD a WebDAV resource, returning its size and whether it exists.
+///
+/// Only an explicit HTTP 404 proves absence. Authentication, permission,
+/// network and protocol failures propagate so overwrite decisions fail closed.
+async fn webdav_head(session: &Arc<WebdavSession>, path: &str) -> Result<(u64, bool)> {
     let url = session.url_for(path, false);
-    match session.request(reqwest::Method::HEAD, url).send().await {
-        Ok(resp) if resp.status().is_success() => {
-            let size = resp
-                .headers()
-                .get(reqwest::header::CONTENT_LENGTH)
-                .and_then(|v| v.to_str().ok())
-                .and_then(|s| s.parse::<u64>().ok())
-                .unwrap_or(0);
-            (size, true)
+    let resp = session
+        .request(reqwest::Method::HEAD, url)
+        .send()
+        .await
+        .with_context(|| format!("verify WebDAV target existence for {path}"))?;
+    if resp.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok((0, false));
+    }
+    if !resp.status().is_success() {
+        anyhow::bail!(
+            "verify WebDAV target existence for {path} failed: HTTP {}",
+            resp.status().as_u16()
+        );
+    }
+    let size = resp
+        .headers()
+        .get(reqwest::header::CONTENT_LENGTH)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(0);
+    Ok((size, true))
+}
+
+async fn object_exists_fail_closed(
+    store: &Arc<dyn object_store::ObjectStore>,
+    path: &object_store::path::Path,
+) -> Result<bool> {
+    match store.head(path).await {
+        Ok(_) => Ok(true),
+        Err(object_store::Error::NotFound { .. }) => Ok(false),
+        Err(error) => {
+            Err(error).with_context(|| format!("verify object target existence for {path}"))
         }
-        _ => (0, false),
     }
 }
 
@@ -3717,17 +3741,34 @@ fn supports_byte_resume(session: &Session) -> bool {
     )
 }
 
-/// Stat a path on a Ghost FTP Agent daemon, returning its size and whether it exists.
-async fn agent_stat(session: &Arc<crate::session::AgentSession>, path: &str) -> (u64, bool) {
+/// Stat a path on a Ghost FTP Agent daemon.
+///
+/// Only the daemon's structured OS-level not-found signal proves absence.
+/// Policy, permission, network and generic operational failures propagate.
+async fn agent_stat(
+    session: &Arc<crate::session::AgentSession>,
+    path: &str,
+) -> Result<(u64, bool)> {
     use ghostftp_agent_proto::msg::{Request, Response};
     match session
         .request(Request::Stat {
             path: path.to_string(),
         })
-        .await
+        .await?
     {
-        Ok(Response::Stat { entry }) => (entry.size, true),
-        _ => (0, false),
+        Response::Stat { entry } => Ok((entry.size, true)),
+        Response::Error {
+            not_found: true, ..
+        } => Ok((0, false)),
+        Response::Error {
+            message, denied, ..
+        } => {
+            if denied {
+                anyhow::bail!("agent stat {path}: denied by remote policy — {message}")
+            }
+            anyhow::bail!("agent stat {path}: {message}")
+        }
+        other => anyhow::bail!("agent stat {path}: unexpected reply {other:?}"),
     }
 }
 
@@ -3759,7 +3800,7 @@ pub(crate) async fn remote_size(session: &Arc<Session>, path: &str) -> Result<u6
                 .with_context(|| format!("object head {key}"))?;
             Ok(meta.size as u64)
         }
-        Session::Webdav(dav) => Ok(webdav_head(dav, path).await.0),
+        Session::Webdav(dav) => Ok(webdav_head(dav, path).await?.0),
         Session::Http(http) => Ok(http_size(http, path).await),
         Session::Dropbox(dbx) => Ok(dbx
             .size(&crate::remotefs::dropbox::dropbox_api_path(path))
@@ -3770,7 +3811,7 @@ pub(crate) async fn remote_size(session: &Arc<Session>, path: &str) -> Result<u6
         Session::Shopify(sh) => Ok(crate::remotefs::shopify::asset_size(sh, path).await),
         Session::HubSpot(hs) => Ok(crate::remotefs::hubspot::file_size(hs, path).await),
         Session::Dynamics(dynm) => Ok(crate::remotefs::dynamics::file_size(dynm, path).await),
-        Session::Agent(agent) => Ok(agent_stat(agent, path).await.0),
+        Session::Agent(agent) => Ok(agent_stat(agent, path).await?.0),
     }
 }
 
@@ -3780,6 +3821,13 @@ async fn remote_resolve(
     initial_remote: &str,
     policy: OverwritePolicy,
 ) -> Result<(String, bool)> {
+    // Overwrite intentionally does not need an existence round-trip. Skipping
+    // the probe improves latency and avoids turning a harmless create/replace
+    // into an extra failure point.
+    if policy == OverwritePolicy::Overwrite {
+        return Ok((initial_remote.to_string(), false));
+    }
+
     match &**session {
         Session::Ssh(ssh) => {
             let cell = ssh.ensure_sftp().await?;
@@ -3787,7 +3835,7 @@ async fn remote_resolve(
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => {
-                    let exists = sftp.metadata(initial_remote).await.is_ok();
+                    let exists = sftp.try_exists(initial_remote.to_string()).await?;
                     (initial_remote.to_string(), exists)
                 }
                 OverwritePolicy::Rename => {
@@ -3797,69 +3845,65 @@ async fn remote_resolve(
             })
         }
         Session::Ftp(ftp) => {
-            let probe = initial_remote.to_string();
-            let exists = ftp.with_stream(move |s| Ok(s.size(&probe).is_ok())).await?;
+            let exists = crate::remotefs::ftp::path_exists_fail_closed(ftp, initial_remote).await?;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let session = ftp.clone();
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        let probe = candidate.clone();
-                        let found = session
-                            .with_stream(move |s| Ok(s.size(&probe).is_ok()))
-                            .await?;
-                        if !found {
-                            return Ok((candidate, false));
+                    let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                        let session = ftp.clone();
+                        async move {
+                            crate::remotefs::ftp::path_exists_fail_closed(&session, &candidate)
+                                .await
                         }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    })
+                    .await?;
+                    (renamed, false)
                 }
             })
         }
         Session::Object(obj) => {
             let key = initial_remote.trim_start_matches('/').to_string();
             let probe = object_store::path::Path::from(key.as_str());
-            let exists = obj.store.head(&probe).await.is_ok();
+            let exists = object_exists_fail_closed(&obj.store, &probe).await?;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        let key = candidate.trim_start_matches('/');
-                        let p = object_store::path::Path::from(key);
-                        if obj.store.head(&p).await.is_err() {
-                            return Ok((candidate, false));
-                        }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    let store = obj.store.clone();
+                    let renamed =
+                        resolve_remote_rename_with_probe(initial_remote, move |candidate| {
+                            let store = store.clone();
+                            async move {
+                                let key = candidate.trim_start_matches('/');
+                                let path = object_store::path::Path::from(key);
+                                object_exists_fail_closed(&store, &path).await
+                            }
+                        })
+                        .await?;
+                    (renamed, false)
                 }
             })
         }
         Session::Webdav(dav) => {
-            let (_, exists) = webdav_head(dav, initial_remote).await;
+            let (_, exists) = webdav_head(dav, initial_remote).await?;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        if !webdav_head(dav, &candidate).await.1 {
-                            return Ok((candidate, false));
+                    let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                        let session = dav.clone();
+                        async move {
+                            webdav_head(&session, &candidate)
+                                .await
+                                .map(|(_, exists)| exists)
                         }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    })
+                    .await?;
+                    (renamed, false)
                 }
             })
         }
@@ -3870,160 +3914,160 @@ async fn remote_resolve(
         }
         Session::Dropbox(dbx) => {
             let dbx_path = crate::remotefs::dropbox::dropbox_api_path(initial_remote);
-            let exists = dbx.exists(&dbx_path).await;
+            let exists = dbx.try_exists(&dbx_path).await?;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        let p = crate::remotefs::dropbox::dropbox_api_path(&candidate);
-                        if !dbx.exists(&p).await {
-                            return Ok((candidate, false));
+                    let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                        let session = dbx.clone();
+                        async move {
+                            let path = crate::remotefs::dropbox::dropbox_api_path(&candidate);
+                            session.try_exists(&path).await
                         }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    })
+                    .await?;
+                    (renamed, false)
                 }
             })
         }
         Session::OneDrive(od) => {
-            let exists = od
-                .exists(&crate::remotefs::onedrive::item_ref(initial_remote))
-                .await;
+            let item_ref = crate::remotefs::onedrive::item_ref(initial_remote);
+            let exists = od.try_exists(&item_ref).await?;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        if !od
-                            .exists(&crate::remotefs::onedrive::item_ref(&candidate))
-                            .await
-                        {
-                            return Ok((candidate, false));
+                    let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                        let session = od.clone();
+                        async move {
+                            let item_ref = crate::remotefs::onedrive::item_ref(&candidate);
+                            session.try_exists(&item_ref).await
                         }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    })
+                    .await?;
+                    (renamed, false)
                 }
             })
         }
         Session::GDrive(gd) => {
-            let exists = gd.exists(initial_remote).await;
+            let exists = gd.resolve_item(initial_remote).await?.is_some();
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        if !gd.exists(&candidate).await {
-                            return Ok((candidate, false));
+                    let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                        let session = gd.clone();
+                        async move {
+                            session
+                                .resolve_item(&candidate)
+                                .await
+                                .map(|item| item.is_some())
                         }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    })
+                    .await?;
+                    (renamed, false)
                 }
             })
         }
         Session::Box(bx) => {
-            let exists = bx.exists(initial_remote).await;
+            let exists = bx.resolve_item(initial_remote).await?.is_some();
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        if !bx.exists(&candidate).await {
-                            return Ok((candidate, false));
+                    let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                        let session = bx.clone();
+                        async move {
+                            session
+                                .resolve_item(&candidate)
+                                .await
+                                .map(|item| item.is_some())
                         }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    })
+                    .await?;
+                    (renamed, false)
                 }
             })
         }
         Session::Shopify(sh) => {
-            let exists = crate::remotefs::shopify::asset_exists(sh, initial_remote).await;
+            let exists = crate::remotefs::shopify::asset_exists(sh, initial_remote).await?;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        if !crate::remotefs::shopify::asset_exists(sh, &candidate).await {
-                            return Ok((candidate, false));
-                        }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    let renamed =
+                        resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                            let session = sh.clone();
+                            async move {
+                                crate::remotefs::shopify::asset_exists(&session, &candidate).await
+                            }
+                        })
+                        .await?;
+                    (renamed, false)
                 }
             })
         }
         Session::HubSpot(hs) => {
-            let exists = crate::remotefs::hubspot::file_exists(hs, initial_remote).await;
+            let exists = crate::remotefs::hubspot::file_exists(hs, initial_remote).await?;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        if !crate::remotefs::hubspot::file_exists(hs, &candidate).await {
-                            return Ok((candidate, false));
-                        }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    let renamed =
+                        resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                            let session = hs.clone();
+                            async move {
+                                crate::remotefs::hubspot::file_exists(&session, &candidate).await
+                            }
+                        })
+                        .await?;
+                    (renamed, false)
                 }
             })
         }
         Session::Dynamics(dynm) => {
-            let exists = crate::remotefs::dynamics::file_exists(dynm, initial_remote).await;
+            let exists = crate::remotefs::dynamics::file_exists(dynm, initial_remote).await?;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        if !crate::remotefs::dynamics::file_exists(dynm, &candidate).await {
-                            return Ok((candidate, false));
-                        }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    let renamed =
+                        resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                            let session = dynm.clone();
+                            async move {
+                                crate::remotefs::dynamics::file_exists(&session, &candidate).await
+                            }
+                        })
+                        .await?;
+                    (renamed, false)
                 }
             })
         }
         Session::Agent(agent) => {
-            let (_, exists) = agent_stat(agent, initial_remote).await;
+            let (_, exists) = agent_stat(agent, initial_remote).await?;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        if !agent_stat(agent, &candidate).await.1 {
-                            return Ok((candidate, false));
+                    let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                        let session = agent.clone();
+                        async move {
+                            agent_stat(&session, &candidate)
+                                .await
+                                .map(|(_, exists)| exists)
                         }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    })
+                    .await?;
+                    (renamed, false)
                 }
             })
         }

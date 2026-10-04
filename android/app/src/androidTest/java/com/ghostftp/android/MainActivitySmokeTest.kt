@@ -49,6 +49,8 @@ class MainActivitySmokeTest {
     @Test
     fun primaryWorkspaceAndToolbarRender() {
         assertTextPresent("Ghost FTP")
+        assertNavigationTogglePresent()
+        ensureNavigationOpen()
         assertDescriptionPresent("Open Files workspace")
         for (label in listOf("Refresh", "Upload", "Download", "New Folder", "Rename", "Delete")) {
             assertDescriptionPresent("$label action")
@@ -57,29 +59,67 @@ class MainActivitySmokeTest {
 
     @Test
     fun workspaceNavigationWorksClickByClick() {
-        clickByDescription("Open Sites workspace")
+        openWorkspace("Sites")
         assertTextVisibleInViewport("Protocol")
 
-        clickByDescription("Open Transfers workspace")
+        openWorkspace("Transfers")
         assertTextVisibleInViewport("No transfer started.")
 
-        clickByDescription("Open Settings workspace")
+        openWorkspace("Settings")
         assertTextVisibleInViewport("No required tracking, analytics or telemetry.")
         assertDescriptionPresent("Clear activity log")
         assertDescriptionPresent("Reset transfer fields")
         assertDescriptionPresent("Reset connection form")
         assertDescriptionPresent("Settings disconnect session")
 
-        clickByDescription("Open Help & About workspace")
+        openWorkspace("Help & About")
         assertTextVisibleInViewport("Ghost FTP by Brendigo")
 
-        clickByDescription("Open Files workspace")
+        openWorkspace("Files")
         assertTextVisibleInViewport("Connect to a server to load remote files.")
     }
 
     @Test
+    fun navigationRailCanOpenAndCloseWithoutPopupNavigation() {
+        ensureNavigationOpen()
+        assertDescriptionPresent("Close navigation menu")
+        clickByDescription("Close navigation menu")
+        assertDescriptionPresent("Open navigation menu")
+        clickByDescription("Open navigation menu")
+        assertDescriptionPresent("Close navigation menu")
+    }
+
+    @Test
+    fun compactNavigationUsesOverlayScrimInsteadOfShrinkingContent() {
+        var compact = false
+        scenario.onActivity { activity ->
+            compact = activity.resources.configuration.screenWidthDp < 600
+        }
+        if (!compact) return
+
+        ensureNavigationOpen()
+        assertDescriptionPresent("Close navigation menu overlay")
+        clickByDescription("Close navigation menu overlay")
+        assertDescriptionPresent("Open navigation menu")
+    }
+
+    @Test
+    fun helpWorkspaceExposesCanonicalProductLinks() {
+        openWorkspace("Help & About")
+        for (description in listOf(
+            "Open Ghost FTP Support",
+            "Open Ghost FTP Documentation",
+            "Open Ghost FTP Privacy",
+            "Open Ghost FTP Terms of use / EULA",
+            "Open Ghost FTP Official website"
+        )) {
+            assertDescriptionPresent(description)
+        }
+    }
+
+    @Test
     fun protocolSelectionUpdatesDefaultsWithoutClobberingCustomPort() {
-        clickByDescription("Open Sites workspace")
+        openWorkspace("Sites")
 
         scenario.onActivity { activity ->
             val protocol = findView(activity.window.decorView) {
@@ -136,7 +176,7 @@ class MainActivitySmokeTest {
 
     @Test
     fun connectionValidationAndIdleRecoveryWorkClickByClick() {
-        clickByDescription("Open Sites workspace")
+        openWorkspace("Sites")
         clickByDescription("Connect to server")
         assertTextPresent("Host is required")
 
@@ -151,11 +191,11 @@ class MainActivitySmokeTest {
             assertDescriptionEnabled("$label action", false)
         }
 
-        clickByDescription("Open Transfers workspace")
+        openWorkspace("Transfers")
         assertDescriptionEnabled("Pick upload file", true)
         assertDescriptionEnabled("Upload selected file", false)
 
-        clickByDescription("Open Settings workspace")
+        openWorkspace("Settings")
         assertDescriptionEnabled("Reset transfer fields", true)
         assertDescriptionEnabled("Reset connection form", true)
         assertDescriptionEnabled("Settings disconnect session", false)
@@ -163,13 +203,13 @@ class MainActivitySmokeTest {
 
     @Test
     fun transferAndSettingsActionsAreWiredClickByClick() {
-        clickByDescription("Open Transfers workspace")
+        openWorkspace("Transfers")
         assertDescriptionPresent("Pick upload file")
         assertDescriptionPresent("Upload selected file")
         assertDescriptionEnabled("Pick upload file", true)
         assertDescriptionEnabled("Upload selected file", false)
 
-        clickByDescription("Open Settings workspace")
+        openWorkspace("Settings")
         assertDescriptionEnabled("Settings disconnect session", false)
         clickByDescription("Clear activity log")
         assertTextPresent("Activity log cleared.")
@@ -206,7 +246,7 @@ class MainActivitySmokeTest {
         SystemClock.sleep(120)
 
         assertTextPresent("Selected file unavailable")
-        clickByDescription("Open Transfers workspace")
+        openWorkspace("Transfers")
         assertDescriptionEnabled("Upload selected file", false)
     }
 
@@ -215,18 +255,18 @@ class MainActivitySmokeTest {
         assertTextVisibleInViewport("Connect to a server to load remote files.")
         assertTextNotShown("Protocol")
 
-        clickByDescription("Open Sites workspace")
+        openWorkspace("Sites")
         assertTextVisibleInViewport("Protocol")
         assertTextNotShown("Connect to a server to load remote files.")
 
-        clickByDescription("Open Transfers workspace")
+        openWorkspace("Transfers")
         assertTextVisibleInViewport("No transfer started.")
         assertTextNotShown("Protocol")
     }
 
     @Test
     fun activityRecreationRestoresNonSecretFieldsButNotPassword() {
-        clickByDescription("Open Sites workspace")
+        openWorkspace("Sites")
         scenario.onActivity { activity ->
             val host = findView(activity.window.decorView) {
                 it is EditText && it.hint?.toString() == "Host"
@@ -285,6 +325,30 @@ class MainActivitySmokeTest {
                 assertTrue("Text should not be shown in the active workspace: $expected", !view.isShown)
             }
         }
+    }
+
+    private fun assertNavigationTogglePresent() {
+        scenario.onActivity { activity ->
+            val root = activity.window.decorView
+            val open = findView(root) { it.contentDescription?.toString() == "Open navigation menu" }
+            val close = findView(root) { it.contentDescription?.toString() == "Close navigation menu" }
+            assertTrue("Navigation toggle must be visible.", open?.isShown == true || close?.isShown == true)
+        }
+    }
+
+    private fun ensureNavigationOpen() {
+        var needsOpen = false
+        scenario.onActivity { activity ->
+            val root = activity.window.decorView
+            val open = findView(root) { it.contentDescription?.toString() == "Open navigation menu" }
+            needsOpen = open?.isShown == true
+        }
+        if (needsOpen) clickByDescription("Open navigation menu")
+    }
+
+    private fun openWorkspace(label: String) {
+        ensureNavigationOpen()
+        clickByDescription("Open $label workspace")
     }
 
     private fun clickByDescription(description: String) {

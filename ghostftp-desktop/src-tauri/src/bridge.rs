@@ -3741,7 +3741,9 @@ async fn op_write(
                 .await?
             {
                 Response::Written { .. } => Ok(()),
-                Response::Error { message, denied } => {
+                Response::Error {
+                    message, denied, ..
+                } => {
                     anyhow::bail!(if denied {
                         format!("denied: {message}")
                     } else {

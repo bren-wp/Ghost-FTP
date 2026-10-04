@@ -11,7 +11,7 @@
         android:roundIcon="@drawable/ic_ghost_ftp"
         android:supportsRtl="true"
         android:theme="@style/GhostFtpTheme"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="false">
         <activity
             android:name=".MainActivity"
             android:exported="true">

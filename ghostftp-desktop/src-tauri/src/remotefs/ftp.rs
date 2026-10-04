@@ -80,16 +80,73 @@ fn entry_from_listing(parent: &str, line: &str) -> Option<DirEntry> {
 /// So ask for `LIST -a` and fall back to a bare `LIST` when the server rejects
 /// the flag (IIS and a few others take the argument as a literal path). Servers
 /// that already include dotfiles are unaffected — `-a` is a no-op there.
+fn list_lines_with_dot_visibility(
+    stream: &mut crate::session::ftp::FtpStreamKind,
+    target: &str,
+) -> Result<(Vec<String>, bool)> {
+    match stream.list(Some(&format!("-a {target}"))) {
+        Ok(lines) => Ok((lines, true)),
+        Err(_) => stream
+            .list(Some(target))
+            .with_context(|| format!("FTP LIST {target}"))
+            .map(|lines| (lines, false)),
+    }
+}
+
 fn list_lines(
     stream: &mut crate::session::ftp::FtpStreamKind,
     target: &str,
 ) -> Result<Vec<String>> {
-    match stream.list(Some(&format!("-a {target}"))) {
-        Ok(lines) => Ok(lines),
-        Err(_) => stream
-            .list(Some(target))
-            .with_context(|| format!("FTP LIST {target}")),
+    list_lines_with_dot_visibility(stream, target).map(|(lines, _)| lines)
+}
+
+/// Prove whether an FTP path exists without turning protocol/listing failures
+/// into absence. A successful parent LIST is the proof source. When a server
+/// rejects `LIST -a`, absence of a dotfile cannot be proven and therefore
+/// fails closed instead of risking overwrite of a hidden target.
+pub async fn path_exists_fail_closed(session: &Arc<FtpSession>, path: &str) -> Result<bool> {
+    let trimmed = path.trim_end_matches('/');
+    if trimmed.is_empty() || trimmed == "/" {
+        return Ok(true);
     }
+    let (parent, name) = match trimmed.rsplit_once('/') {
+        Some(("", name)) => ("/".to_string(), name.to_string()),
+        Some((parent, name)) => (parent.to_string(), name.to_string()),
+        None => (".".to_string(), trimmed.to_string()),
+    };
+    if name.is_empty() || matches!(name.as_str(), "." | "..") {
+        anyhow::bail!("FTP existence check requires a concrete target path: {path}");
+    }
+
+    session
+        .with_stream(move |stream| {
+            let (listing, includes_dotfiles) =
+                list_lines_with_dot_visibility(stream, &parent)
+                    .with_context(|| format!("FTP existence LIST {parent}"))?;
+            let mut saw_unrecognized = false;
+            for line in listing {
+                if line.trim().is_empty() || is_dot_listing(&line) {
+                    continue;
+                }
+                match entry_from_listing(&parent, &line) {
+                    Some(entry) if entry.name == name => return Ok(true),
+                    Some(_) => {}
+                    None => saw_unrecognized = true,
+                }
+            }
+            if saw_unrecognized {
+                anyhow::bail!(
+                    "FTP existence check for {name} is ambiguous because the server returned an unrecognized LIST entry"
+                );
+            }
+            if name.starts_with('.') && !includes_dotfiles {
+                anyhow::bail!(
+                    "FTP existence check for hidden target {name} is ambiguous because the server rejected LIST -a"
+                );
+            }
+            Ok(false)
+        })
+        .await
 }
 
 #[async_trait]

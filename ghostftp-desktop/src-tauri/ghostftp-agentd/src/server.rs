@@ -329,12 +329,14 @@ fn log_op(peer: &str, summary: &str, resp: &Response) {
         Response::Error {
             message,
             denied: true,
+            ..
         } => {
             tracing::warn!(%peer, "DENIED {summary} — {message}")
         }
         Response::Error {
             message,
             denied: false,
+            ..
         } => {
             tracing::warn!(%peer, "FAILED {summary} — {message}")
         }

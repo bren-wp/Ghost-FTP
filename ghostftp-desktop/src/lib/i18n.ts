@@ -1,3 +1,5 @@
+import { REFERENCE_UI_COMPLETION_TRANSLATIONS } from "./i18n-reference-completion";
+
 export const APP_LOCALES = ["en","hr","cs","sk","hu","ro","bg","el","tr","uk","da","sv","no","de","fr","es","it","pt","nl","pl","sl","sr","bs","mk"] as const;
 export type AppLocale = (typeof APP_LOCALES)[number];
 
@@ -4422,6 +4424,12 @@ for (const [source, byLocale] of Object.entries(REFERENCE_UI_TRANSLATIONS)) {
     if (locale === "hr") HR[source] = translated;
     else if (locale !== "en") (OTHER[locale as AppLocale] ??= {})[source] = translated;
   }
+}
+
+for (const [locale, entries] of Object.entries(REFERENCE_UI_COMPLETION_TRANSLATIONS)) {
+  const dictionary = OTHER[locale as AppLocale];
+  if (!dictionary) continue;
+  Object.assign(dictionary, entries);
 }
 
 let observer: MutationObserver | null = null;

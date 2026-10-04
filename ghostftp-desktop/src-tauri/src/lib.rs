@@ -121,8 +121,16 @@ fn build_settings_init_script(db: &db::Db) -> String {
 fn open_external_url(url: String) -> Result<(), String> {
     let parsed = url::Url::parse(&url).map_err(|_| "Invalid external URL".to_string())?;
     let host = parsed.host_str().unwrap_or_default().to_ascii_lowercase();
-    if parsed.scheme() != "https" || !(host == "ghostftp.com" || host.ends_with(".ghostftp.com")) {
-        return Err("Ghost FTP only opens approved ghostftp.com HTTPS links".to_string());
+    let path = parsed.path();
+    let approved_product_page =
+        host == "ghostftp.com" && matches!(path, "/" | "/support/" | "/privacy/" | "/docs/");
+    let approved_eula = host == "github.com" && path == "/bren-wp/Ghost-FTP/blob/main/EULA.txt";
+    if parsed.scheme() != "https"
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+        || !(approved_product_page || approved_eula)
+    {
+        return Err("Ghost FTP only opens approved official product links".to_string());
     }
 
     #[cfg(windows)]
