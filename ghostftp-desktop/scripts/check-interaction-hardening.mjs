@@ -125,6 +125,12 @@ requireExcludes(
   "raw quick-connect diagnostics"
 );
 
+requireExcludes(
+  "src/components/SiteManagerDialog.tsx",
+  ["console.debug("],
+  "raw site-manager connection diagnostics"
+);
+
 requireIncludes(
   "src/stores/transfersStore.ts",
   [
