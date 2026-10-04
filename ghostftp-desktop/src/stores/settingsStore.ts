@@ -326,6 +326,13 @@ const initial = load();
 const durableSettings = structuredClone(initial);
 const settingsMutationRevision = new Map<keyof PersistedSettings, number>();
 
+function rememberDurableSetting<K extends keyof PersistedSettings>(
+  key: K,
+  value: PersistedSettings[K]
+): void {
+  durableSettings[key] = structuredClone(value);
+}
+
 function nextSettingsMutationRevision<K extends keyof PersistedSettings>(key: K): number {
   const revision = (settingsMutationRevision.get(key) ?? 0) + 1;
   settingsMutationRevision.set(key, revision);
@@ -338,7 +345,7 @@ function persistKey<K extends keyof PersistedSettings>(key: K, value: PersistedS
   return enqueueSettingsPersistence(() =>
     ipc.settingsSet(String(key), JSON.stringify(value))
   ).then(() => {
-    durableSettings[key] = structuredClone(value);
+    rememberDurableSetting(key, value);
   }).catch((error) => {
     toastError(error, `Couldn't save preference: ${String(key)}`);
     throw error;
@@ -480,8 +487,9 @@ export async function hydrateFromDb(): Promise<void> {
     if (Object.keys(known).length) {
       useSettings.setState(known as Partial<SettingsState>);
       for (const key of SETTINGS_KEYS) {
-        if (known[key] !== undefined) {
-          durableSettings[key] = structuredClone(known[key] as PersistedSettings[typeof key]);
+        const value = known[key];
+        if (value !== undefined) {
+          rememberDurableSetting(key, value);
         }
       }
     }
@@ -576,7 +584,7 @@ export async function resetSettingsToDefaults(): Promise<void> {
       )
     );
     for (const key of SETTINGS_KEYS) {
-      durableSettings[key] = structuredClone(DEFAULTS[key]);
+      rememberDurableSetting(key, DEFAULTS[key]);
       nextSettingsMutationRevision(key);
     }
     useSettings.setState({ ...DEFAULTS } as Partial<SettingsState>);
