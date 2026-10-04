@@ -243,9 +243,6 @@ impl GDriveSession {
         0
     }
 
-    pub async fn exists(&self, ghostftp_path: &str) -> bool {
-        matches!(self.resolve_item(ghostftp_path).await, Ok(Some(_)))
-    }
 }
 
 pub async fn gdrive_connect(profile: &ConnectionProfile) -> Result<GDriveSession> {
