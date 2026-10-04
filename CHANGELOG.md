@@ -4,6 +4,7 @@
 - Prevents failed older preference writes from rolling the UI back over a newer action by tracking per-setting revisions and the last durable value.
 - Serializes live transfer-engine IPC updates for concurrency, retries, throttle and delta sync so native runtime state cannot finish out of user-action order.
 - Gives Reset to Defaults, notification permission and shell PATH integration one shared async mutation lock and busy state.
+- Keeps Reset to Defaults locked through recovery and restores the previous DB snapshot, live transfer-engine settings and shell PATH state before returning failure.
 - Prevents Preferences from closing while an OS-level Settings mutation is still running.
 - Rejects Android picker URIs that cannot actually be opened for reading instead of presenting an unusable file as selected.
 - Revalidates saved Android upload URIs after Activity recreation and clears stale grants fail-closed.
