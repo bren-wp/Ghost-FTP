@@ -290,16 +290,23 @@ requireIncludes(
     "event.stopPropagation(); onPauseResume();",
     "event.stopPropagation(); onRetry();",
     "event.stopPropagation(); onCancel();",
-    "disabled={!pausable}",
-    "disabled={!retryable}",
-    "disabled={!cancelable}",
+    "disabled={!pausable || busy}",
+    "disabled={!retryable || busy}",
+    "disabled={!cancelable || busy}",
+    "const backendActionInFlight = useRef(new Set<string>())",
+    "if (backendActionInFlight.current.has(key)) return;",
+    "backendActionInFlight.current.add(key);",
+    "backendActionInFlight.current.delete(key);",
+    'backendActionBusy.has("queue")',
+    'backendActionBusy.has(`transfer:${transfer.id}`)',
+    "aria-busy={busy}",
     "role=\"menuitem\"",
     "disabled={scheduleMode === \"off\" || !selected}",
     "Export History…",
     "void exportTransferHistory();",
     "const count = await exportHistory(path);",
   ],
-  "transfer-row and scheduler button contracts"
+  "serialized transfer-row, queue and scheduler button contracts"
 );
 
 if (failures.length) {
