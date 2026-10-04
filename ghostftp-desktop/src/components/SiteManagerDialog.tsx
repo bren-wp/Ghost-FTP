@@ -271,6 +271,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
       await connect(selected.id);
     } catch {
       // connectionsStore already surfaces the redacted FTP/FTPS/SFTP error.
+      return;
     } finally {
       setAction(null);
     }
