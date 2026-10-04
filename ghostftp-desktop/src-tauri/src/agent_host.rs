@@ -111,7 +111,7 @@ impl AgentHost {
         let dir = Self::agent_dir()?;
         let identity = Identity::load_or_create(&identity_path(&dir))?;
         let config = Config::load(&config_path(&dir))?;
-        let fingerprint = identity.fingerprint();
+        let fingerprint = identity.fingerprint()?;
         let info = ops::system_info();
 
         let listener = match TcpListener::bind(("0.0.0.0", port)).await {
@@ -201,7 +201,7 @@ impl AgentHost {
             port,
             hostname: info.hostname,
             os: info.os,
-            fingerprint: identity.fingerprint(),
+            fingerprint: identity.fingerprint()?,
             allow_exec: config.policy.allow_exec,
             allow_write: config.policy.allow_write,
             peers: config

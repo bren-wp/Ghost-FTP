@@ -169,7 +169,7 @@ async fn bind_port(port: u16) -> Result<TcpListener> {
 
 async fn run(args: Args, dir: PathBuf, identity: Identity, config: Config) -> Result<()> {
     let info = ops::system_info();
-    let fingerprint = identity.fingerprint();
+    let fingerprint = identity.fingerprint()?;
     let peers = config.peers.len();
     let daemon = Daemon::new(identity, config, dir);
 
@@ -212,7 +212,7 @@ async fn run(args: Args, dir: PathBuf, identity: Identity, config: Config) -> Re
 /// serving afterwards, so nothing needs restarting.
 async fn pair(args: Args, dir: PathBuf, identity: Identity, config: Config) -> Result<()> {
     let info = ops::system_info();
-    let fingerprint = identity.fingerprint();
+    let fingerprint = identity.fingerprint()?;
     let code = pairing::generate_code();
     let window = Duration::from_secs(args.window_min * 60);
     let json = args.json;
@@ -303,7 +303,7 @@ fn info(dir: PathBuf, identity: Identity, config: Config) -> Result<()> {
         info.hostname, info.os, info.arch
     );
     println!("  config dir : {}", dir.display());
-    println!("  identity   : {}", identity.fingerprint());
+    println!("  identity   : {}", identity.fingerprint()?);
     println!("  public key : {}", identity.public_b64());
     println!(
         "  policy     : exec={}  write={}",

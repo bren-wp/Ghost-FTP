@@ -37,6 +37,7 @@ const operationalDocs = [
   "docs/audits/CODE.md",
   "docs/audits/LANGUAGE.md",
   "docs/audits/PROJECT.md",
+  "docs/audits/LANGUAGE.md",
   "docs/audits/SECURITY.md",
   "docs/architecture/NAMING.md",
   "docs/architecture/STRUCTURE.md",
