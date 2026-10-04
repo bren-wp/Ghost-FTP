@@ -1407,8 +1407,8 @@ impl TransferManager {
             self.checkpoint(id, n as u64).await?;
             local_file.write_all(&buf[..n]).await?;
             transferred += n as u64;
-            self.update(id, |t| t.transferred = transferred).await;
             if last_emit.elapsed() > Duration::from_millis(100) {
+                self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
                     let _ = app.emit("transfer://progress", &t);
                 }
@@ -2191,8 +2191,8 @@ impl TransferManager {
             self.checkpoint(id, n as u64).await?;
             remote_file.write_all(&buf[..n]).await?;
             transferred += n as u64;
-            self.update(id, |t| t.transferred = transferred).await;
             if last_emit.elapsed() > Duration::from_millis(100) {
+                self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
                     let _ = app.emit("transfer://progress", &t);
                 }
