@@ -50,7 +50,7 @@ import sys
 
 res_dir = pathlib.Path(sys.argv[1])
 locales = sys.argv[2:]
-pattern = re.compile(r'<string\\s+name="([^"]+)"')
+pattern = re.compile(r'<string\s+name="([^"]+)"')
 
 def read_keys(path: pathlib.Path):
     text = path.read_text(encoding="utf-8")
