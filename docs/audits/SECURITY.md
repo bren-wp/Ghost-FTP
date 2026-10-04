@@ -1,6 +1,6 @@
-# Ghost FTP Security Audit — 0.30.5
+# Ghost FTP Security Audit — 0.30.6
 
-Previous canonical release: **0.30.4**.
+Previous canonical release: **0.30.5**.
 
 ## Current controls
 

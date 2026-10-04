@@ -1,3 +1,15 @@
+## 0.30.6 — transfer integrity, mobile UX and security hardening — 4 October 2026
+
+- Remote overwrite and rename existence probes now fail closed across Dynamics, Shopify, HubSpot, OneDrive, Dropbox, FTP, Agent and object-backed paths instead of treating transport, permission or API failures as proof that a target is absent.
+- Agent protocol responses distinguish confirmed not-found conditions from operational failures so destructive overwrite decisions propagate ambiguous errors safely.
+- Android now uses a responsive left navigation drawer on compact screens, preserves the persistent navigation rail on larger screens and replaces popup confirmation dialogs with inline in-app confirmation UI.
+- Android networking disables global cleartext traffic, explicitly warns when plain FTP is selected and removes unused keyboard-interactive SSH authentication.
+- Desktop official Support, Documentation, Privacy and EULA destinations are centralized and restricted to approved external URLs.
+- Advertised desktop locale coverage now has enforced reference-UI parity across all registered languages, including completion dictionaries for previously incomplete locales.
+- Production CI regressions found during the hardening cycle were fixed without weakening formatting, protocol E2E, Android, native build or Windows hardening gates.
+
+See [docs/releases/0.30.6.md](docs/releases/0.30.6.md).
+
 ## 0.30.5 — Settings ordering and Android URI lifecycle hardening — 4 October 2026
 
 - Serializes Windows/Linux Settings persistence so rapid preference changes cannot complete durable database writes out of user-action order.
