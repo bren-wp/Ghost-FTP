@@ -171,13 +171,49 @@ impl DropboxSession {
     }
 
     /// Whether a path exists (via get_metadata).
-    pub async fn exists(&self, dbx_path: &str) -> bool {
-        self.rpc(
-            "/2/files/get_metadata",
-            serde_json::json!({ "path": dbx_path }),
-        )
-        .await
-        .is_ok()
+    ///
+    /// Dropbox reports a missing path as a structured 409 path/not_found
+    /// response. Other conflicts, auth failures and transport errors propagate.
+    pub async fn try_exists(&self, dbx_path: &str) -> Result<bool> {
+        let endpoint = "/2/files/get_metadata";
+        let url = format!("{}{endpoint}", self.api_base);
+        for attempt in 0..2 {
+            let token = self.access_token().await?;
+            let resp = self
+                .client
+                .post(&url)
+                .bearer_auth(&token)
+                .json(&serde_json::json!({ "path": dbx_path }))
+                .send()
+                .await
+                .with_context(|| format!("dropbox existence check {dbx_path}"))?;
+            if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
+                self.force_refresh().await?;
+                continue;
+            }
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            if status.is_success() {
+                return Ok(true);
+            }
+            if status == reqwest::StatusCode::CONFLICT {
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
+                    let tag = value
+                        .get("error")
+                        .and_then(|error| error.get("path"))
+                        .and_then(|path| path.get(".tag"))
+                        .and_then(|tag| tag.as_str());
+                    if tag == Some("not_found") {
+                        return Ok(false);
+                    }
+                }
+            }
+            return Err(anyhow!(
+                "dropbox {endpoint} existence check failed ({}): {text}",
+                status.as_u16()
+            ));
+        }
+        unreachable!("Dropbox existence loop always returns within 2 attempts")
     }
 
     /// The size of a file at `dbx_path`, or 0 if unknown.
