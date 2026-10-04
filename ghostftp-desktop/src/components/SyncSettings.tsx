@@ -20,6 +20,7 @@ import { toast } from "@/stores/toastStore";
 import { useConnections } from "@/stores/connectionsStore";
 import { relTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { toastError } from "@/lib/errors";
 import type {
   PairView,
   SyncDirection,
@@ -103,6 +104,14 @@ function PairRow({ pair }: { pair: PairView }) {
     setMutating(kind);
     try {
       await action();
+    } catch (error) {
+      const context =
+        kind === "toggle"
+          ? "Couldn't update sync pair"
+          : kind === "sync"
+            ? "Couldn't start sync"
+            : "Couldn't remove sync pair";
+      toastError(error, context);
     } finally {
       mutationInFlight.current = false;
       setMutating(null);
@@ -115,7 +124,7 @@ function PairRow({ pair }: { pair: PairView }) {
     try {
       await ipc.virtualFsFreeUpSpace(pair.id);
     } catch (error) {
-      toast.error("Couldn't free up local space", String(error));
+      toastError(error, "Couldn't free up local space");
     } finally {
       setFreeing(false);
     }
@@ -268,8 +277,7 @@ function PairForm({ onDone }: { onDone: () => void }) {
     void ipc
       .virtualFsSupported()
       .then(setVfsSupported)
-      .catch((error) => {
-        console.warn("Couldn't determine virtual filesystem support", error);
+      .catch(() => {
         setVfsSupported(false);
       });
   }, []);
@@ -282,13 +290,18 @@ function PairForm({ onDone }: { onDone: () => void }) {
   };
 
   const browse = async () => {
-    const picked = await open({ directory: true, title: "Choose a local folder" });
-    if (typeof picked === "string") {
-      setLocalRoot(picked);
-      if (!name) {
-        const base = picked.split(/[/\\]/).filter(Boolean).pop();
-        if (base) setName(base);
+    if (busy) return;
+    try {
+      const picked = await open({ directory: true, title: "Choose a local folder" });
+      if (typeof picked === "string") {
+        setLocalRoot(picked);
+        if (!name) {
+          const base = picked.split(/[/\\]/).filter(Boolean).pop();
+          if (base) setName(base);
+        }
       }
+    } catch (error) {
+      toastError(error, "Couldn't open the local folder picker");
     }
   };
 
@@ -299,7 +312,7 @@ function PairForm({ onDone }: { onDone: () => void }) {
     remoteRoot.trim() !== "";
 
   const submit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || busy) return;
     setBusy(true);
     const pair: SyncPair = {
       id: "",
@@ -318,6 +331,8 @@ function PairForm({ onDone }: { onDone: () => void }) {
     try {
       await upsert(pair);
       onDone();
+    } catch (error) {
+      toastError(error, "Couldn't create sync pair");
     } finally {
       setBusy(false);
     }
@@ -365,13 +380,14 @@ function PairForm({ onDone }: { onDone: () => void }) {
           <input
             value={localRoot}
             onChange={(e) => setLocalRoot(e.target.value)}
-            placeholder="C:\\path\\to\\folder"
+            placeholder="Local folder path"
             className="min-w-0 flex-1 rounded-md border border-border bg-bg-panel px-2.5 py-1.5 text-sm outline-none focus:border-accent"
           />
           <button
             type="button"
             onClick={browse}
-            className="shrink-0 rounded-md border border-border px-2.5 py-1.5 text-sm text-text-muted hover:bg-bg-hover hover:text-text"
+            disabled={busy}
+            className="shrink-0 rounded-md border border-border px-2.5 py-1.5 text-sm text-text-muted hover:bg-bg-hover hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
           >
             Browse…
           </button>
@@ -382,7 +398,7 @@ function PairForm({ onDone }: { onDone: () => void }) {
         <input
           value={remoteRoot}
           onChange={(e) => setRemoteRoot(e.target.value)}
-          placeholder="/home/user/folder"
+          placeholder="Remote folder path"
           className="w-full rounded-md border border-border bg-bg-panel px-2.5 py-1.5 font-mono text-sm outline-none focus:border-accent"
         />
       </Field>
@@ -503,7 +519,8 @@ function PairForm({ onDone }: { onDone: () => void }) {
         <button
           type="button"
           onClick={onDone}
-          className="rounded-md border border-border bg-bg-panel px-3 py-1.5 text-xs hover:bg-bg-hover"
+          disabled={busy}
+          className="rounded-md border border-border bg-bg-panel px-3 py-1.5 text-xs hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
           Cancel
         </button>
@@ -511,6 +528,7 @@ function PairForm({ onDone }: { onDone: () => void }) {
           type="button"
           onClick={submit}
           disabled={!canSubmit || busy}
+          aria-busy={busy}
           className="btn-accent flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40"
         >
           {busy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
