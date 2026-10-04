@@ -239,6 +239,11 @@ pub enum Response {
         message: String,
         #[serde(default)]
         denied: bool,
+        /// True only when the daemon positively identified an OS-level
+        /// NotFound condition. Older peers omit this field and deserialize it
+        /// as false, which keeps overwrite decisions fail-closed.
+        #[serde(default)]
+        not_found: bool,
     },
 }
 
@@ -248,6 +253,7 @@ impl Response {
         Response::Error {
             message: message.into(),
             denied: false,
+            not_found: false,
         }
     }
 
@@ -256,6 +262,16 @@ impl Response {
         Response::Error {
             message: message.into(),
             denied: true,
+            not_found: false,
+        }
+    }
+
+    /// Convenience for a positively identified filesystem absence.
+    pub fn not_found(message: impl Into<String>) -> Self {
+        Response::Error {
+            message: message.into(),
+            denied: false,
+            not_found: true,
         }
     }
 }
