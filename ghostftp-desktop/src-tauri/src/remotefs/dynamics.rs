@@ -700,11 +700,11 @@ mod tests {
         fs.rename("/new_/js/rl429.js", "/new_/js/moved.js")
             .await
             .expect("rename");
-        assert!(file_exists(&session, "/new_/js/moved.js").await);
-        assert!(!file_exists(&session, "/new_/js/rl429.js").await);
+        assert!(file_exists(&session, "/new_/js/moved.js").await.expect("moved exists"));
+        assert!(!file_exists(&session, "/new_/js/rl429.js").await.expect("old path absent"));
 
         fs.delete("/new_/js/moved.js", false).await.expect("delete");
-        assert!(!file_exists(&session, "/new_/js/moved.js").await);
+        assert!(!file_exists(&session, "/new_/js/moved.js").await.expect("deleted path absent"));
 
         // mkdir materializes a hidden placeholder; recursive delete walks it.
         fs.create_dir("/new_/js/ghostftp-dir").await.expect("mkdir");
@@ -718,7 +718,7 @@ mod tests {
         fs.delete("/new_/js/ghostftp-dir", true)
             .await
             .expect("rmdir");
-        assert!(!file_exists(&session, "/new_/js/ghostftp-dir").await);
+        assert!(!file_exists(&session, "/new_/js/ghostftp-dir").await.expect("deleted directory absent"));
 
         // Managed resources refuse every mutation, client-side.
         for err in [
