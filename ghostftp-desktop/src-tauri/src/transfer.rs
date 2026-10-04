@@ -3739,17 +3739,32 @@ fn supports_byte_resume(session: &Session) -> bool {
     )
 }
 
-/// Stat a path on a Ghost FTP Agent daemon, returning its size and whether it exists.
-async fn agent_stat(session: &Arc<crate::session::AgentSession>, path: &str) -> (u64, bool) {
+/// Stat a path on a Ghost FTP Agent daemon.
+///
+/// Only the daemon's structured OS-level not-found signal proves absence.
+/// Policy, permission, network and generic operational failures propagate.
+async fn agent_stat(
+    session: &Arc<crate::session::AgentSession>,
+    path: &str,
+) -> Result<(u64, bool)> {
     use ghostftp_agent_proto::msg::{Request, Response};
     match session
         .request(Request::Stat {
             path: path.to_string(),
         })
-        .await
+        .await?
     {
-        Ok(Response::Stat { entry }) => (entry.size, true),
-        _ => (0, false),
+        Response::Stat { entry } => Ok((entry.size, true)),
+        Response::Error {
+            not_found: true, ..
+        } => Ok((0, false)),
+        Response::Error { message, denied, .. } => {
+            if denied {
+                anyhow::bail!("agent stat {path}: denied by remote policy — {message}")
+            }
+            anyhow::bail!("agent stat {path}: {message}")
+        }
+        other => anyhow::bail!("agent stat {path}: unexpected reply {other:?}"),
     }
 }
 
@@ -3792,7 +3807,7 @@ pub(crate) async fn remote_size(session: &Arc<Session>, path: &str) -> Result<u6
         Session::Shopify(sh) => Ok(crate::remotefs::shopify::asset_size(sh, path).await),
         Session::HubSpot(hs) => Ok(crate::remotefs::hubspot::file_size(hs, path).await),
         Session::Dynamics(dynm) => Ok(crate::remotefs::dynamics::file_size(dynm, path).await),
-        Session::Agent(agent) => Ok(agent_stat(agent, path).await.0),
+        Session::Agent(agent) => Ok(agent_stat(agent, path).await?.0),
     }
 }
 
@@ -4012,21 +4027,18 @@ async fn remote_resolve(
             })
         }
         Session::Agent(agent) => {
-            let (_, exists) = agent_stat(agent, initial_remote).await;
+            let (_, exists) = agent_stat(agent, initial_remote).await?;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        if !agent_stat(agent, &candidate).await.1 {
-                            return Ok((candidate, false));
-                        }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                        let session = agent.clone();
+                        async move { agent_stat(&session, &candidate).await.map(|(_, exists)| exists) }
+                    })
+                    .await?;
+                    (renamed, false)
                 }
             })
         }
