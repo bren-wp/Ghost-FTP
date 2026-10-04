@@ -142,6 +142,24 @@ requireIncludes(
 );
 
 requireIncludes(
+  "src/components/AgentBridge.tsx",
+  [
+    'const [bridgeMutation, setBridgeMutation] = useState<',
+    "const bridgeMutationInFlight = useRef(false)",
+    "if (bridgeMutationInFlight.current) return;",
+    "bridgeMutationInFlight.current = true;",
+    "bridgeMutationInFlight.current = false;",
+    'runBridgeMutation("master"',
+    'runBridgeMutation("endpoint"',
+    'runBridgeMutation("session"',
+    'runBridgeMutation("policy"',
+    'disabled={bridgeMutation !== null}',
+    'aria-busy={bridgeMutation === "endpoint"}',
+  ],
+  "Agent Bridge mutation serialization"
+);
+
+requireIncludes(
   "src-tauri/src/path_integration.rs",
   [
     "std::env::split_paths(&path)",

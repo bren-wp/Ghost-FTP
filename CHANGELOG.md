@@ -1,3 +1,14 @@
+## 0.30.4 — cross-platform interaction serialization — 4 October 2026
+
+- Serializes Agent Bridge master, endpoint, session-access and approval-policy mutations on Windows/Linux so rapid or conflicting clicks cannot race backend IPC state.
+- Disables Bridge mutation controls while an operation is in flight and exposes endpoint Start/Stop busy state.
+- Prevents Android Pick file, Reset Transfers and Reset Connection from mutating visible transfer context while a transfer/remote operation is active.
+- Makes Android Settings Disconnect reflect the real authenticated-session state instead of remaining clickable while disconnected.
+- Adds desktop interaction-contract and Android instrumentation/production-contract coverage for the new state guards.
+- Keeps the exact-head Quality, real FTP/FTPS/SFTP E2E, Windows/Linux native build, Android and Windows hardening release gates mandatory.
+
+See [docs/releases/0.30.4.md](docs/releases/0.30.4.md).
+
 ## 0.30.3 — Android interaction-state and dead-code hardening — 3 October 2026
 
 - Fixes Android action availability so disconnected sessions no longer expose Refresh, Disconnect or remote file operations as actionable controls.

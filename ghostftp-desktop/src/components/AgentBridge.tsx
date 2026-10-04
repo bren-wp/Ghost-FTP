@@ -544,13 +544,32 @@ export function AgentBridge({ onClose }: { onClose: () => void }) {
     liveSessions.find((s) => s.sessionId === setupSessionId)?.profile?.name ??
     null;
   const policy = status.policy;
-  const patchPolicy = (patch: Partial<ApprovalPolicy>) =>
-    setPolicy({ ...policy, ...patch });
-
   const [showToken, setShowToken] = useState(false);
+  const [bridgeMutation, setBridgeMutation] = useState<
+    "master" | "endpoint" | "session" | "policy" | null
+  >(null);
+  const bridgeMutationInFlight = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   useDialog(panelRef, { onClose });
+
+  const runBridgeMutation = async (
+    kind: "master" | "endpoint" | "session" | "policy",
+    action: () => Promise<void>
+  ) => {
+    if (bridgeMutationInFlight.current) return;
+    bridgeMutationInFlight.current = true;
+    setBridgeMutation(kind);
+    try {
+      await action();
+    } finally {
+      bridgeMutationInFlight.current = false;
+      setBridgeMutation(null);
+    }
+  };
+
+  const patchPolicy = (patch: Partial<ApprovalPolicy>) =>
+    void runBridgeMutation("policy", () => setPolicy({ ...policy, ...patch }));
 
   useEffect(() => {
     refresh();
@@ -625,7 +644,11 @@ export function AgentBridge({ onClose }: { onClose: () => void }) {
                   connection stays private until you grant it access below.
                 </div>
               </div>
-              <Toggle checked={status.enabled} onChange={(v) => setEnabled(v)} />
+              <Toggle
+                checked={status.enabled}
+                disabled={bridgeMutation !== null}
+                onChange={(v) => void runBridgeMutation("master", () => setEnabled(v))}
+              />
             </div>
           </Card>
 
@@ -650,8 +673,13 @@ export function AgentBridge({ onClose }: { onClose: () => void }) {
             <Card title="Local endpoint">
             <div className="flex items-center gap-2">
               <button
-                onClick={status.running ? stop : start}
+                onClick={() =>
+                  void runBridgeMutation("endpoint", status.running ? stop : start)
+                }
+                disabled={bridgeMutation !== null}
+                aria-busy={bridgeMutation === "endpoint"}
                 className={cn(
+                  "disabled:cursor-not-allowed disabled:opacity-50",
                   "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium",
                   status.running
                     ? "border border-border text-text-muted hover:bg-bg-hover hover:text-text"
@@ -747,7 +775,12 @@ export function AgentBridge({ onClose }: { onClose: () => void }) {
                       </div>
                       <Toggle
                         checked={status.enabledSessions.includes(sessionId)}
-                        onChange={(v) => setSessionAccess(sessionId, v)}
+                        disabled={bridgeMutation !== null}
+                        onChange={(v) =>
+                          void runBridgeMutation("session", () =>
+                            setSessionAccess(sessionId, v)
+                          )
+                        }
                       />
                     </div>
                   );
@@ -767,6 +800,7 @@ export function AgentBridge({ onClose }: { onClose: () => void }) {
                 label="Allow all — no prompts"
                 help="Approve every agent request (commands, reads, transfers) automatically. Most permissive."
                 checked={policy.allowAll}
+                disabled={bridgeMutation !== null}
                 onChange={(v) => patchPolicy({ allowAll: v })}
                 danger
               />
@@ -774,14 +808,14 @@ export function AgentBridge({ onClose }: { onClose: () => void }) {
                 label="Auto-approve read-only operations"
                 help="List directories, read files and search run without asking. Downloads & uploads write to disk, so they still prompt unless Allow all is on."
                 checked={policy.allowAll || policy.autoRead}
-                disabled={policy.allowAll}
+                disabled={policy.allowAll || bridgeMutation !== null}
                 onChange={(v) => patchPolicy({ autoRead: v })}
               />
               <PolicyRow
                 label="Auto-approve safe shell commands"
                 help="Read-only commands (ls, cat, df, grep…) run without asking; anything that could change the server still prompts. Best-effort heuristic."
                 checked={policy.allowAll || policy.autoSafeExec}
-                disabled={policy.allowAll}
+                disabled={policy.allowAll || bridgeMutation !== null}
                 onChange={(v) => patchPolicy({ autoSafeExec: v })}
               />
             </div>
@@ -799,6 +833,7 @@ export function AgentBridge({ onClose }: { onClose: () => void }) {
               label="Answer sudo prompts with my password"
               help="When a command runs sudo, Ghost FTP types this connection's login password to answer the prompt — over a private pseudo-terminal, and only when sudo actually asks (a passwordless server never receives it). Password-auth connections only; key/agent logins have no password to reuse. The command still needs approval above."
               checked={policy.allowSudo}
+              disabled={bridgeMutation !== null}
               onChange={(v) => patchPolicy({ allowSudo: v })}
             />
             {policy.allowSudo && (
