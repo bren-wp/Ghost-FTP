@@ -429,10 +429,22 @@ require_text "compact overlay navigation smoke coverage" "$ANDROID_DIR/app/src/a
 require_text "official product link smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'helpWorkspaceExposesCanonicalProductLinks'
 require_text "working action smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'transferAndSettingsActionsAreWiredClickByClick'
 require_text "idle action-state smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'guardedFileActionsStayDisabledWithoutActiveSession'
-require_text "idle settings disconnect smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'assertDescriptionEnabled("Settings Disconnect", false)'
+require_text "resource-aware Android smoke strings" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'private fun appString(resId: Int, vararg formatArgs: Any): String'
+require_text "idle settings disconnect smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'R.string.action_disconnect'
 require_text "unreadable picker URI smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'unreadablePickerUriIsRejectedFailClosed'
-require_text "rename smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" '"Rename"'
-require_text "Settings reset smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" '"Reset Connection"'
+require_text "rename smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'R.string.action_rename'
+require_text "Settings reset smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'R.string.action_reset_connection'
+for stale_smoke_copy in \
+  'Connect to server' \
+  'Disconnect from server' \
+  'Refresh current session' \
+  'Refresh action' \
+  'Pick upload file' \
+  'Upload selected file' \
+  'Connection protocol' \
+  'Ghost FTP by Brendigo'; do
+  require_absent "stale Android smoke copy" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" "$stale_smoke_copy"
+done
 require_absent "window-focus instrumentation dependency" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'hasWindowFocus()'
 require_absent "window-focus smoke gate" "$SMOKE_SCRIPT" 'Ghost FTP did not own the focused window after launch.'
 
