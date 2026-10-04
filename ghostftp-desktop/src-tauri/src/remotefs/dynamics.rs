@@ -676,8 +676,12 @@ mod tests {
             .expect("read back");
         assert_eq!(data, b"console.log(1);");
         assert_eq!(file_size(&session, "/new_/js/rl429.js").await, 15);
-        assert!(file_exists(&session, "/new_/js/rl429.js")\n            .await\n            .expect("file existence"));
-        assert!(file_exists(&session, "/new_/js")\n            .await\n            .expect("directory existence"));
+        assert!(file_exists(&session, "/new_/js/rl429.js")
+            .await
+            .expect("file existence"));
+        assert!(file_exists(&session, "/new_/js")
+            .await
+            .expect("directory existence"));
 
         // Update the same file: PATCH + publish.
         write_file(&session, "/new_/js/rl429.js", b"console.log(2);")
@@ -700,11 +704,17 @@ mod tests {
         fs.rename("/new_/js/rl429.js", "/new_/js/moved.js")
             .await
             .expect("rename");
-        assert!(file_exists(&session, "/new_/js/moved.js")\n            .await\n            .expect("moved exists"));
-        assert!(!file_exists(&session, "/new_/js/rl429.js")\n            .await\n            .expect("old path absent"));
+        assert!(file_exists(&session, "/new_/js/moved.js")
+            .await
+            .expect("moved exists"));
+        assert!(!file_exists(&session, "/new_/js/rl429.js")
+            .await
+            .expect("old path absent"));
 
         fs.delete("/new_/js/moved.js", false).await.expect("delete");
-        assert!(!file_exists(&session, "/new_/js/moved.js")\n            .await\n            .expect("deleted path absent"));
+        assert!(!file_exists(&session, "/new_/js/moved.js")
+            .await
+            .expect("deleted path absent"));
 
         // mkdir materializes a hidden placeholder; recursive delete walks it.
         fs.create_dir("/new_/js/ghostftp-dir").await.expect("mkdir");
@@ -718,7 +728,9 @@ mod tests {
         fs.delete("/new_/js/ghostftp-dir", true)
             .await
             .expect("rmdir");
-        assert!(!file_exists(&session, "/new_/js/ghostftp-dir")\n            .await\n            .expect("deleted directory absent"));
+        assert!(!file_exists(&session, "/new_/js/ghostftp-dir")
+            .await
+            .expect("deleted directory absent"));
 
         // Managed resources refuse every mutation, client-side.
         for err in [

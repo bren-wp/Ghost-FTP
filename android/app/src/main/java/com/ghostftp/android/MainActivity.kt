@@ -64,6 +64,7 @@ class MainActivity : Activity() {
     private lateinit var uploadSelectionText: TextView
     private lateinit var transferStateText: TextView
     private lateinit var protocolSpinner: Spinner
+    private lateinit var protocolSecurityText: TextView
     private lateinit var connectButton: Button
     private lateinit var disconnectButton: Button
     private lateinit var refreshButton: Button

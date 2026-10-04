@@ -1535,7 +1535,7 @@ impl TransferManager {
             .with_context(|| format!("stat {}", local_path.display()))?
             .len();
         let remote_len = if requested_offset > 0 {
-            agent_stat(session, remote_path).await.0
+            agent_stat(session, remote_path).await?.0
         } else {
             0
         };
@@ -1643,7 +1643,7 @@ impl TransferManager {
             .await
             .map(|m| m.len())
             .unwrap_or(0);
-        let (_basis_size, basis_exists) = agent_stat(session, remote_path).await;
+        let (_basis_size, basis_exists) = agent_stat(session, remote_path).await?;
         if self.delta_enabled()
             && ghostftp_agent_proto::delta::should_attempt_delta(size, basis_exists, true)
         {
@@ -1903,7 +1903,7 @@ impl TransferManager {
                 .await;
         }
 
-        let (size, remote_exists) = agent_stat(session, remote_path).await;
+        let (size, remote_exists) = agent_stat(session, remote_path).await?;
         let basis_exists = tokio::fs::metadata(local_path).await.is_ok();
         if remote_exists
             && self.delta_enabled()
