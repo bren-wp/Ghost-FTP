@@ -3996,11 +3996,14 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
-                        let session = dynm.clone();
-                        async move { crate::remotefs::dynamics::file_exists(&session, &candidate).await }
-                    })
-                    .await?;
+                    let renamed =
+                        resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                            let session = dynm.clone();
+                            async move {
+                                crate::remotefs::dynamics::file_exists(&session, &candidate).await
+                            }
+                        })
+                        .await?;
                     (renamed, false)
                 }
             })
