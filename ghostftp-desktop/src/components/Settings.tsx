@@ -29,6 +29,11 @@ import { toast } from "@/stores/toastStore";
 
 interface Props { onClose: () => void; initialSection?: Section }
 type Section = "appearance" | "language" | "transfers" | "connection" | "security" | "advanced" | "sync";
+type SettingsAsyncMutation = "reset" | "notifications" | "shell";
+type RunSettingsAsyncMutation = (
+  kind: SettingsAsyncMutation,
+  action: () => Promise<void>
+) => Promise<void>;
 
 const SECTION_DESCRIPTION: Record<Section, string> = {
   appearance: "Theme, density and file-browser layout.",
@@ -50,28 +55,41 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
     setPendingLocale(value);
     setLocale(value);
   };
-  const done = () => onClose();
-  const [resetBusy, setResetBusy] = useState(false);
-  const reset = async () => {
-    if (resetBusy) return;
-    setResetBusy(true);
+  const [asyncMutation, setAsyncMutation] = useState<SettingsAsyncMutation | null>(null);
+  const asyncMutationInFlight = useRef(false);
+  const runSettingsAsyncMutation: RunSettingsAsyncMutation = async (kind, action) => {
+    if (asyncMutationInFlight.current) return;
+    asyncMutationInFlight.current = true;
+    setAsyncMutation(kind);
     try {
+      await action();
+    } finally {
+      asyncMutationInFlight.current = false;
+      setAsyncMutation(null);
+    }
+  };
+  const done = () => {
+    if (!asyncMutationInFlight.current) onClose();
+  };
+  const reset = () =>
+    runSettingsAsyncMutation("reset", async () => {
       await resetSettingsToDefaults();
       if (pendingLocale !== "en") {
         setPendingLocale("en");
         setLocale("en");
       }
-    } finally {
-      setResetBusy(false);
-    }
-  };
+    });
 
   useDialog(panelRef, { onClose: done, trapFocus: false });
 
   return (
     <div className="ghost-workspace-view ghost-standalone-view bg-[#041425]" role="region" aria-label="Ghost FTP Preferences">
       <div ref={panelRef} className="ghost-preferences flex h-full w-full flex-col overflow-hidden bg-bg-panel">
-        <div className="ghost-preferences-body flex min-h-0 flex-1 flex-col">
+        <fieldset
+          disabled={asyncMutation !== null}
+          aria-busy={asyncMutation !== null}
+          className="ghost-preferences-body flex min-h-0 flex-1 flex-col border-0 p-0"
+        >
         {!syncOnly && (
           <div className="ghost-preferences-nav ghost-settings-tabs flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-[#061a2d] px-3 py-2">
             <Nav section="appearance" current={section} set={setSection} icon={<Monitor/>} label="Appearance"/>
@@ -96,18 +114,18 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
             {section === "appearance" && <AppearancePanel/>}
             {section === "language" && <LanguagePanel locale={pendingLocale} setLocale={setLocaleNow}/>} 
             {section === "transfers" && <TransfersPanel/>}
-            {section === "connection" && <ConnectionPanel/>}
+            {section === "connection" && <ConnectionPanel mutation={asyncMutation} runMutation={runSettingsAsyncMutation}/>} 
             {section === "security" && <SecurityPanel/>}
-            {section === "advanced" && <AdvancedPanel/>}
+            {section === "advanced" && <AdvancedPanel mutation={asyncMutation} runMutation={runSettingsAsyncMutation}/>} 
             {section === "sync" && <div className="mx-auto w-full max-w-5xl"><SyncSettings/></div>}
           </div>
           <div className="ghost-preferences-actions flex h-[58px] shrink-0 items-center border-t border-border bg-[#061a2d] px-4">
-            {!syncOnly && <button className="ghost-mini-button" disabled={resetBusy} onClick={() => void reset()}><RotateCcw size={14}/> {resetBusy ? "Resetting…" : "Reset to Defaults"}</button>}
+            {!syncOnly && <button className="ghost-mini-button" aria-busy={asyncMutation === "reset"} onClick={() => void reset()}><RotateCcw size={14}/> {asyncMutation === "reset" ? "Resetting…" : "Reset to Defaults"}</button>}
             <div className="flex-1"/>
             <button className="ghost-primary-button" onClick={done}>Done</button>
           </div>
         </main>
-        </div>
+        </fieldset>
       </div>
     </div>
   );
@@ -304,17 +322,21 @@ function TerminalCard() {
   );
 }
 
-function DesktopNotificationsToggle() {
+function DesktopNotificationsToggle({
+  mutation,
+  runMutation,
+}: {
+  mutation: SettingsAsyncMutation | null;
+  runMutation: RunSettingsAsyncMutation;
+}) {
   const s = useSettings();
-  const [busy, setBusy] = useState(false);
   const setEnabled = async (enabled: boolean) => {
+    if (mutation !== null) return;
     if (!enabled) {
       s.setNotifications({ ...s.notifications, enabled: false });
       return;
     }
-    if (busy) return;
-    setBusy(true);
-    try {
+    await runMutation("notifications", async () => {
       const granted = await requestDesktopNotificationPermission();
       s.setNotifications({ ...s.notifications, enabled: granted });
       if (!granted) {
@@ -323,14 +345,18 @@ function DesktopNotificationsToggle() {
           "Ghost FTP did not receive notification permission from the operating system."
         );
       }
-    } finally {
-      setBusy(false);
-    }
+    });
   };
-  return <ToggleRow label={busy ? "Waiting for notification permission…" : "Desktop notifications"} checked={s.notifications.enabled} onChange={(v)=>void setEnabled(v)} locked={busy}/>;
+  return <ToggleRow label={mutation === "notifications" ? "Waiting for notification permission…" : "Desktop notifications"} checked={s.notifications.enabled} onChange={(v)=>void setEnabled(v)} locked={mutation !== null}/>;
 }
 
-function ConnectionCard() {
+function ConnectionCard({
+  mutation,
+  runMutation,
+}: {
+  mutation: SettingsAsyncMutation | null;
+  runMutation: RunSettingsAsyncMutation;
+}) {
   const s = useSettings();
   return (
     <Card icon={<Wifi size={20}/>} title="Connection" subtitle="Configure connection behavior and notifications.">
@@ -342,7 +368,7 @@ function ConnectionCard() {
         fallback={22}
         onChange={s.setDefaultPort}
       />
-      <DesktopNotificationsToggle />
+      <DesktopNotificationsToggle mutation={mutation} runMutation={runMutation} />
       <ToggleRow
         label="Notify only when unfocused"
         checked={s.notifications.unfocusedOnly}
@@ -353,9 +379,14 @@ function ConnectionCard() {
 }
 function SecurityCard() { return <Card icon={<ShieldCheck size={20}/>} title="Security & Privacy" subtitle="Privacy and credential protections built into Ghost FTP."><StatusRow label="No tracking"/><StatusRow label="No analytics or telemetry"/><StatusRow label="Credentials stored with the operating system keychain"/></Card> }
 
-function IntegrationsCard() {
+function IntegrationsCard({
+  mutation,
+  runMutation,
+}: {
+  mutation: SettingsAsyncMutation | null;
+  runMutation: RunSettingsAsyncMutation;
+}) {
   const s=useSettings();
-  const [shellBusy,setShellBusy]=useState(false);
   const [shellDetail,setShellDetail]=useState<string>("Adds Ghost FTP's managed CLI directory to your user PATH.");
   useEffect(()=>{
     let active=true;
@@ -375,21 +406,22 @@ function IntegrationsCard() {
     return()=>{active=false};
   },[]);
   const setShell=async(enabled:boolean)=>{
-    if(shellBusy)return;
-    setShellBusy(true);
-    try{
-      const status=enabled?await ipc.pathAdd():await ipc.pathRemove();
-      if(status.managed !== enabled){
-        throw new Error(status.detail ?? `Shell integration did not ${enabled ? "enable" : "disable"} as requested.`);
+    if(mutation !== null)return;
+    await runMutation("shell", async () => {
+      try{
+        const status=enabled?await ipc.pathAdd():await ipc.pathRemove();
+        if(status.managed !== enabled){
+          throw new Error(status.detail ?? `Shell integration did not ${enabled ? "enable" : "disable"} as requested.`);
+        }
+        s.setShellIntegration(status.managed);
+        setShellDetail(status.detail ?? (status.managed?'Shell integration enabled.':'Shell integration disabled.'));
+      }catch(error){
+        setShellDetail(error instanceof Error?error.message:String(error));
       }
-      s.setShellIntegration(status.managed);
-      setShellDetail(status.detail ?? (status.managed?'Shell integration enabled.':'Shell integration disabled.'));
-    }catch(error){
-      setShellDetail(error instanceof Error?error.message:String(error));
-    }finally{setShellBusy(false)}
+    });
   };
   return <Card icon={<Plug size={20}/>} title="Integrations" subtitle="Extend Ghost FTP with system integrations.">
-    <ToggleRow label="Shell integration" checked={s.shellIntegration} onChange={(v)=>void setShell(v)} locked={shellBusy}/>
+    <ToggleRow label="Shell integration" checked={s.shellIntegration} onChange={(v)=>void setShell(v)} locked={mutation !== null}/>
     <div className="-mt-1 text-[10px] leading-4 text-text-dim">{shellDetail}</div>
   </Card>
 }
@@ -399,10 +431,10 @@ function StatusRow({ label }: { label: string }){return <div className="flex min
 function AppearancePanel(){return <div className="mx-auto w-full max-w-4xl"><AppearanceCard/></div>}
 function LanguagePanel({ locale, setLocale }: { locale: AppLocale; setLocale: (value: AppLocale) => void }){return <div className="mx-auto w-full max-w-4xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
 function TransfersPanel(){return <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-4"><PerformanceCard/><TransfersCard/></div>}
-function ConnectionPanel(){return <div className="mx-auto w-full max-w-4xl"><ConnectionCard/></div>}
+function ConnectionPanel({ mutation, runMutation }: { mutation: SettingsAsyncMutation | null; runMutation: RunSettingsAsyncMutation }){return <div className="mx-auto w-full max-w-4xl"><ConnectionCard mutation={mutation} runMutation={runMutation}/></div>}
 function SecurityPanel(){return <div className="mx-auto w-full max-w-4xl"><SecurityCard/></div>}
 function ShortcutsCard(){return <Card icon={<Keyboard size={20}/>} title="Keyboard Shortcuts" subtitle="Core Ghost FTP shortcuts."><div className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-[12px]"><span>New connection</span><kbd>Ctrl + N</kbd><span>Settings</span><kbd>Ctrl + ,</kbd><span>Open Transfers</span><kbd>Ctrl + T</kbd><span>Command palette</span><kbd>Ctrl + K</kbd></div></Card>}
-function AdvancedPanel(){return <div className="mx-auto grid w-full max-w-5xl gap-4 xl:grid-cols-2"><IntegrationsCard/><ShortcutsCard/><div className="xl:col-span-2"><TerminalCard/></div></div>}
+function AdvancedPanel({ mutation, runMutation }: { mutation: SettingsAsyncMutation | null; runMutation: RunSettingsAsyncMutation }){return <div className="mx-auto grid w-full max-w-5xl gap-4 xl:grid-cols-2"><IntegrationsCard mutation={mutation} runMutation={runMutation}/><ShortcutsCard/><div className="xl:col-span-2"><TerminalCard/></div></div>}
 
 function Nav({
   section,

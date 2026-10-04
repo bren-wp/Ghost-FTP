@@ -730,7 +730,7 @@ for (const forbidden of [
   if (settings.includes(forbidden)) failures.push(`Settings still duplicates application/settings navigation: ${forbidden}`);
 }
 
-const notificationToggleCount = (settings.match(/<DesktopNotificationsToggle\s*\/>/g) || []).length;
+const notificationToggleCount = (settings.match(/<DesktopNotificationsToggle\b/g) || []).length;
 if (notificationToggleCount !== 1) {
   failures.push(`Settings must expose desktop notifications in exactly one section; found ${notificationToggleCount}`);
 }

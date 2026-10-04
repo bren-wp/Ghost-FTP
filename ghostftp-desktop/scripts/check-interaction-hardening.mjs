@@ -124,6 +124,49 @@ requireIncludes(
 );
 
 requireIncludes(
+  "src/components/Settings.tsx",
+  [
+    'type SettingsAsyncMutation = "reset" | "notifications" | "shell"',
+    "const asyncMutationInFlight = useRef(false)",
+    "if (asyncMutationInFlight.current) return;",
+    'runSettingsAsyncMutation("reset"',
+    'runMutation("notifications"',
+    'runMutation("shell"',
+    "disabled={asyncMutation !== null}",
+    "aria-busy={asyncMutation !== null}",
+  ],
+  "Settings async mutation serialization"
+);
+
+requireIncludes(
+  "src/stores/settingsStore.ts",
+  [
+    "let settingsPersistenceTail: Promise<void> = Promise.resolve()",
+    "let transferEngineSettingsTail: Promise<void> = Promise.resolve()",
+    "function enqueueSettingsPersistence<T>(task: () => Promise<T>): Promise<T>",
+    "function enqueueTransferEngineSettings(task: () => Promise<void>): Promise<void>",
+    "const durableSettings = structuredClone(initial)",
+    "const settingsMutationRevision = new Map<keyof PersistedSettings, number>()",
+    "function rememberDurableSetting<K extends keyof PersistedSettings>(",
+    "function mutateLiveTransferSetting<K extends keyof PersistedSettings>(",
+    "rollbackValue = await persistence;",
+    "if (settingsMutationRevision.get(key) !== revision) return;",
+    "await persistKey(key, rollbackValue);",
+    "await applyNative(rollbackValue);",
+    "await enqueueSettingsPersistence(async () => {",
+    "rememberDurableSetting(key, previous[key]);",
+    "await applyTransferEngineSnapshot(previous);",
+    "await (previous.shellIntegration ? ipc.pathAdd() : ipc.pathRemove());",
+    '"transferConcurrency",',
+    '"maxRetryAttempts",',
+    '"transferThrottleKbps",',
+    '"deltaSync",',
+    "async function applyTransferEngineSnapshot(snapshot: PersistedSettings): Promise<void>",
+  ],
+  "transactional Settings persistence and live transfer-engine serialization"
+);
+
+requireIncludes(
   "src/components/SyncSettings.tsx",
   [
     'const [mutating, setMutating] = useState<"toggle" | "sync" | "remove" | null>(null)',
