@@ -495,7 +495,7 @@ class MainActivity : Activity() {
     }
 
     private fun buildConnectionCard(): View = panel().apply {
-        addView(sectionTitle("Sites"))
+        addView(sectionTitle(getString(R.string.workspace_sites)))
         addView(sectionDescription("Connect to FTP, explicit FTPS or SFTP. Passwords stay in memory for the active session and are cleared on disconnect."))
 
         protocolSpinner = Spinner(this@MainActivity).apply {
@@ -617,7 +617,7 @@ class MainActivity : Activity() {
     }
 
     private fun buildFilesCard(): View = panel().apply {
-        addView(sectionTitle("Files"))
+        addView(sectionTitle(getString(R.string.workspace_files)))
         addView(sectionDescription("Open folders, select files, then use the toolbar actions aligned with Ghost FTP desktop."))
         remoteRows = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
@@ -626,7 +626,7 @@ class MainActivity : Activity() {
     }
 
     private fun buildTransfersCard(): View = panel().apply {
-        addView(sectionTitle("Transfers"))
+        addView(sectionTitle(getString(R.string.workspace_transfers)))
         addView(sectionDescription("Manage the selected remote entry, upload target, rename target and remote folder action for the active session."))
 
         transferRemotePathInput = input("/remote/file-or-folder", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
@@ -683,7 +683,7 @@ class MainActivity : Activity() {
     }
 
     private fun buildSettingsCard(): View = panel().apply {
-        addView(sectionTitle("Settings"))
+        addView(sectionTitle(getString(R.string.workspace_settings)))
         addView(sectionDescription("Working session and privacy controls aligned with Ghost FTP desktop safety rules."))
         addView(row("Privacy", "No required tracking, analytics or telemetry."))
         addView(row("Credentials", "Session passwords stay in memory and are cleared on disconnect or Activity destruction."))
@@ -719,7 +719,7 @@ class MainActivity : Activity() {
     }
 
     private fun buildAboutCard(): View = panel().apply {
-        addView(sectionTitle("Help & About"))
+        addView(sectionTitle(getString(R.string.workspace_about)))
         addView(sectionDescription("Ghost FTP ${ReleaseInfo.VERSION_DISPLAY} · Build ${ReleaseInfo.BUILD}"))
         addView(row("Product", "Ghost FTP by Brendigo"))
         addView(row("Protocols", "FTP · Explicit FTPS · SFTP"))
