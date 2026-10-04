@@ -87,7 +87,23 @@ require_text "version" "$RELEASE_INFO" "VERSION = \"$VERSION\""
 require_text "display version" "$RELEASE_INFO" "VERSION_DISPLAY = \"$VERSION\""
 require_text "badge" "$RELEASE_INFO" "VERSION_BADGE = \"$VERSION\""
 require_text "build" "$RELEASE_INFO" "BUILD = \"$BUILD\""
-require_text "app label" "$ANDROID_DIR/app/src/main/res/values/strings.xml" '<string name="app_name">Ghost FTP</string>'
+ANDROID_STRINGS="$ANDROID_DIR/app/src/main/res/values/strings.xml"
+require_text "app label" "$ANDROID_STRINGS" '<string name="app_name">Ghost FTP</string>'
+for key in workspace_files workspace_sites workspace_transfers workspace_settings workspace_about; do
+  require_text "default Android localization key $key" "$ANDROID_STRINGS" "<string name=\"$key\">"
+done
+
+android_locales=(hr cs sk hu ro bg el tr uk da sv no de fr es it pt nl pl sl sr bs mk)
+for locale in "${android_locales[@]}"; do
+  locale_file="$ANDROID_DIR/app/src/main/res/values-$locale/strings.xml"
+  test -s "$locale_file" || {
+    echo "Android contract failed: missing localization resource $locale_file"
+    exit 1
+  }
+  for key in workspace_files workspace_sites workspace_transfers workspace_settings workspace_about; do
+    require_text "Android $locale localization key $key" "$locale_file" "<string name=\"$key\">"
+  done
+done
 
 require_text "ftp protocol" "$CONNECTION_MODEL" 'FTP("FTP", 21)'
 require_text "ftps protocol" "$CONNECTION_MODEL" 'EXPLICIT_FTPS("Explicit FTPS", 21)'
@@ -103,11 +119,11 @@ require_text "left workspace navigation rail" "$MAIN_ACTIVITY" 'buildNavigationR
 require_text "scrollable left workspace navigation" "$MAIN_ACTIVITY" 'private fun buildNavigationRail(): View = ScrollView(this).apply'
 require_text "left rail accessibility remains child-focused" "$MAIN_ACTIVITY" 'importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO'
 require_text "left workspace rail fill viewport" "$MAIN_ACTIVITY" 'isFillViewport = true'
-require_text "Files workspace" "$MAIN_ACTIVITY" 'FILES("Files")'
-require_text "Sites workspace" "$MAIN_ACTIVITY" 'SITES("Sites")'
-require_text "Transfers workspace" "$MAIN_ACTIVITY" 'TRANSFERS("Transfers")'
-require_text "Settings workspace" "$MAIN_ACTIVITY" 'SETTINGS("Settings")'
-require_text "Help workspace" "$MAIN_ACTIVITY" 'ABOUT("Help & About")'
+require_text "Files workspace localization" "$MAIN_ACTIVITY" 'FILES(R.string.workspace_files)'
+require_text "Sites workspace localization" "$MAIN_ACTIVITY" 'SITES(R.string.workspace_sites)'
+require_text "Transfers workspace localization" "$MAIN_ACTIVITY" 'TRANSFERS(R.string.workspace_transfers)'
+require_text "Settings workspace localization" "$MAIN_ACTIVITY" 'SETTINGS(R.string.workspace_settings)'
+require_text "Help workspace localization" "$MAIN_ACTIVITY" 'ABOUT(R.string.workspace_about)'
 require_text "exclusive workspace visibility" "$MAIN_ACTIVITY" 'view.visibility = if (key == workspace) View.VISIBLE else View.GONE'
 require_text "workspace navigation control" "$MAIN_ACTIVITY" 'workspaceNavItem(workspace)'
 require_text "workspace state persistence" "$MAIN_ACTIVITY" 'STATE_WORKSPACE'

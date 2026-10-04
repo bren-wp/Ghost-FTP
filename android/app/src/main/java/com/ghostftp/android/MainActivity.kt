@@ -747,7 +747,7 @@ class MainActivity : Activity() {
         }
         if (::workspaceTitle.isInitialized) workspaceTitle.text = getString(workspace.labelRes)
         if (::workspaceContainer.isInitialized) {
-            workspaceContainer.contentDescription = "${getString(workspace.labelRes)} workspace content"
+            workspaceContainer.contentDescription = getString(R.string.workspace_content, getString(workspace.labelRes))
         }
         if (::contentScroll.isInitialized) {
             contentScroll.post {
@@ -758,7 +758,7 @@ class MainActivity : Activity() {
                 }
                 contentScroll.scrollTo(0, workspaceTop)
                 if (announce && ::workspaceContainer.isInitialized) {
-                    workspaceContainer.announceForAccessibility("${getString(workspace.labelRes)} workspace")
+                    workspaceContainer.announceForAccessibility(getString(R.string.workspace_announce, getString(workspace.labelRes)))
                 }
             }
         }
@@ -1468,7 +1468,7 @@ class MainActivity : Activity() {
     private fun workspaceNavItem(workspace: Workspace): TextView {
         val view = TextView(this).apply {
             text = getString(workspace.labelRes)
-            contentDescription = "Open ${getString(workspace.labelRes)} workspace"
+            contentDescription = getString(R.string.workspace_open, getString(workspace.labelRes))
             textSize = if (resources.configuration.screenWidthDp >= 600) 13f else 11f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
