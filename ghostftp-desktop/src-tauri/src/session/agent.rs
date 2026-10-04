@@ -284,7 +284,7 @@ impl AgentSession {
                 truncated,
                 timed_out,
             }),
-            Response::Error { message, denied } => Err(anyhow!(if denied {
+            Response::Error { message, denied, .. } => Err(anyhow!(if denied {
                 format!("denied: {message}")
             } else {
                 message
@@ -313,7 +313,7 @@ impl AgentSession {
             .await?
         {
             Response::ExecStarted { job_id } => Ok(job_id),
-            Response::Error { message, denied } => Err(anyhow!(if denied {
+            Response::Error { message, denied, .. } => Err(anyhow!(if denied {
                 format!("denied: {message}")
             } else {
                 message
@@ -345,7 +345,7 @@ impl AgentSession {
                 truncated,
                 not_found,
             }),
-            Response::Error { message, denied } => Err(anyhow!(if denied {
+            Response::Error { message, denied, .. } => Err(anyhow!(if denied {
                 format!("denied: {message}")
             } else {
                 message
