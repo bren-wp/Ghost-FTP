@@ -10,7 +10,17 @@ import {
 } from "lucide-react";
 import { GhostMark } from "./GhostBrand";
 import { useUpdater } from "@/stores/updaterStore";
-import { PRODUCT_BUILD, PRODUCT_RELEASE_DATE, PRODUCT_VERSION_DISPLAY } from "@/lib/release";
+import {
+  PRODUCT_BUILD,
+  PRODUCT_DOCUMENTATION_URL,
+  PRODUCT_EULA_URL,
+  PRODUCT_PRIVACY_URL,
+  PRODUCT_RELEASE_DATE,
+  PRODUCT_SUPPORT_URL,
+  PRODUCT_VERSION_DISPLAY,
+} from "@/lib/release";
+import { APP_LOCALES } from "@/lib/i18n";
+import { ipc } from "@/lib/ipc";
 import { useDialog } from "@/hooks/useDialog";
 
 type AboutTab = "about" | "updates" | "help" | "privacy";
@@ -55,10 +65,10 @@ export function AboutDialog({ onClose, initialTab = "about" }: Props) {
 
 function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
   return (
-    <div className="ghost-about-grid grid grid-cols-[minmax(0,1.55fr)_minmax(280px,.85fr)] gap-4">
+    <div className="ghost-about-grid grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,.85fr)]">
       <section className="space-y-4">
         <div className="overflow-hidden rounded-lg border border-border bg-[#071f35]">
-          <div className="ghost-about-hero relative flex min-h-52 items-center gap-8 overflow-hidden px-8 py-7">
+          <div className="ghost-about-hero relative flex min-h-52 flex-col items-center gap-5 overflow-hidden px-5 py-6 text-center sm:flex-row sm:gap-8 sm:px-8 sm:py-7 sm:text-left">
             <AboutLandscape />
             <div className="ghost-about-hero-glow absolute inset-0 opacity-30" />
             <div className="relative flex h-28 w-28 items-center justify-center rounded-[2rem] bg-[#0b2b46]/70 shadow-[0_0_55px_rgba(58,181,255,.24)]"><GhostMark size={104}/></div>
@@ -82,7 +92,7 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
               <li>• One persistent application window with a simplified primary sidebar.</li>
               <li>• Files, Sites, Transfers, Sync, Settings and Help now use one consistent workspace.</li>
               <li>• Transfer management is consolidated in Transfers, with advanced details available on demand.</li>
-              <li>• Fourteen interface languages are available from Settings, with English as the fallback.</li>
+              <li>• {APP_LOCALES.length} interface languages are available from Settings, with English as the fallback.</li>
               <li>• Privacy-first defaults, no telemetry and Ghost FTP-only branding.</li>
             </ul>
           </div>
@@ -93,7 +103,11 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
           <div className="mb-4 flex items-center gap-3"><HelpCircle size={34} className="text-accent"/><div><div className="text-[16px] font-semibold">Get Help</div><div className="text-[12px] text-text-muted">Resources, documentation and support.</div></div></div>
           <LinkRow icon={<LifeBuoy size={18}/>} title="Help Center" subtitle="Guides, troubleshooting and support" onClick={() => onNavigate("help")}/>
+          <OfficialLinkRow icon={<LifeBuoy size={18}/>} title="Official Support" subtitle="Open ghostftp.com/support" url={PRODUCT_SUPPORT_URL}/>
+          <OfficialLinkRow icon={<Globe2 size={18}/>} title="Documentation" subtitle="Open official Ghost FTP documentation" url={PRODUCT_DOCUMENTATION_URL}/>
           <LinkRow icon={<ShieldCheck size={18}/>} title="Privacy" subtitle="Privacy-first defaults and local data" onClick={() => onNavigate("privacy")}/>
+          <OfficialLinkRow icon={<ShieldCheck size={18}/>} title="Privacy Policy" subtitle="Open official privacy information" url={PRODUCT_PRIVACY_URL}/>
+          <OfficialLinkRow icon={<FileText size={18}/>} title="Terms of use / EULA" subtitle="Open the canonical Ghost FTP software licence" url={PRODUCT_EULA_URL}/>
           <LinkRow icon={<FileText size={18}/>} title="Changelog" subtitle="See what's new" onClick={() => onNavigate("updates")}/>
         </div>
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
@@ -102,7 +116,7 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
             <Platform title="Windows" subtitle="Fully supported" icon={<WindowsPlatformMark/>}/>
             <Platform title="Linux" subtitle="Fully supported" icon={<LinuxPlatformMark/>}/>
           </div>
-          <div className="mt-4 border-t border-border pt-4 text-[12px] text-text-muted"><strong className="text-text">Languages</strong><br/>14 interface languages</div>
+          <div className="mt-4 border-t border-border pt-4 text-[12px] text-text-muted"><strong className="text-text">Languages</strong><br/>{APP_LOCALES.length} interface languages</div>
         </div>
       </aside>
     </div>
@@ -122,7 +136,7 @@ function UpdatesContent() {
     : status === "ready" ? "Update is ready. Restart Ghost FTP to finish."
     : status === "error" ? (error ?? "Update check failed.")
     : "No update check has been run in this view yet.";
-  return <div className="rounded-lg border border-border bg-[#071f35] p-6"><div className="mb-4 flex items-center gap-3"><RefreshCw size={30} className="text-accent"/><div><div className="text-[18px] font-semibold">Ghost FTP {PRODUCT_VERSION_DISPLAY}</div><div className="text-text-muted">Development preview · {currentPlatform()}</div></div></div><p className="max-w-2xl text-[13px] leading-6 text-text-muted">Ghost FTP securely checks the official update service and installs only verified packages. Technical delivery details stay hidden from the application interface.</p><p className="mt-3 text-[12px] text-text-muted" aria-live="polite">{label}</p><div className="mt-5 flex gap-2"><button className="ghost-primary-button" disabled={status === "checking" || status === "downloading"} onClick={() => void check(false)}><RefreshCw size={14}/> Check for Updates</button>{status === "available" && <button className="ghost-primary-button" onClick={() => void download()}>Download &amp; install</button>}{status === "ready" && <button className="ghost-primary-button" onClick={() => void restart()}>Restart now</button>}</div></div>;
+  return <div className="rounded-lg border border-border bg-[#071f35] p-6"><div className="mb-4 flex items-center gap-3"><RefreshCw size={30} className="text-accent"/><div><div className="text-[18px] font-semibold">Ghost FTP {PRODUCT_VERSION_DISPLAY}</div><div className="text-text-muted">Stable channel · {currentPlatform()}</div></div></div><p className="max-w-2xl text-[13px] leading-6 text-text-muted">Ghost FTP securely checks the official update service and installs only verified packages. Technical delivery details stay hidden from the application interface.</p><p className="mt-3 text-[12px] text-text-muted" aria-live="polite">{label}</p><div className="mt-5 flex gap-2"><button className="ghost-primary-button" disabled={status === "checking" || status === "downloading"} onClick={() => void check(false)}><RefreshCw size={14}/> Check for Updates</button>{status === "available" && <button className="ghost-primary-button" onClick={() => void download()}>Download &amp; install</button>}{status === "ready" && <button className="ghost-primary-button" onClick={() => void restart()}>Restart now</button>}</div></div>;
 }
 
 function currentPlatform() {
@@ -133,7 +147,7 @@ function currentPlatform() {
 }
 
 function HelpContent() {
-  return <div className="grid grid-cols-2 gap-4">
+  return <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
     <InfoCard icon={<Globe2/>} title="Connections" text="Create or edit a saved site, then use Test Connection before connecting." />
     <InfoCard icon={<FileText/>} title="Transfers" text="Use Transfers for queue status, retry, scheduling and transfer history." />
     <InfoCard icon={<LifeBuoy/>} title="Troubleshooting" text="Connection and transfer errors stay visible in the app so you can act on the real failure." />
@@ -152,6 +166,22 @@ function PrivacyContent() {
 function AboutNav({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) { return <button onClick={onClick} className={`flex shrink-0 items-center gap-2 rounded-md border px-3 py-2 text-left ${active ? "border-accent/45 bg-accent/15 text-white" : "border-transparent text-text-muted hover:bg-bg-hover hover:text-white"}`}>{icon}<span>{label}</span></button> }
 function Meta({ label, value, border }: { label: string; value: string; border?: boolean }) { return <div className={border ? "border-l border-border" : ""}><div className="text-[11px] text-text-dim">{label}</div><div className="mt-1 font-semibold">{value}</div></div> }
 function LinkRow({ icon, title, subtitle, onClick }: { icon: React.ReactNode; title: string; subtitle: string; onClick: () => void }) { return <button onClick={onClick} className="flex w-full items-center gap-3 border-t border-border-subtle py-3 text-left first:border-t-0"><span className="text-accent">{icon}</span><span className="min-w-0 flex-1"><span className="block font-medium text-accent">{title}</span><span className="block text-[11px] text-text-muted">{subtitle}</span></span><ChevronRight size={13} className="text-text-dim"/></button> }
+function OfficialLinkRow({ icon, title, subtitle, url }: { icon: React.ReactNode; title: string; subtitle: string; url: string }) {
+  const [error, setError] = useState<string | null>(null);
+  const open = async () => {
+    setError(null);
+    try {
+      await ipc.openExternalUrl(url);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+  return <>
+    <LinkRow icon={icon} title={title} subtitle={subtitle} onClick={() => void open()} />
+    {error && <div className="pb-2 text-[11px] text-danger" role="alert">{error}</div>}
+  </>;
+}
+
 function Platform({ title, subtitle, icon }: { title: string; subtitle: string; icon: React.ReactNode }) { return <div className="flex items-center gap-3 rounded-md border border-border-subtle bg-[#051929] p-3"><div className="grid h-9 w-9 shrink-0 place-items-center text-accent">{icon}</div><div><div className="font-semibold">{title}</div><div className="text-[10px] text-text-muted">{subtitle}</div></div></div> }
 
 function WindowsPlatformMark() {
