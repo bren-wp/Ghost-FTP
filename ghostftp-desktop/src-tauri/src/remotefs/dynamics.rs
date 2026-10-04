@@ -162,20 +162,23 @@ pub async fn file_size(session: &DynamicsSession, ghostftp_path: &str) -> u64 {
 }
 
 /// Whether a path exists — as a web resource, or as a name prefix (directory).
-pub async fn file_exists(session: &DynamicsSession, ghostftp_path: &str) -> bool {
+///
+/// This probe is intentionally fail-closed: an authentication, network or
+/// Dataverse API failure is not proof that the target is absent. Callers that
+/// make overwrite/rename decisions must receive and propagate the error.
+pub async fn file_exists(session: &DynamicsSession, ghostftp_path: &str) -> Result<bool> {
     let name = name_of(ghostftp_path);
     if name.is_empty() {
-        return true; // the root
+        return Ok(true); // the root
     }
     let prefix = format!("{name}/");
-    session
+    let list = session
         .webresources()
         .await
-        .map(|list| {
-            list.iter()
-                .any(|r| r.name == name || r.name.starts_with(&prefix))
-        })
-        .unwrap_or(false)
+        .with_context(|| format!("verify Dynamics target existence for {ghostftp_path}"))?;
+    Ok(list
+        .iter()
+        .any(|r| r.name == name || r.name.starts_with(&prefix)))
 }
 
 /// Find one resource by name in the cached listing (None when absent).
@@ -673,8 +676,8 @@ mod tests {
             .expect("read back");
         assert_eq!(data, b"console.log(1);");
         assert_eq!(file_size(&session, "/new_/js/rl429.js").await, 15);
-        assert!(file_exists(&session, "/new_/js/rl429.js").await);
-        assert!(file_exists(&session, "/new_/js").await);
+        assert!(file_exists(&session, "/new_/js/rl429.js").await.expect("file existence"));
+        assert!(file_exists(&session, "/new_/js").await.expect("directory existence"));
 
         // Update the same file: PATCH + publish.
         write_file(&session, "/new_/js/rl429.js", b"console.log(2);")
