@@ -44,7 +44,7 @@ fn convert(e: ProtoEntry) -> DirEntry {
 /// a policy denial explicitly.
 fn as_err(resp: Response, ctx: &str) -> anyhow::Error {
     match resp {
-        Response::Error { message, denied } => {
+        Response::Error { message, denied, .. } => {
             if denied {
                 anyhow!("{ctx}: denied by the remote machine's policy — {message}")
             } else {
