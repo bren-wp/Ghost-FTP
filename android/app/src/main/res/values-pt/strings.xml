@@ -36,4 +36,14 @@
     <string name="field_protocol">Protocolo</string>
     <string name="label_security">Segurança</string>
     <string name="label_connection">Ligação</string>
+    <string name="label_private_session">Sessão privada</string>
+    <string name="label_session">Sessão</string>
+    <string name="nav_open">Abrir menu de navegação</string>
+    <string name="nav_close">Fechar menu de navegação</string>
+    <string name="nav_opened">Menu de navegação aberto</string>
+    <string name="nav_closed">Menu de navegação fechado</string>
+    <string name="nav_close_overlay">Fechar menu de navegação sobreposto</string>
+    <string name="field_sftp_fingerprint">Impressão digital da chave do anfitrião SFTP</string>
+    <string name="hint_sftp_fingerprint">Impressão digital SHA256 para SFTP</string>
+    <string name="field_remote_path">Caminho remoto</string>
 </resources>

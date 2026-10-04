@@ -36,4 +36,14 @@
     <string name="field_protocol">Protokol</string>
     <string name="label_security">Sikkerhed</string>
     <string name="label_connection">Forbindelse</string>
+    <string name="label_private_session">Privat session</string>
+    <string name="label_session">Session</string>
+    <string name="nav_open">Åbn navigationsmenu</string>
+    <string name="nav_close">Luk navigationsmenu</string>
+    <string name="nav_opened">Navigationsmenu åbnet</string>
+    <string name="nav_closed">Navigationsmenu lukket</string>
+    <string name="nav_close_overlay">Luk overlejret navigationsmenu</string>
+    <string name="field_sftp_fingerprint">Fingeraftryk for SFTP-værtsnøgle</string>
+    <string name="hint_sftp_fingerprint">SHA256-fingeraftryk til SFTP</string>
+    <string name="field_remote_path">Fjernsti</string>
 </resources>

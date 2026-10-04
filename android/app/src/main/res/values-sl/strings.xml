@@ -36,4 +36,14 @@
     <string name="field_protocol">Protokol</string>
     <string name="label_security">Varnost</string>
     <string name="label_connection">Povezava</string>
+    <string name="label_private_session">Zasebna seja</string>
+    <string name="label_session">Seja</string>
+    <string name="nav_open">Odpri navigacijski meni</string>
+    <string name="nav_close">Zapri navigacijski meni</string>
+    <string name="nav_opened">Navigacijski meni odprt</string>
+    <string name="nav_closed">Navigacijski meni zaprt</string>
+    <string name="nav_close_overlay">Zapri prekrivni navigacijski meni</string>
+    <string name="field_sftp_fingerprint">Prstni odtis gostiteljskega ključa SFTP</string>
+    <string name="hint_sftp_fingerprint">Prstni odtis SHA256 za SFTP</string>
+    <string name="field_remote_path">Oddaljena pot</string>
 </resources>

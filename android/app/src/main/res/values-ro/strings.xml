@@ -36,4 +36,14 @@
     <string name="field_protocol">Protocol</string>
     <string name="label_security">Securitate</string>
     <string name="label_connection">Conexiune</string>
+    <string name="label_private_session">Sesiune privată</string>
+    <string name="label_session">Sesiune</string>
+    <string name="nav_open">Deschide meniul de navigare</string>
+    <string name="nav_close">Închide meniul de navigare</string>
+    <string name="nav_opened">Meniul de navigare a fost deschis</string>
+    <string name="nav_closed">Meniul de navigare a fost închis</string>
+    <string name="nav_close_overlay">Închide meniul de navigare suprapus</string>
+    <string name="field_sftp_fingerprint">Amprenta cheii gazdei SFTP</string>
+    <string name="hint_sftp_fingerprint">Amprentă SHA256 pentru SFTP</string>
+    <string name="field_remote_path">Cale la distanță</string>
 </resources>

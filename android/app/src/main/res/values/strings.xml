@@ -40,4 +40,14 @@
     <string name="field_protocol">Protocol</string>
     <string name="label_security">Security</string>
     <string name="label_connection">Connection</string>
+    <string name="label_private_session">Private session</string>
+    <string name="label_session">Session</string>
+    <string name="nav_open">Open navigation menu</string>
+    <string name="nav_close">Close navigation menu</string>
+    <string name="nav_opened">Navigation menu opened</string>
+    <string name="nav_closed">Navigation menu closed</string>
+    <string name="nav_close_overlay">Close navigation menu overlay</string>
+    <string name="field_sftp_fingerprint">SFTP host key fingerprint</string>
+    <string name="hint_sftp_fingerprint">SHA256 fingerprint for SFTP</string>
+    <string name="field_remote_path">Remote path</string>
 </resources>

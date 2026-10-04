@@ -36,4 +36,14 @@
     <string name="field_protocol">Protokol</string>
     <string name="label_security">Güvenlik</string>
     <string name="label_connection">Bağlantı</string>
+    <string name="label_private_session">Özel oturum</string>
+    <string name="label_session">Oturum</string>
+    <string name="nav_open">Gezinme menüsünü aç</string>
+    <string name="nav_close">Gezinme menüsünü kapat</string>
+    <string name="nav_opened">Gezinme menüsü açıldı</string>
+    <string name="nav_closed">Gezinme menüsü kapatıldı</string>
+    <string name="nav_close_overlay">Kaplama gezinme menüsünü kapat</string>
+    <string name="field_sftp_fingerprint">SFTP ana makine anahtarı parmak izi</string>
+    <string name="hint_sftp_fingerprint">SFTP için SHA256 parmak izi</string>
+    <string name="field_remote_path">Uzak yol</string>
 </resources>

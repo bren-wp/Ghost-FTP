@@ -36,4 +36,14 @@
     <string name="field_protocol">Πρωτόκολλο</string>
     <string name="label_security">Ασφάλεια</string>
     <string name="label_connection">Σύνδεση</string>
+    <string name="label_private_session">Ιδιωτική συνεδρία</string>
+    <string name="label_session">Συνεδρία</string>
+    <string name="nav_open">Άνοιγμα μενού πλοήγησης</string>
+    <string name="nav_close">Κλείσιμο μενού πλοήγησης</string>
+    <string name="nav_opened">Το μενού πλοήγησης άνοιξε</string>
+    <string name="nav_closed">Το μενού πλοήγησης έκλεισε</string>
+    <string name="nav_close_overlay">Κλείσιμο επικαλυπτόμενου μενού πλοήγησης</string>
+    <string name="field_sftp_fingerprint">Αποτύπωμα κλειδιού κεντρικού υπολογιστή SFTP</string>
+    <string name="hint_sftp_fingerprint">Αποτύπωμα SHA256 για SFTP</string>
+    <string name="field_remote_path">Απομακρυσμένη διαδρομή</string>
 </resources>

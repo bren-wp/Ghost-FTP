@@ -214,7 +214,7 @@ class MainActivity : Activity() {
             visibility = View.GONE
             isClickable = true
             isFocusable = true
-            contentDescription = "Close navigation menu overlay"
+            contentDescription = getString(R.string.nav_close_overlay)
             setOnClickListener { setNavigationOpen(false) }
         }
 
@@ -337,7 +337,7 @@ class MainActivity : Activity() {
 
             addView(space(12))
             addView(TextView(this@MainActivity).apply {
-                text = "Private\nsession"
+                text = getString(R.string.label_private_session)
                 setTextColor(Brand.muted)
                 textSize = 10f
                 gravity = Gravity.CENTER
@@ -361,7 +361,7 @@ class MainActivity : Activity() {
         navigationToggleButton = secondaryButton("☰") {
             setNavigationOpen(!navigationOpen)
         }.apply {
-            contentDescription = if (navigationOpen) "Close navigation menu" else "Open navigation menu"
+            contentDescription = if (navigationOpen) getString(R.string.nav_close) else getString(R.string.nav_open)
             textSize = 20f
             minWidth = 0
             minimumWidth = 0
@@ -414,7 +414,7 @@ class MainActivity : Activity() {
     }
 
     private fun buildStatusCard(): View = panel().apply {
-        addView(label("Session"))
+        addView(label(getString(R.string.label_session)))
         statusTitle = TextView(this@MainActivity).apply {
             setTextColor(Brand.text)
             textSize = 20f
@@ -431,7 +431,7 @@ class MainActivity : Activity() {
 
     private fun buildInlineConfirmationCard(): View = panel(strong = true).apply {
         visibility = View.GONE
-        contentDescription = "Inline action confirmation"
+        contentDescription = getString(R.string.action_confirm)
 
         confirmationTitle = TextView(this@MainActivity).apply {
             setTextColor(Brand.text)
@@ -454,7 +454,7 @@ class MainActivity : Activity() {
         actions.addView(secondaryButton(getString(R.string.action_cancel)) {
             clearInlineConfirmation()
         }.apply {
-            contentDescription = "Cancel inline confirmation"
+            contentDescription = getString(R.string.action_cancel)
         }, buttonParams(weight = 1f))
         actions.addView(gap(8))
         confirmationAction = primaryButton(getString(R.string.action_confirm)) {
@@ -462,7 +462,7 @@ class MainActivity : Activity() {
             clearInlineConfirmation()
             if (!closingOrDestroyed()) action?.invoke()
         }.apply {
-            contentDescription = "Confirm inline action"
+            contentDescription = getString(R.string.action_confirm)
         }
         actions.addView(confirmationAction, buttonParams(weight = 1f))
         addView(actions)
@@ -479,7 +479,7 @@ class MainActivity : Activity() {
         confirmationTitle.text = title
         confirmationDetail.text = detail
         confirmationAction.text = confirmLabel
-        confirmationAction.contentDescription = "$confirmLabel inline action"
+        confirmationAction.contentDescription = confirmLabel
         confirmationPanel.visibility = View.VISIBLE
         confirmationPanel.isFocusable = true
         confirmationPanel.requestFocus()
@@ -499,7 +499,7 @@ class MainActivity : Activity() {
         addView(sectionDescription("Connect to FTP, explicit FTPS or SFTP. Passwords stay in memory for the active session and are cleared on disconnect."))
 
         protocolSpinner = Spinner(this@MainActivity).apply {
-            contentDescription = "Connection protocol"
+            contentDescription = getString(R.string.field_protocol)
             adapter = ArrayAdapter(
                 this@MainActivity,
                 android.R.layout.simple_spinner_item,
@@ -533,17 +533,17 @@ class MainActivity : Activity() {
         addView(formLabel(getString(R.string.field_password)))
         addView(passwordInput)
 
-        hostKeyFingerprintInput = input("SHA256 fingerprint for SFTP", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
+        hostKeyFingerprintInput = input(getString(R.string.hint_sftp_fingerprint), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
         sftpFingerprintGroup = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
-            addView(formLabel("SFTP host key fingerprint"))
+            addView(formLabel(getString(R.string.field_sftp_fingerprint)))
             addView(hostKeyFingerprintInput)
         }
         addView(sftpFingerprintGroup)
 
         remotePathInput = input("/", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         remotePathInput.setText("/")
-        addView(formLabel("Remote path"))
+        addView(formLabel(getString(R.string.field_remote_path)))
         addView(remotePathInput)
 
         val actions = LinearLayout(this@MainActivity).apply {
@@ -552,13 +552,13 @@ class MainActivity : Activity() {
             setPadding(0, dp(14), 0, 0)
         }
         connectButton = primaryButton(getString(R.string.action_connect)) { openConnection() }.apply {
-            contentDescription = "Connect to server"
+            contentDescription = getString(R.string.action_connect)
         }
         disconnectButton = secondaryButton(getString(R.string.action_disconnect)) { disconnect() }.apply {
-            contentDescription = "Disconnect from server"
+            contentDescription = getString(R.string.action_disconnect)
         }
         refreshButton = secondaryButton(getString(R.string.action_refresh)) { refreshActive() }.apply {
-            contentDescription = "Refresh current session"
+            contentDescription = getString(R.string.action_refresh)
         }
         actions.addView(connectButton, buttonParams(weight = 1f))
         actions.addView(gap(8))
@@ -781,10 +781,10 @@ class MainActivity : Activity() {
         if (::navigationToggleButton.isInitialized) {
             navigationToggleButton.text = if (open) "←" else "☰"
             navigationToggleButton.contentDescription =
-                if (open) "Close navigation menu" else "Open navigation menu"
+                if (open) getString(R.string.nav_close) else getString(R.string.nav_open)
             if (announce) {
                 navigationToggleButton.announceForAccessibility(
-                    if (open) "Navigation menu opened" else "Navigation menu closed"
+                    if (open) getString(R.string.nav_opened) else getString(R.string.nav_closed)
                 )
             }
         }
@@ -792,7 +792,7 @@ class MainActivity : Activity() {
 
     private fun buildFooter(): View = panel().apply {
         addView(TextView(this@MainActivity).apply {
-            text = "Ghost FTP · Brendigo · Private session"
+            text = "Ghost FTP · Brendigo · ${getString(R.string.label_private_session)}"
             setTextColor(Brand.muted)
             textSize = 13f
             gravity = Gravity.CENTER
@@ -1510,7 +1510,7 @@ class MainActivity : Activity() {
 
     private fun toolbarButton(value: String, destructive: Boolean = false, onClick: () -> Unit): Button = Button(this).apply {
         text = value
-        contentDescription = "$value action"
+        contentDescription = value
         setTextColor(if (destructive) Brand.danger else Brand.text)
         textSize = 12f
         typeface = Typeface.DEFAULT_BOLD

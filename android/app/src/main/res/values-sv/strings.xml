@@ -36,4 +36,14 @@
     <string name="field_protocol">Protokoll</string>
     <string name="label_security">Säkerhet</string>
     <string name="label_connection">Anslutning</string>
+    <string name="label_private_session">Privat session</string>
+    <string name="label_session">Session</string>
+    <string name="nav_open">Öppna navigeringsmenyn</string>
+    <string name="nav_close">Stäng navigeringsmenyn</string>
+    <string name="nav_opened">Navigeringsmenyn öppnades</string>
+    <string name="nav_closed">Navigeringsmenyn stängdes</string>
+    <string name="nav_close_overlay">Stäng överlagrad navigeringsmeny</string>
+    <string name="field_sftp_fingerprint">Fingeravtryck för SFTP-värdnyckel</string>
+    <string name="hint_sftp_fingerprint">SHA256-fingeravtryck för SFTP</string>
+    <string name="field_remote_path">Fjärrsökväg</string>
 </resources>

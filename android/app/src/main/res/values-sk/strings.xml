@@ -36,4 +36,14 @@
     <string name="field_protocol">Protokol</string>
     <string name="label_security">Zabezpečenie</string>
     <string name="label_connection">Pripojenie</string>
+    <string name="label_private_session">Súkromná relácia</string>
+    <string name="label_session">Relácia</string>
+    <string name="nav_open">Otvoriť navigačnú ponuku</string>
+    <string name="nav_close">Zavrieť navigačnú ponuku</string>
+    <string name="nav_opened">Navigačná ponuka otvorená</string>
+    <string name="nav_closed">Navigačná ponuka zatvorená</string>
+    <string name="nav_close_overlay">Zavrieť prekryvnú navigačnú ponuku</string>
+    <string name="field_sftp_fingerprint">Odtlačok kľúča hostiteľa SFTP</string>
+    <string name="hint_sftp_fingerprint">Odtlačok SHA256 pre SFTP</string>
+    <string name="field_remote_path">Vzdialená cesta</string>
 </resources>

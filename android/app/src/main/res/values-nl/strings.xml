@@ -36,4 +36,14 @@
     <string name="field_protocol">Protocol</string>
     <string name="label_security">Beveiliging</string>
     <string name="label_connection">Verbinding</string>
+    <string name="label_private_session">Privésessie</string>
+    <string name="label_session">Sessie</string>
+    <string name="nav_open">Navigatiemenu openen</string>
+    <string name="nav_close">Navigatiemenu sluiten</string>
+    <string name="nav_opened">Navigatiemenu geopend</string>
+    <string name="nav_closed">Navigatiemenu gesloten</string>
+    <string name="nav_close_overlay">Overliggend navigatiemenu sluiten</string>
+    <string name="field_sftp_fingerprint">Vingerafdruk van SFTP-hostsleutel</string>
+    <string name="hint_sftp_fingerprint">SHA256-vingerafdruk voor SFTP</string>
+    <string name="field_remote_path">Extern pad</string>
 </resources>

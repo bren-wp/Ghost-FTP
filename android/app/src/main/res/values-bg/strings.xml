@@ -36,4 +36,14 @@
     <string name="field_protocol">Протокол</string>
     <string name="label_security">Сигурност</string>
     <string name="label_connection">Връзка</string>
+    <string name="label_private_session">Частна сесия</string>
+    <string name="label_session">Сесия</string>
+    <string name="nav_open">Отвори менюто за навигация</string>
+    <string name="nav_close">Затвори менюто за навигация</string>
+    <string name="nav_opened">Менюто за навигация е отворено</string>
+    <string name="nav_closed">Менюто за навигация е затворено</string>
+    <string name="nav_close_overlay">Затвори наслагващото се меню за навигация</string>
+    <string name="field_sftp_fingerprint">Отпечатък на хост ключа за SFTP</string>
+    <string name="hint_sftp_fingerprint">SHA256 отпечатък за SFTP</string>
+    <string name="field_remote_path">Отдалечен път</string>
 </resources>
