@@ -151,6 +151,11 @@ class MainActivitySmokeTest {
         clickByDescription("Open Transfers workspace")
         assertDescriptionEnabled("Pick upload file", true)
         assertDescriptionEnabled("Upload selected file", false)
+
+        clickByDescription("Open Settings workspace")
+        assertDescriptionEnabled("Reset transfer fields", true)
+        assertDescriptionEnabled("Reset connection form", true)
+        assertDescriptionEnabled("Settings disconnect session", false)
     }
 
     @Test
@@ -162,6 +167,7 @@ class MainActivitySmokeTest {
         assertDescriptionEnabled("Upload selected file", false)
 
         clickByDescription("Open Settings workspace")
+        assertDescriptionEnabled("Settings disconnect session", false)
         clickByDescription("Clear activity log")
         assertTextPresent("Activity log cleared.")
 
@@ -171,8 +177,7 @@ class MainActivitySmokeTest {
         clickByDescription("Reset connection form")
         assertTextPresent("Connection form reset.")
 
-        clickByDescription("Settings disconnect session")
-        assertTextPresent("Ready")
+        assertDescriptionEnabled("Settings disconnect session", false)
     }
 
     @Test
