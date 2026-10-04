@@ -3983,21 +3983,18 @@ async fn remote_resolve(
             })
         }
         Session::HubSpot(hs) => {
-            let exists = crate::remotefs::hubspot::file_exists(hs, initial_remote).await;
+            let exists = crate::remotefs::hubspot::file_exists(hs, initial_remote).await?;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        if !crate::remotefs::hubspot::file_exists(hs, &candidate).await {
-                            return Ok((candidate, false));
-                        }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                        let session = hs.clone();
+                        async move { crate::remotefs::hubspot::file_exists(&session, &candidate).await }
+                    })
+                    .await?;
+                    (renamed, false)
                 }
             })
         }
