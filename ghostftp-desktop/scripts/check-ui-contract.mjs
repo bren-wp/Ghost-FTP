@@ -481,7 +481,7 @@ const newConnection = read("src/components/QuickConnectionDialog.tsx");
 for (const required of [
   "Save this connection in Sites",
   "Host / Address",
-  "ftp.your-domain.tld or 192.0.2.10",
+  "Hostname or IP address",
   "Advanced Settings",
   "Test Connection",
   "Authentication",
@@ -491,7 +491,7 @@ for (const required of [
 ]) {
   if (!newConnection.includes(required)) failures.push(`New Connection missing simplified form contract: ${required}`);
 }
-for (const forbidden of ["Quick Connect", "Save as Profile", "ghost-new-connection-mode", "Use private key (SSH)"]) {
+for (const forbidden of ["Quick Connect", "Save as Profile", "ghost-new-connection-mode", "Use private key (SSH)", "ftp.your-domain.tld or 192.0.2.10", "e.g. Main web server"]) {
   if (newConnection.includes(forbidden)) failures.push(`New Connection reintroduced duplicate mode UI: ${forbidden}`);
 }
 
