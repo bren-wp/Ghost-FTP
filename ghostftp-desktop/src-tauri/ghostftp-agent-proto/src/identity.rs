@@ -5,13 +5,14 @@
 //! pairing time; the fingerprint is what a human reads off to recognise it. The
 //! private half never leaves the machine and is stored 0600 on Unix.
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
 const NOISE_PATTERN: &str = "Noise_XX_25519_ChaChaPoly_SHA256";
+const X25519_KEY_LEN: usize = 32;
 
 fn b64() -> base64::engine::general_purpose::GeneralPurpose {
     base64::engine::general_purpose::STANDARD
@@ -45,8 +46,13 @@ impl Identity {
     pub fn load_or_create(path: &Path) -> Result<Self> {
         if path.exists() {
             let bytes = std::fs::read(path).with_context(|| format!("read identity {path:?}"))?;
-            return serde_json::from_slice(&bytes)
-                .with_context(|| format!("parse identity {path:?}"));
+            let id: Self = serde_json::from_slice(&bytes)
+                .with_context(|| format!("parse identity {path:?}"))?;
+            id.private_bytes()
+                .with_context(|| format!("validate private identity key {path:?}"))?;
+            id.public_bytes()
+                .with_context(|| format!("validate public identity key {path:?}"))?;
+            return Ok(id);
         }
         let id = Self::generate()?;
         id.save(path)?;
@@ -68,16 +74,27 @@ impl Identity {
         Ok(())
     }
 
+    fn decode_key(encoded: &str, label: &str) -> Result<Vec<u8>> {
+        let bytes = b64()
+            .decode(encoded)
+            .with_context(|| format!("decode {label} key"))?;
+        if bytes.len() != X25519_KEY_LEN {
+            bail!(
+                "{label} key must decode to {X25519_KEY_LEN} bytes, found {}",
+                bytes.len()
+            );
+        }
+        Ok(bytes)
+    }
+
     /// Raw 32-byte private key, for feeding into a Noise builder.
     pub fn private_bytes(&self) -> Result<Vec<u8>> {
-        b64()
-            .decode(&self.private_key)
-            .context("decode private key")
+        Self::decode_key(&self.private_key, "private")
     }
 
     /// Raw 32-byte public key.
     pub fn public_bytes(&self) -> Result<Vec<u8>> {
-        b64().decode(&self.public_key).context("decode public key")
+        Self::decode_key(&self.public_key, "public")
     }
 
     /// The public key as base64 — the canonical string form used to pin a peer.
@@ -88,8 +105,8 @@ impl Identity {
     /// Short human-readable fingerprint of the public key (`ab:cd:…`, first 8
     /// bytes of its SHA-256). What the pairing UI shows so a person can confirm
     /// they're pinning the machine they think they are.
-    pub fn fingerprint(&self) -> String {
-        fingerprint_of(&self.public_bytes().unwrap_or_default())
+    pub fn fingerprint(&self) -> Result<String> {
+        Ok(fingerprint_of(&self.public_bytes()?))
     }
 }
 
@@ -110,7 +127,7 @@ pub fn encode_public(public_key: &[u8]) -> String {
 
 /// Decode a base64 pin string back to raw public-key bytes.
 pub fn decode_public(pin: &str) -> Result<Vec<u8>> {
-    b64().decode(pin).context("decode peer public key")
+    Identity::decode_key(pin, "peer public")
 }
 
 #[cfg(test)]
@@ -124,10 +141,48 @@ mod tests {
         assert_eq!(id.public_bytes().unwrap().len(), 32);
         // Fingerprint is deterministic for a given key and formatted xx:xx:...
         assert_eq!(
-            id.fingerprint(),
+            id.fingerprint().unwrap(),
             fingerprint_of(&id.public_bytes().unwrap())
         );
-        assert_eq!(id.fingerprint().split(':').count(), 8);
+        assert_eq!(id.fingerprint().unwrap().split(':').count(), 8);
+    }
+
+    #[test]
+    fn malformed_identity_keys_fail_closed() {
+        let malformed_base64 = Identity {
+            private_key: b64().encode([0u8; X25519_KEY_LEN]),
+            public_key: "%%%not-base64%%%".into(),
+        };
+        assert!(malformed_base64.public_bytes().is_err());
+        assert!(malformed_base64.fingerprint().is_err());
+
+        let wrong_length = Identity {
+            private_key: b64().encode([0u8; X25519_KEY_LEN - 1]),
+            public_key: b64().encode([0u8; X25519_KEY_LEN - 1]),
+        };
+        assert!(wrong_length.private_bytes().is_err());
+        assert!(wrong_length.public_bytes().is_err());
+        assert!(wrong_length.fingerprint().is_err());
+        assert!(decode_public(wrong_length.public_b64()).is_err());
+    }
+
+    #[test]
+    fn load_or_create_rejects_corrupt_persisted_identity() {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-corrupt-id-test-{}",
+            std::process::id()
+        ));
+        let path = dir.join("identity.json");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            &path,
+            r#"{"privateKey":"AA==","publicKey":"AA=="}"#,
+        )
+        .unwrap();
+
+        assert!(Identity::load_or_create(&path).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
