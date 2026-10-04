@@ -253,17 +253,28 @@ pub async fn file_size(session: &HubSpotSession, ghostftp_path: &str) -> u64 {
 }
 
 /// Whether a path exists — as a file, or as a folder.
-pub async fn file_exists(session: &HubSpotSession, ghostftp_path: &str) -> bool {
-    if let Some(inner) = hubdb_inner(&normalize(ghostftp_path)) {
-        return inner.is_empty() || session.hubdb_stat(&inner).await.is_some();
+///
+/// This probe is fail-closed: only a successful listing or explicit API 404
+/// can prove absence; permission/auth/network failures propagate.
+pub async fn file_exists(session: &HubSpotSession, ghostftp_path: &str) -> Result<bool> {
+    let normalized = normalize(ghostftp_path);
+    if let Some(inner) = hubdb_inner(&normalized) {
+        return if inner.is_empty() {
+            Ok(true)
+        } else {
+            Ok(session.hubdb_stat_checked(&inner).await?.is_some())
+        };
     }
-    if let Some(inner) = files_inner(&normalize(ghostftp_path)) {
-        return inner.is_empty() || session.files_stat(&inner).await.is_some();
+    if let Some(inner) = files_inner(&normalized) {
+        return if inner.is_empty() {
+            Ok(true)
+        } else {
+            Ok(session.files_stat_checked(&inner).await?.is_some())
+        };
     }
-    match split_path(ghostftp_path) {
-        Ok((_, path)) if path.is_empty() => true, // a known environment
-        Ok((env, path)) => session.stat(env, &path).await.is_some(),
-        Err(_) => false,
+    match split_path(ghostftp_path)? {
+        (_, path) if path.is_empty() => Ok(true), // a known environment
+        (env, path) => Ok(session.stat_checked(env, &path).await?.is_some()),
     }
 }
 
@@ -906,8 +917,8 @@ mod tests {
         // Rename = GET + PUT new path + DELETE old path.
         let moved = "/design (draft)/themes/example/assets/moved.js";
         fs.rename(js, moved).await.expect("rename");
-        assert!(file_exists(&session, moved).await);
-        assert!(!file_exists(&session, js).await);
+        assert!(file_exists(&session, moved).await.expect("moved exists"));
+        assert!(!file_exists(&session, js).await.expect("old path absent"));
 
         fs.delete(moved, false).await.expect("delete");
         assert!(!file_exists(&session, moved).await);
