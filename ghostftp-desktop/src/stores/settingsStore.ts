@@ -307,9 +307,20 @@ function load(): PersistedSettings {
   return { ...DEFAULTS };
 }
 
-/** Persist one setting to ghostftp.db. The in-memory value applies immediately; native persistence errors are surfaced to the user. */
+let settingsPersistenceTail: Promise<void> = Promise.resolve();
+
+function enqueueSettingsPersistence(task: () => Promise<void>): Promise<void> {
+  const run = settingsPersistenceTail.then(task, task);
+  settingsPersistenceTail = run.catch(() => undefined);
+  return run;
+}
+
+/** Persist one setting to ghostftp.db in user-action order. The in-memory value
+ * applies immediately; native persistence errors are surfaced to the user. */
 function persistKey<K extends keyof PersistedSettings>(key: K, value: PersistedSettings[K]) {
-  return ipc.settingsSet(String(key), JSON.stringify(value)).catch((error) => {
+  return enqueueSettingsPersistence(() =>
+    ipc.settingsSet(String(key), JSON.stringify(value))
+  ).catch((error) => {
     toastError(error, `Couldn't save preference: ${String(key)}`);
     throw error;
   });
@@ -526,9 +537,11 @@ export async function resetSettingsToDefaults(): Promise<void> {
   try {
     // Persist the complete snapshot as one native transaction before changing
     // the visible store. A partial reset must never survive a failed DB write.
-    await ipc.settingsSetAll(
-      Object.fromEntries(
-        SETTINGS_KEYS.map((key) => [String(key), JSON.stringify(DEFAULTS[key])])
+    await enqueueSettingsPersistence(() =>
+      ipc.settingsSetAll(
+        Object.fromEntries(
+          SETTINGS_KEYS.map((key) => [String(key), JSON.stringify(DEFAULTS[key])])
+        )
       )
     );
     useSettings.setState({ ...DEFAULTS } as Partial<SettingsState>);
@@ -539,9 +552,11 @@ export async function resetSettingsToDefaults(): Promise<void> {
     await (DEFAULTS.shellIntegration ? ipc.pathAdd() : ipc.pathRemove());
   } catch (error) {
     useSettings.setState({ ...previous } as Partial<SettingsState>);
-    void ipc.settingsSetAll(
-      Object.fromEntries(
-        SETTINGS_KEYS.map((key) => [String(key), JSON.stringify(previous[key])])
+    void enqueueSettingsPersistence(() =>
+      ipc.settingsSetAll(
+        Object.fromEntries(
+          SETTINGS_KEYS.map((key) => [String(key), JSON.stringify(previous[key])])
+        )
       )
     ).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
     void ipc.transferSetConcurrency(previous.transferConcurrency).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
