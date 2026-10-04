@@ -461,6 +461,11 @@ class MainActivity : Activity() {
         }
         addView(formLabel("Protocol"))
         addView(protocolSpinner)
+        protocolSecurityText = TextView(this@MainActivity).apply {
+            textSize = 12f
+            setPadding(0, dp(6), 0, dp(4))
+        }
+        addView(protocolSecurityText)
 
         hostInput = input("Host", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         addView(formLabel("Host"))
@@ -548,6 +553,19 @@ class MainActivity : Activity() {
         if (::sftpFingerprintGroup.isInitialized) {
             sftpFingerprintGroup.visibility =
                 if (protocol == ConnectionProtocol.SFTP) View.VISIBLE else View.GONE
+        }
+        if (::protocolSecurityText.isInitialized) {
+            val (message, color) = when (protocol) {
+                ConnectionProtocol.FTP ->
+                    "FTP sends credentials and file data without transport encryption. Prefer explicit FTPS or SFTP when the server supports it." to Brand.danger
+                ConnectionProtocol.EXPLICIT_FTPS ->
+                    "Explicit FTPS encrypts credentials and file data with TLS and validates the server hostname." to Brand.textSoft
+                ConnectionProtocol.SFTP ->
+                    "SFTP encrypts the session and requires strict SSH host-key verification." to Brand.textSoft
+            }
+            protocolSecurityText.text = message
+            protocolSecurityText.setTextColor(color)
+            protocolSecurityText.contentDescription = message
         }
     }
 
