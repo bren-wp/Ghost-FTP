@@ -186,7 +186,15 @@ class MainActivitySmokeTest {
     @Test
     fun unreadablePickerUriIsRejectedFailClosed() {
         scenario.onActivity { activity ->
-            activity.onActivityResult(
+            val callback = MainActivity::class.java.getDeclaredMethod(
+                "onActivityResult",
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                Intent::class.java
+            )
+            callback.isAccessible = true
+            callback.invoke(
+                activity,
                 22091,
                 Activity.RESULT_OK,
                 Intent().apply {
