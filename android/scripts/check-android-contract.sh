@@ -228,6 +228,8 @@ require_text "FTPS hostname verification" "$CONNECTION_MODEL" 'setEndpointChecki
 require_text "Explicit FTPS PBSZ" "$CONNECTION_MODEL" 'execPBSZ(0)'
 require_text "Explicit FTPS protected data channel" "$CONNECTION_MODEL" 'execPROT("P")'
 require_text "SFTP host key verification" "$CONNECTION_MODEL" 'StrictHostKeyChecking", "yes"'
+require_text "SFTP password-only authentication hardening" "$CONNECTION_MODEL" 'PreferredAuthentications", "password"'
+require_absent "SFTP keyboard-interactive authentication" "$CONNECTION_MODEL" 'PreferredAuthentications", "keyboard-interactive'
 require_text "SFTP fingerprint input" "$MAIN_ACTIVITY" 'SFTP host key fingerprint'
 require_text "SFTP fingerprint repository" "$CONNECTION_MODEL" 'FingerprintHostKeyRepository(profile.hostKeyFingerprint)'
 require_text "SFTP byte-array password API" "$CONNECTION_MODEL" 'session.setPassword(passwordBytes)'
