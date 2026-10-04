@@ -46,4 +46,27 @@
     <string name="field_sftp_fingerprint">Fingeravtryck för SFTP-värdnyckel</string>
     <string name="hint_sftp_fingerprint">SHA256-fingeravtryck för SFTP</string>
     <string name="field_remote_path">Fjärrsökväg</string>
+    <string name="desc_sites">Anslut via FTP, explicit FTPS eller SFTP. Lösenord ligger kvar i minnet under den aktiva sessionen och rensas vid frånkoppling.</string>
+    <string name="desc_files">Öppna mappar, välj filer och använd sedan verktygsfältsåtgärder som motsvarar Ghost FTP på skrivbordet.</string>
+    <string name="desc_transfers">Hantera det valda fjärrobjektet, uppladdningsmålet, namnbytesmålet och fjärrmappsåtgärden för den aktiva sessionen.</string>
+    <string name="desc_settings">Kontroller för aktiv session och integritet följer säkerhetsreglerna i Ghost FTP på skrivbordet.</string>
+    <string name="label_privacy">Integritet</string>
+    <string name="settings_no_tracking">Ingen obligatorisk spårning, analys eller telemetri.</string>
+    <string name="label_credentials">Autentiseringsuppgifter</string>
+    <string name="settings_credentials">Sessionslösenord ligger kvar i minnet och rensas vid frånkoppling eller när Activity förstörs.</string>
+    <string name="settings_security">Fjärrändringar skyddas och SFTP kräver strikt verifiering av värdnyckeln.</string>
+    <string name="action_clear_activity">Rensa aktivitet</string>
+    <string name="action_reset_transfers">Återställ överföringar</string>
+    <string name="action_reset_connection">Återställ anslutning</string>
+    <string name="state_no_local_file">Ingen lokal fil för uppladdning har valts.</string>
+    <string name="state_no_transfer">Ingen överföring har startats.</string>
+    <string name="label_product">Produkt</string>
+    <string name="label_protocols">Protokoll</string>
+    <string name="label_eula">Användningsvillkor / EULA</string>
+    <string name="about_support_desc">Guider, felsökning och produktsupport.</string>
+    <string name="about_docs_desc">Officiell Ghost FTP-dokumentation.</string>
+    <string name="about_privacy_desc">Läs den officiella integritetsinformationen.</string>
+    <string name="about_eula_desc">Läs de officiella licensvillkoren för Ghost FTP-programvaran.</string>
+    <string name="about_website_desc">Ghost FTP-produktwebbplats.</string>
+    <string name="link_open">Öppna Ghost FTP %1$s</string>
 </resources>

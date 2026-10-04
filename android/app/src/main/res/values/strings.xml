@@ -50,4 +50,27 @@
     <string name="field_sftp_fingerprint">SFTP host key fingerprint</string>
     <string name="hint_sftp_fingerprint">SHA256 fingerprint for SFTP</string>
     <string name="field_remote_path">Remote path</string>
+    <string name="desc_sites">Connect to FTP, explicit FTPS or SFTP. Passwords stay in memory for the active session and are cleared on disconnect.</string>
+    <string name="desc_files">Open folders, select files, then use the toolbar actions aligned with Ghost FTP desktop.</string>
+    <string name="desc_transfers">Manage the selected remote entry, upload target, rename target and remote folder action for the active session.</string>
+    <string name="desc_settings">Working session and privacy controls aligned with Ghost FTP desktop safety rules.</string>
+    <string name="label_privacy">Privacy</string>
+    <string name="settings_no_tracking">No required tracking, analytics or telemetry.</string>
+    <string name="label_credentials">Credentials</string>
+    <string name="settings_credentials">Session passwords stay in memory and are cleared on disconnect or Activity destruction.</string>
+    <string name="settings_security">Remote mutations are guarded and SFTP requires strict host-key verification.</string>
+    <string name="action_clear_activity">Clear Activity</string>
+    <string name="action_reset_transfers">Reset Transfers</string>
+    <string name="action_reset_connection">Reset Connection</string>
+    <string name="state_no_local_file">No local upload file selected.</string>
+    <string name="state_no_transfer">No transfer started.</string>
+    <string name="label_product">Product</string>
+    <string name="label_protocols">Protocols</string>
+    <string name="label_eula">Terms of use / EULA</string>
+    <string name="about_support_desc">Guides, troubleshooting and product support.</string>
+    <string name="about_docs_desc">Official Ghost FTP documentation.</string>
+    <string name="about_privacy_desc">Read the official privacy information.</string>
+    <string name="about_eula_desc">Read the canonical Ghost FTP software licence terms.</string>
+    <string name="about_website_desc">Ghost FTP product website.</string>
+    <string name="link_open">Open Ghost FTP %1$s</string>
 </resources>

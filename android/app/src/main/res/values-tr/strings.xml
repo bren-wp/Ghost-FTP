@@ -46,4 +46,27 @@
     <string name="field_sftp_fingerprint">SFTP ana makine anahtarı parmak izi</string>
     <string name="hint_sftp_fingerprint">SFTP için SHA256 parmak izi</string>
     <string name="field_remote_path">Uzak yol</string>
+    <string name="desc_sites">FTP, açık FTPS veya SFTP ile bağlanın. Parolalar etkin oturum boyunca bellekte tutulur ve bağlantı kesildiğinde temizlenir.</string>
+    <string name="desc_files">Klasörleri açın, dosyaları seçin ve ardından Ghost FTP masaüstü uygulamasıyla uyumlu araç çubuğu işlemlerini kullanın.</string>
+    <string name="desc_transfers">Etkin oturum için seçili uzak öğeyi, yükleme hedefini, yeniden adlandırma hedefini ve uzak klasör işlemini yönetin.</string>
+    <string name="desc_settings">Etkin oturum ve gizlilik denetimleri Ghost FTP masaüstü güvenlik kurallarıyla uyumludur.</string>
+    <string name="label_privacy">Gizlilik</string>
+    <string name="settings_no_tracking">Zorunlu izleme, analiz veya telemetri yoktur.</string>
+    <string name="label_credentials">Kimlik bilgileri</string>
+    <string name="settings_credentials">Oturum parolaları bellekte tutulur ve bağlantı kesildiğinde veya Activity yok edildiğinde temizlenir.</string>
+    <string name="settings_security">Uzak değişiklikler korumalıdır ve SFTP sıkı ana makine anahtarı doğrulaması gerektirir.</string>
+    <string name="action_clear_activity">Etkinliği temizle</string>
+    <string name="action_reset_transfers">Aktarımları sıfırla</string>
+    <string name="action_reset_connection">Bağlantıyı sıfırla</string>
+    <string name="state_no_local_file">Yüklenecek yerel dosya seçilmedi.</string>
+    <string name="state_no_transfer">Aktarım başlatılmadı.</string>
+    <string name="label_product">Ürün</string>
+    <string name="label_protocols">Protokoller</string>
+    <string name="label_eula">Kullanım koşulları / EULA</string>
+    <string name="about_support_desc">Kılavuzlar, sorun giderme ve ürün desteği.</string>
+    <string name="about_docs_desc">Resmî Ghost FTP belgeleri.</string>
+    <string name="about_privacy_desc">Resmî gizlilik bilgilerini okuyun.</string>
+    <string name="about_eula_desc">Ghost FTP yazılımının resmî lisans koşullarını okuyun.</string>
+    <string name="about_website_desc">Ghost FTP ürün web sitesi.</string>
+    <string name="link_open">Ghost FTP %1$s aç</string>
 </resources>

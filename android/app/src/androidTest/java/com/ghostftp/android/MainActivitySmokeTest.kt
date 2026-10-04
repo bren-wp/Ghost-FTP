@@ -67,10 +67,10 @@ class MainActivitySmokeTest {
 
         openWorkspace("Settings")
         assertTextVisibleInViewport("No required tracking, analytics or telemetry.")
-        assertDescriptionPresent("Clear activity log")
-        assertDescriptionPresent("Reset transfer fields")
-        assertDescriptionPresent("Reset connection form")
-        assertDescriptionPresent("Settings disconnect session")
+        assertDescriptionPresent("Clear Activity")
+        assertDescriptionPresent("Reset Transfers")
+        assertDescriptionPresent("Reset Connection")
+        assertDescriptionPresent("Settings Disconnect")
 
         openWorkspace("Help & About")
         assertTextVisibleInViewport("Ghost FTP by Brendigo")
@@ -109,7 +109,7 @@ class MainActivitySmokeTest {
         for (description in listOf(
             "Open Ghost FTP Support",
             "Open Ghost FTP Documentation",
-            "Open Ghost FTP Privacy",
+            "Open Ghost FTP Privacy Policy",
             "Open Ghost FTP Terms of use / EULA",
             "Open Ghost FTP Official website"
         )) {
@@ -196,9 +196,9 @@ class MainActivitySmokeTest {
         assertDescriptionEnabled("Upload selected file", false)
 
         openWorkspace("Settings")
-        assertDescriptionEnabled("Reset transfer fields", true)
-        assertDescriptionEnabled("Reset connection form", true)
-        assertDescriptionEnabled("Settings disconnect session", false)
+        assertDescriptionEnabled("Reset Transfers", true)
+        assertDescriptionEnabled("Reset Connection", true)
+        assertDescriptionEnabled("Settings Disconnect", false)
     }
 
     @Test
@@ -210,17 +210,17 @@ class MainActivitySmokeTest {
         assertDescriptionEnabled("Upload selected file", false)
 
         openWorkspace("Settings")
-        assertDescriptionEnabled("Settings disconnect session", false)
-        clickByDescription("Clear activity log")
+        assertDescriptionEnabled("Settings Disconnect", false)
+        clickByDescription("Clear Activity")
         assertTextPresent("Activity log cleared.")
 
-        clickByDescription("Reset transfer fields")
+        clickByDescription("Reset Transfers")
         assertTextPresent("Transfer fields reset.")
 
-        clickByDescription("Reset connection form")
+        clickByDescription("Reset Connection")
         assertTextPresent("Connection form reset.")
 
-        assertDescriptionEnabled("Settings disconnect session", false)
+        assertDescriptionEnabled("Settings Disconnect", false)
     }
 
     @Test

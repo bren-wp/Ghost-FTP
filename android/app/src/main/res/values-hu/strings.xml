@@ -46,4 +46,27 @@
     <string name="field_sftp_fingerprint">SFTP-gépkulcs ujjlenyomata</string>
     <string name="hint_sftp_fingerprint">SHA256-ujjlenyomat SFTP-hez</string>
     <string name="field_remote_path">Távoli útvonal</string>
+    <string name="desc_sites">Csatlakozzon FTP, explicit FTPS vagy SFTP használatával. A jelszavak az aktív munkamenet idején a memóriában maradnak, és kapcsolatbontáskor törlődnek.</string>
+    <string name="desc_files">Nyisson meg mappákat, válasszon fájlokat, majd használja a Ghost FTP asztali alkalmazással egyező eszköztári műveleteket.</string>
+    <string name="desc_transfers">Kezelje az aktív munkamenet kijelölt távoli elemét, feltöltési célját, átnevezési célját és távoli mappaműveletét.</string>
+    <string name="desc_settings">Az aktív munkamenet és az adatvédelem vezérlői a Ghost FTP asztali alkalmazás biztonsági szabályaihoz igazodnak.</string>
+    <string name="label_privacy">Adatvédelem</string>
+    <string name="settings_no_tracking">Nincs kötelező követés, analitika vagy telemetria.</string>
+    <string name="label_credentials">Hitelesítő adatok</string>
+    <string name="settings_credentials">A munkamenet jelszavai a memóriában maradnak, és kapcsolatbontáskor vagy az Activity megsemmisítésekor törlődnek.</string>
+    <string name="settings_security">A távoli módosítások védettek, az SFTP pedig szigorú állomáskulcs-ellenőrzést igényel.</string>
+    <string name="action_clear_activity">Tevékenység törlése</string>
+    <string name="action_reset_transfers">Átvitelek alaphelyzetbe</string>
+    <string name="action_reset_connection">Kapcsolat alaphelyzetbe</string>
+    <string name="state_no_local_file">Nincs kiválasztva helyi feltöltendő fájl.</string>
+    <string name="state_no_transfer">Nem indult átvitel.</string>
+    <string name="label_product">Termék</string>
+    <string name="label_protocols">Protokollok</string>
+    <string name="label_eula">Használati feltételek / EULA</string>
+    <string name="about_support_desc">Útmutatók, hibaelhárítás és terméktámogatás.</string>
+    <string name="about_docs_desc">A Ghost FTP hivatalos dokumentációja.</string>
+    <string name="about_privacy_desc">Olvassa el a hivatalos adatvédelmi információkat.</string>
+    <string name="about_eula_desc">Olvassa el a Ghost FTP szoftver hivatalos licencfeltételeit.</string>
+    <string name="about_website_desc">A Ghost FTP termék webhelye.</string>
+    <string name="link_open">Ghost FTP megnyitása: %1$s</string>
 </resources>

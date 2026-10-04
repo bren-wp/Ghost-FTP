@@ -46,4 +46,27 @@
     <string name="field_sftp_fingerprint">Отпечатък на хост ключа за SFTP</string>
     <string name="hint_sftp_fingerprint">SHA256 отпечатък за SFTP</string>
     <string name="field_remote_path">Отдалечен път</string>
+    <string name="desc_sites">Свържете се чрез FTP, explicit FTPS или SFTP. Паролите остават в паметта по време на активната сесия и се изчистват при прекъсване на връзката.</string>
+    <string name="desc_files">Отваряйте папки, избирайте файлове и използвайте действията в лентата с инструменти, съобразени с настолното приложение Ghost FTP.</string>
+    <string name="desc_transfers">Управлявайте избрания отдалечен елемент, целта за качване, целта за преименуване и действието за отдалечена папка в активната сесия.</string>
+    <string name="desc_settings">Контролите за активната сесия и поверителността са съобразени с правилата за сигурност на настолното приложение Ghost FTP.</string>
+    <string name="label_privacy">Поверителност</string>
+    <string name="settings_no_tracking">Без задължително проследяване, анализи или телеметрия.</string>
+    <string name="label_credentials">Идентификационни данни</string>
+    <string name="settings_credentials">Паролите за сесията остават в паметта и се изчистват при прекъсване на връзката или унищожаване на Activity.</string>
+    <string name="settings_security">Отдалечените промени са защитени, а SFTP изисква строга проверка на хост ключа.</string>
+    <string name="action_clear_activity">Изчисти активността</string>
+    <string name="action_reset_transfers">Нулирай трансферите</string>
+    <string name="action_reset_connection">Нулирай връзката</string>
+    <string name="state_no_local_file">Не е избран локален файл за качване.</string>
+    <string name="state_no_transfer">Не е стартиран трансфер.</string>
+    <string name="label_product">Продукт</string>
+    <string name="label_protocols">Протоколи</string>
+    <string name="label_eula">Условия за ползване / EULA</string>
+    <string name="about_support_desc">Ръководства, отстраняване на проблеми и продуктова поддръжка.</string>
+    <string name="about_docs_desc">Официална документация на Ghost FTP.</string>
+    <string name="about_privacy_desc">Прочетете официалната информация за поверителност.</string>
+    <string name="about_eula_desc">Прочетете официалните лицензионни условия за софтуера Ghost FTP.</string>
+    <string name="about_website_desc">Уебсайт на продукта Ghost FTP.</string>
+    <string name="link_open">Отвори Ghost FTP %1$s</string>
 </resources>

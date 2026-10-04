@@ -46,4 +46,27 @@
     <string name="field_sftp_fingerprint">Prstni odtis gostiteljskega ključa SFTP</string>
     <string name="hint_sftp_fingerprint">Prstni odtis SHA256 za SFTP</string>
     <string name="field_remote_path">Oddaljena pot</string>
+    <string name="desc_sites">Povežite se prek FTP, izrecnega FTPS ali SFTP. Gesla med aktivno sejo ostanejo v pomnilniku in se ob prekinitvi povezave izbrišejo.</string>
+    <string name="desc_files">Odprite mape, izberite datoteke in nato uporabite dejanja v orodni vrstici, usklajena z namizno aplikacijo Ghost FTP.</string>
+    <string name="desc_transfers">Upravljajte izbrani oddaljeni element, cilj nalaganja, cilj preimenovanja in dejanje oddaljene mape za aktivno sejo.</string>
+    <string name="desc_settings">Kontrolniki aktivne seje in zasebnosti so usklajeni z varnostnimi pravili namizne aplikacije Ghost FTP.</string>
+    <string name="label_privacy">Zasebnost</string>
+    <string name="settings_no_tracking">Brez obveznega sledenja, analitike ali telemetrije.</string>
+    <string name="label_credentials">Poverilnice</string>
+    <string name="settings_credentials">Gesla seje ostanejo v pomnilniku in se izbrišejo ob prekinitvi povezave ali uničenju Activity.</string>
+    <string name="settings_security">Oddaljene spremembe so zaščitene, SFTP pa zahteva strogo preverjanje ključa gostitelja.</string>
+    <string name="action_clear_activity">Počisti dejavnost</string>
+    <string name="action_reset_transfers">Ponastavi prenose</string>
+    <string name="action_reset_connection">Ponastavi povezavo</string>
+    <string name="state_no_local_file">Izbrana ni nobena lokalna datoteka za nalaganje.</string>
+    <string name="state_no_transfer">Noben prenos ni bil začet.</string>
+    <string name="label_product">Izdelek</string>
+    <string name="label_protocols">Protokoli</string>
+    <string name="label_eula">Pogoji uporabe / EULA</string>
+    <string name="about_support_desc">Vodniki, odpravljanje težav in podpora za izdelek.</string>
+    <string name="about_docs_desc">Uradna dokumentacija Ghost FTP.</string>
+    <string name="about_privacy_desc">Preberite uradne informacije o zasebnosti.</string>
+    <string name="about_eula_desc">Preberite uradne licenčne pogoje programske opreme Ghost FTP.</string>
+    <string name="about_website_desc">Spletno mesto izdelka Ghost FTP.</string>
+    <string name="link_open">Odpri Ghost FTP %1$s</string>
 </resources>

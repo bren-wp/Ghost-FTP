@@ -46,4 +46,27 @@
     <string name="field_sftp_fingerprint">Odcisk klucza hosta SFTP</string>
     <string name="hint_sftp_fingerprint">Odcisk SHA256 dla SFTP</string>
     <string name="field_remote_path">Ścieżka zdalna</string>
+    <string name="desc_sites">Połącz się przez FTP, jawne FTPS lub SFTP. Hasła pozostają w pamięci podczas aktywnej sesji i są czyszczone po rozłączeniu.</string>
+    <string name="desc_files">Otwieraj foldery, wybieraj pliki, a następnie używaj działań paska narzędzi zgodnych z aplikacją Ghost FTP na komputer.</string>
+    <string name="desc_transfers">Zarządzaj wybranym elementem zdalnym, celem wysyłania, celem zmiany nazwy i działaniem zdalnego folderu dla aktywnej sesji.</string>
+    <string name="desc_settings">Elementy sterujące aktywną sesją i prywatnością są zgodne z zasadami bezpieczeństwa aplikacji Ghost FTP na komputer.</string>
+    <string name="label_privacy">Prywatność</string>
+    <string name="settings_no_tracking">Brak wymaganego śledzenia, analityki i telemetrii.</string>
+    <string name="label_credentials">Dane logowania</string>
+    <string name="settings_credentials">Hasła sesji pozostają w pamięci i są czyszczone po rozłączeniu lub zniszczeniu Activity.</string>
+    <string name="settings_security">Zdalne zmiany są chronione, a SFTP wymaga ścisłej weryfikacji klucza hosta.</string>
+    <string name="action_clear_activity">Wyczyść aktywność</string>
+    <string name="action_reset_transfers">Resetuj transfery</string>
+    <string name="action_reset_connection">Resetuj połączenie</string>
+    <string name="state_no_local_file">Nie wybrano lokalnego pliku do wysłania.</string>
+    <string name="state_no_transfer">Nie rozpoczęto transferu.</string>
+    <string name="label_product">Produkt</string>
+    <string name="label_protocols">Protokoły</string>
+    <string name="label_eula">Warunki użytkowania / EULA</string>
+    <string name="about_support_desc">Przewodniki, rozwiązywanie problemów i pomoc dotycząca produktu.</string>
+    <string name="about_docs_desc">Oficjalna dokumentacja Ghost FTP.</string>
+    <string name="about_privacy_desc">Przeczytaj oficjalne informacje o prywatności.</string>
+    <string name="about_eula_desc">Przeczytaj oficjalne warunki licencji oprogramowania Ghost FTP.</string>
+    <string name="about_website_desc">Witryna produktu Ghost FTP.</string>
+    <string name="link_open">Otwórz Ghost FTP %1$s</string>
 </resources>

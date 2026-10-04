@@ -46,4 +46,27 @@
     <string name="field_sftp_fingerprint">Amprenta cheii gazdei SFTP</string>
     <string name="hint_sftp_fingerprint">Amprentă SHA256 pentru SFTP</string>
     <string name="field_remote_path">Cale la distanță</string>
+    <string name="desc_sites">Conectați-vă prin FTP, FTPS explicit sau SFTP. Parolele rămân în memorie pe durata sesiunii active și sunt șterse la deconectare.</string>
+    <string name="desc_files">Deschideți dosare, selectați fișiere, apoi folosiți acțiunile din bara de instrumente aliniate cu aplicația desktop Ghost FTP.</string>
+    <string name="desc_transfers">Gestionați elementul la distanță selectat, ținta de încărcare, ținta de redenumire și acțiunea pentru dosarul la distanță din sesiunea activă.</string>
+    <string name="desc_settings">Comenzile pentru sesiunea activă și confidențialitate sunt aliniate cu regulile de siguranță ale aplicației desktop Ghost FTP.</string>
+    <string name="label_privacy">Confidențialitate</string>
+    <string name="settings_no_tracking">Fără urmărire, analiză sau telemetrie obligatorie.</string>
+    <string name="label_credentials">Acreditări</string>
+    <string name="settings_credentials">Parolele sesiunii rămân în memorie și sunt șterse la deconectare sau la distrugerea activității.</string>
+    <string name="settings_security">Modificările la distanță sunt protejate, iar SFTP necesită verificarea strictă a cheii gazdei.</string>
+    <string name="action_clear_activity">Șterge activitatea</string>
+    <string name="action_reset_transfers">Resetează transferurile</string>
+    <string name="action_reset_connection">Resetează conexiunea</string>
+    <string name="state_no_local_file">Nu este selectat niciun fișier local pentru încărcare.</string>
+    <string name="state_no_transfer">Nu a fost pornit niciun transfer.</string>
+    <string name="label_product">Produs</string>
+    <string name="label_protocols">Protocoale</string>
+    <string name="label_eula">Termeni de utilizare / EULA</string>
+    <string name="about_support_desc">Ghiduri, depanare și asistență pentru produs.</string>
+    <string name="about_docs_desc">Documentația oficială Ghost FTP.</string>
+    <string name="about_privacy_desc">Citiți informațiile oficiale despre confidențialitate.</string>
+    <string name="about_eula_desc">Citiți termenii oficiali ai licenței software Ghost FTP.</string>
+    <string name="about_website_desc">Site-ul produsului Ghost FTP.</string>
+    <string name="link_open">Deschide Ghost FTP %1$s</string>
 </resources>

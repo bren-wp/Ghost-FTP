@@ -46,4 +46,27 @@
     <string name="field_sftp_fingerprint">Vingerafdruk van SFTP-hostsleutel</string>
     <string name="hint_sftp_fingerprint">SHA256-vingerafdruk voor SFTP</string>
     <string name="field_remote_path">Extern pad</string>
+    <string name="desc_sites">Maak verbinding via FTP, expliciete FTPS of SFTP. Wachtwoorden blijven tijdens de actieve sessie in het geheugen en worden bij verbreken van de verbinding gewist.</string>
+    <string name="desc_files">Open mappen, selecteer bestanden en gebruik daarna de werkbalkacties die aansluiten op de Ghost FTP-desktopapp.</string>
+    <string name="desc_transfers">Beheer het geselecteerde externe item, het uploaddoel, het hernoemingsdoel en de externe mapactie voor de actieve sessie.</string>
+    <string name="desc_settings">Besturing voor actieve sessie en privacy volgens de beveiligingsregels van de Ghost FTP-desktopapp.</string>
+    <string name="label_privacy">Privacy</string>
+    <string name="settings_no_tracking">Geen verplichte tracking, analyse of telemetrie.</string>
+    <string name="label_credentials">Referenties</string>
+    <string name="settings_credentials">Sessiewachtwoorden blijven in het geheugen en worden gewist bij verbreken van de verbinding of wanneer de Activity wordt vernietigd.</string>
+    <string name="settings_security">Externe wijzigingen zijn beveiligd en SFTP vereist strikte verificatie van de hostsleutel.</string>
+    <string name="action_clear_activity">Activiteit wissen</string>
+    <string name="action_reset_transfers">Overdrachten herstellen</string>
+    <string name="action_reset_connection">Verbinding herstellen</string>
+    <string name="state_no_local_file">Geen lokaal uploadbestand geselecteerd.</string>
+    <string name="state_no_transfer">Geen overdracht gestart.</string>
+    <string name="label_product">Product</string>
+    <string name="label_protocols">Protocollen</string>
+    <string name="label_eula">Gebruiksvoorwaarden / EULA</string>
+    <string name="about_support_desc">Handleidingen, probleemoplossing en productondersteuning.</string>
+    <string name="about_docs_desc">Officiële Ghost FTP-documentatie.</string>
+    <string name="about_privacy_desc">Lees de officiële privacy-informatie.</string>
+    <string name="about_eula_desc">Lees de officiële licentievoorwaarden van de Ghost FTP-software.</string>
+    <string name="about_website_desc">Ghost FTP-productwebsite.</string>
+    <string name="link_open">Ghost FTP %1$s openen</string>
 </resources>

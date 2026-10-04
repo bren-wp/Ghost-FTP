@@ -46,4 +46,27 @@
     <string name="field_sftp_fingerprint">Otisk klíče hostitele SFTP</string>
     <string name="hint_sftp_fingerprint">Otisk SHA256 pro SFTP</string>
     <string name="field_remote_path">Vzdálená cesta</string>
+    <string name="desc_sites">Připojte se přes FTP, explicitní FTPS nebo SFTP. Hesla zůstávají v paměti po dobu aktivní relace a při odpojení se vymažou.</string>
+    <string name="desc_files">Otevírejte složky, vybírejte soubory a poté používejte akce panelu nástrojů sladěné s desktopovou aplikací Ghost FTP.</string>
+    <string name="desc_transfers">Spravujte vybranou vzdálenou položku, cíl nahrávání, cíl přejmenování a akci vzdálené složky pro aktivní relaci.</string>
+    <string name="desc_settings">Ovládání aktivní relace a soukromí sladěné s bezpečnostními pravidly desktopové aplikace Ghost FTP.</string>
+    <string name="label_privacy">Soukromí</string>
+    <string name="settings_no_tracking">Žádné povinné sledování, analytika ani telemetrie.</string>
+    <string name="label_credentials">Přihlašovací údaje</string>
+    <string name="settings_credentials">Hesla relace zůstávají v paměti a při odpojení nebo zničení aktivity se vymažou.</string>
+    <string name="settings_security">Vzdálené změny jsou chráněné a SFTP vyžaduje přísné ověření klíče hostitele.</string>
+    <string name="action_clear_activity">Vymazat aktivitu</string>
+    <string name="action_reset_transfers">Obnovit přenosy</string>
+    <string name="action_reset_connection">Obnovit připojení</string>
+    <string name="state_no_local_file">Není vybrán žádný místní soubor k nahrání.</string>
+    <string name="state_no_transfer">Nebyl spuštěn žádný přenos.</string>
+    <string name="label_product">Produkt</string>
+    <string name="label_protocols">Protokoly</string>
+    <string name="label_eula">Podmínky použití / EULA</string>
+    <string name="about_support_desc">Průvodci, řešení problémů a podpora produktu.</string>
+    <string name="about_docs_desc">Oficiální dokumentace Ghost FTP.</string>
+    <string name="about_privacy_desc">Přečtěte si oficiální informace o soukromí.</string>
+    <string name="about_eula_desc">Přečtěte si závazné licenční podmínky softwaru Ghost FTP.</string>
+    <string name="about_website_desc">Web produktu Ghost FTP.</string>
+    <string name="link_open">Otevřít Ghost FTP %1$s</string>
 </resources>
