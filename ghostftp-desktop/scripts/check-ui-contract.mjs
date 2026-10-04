@@ -778,8 +778,21 @@ for (const required of [
 }
 
 const about = read("src/components/AboutDialog.tsx");
-for (const required of ["ghost-about-tabs", "PrivacyContent", "Ghost FTP Updates", "Ghost FTP Help Center"]) {
-  if (!about.includes(required)) failures.push(`Help & About missing in-app section: ${required}`);
+for (const required of [
+  "ghost-about-tabs",
+  "PrivacyContent",
+  "Ghost FTP Updates",
+  "Ghost FTP Help Center",
+  'tr("About")',
+  'tr("Updates")',
+  'tr("Help Center")',
+  'tr("Privacy")',
+  'tr("Check for Updates")',
+  'tr("Download & install")',
+  "PRODUCT_SITE",
+  'tr("Official website")',
+]) {
+  if (!about.includes(required)) failures.push(`Help & About missing localized/official contract: ${required}`);
 }
 for (const forbidden of ["openOfficialUrl", "ReferenceWindowTitlebar", "Visit ghostftp.com"]) {
   if (about.includes(forbidden)) failures.push(`Help & About still escapes the single-window shell: ${forbidden}`);
