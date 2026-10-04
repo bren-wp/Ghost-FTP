@@ -124,6 +124,32 @@ requireIncludes(
 );
 
 requireIncludes(
+  "src/components/Settings.tsx",
+  [
+    'type SettingsAsyncMutation = "reset" | "notifications" | "shell"',
+    "const asyncMutationInFlight = useRef(false)",
+    "if (asyncMutationInFlight.current) return;",
+    'runSettingsAsyncMutation("reset"',
+    'runMutation("notifications"',
+    'runMutation("shell"',
+    "disabled={asyncMutation !== null}",
+    "aria-busy={asyncMutation !== null}",
+  ],
+  "Settings async mutation serialization"
+);
+
+requireIncludes(
+  "src/stores/settingsStore.ts",
+  [
+    "let settingsPersistenceTail: Promise<void> = Promise.resolve()",
+    "function enqueueSettingsPersistence(task: () => Promise<void>): Promise<void>",
+    "settingsPersistenceTail = run.catch(() => undefined)",
+    "return enqueueSettingsPersistence(() =>",
+  ],
+  "settings persistence serialization"
+);
+
+requireIncludes(
   "src/components/SyncSettings.tsx",
   [
     'const [mutating, setMutating] = useState<"toggle" | "sync" | "remove" | null>(null)',
