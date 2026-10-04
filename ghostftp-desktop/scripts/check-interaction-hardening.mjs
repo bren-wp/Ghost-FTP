@@ -142,11 +142,21 @@ requireIncludes(
   "src/stores/settingsStore.ts",
   [
     "let settingsPersistenceTail: Promise<void> = Promise.resolve()",
+    "let transferEngineSettingsTail: Promise<void> = Promise.resolve()",
     "function enqueueSettingsPersistence(task: () => Promise<void>): Promise<void>",
-    "settingsPersistenceTail = run.catch(() => undefined)",
+    "function enqueueTransferEngineSettings(task: () => Promise<void>): Promise<void>",
+    "const durableSettings = structuredClone(initial)",
+    "const settingsMutationRevision = new Map<keyof PersistedSettings, number>()",
+    "function rememberDurableSetting<K extends keyof PersistedSettings>(",
+    "if (settingsMutationRevision.get(key) !== revision) return;",
     "return enqueueSettingsPersistence(() =>",
+    "void enqueueTransferEngineSettings(() => ipc.transferSetConcurrency(clamped))",
+    "void enqueueTransferEngineSettings(() => ipc.transferSetMaxRetries(clamped))",
+    "void enqueueTransferEngineSettings(() => ipc.transferSetThrottle(clamped))",
+    "void enqueueTransferEngineSettings(() => ipc.transferSetDeltaSync(v))",
+    "async function applyTransferEngineSnapshot(snapshot: PersistedSettings): Promise<void>",
   ],
-  "settings persistence serialization"
+  "settings persistence and live transfer-engine serialization"
 );
 
 requireIncludes(
