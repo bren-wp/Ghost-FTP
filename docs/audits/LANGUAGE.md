@@ -1,9 +1,13 @@
-# Ghost FTP Language Audit — 0.20.9
+# Ghost FTP Language Audit — 0.30.6
 
-The desktop UI advertises 14 locales: English, Hrvatski, Deutsch, Français, Español, Italiano, Português, Nederlands, Polski, Slovenščina, Srpski, Bosanski, Македонски and Shqip.
+The desktop UI advertises 24 locales: English, Hrvatski, Čeština, Slovenčina, Magyar, Română, Български, Ελληνικά, Türkçe, Українська, Dansk, Svenska, Norsk, Deutsch, Français, Español, Italiano, Português, Nederlands, Polski, Slovenščina, Srpski, Bosanski and Македонски.
 
-The existing `npm run check:i18n` contract keeps advertised non-English dictionaries aligned to the canonical key set and fails CI on missing/extra key drift. English remains the source language for current Transfer Center operational copy.
+Albanian is not an advertised Ghost FTP locale and the i18n parity contract rejects it if it is reintroduced accidentally.
 
-Key parity is not the same as linguistic acceptance. Target-OS QA must still review terminology, grammar, clipping, narrow-window layouts, dialogs, protocol/security terminology, placeholders and accessibility labels.
+The desktop `npm run check:i18n` contract keeps every advertised non-English core dictionary aligned with the Croatian canonical key set. The reference UI also has parity coverage across all 24 advertised locales; completion dictionaries cover the locale groups that were previously incomplete.
 
-Status: source dictionary parity is CI-gated for the 0.20.9 line; manual linguistic/visual acceptance remains separate.
+Key parity is not the same as linguistic acceptance. Target-OS QA must still review terminology, grammar, clipping, narrow-window layouts, protocol/security terminology, placeholders and accessibility labels.
+
+Android currently has production-safe English UI copy in Kotlin and does not yet advertise the desktop's 24-language set. Android must not claim full multilingual parity until user-facing strings are migrated to locale resources and automated parity checks cover them.
+
+Status: desktop source dictionary/reference-UI parity is CI-gated for the 0.30.6 line. Android localization remains a tracked product gap rather than a false completed claim.
