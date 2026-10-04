@@ -36,6 +36,10 @@ expect('single native entrypoint is shared across platforms', contains('src-taur
 expect('single main window contract remains shared', contains('src-tauri/src/lib.rs', '.inner_size(1290.0, 852.0)'));
 expect('minimum size contract remains shared', contains('src-tauri/src/lib.rs', '.min_inner_size(480.0, 600.0)'));
 expect('window decoration contract remains shared', contains('src-tauri/src/lib.rs', '.decorations(false)'));
+expect('sync local-folder hint is platform neutral', contains('src/components/SyncSettings.tsx', 'placeholder="Local folder path"'));
+expect('sync remote-folder hint is platform neutral', contains('src/components/SyncSettings.tsx', 'placeholder="Remote folder path"'));
+expect('sync form has no Windows-only sample path', !contains('src/components/SyncSettings.tsx', 'C:\\\\path\\\\to\\\\folder'));
+expect('desktop asset bootstrap resolves paths portably', contains('scripts/init-icons.mjs', 'fileURLToPath(import.meta.url)'));
 
 const failures = checks.filter((check) => !check.ok);
 if (failures.length) {
