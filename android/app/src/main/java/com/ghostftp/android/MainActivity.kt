@@ -26,6 +26,7 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Spinner
@@ -74,6 +75,7 @@ class MainActivity : Activity() {
     private lateinit var workspaceContainer: LinearLayout
     private lateinit var workspaceTitle: TextView
     private lateinit var navigationRail: View
+    private lateinit var navigationScrim: View
     private lateinit var navigationToggleButton: Button
     private var navigationOpen = false
     private lateinit var confirmationPanel: LinearLayout
@@ -201,19 +203,20 @@ class MainActivity : Activity() {
             addView(aboutSection)
         }
 
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(Brand.background)
-        }
-        navigationOpen = resources.configuration.screenWidthDp >= 600
-        val railWidth = if (resources.configuration.screenWidthDp >= 600) dp(184) else dp(152)
+        val compactNavigation = resources.configuration.screenWidthDp < 600
+        navigationOpen = !compactNavigation
+        val railWidth = if (compactNavigation) dp(152) else dp(184)
         navigationRail = buildNavigationRail().apply {
             visibility = if (navigationOpen) View.VISIBLE else View.GONE
         }
-        root.addView(
-            navigationRail,
-            LinearLayout.LayoutParams(railWidth, ViewGroup.LayoutParams.MATCH_PARENT)
-        )
+        navigationScrim = View(this).apply {
+            setBackgroundColor(Color.argb(156, 0, 0, 0))
+            visibility = View.GONE
+            isClickable = true
+            isFocusable = true
+            contentDescription = "Close navigation menu overlay"
+            setOnClickListener { setNavigationOpen(false) }
+        }
 
         contentScroll = ScrollView(this).apply {
             setBackgroundColor(Brand.background)
@@ -241,10 +244,53 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
         )
-        root.addView(
-            contentScroll,
-            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
-        )
+        val root: View = if (compactNavigation) {
+            FrameLayout(this).apply {
+                setBackgroundColor(Brand.background)
+                addView(
+                    contentScroll,
+                    FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                )
+                addView(
+                    navigationScrim,
+                    FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                )
+                addView(
+                    navigationRail,
+                    FrameLayout.LayoutParams(
+                        railWidth,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        Gravity.START
+                    )
+                )
+            }
+        } else {
+            LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setBackgroundColor(Brand.background)
+                addView(
+                    navigationRail,
+                    LinearLayout.LayoutParams(
+                        railWidth,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                )
+                addView(
+                    contentScroll,
+                    LinearLayout.LayoutParams(
+                        0,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        1f
+                    )
+                )
+            }
+        }
         setWorkspace(activeWorkspace, announce = false)
         setNavigationOpen(navigationOpen, announce = false)
         return root
@@ -723,8 +769,14 @@ class MainActivity : Activity() {
 
     private fun setNavigationOpen(open: Boolean, announce: Boolean = true) {
         navigationOpen = open
+        val compactNavigation = resources.configuration.screenWidthDp < 600
         if (::navigationRail.isInitialized) {
             navigationRail.visibility = if (open) View.VISIBLE else View.GONE
+        }
+        if (::navigationScrim.isInitialized) {
+            navigationScrim.visibility =
+                if (compactNavigation && open) View.VISIBLE else View.GONE
+            navigationScrim.isFocusable = compactNavigation && open
         }
         if (::navigationToggleButton.isInitialized) {
             navigationToggleButton.text = if (open) "←" else "☰"

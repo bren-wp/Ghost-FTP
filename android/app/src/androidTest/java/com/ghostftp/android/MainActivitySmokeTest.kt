@@ -90,6 +90,20 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun compactNavigationUsesOverlayScrimInsteadOfShrinkingContent() {
+        var compact = false
+        scenario.onActivity { activity ->
+            compact = activity.resources.configuration.screenWidthDp < 600
+        }
+        if (!compact) return
+
+        ensureNavigationOpen()
+        assertDescriptionPresent("Close navigation menu overlay")
+        clickByDescription("Close navigation menu overlay")
+        assertDescriptionPresent("Open navigation menu")
+    }
+
+    @Test
     fun helpWorkspaceExposesCanonicalProductLinks() {
         openWorkspace("Help & About")
         for (description in listOf(
