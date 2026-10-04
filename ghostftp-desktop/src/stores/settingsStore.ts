@@ -308,6 +308,7 @@ function load(): PersistedSettings {
 }
 
 let settingsPersistenceTail: Promise<void> = Promise.resolve();
+let transferEngineSettingsTail: Promise<void> = Promise.resolve();
 
 function enqueueSettingsPersistence(task: () => Promise<void>): Promise<void> {
   const run = settingsPersistenceTail.then(task, task);
@@ -315,34 +316,51 @@ function enqueueSettingsPersistence(task: () => Promise<void>): Promise<void> {
   return run;
 }
 
+function enqueueTransferEngineSettings(task: () => Promise<void>): Promise<void> {
+  const run = transferEngineSettingsTail.then(task, task);
+  transferEngineSettingsTail = run.catch(() => undefined);
+  return run;
+}
+
+const initial = load();
+const durableSettings = structuredClone(initial);
+const settingsMutationRevision = new Map<keyof PersistedSettings, number>();
+
+function nextSettingsMutationRevision<K extends keyof PersistedSettings>(key: K): number {
+  const revision = (settingsMutationRevision.get(key) ?? 0) + 1;
+  settingsMutationRevision.set(key, revision);
+  return revision;
+}
+
 /** Persist one setting to ghostftp.db in user-action order. The in-memory value
  * applies immediately; native persistence errors are surfaced to the user. */
 function persistKey<K extends keyof PersistedSettings>(key: K, value: PersistedSettings[K]) {
   return enqueueSettingsPersistence(() =>
     ipc.settingsSet(String(key), JSON.stringify(value))
-  ).catch((error) => {
+  ).then(() => {
+    durableSettings[key] = structuredClone(value);
+  }).catch((error) => {
     toastError(error, `Couldn't save preference: ${String(key)}`);
     throw error;
   });
 }
 
-const initial = load();
-
 function mutate<K extends keyof PersistedSettings>(
   set: (fn: (s: SettingsState) => Partial<SettingsState>) => void,
-  get: () => SettingsState,
+  _get: () => SettingsState,
   key: K,
   value: PersistedSettings[K]
-) {
-  const previous = structuredClone(
-    (get() as unknown as Record<string, unknown>)[key]
-  ) as PersistedSettings[K];
+): { revision: number; rollbackValue: PersistedSettings[K] } {
+  const revision = nextSettingsMutationRevision(key);
+  const rollbackValue = structuredClone(durableSettings[key]);
   set(() => ({ [key]: value }) as Partial<SettingsState>);
   void persistKey(key, value).catch(() => {
-    // Keep the visible preference aligned with durable state when persistence
-    // fails. Without this rollback a click can look successful until restart.
-    set(() => ({ [key]: previous }) as Partial<SettingsState>);
+    // A failed older write must never overwrite a newer user action. Roll back
+    // only when this mutation is still the latest request for the setting.
+    if (settingsMutationRevision.get(key) !== revision) return;
+    set(() => ({ [key]: structuredClone(rollbackValue) }) as Partial<SettingsState>);
   });
+  return { revision, rollbackValue };
 }
 
 export const useSettings = create<SettingsState>((set, get) => ({
@@ -354,44 +372,44 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setPromptOnOverwrite: (v) => mutate(set, get, "promptOnOverwrite", v),
   setTransferConcurrency: (n) => {
     const clamped = Math.max(1, Math.min(32, Math.round(finiteNumber(n, DEFAULTS.transferConcurrency))));
-    const previous = get().transferConcurrency;
-    mutate(set, get, "transferConcurrency", clamped);
-    void ipc.transferSetConcurrency(clamped).catch((error) => {
-      set({ transferConcurrency: previous });
-      void persistKey("transferConcurrency", previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
-      void ipc.transferSetConcurrency(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    const { revision, rollbackValue } = mutate(set, get, "transferConcurrency", clamped);
+    void enqueueTransferEngineSettings(() => ipc.transferSetConcurrency(clamped)).catch((error) => {
+      if (settingsMutationRevision.get("transferConcurrency") !== revision) return;
+      set({ transferConcurrency: rollbackValue });
+      void persistKey("transferConcurrency", rollbackValue).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      void enqueueTransferEngineSettings(() => ipc.transferSetConcurrency(rollbackValue)).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
       toastError(error, "Couldn't apply transfer concurrency");
     });
   },
   setMaxRetryAttempts: (n) => {
     const clamped = Math.max(0, Math.min(8, Math.round(finiteNumber(n, DEFAULTS.maxRetryAttempts))));
-    const previous = get().maxRetryAttempts;
-    mutate(set, get, "maxRetryAttempts", clamped);
-    void ipc.transferSetMaxRetries(clamped).catch((error) => {
-      set({ maxRetryAttempts: previous });
-      void persistKey("maxRetryAttempts", previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
-      void ipc.transferSetMaxRetries(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    const { revision, rollbackValue } = mutate(set, get, "maxRetryAttempts", clamped);
+    void enqueueTransferEngineSettings(() => ipc.transferSetMaxRetries(clamped)).catch((error) => {
+      if (settingsMutationRevision.get("maxRetryAttempts") !== revision) return;
+      set({ maxRetryAttempts: rollbackValue });
+      void persistKey("maxRetryAttempts", rollbackValue).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      void enqueueTransferEngineSettings(() => ipc.transferSetMaxRetries(rollbackValue)).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
       toastError(error, "Couldn't apply retry limit");
     });
   },
   setTransferThrottleKbps: (n) => {
     const clamped = Math.max(0, Math.round(finiteNumber(n, 0)));
-    const previous = get().transferThrottleKbps;
-    mutate(set, get, "transferThrottleKbps", clamped);
-    void ipc.transferSetThrottle(clamped).catch((error) => {
-      set({ transferThrottleKbps: previous });
-      void persistKey("transferThrottleKbps", previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
-      void ipc.transferSetThrottle(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    const { revision, rollbackValue } = mutate(set, get, "transferThrottleKbps", clamped);
+    void enqueueTransferEngineSettings(() => ipc.transferSetThrottle(clamped)).catch((error) => {
+      if (settingsMutationRevision.get("transferThrottleKbps") !== revision) return;
+      set({ transferThrottleKbps: rollbackValue });
+      void persistKey("transferThrottleKbps", rollbackValue).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      void enqueueTransferEngineSettings(() => ipc.transferSetThrottle(rollbackValue)).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
       toastError(error, "Couldn't apply transfer speed limit");
     });
   },
   setDeltaSync: (v) => {
-    const previous = get().deltaSync;
-    mutate(set, get, "deltaSync", v);
-    void ipc.transferSetDeltaSync(v).catch((error) => {
-      set({ deltaSync: previous });
-      void persistKey("deltaSync", previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
-      void ipc.transferSetDeltaSync(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    const { revision, rollbackValue } = mutate(set, get, "deltaSync", v);
+    void enqueueTransferEngineSettings(() => ipc.transferSetDeltaSync(v)).catch((error) => {
+      if (settingsMutationRevision.get("deltaSync") !== revision) return;
+      set({ deltaSync: rollbackValue });
+      void persistKey("deltaSync", rollbackValue).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+      void enqueueTransferEngineSettings(() => ipc.transferSetDeltaSync(rollbackValue)).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
       toastError(error, "Couldn't apply delta synchronization");
     });
   },
@@ -428,12 +446,20 @@ export const useSettings = create<SettingsState>((set, get) => ({
 /** Push the persisted transfer-engine preferences into the native queue.
  * Tauri initializes the engine with safe defaults, then this reconciles the
  * user's saved limits immediately after startup/hydration. */
+async function applyTransferEngineSnapshot(snapshot: PersistedSettings): Promise<void> {
+  await enqueueTransferEngineSettings(async () => {
+    await ipc.transferSetConcurrency(snapshot.transferConcurrency);
+    await ipc.transferSetMaxRetries(snapshot.maxRetryAttempts);
+    await ipc.transferSetThrottle(snapshot.transferThrottleKbps);
+    await ipc.transferSetDeltaSync(snapshot.deltaSync);
+  });
+}
+
 export function applyTransferEngineSettings(): void {
-  const state = useSettings.getState();
-  ipc.transferSetConcurrency(state.transferConcurrency).catch((error) => toastError(error, "Couldn't restore transfer concurrency"));
-  ipc.transferSetMaxRetries(state.maxRetryAttempts).catch((error) => toastError(error, "Couldn't restore retry limit"));
-  ipc.transferSetThrottle(state.transferThrottleKbps).catch((error) => toastError(error, "Couldn't restore transfer speed limit"));
-  ipc.transferSetDeltaSync(state.deltaSync).catch((error) => toastError(error, "Couldn't restore delta synchronization"));
+  const snapshot = captureSettingsSnapshot();
+  void applyTransferEngineSnapshot(snapshot).catch((error) =>
+    toastError(error, "Couldn't restore transfer-engine preferences")
+  );
 }
 
 export async function hydrateFromDb(): Promise<void> {
@@ -453,6 +479,11 @@ export async function hydrateFromDb(): Promise<void> {
     const known = normalizePersistedSettings(parsed);
     if (Object.keys(known).length) {
       useSettings.setState(known as Partial<SettingsState>);
+      for (const key of SETTINGS_KEYS) {
+        if (known[key] !== undefined) {
+          durableSettings[key] = structuredClone(known[key] as PersistedSettings[typeof key]);
+        }
+      }
     }
     applyTransferEngineSettings();
   } catch (error) {
@@ -483,11 +514,11 @@ export function captureSettingsSnapshot(): PersistedSettings {
  * settings store applies previews immediately. */
 export function restoreSettingsSnapshot(snapshot: PersistedSettings): void {
   useSettings.setState({ ...snapshot } as Partial<SettingsState>);
-  for (const key of SETTINGS_KEYS) persistKey(key, snapshot[key]);
-  ipc.transferSetConcurrency(snapshot.transferConcurrency).catch((error) => toastError(error, "Couldn't restore transfer concurrency"));
-  ipc.transferSetMaxRetries(snapshot.maxRetryAttempts).catch((error) => toastError(error, "Couldn't restore retry limit"));
-  ipc.transferSetThrottle(snapshot.transferThrottleKbps).catch((error) => toastError(error, "Couldn't restore transfer speed limit"));
-  ipc.transferSetDeltaSync(snapshot.deltaSync).catch((error) => toastError(error, "Couldn't restore delta synchronization"));
+  for (const key of SETTINGS_KEYS) {
+    nextSettingsMutationRevision(key);
+    void persistKey(key, snapshot[key]);
+  }
+  void applyTransferEngineSnapshot(snapshot).catch((error) => toastError(error, "Couldn't restore transfer-engine preferences"));
   (snapshot.shellIntegration ? ipc.pathAdd() : ipc.pathRemove()).catch((error) => toastError(error, "Couldn't restore shell integration"));
 }
 
@@ -544,11 +575,12 @@ export async function resetSettingsToDefaults(): Promise<void> {
         )
       )
     );
+    for (const key of SETTINGS_KEYS) {
+      durableSettings[key] = structuredClone(DEFAULTS[key]);
+      nextSettingsMutationRevision(key);
+    }
     useSettings.setState({ ...DEFAULTS } as Partial<SettingsState>);
-    await ipc.transferSetConcurrency(DEFAULTS.transferConcurrency);
-    await ipc.transferSetMaxRetries(DEFAULTS.maxRetryAttempts);
-    await ipc.transferSetThrottle(DEFAULTS.transferThrottleKbps);
-    await ipc.transferSetDeltaSync(DEFAULTS.deltaSync);
+    await applyTransferEngineSnapshot(DEFAULTS);
     await (DEFAULTS.shellIntegration ? ipc.pathAdd() : ipc.pathRemove());
   } catch (error) {
     useSettings.setState({ ...previous } as Partial<SettingsState>);
@@ -559,10 +591,7 @@ export async function resetSettingsToDefaults(): Promise<void> {
         )
       )
     ).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
-    void ipc.transferSetConcurrency(previous.transferConcurrency).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
-    void ipc.transferSetMaxRetries(previous.maxRetryAttempts).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
-    void ipc.transferSetThrottle(previous.transferThrottleKbps).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
-    void ipc.transferSetDeltaSync(previous.deltaSync).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+    void applyTransferEngineSnapshot(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
     toastError(error, "Couldn't reset preferences");
     throw error;
   }
