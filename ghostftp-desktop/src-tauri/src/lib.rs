@@ -122,10 +122,9 @@ fn open_external_url(url: String) -> Result<(), String> {
     let parsed = url::Url::parse(&url).map_err(|_| "Invalid external URL".to_string())?;
     let host = parsed.host_str().unwrap_or_default().to_ascii_lowercase();
     let path = parsed.path();
-    let approved_product_page = host == "ghostftp.com"
-        && matches!(path, "/" | "/support/" | "/privacy/" | "/docs/");
-    let approved_eula = host == "github.com"
-        && path == "/bren-wp/Ghost-FTP/blob/main/EULA.txt";
+    let approved_product_page =
+        host == "ghostftp.com" && matches!(path, "/" | "/support/" | "/privacy/" | "/docs/");
+    let approved_eula = host == "github.com" && path == "/bren-wp/Ghost-FTP/blob/main/EULA.txt";
     if parsed.scheme() != "https"
         || parsed.query().is_some()
         || parsed.fragment().is_some()

@@ -3700,7 +3700,9 @@ async fn object_exists_fail_closed(
     match store.head(path).await {
         Ok(_) => Ok(true),
         Err(object_store::Error::NotFound { .. }) => Ok(false),
-        Err(error) => Err(error).with_context(|| format!("verify object target existence for {path}")),
+        Err(error) => {
+            Err(error).with_context(|| format!("verify object target existence for {path}"))
+        }
     }
 }
 
@@ -3758,7 +3760,9 @@ async fn agent_stat(
         Response::Error {
             not_found: true, ..
         } => Ok((0, false)),
-        Response::Error { message, denied, .. } => {
+        Response::Error {
+            message, denied, ..
+        } => {
             if denied {
                 anyhow::bail!("agent stat {path}: denied by remote policy — {message}")
             }
@@ -3841,8 +3845,7 @@ async fn remote_resolve(
             })
         }
         Session::Ftp(ftp) => {
-            let exists =
-                crate::remotefs::ftp::path_exists_fail_closed(ftp, initial_remote).await?;
+            let exists = crate::remotefs::ftp::path_exists_fail_closed(ftp, initial_remote).await?;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
@@ -3851,7 +3854,8 @@ async fn remote_resolve(
                     let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
                         let session = ftp.clone();
                         async move {
-                            crate::remotefs::ftp::path_exists_fail_closed(&session, &candidate).await
+                            crate::remotefs::ftp::path_exists_fail_closed(&session, &candidate)
+                                .await
                         }
                     })
                     .await?;
@@ -3869,15 +3873,16 @@ async fn remote_resolve(
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
                     let store = obj.store.clone();
-                    let renamed = resolve_remote_rename_with_probe(initial_remote, move |candidate| {
-                        let store = store.clone();
-                        async move {
-                            let key = candidate.trim_start_matches('/');
-                            let path = object_store::path::Path::from(key);
-                            object_exists_fail_closed(&store, &path).await
-                        }
-                    })
-                    .await?;
+                    let renamed =
+                        resolve_remote_rename_with_probe(initial_remote, move |candidate| {
+                            let store = store.clone();
+                            async move {
+                                let key = candidate.trim_start_matches('/');
+                                let path = object_store::path::Path::from(key);
+                                object_exists_fail_closed(&store, &path).await
+                            }
+                        })
+                        .await?;
                     (renamed, false)
                 }
             })
@@ -3891,7 +3896,11 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
                         let session = dav.clone();
-                        async move { webdav_head(&session, &candidate).await.map(|(_, exists)| exists) }
+                        async move {
+                            webdav_head(&session, &candidate)
+                                .await
+                                .map(|(_, exists)| exists)
+                        }
                     })
                     .await?;
                     (renamed, false)
@@ -3952,7 +3961,12 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
                         let session = gd.clone();
-                        async move { session.resolve_item(&candidate).await.map(|item| item.is_some()) }
+                        async move {
+                            session
+                                .resolve_item(&candidate)
+                                .await
+                                .map(|item| item.is_some())
+                        }
                     })
                     .await?;
                     (renamed, false)
@@ -3968,7 +3982,12 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
                         let session = bx.clone();
-                        async move { session.resolve_item(&candidate).await.map(|item| item.is_some()) }
+                        async move {
+                            session
+                                .resolve_item(&candidate)
+                                .await
+                                .map(|item| item.is_some())
+                        }
                     })
                     .await?;
                     (renamed, false)
@@ -3982,11 +4001,14 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
-                        let session = sh.clone();
-                        async move { crate::remotefs::shopify::asset_exists(&session, &candidate).await }
-                    })
-                    .await?;
+                    let renamed =
+                        resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                            let session = sh.clone();
+                            async move {
+                                crate::remotefs::shopify::asset_exists(&session, &candidate).await
+                            }
+                        })
+                        .await?;
                     (renamed, false)
                 }
             })
@@ -3998,11 +4020,14 @@ async fn remote_resolve(
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
-                        let session = hs.clone();
-                        async move { crate::remotefs::hubspot::file_exists(&session, &candidate).await }
-                    })
-                    .await?;
+                    let renamed =
+                        resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                            let session = hs.clone();
+                            async move {
+                                crate::remotefs::hubspot::file_exists(&session, &candidate).await
+                            }
+                        })
+                        .await?;
                     (renamed, false)
                 }
             })
@@ -4035,7 +4060,11 @@ async fn remote_resolve(
                 OverwritePolicy::Rename => {
                     let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
                         let session = agent.clone();
-                        async move { agent_stat(&session, &candidate).await.map(|(_, exists)| exists) }
+                        async move {
+                            agent_stat(&session, &candidate)
+                                .await
+                                .map(|(_, exists)| exists)
+                        }
                     })
                     .await?;
                     (renamed, false)

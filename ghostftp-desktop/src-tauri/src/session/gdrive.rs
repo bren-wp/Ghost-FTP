@@ -242,7 +242,6 @@ impl GDriveSession {
         }
         0
     }
-
 }
 
 pub async fn gdrive_connect(profile: &ConnectionProfile) -> Result<GDriveSession> {

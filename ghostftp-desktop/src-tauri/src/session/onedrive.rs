@@ -151,7 +151,9 @@ impl OneDriveSession {
         }
         let code = status.as_u16();
         let text = resp.text().await.unwrap_or_default();
-        Err(anyhow!("graph {item_ref} existence check failed ({code}): {text}"))
+        Err(anyhow!(
+            "graph {item_ref} existence check failed ({code}): {text}"
+        ))
     }
 
     /// Size of the item at a Graph item-ref, or 0.

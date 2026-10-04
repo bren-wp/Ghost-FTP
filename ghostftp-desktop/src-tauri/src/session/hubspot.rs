@@ -337,10 +337,10 @@ impl HubSpotSession {
             serde_json::from_str(&text).with_context(|| format!("parse hubspot {api_path}"))?;
         let node = node_from_json(&value)
             .ok_or_else(|| anyhow!("hubspot {env}/{path}: malformed metadata"))?;
-        self.metadata
-            .lock()
-            .unwrap()
-            .insert((env.to_string(), path.to_string()), (Instant::now(), Arc::new(node.clone())));
+        self.metadata.lock().unwrap().insert(
+            (env.to_string(), path.to_string()),
+            (Instant::now(), Arc::new(node.clone())),
+        );
         Ok(Some(node))
     }
 

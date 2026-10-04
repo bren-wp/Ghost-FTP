@@ -238,7 +238,6 @@ impl BoxSession {
         }
         0
     }
-
 }
 
 pub async fn box_connect(profile: &ConnectionProfile) -> Result<BoxSession> {

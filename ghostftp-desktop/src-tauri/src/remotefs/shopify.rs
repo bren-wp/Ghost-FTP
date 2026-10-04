@@ -495,13 +495,19 @@ mod tests {
         fs.rename("/Draft/assets/rl429.txt", "/Draft/assets/moved.txt")
             .await
             .expect("rename");
-        assert!(asset_exists(&session, "/Draft/assets/moved.txt").await.expect("moved exists"));
-        assert!(!asset_exists(&session, "/Draft/assets/rl429.txt").await.expect("old path absent"));
+        assert!(asset_exists(&session, "/Draft/assets/moved.txt")
+            .await
+            .expect("moved exists"));
+        assert!(!asset_exists(&session, "/Draft/assets/rl429.txt")
+            .await
+            .expect("old path absent"));
 
         fs.delete("/Draft/assets/moved.txt", false)
             .await
             .expect("delete");
-        assert!(!asset_exists(&session, "/Draft/assets/moved.txt").await);
+        assert!(!asset_exists(&session, "/Draft/assets/moved.txt")
+            .await
+            .expect("deleted asset absent"));
 
         // mkdir materializes a hidden placeholder; recursive delete walks it.
         fs.create_dir("/Draft/snippets/ghostftp-dir")
@@ -517,7 +523,9 @@ mod tests {
         fs.delete("/Draft/snippets/ghostftp-dir", true)
             .await
             .expect("rmdir");
-        assert!(!asset_exists(&session, "/Draft/snippets/ghostftp-dir").await);
+        assert!(!asset_exists(&session, "/Draft/snippets/ghostftp-dir")
+            .await
+            .expect("deleted directory absent"));
 
         // Static-token flavor: the secret passes through untouched.
         let pid2 = "shopify-mock-static";
