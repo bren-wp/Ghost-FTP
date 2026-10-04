@@ -117,19 +117,22 @@ fn build_settings_init_script(db: &db::Db) -> String {
     )
 }
 
-#[tauri::command]
-fn open_external_url(url: String) -> Result<(), String> {
-    let parsed = url::Url::parse(&url).map_err(|_| "Invalid external URL".to_string())?;
+fn is_approved_external_url(parsed: &url::Url) -> bool {
     let host = parsed.host_str().unwrap_or_default().to_ascii_lowercase();
     let path = parsed.path();
     let approved_product_page =
         host == "ghostftp.com" && matches!(path, "/" | "/support/" | "/privacy/" | "/docs/");
     let approved_eula = host == "github.com" && path == "/bren-wp/Ghost-FTP/blob/main/EULA.txt";
-    if parsed.scheme() != "https"
-        || parsed.query().is_some()
-        || parsed.fragment().is_some()
-        || !(approved_product_page || approved_eula)
-    {
+    parsed.scheme() == "https"
+        && parsed.query().is_none()
+        && parsed.fragment().is_none()
+        && (approved_product_page || approved_eula)
+}
+
+#[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    let parsed = url::Url::parse(&url).map_err(|_| "Invalid external URL".to_string())?;
+    if !is_approved_external_url(&parsed) {
         return Err("Ghost FTP only opens approved official product links".to_string());
     }
 
@@ -545,6 +548,35 @@ pub fn run() {
 #[cfg(test)]
 mod init_script_tests {
     use super::*;
+
+    #[test]
+    fn approved_external_urls_are_exact_and_fail_closed() {
+        for allowed in [
+            "https://ghostftp.com/",
+            "https://ghostftp.com/support/",
+            "https://ghostftp.com/privacy/",
+            "https://ghostftp.com/docs/",
+            "https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt",
+        ] {
+            let parsed = url::Url::parse(allowed).unwrap();
+            assert!(is_approved_external_url(&parsed), "expected approved URL: {allowed}");
+        }
+
+        for blocked in [
+            "http://ghostftp.com/support/",
+            "https://www.ghostftp.com/support/",
+            "https://ghostftp.com.evil.example/support/",
+            "https://evil.example/https://ghostftp.com/support/",
+            "https://ghostftp.com/support/?next=https://evil.example",
+            "https://ghostftp.com/support/#redirect",
+            "https://ghostftp.com/terms/",
+            "https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt?raw=1",
+            "https://github.com/bren-wp/Ghost-FTP/blob/dev/EULA.txt",
+        ] {
+            let parsed = url::Url::parse(blocked).unwrap();
+            assert!(!is_approved_external_url(&parsed), "expected blocked URL: {blocked}");
+        }
+    }
 
     #[test]
     fn injects_theme_and_snapshot() {
