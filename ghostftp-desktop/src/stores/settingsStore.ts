@@ -638,14 +638,34 @@ export async function resetSettingsToDefaults(): Promise<void> {
     await (DEFAULTS.shellIntegration ? ipc.pathAdd() : ipc.pathRemove());
   } catch (error) {
     useSettings.setState({ ...previous } as Partial<SettingsState>);
-    void enqueueSettingsPersistence(() =>
-      ipc.settingsSetAll(
-        Object.fromEntries(
-          SETTINGS_KEYS.map((key) => [String(key), JSON.stringify(previous[key])])
-        )
-      )
-    ).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
-    void applyTransferEngineSnapshot(previous).catch((rollbackError) => console.warn("Ghost FTP settings rollback failed", rollbackError));
+
+    try {
+      await enqueueSettingsPersistence(async () => {
+        await ipc.settingsSetAll(
+          Object.fromEntries(
+            SETTINGS_KEYS.map((key) => [String(key), JSON.stringify(previous[key])])
+          )
+        );
+        for (const key of SETTINGS_KEYS) {
+          rememberDurableSetting(key, previous[key]);
+        }
+      });
+    } catch (rollbackError) {
+      console.warn("Ghost FTP settings database rollback failed", rollbackError);
+    }
+
+    try {
+      await applyTransferEngineSnapshot(previous);
+    } catch (rollbackError) {
+      console.warn("Ghost FTP transfer-engine rollback failed", rollbackError);
+    }
+
+    try {
+      await (previous.shellIntegration ? ipc.pathAdd() : ipc.pathRemove());
+    } catch (rollbackError) {
+      console.warn("Ghost FTP shell-integration rollback failed", rollbackError);
+    }
+
     toastError(error, "Couldn't reset preferences");
     throw error;
   }
