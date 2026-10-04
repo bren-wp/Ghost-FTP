@@ -1,6 +1,9 @@
 package com.ghostftp.android
 
+import android.app.Activity
+import android.content.Intent
 import android.graphics.Rect
+import android.net.Uri
 import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
@@ -178,6 +181,25 @@ class MainActivitySmokeTest {
         assertTextPresent("Connection form reset.")
 
         assertDescriptionEnabled("Settings disconnect session", false)
+    }
+
+    @Test
+    fun unreadablePickerUriIsRejectedFailClosed() {
+        scenario.onActivity { activity ->
+            activity.onActivityResult(
+                22091,
+                Activity.RESULT_OK,
+                Intent().apply {
+                    data = Uri.parse("content://com.ghostftp.android.missing/not-readable")
+                }
+            )
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        SystemClock.sleep(120)
+
+        assertTextPresent("Selected file unavailable")
+        clickByDescription("Open Transfers workspace")
+        assertDescriptionEnabled("Upload selected file", false)
     }
 
     @Test
