@@ -262,6 +262,7 @@ require_text "refresh explicit profile" "$MAIN_ACTIVITY" 'openConnection(refresh
 require_text "destroy operation invalidation" "$MAIN_ACTIVITY" 'operationGeneration += 1'
 require_text "parallel operation guard" "$MAIN_ACTIVITY" 'if (operationInFlight) return'
 require_text "password view-state disabled" "$MAIN_ACTIVITY" 'isSaveEnabled = false'
+require_text "password autofill disabled" "$MAIN_ACTIVITY" 'importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS'
 require_text "password destroy cleanup" "$MAIN_ACTIVITY" 'if (::passwordInput.isInitialized) passwordInput.text.clear()'
 require_text "Activity non-secret state persistence" "$MAIN_ACTIVITY" 'override fun onSaveInstanceState(outState: Bundle)'
 require_text "Activity active operation cancellation" "$MAIN_ACTIVITY" 'activeCancellation?.cancel()'
