@@ -193,6 +193,14 @@ async function runBatch(
 
     try {
       await start(item, policy);
+      // Reserve the destination name immediately after a successful enqueue.
+      // Otherwise two source entries with the same basename in one batch can
+      // both observe the initial destination snapshot as free and race to the
+      // same target.
+      existing.set(name, {
+        size: item.size ?? 0,
+        modified: item.modified,
+      });
     } catch (error) {
       toastError(error, `Couldn't queue ${baseName(item.path)}`);
     }
