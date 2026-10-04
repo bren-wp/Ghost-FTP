@@ -3826,27 +3826,21 @@ async fn remote_resolve(
             })
         }
         Session::Ftp(ftp) => {
-            let probe = initial_remote.to_string();
-            let exists = ftp.with_stream(move |s| Ok(s.size(&probe).is_ok())).await?;
+            let exists =
+                crate::remotefs::ftp::path_exists_fail_closed(ftp, initial_remote).await?;
             Ok(match policy {
                 OverwritePolicy::Overwrite => (initial_remote.to_string(), false),
                 OverwritePolicy::Skip => (initial_remote.to_string(), exists),
                 OverwritePolicy::Rename if !exists => (initial_remote.to_string(), false),
                 OverwritePolicy::Rename => {
-                    let session = ftp.clone();
-                    for i in 1..=MAX_RENAME_CANDIDATES {
-                        let candidate = remote_rename_candidate(initial_remote, i);
-                        let probe = candidate.clone();
-                        let found = session
-                            .with_stream(move |s| Ok(s.size(&probe).is_ok()))
-                            .await?;
-                        if !found {
-                            return Ok((candidate, false));
+                    let renamed = resolve_remote_rename_with_probe(initial_remote, |candidate| {
+                        let session = ftp.clone();
+                        async move {
+                            crate::remotefs::ftp::path_exists_fail_closed(&session, &candidate).await
                         }
-                    }
-                    anyhow::bail!(
-                        "no free remote rename target after {MAX_RENAME_CANDIDATES} candidates for {initial_remote}"
-                    )
+                    })
+                    .await?;
+                    (renamed, false)
                 }
             })
         }
