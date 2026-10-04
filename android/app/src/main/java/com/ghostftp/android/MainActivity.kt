@@ -47,6 +47,8 @@ class MainActivity : Activity() {
 
     private val controller = ConnectionController()
     private val remoteActionButtons = mutableListOf<Button>()
+    private val busySensitiveLocalButtons = mutableListOf<Button>()
+    private val sessionDisconnectButtons = mutableListOf<Button>()
     private lateinit var statusTitle: TextView
     private lateinit var statusDetail: TextView
     private lateinit var hostInput: EditText
@@ -498,9 +500,9 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(10), 0, 0)
         }
-        uploadRow.addView(secondaryButton("Pick file") { selectUploadFile() }.apply {
+        uploadRow.addView(trackBusySensitiveLocalAction(secondaryButton("Pick file") { selectUploadFile() }.apply {
             contentDescription = "Pick upload file"
-        }, buttonParams(weight = 1f))
+        }), buttonParams(weight = 1f))
         uploadRow.addView(gap(8))
         uploadRow.addView(trackRemoteAction(secondaryButton("Upload") { uploadSelectedFile() }.apply {
             contentDescription = "Upload selected file"
@@ -530,9 +532,9 @@ class MainActivity : Activity() {
             contentDescription = "Clear activity log"
         }, buttonParams(weight = 1f))
         firstRow.addView(gap(8))
-        firstRow.addView(secondaryButton("Reset Transfers") { resetTransferFields() }.apply {
+        firstRow.addView(trackBusySensitiveLocalAction(secondaryButton("Reset Transfers") { resetTransferFields() }.apply {
             contentDescription = "Reset transfer fields"
-        }, buttonParams(weight = 1f))
+        }), buttonParams(weight = 1f))
         addView(firstRow)
 
         val secondRow = LinearLayout(this@MainActivity).apply {
@@ -540,13 +542,13 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(8), 0, 0)
         }
-        secondRow.addView(secondaryButton("Reset Connection") { resetConnectionForm() }.apply {
+        secondRow.addView(trackBusySensitiveLocalAction(secondaryButton("Reset Connection") { resetConnectionForm() }.apply {
             contentDescription = "Reset connection form"
-        }, buttonParams(weight = 1f))
+        }), buttonParams(weight = 1f))
         secondRow.addView(gap(8))
-        secondRow.addView(secondaryButton("Disconnect") { disconnect() }.apply {
+        secondRow.addView(trackSessionDisconnect(secondaryButton("Disconnect") { disconnect() }.apply {
             contentDescription = "Settings disconnect session"
-        }, buttonParams(weight = 1f))
+        }), buttonParams(weight = 1f))
         addView(secondRow)
     }
 
@@ -779,6 +781,8 @@ class MainActivity : Activity() {
         refreshButton.isEnabled = !busy && hasActiveSession
         disconnectButton.isEnabled = hasActiveSession
         remoteActionButtons.forEach { it.isEnabled = !busy && hasActiveSession }
+        busySensitiveLocalButtons.forEach { it.isEnabled = !busy }
+        sessionDisconnectButtons.forEach { it.isEnabled = hasActiveSession }
     }
 
     private fun uploadOrPickFile() {
@@ -1275,6 +1279,16 @@ class MainActivity : Activity() {
 
     private fun trackRemoteAction(button: Button): Button {
         remoteActionButtons.add(button)
+        return button
+    }
+
+    private fun trackBusySensitiveLocalAction(button: Button): Button {
+        busySensitiveLocalButtons.add(button)
+        return button
+    }
+
+    private fun trackSessionDisconnect(button: Button): Button {
+        sessionDisconnectButtons.add(button)
         return button
     }
 
