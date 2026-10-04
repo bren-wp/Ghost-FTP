@@ -5,4 +5,15 @@
     <string name="workspace_transfers">Übertragungen</string>
     <string name="workspace_settings">Einstellungen</string>
     <string name="workspace_about">Hilfe und Info</string>
+    <string name="action_refresh">Aktualisieren</string>
+    <string name="action_upload">Hochladen</string>
+    <string name="action_download">Herunterladen</string>
+    <string name="action_new_folder">Neuer Ordner</string>
+    <string name="action_rename">Umbenennen</string>
+    <string name="action_delete">Löschen</string>
+    <string name="action_cancel">Abbrechen</string>
+    <string name="action_confirm">Bestätigen</string>
+    <string name="action_connect">Verbinden</string>
+    <string name="action_disconnect">Trennen</string>
+    <string name="action_pick_file">Datei auswählen</string>
 </resources>

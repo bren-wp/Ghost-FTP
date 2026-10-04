@@ -5,4 +5,15 @@
     <string name="workspace_transfers">Overførsler</string>
     <string name="workspace_settings">Indstillinger</string>
     <string name="workspace_about">Hjælp og om</string>
+    <string name="action_refresh">Opdater</string>
+    <string name="action_upload">Upload</string>
+    <string name="action_download">Download</string>
+    <string name="action_new_folder">Ny mappe</string>
+    <string name="action_rename">Omdøb</string>
+    <string name="action_delete">Slet</string>
+    <string name="action_cancel">Annuller</string>
+    <string name="action_confirm">Bekræft</string>
+    <string name="action_connect">Opret forbindelse</string>
+    <string name="action_disconnect">Afbryd</string>
+    <string name="action_pick_file">Vælg fil</string>
 </resources>

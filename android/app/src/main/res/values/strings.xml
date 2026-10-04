@@ -9,4 +9,15 @@
     <string name="workspace_open">Open %1$s workspace</string>
     <string name="workspace_content">%1$s workspace content</string>
     <string name="workspace_announce">%1$s workspace</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_upload">Upload</string>
+    <string name="action_download">Download</string>
+    <string name="action_new_folder">New Folder</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="action_pick_file">Pick file</string>
 </resources>

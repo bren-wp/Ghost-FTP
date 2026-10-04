@@ -5,4 +5,15 @@
     <string name="workspace_transfers">Prenosi</string>
     <string name="workspace_settings">Podešavanja</string>
     <string name="workspace_about">Pomoć i informacije</string>
+    <string name="action_refresh">Osveži</string>
+    <string name="action_upload">Otpremi</string>
+    <string name="action_download">Preuzmi</string>
+    <string name="action_new_folder">Nova fascikla</string>
+    <string name="action_rename">Preimenuj</string>
+    <string name="action_delete">Obriši</string>
+    <string name="action_cancel">Otkaži</string>
+    <string name="action_confirm">Potvrdi</string>
+    <string name="action_connect">Poveži se</string>
+    <string name="action_disconnect">Prekini vezu</string>
+    <string name="action_pick_file">Izaberi datoteku</string>
 </resources>

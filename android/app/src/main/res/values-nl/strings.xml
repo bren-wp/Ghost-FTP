@@ -5,4 +5,15 @@
     <string name="workspace_transfers">Overdrachten</string>
     <string name="workspace_settings">Instellingen</string>
     <string name="workspace_about">Help en Info</string>
+    <string name="action_refresh">Vernieuwen</string>
+    <string name="action_upload">Uploaden</string>
+    <string name="action_download">Downloaden</string>
+    <string name="action_new_folder">Nieuwe map</string>
+    <string name="action_rename">Hernoemen</string>
+    <string name="action_delete">Verwijderen</string>
+    <string name="action_cancel">Annuleren</string>
+    <string name="action_confirm">Bevestigen</string>
+    <string name="action_connect">Verbinden</string>
+    <string name="action_disconnect">Verbinding verbreken</string>
+    <string name="action_pick_file">Bestand kiezen</string>
 </resources>

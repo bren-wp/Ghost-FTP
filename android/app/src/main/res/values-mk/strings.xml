@@ -5,4 +5,15 @@
     <string name="workspace_transfers">Преноси</string>
     <string name="workspace_settings">Поставки</string>
     <string name="workspace_about">Помош и информации</string>
+    <string name="action_refresh">Освежи</string>
+    <string name="action_upload">Постави</string>
+    <string name="action_download">Преземи</string>
+    <string name="action_new_folder">Нова папка</string>
+    <string name="action_rename">Преименувај</string>
+    <string name="action_delete">Избриши</string>
+    <string name="action_cancel">Откажи</string>
+    <string name="action_confirm">Потврди</string>
+    <string name="action_connect">Поврзи се</string>
+    <string name="action_disconnect">Прекини врска</string>
+    <string name="action_pick_file">Избери датотека</string>
 </resources>

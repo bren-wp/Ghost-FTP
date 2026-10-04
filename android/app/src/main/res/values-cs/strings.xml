@@ -5,4 +5,15 @@
     <string name="workspace_transfers">Přenosy</string>
     <string name="workspace_settings">Nastavení</string>
     <string name="workspace_about">Nápověda a informace</string>
+    <string name="action_refresh">Obnovit</string>
+    <string name="action_upload">Nahrát</string>
+    <string name="action_download">Stáhnout</string>
+    <string name="action_new_folder">Nová složka</string>
+    <string name="action_rename">Přejmenovat</string>
+    <string name="action_delete">Odstranit</string>
+    <string name="action_cancel">Zrušit</string>
+    <string name="action_confirm">Potvrdit</string>
+    <string name="action_connect">Připojit</string>
+    <string name="action_disconnect">Odpojit</string>
+    <string name="action_pick_file">Vybrat soubor</string>
 </resources>

@@ -89,7 +89,12 @@ require_text "badge" "$RELEASE_INFO" "VERSION_BADGE = \"$VERSION\""
 require_text "build" "$RELEASE_INFO" "BUILD = \"$BUILD\""
 ANDROID_STRINGS="$ANDROID_DIR/app/src/main/res/values/strings.xml"
 require_text "app label" "$ANDROID_STRINGS" '<string name="app_name">Ghost FTP</string>'
-for key in workspace_files workspace_sites workspace_transfers workspace_settings workspace_about; do
+localization_keys=(
+  workspace_files workspace_sites workspace_transfers workspace_settings workspace_about
+  action_refresh action_upload action_download action_new_folder action_rename action_delete
+  action_cancel action_confirm action_connect action_disconnect action_pick_file
+)
+for key in "${localization_keys[@]}"; do
   require_text "default Android localization key $key" "$ANDROID_STRINGS" "<string name=\"$key\">"
 done
 
@@ -100,7 +105,7 @@ for locale in "${android_locales[@]}"; do
     echo "Android contract failed: missing localization resource $locale_file"
     exit 1
   }
-  for key in workspace_files workspace_sites workspace_transfers workspace_settings workspace_about; do
+  for key in "${localization_keys[@]}"; do
     require_text "Android $locale localization key $key" "$locale_file" "<string name=\"$key\">"
   done
 done
@@ -144,20 +149,20 @@ require_text "busy-sensitive Android local actions" "$MAIN_ACTIVITY" 'busySensit
 require_text "session-aware Android settings disconnect" "$MAIN_ACTIVITY" 'sessionDisconnectButtons.forEach { it.isEnabled = hasActiveSession }'
 require_text "busy-sensitive Android action tracker" "$MAIN_ACTIVITY" 'private fun trackBusySensitiveLocalAction(button: Button): Button'
 require_text "session disconnect Android action tracker" "$MAIN_ACTIVITY" 'private fun trackSessionDisconnect(button: Button): Button'
-require_text "desktop parity refresh toolbar" "$MAIN_ACTIVITY" 'trackRemoteAction(toolbarButton("Refresh")'
-require_text "desktop parity upload toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Upload")'
-require_text "desktop parity download toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Download")'
-require_text "desktop parity new folder toolbar" "$MAIN_ACTIVITY" 'toolbarButton("New Folder")'
-require_text "desktop parity rename toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Rename")'
-require_text "desktop parity delete toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Delete", destructive = true)'
+require_text "desktop parity refresh toolbar" "$MAIN_ACTIVITY" 'trackRemoteAction(toolbarButton(getString(R.string.action_refresh))'
+require_text "desktop parity upload toolbar" "$MAIN_ACTIVITY" 'toolbarButton(getString(R.string.action_upload))'
+require_text "desktop parity download toolbar" "$MAIN_ACTIVITY" 'toolbarButton(getString(R.string.action_download))'
+require_text "desktop parity new folder toolbar" "$MAIN_ACTIVITY" 'toolbarButton(getString(R.string.action_new_folder))'
+require_text "desktop parity rename toolbar" "$MAIN_ACTIVITY" 'toolbarButton(getString(R.string.action_rename))'
+require_text "desktop parity delete toolbar" "$MAIN_ACTIVITY" 'toolbarButton(getString(R.string.action_delete), destructive = true)'
 require_text "desktop parity ghost midnight background" "$MAIN_ACTIVITY" 'Color.rgb(13, 17, 23)'
 require_text "desktop parity ghost midnight accent" "$MAIN_ACTIVITY" 'Color.rgb(47, 129, 247)'
 
-require_text "connect action" "$MAIN_ACTIVITY" 'primaryButton("Connect")'
-require_text "disconnect action" "$MAIN_ACTIVITY" 'secondaryButton("Disconnect")'
-require_text "refresh action" "$MAIN_ACTIVITY" 'secondaryButton("Refresh")'
-require_text "upload pick action" "$MAIN_ACTIVITY" 'secondaryButton("Pick file")'
-require_text "upload action" "$MAIN_ACTIVITY" 'secondaryButton("Upload")'
+require_text "connect action" "$MAIN_ACTIVITY" 'primaryButton(getString(R.string.action_connect))'
+require_text "disconnect action" "$MAIN_ACTIVITY" 'secondaryButton(getString(R.string.action_disconnect))'
+require_text "refresh action" "$MAIN_ACTIVITY" 'secondaryButton(getString(R.string.action_refresh))'
+require_text "upload pick action" "$MAIN_ACTIVITY" 'secondaryButton(getString(R.string.action_pick_file))'
+require_text "upload action" "$MAIN_ACTIVITY" 'secondaryButton(getString(R.string.action_upload))'
 require_text "working Android Settings clear activity action" "$MAIN_ACTIVITY" 'contentDescription = "Clear activity log"'
 require_text "working Android Settings reset transfers action" "$MAIN_ACTIVITY" 'contentDescription = "Reset transfer fields"'
 require_text "working Android Settings reset connection action" "$MAIN_ACTIVITY" 'contentDescription = "Reset connection form"'

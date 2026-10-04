@@ -5,4 +5,15 @@
     <string name="workspace_transfers">Átvitelek</string>
     <string name="workspace_settings">Beállítások</string>
     <string name="workspace_about">Súgó és névjegy</string>
+    <string name="action_refresh">Frissítés</string>
+    <string name="action_upload">Feltöltés</string>
+    <string name="action_download">Letöltés</string>
+    <string name="action_new_folder">Új mappa</string>
+    <string name="action_rename">Átnevezés</string>
+    <string name="action_delete">Törlés</string>
+    <string name="action_cancel">Mégse</string>
+    <string name="action_confirm">Megerősítés</string>
+    <string name="action_connect">Csatlakozás</string>
+    <string name="action_disconnect">Leválasztás</string>
+    <string name="action_pick_file">Fájl kiválasztása</string>
 </resources>

@@ -5,4 +5,15 @@
     <string name="workspace_transfers">Μεταφορές</string>
     <string name="workspace_settings">Ρυθμίσεις</string>
     <string name="workspace_about">Βοήθεια και πληροφορίες</string>
+    <string name="action_refresh">Ανανέωση</string>
+    <string name="action_upload">Μεταφόρτωση</string>
+    <string name="action_download">Λήψη</string>
+    <string name="action_new_folder">Νέος φάκελος</string>
+    <string name="action_rename">Μετονομασία</string>
+    <string name="action_delete">Διαγραφή</string>
+    <string name="action_cancel">Ακύρωση</string>
+    <string name="action_confirm">Επιβεβαίωση</string>
+    <string name="action_connect">Σύνδεση</string>
+    <string name="action_disconnect">Αποσύνδεση</string>
+    <string name="action_pick_file">Επιλογή αρχείου</string>
 </resources>

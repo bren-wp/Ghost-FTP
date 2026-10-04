@@ -5,4 +5,15 @@
     <string name="workspace_transfers">Передавання</string>
     <string name="workspace_settings">Налаштування</string>
     <string name="workspace_about">Довідка та відомості</string>
+    <string name="action_refresh">Оновити</string>
+    <string name="action_upload">Вивантажити</string>
+    <string name="action_download">Завантажити</string>
+    <string name="action_new_folder">Нова папка</string>
+    <string name="action_rename">Перейменувати</string>
+    <string name="action_delete">Видалити</string>
+    <string name="action_cancel">Скасувати</string>
+    <string name="action_confirm">Підтвердити</string>
+    <string name="action_connect">Підключитися</string>
+    <string name="action_disconnect">Відключитися</string>
+    <string name="action_pick_file">Вибрати файл</string>
 </resources>

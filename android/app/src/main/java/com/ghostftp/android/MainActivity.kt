@@ -393,11 +393,11 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        toolbar.addView(trackRemoteAction(toolbarButton("Refresh") { refreshActive() }), buttonParams(weight = 1f))
+        toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_refresh)) { refreshActive() }), buttonParams(weight = 1f))
         toolbar.addView(gap(8))
-        toolbar.addView(trackRemoteAction(toolbarButton("Upload") { uploadOrPickFile() }), buttonParams(weight = 1f))
+        toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_upload)) { uploadOrPickFile() }), buttonParams(weight = 1f))
         toolbar.addView(gap(8))
-        toolbar.addView(trackRemoteAction(toolbarButton("Download") { downloadRemoteFile() }), buttonParams(weight = 1f))
+        toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_download)) { downloadRemoteFile() }), buttonParams(weight = 1f))
         addView(toolbar)
 
         val toolbarMore = LinearLayout(this@MainActivity).apply {
@@ -405,11 +405,11 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(8), 0, 0)
         }
-        toolbarMore.addView(trackRemoteAction(toolbarButton("New Folder") { createRemoteFolder() }), buttonParams(weight = 1f))
+        toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_new_folder)) { createRemoteFolder() }), buttonParams(weight = 1f))
         toolbarMore.addView(gap(8))
-        toolbarMore.addView(trackRemoteAction(toolbarButton("Rename") { renameRemoteEntry() }), buttonParams(weight = 1f))
+        toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_rename)) { renameRemoteEntry() }), buttonParams(weight = 1f))
         toolbarMore.addView(gap(8))
-        toolbarMore.addView(trackRemoteAction(toolbarButton("Delete", destructive = true) { deleteRemoteFile() }), buttonParams(weight = 1f))
+        toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_delete), destructive = true) { deleteRemoteFile() }), buttonParams(weight = 1f))
         addView(toolbarMore)
     }
 
@@ -451,13 +451,13 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        actions.addView(secondaryButton("Cancel") {
+        actions.addView(secondaryButton(getString(R.string.action_cancel)) {
             clearInlineConfirmation()
         }.apply {
             contentDescription = "Cancel inline confirmation"
         }, buttonParams(weight = 1f))
         actions.addView(gap(8))
-        confirmationAction = primaryButton("Confirm") {
+        confirmationAction = primaryButton(getString(R.string.action_confirm)) {
             val action = pendingConfirmation
             clearInlineConfirmation()
             if (!closingOrDestroyed()) action?.invoke()
@@ -551,13 +551,13 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(14), 0, 0)
         }
-        connectButton = primaryButton("Connect") { openConnection() }.apply {
+        connectButton = primaryButton(getString(R.string.action_connect)) { openConnection() }.apply {
             contentDescription = "Connect to server"
         }
-        disconnectButton = secondaryButton("Disconnect") { disconnect() }.apply {
+        disconnectButton = secondaryButton(getString(R.string.action_disconnect)) { disconnect() }.apply {
             contentDescription = "Disconnect from server"
         }
-        refreshButton = secondaryButton("Refresh") { refreshActive() }.apply {
+        refreshButton = secondaryButton(getString(R.string.action_refresh)) { refreshActive() }.apply {
             contentDescription = "Refresh current session"
         }
         actions.addView(connectButton, buttonParams(weight = 1f))
@@ -666,11 +666,11 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(10), 0, 0)
         }
-        uploadRow.addView(trackBusySensitiveLocalAction(secondaryButton("Pick file") { selectUploadFile() }.apply {
+        uploadRow.addView(trackBusySensitiveLocalAction(secondaryButton(getString(R.string.action_pick_file)) { selectUploadFile() }.apply {
             contentDescription = "Pick upload file"
         }), buttonParams(weight = 1f))
         uploadRow.addView(gap(8))
-        uploadRow.addView(trackRemoteAction(secondaryButton("Upload") { uploadSelectedFile() }.apply {
+        uploadRow.addView(trackRemoteAction(secondaryButton(getString(R.string.action_upload)) { uploadSelectedFile() }.apply {
             contentDescription = "Upload selected file"
         }), buttonParams(weight = 1f))
         addView(uploadRow)
@@ -712,7 +712,7 @@ class MainActivity : Activity() {
             contentDescription = "Reset connection form"
         }), buttonParams(weight = 1f))
         secondRow.addView(gap(8))
-        secondRow.addView(trackSessionDisconnect(secondaryButton("Disconnect") { disconnect() }.apply {
+        secondRow.addView(trackSessionDisconnect(secondaryButton(getString(R.string.action_disconnect)) { disconnect() }.apply {
             contentDescription = "Settings disconnect session"
         }), buttonParams(weight = 1f))
         addView(secondRow)

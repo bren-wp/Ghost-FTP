@@ -5,4 +5,15 @@
     <string name="workspace_transfers">Прехвърляния</string>
     <string name="workspace_settings">Настройки</string>
     <string name="workspace_about">Помощ и информация</string>
+    <string name="action_refresh">Обнови</string>
+    <string name="action_upload">Качи</string>
+    <string name="action_download">Изтегли</string>
+    <string name="action_new_folder">Нова папка</string>
+    <string name="action_rename">Преименувай</string>
+    <string name="action_delete">Изтрий</string>
+    <string name="action_cancel">Отказ</string>
+    <string name="action_confirm">Потвърди</string>
+    <string name="action_connect">Свържи</string>
+    <string name="action_disconnect">Прекъсни</string>
+    <string name="action_pick_file">Избери файл</string>
 </resources>
