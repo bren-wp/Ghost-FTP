@@ -921,7 +921,7 @@ mod tests {
         assert!(!file_exists(&session, js).await.expect("old path absent"));
 
         fs.delete(moved, false).await.expect("delete");
-        assert!(!file_exists(&session, moved).await);
+        assert!(!file_exists(&session, moved).await.expect("deleted path absent"));
 
         // mkdir materializes a hidden placeholder; recursive delete walks it.
         fs.create_dir("/design (draft)/themes/example/ghostftp-dir")
@@ -940,7 +940,7 @@ mod tests {
         fs.delete("/design (draft)/themes/example/ghostftp-dir", true)
             .await
             .expect("rmdir");
-        assert!(!file_exists(&session, "/design (draft)/themes/example/ghostftp-dir").await);
+        assert!(!file_exists(&session, "/design (draft)/themes/example/ghostftp-dir").await.expect("deleted directory absent"));
 
         // ---- /files/ root (Files API v3) ----
 
@@ -989,13 +989,13 @@ mod tests {
             b"quarterly numbers"
         );
         assert_eq!(file_size(&session, report).await, 17);
-        assert!(file_exists(&session, report).await);
+        assert!(file_exists(&session, report).await.expect("report exists"));
 
         // File rename = PATCH name (same folder only).
         let renamed = "/files/ghostftp-qa/report-final.exe";
         fs.rename(report, renamed).await.expect("file rename");
-        assert!(file_exists(&session, renamed).await);
-        assert!(!file_exists(&session, report).await);
+        assert!(file_exists(&session, renamed).await.expect("renamed file exists"));
+        assert!(!file_exists(&session, report).await.expect("old report absent"));
         assert!(fs.rename(renamed, "/files/library/x.exe").await.is_err());
 
         // Folder rename = PATCH folder + async task poll; the tree refresh
@@ -1003,14 +1003,14 @@ mod tests {
         fs.rename("/files/ghostftp-qa", "/files/ghostftp-qa2")
             .await
             .expect("folder rename");
-        assert!(file_exists(&session, "/files/ghostftp-qa2/report-final.exe").await);
-        assert!(!file_exists(&session, "/files/ghostftp-qa").await);
+        assert!(file_exists(&session, "/files/ghostftp-qa2/report-final.exe").await.expect("final report exists"));
+        assert!(!file_exists(&session, "/files/ghostftp-qa").await.expect("old file tree absent"));
 
         // Recursive delete walks files, then folders bottom-up.
         fs.delete("/files/ghostftp-qa2", true)
             .await
             .expect("recursive delete");
-        assert!(!file_exists(&session, "/files/ghostftp-qa2").await);
+        assert!(!file_exists(&session, "/files/ghostftp-qa2").await.expect("deleted file tree absent"));
 
         // ---- /hubdb/ root (HubDB API v3, read-only virtual CSVs) ----
 
@@ -1030,9 +1030,9 @@ mod tests {
         assert!(hubdb_root.iter().any(|e| e.name == "team.csv"));
         assert!(hubdb_root.iter().any(|e| e.name == "archive.csv"));
         assert!(fs.list_dir("/hubdb/pricing.csv").await.is_err()); // not a dir
-        assert!(file_exists(&session, "/hubdb").await);
-        assert!(file_exists(&session, "/hubdb/pricing.csv").await);
-        assert!(!file_exists(&session, "/hubdb/nope.csv").await);
+        assert!(file_exists(&session, "/hubdb").await.expect("hubdb root exists"));
+        assert!(file_exists(&session, "/hubdb/pricing.csv").await.expect("hubdb table exists"));
+        assert!(!file_exists(&session, "/hubdb/nope.csv").await.expect("missing hubdb table absent"));
 
         // CSV read: `id` first, then columns in schema order; RFC-4180
         // quoting (comma, quotes, embedded newline), null + missing values
