@@ -7,7 +7,7 @@ import { useConnections } from "@/stores/connectionsStore";
 import { useDialog } from "@/hooks/useDialog";
 import { GhostMark } from "./GhostBrand";
 import { ipc } from "@/lib/ipc";
-import { messageOf, toastError } from "@/lib/errors";
+import { toastError } from "@/lib/errors";
 
 interface Props {
   prefill?: Partial<ConnectionProfile> | null;
@@ -27,11 +27,6 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
   const [port, setPort] = useState(prefill?.port ?? PROTOCOL_DEFAULT_PORT[initialProtocol]);
   const [username, setUsername] = useState(prefill?.username ?? "");
   const [password, setPassword] = useState(prefill?.auth?.kind === "password" ? prefill.auth.password : "");
-  const passwordRef = useRef(password);
-  const setPasswordValue = (value: string) => {
-    passwordRef.current = value;
-    setPassword(value);
-  };
   const [showPassword, setShowPassword] = useState(false);
   const [useKey, setUseKey] = useState(prefill?.auth?.kind === "key");
   const [keyPath, setKeyPath] = useState(prefill?.auth?.kind === "key" ? prefill.auth.path : "");
@@ -45,8 +40,17 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
   const [keyPicking, setKeyPicking] = useState(false);
   const [testStatus, setTestStatus] = useState<"idle"|"testing"|"ok"|"error">("idle");
   const actionBusy = busy || keyPicking || testStatus === "testing";
+  const clearSecrets = () => {
+    setPassword("");
+    setKeyPassphrase("");
+    setShowPassword(false);
+    setShowKeyPassphrase(false);
+  };
   const closeIfIdle = () => {
-    if (!actionBusy) onClose();
+    if (!actionBusy) {
+      clearSecrets();
+      onClose();
+    }
   };
   useDialog(panelRef, { onClose: closeIfIdle });
 
@@ -76,13 +80,6 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
     setTestStatus("idle");
   }, [protocol, host, port, username, password, useKey, keyPath, keyPassphrase, remotePath]);
 
-  useEffect(() => () => {
-    // Quick-connect credentials are intentionally memory-only. Clear the local
-    // secret reference as soon as the dialog unmounts so it cannot be reused by
-    // stale callbacks after close.
-    passwordRef.current = "";
-  }, []);
-
   const submit = async (connectNow: boolean) => {
     if (!canConnect || actionBusy) return;
     setBusy(true);
@@ -92,12 +89,8 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
       if (connectNow && ephemeral) {
         try {
           await connectTemporary(profile);
-        } catch (error) {
-          // connectionsStore already presents the structured connection error.
-          console.debug(
-            "Quick connection failure was surfaced by the connections store",
-            messageOf(error)
-          );
+        } catch {
+          // connectionsStore already presents the redacted structured error.
           return;
         }
       } else {
@@ -110,17 +103,14 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
         if (connectNow) {
           try {
             await connectProfile(profile.id);
-          } catch (error) {
+          } catch {
             // The profile is safely persisted; connectionsStore already surfaced
-            // the real FTP/FTPS/SFTP connection failure.
-            console.debug(
-              "Saved-profile connection failure was surfaced by the connections store",
-              messageOf(error)
-            );
+            // the redacted FTP/FTPS/SFTP connection failure.
             return;
           }
         }
       }
+      clearSecrets();
       onClose();
     } finally {
       setBusy(false);
@@ -158,14 +148,14 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
         <div className="ghost-new-connection-head flex shrink-0 items-center gap-3 border-b border-border px-5 py-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0b3151]"><GhostMark size={34}/></div>
           <div><div className="text-[19px] font-semibold">New Connection</div><div className="text-[12px] text-text-muted">Enter your server details, then connect or optionally save it in Sites.</div></div>
-          <div className="flex-1"/><button type="button" disabled={actionBusy} onClick={closeIfIdle} className="rounded-md p-2 text-text-muted hover:bg-bg-hover hover:text-white disabled:cursor-not-allowed disabled:opacity-50"><X size={18}/></button>
+          <div className="flex-1"/><button type="button" disabled={actionBusy} onClick={closeIfIdle} aria-label="Close connection dialog" className="rounded-md p-2 text-text-muted hover:bg-bg-hover hover:text-white disabled:cursor-not-allowed disabled:opacity-50"><X size={18}/></button>
         </div>
 
         <div className="ghost-new-connection-body min-h-0 overflow-y-auto p-5">
-          {remember && <Field label="Site name"><input value={name} onChange={(e)=>setName(e.target.value)} placeholder="e.g. Main web server" disabled={actionBusy}/></Field>}
+          {remember && <Field label="Site name"><input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Site name" disabled={actionBusy}/></Field>}
           <div className="grid grid-cols-[1.1fr_1.7fr_.55fr] gap-3">
             <Field label="Protocol"><select value={protocol} disabled={actionBusy} onChange={(e)=>{const p=e.target.value as Protocol;setProtocol(p);setPort(PROTOCOL_DEFAULT_PORT[p]);}}><option value="sftp">SFTP (SSH File Transfer)</option><option value="ftp">FTP</option><option value="ftps">FTPS (FTP over TLS)</option></select></Field>
-            <Field label="Host / Address"><input value={host} disabled={actionBusy} onChange={(e)=>setHost(e.target.value)} placeholder="e.g. ftp.your-domain.tld or 192.0.2.10"/></Field>
+            <Field label="Host / Address"><input value={host} disabled={actionBusy} onChange={(e)=>setHost(e.target.value)} placeholder="Hostname or IP address"/></Field>
             <Field label="Port"><input type="number" min={1} max={65535} value={port} disabled={actionBusy} onChange={(e)=>setPort(Number(e.target.value))} aria-label="Server port"/></Field>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3">
@@ -194,7 +184,7 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
                 </div>
               </Field>
             ) : (
-              <Field label="Password"><div className="relative"><input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPasswordValue(e.target.value)} placeholder="Enter password" className="pr-10"/><button type="button" disabled={actionBusy} aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim disabled:cursor-not-allowed disabled:opacity-50" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></Field>
+              <Field label="Password"><div className="relative"><input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/><button type="button" disabled={actionBusy} aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim disabled:cursor-not-allowed disabled:opacity-50" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></Field>
             )}
           </div>
 
@@ -202,7 +192,7 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
             <div className="mt-3">
               <Field label="Password">
                 <div className="relative">
-                  <input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPasswordValue(e.target.value)} placeholder="Enter password" className="pr-10"/>
+                  <input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/>
                   <button type="button" disabled={actionBusy} aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim disabled:cursor-not-allowed disabled:opacity-50" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button>
                 </div>
               </Field>
