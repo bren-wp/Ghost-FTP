@@ -16,7 +16,7 @@
     <string name="action_connect">Bağlan</string>
     <string name="action_disconnect">Bağlantıyı Kes</string>
     <string name="action_pick_file">Dosya seç</string>
-    <string name="action_refresh">Yenile</string>
+    
     <string name="action_upload">Yükle</string>
     <string name="action_download">İndir</string>
     <string name="action_new_folder">Yeni Klasör</string>

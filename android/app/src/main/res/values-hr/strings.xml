@@ -16,7 +16,7 @@
     <string name="action_connect">Poveži se</string>
     <string name="action_disconnect">Prekini vezu</string>
     <string name="action_pick_file">Odaberi datoteku</string>
-    <string name="action_refresh">Osvježi</string>
+    
     <string name="action_upload">Prenesi na poslužitelj</string>
     <string name="action_download">Preuzmi</string>
     <string name="action_new_folder">Nova mapa</string>

@@ -16,7 +16,7 @@
     <string name="action_connect">Se connecter</string>
     <string name="action_disconnect">Se déconnecter</string>
     <string name="action_pick_file">Choisir un fichier</string>
-    <string name="action_refresh">Actualiser</string>
+    
     <string name="action_upload">Envoyer</string>
     <string name="action_download">Télécharger</string>
     <string name="action_new_folder">Nouveau dossier</string>

@@ -16,7 +16,7 @@
     <string name="action_connect">Conectează</string>
     <string name="action_disconnect">Deconectează</string>
     <string name="action_pick_file">Alege fișier</string>
-    <string name="action_refresh">Reîmprospătează</string>
+    
     <string name="action_upload">Încarcă</string>
     <string name="action_download">Descarcă</string>
     <string name="action_new_folder">Dosar nou</string>

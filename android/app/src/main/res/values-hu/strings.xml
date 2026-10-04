@@ -16,7 +16,7 @@
     <string name="action_connect">Csatlakozás</string>
     <string name="action_disconnect">Leválasztás</string>
     <string name="action_pick_file">Fájl kiválasztása</string>
-    <string name="action_refresh">Frissítés</string>
+    
     <string name="action_upload">Feltöltés</string>
     <string name="action_download">Letöltés</string>
     <string name="action_new_folder">Új mappa</string>

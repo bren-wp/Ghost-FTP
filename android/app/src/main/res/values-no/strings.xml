@@ -16,7 +16,7 @@
     <string name="action_connect">Koble til</string>
     <string name="action_disconnect">Koble fra</string>
     <string name="action_pick_file">Velg fil</string>
-    <string name="action_refresh">Oppdater</string>
+    
     <string name="action_upload">Last opp</string>
     <string name="action_download">Last ned</string>
     <string name="action_new_folder">Ny mappe</string>

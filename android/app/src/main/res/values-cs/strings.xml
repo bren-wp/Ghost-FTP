@@ -16,7 +16,7 @@
     <string name="action_connect">Připojit</string>
     <string name="action_disconnect">Odpojit</string>
     <string name="action_pick_file">Vybrat soubor</string>
-    <string name="action_refresh">Obnovit</string>
+    
     <string name="action_upload">Nahrát</string>
     <string name="action_download">Stáhnout</string>
     <string name="action_new_folder">Nová složka</string>

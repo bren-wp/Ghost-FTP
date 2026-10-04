@@ -16,7 +16,7 @@
     <string name="action_connect">Połącz</string>
     <string name="action_disconnect">Rozłącz</string>
     <string name="action_pick_file">Wybierz plik</string>
-    <string name="action_refresh">Odśwież</string>
+    
     <string name="action_upload">Wyślij</string>
     <string name="action_download">Pobierz</string>
     <string name="action_new_folder">Nowy folder</string>

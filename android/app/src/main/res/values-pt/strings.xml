@@ -16,7 +16,7 @@
     <string name="action_connect">Ligar</string>
     <string name="action_disconnect">Desligar</string>
     <string name="action_pick_file">Escolher ficheiro</string>
-    <string name="action_refresh">Atualizar</string>
+    
     <string name="action_upload">Enviar</string>
     <string name="action_download">Transferir</string>
     <string name="action_new_folder">Nova pasta</string>

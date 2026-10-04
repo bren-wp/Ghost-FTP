@@ -16,7 +16,7 @@
     <string name="action_connect">Свържи</string>
     <string name="action_disconnect">Прекъсни</string>
     <string name="action_pick_file">Избери файл</string>
-    <string name="action_refresh">Обнови</string>
+    
     <string name="action_upload">Качване</string>
     <string name="action_download">Изтегляне</string>
     <string name="action_new_folder">Нова папка</string>

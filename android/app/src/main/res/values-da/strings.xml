@@ -16,7 +16,7 @@
     <string name="action_connect">Opret forbindelse</string>
     <string name="action_disconnect">Afbryd</string>
     <string name="action_pick_file">Vælg fil</string>
-    <string name="action_refresh">Opdater</string>
+    
     <string name="action_upload">Upload</string>
     <string name="action_download">Download</string>
     <string name="action_new_folder">Ny mappe</string>
