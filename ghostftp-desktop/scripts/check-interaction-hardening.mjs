@@ -12,6 +12,15 @@ function requireIncludes(file, required, label) {
   }
 }
 
+function requireExcludes(file, forbidden, label) {
+  const source = read(file);
+  for (const needle of forbidden) {
+    if (source.includes(needle)) {
+      failures.push(`${file}: forbidden ${label}: ${needle}`);
+    }
+  }
+}
+
 requireIncludes(
   "src/components/ConfirmModal.tsx",
   [
@@ -102,10 +111,73 @@ requireIncludes(
     "disabled={!canConnect||actionBusy}",
     "aria-busy={testStatus===\"testing\"}",
     "aria-busy={busy}",
-    "messageOf(error)",
+    "const clearSecrets = () =>",
+    "clearSecrets();",
+    'aria-label="Close connection dialog"',
     "Browsing…",
   ],
   "New Connection serialized button actions"
+);
+
+requireExcludes(
+  "src/components/QuickConnectionDialog.tsx",
+  ["console.debug(", "messageOf(error)"],
+  "raw quick-connect diagnostics"
+);
+
+requireIncludes(
+  "src/stores/transfersStore.ts",
+  [
+    "await start(item, policy);",
+    "existing.set(name, {",
+    "same basename in one batch",
+  ],
+  "batch destination reservation"
+);
+
+requireIncludes(
+  "src/stores/syncStore.ts",
+  [
+    "const pairs = await ipc.folderSyncUpsert(pair);",
+    "throw error;",
+    'toastError(error, "Couldn\'t load Sync & Backup")',
+  ],
+  "sync mutation failure propagation"
+);
+
+requireIncludes(
+  "src/components/SyncSettings.tsx",
+  [
+    "if (!canSubmit || busy) return;",
+    'toastError(error, "Couldn\'t create sync pair")',
+    'placeholder="Local folder path"',
+    'placeholder="Remote folder path"',
+    "aria-busy={busy}",
+  ],
+  "cross-platform sync form failure handling"
+);
+
+requireExcludes(
+  "src/components/SyncSettings.tsx",
+  ["console.warn(", "C:\\\\path\\\\to\\\\folder"],
+  "raw diagnostics or Windows-only sync hint"
+);
+
+requireIncludes(
+  "scripts/init-icons.mjs",
+  [
+    "fileURLToPath(import.meta.url)",
+    "Required production icon missing:",
+    "Production desktop icons verified.",
+    "<title>Ghost FTP</title>",
+  ],
+  "fail-closed production desktop assets"
+);
+
+requireExcludes(
+  "scripts/init-icons.mjs",
+  ["makePng", "placeholder icon", "file-ssh placeholder"],
+  "generated fallback branding"
 );
 
 requireIncludes(
