@@ -69,4 +69,8 @@
     <string name="about_eula_desc">Citiți termenii oficiali ai licenței software Ghost FTP.</string>
     <string name="about_website_desc">Site-ul produsului Ghost FTP.</string>
     <string name="link_open">Deschide Ghost FTP %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">Deschide spațiul de lucru %1$s</string>
+    <string name="workspace_content">Conținutul spațiului de lucru %1$s</string>
+    <string name="workspace_announce">Spațiul de lucru %1$s</string>
 </resources>

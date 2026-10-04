@@ -69,4 +69,8 @@
     <string name="about_eula_desc">Pročitajte zvanične uslove licence softvera Ghost FTP.</string>
     <string name="about_website_desc">Veb-sajt proizvoda Ghost FTP.</string>
     <string name="link_open">Otvori Ghost FTP %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">Otvori radni prostor %1$s</string>
+    <string name="workspace_content">Sadržaj radnog prostora %1$s</string>
+    <string name="workspace_announce">Radni prostor %1$s</string>
 </resources>

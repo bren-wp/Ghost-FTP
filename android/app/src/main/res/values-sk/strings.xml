@@ -69,4 +69,8 @@
     <string name="about_eula_desc">Prečítajte si záväzné licenčné podmienky softvéru Ghost FTP.</string>
     <string name="about_website_desc">Web produktu Ghost FTP.</string>
     <string name="link_open">Otvoriť Ghost FTP %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">Otvoriť pracovný priestor %1$s</string>
+    <string name="workspace_content">Obsah pracovného priestoru %1$s</string>
+    <string name="workspace_announce">Pracovný priestor %1$s</string>
 </resources>

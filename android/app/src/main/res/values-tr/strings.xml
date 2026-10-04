@@ -69,4 +69,8 @@
     <string name="about_eula_desc">Ghost FTP yazılımının resmî lisans koşullarını okuyun.</string>
     <string name="about_website_desc">Ghost FTP ürün web sitesi.</string>
     <string name="link_open">Ghost FTP %1$s aç</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">%1$s çalışma alanını aç</string>
+    <string name="workspace_content">%1$s çalışma alanı içeriği</string>
+    <string name="workspace_announce">%1$s çalışma alanı</string>
 </resources>

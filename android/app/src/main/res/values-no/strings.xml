@@ -69,4 +69,8 @@
     <string name="about_eula_desc">Les de offisielle lisensvilkårene for Ghost FTP-programvaren.</string>
     <string name="about_website_desc">Ghost FTP-produktnettsted.</string>
     <string name="link_open">Åpne Ghost FTP %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">Åpne arbeidsområdet %1$s</string>
+    <string name="workspace_content">Innhold i arbeidsområdet %1$s</string>
+    <string name="workspace_announce">Arbeidsområdet %1$s</string>
 </resources>

@@ -69,4 +69,8 @@
     <string name="about_eula_desc">Consulta los términos oficiales de licencia del software Ghost FTP.</string>
     <string name="about_website_desc">Sitio web del producto Ghost FTP.</string>
     <string name="link_open">Abrir Ghost FTP %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">Abrir el espacio de trabajo %1$s</string>
+    <string name="workspace_content">Contenido del espacio de trabajo %1$s</string>
+    <string name="workspace_announce">Espacio de trabajo %1$s</string>
 </resources>

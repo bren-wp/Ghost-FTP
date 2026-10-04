@@ -69,4 +69,8 @@
     <string name="about_eula_desc">Διαβάστε τους επίσημους όρους άδειας χρήσης του λογισμικού Ghost FTP.</string>
     <string name="about_website_desc">Ιστότοπος προϊόντος Ghost FTP.</string>
     <string name="link_open">Άνοιγμα Ghost FTP %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">Άνοιγμα χώρου εργασίας %1$s</string>
+    <string name="workspace_content">Περιεχόμενο χώρου εργασίας %1$s</string>
+    <string name="workspace_announce">Χώρος εργασίας %1$s</string>
 </resources>

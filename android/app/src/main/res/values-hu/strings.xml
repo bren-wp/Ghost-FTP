@@ -69,4 +69,8 @@
     <string name="about_eula_desc">Olvassa el a Ghost FTP szoftver hivatalos licencfeltételeit.</string>
     <string name="about_website_desc">A Ghost FTP termék webhelye.</string>
     <string name="link_open">Ghost FTP megnyitása: %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">%1$s munkaterület megnyitása</string>
+    <string name="workspace_content">%1$s munkaterület tartalma</string>
+    <string name="workspace_announce">%1$s munkaterület</string>
 </resources>

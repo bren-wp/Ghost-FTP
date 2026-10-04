@@ -69,4 +69,8 @@
     <string name="about_eula_desc">Прочитайте офіційні ліцензійні умови програмного забезпечення Ghost FTP.</string>
     <string name="about_website_desc">Вебсайт продукту Ghost FTP.</string>
     <string name="link_open">Відкрити Ghost FTP %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">Відкрити робочий простір %1$s</string>
+    <string name="workspace_content">Вміст робочого простору %1$s</string>
+    <string name="workspace_announce">Робочий простір %1$s</string>
 </resources>
