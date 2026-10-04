@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Файли</string>
+    <string name="workspace_sites">Розташування</string>
+    <string name="workspace_transfers">Передавання</string>
+    <string name="workspace_settings">Налаштування</string>
+    <string name="workspace_about">Довідка та відомості</string>
+</resources>

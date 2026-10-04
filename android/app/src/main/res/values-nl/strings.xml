@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Bestanden</string>
+    <string name="workspace_sites">Locaties</string>
+    <string name="workspace_transfers">Overdrachten</string>
+    <string name="workspace_settings">Instellingen</string>
+    <string name="workspace_about">Help en Info</string>
+</resources>

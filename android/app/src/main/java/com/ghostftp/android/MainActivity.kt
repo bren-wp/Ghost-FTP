@@ -37,12 +37,12 @@ import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
 class MainActivity : Activity() {
-    private enum class Workspace(val label: String) {
-        FILES("Files"),
-        SITES("Sites"),
-        TRANSFERS("Transfers"),
-        SETTINGS("Settings"),
-        ABOUT("Help & About")
+    private enum class Workspace(val labelRes: Int) {
+        FILES(R.string.workspace_files),
+        SITES(R.string.workspace_sites),
+        TRANSFERS(R.string.workspace_transfers),
+        SETTINGS(R.string.workspace_settings),
+        ABOUT(R.string.workspace_about)
     }
 
     private val controller = ConnectionController()
@@ -745,9 +745,9 @@ class MainActivity : Activity() {
         workspaceNavButtons.forEach { (key, view) ->
             styleWorkspaceNavItem(view, selected = key == workspace)
         }
-        if (::workspaceTitle.isInitialized) workspaceTitle.text = workspace.label
+        if (::workspaceTitle.isInitialized) workspaceTitle.text = getString(workspace.labelRes)
         if (::workspaceContainer.isInitialized) {
-            workspaceContainer.contentDescription = "${workspace.label} workspace content"
+            workspaceContainer.contentDescription = "${getString(workspace.labelRes)} workspace content"
         }
         if (::contentScroll.isInitialized) {
             contentScroll.post {
@@ -758,7 +758,7 @@ class MainActivity : Activity() {
                 }
                 contentScroll.scrollTo(0, workspaceTop)
                 if (announce && ::workspaceContainer.isInitialized) {
-                    workspaceContainer.announceForAccessibility("${workspace.label} workspace")
+                    workspaceContainer.announceForAccessibility("${getString(workspace.labelRes)} workspace")
                 }
             }
         }
@@ -1467,8 +1467,8 @@ class MainActivity : Activity() {
 
     private fun workspaceNavItem(workspace: Workspace): TextView {
         val view = TextView(this).apply {
-            text = workspace.label
-            contentDescription = "Open ${workspace.label} workspace"
+            text = getString(workspace.labelRes)
+            contentDescription = "Open ${getString(workspace.labelRes)} workspace"
             textSize = if (resources.configuration.screenWidthDp >= 600) 13f else 11f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER

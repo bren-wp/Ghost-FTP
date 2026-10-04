@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Súbory</string>
+    <string name="workspace_sites">Lokality</string>
+    <string name="workspace_transfers">Prenosy</string>
+    <string name="workspace_settings">Nastavenia</string>
+    <string name="workspace_about">Pomocník a informácie</string>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Filer</string>
+    <string name="workspace_sites">Placeringer</string>
+    <string name="workspace_transfers">Overførsler</string>
+    <string name="workspace_settings">Indstillinger</string>
+    <string name="workspace_about">Hjælp og om</string>
+</resources>

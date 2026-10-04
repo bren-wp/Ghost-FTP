@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Dosyalar</string>
+    <string name="workspace_sites">Konumlar</string>
+    <string name="workspace_transfers">Aktarımlar</string>
+    <string name="workspace_settings">Ayarlar</string>
+    <string name="workspace_about">Yardım ve Hakkında</string>
+</resources>

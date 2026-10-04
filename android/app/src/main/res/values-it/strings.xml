@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">File</string>
+    <string name="workspace_sites">Posizioni</string>
+    <string name="workspace_transfers">Trasferimenti</string>
+    <string name="workspace_settings">Impostazioni</string>
+    <string name="workspace_about">Guida e Informazioni</string>
+</resources>

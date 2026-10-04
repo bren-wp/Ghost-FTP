@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Датотеки</string>
+    <string name="workspace_sites">Локации</string>
+    <string name="workspace_transfers">Преноси</string>
+    <string name="workspace_settings">Поставки</string>
+    <string name="workspace_about">Помош и информации</string>
+</resources>

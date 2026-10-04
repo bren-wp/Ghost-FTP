@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Fișiere</string>
+    <string name="workspace_sites">Locații</string>
+    <string name="workspace_transfers">Transferuri</string>
+    <string name="workspace_settings">Setări</string>
+    <string name="workspace_about">Ajutor și Despre</string>
+</resources>
