@@ -48,45 +48,52 @@ class MainActivitySmokeTest {
 
     @Test
     fun primaryWorkspaceAndToolbarRender() {
-        assertTextPresent("Ghost FTP")
+        assertTextPresent(appString(R.string.app_name))
         assertNavigationTogglePresent()
         ensureNavigationOpen()
-        assertDescriptionPresent("Open Files workspace")
-        for (label in listOf("Refresh", "Upload", "Download", "New Folder", "Rename", "Delete")) {
-            assertDescriptionPresent("$label action")
+        assertDescriptionPresent(appString(R.string.workspace_open, appString(R.string.workspace_files)))
+        for (actionRes in listOf(
+            R.string.action_refresh,
+            R.string.action_upload,
+            R.string.action_download,
+            R.string.action_new_folder,
+            R.string.action_rename,
+            R.string.action_delete
+        )) {
+            assertDescriptionPresent(appString(actionRes))
         }
     }
 
     @Test
     fun workspaceNavigationWorksClickByClick() {
-        openWorkspace("Sites")
-        assertTextVisibleInViewport("Protocol")
+        openWorkspace(R.string.workspace_sites)
+        assertTextVisibleInViewport(appString(R.string.field_protocol))
 
-        openWorkspace("Transfers")
-        assertTextVisibleInViewport("No transfer started.")
+        openWorkspace(R.string.workspace_transfers)
+        assertTextVisibleInViewport(appString(R.string.state_no_transfer))
 
-        openWorkspace("Settings")
-        assertTextVisibleInViewport("No required tracking, analytics or telemetry.")
-        assertDescriptionPresent("Clear Activity")
-        assertDescriptionPresent("Reset Transfers")
-        assertDescriptionPresent("Reset Connection")
-        assertDescriptionPresent("Settings Disconnect")
+        openWorkspace(R.string.workspace_settings)
+        assertTextVisibleInViewport(appString(R.string.settings_no_tracking))
+        assertDescriptionPresent(appString(R.string.action_clear_activity))
+        assertDescriptionPresent(appString(R.string.action_reset_transfers))
+        assertDescriptionPresent(appString(R.string.action_reset_connection))
+        assertDescriptionPresent("${appString(R.string.workspace_settings)} ${appString(R.string.action_disconnect)}")
 
-        openWorkspace("Help & About")
-        assertTextVisibleInViewport("Ghost FTP by Brendigo")
+        openWorkspace(R.string.workspace_about)
+        assertTextVisibleInViewport("Ghost FTP · Brendigo")
 
-        openWorkspace("Files")
+        openWorkspace(R.string.workspace_files)
         assertTextVisibleInViewport("Connect to a server to load remote files.")
     }
 
     @Test
     fun navigationRailCanOpenAndCloseWithoutPopupNavigation() {
         ensureNavigationOpen()
-        assertDescriptionPresent("Close navigation menu")
-        clickByDescription("Close navigation menu")
-        assertDescriptionPresent("Open navigation menu")
-        clickByDescription("Open navigation menu")
-        assertDescriptionPresent("Close navigation menu")
+        assertDescriptionPresent(appString(R.string.nav_close))
+        clickByDescription(appString(R.string.nav_close))
+        assertDescriptionPresent(appString(R.string.nav_open))
+        clickByDescription(appString(R.string.nav_open))
+        assertDescriptionPresent(appString(R.string.nav_close))
     }
 
     @Test
@@ -98,20 +105,20 @@ class MainActivitySmokeTest {
         if (!compact) return
 
         ensureNavigationOpen()
-        assertDescriptionPresent("Close navigation menu overlay")
-        clickByDescription("Close navigation menu overlay")
-        assertDescriptionPresent("Open navigation menu")
+        assertDescriptionPresent(appString(R.string.nav_close_overlay))
+        clickByDescription(appString(R.string.nav_close_overlay))
+        assertDescriptionPresent(appString(R.string.nav_open))
     }
 
     @Test
     fun helpWorkspaceExposesCanonicalProductLinks() {
-        openWorkspace("Help & About")
+        openWorkspace(R.string.workspace_about)
         for (description in listOf(
-            "Open Ghost FTP Support",
-            "Open Ghost FTP Documentation",
-            "Open Ghost FTP Privacy Policy",
-            "Open Ghost FTP Terms of use / EULA",
-            "Open Ghost FTP Official website"
+            appString(R.string.link_open, appString(R.string.label_support)),
+            appString(R.string.link_open, appString(R.string.label_documentation)),
+            appString(R.string.link_open, appString(R.string.label_privacy_policy)),
+            appString(R.string.link_open, appString(R.string.label_eula)),
+            appString(R.string.link_open, appString(R.string.label_official_website))
         )) {
             assertDescriptionPresent(description)
         }
@@ -119,17 +126,17 @@ class MainActivitySmokeTest {
 
     @Test
     fun protocolSelectionUpdatesDefaultsWithoutClobberingCustomPort() {
-        openWorkspace("Sites")
+        openWorkspace(R.string.workspace_sites)
 
         scenario.onActivity { activity ->
             val protocol = findView(activity.window.decorView) {
-                it is Spinner && it.contentDescription?.toString() == "Connection protocol"
+                it is Spinner && it.contentDescription?.toString() == appString(R.string.field_protocol)
             } as? Spinner
             val port = findView(activity.window.decorView) {
                 it is EditText && it.hint?.toString() == "21"
             } as? EditText
             val fingerprint = findView(activity.window.decorView) {
-                it is EditText && it.hint?.toString() == "SHA256 fingerprint for SFTP"
+                it is EditText && it.hint?.toString() == appString(R.string.hint_sftp_fingerprint)
             } as? EditText
 
             assertNotNull("Protocol selector missing", protocol)
@@ -148,14 +155,14 @@ class MainActivitySmokeTest {
                 it is EditText && it.hint?.toString() == "21"
             } as EditText
             val fingerprint = findView(activity.window.decorView) {
-                it is EditText && it.hint?.toString() == "SHA256 fingerprint for SFTP"
+                it is EditText && it.hint?.toString() == appString(R.string.hint_sftp_fingerprint)
             } as EditText
             assertEquals("22", port.text.toString())
             assertTrue("SFTP fingerprint must become visible for SFTP.", fingerprint.isShown)
 
             port.setText("2222")
             val protocol = findView(activity.window.decorView) {
-                it is Spinner && it.contentDescription?.toString() == "Connection protocol"
+                it is Spinner && it.contentDescription?.toString() == appString(R.string.field_protocol)
             } as Spinner
             protocol.setSelection(ConnectionProtocol.FTP.ordinal)
         }
@@ -167,7 +174,7 @@ class MainActivitySmokeTest {
                 it is EditText && it.hint?.toString() == "21"
             } as EditText
             val fingerprint = findView(activity.window.decorView) {
-                it is EditText && it.hint?.toString() == "SHA256 fingerprint for SFTP"
+                it is EditText && it.hint?.toString() == appString(R.string.hint_sftp_fingerprint)
             } as EditText
             assertEquals("2222", port.text.toString())
             assertTrue("SFTP fingerprint must hide again for FTP.", !fingerprint.isShown)
@@ -176,51 +183,58 @@ class MainActivitySmokeTest {
 
     @Test
     fun connectionValidationAndIdleRecoveryWorkClickByClick() {
-        openWorkspace("Sites")
-        clickByDescription("Connect to server")
+        openWorkspace(R.string.workspace_sites)
+        clickByDescription(appString(R.string.action_connect))
         assertTextPresent("Host is required")
 
-        assertDescriptionEnabled("Disconnect from server", false)
-        assertDescriptionEnabled("Refresh current session", false)
-        assertDescriptionEnabled("Refresh action", false)
+        assertDescriptionEnabled(appString(R.string.action_disconnect), false)
+        assertDescriptionEnabled(appString(R.string.action_refresh), false)
+        assertDescriptionEnabled(appString(R.string.action_refresh), false)
     }
 
     @Test
     fun guardedFileActionsStayDisabledWithoutActiveSession() {
-        for (label in listOf("Refresh", "Upload", "Download", "New Folder", "Rename", "Delete")) {
-            assertDescriptionEnabled("$label action", false)
+        for (actionRes in listOf(
+            R.string.action_refresh,
+            R.string.action_upload,
+            R.string.action_download,
+            R.string.action_new_folder,
+            R.string.action_rename,
+            R.string.action_delete
+        )) {
+            assertDescriptionEnabled(appString(actionRes), false)
         }
 
-        openWorkspace("Transfers")
-        assertDescriptionEnabled("Pick upload file", true)
-        assertDescriptionEnabled("Upload selected file", false)
+        openWorkspace(R.string.workspace_transfers)
+        assertDescriptionEnabled(appString(R.string.action_pick_file), true)
+        assertDescriptionEnabled(appString(R.string.action_upload), false)
 
-        openWorkspace("Settings")
-        assertDescriptionEnabled("Reset Transfers", true)
-        assertDescriptionEnabled("Reset Connection", true)
-        assertDescriptionEnabled("Settings Disconnect", false)
+        openWorkspace(R.string.workspace_settings)
+        assertDescriptionEnabled(appString(R.string.action_reset_transfers), true)
+        assertDescriptionEnabled(appString(R.string.action_reset_connection), true)
+        assertDescriptionEnabled("${appString(R.string.workspace_settings)} ${appString(R.string.action_disconnect)}", false)
     }
 
     @Test
     fun transferAndSettingsActionsAreWiredClickByClick() {
-        openWorkspace("Transfers")
-        assertDescriptionPresent("Pick upload file")
-        assertDescriptionPresent("Upload selected file")
-        assertDescriptionEnabled("Pick upload file", true)
-        assertDescriptionEnabled("Upload selected file", false)
+        openWorkspace(R.string.workspace_transfers)
+        assertDescriptionPresent(appString(R.string.action_pick_file))
+        assertDescriptionPresent(appString(R.string.action_upload))
+        assertDescriptionEnabled(appString(R.string.action_pick_file), true)
+        assertDescriptionEnabled(appString(R.string.action_upload), false)
 
-        openWorkspace("Settings")
-        assertDescriptionEnabled("Settings Disconnect", false)
-        clickByDescription("Clear Activity")
+        openWorkspace(R.string.workspace_settings)
+        assertDescriptionEnabled("${appString(R.string.workspace_settings)} ${appString(R.string.action_disconnect)}", false)
+        clickByDescription(appString(R.string.action_clear_activity))
         assertTextPresent("Activity log cleared.")
 
-        clickByDescription("Reset Transfers")
+        clickByDescription(appString(R.string.action_reset_transfers))
         assertTextPresent("Transfer fields reset.")
 
-        clickByDescription("Reset Connection")
+        clickByDescription(appString(R.string.action_reset_connection))
         assertTextPresent("Connection form reset.")
 
-        assertDescriptionEnabled("Settings Disconnect", false)
+        assertDescriptionEnabled("${appString(R.string.workspace_settings)} ${appString(R.string.action_disconnect)}", false)
     }
 
     @Test
@@ -246,8 +260,8 @@ class MainActivitySmokeTest {
         SystemClock.sleep(120)
 
         assertTextPresent("Selected file unavailable")
-        openWorkspace("Transfers")
-        assertDescriptionEnabled("Upload selected file", false)
+        openWorkspace(R.string.workspace_transfers)
+        assertDescriptionEnabled(appString(R.string.action_upload), false)
     }
 
     @Test
@@ -255,18 +269,18 @@ class MainActivitySmokeTest {
         assertTextVisibleInViewport("Connect to a server to load remote files.")
         assertTextNotShown("Protocol")
 
-        openWorkspace("Sites")
-        assertTextVisibleInViewport("Protocol")
+        openWorkspace(R.string.workspace_sites)
+        assertTextVisibleInViewport(appString(R.string.field_protocol))
         assertTextNotShown("Connect to a server to load remote files.")
 
-        openWorkspace("Transfers")
-        assertTextVisibleInViewport("No transfer started.")
+        openWorkspace(R.string.workspace_transfers)
+        assertTextVisibleInViewport(appString(R.string.state_no_transfer))
         assertTextNotShown("Protocol")
     }
 
     @Test
     fun activityRecreationRestoresNonSecretFieldsButNotPassword() {
-        openWorkspace("Sites")
+        openWorkspace(R.string.workspace_sites)
         scenario.onActivity { activity ->
             val host = findView(activity.window.decorView) {
                 it is EditText && it.hint?.toString() == "Host"
@@ -315,7 +329,7 @@ class MainActivitySmokeTest {
             assertTrue("Password must never survive Activity recreation.", password.text.isEmpty())
         }
         assertTextPresent("Android restored non-secret workspace state. Reconnect to authenticate before remote actions.")
-        assertTextVisibleInViewport("Protocol")
+        assertTextVisibleInViewport(appString(R.string.field_protocol))
     }
 
     private fun assertTextNotShown(expected: String) {
@@ -327,11 +341,14 @@ class MainActivitySmokeTest {
         }
     }
 
+    private fun appString(resId: Int, vararg formatArgs: Any): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(resId, *formatArgs)
+
     private fun assertNavigationTogglePresent() {
         scenario.onActivity { activity ->
             val root = activity.window.decorView
-            val open = findView(root) { it.contentDescription?.toString() == "Open navigation menu" }
-            val close = findView(root) { it.contentDescription?.toString() == "Close navigation menu" }
+            val open = findView(root) { it.contentDescription?.toString() == appString(R.string.nav_open) }
+            val close = findView(root) { it.contentDescription?.toString() == appString(R.string.nav_close) }
             assertTrue("Navigation toggle must be visible.", open?.isShown == true || close?.isShown == true)
         }
     }
@@ -340,15 +357,15 @@ class MainActivitySmokeTest {
         var needsOpen = false
         scenario.onActivity { activity ->
             val root = activity.window.decorView
-            val open = findView(root) { it.contentDescription?.toString() == "Open navigation menu" }
+            val open = findView(root) { it.contentDescription?.toString() == appString(R.string.nav_open) }
             needsOpen = open?.isShown == true
         }
-        if (needsOpen) clickByDescription("Open navigation menu")
+        if (needsOpen) clickByDescription(appString(R.string.nav_open))
     }
 
-    private fun openWorkspace(label: String) {
+    private fun openWorkspace(labelRes: Int) {
         ensureNavigationOpen()
-        clickByDescription("Open $label workspace")
+        clickByDescription(appString(R.string.workspace_open, appString(labelRes)))
     }
 
     private fun clickByDescription(description: String) {
