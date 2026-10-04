@@ -44,33 +44,58 @@ impl Identity {
     /// Load an identity from `path`, generating and persisting a new one if the
     /// file doesn't exist yet. This is the normal startup path for both sides.
     pub fn load_or_create(path: &Path) -> Result<Self> {
-        if path.exists() {
-            let bytes = std::fs::read(path).with_context(|| format!("read identity {path:?}"))?;
-            let id: Self = serde_json::from_slice(&bytes)
-                .with_context(|| format!("parse identity {path:?}"))?;
-            id.private_bytes()
-                .with_context(|| format!("validate private identity key {path:?}"))?;
-            id.public_bytes()
-                .with_context(|| format!("validate public identity key {path:?}"))?;
-            return Ok(id);
+        match std::fs::read(path) {
+            Ok(bytes) => {
+                let id: Self = serde_json::from_slice(&bytes)
+                    .with_context(|| format!("parse identity {path:?}"))?;
+                id.private_bytes()
+                    .with_context(|| format!("validate private identity key {path:?}"))?;
+                id.public_bytes()
+                    .with_context(|| format!("validate public identity key {path:?}"))?;
+                Ok(id)
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                let id = Self::generate()?;
+                id.save(path)?;
+                Ok(id)
+            }
+            Err(e) => Err(e).with_context(|| format!("read identity {path:?}")),
         }
-        let id = Self::generate()?;
-        id.save(path)?;
-        Ok(id)
     }
 
     /// Persist to `path` (locked to the owner on Unix).
     pub fn save(&self, path: &Path) -> Result<()> {
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).ok();
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("create identity directory {parent:?}"))?;
         }
         let bytes = serde_json::to_vec_pretty(self)?;
-        std::fs::write(path, &bytes).with_context(|| format!("write identity {path:?}"))?;
+
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+            use std::io::Write as _;
+            use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .mode(0o600)
+                .open(path)
+                .with_context(|| format!("open identity {path:?}"))?;
+            file.set_permissions(std::fs::Permissions::from_mode(0o600))
+                .with_context(|| format!("restrict identity permissions {path:?}"))?;
+            file.write_all(&bytes)
+                .with_context(|| format!("write identity {path:?}"))?;
+            file.sync_all()
+                .with_context(|| format!("sync identity {path:?}"))?;
         }
+
+        #[cfg(not(unix))]
+        {
+            std::fs::write(path, &bytes).with_context(|| format!("write identity {path:?}"))?;
+        }
+
         Ok(())
     }
 
@@ -182,6 +207,25 @@ mod tests {
         .unwrap();
 
         assert!(Identity::load_or_create(&path).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn persisted_identity_is_owner_only() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-permissions-id-test-{}",
+            std::process::id()
+        ));
+        let path = dir.join("identity.json");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        Identity::generate().unwrap().save(&path).unwrap();
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+
         let _ = std::fs::remove_dir_all(&dir);
     }
 

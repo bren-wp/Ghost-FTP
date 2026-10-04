@@ -4,7 +4,7 @@
 - Agent protocol responses distinguish confirmed not-found conditions from operational failures so destructive overwrite decisions propagate ambiguous errors safely.
 - Android now uses a responsive left navigation drawer on compact screens, preserves the persistent navigation rail on larger screens and replaces popup confirmation dialogs with inline in-app confirmation UI.
 - Android networking disables global cleartext traffic, explicitly warns when plain FTP is selected and removes unused keyboard-interactive SSH authentication.
-- Ghost FTP Agent identity/fingerprint handling now rejects malformed or incorrectly sized X25519 keys instead of silently deriving a fingerprint from empty fallback bytes.
+- Ghost FTP Agent identity/fingerprint handling now rejects malformed or incorrectly sized X25519 keys and identity-file I/O failures; Unix identity files are enforced as owner-only `0600` instead of ignoring permission-hardening failures.
 - Desktop official Support, Documentation, Privacy and EULA destinations are centralized and restricted to approved external URLs.
 - Advertised desktop locale coverage now has enforced reference-UI parity across all registered languages, including completion dictionaries for previously incomplete locales.
 - Production CI regressions found during the hardening cycle were fixed without weakening formatting, protocol E2E, Android, native build or Windows hardening gates.
