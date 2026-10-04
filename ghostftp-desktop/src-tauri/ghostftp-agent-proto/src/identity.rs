@@ -193,18 +193,12 @@ mod tests {
 
     #[test]
     fn load_or_create_rejects_corrupt_persisted_identity() {
-        let dir = std::env::temp_dir().join(format!(
-            "ghostftp-corrupt-id-test-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-corrupt-id-test-{}", std::process::id()));
         let path = dir.join("identity.json");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(
-            &path,
-            r#"{"privateKey":"AA==","publicKey":"AA=="}"#,
-        )
-        .unwrap();
+        std::fs::write(&path, r#"{"privateKey":"AA==","publicKey":"AA=="}"#).unwrap();
 
         assert!(Identity::load_or_create(&path).is_err());
         let _ = std::fs::remove_dir_all(&dir);
