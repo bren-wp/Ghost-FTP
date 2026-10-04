@@ -1,3 +1,15 @@
+## 0.30.5 — Settings ordering and Android URI lifecycle hardening — 4 October 2026
+
+- Serializes Windows/Linux Settings persistence so rapid preference changes cannot complete durable database writes out of user-action order.
+- Gives Reset to Defaults, notification permission and shell PATH integration one shared async mutation lock and busy state.
+- Prevents Preferences from closing while an OS-level Settings mutation is still running.
+- Rejects Android picker URIs that cannot actually be opened for reading instead of presenting an unusable file as selected.
+- Revalidates saved Android upload URIs after Activity recreation and clears stale grants fail-closed.
+- Adds desktop interaction-contract and Android instrumentation/production-contract coverage for the new lifecycle guards.
+- Keeps exact-head Quality, real FTP/FTPS/SFTP E2E, Windows/Linux native build, Android and Windows hardening gates mandatory.
+
+See [docs/releases/0.30.5.md](docs/releases/0.30.5.md).
+
 ## 0.30.4 — cross-platform interaction serialization — 4 October 2026
 
 - Serializes Agent Bridge master, endpoint, session-access and approval-policy mutations on Windows/Linux so rapid or conflicting clicks cannot race backend IPC state.
