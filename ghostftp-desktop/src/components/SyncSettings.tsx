@@ -16,7 +16,6 @@ import {
 import { open } from "@tauri-apps/plugin-dialog";
 import { ipc } from "@/lib/ipc";
 import { useSync } from "@/stores/syncStore";
-import { toast } from "@/stores/toastStore";
 import { useConnections } from "@/stores/connectionsStore";
 import { relTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
