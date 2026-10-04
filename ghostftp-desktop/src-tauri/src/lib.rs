@@ -559,7 +559,10 @@ mod init_script_tests {
             "https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt",
         ] {
             let parsed = url::Url::parse(allowed).unwrap();
-            assert!(is_approved_external_url(&parsed), "expected approved URL: {allowed}");
+            assert!(
+                is_approved_external_url(&parsed),
+                "expected approved URL: {allowed}"
+            );
         }
 
         for blocked in [
@@ -574,7 +577,10 @@ mod init_script_tests {
             "https://github.com/bren-wp/Ghost-FTP/blob/dev/EULA.txt",
         ] {
             let parsed = url::Url::parse(blocked).unwrap();
-            assert!(!is_approved_external_url(&parsed), "expected blocked URL: {blocked}");
+            assert!(
+                !is_approved_external_url(&parsed),
+                "expected blocked URL: {blocked}"
+            );
         }
     }
 
