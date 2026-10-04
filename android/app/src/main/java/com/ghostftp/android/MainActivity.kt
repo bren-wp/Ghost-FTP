@@ -37,12 +37,12 @@ import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
 class MainActivity : Activity() {
-    private enum class Workspace(val label: String) {
-        FILES("Files"),
-        SITES("Sites"),
-        TRANSFERS("Transfers"),
-        SETTINGS("Settings"),
-        ABOUT("Help & About")
+    private enum class Workspace(val labelRes: Int) {
+        FILES(R.string.workspace_files),
+        SITES(R.string.workspace_sites),
+        TRANSFERS(R.string.workspace_transfers),
+        SETTINGS(R.string.workspace_settings),
+        ABOUT(R.string.workspace_about)
     }
 
     private val controller = ConnectionController()
@@ -214,7 +214,7 @@ class MainActivity : Activity() {
             visibility = View.GONE
             isClickable = true
             isFocusable = true
-            contentDescription = "Close navigation menu overlay"
+            contentDescription = getString(R.string.nav_close_overlay)
             setOnClickListener { setNavigationOpen(false) }
         }
 
@@ -337,7 +337,7 @@ class MainActivity : Activity() {
 
             addView(space(12))
             addView(TextView(this@MainActivity).apply {
-                text = "Private\nsession"
+                text = getString(R.string.label_private_session)
                 setTextColor(Brand.muted)
                 textSize = 10f
                 gravity = Gravity.CENTER
@@ -361,7 +361,7 @@ class MainActivity : Activity() {
         navigationToggleButton = secondaryButton("☰") {
             setNavigationOpen(!navigationOpen)
         }.apply {
-            contentDescription = if (navigationOpen) "Close navigation menu" else "Open navigation menu"
+            contentDescription = if (navigationOpen) getString(R.string.nav_close) else getString(R.string.nav_open)
             textSize = 20f
             minWidth = 0
             minimumWidth = 0
@@ -380,7 +380,7 @@ class MainActivity : Activity() {
         addView(titleRow)
 
         workspaceTitle = TextView(this@MainActivity).apply {
-            text = activeWorkspace.label
+            text = getString(activeWorkspace.labelRes)
             setTextColor(Brand.textSoft)
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
@@ -393,11 +393,11 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        toolbar.addView(trackRemoteAction(toolbarButton("Refresh") { refreshActive() }), buttonParams(weight = 1f))
+        toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_refresh)) { refreshActive() }), buttonParams(weight = 1f))
         toolbar.addView(gap(8))
-        toolbar.addView(trackRemoteAction(toolbarButton("Upload") { uploadOrPickFile() }), buttonParams(weight = 1f))
+        toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_upload)) { uploadOrPickFile() }), buttonParams(weight = 1f))
         toolbar.addView(gap(8))
-        toolbar.addView(trackRemoteAction(toolbarButton("Download") { downloadRemoteFile() }), buttonParams(weight = 1f))
+        toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_download)) { downloadRemoteFile() }), buttonParams(weight = 1f))
         addView(toolbar)
 
         val toolbarMore = LinearLayout(this@MainActivity).apply {
@@ -405,16 +405,16 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(8), 0, 0)
         }
-        toolbarMore.addView(trackRemoteAction(toolbarButton("New Folder") { createRemoteFolder() }), buttonParams(weight = 1f))
+        toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_new_folder)) { createRemoteFolder() }), buttonParams(weight = 1f))
         toolbarMore.addView(gap(8))
-        toolbarMore.addView(trackRemoteAction(toolbarButton("Rename") { renameRemoteEntry() }), buttonParams(weight = 1f))
+        toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_rename)) { renameRemoteEntry() }), buttonParams(weight = 1f))
         toolbarMore.addView(gap(8))
-        toolbarMore.addView(trackRemoteAction(toolbarButton("Delete", destructive = true) { deleteRemoteFile() }), buttonParams(weight = 1f))
+        toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_delete), destructive = true) { deleteRemoteFile() }), buttonParams(weight = 1f))
         addView(toolbarMore)
     }
 
     private fun buildStatusCard(): View = panel().apply {
-        addView(label("Session"))
+        addView(label(getString(R.string.label_session)))
         statusTitle = TextView(this@MainActivity).apply {
             setTextColor(Brand.text)
             textSize = 20f
@@ -431,7 +431,7 @@ class MainActivity : Activity() {
 
     private fun buildInlineConfirmationCard(): View = panel(strong = true).apply {
         visibility = View.GONE
-        contentDescription = "Inline action confirmation"
+        contentDescription = getString(R.string.action_confirm)
 
         confirmationTitle = TextView(this@MainActivity).apply {
             setTextColor(Brand.text)
@@ -451,18 +451,18 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        actions.addView(secondaryButton("Cancel") {
+        actions.addView(secondaryButton(getString(R.string.action_cancel)) {
             clearInlineConfirmation()
         }.apply {
-            contentDescription = "Cancel inline confirmation"
+            contentDescription = getString(R.string.action_cancel)
         }, buttonParams(weight = 1f))
         actions.addView(gap(8))
-        confirmationAction = primaryButton("Confirm") {
+        confirmationAction = primaryButton(getString(R.string.action_confirm)) {
             val action = pendingConfirmation
             clearInlineConfirmation()
             if (!closingOrDestroyed()) action?.invoke()
         }.apply {
-            contentDescription = "Confirm inline action"
+            contentDescription = getString(R.string.action_confirm)
         }
         actions.addView(confirmationAction, buttonParams(weight = 1f))
         addView(actions)
@@ -479,7 +479,7 @@ class MainActivity : Activity() {
         confirmationTitle.text = title
         confirmationDetail.text = detail
         confirmationAction.text = confirmLabel
-        confirmationAction.contentDescription = "$confirmLabel inline action"
+        confirmationAction.contentDescription = confirmLabel
         confirmationPanel.visibility = View.VISIBLE
         confirmationPanel.isFocusable = true
         confirmationPanel.requestFocus()
@@ -495,18 +495,18 @@ class MainActivity : Activity() {
     }
 
     private fun buildConnectionCard(): View = panel().apply {
-        addView(sectionTitle("Sites"))
-        addView(sectionDescription("Connect to FTP, explicit FTPS or SFTP. Passwords stay in memory for the active session and are cleared on disconnect."))
+        addView(sectionTitle(getString(R.string.workspace_sites)))
+        addView(sectionDescription(getString(R.string.desc_sites)))
 
         protocolSpinner = Spinner(this@MainActivity).apply {
-            contentDescription = "Connection protocol"
+            contentDescription = getString(R.string.field_protocol)
             adapter = ArrayAdapter(
                 this@MainActivity,
                 android.R.layout.simple_spinner_item,
                 ConnectionProtocol.entries.map { it.label }
             ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
         }
-        addView(formLabel("Protocol"))
+        addView(formLabel(getString(R.string.field_protocol)))
         addView(protocolSpinner)
         protocolSecurityText = TextView(this@MainActivity).apply {
             textSize = 12f
@@ -514,36 +514,36 @@ class MainActivity : Activity() {
         }
         addView(protocolSecurityText)
 
-        hostInput = input("Host", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
-        addView(formLabel("Host"))
+        hostInput = input(getString(R.string.field_host), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        addView(formLabel(getString(R.string.field_host)))
         addView(hostInput)
 
         portInput = input("21", InputType.TYPE_CLASS_NUMBER)
-        addView(formLabel("Port"))
+        addView(formLabel(getString(R.string.field_port)))
         addView(portInput)
 
-        usernameInput = input("Username", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
-        addView(formLabel("Username"))
+        usernameInput = input(getString(R.string.field_username), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
+        addView(formLabel(getString(R.string.field_username)))
         addView(usernameInput)
 
-        passwordInput = input("Password", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD).apply {
+        passwordInput = input(getString(R.string.field_password), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD).apply {
             // Never let Activity view-state persistence retain a session password.
             isSaveEnabled = false
         }
-        addView(formLabel("Password"))
+        addView(formLabel(getString(R.string.field_password)))
         addView(passwordInput)
 
-        hostKeyFingerprintInput = input("SHA256 fingerprint for SFTP", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
+        hostKeyFingerprintInput = input(getString(R.string.hint_sftp_fingerprint), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
         sftpFingerprintGroup = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
-            addView(formLabel("SFTP host key fingerprint"))
+            addView(formLabel(getString(R.string.field_sftp_fingerprint)))
             addView(hostKeyFingerprintInput)
         }
         addView(sftpFingerprintGroup)
 
         remotePathInput = input("/", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         remotePathInput.setText("/")
-        addView(formLabel("Remote path"))
+        addView(formLabel(getString(R.string.field_remote_path)))
         addView(remotePathInput)
 
         val actions = LinearLayout(this@MainActivity).apply {
@@ -551,14 +551,14 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(14), 0, 0)
         }
-        connectButton = primaryButton("Connect") { openConnection() }.apply {
-            contentDescription = "Connect to server"
+        connectButton = primaryButton(getString(R.string.action_connect)) { openConnection() }.apply {
+            contentDescription = getString(R.string.action_connect)
         }
-        disconnectButton = secondaryButton("Disconnect") { disconnect() }.apply {
-            contentDescription = "Disconnect from server"
+        disconnectButton = secondaryButton(getString(R.string.action_disconnect)) { disconnect() }.apply {
+            contentDescription = getString(R.string.action_disconnect)
         }
-        refreshButton = secondaryButton("Refresh") { refreshActive() }.apply {
-            contentDescription = "Refresh current session"
+        refreshButton = secondaryButton(getString(R.string.action_refresh)) { refreshActive() }.apply {
+            contentDescription = getString(R.string.action_refresh)
         }
         actions.addView(connectButton, buttonParams(weight = 1f))
         actions.addView(gap(8))
@@ -617,8 +617,8 @@ class MainActivity : Activity() {
     }
 
     private fun buildFilesCard(): View = panel().apply {
-        addView(sectionTitle("Files"))
-        addView(sectionDescription("Open folders, select files, then use the toolbar actions aligned with Ghost FTP desktop."))
+        addView(sectionTitle(getString(R.string.workspace_files)))
+        addView(sectionDescription(getString(R.string.desc_files)))
         remoteRows = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -626,8 +626,8 @@ class MainActivity : Activity() {
     }
 
     private fun buildTransfersCard(): View = panel().apply {
-        addView(sectionTitle("Transfers"))
-        addView(sectionDescription("Manage the selected remote entry, upload target, rename target and remote folder action for the active session."))
+        addView(sectionTitle(getString(R.string.workspace_transfers)))
+        addView(sectionDescription(getString(R.string.desc_transfers)))
 
         transferRemotePathInput = input("/remote/file-or-folder", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         addView(formLabel("Remote file path"))
@@ -646,7 +646,7 @@ class MainActivity : Activity() {
         addView(renameRemoteNameInput)
 
         uploadSelectionText = TextView(this@MainActivity).apply {
-            text = "No local upload file selected."
+            text = getString(R.string.state_no_local_file)
             setTextColor(Brand.textSoft)
             textSize = 13f
             setPadding(0, dp(10), 0, dp(4))
@@ -654,7 +654,7 @@ class MainActivity : Activity() {
         addView(uploadSelectionText)
 
         transferStateText = TextView(this@MainActivity).apply {
-            text = "No transfer started."
+            text = getString(R.string.state_no_transfer)
             setTextColor(Brand.muted)
             textSize = 13f
             setPadding(0, dp(4), 0, dp(4))
@@ -666,12 +666,12 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(10), 0, 0)
         }
-        uploadRow.addView(trackBusySensitiveLocalAction(secondaryButton("Pick file") { selectUploadFile() }.apply {
-            contentDescription = "Pick upload file"
+        uploadRow.addView(trackBusySensitiveLocalAction(secondaryButton(getString(R.string.action_pick_file)) { selectUploadFile() }.apply {
+            contentDescription = getString(R.string.action_pick_file)
         }), buttonParams(weight = 1f))
         uploadRow.addView(gap(8))
-        uploadRow.addView(trackRemoteAction(secondaryButton("Upload") { uploadSelectedFile() }.apply {
-            contentDescription = "Upload selected file"
+        uploadRow.addView(trackRemoteAction(secondaryButton(getString(R.string.action_upload)) { uploadSelectedFile() }.apply {
+            contentDescription = getString(R.string.action_upload)
         }), buttonParams(weight = 1f))
         addView(uploadRow)
 
@@ -683,23 +683,23 @@ class MainActivity : Activity() {
     }
 
     private fun buildSettingsCard(): View = panel().apply {
-        addView(sectionTitle("Settings"))
-        addView(sectionDescription("Working session and privacy controls aligned with Ghost FTP desktop safety rules."))
-        addView(row("Privacy", "No required tracking, analytics or telemetry."))
-        addView(row("Credentials", "Session passwords stay in memory and are cleared on disconnect or Activity destruction."))
-        addView(row("Connection safety", "Remote mutations are guarded and SFTP requires strict host-key verification."))
+        addView(sectionTitle(getString(R.string.workspace_settings)))
+        addView(sectionDescription(getString(R.string.desc_settings)))
+        addView(row(getString(R.string.label_privacy), getString(R.string.settings_no_tracking)))
+        addView(row(getString(R.string.label_credentials), getString(R.string.settings_credentials)))
+        addView(row(getString(R.string.label_security), getString(R.string.settings_security)))
 
         val firstRow = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(12), 0, 0)
         }
-        firstRow.addView(secondaryButton("Clear Activity") { clearActivityLog() }.apply {
-            contentDescription = "Clear activity log"
+        firstRow.addView(secondaryButton(getString(R.string.action_clear_activity)) { clearActivityLog() }.apply {
+            contentDescription = getString(R.string.action_clear_activity)
         }, buttonParams(weight = 1f))
         firstRow.addView(gap(8))
-        firstRow.addView(trackBusySensitiveLocalAction(secondaryButton("Reset Transfers") { resetTransferFields() }.apply {
-            contentDescription = "Reset transfer fields"
+        firstRow.addView(trackBusySensitiveLocalAction(secondaryButton(getString(R.string.action_reset_transfers)) { resetTransferFields() }.apply {
+            contentDescription = getString(R.string.action_reset_transfers)
         }), buttonParams(weight = 1f))
         addView(firstRow)
 
@@ -708,26 +708,26 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(8), 0, 0)
         }
-        secondRow.addView(trackBusySensitiveLocalAction(secondaryButton("Reset Connection") { resetConnectionForm() }.apply {
-            contentDescription = "Reset connection form"
+        secondRow.addView(trackBusySensitiveLocalAction(secondaryButton(getString(R.string.action_reset_connection)) { resetConnectionForm() }.apply {
+            contentDescription = getString(R.string.action_reset_connection)
         }), buttonParams(weight = 1f))
         secondRow.addView(gap(8))
-        secondRow.addView(trackSessionDisconnect(secondaryButton("Disconnect") { disconnect() }.apply {
-            contentDescription = "Settings disconnect session"
+        secondRow.addView(trackSessionDisconnect(secondaryButton(getString(R.string.action_disconnect)) { disconnect() }.apply {
+            contentDescription = "${getString(R.string.workspace_settings)} ${getString(R.string.action_disconnect)}"
         }), buttonParams(weight = 1f))
         addView(secondRow)
     }
 
     private fun buildAboutCard(): View = panel().apply {
-        addView(sectionTitle("Help & About"))
+        addView(sectionTitle(getString(R.string.workspace_about)))
         addView(sectionDescription("Ghost FTP ${ReleaseInfo.VERSION_DISPLAY} · Build ${ReleaseInfo.BUILD}"))
-        addView(row("Product", "Ghost FTP by Brendigo"))
-        addView(row("Protocols", "FTP · Explicit FTPS · SFTP"))
-        addView(officialLinkRow("Support", "Guides, troubleshooting and product support.", SUPPORT_URL))
-        addView(officialLinkRow("Documentation", "Official Ghost FTP documentation.", DOCUMENTATION_URL))
-        addView(officialLinkRow("Privacy", "Read the official privacy information.", PRIVACY_URL))
-        addView(officialLinkRow("Terms of use / EULA", "Read the canonical Ghost FTP software licence terms.", EULA_URL))
-        addView(officialLinkRow("Official website", "Ghost FTP product website.", WEBSITE_URL))
+        addView(row(getString(R.string.label_product), "Ghost FTP · Brendigo"))
+        addView(row(getString(R.string.label_protocols), "FTP · Explicit FTPS · SFTP"))
+        addView(officialLinkRow(getString(R.string.label_support), getString(R.string.about_support_desc), SUPPORT_URL))
+        addView(officialLinkRow(getString(R.string.label_documentation), getString(R.string.about_docs_desc), DOCUMENTATION_URL))
+        addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
+        addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
+        addView(officialLinkRow(getString(R.string.label_official_website), getString(R.string.about_website_desc), WEBSITE_URL))
     }
 
     private fun setWorkspace(workspace: Workspace, announce: Boolean = true) {
@@ -745,9 +745,9 @@ class MainActivity : Activity() {
         workspaceNavButtons.forEach { (key, view) ->
             styleWorkspaceNavItem(view, selected = key == workspace)
         }
-        if (::workspaceTitle.isInitialized) workspaceTitle.text = workspace.label
+        if (::workspaceTitle.isInitialized) workspaceTitle.text = getString(workspace.labelRes)
         if (::workspaceContainer.isInitialized) {
-            workspaceContainer.contentDescription = "${workspace.label} workspace content"
+            workspaceContainer.contentDescription = getString(R.string.workspace_content, getString(workspace.labelRes))
         }
         if (::contentScroll.isInitialized) {
             contentScroll.post {
@@ -758,7 +758,7 @@ class MainActivity : Activity() {
                 }
                 contentScroll.scrollTo(0, workspaceTop)
                 if (announce && ::workspaceContainer.isInitialized) {
-                    workspaceContainer.announceForAccessibility("${workspace.label} workspace")
+                    workspaceContainer.announceForAccessibility(getString(R.string.workspace_announce, getString(workspace.labelRes)))
                 }
             }
         }
@@ -781,10 +781,10 @@ class MainActivity : Activity() {
         if (::navigationToggleButton.isInitialized) {
             navigationToggleButton.text = if (open) "←" else "☰"
             navigationToggleButton.contentDescription =
-                if (open) "Close navigation menu" else "Open navigation menu"
+                if (open) getString(R.string.nav_close) else getString(R.string.nav_open)
             if (announce) {
                 navigationToggleButton.announceForAccessibility(
-                    if (open) "Navigation menu opened" else "Navigation menu closed"
+                    if (open) getString(R.string.nav_opened) else getString(R.string.nav_closed)
                 )
             }
         }
@@ -792,7 +792,7 @@ class MainActivity : Activity() {
 
     private fun buildFooter(): View = panel().apply {
         addView(TextView(this@MainActivity).apply {
-            text = "Ghost FTP · Brendigo · Private session"
+            text = "Ghost FTP · Brendigo · ${getString(R.string.label_private_session)}"
             setTextColor(Brand.muted)
             textSize = 13f
             gravity = Gravity.CENTER
@@ -858,8 +858,8 @@ class MainActivity : Activity() {
         selectedUploadDisplayName = ""
         lastCompletedTransferPath = ""
         if (::passwordInput.isInitialized) passwordInput.text.clear()
-        if (::uploadSelectionText.isInitialized) uploadSelectionText.text = "No local upload file selected."
-        if (::transferStateText.isInitialized) transferStateText.text = "No transfer started."
+        if (::uploadSelectionText.isInitialized) uploadSelectionText.text = getString(R.string.state_no_local_file)
+        if (::transferStateText.isInitialized) transferStateText.text = getString(R.string.state_no_transfer)
         showIdleState()
     }
 
@@ -876,8 +876,8 @@ class MainActivity : Activity() {
         if (::uploadRemoteNameInput.isInitialized) uploadRemoteNameInput.text.clear()
         if (::mkdirNameInput.isInitialized) mkdirNameInput.text.clear()
         if (::renameRemoteNameInput.isInitialized) renameRemoteNameInput.text.clear()
-        if (::uploadSelectionText.isInitialized) uploadSelectionText.text = "No local upload file selected."
-        if (::transferStateText.isInitialized) transferStateText.text = "No transfer started."
+        if (::uploadSelectionText.isInitialized) uploadSelectionText.text = getString(R.string.state_no_local_file)
+        if (::transferStateText.isInitialized) transferStateText.text = getString(R.string.state_no_transfer)
         showMessage("Transfers reset", "Transfer fields reset.")
     }
 
@@ -966,7 +966,7 @@ class MainActivity : Activity() {
         remoteRows.addView(row("Files", "Connect to a server to load remote files."))
         activityRows.removeAllViews()
         activityRows.addView(row("Transfers", "Connect first, then choose a file action."))
-        transferStateText.text = "No transfer started."
+        transferStateText.text = getString(R.string.state_no_transfer)
         setBusy(false)
     }
 
@@ -1392,7 +1392,7 @@ class MainActivity : Activity() {
         row(title, detail).apply {
             isClickable = true
             isFocusable = true
-            contentDescription = "Open Ghost FTP $title"
+            contentDescription = getString(R.string.link_open, title)
             setOnClickListener { openOfficialLink(url) }
         }
 
@@ -1467,8 +1467,8 @@ class MainActivity : Activity() {
 
     private fun workspaceNavItem(workspace: Workspace): TextView {
         val view = TextView(this).apply {
-            text = workspace.label
-            contentDescription = "Open ${workspace.label} workspace"
+            text = getString(workspace.labelRes)
+            contentDescription = getString(R.string.workspace_open, getString(workspace.labelRes))
             textSize = if (resources.configuration.screenWidthDp >= 600) 13f else 11f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
@@ -1510,7 +1510,7 @@ class MainActivity : Activity() {
 
     private fun toolbarButton(value: String, destructive: Boolean = false, onClick: () -> Unit): Button = Button(this).apply {
         text = value
-        contentDescription = "$value action"
+        contentDescription = value
         setTextColor(if (destructive) Brand.danger else Brand.text)
         textSize = 12f
         typeface = Typeface.DEFAULT_BOLD

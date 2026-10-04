@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Datoteke</string>
+    <string name="workspace_sites">Lokacije</string>
+    <string name="workspace_transfers">Prenosi</string>
+    <string name="workspace_settings">Nastavitve</string>
+    <string name="workspace_about">Pomoč in informacije</string>
+    <string name="action_refresh">Osveži</string>
+    <string name="action_upload">Naloži</string>
+    <string name="action_download">Prenesi</string>
+    <string name="action_new_folder">Nova mapa</string>
+    <string name="action_rename">Preimenuj</string>
+    <string name="action_delete">Izbriši</string>
+    <string name="action_cancel">Prekliči</string>
+    <string name="action_confirm">Potrdi</string>
+    <string name="action_connect">Poveži</string>
+    <string name="action_disconnect">Prekini povezavo</string>
+    <string name="action_pick_file">Izberi datoteko</string>
+    
+    
+
+
+
+
+
+
+
+<string name="label_support">Podpora</string>
+    <string name="label_documentation">Dokumentacija</string>
+    <string name="label_privacy_policy">Pravilnik o zasebnosti</string>
+    <string name="label_official_website">Uradna spletna stran</string>
+    <string name="field_host">Gostitelj</string>
+    <string name="field_port">Vrata</string>
+    <string name="field_username">Uporabniško ime</string>
+    <string name="field_password">Geslo</string>
+    <string name="field_protocol">Protokol</string>
+    <string name="label_security">Varnost</string>
+    <string name="label_connection">Povezava</string>
+    <string name="label_private_session">Zasebna seja</string>
+    <string name="label_session">Seja</string>
+    <string name="nav_open">Odpri navigacijski meni</string>
+    <string name="nav_close">Zapri navigacijski meni</string>
+    <string name="nav_opened">Navigacijski meni odprt</string>
+    <string name="nav_closed">Navigacijski meni zaprt</string>
+    <string name="nav_close_overlay">Zapri prekrivni navigacijski meni</string>
+    <string name="field_sftp_fingerprint">Prstni odtis gostiteljskega ključa SFTP</string>
+    <string name="hint_sftp_fingerprint">Prstni odtis SHA256 za SFTP</string>
+    <string name="field_remote_path">Oddaljena pot</string>
+    <string name="desc_sites">Povežite se prek FTP, izrecnega FTPS ali SFTP. Gesla med aktivno sejo ostanejo v pomnilniku in se ob prekinitvi povezave izbrišejo.</string>
+    <string name="desc_files">Odprite mape, izberite datoteke in nato uporabite dejanja v orodni vrstici, usklajena z namizno aplikacijo Ghost FTP.</string>
+    <string name="desc_transfers">Upravljajte izbrani oddaljeni element, cilj nalaganja, cilj preimenovanja in dejanje oddaljene mape za aktivno sejo.</string>
+    <string name="desc_settings">Kontrolniki aktivne seje in zasebnosti so usklajeni z varnostnimi pravili namizne aplikacije Ghost FTP.</string>
+    <string name="label_privacy">Zasebnost</string>
+    <string name="settings_no_tracking">Brez obveznega sledenja, analitike ali telemetrije.</string>
+    <string name="label_credentials">Poverilnice</string>
+    <string name="settings_credentials">Gesla seje ostanejo v pomnilniku in se izbrišejo ob prekinitvi povezave ali uničenju Activity.</string>
+    <string name="settings_security">Oddaljene spremembe so zaščitene, SFTP pa zahteva strogo preverjanje ključa gostitelja.</string>
+    <string name="action_clear_activity">Počisti dejavnost</string>
+    <string name="action_reset_transfers">Ponastavi prenose</string>
+    <string name="action_reset_connection">Ponastavi povezavo</string>
+    <string name="state_no_local_file">Izbrana ni nobena lokalna datoteka za nalaganje.</string>
+    <string name="state_no_transfer">Noben prenos ni bil začet.</string>
+    <string name="label_product">Izdelek</string>
+    <string name="label_protocols">Protokoli</string>
+    <string name="label_eula">Pogoji uporabe / EULA</string>
+    <string name="about_support_desc">Vodniki, odpravljanje težav in podpora za izdelek.</string>
+    <string name="about_docs_desc">Uradna dokumentacija Ghost FTP.</string>
+    <string name="about_privacy_desc">Preberite uradne informacije o zasebnosti.</string>
+    <string name="about_eula_desc">Preberite uradne licenčne pogoje programske opreme Ghost FTP.</string>
+    <string name="about_website_desc">Spletno mesto izdelka Ghost FTP.</string>
+    <string name="link_open">Odpri Ghost FTP %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">Odpri delovni prostor %1$s</string>
+    <string name="workspace_content">Vsebina delovnega prostora %1$s</string>
+    <string name="workspace_announce">Delovni prostor %1$s</string>
+</resources>

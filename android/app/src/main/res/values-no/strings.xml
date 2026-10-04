@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Filer</string>
+    <string name="workspace_sites">Plasseringer</string>
+    <string name="workspace_transfers">Overføringer</string>
+    <string name="workspace_settings">Innstillinger</string>
+    <string name="workspace_about">Hjelp og om</string>
+    <string name="action_refresh">Oppdater</string>
+    <string name="action_upload">Last opp</string>
+    <string name="action_download">Last ned</string>
+    <string name="action_new_folder">Ny mappe</string>
+    <string name="action_rename">Gi nytt navn</string>
+    <string name="action_delete">Slett</string>
+    <string name="action_cancel">Avbryt</string>
+    <string name="action_confirm">Bekreft</string>
+    <string name="action_connect">Koble til</string>
+    <string name="action_disconnect">Koble fra</string>
+    <string name="action_pick_file">Velg fil</string>
+    
+    
+
+
+
+
+
+
+
+<string name="label_support">Brukerstøtte</string>
+    <string name="label_documentation">Dokumentasjon</string>
+    <string name="label_privacy_policy">Personvernerklæring</string>
+    <string name="label_official_website">Offisielt nettsted</string>
+    <string name="field_host">Vert</string>
+    <string name="field_port">Port</string>
+    <string name="field_username">Brukernavn</string>
+    <string name="field_password">Passord</string>
+    <string name="field_protocol">Protokoll</string>
+    <string name="label_security">Sikkerhet</string>
+    <string name="label_connection">Tilkobling</string>
+    <string name="label_private_session">Privat økt</string>
+    <string name="label_session">Økt</string>
+    <string name="nav_open">Åpne navigasjonsmenyen</string>
+    <string name="nav_close">Lukk navigasjonsmenyen</string>
+    <string name="nav_opened">Navigasjonsmenyen åpnet</string>
+    <string name="nav_closed">Navigasjonsmenyen lukket</string>
+    <string name="nav_close_overlay">Lukk overlagt navigasjonsmeny</string>
+    <string name="field_sftp_fingerprint">Fingeravtrykk for SFTP-vertsnøkkel</string>
+    <string name="hint_sftp_fingerprint">SHA256-fingeravtrykk for SFTP</string>
+    <string name="field_remote_path">Ekstern bane</string>
+    <string name="desc_sites">Koble til via FTP, eksplisitt FTPS eller SFTP. Passord beholdes i minnet under den aktive økten og ryddes ved frakobling.</string>
+    <string name="desc_files">Åpne mapper, velg filer og bruk deretter verktøylinjehandlingene som samsvarer med Ghost FTP på skrivebordet.</string>
+    <string name="desc_transfers">Administrer valgt eksternt element, opplastingsmål, mål for nytt navn og ekstern mappehandling for den aktive økten.</string>
+    <string name="desc_settings">Kontroller for aktiv økt og personvern følger sikkerhetsreglene i Ghost FTP på skrivebordet.</string>
+    <string name="label_privacy">Personvern</string>
+    <string name="settings_no_tracking">Ingen obligatorisk sporing, analyse eller telemetri.</string>
+    <string name="label_credentials">Legitimasjon</string>
+    <string name="settings_credentials">Øktpassord beholdes i minnet og ryddes ved frakobling eller når Activity ødelegges.</string>
+    <string name="settings_security">Eksterne endringer er beskyttet, og SFTP krever streng verifisering av vertsnøkkelen.</string>
+    <string name="action_clear_activity">Tøm aktivitet</string>
+    <string name="action_reset_transfers">Tilbakestill overføringer</string>
+    <string name="action_reset_connection">Tilbakestill tilkobling</string>
+    <string name="state_no_local_file">Ingen lokal opplastingsfil er valgt.</string>
+    <string name="state_no_transfer">Ingen overføring er startet.</string>
+    <string name="label_product">Produkt</string>
+    <string name="label_protocols">Protokoller</string>
+    <string name="label_eula">Vilkår for bruk / EULA</string>
+    <string name="about_support_desc">Veiledninger, feilsøking og produktstøtte.</string>
+    <string name="about_docs_desc">Offisiell Ghost FTP-dokumentasjon.</string>
+    <string name="about_privacy_desc">Les den offisielle personverninformasjonen.</string>
+    <string name="about_eula_desc">Les de offisielle lisensvilkårene for Ghost FTP-programvaren.</string>
+    <string name="about_website_desc">Ghost FTP-produktnettsted.</string>
+    <string name="link_open">Åpne Ghost FTP %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">Åpne arbeidsområdet %1$s</string>
+    <string name="workspace_content">Innhold i arbeidsområdet %1$s</string>
+    <string name="workspace_announce">Arbeidsområdet %1$s</string>
+</resources>

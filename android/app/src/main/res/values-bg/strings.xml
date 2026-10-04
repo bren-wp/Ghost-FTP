@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Файлове</string>
+    <string name="workspace_sites">Местоположения</string>
+    <string name="workspace_transfers">Прехвърляния</string>
+    <string name="workspace_settings">Настройки</string>
+    <string name="workspace_about">Помощ и информация</string>
+    <string name="action_refresh">Обнови</string>
+    <string name="action_upload">Качи</string>
+    <string name="action_download">Изтегли</string>
+    <string name="action_new_folder">Нова папка</string>
+    <string name="action_rename">Преименувай</string>
+    <string name="action_delete">Изтрий</string>
+    <string name="action_cancel">Отказ</string>
+    <string name="action_confirm">Потвърди</string>
+    <string name="action_connect">Свържи</string>
+    <string name="action_disconnect">Прекъсни</string>
+    <string name="action_pick_file">Избери файл</string>
+    
+    
+
+
+
+
+
+
+
+<string name="label_support">Поддръжка</string>
+    <string name="label_documentation">Документация</string>
+    <string name="label_privacy_policy">Политика за поверителност</string>
+    <string name="label_official_website">Официален уебсайт</string>
+    <string name="field_host">Хост</string>
+    <string name="field_port">Порт</string>
+    <string name="field_username">Потребителско име</string>
+    <string name="field_password">Парола</string>
+    <string name="field_protocol">Протокол</string>
+    <string name="label_security">Сигурност</string>
+    <string name="label_connection">Връзка</string>
+    <string name="label_private_session">Частна сесия</string>
+    <string name="label_session">Сесия</string>
+    <string name="nav_open">Отвори менюто за навигация</string>
+    <string name="nav_close">Затвори менюто за навигация</string>
+    <string name="nav_opened">Менюто за навигация е отворено</string>
+    <string name="nav_closed">Менюто за навигация е затворено</string>
+    <string name="nav_close_overlay">Затвори наслагващото се меню за навигация</string>
+    <string name="field_sftp_fingerprint">Отпечатък на хост ключа за SFTP</string>
+    <string name="hint_sftp_fingerprint">SHA256 отпечатък за SFTP</string>
+    <string name="field_remote_path">Отдалечен път</string>
+    <string name="desc_sites">Свържете се чрез FTP, explicit FTPS или SFTP. Паролите остават в паметта по време на активната сесия и се изчистват при прекъсване на връзката.</string>
+    <string name="desc_files">Отваряйте папки, избирайте файлове и използвайте действията в лентата с инструменти, съобразени с настолното приложение Ghost FTP.</string>
+    <string name="desc_transfers">Управлявайте избрания отдалечен елемент, целта за качване, целта за преименуване и действието за отдалечена папка в активната сесия.</string>
+    <string name="desc_settings">Контролите за активната сесия и поверителността са съобразени с правилата за сигурност на настолното приложение Ghost FTP.</string>
+    <string name="label_privacy">Поверителност</string>
+    <string name="settings_no_tracking">Без задължително проследяване, анализи или телеметрия.</string>
+    <string name="label_credentials">Идентификационни данни</string>
+    <string name="settings_credentials">Паролите за сесията остават в паметта и се изчистват при прекъсване на връзката или унищожаване на Activity.</string>
+    <string name="settings_security">Отдалечените промени са защитени, а SFTP изисква строга проверка на хост ключа.</string>
+    <string name="action_clear_activity">Изчисти активността</string>
+    <string name="action_reset_transfers">Нулирай трансферите</string>
+    <string name="action_reset_connection">Нулирай връзката</string>
+    <string name="state_no_local_file">Не е избран локален файл за качване.</string>
+    <string name="state_no_transfer">Не е стартиран трансфер.</string>
+    <string name="label_product">Продукт</string>
+    <string name="label_protocols">Протоколи</string>
+    <string name="label_eula">Условия за ползване / EULA</string>
+    <string name="about_support_desc">Ръководства, отстраняване на проблеми и продуктова поддръжка.</string>
+    <string name="about_docs_desc">Официална документация на Ghost FTP.</string>
+    <string name="about_privacy_desc">Прочетете официалната информация за поверителност.</string>
+    <string name="about_eula_desc">Прочетете официалните лицензионни условия за софтуера Ghost FTP.</string>
+    <string name="about_website_desc">Уебсайт на продукта Ghost FTP.</string>
+    <string name="link_open">Отвори Ghost FTP %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">Отвори работното пространство %1$s</string>
+    <string name="workspace_content">Съдържание на работното пространство %1$s</string>
+    <string name="workspace_announce">Работно пространство %1$s</string>
+</resources>

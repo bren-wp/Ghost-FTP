@@ -17,9 +17,10 @@ import {
   PRODUCT_PRIVACY_URL,
   PRODUCT_RELEASE_DATE,
   PRODUCT_SUPPORT_URL,
+  PRODUCT_SITE,
   PRODUCT_VERSION_DISPLAY,
 } from "@/lib/release";
-import { APP_LOCALES } from "@/lib/i18n";
+import { APP_LOCALES, tr } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
 import { useDialog } from "@/hooks/useDialog";
 
@@ -36,17 +37,17 @@ export function AboutDialog({ onClose, initialTab = "about" }: Props) {
       <div ref={panelRef} className="ghost-about flex h-full w-full flex-col overflow-hidden bg-bg-panel">
         <div className="ghost-about-body flex min-h-0 flex-1 flex-col">
         <nav className="ghost-about-nav ghost-about-tabs flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-[#061a2d] px-3 py-2" aria-label="Help and About sections">
-          <AboutNav active={tab === "about"} icon={<Globe2 size={17}/>} label="About" onClick={() => setTab("about")} />
-          <AboutNav active={tab === "updates"} icon={<RefreshCw size={17}/>} label="Updates" onClick={() => setTab("updates")} />
-          <AboutNav active={tab === "help"} icon={<HelpCircle size={17}/>} label="Help Center" onClick={() => setTab("help")} />
-          <AboutNav active={tab === "privacy"} icon={<ShieldCheck size={17}/>} label="Privacy" onClick={() => setTab("privacy")} />
+          <AboutNav active={tab === "about"} icon={<Globe2 size={17}/>} label={tr("About")} onClick={() => setTab("about")} />
+          <AboutNav active={tab === "updates"} icon={<RefreshCw size={17}/>} label={tr("Updates")} onClick={() => setTab("updates")} />
+          <AboutNav active={tab === "help"} icon={<HelpCircle size={17}/>} label={tr("Help Center")} onClick={() => setTab("help")} />
+          <AboutNav active={tab === "privacy"} icon={<ShieldCheck size={17}/>} label={tr("Privacy")} onClick={() => setTab("privacy")} />
         </nav>
 
         <main className="ghost-about-content min-h-0 min-w-0 flex-1 overflow-y-auto p-4">
           {tab !== "about" && (
             <div className="mb-3">
               <div className="text-lg font-semibold">
-                {tab === "updates" ? "Ghost FTP Updates" : tab === "privacy" ? "Privacy" : "Ghost FTP Help Center"}
+                {tab === "updates" ? "Ghost FTP Updates" : tab === "privacy" ? tr("Privacy") : "Ghost FTP Help Center"}
               </div>
               <div className="text-[12px] text-text-muted">Files move forward.</div>
             </div>
@@ -78,14 +79,14 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
             </div>
           </div>
           <div className="grid grid-cols-3 border-t border-border px-6 py-4 text-center">
-            <Meta label="Version" value={PRODUCT_VERSION_DISPLAY}/>
-            <Meta label="Build" value={PRODUCT_BUILD} border/>
-            <Meta label="Release Date" value={PRODUCT_RELEASE_DATE} border/>
+            <Meta label={tr("Version")} value={PRODUCT_VERSION_DISPLAY}/>
+            <Meta label={tr("Build")} value={PRODUCT_BUILD} border/>
+            <Meta label={tr("Release Date")} value={PRODUCT_RELEASE_DATE} border/>
           </div>
         </div>
 
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
-          <div className="mb-3 flex items-center gap-2"><FileText className="text-accent" size={22}/><div><div className="text-[16px] font-semibold">What's New</div><div className="text-[12px] text-text-muted">Highlights from the latest release</div></div><div className="flex-1"/><button onClick={() => onNavigate("updates")} className="text-[12px] text-accent hover:underline">View Full Changelog</button></div>
+          <div className="mb-3 flex items-center gap-2"><FileText className="text-accent" size={22}/><div><div className="text-[16px] font-semibold">{tr("What's New")}</div><div className="text-[12px] text-text-muted">{tr("Highlights from the latest release")}</div></div><div className="flex-1"/><button onClick={() => onNavigate("updates")} className="text-[12px] text-accent hover:underline">{tr("View Full Changelog")}</button></div>
           <div className="rounded-md border border-border-subtle bg-[#051929] p-4">
             <div className="mb-2 font-semibold">Version {PRODUCT_VERSION_DISPLAY}</div>
             <ul className="space-y-1.5 text-[12px] text-text-muted">
@@ -101,22 +102,23 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
 
       <aside className="space-y-4">
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
-          <div className="mb-4 flex items-center gap-3"><HelpCircle size={34} className="text-accent"/><div><div className="text-[16px] font-semibold">Get Help</div><div className="text-[12px] text-text-muted">Resources, documentation and support.</div></div></div>
-          <LinkRow icon={<LifeBuoy size={18}/>} title="Help Center" subtitle="Guides, troubleshooting and support" onClick={() => onNavigate("help")}/>
+          <div className="mb-4 flex items-center gap-3"><HelpCircle size={34} className="text-accent"/><div><div className="text-[16px] font-semibold">{tr("Get Help")}</div><div className="text-[12px] text-text-muted">{tr("Resources, documentation and support.")}</div></div></div>
+          <LinkRow icon={<LifeBuoy size={18}/>} title={tr("Help Center")} subtitle="Guides, troubleshooting and support" onClick={() => onNavigate("help")}/>
           <OfficialLinkRow icon={<LifeBuoy size={18}/>} title="Official Support" subtitle="Open ghostftp.com/support" url={PRODUCT_SUPPORT_URL}/>
-          <OfficialLinkRow icon={<Globe2 size={18}/>} title="Documentation" subtitle="Open official Ghost FTP documentation" url={PRODUCT_DOCUMENTATION_URL}/>
-          <LinkRow icon={<ShieldCheck size={18}/>} title="Privacy" subtitle="Privacy-first defaults and local data" onClick={() => onNavigate("privacy")}/>
-          <OfficialLinkRow icon={<ShieldCheck size={18}/>} title="Privacy Policy" subtitle="Open official privacy information" url={PRODUCT_PRIVACY_URL}/>
+          <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Documentation")} subtitle="Open official Ghost FTP documentation" url={PRODUCT_DOCUMENTATION_URL}/>
+          <LinkRow icon={<ShieldCheck size={18}/>} title={tr("Privacy")} subtitle="Privacy-first defaults and local data" onClick={() => onNavigate("privacy")}/>
+          <OfficialLinkRow icon={<ShieldCheck size={18}/>} title={tr("Privacy Policy")} subtitle="Open official privacy information" url={PRODUCT_PRIVACY_URL}/>
           <OfficialLinkRow icon={<FileText size={18}/>} title="Terms of use / EULA" subtitle="Open the canonical Ghost FTP software licence" url={PRODUCT_EULA_URL}/>
+          <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Official website")} subtitle="Open ghostftp.com" url={PRODUCT_SITE}/>
           <LinkRow icon={<FileText size={18}/>} title="Changelog" subtitle="See what's new" onClick={() => onNavigate("updates")}/>
         </div>
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
-          <div className="text-[15px] font-semibold">Platforms & Language</div>
+          <div className="text-[15px] font-semibold">{tr("Platforms & Language")}</div>
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <Platform title="Windows" subtitle="Fully supported" icon={<WindowsPlatformMark/>}/>
-            <Platform title="Linux" subtitle="Fully supported" icon={<LinuxPlatformMark/>}/>
+            <Platform title="Windows" subtitle={tr("Fully supported")} icon={<WindowsPlatformMark/>}/>
+            <Platform title="Linux" subtitle={tr("Fully supported")} icon={<LinuxPlatformMark/>}/>
           </div>
-          <div className="mt-4 border-t border-border pt-4 text-[12px] text-text-muted"><strong className="text-text">Languages</strong><br/>{APP_LOCALES.length} interface languages</div>
+          <div className="mt-4 border-t border-border pt-4 text-[12px] text-text-muted"><strong className="text-text">{tr("Languages")}</strong><br/>{APP_LOCALES.length} interface languages</div>
         </div>
       </aside>
     </div>
@@ -136,7 +138,7 @@ function UpdatesContent() {
     : status === "ready" ? "Update is ready. Restart Ghost FTP to finish."
     : status === "error" ? (error ?? "Update check failed.")
     : "No update check has been run in this view yet.";
-  return <div className="rounded-lg border border-border bg-[#071f35] p-6"><div className="mb-4 flex items-center gap-3"><RefreshCw size={30} className="text-accent"/><div><div className="text-[18px] font-semibold">Ghost FTP {PRODUCT_VERSION_DISPLAY}</div><div className="text-text-muted">Stable channel · {currentPlatform()}</div></div></div><p className="max-w-2xl text-[13px] leading-6 text-text-muted">Ghost FTP securely checks the official update service and installs only verified packages. Technical delivery details stay hidden from the application interface.</p><p className="mt-3 text-[12px] text-text-muted" aria-live="polite">{label}</p><div className="mt-5 flex gap-2"><button className="ghost-primary-button" disabled={status === "checking" || status === "downloading"} onClick={() => void check(false)}><RefreshCw size={14}/> Check for Updates</button>{status === "available" && <button className="ghost-primary-button" onClick={() => void download()}>Download &amp; install</button>}{status === "ready" && <button className="ghost-primary-button" onClick={() => void restart()}>Restart now</button>}</div></div>;
+  return <div className="rounded-lg border border-border bg-[#071f35] p-6"><div className="mb-4 flex items-center gap-3"><RefreshCw size={30} className="text-accent"/><div><div className="text-[18px] font-semibold">Ghost FTP {PRODUCT_VERSION_DISPLAY}</div><div className="text-text-muted">Stable channel · {currentPlatform()}</div></div></div><p className="max-w-2xl text-[13px] leading-6 text-text-muted">Ghost FTP securely checks the official update service and installs only verified packages. Technical delivery details stay hidden from the application interface.</p><p className="mt-3 text-[12px] text-text-muted" aria-live="polite">{label}</p><div className="mt-5 flex gap-2"><button className="ghost-primary-button" disabled={status === "checking" || status === "downloading"} onClick={() => void check(false)}><RefreshCw size={14}/> {tr("Check for Updates")}</button>{status === "available" && <button className="ghost-primary-button" onClick={() => void download()}>{tr("Download & install")}</button>}{status === "ready" && <button className="ghost-primary-button" onClick={() => void restart()}>{tr("Restart now")}</button>}</div></div>;
 }
 
 function currentPlatform() {
@@ -148,10 +150,10 @@ function currentPlatform() {
 
 function HelpContent() {
   return <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-    <InfoCard icon={<Globe2/>} title="Connections" text="Create or edit a saved site, then use Test Connection before connecting." />
-    <InfoCard icon={<FileText/>} title="Transfers" text="Use Transfers for queue status, retry, scheduling and transfer history." />
+    <InfoCard icon={<Globe2/>} title={tr("Connections")} text="Create or edit a saved site, then use Test Connection before connecting." />
+    <InfoCard icon={<FileText/>} title={tr("Transfers")} text="Use Transfers for queue status, retry, scheduling and transfer history." />
     <InfoCard icon={<LifeBuoy/>} title="Troubleshooting" text="Connection and transfer errors stay visible in the app so you can act on the real failure." />
-    <InfoCard icon={<RefreshCw/>} title="Updates" text="Open the Updates tab here to check the official Ghost FTP update channel." />
+    <InfoCard icon={<RefreshCw/>} title={tr("Updates")} text="Open the Updates tab here to check the official Ghost FTP update channel." />
   </div>;
 }
 

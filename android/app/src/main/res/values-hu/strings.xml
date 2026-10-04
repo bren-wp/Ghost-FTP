@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Fájlok</string>
+    <string name="workspace_sites">Helyek</string>
+    <string name="workspace_transfers">Átvitelek</string>
+    <string name="workspace_settings">Beállítások</string>
+    <string name="workspace_about">Súgó és névjegy</string>
+    <string name="action_refresh">Frissítés</string>
+    <string name="action_upload">Feltöltés</string>
+    <string name="action_download">Letöltés</string>
+    <string name="action_new_folder">Új mappa</string>
+    <string name="action_rename">Átnevezés</string>
+    <string name="action_delete">Törlés</string>
+    <string name="action_cancel">Mégse</string>
+    <string name="action_confirm">Megerősítés</string>
+    <string name="action_connect">Csatlakozás</string>
+    <string name="action_disconnect">Leválasztás</string>
+    <string name="action_pick_file">Fájl kiválasztása</string>
+    
+    
+
+
+
+
+
+
+
+<string name="label_support">Támogatás</string>
+    <string name="label_documentation">Dokumentáció</string>
+    <string name="label_privacy_policy">Adatvédelmi irányelvek</string>
+    <string name="label_official_website">Hivatalos weboldal</string>
+    <string name="field_host">Gazdagép</string>
+    <string name="field_port">Port</string>
+    <string name="field_username">Felhasználónév</string>
+    <string name="field_password">Jelszó</string>
+    <string name="field_protocol">Protokoll</string>
+    <string name="label_security">Biztonság</string>
+    <string name="label_connection">Kapcsolat</string>
+    <string name="label_private_session">Privát munkamenet</string>
+    <string name="label_session">Munkamenet</string>
+    <string name="nav_open">Navigációs menü megnyitása</string>
+    <string name="nav_close">Navigációs menü bezárása</string>
+    <string name="nav_opened">Navigációs menü megnyitva</string>
+    <string name="nav_closed">Navigációs menü bezárva</string>
+    <string name="nav_close_overlay">Átfedő navigációs menü bezárása</string>
+    <string name="field_sftp_fingerprint">SFTP-gépkulcs ujjlenyomata</string>
+    <string name="hint_sftp_fingerprint">SHA256-ujjlenyomat SFTP-hez</string>
+    <string name="field_remote_path">Távoli útvonal</string>
+    <string name="desc_sites">Csatlakozzon FTP, explicit FTPS vagy SFTP használatával. A jelszavak az aktív munkamenet idején a memóriában maradnak, és kapcsolatbontáskor törlődnek.</string>
+    <string name="desc_files">Nyisson meg mappákat, válasszon fájlokat, majd használja a Ghost FTP asztali alkalmazással egyező eszköztári műveleteket.</string>
+    <string name="desc_transfers">Kezelje az aktív munkamenet kijelölt távoli elemét, feltöltési célját, átnevezési célját és távoli mappaműveletét.</string>
+    <string name="desc_settings">Az aktív munkamenet és az adatvédelem vezérlői a Ghost FTP asztali alkalmazás biztonsági szabályaihoz igazodnak.</string>
+    <string name="label_privacy">Adatvédelem</string>
+    <string name="settings_no_tracking">Nincs kötelező követés, analitika vagy telemetria.</string>
+    <string name="label_credentials">Hitelesítő adatok</string>
+    <string name="settings_credentials">A munkamenet jelszavai a memóriában maradnak, és kapcsolatbontáskor vagy az Activity megsemmisítésekor törlődnek.</string>
+    <string name="settings_security">A távoli módosítások védettek, az SFTP pedig szigorú állomáskulcs-ellenőrzést igényel.</string>
+    <string name="action_clear_activity">Tevékenység törlése</string>
+    <string name="action_reset_transfers">Átvitelek alaphelyzetbe</string>
+    <string name="action_reset_connection">Kapcsolat alaphelyzetbe</string>
+    <string name="state_no_local_file">Nincs kiválasztva helyi feltöltendő fájl.</string>
+    <string name="state_no_transfer">Nem indult átvitel.</string>
+    <string name="label_product">Termék</string>
+    <string name="label_protocols">Protokollok</string>
+    <string name="label_eula">Használati feltételek / EULA</string>
+    <string name="about_support_desc">Útmutatók, hibaelhárítás és terméktámogatás.</string>
+    <string name="about_docs_desc">A Ghost FTP hivatalos dokumentációja.</string>
+    <string name="about_privacy_desc">Olvassa el a hivatalos adatvédelmi információkat.</string>
+    <string name="about_eula_desc">Olvassa el a Ghost FTP szoftver hivatalos licencfeltételeit.</string>
+    <string name="about_website_desc">A Ghost FTP termék webhelye.</string>
+    <string name="link_open">Ghost FTP megnyitása: %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">%1$s munkaterület megnyitása</string>
+    <string name="workspace_content">%1$s munkaterület tartalma</string>
+    <string name="workspace_announce">%1$s munkaterület</string>
+</resources>

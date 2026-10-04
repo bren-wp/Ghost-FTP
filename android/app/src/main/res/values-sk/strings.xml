@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Súbory</string>
+    <string name="workspace_sites">Lokality</string>
+    <string name="workspace_transfers">Prenosy</string>
+    <string name="workspace_settings">Nastavenia</string>
+    <string name="workspace_about">Pomocník a informácie</string>
+    <string name="action_refresh">Obnoviť</string>
+    <string name="action_upload">Nahrať</string>
+    <string name="action_download">Stiahnuť</string>
+    <string name="action_new_folder">Nový priečinok</string>
+    <string name="action_rename">Premenovať</string>
+    <string name="action_delete">Odstrániť</string>
+    <string name="action_cancel">Zrušiť</string>
+    <string name="action_confirm">Potvrdiť</string>
+    <string name="action_connect">Pripojiť</string>
+    <string name="action_disconnect">Odpojiť</string>
+    <string name="action_pick_file">Vybrať súbor</string>
+    
+    
+
+
+
+
+
+
+
+<string name="label_support">Podpora</string>
+    <string name="label_documentation">Dokumentácia</string>
+    <string name="label_privacy_policy">Zásady ochrany osobných údajov</string>
+    <string name="label_official_website">Oficiálna webová stránka</string>
+    <string name="field_host">Hostiteľ</string>
+    <string name="field_port">Port</string>
+    <string name="field_username">Používateľské meno</string>
+    <string name="field_password">Heslo</string>
+    <string name="field_protocol">Protokol</string>
+    <string name="label_security">Zabezpečenie</string>
+    <string name="label_connection">Pripojenie</string>
+    <string name="label_private_session">Súkromná relácia</string>
+    <string name="label_session">Relácia</string>
+    <string name="nav_open">Otvoriť navigačnú ponuku</string>
+    <string name="nav_close">Zavrieť navigačnú ponuku</string>
+    <string name="nav_opened">Navigačná ponuka otvorená</string>
+    <string name="nav_closed">Navigačná ponuka zatvorená</string>
+    <string name="nav_close_overlay">Zavrieť prekryvnú navigačnú ponuku</string>
+    <string name="field_sftp_fingerprint">Odtlačok kľúča hostiteľa SFTP</string>
+    <string name="hint_sftp_fingerprint">Odtlačok SHA256 pre SFTP</string>
+    <string name="field_remote_path">Vzdialená cesta</string>
+    <string name="desc_sites">Pripojte sa cez FTP, explicitné FTPS alebo SFTP. Heslá zostávajú v pamäti počas aktívnej relácie a pri odpojení sa vymažú.</string>
+    <string name="desc_files">Otvárajte priečinky, vyberajte súbory a potom používajte akcie panela nástrojov zladené s desktopovou aplikáciou Ghost FTP.</string>
+    <string name="desc_transfers">Spravujte vybranú vzdialenú položku, cieľ nahrávania, cieľ premenovania a akciu vzdialeného priečinka pre aktívnu reláciu.</string>
+    <string name="desc_settings">Ovládanie aktívnej relácie a súkromia zladené s bezpečnostnými pravidlami desktopovej aplikácie Ghost FTP.</string>
+    <string name="label_privacy">Súkromie</string>
+    <string name="settings_no_tracking">Žiadne povinné sledovanie, analytika ani telemetria.</string>
+    <string name="label_credentials">Prihlasovacie údaje</string>
+    <string name="settings_credentials">Heslá relácie zostávajú v pamäti a pri odpojení alebo zničení aktivity sa vymažú.</string>
+    <string name="settings_security">Vzdialené zmeny sú chránené a SFTP vyžaduje prísne overenie kľúča hostiteľa.</string>
+    <string name="action_clear_activity">Vymazať aktivitu</string>
+    <string name="action_reset_transfers">Obnoviť prenosy</string>
+    <string name="action_reset_connection">Obnoviť pripojenie</string>
+    <string name="state_no_local_file">Nie je vybraný žiadny lokálny súbor na nahratie.</string>
+    <string name="state_no_transfer">Nebol spustený žiadny prenos.</string>
+    <string name="label_product">Produkt</string>
+    <string name="label_protocols">Protokoly</string>
+    <string name="label_eula">Podmienky používania / EULA</string>
+    <string name="about_support_desc">Návody, riešenie problémov a podpora produktu.</string>
+    <string name="about_docs_desc">Oficiálna dokumentácia Ghost FTP.</string>
+    <string name="about_privacy_desc">Prečítajte si oficiálne informácie o súkromí.</string>
+    <string name="about_eula_desc">Prečítajte si záväzné licenčné podmienky softvéru Ghost FTP.</string>
+    <string name="about_website_desc">Web produktu Ghost FTP.</string>
+    <string name="link_open">Otvoriť Ghost FTP %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">Otvoriť pracovný priestor %1$s</string>
+    <string name="workspace_content">Obsah pracovného priestoru %1$s</string>
+    <string name="workspace_announce">Pracovný priestor %1$s</string>
+</resources>

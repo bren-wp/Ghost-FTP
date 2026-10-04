@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Pliki</string>
+    <string name="workspace_sites">Lokalizacje</string>
+    <string name="workspace_transfers">Transfery</string>
+    <string name="workspace_settings">Ustawienia</string>
+    <string name="workspace_about">Pomoc i informacje</string>
+    <string name="action_refresh">Odśwież</string>
+    <string name="action_upload">Prześlij</string>
+    <string name="action_download">Pobierz</string>
+    <string name="action_new_folder">Nowy folder</string>
+    <string name="action_rename">Zmień nazwę</string>
+    <string name="action_delete">Usuń</string>
+    <string name="action_cancel">Anuluj</string>
+    <string name="action_confirm">Potwierdź</string>
+    <string name="action_connect">Połącz</string>
+    <string name="action_disconnect">Rozłącz</string>
+    <string name="action_pick_file">Wybierz plik</string>
+    
+    
+
+
+
+
+
+
+
+<string name="label_support">Pomoc techniczna</string>
+    <string name="label_documentation">Dokumentacja</string>
+    <string name="label_privacy_policy">Polityka prywatności</string>
+    <string name="label_official_website">Oficjalna strona</string>
+    <string name="field_host">Host</string>
+    <string name="field_port">Port</string>
+    <string name="field_username">Nazwa użytkownika</string>
+    <string name="field_password">Hasło</string>
+    <string name="field_protocol">Protokół</string>
+    <string name="label_security">Bezpieczeństwo</string>
+    <string name="label_connection">Połączenie</string>
+    <string name="label_private_session">Prywatna sesja</string>
+    <string name="label_session">Sesja</string>
+    <string name="nav_open">Otwórz menu nawigacji</string>
+    <string name="nav_close">Zamknij menu nawigacji</string>
+    <string name="nav_opened">Menu nawigacji otwarte</string>
+    <string name="nav_closed">Menu nawigacji zamknięte</string>
+    <string name="nav_close_overlay">Zamknij nakładane menu nawigacji</string>
+    <string name="field_sftp_fingerprint">Odcisk klucza hosta SFTP</string>
+    <string name="hint_sftp_fingerprint">Odcisk SHA256 dla SFTP</string>
+    <string name="field_remote_path">Ścieżka zdalna</string>
+    <string name="desc_sites">Połącz się przez FTP, jawne FTPS lub SFTP. Hasła pozostają w pamięci podczas aktywnej sesji i są czyszczone po rozłączeniu.</string>
+    <string name="desc_files">Otwieraj foldery, wybieraj pliki, a następnie używaj działań paska narzędzi zgodnych z aplikacją Ghost FTP na komputer.</string>
+    <string name="desc_transfers">Zarządzaj wybranym elementem zdalnym, celem wysyłania, celem zmiany nazwy i działaniem zdalnego folderu dla aktywnej sesji.</string>
+    <string name="desc_settings">Elementy sterujące aktywną sesją i prywatnością są zgodne z zasadami bezpieczeństwa aplikacji Ghost FTP na komputer.</string>
+    <string name="label_privacy">Prywatność</string>
+    <string name="settings_no_tracking">Brak wymaganego śledzenia, analityki i telemetrii.</string>
+    <string name="label_credentials">Dane logowania</string>
+    <string name="settings_credentials">Hasła sesji pozostają w pamięci i są czyszczone po rozłączeniu lub zniszczeniu Activity.</string>
+    <string name="settings_security">Zdalne zmiany są chronione, a SFTP wymaga ścisłej weryfikacji klucza hosta.</string>
+    <string name="action_clear_activity">Wyczyść aktywność</string>
+    <string name="action_reset_transfers">Resetuj transfery</string>
+    <string name="action_reset_connection">Resetuj połączenie</string>
+    <string name="state_no_local_file">Nie wybrano lokalnego pliku do wysłania.</string>
+    <string name="state_no_transfer">Nie rozpoczęto transferu.</string>
+    <string name="label_product">Produkt</string>
+    <string name="label_protocols">Protokoły</string>
+    <string name="label_eula">Warunki użytkowania / EULA</string>
+    <string name="about_support_desc">Przewodniki, rozwiązywanie problemów i pomoc dotycząca produktu.</string>
+    <string name="about_docs_desc">Oficjalna dokumentacja Ghost FTP.</string>
+    <string name="about_privacy_desc">Przeczytaj oficjalne informacje o prywatności.</string>
+    <string name="about_eula_desc">Przeczytaj oficjalne warunki licencji oprogramowania Ghost FTP.</string>
+    <string name="about_website_desc">Witryna produktu Ghost FTP.</string>
+    <string name="link_open">Otwórz Ghost FTP %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">Otwórz obszar roboczy %1$s</string>
+    <string name="workspace_content">Zawartość obszaru roboczego %1$s</string>
+    <string name="workspace_announce">Obszar roboczy %1$s</string>
+</resources>

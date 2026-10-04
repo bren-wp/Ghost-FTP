@@ -1,4 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Ghost FTP</string>
+    <string name="workspace_files">Files</string>
+    <string name="workspace_sites">Sites</string>
+    <string name="workspace_transfers">Transfers</string>
+    <string name="workspace_settings">Settings</string>
+    <string name="workspace_about">Help &amp; About</string>
+    <string name="workspace_open">Open %1$s workspace</string>
+    <string name="workspace_content">%1$s workspace content</string>
+    <string name="workspace_announce">%1$s workspace</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_upload">Upload</string>
+    <string name="action_download">Download</string>
+    <string name="action_new_folder">New Folder</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="action_pick_file">Pick file</string>
+    
+    
+
+
+
+
+
+
+
+<string name="label_support">Support</string>
+    <string name="label_documentation">Documentation</string>
+    <string name="label_privacy_policy">Privacy Policy</string>
+    <string name="label_official_website">Official website</string>
+    <string name="field_host">Host</string>
+    <string name="field_port">Port</string>
+    <string name="field_username">Username</string>
+    <string name="field_password">Password</string>
+    <string name="field_protocol">Protocol</string>
+    <string name="label_security">Security</string>
+    <string name="label_connection">Connection</string>
+    <string name="label_private_session">Private session</string>
+    <string name="label_session">Session</string>
+    <string name="nav_open">Open navigation menu</string>
+    <string name="nav_close">Close navigation menu</string>
+    <string name="nav_opened">Navigation menu opened</string>
+    <string name="nav_closed">Navigation menu closed</string>
+    <string name="nav_close_overlay">Close navigation menu overlay</string>
+    <string name="field_sftp_fingerprint">SFTP host key fingerprint</string>
+    <string name="hint_sftp_fingerprint">SHA256 fingerprint for SFTP</string>
+    <string name="field_remote_path">Remote path</string>
+    <string name="desc_sites">Connect to FTP, explicit FTPS or SFTP. Passwords stay in memory for the active session and are cleared on disconnect.</string>
+    <string name="desc_files">Open folders, select files, then use the toolbar actions aligned with Ghost FTP desktop.</string>
+    <string name="desc_transfers">Manage the selected remote entry, upload target, rename target and remote folder action for the active session.</string>
+    <string name="desc_settings">Working session and privacy controls aligned with Ghost FTP desktop safety rules.</string>
+    <string name="label_privacy">Privacy</string>
+    <string name="settings_no_tracking">No required tracking, analytics or telemetry.</string>
+    <string name="label_credentials">Credentials</string>
+    <string name="settings_credentials">Session passwords stay in memory and are cleared on disconnect or Activity destruction.</string>
+    <string name="settings_security">Remote mutations are guarded and SFTP requires strict host-key verification.</string>
+    <string name="action_clear_activity">Clear Activity</string>
+    <string name="action_reset_transfers">Reset Transfers</string>
+    <string name="action_reset_connection">Reset Connection</string>
+    <string name="state_no_local_file">No local upload file selected.</string>
+    <string name="state_no_transfer">No transfer started.</string>
+    <string name="label_product">Product</string>
+    <string name="label_protocols">Protocols</string>
+    <string name="label_eula">Terms of use / EULA</string>
+    <string name="about_support_desc">Guides, troubleshooting and product support.</string>
+    <string name="about_docs_desc">Official Ghost FTP documentation.</string>
+    <string name="about_privacy_desc">Read the official privacy information.</string>
+    <string name="about_eula_desc">Read the canonical Ghost FTP software licence terms.</string>
+    <string name="about_website_desc">Ghost FTP product website.</string>
+    <string name="link_open">Open Ghost FTP %1$s</string>
 </resources>

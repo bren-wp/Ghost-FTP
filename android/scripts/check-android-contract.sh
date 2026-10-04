@@ -40,6 +40,61 @@ require_absent() {
   fi
 }
 
+audit_android_locale_parity() {
+  local res_dir="$1"
+  shift
+  python3 - "$res_dir" "$@" <<'PY'
+import pathlib
+import re
+import sys
+
+res_dir = pathlib.Path(sys.argv[1])
+locales = sys.argv[2:]
+pattern = re.compile(r'<string\s+name="([^"]+)"')
+
+def read_keys(path: pathlib.Path):
+    text = path.read_text(encoding="utf-8")
+    names = pattern.findall(text)
+    seen = set()
+    duplicates = []
+    for name in names:
+        if name in seen and name not in duplicates:
+            duplicates.append(name)
+        seen.add(name)
+    if duplicates:
+        print(
+            f"Android contract failed: duplicate string resource(s) in {path}: "
+            + ", ".join(sorted(duplicates)),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return set(names)
+
+base_file = res_dir / "values" / "strings.xml"
+base_keys = read_keys(base_file)
+if not base_keys:
+    print(f"Android contract failed: no canonical strings found in {base_file}", file=sys.stderr)
+    sys.exit(1)
+
+for locale in locales:
+    locale_file = res_dir / f"values-{locale}" / "strings.xml"
+    if not locale_file.is_file():
+        print(f"Android contract failed: missing localization resource {locale_file}", file=sys.stderr)
+        sys.exit(1)
+    locale_keys = read_keys(locale_file)
+    missing = sorted(base_keys - locale_keys)
+    if missing:
+        print(
+            f"Android contract failed: {locale} locale missing canonical key(s): "
+            + ", ".join(missing),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+print(f"Android locale parity OK for {len(locales)} locales and {len(base_keys)} canonical keys")
+PY
+}
+
 audit_private_kotlin_symbols() {
   local root="$1"
   python3 - "$root" <<'PY'
@@ -87,7 +142,32 @@ require_text "version" "$RELEASE_INFO" "VERSION = \"$VERSION\""
 require_text "display version" "$RELEASE_INFO" "VERSION_DISPLAY = \"$VERSION\""
 require_text "badge" "$RELEASE_INFO" "VERSION_BADGE = \"$VERSION\""
 require_text "build" "$RELEASE_INFO" "BUILD = \"$BUILD\""
-require_text "app label" "$ANDROID_DIR/app/src/main/res/values/strings.xml" '<string name="app_name">Ghost FTP</string>'
+ANDROID_STRINGS="$ANDROID_DIR/app/src/main/res/values/strings.xml"
+require_text "app label" "$ANDROID_STRINGS" '<string name="app_name">Ghost FTP</string>'
+localization_keys=(
+  workspace_files workspace_sites workspace_transfers workspace_settings workspace_about
+  action_refresh action_upload action_download action_new_folder action_rename action_delete
+  action_cancel action_confirm action_connect action_disconnect action_pick_file
+  label_support label_documentation label_privacy_policy label_official_website
+  field_host field_port field_username field_password field_protocol
+  label_security label_connection
+)
+for key in "${localization_keys[@]}"; do
+  require_text "default Android localization key $key" "$ANDROID_STRINGS" "<string name=\"$key\">"
+done
+
+android_locales=(hr cs sk hu ro bg el tr uk da sv no de fr es it pt nl pl sl sr bs mk)
+audit_android_locale_parity "$ANDROID_DIR/app/src/main/res" "${android_locales[@]}"
+for locale in "${android_locales[@]}"; do
+  locale_file="$ANDROID_DIR/app/src/main/res/values-$locale/strings.xml"
+  test -s "$locale_file" || {
+    echo "Android contract failed: missing localization resource $locale_file"
+    exit 1
+  }
+  for key in "${localization_keys[@]}"; do
+    require_text "Android $locale localization key $key" "$locale_file" "<string name=\"$key\">"
+  done
+done
 
 require_text "ftp protocol" "$CONNECTION_MODEL" 'FTP("FTP", 21)'
 require_text "ftps protocol" "$CONNECTION_MODEL" 'EXPLICIT_FTPS("Explicit FTPS", 21)'
@@ -103,11 +183,33 @@ require_text "left workspace navigation rail" "$MAIN_ACTIVITY" 'buildNavigationR
 require_text "scrollable left workspace navigation" "$MAIN_ACTIVITY" 'private fun buildNavigationRail(): View = ScrollView(this).apply'
 require_text "left rail accessibility remains child-focused" "$MAIN_ACTIVITY" 'importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO'
 require_text "left workspace rail fill viewport" "$MAIN_ACTIVITY" 'isFillViewport = true'
-require_text "Files workspace" "$MAIN_ACTIVITY" 'FILES("Files")'
-require_text "Sites workspace" "$MAIN_ACTIVITY" 'SITES("Sites")'
-require_text "Transfers workspace" "$MAIN_ACTIVITY" 'TRANSFERS("Transfers")'
-require_text "Settings workspace" "$MAIN_ACTIVITY" 'SETTINGS("Settings")'
-require_text "Help workspace" "$MAIN_ACTIVITY" 'ABOUT("Help & About")'
+require_text "Files workspace localization" "$MAIN_ACTIVITY" 'FILES(R.string.workspace_files)'
+require_text "Sites workspace localization" "$MAIN_ACTIVITY" 'SITES(R.string.workspace_sites)'
+require_text "Transfers workspace localization" "$MAIN_ACTIVITY" 'TRANSFERS(R.string.workspace_transfers)'
+require_text "Settings workspace localization" "$MAIN_ACTIVITY" 'SETTINGS(R.string.workspace_settings)'
+require_text "Help workspace localization" "$MAIN_ACTIVITY" 'ABOUT(R.string.workspace_about)'
+require_text "localized private session label" "$MAIN_ACTIVITY" 'getString(R.string.label_private_session)'
+require_text "localized session label" "$MAIN_ACTIVITY" 'label(getString(R.string.label_session))'
+require_text "localized navigation open label" "$MAIN_ACTIVITY" 'getString(R.string.nav_open)'
+require_text "localized navigation close label" "$MAIN_ACTIVITY" 'getString(R.string.nav_close)'
+require_text "localized SFTP fingerprint hint" "$MAIN_ACTIVITY" 'getString(R.string.hint_sftp_fingerprint)'
+require_text "localized remote path field" "$MAIN_ACTIVITY" 'formLabel(getString(R.string.field_remote_path))'
+require_text "localized Sites description" "$MAIN_ACTIVITY" 'sectionDescription(getString(R.string.desc_sites))'
+require_text "localized Files description" "$MAIN_ACTIVITY" 'sectionDescription(getString(R.string.desc_files))'
+require_text "localized Transfers description" "$MAIN_ACTIVITY" 'sectionDescription(getString(R.string.desc_transfers))'
+require_text "localized Settings description" "$MAIN_ACTIVITY" 'sectionDescription(getString(R.string.desc_settings))'
+require_text "localized empty upload state" "$MAIN_ACTIVITY" 'getString(R.string.state_no_local_file)'
+require_text "localized idle transfer state" "$MAIN_ACTIVITY" 'getString(R.string.state_no_transfer)'
+require_text "localized EULA label" "$MAIN_ACTIVITY" 'getString(R.string.label_eula)'
+require_text "localized external link accessibility" "$MAIN_ACTIVITY" 'getString(R.string.link_open, title)'
+require_text "localized protocol field" "$MAIN_ACTIVITY" 'formLabel(getString(R.string.field_protocol))'
+require_text "localized host field" "$MAIN_ACTIVITY" 'formLabel(getString(R.string.field_host))'
+require_text "localized username field" "$MAIN_ACTIVITY" 'formLabel(getString(R.string.field_username))'
+require_text "localized password field" "$MAIN_ACTIVITY" 'formLabel(getString(R.string.field_password))'
+require_text "localized support link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_support)'
+require_text "localized documentation link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_documentation)'
+require_text "localized privacy link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_privacy_policy)'
+require_text "localized website link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_official_website)'
 require_text "exclusive workspace visibility" "$MAIN_ACTIVITY" 'view.visibility = if (key == workspace) View.VISIBLE else View.GONE'
 require_text "workspace navigation control" "$MAIN_ACTIVITY" 'workspaceNavItem(workspace)'
 require_text "workspace state persistence" "$MAIN_ACTIVITY" 'STATE_WORKSPACE'
@@ -116,7 +218,7 @@ require_text "selected workspace brought into view" "$MAIN_ACTIVITY" 'contentScr
 require_absent "legacy horizontal workspace scroller" "$MAIN_ACTIVITY" 'HorizontalScrollView'
 require_text "mobile Settings surface" "$MAIN_ACTIVITY" 'buildSettingsCard()'
 require_text "mobile Help surface" "$MAIN_ACTIVITY" 'buildAboutCard()'
-require_text "accessible protocol selector" "$MAIN_ACTIVITY" 'contentDescription = "Connection protocol"'
+require_text "accessible protocol selector" "$MAIN_ACTIVITY" 'contentDescription = getString(R.string.field_protocol)'
 require_text "protocol default-port behavior" "$MAIN_ACTIVITY" 'currentPort == selectedProtocol.defaultPort.toString()'
 require_text "protocol-specific SFTP security field" "$MAIN_ACTIVITY" 'if (protocol == ConnectionProtocol.SFTP) View.VISIBLE else View.GONE'
 require_absent "obsolete Android queue-row alias" "$MAIN_ACTIVITY" 'MAX_QUEUE_ROWS'
@@ -128,24 +230,24 @@ require_text "busy-sensitive Android local actions" "$MAIN_ACTIVITY" 'busySensit
 require_text "session-aware Android settings disconnect" "$MAIN_ACTIVITY" 'sessionDisconnectButtons.forEach { it.isEnabled = hasActiveSession }'
 require_text "busy-sensitive Android action tracker" "$MAIN_ACTIVITY" 'private fun trackBusySensitiveLocalAction(button: Button): Button'
 require_text "session disconnect Android action tracker" "$MAIN_ACTIVITY" 'private fun trackSessionDisconnect(button: Button): Button'
-require_text "desktop parity refresh toolbar" "$MAIN_ACTIVITY" 'trackRemoteAction(toolbarButton("Refresh")'
-require_text "desktop parity upload toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Upload")'
-require_text "desktop parity download toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Download")'
-require_text "desktop parity new folder toolbar" "$MAIN_ACTIVITY" 'toolbarButton("New Folder")'
-require_text "desktop parity rename toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Rename")'
-require_text "desktop parity delete toolbar" "$MAIN_ACTIVITY" 'toolbarButton("Delete", destructive = true)'
+require_text "desktop parity refresh toolbar" "$MAIN_ACTIVITY" 'trackRemoteAction(toolbarButton(getString(R.string.action_refresh))'
+require_text "desktop parity upload toolbar" "$MAIN_ACTIVITY" 'toolbarButton(getString(R.string.action_upload))'
+require_text "desktop parity download toolbar" "$MAIN_ACTIVITY" 'toolbarButton(getString(R.string.action_download))'
+require_text "desktop parity new folder toolbar" "$MAIN_ACTIVITY" 'toolbarButton(getString(R.string.action_new_folder))'
+require_text "desktop parity rename toolbar" "$MAIN_ACTIVITY" 'toolbarButton(getString(R.string.action_rename))'
+require_text "desktop parity delete toolbar" "$MAIN_ACTIVITY" 'toolbarButton(getString(R.string.action_delete), destructive = true)'
 require_text "desktop parity ghost midnight background" "$MAIN_ACTIVITY" 'Color.rgb(13, 17, 23)'
 require_text "desktop parity ghost midnight accent" "$MAIN_ACTIVITY" 'Color.rgb(47, 129, 247)'
 
-require_text "connect action" "$MAIN_ACTIVITY" 'primaryButton("Connect")'
-require_text "disconnect action" "$MAIN_ACTIVITY" 'secondaryButton("Disconnect")'
-require_text "refresh action" "$MAIN_ACTIVITY" 'secondaryButton("Refresh")'
-require_text "upload pick action" "$MAIN_ACTIVITY" 'secondaryButton("Pick file")'
-require_text "upload action" "$MAIN_ACTIVITY" 'secondaryButton("Upload")'
-require_text "working Android Settings clear activity action" "$MAIN_ACTIVITY" 'contentDescription = "Clear activity log"'
-require_text "working Android Settings reset transfers action" "$MAIN_ACTIVITY" 'contentDescription = "Reset transfer fields"'
-require_text "working Android Settings reset connection action" "$MAIN_ACTIVITY" 'contentDescription = "Reset connection form"'
-require_text "working Android Settings disconnect action" "$MAIN_ACTIVITY" 'contentDescription = "Settings disconnect session"'
+require_text "connect action" "$MAIN_ACTIVITY" 'primaryButton(getString(R.string.action_connect))'
+require_text "disconnect action" "$MAIN_ACTIVITY" 'secondaryButton(getString(R.string.action_disconnect))'
+require_text "refresh action" "$MAIN_ACTIVITY" 'secondaryButton(getString(R.string.action_refresh))'
+require_text "upload pick action" "$MAIN_ACTIVITY" 'secondaryButton(getString(R.string.action_pick_file))'
+require_text "upload action" "$MAIN_ACTIVITY" 'secondaryButton(getString(R.string.action_upload))'
+require_text "working Android Settings clear activity action" "$MAIN_ACTIVITY" 'contentDescription = getString(R.string.action_clear_activity)'
+require_text "working Android Settings reset transfers action" "$MAIN_ACTIVITY" 'contentDescription = getString(R.string.action_reset_transfers)'
+require_text "working Android Settings reset connection action" "$MAIN_ACTIVITY" 'contentDescription = getString(R.string.action_reset_connection)'
+require_text "working Android Settings disconnect action" "$MAIN_ACTIVITY" 'contentDescription = "${getString(R.string.workspace_settings)} ${getString(R.string.action_disconnect)}"'
 require_text "Android document picker" "$MAIN_ACTIVITY" 'Intent.ACTION_OPEN_DOCUMENT'
 require_text "transfer state text" "$MAIN_ACTIVITY" 'transferStateText'
 require_text "destructive action confirmation" "$MAIN_ACTIVITY" 'confirmDestructiveRemoteAction'
@@ -230,7 +332,7 @@ require_text "Explicit FTPS protected data channel" "$CONNECTION_MODEL" 'execPRO
 require_text "SFTP host key verification" "$CONNECTION_MODEL" 'StrictHostKeyChecking", "yes"'
 require_text "SFTP password-only authentication hardening" "$CONNECTION_MODEL" 'PreferredAuthentications", "password"'
 require_absent "SFTP keyboard-interactive authentication" "$CONNECTION_MODEL" 'PreferredAuthentications", "keyboard-interactive'
-require_text "SFTP fingerprint input" "$MAIN_ACTIVITY" 'SFTP host key fingerprint'
+require_text "SFTP fingerprint input" "$MAIN_ACTIVITY" 'formLabel(getString(R.string.field_sftp_fingerprint))'
 require_text "SFTP fingerprint repository" "$CONNECTION_MODEL" 'FingerprintHostKeyRepository(profile.hostKeyFingerprint)'
 require_text "SFTP byte-array password API" "$CONNECTION_MODEL" 'session.setPassword(passwordBytes)'
 require_text "SFTP temporary password buffer cleanup" "$CONNECTION_MODEL" 'passwordBytes.fill(0)'
@@ -238,7 +340,7 @@ require_absent "deprecated SFTP string password API" "$CONNECTION_MODEL" 'sessio
 require_text "collapsible Android navigation" "$MAIN_ACTIVITY" 'private fun setNavigationOpen(open: Boolean, announce: Boolean = true)'
 require_text "phone navigation auto-close" "$MAIN_ACTIVITY" 'resources.configuration.screenWidthDp < 600'
 require_text "compact navigation overlay container" "$MAIN_ACTIVITY" 'FrameLayout(this).apply'
-require_text "compact navigation scrim" "$MAIN_ACTIVITY" 'contentDescription = "Close navigation menu overlay"'
+require_text "compact navigation scrim" "$MAIN_ACTIVITY" 'contentDescription = getString(R.string.nav_close_overlay)'
 require_text "compact navigation scrim close action" "$MAIN_ACTIVITY" 'setOnClickListener { setNavigationOpen(false) }'
 require_text "inline action confirmation" "$MAIN_ACTIVITY" 'private fun requestInlineConfirmation('
 require_absent "popup AlertDialog confirmation" "$MAIN_ACTIVITY" 'AlertDialog.Builder'
@@ -327,10 +429,22 @@ require_text "compact overlay navigation smoke coverage" "$ANDROID_DIR/app/src/a
 require_text "official product link smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'helpWorkspaceExposesCanonicalProductLinks'
 require_text "working action smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'transferAndSettingsActionsAreWiredClickByClick'
 require_text "idle action-state smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'guardedFileActionsStayDisabledWithoutActiveSession'
-require_text "idle settings disconnect smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'assertDescriptionEnabled("Settings disconnect session", false)'
+require_text "resource-aware Android smoke strings" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'private fun appString(resId: Int, vararg formatArgs: Any): String'
+require_text "idle settings disconnect smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'R.string.action_disconnect'
 require_text "unreadable picker URI smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'unreadablePickerUriIsRejectedFailClosed'
-require_text "rename smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" '"Rename"'
-require_text "Settings reset smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" '"Reset connection form"'
+require_text "rename smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'R.string.action_rename'
+require_text "Settings reset smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'R.string.action_reset_connection'
+for stale_smoke_copy in \
+  'Connect to server' \
+  'Disconnect from server' \
+  'Refresh current session' \
+  'Refresh action' \
+  'Pick upload file' \
+  'Upload selected file' \
+  'Connection protocol' \
+  'Ghost FTP by Brendigo'; do
+  require_absent "stale Android smoke copy" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" "$stale_smoke_copy"
+done
 require_absent "window-focus instrumentation dependency" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'hasWindowFocus()'
 require_absent "window-focus smoke gate" "$SMOKE_SCRIPT" 'Ghost FTP did not own the focused window after launch.'
 

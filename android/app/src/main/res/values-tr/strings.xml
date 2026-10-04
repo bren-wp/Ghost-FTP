@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Dosyalar</string>
+    <string name="workspace_sites">Konumlar</string>
+    <string name="workspace_transfers">Aktarımlar</string>
+    <string name="workspace_settings">Ayarlar</string>
+    <string name="workspace_about">Yardım ve Hakkında</string>
+    <string name="action_refresh">Yenile</string>
+    <string name="action_upload">Yükle</string>
+    <string name="action_download">İndir</string>
+    <string name="action_new_folder">Yeni Klasör</string>
+    <string name="action_rename">Yeniden Adlandır</string>
+    <string name="action_delete">Sil</string>
+    <string name="action_cancel">İptal</string>
+    <string name="action_confirm">Onayla</string>
+    <string name="action_connect">Bağlan</string>
+    <string name="action_disconnect">Bağlantıyı Kes</string>
+    <string name="action_pick_file">Dosya seç</string>
+    
+    
+
+
+
+
+
+
+
+<string name="label_support">Destek</string>
+    <string name="label_documentation">Belgeler</string>
+    <string name="label_privacy_policy">Gizlilik Politikası</string>
+    <string name="label_official_website">Resmî web sitesi</string>
+    <string name="field_host">Ana makine</string>
+    <string name="field_port">Bağlantı noktası</string>
+    <string name="field_username">Kullanıcı adı</string>
+    <string name="field_password">Parola</string>
+    <string name="field_protocol">Protokol</string>
+    <string name="label_security">Güvenlik</string>
+    <string name="label_connection">Bağlantı</string>
+    <string name="label_private_session">Özel oturum</string>
+    <string name="label_session">Oturum</string>
+    <string name="nav_open">Gezinme menüsünü aç</string>
+    <string name="nav_close">Gezinme menüsünü kapat</string>
+    <string name="nav_opened">Gezinme menüsü açıldı</string>
+    <string name="nav_closed">Gezinme menüsü kapatıldı</string>
+    <string name="nav_close_overlay">Kaplama gezinme menüsünü kapat</string>
+    <string name="field_sftp_fingerprint">SFTP ana makine anahtarı parmak izi</string>
+    <string name="hint_sftp_fingerprint">SFTP için SHA256 parmak izi</string>
+    <string name="field_remote_path">Uzak yol</string>
+    <string name="desc_sites">FTP, açık FTPS veya SFTP ile bağlanın. Parolalar etkin oturum boyunca bellekte tutulur ve bağlantı kesildiğinde temizlenir.</string>
+    <string name="desc_files">Klasörleri açın, dosyaları seçin ve ardından Ghost FTP masaüstü uygulamasıyla uyumlu araç çubuğu işlemlerini kullanın.</string>
+    <string name="desc_transfers">Etkin oturum için seçili uzak öğeyi, yükleme hedefini, yeniden adlandırma hedefini ve uzak klasör işlemini yönetin.</string>
+    <string name="desc_settings">Etkin oturum ve gizlilik denetimleri Ghost FTP masaüstü güvenlik kurallarıyla uyumludur.</string>
+    <string name="label_privacy">Gizlilik</string>
+    <string name="settings_no_tracking">Zorunlu izleme, analiz veya telemetri yoktur.</string>
+    <string name="label_credentials">Kimlik bilgileri</string>
+    <string name="settings_credentials">Oturum parolaları bellekte tutulur ve bağlantı kesildiğinde veya Activity yok edildiğinde temizlenir.</string>
+    <string name="settings_security">Uzak değişiklikler korumalıdır ve SFTP sıkı ana makine anahtarı doğrulaması gerektirir.</string>
+    <string name="action_clear_activity">Etkinliği temizle</string>
+    <string name="action_reset_transfers">Aktarımları sıfırla</string>
+    <string name="action_reset_connection">Bağlantıyı sıfırla</string>
+    <string name="state_no_local_file">Yüklenecek yerel dosya seçilmedi.</string>
+    <string name="state_no_transfer">Aktarım başlatılmadı.</string>
+    <string name="label_product">Ürün</string>
+    <string name="label_protocols">Protokoller</string>
+    <string name="label_eula">Kullanım koşulları / EULA</string>
+    <string name="about_support_desc">Kılavuzlar, sorun giderme ve ürün desteği.</string>
+    <string name="about_docs_desc">Resmî Ghost FTP belgeleri.</string>
+    <string name="about_privacy_desc">Resmî gizlilik bilgilerini okuyun.</string>
+    <string name="about_eula_desc">Ghost FTP yazılımının resmî lisans koşullarını okuyun.</string>
+    <string name="about_website_desc">Ghost FTP ürün web sitesi.</string>
+    <string name="link_open">Ghost FTP %1$s aç</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">%1$s çalışma alanını aç</string>
+    <string name="workspace_content">%1$s çalışma alanı içeriği</string>
+    <string name="workspace_announce">%1$s çalışma alanı</string>
+</resources>

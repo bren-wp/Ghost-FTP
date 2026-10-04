@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_files">Αρχεία</string>
+    <string name="workspace_sites">Τοποθεσίες</string>
+    <string name="workspace_transfers">Μεταφορές</string>
+    <string name="workspace_settings">Ρυθμίσεις</string>
+    <string name="workspace_about">Βοήθεια και πληροφορίες</string>
+    <string name="action_refresh">Ανανέωση</string>
+    <string name="action_upload">Μεταφόρτωση</string>
+    <string name="action_download">Λήψη</string>
+    <string name="action_new_folder">Νέος φάκελος</string>
+    <string name="action_rename">Μετονομασία</string>
+    <string name="action_delete">Διαγραφή</string>
+    <string name="action_cancel">Ακύρωση</string>
+    <string name="action_confirm">Επιβεβαίωση</string>
+    <string name="action_connect">Σύνδεση</string>
+    <string name="action_disconnect">Αποσύνδεση</string>
+    <string name="action_pick_file">Επιλογή αρχείου</string>
+    
+    
+
+
+
+
+
+
+
+<string name="label_support">Υποστήριξη</string>
+    <string name="label_documentation">Τεκμηρίωση</string>
+    <string name="label_privacy_policy">Πολιτική απορρήτου</string>
+    <string name="label_official_website">Επίσημος ιστότοπος</string>
+    <string name="field_host">Κεντρικός υπολογιστής</string>
+    <string name="field_port">Θύρα</string>
+    <string name="field_username">Όνομα χρήστη</string>
+    <string name="field_password">Κωδικός πρόσβασης</string>
+    <string name="field_protocol">Πρωτόκολλο</string>
+    <string name="label_security">Ασφάλεια</string>
+    <string name="label_connection">Σύνδεση</string>
+    <string name="label_private_session">Ιδιωτική συνεδρία</string>
+    <string name="label_session">Συνεδρία</string>
+    <string name="nav_open">Άνοιγμα μενού πλοήγησης</string>
+    <string name="nav_close">Κλείσιμο μενού πλοήγησης</string>
+    <string name="nav_opened">Το μενού πλοήγησης άνοιξε</string>
+    <string name="nav_closed">Το μενού πλοήγησης έκλεισε</string>
+    <string name="nav_close_overlay">Κλείσιμο επικαλυπτόμενου μενού πλοήγησης</string>
+    <string name="field_sftp_fingerprint">Αποτύπωμα κλειδιού κεντρικού υπολογιστή SFTP</string>
+    <string name="hint_sftp_fingerprint">Αποτύπωμα SHA256 για SFTP</string>
+    <string name="field_remote_path">Απομακρυσμένη διαδρομή</string>
+    <string name="desc_sites">Συνδεθείτε μέσω FTP, explicit FTPS ή SFTP. Οι κωδικοί πρόσβασης παραμένουν στη μνήμη κατά την ενεργή συνεδρία και διαγράφονται κατά την αποσύνδεση.</string>
+    <string name="desc_files">Ανοίξτε φακέλους, επιλέξτε αρχεία και έπειτα χρησιμοποιήστε τις ενέργειες της γραμμής εργαλείων που είναι ευθυγραμμισμένες με την εφαρμογή Ghost FTP για υπολογιστή.</string>
+    <string name="desc_transfers">Διαχειριστείτε το επιλεγμένο απομακρυσμένο στοιχείο, τον στόχο μεταφόρτωσης, τον στόχο μετονομασίας και την ενέργεια απομακρυσμένου φακέλου για την ενεργή συνεδρία.</string>
+    <string name="desc_settings">Τα στοιχεία ελέγχου ενεργής συνεδρίας και απορρήτου ακολουθούν τους κανόνες ασφάλειας της εφαρμογής Ghost FTP για υπολογιστή.</string>
+    <string name="label_privacy">Απόρρητο</string>
+    <string name="settings_no_tracking">Χωρίς υποχρεωτική παρακολούθηση, αναλυτικά στοιχεία ή τηλεμετρία.</string>
+    <string name="label_credentials">Διαπιστευτήρια</string>
+    <string name="settings_credentials">Οι κωδικοί της συνεδρίας παραμένουν στη μνήμη και διαγράφονται κατά την αποσύνδεση ή την καταστροφή του Activity.</string>
+    <string name="settings_security">Οι απομακρυσμένες αλλαγές προστατεύονται και το SFTP απαιτεί αυστηρή επαλήθευση κλειδιού κεντρικού υπολογιστή.</string>
+    <string name="action_clear_activity">Εκκαθάριση δραστηριότητας</string>
+    <string name="action_reset_transfers">Επαναφορά μεταφορών</string>
+    <string name="action_reset_connection">Επαναφορά σύνδεσης</string>
+    <string name="state_no_local_file">Δεν έχει επιλεγεί τοπικό αρχείο για μεταφόρτωση.</string>
+    <string name="state_no_transfer">Δεν έχει ξεκινήσει μεταφορά.</string>
+    <string name="label_product">Προϊόν</string>
+    <string name="label_protocols">Πρωτόκολλα</string>
+    <string name="label_eula">Όροι χρήσης / EULA</string>
+    <string name="about_support_desc">Οδηγοί, αντιμετώπιση προβλημάτων και υποστήριξη προϊόντος.</string>
+    <string name="about_docs_desc">Επίσημη τεκμηρίωση του Ghost FTP.</string>
+    <string name="about_privacy_desc">Διαβάστε τις επίσημες πληροφορίες απορρήτου.</string>
+    <string name="about_eula_desc">Διαβάστε τους επίσημους όρους άδειας χρήσης του λογισμικού Ghost FTP.</string>
+    <string name="about_website_desc">Ιστότοπος προϊόντος Ghost FTP.</string>
+    <string name="link_open">Άνοιγμα Ghost FTP %1$s</string>
+    <string name="app_name">Ghost FTP</string>
+    <string name="workspace_open">Άνοιγμα χώρου εργασίας %1$s</string>
+    <string name="workspace_content">Περιεχόμενο χώρου εργασίας %1$s</string>
+    <string name="workspace_announce">Χώρος εργασίας %1$s</string>
+</resources>
