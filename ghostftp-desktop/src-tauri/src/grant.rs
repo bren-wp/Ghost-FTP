@@ -441,7 +441,7 @@ async fn import_connection(
         jump_host: conn.jump.as_ref().map(|j| j.host.clone()),
         jump_port: conn.jump.as_ref().and_then(|j| j.port),
         jump_username: conn.jump.as_ref().and_then(|j| j.username.clone()),
-            keep_alive_seconds: None,
+        keep_alive_seconds: None,
         reconnect_attempts: None,
     };
     if let Err(e) = state.profiles.upsert(profile.clone()).await {
