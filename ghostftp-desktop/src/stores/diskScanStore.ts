@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { ipc, onDiskScanEvent } from "@/lib/ipc";
 import { toast } from "./toastStore";
-import { toastError } from "@/lib/errors";
+import { messageOf, toastError } from "@/lib/errors";
 import type {
   DuNode,
   ScanSnapshot,
@@ -136,7 +136,7 @@ export const useDiskScan = create<DiskScanStoreState>((set, get) => ({
     // Tear down any previous scan first.
     if (prev.scanId) {
       void ipc.diskScanForget(prev.scanId).catch((error) =>
-        console.warn("Couldn't forget previous disk scan", error)
+        console.warn("Couldn't forget previous disk scan", messageOf(error))
       );
     }
     prev.unlisten?.();
@@ -188,9 +188,10 @@ export const useDiskScan = create<DiskScanStoreState>((set, get) => ({
           totalBytes: snap.totalBytes,
           strategy: snap.strategy,
         });
-    } catch (e) {
-      set({ state: "error", error: String(e) });
-      toast.error("Couldn't start disk usage scan", String(e));
+    } catch (error) {
+      const detail = messageOf(error);
+      set({ state: "error", error: detail });
+      toastError(error, "Couldn't start disk usage scan");
     }
   },
 
@@ -205,8 +206,9 @@ export const useDiskScan = create<DiskScanStoreState>((set, get) => ({
     try {
       await ipc.diskScanCancel(scanId);
     } catch (error) {
-      set({ error: String(error) });
-      toast.error("Couldn't cancel disk usage scan", String(error));
+      const detail = messageOf(error);
+      set({ error: detail });
+      toastError(error, "Couldn't cancel disk usage scan");
     }
   },
 
@@ -214,7 +216,7 @@ export const useDiskScan = create<DiskScanStoreState>((set, get) => ({
     const { scanId, unlisten } = get();
     if (scanId) {
       void ipc.diskScanForget(scanId).catch((error) =>
-        console.warn("Couldn't forget disk scan", error)
+        console.warn("Couldn't forget disk scan", messageOf(error))
       );
     }
     unlisten?.();

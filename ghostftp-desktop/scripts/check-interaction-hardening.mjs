@@ -187,6 +187,47 @@ requireExcludes(
 );
 
 requireIncludes(
+  "src/App.tsx",
+  [
+    'import { messageOf, toastError } from "./lib/errors";',
+    'console.error("Couldn\'t initialize Sync & Backup", messageOf(error));',
+    'toastError(error, "Couldn\'t initialize Sync & Backup");',
+    'console.error("Couldn\'t initialize transfer activity", messageOf(error));',
+    'toastError(error, "Couldn\'t register deep-link handler");',
+  ],
+  "redacted application initialization failures"
+);
+
+requireExcludes(
+  "src/App.tsx",
+  [
+    'toast.error("Couldn\'t initialize Sync & Backup", String(error))',
+    'toast.error("Couldn\'t initialize application settings", String(error))',
+    'toast.error("Couldn\'t initialize transfer activity", String(error))',
+    'toast.error("Couldn\'t register deep-link handler", String(error))',
+    'console.error("Couldn\'t initialize app updates", error)',
+  ],
+  "raw application initialization errors"
+);
+
+for (const storeFile of [
+  "src/stores/searchStore.ts",
+  "src/stores/dedupeStore.ts",
+  "src/stores/diskScanStore.ts",
+]) {
+  requireIncludes(
+    storeFile,
+    ["messageOf(error)", "toastError(error"],
+    "redacted async store failures"
+  );
+  requireExcludes(
+    storeFile,
+    ["String(error)", "String(e)"],
+    "raw async store failures"
+  );
+}
+
+requireIncludes(
   "src/components/TitleBar.tsx",
   [
     'import { createPortal } from "react-dom"',
