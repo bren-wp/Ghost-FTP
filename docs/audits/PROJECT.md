@@ -1,6 +1,6 @@
-# Ghost FTP Audit Index — 0.30.6
+# Ghost FTP Audit Index — 0.30.7
 
-This index describes the current 0.30.6 source line. Previous canonical release: **0.30.5**.
+This index describes the current 0.30.7 source line. Previous canonical release: **0.30.6**.
 
 - [Code audit](CODE.md)
 - [Security audit](SECURITY.md)
