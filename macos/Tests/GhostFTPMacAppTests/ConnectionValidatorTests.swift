@@ -43,6 +43,38 @@ final class ConnectionValidatorTests: XCTestCase {
         }
     }
 
+
+    func testHostRejectsUrlsCredentialsPathsAndInlinePorts() {
+        for host in [
+            "sftp://example.com",
+            "user@example.com",
+            "example.com/path",
+            "example.com:2222",
+            "bad host.example",
+            "bad\n.example"
+        ] {
+            let profile = ConnectionProfile(
+                name: "Production",
+                host: host,
+                username: "deploy"
+            )
+            XCTAssertThrowsError(try ConnectionValidator.validate(profile), "\(host) should be rejected") { error in
+                XCTAssertEqual(error as? ConnectionValidationError, .invalidHost)
+            }
+        }
+    }
+
+    func testIPv6HostsRemainValidWhenPortIsSeparate() {
+        for host in ["2001:db8::1", "[2001:db8::1]"] {
+            let profile = ConnectionProfile(
+                name: "Production",
+                host: host,
+                username: "deploy"
+            )
+            XCTAssertNoThrow(try ConnectionValidator.validate(profile))
+        }
+    }
+
     func testBlankUsernameIsRejected() {
         let profile = ConnectionProfile(
             name: "Production",

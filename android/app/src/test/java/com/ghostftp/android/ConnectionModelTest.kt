@@ -41,7 +41,13 @@ class ConnectionModelTest {
 
     @Test
     fun hostNormalizationRejectsEmbeddedCredentialsPortsAndSchemes() {
-        for (value in listOf("user@example.com", "example.com:2121", "https://example.com")) {
+        for (value in listOf(
+            "user@example.com",
+            "example.com:2121",
+            "https://example.com",
+            "bad host.example",
+            "bad\n.example"
+        )) {
             assertThrows(IllegalArgumentException::class.java) {
                 controller.normalizeHost(value)
             }

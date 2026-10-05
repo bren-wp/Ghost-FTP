@@ -854,6 +854,9 @@ class ConnectionController {
     internal fun normalizeHost(input: String): String {
         var value = input.trim()
         if (value.isBlank()) return ""
+        require(value.none { it.isWhitespace() || it.isISOControl() }) {
+            "Host must not contain whitespace or control characters."
+        }
 
         val schemeIndex = value.indexOf("://")
         if (schemeIndex >= 0) {

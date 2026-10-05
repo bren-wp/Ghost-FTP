@@ -44,6 +44,16 @@ enum ConnectionValidator {
         if host.unicodeScalars.contains(where: { forbidden.contains($0) }) {
             throw ConnectionValidationError.invalidHost
         }
+        if host.contains("://") || host.contains("/") || host.contains("@") {
+            throw ConnectionValidationError.invalidHost
+        }
+        if host.hasPrefix("[") {
+            guard host.hasSuffix("]"), host.count > 2 else {
+                throw ConnectionValidationError.invalidHost
+            }
+        } else if host.filter({ $0 == ":" }).count == 1 {
+            throw ConnectionValidationError.invalidHost
+        }
 
         if profile.port == 0 {
             throw ConnectionValidationError.invalidPort
