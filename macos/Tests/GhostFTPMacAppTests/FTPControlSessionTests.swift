@@ -14,12 +14,7 @@ final class FTPControlSessionTests: XCTestCase {
 
     func testMultilineReplyWaitsForMatchingTerminator() throws {
         var buffer = Data(
-            """
-            211-Features\r
-             UTF8\r
-             MLST type*;size*;modify*;\r
-            211 End\r
-            """.utf8
+            "211-Features\r\n UTF8\r\n MLST type*;size*;modify*;\r\n211 End\r\n".utf8
         )
 
         let reply = try XCTUnwrap(FTPControlCodec.takeReply(from: &buffer))
