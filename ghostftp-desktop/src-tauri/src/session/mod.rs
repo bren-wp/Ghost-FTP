@@ -1777,8 +1777,6 @@ impl Session {
             Self::Dynamics(s) => &s.profile,
             Self::Agent(s) => &s.profile,
         }
-            keep_alive_seconds: None,
-        reconnect_attempts: None,
     }
 
     pub fn protocol(&self) -> &str {
