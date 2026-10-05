@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { ipc } from "@/lib/ipc";
 import { toast } from "./toastStore";
+import { messageOf, toastError } from "@/lib/errors";
 import {
   extractVariables,
   resolveVariables,
@@ -74,7 +75,7 @@ function inject(s: Snippet, values: Record<string, string>): boolean {
     .snippetRun(s.id)
     .then((list) => useSnippets.setState({ snippets: list }))
     .catch((error) =>
-      toast.warning("Snippet inserted, but usage history wasn't saved", String(error))
+      toast.warning("Snippet inserted, but usage history wasn't saved", messageOf(error))
     );
   return true;
 }
@@ -95,8 +96,8 @@ export const useSnippets = create<SnippetsState>((set, get) => ({
     try {
       set({ snippets: (await ipc.snippetList()) ?? [] });
     } catch (error) {
-      console.warn("Couldn't load command snippets", error);
-      if (get().open) toast.error("Couldn't load snippets", String(error));
+      console.warn("Couldn't load command snippets", messageOf(error));
+      if (get().open) toastError(error, "Couldn't load snippets");
     }
   },
 
@@ -110,7 +111,7 @@ export const useSnippets = create<SnippetsState>((set, get) => ({
     try {
       set({ snippets: await ipc.snippetSave(s) });
     } catch (e) {
-      toast.error("Couldn't save snippet", String(e));
+      toastError(e, "Couldn't save snippet");
     }
   },
 
@@ -118,7 +119,7 @@ export const useSnippets = create<SnippetsState>((set, get) => ({
     try {
       set({ snippets: await ipc.snippetDelete(id) });
     } catch (e) {
-      toast.error("Couldn't delete snippet", String(e));
+      toastError(e, "Couldn't delete snippet");
     }
   },
 
