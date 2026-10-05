@@ -1,5 +1,6 @@
 import { ipc } from "@/lib/ipc";
 import { hydrateFromDb, SETTINGS_KEYS } from "@/stores/settingsStore";
+import { messageOf } from "@/lib/errors";
 
 const STORAGE_KEY = "ghostftp.settings.v1";
 const LEGACY_NOTIFICATION_HISTORY_KEY = "ghostftp.notifications.v1";
@@ -80,7 +81,7 @@ export async function runDefaultBumps(): Promise<void> {
             updates[b.key] = JSON.stringify(b.to);
           }
         } catch (error) {
-          console.warn(`Ignoring corrupt saved setting during defaults migration: ${b.key}`, error);
+          console.warn(`Ignoring corrupt saved setting during defaults migration: ${b.key}`, messageOf(error));
         }
       }
       if (Object.keys(updates).length) await ipc.settingsSetAll(updates);
@@ -89,7 +90,7 @@ export async function runDefaultBumps(): Promise<void> {
     await ipc.settingsSet(REVISION_KEY, JSON.stringify(CURRENT_REVISION));
     await hydrateFromDb();
   } catch (error) {
-    console.warn("Couldn't apply Ghost FTP settings default migrations", error);
+    console.warn("Couldn't apply Ghost FTP settings default migrations", messageOf(error));
     throw error;
   }
 }
@@ -120,7 +121,7 @@ export async function runSettingsMigration(): Promise<void> {
       await hydrateFromDb();
     }
   } catch (error) {
-    console.warn("Couldn't migrate legacy Ghost FTP settings", error);
+    console.warn("Couldn't migrate legacy Ghost FTP settings", messageOf(error));
     throw error;
   }
 }
