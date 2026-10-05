@@ -330,7 +330,7 @@ actor FTPControlSession {
 
         let data = Data((line + "\r\n").utf8)
 
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let gate = OneShotGate()
 
             queue.asyncAfter(deadline: .now() + timeoutSeconds) {
