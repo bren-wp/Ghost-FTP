@@ -39,12 +39,12 @@
 
 ## Current status
 
-- **Active source/release cycle:** `0.30.7`.
-- **Previous canonical release:** `0.30.6`.
+- **Active source/release cycle:** `0.30.8`.
+- **Previous canonical release:** `0.30.7`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
-- **macOS development source:** `macos/` — dedicated SwiftUI client with its own security/build gate; it is not yet part of the canonical production release.
+- **macOS development source:** `macos/` — dedicated SwiftUI client with its own security/build gate. 0.30.8 adds a separately verified macOS Preview artifact; it is not yet a notarized production deliverable.
 - **No website application is maintained in this repository.** Releases, source, documentation and support/security material live in GitHub/repository artifacts.
 
 ## Product scope
@@ -120,7 +120,7 @@ Required exact-head gates:
 - **Ghost FTP Android**
 - **Validate Windows hardening**
 
-PRs that modify `macos/**` additionally run **Ghost FTP macOS**. It is a development gate and does not yet replace or expand the five canonical production-release gates.
+The **Ghost FTP macOS** gate validates the dedicated SwiftUI preview. For 0.30.8 the canonical release waits for this gate and may publish the clearly labeled macOS Preview alongside production Windows/Linux and verified Android packages.
 
 The Windows/Linux build additionally performs Windows NSIS/MSI lifecycle smoke tests, Linux package lifecycle checks, native QA evidence capture and artifact-size budget checks.
 

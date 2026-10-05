@@ -1,3 +1,14 @@
+## 0.30.8 — macOS foundation and cross-platform diagnostic hardening — 5 October 2026
+
+- Starts the dedicated SwiftUI macOS client with Keychain-backed optional password storage, validated FTP/FTPS/SFTP profiles and a separate macOS CI/preview packaging gate.
+- Keeps macOS transport checks honest: TCP reachability is not presented as protocol authentication, plain FTP is warned as unencrypted, and future FTPS/SFTP sessions must validate certificate/hostname or SSH host key before file operations.
+- Redacts remaining user-visible Windows/Linux errors across Directory Diff, external editing, host-key prompts, Settings, Sync, Import, Agent Bridge and Skills.
+- Adds Android runtime diagnostic sanitization with JVM and production-contract regression coverage while retaining lifecycle, SAF and credential-state protections.
+- Extends canonical 0.30.8 publication to wait for the macOS gate and attach a clearly labeled ad-hoc-signed macOS Preview plus macOS source archive.
+- Keeps exact-head Quality, real FTP/FTPS/SFTP E2E, Windows/Linux native build, Android and Windows hardening gates mandatory, with the macOS gate added for this release.
+
+See [docs/releases/0.30.8.md](docs/releases/0.30.8.md).
+
 ## 0.30.7 — desktop production hardening, transfer safety and localization — 5 October 2026
 
 - Prevents same-name batch transfer races by reserving destination names immediately after successful enqueue.

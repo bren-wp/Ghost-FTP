@@ -100,6 +100,7 @@ jobs:
           wait_for_gate "ghostftp-protocol-e2e.yml" "FTP/FTPS/SFTP E2E"
           wait_for_gate "ghostftp-android.yml" "Android"
           wait_for_gate "validate-win-hardening.yml" "Windows hardening"
+          wait_for_gate "ghostftp-macos.yml" "macOS preview"
 
           PREVIOUS_VERSION="$(node -p 'require("./version.json").previousVersion || ""')"
           if [ -n "$PREVIOUS_VERSION" ]; then
@@ -130,6 +131,7 @@ jobs:
           git archive --format=zip --output="dist/GhostFTP-v$VERSION-Source.zip" HEAD
           zip -qr "dist/GhostFTP-v$VERSION-Desktop-Source.zip" ghostftp-desktop
           zip -qr "dist/GhostFTP-v$VERSION-Android-Source.zip" android
+          zip -qr "dist/GhostFTP-v$VERSION-macOS-Source.zip" macos
           zip -qr "dist/GhostFTP-v$VERSION-Updates.zip" updates
           zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
 
@@ -159,6 +161,20 @@ jobs:
           test -n "$PREVIEW_ANDROID_APK"; test -s "$PREVIEW_ANDROID_APK"
           echo "::notice::Android production package is intentionally unsigned; installable preview evidence is retained separately."
 
+      - name: Download verified macOS preview artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID="$(gh run list --workflow "ghostftp-macos.yml" --commit "$SOURCE_SHA" --limit 10 --json databaseId,status,conclusion --jq 'map(select(.status == "completed" and .conclusion == "success")) | .[0].databaseId // ""')"
+          test -n "$RUN_ID"
+          mkdir -p dist/macos
+          gh run download "$RUN_ID" --name GhostFTP-macOS-Preview -D dist/macos
+          MACOS_PREVIEW="$(find dist/macos -type f -name "GhostFTP-macOS-v$VERSION-Preview.zip" | head -n1 || true)"
+          test -n "$MACOS_PREVIEW"; test -s "$MACOS_PREVIEW"
+          echo "::notice::macOS artifact is an ad-hoc-signed development Preview, not a Developer ID/notarized production package."
+
       - name: Normalize release artifacts
         shell: bash
         run: |
@@ -174,10 +190,12 @@ jobs:
           RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
           ANDROID_UNSIGNED_APK="$(find dist/android -type f -iname '*Release-Unsigned.apk.unsigned' | head -n1 || true)"
           ANDROID_PREVIEW_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
+          MACOS_PREVIEW="$(find dist/macos -type f -name "GhostFTP-macOS-v$VERSION-Preview.zip" | head -n1 || true)"
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"
           test -n "$ANDROID_UNSIGNED_APK"; test -n "$ANDROID_PREVIEW_APK"
+          test -n "$MACOS_PREVIEW"; test -s "$MACOS_PREVIEW"
           if [ -n "$WIN_SETUP_SIG" ] || [ -n "$APPIMAGE_SIG" ]; then
             test -n "$WIN_SETUP_SIG"
             test -n "$APPIMAGE_SIG"
@@ -202,6 +220,7 @@ jobs:
           cp "$RPM" "dist/GhostFTP-Linux-x86_64-v$VERSION.rpm"
           cp "$ANDROID_UNSIGNED_APK" "dist/GhostFTP-Android-v$VERSION.apk.unsigned"
           cp "$ANDROID_PREVIEW_APK" "dist/GhostFTP-Android-v$VERSION-Installable-Preview.apk"
+          cp "$MACOS_PREVIEW" "dist/GhostFTP-macOS-v$VERSION-Preview.zip"
 
           QA_DIR="$(find dist/native -type d -name 'GhostFTP-Windows-x64-Preview-QA' | head -n1 || true)"
           test -n "$QA_DIR"
@@ -216,7 +235,7 @@ jobs:
 
           (cd dist && zip -q "GhostFTP-Windows-x64-v$VERSION.zip" "GhostFTP-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.msi")
           (cd dist && tar -czf "GhostFTP-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Linux-x86_64-v$VERSION" "GhostFTP-Linux-x86_64-v$VERSION.AppImage" "GhostFTP-Linux-amd64-v$VERSION.deb" "GhostFTP-Linux-x86_64-v$VERSION.rpm")
-          rm -rf dist/native dist/android
+          rm -rf dist/native dist/android dist/macos
 
       - name: Build update-service deployment package
         if: ${{ hashFiles('dist/GhostFTP-Windows-x64-Setup-v*.exe.sig') != '' && hashFiles('dist/GhostFTP-Linux-x86_64-v*.AppImage.sig') != '' }}
