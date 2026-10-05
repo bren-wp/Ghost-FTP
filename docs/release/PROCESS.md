@@ -9,7 +9,7 @@ A successful compile is not equivalent to stable/FINAL acceptance.
 1. Start from current `main`.
 2. Make meaningful product/code/documentation changes.
 3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
-4. Keep the previous canonical release recorded in `previousVersion` (currently `0.30.6` for the 0.30.7 cycle).
+4. Keep the previous canonical release recorded in `previousVersion` (currently `0.30.7` for the 0.30.8 cycle).
 5. Open a PR.
 6. Require exact-head success for:
    - Ghost FTP quality
@@ -17,6 +17,7 @@ A successful compile is not equivalent to stable/FINAL acceptance.
    - Ghost FTP native build
    - Ghost FTP Android
    - Validate Windows hardening
+   - Ghost FTP macOS (development Preview gate for 0.30.8)
 7. Read and fix concrete workflow logs if any gate fails.
 8. Merge only the tested source.
 9. On `main`, the successful **Ghost FTP native build** triggers the canonical **Ghost FTP release** workflow.
@@ -49,6 +50,12 @@ For version `<version>`:
 - `GhostFTP-Android-v<version>.apk.unsigned`
 - `GhostFTP-Android-v<version>-Installable-Preview.apk`
 
+### macOS Preview
+
+- `GhostFTP-macOS-v<version>-Preview.zip`
+
+The macOS artifact is a separately verified ad-hoc-signed development Preview. It is not Developer ID signed/notarized and must not be represented as a production macOS package.
+
 ### Signed desktop updater assets
 
 When in-app updater signing is enabled, publication requires all four updater assets below:
@@ -67,14 +74,15 @@ If no updater signatures are present, the stable GitHub release may still publis
 - `GhostFTP-v<version>-Source.zip`
 - `GhostFTP-v<version>-Desktop-Source.zip`
 - `GhostFTP-v<version>-Android-Source.zip`
+- `GhostFTP-v<version>-macOS-Source.zip`
 - `GhostFTP-v<version>-Updates.zip`
 - `GhostFTP-v<version>-Documentation.zip`
 - `GhostFTP-v<version>-SHA256SUMS.txt`
 
 ## Current release cycle
 
-- Active source/release cycle: **0.30.7**
-- Previous canonical release: **0.30.6**
+- Active source/release cycle: **0.30.8**
+- Previous canonical release: **0.30.7**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Release integrity
