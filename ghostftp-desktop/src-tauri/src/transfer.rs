@@ -5219,6 +5219,8 @@ mod tests {
             jump_port: None,
             jump_username: None,
         }
+            keep_alive_seconds: None,
+        reconnect_attempts: None,
     }
 
     /// Cross-backend contract: `supports_delta` is true ONLY for
