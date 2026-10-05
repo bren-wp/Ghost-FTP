@@ -1,6 +1,6 @@
-# Ghost FTP Security Audit — 0.30.7
+# Ghost FTP Security Audit — 0.30.8
 
-Previous canonical release: **0.30.6**.
+Previous canonical release: **0.30.7**.
 
 ## Current controls
 
@@ -8,7 +8,7 @@ Previous canonical release: **0.30.6**.
 - Ephemeral Quick Connect does not need to persist a saved profile.
 - The native Tauri application keeps a restrictive CSP and no required analytics/telemetry.
 - SSH host-key and TLS verification failures are handled as security failures rather than success states.
-- Diagnostic/user-facing error handling retains credential redaction.
+- Diagnostic/user-facing error handling retains credential redaction across desktop and Android; 0.30.8 extends centralized desktop sanitization and Android runtime diagnostic redaction.
 - Transfer-history CSV export excludes raw backend error text and neutralizes spreadsheet-formula prefixes from user/server-controlled path cells.
 - The desktop updater keeps its public verification key embedded in application configuration. Private updater signing material is optional and, when used, belongs only in CI secrets.
 - Android FTP/FTPS/SFTP staged uploads verify remote-target state before promotion and fail closed if an existing target cannot be preserved or restored.
