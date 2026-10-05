@@ -42,11 +42,16 @@ struct ContentView: View {
                 )
                 .id(profile.id)
             } else {
-                ContentUnavailableView(
-                    "Choose a site",
-                    systemImage: "externaldrive.connected.to.line.below",
-                    description: Text("Select a saved site or create a new one.")
-                )
+                VStack(spacing: 12) {
+                    Image(systemName: "externaldrive.connected.to.line.below")
+                        .font(.system(size: 42))
+                        .foregroundStyle(.secondary)
+                    Text("Choose a site")
+                        .font(.title2.weight(.semibold))
+                    Text("Select a saved site or create a new one.")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .frame(minWidth: 900, minHeight: 600)
