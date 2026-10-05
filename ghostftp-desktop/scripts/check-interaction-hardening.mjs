@@ -268,6 +268,66 @@ requireExcludes(
   "raw settings migration diagnostics"
 );
 
+for (const storeFile of [
+  "src/stores/diffStore.ts",
+  "src/stores/editorStore.ts",
+]) {
+  requireIncludes(
+    storeFile,
+    ["messageOf(", "toastError("],
+    "redacted user-visible store failures"
+  );
+  requireExcludes(
+    storeFile,
+    ["String(error)", "String(e)"],
+    "raw user-visible store failures"
+  );
+}
+
+for (const componentFile of [
+  "src/components/HostKeyModal.tsx",
+  "src/components/AgentBridge.tsx",
+  "src/components/SkillsPanel.tsx",
+]) {
+  requireIncludes(
+    componentFile,
+    ["toastError("],
+    "redacted component failures"
+  );
+  requireExcludes(
+    componentFile,
+    ["String(error)", "String(e)"],
+    "raw component failures"
+  );
+}
+
+requireIncludes(
+  "src/components/Settings.tsx",
+  ['import { messageOf, toastError } from "@/lib/errors";', "setShellDetail(messageOf(error))"],
+  "redacted Settings diagnostics"
+);
+requireExcludes(
+  "src/components/Settings.tsx",
+  ["error instanceof Error?error.message:String(error)"],
+  "raw Settings diagnostics"
+);
+
+for (const componentFile of [
+  "src/components/SyncDialog.tsx",
+  "src/components/ImportDialog.tsx",
+]) {
+  requireIncludes(
+    componentFile,
+    ["messageOf("],
+    "redacted dialog failures"
+  );
+  requireExcludes(
+    componentFile,
+    ["String(error)", "String(e)"],
+    "raw dialog failures"
+  );
+}
+
 requireIncludes(
   "src/components/TitleBar.tsx",
   [
