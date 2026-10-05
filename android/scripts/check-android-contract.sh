@@ -268,7 +268,8 @@ require_text "Activity non-secret state persistence" "$MAIN_ACTIVITY" 'override 
 require_text "Activity active operation cancellation" "$MAIN_ACTIVITY" 'activeCancellation?.cancel()'
 require_text "SAF persistable read grant" "$MAIN_ACTIVITY" 'Intent.FLAG_GRANT_READ_URI_PERMISSION'
 require_text "SAF persistable picker flag" "$MAIN_ACTIVITY" 'Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION'
-require_text "restored session requires reauthentication" "$MAIN_ACTIVITY" 'Reconnect to authenticate before remote actions.'
+require_text "restored session requires reauthentication" "$MAIN_ACTIVITY" 'getString(R.string.restore_reconnect)'
+require_text "canonical restored-session reauthentication copy" "$ANDROID_DIR/app/src/main/res/values/strings.xml" 'Reconnect to authenticate before remote actions.'
 require_text "remote root delete guard" "$CONNECTION_MODEL" 'Refusing to delete the remote root path.'
 require_text "lifecycle safe ui wrapper" "$MAIN_ACTIVITY" 'private fun safeUi'
 require_text "lifecycle destroyed guard" "$MAIN_ACTIVITY" 'closingOrDestroyed()'
@@ -439,6 +440,33 @@ require_text "localized upload target field" "$MAIN_ACTIVITY" 'getString(R.strin
 require_text "localized idle status" "$MAIN_ACTIVITY" 'getString(R.string.status_ready)'
 require_text "localized opening status" "$MAIN_ACTIVITY" 'getString(R.string.status_opening_protocol'
 require_text "localized connection failure state" "$MAIN_ACTIVITY" 'getString(R.string.status_connection_unavailable)'
+require_text "localized selected upload state" "$MAIN_ACTIVITY" 'getString(R.string.state_selected_local_file'
+require_text "localized download detail" "$MAIN_ACTIVITY" 'getString(R.string.detail_download_remote'
+require_text "localized delete confirmation" "$MAIN_ACTIVITY" 'getString(R.string.confirm_delete_title)'
+require_text "localized rename confirmation" "$MAIN_ACTIVITY" 'getString(R.string.confirm_rename_title)'
+require_text "localized upload confirmation" "$MAIN_ACTIVITY" 'getString(R.string.confirm_upload_title)'
+require_text "localized restore state" "$MAIN_ACTIVITY" 'getString(R.string.restore_reconnect)'
+require_text "localized transfer failure" "$MAIN_ACTIVITY" 'getString(R.string.status_transfer_failed)'
+for stale_transfer_copy in \
+  'Selected file unavailable' \
+  'Selected local file:' \
+  'Upload file selected:' \
+  'Saving $remotePath to Android downloads.' \
+  'Pick an Android document before uploading.' \
+  'Sending $uploadName to $remoteTarget.' \
+  'Delete remote entry?' \
+  'Rename remote entry?' \
+  'Creating $remoteTarget on the active server.' \
+  'Android could not open a document picker.' \
+  'Transfer canceled' \
+  'Transfer failed' \
+  'Android restored non-secret workspace state.' \
+  'Previous session ended. Reconnect to continue.' \
+  'Upload to remote path?' \
+  'Selected remote folder:' \
+  'Selected remote file:'; do
+  require_absent "hardcoded transfer Android copy" "$MAIN_ACTIVITY" "$stale_transfer_copy"
+done
 for stale_dynamic_copy in \
   'FTP sends credentials and file data without transport encryption.' \
   'Remote file path' \

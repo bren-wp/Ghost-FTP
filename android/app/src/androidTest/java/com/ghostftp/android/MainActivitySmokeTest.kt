@@ -259,23 +259,23 @@ class MainActivitySmokeTest {
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
         SystemClock.sleep(120)
 
-        assertTextPresent("Selected file unavailable")
+        assertTextPresent(appString(R.string.msg_selected_file_unavailable_title))
         openWorkspace(R.string.workspace_transfers)
         assertDescriptionEnabled(appString(R.string.action_upload), false)
     }
 
     @Test
     fun workspacesAreExclusiveInsteadOfOneLongScreen() {
-        assertTextVisibleInViewport("Connect to a server to load remote files.")
-        assertTextNotShown("Protocol")
+        assertTextVisibleInViewport(appString(R.string.state_connect_to_load_files))
+        assertTextNotShown(appString(R.string.field_protocol))
 
         openWorkspace(R.string.workspace_sites)
         assertTextVisibleInViewport(appString(R.string.field_protocol))
-        assertTextNotShown("Connect to a server to load remote files.")
+        assertTextNotShown(appString(R.string.state_connect_to_load_files))
 
         openWorkspace(R.string.workspace_transfers)
         assertTextVisibleInViewport(appString(R.string.state_no_transfer))
-        assertTextNotShown("Protocol")
+        assertTextNotShown(appString(R.string.field_protocol))
     }
 
     @Test
@@ -283,16 +283,16 @@ class MainActivitySmokeTest {
         openWorkspace(R.string.workspace_sites)
         scenario.onActivity { activity ->
             val host = findView(activity.window.decorView) {
-                it is EditText && it.hint?.toString() == "Host"
+                it is EditText && it.hint?.toString() == appString(R.string.field_host)
             } as? EditText
             val username = findView(activity.window.decorView) {
-                it is EditText && it.hint?.toString() == "Username"
+                it is EditText && it.hint?.toString() == appString(R.string.field_username)
             } as? EditText
             val password = findView(activity.window.decorView) {
-                it is EditText && it.hint?.toString() == "Password"
+                it is EditText && it.hint?.toString() == appString(R.string.field_password)
             } as? EditText
             val renameTarget = findView(activity.window.decorView) {
-                it is EditText && it.hint?.toString() == "New remote name or path"
+                it is EditText && it.hint?.toString() == appString(R.string.hint_rename_target)
             } as? EditText
 
             assertNotNull("Host input missing", host)
@@ -311,16 +311,16 @@ class MainActivitySmokeTest {
 
         scenario.onActivity { activity ->
             val host = findView(activity.window.decorView) {
-                it is EditText && it.hint?.toString() == "Host"
+                it is EditText && it.hint?.toString() == appString(R.string.field_host)
             } as EditText
             val username = findView(activity.window.decorView) {
-                it is EditText && it.hint?.toString() == "Username"
+                it is EditText && it.hint?.toString() == appString(R.string.field_username)
             } as EditText
             val password = findView(activity.window.decorView) {
-                it is EditText && it.hint?.toString() == "Password"
+                it is EditText && it.hint?.toString() == appString(R.string.field_password)
             } as EditText
             val renameTarget = findView(activity.window.decorView) {
-                it is EditText && it.hint?.toString() == "New remote name or path"
+                it is EditText && it.hint?.toString() == appString(R.string.hint_rename_target)
             } as EditText
 
             assertEquals("ftp.lifecycle.test", host.text.toString())
@@ -328,7 +328,7 @@ class MainActivitySmokeTest {
             assertEquals("renamed.txt", renameTarget.text.toString())
             assertTrue("Password must never survive Activity recreation.", password.text.isEmpty())
         }
-        assertTextPresent("Android restored non-secret workspace state. Reconnect to authenticate before remote actions.")
+        assertTextPresent(appString(R.string.restore_reconnect))
         assertTextVisibleInViewport(appString(R.string.field_protocol))
     }
 

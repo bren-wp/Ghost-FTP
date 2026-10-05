@@ -170,21 +170,27 @@ class MainActivity : Activity() {
             selectedUploadUri = null
             selectedUploadDisplayName = ""
             showMessage(
-                "Selected file unavailable",
-                "Android did not grant readable access to the selected document. Choose the file again."
+                getString(R.string.msg_selected_file_unavailable_title),
+                getString(R.string.msg_selected_file_unavailable_detail)
             )
-            appendActivity("Upload selection rejected", "Selected Android document is not readable.")
+            appendActivity(
+                getString(R.string.activity_upload_selection_rejected),
+                getString(R.string.activity_upload_selection_rejected_detail)
+            )
             return
         }
         selectedUploadUri = uri
         selectedUploadDisplayName = displayNameFor(uri)
         setWorkspace(Workspace.TRANSFERS)
-        uploadSelectionText.text = "Selected local file: $selectedUploadDisplayName"
+        uploadSelectionText.text = getString(R.string.state_selected_local_file, selectedUploadDisplayName)
         if (uploadRemoteNameInput.text.toString().isBlank()) {
             uploadRemoteNameInput.setText(selectedUploadDisplayName)
         }
-        transferStateText.text = "Upload file selected: $selectedUploadDisplayName"
-        appendActivity("Upload", "Selected $selectedUploadDisplayName from Android document storage.")
+        transferStateText.text = getString(R.string.state_upload_file_selected, selectedUploadDisplayName)
+        appendActivity(
+            getString(R.string.action_upload),
+            getString(R.string.activity_upload_selected_detail, selectedUploadDisplayName)
+        )
     }
 
     private fun buildContent(): View {
@@ -992,8 +998,8 @@ class MainActivity : Activity() {
         val remotePath = requiredRemoteFilePath(profile) ?: return
         val outputFile = downloadTarget(remotePath)
         runTransfer(
-            title = "Downloading",
-            detail = "Saving $remotePath to Android downloads."
+            title = getString(R.string.action_download),
+            detail = getString(R.string.detail_download_remote, remotePath)
         ) { cancellation ->
             controller.downloadRemote(profile, remotePath, outputFile, cancellation)
         }
@@ -1003,19 +1009,19 @@ class MainActivity : Activity() {
         val profile = activeTransferProfile() ?: return
         val uri = selectedUploadUri
         if (uri == null) {
-            showMessage("Choose a local file", "Pick an Android document before uploading.")
+            showMessage(getString(R.string.action_pick_file), getString(R.string.msg_choose_local_file_detail))
             return
         }
         val remoteTarget = uploadTargetPath(profile) ?: return
-        val uploadName = selectedUploadDisplayName.ifBlank { "selected file" }
+        val uploadName = selectedUploadDisplayName.ifBlank { getString(R.string.label_selected_file) }
         confirmUploadTarget(remoteTarget, uploadName) {
             runTransfer(
-                title = "Uploading",
-                detail = "Sending $uploadName to $remoteTarget.",
+                title = getString(R.string.action_upload),
+                detail = getString(R.string.detail_upload_remote, uploadName, remoteTarget),
                 refreshAfter = true
             ) { cancellation ->
                 val input = contentResolver.openInputStream(uri)
-                    ?: throw IllegalStateException("Unable to open selected Android document.")
+                    ?: throw IllegalStateException(getString(R.string.error_open_selected_document))
                 controller.uploadRemote(profile, input, remoteTarget, cancellation)
             }
         }
@@ -1025,17 +1031,17 @@ class MainActivity : Activity() {
         val profile = activeTransferProfile() ?: return
         val remotePath = requiredRemoteFilePath(profile) ?: return
         if (remotePath.split('/').filter { it.isNotBlank() }.isEmpty()) {
-            showMessage("Unsafe delete blocked", "Ghost FTP will not delete the remote root path.")
+            showMessage(getString(R.string.action_delete), getString(R.string.msg_unsafe_delete_detail))
             return
         }
         confirmDestructiveRemoteAction(
-            title = "Delete remote entry?",
-            message = "This permanently removes $remotePath from the active server. Empty folders are supported; non-empty folders are never removed recursively.",
-            confirmLabel = "Delete"
+            title = getString(R.string.confirm_delete_title),
+            message = getString(R.string.confirm_delete_detail, remotePath),
+            confirmLabel = getString(R.string.action_delete)
         ) {
             runTransfer(
-                title = "Deleting",
-                detail = "Removing $remotePath from the active server.",
+                title = getString(R.string.action_delete),
+                detail = getString(R.string.detail_delete_remote, remotePath),
                 refreshAfter = true
             ) { cancellation ->
                 controller.deleteRemoteFile(profile, remotePath, cancellation)
@@ -1047,27 +1053,27 @@ class MainActivity : Activity() {
         val profile = activeTransferProfile() ?: return
         val sourcePath = requiredRemoteFilePath(profile) ?: return
         if (sourcePath.split('/').filter { it.isNotBlank() }.isEmpty()) {
-            showMessage("Unsafe rename blocked", "Ghost FTP will not rename the remote root path.")
+            showMessage(getString(R.string.action_rename), getString(R.string.msg_unsafe_rename_detail))
             return
         }
         val rawTarget = renameRemoteNameInput.text.toString().trim()
         if (rawTarget.isBlank()) {
-            showMessage("Rename target is required", "Enter a new remote name or absolute remote path.")
+            showMessage(getString(R.string.field_rename_target), getString(R.string.msg_rename_target_required_detail))
             return
         }
         val destinationPath = normalizeRemoteInput(rawTarget, profile.remotePath) ?: return
         if (destinationPath == sourcePath) {
-            showMessage("Rename target is unchanged", "Choose a different remote name or path.")
+            showMessage(getString(R.string.field_rename_target), getString(R.string.msg_rename_target_unchanged_detail))
             return
         }
         confirmDestructiveRemoteAction(
-            title = "Rename remote entry?",
-            message = "Rename $sourcePath to $destinationPath?",
-            confirmLabel = "Rename"
+            title = getString(R.string.confirm_rename_title),
+            message = getString(R.string.confirm_rename_detail, sourcePath, destinationPath),
+            confirmLabel = getString(R.string.action_rename)
         ) {
             runTransfer(
-                title = "Renaming",
-                detail = "Renaming $sourcePath to $destinationPath.",
+                title = getString(R.string.action_rename),
+                detail = getString(R.string.detail_rename_remote, sourcePath, destinationPath),
                 refreshAfter = true
             ) { cancellation ->
                 controller.renameRemote(profile, sourcePath, destinationPath, cancellation)
@@ -1079,13 +1085,13 @@ class MainActivity : Activity() {
         val profile = activeTransferProfile() ?: return
         val folderName = mkdirNameInput.text.toString().trim()
         if (folderName.isBlank()) {
-            showMessage("Folder name is required", "Enter a folder name or absolute remote folder path.")
+            showMessage(getString(R.string.field_folder_target), getString(R.string.msg_folder_name_required_detail))
             return
         }
         val remoteTarget = normalizeRemoteInput(folderName, profile.remotePath) ?: return
         runTransfer(
-            title = "Creating folder",
-            detail = "Creating $remoteTarget on the active server.",
+            title = getString(R.string.action_new_folder),
+            detail = getString(R.string.detail_create_folder, remoteTarget),
             refreshAfter = true
         ) { cancellation ->
             controller.createRemoteDirectory(profile, remoteTarget, cancellation)
@@ -1100,7 +1106,12 @@ class MainActivity : Activity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }
         runCatching { startActivityForResult(intent, PICK_UPLOAD_REQUEST) }
-            .onFailure { showMessage("File picker unavailable", it.message ?: "Android could not open a document picker.") }
+            .onFailure {
+                showMessage(
+                    getString(R.string.action_pick_file),
+                    it.message ?: getString(R.string.msg_file_picker_unavailable_detail)
+                )
+            }
     }
 
     private fun runTransfer(
@@ -1147,11 +1158,20 @@ class MainActivity : Activity() {
     private fun showTransferFailure(error: Throwable) {
         if (!uiReady()) return
         val canceled = error is OperationCanceledException
-        val detail = error.message ?: if (canceled) "Operation canceled." else "The transfer action did not complete."
-        statusTitle.text = if (canceled) "Transfer canceled" else "Transfer failed"
+        val detail = error.message ?: if (canceled) {
+            getString(R.string.msg_operation_canceled)
+        } else {
+            getString(R.string.msg_transfer_failed_detail)
+        }
+        val title = if (canceled) {
+            getString(R.string.status_transfer_canceled)
+        } else {
+            getString(R.string.status_transfer_failed)
+        }
+        statusTitle.text = title
         statusDetail.text = detail
         transferStateText.text = detail
-        appendActivity(if (canceled) "Transfer canceled" else "Transfer failed", detail)
+        appendActivity(title, detail)
     }
 
     private fun restoreUiState(state: Bundle) {
@@ -1187,18 +1207,18 @@ class MainActivity : Activity() {
         activeCancellation = null
         operationInFlight = false
         if (selectedUploadUri != null && selectedUploadDisplayName.isNotBlank()) {
-            uploadSelectionText.text = "Selected local file: $selectedUploadDisplayName"
+            uploadSelectionText.text = getString(R.string.state_selected_local_file, selectedUploadDisplayName)
         }
-        statusTitle.text = "Ready"
+        statusTitle.text = getString(R.string.status_ready)
         statusDetail.text = if (restoredUploadUri != null && !restoredUploadReadable) {
-            "Android restored non-secret workspace state, but the previous local file is no longer readable. Choose it again before uploading."
+            getString(R.string.restore_upload_unreadable)
         } else {
-            "Android restored non-secret workspace state. Reconnect to authenticate before remote actions."
+            getString(R.string.restore_reconnect)
         }
         transferStateText.text = if (lastCompletedTransferPath.isBlank()) {
-            "Previous session ended. Reconnect to continue."
+            getString(R.string.restore_previous_session_ended)
         } else {
-            "Last completed remote path: $lastCompletedTransferPath"
+            getString(R.string.state_last_completed_remote_path, lastCompletedTransferPath)
         }
         setBusy(false)
     }
@@ -1206,7 +1226,7 @@ class MainActivity : Activity() {
     private fun requiredRemoteFilePath(profile: ConnectionProfile): String? {
         val raw = transferRemotePathInput.text.toString().trim()
         if (raw.isBlank()) {
-            showMessage("Remote path is required", "Select a remote file or folder, or enter an absolute remote path.")
+            showMessage(getString(R.string.field_transfer_remote_path), getString(R.string.msg_remote_path_required_detail))
             return null
         }
         return normalizeRemoteInput(raw, profile.remotePath)
@@ -1215,7 +1235,7 @@ class MainActivity : Activity() {
     private fun uploadTargetPath(profile: ConnectionProfile): String? {
         val targetName = uploadRemoteNameInput.text.toString().trim().ifBlank { selectedUploadDisplayName }
         if (targetName.isBlank()) {
-            showMessage("Upload target is required", "Choose a local file and enter the target file name or path.")
+            showMessage(getString(R.string.field_upload_target), getString(R.string.msg_upload_target_required_detail))
             return null
         }
         return normalizeRemoteInput(targetName, profile.remotePath)
@@ -1225,7 +1245,7 @@ class MainActivity : Activity() {
         val resolved = if (raw.startsWith('/')) raw else joinRemotePath(directory, raw)
         val blocked = resolved.split('/').filter { it.isNotBlank() }.any { it == "." || it == ".." }
         if (blocked) {
-            showMessage("Unsupported remote path", "Use a direct remote path without dot path segments.")
+            showMessage(getString(R.string.field_transfer_remote_path), getString(R.string.msg_unsupported_remote_path_detail))
             return null
         }
         return resolved
@@ -1233,9 +1253,9 @@ class MainActivity : Activity() {
 
     private fun confirmUploadTarget(remoteTarget: String, localName: String, onConfirm: () -> Unit) {
         requestInlineConfirmation(
-            title = "Upload to remote path?",
-            detail = "Upload $localName to $remoteTarget on the active server.",
-            confirmLabel = "Upload",
+            title = getString(R.string.confirm_upload_title),
+            detail = getString(R.string.confirm_upload_detail, localName, remoteTarget),
+            confirmLabel = getString(R.string.action_upload),
             onConfirm = onConfirm
         )
     }
@@ -1279,11 +1299,11 @@ class MainActivity : Activity() {
         transferRemotePathInput.setText(target)
         renameRemoteNameInput.setText(target.substringAfterLast('/'))
         transferStateText.text = if (item.isDirectory) {
-            "Selected remote folder: $target"
+            getString(R.string.state_selected_remote_folder, target)
         } else {
-            "Selected remote file: $target"
+            getString(R.string.state_selected_remote_file, target)
         }
-        appendActivity("Selected", target)
+        appendActivity(getString(R.string.label_selected), target)
     }
 
     private fun appendActivity(title: String, detail: String) {
