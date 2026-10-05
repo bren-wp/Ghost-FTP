@@ -83,7 +83,9 @@ The native Kotlin application supports FTP, explicit FTPS and SFTP connection/li
 
 ### macOS
 
-The dedicated SwiftUI client is being developed in `macos/`. Its first production-oriented foundation includes validated connection profiles, Keychain-backed optional password storage, explicit FTP transport warnings, FTPS/SFTP verification requirements and TCP endpoint reachability checks that are never presented as successful protocol authentication. Full protocol sessions, transfer operations, Developer ID signing and notarization remain gated development work.
+The dedicated SwiftUI client is being developed in `macos/` and remains a Preview. It includes validated connection profiles, Keychain-backed optional password storage, explicit transport warnings and TCP endpoint reachability checks. Plain FTP now has a real control-session slice: the client opens the TCP control connection, validates the `220` greeting, performs `USER`/`PASS` authentication, switches to binary mode with `TYPE I`, supports `PWD`, `CWD` and `NOOP`, and sends `QUIT` during a normal disconnect with bounded timeout/cancellation behavior.
+
+macOS directory listing and upload/download are not enabled yet. Explicit FTPS still requires a real `AUTH TLS` session with certificate and hostname validation, while SFTP still requires a real SSH/SFTP engine with host-key verification before authentication. Developer ID signing and notarization also remain gated development work; none of those unfinished capabilities are presented as production-ready.
 
 ## Verification
 
