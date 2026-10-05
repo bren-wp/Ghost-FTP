@@ -92,8 +92,10 @@ impl ProfilePreview {
             jump_host: None,
             jump_port: None,
             jump_username: None,
-        }
+
             keep_alive_seconds: None,
-        reconnect_attempts: None,
+
+            reconnect_attempts: None,
+        }
     }
 }
