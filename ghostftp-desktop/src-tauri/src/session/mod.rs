@@ -1831,6 +1831,31 @@ impl SessionManager {
     /// instead of the Tauri event one. The `app` parameter is still required
     /// because the FTP/S3 connect paths don't use it, but the SSH path
     /// embeds the AppHandle elsewhere via `_ = app`.
+fn validate_transport_host(host: &str) -> Result<()> {
+    let trimmed = host.trim();
+    if trimmed.is_empty() {
+        anyhow::bail!("connection host must not be empty");
+    }
+    if trimmed.chars().any(|ch| ch.is_control() || ch.is_whitespace()) {
+        anyhow::bail!("connection host must not contain whitespace or control characters");
+    }
+    if trimmed.contains("://") || trimmed.contains('/') || trimmed.contains('@') {
+        anyhow::bail!("connection host must be a hostname or IP address without scheme, path, credentials, or port");
+    }
+    if trimmed.starts_with('[') {
+        if !trimmed.ends_with(']') || trimmed.len() <= 2 {
+            anyhow::bail!("connection IPv6 host is malformed");
+        }
+        return Ok(());
+    }
+    // Raw IPv6 literals are valid and contain multiple colons. A single colon
+    // means a port was embedded in the Host field and must be rejected.
+    if trimmed.matches(':').count() == 1 {
+        anyhow::bail!("enter the connection port in the Port field");
+    }
+    Ok(())
+}
+
     pub async fn connect_with_verifier(
         &self,
         profile: ConnectionProfile,
@@ -1852,6 +1877,9 @@ impl SessionManager {
         // validation and transport selection differently is both confusing and
         // an easy way for malformed profiles to bypass protocol-specific checks.
         let protocol = profile.protocol.trim().to_ascii_lowercase();
+        if matches!(protocol.as_str(), "sftp" | "ssh" | "ftp" | "ftps" | "") {
+            validate_transport_host(&profile.host)?;
+        }
         if matches!(protocol.as_str(), "sftp" | "ssh" | "ftp" | "ftps" | "")
             && profile.username.trim().is_empty()
         {
@@ -2067,5 +2095,32 @@ impl SessionManager {
             }
         }
         Ok(())
+    }
+}
+
+
+#[cfg(test)]
+mod transport_host_validation_tests {
+    use super::validate_transport_host;
+
+    #[test]
+    fn transport_host_validation_accepts_dns_and_ipv6() {
+        assert!(validate_transport_host("ftp.example.com").is_ok());
+        assert!(validate_transport_host("2001:db8::1").is_ok());
+        assert!(validate_transport_host("[2001:db8::1]").is_ok());
+    }
+
+    #[test]
+    fn transport_host_validation_rejects_url_credentials_and_inline_port() {
+        for host in [
+            "ftp://example.com",
+            "user@example.com",
+            "example.com/path",
+            "example.com:2121",
+            "bad host.example",
+            "bad\n.example",
+        ] {
+            assert!(validate_transport_host(host).is_err(), "{host} should be rejected");
+        }
     }
 }
