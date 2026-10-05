@@ -111,10 +111,8 @@ private struct ConnectionEditor: View {
                 }
 
                 TextField("Username", text: $draft.username)
-                    .textContentType(.username)
 
                 SecureField("Password", text: $password)
-                    .textContentType(.password)
 
                 Toggle("Remember password in macOS Keychain", isOn: $rememberPassword)
             }
