@@ -1,6 +1,6 @@
 # Building Ghost FTP from Source
 
-The production desktop application lives in `ghostftp-desktop/` and uses React, TypeScript, Tauri 2 and Rust. The Android application lives in `android/`. Tooling under `tools/` supports development/runtime/installer workflows but is not the authoritative production desktop GUI.
+The production desktop application lives in `ghostftp-desktop/` and uses React, TypeScript, Tauri 2 and Rust. The Android application lives in `android/`. The dedicated SwiftUI macOS client is under active development in `macos/` and has a separate build gate until it reaches canonical release status. Tooling under `tools/` supports development/runtime/installer workflows but is not the authoritative production desktop GUI.
 
 ## Toolchain
 
@@ -12,6 +12,7 @@ CI currently uses:
 - Go 1.23 for Go tooling checks
 - Java 17 and Gradle 8.10.2 for Android
 - Android platform/build-tools 35
+- Swift 5.10-compatible toolchain on macOS 13+ for the macOS client
 - platform prerequisites required by Tauri 2
 
 Use the committed lockfiles. Do not regenerate dependency graphs merely to make CI green unless a dependency change is intentional and reviewed.
@@ -100,6 +101,19 @@ gradle -p android lintDebug lintRelease lintPreview assembleDebug assembleReleas
 ```
 
 CI verifies that the preview APK is signed/installable, that the release-check APK is unsigned, and that the installable preview uses the expected package id.
+
+## macOS
+
+From the repository root on macOS:
+
+```bash
+bash macos/scripts/check-macos-contract.sh
+swift test --package-path macos
+swift build --package-path macos -c release
+bash macos/scripts/package-app.sh
+```
+
+The packaging script creates an ad-hoc-signed preview application bundle for CI verification. It does not claim Developer ID signing or notarization. The macOS client must keep passwords out of profile/UserDefaults persistence, warn clearly about unencrypted FTP, validate FTPS certificates/hostnames during the future full protocol handshake, and verify SFTP host keys before authentication.
 
 ## Development workflow
 
