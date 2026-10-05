@@ -4,7 +4,7 @@
 
 ### More Than Transfer. Total Control.
 
-**A privacy-first FTP / FTPS / SFTP client for Windows, Linux and Android.**
+**A privacy-first FTP / FTPS / SFTP client for Windows, Linux and Android, with a dedicated macOS client now in active development.**
 
 [Releases](https://github.com/bren-wp/Ghost-FTP/releases) ·
 [Documentation](docs/README.md) ·
@@ -44,6 +44,7 @@
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
+- **macOS development source:** `macos/` — dedicated SwiftUI client with its own security/build gate; it is not yet part of the canonical production release.
 - **No website application is maintained in this repository.** Releases, source, documentation and support/security material live in GitHub/repository artifacts.
 
 ## Product scope
@@ -80,6 +81,10 @@ Linux uses the same desktop frontend and Rust/native engine as Windows. Release 
 
 The native Kotlin application supports FTP, explicit FTPS and SFTP connection/listing workflows plus upload, download, new-folder, delete, refresh and guarded session handling. Uploads/downloads use staged replacement, lifecycle cancellation propagates into remote mutations, and persisted document access keeps SAF permissions without storing session credentials. Android keeps the same product terminology and branding while using separate Files, Sites, Transfers, Settings and Help & About workspaces behind a persistent left navigation rail.
 
+### macOS
+
+The dedicated SwiftUI client is being developed in `macos/`. Its first production-oriented foundation includes validated connection profiles, Keychain-backed optional password storage, explicit FTP transport warnings, FTPS/SFTP verification requirements and TCP endpoint reachability checks that are never presented as successful protocol authentication. Full protocol sessions, transfer operations, Developer ID signing and notarization remain gated development work.
+
 ## Verification
 
 Desktop:
@@ -99,6 +104,14 @@ Android:
 gradle -p android lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview
 ```
 
+macOS development:
+
+```bash
+bash macos/scripts/check-macos-contract.sh
+swift test --package-path macos
+swift build --package-path macos -c release
+```
+
 Required exact-head gates:
 
 - **Ghost FTP quality**
@@ -106,6 +119,8 @@ Required exact-head gates:
 - **Ghost FTP native build**
 - **Ghost FTP Android**
 - **Validate Windows hardening**
+
+PRs that modify `macos/**` additionally run **Ghost FTP macOS**. It is a development gate and does not yet replace or expand the five canonical production-release gates.
 
 The Windows/Linux build additionally performs Windows NSIS/MSI lifecycle smoke tests, Linux package lifecycle checks, native QA evidence capture and artifact-size budget checks.
 
@@ -120,6 +135,7 @@ Version tags are immutable. A published tag is never retargeted to newer source.
 ```text
 Ghost-FTP/
 ├── android/                 Native Android application
+├── macos/                   Dedicated SwiftUI macOS application (development)
 ├── ghostftp-desktop/        Native Windows/Linux application
 ├── updates/                 Desktop update-service tooling and operator docs
 ├── tools/                   Support/runtime/installer tooling
