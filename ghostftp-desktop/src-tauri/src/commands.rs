@@ -575,7 +575,7 @@ pub async fn dropbox_authorize(profile_id: String) -> Result<DropboxAuthResult, 
         jump_host: None,
         jump_port: None,
         jump_username: None,
-            keep_alive_seconds: None,
+        keep_alive_seconds: None,
         reconnect_attempts: None,
     };
     let account_label = match crate::session::dropbox_connect(&probe).await {
@@ -629,7 +629,7 @@ pub async fn onedrive_authorize(profile_id: String) -> Result<DropboxAuthResult,
         jump_host: None,
         jump_port: None,
         jump_username: None,
-            keep_alive_seconds: None,
+        keep_alive_seconds: None,
         reconnect_attempts: None,
     };
     let account_label = match crate::session::onedrive_connect(&probe).await {
@@ -694,7 +694,7 @@ pub async fn dynamics_authorize(
         jump_host: None,
         jump_port: None,
         jump_username: None,
-            keep_alive_seconds: None,
+        keep_alive_seconds: None,
         reconnect_attempts: None,
     };
     let account_label = match crate::session::dynamics_connect(&probe).await {
@@ -743,7 +743,7 @@ pub async fn gdrive_authorize(profile_id: String) -> Result<DropboxAuthResult, S
         jump_host: None,
         jump_port: None,
         jump_username: None,
-            keep_alive_seconds: None,
+        keep_alive_seconds: None,
         reconnect_attempts: None,
     };
     let account_label = match crate::session::gdrive_connect(&probe).await {
@@ -792,7 +792,7 @@ pub async fn box_authorize(profile_id: String) -> Result<DropboxAuthResult, Stri
         jump_host: None,
         jump_port: None,
         jump_username: None,
-            keep_alive_seconds: None,
+        keep_alive_seconds: None,
         reconnect_attempts: None,
     };
     let account_label = match crate::session::box_connect(&probe).await {
