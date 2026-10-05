@@ -97,7 +97,6 @@ private struct ConnectionEditor: View {
                 }
 
                 TextField("Server", text: $draft.host)
-                    .textContentType(.URL)
 
                 HStack {
                     Text("Port")
