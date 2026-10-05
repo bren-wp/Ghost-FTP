@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$ROOT"
+
+for file in \
+  "macos/Package.swift" \
+  "macos/Sources/GhostFTPMacApp/GhostFTPMacApp.swift" \
+  "macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift" \
+  "macos/Sources/GhostFTPMacApp/Services/ConnectionValidator.swift" \
+  "macos/Sources/GhostFTPMacApp/Services/ProfileStore.swift" \
+  "macos/Sources/GhostFTPMacApp/Services/EndpointProbe.swift" \
+  "macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift" \
+  "macos/Sources/GhostFTPMacApp/Views/ContentView.swift" \
+  "macos/Tests/GhostFTPMacAppTests/ConnectionValidatorTests.swift"; do
+  test -s "$file" || { echo "Required macOS source missing: $file" >&2; exit 1; }
+done
+
+grep -Fq '.macOS(.v13)' macos/Package.swift
+grep -Fq 'case ftp' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
+grep -Fq 'case ftps' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
+grep -Fq 'case sftp' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
+grep -Fq 'FTP traffic is not encrypted.' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
+grep -Fq 'certificate and hostname' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
+grep -Fq 'verify the server host key' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
+grep -Fq 'kSecClassGenericPassword' macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift
+grep -Fq 'kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly' macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift
+grep -Fq 'NWConnection' macos/Sources/GhostFTPMacApp/Services/EndpointProbe.swift
+grep -Fq 'Remember password in macOS Keychain' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
+grep -Fq 'verifies TCP reachability only' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
+
+if grep -RniE '\b(TODO|FIXME|placeholder|demo)\b' macos/Sources macos/Tests; then
+  echo "macOS source contains development markers." >&2
+  exit 1
+fi
+
+if grep -Fqi 'password' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift; then
+  echo "ConnectionProfile must never persist a password field." >&2
+  exit 1
+fi
+
+echo "Ghost FTP macOS contract OK"
