@@ -56,7 +56,7 @@ jobs:
           APP="dist/macos/Ghost FTP.app"
           test -x "$APP/Contents/MacOS/GhostFTP"
           plutil -lint "$APP/Contents/Info.plist"
-          test "$(defaults read "$PWD/$APP/Contents/Info" CFBundleIdentifier)" = "com.brendigo.ghostftp.macos"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" = "com.brendigo.ghostftp.macos"
           codesign --verify --deep --strict --verbose=2 "$APP"
           test -s dist/macos/GhostFTP-macOS-SHA256SUMS.txt
 
