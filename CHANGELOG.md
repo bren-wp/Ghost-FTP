@@ -1,3 +1,17 @@
+## 0.30.7 — desktop production hardening, transfer safety and localization — 5 October 2026
+
+- Prevents same-name batch transfer races by reserving destination names immediately after successful enqueue.
+- Serializes Transfer Center pause/resume/cancel/retry/priority actions per transfer and queue-wide pause/resume actions.
+- Makes Sync & Backup mutation failures propagate correctly so failed saves and actions cannot appear successful or close prematurely.
+- Uses platform-neutral Sync path hints and strengthens Linux parity coverage for the shared Windows/Linux desktop UI.
+- Removes raw Quick Connection and Site Manager connection diagnostics from the WebView console and clears quick-connect secrets before close.
+- Replaces placeholder icon generation with fail-closed validation of reviewed production Ghost FTP brand assets.
+- Completes Android resource-backed navigation/workspace/session localization parity and adds duplicate/missing resource enforcement.
+- Excludes the Android session password field from Autofill in addition to saved Activity state.
+- Keeps exact-head Quality, protocol E2E, Windows/Linux native build, Android and Windows hardening gates mandatory.
+
+See [docs/releases/0.30.7.md](docs/releases/0.30.7.md).
+
 ## 0.30.6 — transfer integrity, mobile UX and security hardening — 4 October 2026
 
 - Remote overwrite and rename existence probes now fail closed across Dynamics, Shopify, HubSpot, OneDrive, Dropbox, FTP, Agent and object-backed paths instead of treating transport, permission or API failures as proof that a target is absent.
