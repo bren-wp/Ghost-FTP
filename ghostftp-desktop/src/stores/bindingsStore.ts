@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { ipc } from "@/lib/ipc";
 import { toast } from "./toastStore";
+import { messageOf } from "@/lib/errors";
 
 // Keyboard-shortcut override layer. Default combos live in the
 // command registry (src/lib/commands.tsx) and the file-browser catalog
@@ -49,20 +50,20 @@ function seedFromInjection(): Overrides {
       }
     }
   } catch (error) {
-    console.warn("Couldn't read injected shortcut settings", error);
+    console.warn("Couldn't read injected shortcut settings", messageOf(error));
   }
   return out;
 }
 
 function persistSet(id: string, combo: string) {
   void ipc.settingsSet(SHORTCUT_PREFIX + id, JSON.stringify(combo)).catch((error) => {
-    toast.error("Shortcut changed for this session only", String(error));
+    toast.warning("Shortcut changed for this session only", messageOf(error));
   });
 }
 
 function persistDelete(id: string) {
   void ipc.settingsDelete(SHORTCUT_PREFIX + id).catch((error) => {
-    toast.error("Shortcut reset for this session only", String(error));
+    toast.warning("Shortcut reset for this session only", messageOf(error));
   });
 }
 
@@ -102,12 +103,12 @@ export const useBindings = create<BindingsState>((set, get) => ({
             next[k.slice(SHORTCUT_PREFIX.length)] = parsed;
           }
         } catch (error) {
-          console.warn(`Ignoring corrupt shortcut setting: ${k}`, error);
+          console.warn(`Ignoring corrupt shortcut setting: ${k}`, messageOf(error));
         }
       }
       set({ overrides: next });
     } catch (error) {
-      console.warn("Couldn't hydrate saved keyboard shortcuts", error);
+      console.warn("Couldn't hydrate saved keyboard shortcuts", messageOf(error));
     }
   },
 }));
@@ -118,7 +119,7 @@ function hasInjection(): boolean {
   try {
     return !!(globalThis as { __GHOSTFTP_SETTINGS__?: unknown }).__GHOSTFTP_SETTINGS__;
   } catch (error) {
-    console.warn("Couldn't inspect injected shortcut settings", error);
+    console.warn("Couldn't inspect injected shortcut settings", messageOf(error));
     return false;
   }
 }
