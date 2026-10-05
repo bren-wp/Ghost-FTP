@@ -11,9 +11,12 @@ for file in \
   "macos/Sources/GhostFTPMacApp/Services/ConnectionValidator.swift" \
   "macos/Sources/GhostFTPMacApp/Services/ProfileStore.swift" \
   "macos/Sources/GhostFTPMacApp/Services/EndpointProbe.swift" \
+  "macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift" \
+  "macos/Sources/GhostFTPMacApp/Services/FTPConnectionController.swift" \
   "macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift" \
   "macos/Sources/GhostFTPMacApp/Views/ContentView.swift" \
-  "macos/Tests/GhostFTPMacAppTests/ConnectionValidatorTests.swift"; do
+  "macos/Tests/GhostFTPMacAppTests/ConnectionValidatorTests.swift" \
+  "macos/Tests/GhostFTPMacAppTests/FTPControlSessionTests.swift"; do
   test -s "$file" || { echo "Required macOS source missing: $file" >&2; exit 1; }
 done
 
@@ -31,6 +34,13 @@ grep -Fq 'verify the server host key' macos/Sources/GhostFTPMacApp/Models/Connec
 grep -Fq 'kSecClassGenericPassword' macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift
 grep -Fq 'kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly' macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift
 grep -Fq 'NWConnection' macos/Sources/GhostFTPMacApp/Services/EndpointProbe.swift
+grep -Fq 'actor FTPControlSession' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'func currentDirectory' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'func changeDirectory' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'func noop' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'func disconnect' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'unsafeCommandArgument' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'Open FTP session' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
 grep -Fq 'Remember password in macOS Keychain' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
 grep -Fq 'verifies TCP reachability only' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
 
