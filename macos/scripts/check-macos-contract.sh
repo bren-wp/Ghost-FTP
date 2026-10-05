@@ -30,7 +30,7 @@ grep -Fq 'NWConnection' macos/Sources/GhostFTPMacApp/Services/EndpointProbe.swif
 grep -Fq 'Remember password in macOS Keychain' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
 grep -Fq 'verifies TCP reachability only' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
 
-if grep -RniE '\b(TODO|FIXME|placeholder|demo)\b' macos/Sources macos/Tests; then
+if grep -RniE '(TODO|FIXME|placeholder|demo)' macos/Sources macos/Tests; then
   echo "macOS source contains development markers." >&2
   exit 1
 fi
