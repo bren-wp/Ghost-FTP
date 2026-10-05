@@ -57,8 +57,6 @@ struct FTPReply: Equatable {
 }
 
 enum FTPControlCodec {
-    private static let crlf = Data([13, 10])
-
     static func takeReply(from buffer: inout Data) throws -> FTPReply? {
         let bytes = [UInt8](buffer)
 
@@ -253,6 +251,10 @@ actor FTPControlSession {
     func disconnect() async {
         guard connection != nil else { return }
         _ = try? await command("QUIT", timeoutSeconds: 2)
+        closeTransport()
+    }
+
+    func cancel() {
         closeTransport()
     }
 
