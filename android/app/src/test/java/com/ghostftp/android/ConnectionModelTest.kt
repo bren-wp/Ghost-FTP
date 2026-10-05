@@ -86,6 +86,20 @@ class ConnectionModelTest {
         assertThrows(IllegalArgumentException::class.java) {
             controller.normalizedProfile(base.copy(port = 0))
         }
+
+        val sftp = base.copy(
+            protocol = ConnectionProtocol.SFTP,
+            port = 22,
+            hostKeyFingerprint = "SHA256:test",
+            keepAliveSeconds = 15
+        )
+        assertEquals(15, controller.normalizedProfile(sftp).keepAliveSeconds)
+        assertThrows(IllegalArgumentException::class.java) {
+            controller.normalizedProfile(sftp.copy(keepAliveSeconds = 4))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            controller.normalizedProfile(sftp.copy(keepAliveSeconds = 301))
+        }
     }
 
     @Test
