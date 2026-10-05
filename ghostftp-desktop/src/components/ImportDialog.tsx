@@ -23,7 +23,6 @@ import type {
   Protocol,
 } from "@/lib/types";
 import { cn } from "@/lib/cn";
-import { toast } from "@/stores/toastStore";
 import { messageOf, toastError } from "@/lib/errors";
 
 interface Props {
