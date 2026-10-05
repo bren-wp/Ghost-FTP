@@ -7,6 +7,7 @@ import {
   onAgentOutput,
 } from "@/lib/ipc";
 import { toast } from "./toastStore";
+import { messageOf, toastError } from "@/lib/errors";
 import type {
   BridgeStatus,
   BridgeActivity,
@@ -77,7 +78,7 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
         set({ status, activity: activity.slice().reverse(), savedCommands });
       } catch (error) {
         set({ loaded: false });
-        console.warn("Couldn't initialize Agent Bridge state", error);
+        console.warn("Couldn't initialize Agent Bridge state", messageOf(error));
       }
     }
     const unApproval = await onBridgeApproval((a) => {
@@ -154,7 +155,7 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
     try {
       set({ status: await ipc.bridgeStatus() });
     } catch (error) {
-      console.warn("Couldn't refresh Agent Bridge status", error);
+      console.warn("Couldn't refresh Agent Bridge status", messageOf(error));
     }
   },
 
@@ -164,7 +165,7 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
       set({ status });
       toast.success("Agent Bridge started", status.url ?? undefined);
     } catch (e) {
-      toast.error("Couldn't start Agent Bridge", String(e));
+      toastError(e, "Couldn't start Agent Bridge");
     }
   },
 
@@ -174,7 +175,7 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
       set({ status });
       toast.info("Agent Bridge stopped");
     } catch (e) {
-      toast.error("Couldn't stop Agent Bridge", String(e));
+      toastError(e, "Couldn't stop Agent Bridge");
     }
   },
 
@@ -186,7 +187,7 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
       set({ status });
       toast.info(enabled ? "Agent Bridge enabled" : "Agent Bridge disabled");
     } catch (e) {
-      toast.error("Couldn't update Agent Bridge", String(e));
+      toastError(e, "Couldn't update Agent Bridge");
       // The bridge may have failed to bind a port; reconcile with the backend.
       void get().refresh();
     }
@@ -197,7 +198,7 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
       const status = await ipc.bridgeSetSessionAccess(sessionId, enabled);
       set({ status });
     } catch (e) {
-      toast.error("Couldn't update agent access", String(e));
+      toastError(e, "Couldn't update agent access");
     }
   },
 
@@ -208,7 +209,7 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
       const status = await ipc.bridgeSetPolicy(policy);
       set({ status });
     } catch (e) {
-      toast.error("Couldn't update auto-approve policy", String(e));
+      toastError(e, "Couldn't update auto-approve policy");
       void get().refresh();
     }
   },
@@ -221,7 +222,7 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
     try {
       await ipc.respondToBridgeApproval(requestId, decision);
     } catch (error) {
-      toast.warning("Approval request is no longer available", String(error));
+      toast.warning("Approval request is no longer available", messageOf(error));
     }
   },
 
@@ -231,7 +232,7 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
     try {
       set({ activity: (await ipc.bridgeActivity()).slice().reverse() });
     } catch (error) {
-      toast.error("Couldn't refresh Agent Bridge activity", String(error));
+      toastError(error, "Couldn't refresh Agent Bridge activity");
     }
   },
 
@@ -240,7 +241,7 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
     try {
       await ipc.bridgeClearActivity();
     } catch (error) {
-      toast.warning("Activity view cleared locally, but backend history remains", String(error));
+      toast.warning("Activity view cleared locally, but backend history remains", messageOf(error));
       void get().refreshActivity();
     }
   },
@@ -249,7 +250,7 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
     try {
       set({ savedCommands: await ipc.bridgeListCommands() });
     } catch (error) {
-      toast.error("Couldn't load saved Agent Bridge commands", String(error));
+      toastError(error, "Couldn't load saved Agent Bridge commands");
     }
   },
 
@@ -257,7 +258,7 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
     try {
       set({ savedCommands: await ipc.bridgeSaveCommand(command) });
     } catch (e) {
-      toast.error("Couldn't save command", String(e));
+      toastError(e, "Couldn't save command");
     }
   },
 
@@ -265,7 +266,7 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
     try {
       set({ savedCommands: await ipc.bridgeDeleteCommand(id) });
     } catch (e) {
-      toast.error("Couldn't delete command", String(e));
+      toastError(e, "Couldn't delete command");
     }
   },
 }));
