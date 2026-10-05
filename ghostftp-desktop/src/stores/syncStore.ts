@@ -1,18 +1,13 @@
 import { create } from "zustand";
 import { ipc, onFolderSyncChanged } from "@/lib/ipc";
 import { toast } from "./toastStore";
+import { toastError } from "@/lib/errors";
 import type { PairView, SyncPair } from "@/lib/types";
 
-// Frontend view of the Folder Sync engine. The Rust backend owns the pairs,
-// watches the folders and runs the transfers; every command returns the full,
-// updated list so we just mirror what it hands back. A "foldersync://changed"
-// event fires whenever a background sync moves a pair's state — we re-fetch.
 interface SyncStoreState {
   pairs: PairView[];
   loaded: boolean;
 
-  /** Fetch the current list and attach the change listener. Returns the
-   *  unlisten fn — call it on teardown. */
   init: () => Promise<() => void>;
   refresh: () => Promise<void>;
   upsert: (pair: SyncPair) => Promise<void>;
@@ -31,8 +26,7 @@ export const useSync = create<SyncStoreState>((set, get) => ({
         set({ pairs: await ipc.folderSyncList(), loaded: true });
       } catch (error) {
         set({ loaded: false });
-        console.warn("Couldn't load Sync & Backup pairs during startup", error);
-        toast.error("Couldn't load Sync & Backup", String(error));
+        toastError(error, "Couldn't load Sync & Backup");
       }
     }
     const un = await onFolderSyncChanged(() => {
@@ -45,41 +39,30 @@ export const useSync = create<SyncStoreState>((set, get) => ({
     try {
       set({ pairs: await ipc.folderSyncList(), loaded: true });
     } catch (error) {
-      console.warn("Couldn't refresh Sync & Backup pairs", error);
+      toastError(error, "Couldn't refresh Sync & Backup");
     }
   },
 
   upsert: async (pair) => {
-    try {
-      set({ pairs: await ipc.folderSyncUpsert(pair) });
-      toast.success(pair.id ? "Sync pair updated" : "Sync pair created", pair.name);
-    } catch (e) {
-      toast.error("Couldn't save sync pair", String(e));
-    }
+    const pairs = await ipc.folderSyncUpsert(pair);
+    set({ pairs });
+    toast.success(pair.id ? "Sync pair updated" : "Sync pair created", pair.name);
   },
 
   remove: async (id) => {
-    try {
-      set({ pairs: await ipc.folderSyncRemove(id) });
-    } catch (e) {
-      toast.error("Couldn't remove sync pair", String(e));
-    }
+    set({ pairs: await ipc.folderSyncRemove(id) });
   },
 
   setEnabled: async (id, enabled) => {
     try {
       set({ pairs: await ipc.folderSyncSetEnabled(id, enabled) });
-    } catch (e) {
-      toast.error("Couldn't update sync pair", String(e));
+    } catch (error) {
       void get().refresh();
+      throw error;
     }
   },
 
   syncNow: async (id) => {
-    try {
-      set({ pairs: await ipc.folderSyncSyncNow(id) });
-    } catch (e) {
-      toast.error("Couldn't start sync", String(e));
-    }
+    set({ pairs: await ipc.folderSyncSyncNow(id) });
   },
 }));

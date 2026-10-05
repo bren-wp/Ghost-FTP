@@ -527,8 +527,10 @@ class MainActivity : Activity() {
         addView(usernameInput)
 
         passwordInput = input(getString(R.string.field_password), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD).apply {
-            // Never let Activity view-state persistence retain a session password.
+            // Session credentials are memory-only: do not persist view state and
+            // do not expose this field to Android Autofill services.
             isSaveEnabled = false
+            importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
         }
         addView(formLabel(getString(R.string.field_password)))
         addView(passwordInput)

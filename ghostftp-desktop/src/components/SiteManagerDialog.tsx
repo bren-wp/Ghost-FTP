@@ -269,9 +269,9 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     setAction("connect");
     try {
       await connect(selected.id);
-    } catch (error) {
-      // connectionsStore already surfaces the structured FTP/FTPS/SFTP error.
-      console.debug("Site Manager connection failure was surfaced by the connections store", error);
+    } catch {
+      // connectionsStore already surfaces the redacted FTP/FTPS/SFTP error.
+      return;
     } finally {
       setAction(null);
     }
