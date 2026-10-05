@@ -44,6 +44,7 @@ import { AboutDialog } from "./components/AboutDialog";
 import { useUpdater } from "./stores/updaterStore";
 import { WorkspaceErrorBoundary } from "./components/WorkspaceErrorBoundary";
 import { resolveWorkspaceDialog } from "./lib/workspaces";
+import { messageOf, toastError } from "./lib/errors";
 
 export default function App() {
   const activeSessionId = useConnections((s) => s.activeSessionId);
@@ -110,8 +111,8 @@ export default function App() {
         else cleanup = nextCleanup;
       })
       .catch((error) => {
-        console.error("Couldn't initialize Sync & Backup", error);
-        toast.error("Couldn't initialize Sync & Backup", String(error));
+        console.error("Couldn't initialize Sync & Backup", messageOf(error));
+        toastError(error, "Couldn't initialize Sync & Backup");
       });
 
     return () => {
@@ -125,8 +126,8 @@ export default function App() {
       .then(runDefaultBumps)
       .then(() => applyTransferEngineSettings())
       .catch((error) => {
-        console.error("Couldn't initialize application settings", error);
-        toast.error("Couldn't initialize application settings", String(error));
+        console.error("Couldn't initialize application settings", messageOf(error));
+        toastError(error, "Couldn't initialize application settings");
       });
   }, []);
 
@@ -146,8 +147,8 @@ export default function App() {
       cleanup = nextCleanup;
       await useTransfers.getState().loadInitial();
     })().catch((error) => {
-      console.error("Couldn't initialize transfer activity", error);
-      toast.error("Couldn't initialize transfer activity", String(error));
+      console.error("Couldn't initialize transfer activity", messageOf(error));
+      toastError(error, "Couldn't initialize transfer activity");
     });
 
     return () => {
@@ -178,7 +179,7 @@ export default function App() {
       .catch((error) => {
         // The quiet updater check is non-blocking; an unexpected initialization
         // failure must remain observable without interrupting application launch.
-        console.error("Couldn't initialize app updates", error);
+        console.error("Couldn't initialize app updates", messageOf(error));
       });
 
     return () => {
@@ -338,8 +339,8 @@ function DeepLinkListener() {
         else unlisten = cleanup;
       })
       .catch((error) => {
-        console.error("Couldn't register Ghost FTP deep-link listener", error);
-        toast.error("Couldn't register deep-link handler", String(error));
+        console.error("Couldn't register Ghost FTP deep-link listener", messageOf(error));
+        toastError(error, "Couldn't register deep-link handler");
       });
 
     return () => {

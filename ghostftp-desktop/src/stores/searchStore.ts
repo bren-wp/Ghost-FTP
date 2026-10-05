@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { ipc, onSearchEvent } from "@/lib/ipc";
-import { toast } from "./toastStore";
+import { messageOf, toastError } from "@/lib/errors";
 import { LOCAL_SESSION } from "@ghostftp/file-ui";
 import type {
   SearchHit,
@@ -139,7 +139,7 @@ export const useSearch = create<SearchStoreState>((set, get) => ({
     if (!prev.pattern.trim()) return;
     if (prev.searchId) {
       void ipc.searchForget(prev.searchId).catch((error) =>
-        console.warn("Couldn't forget previous search", error)
+        console.warn("Couldn't forget previous search", messageOf(error))
       );
     }
     prev.unlisten?.();
@@ -182,9 +182,10 @@ export const useSearch = create<SearchStoreState>((set, get) => ({
       // terminal event could have been missed above.
       const snap = await ipc.searchResult(searchId);
       if (snap.state !== "searching") set(fromSnapshot(snap));
-    } catch (e) {
-      set({ state: "error", error: String(e) });
-      toast.error("Couldn't start the search", String(e));
+    } catch (error) {
+      const detail = messageOf(error);
+      set({ state: "error", error: detail });
+      toastError(error, "Couldn't start the search");
     }
   },
 
@@ -194,8 +195,9 @@ export const useSearch = create<SearchStoreState>((set, get) => ({
     try {
       await ipc.searchCancel(searchId);
     } catch (error) {
-      set({ error: String(error) });
-      toast.error("Couldn't cancel the search", String(error));
+      const detail = messageOf(error);
+      set({ error: detail });
+      toastError(error, "Couldn't cancel the search");
     }
   },
 
@@ -203,7 +205,7 @@ export const useSearch = create<SearchStoreState>((set, get) => ({
     const { searchId, unlisten } = get();
     if (searchId) {
       void ipc.searchForget(searchId).catch((error) =>
-        console.warn("Couldn't forget search", error)
+        console.warn("Couldn't forget search", messageOf(error))
       );
     }
     unlisten?.();

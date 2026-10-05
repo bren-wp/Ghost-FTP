@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { ipc, onDedupeEvent } from "@/lib/ipc";
 import { toast } from "./toastStore";
 import { LOCAL_SESSION } from "@ghostftp/file-ui";
+import { messageOf, toastError } from "@/lib/errors";
 import type {
   DedupePhase,
   DedupeProgress,
@@ -105,7 +106,7 @@ export const useDedupe = create<DedupeStoreState>((set, get) => ({
     const prev = get();
     if (prev.dedupeId) {
       void ipc.dedupeForget(prev.dedupeId).catch((error) =>
-        console.warn("Couldn't forget previous duplicate scan", error)
+        console.warn("Couldn't forget previous duplicate scan", messageOf(error))
       );
     }
     prev.unlisten?.();
@@ -142,9 +143,10 @@ export const useDedupe = create<DedupeStoreState>((set, get) => ({
       const snap = await ipc.dedupeResult(dedupeId);
       if (snap.state !== "scanning") set(fromSnapshot(snap));
       else set({ phase: snap.phase, filesFound: snap.filesFound, hashed: snap.hashed });
-    } catch (e) {
-      set({ state: "error", error: String(e) });
-      toast.error("Couldn't start the scan", String(e));
+    } catch (error) {
+      const detail = messageOf(error);
+      set({ state: "error", error: detail });
+      toastError(error, "Couldn't start the scan");
     }
   },
 
@@ -154,8 +156,9 @@ export const useDedupe = create<DedupeStoreState>((set, get) => ({
     try {
       await ipc.dedupeCancel(dedupeId);
     } catch (error) {
-      set({ error: String(error) });
-      toast.error("Couldn't cancel duplicate scan", String(error));
+      const detail = messageOf(error);
+      set({ error: detail });
+      toastError(error, "Couldn't cancel duplicate scan");
     }
   },
 
@@ -163,7 +166,7 @@ export const useDedupe = create<DedupeStoreState>((set, get) => ({
     const { dedupeId, unlisten } = get();
     if (dedupeId) {
       void ipc.dedupeForget(dedupeId).catch((error) =>
-        console.warn("Couldn't forget duplicate scan", error)
+        console.warn("Couldn't forget duplicate scan", messageOf(error))
       );
     }
     unlisten?.();
@@ -221,8 +224,8 @@ export const useDedupe = create<DedupeStoreState>((set, get) => ({
           `${paths.length - errors.length} deleted, ${errors.length} failed`
         );
       }
-    } catch (e) {
-      toast.error("Delete failed", String(e));
+    } catch (error) {
+      toastError(error, "Delete failed");
     } finally {
       set({ deleting: false });
     }
