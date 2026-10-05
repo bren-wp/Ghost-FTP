@@ -1,0 +1,70 @@
+name: Ghost FTP macOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'macos/**'
+      - 'version.json'
+      - '.github/workflows/ghostftp-macos.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'macos/**'
+      - 'version.json'
+      - '.github/workflows/ghostftp-macos.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Swift toolchain
+        run: swift --version
+
+      - name: macOS production contract
+        shell: bash
+        run: bash macos/scripts/check-macos-contract.sh
+
+      - name: macOS unit tests
+        shell: bash
+        run: swift test --package-path macos
+
+      - name: macOS release build
+        shell: bash
+        run: swift build --package-path macos -c release
+
+      - name: Package ad-hoc signed macOS preview
+        shell: bash
+        run: bash macos/scripts/package-app.sh
+
+      - name: Verify macOS preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="dist/macos/Ghost FTP.app"
+          test -x "$APP/Contents/MacOS/GhostFTP"
+          plutil -lint "$APP/Contents/Info.plist"
+          test "$(defaults read "$PWD/$APP/Contents/Info" CFBundleIdentifier)" = "com.brendigo.ghostftp.macos"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          test -s dist/macos/GhostFTP-macOS-SHA256SUMS.txt
+
+      - name: Upload macOS preview artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-macOS-Preview
+          path: |
+            dist/macos/GhostFTP-macOS-*-Preview.zip
+            dist/macos/GhostFTP-macOS-SHA256SUMS.txt
+          if-no-files-found: error
