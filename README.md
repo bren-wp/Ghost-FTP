@@ -39,8 +39,8 @@
 
 ## Current status
 
-- **Active source/release cycle:** `0.30.6`.
-- **Previous canonical release:** `0.30.5`.
+- **Active source/release cycle:** `0.30.7`.
+- **Previous canonical release:** `0.30.6`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
