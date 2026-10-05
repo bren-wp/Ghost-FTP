@@ -57,6 +57,8 @@ class MainActivity : Activity() {
     private lateinit var passwordInput: EditText
     private lateinit var hostKeyFingerprintInput: EditText
     private lateinit var sftpFingerprintGroup: View
+    private lateinit var sftpKeepAliveInput: EditText
+    private lateinit var sftpKeepAliveGroup: View
     private lateinit var remotePathInput: EditText
     private lateinit var transferRemotePathInput: EditText
     private lateinit var uploadRemoteNameInput: EditText
@@ -126,6 +128,7 @@ class MainActivity : Activity() {
         if (::portInput.isInitialized) outState.putString(STATE_PORT, portInput.text.toString())
         if (::usernameInput.isInitialized) outState.putString(STATE_USERNAME, usernameInput.text.toString())
         if (::hostKeyFingerprintInput.isInitialized) outState.putString(STATE_FINGERPRINT, hostKeyFingerprintInput.text.toString())
+        if (::sftpKeepAliveInput.isInitialized) outState.putString(STATE_KEEP_ALIVE, sftpKeepAliveInput.text.toString())
         if (::remotePathInput.isInitialized) outState.putString(STATE_REMOTE_PATH, remotePathInput.text.toString())
         if (::transferRemotePathInput.isInitialized) outState.putString(STATE_TRANSFER_REMOTE_PATH, transferRemotePathInput.text.toString())
         if (::uploadRemoteNameInput.isInitialized) outState.putString(STATE_UPLOAD_REMOTE_NAME, uploadRemoteNameInput.text.toString())
@@ -549,6 +552,16 @@ class MainActivity : Activity() {
         }
         addView(sftpFingerprintGroup)
 
+        sftpKeepAliveInput = input("15", InputType.TYPE_CLASS_NUMBER).apply {
+            setText("15")
+        }
+        sftpKeepAliveGroup = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(formLabel("SFTP keep-alive (seconds)"))
+            addView(sftpKeepAliveInput)
+        }
+        addView(sftpKeepAliveGroup)
+
         remotePathInput = input("/", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         remotePathInput.setText("/")
         addView(formLabel(getString(R.string.field_remote_path)))
@@ -607,6 +620,10 @@ class MainActivity : Activity() {
     private fun updateProtocolSpecificFields(protocol: ConnectionProtocol) {
         if (::sftpFingerprintGroup.isInitialized) {
             sftpFingerprintGroup.visibility =
+                if (protocol == ConnectionProtocol.SFTP) View.VISIBLE else View.GONE
+        }
+        if (::sftpKeepAliveGroup.isInitialized) {
+            sftpKeepAliveGroup.visibility =
                 if (protocol == ConnectionProtocol.SFTP) View.VISIBLE else View.GONE
         }
         if (::protocolSecurityText.isInitialized) {
@@ -896,6 +913,7 @@ class MainActivity : Activity() {
         if (::portInput.isInitialized) portInput.setText(ConnectionProtocol.FTP.defaultPort.toString())
         if (::usernameInput.isInitialized) usernameInput.text.clear()
         if (::hostKeyFingerprintInput.isInitialized) hostKeyFingerprintInput.text.clear()
+        if (::sftpKeepAliveInput.isInitialized) sftpKeepAliveInput.setText("15")
         if (::remotePathInput.isInitialized) remotePathInput.setText("/")
         showMessage(getString(R.string.action_reset_connection), getString(R.string.msg_connection_reset_detail))
     }
@@ -905,6 +923,11 @@ class MainActivity : Activity() {
         val port = portInput.text.toString().trim().ifBlank { protocol.defaultPort.toString() }.toIntOrNull()
         if (port == null || port !in 1..65535) {
             showMessage(getString(R.string.field_port), getString(R.string.msg_invalid_port_detail))
+            return null
+        }
+        val keepAliveSeconds = sftpKeepAliveInput.text.toString().trim().ifBlank { "15" }.toIntOrNull()
+        if (protocol == ConnectionProtocol.SFTP && (keepAliveSeconds == null || keepAliveSeconds !in 5..300)) {
+            showMessage(getString(R.string.label_connection), "Use an SFTP keep-alive interval between 5 and 300 seconds.")
             return null
         }
         val host = hostInput.text.toString().trim()
@@ -919,7 +942,8 @@ class MainActivity : Activity() {
             username = usernameInput.text.toString().trim(),
             password = passwordInput.text.toString(),
             hostKeyFingerprint = hostKeyFingerprintInput.text.toString().trim(),
-            remotePath = remotePathInput.text.toString().trim().ifBlank { "/" }
+            remotePath = remotePathInput.text.toString().trim().ifBlank { "/" },
+            keepAliveSeconds = keepAliveSeconds ?: 15
         )
     }
 
@@ -1185,6 +1209,7 @@ class MainActivity : Activity() {
         portInput.setText(state.getString(STATE_PORT).orEmpty())
         usernameInput.setText(state.getString(STATE_USERNAME).orEmpty())
         hostKeyFingerprintInput.setText(state.getString(STATE_FINGERPRINT).orEmpty())
+        sftpKeepAliveInput.setText(state.getString(STATE_KEEP_ALIVE).orEmpty().ifBlank { "15" })
         remotePathInput.setText(state.getString(STATE_REMOTE_PATH).orEmpty().ifBlank { "/" })
         transferRemotePathInput.setText(state.getString(STATE_TRANSFER_REMOTE_PATH).orEmpty())
         uploadRemoteNameInput.setText(state.getString(STATE_UPLOAD_REMOTE_NAME).orEmpty())
@@ -1609,6 +1634,7 @@ class MainActivity : Activity() {
         const val STATE_PORT = "ghostftp.port"
         const val STATE_USERNAME = "ghostftp.username"
         const val STATE_FINGERPRINT = "ghostftp.fingerprint"
+        const val STATE_KEEP_ALIVE = "ghostftp.keepAlive"
         const val STATE_REMOTE_PATH = "ghostftp.remotePath"
         const val STATE_TRANSFER_REMOTE_PATH = "ghostftp.transferRemotePath"
         const val STATE_UPLOAD_REMOTE_NAME = "ghostftp.uploadRemoteName"
