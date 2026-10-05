@@ -24,6 +24,7 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { toast } from "@/stores/toastStore";
+import { messageOf, toastError } from "@/lib/errors";
 
 interface Props {
   onClose: () => void;
@@ -44,7 +45,7 @@ export function ImportDialog({ onClose }: Props) {
       .importerDefaultPaths()
       .then(setPaths)
       .catch((error) => {
-        toast.error("Couldn't detect import locations", String(error));
+        toastError(error, "Couldn't detect import locations");
       });
   }, []);
 
@@ -163,7 +164,7 @@ function ImporterTab({
       // and then drop the few they don't.
       setSelected(new Set(result.map((p) => p.previewId)));
     } catch (e) {
-      setError(String(e));
+      setError(messageOf(e));
       setPreviews(null);
     } finally {
       setLoading(false);
@@ -204,7 +205,7 @@ function ImporterTab({
       // Auto-close after a moment so the user sees the success state.
       setTimeout(onDone, 900);
     } catch (e) {
-      setError(String(e));
+      setError(messageOf(e));
     } finally {
       setSaving(false);
     }
