@@ -64,6 +64,37 @@ data class TransferResult(
     val remotePath: String
 )
 
+private val URL_USER_INFO_PATTERN =
+    Regex("""(?i)\b([a-z][a-z0-9+.-]*://)([^/\s:@]+):([^/\s@]+)@""")
+private val SECRET_ASSIGNMENT_PATTERN =
+    Regex("""(?i)\b(password|passwd|pwd|token|secret|authorization)\s*[:=]\s*([^\s,;]+)""")
+private val BEARER_TOKEN_PATTERN =
+    Regex("""(?i)\b(Bearer)\s+[A-Za-z0-9._~+/=-]+""")
+
+internal fun redactSensitiveErrorText(
+    raw: String,
+    secrets: Iterable<String> = emptyList()
+): String {
+    var redacted = raw.take(600)
+
+    secrets
+        .filter { it.isNotEmpty() }
+        .distinct()
+        .forEach { secret -> redacted = redacted.replace(secret, "••••") }
+
+    redacted = URL_USER_INFO_PATTERN.replace(redacted) { match ->
+        "${match.groupValues[1]}${match.groupValues[2]}:••••@"
+    }
+    redacted = SECRET_ASSIGNMENT_PATTERN.replace(redacted) { match ->
+        "${match.groupValues[1]}=••••"
+    }
+    redacted = BEARER_TOKEN_PATTERN.replace(redacted) { match ->
+        "${match.groupValues[1]} ••••"
+    }
+
+    return redacted
+}
+
 class OperationCancellation {
     private val canceled = AtomicBoolean(false)
 
