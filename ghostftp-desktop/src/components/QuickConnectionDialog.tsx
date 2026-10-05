@@ -35,6 +35,8 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
   const [remember, setRemember] = useState(saveByDefault);
   const [advanced, setAdvanced] = useState(false);
   const [remotePath, setRemotePath] = useState(prefill?.defaultRemotePath ?? ".");
+  const [keepAliveSeconds, setKeepAliveSeconds] = useState(prefill?.keepAliveSeconds ?? 15);
+  const [reconnectAttempts, setReconnectAttempts] = useState(prefill?.reconnectAttempts ?? 1);
   const [name, setName] = useState(prefill?.name ?? "");
   const [busy, setBusy] = useState(false);
   const [keyPicking, setKeyPicking] = useState(false);
@@ -73,12 +75,14 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
     auth: useKey && protocol === "sftp" ? { kind: "key", path: keyPath.trim(), passphrase: keyPassphrase || undefined } : { kind: "password", password },
     defaultRemotePath: remotePath.trim() || ".",
     autoConnect: false,
+    keepAliveSeconds: protocol === "sftp" ? keepAliveSeconds : undefined,
+    reconnectAttempts: protocol === "sftp" ? reconnectAttempts : undefined,
     group: remember ? "My Sites" : undefined,
   });
 
   useEffect(() => {
     setTestStatus("idle");
-  }, [protocol, host, port, username, password, useKey, keyPath, keyPassphrase, remotePath]);
+  }, [protocol, host, port, username, password, useKey, keyPath, keyPassphrase, remotePath, keepAliveSeconds, reconnectAttempts]);
 
   const submit = async (connectNow: boolean) => {
     if (!canConnect || actionBusy) return;
@@ -249,7 +253,12 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
 
           <div className="mt-4 overflow-hidden rounded-md border border-border bg-[#051929]">
             <button type="button" disabled={actionBusy} onClick={()=>setAdvanced(v=>!v)} className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-text-muted hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-60"><Settings2 size={16}/><span>Advanced Settings</span><div className="flex-1"/><ChevronDown size={14} className={advanced?'rotate-180':''}/></button>
-            {advanced && <div className="grid grid-cols-2 gap-3 border-t border-border p-4"><Field label="Default remote path"><input value={remotePath} disabled={actionBusy} onChange={(e)=>setRemotePath(e.target.value)} placeholder="/var/www"/></Field>{(protocol==="ftp"||protocol==="ftps")&&<Field label="Connection mode"><input value="Passive" readOnly/></Field>}</div>}
+            {advanced && <div className="grid grid-cols-2 gap-3 border-t border-border p-4">
+              <Field label="Default remote path"><input value={remotePath} disabled={actionBusy} onChange={(e)=>setRemotePath(e.target.value)} placeholder="/var/www"/></Field>
+              {(protocol==="ftp"||protocol==="ftps")&&<Field label="Connection mode"><input value="Passive" readOnly/></Field>}
+              {protocol==="sftp"&&<Field label="Keep-alive interval (seconds)"><input type="number" min={5} max={300} step={5} value={keepAliveSeconds} disabled={actionBusy} onChange={(e)=>setKeepAliveSeconds(Math.max(5, Math.min(300, Number(e.target.value)||15)))}/></Field>}
+              {protocol==="sftp"&&<Field label="Automatic reconnect attempts"><input type="number" min={0} max={3} value={reconnectAttempts} disabled={actionBusy} onChange={(e)=>setReconnectAttempts(Math.max(0, Math.min(3, Number(e.target.value)||0)))}/></Field>}
+            </div>}
           </div>
         </div>
 
