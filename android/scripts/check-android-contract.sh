@@ -431,6 +431,29 @@ require_text "official product link smoke coverage" "$ANDROID_DIR/app/src/androi
 require_text "working action smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'transferAndSettingsActionsAreWiredClickByClick'
 require_text "idle action-state smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'guardedFileActionsStayDisabledWithoutActiveSession'
 require_text "resource-aware Android smoke strings" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'private fun appString(resId: Int, vararg formatArgs: Any): String'
+require_text "localized FTP security warning" "$MAIN_ACTIVITY" 'getString(R.string.security_ftp_warning)'
+require_text "localized FTPS security info" "$MAIN_ACTIVITY" 'getString(R.string.security_ftps_info)'
+require_text "localized SFTP security info" "$MAIN_ACTIVITY" 'getString(R.string.security_sftp_info)'
+require_text "localized transfer path field" "$MAIN_ACTIVITY" 'getString(R.string.field_transfer_remote_path)'
+require_text "localized upload target field" "$MAIN_ACTIVITY" 'getString(R.string.field_upload_target)'
+require_text "localized idle status" "$MAIN_ACTIVITY" 'getString(R.string.status_ready)'
+require_text "localized opening status" "$MAIN_ACTIVITY" 'getString(R.string.status_opening_protocol'
+require_text "localized connection failure state" "$MAIN_ACTIVITY" 'getString(R.string.status_connection_unavailable)'
+for stale_dynamic_copy in \
+  'FTP sends credentials and file data without transport encryption.' \
+  'Remote file path' \
+  'Activity log cleared.' \
+  'Transfer fields reset.' \
+  'Connection form reset.' \
+  'Use a port between 1 and 65535.' \
+  'Enter the FTP, FTPS or SFTP server host.' \
+  'Open a server session before running file actions.' \
+  'Connection unavailable' \
+  'No active server session.' \
+  'Connect to a server to load remote files.' \
+  'Opening ${profile.protocol.label}'; do
+  require_absent "hardcoded dynamic Android copy" "$MAIN_ACTIVITY" "$stale_dynamic_copy"
+done
 require_text "idle settings disconnect smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'R.string.action_disconnect'
 require_text "unreadable picker URI smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'unreadablePickerUriIsRejectedFailClosed'
 require_text "rename smoke coverage" "$ANDROID_DIR/app/src/androidTest/java/com/ghostftp/android/MainActivitySmokeTest.kt" 'R.string.action_rename'

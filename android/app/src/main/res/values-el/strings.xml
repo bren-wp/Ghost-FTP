@@ -73,4 +73,37 @@
     <string name="workspace_open">Άνοιγμα χώρου εργασίας %1$s</string>
     <string name="workspace_content">Περιεχόμενο χώρου εργασίας %1$s</string>
     <string name="workspace_announce">Χώρος εργασίας %1$s</string>
+
+    <string name="security_ftp_warning">Το FTP στέλνει διαπιστευτήρια και δεδομένα αρχείων χωρίς κρυπτογραφημένη μεταφορά. Προτιμήστε ρητό FTPS ή SFTP όταν υποστηρίζεται από τον διακομιστή.</string>
+    <string name="security_ftps_info">Το ρητό FTPS κρυπτογραφεί τα διαπιστευτήρια και τα δεδομένα αρχείων με TLS και επαληθεύει το όνομα του διακομιστή.</string>
+    <string name="security_sftp_info">Το SFTP κρυπτογραφεί τη συνεδρία και απαιτεί αυστηρή επαλήθευση κλειδιού κεντρικού υπολογιστή SSH.</string>
+    <string name="field_transfer_remote_path">Απομακρυσμένη διαδρομή αρχείου</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Όνομα ή διαδρομή προορισμού μεταφόρτωσης</string>
+    <string name="hint_upload_target">Όνομα απομακρυσμένου αρχείου για μεταφόρτωση</string>
+    <string name="field_folder_target">Όνομα ή διαδρομή φακέλου</string>
+    <string name="hint_folder_target">Νέος απομακρυσμένος φάκελος</string>
+    <string name="field_rename_target">Όνομα ή διαδρομή προορισμού μετονομασίας</string>
+    <string name="hint_rename_target">Νέο απομακρυσμένο όνομα ή διαδρομή</string>
+    <string name="msg_activity_cleared_detail">Το αρχείο καταγραφής δραστηριότητας διαγράφηκε.</string>
+    <string name="msg_transfers_reset_detail">Τα πεδία μεταφοράς επαναφέρθηκαν.</string>
+    <string name="msg_connection_reset_detail">Η φόρμα σύνδεσης επαναφέρθηκε.</string>
+    <string name="msg_invalid_port_detail">Χρησιμοποιήστε θύρα μεταξύ 1 και 65535.</string>
+    <string name="msg_host_required_detail">Εισαγάγετε τον κεντρικό υπολογιστή του διακομιστή FTP, FTPS ή SFTP.</string>
+    <string name="msg_connect_first_detail">Ανοίξτε συνεδρία διακομιστή πριν εκτελέσετε ενέργειες αρχείων.</string>
+    <string name="activity_connection_ready">Έτοιμο για ενέργειες αρχείων μέσω %1$s.</string>
+    <string name="activity_password_memory">Ο κωδικός πρόσβασης διατηρείται στη μνήμη και διαγράφεται κατά την αποσύνδεση.</string>
+    <string name="state_ready_guarded_actions">Έτοιμο για προστατευμένες ενέργειες αρχείων.</string>
+    <string name="state_last_completed_remote_path">Τελευταία ολοκληρωμένη απομακρυσμένη διαδρομή: %1$s</string>
+    <string name="status_connection_unavailable">Η σύνδεση δεν είναι διαθέσιμη</string>
+    <string name="status_connection_unavailable_detail">Το επιλεγμένο τελικό σημείο δεν άνοιξε συνεδρία.</string>
+    <string name="state_no_server_session">Δεν υπάρχει ενεργή συνεδρία διακομιστή.</string>
+    <string name="state_no_active_connection">Δεν υπάρχει ενεργή σύνδεση.</string>
+    <string name="state_transfer_wait_connection">Δεν μπορεί να ξεκινήσει μεταφορά μέχρι να ανοίξει η σύνδεση.</string>
+    <string name="status_ready">Έτοιμο</string>
+    <string name="status_no_active_session">Δεν υπάρχει ενεργή συνεδρία διακομιστή.</string>
+    <string name="state_connect_to_load_files">Συνδεθείτε σε διακομιστή για να φορτώσετε απομακρυσμένα αρχεία.</string>
+    <string name="state_connect_then_choose_action">Συνδεθείτε πρώτα και μετά επιλέξτε ενέργεια αρχείου.</string>
+    <string name="status_opening_protocol">Άνοιγμα %1$s</string>
+    <string name="status_loading_remote">Φόρτωση %1$s από %2$s:%3$d.</string>
 </resources>

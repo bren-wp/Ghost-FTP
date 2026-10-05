@@ -73,4 +73,37 @@
     <string name="workspace_open">Otevřít pracovní prostor %1$s</string>
     <string name="workspace_content">Obsah pracovního prostoru %1$s</string>
     <string name="workspace_announce">Pracovní prostor %1$s</string>
+
+    <string name="security_ftp_warning">FTP odesílá přihlašovací údaje a data souborů bez šifrovaného přenosu. Pokud to server podporuje, použijte explicitní FTPS nebo SFTP.</string>
+    <string name="security_ftps_info">Explicitní FTPS šifruje přihlašovací údaje a data souborů pomocí TLS a ověřuje název serveru.</string>
+    <string name="security_sftp_info">SFTP šifruje relaci a vyžaduje přísné ověření klíče hostitele SSH.</string>
+    <string name="field_transfer_remote_path">Vzdálená cesta k souboru</string>
+    <string name="hint_transfer_remote_path">/remote/soubor-nebo-slozka</string>
+    <string name="field_upload_target">Název nebo cesta cíle nahrání</string>
+    <string name="hint_upload_target">Název vzdáleného souboru pro nahrání</string>
+    <string name="field_folder_target">Název nebo cesta složky</string>
+    <string name="hint_folder_target">Nová vzdálená složka</string>
+    <string name="field_rename_target">Název nebo cesta cíle přejmenování</string>
+    <string name="hint_rename_target">Nový vzdálený název nebo cesta</string>
+    <string name="msg_activity_cleared_detail">Protokol aktivit byl vymazán.</string>
+    <string name="msg_transfers_reset_detail">Pole přenosu byla resetována.</string>
+    <string name="msg_connection_reset_detail">Formulář připojení byl resetován.</string>
+    <string name="msg_invalid_port_detail">Použijte port mezi 1 a 65535.</string>
+    <string name="msg_host_required_detail">Zadejte hostitele serveru FTP, FTPS nebo SFTP.</string>
+    <string name="msg_connect_first_detail">Před spuštěním akcí se soubory otevřete relaci se serverem.</string>
+    <string name="activity_connection_ready">Připraveno pro akce se soubory přes %1$s.</string>
+    <string name="activity_password_memory">Heslo zůstává v paměti a při odpojení se vymaže.</string>
+    <string name="state_ready_guarded_actions">Připraveno pro chráněné akce se soubory.</string>
+    <string name="state_last_completed_remote_path">Poslední dokončená vzdálená cesta: %1$s</string>
+    <string name="status_connection_unavailable">Připojení není dostupné</string>
+    <string name="status_connection_unavailable_detail">Vybraný koncový bod neotevřel relaci.</string>
+    <string name="state_no_server_session">Není aktivní žádná relace se serverem.</string>
+    <string name="state_no_active_connection">Žádné aktivní připojení.</string>
+    <string name="state_transfer_wait_connection">Dokud se připojení neotevře, nelze spustit žádný přenos.</string>
+    <string name="status_ready">Připraveno</string>
+    <string name="status_no_active_session">Není aktivní žádná relace se serverem.</string>
+    <string name="state_connect_to_load_files">Připojte se k serveru a načtěte vzdálené soubory.</string>
+    <string name="state_connect_then_choose_action">Nejprve se připojte a potom zvolte akci se souborem.</string>
+    <string name="status_opening_protocol">Otevírání %1$s</string>
+    <string name="status_loading_remote">Načítání %1$s z %2$s:%3$d.</string>
 </resources>

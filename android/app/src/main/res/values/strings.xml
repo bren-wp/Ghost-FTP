@@ -73,4 +73,37 @@
     <string name="about_eula_desc">Read the canonical Ghost FTP software licence terms.</string>
     <string name="about_website_desc">Ghost FTP product website.</string>
     <string name="link_open">Open Ghost FTP %1$s</string>
+
+    <string name="security_ftp_warning">FTP sends credentials and file data without transport encryption. Prefer explicit FTPS or SFTP when the server supports it.</string>
+    <string name="security_ftps_info">Explicit FTPS encrypts credentials and file data with TLS and validates the server hostname.</string>
+    <string name="security_sftp_info">SFTP encrypts the session and requires strict SSH host-key verification.</string>
+    <string name="field_transfer_remote_path">Remote file path</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Upload target name or path</string>
+    <string name="hint_upload_target">Remote upload file name</string>
+    <string name="field_folder_target">Folder name or path</string>
+    <string name="hint_folder_target">New remote folder</string>
+    <string name="field_rename_target">Rename target name or path</string>
+    <string name="hint_rename_target">New remote name or path</string>
+    <string name="msg_activity_cleared_detail">Activity log cleared.</string>
+    <string name="msg_transfers_reset_detail">Transfer fields reset.</string>
+    <string name="msg_connection_reset_detail">Connection form reset.</string>
+    <string name="msg_invalid_port_detail">Use a port between 1 and 65535.</string>
+    <string name="msg_host_required_detail">Enter the FTP, FTPS or SFTP server host.</string>
+    <string name="msg_connect_first_detail">Open a server session before running file actions.</string>
+    <string name="activity_connection_ready">Ready for %1$s file actions.</string>
+    <string name="activity_password_memory">Password is kept in memory and cleared on disconnect.</string>
+    <string name="state_ready_guarded_actions">Ready for guarded file actions.</string>
+    <string name="state_last_completed_remote_path">Last completed remote path: %1$s</string>
+    <string name="status_connection_unavailable">Connection unavailable</string>
+    <string name="status_connection_unavailable_detail">The selected endpoint did not open a session.</string>
+    <string name="state_no_server_session">No server session is active.</string>
+    <string name="state_no_active_connection">No active connection.</string>
+    <string name="state_transfer_wait_connection">No transfer can run until the connection opens.</string>
+    <string name="status_ready">Ready</string>
+    <string name="status_no_active_session">No active server session.</string>
+    <string name="state_connect_to_load_files">Connect to a server to load remote files.</string>
+    <string name="state_connect_then_choose_action">Connect first, then choose a file action.</string>
+    <string name="status_opening_protocol">Opening %1$s</string>
+    <string name="status_loading_remote">Loading %1$s from %2$s:%3$d.</string>
 </resources>

@@ -73,4 +73,37 @@
     <string name="workspace_open">Ouvrir l’espace de travail %1$s</string>
     <string name="workspace_content">Contenu de l’espace de travail %1$s</string>
     <string name="workspace_announce">Espace de travail %1$s</string>
+
+    <string name="security_ftp_warning">FTP envoie les identifiants et les données de fichiers sans transport chiffré. Utilisez FTPS explicite ou SFTP lorsque le serveur les prend en charge.</string>
+    <string name="security_ftps_info">FTPS explicite chiffre les identifiants et les données de fichiers avec TLS et valide le nom du serveur.</string>
+    <string name="security_sftp_info">SFTP chiffre la session et exige une vérification stricte de la clé d’hôte SSH.</string>
+    <string name="field_transfer_remote_path">Chemin du fichier distant</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Nom ou chemin de la cible d’envoi</string>
+    <string name="hint_upload_target">Nom du fichier distant à envoyer</string>
+    <string name="field_folder_target">Nom ou chemin du dossier</string>
+    <string name="hint_folder_target">Nouveau dossier distant</string>
+    <string name="field_rename_target">Nom ou chemin de la cible de renommage</string>
+    <string name="hint_rename_target">Nouveau nom ou chemin distant</string>
+    <string name="msg_activity_cleared_detail">Journal d’activité effacé.</string>
+    <string name="msg_transfers_reset_detail">Champs de transfert réinitialisés.</string>
+    <string name="msg_connection_reset_detail">Formulaire de connexion réinitialisé.</string>
+    <string name="msg_invalid_port_detail">Utilisez un port compris entre 1 et 65535.</string>
+    <string name="msg_host_required_detail">Saisissez l’hôte du serveur FTP, FTPS ou SFTP.</string>
+    <string name="msg_connect_first_detail">Ouvrez une session serveur avant d’exécuter des actions sur les fichiers.</string>
+    <string name="activity_connection_ready">Prêt pour les actions de fichiers via %1$s.</string>
+    <string name="activity_password_memory">Le mot de passe reste en mémoire et est effacé à la déconnexion.</string>
+    <string name="state_ready_guarded_actions">Prêt pour les actions de fichiers protégées.</string>
+    <string name="state_last_completed_remote_path">Dernier chemin distant terminé : %1$s</string>
+    <string name="status_connection_unavailable">Connexion indisponible</string>
+    <string name="status_connection_unavailable_detail">Le point de terminaison sélectionné n’a pas ouvert de session.</string>
+    <string name="state_no_server_session">Aucune session serveur n’est active.</string>
+    <string name="state_no_active_connection">Aucune connexion active.</string>
+    <string name="state_transfer_wait_connection">Aucun transfert ne peut démarrer tant que la connexion n’est pas ouverte.</string>
+    <string name="status_ready">Prêt</string>
+    <string name="status_no_active_session">Aucune session serveur n’est active.</string>
+    <string name="state_connect_to_load_files">Connectez-vous à un serveur pour charger les fichiers distants.</string>
+    <string name="state_connect_then_choose_action">Connectez-vous d’abord, puis choisissez une action sur les fichiers.</string>
+    <string name="status_opening_protocol">Ouverture de %1$s</string>
+    <string name="status_loading_remote">Chargement de %1$s depuis %2$s:%3$d.</string>
 </resources>

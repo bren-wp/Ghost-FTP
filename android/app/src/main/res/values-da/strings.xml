@@ -73,4 +73,37 @@
     <string name="workspace_open">Åbn arbejdsområdet %1$s</string>
     <string name="workspace_content">Indhold i arbejdsområdet %1$s</string>
     <string name="workspace_announce">Arbejdsområdet %1$s</string>
+
+    <string name="security_ftp_warning">FTP sender legitimationsoplysninger og fildata uden krypteret transport. Brug eksplicit FTPS eller SFTP, når serveren understøtter det.</string>
+    <string name="security_ftps_info">Eksplicit FTPS krypterer legitimationsoplysninger og fildata med TLS og validerer servernavnet.</string>
+    <string name="security_sftp_info">SFTP krypterer sessionen og kræver streng kontrol af SSH-værtsnøglen.</string>
+    <string name="field_transfer_remote_path">Fjern filsti</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Navn eller sti for uploadmål</string>
+    <string name="hint_upload_target">Navn på fjernfil til upload</string>
+    <string name="field_folder_target">Mappenavn eller sti</string>
+    <string name="hint_folder_target">Ny fjernmappe</string>
+    <string name="field_rename_target">Navn eller sti for omdøbningsmål</string>
+    <string name="hint_rename_target">Nyt fjernnavn eller ny sti</string>
+    <string name="msg_activity_cleared_detail">Aktivitetsloggen er ryddet.</string>
+    <string name="msg_transfers_reset_detail">Overførselsfelterne er nulstillet.</string>
+    <string name="msg_connection_reset_detail">Forbindelsesformularen er nulstillet.</string>
+    <string name="msg_invalid_port_detail">Brug en port mellem 1 og 65535.</string>
+    <string name="msg_host_required_detail">Indtast værten for FTP-, FTPS- eller SFTP-serveren.</string>
+    <string name="msg_connect_first_detail">Åbn en serversession, før du udfører filhandlinger.</string>
+    <string name="activity_connection_ready">Klar til %1$s-filhandlinger.</string>
+    <string name="activity_password_memory">Adgangskoden opbevares i hukommelsen og ryddes ved afbrydelse.</string>
+    <string name="state_ready_guarded_actions">Klar til beskyttede filhandlinger.</string>
+    <string name="state_last_completed_remote_path">Senest fuldførte fjernsti: %1$s</string>
+    <string name="status_connection_unavailable">Forbindelsen er ikke tilgængelig</string>
+    <string name="status_connection_unavailable_detail">Det valgte slutpunkt åbnede ikke en session.</string>
+    <string name="state_no_server_session">Ingen serversession er aktiv.</string>
+    <string name="state_no_active_connection">Ingen aktiv forbindelse.</string>
+    <string name="state_transfer_wait_connection">Ingen overførsel kan starte, før forbindelsen er åben.</string>
+    <string name="status_ready">Klar</string>
+    <string name="status_no_active_session">Ingen serversession er aktiv.</string>
+    <string name="state_connect_to_load_files">Opret forbindelse til en server for at indlæse fjernfiler.</string>
+    <string name="state_connect_then_choose_action">Opret først forbindelse, og vælg derefter en filhandling.</string>
+    <string name="status_opening_protocol">Åbner %1$s</string>
+    <string name="status_loading_remote">Indlæser %1$s fra %2$s:%3$d.</string>
 </resources>

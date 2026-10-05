@@ -73,4 +73,37 @@
     <string name="workspace_open">Otwórz obszar roboczy %1$s</string>
     <string name="workspace_content">Zawartość obszaru roboczego %1$s</string>
     <string name="workspace_announce">Obszar roboczy %1$s</string>
+
+    <string name="security_ftp_warning">FTP wysyła dane logowania i dane plików bez szyfrowanego transportu. Użyj jawnego FTPS lub SFTP, jeśli serwer je obsługuje.</string>
+    <string name="security_ftps_info">Jawny FTPS szyfruje dane logowania i dane plików za pomocą TLS oraz weryfikuje nazwę serwera.</string>
+    <string name="security_sftp_info">SFTP szyfruje sesję i wymaga ścisłej weryfikacji klucza hosta SSH.</string>
+    <string name="field_transfer_remote_path">Zdalna ścieżka pliku</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Nazwa lub ścieżka celu wysyłania</string>
+    <string name="hint_upload_target">Nazwa zdalnego pliku do wysłania</string>
+    <string name="field_folder_target">Nazwa lub ścieżka folderu</string>
+    <string name="hint_folder_target">Nowy zdalny folder</string>
+    <string name="field_rename_target">Nazwa lub ścieżka celu zmiany nazwy</string>
+    <string name="hint_rename_target">Nowa zdalna nazwa lub ścieżka</string>
+    <string name="msg_activity_cleared_detail">Dziennik aktywności wyczyszczony.</string>
+    <string name="msg_transfers_reset_detail">Pola transferu zresetowane.</string>
+    <string name="msg_connection_reset_detail">Formularz połączenia zresetowany.</string>
+    <string name="msg_invalid_port_detail">Użyj portu z zakresu od 1 do 65535.</string>
+    <string name="msg_host_required_detail">Wprowadź host serwera FTP, FTPS lub SFTP.</string>
+    <string name="msg_connect_first_detail">Otwórz sesję z serwerem przed wykonaniem operacji na plikach.</string>
+    <string name="activity_connection_ready">Gotowe do operacji na plikach przez %1$s.</string>
+    <string name="activity_password_memory">Hasło pozostaje w pamięci i jest usuwane po rozłączeniu.</string>
+    <string name="state_ready_guarded_actions">Gotowe do chronionych operacji na plikach.</string>
+    <string name="state_last_completed_remote_path">Ostatnia ukończona zdalna ścieżka: %1$s</string>
+    <string name="status_connection_unavailable">Połączenie niedostępne</string>
+    <string name="status_connection_unavailable_detail">Wybrany punkt końcowy nie otworzył sesji.</string>
+    <string name="state_no_server_session">Brak aktywnej sesji serwera.</string>
+    <string name="state_no_active_connection">Brak aktywnego połączenia.</string>
+    <string name="state_transfer_wait_connection">Nie można rozpocząć transferu, dopóki połączenie nie zostanie otwarte.</string>
+    <string name="status_ready">Gotowe</string>
+    <string name="status_no_active_session">Brak aktywnej sesji serwera.</string>
+    <string name="state_connect_to_load_files">Połącz się z serwerem, aby wczytać zdalne pliki.</string>
+    <string name="state_connect_then_choose_action">Najpierw się połącz, a następnie wybierz operację na pliku.</string>
+    <string name="status_opening_protocol">Otwieranie %1$s</string>
+    <string name="status_loading_remote">Wczytywanie %1$s z %2$s:%3$d.</string>
 </resources>

@@ -73,4 +73,37 @@
     <string name="workspace_open">Otvori radni prostor %1$s</string>
     <string name="workspace_content">Sadržaj radnog prostora %1$s</string>
     <string name="workspace_announce">Radni prostor %1$s</string>
+
+    <string name="security_ftp_warning">FTP šalje akreditive i podatke datoteka bez šifrovanog prenosa. Koristite eksplicitni FTPS ili SFTP kada ih server podržava.</string>
+    <string name="security_ftps_info">Eksplicitni FTPS šifruje akreditive i podatke datoteka pomoću TLS-a i proverava naziv servera.</string>
+    <string name="security_sftp_info">SFTP šifruje sesiju i zahteva strogu proveru SSH ključa hosta.</string>
+    <string name="field_transfer_remote_path">Udaljena putanja datoteke</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Naziv ili putanja cilja otpremanja</string>
+    <string name="hint_upload_target">Naziv udaljene datoteke za otpremanje</string>
+    <string name="field_folder_target">Naziv ili putanja fascikle</string>
+    <string name="hint_folder_target">Nova udaljena fascikla</string>
+    <string name="field_rename_target">Naziv ili putanja cilja preimenovanja</string>
+    <string name="hint_rename_target">Novi udaljeni naziv ili putanja</string>
+    <string name="msg_activity_cleared_detail">Dnevnik aktivnosti je obrisan.</string>
+    <string name="msg_transfers_reset_detail">Polja prenosa su resetovana.</string>
+    <string name="msg_connection_reset_detail">Obrazac veze je resetovan.</string>
+    <string name="msg_invalid_port_detail">Koristite port između 1 i 65535.</string>
+    <string name="msg_host_required_detail">Unesite host FTP, FTPS ili SFTP servera.</string>
+    <string name="msg_connect_first_detail">Otvorite sesiju sa serverom pre pokretanja radnji nad datotekama.</string>
+    <string name="activity_connection_ready">Spremno za %1$s radnje nad datotekama.</string>
+    <string name="activity_password_memory">Lozinka ostaje u memoriji i briše se pri prekidu veze.</string>
+    <string name="state_ready_guarded_actions">Spremno za zaštićene radnje nad datotekama.</string>
+    <string name="state_last_completed_remote_path">Poslednja završena udaljena putanja: %1$s</string>
+    <string name="status_connection_unavailable">Veza nije dostupna</string>
+    <string name="status_connection_unavailable_detail">Izabrana krajnja tačka nije otvorila sesiju.</string>
+    <string name="state_no_server_session">Nema aktivne sesije sa serverom.</string>
+    <string name="state_no_active_connection">Nema aktivne veze.</string>
+    <string name="state_transfer_wait_connection">Prenos ne može da počne dok se veza ne otvori.</string>
+    <string name="status_ready">Spremno</string>
+    <string name="status_no_active_session">Nema aktivne sesije sa serverom.</string>
+    <string name="state_connect_to_load_files">Povežite se sa serverom da biste učitali udaljene datoteke.</string>
+    <string name="state_connect_then_choose_action">Prvo se povežite, zatim izaberite radnju nad datotekom.</string>
+    <string name="status_opening_protocol">Otvaranje %1$s</string>
+    <string name="status_loading_remote">Učitavanje %1$s sa %2$s:%3$d.</string>
 </resources>
