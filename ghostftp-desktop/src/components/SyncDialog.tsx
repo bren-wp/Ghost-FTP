@@ -23,6 +23,7 @@ import type {
   SyncStrategy,
 } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { messageOf } from "@/lib/errors";
 
 interface Props {
   localPath: string;
@@ -69,7 +70,7 @@ export function SyncDialog({ localPath, remotePath, onClose }: Props) {
       );
       setPlan(result);
     } catch (e) {
-      setError(String(e));
+      setError(messageOf(e));
     } finally {
       setPlanning(false);
     }
@@ -84,7 +85,7 @@ export function SyncDialog({ localPath, remotePath, onClose }: Props) {
       onClose();
       openDialog("transferCenter");
     } catch (e) {
-      setError(String(e));
+      setError(messageOf(e));
       setExecuting(false);
     }
   };
