@@ -27,6 +27,7 @@ import { useSkills } from "@/stores/skillsStore";
 import { useDialog } from "@/hooks/useDialog";
 import { ipc } from "@/lib/ipc";
 import { toast } from "@/stores/toastStore";
+import { toastError } from "@/lib/errors";
 import { ConfirmModal } from "./ConfirmModal";
 import { cn } from "@/lib/cn";
 import { relTime } from "@/lib/format";
@@ -111,7 +112,7 @@ export function AgentBridgeHost() {
         else cleanup = c;
       })
       .catch((error) => {
-        toast.error("Couldn't initialize Agent Bridge", String(error));
+        toastError(error, "Couldn't initialize Agent Bridge");
       });
     return () => {
       cancelled = true;
@@ -878,7 +879,7 @@ export function AgentBridge({ onClose }: { onClose: () => void }) {
                   );
                   toast.success("MCP registered", msg);
                 } catch (e) {
-                  toast.error("Couldn't register MCP", String(e));
+                  toastError(e, "Couldn't register MCP");
                 }
               }}
               className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-border bg-bg px-2 py-1.5 text-[11px] font-medium text-text hover:bg-bg-hover disabled:opacity-40"
@@ -1030,7 +1031,7 @@ function CopyButton({
             setDone(true);
             setTimeout(() => setDone(false), 1200);
           })
-          .catch((error) => toast.error("Couldn't copy to clipboard", String(error)));
+          .catch((error) => toastError(error, "Couldn't copy to clipboard"));
       }}
       className={cn(
         "flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40",
