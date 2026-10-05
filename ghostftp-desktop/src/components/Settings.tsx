@@ -24,7 +24,7 @@ import { ipc } from "@/lib/ipc";
 import { useDialog } from "@/hooks/useDialog";
 import { requestDesktopNotificationPermission } from "@/lib/notifications";
 import { SyncSettings } from "./SyncSettings";
-import { toastError } from "@/lib/errors";
+import { messageOf, toastError } from "@/lib/errors";
 import { toast } from "@/stores/toastStore";
 
 interface Props { onClose: () => void; initialSection?: Section }
@@ -398,7 +398,7 @@ function IntegrationsCard({
       if(status.detail)setShellDetail(status.detail);
     }).catch((error)=>{
       if(active){
-        const detail=error instanceof Error?error.message:String(error);
+        const detail=messageOf(error);
         setShellDetail(detail);
         toastError(error, "Couldn't read shell integration status");
       }
@@ -416,7 +416,7 @@ function IntegrationsCard({
         s.setShellIntegration(status.managed);
         setShellDetail(status.detail ?? (status.managed?'Shell integration enabled.':'Shell integration disabled.'));
       }catch(error){
-        setShellDetail(error instanceof Error?error.message:String(error));
+        setShellDetail(messageOf(error));
       }
     });
   };
