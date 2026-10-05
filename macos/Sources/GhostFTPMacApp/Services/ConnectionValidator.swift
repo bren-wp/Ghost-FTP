@@ -6,6 +6,8 @@ enum ConnectionValidationError: LocalizedError, Equatable {
     case invalidHost
     case invalidPort
     case missingUsername
+    case invalidKeepAlive
+    case invalidReconnectAttempts
 
     var errorDescription: String? {
         switch self {
@@ -19,6 +21,10 @@ enum ConnectionValidationError: LocalizedError, Equatable {
             return "Choose a port between 1 and 65535."
         case .missingUsername:
             return "Enter a username."
+        case .invalidKeepAlive:
+            return "Choose an SFTP keep-alive interval between 5 and 300 seconds."
+        case .invalidReconnectAttempts:
+            return "Choose between 0 and 3 automatic reconnect attempts."
         }
     }
 }
@@ -45,6 +51,14 @@ enum ConnectionValidator {
 
         if profile.username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             throw ConnectionValidationError.missingUsername
+        }
+
+        if profile.protocolKind == .sftp && !(5...300).contains(profile.keepAliveSeconds) {
+            throw ConnectionValidationError.invalidKeepAlive
+        }
+
+        if profile.reconnectAttempts > 3 {
+            throw ConnectionValidationError.invalidReconnectAttempts
         }
     }
 }

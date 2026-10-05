@@ -40,7 +40,8 @@ data class ConnectionProfile(
     val username: String,
     val password: String,
     val hostKeyFingerprint: String,
-    val remotePath: String
+    val remotePath: String,
+    val keepAliveSeconds: Int = 15
 )
 
 data class ConnectionProbeResult(
@@ -664,6 +665,8 @@ class ConnectionController {
         // keyboard-interactive parsing that Ghost FTP does not need.
         session.setConfig("PreferredAuthentications", "password")
         session.timeout = CONNECT_TIMEOUT_MS
+        session.setServerAliveInterval(profile.keepAliveSeconds * 1000)
+        session.setServerAliveCountMax(3)
 
         var channel: ChannelSftp? = null
         try {
@@ -837,6 +840,11 @@ class ConnectionController {
         val normalizedHost = normalizeHost(profile.host)
         require(normalizedHost.isNotBlank()) { "Host is required." }
         require(profile.port in 1..65535) { "Port must be between 1 and 65535." }
+        if (profile.protocol == ConnectionProtocol.SFTP) {
+            require(profile.keepAliveSeconds in 5..300) {
+                "SFTP keep-alive interval must be between 5 and 300 seconds."
+            }
+        }
         return profile.copy(
             host = normalizedHost,
             remotePath = normalizeRemoteDirectory(profile.remotePath)

@@ -50,6 +50,12 @@ pub struct ConnectionProfile {
     // files (written before this field existed) keep loading as `None`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_connect: Option<bool>,
+    // SFTP-only reliability policy. Optional keeps existing profile JSON
+    // compatible; transport defaults are applied at connect time.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keep_alive_seconds: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reconnect_attempts: Option<u8>,
     // Object-store-specific fields. Unused for sftp/ftp protocols. We keep
     // them optional so existing profile JSON files keep loading.
     #[serde(skip_serializing_if = "Option::is_none")]

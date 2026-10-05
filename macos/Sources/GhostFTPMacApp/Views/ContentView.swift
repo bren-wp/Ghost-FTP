@@ -117,6 +117,31 @@ private struct ConnectionEditor: View {
                 Toggle("Remember password in macOS Keychain", isOn: $rememberPassword)
             }
 
+            Section("Connection reliability") {
+                if draft.protocolKind == .sftp {
+                    Stepper(
+                        "Keep-alive every \(draft.keepAliveSeconds) seconds",
+                        value: $draft.keepAliveSeconds,
+                        in: 5...300,
+                        step: 5
+                    )
+                } else {
+                    Text("Per-profile keep-alive is currently available for SFTP. FTP/FTPS will expose this only when protocol-level NOOP scheduling is implemented.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                Stepper(
+                    "Automatic reconnect attempts: \(draft.reconnectAttempts)",
+                    value: $draft.reconnectAttempts,
+                    in: 0...3
+                )
+
+                Text("Reconnect attempts apply only after a transport failure. Authentication, certificate and host-key failures are never retried silently.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Transport security") {
                 Label {
                     Text(draft.protocolKind.securitySummary)

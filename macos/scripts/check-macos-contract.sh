@@ -21,6 +21,10 @@ grep -Fq '.macOS(.v13)' macos/Package.swift
 grep -Fq 'case ftp' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
 grep -Fq 'case ftps' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
 grep -Fq 'case sftp' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
+grep -Fq 'var keepAliveSeconds: UInt16' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
+grep -Fq 'var reconnectAttempts: UInt8' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
+grep -Fq 'invalidKeepAlive' macos/Sources/GhostFTPMacApp/Services/ConnectionValidator.swift
+grep -Fq 'Automatic reconnect attempts' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
 grep -Fq 'FTP traffic is not encrypted.' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
 grep -Fq 'certificate and hostname' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
 grep -Fq 'verify the server host key' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift

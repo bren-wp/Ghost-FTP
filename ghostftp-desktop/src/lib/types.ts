@@ -80,6 +80,10 @@ export interface ConnectionProfile {
   color?: string;
   /** Connect automatically on app launch (and on a single click in the rail). */
   autoConnect?: boolean;
+  /** SFTP transport keep-alive interval. Defaults to 15 seconds. */
+  keepAliveSeconds?: number;
+  /** Transparent SFTP reconnect budget after transport failure. Defaults to 1. */
+  reconnectAttempts?: number;
   // Object-store fields (used when protocol === "s3" or "azure").
   bucket?: string; // bucket (S3) or container (Azure)
   region?: string;

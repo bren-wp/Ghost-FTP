@@ -604,24 +604,28 @@ impl SshSession {
         Ok(())
     }
 
-    /// Run `op`; if it fails because the transport is dead, reconnect once and
-    /// run it again. `op` may run twice, so it must be re-runnable — capture by
-    /// shared/`Copy` reference (or clone per attempt), not move-once.
+    /// Run `op`; if it fails because the transport is dead, reconnect within
+    /// the profile's bounded retry budget. Authentication and semantic command
+    /// failures are never retried here.
     async fn with_reconnect<T, F, Fut>(&self, op: F) -> Result<T>
     where
         F: Fn() -> Fut,
         Fut: std::future::Future<Output = Result<T>>,
     {
-        let generation = self.generation.load(Ordering::Acquire);
-        match op().await {
-            Ok(v) => Ok(v),
-            Err(e) => {
-                let dead = is_transport_dead(&e) || self.handle.lock().await.is_closed();
-                if dead {
+        let max_reconnects = self.profile.reconnect_attempts.unwrap_or(1).min(3);
+        let mut reconnects = 0u8;
+
+        loop {
+            let generation = self.generation.load(Ordering::Acquire);
+            match op().await {
+                Ok(v) => return Ok(v),
+                Err(e) => {
+                    let dead = is_transport_dead(&e) || self.handle.lock().await.is_closed();
+                    if !dead || reconnects >= max_reconnects {
+                        return Err(e);
+                    }
                     self.reconnect(generation).await?;
-                    op().await
-                } else {
-                    Err(e)
+                    reconnects += 1;
                 }
             }
         }
@@ -1477,11 +1481,12 @@ pub async fn ssh_connect(
     prompter: Arc<dyn AuthPrompter>,
 ) -> Result<SshConnection> {
     let config = Arc::new(client::Config {
-        // Keep idle sessions alive and detect a genuinely dead peer (laptop
-        // slept, NAT/firewall dropped the socket, server rebooted) in ~60s:
-        // russh sends a keepalive after `keepalive_interval` of server silence
-        // and tears the connection down after `keepalive_max` unanswered ones.
-        keepalive_interval: Some(Duration::from_secs(15)),
+        // Keep idle sessions alive and detect a genuinely dead peer. The
+        // interval is profile-specific; three unanswered probes remain the
+        // fail-closed liveness budget.
+        keepalive_interval: Some(Duration::from_secs(
+            profile.keep_alive_seconds.unwrap_or(15),
+        )),
         keepalive_max: 3,
         // MUST stay None. A finite inactivity_timeout makes russh drop a session
         // that has merely been idle that long even when it's perfectly alive —
@@ -1856,6 +1861,16 @@ impl SessionManager {
             && profile.username.trim().is_empty()
         {
             anyhow::bail!("connection username must not be empty");
+        }
+        if protocol == "sftp" {
+            if let Some(seconds) = profile.keep_alive_seconds {
+                if !(5..=300).contains(&seconds) {
+                    anyhow::bail!("SFTP keep-alive interval must be between 5 and 300 seconds");
+                }
+            }
+            if profile.reconnect_attempts.unwrap_or(1) > 3 {
+                anyhow::bail!("SFTP reconnect attempts must be between 0 and 3");
+            }
         }
         if let AuthMethod::Key { path, .. } = &profile.auth {
             if path.trim().is_empty() {

@@ -55,6 +55,38 @@ final class ConnectionValidatorTests: XCTestCase {
         }
     }
 
+    func testReliabilityDefaultsAreValidated() {
+        let profile = ConnectionProfile(
+            name: "Production",
+            protocolKind: .sftp,
+            host: "server.example",
+            username: "deploy"
+        )
+
+        XCTAssertEqual(profile.keepAliveSeconds, 15)
+        XCTAssertEqual(profile.reconnectAttempts, 1)
+        XCTAssertNoThrow(try ConnectionValidator.validate(profile))
+    }
+
+    func testInvalidReliabilityPolicyIsRejected() {
+        var profile = ConnectionProfile(
+            name: "Production",
+            protocolKind: .sftp,
+            host: "server.example",
+            username: "deploy"
+        )
+        profile.keepAliveSeconds = 4
+        XCTAssertThrowsError(try ConnectionValidator.validate(profile)) { error in
+            XCTAssertEqual(error as? ConnectionValidationError, .invalidKeepAlive)
+        }
+
+        profile.keepAliveSeconds = 15
+        profile.reconnectAttempts = 4
+        XCTAssertThrowsError(try ConnectionValidator.validate(profile)) { error in
+            XCTAssertEqual(error as? ConnectionValidationError, .invalidReconnectAttempts)
+        }
+    }
+
     func testPersistedProfileHasNoPasswordField() throws {
         let profile = ConnectionProfile(
             name: "Production",
