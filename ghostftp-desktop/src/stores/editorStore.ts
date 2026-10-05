@@ -3,6 +3,7 @@ import { ipc, onEditSaved, onEditError } from "@/lib/ipc";
 import { useSettings } from "./settingsStore";
 import { toast } from "./toastStore";
 import { baseName, fmtSize } from "@/lib/format";
+import { messageOf, toastError } from "@/lib/errors";
 import type { SessionId } from "@/lib/types";
 
 // Tracks active edit sessions so the UI can show a "Editing N files" pill
@@ -66,14 +67,15 @@ export const useEditor = create<EditorState>((set, get) => ({
     });
     try {
       await onEditError((e) => {
-        toast.error("Save failed", `${baseName(e.remotePath)} — ${e.message}`);
+        const detail = messageOf(e.message);
+        toast.error("Save failed", `${baseName(e.remotePath)} — ${detail}`);
         set((s) => {
           const existing = s.edits[e.editId];
           if (!existing) return s;
           return {
             edits: {
               ...s.edits,
-              [e.editId]: { ...existing, lastError: e.message },
+              [e.editId]: { ...existing, lastError: detail },
             },
           };
         });
@@ -93,7 +95,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     try {
       ev = await ipc.startEdit(sessionId, remotePath, editor);
     } catch (e) {
-      toast.error("Couldn't open editor", `${baseName(remotePath)} — ${e}`);
+      toastError(e, `Couldn't open ${baseName(remotePath)}`);
       throw e;
     }
     toast.info(
@@ -125,7 +127,7 @@ export const useEditor = create<EditorState>((set, get) => ({
         return { edits: next };
       });
     } catch (error) {
-      toast.error("Couldn't stop editing session", String(error));
+      toastError(error, "Couldn't stop editing session");
     }
   },
 }));

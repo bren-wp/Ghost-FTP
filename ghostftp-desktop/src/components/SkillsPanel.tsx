@@ -21,6 +21,7 @@ import { useBridge } from "@/stores/bridgeStore";
 import { ConfirmModal } from "./ConfirmModal";
 import { useDialog } from "@/hooks/useDialog";
 import { toast } from "@/stores/toastStore";
+import { toastError } from "@/lib/errors";
 import { cn } from "@/lib/cn";
 import type {
   Skill,
@@ -101,7 +102,7 @@ export function SkillsHost() {
         else cleanup = fn;
       })
       .catch((error) => {
-        toast.error("Couldn't initialize Skills", String(error));
+        toastError(error, "Couldn't initialize Skills");
       });
     return () => {
       disposed = true;

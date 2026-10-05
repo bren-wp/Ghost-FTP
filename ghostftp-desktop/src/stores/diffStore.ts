@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { ipc, onDiffEvent } from "@/lib/ipc";
-import { toast } from "./toastStore";
+import { messageOf, toastError } from "@/lib/errors";
 import { LOCAL_SESSION } from "@ghostftp/file-ui";
 import type {
   DiffClass,
@@ -118,7 +118,7 @@ export const useDiff = create<DiffStoreState>((set, get) => ({
     const prev = get();
     if (prev.diffId) {
       void ipc.diffForget(prev.diffId).catch((error) =>
-        console.warn("Couldn't forget previous directory diff", error)
+        console.warn("Couldn't forget previous directory diff", messageOf(error))
       );
     }
     prev.unlisten?.();
@@ -165,8 +165,9 @@ export const useDiff = create<DiffStoreState>((set, get) => ({
           filesB: snap.filesB,
         });
     } catch (e) {
-      set({ state: "error", error: String(e) });
-      toast.error("Couldn't start the diff", String(e));
+      const message = messageOf(e);
+      set({ state: "error", error: message });
+      toastError(e, "Couldn't start the diff");
     }
   },
 
@@ -176,8 +177,8 @@ export const useDiff = create<DiffStoreState>((set, get) => ({
     try {
       await ipc.diffCancel(diffId);
     } catch (error) {
-      set({ error: String(error) });
-      toast.error("Couldn't cancel directory diff", String(error));
+      set({ error: messageOf(error) });
+      toastError(error, "Couldn't cancel directory diff");
     }
   },
 
@@ -185,7 +186,7 @@ export const useDiff = create<DiffStoreState>((set, get) => ({
     const { diffId, unlisten } = get();
     if (diffId) {
       void ipc.diffForget(diffId).catch((error) =>
-        console.warn("Couldn't forget directory diff", error)
+        console.warn("Couldn't forget directory diff", messageOf(error))
       );
     }
     unlisten?.();
