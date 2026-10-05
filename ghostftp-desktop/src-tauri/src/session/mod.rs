@@ -1793,6 +1793,34 @@ impl Session {
     }
 }
 
+fn validate_transport_host(host: &str) -> Result<()> {
+    let trimmed = host.trim();
+    if trimmed.is_empty() {
+        anyhow::bail!("connection host must not be empty");
+    }
+    if trimmed
+        .chars()
+        .any(|ch| ch.is_control() || ch.is_whitespace())
+    {
+        anyhow::bail!("connection host must not contain whitespace or control characters");
+    }
+    if trimmed.contains("://") || trimmed.contains('/') || trimmed.contains('@') {
+        anyhow::bail!("connection host must be a hostname or IP address without scheme, path, credentials, or port");
+    }
+    if trimmed.starts_with('[') {
+        if !trimmed.ends_with(']') || trimmed.len() <= 2 {
+            anyhow::bail!("connection IPv6 host is malformed");
+        }
+        return Ok(());
+    }
+    // Raw IPv6 literals are valid and contain multiple colons. A single colon
+    // means a port was embedded in the Host field and must be rejected.
+    if trimmed.matches(':').count() == 1 {
+        anyhow::bail!("enter the connection port in the Port field");
+    }
+    Ok(())
+}
+
 pub struct SessionManager {
     sessions: Mutex<HashMap<String, Arc<Session>>>,
     pub prompts: Arc<HostPromptRegistry>,
@@ -1831,31 +1859,6 @@ impl SessionManager {
     /// instead of the Tauri event one. The `app` parameter is still required
     /// because the FTP/S3 connect paths don't use it, but the SSH path
     /// embeds the AppHandle elsewhere via `_ = app`.
-fn validate_transport_host(host: &str) -> Result<()> {
-    let trimmed = host.trim();
-    if trimmed.is_empty() {
-        anyhow::bail!("connection host must not be empty");
-    }
-    if trimmed.chars().any(|ch| ch.is_control() || ch.is_whitespace()) {
-        anyhow::bail!("connection host must not contain whitespace or control characters");
-    }
-    if trimmed.contains("://") || trimmed.contains('/') || trimmed.contains('@') {
-        anyhow::bail!("connection host must be a hostname or IP address without scheme, path, credentials, or port");
-    }
-    if trimmed.starts_with('[') {
-        if !trimmed.ends_with(']') || trimmed.len() <= 2 {
-            anyhow::bail!("connection IPv6 host is malformed");
-        }
-        return Ok(());
-    }
-    // Raw IPv6 literals are valid and contain multiple colons. A single colon
-    // means a port was embedded in the Host field and must be rejected.
-    if trimmed.matches(':').count() == 1 {
-        anyhow::bail!("enter the connection port in the Port field");
-    }
-    Ok(())
-}
-
     pub async fn connect_with_verifier(
         &self,
         profile: ConnectionProfile,
@@ -2098,7 +2101,6 @@ fn validate_transport_host(host: &str) -> Result<()> {
     }
 }
 
-
 #[cfg(test)]
 mod transport_host_validation_tests {
     use super::validate_transport_host;
@@ -2120,7 +2122,10 @@ mod transport_host_validation_tests {
             "bad host.example",
             "bad\n.example",
         ] {
-            assert!(validate_transport_host(host).is_err(), "{host} should be rejected");
+            assert!(
+                validate_transport_host(host).is_err(),
+                "{host} should be rejected"
+            );
         }
     }
 }
