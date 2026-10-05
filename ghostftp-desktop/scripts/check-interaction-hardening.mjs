@@ -227,6 +227,47 @@ for (const storeFile of [
   );
 }
 
+for (const storeFile of [
+  "src/stores/bridgeStore.ts",
+  "src/stores/skillsStore.ts",
+  "src/stores/snippetsStore.ts",
+]) {
+  requireIncludes(
+    storeFile,
+    ["messageOf(", "toastError("],
+    "redacted Agent Bridge async failures"
+  );
+  requireExcludes(
+    storeFile,
+    ["String(error)", "String(e)"],
+    "raw Agent Bridge async failures"
+  );
+}
+
+requireIncludes(
+  "src/stores/bindingsStore.ts",
+  ['import { messageOf } from "@/lib/errors";', "messageOf(error)"],
+  "redacted shortcut persistence diagnostics"
+);
+
+requireExcludes(
+  "src/stores/bindingsStore.ts",
+  ["String(error)", "String(e)"],
+  "raw shortcut persistence failures"
+);
+
+requireIncludes(
+  "src/lib/secretMigration.ts",
+  ['import { messageOf } from "@/lib/errors";', "messageOf(error)"],
+  "redacted settings migration diagnostics"
+);
+
+requireExcludes(
+  "src/lib/secretMigration.ts",
+  ['console.warn("Couldn\'t apply Ghost FTP settings default migrations", error)', 'console.warn("Couldn\'t migrate legacy Ghost FTP settings", error)'],
+  "raw settings migration diagnostics"
+);
+
 requireIncludes(
   "src/components/TitleBar.tsx",
   [
