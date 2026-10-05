@@ -280,6 +280,28 @@ class ConnectionModelTest {
     }
 
     @Test
+    fun sensitiveErrorTextRedactsPasswordsUserInfoAndTokens() {
+        val raw = "password=supersecret sftp://deploy:supersecret@example.com Authorization=abc123 Bearer token.value"
+        val redacted = redactSensitiveErrorText(raw, listOf("supersecret"))
+
+        assertFalse(redacted.contains("supersecret"))
+        assertFalse(redacted.contains("abc123"))
+        assertFalse(redacted.contains("token.value"))
+        assertTrue(redacted.contains("password=••••"))
+        assertTrue(redacted.contains("sftp://deploy:••••@example.com"))
+        assertTrue(redacted.contains("Authorization=••••"))
+        assertTrue(redacted.contains("Bearer ••••"))
+    }
+
+    @Test
+    fun sensitiveErrorTextKeepsUsefulNonSecretDiagnostics() {
+        assertEquals(
+            "Permission denied for /incoming/report.csv",
+            redactSensitiveErrorText("Permission denied for /incoming/report.csv")
+        )
+    }
+
+    @Test
     fun sftpNoSuchFileMeansTargetAbsent() {
         val missing = SftpException(ChannelSftp.SSH_FX_NO_SUCH_FILE, "missing")
         assertFalse(controller.sftpTargetExistsFromLookupFailure(missing))
