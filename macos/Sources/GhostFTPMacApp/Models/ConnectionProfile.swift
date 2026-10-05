@@ -41,6 +41,8 @@ struct ConnectionProfile: Identifiable, Codable, Equatable {
     var host: String
     var port: UInt16
     var username: String
+    var keepAliveSeconds: UInt16
+    var reconnectAttempts: UInt8
 
     init(
         id: UUID = UUID(),
@@ -48,7 +50,9 @@ struct ConnectionProfile: Identifiable, Codable, Equatable {
         protocolKind: ConnectionProtocol = .sftp,
         host: String = "",
         port: UInt16? = nil,
-        username: String = ""
+        username: String = "",
+        keepAliveSeconds: UInt16 = 15,
+        reconnectAttempts: UInt8 = 1
     ) {
         self.id = id
         self.name = name
@@ -56,5 +60,7 @@ struct ConnectionProfile: Identifiable, Codable, Equatable {
         self.host = host
         self.port = port ?? protocolKind.defaultPort
         self.username = username
+        self.keepAliveSeconds = keepAliveSeconds
+        self.reconnectAttempts = reconnectAttempts
     }
 }
