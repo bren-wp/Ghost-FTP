@@ -836,7 +836,7 @@ class MainActivity : Activity() {
                     },
                     onFailure = {
                         activeProfile = null
-                        showConnectionError(it)
+                        showConnectionError(it, profile)
                     }
                 )
                 setBusy(false)
@@ -948,10 +948,11 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun showConnectionError(error: Throwable) {
+    private fun showConnectionError(error: Throwable, profile: ConnectionProfile) {
         if (!uiReady()) return
         statusTitle.text = getString(R.string.status_connection_unavailable)
-        statusDetail.text = error.message ?: getString(R.string.status_connection_unavailable_detail)
+        val rawDetail = error.message ?: getString(R.string.status_connection_unavailable_detail)
+        statusDetail.text = redactSensitiveErrorText(rawDetail, listOf(profile.password))
         remoteRows.removeAllViews()
         remoteRows.addView(row(getString(R.string.workspace_files), getString(R.string.state_no_server_session)))
         activityRows.removeAllViews()
@@ -1158,11 +1159,15 @@ class MainActivity : Activity() {
     private fun showTransferFailure(error: Throwable) {
         if (!uiReady()) return
         val canceled = error is OperationCanceledException
-        val detail = error.message ?: if (canceled) {
+        val rawDetail = error.message ?: if (canceled) {
             getString(R.string.msg_operation_canceled)
         } else {
             getString(R.string.msg_transfer_failed_detail)
         }
+        val detail = redactSensitiveErrorText(
+            rawDetail,
+            listOfNotNull(activeProfile?.password)
+        )
         val title = if (canceled) {
             getString(R.string.status_transfer_canceled)
         } else {
