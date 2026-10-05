@@ -73,4 +73,37 @@
     <string name="workspace_open">Відкрити робочий простір %1$s</string>
     <string name="workspace_content">Вміст робочого простору %1$s</string>
     <string name="workspace_announce">Робочий простір %1$s</string>
+
+    <string name="security_ftp_warning">FTP передає облікові дані та дані файлів без шифрованого транспорту. Використовуйте явний FTPS або SFTP, якщо сервер їх підтримує.</string>
+    <string name="security_ftps_info">Явний FTPS шифрує облікові дані та дані файлів за допомогою TLS і перевіряє ім’я сервера.</string>
+    <string name="security_sftp_info">SFTP шифрує сеанс і вимагає суворої перевірки SSH-ключа хоста.</string>
+    <string name="field_transfer_remote_path">Віддалений шлях до файлу</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Назва або шлях цілі завантаження</string>
+    <string name="hint_upload_target">Назва віддаленого файлу для завантаження</string>
+    <string name="field_folder_target">Назва або шлях папки</string>
+    <string name="hint_folder_target">Нова віддалена папка</string>
+    <string name="field_rename_target">Назва або шлях цілі перейменування</string>
+    <string name="hint_rename_target">Нова віддалена назва або шлях</string>
+    <string name="msg_activity_cleared_detail">Журнал активності очищено.</string>
+    <string name="msg_transfers_reset_detail">Поля передавання скинуто.</string>
+    <string name="msg_connection_reset_detail">Форму підключення скинуто.</string>
+    <string name="msg_invalid_port_detail">Використовуйте порт від 1 до 65535.</string>
+    <string name="msg_host_required_detail">Введіть адресу FTP, FTPS або SFTP сервера.</string>
+    <string name="msg_connect_first_detail">Відкрийте сеанс із сервером перед виконанням дій із файлами.</string>
+    <string name="activity_connection_ready">Готово до дій із файлами через %1$s.</string>
+    <string name="activity_password_memory">Пароль зберігається в пам’яті та очищається під час відключення.</string>
+    <string name="state_ready_guarded_actions">Готово до захищених дій із файлами.</string>
+    <string name="state_last_completed_remote_path">Останній завершений віддалений шлях: %1$s</string>
+    <string name="status_connection_unavailable">Підключення недоступне</string>
+    <string name="status_connection_unavailable_detail">Вибрана кінцева точка не відкрила сеанс.</string>
+    <string name="state_no_server_session">Немає активного сеансу із сервером.</string>
+    <string name="state_no_active_connection">Немає активного підключення.</string>
+    <string name="state_transfer_wait_connection">Передавання не може початися, доки не буде відкрито підключення.</string>
+    <string name="status_ready">Готово</string>
+    <string name="status_no_active_session">Немає активного сеансу із сервером.</string>
+    <string name="state_connect_to_load_files">Підключіться до сервера, щоб завантажити віддалені файли.</string>
+    <string name="state_connect_then_choose_action">Спочатку підключіться, потім виберіть дію з файлом.</string>
+    <string name="status_opening_protocol">Відкриття %1$s</string>
+    <string name="status_loading_remote">Завантаження %1$s з %2$s:%3$d.</string>
 </resources>

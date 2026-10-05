@@ -73,4 +73,37 @@
     <string name="workspace_open">Werkruimte %1$s openen</string>
     <string name="workspace_content">Inhoud van werkruimte %1$s</string>
     <string name="workspace_announce">Werkruimte %1$s</string>
+
+    <string name="security_ftp_warning">FTP verzendt aanmeldgegevens en bestandsgegevens zonder versleutelde overdracht. Gebruik expliciete FTPS of SFTP wanneer de server dit ondersteunt.</string>
+    <string name="security_ftps_info">Expliciete FTPS versleutelt aanmeldgegevens en bestandsgegevens met TLS en controleert de servernaam.</string>
+    <string name="security_sftp_info">SFTP versleutelt de sessie en vereist strikte verificatie van de SSH-hostsleutel.</string>
+    <string name="field_transfer_remote_path">Extern bestandspad</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Naam of pad van uploaddoel</string>
+    <string name="hint_upload_target">Naam van extern uploadbestand</string>
+    <string name="field_folder_target">Mapnaam of pad</string>
+    <string name="hint_folder_target">Nieuwe externe map</string>
+    <string name="field_rename_target">Naam of pad van hernoemdoel</string>
+    <string name="hint_rename_target">Nieuwe externe naam of pad</string>
+    <string name="msg_activity_cleared_detail">Activiteitenlogboek gewist.</string>
+    <string name="msg_transfers_reset_detail">Overdrachtsvelden opnieuw ingesteld.</string>
+    <string name="msg_connection_reset_detail">Verbindingsformulier opnieuw ingesteld.</string>
+    <string name="msg_invalid_port_detail">Gebruik een poort tussen 1 en 65535.</string>
+    <string name="msg_host_required_detail">Voer de host van de FTP-, FTPS- of SFTP-server in.</string>
+    <string name="msg_connect_first_detail">Open een serversessie voordat u bestandsacties uitvoert.</string>
+    <string name="activity_connection_ready">Gereed voor %1$s-bestandsacties.</string>
+    <string name="activity_password_memory">Het wachtwoord blijft in het geheugen en wordt gewist bij verbreken van de verbinding.</string>
+    <string name="state_ready_guarded_actions">Gereed voor beveiligde bestandsacties.</string>
+    <string name="state_last_completed_remote_path">Laatst voltooide externe pad: %1$s</string>
+    <string name="status_connection_unavailable">Verbinding niet beschikbaar</string>
+    <string name="status_connection_unavailable_detail">Het geselecteerde eindpunt heeft geen sessie geopend.</string>
+    <string name="state_no_server_session">Er is geen actieve serversessie.</string>
+    <string name="state_no_active_connection">Geen actieve verbinding.</string>
+    <string name="state_transfer_wait_connection">Er kan geen overdracht starten voordat de verbinding is geopend.</string>
+    <string name="status_ready">Gereed</string>
+    <string name="status_no_active_session">Er is geen actieve serversessie.</string>
+    <string name="state_connect_to_load_files">Maak verbinding met een server om externe bestanden te laden.</string>
+    <string name="state_connect_then_choose_action">Maak eerst verbinding en kies daarna een bestandsactie.</string>
+    <string name="status_opening_protocol">%1$s wordt geopend</string>
+    <string name="status_loading_remote">%1$s wordt geladen van %2$s:%3$d.</string>
 </resources>

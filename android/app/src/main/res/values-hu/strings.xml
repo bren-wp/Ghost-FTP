@@ -73,4 +73,37 @@
     <string name="workspace_open">%1$s munkaterület megnyitása</string>
     <string name="workspace_content">%1$s munkaterület tartalma</string>
     <string name="workspace_announce">%1$s munkaterület</string>
+
+    <string name="security_ftp_warning">Az FTP titkosított átvitel nélkül küldi a hitelesítő adatokat és a fájladatokat. Ha a kiszolgáló támogatja, használjon explicit FTPS-t vagy SFTP-t.</string>
+    <string name="security_ftps_info">Az explicit FTPS TLS-sel titkosítja a hitelesítő adatokat és a fájladatokat, valamint ellenőrzi a kiszolgáló nevét.</string>
+    <string name="security_sftp_info">Az SFTP titkosítja a munkamenetet, és szigorú SSH-gazdakulcs-ellenőrzést igényel.</string>
+    <string name="field_transfer_remote_path">Távoli fájl elérési útja</string>
+    <string name="hint_transfer_remote_path">/remote/fajl-vagy-mappa</string>
+    <string name="field_upload_target">Feltöltési cél neve vagy elérési útja</string>
+    <string name="hint_upload_target">Távoli feltöltési fájl neve</string>
+    <string name="field_folder_target">Mappa neve vagy elérési útja</string>
+    <string name="hint_folder_target">Új távoli mappa</string>
+    <string name="field_rename_target">Átnevezési cél neve vagy elérési útja</string>
+    <string name="hint_rename_target">Új távoli név vagy elérési út</string>
+    <string name="msg_activity_cleared_detail">A tevékenységnapló törölve.</string>
+    <string name="msg_transfers_reset_detail">Az átviteli mezők alaphelyzetbe álltak.</string>
+    <string name="msg_connection_reset_detail">A kapcsolati űrlap alaphelyzetbe állt.</string>
+    <string name="msg_invalid_port_detail">1 és 65535 közötti portot használjon.</string>
+    <string name="msg_host_required_detail">Adja meg az FTP-, FTPS- vagy SFTP-kiszolgáló gazdanevét.</string>
+    <string name="msg_connect_first_detail">A fájlműveletek előtt nyisson kiszolgálói munkamenetet.</string>
+    <string name="activity_connection_ready">Készen áll %1$s fájlműveletekre.</string>
+    <string name="activity_password_memory">A jelszó a memóriában marad, és bontáskor törlődik.</string>
+    <string name="state_ready_guarded_actions">Készen áll védett fájlműveletekre.</string>
+    <string name="state_last_completed_remote_path">Utolsó befejezett távoli elérési út: %1$s</string>
+    <string name="status_connection_unavailable">A kapcsolat nem érhető el</string>
+    <string name="status_connection_unavailable_detail">A kiválasztott végpont nem nyitott munkamenetet.</string>
+    <string name="state_no_server_session">Nincs aktív kiszolgálói munkamenet.</string>
+    <string name="state_no_active_connection">Nincs aktív kapcsolat.</string>
+    <string name="state_transfer_wait_connection">Az átvitel nem indítható el, amíg a kapcsolat meg nem nyílik.</string>
+    <string name="status_ready">Kész</string>
+    <string name="status_no_active_session">Nincs aktív kiszolgálói munkamenet.</string>
+    <string name="state_connect_to_load_files">Csatlakozzon egy kiszolgálóhoz a távoli fájlok betöltéséhez.</string>
+    <string name="state_connect_then_choose_action">Először csatlakozzon, majd válasszon fájlműveletet.</string>
+    <string name="status_opening_protocol">%1$s megnyitása</string>
+    <string name="status_loading_remote">%1$s betöltése innen: %2$s:%3$d.</string>
 </resources>

@@ -73,4 +73,37 @@
     <string name="workspace_open">Åpne arbeidsområdet %1$s</string>
     <string name="workspace_content">Innhold i arbeidsområdet %1$s</string>
     <string name="workspace_announce">Arbeidsområdet %1$s</string>
+
+    <string name="security_ftp_warning">FTP sender påloggingsinformasjon og fildata uten kryptert transport. Bruk eksplisitt FTPS eller SFTP når serveren støtter det.</string>
+    <string name="security_ftps_info">Eksplisitt FTPS krypterer påloggingsinformasjon og fildata med TLS og validerer servernavnet.</string>
+    <string name="security_sftp_info">SFTP krypterer økten og krever streng verifisering av SSH-vertsnøkkelen.</string>
+    <string name="field_transfer_remote_path">Ekstern filbane</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Navn eller bane for opplastingsmål</string>
+    <string name="hint_upload_target">Navn på ekstern fil for opplasting</string>
+    <string name="field_folder_target">Mappenavn eller bane</string>
+    <string name="hint_folder_target">Ny ekstern mappe</string>
+    <string name="field_rename_target">Navn eller bane for mål ved navneendring</string>
+    <string name="hint_rename_target">Nytt eksternt navn eller ny bane</string>
+    <string name="msg_activity_cleared_detail">Aktivitetsloggen er tømt.</string>
+    <string name="msg_transfers_reset_detail">Overføringsfeltene er tilbakestilt.</string>
+    <string name="msg_connection_reset_detail">Tilkoblingsskjemaet er tilbakestilt.</string>
+    <string name="msg_invalid_port_detail">Bruk en port mellom 1 og 65535.</string>
+    <string name="msg_host_required_detail">Angi verten for FTP-, FTPS- eller SFTP-serveren.</string>
+    <string name="msg_connect_first_detail">Åpne en serverøkt før du kjører filhandlinger.</string>
+    <string name="activity_connection_ready">Klar for %1$s-filhandlinger.</string>
+    <string name="activity_password_memory">Passordet lagres i minnet og tømmes ved frakobling.</string>
+    <string name="state_ready_guarded_actions">Klar for beskyttede filhandlinger.</string>
+    <string name="state_last_completed_remote_path">Sist fullførte eksterne bane: %1$s</string>
+    <string name="status_connection_unavailable">Tilkoblingen er utilgjengelig</string>
+    <string name="status_connection_unavailable_detail">Det valgte endepunktet åpnet ingen økt.</string>
+    <string name="state_no_server_session">Ingen serverøkt er aktiv.</string>
+    <string name="state_no_active_connection">Ingen aktiv tilkobling.</string>
+    <string name="state_transfer_wait_connection">Ingen overføring kan starte før tilkoblingen er åpen.</string>
+    <string name="status_ready">Klar</string>
+    <string name="status_no_active_session">Ingen serverøkt er aktiv.</string>
+    <string name="state_connect_to_load_files">Koble til en server for å laste eksterne filer.</string>
+    <string name="state_connect_then_choose_action">Koble til først, og velg deretter en filhandling.</string>
+    <string name="status_opening_protocol">Åpner %1$s</string>
+    <string name="status_loading_remote">Laster %1$s fra %2$s:%3$d.</string>
 </resources>

@@ -73,4 +73,37 @@
     <string name="workspace_open">Отвори работното пространство %1$s</string>
     <string name="workspace_content">Съдържание на работното пространство %1$s</string>
     <string name="workspace_announce">Работно пространство %1$s</string>
+
+    <string name="security_ftp_warning">FTP изпраща идентификационни данни и файлове без криптиран транспорт. Използвайте експлицитен FTPS или SFTP, когато сървърът ги поддържа.</string>
+    <string name="security_ftps_info">Експлицитният FTPS криптира идентификационните данни и файловете с TLS и проверява името на сървъра.</string>
+    <string name="security_sftp_info">SFTP криптира сесията и изисква строга проверка на SSH ключа на хоста.</string>
+    <string name="field_transfer_remote_path">Отдалечен път до файл</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Име или път на целта за качване</string>
+    <string name="hint_upload_target">Име на отдалечения файл за качване</string>
+    <string name="field_folder_target">Име или път на папката</string>
+    <string name="hint_folder_target">Нова отдалечена папка</string>
+    <string name="field_rename_target">Име или път на целта за преименуване</string>
+    <string name="hint_rename_target">Ново отдалечено име или път</string>
+    <string name="msg_activity_cleared_detail">Дневникът на активността е изчистен.</string>
+    <string name="msg_transfers_reset_detail">Полетата за прехвърляне са нулирани.</string>
+    <string name="msg_connection_reset_detail">Формулярът за връзка е нулиран.</string>
+    <string name="msg_invalid_port_detail">Използвайте порт между 1 и 65535.</string>
+    <string name="msg_host_required_detail">Въведете хоста на FTP, FTPS или SFTP сървъра.</string>
+    <string name="msg_connect_first_detail">Отворете сесия със сървъра, преди да изпълнявате действия с файлове.</string>
+    <string name="activity_connection_ready">Готово за файлови действия чрез %1$s.</string>
+    <string name="activity_password_memory">Паролата остава в паметта и се изчиства при прекъсване на връзката.</string>
+    <string name="state_ready_guarded_actions">Готово за защитени файлови действия.</string>
+    <string name="state_last_completed_remote_path">Последен завършен отдалечен път: %1$s</string>
+    <string name="status_connection_unavailable">Връзката не е достъпна</string>
+    <string name="status_connection_unavailable_detail">Избраната крайна точка не отвори сесия.</string>
+    <string name="state_no_server_session">Няма активна сесия със сървъра.</string>
+    <string name="state_no_active_connection">Няма активна връзка.</string>
+    <string name="state_transfer_wait_connection">Прехвърляне не може да започне, докато връзката не бъде отворена.</string>
+    <string name="status_ready">Готово</string>
+    <string name="status_no_active_session">Няма активна сесия със сървъра.</string>
+    <string name="state_connect_to_load_files">Свържете се със сървър, за да заредите отдалечените файлове.</string>
+    <string name="state_connect_then_choose_action">Първо се свържете, след това изберете действие с файл.</string>
+    <string name="status_opening_protocol">Отваряне на %1$s</string>
+    <string name="status_loading_remote">Зареждане на %1$s от %2$s:%3$d.</string>
 </resources>

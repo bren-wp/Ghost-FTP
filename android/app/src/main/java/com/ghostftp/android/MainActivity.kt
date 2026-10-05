@@ -606,11 +606,11 @@ class MainActivity : Activity() {
         if (::protocolSecurityText.isInitialized) {
             val (message, color) = when (protocol) {
                 ConnectionProtocol.FTP ->
-                    "FTP sends credentials and file data without transport encryption. Prefer explicit FTPS or SFTP when the server supports it." to Brand.danger
+                    getString(R.string.security_ftp_warning) to Brand.danger
                 ConnectionProtocol.EXPLICIT_FTPS ->
-                    "Explicit FTPS encrypts credentials and file data with TLS and validates the server hostname." to Brand.textSoft
+                    getString(R.string.security_ftps_info) to Brand.textSoft
                 ConnectionProtocol.SFTP ->
-                    "SFTP encrypts the session and requires strict SSH host-key verification." to Brand.textSoft
+                    getString(R.string.security_sftp_info) to Brand.textSoft
             }
             protocolSecurityText.text = message
             protocolSecurityText.setTextColor(color)
@@ -631,20 +631,20 @@ class MainActivity : Activity() {
         addView(sectionTitle(getString(R.string.workspace_transfers)))
         addView(sectionDescription(getString(R.string.desc_transfers)))
 
-        transferRemotePathInput = input("/remote/file-or-folder", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
-        addView(formLabel("Remote file path"))
+        transferRemotePathInput = input(getString(R.string.hint_transfer_remote_path), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        addView(formLabel(getString(R.string.field_transfer_remote_path)))
         addView(transferRemotePathInput)
 
-        uploadRemoteNameInput = input("Remote upload file name", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
-        addView(formLabel("Upload target name or path"))
+        uploadRemoteNameInput = input(getString(R.string.hint_upload_target), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        addView(formLabel(getString(R.string.field_upload_target)))
         addView(uploadRemoteNameInput)
 
-        mkdirNameInput = input("New remote folder", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
-        addView(formLabel("Folder name or path"))
+        mkdirNameInput = input(getString(R.string.hint_folder_target), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        addView(formLabel(getString(R.string.field_folder_target)))
         addView(mkdirNameInput)
 
-        renameRemoteNameInput = input("New remote name or path", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
-        addView(formLabel("Rename target name or path"))
+        renameRemoteNameInput = input(getString(R.string.hint_rename_target), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        addView(formLabel(getString(R.string.field_rename_target)))
         addView(renameRemoteNameInput)
 
         uploadSelectionText = TextView(this@MainActivity).apply {
@@ -813,8 +813,8 @@ class MainActivity : Activity() {
         activeCancellation = cancellation
         operationInFlight = true
         setBusy(true)
-        statusTitle.text = "Opening ${profile.protocol.label}"
-        statusDetail.text = "Loading ${profile.remotePath} from ${profile.host}:${profile.port}."
+        statusTitle.text = getString(R.string.status_opening_protocol, profile.protocol.label)
+        statusDetail.text = getString(R.string.status_loading_remote, profile.remotePath, profile.host, profile.port)
 
         thread(name = "ghostftp-android-connect") {
             val result = runCatching { controller.listRemote(profile, cancellation) }
@@ -867,7 +867,7 @@ class MainActivity : Activity() {
 
     private fun clearActivityLog() {
         if (::activityRows.isInitialized) activityRows.removeAllViews()
-        showMessage("Activity cleared", "Activity log cleared.")
+        showMessage(getString(R.string.action_clear_activity), getString(R.string.msg_activity_cleared_detail))
     }
 
     private fun resetTransferFields() {
@@ -880,7 +880,7 @@ class MainActivity : Activity() {
         if (::renameRemoteNameInput.isInitialized) renameRemoteNameInput.text.clear()
         if (::uploadSelectionText.isInitialized) uploadSelectionText.text = getString(R.string.state_no_local_file)
         if (::transferStateText.isInitialized) transferStateText.text = getString(R.string.state_no_transfer)
-        showMessage("Transfers reset", "Transfer fields reset.")
+        showMessage(getString(R.string.action_reset_transfers), getString(R.string.msg_transfers_reset_detail))
     }
 
     private fun resetConnectionForm() {
@@ -891,19 +891,19 @@ class MainActivity : Activity() {
         if (::usernameInput.isInitialized) usernameInput.text.clear()
         if (::hostKeyFingerprintInput.isInitialized) hostKeyFingerprintInput.text.clear()
         if (::remotePathInput.isInitialized) remotePathInput.setText("/")
-        showMessage("Connection reset", "Connection form reset.")
+        showMessage(getString(R.string.action_reset_connection), getString(R.string.msg_connection_reset_detail))
     }
 
     private fun readProfile(): ConnectionProfile? {
         val protocol = ConnectionProtocol.fromIndex(protocolSpinner.selectedItemPosition)
         val port = portInput.text.toString().trim().ifBlank { protocol.defaultPort.toString() }.toIntOrNull()
         if (port == null || port !in 1..65535) {
-            showMessage("Invalid port", "Use a port between 1 and 65535.")
+            showMessage(getString(R.string.field_port), getString(R.string.msg_invalid_port_detail))
             return null
         }
         val host = hostInput.text.toString().trim()
         if (host.isBlank()) {
-            showMessage("Host is required", "Enter the FTP, FTPS or SFTP server host.")
+            showMessage(getString(R.string.field_host), getString(R.string.msg_host_required_detail))
             return null
         }
         return ConnectionProfile(
@@ -920,7 +920,7 @@ class MainActivity : Activity() {
     private fun activeTransferProfile(): ConnectionProfile? {
         val profile = activeProfile
         if (profile == null) {
-            showMessage("Connect first", "Open a server session before running file actions.")
+            showMessage(getString(R.string.action_connect), getString(R.string.msg_connect_first_detail))
             return null
         }
         return profile.copy(remotePath = remotePathInput.text.toString().trim().ifBlank { profile.remotePath })
@@ -933,24 +933,24 @@ class MainActivity : Activity() {
         remoteRows.removeAllViews()
         result.rows.forEach { remoteRows.addView(remoteRow(it)) }
         activityRows.removeAllViews()
-        activityRows.addView(row("Connection", "Ready for ${profile.protocol.label} file actions."))
-        activityRows.addView(row("Security", "Password is kept in memory and cleared on disconnect."))
+        activityRows.addView(row(getString(R.string.label_connection), getString(R.string.activity_connection_ready, profile.protocol.label)))
+        activityRows.addView(row(getString(R.string.label_security), getString(R.string.activity_password_memory)))
         transferStateText.text = if (lastCompletedTransferPath.isBlank()) {
-            "Ready for guarded file actions."
+            getString(R.string.state_ready_guarded_actions)
         } else {
-            "Last completed remote path: $lastCompletedTransferPath"
+            getString(R.string.state_last_completed_remote_path, lastCompletedTransferPath)
         }
     }
 
     private fun showConnectionError(error: Throwable) {
         if (!uiReady()) return
-        statusTitle.text = "Connection unavailable"
-        statusDetail.text = error.message ?: "The selected endpoint did not open a session."
+        statusTitle.text = getString(R.string.status_connection_unavailable)
+        statusDetail.text = error.message ?: getString(R.string.status_connection_unavailable_detail)
         remoteRows.removeAllViews()
-        remoteRows.addView(row("Files", "No server session is active."))
+        remoteRows.addView(row(getString(R.string.workspace_files), getString(R.string.state_no_server_session)))
         activityRows.removeAllViews()
-        activityRows.addView(row("Transfers", "No active connection."))
-        transferStateText.text = "No transfer can run until the connection opens."
+        activityRows.addView(row(getString(R.string.workspace_transfers), getString(R.string.state_no_active_connection)))
+        transferStateText.text = getString(R.string.state_transfer_wait_connection)
     }
 
     private fun showMessage(title: String, detail: String) {
@@ -962,12 +962,12 @@ class MainActivity : Activity() {
 
     private fun showIdleState() {
         if (!uiReady()) return
-        statusTitle.text = "Ready"
-        statusDetail.text = "No active server session."
+        statusTitle.text = getString(R.string.status_ready)
+        statusDetail.text = getString(R.string.status_no_active_session)
         remoteRows.removeAllViews()
-        remoteRows.addView(row("Files", "Connect to a server to load remote files."))
+        remoteRows.addView(row(getString(R.string.workspace_files), getString(R.string.state_connect_to_load_files)))
         activityRows.removeAllViews()
-        activityRows.addView(row("Transfers", "Connect first, then choose a file action."))
+        activityRows.addView(row(getString(R.string.workspace_transfers), getString(R.string.state_connect_then_choose_action)))
         transferStateText.text = getString(R.string.state_no_transfer)
         setBusy(false)
     }

@@ -73,4 +73,37 @@
     <string name="workspace_open">Отвори го работниот простор %1$s</string>
     <string name="workspace_content">Содржина на работниот простор %1$s</string>
     <string name="workspace_announce">Работен простор %1$s</string>
+
+    <string name="security_ftp_warning">FTP испраќа акредитиви и податоци од датотеки без шифриран пренос. Користете експлицитен FTPS или SFTP кога серверот ги поддржува.</string>
+    <string name="security_ftps_info">Експлицитниот FTPS ги шифрира акредитивите и податоците од датотеки со TLS и го проверува името на серверот.</string>
+    <string name="security_sftp_info">SFTP ја шифрира сесијата и бара строга проверка на SSH клучот на домаќинот.</string>
+    <string name="field_transfer_remote_path">Оддалечена патека до датотека</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Име или патека на целта за поставување</string>
+    <string name="hint_upload_target">Име на оддалечената датотека за поставување</string>
+    <string name="field_folder_target">Име или патека на папката</string>
+    <string name="hint_folder_target">Нова оддалечена папка</string>
+    <string name="field_rename_target">Име или патека на целта за преименување</string>
+    <string name="hint_rename_target">Ново оддалечено име или патека</string>
+    <string name="msg_activity_cleared_detail">Дневникот на активности е исчистен.</string>
+    <string name="msg_transfers_reset_detail">Полињата за пренос се ресетирани.</string>
+    <string name="msg_connection_reset_detail">Формуларот за врска е ресетиран.</string>
+    <string name="msg_invalid_port_detail">Користете порта помеѓу 1 и 65535.</string>
+    <string name="msg_host_required_detail">Внесете го домаќинот на FTP, FTPS или SFTP серверот.</string>
+    <string name="msg_connect_first_detail">Отворете сесија со серверот пред да извршувате дејства со датотеки.</string>
+    <string name="activity_connection_ready">Подготвено за дејства со датотеки преку %1$s.</string>
+    <string name="activity_password_memory">Лозинката останува во меморијата и се брише при прекин на врската.</string>
+    <string name="state_ready_guarded_actions">Подготвено за заштитени дејства со датотеки.</string>
+    <string name="state_last_completed_remote_path">Последна завршена оддалечена патека: %1$s</string>
+    <string name="status_connection_unavailable">Врската не е достапна</string>
+    <string name="status_connection_unavailable_detail">Избраната крајна точка не отвори сесија.</string>
+    <string name="state_no_server_session">Нема активна сесија со серверот.</string>
+    <string name="state_no_active_connection">Нема активна врска.</string>
+    <string name="state_transfer_wait_connection">Пренос не може да започне додека не се отвори врската.</string>
+    <string name="status_ready">Подготвено</string>
+    <string name="status_no_active_session">Нема активна сесија со серверот.</string>
+    <string name="state_connect_to_load_files">Поврзете се со сервер за да ги вчитате оддалечените датотеки.</string>
+    <string name="state_connect_then_choose_action">Прво поврзете се, потоа изберете дејство со датотека.</string>
+    <string name="status_opening_protocol">Се отвора %1$s</string>
+    <string name="status_loading_remote">Се вчитува %1$s од %2$s:%3$d.</string>
 </resources>

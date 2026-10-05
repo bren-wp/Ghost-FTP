@@ -73,4 +73,37 @@
     <string name="workspace_open">Deschide spațiul de lucru %1$s</string>
     <string name="workspace_content">Conținutul spațiului de lucru %1$s</string>
     <string name="workspace_announce">Spațiul de lucru %1$s</string>
+
+    <string name="security_ftp_warning">FTP trimite acreditările și datele fișierelor fără transport criptat. Folosiți FTPS explicit sau SFTP atunci când serverul le acceptă.</string>
+    <string name="security_ftps_info">FTPS explicit criptează acreditările și datele fișierelor cu TLS și validează numele serverului.</string>
+    <string name="security_sftp_info">SFTP criptează sesiunea și necesită verificarea strictă a cheii gazdei SSH.</string>
+    <string name="field_transfer_remote_path">Calea fișierului la distanță</string>
+    <string name="hint_transfer_remote_path">/remote/fisier-sau-folder</string>
+    <string name="field_upload_target">Numele sau calea destinației de încărcare</string>
+    <string name="hint_upload_target">Numele fișierului la distanță pentru încărcare</string>
+    <string name="field_folder_target">Numele sau calea folderului</string>
+    <string name="hint_folder_target">Folder nou la distanță</string>
+    <string name="field_rename_target">Numele sau calea destinației pentru redenumire</string>
+    <string name="hint_rename_target">Nume sau cale nouă la distanță</string>
+    <string name="msg_activity_cleared_detail">Jurnalul de activitate a fost șters.</string>
+    <string name="msg_transfers_reset_detail">Câmpurile de transfer au fost resetate.</string>
+    <string name="msg_connection_reset_detail">Formularul de conexiune a fost resetat.</string>
+    <string name="msg_invalid_port_detail">Folosiți un port între 1 și 65535.</string>
+    <string name="msg_host_required_detail">Introduceți gazda serverului FTP, FTPS sau SFTP.</string>
+    <string name="msg_connect_first_detail">Deschideți o sesiune cu serverul înainte de a rula acțiuni asupra fișierelor.</string>
+    <string name="activity_connection_ready">Pregătit pentru acțiuni de fișiere prin %1$s.</string>
+    <string name="activity_password_memory">Parola rămâne în memorie și este ștearsă la deconectare.</string>
+    <string name="state_ready_guarded_actions">Pregătit pentru acțiuni protejate asupra fișierelor.</string>
+    <string name="state_last_completed_remote_path">Ultima cale la distanță finalizată: %1$s</string>
+    <string name="status_connection_unavailable">Conexiunea nu este disponibilă</string>
+    <string name="status_connection_unavailable_detail">Punctul final selectat nu a deschis o sesiune.</string>
+    <string name="state_no_server_session">Nu este activă nicio sesiune cu serverul.</string>
+    <string name="state_no_active_connection">Nicio conexiune activă.</string>
+    <string name="state_transfer_wait_connection">Niciun transfer nu poate porni până când conexiunea nu se deschide.</string>
+    <string name="status_ready">Pregătit</string>
+    <string name="status_no_active_session">Nu este activă nicio sesiune cu serverul.</string>
+    <string name="state_connect_to_load_files">Conectați-vă la un server pentru a încărca fișierele la distanță.</string>
+    <string name="state_connect_then_choose_action">Conectați-vă mai întâi, apoi alegeți o acțiune asupra fișierului.</string>
+    <string name="status_opening_protocol">Se deschide %1$s</string>
+    <string name="status_loading_remote">Se încarcă %1$s de la %2$s:%3$d.</string>
 </resources>

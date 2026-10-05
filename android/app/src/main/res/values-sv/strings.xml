@@ -73,4 +73,37 @@
     <string name="workspace_open">Öppna arbetsytan %1$s</string>
     <string name="workspace_content">Innehåll i arbetsytan %1$s</string>
     <string name="workspace_announce">Arbetsytan %1$s</string>
+
+    <string name="security_ftp_warning">FTP skickar autentiseringsuppgifter och fildata utan krypterad transport. Använd explicit FTPS eller SFTP när servern stöder det.</string>
+    <string name="security_ftps_info">Explicit FTPS krypterar autentiseringsuppgifter och fildata med TLS och verifierar servernamnet.</string>
+    <string name="security_sftp_info">SFTP krypterar sessionen och kräver strikt verifiering av SSH-värdnyckeln.</string>
+    <string name="field_transfer_remote_path">Fjärrsökväg till fil</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Namn eller sökväg för uppladdningsmål</string>
+    <string name="hint_upload_target">Namn på fjärrfil för uppladdning</string>
+    <string name="field_folder_target">Mappnamn eller sökväg</string>
+    <string name="hint_folder_target">Ny fjärrmapp</string>
+    <string name="field_rename_target">Namn eller sökväg för namnbytesmål</string>
+    <string name="hint_rename_target">Nytt fjärrnamn eller ny sökväg</string>
+    <string name="msg_activity_cleared_detail">Aktivitetsloggen har rensats.</string>
+    <string name="msg_transfers_reset_detail">Överföringsfälten har återställts.</string>
+    <string name="msg_connection_reset_detail">Anslutningsformuläret har återställts.</string>
+    <string name="msg_invalid_port_detail">Använd en port mellan 1 och 65535.</string>
+    <string name="msg_host_required_detail">Ange värden för FTP-, FTPS- eller SFTP-servern.</string>
+    <string name="msg_connect_first_detail">Öppna en serversession innan du kör filåtgärder.</string>
+    <string name="activity_connection_ready">Redo för %1$s-filåtgärder.</string>
+    <string name="activity_password_memory">Lösenordet sparas i minnet och rensas vid frånkoppling.</string>
+    <string name="state_ready_guarded_actions">Redo för skyddade filåtgärder.</string>
+    <string name="state_last_completed_remote_path">Senast slutförda fjärrsökväg: %1$s</string>
+    <string name="status_connection_unavailable">Anslutningen är inte tillgänglig</string>
+    <string name="status_connection_unavailable_detail">Den valda slutpunkten öppnade ingen session.</string>
+    <string name="state_no_server_session">Ingen serversession är aktiv.</string>
+    <string name="state_no_active_connection">Ingen aktiv anslutning.</string>
+    <string name="state_transfer_wait_connection">Ingen överföring kan starta förrän anslutningen är öppen.</string>
+    <string name="status_ready">Redo</string>
+    <string name="status_no_active_session">Ingen serversession är aktiv.</string>
+    <string name="state_connect_to_load_files">Anslut till en server för att läsa in fjärrfiler.</string>
+    <string name="state_connect_then_choose_action">Anslut först och välj sedan en filåtgärd.</string>
+    <string name="status_opening_protocol">Öppnar %1$s</string>
+    <string name="status_loading_remote">Läser in %1$s från %2$s:%3$d.</string>
 </resources>

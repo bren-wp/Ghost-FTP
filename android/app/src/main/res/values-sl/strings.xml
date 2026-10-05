@@ -73,4 +73,37 @@
     <string name="workspace_open">Odpri delovni prostor %1$s</string>
     <string name="workspace_content">Vsebina delovnega prostora %1$s</string>
     <string name="workspace_announce">Delovni prostor %1$s</string>
+
+    <string name="security_ftp_warning">FTP pošilja poverilnice in podatke datotek brez šifriranega prenosa. Uporabite izrecni FTPS ali SFTP, kadar ju strežnik podpira.</string>
+    <string name="security_ftps_info">Izrecni FTPS šifrira poverilnice in podatke datotek s TLS ter preveri ime strežnika.</string>
+    <string name="security_sftp_info">SFTP šifrira sejo in zahteva strogo preverjanje ključa gostitelja SSH.</string>
+    <string name="field_transfer_remote_path">Oddaljena pot datoteke</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Ime ali pot cilja nalaganja</string>
+    <string name="hint_upload_target">Ime oddaljene datoteke za nalaganje</string>
+    <string name="field_folder_target">Ime ali pot mape</string>
+    <string name="hint_folder_target">Nova oddaljena mapa</string>
+    <string name="field_rename_target">Ime ali pot cilja preimenovanja</string>
+    <string name="hint_rename_target">Novo oddaljeno ime ali pot</string>
+    <string name="msg_activity_cleared_detail">Dnevnik dejavnosti je počiščen.</string>
+    <string name="msg_transfers_reset_detail">Polja prenosa so ponastavljena.</string>
+    <string name="msg_connection_reset_detail">Obrazec povezave je ponastavljen.</string>
+    <string name="msg_invalid_port_detail">Uporabite vrata med 1 in 65535.</string>
+    <string name="msg_host_required_detail">Vnesite gostitelja strežnika FTP, FTPS ali SFTP.</string>
+    <string name="msg_connect_first_detail">Pred dejanji z datotekami odprite sejo s strežnikom.</string>
+    <string name="activity_connection_ready">Pripravljeno za dejanja z datotekami prek %1$s.</string>
+    <string name="activity_password_memory">Geslo ostane v pomnilniku in se ob prekinitvi povezave izbriše.</string>
+    <string name="state_ready_guarded_actions">Pripravljeno za zaščitena dejanja z datotekami.</string>
+    <string name="state_last_completed_remote_path">Zadnja dokončana oddaljena pot: %1$s</string>
+    <string name="status_connection_unavailable">Povezava ni na voljo</string>
+    <string name="status_connection_unavailable_detail">Izbrana končna točka ni odprla seje.</string>
+    <string name="state_no_server_session">Nobena seja strežnika ni aktivna.</string>
+    <string name="state_no_active_connection">Ni aktivne povezave.</string>
+    <string name="state_transfer_wait_connection">Prenos se ne more začeti, dokler povezava ni odprta.</string>
+    <string name="status_ready">Pripravljeno</string>
+    <string name="status_no_active_session">Nobena seja strežnika ni aktivna.</string>
+    <string name="state_connect_to_load_files">Povežite se s strežnikom, da naložite oddaljene datoteke.</string>
+    <string name="state_connect_then_choose_action">Najprej se povežite, nato izberite dejanje z datoteko.</string>
+    <string name="status_opening_protocol">Odpiranje %1$s</string>
+    <string name="status_loading_remote">Nalaganje %1$s iz %2$s:%3$d.</string>
 </resources>

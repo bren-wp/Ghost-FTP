@@ -73,4 +73,37 @@
     <string name="workspace_open">%1$s çalışma alanını aç</string>
     <string name="workspace_content">%1$s çalışma alanı içeriği</string>
     <string name="workspace_announce">%1$s çalışma alanı</string>
+
+    <string name="security_ftp_warning">FTP, kimlik bilgilerini ve dosya verilerini şifreli aktarım olmadan gönderir. Sunucu destekliyorsa açık FTPS veya SFTP kullanın.</string>
+    <string name="security_ftps_info">Açık FTPS, kimlik bilgilerini ve dosya verilerini TLS ile şifreler ve sunucu adını doğrular.</string>
+    <string name="security_sftp_info">SFTP oturumu şifreler ve katı SSH ana bilgisayar anahtarı doğrulaması gerektirir.</string>
+    <string name="field_transfer_remote_path">Uzak dosya yolu</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Yükleme hedefi adı veya yolu</string>
+    <string name="hint_upload_target">Uzak yükleme dosyası adı</string>
+    <string name="field_folder_target">Klasör adı veya yolu</string>
+    <string name="hint_folder_target">Yeni uzak klasör</string>
+    <string name="field_rename_target">Yeniden adlandırma hedefi adı veya yolu</string>
+    <string name="hint_rename_target">Yeni uzak ad veya yol</string>
+    <string name="msg_activity_cleared_detail">Etkinlik günlüğü temizlendi.</string>
+    <string name="msg_transfers_reset_detail">Aktarım alanları sıfırlandı.</string>
+    <string name="msg_connection_reset_detail">Bağlantı formu sıfırlandı.</string>
+    <string name="msg_invalid_port_detail">1 ile 65535 arasında bir port kullanın.</string>
+    <string name="msg_host_required_detail">FTP, FTPS veya SFTP sunucu adresini girin.</string>
+    <string name="msg_connect_first_detail">Dosya işlemlerini çalıştırmadan önce bir sunucu oturumu açın.</string>
+    <string name="activity_connection_ready">%1$s dosya işlemleri için hazır.</string>
+    <string name="activity_password_memory">Parola bellekte tutulur ve bağlantı kesildiğinde temizlenir.</string>
+    <string name="state_ready_guarded_actions">Korumalı dosya işlemleri için hazır.</string>
+    <string name="state_last_completed_remote_path">Son tamamlanan uzak yol: %1$s</string>
+    <string name="status_connection_unavailable">Bağlantı kullanılamıyor</string>
+    <string name="status_connection_unavailable_detail">Seçilen uç nokta bir oturum açmadı.</string>
+    <string name="state_no_server_session">Etkin sunucu oturumu yok.</string>
+    <string name="state_no_active_connection">Etkin bağlantı yok.</string>
+    <string name="state_transfer_wait_connection">Bağlantı açılmadan aktarım başlatılamaz.</string>
+    <string name="status_ready">Hazır</string>
+    <string name="status_no_active_session">Etkin sunucu oturumu yok.</string>
+    <string name="state_connect_to_load_files">Uzak dosyaları yüklemek için bir sunucuya bağlanın.</string>
+    <string name="state_connect_then_choose_action">Önce bağlanın, ardından bir dosya işlemi seçin.</string>
+    <string name="status_opening_protocol">%1$s açılıyor</string>
+    <string name="status_loading_remote">%1$s, %2$s:%3$d kaynağından yükleniyor.</string>
 </resources>

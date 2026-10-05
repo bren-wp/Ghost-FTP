@@ -83,7 +83,7 @@ class MainActivitySmokeTest {
         assertTextVisibleInViewport("Ghost FTP · Brendigo")
 
         openWorkspace(R.string.workspace_files)
-        assertTextVisibleInViewport("Connect to a server to load remote files.")
+        assertTextVisibleInViewport(appString(R.string.state_connect_to_load_files))
     }
 
     @Test
@@ -185,7 +185,7 @@ class MainActivitySmokeTest {
     fun connectionValidationAndIdleRecoveryWorkClickByClick() {
         openWorkspace(R.string.workspace_sites)
         clickByDescription(appString(R.string.action_connect))
-        assertTextPresent("Host is required")
+        assertTextPresent(appString(R.string.msg_host_required_detail))
 
         assertDescriptionEnabled(appString(R.string.action_disconnect), false)
         assertDescriptionEnabled(appString(R.string.action_refresh), false)
@@ -226,13 +226,13 @@ class MainActivitySmokeTest {
         openWorkspace(R.string.workspace_settings)
         assertDescriptionEnabled("${appString(R.string.workspace_settings)} ${appString(R.string.action_disconnect)}", false)
         clickByDescription(appString(R.string.action_clear_activity))
-        assertTextPresent("Activity log cleared.")
+        assertTextPresent(appString(R.string.msg_activity_cleared_detail))
 
         clickByDescription(appString(R.string.action_reset_transfers))
-        assertTextPresent("Transfer fields reset.")
+        assertTextPresent(appString(R.string.msg_transfers_reset_detail))
 
         clickByDescription(appString(R.string.action_reset_connection))
-        assertTextPresent("Connection form reset.")
+        assertTextPresent(appString(R.string.msg_connection_reset_detail))
 
         assertDescriptionEnabled("${appString(R.string.workspace_settings)} ${appString(R.string.action_disconnect)}", false)
     }

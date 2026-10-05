@@ -73,4 +73,37 @@
     <string name="workspace_open">Abrir a área de trabalho %1$s</string>
     <string name="workspace_content">Conteúdo da área de trabalho %1$s</string>
     <string name="workspace_announce">Área de trabalho %1$s</string>
+
+    <string name="security_ftp_warning">O FTP envia credenciais e dados de ficheiros sem transporte cifrado. Utilize FTPS explícito ou SFTP quando o servidor os suportar.</string>
+    <string name="security_ftps_info">O FTPS explícito cifra credenciais e dados de ficheiros com TLS e valida o nome do servidor.</string>
+    <string name="security_sftp_info">O SFTP cifra a sessão e exige verificação rigorosa da chave de anfitrião SSH.</string>
+    <string name="field_transfer_remote_path">Caminho do ficheiro remoto</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Nome ou caminho do destino do envio</string>
+    <string name="hint_upload_target">Nome do ficheiro remoto para envio</string>
+    <string name="field_folder_target">Nome ou caminho da pasta</string>
+    <string name="hint_folder_target">Nova pasta remota</string>
+    <string name="field_rename_target">Nome ou caminho do destino da mudança de nome</string>
+    <string name="hint_rename_target">Novo nome ou caminho remoto</string>
+    <string name="msg_activity_cleared_detail">Registo de atividade limpo.</string>
+    <string name="msg_transfers_reset_detail">Campos de transferência repostos.</string>
+    <string name="msg_connection_reset_detail">Formulário de ligação reposto.</string>
+    <string name="msg_invalid_port_detail">Utilize uma porta entre 1 e 65535.</string>
+    <string name="msg_host_required_detail">Introduza o anfitrião do servidor FTP, FTPS ou SFTP.</string>
+    <string name="msg_connect_first_detail">Abra uma sessão no servidor antes de executar ações de ficheiros.</string>
+    <string name="activity_connection_ready">Pronto para ações de ficheiros através de %1$s.</string>
+    <string name="activity_password_memory">A palavra-passe permanece na memória e é limpa ao desligar.</string>
+    <string name="state_ready_guarded_actions">Pronto para ações de ficheiros protegidas.</string>
+    <string name="state_last_completed_remote_path">Último caminho remoto concluído: %1$s</string>
+    <string name="status_connection_unavailable">Ligação indisponível</string>
+    <string name="status_connection_unavailable_detail">O ponto final selecionado não abriu uma sessão.</string>
+    <string name="state_no_server_session">Não existe uma sessão de servidor ativa.</string>
+    <string name="state_no_active_connection">Sem ligação ativa.</string>
+    <string name="state_transfer_wait_connection">Nenhuma transferência pode começar até a ligação ser aberta.</string>
+    <string name="status_ready">Pronto</string>
+    <string name="status_no_active_session">Não existe uma sessão de servidor ativa.</string>
+    <string name="state_connect_to_load_files">Ligue-se a um servidor para carregar ficheiros remotos.</string>
+    <string name="state_connect_then_choose_action">Ligue-se primeiro e depois escolha uma ação de ficheiro.</string>
+    <string name="status_opening_protocol">A abrir %1$s</string>
+    <string name="status_loading_remote">A carregar %1$s de %2$s:%3$d.</string>
 </resources>

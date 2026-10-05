@@ -73,4 +73,37 @@
     <string name="workspace_open">Arbeitsbereich %1$s öffnen</string>
     <string name="workspace_content">Inhalt des Arbeitsbereichs %1$s</string>
     <string name="workspace_announce">Arbeitsbereich %1$s</string>
+
+    <string name="security_ftp_warning">FTP sendet Anmeldedaten und Dateidaten ohne verschlüsselte Übertragung. Verwenden Sie explizites FTPS oder SFTP, wenn der Server dies unterstützt.</string>
+    <string name="security_ftps_info">Explizites FTPS verschlüsselt Anmeldedaten und Dateidaten mit TLS und überprüft den Servernamen.</string>
+    <string name="security_sftp_info">SFTP verschlüsselt die Sitzung und erfordert eine strikte Prüfung des SSH-Hostschlüssels.</string>
+    <string name="field_transfer_remote_path">Remote-Dateipfad</string>
+    <string name="hint_transfer_remote_path">/remote/file-or-folder</string>
+    <string name="field_upload_target">Name oder Pfad des Upload-Ziels</string>
+    <string name="hint_upload_target">Name der Remote-Datei für den Upload</string>
+    <string name="field_folder_target">Ordnername oder Pfad</string>
+    <string name="hint_folder_target">Neuer Remote-Ordner</string>
+    <string name="field_rename_target">Name oder Pfad des Umbenennungsziels</string>
+    <string name="hint_rename_target">Neuer Remote-Name oder Pfad</string>
+    <string name="msg_activity_cleared_detail">Aktivitätsprotokoll gelöscht.</string>
+    <string name="msg_transfers_reset_detail">Übertragungsfelder zurückgesetzt.</string>
+    <string name="msg_connection_reset_detail">Verbindungsformular zurückgesetzt.</string>
+    <string name="msg_invalid_port_detail">Verwenden Sie einen Port zwischen 1 und 65535.</string>
+    <string name="msg_host_required_detail">Geben Sie den Host des FTP-, FTPS- oder SFTP-Servers ein.</string>
+    <string name="msg_connect_first_detail">Öffnen Sie eine Serversitzung, bevor Sie Dateiaktionen ausführen.</string>
+    <string name="activity_connection_ready">Bereit für %1$s-Dateiaktionen.</string>
+    <string name="activity_password_memory">Das Passwort bleibt im Arbeitsspeicher und wird beim Trennen gelöscht.</string>
+    <string name="state_ready_guarded_actions">Bereit für geschützte Dateiaktionen.</string>
+    <string name="state_last_completed_remote_path">Zuletzt abgeschlossener Remote-Pfad: %1$s</string>
+    <string name="status_connection_unavailable">Verbindung nicht verfügbar</string>
+    <string name="status_connection_unavailable_detail">Der ausgewählte Endpunkt hat keine Sitzung geöffnet.</string>
+    <string name="state_no_server_session">Keine Serversitzung ist aktiv.</string>
+    <string name="state_no_active_connection">Keine aktive Verbindung.</string>
+    <string name="state_transfer_wait_connection">Eine Übertragung kann erst starten, wenn die Verbindung geöffnet ist.</string>
+    <string name="status_ready">Bereit</string>
+    <string name="status_no_active_session">Keine Serversitzung ist aktiv.</string>
+    <string name="state_connect_to_load_files">Verbinden Sie sich mit einem Server, um Remote-Dateien zu laden.</string>
+    <string name="state_connect_then_choose_action">Stellen Sie zuerst eine Verbindung her und wählen Sie dann eine Dateiaktion.</string>
+    <string name="status_opening_protocol">%1$s wird geöffnet</string>
+    <string name="status_loading_remote">%1$s wird von %2$s:%3$d geladen.</string>
 </resources>
