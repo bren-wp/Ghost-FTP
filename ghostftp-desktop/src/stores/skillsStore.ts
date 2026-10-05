@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { ipc, onBridgeSkillProposed } from "@/lib/ipc";
 import { toast } from "./toastStore";
+import { messageOf, toastError } from "@/lib/errors";
 import type { Skill, SkillRunResult, SkillDryRunResult } from "@/lib/types";
 
 // Skills panel + store (Plan 8). Mirrors the saved-commands flow in bridgeStore:
@@ -59,8 +60,8 @@ export const useSkills = create<SkillsState>((set, get) => ({
       set({ skills: await ipc.bridgeListSkills(), loaded: true });
     } catch (error) {
       set({ loaded: false });
-      console.warn("Couldn't load Agent Bridge skills", error);
-      if (get().open) toast.error("Couldn't load skills", String(error));
+      console.warn("Couldn't load Agent Bridge skills", messageOf(error));
+      if (get().open) toastError(error, "Couldn't load skills");
     }
   },
 
@@ -74,7 +75,7 @@ export const useSkills = create<SkillsState>((set, get) => ({
     try {
       set({ skills: await ipc.bridgeSaveSkill(s) });
     } catch (e) {
-      toast.error("Couldn't save skill", String(e));
+      toastError(e, "Couldn't save skill");
     }
   },
 
@@ -82,7 +83,7 @@ export const useSkills = create<SkillsState>((set, get) => ({
     try {
       set({ skills: await ipc.bridgeDeleteSkill(id) });
     } catch (e) {
-      toast.error("Couldn't delete skill", String(e));
+      toastError(e, "Couldn't delete skill");
     }
   },
 
@@ -90,7 +91,7 @@ export const useSkills = create<SkillsState>((set, get) => ({
     try {
       set({ skills: await ipc.bridgeApproveSkill(id) });
     } catch (e) {
-      toast.error("Couldn't approve skill", String(e));
+      toastError(e, "Couldn't approve skill");
     }
   },
 
@@ -98,7 +99,7 @@ export const useSkills = create<SkillsState>((set, get) => ({
     try {
       return await ipc.bridgeRunSkill(name, params, targets, dryRun);
     } catch (e) {
-      toast.error(dryRun ? "Dry-run failed" : "Skill run failed", String(e));
+      toastError(e, dryRun ? "Dry-run failed" : "Skill run failed");
       return null;
     }
   },
