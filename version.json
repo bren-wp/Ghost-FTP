@@ -1,8 +1,8 @@
 {
-  "version": "0.30.7",
-  "previousVersion": "0.30.6",
-  "build": "2026.10.05.1",
+  "version": "0.30.8",
+  "previousVersion": "0.30.7",
+  "build": "2026.10.05.2",
   "releaseDate": "5 October 2026",
-  "androidVersionCode": 300701,
+  "androidVersionCode": 300801,
   "channel": "stable"
 }
