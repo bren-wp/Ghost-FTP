@@ -38,6 +38,26 @@ final class ProfileStore: ObservableObject {
         persist()
     }
 
+    func exportProfiles() throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(profiles)
+    }
+
+    @discardableResult
+    func importProfiles(from data: Data) throws -> Int {
+        let imported = try JSONDecoder().decode([ConnectionProfile].self, from: data)
+        var merged = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
+        for profile in imported {
+            merged[profile.id] = profile
+        }
+        profiles = merged.values.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+        persist()
+        return imported.count
+    }
+
     private func load() {
         guard let data = defaults.data(forKey: storageKey) else {
             profiles = []

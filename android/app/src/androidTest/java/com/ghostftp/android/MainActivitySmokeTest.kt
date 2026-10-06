@@ -72,6 +72,11 @@ class MainActivitySmokeTest {
         openWorkspace(R.string.workspace_transfers)
         assertTextVisibleInViewport(appString(R.string.state_no_transfer))
 
+        openWorkspaceByLabel("Sync & Backup")
+        assertTextVisibleInViewport("No settings backup has been created or restored in this session.")
+        assertDescriptionPresent("Back up settings")
+        assertDescriptionPresent("Restore settings")
+
         openWorkspace(R.string.workspace_settings)
         assertTextVisibleInViewport(appString(R.string.settings_no_tracking))
         assertDescriptionPresent(appString(R.string.action_clear_activity))
@@ -366,6 +371,11 @@ class MainActivitySmokeTest {
     private fun openWorkspace(labelRes: Int) {
         ensureNavigationOpen()
         clickByDescription(appString(R.string.workspace_open, appString(labelRes)))
+    }
+
+    private fun openWorkspaceByLabel(label: String) {
+        ensureNavigationOpen()
+        clickByDescription(appString(R.string.workspace_open, label))
     }
 
     private fun clickByDescription(description: String) {

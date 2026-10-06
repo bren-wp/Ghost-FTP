@@ -31,16 +31,19 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
+import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.Locale
 import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
 class MainActivity : Activity() {
-    private enum class Workspace(val labelRes: Int) {
+    private enum class Workspace(val labelRes: Int? = null, val fixedLabel: String? = null) {
         FILES(R.string.workspace_files),
         SITES(R.string.workspace_sites),
         TRANSFERS(R.string.workspace_transfers),
+        SYNC(null, "Sync & Backup"),
         SETTINGS(R.string.workspace_settings),
         ABOUT(R.string.workspace_about)
     }
@@ -66,6 +69,7 @@ class MainActivity : Activity() {
     private lateinit var renameRemoteNameInput: EditText
     private lateinit var uploadSelectionText: TextView
     private lateinit var transferStateText: TextView
+    private lateinit var syncBackupStatus: TextView
     private lateinit var protocolSpinner: Spinner
     private lateinit var protocolSecurityText: TextView
     private lateinit var connectButton: Button
@@ -90,6 +94,7 @@ class MainActivity : Activity() {
     private lateinit var sitesSection: View
     private lateinit var filesSection: View
     private lateinit var transfersSection: View
+    private lateinit var syncSection: View
     private lateinit var settingsSection: View
     private lateinit var aboutSection: View
     private var activeProfile: ConnectionProfile? = null
@@ -159,7 +164,26 @@ class MainActivity : Activity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != PICK_UPLOAD_REQUEST || resultCode != RESULT_OK || !uiReady()) return
+        if (resultCode != RESULT_OK || !uiReady()) return
+
+        when (requestCode) {
+            PICK_UPLOAD_REQUEST -> handleUploadSelection(data)
+            CREATE_SETTINGS_BACKUP_REQUEST -> data?.data?.let(::writeConnectionSettingsBackup)
+            RESTORE_SETTINGS_BACKUP_REQUEST -> data?.data?.let { uri ->
+                if ((data?.flags ?: 0) and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0) {
+                    runCatching {
+                        contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    }
+                }
+                restoreConnectionSettingsBackup(uri)
+            }
+        }
+    }
+
+    private fun handleUploadSelection(data: Intent?) {
         val uri = data?.data ?: return
         if (data.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0) {
             runCatching {
@@ -200,6 +224,7 @@ class MainActivity : Activity() {
         sitesSection = buildConnectionCard()
         filesSection = buildFilesCard()
         transfersSection = buildTransfersCard()
+        syncSection = buildSyncBackupCard()
         settingsSection = buildSettingsCard()
         aboutSection = buildAboutCard()
 
@@ -208,6 +233,7 @@ class MainActivity : Activity() {
             addView(filesSection)
             addView(sitesSection)
             addView(transfersSection)
+            addView(syncSection)
             addView(settingsSection)
             addView(aboutSection)
         }
@@ -389,7 +415,7 @@ class MainActivity : Activity() {
         addView(titleRow)
 
         workspaceTitle = TextView(this@MainActivity).apply {
-            text = getString(activeWorkspace.labelRes)
+            text = workspaceLabel(activeWorkspace)
             setTextColor(Brand.textSoft)
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
@@ -707,6 +733,46 @@ class MainActivity : Activity() {
         addView(activityRows)
     }
 
+    private fun buildSyncBackupCard(): View = panel().apply {
+        addView(sectionTitle(workspaceLabel(Workspace.SYNC)))
+        addView(
+            sectionDescription(
+                "Back up and restore non-secret connection settings through Android documents. Passwords are never included."
+            )
+        )
+
+        syncBackupStatus = TextView(this@MainActivity).apply {
+            text = "No settings backup has been created or restored in this session."
+            setTextColor(Brand.textSoft)
+            textSize = 13f
+            setPadding(0, dp(8), 0, dp(8))
+        }
+        addView(syncBackupStatus)
+
+        val actions = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        actions.addView(
+            trackBusySensitiveLocalAction(
+                secondaryButton("Back up settings") { createConnectionSettingsBackup() }.apply {
+                    contentDescription = "Back up settings"
+                }
+            ),
+            buttonParams(weight = 1f)
+        )
+        actions.addView(gap(8))
+        actions.addView(
+            trackBusySensitiveLocalAction(
+                secondaryButton("Restore settings") { chooseConnectionSettingsBackup() }.apply {
+                    contentDescription = "Restore settings"
+                }
+            ),
+            buttonParams(weight = 1f)
+        )
+        addView(actions)
+    }
+
     private fun buildSettingsCard(): View = panel().apply {
         addView(sectionTitle(getString(R.string.workspace_settings)))
         addView(sectionDescription(getString(R.string.desc_settings)))
@@ -761,6 +827,7 @@ class MainActivity : Activity() {
             Workspace.FILES to filesSection,
             Workspace.SITES to sitesSection,
             Workspace.TRANSFERS to transfersSection,
+            Workspace.SYNC to syncSection,
             Workspace.SETTINGS to settingsSection,
             Workspace.ABOUT to aboutSection
         )
@@ -770,9 +837,9 @@ class MainActivity : Activity() {
         workspaceNavButtons.forEach { (key, view) ->
             styleWorkspaceNavItem(view, selected = key == workspace)
         }
-        if (::workspaceTitle.isInitialized) workspaceTitle.text = getString(workspace.labelRes)
+        if (::workspaceTitle.isInitialized) workspaceTitle.text = workspaceLabel(workspace)
         if (::workspaceContainer.isInitialized) {
-            workspaceContainer.contentDescription = getString(R.string.workspace_content, getString(workspace.labelRes))
+            workspaceContainer.contentDescription = getString(R.string.workspace_content, workspaceLabel(workspace))
         }
         if (::contentScroll.isInitialized) {
             contentScroll.post {
@@ -783,7 +850,7 @@ class MainActivity : Activity() {
                 }
                 contentScroll.scrollTo(0, workspaceTop)
                 if (announce && ::workspaceContainer.isInitialized) {
-                    workspaceContainer.announceForAccessibility(getString(R.string.workspace_announce, getString(workspace.labelRes)))
+                    workspaceContainer.announceForAccessibility(getString(R.string.workspace_announce, workspaceLabel(workspace)))
                 }
             }
         }
@@ -1137,6 +1204,114 @@ class MainActivity : Activity() {
                     it.message ?: getString(R.string.msg_file_picker_unavailable_detail)
                 )
             }
+    }
+
+    private fun createConnectionSettingsBackup() {
+        if (closingOrDestroyed() || operationInFlight) return
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+            putExtra(Intent.EXTRA_TITLE, "GhostFTP-Connection.json")
+        }
+        runCatching { startActivityForResult(intent, CREATE_SETTINGS_BACKUP_REQUEST) }
+            .onFailure {
+                showMessage(workspaceLabel(Workspace.SYNC), "The Android document picker could not be opened.")
+            }
+    }
+
+    private fun chooseConnectionSettingsBackup() {
+        if (closingOrDestroyed() || operationInFlight) return
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        }
+        runCatching { startActivityForResult(intent, RESTORE_SETTINGS_BACKUP_REQUEST) }
+            .onFailure {
+                showMessage(workspaceLabel(Workspace.SYNC), "The Android document picker could not be opened.")
+            }
+    }
+
+    private fun writeConnectionSettingsBackup(uri: Uri) {
+        val protocol = ConnectionProtocol.fromIndex(protocolSpinner.selectedItemPosition)
+        val json = JSONObject()
+            .put("schemaVersion", 1)
+            .put("protocol", protocol.name)
+            .put("host", hostInput.text.toString().trim())
+            .put("port", portInput.text.toString().trim().ifBlank { protocol.defaultPort.toString() }.toIntOrNull() ?: protocol.defaultPort)
+            .put("username", usernameInput.text.toString().trim())
+            .put("hostKeyFingerprint", hostKeyFingerprintInput.text.toString().trim())
+            .put("keepAliveSeconds", sftpKeepAliveInput.text.toString().trim().ifBlank { "15" }.toIntOrNull() ?: 15)
+            .put("remotePath", remotePathInput.text.toString().trim().ifBlank { "/" })
+
+        runCatching {
+            contentResolver.openOutputStream(uri, "wt")?.use { output ->
+                output.write(json.toString(2).toByteArray(Charsets.UTF_8))
+                output.flush()
+            } ?: error("The selected backup document could not be opened for writing.")
+        }.fold(
+            onSuccess = {
+                syncBackupStatus.text = "Connection settings backed up. The session password was not exported."
+                showMessage(workspaceLabel(Workspace.SYNC), syncBackupStatus.text.toString())
+            },
+            onFailure = {
+                syncBackupStatus.text = "The connection-settings backup could not be written."
+                showMessage(workspaceLabel(Workspace.SYNC), syncBackupStatus.text.toString())
+            }
+        )
+    }
+
+    private fun restoreConnectionSettingsBackup(uri: Uri) {
+        runCatching {
+            val json = JSONObject(readBoundedDocumentText(uri))
+            require(json.optInt("schemaVersion", 0) == 1) { "Unsupported Ghost FTP backup schema." }
+
+            val protocol = ConnectionProtocol.valueOf(json.getString("protocol"))
+            val port = json.optInt("port", protocol.defaultPort)
+            require(port in 1..65535) { "Invalid port in Ghost FTP backup." }
+
+            val keepAlive = json.optInt("keepAliveSeconds", 15)
+            require(protocol != ConnectionProtocol.SFTP || keepAlive in 5..300) {
+                "Invalid SFTP keep-alive interval in Ghost FTP backup."
+            }
+
+            disconnect()
+            protocolSpinner.setSelection(protocol.ordinal)
+            hostInput.setText(json.optString("host").trim())
+            portInput.setText(port.toString())
+            usernameInput.setText(json.optString("username").trim())
+            passwordInput.text.clear()
+            hostKeyFingerprintInput.setText(json.optString("hostKeyFingerprint").trim())
+            sftpKeepAliveInput.setText(keepAlive.toString())
+            remotePathInput.setText(json.optString("remotePath", "/").trim().ifBlank { "/" })
+            selectedProtocol = protocol
+            updateProtocolSpecificFields(protocol)
+        }.fold(
+            onSuccess = {
+                syncBackupStatus.text = "Connection settings restored. Reconnect and enter the password again."
+                showMessage(workspaceLabel(Workspace.SYNC), syncBackupStatus.text.toString())
+            },
+            onFailure = {
+                syncBackupStatus.text = "The selected Ghost FTP settings backup is invalid or unreadable."
+                showMessage(workspaceLabel(Workspace.SYNC), syncBackupStatus.text.toString())
+            }
+        )
+    }
+
+    private fun readBoundedDocumentText(uri: Uri, maximumBytes: Int = 256 * 1024): String {
+        val input = contentResolver.openInputStream(uri)
+            ?: error("The selected backup document could not be opened.")
+        input.use { stream ->
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(8 * 1024)
+            while (true) {
+                val read = stream.read(buffer)
+                if (read < 0) break
+                require(output.size() + read <= maximumBytes) { "Ghost FTP settings backup is too large." }
+                output.write(buffer, 0, read)
+            }
+            return output.toString(Charsets.UTF_8.name())
+        }
     }
 
     private fun runTransfer(
@@ -1517,10 +1692,14 @@ class MainActivity : Activity() {
         background = rounded(Brand.badge, dp(999), Brand.border)
     }
 
+    private fun workspaceLabel(workspace: Workspace): String =
+        workspace.labelRes?.let { getString(it) } ?: workspace.fixedLabel ?: workspace.name
+
     private fun workspaceNavItem(workspace: Workspace): TextView {
+        val label = workspaceLabel(workspace)
         val view = TextView(this).apply {
-            text = getString(workspace.labelRes)
-            contentDescription = getString(R.string.workspace_open, getString(workspace.labelRes))
+            text = label
+            contentDescription = getString(R.string.workspace_open, label)
             textSize = if (resources.configuration.screenWidthDp >= 600) 13f else 11f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
@@ -1627,6 +1806,8 @@ class MainActivity : Activity() {
 
     private companion object {
         const val PICK_UPLOAD_REQUEST = 22091
+        const val CREATE_SETTINGS_BACKUP_REQUEST = 22092
+        const val RESTORE_SETTINGS_BACKUP_REQUEST = 22093
         const val MAX_ACTIVITY_ROWS = 8
 
         const val STATE_PROTOCOL = "ghostftp.protocol"

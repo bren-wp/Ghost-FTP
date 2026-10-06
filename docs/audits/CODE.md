@@ -1,8 +1,8 @@
-# Ghost FTP Code Audit — 0.30.10
+# Ghost FTP Code Audit — 0.30.11
 
 ## Scope
 
-This audit covers the current Ghost FTP 0.30.10 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.30.9**.
+This audit covers the current Ghost FTP 0.30.11 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.30.10**.
 
 ## Dead-code and reachability evidence
 
@@ -11,7 +11,9 @@ This audit covers the current Ghost FTP 0.30.10 source line: Windows/Linux deskt
 - 0.20.9 adds a Rust crate module-graph guard so orphan `.rs` files that are never compiled cannot silently remain in `src/`.
 - CI/update/Android MJS and shell entrypoints must have a real workflow, package, runbook or helper reference.
 - Operational MJS and shell files receive syntax checks in Quality.
-- Android remains Gradle-source-set compiled and gated by lint/build, the Android production contract and emulator instrumentation.
+- Android remains Gradle-source-set compiled and gated by lint/build, the Android production contract, emulator instrumentation and declaration-only private Kotlin symbol audit.
+- macOS now has a declaration-only private Swift symbol audit in addition to Swift unit tests and release build verification.
+- Cross-platform shell parity is release-blocking: Windows/Linux, Android and macOS must retain New connection plus Files, Sites, Transfers, Sync & Backup, Settings and Help & About.
 - Go runtime/installer compatibility tools remain covered by `go test` and `go vet`.
 - CSS remains exercised through the production frontend build and UI contract checks rather than being deleted by selector-name heuristics.
 

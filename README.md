@@ -39,12 +39,12 @@
 
 ## Current status
 
-- **Active source/release cycle:** `0.30.10`.
-- **Previous canonical release:** `0.30.9`.
+- **Active source/release cycle:** `0.30.11`.
+- **Previous canonical release:** `0.30.10`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
-- **macOS development source:** `macos/` — dedicated SwiftUI client with its own security/build gate. 0.30.10 extends the separately verified macOS Preview with real streamed plain-FTP upload/download in addition to the control session and EPSV/MLSD directory browsing; it is not yet a notarized production deliverable.
+- **macOS development source:** `macos/` — dedicated SwiftUI client with its own security/build gate. 0.30.11 extends the separately verified macOS Preview with the same six-workspace shell used by the Windows/Linux reference, credential-free transfer history and password-free site backup/restore in addition to real plain-FTP browsing/upload/download; it is not yet a notarized production deliverable.
 - **No website application is maintained in this repository.** Releases, source, documentation and support/security material live in GitHub/repository artifacts.
 
 ## Product scope

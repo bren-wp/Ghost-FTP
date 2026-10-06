@@ -1,3 +1,17 @@
+## 0.30.11 — cross-platform workspace parity and connection health — 6 October 2026
+
+- Aligns macOS to the Windows/Linux six-workspace shell: Files, Sites, Transfers, Sync & Backup, Settings and Help & About, plus New connection.
+- Removes the separate macOS Settings window and keeps primary navigation inside one persistent app shell.
+- Adds credential-free macOS transfer history and password-free site profile backup/restore with regression tests.
+- Fixes macOS transfer/save-panel interpolation so actual file names are displayed.
+- Adds Android Sync & Backup with system-document JSON export/restore, a 256 KiB restore bound and explicit password exclusion.
+- Extends Android emulator smoke to click through the new workspace.
+- Adds Windows/Linux live connection-health status with visible Healthy / Checking / Needs attention states and visible-window periodic probes.
+- Adds cross-platform workspace parity CI and a macOS private Swift dead-code audit while preserving existing TypeScript, Rust and Android audits.
+- Bounds macOS profile restore input and recovers interrupted persisted transfers as Cancelled on the next launch.
+
+See [docs/releases/0.30.11.md](docs/releases/0.30.11.md).
+
 ## 0.30.10 — streamed macOS FTP upload and download — 6 October 2026
 
 - Adds real macOS plain-FTP `STOR` upload and `RETR` download over extended-passive data connections.

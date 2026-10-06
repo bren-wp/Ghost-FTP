@@ -1,10 +1,10 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 0.30.10 development/release source. Previous canonical release: **0.30.9**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.30.11 development/release source. Previous canonical release: **0.30.10**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cross-app shared actions
 
-Implemented on Windows, Linux and Android:
+Implemented on Windows, Linux and Android; macOS now follows the same primary workspace model while protocol parity continues incrementally:
 
 - FTP, explicit FTPS and SFTP connect/disconnect.
 - Remote folder listing and refresh.

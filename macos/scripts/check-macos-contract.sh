@@ -13,10 +13,13 @@ for file in \
   "macos/Sources/GhostFTPMacApp/Services/EndpointProbe.swift" \
   "macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift" \
   "macos/Sources/GhostFTPMacApp/Services/FTPConnectionController.swift" \
+  "macos/Sources/GhostFTPMacApp/Services/TransferHistoryStore.swift" \
   "macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift" \
   "macos/Sources/GhostFTPMacApp/Views/ContentView.swift" \
+  "macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift" \
   "macos/Tests/GhostFTPMacAppTests/ConnectionValidatorTests.swift" \
-  "macos/Tests/GhostFTPMacAppTests/FTPControlSessionTests.swift"; do
+  "macos/Tests/GhostFTPMacAppTests/FTPControlSessionTests.swift" \
+  "macos/Tests/GhostFTPMacAppTests/WorkspaceStoreTests.swift"; do
   test -s "$file" || { echo "Required macOS source missing: $file" >&2; exit 1; }
 done
 
@@ -55,6 +58,62 @@ grep -Fq 'Upload file' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
 grep -Fq 'chooseDownload' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
 grep -Fq 'Remember password in macOS Keychain' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
 grep -Fq 'verifies TCP reachability only' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
+grep -Fq 'case files' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'case sites' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'case transfers' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'case sync' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'case settings' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'case about' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'New connection' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'Sync & Backup' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'TransferHistoryStore.shared' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'exportProfiles()' macos/Sources/GhostFTPMacApp/Services/ProfileStore.swift
+grep -Fq 'importProfiles(from data: Data)' macos/Sources/GhostFTPMacApp/Services/ProfileStore.swift
+grep -Fq 'maximumRecords = 200' macos/Sources/GhostFTPMacApp/Services/TransferHistoryStore.swift
+grep -Fq 'status == .running' macos/Sources/GhostFTPMacApp/Services/TransferHistoryStore.swift
+grep -Fq 'readBoundedBackup(' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'maximumBytes: Int = 256 * 1024' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'history.begin(direction: .upload' macos/Sources/GhostFTPMacApp/Services/FTPConnectionController.swift
+grep -Fq 'history.begin(direction: .download' macos/Sources/GhostFTPMacApp/Services/FTPConnectionController.swift
+
+if grep -Fq 'Settings {' macos/Sources/GhostFTPMacApp/GhostFTPMacApp.swift; then
+  echo "macOS app must keep Settings inside the single persistent workspace shell." >&2
+  exit 1
+fi
+
+
+audit_private_swift_symbols() {
+  python3 - "macos/Sources/GhostFTPMacApp" <<'PY'
+import pathlib
+import re
+import sys
+
+root = pathlib.Path(sys.argv[1])
+dead = []
+declaration = re.compile(r"\bprivate\s+(?:(?:static|class)\s+)?(?:func|var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\b")
+
+for path in sorted(root.rglob("*.swift")):
+    source = path.read_text(encoding="utf-8")
+    code = re.sub(r"/\*[\s\S]*?\*/", " ", source)
+    code = re.sub(r"//[^\n]*", " ", code)
+    code = re.sub(r'"(?:\\.|[^"\\])*"', '""', code)
+
+    for match in declaration.finditer(code):
+        name = match.group(1)
+        if len(re.findall(rf"\b{re.escape(name)}\b", code)) < 2:
+            dead.append(f"{path.relative_to(root)}: {name}")
+
+if dead:
+    print("macOS contract failed: declaration-only private Swift symbols detected:", file=sys.stderr)
+    for item in dead:
+        print(f" - {item}", file=sys.stderr)
+    sys.exit(1)
+
+print("macOS private Swift symbol audit OK")
+PY
+}
+
+audit_private_swift_symbols
 
 if grep -RniE '(TODO|FIXME|placeholder|demo)' macos/Sources macos/Tests; then
   echo "macOS source contains development markers." >&2
