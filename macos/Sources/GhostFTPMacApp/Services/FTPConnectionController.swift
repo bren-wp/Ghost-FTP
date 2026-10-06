@@ -156,7 +156,7 @@ final class FTPConnectionController: ObservableObject {
             do {
                 try await session.uploadFile(from: localURL, remoteName: remoteName)
                 guard !Task.isCancelled else { return }
-                transferState = .completed("Uploaded \\(remoteName)")
+                transferState = .completed("Uploaded \(remoteName)")
                 await refreshDirectoryInternal()
             } catch is CancellationError {
                 transferState = .idle
@@ -185,7 +185,7 @@ final class FTPConnectionController: ObservableObject {
             do {
                 try await session.downloadFile(remoteName: entry.name, to: localURL)
                 guard !Task.isCancelled else { return }
-                transferState = .completed("Downloaded \\(entry.name)")
+                transferState = .completed("Downloaded \(entry.name)")
             } catch is CancellationError {
                 transferState = .idle
             } catch {
