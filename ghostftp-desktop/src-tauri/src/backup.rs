@@ -186,7 +186,7 @@ fn credential_target_allowed(service: &str, account: &str) -> bool {
 }
 
 fn validate_export_password(password: &str) -> Result<()> {
-    let len = password.as_bytes().len();
+    let len = password.len();
     if len < MIN_EXPORT_PASSWORD_BYTES {
         bail!("backup password must be at least {MIN_EXPORT_PASSWORD_BYTES} bytes");
     }
@@ -200,25 +200,30 @@ fn validate_decrypt_password(password: &str) -> Result<()> {
     if password.is_empty() {
         bail!("a backup password is required");
     }
-    if password.as_bytes().len() > MAX_BACKUP_PASSWORD_BYTES {
+    if password.len() > MAX_BACKUP_PASSWORD_BYTES {
         bail!("backup password exceeds the maximum supported length");
     }
     Ok(())
 }
 
+fn wipe_string(value: &mut String) {
+    let mut bytes = std::mem::take(value).into_bytes();
+    bytes.fill(0);
+}
+
 fn clear_archive_memory(archive: &mut Archive) {
     if let Some(value) = archive.profiles_json.as_mut() {
-        value.clear();
+        wipe_string(value);
     }
     if let Some(value) = archive.bridge_json.as_mut() {
-        value.clear();
+        wipe_string(value);
     }
     if let Some(value) = archive.foldersync_json.as_mut() {
-        value.clear();
+        wipe_string(value);
     }
-    archive.ghostftp_db_b64.clear();
+    wipe_string(&mut archive.ghostftp_db_b64);
     for credential in &mut archive.credentials {
-        credential.secret.clear();
+        wipe_string(&mut credential.secret);
     }
 }
 
@@ -329,7 +334,7 @@ pub fn import(dir: &Path, password: &str, src: &Path, defer: bool) -> Result<Bac
         if let Ok(entry) = keyring::Entry::new(&c.service, &c.account) {
             let _ = entry.set_password(&c.secret);
         }
-        c.secret.clear();
+        wipe_string(&mut c.secret);
     }
 
     if !defer {
