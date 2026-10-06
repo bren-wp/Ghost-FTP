@@ -105,7 +105,11 @@ struct ContentView: View {
     private var workspaceDetail: some View {
         switch workspace {
         case .files:
-            FilesWorkspace(profiles: profiles, selectedID: $selectedSiteID)
+            FilesWorkspace(
+                profiles: profiles,
+                selectedID: $selectedSiteID,
+                onOpenSites: { workspace = .sites }
+            )
         case .sites:
             SitesWorkspace(
                 profiles: profiles,
