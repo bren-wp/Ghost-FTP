@@ -39,11 +39,11 @@ import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
 class MainActivity : Activity() {
-    private enum class Workspace(val labelRes: Int) {
+    private enum class Workspace(val labelRes: Int? = null, val fixedLabel: String? = null) {
         FILES(R.string.workspace_files),
         SITES(R.string.workspace_sites),
         TRANSFERS(R.string.workspace_transfers),
-        SYNC(R.string.workspace_sync),
+        SYNC(null, "Sync & Backup"),
         SETTINGS(R.string.workspace_settings),
         ABOUT(R.string.workspace_about)
     }
@@ -415,7 +415,7 @@ class MainActivity : Activity() {
         addView(titleRow)
 
         workspaceTitle = TextView(this@MainActivity).apply {
-            text = getString(activeWorkspace.labelRes)
+            text = workspaceLabel(activeWorkspace)
             setTextColor(Brand.textSoft)
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
@@ -734,7 +734,7 @@ class MainActivity : Activity() {
     }
 
     private fun buildSyncBackupCard(): View = panel().apply {
-        addView(sectionTitle(getString(R.string.workspace_sync)))
+        addView(sectionTitle(workspaceLabel(Workspace.SYNC)))
         addView(
             sectionDescription(
                 "Back up and restore non-secret connection settings through Android documents. Passwords are never included."
@@ -833,9 +833,9 @@ class MainActivity : Activity() {
         workspaceNavButtons.forEach { (key, view) ->
             styleWorkspaceNavItem(view, selected = key == workspace)
         }
-        if (::workspaceTitle.isInitialized) workspaceTitle.text = getString(workspace.labelRes)
+        if (::workspaceTitle.isInitialized) workspaceTitle.text = workspaceLabel(workspace)
         if (::workspaceContainer.isInitialized) {
-            workspaceContainer.contentDescription = getString(R.string.workspace_content, getString(workspace.labelRes))
+            workspaceContainer.contentDescription = getString(R.string.workspace_content, workspaceLabel(workspace))
         }
         if (::contentScroll.isInitialized) {
             contentScroll.post {
@@ -846,7 +846,7 @@ class MainActivity : Activity() {
                 }
                 contentScroll.scrollTo(0, workspaceTop)
                 if (announce && ::workspaceContainer.isInitialized) {
-                    workspaceContainer.announceForAccessibility(getString(R.string.workspace_announce, getString(workspace.labelRes)))
+                    workspaceContainer.announceForAccessibility(getString(R.string.workspace_announce, workspaceLabel(workspace)))
                 }
             }
         }
@@ -1211,7 +1211,7 @@ class MainActivity : Activity() {
         }
         runCatching { startActivityForResult(intent, CREATE_SETTINGS_BACKUP_REQUEST) }
             .onFailure {
-                showMessage(getString(R.string.workspace_sync), "The Android document picker could not be opened.")
+                showMessage(workspaceLabel(Workspace.SYNC), "The Android document picker could not be opened.")
             }
     }
 
@@ -1224,7 +1224,7 @@ class MainActivity : Activity() {
         }
         runCatching { startActivityForResult(intent, RESTORE_SETTINGS_BACKUP_REQUEST) }
             .onFailure {
-                showMessage(getString(R.string.workspace_sync), "The Android document picker could not be opened.")
+                showMessage(workspaceLabel(Workspace.SYNC), "The Android document picker could not be opened.")
             }
     }
 
@@ -1248,11 +1248,11 @@ class MainActivity : Activity() {
         }.fold(
             onSuccess = {
                 syncBackupStatus.text = "Connection settings backed up. The session password was not exported."
-                showMessage(getString(R.string.workspace_sync), syncBackupStatus.text.toString())
+                showMessage(workspaceLabel(Workspace.SYNC), syncBackupStatus.text.toString())
             },
             onFailure = {
                 syncBackupStatus.text = "The connection-settings backup could not be written."
-                showMessage(getString(R.string.workspace_sync), syncBackupStatus.text.toString())
+                showMessage(workspaceLabel(Workspace.SYNC), syncBackupStatus.text.toString())
             }
         )
     }
@@ -1285,11 +1285,11 @@ class MainActivity : Activity() {
         }.fold(
             onSuccess = {
                 syncBackupStatus.text = "Connection settings restored. Reconnect and enter the password again."
-                showMessage(getString(R.string.workspace_sync), syncBackupStatus.text.toString())
+                showMessage(workspaceLabel(Workspace.SYNC), syncBackupStatus.text.toString())
             },
             onFailure = {
                 syncBackupStatus.text = "The selected Ghost FTP settings backup is invalid or unreadable."
-                showMessage(getString(R.string.workspace_sync), syncBackupStatus.text.toString())
+                showMessage(workspaceLabel(Workspace.SYNC), syncBackupStatus.text.toString())
             }
         )
     }
@@ -1688,10 +1688,14 @@ class MainActivity : Activity() {
         background = rounded(Brand.badge, dp(999), Brand.border)
     }
 
+    private fun workspaceLabel(workspace: Workspace): String =
+        workspace.labelRes?.let(::getString) ?: workspace.fixedLabel ?: workspace.name
+
     private fun workspaceNavItem(workspace: Workspace): TextView {
+        val label = workspaceLabel(workspace)
         val view = TextView(this).apply {
-            text = getString(workspace.labelRes)
-            contentDescription = getString(R.string.workspace_open, getString(workspace.labelRes))
+            text = label
+            contentDescription = getString(R.string.workspace_open, label)
             textSize = if (resources.configuration.screenWidthDp >= 600) 13f else 11f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
