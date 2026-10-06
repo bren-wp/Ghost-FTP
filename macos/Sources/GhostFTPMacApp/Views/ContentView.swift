@@ -4,32 +4,10 @@ import SwiftUI
 struct FilesWorkspace: View {
     @ObservedObject var profiles: ProfileStore
     @Binding var selectedID: UUID?
+    let onOpenSites: () -> Void
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selectedID) {
-                Section("Sites") {
-                    ForEach(profiles.profiles) { profile in
-                        Label(
-                            profile.name.isEmpty ? "New site" : profile.name,
-                            systemImage: profile.protocolKind == .sftp ? "lock.shield" : "server.rack"
-                        )
-                        .tag(profile.id)
-                    }
-                }
-            }
-            .navigationTitle("Ghost FTP")
-            .toolbar {
-                ToolbarItem {
-                    Button {
-                        let profile = profiles.addProfile()
-                        selectedID = profile.id
-                    } label: {
-                        Label("New site", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
+        Group {
             if let selectedID,
                let profile = profiles.profiles.first(where: { $0.id == selectedID }) {
                 ConnectionEditor(
@@ -43,19 +21,24 @@ struct FilesWorkspace: View {
                 )
                 .id(profile.id)
             } else {
-                VStack(spacing: 12) {
+                VStack(spacing: 14) {
                     Image(systemName: "externaldrive.connected.to.line.below")
                         .font(.system(size: 42))
                         .foregroundStyle(.secondary)
                     Text("Choose a site")
                         .font(.title2.weight(.semibold))
-                    Text("Select a saved site or create a new one.")
+                    Text("Open Sites to select a saved connection, or use New connection in the sidebar.")
+                        .multilineTextAlignment(.center)
                         .foregroundStyle(.secondary)
+                    Button("Open Sites") {
+                        onOpenSites()
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(24)
             }
         }
-        .frame(minWidth: 900, minHeight: 600)
+        .frame(minWidth: 760, minHeight: 600)
     }
 }
 
