@@ -75,6 +75,16 @@ final class FTPControlSessionTests: XCTestCase {
     }
 
 
+    func testRemoteTransferNameRejectsTraversalAndCommandInjection() {
+        for value in ["", ".", "..", "nested/file.txt", "bad\r\nDELE target"] {
+            XCTAssertThrowsError(try FTPControlCodec.validateRemoteFileName(value))
+        }
+
+        XCTAssertNoThrow(try FTPControlCodec.validateRemoteFileName("archive 2026.zip"))
+        XCTAssertNoThrow(try FTPControlCodec.validateRemoteFileName("name\\with-backslash.txt"))
+    }
+
+
     func testExtendedPassivePortParsesEPSVReply() throws {
         let reply = FTPReply(
             code: 229,
