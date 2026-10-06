@@ -11,19 +11,6 @@
 
 See [docs/releases/0.30.10.md](docs/releases/0.30.10.md).
 
-## 0.30.10 — streamed macOS FTP upload and download — 6 October 2026
-
-- Adds real macOS plain-FTP `STOR` upload and `RETR` download over extended-passive data connections.
-- Streams file payloads in 64 KiB chunks instead of buffering whole transfers in memory.
-- Downloads to sibling `.ghostftp-*.part` staging files and promotes only after a successful FTP completion reply.
-- Uses explicit macOS open/save panels and security-scoped URL access for user-selected files.
-- Rejects invalid/traversal-style and command-injected remote transfer names before issuing FTP commands.
-- Fails the FTP session closed after ambiguous transfer failure so stale control replies cannot contaminate later operations.
-- Refreshes MLSD directory state after successful uploads and exposes transfer progress/state in the SwiftUI Preview.
-- Keeps FTPS/SFTP on macOS explicitly unfinished until real TLS/SSH verification is implemented.
-
-See [docs/releases/0.30.10.md](docs/releases/0.30.10.md).
-
 ## 0.30.9 — real macOS FTP browsing and cross-platform connection health — 6 October 2026
 
 - Hardens connection host parsing across desktop, Android and macOS so URL/credential/path/inline-port/control-character input fails before transport use.
