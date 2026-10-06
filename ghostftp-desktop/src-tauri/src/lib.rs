@@ -410,6 +410,7 @@ pub fn run() {
             commands::test_profile_connection,
             commands::test_ephemeral_connection,
             commands::connect,
+            commands::check_session_health,
             commands::connect_ephemeral,
             commands::disconnect,
             commands::discover_agents,
