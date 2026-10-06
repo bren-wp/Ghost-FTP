@@ -8,6 +8,7 @@
 - Fails the FTP session closed after ambiguous transfer failure so stale control replies cannot contaminate later operations.
 - Refreshes MLSD directory state after successful uploads and exposes transfer progress/state in the SwiftUI Preview.
 - Keeps FTPS/SFTP on macOS explicitly unfinished until real TLS/SSH verification is implemented.
+- Updates the locked `source-map-js` build dependency to 1.2.2 instead of suppressing the high-severity audit finding.
 
 See [docs/releases/0.30.10.md](docs/releases/0.30.10.md).
 
