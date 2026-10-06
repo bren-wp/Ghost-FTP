@@ -1,6 +1,7 @@
 ## 0.30.12 — privacy and security hardening — 6 October 2026
 
-- Hardens Windows/Linux encrypted backup restore with bounded input/decompression, Ghost FTP-only credential targets, private staging files, stronger new-backup password policy, earlier in-memory secret cleanup and guaranteed temporary snapshot cleanup.
+- Hardens Windows/Linux encrypted backup restore with bounded input/decompression, Ghost FTP-only credential targets, private staging files, stronger new-backup password policy, explicit in-memory secret overwrites, command-layer secret wiping and guaranteed temporary snapshot cleanup.
+- Prevents credential-bearing MCP child-process stderr from being reflected into UI diagnostics.
 - Adds Android secure-window, tapjacking resistance and removal of persistent document grants while retaining memory-only passwords and strict FTPS/SFTP verification.
 - Tightens macOS Keychain storage to unlocked, device-only, non-synchronizing items and validates/bounds password-free profile backup restore.
 - Extends release-blocking security contracts and regression tests across desktop, Android and macOS.
