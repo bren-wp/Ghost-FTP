@@ -68,6 +68,8 @@ private struct ConnectionEditor: View {
     @State private var validationMessage: String?
     @State private var credentialMessage: String?
     @StateObject private var probe = EndpointProbe()
+    @StateObject private var ftpSession = FTPConnectionController()
+    @State private var remoteDirectory = ""
 
     private let keychain = KeychainStore()
 
@@ -94,6 +96,8 @@ private struct ConnectionEditor: View {
                 .onChange(of: draft.protocolKind) { newValue in
                     draft.port = newValue.defaultPort
                     probe.cancel()
+                    ftpSession.cancel()
+                    remoteDirectory = ""
                 }
 
                 TextField("Server", text: $draft.host)
@@ -195,6 +199,61 @@ private struct ConnectionEditor: View {
                 }
             }
 
+            if draft.protocolKind == .ftp {
+                Section("FTP session") {
+                    HStack {
+                        if ftpSession.isConnected {
+                            Button("Disconnect") {
+                                ftpSession.disconnect()
+                            }
+                        } else {
+                            Button {
+                                openFTPSession()
+                            } label: {
+                                if ftpSession.state == .connecting {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Connecting…")
+                                } else {
+                                    Label("Open FTP session", systemImage: "bolt.horizontal.circle")
+                                }
+                            }
+                            .disabled(ftpSession.state == .connecting)
+                        }
+
+                        ftpSessionStatus
+                    }
+
+                    if ftpSession.isConnected {
+                        HStack {
+                            TextField("Remote directory", text: $remoteDirectory)
+                                .textFieldStyle(.roundedBorder)
+
+                            Button("Change directory") {
+                                ftpSession.changeDirectory(to: remoteDirectory)
+                            }
+                            .disabled(remoteDirectory.isEmpty)
+
+                            Button {
+                                ftpSession.refreshWorkingDirectory()
+                            } label: {
+                                Label("Refresh PWD", systemImage: "arrow.clockwise")
+                            }
+                        }
+
+                        Button {
+                            ftpSession.verifyConnection()
+                        } label: {
+                            Label("Check session with NOOP", systemImage: "checkmark.shield")
+                        }
+                    }
+
+                    Text("This opens a real unencrypted FTP control session and performs server greeting, USER/PASS authentication and binary-mode setup. FTPS and SFTP session engines are not enabled by this control.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section {
                 HStack {
                     Button("Delete site", role: .destructive) {
@@ -223,8 +282,14 @@ private struct ConnectionEditor: View {
                 credentialMessage = "The saved credential could not be read from macOS Keychain."
             }
         }
+        .onChange(of: ftpSession.state) { newValue in
+            if case .connected(let path) = newValue {
+                remoteDirectory = path
+            }
+        }
         .onDisappear {
             probe.cancel()
+            ftpSession.cancel()
         }
     }
 
@@ -238,6 +303,24 @@ private struct ConnectionEditor: View {
                 .foregroundStyle(.secondary)
         case .reachable:
             Label("Endpoint reachable", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+        case .failed(let message):
+            Label(message, systemImage: "xmark.circle.fill")
+                .foregroundStyle(.red)
+        }
+    }
+
+    @ViewBuilder
+    private var ftpSessionStatus: some View {
+        switch ftpSession.state {
+        case .idle:
+            Text("Not connected")
+                .foregroundStyle(.secondary)
+        case .connecting:
+            Text("Authenticating…")
+                .foregroundStyle(.secondary)
+        case .connected(let path):
+            Label("Connected · \(path)", systemImage: "checkmark.circle.fill")
                 .foregroundStyle(.green)
         case .failed(let message):
             Label(message, systemImage: "xmark.circle.fill")
@@ -259,6 +342,12 @@ private struct ConnectionEditor: View {
     private func checkEndpoint() {
         guard validate() else { return }
         probe.check(draft)
+    }
+
+    private func openFTPSession() {
+        guard validate() else { return }
+        guard draft.protocolKind == .ftp else { return }
+        ftpSession.connect(profile: draft, password: password)
     }
 
     private func save() {
