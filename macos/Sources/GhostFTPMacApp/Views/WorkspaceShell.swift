@@ -411,11 +411,11 @@ private struct SettingsWorkspace: View {
 }
 
 private struct AboutWorkspace: View {
-    private var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Preview"
-    }
-
     var body: some View {
+        let version =
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+            ?? "Preview"
+
         VStack(alignment: .leading, spacing: 18) {
             workspaceHeader(
                 title: "Help & About",
