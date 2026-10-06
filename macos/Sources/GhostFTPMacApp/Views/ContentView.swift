@@ -1,9 +1,9 @@
 import AppKit
 import SwiftUI
 
-struct ContentView: View {
-    @StateObject private var profiles = ProfileStore()
-    @State private var selectedID: UUID?
+struct FilesWorkspace: View {
+    @ObservedObject var profiles: ProfileStore
+    @Binding var selectedID: UUID?
 
     var body: some View {
         NavigationSplitView {
@@ -380,10 +380,10 @@ private struct ConnectionEditor: View {
         case .idle:
             EmptyView()
         case .uploading(let name):
-            Label("Uploading (name)…", systemImage: "arrow.up.circle")
+            Label("Uploading \\(name)…", systemImage: "arrow.up.circle")
                 .foregroundStyle(.secondary)
         case .downloading(let name):
-            Label("Downloading (name)…", systemImage: "arrow.down.circle")
+            Label("Downloading \\(name)…", systemImage: "arrow.down.circle")
                 .foregroundStyle(.secondary)
         case .completed(let message):
             Label(message, systemImage: "checkmark.circle.fill")
@@ -451,7 +451,7 @@ private struct ConnectionEditor: View {
         guard ftpSession.isConnected, !ftpSession.isTransferring, !entry.isDirectory else { return }
 
         let panel = NSSavePanel()
-        panel.title = "Save (entry.name)"
+        panel.title = "Save \\(entry.name)"
         panel.nameFieldStringValue = entry.name
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
