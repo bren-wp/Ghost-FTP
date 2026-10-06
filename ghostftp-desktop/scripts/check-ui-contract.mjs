@@ -400,6 +400,45 @@ for (const forbidden of ["Secure Connections", "Fast Transfers", "Modern Interfa
   if (sidebar.includes(forbidden)) failures.push(`Primary sidebar still contains duplicate/noisy navigation: ${forbidden}`);
 }
 
+const statusBar = read("src/components/ReferenceStatusBar.tsx");
+for (const required of [
+  "Check connection health",
+  "Needs attention",
+  "document.visibilityState === \"visible\"",
+  "window.setInterval(probe, 30_000)",
+  "window.addEventListener(\"focus\", probe)",
+  "checkHealth(activeSessionId)",
+]) {
+  if (!statusBar.includes(required)) failures.push(`Desktop status bar missing live connection-health contract: ${required}`);
+}
+
+const androidShell = read("../android/app/src/main/java/com/ghostftp/android/MainActivity.kt");
+for (const required of [
+  "FILES(R.string.workspace_files)",
+  "SITES(R.string.workspace_sites)",
+  "TRANSFERS(R.string.workspace_transfers)",
+  'SYNC(null, "Sync & Backup")',
+  "SETTINGS(R.string.workspace_settings)",
+  "ABOUT(R.string.workspace_about)",
+  "buildNavigationRail()",
+]) {
+  if (!androidShell.includes(required)) failures.push(`Android workspace parity missing: ${required}`);
+}
+
+const macShell = read("../macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
+for (const required of [
+  "New connection",
+  "case files",
+  "case sites",
+  "case transfers",
+  "case sync",
+  "case settings",
+  "case about",
+  'case .sync: return "Sync & Backup"',
+]) {
+  if (!macShell.includes(required)) failures.push(`macOS workspace parity missing: ${required}`);
+}
+
 const siteManagerCloud = read("src/components/SiteManagerDialog.tsx");
 for (const required of ['view === "cloud"', 'label="Cloud"', "s3", "azure", "gcs"]) {
   if (!siteManagerCloud.includes(required)) failures.push(`Sites must retain discoverable cloud filtering: ${required}`);
@@ -471,6 +510,9 @@ for (const required of [
   'trackConnection(`saved:${profileId}`',
   'trackConnection(`temporary:${profile.id}`',
   "connecting: pendingConnections.size > 0",
+  'export type ConnectionHealthState = "unknown" | "checking" | "healthy" | "unhealthy"',
+  "checkHealth: async (sessionId)",
+  "ipc.checkSessionHealth(sid)",
 ]) {
   if (!connectionsStore.includes(required)) {
     failures.push(`Connection startup must deduplicate concurrent native connects: ${required}`);
