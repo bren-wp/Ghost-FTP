@@ -1,5 +1,7 @@
 <div align="center">
 
+Current source/release cycle: **0.30.12**. Previous canonical release: **0.30.11**.
+
 <img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="430">
 
 ### More Than Transfer. Total Control.
