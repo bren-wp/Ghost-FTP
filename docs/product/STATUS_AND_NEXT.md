@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.30.11 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.30.12 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.30.10**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.30.11**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
