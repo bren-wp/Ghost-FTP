@@ -83,6 +83,18 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.records, history.records)
     }
 
+    func testRunningTransferIsRecoveredAsCancelledAfterRestart() {
+        let defaults = isolatedDefaults("transfer-recovery")
+        let history = TransferHistoryStore(defaults: defaults)
+        _ = history.begin(direction: .download, fileName: "interrupted.zip")
+
+        let reloaded = TransferHistoryStore(defaults: defaults)
+
+        XCTAssertEqual(reloaded.records.count, 1)
+        XCTAssertEqual(reloaded.records.first?.status, .cancelled)
+        XCTAssertNotNil(reloaded.records.first?.finishedAt)
+    }
+
     func testTransferHistoryIsBoundedToTwoHundredRecords() {
         let history = TransferHistoryStore(defaults: isolatedDefaults("transfer-limit"))
 
