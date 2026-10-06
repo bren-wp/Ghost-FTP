@@ -1,8 +1,8 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.30.10 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.30.11 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.30.9**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.30.10**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
@@ -17,7 +17,7 @@ Previous canonical release: **0.30.9**. Live publication state is determined fro
 | Productivity | Docked terminal, command palette, snippets, shortcuts and shell integration |
 | Preferences | Themes, language, transfer limits, security settings, notifications and advanced controls |
 | Security/privacy | OS credential storage where supported, CSP, signed-updater path, credential redaction and no required telemetry |
-| Android | Native FTP, explicit FTPS and SFTP connection/listing/download/upload/delete/new-folder actions aligned to desktop Files/Sites/Transfers terminology |
+| Android | Native FTP, explicit FTPS and SFTP connection/listing/download/upload/delete/new-folder actions plus Files/Sites/Transfers/Sync & Backup/Settings/Help & About workspace parity |
 | Platforms | Windows portable + NSIS Setup; Linux binary/AppImage/DEB/RPM; Android APK; macOS ad-hoc-signed development Preview |
 | Release QA | Quality, protocol E2E, canonical native build, Android, Windows hardening and macOS exact-head gates |
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
