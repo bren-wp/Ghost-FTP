@@ -9,7 +9,7 @@ A successful compile is not equivalent to stable/FINAL acceptance.
 1. Start from current `main`.
 2. Make meaningful product/code/documentation changes.
 3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
-4. Keep the previous canonical release recorded in `previousVersion` (currently `0.30.10` for the 0.30.12 cycle).
+4. Keep the previous canonical release recorded in `previousVersion` (currently `0.30.11` for the 0.30.12 cycle).
 5. Open a PR.
 6. Require exact-head success for:
    - Ghost FTP quality
