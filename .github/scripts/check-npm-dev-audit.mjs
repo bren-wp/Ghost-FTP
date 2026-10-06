@@ -49,8 +49,21 @@ let sawExpectedRoot = false;
 for (const [name, finding] of severe) {
   for (const via of finding.via ?? []) {
     if (typeof via === "string") {
+      const transitive = vulnerabilities[via];
+      const transitiveIsSevere =
+        transitive?.severity === "high" || transitive?.severity === "critical";
+
+      // npm propagates lower-severity dependency findings into an aggregate
+      // high-severity parent. This policy blocks high/critical development
+      // advisories; a moderate/low intermediary must not be reclassified as
+      // high merely because the same parent also reaches the allowed braces
+      // advisory through another dependency path.
+      if (transitive && !transitiveIsSevere) {
+        continue;
+      }
+
       if (!names.has(via) || !allowedPackages.has(via)) {
-        throw new Error(`Unexpected transitive npm advisory path for ${name}: ${via}`);
+        throw new Error(`Unexpected high/critical transitive npm advisory path for ${name}: ${via}`);
       }
       continue;
     }

@@ -10,9 +10,18 @@ final class FTPConnectionController: ObservableObject {
         case failed(String)
     }
 
+    enum TransferState: Equatable {
+        case idle
+        case uploading(String)
+        case downloading(String)
+        case completed(String)
+        case failed(String)
+    }
+
     @Published private(set) var state: State = .idle
     @Published private(set) var entries: [FTPDirectoryEntry] = []
     @Published private(set) var isListing = false
+    @Published private(set) var transferState: TransferState = .idle
 
     private let session = FTPControlSession()
     private var operation: Task<Void, Never>?
@@ -22,6 +31,15 @@ final class FTPConnectionController: ObservableObject {
             return true
         }
         return false
+    }
+
+    var isTransferring: Bool {
+        switch transferState {
+        case .uploading, .downloading:
+            return true
+        default:
+            return false
+        }
     }
 
     var workingDirectory: String? {
@@ -118,6 +136,65 @@ final class FTPConnectionController: ObservableObject {
         }
     }
 
+    func uploadFile(from localURL: URL) {
+        guard isConnected, !isTransferring else { return }
+        let remoteName = localURL.lastPathComponent
+        guard !remoteName.isEmpty else { return }
+
+        transferState = .uploading(remoteName)
+        operation?.cancel()
+        operation = Task { [weak self] in
+            guard let self else { return }
+
+            let scoped = localURL.startAccessingSecurityScopedResource()
+            defer {
+                if scoped {
+                    localURL.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            do {
+                try await session.uploadFile(from: localURL, remoteName: remoteName)
+                guard !Task.isCancelled else { return }
+                transferState = .completed("Uploaded \(remoteName)")
+                await refreshDirectoryInternal()
+            } catch is CancellationError {
+                transferState = .idle
+            } catch {
+                transferState = .failed(error.localizedDescription)
+                state = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    func downloadFile(_ entry: FTPDirectoryEntry, to localURL: URL) {
+        guard isConnected, !isTransferring, !entry.isDirectory else { return }
+
+        transferState = .downloading(entry.name)
+        operation?.cancel()
+        operation = Task { [weak self] in
+            guard let self else { return }
+
+            let scoped = localURL.startAccessingSecurityScopedResource()
+            defer {
+                if scoped {
+                    localURL.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            do {
+                try await session.downloadFile(remoteName: entry.name, to: localURL)
+                guard !Task.isCancelled else { return }
+                transferState = .completed("Downloaded \(entry.name)")
+            } catch is CancellationError {
+                transferState = .idle
+            } catch {
+                transferState = .failed(error.localizedDescription)
+                state = .failed(error.localizedDescription)
+            }
+        }
+    }
+
     func verifyConnection() {
         guard isConnected else { return }
 
@@ -144,6 +221,7 @@ final class FTPConnectionController: ObservableObject {
         state = .idle
         entries = []
         isListing = false
+        transferState = .idle
 
         Task {
             await session.disconnect()
@@ -156,6 +234,7 @@ final class FTPConnectionController: ObservableObject {
         state = .idle
         entries = []
         isListing = false
+        transferState = .idle
 
         Task {
             await session.cancel()
