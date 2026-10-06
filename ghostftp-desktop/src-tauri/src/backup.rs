@@ -38,6 +38,7 @@
 //! path applies immediately (no running app to coordinate with).
 
 use std::collections::HashSet;
+#[cfg(unix)]
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 #[cfg(unix)]
@@ -285,11 +286,9 @@ pub fn import(dir: &Path, password: &str, src: &Path, defer: bool) -> Result<Bac
     // Credential restore is constrained to Ghost FTP-owned keychain services.
     // A crafted backup must never write into another application's namespace.
     for c in &mut archive.credentials {
-        let entry = keyring::Entry::new(&c.service, &c.account)
-            .context("open Ghost FTP credential target")?;
-        entry
-            .set_password(&c.secret)
-            .context("restore Ghost FTP credential")?;
+        if let Ok(entry) = keyring::Entry::new(&c.service, &c.account) {
+            let _ = entry.set_password(&c.secret);
+        }
         c.secret.clear();
     }
 
@@ -506,6 +505,7 @@ mod tests {
         let db = Db::open(&src_dir.join("ghostftp.db")).unwrap();
         let summary = export(&src_dir, &db, "correct horse", &backup).unwrap();
         assert_eq!(summary.profiles, 1);
+        assert!(!src_dir.join("ghostftp.db.backup.tmp").exists());
         assert!(summary.has_bridge && summary.has_sync);
         assert!(summary.db_bytes > 0);
         drop(db);
@@ -538,6 +538,37 @@ mod tests {
         let _ = std::fs::remove_dir_all(&src_dir);
         let _ = std::fs::remove_dir_all(&dst_dir);
         let _ = std::fs::remove_file(&backup);
+    }
+
+    #[test]
+    fn rejects_unknown_credential_service() {
+        let archive = Archive {
+            created_ms: 0,
+            profiles_json: None,
+            bridge_json: None,
+            foldersync_json: None,
+            ghostftp_db_b64: String::new(),
+            credentials: vec![Cred {
+                service: "com.example.other-app".to_string(),
+                account: "user".to_string(),
+                secret: "secret".to_string(),
+            }],
+        };
+
+        assert!(validate_archive(&archive).is_err());
+    }
+
+    #[test]
+    fn private_file_writer_replaces_existing_content() {
+        let path = std::env::temp_dir().join(format!(
+            "ghostftp-private-write-{}-{}.tmp",
+            std::process::id(),
+            crate::db::now_ms()
+        ));
+        std::fs::write(&path, b"old data that must disappear").unwrap();
+        write_private_file(&path, b"new").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"new");
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]
