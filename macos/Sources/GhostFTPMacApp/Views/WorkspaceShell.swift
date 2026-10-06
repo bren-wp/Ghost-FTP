@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 private enum MacWorkspace: String, CaseIterable, Identifiable, Hashable {
     case files
