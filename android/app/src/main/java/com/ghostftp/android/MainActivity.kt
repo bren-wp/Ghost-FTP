@@ -170,7 +170,7 @@ class MainActivity : Activity() {
             PICK_UPLOAD_REQUEST -> handleUploadSelection(data)
             CREATE_SETTINGS_BACKUP_REQUEST -> data?.data?.let(::writeConnectionSettingsBackup)
             RESTORE_SETTINGS_BACKUP_REQUEST -> data?.data?.let { uri ->
-                if (data.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0) {
+                if ((data?.flags ?: 0) and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0) {
                     runCatching {
                         contentResolver.takePersistableUriPermission(
                             uri,
@@ -1693,7 +1693,7 @@ class MainActivity : Activity() {
     }
 
     private fun workspaceLabel(workspace: Workspace): String =
-        workspace.labelRes?.let(::getString) ?: workspace.fixedLabel ?: workspace.name
+        workspace.labelRes?.let { getString(it) } ?: workspace.fixedLabel ?: workspace.name
 
     private fun workspaceNavItem(workspace: Workspace): TextView {
         val label = workspaceLabel(workspace)
