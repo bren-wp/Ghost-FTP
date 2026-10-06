@@ -250,7 +250,8 @@ pub fn export(dir: &Path, db: &Db, password: &str, dest: &Path) -> Result<Backup
 
     let mut out = header;
     out.extend_from_slice(&ciphertext);
-    write_private_file(dest, &out).with_context(|| format!("write backup to {}", dest.display()))?;
+    write_private_file(dest, &out)
+        .with_context(|| format!("write backup to {}", dest.display()))?;
 
     Ok(summary)
 }
@@ -321,7 +322,9 @@ pub fn apply_pending_restore(dir: &Path) {
 fn stage_opt(dir: &Path, name: &str, content: Option<&str>) -> Result<()> {
     let staged = dir.join(format!("{name}.restore"));
     match content {
-        Some(c) => write_private_file(&staged, c.as_bytes()).with_context(|| format!("stage {name}"))?,
+        Some(c) => {
+            write_private_file(&staged, c.as_bytes()).with_context(|| format!("stage {name}"))?
+        }
         // Nothing to restore for this file — clear any leftover staging.
         None => {
             let _ = std::fs::remove_file(&staged);
