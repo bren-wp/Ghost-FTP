@@ -241,14 +241,57 @@ private struct ConnectionEditor: View {
                             }
                         }
 
-                        Button {
-                            ftpSession.verifyConnection()
-                        } label: {
-                            Label("Check session with NOOP", systemImage: "checkmark.shield")
+                        HStack {
+                            Button {
+                                ftpSession.verifyConnection()
+                            } label: {
+                                Label("Check session with NOOP", systemImage: "checkmark.shield")
+                            }
+
+                            Button {
+                                ftpSession.refreshDirectory()
+                            } label: {
+                                if ftpSession.isListing {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Refreshing…")
+                                } else {
+                                    Label("Refresh listing", systemImage: "arrow.clockwise")
+                                }
+                            }
+                            .disabled(ftpSession.isListing)
+                        }
+
+                        if ftpSession.entries.isEmpty && !ftpSession.isListing {
+                            Text("The current directory is empty or the server returned no MLSD entries.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            List(ftpSession.entries) { entry in
+                                HStack(spacing: 10) {
+                                    Image(systemName: entry.isDirectory ? "folder.fill" : "doc")
+                                        .foregroundStyle(.secondary)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(entry.name)
+                                        HStack(spacing: 8) {
+                                            if let size = entry.size, !entry.isDirectory {
+                                                Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
+                                            }
+                                            if let modified = entry.modified {
+                                                Text(modified)
+                                            }
+                                        }
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                }
+                            }
+                            .frame(minHeight: 180, idealHeight: 240)
                         }
                     }
 
-                    Text("This opens a real unencrypted FTP control session and performs server greeting, USER/PASS authentication and binary-mode setup. FTPS and SFTP session engines are not enabled by this control.")
+                    Text("This opens a real unencrypted FTP control session and loads the current directory through EPSV + MLSD. Upload/download and FTPS/SFTP session engines are not enabled by this control.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }

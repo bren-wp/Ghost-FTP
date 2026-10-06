@@ -38,9 +38,13 @@ grep -Fq 'actor FTPControlSession' macos/Sources/GhostFTPMacApp/Services/FTPCont
 grep -Fq 'func currentDirectory' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'func changeDirectory' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'func noop' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'func listDirectory' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'extendedPassivePort' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'parseMLSD' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'func disconnect' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'unsafeCommandArgument' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'Open FTP session' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
+grep -Fq 'Refresh listing' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
 grep -Fq 'Remember password in macOS Keychain' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
 grep -Fq 'verifies TCP reachability only' macos/Sources/GhostFTPMacApp/Views/ContentView.swift
 

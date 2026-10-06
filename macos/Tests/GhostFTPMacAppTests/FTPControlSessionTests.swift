@@ -73,4 +73,48 @@ final class FTPControlSessionTests: XCTestCase {
 
         XCTAssertNoThrow(try FTPControlCodec.validateCommandArgument("/safe path"))
     }
+
+
+    func testExtendedPassivePortParsesEPSVReply() throws {
+        let reply = FTPReply(
+            code: 229,
+            lines: ["229 Entering Extended Passive Mode (|||6446|)"]
+        )
+
+        XCTAssertEqual(try FTPControlCodec.extendedPassivePort(from: reply), 6446)
+    }
+
+    func testExtendedPassivePortRejectsInvalidReply() {
+        let reply = FTPReply(code: 229, lines: ["229 Entering Extended Passive Mode (|||0|)"])
+
+        XCTAssertThrowsError(try FTPControlCodec.extendedPassivePort(from: reply))
+    }
+
+    func testMLSDParserBuildsTypedSortedEntries() throws {
+        let data = Data(
+            [
+                "type=file;size=25;modify=20261005120000; zebra.txt",
+                "type=dir;modify=20261005115900; assets",
+                "type=file;size=3;modify=20261005115800; Alpha.txt",
+                "type=cdir;modify=20261005115700; .",
+                "type=pdir;modify=20261005115600; ..",
+            ]
+            .joined(separator: "\r\n")
+            .appending("\r\n")
+            .utf8
+        )
+
+        let entries = try FTPControlCodec.parseMLSD(data)
+
+        XCTAssertEqual(entries.map(\.name), ["assets", "Alpha.txt", "zebra.txt"])
+        XCTAssertTrue(entries[0].isDirectory)
+        XCTAssertEqual(entries[1].size, 3)
+        XCTAssertEqual(entries[2].modified, "20261005120000")
+    }
+
+    func testMLSDParserRejectsNonUTF8Payload() {
+        let data = Data([0xFF, 0xFE, 0xFD])
+
+        XCTAssertThrowsError(try FTPControlCodec.parseMLSD(data))
+    }
 }

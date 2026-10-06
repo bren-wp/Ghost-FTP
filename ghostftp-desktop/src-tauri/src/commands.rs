@@ -355,6 +355,47 @@ pub async fn test_profile_connection(
     Ok(())
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionHealth {
+    pub healthy: bool,
+    pub protocol: String,
+}
+
+#[tauri::command]
+pub async fn check_session_health(
+    session_id: String,
+    state: State<'_, AppState>,
+) -> Result<SessionHealth, String> {
+    let session = state
+        .sessions
+        .get(&session_id)
+        .await
+        .ok_or_else(|| format!("session {session_id} not found"))?;
+
+    match &*session {
+        Session::Ftp(ftp) => {
+            ftp.with_stream(|stream| stream.noop()).await.map_err(err)?;
+        }
+        Session::Ssh(ssh) => {
+            if !ssh.sftp_available().await {
+                return Err("SFTP health check failed to establish a live SFTP channel".into());
+            }
+        }
+        other => {
+            return Err(format!(
+                "live transport health check is not implemented for {} sessions",
+                other.protocol()
+            ));
+        }
+    }
+
+    Ok(SessionHealth {
+        healthy: true,
+        protocol: session.protocol().to_string(),
+    })
+}
+
 #[tauri::command]
 pub async fn connect(
     profile_id: String,

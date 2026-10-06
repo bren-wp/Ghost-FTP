@@ -134,6 +134,12 @@ impl FtpStreamKind {
             Self::Tls(s) => s.list(path).map_err(into_anyhow),
         }
     }
+    pub fn noop(&mut self) -> Result<()> {
+        match self {
+            Self::Plain(s) => s.noop().map_err(into_anyhow),
+            Self::Tls(s) => s.noop().map_err(into_anyhow),
+        }
+    }
     pub fn rename(&mut self, from: &str, to: &str) -> Result<()> {
         match self {
             Self::Plain(s) => s.rename(from, to).map_err(into_anyhow),

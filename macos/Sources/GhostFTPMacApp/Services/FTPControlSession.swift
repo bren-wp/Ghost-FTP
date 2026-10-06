@@ -11,6 +11,8 @@ enum FTPControlError: LocalizedError {
     case unexpectedReply(expected: String, actual: Int, message: String)
     case unsafeCommandArgument
     case invalidWorkingDirectory
+    case invalidPassiveEndpoint
+    case invalidDirectoryListing
 
     var errorDescription: String? {
         switch self {
@@ -32,6 +34,10 @@ enum FTPControlError: LocalizedError {
             return "The FTP command contains unsupported control characters."
         case .invalidWorkingDirectory:
             return "The FTP server did not return a valid working directory."
+        case .invalidPassiveEndpoint:
+            return "The FTP server did not return a valid passive data endpoint."
+        case .invalidDirectoryListing:
+            return "The FTP server returned a directory listing that Ghost FTP could not parse."
         }
     }
 
@@ -54,6 +60,16 @@ struct FTPReply: Equatable {
     var message: String {
         lines.joined(separator: "\n")
     }
+}
+
+
+struct FTPDirectoryEntry: Identifiable, Equatable {
+    let name: String
+    let isDirectory: Bool
+    let size: UInt64?
+    let modified: String?
+
+    var id: String { name }
 }
 
 enum FTPControlCodec {
@@ -145,6 +161,78 @@ enum FTPControlCodec {
             throw FTPControlError.unsafeCommandArgument
         }
     }
+
+
+    static func extendedPassivePort(from reply: FTPReply) throws -> UInt16 {
+        guard reply.code == 229, let line = reply.lines.first,
+              let open = line.firstIndex(of: "("),
+              let close = line[open...].firstIndex(of: ")") else {
+            throw FTPControlError.invalidPassiveEndpoint
+        }
+
+        let body = String(line[line.index(after: open)..<close])
+        guard let delimiter = body.first else {
+            throw FTPControlError.invalidPassiveEndpoint
+        }
+
+        let fields = body.split(separator: delimiter, omittingEmptySubsequences: false)
+        guard fields.count >= 5,
+              let port = UInt16(fields[3]),
+              port > 0 else {
+            throw FTPControlError.invalidPassiveEndpoint
+        }
+        return port
+    }
+
+    static func parseMLSD(_ data: Data) throws -> [FTPDirectoryEntry] {
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw FTPControlError.invalidDirectoryListing
+        }
+
+        var entries: [FTPDirectoryEntry] = []
+        for rawLine in text.split(whereSeparator: \.isNewline) {
+            let line = String(rawLine)
+            guard let split = line.firstIndex(of: " ") else {
+                continue
+            }
+
+            let factsText = line[..<split]
+            let name = String(line[line.index(after: split)...])
+            if name.isEmpty || name == "." || name == ".." {
+                continue
+            }
+
+            var facts: [String: String] = [:]
+            for fact in factsText.split(separator: ";") {
+                guard let equals = fact.firstIndex(of: "=") else { continue }
+                let key = fact[..<equals].lowercased()
+                let value = String(fact[fact.index(after: equals)...])
+                facts[key] = value
+            }
+
+            let type = facts["type"]?.lowercased()
+            if type == "cdir" || type == "pdir" {
+                continue
+            }
+
+            let size = facts["size"].flatMap(UInt64.init)
+            entries.append(
+                FTPDirectoryEntry(
+                    name: name,
+                    isDirectory: type == "dir",
+                    size: size,
+                    modified: facts["modify"]
+                )
+            )
+        }
+
+        return entries.sorted {
+            if $0.isDirectory != $1.isDirectory {
+                return $0.isDirectory && !$1.isDirectory
+            }
+            return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+    }
 }
 
 private final class OneShotGate: @unchecked Sendable {
@@ -164,6 +252,7 @@ actor FTPControlSession {
     private let queue = DispatchQueue(label: "com.brendigo.ghostftp.macos.ftp-control")
     private var connection: NWConnection?
     private var receiveBuffer = Data()
+    private var controlHost: String?
 
     func connect(
         profile: ConnectionProfile,
@@ -188,6 +277,7 @@ actor FTPControlSession {
             using: .tcp
         )
         self.connection = connection
+        controlHost = profile.host
         receiveBuffer.removeAll(keepingCapacity: true)
 
         do {
@@ -246,6 +336,55 @@ actor FTPControlSession {
     func noop(timeoutSeconds: TimeInterval = 8) async throws {
         let reply = try await command("NOOP", timeoutSeconds: timeoutSeconds)
         try expect(reply, accepted: [200], description: "200 NOOP")
+    }
+
+
+    func listDirectory(timeoutSeconds: TimeInterval = 8) async throws -> [FTPDirectoryEntry] {
+        guard let controlHost else {
+            throw FTPControlError.disconnected
+        }
+
+        let passiveReply = try await command("EPSV", timeoutSeconds: timeoutSeconds)
+        try expect(passiveReply, accepted: [229], description: "229 extended passive mode")
+        let dataPort = try FTPControlCodec.extendedPassivePort(from: passiveReply)
+        guard let port = NWEndpoint.Port(rawValue: dataPort) else {
+            throw FTPControlError.invalidPassiveEndpoint
+        }
+
+        let dataConnection = NWConnection(
+            host: NWEndpoint.Host(controlHost),
+            port: port,
+            using: .tcp
+        )
+
+        do {
+            try await waitUntilReady(dataConnection, timeoutSeconds: timeoutSeconds)
+            try await sendLine("MLSD", timeoutSeconds: timeoutSeconds)
+            let preliminary = try await readReply(timeoutSeconds: timeoutSeconds)
+            try expect(
+                preliminary,
+                accepted: [125, 150],
+                description: "125 or 150 directory transfer start"
+            )
+
+            let payload = try await readDataUntilClosed(
+                dataConnection,
+                timeoutSeconds: timeoutSeconds
+            )
+            dataConnection.cancel()
+
+            let completion = try await readReply(timeoutSeconds: timeoutSeconds)
+            try expect(
+                completion,
+                accepted: [226, 250],
+                description: "226 or 250 directory transfer complete"
+            )
+
+            return try FTPControlCodec.parseMLSD(payload)
+        } catch {
+            dataConnection.cancel()
+            throw error
+        }
     }
 
     func disconnect() async {
@@ -364,6 +503,56 @@ actor FTPControlSession {
         }
     }
 
+    private func readDataUntilClosed(
+        _ connection: NWConnection,
+        timeoutSeconds: TimeInterval
+    ) async throws -> Data {
+        var output = Data()
+
+        while true {
+            let (chunk, complete) = try await receiveDataChunk(
+                connection,
+                timeoutSeconds: timeoutSeconds
+            )
+            output.append(chunk)
+            if complete {
+                return output
+            }
+        }
+    }
+
+    private func receiveDataChunk(
+        _ connection: NWConnection,
+        timeoutSeconds: TimeInterval
+    ) async throws -> (Data, Bool) {
+        try await withCheckedThrowingContinuation { continuation in
+            let gate = OneShotGate()
+
+            queue.asyncAfter(deadline: .now() + timeoutSeconds) {
+                if gate.claim() {
+                    connection.cancel()
+                    continuation.resume(throwing: FTPControlError.timedOut)
+                }
+            }
+
+            connection.receive(
+                minimumIncompleteLength: 1,
+                maximumLength: 64 * 1024
+            ) { data, _, isComplete, error in
+                guard gate.claim() else { return }
+
+                if let error {
+                    continuation.resume(
+                        throwing: FTPControlError.connectionFailed(error.localizedDescription)
+                    )
+                    return
+                }
+
+                continuation.resume(returning: (data ?? Data(), isComplete))
+            }
+        }
+    }
+
     private func receiveChunk(timeoutSeconds: TimeInterval) async throws -> Data {
         guard let connection else {
             throw FTPControlError.disconnected
@@ -411,6 +600,7 @@ actor FTPControlSession {
         connection?.stateUpdateHandler = nil
         connection?.cancel()
         connection = nil
+        controlHost = nil
         receiveBuffer.removeAll(keepingCapacity: false)
     }
 }

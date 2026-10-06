@@ -178,6 +178,22 @@ internal fun commitStagedRemoteReplacement(
 }
 
 class ConnectionController {
+    fun checkConnectionHealth(
+        profile: ConnectionProfile,
+        cancellation: OperationCancellation = OperationCancellation()
+    ): ConnectionProbeResult {
+        cancellation.throwIfCanceled()
+        val normalized = normalizedProfile(profile)
+        return when (normalized.protocol) {
+            ConnectionProtocol.FTP ->
+                healthFtp(normalized, secure = false, cancellation = cancellation)
+            ConnectionProtocol.EXPLICIT_FTPS ->
+                healthFtp(normalized, secure = true, cancellation = cancellation)
+            ConnectionProtocol.SFTP ->
+                healthSftp(normalized, cancellation)
+        }
+    }
+
     fun listRemote(
         profile: ConnectionProfile,
         cancellation: OperationCancellation = OperationCancellation()
@@ -290,6 +306,44 @@ class ConnectionController {
             ConnectionProtocol.EXPLICIT_FTPS -> renameFtp(normalized, secure = true, sourcePath = source, destinationPath = destination, cancellation = cancellation)
             ConnectionProtocol.SFTP -> renameSftp(normalized, sourcePath = source, destinationPath = destination, cancellation = cancellation)
         }
+    }
+
+    private fun healthFtp(
+        profile: ConnectionProfile,
+        secure: Boolean,
+        cancellation: OperationCancellation
+    ): ConnectionProbeResult = withFtpClient(profile, secure, cancellation) { client ->
+        cancellation.throwIfCanceled()
+        require(client.sendNoOp()) {
+            "${profile.protocol.label} health check was rejected by the server."
+        }
+        ConnectionProbeResult(
+            reachable = true,
+            title = "Connection healthy",
+            detail = "${profile.protocol.label} authenticated and accepted NOOP on ${redactHost(profile.host)}:${profile.port}.",
+            rows = emptyList()
+        )
+    }
+
+    private fun healthSftp(
+        profile: ConnectionProfile,
+        cancellation: OperationCancellation
+    ): ConnectionProbeResult = withSftpChannel(profile, cancellation) { channel ->
+        cancellation.throwIfCanceled()
+        val path = channel.pwd()
+        ConnectionProbeResult(
+            reachable = true,
+            title = "Connection healthy",
+            detail = "SFTP authenticated and resolved ${redactHost(profile.host)}:${profile.port}.",
+            rows = listOf(
+                RemoteRow(
+                    name = path,
+                    detail = "Current remote directory",
+                    remotePath = path,
+                    isDirectory = true
+                )
+            )
+        )
     }
 
     private fun listFtp(
