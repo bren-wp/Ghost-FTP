@@ -11,6 +11,8 @@ final class FTPConnectionController: ObservableObject {
     }
 
     @Published private(set) var state: State = .idle
+    @Published private(set) var entries: [FTPDirectoryEntry] = []
+    @Published private(set) var isListing = false
 
     private let session = FTPControlSession()
     private var operation: Task<Void, Never>?
@@ -43,6 +45,7 @@ final class FTPConnectionController: ObservableObject {
                     return
                 }
                 state = .connected(path)
+                await refreshDirectoryInternal()
             } catch {
                 guard !Task.isCancelled else {
                     state = .idle
@@ -64,6 +67,7 @@ final class FTPConnectionController: ObservableObject {
                 let resolved = try await session.changeDirectory(to: path)
                 guard !Task.isCancelled else { return }
                 state = .connected(resolved)
+                await refreshDirectoryInternal()
             } catch {
                 guard !Task.isCancelled else { return }
                 state = .failed(error.localizedDescription)
@@ -86,6 +90,31 @@ final class FTPConnectionController: ObservableObject {
                 guard !Task.isCancelled else { return }
                 state = .failed(error.localizedDescription)
             }
+        }
+    }
+
+
+    func refreshDirectory() {
+        guard isConnected else { return }
+
+        operation?.cancel()
+        operation = Task { [weak self] in
+            guard let self else { return }
+            await refreshDirectoryInternal()
+        }
+    }
+
+    private func refreshDirectoryInternal() async {
+        isListing = true
+        defer { isListing = false }
+
+        do {
+            let result = try await session.listDirectory()
+            guard !Task.isCancelled else { return }
+            entries = result
+        } catch {
+            guard !Task.isCancelled else { return }
+            state = .failed(error.localizedDescription)
         }
     }
 
@@ -113,6 +142,8 @@ final class FTPConnectionController: ObservableObject {
         operation?.cancel()
         operation = nil
         state = .idle
+        entries = []
+        isListing = false
 
         Task {
             await session.disconnect()
@@ -123,6 +154,8 @@ final class FTPConnectionController: ObservableObject {
         operation?.cancel()
         operation = nil
         state = .idle
+        entries = []
+        isListing = false
 
         Task {
             await session.cancel()
