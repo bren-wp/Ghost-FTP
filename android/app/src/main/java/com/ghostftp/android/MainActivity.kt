@@ -755,14 +755,18 @@ class MainActivity : Activity() {
         }
         actions.addView(
             trackBusySensitiveLocalAction(
-                secondaryButton("Back up settings") { createConnectionSettingsBackup() }
+                secondaryButton("Back up settings") { createConnectionSettingsBackup() }.apply {
+                    contentDescription = "Back up settings"
+                }
             ),
             buttonParams(weight = 1f)
         )
         actions.addView(gap(8))
         actions.addView(
             trackBusySensitiveLocalAction(
-                secondaryButton("Restore settings") { chooseConnectionSettingsBackup() }
+                secondaryButton("Restore settings") { chooseConnectionSettingsBackup() }.apply {
+                    contentDescription = "Restore settings"
+                }
             ),
             buttonParams(weight = 1f)
         )
