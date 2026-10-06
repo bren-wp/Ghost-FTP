@@ -155,7 +155,7 @@ fn write_private_file(path: &Path, data: &[u8]) -> Result<()> {
             .with_context(|| format!("write private file {}", path.display()))?;
         file.sync_all()
             .with_context(|| format!("sync private file {}", path.display()))?;
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(unix))]
