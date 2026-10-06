@@ -109,6 +109,17 @@ final class TransferHistoryStore: ObservableObject {
             return
         }
         records = decoded.prefix(maximumRecords).map { $0 }
+
+        var recoveredInterruptedTransfer = false
+        let recoveredAt = Date()
+        for index in records.indices where records[index].status == .running {
+            records[index].status = .cancelled
+            records[index].finishedAt = recoveredAt
+            recoveredInterruptedTransfer = true
+        }
+        if recoveredInterruptedTransfer {
+            persist()
+        }
     }
 
     private func persist() {
