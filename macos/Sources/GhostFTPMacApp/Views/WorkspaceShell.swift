@@ -333,12 +333,25 @@ private struct SyncBackupWorkspace: View {
         }
 
         do {
-            let data = try Data(contentsOf: url)
+            let data = try readBoundedBackup(from: url)
             let count = try profiles.importProfiles(from: data)
             statusMessage = "Restored \(count) site definition(s). Passwords remain unchanged in Keychain."
         } catch {
             statusMessage = "The selected backup is invalid or could not be read."
         }
+    private func readBoundedBackup(
+        from url: URL,
+        maximumBytes: Int = 256 * 1024
+    ) throws -> Data {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+
+        let data = try handle.read(upToCount: maximumBytes + 1) ?? Data()
+        guard data.count <= maximumBytes else {
+            throw CocoaError(.fileReadTooLarge)
+        }
+        return data
+    }
     }
 }
 
