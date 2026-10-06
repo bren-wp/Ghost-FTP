@@ -13,6 +13,7 @@ enum FTPControlError: LocalizedError {
     case invalidWorkingDirectory
     case invalidPassiveEndpoint
     case invalidDirectoryListing
+    case directoryListingTooLarge
 
     var errorDescription: String? {
         switch self {
@@ -38,6 +39,8 @@ enum FTPControlError: LocalizedError {
             return "The FTP server did not return a valid passive data endpoint."
         case .invalidDirectoryListing:
             return "The FTP server returned a directory listing that Ghost FTP could not parse."
+        case .directoryListingTooLarge:
+            return "The FTP directory listing exceeded the safe 8 MiB limit."
         }
     }
 
@@ -182,6 +185,18 @@ enum FTPControlCodec {
             throw FTPControlError.invalidPassiveEndpoint
         }
         return port
+    }
+
+    static func appendListingChunk(
+        _ chunk: Data,
+        to output: inout Data,
+        maximumBytes: Int
+    ) throws {
+        guard maximumBytes > 0,
+              chunk.count <= maximumBytes - output.count else {
+            throw FTPControlError.directoryListingTooLarge
+        }
+        output.append(chunk)
     }
 
     static func parseMLSD(_ data: Data) throws -> [FTPDirectoryEntry] {
@@ -505,7 +520,8 @@ actor FTPControlSession {
 
     private func readDataUntilClosed(
         _ connection: NWConnection,
-        timeoutSeconds: TimeInterval
+        timeoutSeconds: TimeInterval,
+        maximumBytes: Int = 8 * 1024 * 1024
     ) async throws -> Data {
         var output = Data()
 
@@ -514,7 +530,11 @@ actor FTPControlSession {
                 connection,
                 timeoutSeconds: timeoutSeconds
             )
-            output.append(chunk)
+            try FTPControlCodec.appendListingChunk(
+                chunk,
+                to: &output,
+                maximumBytes: maximumBytes
+            )
             if complete {
                 return output
             }

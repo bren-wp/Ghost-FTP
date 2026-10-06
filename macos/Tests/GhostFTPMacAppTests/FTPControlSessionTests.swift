@@ -117,4 +117,27 @@ final class FTPControlSessionTests: XCTestCase {
 
         XCTAssertThrowsError(try FTPControlCodec.parseMLSD(data))
     }
+
+
+    func testDirectoryListingBufferRejectsOversizedPayload() throws {
+        var output = Data(repeating: 0x41, count: 7)
+
+        XCTAssertNoThrow(
+            try FTPControlCodec.appendListingChunk(
+                Data([0x42]),
+                to: &output,
+                maximumBytes: 8
+            )
+        )
+        XCTAssertEqual(output.count, 8)
+
+        XCTAssertThrowsError(
+            try FTPControlCodec.appendListingChunk(
+                Data([0x43]),
+                to: &output,
+                maximumBytes: 8
+            )
+        )
+        XCTAssertEqual(output.count, 8)
+    }
 }

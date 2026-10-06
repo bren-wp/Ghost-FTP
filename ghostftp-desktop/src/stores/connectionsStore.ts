@@ -148,6 +148,7 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
       const existing = get().sessions.find((session) => session.profileId === profileId);
       if (existing) {
         get().setActiveSession(existing.sessionId);
+        void get().checkHealth(existing.sessionId);
         return;
       }
 
@@ -193,6 +194,7 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
       );
       if (existing) {
         get().setActiveSession(existing.sessionId);
+        void get().checkHealth(existing.sessionId);
         return;
       }
 
@@ -212,6 +214,7 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
           activeProfileId: profile.id,
         }));
         syncBridgeActiveSession(sessionId);
+        void get().checkHealth(sessionId);
         toast.success(
           "Connected",
           `${profile.name} — ${profile.username}@${profile.host}`

@@ -1,9 +1,9 @@
-# Ghost FTP Build Status — 3 October 2026
+# Ghost FTP Build Status — 6 October 2026
 
 ## Authoritative current state
 
-- **Active source/release cycle:** Ghost FTP **0.30.8**.
-- **Previous canonical release:** Ghost FTP **0.30.7**.
+- **Active source/release cycle:** Ghost FTP **0.30.9**.
+- **Previous canonical release:** Ghost FTP **0.30.8**.
 - **Live publication status:** GitHub Releases is authoritative and queried by CI.
 - **Version source of truth:** `version.json`.
 - **Desktop production source:** `ghostftp-desktop/`.
@@ -18,6 +18,7 @@ The production desktop GUI is the native React + TypeScript + Tauri + Rust appli
 - Canonical Windows/Linux build + native-window QA: `.github/workflows/ghostftp-build.yml` — **Ghost FTP native build**
 - Android: `.github/workflows/ghostftp-android.yml` — **Ghost FTP Android**
 - Windows hardening: `.github/workflows/validate-win-hardening.yml` — **Validate Windows hardening**
+- macOS Preview: `.github/workflows/ghostftp-macos.yml` — **Ghost FTP macOS**
 - Canonical release orchestration: `.github/workflows/ghostftp-release.yml` — **Ghost FTP release**
 - Version/Cargo metadata synchronization: `.github/workflows/version-sync.yml`
 - Dependency-manifest Cargo lock refresh: `.github/workflows/cargo-lock-refresh.yml`

@@ -1,3 +1,15 @@
+## 0.30.9 — real macOS FTP browsing and cross-platform connection health — 6 October 2026
+
+- Hardens connection host parsing across desktop, Android and macOS so URL/credential/path/inline-port/control-character input fails before transport use.
+- Adds a real macOS plain-FTP control session with greeting/authentication, TYPE I, PWD/CWD/NOOP/QUIT and bounded timeout/cancellation behavior.
+- Adds real macOS EPSV + MLSD directory browsing, typed listing rows and an 8 MiB fail-closed listing-buffer limit.
+- Adds live Windows/Linux FTP/FTPS NOOP and SFTP-channel health checks, including saved, Quick Connect and refocused sessions.
+- Adds authenticated Android FTP/FTPS NOOP and SFTP PWD health probes without relaxing TLS or SSH host-key verification.
+- Keeps macOS FTPS/SFTP, upload/download, Developer ID signing and notarization explicitly unfinished rather than presenting them as production-ready.
+- Keeps exact-head Quality, protocol E2E, native build, Android, Windows hardening and macOS gates mandatory before canonical publication.
+
+See [docs/releases/0.30.9.md](docs/releases/0.30.9.md).
+
 ## 0.30.8 — macOS foundation and cross-platform diagnostic hardening — 5 October 2026
 
 - Starts the dedicated SwiftUI macOS client with Keychain-backed optional password storage, validated FTP/FTPS/SFTP profiles and a separate macOS CI/preview packaging gate.
