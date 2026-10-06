@@ -2507,12 +2507,10 @@ pub async fn bridge_register_mcp(url: String, token: String) -> Result<String, S
                     .to_string(),
             );
         }
-        last_err = format!(
-            "{} exited with {}: {}",
-            bin,
-            output.status,
-            String::from_utf8_lossy(&output.stderr)
-        );
+        // This child process receives a Bearer token in argv. Never propagate
+        // its raw stderr because a third-party CLI may echo its arguments and
+        // accidentally reflect the credential back into Ghost FTP diagnostics.
+        last_err = format!("{} exited with {}", bin, output.status);
     }
     Err(format!(
         "Couldn't register the MCP server automatically. Make sure Claude Code is installed and on your PATH. {last_err}"
