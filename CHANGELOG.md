@@ -8,6 +8,7 @@
 - Extends Android emulator smoke to click through the new workspace.
 - Adds Windows/Linux live connection-health status with visible Healthy / Checking / Needs attention states and visible-window periodic probes.
 - Adds cross-platform workspace parity CI and a macOS private Swift dead-code audit while preserving existing TypeScript, Rust and Android audits.
+- Bounds macOS profile restore input and recovers interrupted persisted transfers as Cancelled on the next launch.
 
 See [docs/releases/0.30.11.md](docs/releases/0.30.11.md).
 
