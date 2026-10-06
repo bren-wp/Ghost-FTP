@@ -9,14 +9,61 @@ export function ReferenceStatusBar() {
   const activeSessionId = useConnections((s) => s.activeSessionId);
   const activeProfileId = useConnections((s) => s.activeProfileId);
   const profiles = useConnections((s) => s.profiles);
+  const sessions = useConnections((s) => s.sessions);
+  const checkHealth = useConnections((s) => s.checkHealth);
   const transfersById = useTransfers((s) => s.byId);
   const rateById = useTransfers((s) => s.rateById);
   const transfers = useMemo(() => Object.values(transfersById), [transfersById]);
   const openDialog = useLayout((s) => s.openDialog);
   const profile = profiles.find((p) => p.id === activeProfileId);
+  const activeSession = sessions.find((session) => session.sessionId === activeSessionId);
+  const healthSupported = !!profile && ["ftp", "ftps", "sftp"].includes(profile.protocol);
+  const health = activeSession?.health ?? "unknown";
+
+  useEffect(() => {
+    if (!activeSessionId || !healthSupported) return;
+
+    const probe = () => {
+      if (document.visibilityState === "visible") {
+        void checkHealth(activeSessionId);
+      }
+    };
+    const interval = window.setInterval(probe, 30_000);
+    window.addEventListener("focus", probe);
+    document.addEventListener("visibilitychange", probe);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", probe);
+      document.removeEventListener("visibilitychange", probe);
+    };
+  }, [activeSessionId, healthSupported, checkHealth]);
+
+  const healthLabel =
+    health === "healthy"
+      ? "Healthy"
+      : health === "checking"
+        ? "Checking"
+        : health === "unhealthy"
+          ? "Needs attention"
+          : "Connected";
 
   return <footer className="ghost-reference-statusbar">
-    <span className={`dot ${activeSessionId ? "online" : ""}`}/>
+    {activeSessionId && healthSupported ? (
+      <button
+        type="button"
+        className={`ghost-status-health ${health}`}
+        onClick={() => void checkHealth(activeSessionId)}
+        disabled={health === "checking"}
+        aria-label="Check connection health"
+        title="Check connection health"
+      >
+        <span className={`dot ${health === "healthy" ? "online" : health === "unhealthy" ? "unhealthy" : ""}`}/>
+        {healthLabel}
+      </button>
+    ) : (
+      <span className={`dot ${activeSessionId ? "online" : ""}`}/>
+    )}
     <span>{activeSessionId && profile ? `Connected to ${profile.host} (${profile.protocol.toUpperCase()})` : "Ready"}</span>
     <span className="grow"/>
     <TransferMetrics transfers={transfers} rateById={rateById} onOpen={() => openDialog("transferCenter")}/>
