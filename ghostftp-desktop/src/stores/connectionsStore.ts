@@ -41,11 +41,14 @@ function trackConnection(
 
 // One live connection. The backend keeps every session alive in a map, so the
 // app can hold several at once; this is the frontend's view of them.
+export type ConnectionHealthState = "unknown" | "checking" | "healthy" | "unhealthy";
+
 export interface LiveSession {
   sessionId: SessionId;
   profileId: string;
   /** True for Quick Connect sessions that are intentionally never persisted. */
   ephemeral?: boolean;
+  health: ConnectionHealthState;
 }
 
 interface ConnectionsState {
@@ -75,6 +78,8 @@ interface ConnectionsState {
   connect: (profileId: string) => Promise<void>;
   /** Connect with an in-memory profile without writing credentials or profile data. */
   connectTemporary: (profile: ConnectionProfile) => Promise<void>;
+  /** Revalidate a live FTP/FTPS/SFTP transport without reconnecting it. */
+  checkHealth: (sessionId?: SessionId) => Promise<boolean>;
   /** Disconnect one session (defaults to the active one). */
   disconnect: (sessionId?: SessionId) => Promise<void>;
   /** Focus an already-open session. */
@@ -154,11 +159,12 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
         set((state) => ({
           sessions: state.sessions.some((session) => session.sessionId === sessionId)
             ? state.sessions
-            : [...state.sessions, { sessionId, profileId }],
+            : [...state.sessions, { sessionId, profileId, health: "unknown" }],
           activeSessionId: sessionId,
           activeProfileId: profileId,
         }));
         syncBridgeActiveSession(sessionId);
+        void get().checkHealth(sessionId);
         toast.success(
           "Connected",
           profile
@@ -200,7 +206,7 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
             ? state.sessions
             : [
                 ...state.sessions,
-                { sessionId, profileId: profile.id, ephemeral: true },
+                { sessionId, profileId: profile.id, ephemeral: true, health: "unknown" },
               ],
           activeSessionId: sessionId,
           activeProfileId: profile.id,
@@ -216,6 +222,44 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
         throw error;
       }
     }),
+
+  checkHealth: async (sessionId) => {
+    const sid = sessionId ?? get().activeSessionId;
+    if (!sid) return false;
+
+    const target = get().sessions.find((session) => session.sessionId === sid);
+    if (!target) return false;
+    const profile = get().profiles.find((item) => item.id === target.profileId);
+    if (!profile || !["ftp", "ftps", "sftp"].includes(profile.protocol)) {
+      return false;
+    }
+
+    set((state) => ({
+      sessions: state.sessions.map((session) =>
+        session.sessionId === sid ? { ...session, health: "checking" } : session
+      ),
+    }));
+
+    try {
+      const result = await ipc.checkSessionHealth(sid);
+      set((state) => ({
+        sessions: state.sessions.map((session) =>
+          session.sessionId === sid
+            ? { ...session, health: result.healthy ? "healthy" : "unhealthy" }
+            : session
+        ),
+      }));
+      return result.healthy;
+    } catch (error) {
+      set((state) => ({
+        sessions: state.sessions.map((session) =>
+          session.sessionId === sid ? { ...session, health: "unhealthy" } : session
+        ),
+      }));
+      console.warn("Connection health check failed", redactSensitiveText(error, 240));
+      return false;
+    }
+  },
 
   disconnect: async (sessionId) => {
     const sid = sessionId ?? get().activeSessionId;
