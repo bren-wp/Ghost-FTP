@@ -423,6 +423,27 @@ requireIncludes(
 );
 
 requireIncludes(
+  "src-tauri/src/commands.rs",
+  [
+    "struct WipeOnDrop(String)",
+    "let mut bytes = std::mem::take(&mut self.0).into_bytes();",
+    "bytes.fill(0);",
+    "let password = WipeOnDrop::new(password);",
+    "let token = WipeOnDrop::new(token);",
+    "let auth_header = WipeOnDrop::new(format!(\"Authorization: Bearer {}\", token.as_str()));",
+    'last_err = format!(\"{} exited with {}\", bin, output.status);',
+    "let value = WipeOnDrop::new(value);",
+  ],
+  "command-layer secret lifetime hardening"
+);
+
+requireExcludes(
+  "src-tauri/src/commands.rs",
+  ["String::from_utf8_lossy(&output.stderr)", '&format!(\"Authorization: Bearer {token}\")'],
+  "credential-bearing child-process diagnostics"
+);
+
+requireIncludes(
   "src-tauri/src/path_integration.rs",
   [
     "std::env::split_paths(&path)",

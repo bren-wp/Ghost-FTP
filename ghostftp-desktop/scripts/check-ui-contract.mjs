@@ -976,6 +976,27 @@ for (const forbidden of [".maximized(true)", ".fullscreen(true)"]) {
   if (nativeShell.includes(forbidden)) failures.push(`Default native window must remain non-maximized: ${forbidden}`);
 }
 
+const backupSecurity = read("src-tauri/src/backup.rs");
+for (const required of [
+  "MAX_BACKUP_FILE_BYTES",
+  "MAX_DECOMPRESSED_BYTES",
+  "MAX_CREDENTIALS",
+  "RemoveOnDrop",
+  "write_private_file",
+  "credential_target_allowed",
+  "validate_archive",
+  "gunzip_bounded",
+  "key.fill(0)",
+]) {
+  if (!backupSecurity.includes(required)) failures.push(`Encrypted-backup security contract missing: ${required}`);
+}
+for (const forbidden of [
+  "std::fs::write(dest, &out)",
+  "fn gunzip(data: &[u8])",
+]) {
+  if (backupSecurity.includes(forbidden)) failures.push(`Encrypted-backup security regression: ${forbidden}`);
+}
+
 const capability = read("src-tauri/capabilities/default.json");
 if (!capability.includes('"windows": ["main"]')) {
   failures.push("Tauri capability scope must be restricted to the single main window.");

@@ -1,3 +1,13 @@
+## 0.30.12 — privacy and security hardening — 6 October 2026
+
+- Hardens Windows/Linux encrypted backup restore with bounded input/decompression, Ghost FTP-only credential targets, private staging files, stronger new-backup password policy, explicit in-memory secret overwrites, command-layer secret wiping and guaranteed temporary snapshot cleanup.
+- Prevents credential-bearing MCP child-process stderr from being reflected into UI diagnostics.
+- Adds Android secure-window, tapjacking resistance and removal of persistent document grants while retaining memory-only passwords and strict FTPS/SFTP verification.
+- Tightens macOS Keychain storage to unlocked, device-only, non-synchronizing items and validates/bounds password-free profile backup restore.
+- Extends release-blocking security contracts and regression tests across desktop, Android and macOS.
+
+See [docs/releases/0.30.12.md](docs/releases/0.30.12.md).
+
 ## 0.30.11 — cross-platform workspace parity and connection health — 6 October 2026
 
 - Aligns macOS to the Windows/Linux six-workspace shell: Files, Sites, Transfers, Sync & Backup, Settings and Help & About, plus New connection.

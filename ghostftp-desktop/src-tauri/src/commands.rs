@@ -2366,8 +2366,9 @@ pub async fn set_api_key(
     value: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    crate::credentials::set_secret(&purpose, &value).map_err(err)?;
-    if value.is_empty() {
+    let value = WipeOnDrop::new(value);
+    crate::credentials::set_secret(&purpose, value.as_str()).map_err(err)?;
+    if value.as_str().is_empty() {
         state
             .db
             .forget_keychain(crate::credentials::SERVICE, &purpose)
@@ -2428,6 +2429,25 @@ pub async fn settings_set_all(
 
 // ---------- Encrypted backup / restore (Plan 12 Phase 4) ----------
 
+struct WipeOnDrop(String);
+
+impl WipeOnDrop {
+    fn new(value: String) -> Self {
+        Self(value)
+    }
+
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Drop for WipeOnDrop {
+    fn drop(&mut self) {
+        let mut bytes = std::mem::take(&mut self.0).into_bytes();
+        bytes.fill(0);
+    }
+}
+
 fn app_data_dir(app: &AppHandle) -> Result<std::path::PathBuf, GhostFTPError> {
     app.path()
         .app_data_dir()
@@ -2443,8 +2463,10 @@ pub async fn backup_export(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<crate::backup::BackupSummary, GhostFTPError> {
+    let password = WipeOnDrop::new(password);
     let dir = app_data_dir(&app)?;
-    crate::backup::export(&dir, &state.db, &password, Path::new(&path)).map_err(GhostFTPError::from)
+    crate::backup::export(&dir, &state.db, password.as_str(), Path::new(&path))
+        .map_err(GhostFTPError::from)
 }
 
 /// Decrypt a backup and report what's inside — without applying it (the UI's
@@ -2454,7 +2476,8 @@ pub async fn backup_inspect(
     path: String,
     password: String,
 ) -> Result<crate::backup::BackupSummary, GhostFTPError> {
-    crate::backup::inspect(&password, Path::new(&path)).map_err(GhostFTPError::from)
+    let password = WipeOnDrop::new(password);
+    crate::backup::inspect(password.as_str(), Path::new(&path)).map_err(GhostFTPError::from)
 }
 
 /// Restore a backup: stage its files (applied on next launch) and inject its
@@ -2465,9 +2488,11 @@ pub async fn backup_import(
     password: String,
     app: AppHandle,
 ) -> Result<crate::backup::BackupSummary, GhostFTPError> {
+    let password = WipeOnDrop::new(password);
     let dir = app_data_dir(&app)?;
     // defer = true: the GUI has files open, so stage + swap on next startup.
-    crate::backup::import(&dir, &password, Path::new(&path), true).map_err(GhostFTPError::from)
+    crate::backup::import(&dir, password.as_str(), Path::new(&path), true)
+        .map_err(GhostFTPError::from)
 }
 
 /// Register Ghost FTP's MCP server with Claude Code so the user doesn't have to
@@ -2475,6 +2500,9 @@ pub async fn backup_import(
 /// the error text so the UI can guide the user.
 #[tauri::command]
 pub async fn bridge_register_mcp(url: String, token: String) -> Result<String, String> {
+    let token = WipeOnDrop::new(token);
+    let auth_header = WipeOnDrop::new(format!("Authorization: Bearer {}", token.as_str()));
+
     // Try the most likely binary names across platforms.
     let candidates: Vec<&str> = if cfg!(windows) {
         vec!["claude.exe", "claude"]
@@ -2490,7 +2518,7 @@ pub async fn bridge_register_mcp(url: String, token: String) -> Result<String, S
         "ghostftp",
         &url,
         "--header",
-        &format!("Authorization: Bearer {token}"),
+        auth_header.as_str(),
     ];
 
     let mut last_err = String::new();
@@ -2507,12 +2535,10 @@ pub async fn bridge_register_mcp(url: String, token: String) -> Result<String, S
                     .to_string(),
             );
         }
-        last_err = format!(
-            "{} exited with {}: {}",
-            bin,
-            output.status,
-            String::from_utf8_lossy(&output.stderr)
-        );
+        // This child process receives a Bearer token in argv. Never propagate
+        // its raw stderr because a third-party CLI may echo its arguments and
+        // accidentally reflect the credential back into Ghost FTP diagnostics.
+        last_err = format!("{} exited with {}", bin, output.status);
     }
     Err(format!(
         "Couldn't register the MCP server automatically. Make sure Claude Code is installed and on your PATH. {last_err}"

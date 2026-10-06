@@ -309,6 +309,10 @@ private struct SyncBackupWorkspace: View {
         do {
             let data = try profiles.exportProfiles()
             try data.write(to: url, options: .atomic)
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o600],
+                ofItemAtPath: url.path
+            )
             statusMessage = "Backed up \(profiles.profiles.count) site(s). Passwords were not exported."
         } catch {
             statusMessage = "The site backup could not be written."

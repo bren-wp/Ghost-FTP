@@ -1,8 +1,19 @@
 import Combine
 import Foundation
 
+enum ProfileStoreError: Error {
+    case backupTooLarge
+    case tooManyProfiles
+    case invalidProfileShape
+}
+
 @MainActor
 final class ProfileStore: ObservableObject {
+    private static let maximumBackupBytes = 256 * 1024
+    private static let maximumImportedProfiles = 512
+    private static let maximumNameBytes = 256
+    private static let maximumHostBytes = 512
+    private static let maximumUsernameBytes = 512
     @Published private(set) var profiles: [ConnectionProfile] = []
 
     private let defaults: UserDefaults
@@ -46,7 +57,16 @@ final class ProfileStore: ObservableObject {
 
     @discardableResult
     func importProfiles(from data: Data) throws -> Int {
+        guard data.count <= Self.maximumBackupBytes else {
+            throw ProfileStoreError.backupTooLarge
+        }
+
         let imported = try JSONDecoder().decode([ConnectionProfile].self, from: data)
+        guard imported.count <= Self.maximumImportedProfiles else {
+            throw ProfileStoreError.tooManyProfiles
+        }
+        try imported.forEach(validateBackupProfile)
+
         var merged = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
         for profile in imported {
             merged[profile.id] = profile
@@ -56,6 +76,22 @@ final class ProfileStore: ObservableObject {
         }
         persist()
         return imported.count
+    }
+
+    private func validateBackupProfile(_ profile: ConnectionProfile) throws {
+        let fields = [
+            (profile.name, Self.maximumNameBytes),
+            (profile.host, Self.maximumHostBytes),
+            (profile.username, Self.maximumUsernameBytes),
+        ]
+        let forbidden = CharacterSet.controlCharacters
+        guard fields.allSatisfy({ field in
+            let (value, maximumBytes) = field
+            return value.utf8.count <= maximumBytes
+                && !value.unicodeScalars.contains(where: forbidden.contains)
+        }) else {
+            throw ProfileStoreError.invalidProfileShape
+        }
     }
 
     private func load() {

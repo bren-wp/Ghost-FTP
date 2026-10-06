@@ -17,13 +17,14 @@ struct KeychainStore {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: kCFBooleanFalse as Any,
         ]
 
         SecItemDelete(baseQuery as CFDictionary)
 
         var insert = baseQuery
         insert[kSecValueData as String] = encoded
-        insert[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        insert[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
 
         let status = SecItemAdd(insert as CFDictionary, nil)
         guard status == errSecSuccess else {
@@ -36,6 +37,7 @@ struct KeychainStore {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: profileID.uuidString,
+            kSecAttrSynchronizable as String: kCFBooleanFalse as Any,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
@@ -60,6 +62,7 @@ struct KeychainStore {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: profileID.uuidString,
+            kSecAttrSynchronizable as String: kCFBooleanFalse as Any,
         ]
 
         let status = SecItemDelete(query as CFDictionary)

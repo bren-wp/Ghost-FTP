@@ -65,6 +65,36 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(store.profiles.first?.host, "new.example.com")
     }
 
+    func testProfileImportRejectsTooManyProfiles() throws {
+        let store = ProfileStore(defaults: isolatedDefaults("profile-count-limit"))
+        let manyProfiles = (0..<513).map { index in
+            ConnectionProfile(
+                name: "Site \(index)",
+                protocolKind: .ftp,
+                host: "host-\(index).example.com",
+                username: "user"
+            )
+        }
+        let data = try JSONEncoder().encode(manyProfiles)
+
+        XCTAssertThrowsError(try store.importProfiles(from: data))
+        XCTAssertTrue(store.profiles.isEmpty)
+    }
+
+    func testProfileImportRejectsControlCharacters() throws {
+        let store = ProfileStore(defaults: isolatedDefaults("profile-control-limit"))
+        let profile = ConnectionProfile(
+            name: "Unsafe\u{0000}Site",
+            protocolKind: .ftp,
+            host: "ftp.example.com",
+            username: "user"
+        )
+        let data = try JSONEncoder().encode([profile])
+
+        XCTAssertThrowsError(try store.importProfiles(from: data))
+        XCTAssertTrue(store.profiles.isEmpty)
+    }
+
     func testTransferHistoryTracksCompletionCancellationAndPersistence() {
         let defaults = isolatedDefaults("transfer-history")
         let history = TransferHistoryStore(defaults: defaults)

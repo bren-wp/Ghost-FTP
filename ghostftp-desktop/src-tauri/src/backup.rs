@@ -38,8 +38,12 @@
 //! path applies immediately (no running app to coordinate with).
 
 use std::collections::HashSet;
+#[cfg(unix)]
+use std::fs::OpenOptions;
 use std::io::{Read, Write};
-use std::path::Path;
+#[cfg(unix)]
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+use std::path::{Path, PathBuf};
 
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
@@ -59,6 +63,13 @@ const NONCE_LEN: usize = 12;
 const ARGON_MEM_KIB: u32 = 65_536;
 const ARGON_TIME: u32 = 3;
 const ARGON_LANES: u32 = 1;
+const MAX_BACKUP_FILE_BYTES: u64 = 512 * 1024 * 1024;
+const MAX_DECOMPRESSED_BYTES: usize = 768 * 1024 * 1024;
+const MAX_CREDENTIALS: usize = 4_096;
+const MAX_CREDENTIAL_SERVICE_BYTES: usize = 256;
+const MAX_CREDENTIAL_ACCOUNT_BYTES: usize = 1_024;
+const MIN_EXPORT_PASSWORD_BYTES: usize = 12;
+const MAX_BACKUP_PASSWORD_BYTES: usize = 1_024;
 
 /// The config files carried in a backup, in the app data dir. `ghostftp.db` is
 /// handled separately (it needs a WAL-safe snapshot on export and staging on
@@ -117,24 +128,134 @@ impl Archive {
     }
 }
 
+struct RemoveOnDrop(PathBuf);
+
+impl Drop for RemoveOnDrop {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
+fn write_private_file(path: &Path, data: &[u8]) -> Result<()> {
+    #[cfg(unix)]
+    {
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(path)
+            .with_context(|| format!("open private file {}", path.display()))?;
+        let mut permissions = file
+            .metadata()
+            .with_context(|| format!("read permissions for {}", path.display()))?
+            .permissions();
+        permissions.set_mode(0o600);
+        file.set_permissions(permissions)
+            .with_context(|| format!("set private permissions for {}", path.display()))?;
+        file.write_all(data)
+            .with_context(|| format!("write private file {}", path.display()))?;
+        file.sync_all()
+            .with_context(|| format!("sync private file {}", path.display()))?;
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    {
+        std::fs::write(path, data)
+            .with_context(|| format!("write private file {}", path.display()))?;
+        Ok(())
+    }
+}
+
+fn credential_target_allowed(service: &str, account: &str) -> bool {
+    let allowed_services = [
+        crate::credentials::SERVICE,
+        crate::session::dropbox::DROPBOX_SERVICE,
+        crate::session::onedrive::ONEDRIVE_SERVICE,
+        crate::session::gdrive::GDRIVE_SERVICE,
+        crate::session::boxdrive::BOX_SERVICE,
+    ];
+    allowed_services.contains(&service)
+        && !service.is_empty()
+        && service.len() <= MAX_CREDENTIAL_SERVICE_BYTES
+        && !account.is_empty()
+        && account.len() <= MAX_CREDENTIAL_ACCOUNT_BYTES
+        && !service.chars().any(char::is_control)
+        && !account.chars().any(char::is_control)
+}
+
+fn validate_export_password(password: &str) -> Result<()> {
+    let len = password.len();
+    if len < MIN_EXPORT_PASSWORD_BYTES {
+        bail!("backup password must be at least {MIN_EXPORT_PASSWORD_BYTES} bytes");
+    }
+    if len > MAX_BACKUP_PASSWORD_BYTES {
+        bail!("backup password exceeds the maximum supported length");
+    }
+    Ok(())
+}
+
+fn validate_decrypt_password(password: &str) -> Result<()> {
+    if password.is_empty() {
+        bail!("a backup password is required");
+    }
+    if password.len() > MAX_BACKUP_PASSWORD_BYTES {
+        bail!("backup password exceeds the maximum supported length");
+    }
+    Ok(())
+}
+
+fn wipe_string(value: &mut String) {
+    let mut bytes = std::mem::take(value).into_bytes();
+    bytes.fill(0);
+}
+
+fn clear_archive_memory(archive: &mut Archive) {
+    if let Some(value) = archive.profiles_json.as_mut() {
+        wipe_string(value);
+    }
+    if let Some(value) = archive.bridge_json.as_mut() {
+        wipe_string(value);
+    }
+    if let Some(value) = archive.foldersync_json.as_mut() {
+        wipe_string(value);
+    }
+    wipe_string(&mut archive.ghostftp_db_b64);
+    for credential in &mut archive.credentials {
+        wipe_string(&mut credential.secret);
+    }
+}
+
+fn validate_archive(archive: &Archive) -> Result<()> {
+    if archive.credentials.len() > MAX_CREDENTIALS {
+        bail!("backup contains too many credential records");
+    }
+    for credential in &archive.credentials {
+        if !credential_target_allowed(&credential.service, &credential.account) {
+            bail!("backup contains an unsupported credential target");
+        }
+    }
+    Ok(())
+}
+
 // ---- Export ----
 
 /// Build an encrypted backup of everything under `dir` (+ its keychain
 /// credentials) and write it to `dest`.
 pub fn export(dir: &Path, db: &Db, password: &str, dest: &Path) -> Result<BackupSummary> {
-    if password.is_empty() {
-        bail!("a password is required to encrypt the backup");
-    }
+    validate_export_password(password)?;
 
-    // WAL-safe DB snapshot into a temp file, then read + remove it.
+    // WAL-safe DB snapshot into a temp file. The guard removes it on every
+    // return path, including snapshot/read/encryption failures.
     let tmp = dir.join("ghostftp.db.backup.tmp");
+    let _tmp_guard = RemoveOnDrop(tmp.clone());
     db.snapshot_to(&tmp).context("snapshot ghostftp.db")?;
-    let db_bytes = std::fs::read(&tmp).context("read ghostftp.db snapshot")?;
-    let _ = std::fs::remove_file(&tmp);
+    let mut db_bytes = std::fs::read(&tmp).context("read ghostftp.db snapshot")?;
 
     let read_opt = |name: &str| -> Option<String> { std::fs::read_to_string(dir.join(name)).ok() };
 
-    let archive = Archive {
+    let mut archive = Archive {
         created_ms: crate::db::now_ms(),
         profiles_json: read_opt("profiles.json"),
         bridge_json: read_opt("bridge.json"),
@@ -144,8 +265,10 @@ pub fn export(dir: &Path, db: &Db, password: &str, dest: &Path) -> Result<Backup
     };
     let summary = archive.summary();
 
-    let plaintext = serde_json::to_vec(&archive).context("serialize archive")?;
-    let gz = gzip(&plaintext).context("gzip archive")?;
+    let mut plaintext = serde_json::to_vec(&archive).context("serialize archive")?;
+    db_bytes.fill(0);
+    clear_archive_memory(&mut archive);
+    let mut gz = gzip(&plaintext).context("gzip archive")?;
 
     // Fresh random salt + nonce for every export.
     let mut salt = [0u8; SALT_LEN];
@@ -154,21 +277,25 @@ pub fn export(dir: &Path, db: &Db, password: &str, dest: &Path) -> Result<Backup
     rand::rngs::OsRng.fill_bytes(&mut nonce);
 
     let header = build_header(&salt, &nonce);
-    let key = derive_key(password, &salt)?;
+    let mut key = derive_key(password, &salt)?;
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
-    let ciphertext = cipher
-        .encrypt(
-            Nonce::from_slice(&nonce),
-            Payload {
-                msg: &gz,
-                aad: &header,
-            },
-        )
-        .map_err(|_| anyhow!("encryption failed"))?;
+    let encrypted = cipher.encrypt(
+        Nonce::from_slice(&nonce),
+        Payload {
+            msg: &gz,
+            aad: &header,
+        },
+    );
+    drop(cipher);
+    key.fill(0);
+    plaintext.fill(0);
+    gz.fill(0);
+    let ciphertext = encrypted.map_err(|_| anyhow!("encryption failed"))?;
 
     let mut out = header;
     out.extend_from_slice(&ciphertext);
-    std::fs::write(dest, &out).with_context(|| format!("write backup to {}", dest.display()))?;
+    write_private_file(dest, &out)
+        .with_context(|| format!("write backup to {}", dest.display()))?;
 
     Ok(summary)
 }
@@ -187,7 +314,7 @@ pub fn inspect(password: &str, src: &Path) -> Result<BackupSummary> {
 /// straight to the keychain. When false (the CLI, no running app), everything is
 /// applied immediately.
 pub fn import(dir: &Path, password: &str, src: &Path, defer: bool) -> Result<BackupSummary> {
-    let archive = decrypt(password, src)?;
+    let mut archive = decrypt(password, src)?;
     let summary = archive.summary();
 
     // Stage the config files.
@@ -199,14 +326,15 @@ pub fn import(dir: &Path, password: &str, src: &Path, defer: bool) -> Result<Bac
     let db_bytes = base64::engine::general_purpose::STANDARD
         .decode(archive.ghostftp_db_b64.as_bytes())
         .context("decode ghostftp.db snapshot")?;
-    std::fs::write(dir.join("ghostftp.db.restore"), &db_bytes).context("stage ghostftp.db")?;
+    write_private_file(&dir.join("ghostftp.db.restore"), &db_bytes).context("stage ghostftp.db")?;
 
-    // Inject credentials into the keychain now — never written to disk in the
-    // clear. (The restored ghostftp.db already carries the matching manifest.)
-    for c in &archive.credentials {
+    // Credential restore is constrained to Ghost FTP-owned keychain services.
+    // A crafted backup must never write into another application's namespace.
+    for c in &mut archive.credentials {
         if let Ok(entry) = keyring::Entry::new(&c.service, &c.account) {
             let _ = entry.set_password(&c.secret);
         }
+        wipe_string(&mut c.secret);
     }
 
     if !defer {
@@ -238,7 +366,9 @@ pub fn apply_pending_restore(dir: &Path) {
 fn stage_opt(dir: &Path, name: &str, content: Option<&str>) -> Result<()> {
     let staged = dir.join(format!("{name}.restore"));
     match content {
-        Some(c) => std::fs::write(&staged, c).with_context(|| format!("stage {name}"))?,
+        Some(c) => {
+            write_private_file(&staged, c.as_bytes()).with_context(|| format!("stage {name}"))?
+        }
         // Nothing to restore for this file — clear any leftover staging.
         None => {
             let _ = std::fs::remove_file(&staged);
@@ -270,6 +400,12 @@ fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32]> {
 }
 
 fn decrypt(password: &str, src: &Path) -> Result<Archive> {
+    validate_decrypt_password(password)?;
+    let metadata =
+        std::fs::metadata(src).with_context(|| format!("inspect backup {}", src.display()))?;
+    if metadata.len() > MAX_BACKUP_FILE_BYTES {
+        bail!("Ghost FTP backup exceeds the maximum supported size");
+    }
     let bytes = std::fs::read(src).with_context(|| format!("read backup {}", src.display()))?;
     let header_len = MAGIC.len() + 1 + SALT_LEN + NONCE_LEN;
     if bytes.len() < header_len + 16 {
@@ -287,19 +423,25 @@ fn decrypt(password: &str, src: &Path) -> Result<Archive> {
     let header = &bytes[..header_len];
     let ciphertext = &bytes[header_len..];
 
-    let key = derive_key(password, salt)?;
+    let mut key = derive_key(password, salt)?;
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
-    let gz = cipher
-        .decrypt(
-            Nonce::from_slice(nonce),
-            Payload {
-                msg: ciphertext,
-                aad: header,
-            },
-        )
-        .map_err(|_| anyhow!("wrong password, or the backup is corrupt"))?;
-    let plaintext = gunzip(&gz).context("gunzip archive")?;
-    serde_json::from_slice(&plaintext).context("parse archive")
+    let decrypted = cipher.decrypt(
+        Nonce::from_slice(nonce),
+        Payload {
+            msg: ciphertext,
+            aad: header,
+        },
+    );
+    drop(cipher);
+    key.fill(0);
+    let mut gz = decrypted.map_err(|_| anyhow!("wrong password, or the backup is corrupt"))?;
+    let mut plaintext = gunzip_bounded(&gz).context("gunzip archive")?;
+    gz.fill(0);
+    let parsed = serde_json::from_slice::<Archive>(&plaintext).context("parse archive");
+    plaintext.fill(0);
+    let archive = parsed?;
+    validate_archive(&archive)?;
+    Ok(archive)
 }
 
 fn gzip(data: &[u8]) -> Result<Vec<u8>> {
@@ -308,10 +450,15 @@ fn gzip(data: &[u8]) -> Result<Vec<u8>> {
     Ok(enc.finish()?)
 }
 
-fn gunzip(data: &[u8]) -> Result<Vec<u8>> {
-    let mut dec = flate2::read::GzDecoder::new(data);
+fn gunzip_bounded(data: &[u8]) -> Result<Vec<u8>> {
+    let dec = flate2::read::GzDecoder::new(data);
+    let mut limited = dec.take(MAX_DECOMPRESSED_BYTES as u64 + 1);
     let mut out = Vec::new();
-    dec.read_to_end(&mut out)?;
+    limited.read_to_end(&mut out)?;
+    if out.len() > MAX_DECOMPRESSED_BYTES {
+        out.fill(0);
+        bail!("Ghost FTP backup expands beyond the maximum supported size");
+    }
     Ok(out)
 }
 
@@ -406,6 +553,7 @@ mod tests {
         let db = Db::open(&src_dir.join("ghostftp.db")).unwrap();
         let summary = export(&src_dir, &db, "correct horse", &backup).unwrap();
         assert_eq!(summary.profiles, 1);
+        assert!(!src_dir.join("ghostftp.db.backup.tmp").exists());
         assert!(summary.has_bridge && summary.has_sync);
         assert!(summary.db_bytes > 0);
         drop(db);
@@ -438,6 +586,46 @@ mod tests {
         let _ = std::fs::remove_dir_all(&src_dir);
         let _ = std::fs::remove_dir_all(&dst_dir);
         let _ = std::fs::remove_file(&backup);
+    }
+
+    #[test]
+    fn rejects_unknown_credential_service() {
+        let archive = Archive {
+            created_ms: 0,
+            profiles_json: None,
+            bridge_json: None,
+            foldersync_json: None,
+            ghostftp_db_b64: String::new(),
+            credentials: vec![Cred {
+                service: "com.example.other-app".to_string(),
+                account: "user".to_string(),
+                secret: "secret".to_string(),
+            }],
+        };
+
+        assert!(validate_archive(&archive).is_err());
+    }
+
+    #[test]
+    fn private_file_writer_replaces_existing_content() {
+        let path = std::env::temp_dir().join(format!(
+            "ghostftp-private-write-{}-{}.tmp",
+            std::process::id(),
+            crate::db::now_ms()
+        ));
+        std::fs::write(&path, b"old data that must disappear").unwrap();
+        write_private_file(&path, b"new").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"new");
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn export_password_policy_rejects_weak_or_pathological_inputs() {
+        assert!(validate_export_password("short").is_err());
+        assert!(validate_export_password("correct horse").is_ok());
+        assert!(validate_export_password(&"x".repeat(MAX_BACKUP_PASSWORD_BYTES + 1)).is_err());
+        assert!(validate_decrypt_password("x").is_ok());
+        assert!(validate_decrypt_password("").is_err());
     }
 
     #[test]
