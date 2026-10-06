@@ -14,6 +14,8 @@ enum FTPControlError: LocalizedError {
     case invalidPassiveEndpoint
     case invalidDirectoryListing
     case directoryListingTooLarge
+    case invalidRemoteFileName
+    case localFileFailure(String)
 
     var errorDescription: String? {
         switch self {
@@ -41,6 +43,10 @@ enum FTPControlError: LocalizedError {
             return "The FTP server returned a directory listing that Ghost FTP could not parse."
         case .directoryListingTooLarge:
             return "The FTP directory listing exceeded the safe 8 MiB limit."
+        case .invalidRemoteFileName:
+            return "The FTP remote file name is invalid."
+        case .localFileFailure:
+            return "Ghost FTP could not read or write the selected local file."
         }
     }
 
@@ -50,6 +56,8 @@ enum FTPControlError: LocalizedError {
             return detail
         case .unexpectedReply(_, _, let message):
             return message
+        case .localFileFailure(let detail):
+            return detail
         default:
             return errorDescription ?? "FTP control error."
         }
@@ -162,6 +170,14 @@ enum FTPControlCodec {
             scalar.value == 0 || scalar.value == 10 || scalar.value == 13
         }) {
             throw FTPControlError.unsafeCommandArgument
+        }
+    }
+
+
+    static func validateRemoteFileName(_ value: String) throws {
+        try validateCommandArgument(value)
+        guard !value.isEmpty, value != ".", value != "..", !value.contains("/") else {
+            throw FTPControlError.invalidRemoteFileName
         }
     }
 
@@ -354,26 +370,146 @@ actor FTPControlSession {
     }
 
 
+    func downloadFile(
+        remoteName: String,
+        to localURL: URL,
+        timeoutSeconds: TimeInterval = 20
+    ) async throws {
+        try FTPControlCodec.validateRemoteFileName(remoteName)
+
+        let dataConnection = try await openPassiveDataConnection(timeoutSeconds: timeoutSeconds)
+        let directoryURL = localURL.deletingLastPathComponent()
+        let temporaryURL = directoryURL.appendingPathComponent(
+            ".(localURL.lastPathComponent).ghostftp-(UUID().uuidString).part"
+        )
+
+        guard FileManager.default.createFile(atPath: temporaryURL.path, contents: nil) else {
+            dataConnection.cancel()
+            throw FTPControlError.localFileFailure("Could not create a temporary download file.")
+        }
+
+        do {
+            let reply = try await command("RETR (remoteName)", timeoutSeconds: timeoutSeconds)
+            try expect(
+                reply,
+                accepted: [125, 150],
+                description: "125 or 150 download start"
+            )
+
+            let handle = try FileHandle(forWritingTo: temporaryURL)
+            defer { try? handle.close() }
+
+            while true {
+                try Task.checkCancellation()
+                let (chunk, complete) = try await receiveDataChunk(
+                    dataConnection,
+                    timeoutSeconds: timeoutSeconds
+                )
+                if !chunk.isEmpty {
+                    try handle.write(contentsOf: chunk)
+                }
+                if complete {
+                    break
+                }
+            }
+
+            try handle.synchronize()
+            dataConnection.cancel()
+
+            let completion = try await readReply(timeoutSeconds: timeoutSeconds)
+            try expect(
+                completion,
+                accepted: [226, 250],
+                description: "226 or 250 download complete"
+            )
+
+            if FileManager.default.fileExists(atPath: localURL.path) {
+                _ = try FileManager.default.replaceItemAt(localURL, withItemAt: temporaryURL)
+            } else {
+                try FileManager.default.moveItem(at: temporaryURL, to: localURL)
+            }
+        } catch {
+            dataConnection.cancel()
+            try? FileManager.default.removeItem(at: temporaryURL)
+            closeTransport()
+            if error is CancellationError {
+                throw error
+            }
+            if let ftpError = error as? FTPControlError {
+                throw ftpError
+            }
+            throw FTPControlError.localFileFailure(error.localizedDescription)
+        }
+    }
+
+    func uploadFile(
+        from localURL: URL,
+        remoteName: String,
+        timeoutSeconds: TimeInterval = 20
+    ) async throws {
+        try FTPControlCodec.validateRemoteFileName(remoteName)
+
+        let handle: FileHandle
+        do {
+            handle = try FileHandle(forReadingFrom: localURL)
+        } catch {
+            throw FTPControlError.localFileFailure(error.localizedDescription)
+        }
+        defer { try? handle.close() }
+
+        let dataConnection = try await openPassiveDataConnection(timeoutSeconds: timeoutSeconds)
+
+        do {
+            let reply = try await command("STOR (remoteName)", timeoutSeconds: timeoutSeconds)
+            try expect(
+                reply,
+                accepted: [125, 150],
+                description: "125 or 150 upload start"
+            )
+
+            while true {
+                try Task.checkCancellation()
+                guard let chunk = try handle.read(upToCount: 64 * 1024), !chunk.isEmpty else {
+                    break
+                }
+                try await sendData(
+                    chunk,
+                    through: dataConnection,
+                    timeoutSeconds: timeoutSeconds
+                )
+            }
+
+            try await finishSending(
+                dataConnection,
+                timeoutSeconds: timeoutSeconds
+            )
+
+            let completion = try await readReply(timeoutSeconds: timeoutSeconds)
+            try expect(
+                completion,
+                accepted: [226, 250],
+                description: "226 or 250 upload complete"
+            )
+            dataConnection.cancel()
+        } catch {
+            dataConnection.cancel()
+            closeTransport()
+            if error is CancellationError {
+                throw error
+            }
+            if let ftpError = error as? FTPControlError {
+                throw ftpError
+            }
+            throw FTPControlError.localFileFailure(error.localizedDescription)
+        }
+    }
+
     func listDirectory(timeoutSeconds: TimeInterval = 8) async throws -> [FTPDirectoryEntry] {
-        guard let controlHost else {
-            throw FTPControlError.disconnected
-        }
-
-        let passiveReply = try await command("EPSV", timeoutSeconds: timeoutSeconds)
-        try expect(passiveReply, accepted: [229], description: "229 extended passive mode")
-        let dataPort = try FTPControlCodec.extendedPassivePort(from: passiveReply)
-        guard let port = NWEndpoint.Port(rawValue: dataPort) else {
-            throw FTPControlError.invalidPassiveEndpoint
-        }
-
-        let dataConnection = NWConnection(
-            host: NWEndpoint.Host(controlHost),
-            port: port,
-            using: .tcp
+        let dataConnection = try await openPassiveDataConnection(
+            timeoutSeconds: timeoutSeconds
         )
 
         do {
-            try await waitUntilReady(dataConnection, timeoutSeconds: timeoutSeconds)
             try await sendLine("MLSD", timeoutSeconds: timeoutSeconds)
             let preliminary = try await readReply(timeoutSeconds: timeoutSeconds)
             try expect(
@@ -515,6 +651,89 @@ actor FTPControlSession {
 
             let chunk = try await receiveChunk(timeoutSeconds: timeoutSeconds)
             receiveBuffer.append(chunk)
+        }
+    }
+
+    private func openPassiveDataConnection(
+        timeoutSeconds: TimeInterval
+    ) async throws -> NWConnection {
+        guard let controlHost else {
+            throw FTPControlError.disconnected
+        }
+
+        let passiveReply = try await command("EPSV", timeoutSeconds: timeoutSeconds)
+        try expect(passiveReply, accepted: [229], description: "229 extended passive mode")
+        let dataPort = try FTPControlCodec.extendedPassivePort(from: passiveReply)
+        guard let port = NWEndpoint.Port(rawValue: dataPort) else {
+            throw FTPControlError.invalidPassiveEndpoint
+        }
+
+        let dataConnection = NWConnection(
+            host: NWEndpoint.Host(controlHost),
+            port: port,
+            using: .tcp
+        )
+        try await waitUntilReady(dataConnection, timeoutSeconds: timeoutSeconds)
+        return dataConnection
+    }
+
+    private func sendData(
+        _ data: Data,
+        through connection: NWConnection,
+        timeoutSeconds: TimeInterval
+    ) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let gate = OneShotGate()
+
+            queue.asyncAfter(deadline: .now() + timeoutSeconds) {
+                if gate.claim() {
+                    connection.cancel()
+                    continuation.resume(throwing: FTPControlError.timedOut)
+                }
+            }
+
+            connection.send(content: data, completion: .contentProcessed { error in
+                guard gate.claim() else { return }
+                if let error {
+                    continuation.resume(
+                        throwing: FTPControlError.connectionFailed(error.localizedDescription)
+                    )
+                } else {
+                    continuation.resume()
+                }
+            })
+        }
+    }
+
+    private func finishSending(
+        _ connection: NWConnection,
+        timeoutSeconds: TimeInterval
+    ) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let gate = OneShotGate()
+
+            queue.asyncAfter(deadline: .now() + timeoutSeconds) {
+                if gate.claim() {
+                    connection.cancel()
+                    continuation.resume(throwing: FTPControlError.timedOut)
+                }
+            }
+
+            connection.send(
+                content: nil,
+                contentContext: .finalMessage,
+                isComplete: true,
+                completion: .contentProcessed { error in
+                    guard gate.claim() else { return }
+                    if let error {
+                        continuation.resume(
+                            throwing: FTPControlError.connectionFailed(error.localizedDescription)
+                        )
+                    } else {
+                        continuation.resume()
+                    }
+                }
+            )
         }
     }
 
