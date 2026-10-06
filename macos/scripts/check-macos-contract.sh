@@ -70,6 +70,9 @@ grep -Fq 'TransferHistoryStore.shared' macos/Sources/GhostFTPMacApp/Views/Worksp
 grep -Fq 'exportProfiles()' macos/Sources/GhostFTPMacApp/Services/ProfileStore.swift
 grep -Fq 'importProfiles(from data: Data)' macos/Sources/GhostFTPMacApp/Services/ProfileStore.swift
 grep -Fq 'maximumRecords = 200' macos/Sources/GhostFTPMacApp/Services/TransferHistoryStore.swift
+grep -Fq 'status == .running' macos/Sources/GhostFTPMacApp/Services/TransferHistoryStore.swift
+grep -Fq 'readBoundedBackup(' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'maximumBytes: Int = 256 * 1024' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
 grep -Fq 'history.begin(direction: .upload' macos/Sources/GhostFTPMacApp/Services/FTPConnectionController.swift
 grep -Fq 'history.begin(direction: .download' macos/Sources/GhostFTPMacApp/Services/FTPConnectionController.swift
 
