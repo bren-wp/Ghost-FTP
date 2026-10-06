@@ -3986,6 +3986,41 @@ input.ghost-pane-address:focus-visible {
   box-shadow: 0 0 11px rgba(19,223,139,.45);
 }
 
+.ghost-reference-statusbar .dot.unhealthy {
+  background: #ff5a65;
+  box-shadow: 0 0 11px rgba(255,90,101,.38);
+}
+
+.ghost-status-health {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #1c557c;
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #08243d;
+  color: #dff4ff;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.ghost-status-health:hover:not(:disabled) {
+  border-color: #38abff;
+  background: #0a3155;
+}
+
+.ghost-status-health:disabled {
+  cursor: progress;
+  opacity: .78;
+}
+
+.ghost-status-health.unhealthy {
+  border-color: rgba(255,90,101,.72);
+  color: #ffd9dc;
+}
+
 .ghost-reference-statusbar .up {
   color: #5fc2ff;
 }
