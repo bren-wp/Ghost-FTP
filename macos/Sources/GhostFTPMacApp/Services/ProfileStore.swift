@@ -85,8 +85,9 @@ final class ProfileStore: ObservableObject {
             (profile.username, Self.maximumUsernameBytes),
         ]
         let forbidden = CharacterSet.controlCharacters
-        guard fields.allSatisfy({ value, maximumBytes in
-            value.utf8.count <= maximumBytes
+        guard fields.allSatisfy({ field in
+            let (value, maximumBytes) = field
+            return value.utf8.count <= maximumBytes
                 && !value.unicodeScalars.contains(where: forbidden.contains)
         }) else {
             throw ProfileStoreError.invalidProfileShape
