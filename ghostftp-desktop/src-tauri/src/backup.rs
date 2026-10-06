@@ -38,8 +38,11 @@
 //! path applies immediately (no running app to coordinate with).
 
 use std::collections::HashSet;
+use std::fs::OpenOptions;
 use std::io::{Read, Write};
-use std::path::Path;
+#[cfg(unix)]
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+use std::path::{Path, PathBuf};
 
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
@@ -59,6 +62,11 @@ const NONCE_LEN: usize = 12;
 const ARGON_MEM_KIB: u32 = 65_536;
 const ARGON_TIME: u32 = 3;
 const ARGON_LANES: u32 = 1;
+const MAX_BACKUP_FILE_BYTES: u64 = 512 * 1024 * 1024;
+const MAX_DECOMPRESSED_BYTES: usize = 768 * 1024 * 1024;
+const MAX_CREDENTIALS: usize = 4_096;
+const MAX_CREDENTIAL_SERVICE_BYTES: usize = 256;
+const MAX_CREDENTIAL_ACCOUNT_BYTES: usize = 1_024;
 
 /// The config files carried in a backup, in the app data dir. `ghostftp.db` is
 /// handled separately (it needs a WAL-safe snapshot on export and staging on
@@ -117,6 +125,75 @@ impl Archive {
     }
 }
 
+struct RemoveOnDrop(PathBuf);
+
+impl Drop for RemoveOnDrop {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
+fn write_private_file(path: &Path, data: &[u8]) -> Result<()> {
+    #[cfg(unix)]
+    {
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(path)
+            .with_context(|| format!("open private file {}", path.display()))?;
+        let mut permissions = file
+            .metadata()
+            .with_context(|| format!("read permissions for {}", path.display()))?
+            .permissions();
+        permissions.set_mode(0o600);
+        file.set_permissions(permissions)
+            .with_context(|| format!("set private permissions for {}", path.display()))?;
+        file.write_all(data)
+            .with_context(|| format!("write private file {}", path.display()))?;
+        file.sync_all()
+            .with_context(|| format!("sync private file {}", path.display()))?;
+        return Ok(());
+    }
+
+    #[cfg(not(unix))]
+    {
+        std::fs::write(path, data)
+            .with_context(|| format!("write private file {}", path.display()))?;
+        Ok(())
+    }
+}
+
+fn credential_target_allowed(service: &str, account: &str) -> bool {
+    let allowed_services = [
+        crate::credentials::SERVICE,
+        crate::session::dropbox::DROPBOX_SERVICE,
+        crate::session::onedrive::ONEDRIVE_SERVICE,
+        crate::session::gdrive::GDRIVE_SERVICE,
+        crate::session::boxdrive::BOX_SERVICE,
+    ];
+    allowed_services.contains(&service)
+        && !service.is_empty()
+        && service.len() <= MAX_CREDENTIAL_SERVICE_BYTES
+        && !account.is_empty()
+        && account.len() <= MAX_CREDENTIAL_ACCOUNT_BYTES
+        && !service.chars().any(char::is_control)
+        && !account.chars().any(char::is_control)
+}
+
+fn validate_archive(archive: &Archive) -> Result<()> {
+    if archive.credentials.len() > MAX_CREDENTIALS {
+        bail!("backup contains too many credential records");
+    }
+    for credential in &archive.credentials {
+        if !credential_target_allowed(&credential.service, &credential.account) {
+            bail!("backup contains an unsupported credential target");
+        }
+    }
+    Ok(())
+}
+
 // ---- Export ----
 
 /// Build an encrypted backup of everything under `dir` (+ its keychain
@@ -126,11 +203,12 @@ pub fn export(dir: &Path, db: &Db, password: &str, dest: &Path) -> Result<Backup
         bail!("a password is required to encrypt the backup");
     }
 
-    // WAL-safe DB snapshot into a temp file, then read + remove it.
+    // WAL-safe DB snapshot into a temp file. The guard removes it on every
+    // return path, including snapshot/read/encryption failures.
     let tmp = dir.join("ghostftp.db.backup.tmp");
+    let _tmp_guard = RemoveOnDrop(tmp.clone());
     db.snapshot_to(&tmp).context("snapshot ghostftp.db")?;
     let db_bytes = std::fs::read(&tmp).context("read ghostftp.db snapshot")?;
-    let _ = std::fs::remove_file(&tmp);
 
     let read_opt = |name: &str| -> Option<String> { std::fs::read_to_string(dir.join(name)).ok() };
 
@@ -144,8 +222,8 @@ pub fn export(dir: &Path, db: &Db, password: &str, dest: &Path) -> Result<Backup
     };
     let summary = archive.summary();
 
-    let plaintext = serde_json::to_vec(&archive).context("serialize archive")?;
-    let gz = gzip(&plaintext).context("gzip archive")?;
+    let mut plaintext = serde_json::to_vec(&archive).context("serialize archive")?;
+    let mut gz = gzip(&plaintext).context("gzip archive")?;
 
     // Fresh random salt + nonce for every export.
     let mut salt = [0u8; SALT_LEN];
@@ -154,21 +232,24 @@ pub fn export(dir: &Path, db: &Db, password: &str, dest: &Path) -> Result<Backup
     rand::rngs::OsRng.fill_bytes(&mut nonce);
 
     let header = build_header(&salt, &nonce);
-    let key = derive_key(password, &salt)?;
+    let mut key = derive_key(password, &salt)?;
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
-    let ciphertext = cipher
-        .encrypt(
-            Nonce::from_slice(&nonce),
-            Payload {
-                msg: &gz,
-                aad: &header,
-            },
-        )
-        .map_err(|_| anyhow!("encryption failed"))?;
+    let encrypted = cipher.encrypt(
+        Nonce::from_slice(&nonce),
+        Payload {
+            msg: &gz,
+            aad: &header,
+        },
+    );
+    drop(cipher);
+    key.fill(0);
+    plaintext.fill(0);
+    gz.fill(0);
+    let ciphertext = encrypted.map_err(|_| anyhow!("encryption failed"))?;
 
     let mut out = header;
     out.extend_from_slice(&ciphertext);
-    std::fs::write(dest, &out).with_context(|| format!("write backup to {}", dest.display()))?;
+    write_private_file(dest, &out).with_context(|| format!("write backup to {}", dest.display()))?;
 
     Ok(summary)
 }
