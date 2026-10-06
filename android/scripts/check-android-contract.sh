@@ -219,7 +219,7 @@ require_text "workspace navigation control" "$MAIN_ACTIVITY" 'workspaceNavItem(w
 require_text "workspace state persistence" "$MAIN_ACTIVITY" 'STATE_WORKSPACE'
 require_text "settings backup create request" "$MAIN_ACTIVITY" 'CREATE_SETTINGS_BACKUP_REQUEST'
 require_text "settings backup restore request" "$MAIN_ACTIVITY" 'RESTORE_SETTINGS_BACKUP_REQUEST'
-require_text "bounded settings restore" "$MAIN_ACTIVITY" 'readBoundedDocumentText(uri, maximumBytes: Int = 256 * 1024)'
+require_text "bounded settings restore" "$MAIN_ACTIVITY" 'private fun readBoundedDocumentText(uri: Uri, maximumBytes: Int = 256 * 1024): String'
 require_text "settings backup schema" "$MAIN_ACTIVITY" '.put("schemaVersion", 1)'
 require_text "settings restore disconnects session" "$MAIN_ACTIVITY" 'disconnect()'
 require_absent "password export field" "$MAIN_ACTIVITY" '.put("password"'

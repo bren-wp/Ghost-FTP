@@ -4,7 +4,7 @@ import XCTest
 @MainActor
 final class WorkspaceStoreTests: XCTestCase {
     private func isolatedDefaults(_ suffix: String) -> UserDefaults {
-        let suite = "com.brendigo.ghostftp.tests.(suffix).(UUID().uuidString)"
+        let suite = "com.brendigo.ghostftp.tests.\(suffix).\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
         return defaults
@@ -99,7 +99,7 @@ final class WorkspaceStoreTests: XCTestCase {
         let history = TransferHistoryStore(defaults: isolatedDefaults("transfer-limit"))
 
         for index in 0..<205 {
-            _ = history.begin(direction: .upload, fileName: "file-(index).dat")
+            _ = history.begin(direction: .upload, fileName: "file-\(index).dat")
         }
 
         XCTAssertEqual(history.records.count, 200)
