@@ -68,6 +68,8 @@ const MAX_DECOMPRESSED_BYTES: usize = 768 * 1024 * 1024;
 const MAX_CREDENTIALS: usize = 4_096;
 const MAX_CREDENTIAL_SERVICE_BYTES: usize = 256;
 const MAX_CREDENTIAL_ACCOUNT_BYTES: usize = 1_024;
+const MIN_EXPORT_PASSWORD_BYTES: usize = 12;
+const MAX_BACKUP_PASSWORD_BYTES: usize = 1_024;
 
 /// The config files carried in a backup, in the app data dir. `ghostftp.db` is
 /// handled separately (it needs a WAL-safe snapshot on export and staging on
@@ -183,6 +185,43 @@ fn credential_target_allowed(service: &str, account: &str) -> bool {
         && !account.chars().any(char::is_control)
 }
 
+fn validate_export_password(password: &str) -> Result<()> {
+    let len = password.as_bytes().len();
+    if len < MIN_EXPORT_PASSWORD_BYTES {
+        bail!("backup password must be at least {MIN_EXPORT_PASSWORD_BYTES} bytes");
+    }
+    if len > MAX_BACKUP_PASSWORD_BYTES {
+        bail!("backup password exceeds the maximum supported length");
+    }
+    Ok(())
+}
+
+fn validate_decrypt_password(password: &str) -> Result<()> {
+    if password.is_empty() {
+        bail!("a backup password is required");
+    }
+    if password.as_bytes().len() > MAX_BACKUP_PASSWORD_BYTES {
+        bail!("backup password exceeds the maximum supported length");
+    }
+    Ok(())
+}
+
+fn clear_archive_memory(archive: &mut Archive) {
+    if let Some(value) = archive.profiles_json.as_mut() {
+        value.clear();
+    }
+    if let Some(value) = archive.bridge_json.as_mut() {
+        value.clear();
+    }
+    if let Some(value) = archive.foldersync_json.as_mut() {
+        value.clear();
+    }
+    archive.ghostftp_db_b64.clear();
+    for credential in &mut archive.credentials {
+        credential.secret.clear();
+    }
+}
+
 fn validate_archive(archive: &Archive) -> Result<()> {
     if archive.credentials.len() > MAX_CREDENTIALS {
         bail!("backup contains too many credential records");
@@ -200,20 +239,18 @@ fn validate_archive(archive: &Archive) -> Result<()> {
 /// Build an encrypted backup of everything under `dir` (+ its keychain
 /// credentials) and write it to `dest`.
 pub fn export(dir: &Path, db: &Db, password: &str, dest: &Path) -> Result<BackupSummary> {
-    if password.is_empty() {
-        bail!("a password is required to encrypt the backup");
-    }
+    validate_export_password(password)?;
 
     // WAL-safe DB snapshot into a temp file. The guard removes it on every
     // return path, including snapshot/read/encryption failures.
     let tmp = dir.join("ghostftp.db.backup.tmp");
     let _tmp_guard = RemoveOnDrop(tmp.clone());
     db.snapshot_to(&tmp).context("snapshot ghostftp.db")?;
-    let db_bytes = std::fs::read(&tmp).context("read ghostftp.db snapshot")?;
+    let mut db_bytes = std::fs::read(&tmp).context("read ghostftp.db snapshot")?;
 
     let read_opt = |name: &str| -> Option<String> { std::fs::read_to_string(dir.join(name)).ok() };
 
-    let archive = Archive {
+    let mut archive = Archive {
         created_ms: crate::db::now_ms(),
         profiles_json: read_opt("profiles.json"),
         bridge_json: read_opt("bridge.json"),
@@ -224,6 +261,8 @@ pub fn export(dir: &Path, db: &Db, password: &str, dest: &Path) -> Result<Backup
     let summary = archive.summary();
 
     let mut plaintext = serde_json::to_vec(&archive).context("serialize archive")?;
+    db_bytes.fill(0);
+    clear_archive_memory(&mut archive);
     let mut gz = gzip(&plaintext).context("gzip archive")?;
 
     // Fresh random salt + nonce for every export.
@@ -356,6 +395,7 @@ fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32]> {
 }
 
 fn decrypt(password: &str, src: &Path) -> Result<Archive> {
+    validate_decrypt_password(password)?;
     let metadata =
         std::fs::metadata(src).with_context(|| format!("inspect backup {}", src.display()))?;
     if metadata.len() > MAX_BACKUP_FILE_BYTES {
@@ -572,6 +612,15 @@ mod tests {
         write_private_file(&path, b"new").unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"new");
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn export_password_policy_rejects_weak_or_pathological_inputs() {
+        assert!(validate_export_password("short").is_err());
+        assert!(validate_export_password("correct horse").is_ok());
+        assert!(validate_export_password(&"x".repeat(MAX_BACKUP_PASSWORD_BYTES + 1)).is_err());
+        assert!(validate_decrypt_password("x").is_ok());
+        assert!(validate_decrypt_password("").is_err());
     }
 
     #[test]
