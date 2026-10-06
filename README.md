@@ -39,12 +39,12 @@
 
 ## Current status
 
-- **Active source/release cycle:** `0.30.9`.
-- **Previous canonical release:** `0.30.8`.
+- **Active source/release cycle:** `0.30.10`.
+- **Previous canonical release:** `0.30.9`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
-- **macOS development source:** `macos/` — dedicated SwiftUI client with its own security/build gate. 0.30.9 extends the separately verified macOS Preview with a real plain-FTP control session and EPSV/MLSD directory browsing; it is not yet a notarized production deliverable.
+- **macOS development source:** `macos/` — dedicated SwiftUI client with its own security/build gate. 0.30.10 extends the separately verified macOS Preview with real streamed plain-FTP upload/download in addition to the control session and EPSV/MLSD directory browsing; it is not yet a notarized production deliverable.
 - **No website application is maintained in this repository.** Releases, source, documentation and support/security material live in GitHub/repository artifacts.
 
 ## Product scope
@@ -85,7 +85,7 @@ The native Kotlin application supports FTP, explicit FTPS and SFTP connection/li
 
 The dedicated SwiftUI client is being developed in `macos/` and remains a Preview. It includes validated connection profiles, Keychain-backed optional password storage, explicit transport warnings and TCP endpoint reachability checks. Plain FTP has a real control session: the client validates the `220` greeting, performs `USER`/`PASS` authentication, switches to binary mode with `TYPE I`, supports `PWD`, `CWD` and `NOOP`, and sends `QUIT` during a normal disconnect with bounded timeout/cancellation behavior. The Files slice now opens a real extended-passive data connection with `EPSV`, requests `MLSD`, parses typed directory entries and renders the current remote directory.
 
-macOS upload/download are not enabled yet. Servers that do not provide the required MLSD listing path fail explicitly instead of receiving a simulated listing. Explicit FTPS still requires a real `AUTH TLS` session with certificate and hostname validation, while SFTP still requires a real SSH/SFTP engine with host-key verification before authentication. Developer ID signing and notarization also remain gated development work; none of those unfinished capabilities are presented as production-ready.
+Plain-FTP upload/download are now enabled through streamed passive data channels and fail closed on ambiguous transfer errors. Servers that do not provide the required MLSD listing path still fail explicitly instead of receiving a simulated listing. Explicit FTPS still requires a real `AUTH TLS` session with certificate and hostname validation, while SFTP still requires a real SSH/SFTP engine with host-key verification before authentication. Developer ID signing and notarization also remain gated development work; none of those unfinished capabilities are presented as production-ready.
 
 ## Verification
 
