@@ -35,7 +35,8 @@ grep -Fq 'FTP traffic is not encrypted.' macos/Sources/GhostFTPMacApp/Models/Con
 grep -Fq 'certificate and hostname' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
 grep -Fq 'verify the server host key' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift
 grep -Fq 'kSecClassGenericPassword' macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift
-grep -Fq 'kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly' macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift
+grep -Fq 'kSecAttrAccessibleWhenUnlockedThisDeviceOnly' macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift
+grep -Fq 'kSecAttrSynchronizable as String: kCFBooleanFalse as Any' macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift
 grep -Fq 'NWConnection' macos/Sources/GhostFTPMacApp/Services/EndpointProbe.swift
 grep -Fq 'actor FTPControlSession' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'func currentDirectory' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
@@ -73,6 +74,9 @@ grep -Fq 'maximumRecords = 200' macos/Sources/GhostFTPMacApp/Services/TransferHi
 grep -Fq 'status == .running' macos/Sources/GhostFTPMacApp/Services/TransferHistoryStore.swift
 grep -Fq 'readBoundedBackup(' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
 grep -Fq 'maximumBytes: Int = 256 * 1024' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'maximumImportedProfiles = 512' macos/Sources/GhostFTPMacApp/Services/ProfileStore.swift
+grep -Fq 'maximumBackupBytes = 256 * 1024' macos/Sources/GhostFTPMacApp/Services/ProfileStore.swift
+grep -Fq '.posixPermissions: 0o600' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
 grep -Fq 'history.begin(direction: .upload' macos/Sources/GhostFTPMacApp/Services/FTPConnectionController.swift
 grep -Fq 'history.begin(direction: .download' macos/Sources/GhostFTPMacApp/Services/FTPConnectionController.swift
 
