@@ -17,6 +17,7 @@ import type {
   ImporterPaths,
   ProfilePreview,
   SessionId,
+  SessionHealth,
   SyncDirection,
   SyncPlan,
   SyncStrategy,
@@ -103,6 +104,9 @@ export const ipc = {
 
   connect: (profileId: string) =>
     invoke<SessionId>("connect", { profileId }),
+
+  checkSessionHealth: (sessionId: SessionId) =>
+    invoke<SessionHealth>("check_session_health", { sessionId }),
 
   /** Open an in-memory session without persisting a profile or credential. */
   connectEphemeral: (profile: ConnectionProfile) =>
