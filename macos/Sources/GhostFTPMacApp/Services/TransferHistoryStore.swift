@@ -18,12 +18,14 @@ struct TransferHistoryRecord: Codable, Identifiable, Equatable {
         case running
         case completed
         case failed
+        case cancelled
 
         var title: String {
             switch self {
             case .running: return "In progress"
             case .completed: return "Completed"
             case .failed: return "Failed"
+            case .cancelled: return "Cancelled"
             }
         }
     }
@@ -75,6 +77,10 @@ final class TransferHistoryStore: ObservableObject {
 
     func fail(_ id: UUID) {
         finish(id, status: .failed)
+    }
+
+    func cancel(_ id: UUID) {
+        finish(id, status: .cancelled)
     }
 
     func clear() {
