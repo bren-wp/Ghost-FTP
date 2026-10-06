@@ -66,6 +66,11 @@ export type Protocol =
   | "dynamics"
   | "ghostftp-agent";
 
+export interface SessionHealth {
+  healthy: boolean;
+  protocol: string;
+}
+
 export interface ConnectionProfile {
   id: string;
   name: string;
