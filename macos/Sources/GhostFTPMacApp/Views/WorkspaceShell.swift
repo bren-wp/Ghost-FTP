@@ -339,6 +339,8 @@ private struct SyncBackupWorkspace: View {
         } catch {
             statusMessage = "The selected backup is invalid or could not be read."
         }
+    }
+
     private func readBoundedBackup(
         from url: URL,
         maximumBytes: Int = 256 * 1024
@@ -351,7 +353,6 @@ private struct SyncBackupWorkspace: View {
             throw CocoaError(.fileReadTooLarge)
         }
         return data
-    }
     }
 }
 
