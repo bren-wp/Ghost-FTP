@@ -268,7 +268,7 @@ pub fn inspect(password: &str, src: &Path) -> Result<BackupSummary> {
 /// straight to the keychain. When false (the CLI, no running app), everything is
 /// applied immediately.
 pub fn import(dir: &Path, password: &str, src: &Path, defer: bool) -> Result<BackupSummary> {
-    let archive = decrypt(password, src)?;
+    let mut archive = decrypt(password, src)?;
     let summary = archive.summary();
 
     // Stage the config files.
@@ -280,14 +280,17 @@ pub fn import(dir: &Path, password: &str, src: &Path, defer: bool) -> Result<Bac
     let db_bytes = base64::engine::general_purpose::STANDARD
         .decode(archive.ghostftp_db_b64.as_bytes())
         .context("decode ghostftp.db snapshot")?;
-    std::fs::write(dir.join("ghostftp.db.restore"), &db_bytes).context("stage ghostftp.db")?;
+    write_private_file(&dir.join("ghostftp.db.restore"), &db_bytes).context("stage ghostftp.db")?;
 
-    // Inject credentials into the keychain now — never written to disk in the
-    // clear. (The restored ghostftp.db already carries the matching manifest.)
-    for c in &archive.credentials {
-        if let Ok(entry) = keyring::Entry::new(&c.service, &c.account) {
-            let _ = entry.set_password(&c.secret);
-        }
+    // Credential restore is constrained to Ghost FTP-owned keychain services.
+    // A crafted backup must never write into another application's namespace.
+    for c in &mut archive.credentials {
+        let entry = keyring::Entry::new(&c.service, &c.account)
+            .context("open Ghost FTP credential target")?;
+        entry
+            .set_password(&c.secret)
+            .context("restore Ghost FTP credential")?;
+        c.secret.clear();
     }
 
     if !defer {
@@ -319,7 +322,7 @@ pub fn apply_pending_restore(dir: &Path) {
 fn stage_opt(dir: &Path, name: &str, content: Option<&str>) -> Result<()> {
     let staged = dir.join(format!("{name}.restore"));
     match content {
-        Some(c) => std::fs::write(&staged, c).with_context(|| format!("stage {name}"))?,
+        Some(c) => write_private_file(&staged, c.as_bytes()).with_context(|| format!("stage {name}"))?,
         // Nothing to restore for this file — clear any leftover staging.
         None => {
             let _ = std::fs::remove_file(&staged);
@@ -351,6 +354,11 @@ fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32]> {
 }
 
 fn decrypt(password: &str, src: &Path) -> Result<Archive> {
+    let metadata =
+        std::fs::metadata(src).with_context(|| format!("inspect backup {}", src.display()))?;
+    if metadata.len() > MAX_BACKUP_FILE_BYTES {
+        bail!("Ghost FTP backup exceeds the maximum supported size");
+    }
     let bytes = std::fs::read(src).with_context(|| format!("read backup {}", src.display()))?;
     let header_len = MAGIC.len() + 1 + SALT_LEN + NONCE_LEN;
     if bytes.len() < header_len + 16 {
@@ -368,19 +376,25 @@ fn decrypt(password: &str, src: &Path) -> Result<Archive> {
     let header = &bytes[..header_len];
     let ciphertext = &bytes[header_len..];
 
-    let key = derive_key(password, salt)?;
+    let mut key = derive_key(password, salt)?;
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
-    let gz = cipher
-        .decrypt(
-            Nonce::from_slice(nonce),
-            Payload {
-                msg: ciphertext,
-                aad: header,
-            },
-        )
-        .map_err(|_| anyhow!("wrong password, or the backup is corrupt"))?;
-    let plaintext = gunzip(&gz).context("gunzip archive")?;
-    serde_json::from_slice(&plaintext).context("parse archive")
+    let decrypted = cipher.decrypt(
+        Nonce::from_slice(nonce),
+        Payload {
+            msg: ciphertext,
+            aad: header,
+        },
+    );
+    drop(cipher);
+    key.fill(0);
+    let mut gz = decrypted.map_err(|_| anyhow!("wrong password, or the backup is corrupt"))?;
+    let mut plaintext = gunzip_bounded(&gz).context("gunzip archive")?;
+    gz.fill(0);
+    let parsed = serde_json::from_slice::<Archive>(&plaintext).context("parse archive");
+    plaintext.fill(0);
+    let archive = parsed?;
+    validate_archive(&archive)?;
+    Ok(archive)
 }
 
 fn gzip(data: &[u8]) -> Result<Vec<u8>> {
@@ -389,10 +403,15 @@ fn gzip(data: &[u8]) -> Result<Vec<u8>> {
     Ok(enc.finish()?)
 }
 
-fn gunzip(data: &[u8]) -> Result<Vec<u8>> {
-    let mut dec = flate2::read::GzDecoder::new(data);
+fn gunzip_bounded(data: &[u8]) -> Result<Vec<u8>> {
+    let dec = flate2::read::GzDecoder::new(data);
+    let mut limited = dec.take(MAX_DECOMPRESSED_BYTES as u64 + 1);
     let mut out = Vec::new();
-    dec.read_to_end(&mut out)?;
+    limited.read_to_end(&mut out)?;
+    if out.len() > MAX_DECOMPRESSED_BYTES {
+        out.fill(0);
+        bail!("Ghost FTP backup expands beyond the maximum supported size");
+    }
     Ok(out)
 }
 
