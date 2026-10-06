@@ -24,7 +24,9 @@ final class FTPConnectionController: ObservableObject {
     @Published private(set) var transferState: TransferState = .idle
 
     private let session = FTPControlSession()
+    private let history = TransferHistoryStore.shared
     private var operation: Task<Void, Never>?
+    private var activeTransferID: UUID?
 
     var isConnected: Bool {
         if case .connected = state {
@@ -142,6 +144,8 @@ final class FTPConnectionController: ObservableObject {
         guard !remoteName.isEmpty else { return }
 
         transferState = .uploading(remoteName)
+        let transferID = history.begin(direction: .upload, fileName: remoteName)
+        activeTransferID = transferID
         operation?.cancel()
         operation = Task { [weak self] in
             guard let self else { return }
@@ -156,11 +160,17 @@ final class FTPConnectionController: ObservableObject {
             do {
                 try await session.uploadFile(from: localURL, remoteName: remoteName)
                 guard !Task.isCancelled else { return }
+                history.complete(transferID)
+                activeTransferID = nil
                 transferState = .completed("Uploaded \(remoteName)")
                 await refreshDirectoryInternal()
             } catch is CancellationError {
+                history.cancel(transferID)
+                activeTransferID = nil
                 transferState = .idle
             } catch {
+                history.fail(transferID)
+                activeTransferID = nil
                 transferState = .failed(error.localizedDescription)
                 state = .failed(error.localizedDescription)
             }
@@ -171,6 +181,8 @@ final class FTPConnectionController: ObservableObject {
         guard isConnected, !isTransferring, !entry.isDirectory else { return }
 
         transferState = .downloading(entry.name)
+        let transferID = history.begin(direction: .download, fileName: entry.name)
+        activeTransferID = transferID
         operation?.cancel()
         operation = Task { [weak self] in
             guard let self else { return }
@@ -185,10 +197,16 @@ final class FTPConnectionController: ObservableObject {
             do {
                 try await session.downloadFile(remoteName: entry.name, to: localURL)
                 guard !Task.isCancelled else { return }
+                history.complete(transferID)
+                activeTransferID = nil
                 transferState = .completed("Downloaded \(entry.name)")
             } catch is CancellationError {
+                history.cancel(transferID)
+                activeTransferID = nil
                 transferState = .idle
             } catch {
+                history.fail(transferID)
+                activeTransferID = nil
                 transferState = .failed(error.localizedDescription)
                 state = .failed(error.localizedDescription)
             }
@@ -217,6 +235,10 @@ final class FTPConnectionController: ObservableObject {
 
     func disconnect() {
         operation?.cancel()
+        if let activeTransferID {
+            history.cancel(activeTransferID)
+            self.activeTransferID = nil
+        }
         operation = nil
         state = .idle
         entries = []
@@ -230,6 +252,10 @@ final class FTPConnectionController: ObservableObject {
 
     func cancel() {
         operation?.cancel()
+        if let activeTransferID {
+            history.cancel(activeTransferID)
+            self.activeTransferID = nil
+        }
         operation = nil
         state = .idle
         entries = []
