@@ -22,6 +22,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
+import android.view.WindowManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -111,6 +112,8 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        clearLegacyPersistedDocumentGrants()
         activityClosing = false
         val content = buildContent()
         if (Build.VERSION.SDK_INT >= 35) {
@@ -169,30 +172,24 @@ class MainActivity : Activity() {
         when (requestCode) {
             PICK_UPLOAD_REQUEST -> handleUploadSelection(data)
             CREATE_SETTINGS_BACKUP_REQUEST -> data?.data?.let(::writeConnectionSettingsBackup)
-            RESTORE_SETTINGS_BACKUP_REQUEST -> data?.data?.let { uri ->
-                if ((data?.flags ?: 0) and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0) {
-                    runCatching {
-                        contentResolver.takePersistableUriPermission(
-                            uri,
-                            Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        )
-                    }
-                }
-                restoreConnectionSettingsBackup(uri)
+            RESTORE_SETTINGS_BACKUP_REQUEST -> data?.data?.let(::restoreConnectionSettingsBackup)
+        }
+    }
+
+    private fun clearLegacyPersistedDocumentGrants() {
+        for (permission in contentResolver.persistedUriPermissions) {
+            var flags = 0
+            if (permission.isReadPermission) flags = flags or Intent.FLAG_GRANT_READ_URI_PERMISSION
+            if (permission.isWritePermission) flags = flags or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            if (flags == 0) continue
+            runCatching {
+                contentResolver.releasePersistableUriPermission(permission.uri, flags)
             }
         }
     }
 
     private fun handleUploadSelection(data: Intent?) {
         val uri = data?.data ?: return
-        if (data.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0) {
-            runCatching {
-                contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            }
-        }
         if (!canReadUploadUri(uri)) {
             selectedUploadUri = null
             selectedUploadDisplayName = ""
@@ -566,6 +563,7 @@ class MainActivity : Activity() {
             // do not expose this field to Android Autofill services.
             isSaveEnabled = false
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+            filterTouchesWhenObscured = true
         }
         addView(formLabel(getString(R.string.field_password)))
         addView(passwordInput)
@@ -1723,6 +1721,7 @@ class MainActivity : Activity() {
     }
 
     private fun primaryButton(value: String, onClick: () -> Unit): Button = Button(this).apply {
+        filterTouchesWhenObscured = true
         text = value
         setTextColor(Brand.background)
         textSize = 14f
@@ -1732,6 +1731,7 @@ class MainActivity : Activity() {
     }
 
     private fun secondaryButton(value: String, onClick: () -> Unit): Button = Button(this).apply {
+        filterTouchesWhenObscured = true
         text = value
         setTextColor(Brand.text)
         textSize = 14f
@@ -1740,6 +1740,7 @@ class MainActivity : Activity() {
     }
 
     private fun toolbarButton(value: String, destructive: Boolean = false, onClick: () -> Unit): Button = Button(this).apply {
+        filterTouchesWhenObscured = true
         text = value
         contentDescription = value
         setTextColor(if (destructive) Brand.danger else Brand.text)
