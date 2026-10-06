@@ -400,7 +400,7 @@ for (const forbidden of ["Secure Connections", "Fast Transfers", "Modern Interfa
   if (sidebar.includes(forbidden)) failures.push(`Primary sidebar still contains duplicate/noisy navigation: ${forbidden}`);
 }
 
-const statusBar = read("src/components/ReferenceStatusBar.tsx");
+const healthStatusBar = read("src/components/ReferenceStatusBar.tsx");
 for (const required of [
   "Check connection health",
   "Needs attention",
@@ -409,7 +409,7 @@ for (const required of [
   "window.addEventListener(\"focus\", probe)",
   "checkHealth(activeSessionId)",
 ]) {
-  if (!statusBar.includes(required)) failures.push(`Desktop status bar missing live connection-health contract: ${required}`);
+  if (!healthStatusBar.includes(required)) failures.push(`Desktop status bar missing live connection-health contract: ${required}`);
 }
 
 const androidShell = read("../android/app/src/main/java/com/ghostftp/android/MainActivity.kt");
