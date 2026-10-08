@@ -74,8 +74,7 @@ struct ContentView: View {
 
                 Section {
                     HStack(spacing: 10) {
-                        // Use the actual bundled GhostFTP.icns; no placeholder SF Symbol
-                        // or screenshot-derived image in the production sidebar.
+                        // Use the app's bundled GhostFTP.icns for the sidebar brand.
                         Image(nsImage: NSApplication.shared.applicationIconImage)
                             .resizable()
                             .interpolation(.high)
