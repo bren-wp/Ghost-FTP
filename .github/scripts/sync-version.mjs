@@ -8,7 +8,7 @@ const checkOnly = process.argv.includes("--check");
 const nextIndex = process.argv.indexOf("--check-next");
 const baseVersion = nextIndex >= 0 ? process.argv[nextIndex + 1] : null;
 const config = JSON.parse(fs.readFileSync(path.join(root, "version.json"), "utf8"));
-const { version, previousVersion, build, releaseDate, androidVersionCode, legacyVersion, legacyDisplay } = config;
+const { version, previousVersion, previousPublishedVersion, build, releaseDate, androidVersionCode, legacyVersion, legacyDisplay } = config;
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 if (!semverPattern.test(version)) throw new Error(`invalid SemVer: ${version}`);
@@ -17,6 +17,12 @@ if (previousVersion && !semverPattern.test(previousVersion)) {
 }
 if (previousVersion === version) {
   throw new Error("previousVersion must not equal the active version");
+}
+if (previousPublishedVersion && !semverPattern.test(previousPublishedVersion)) {
+  throw new Error(`invalid previous published SemVer: ${previousPublishedVersion}`);
+}
+if (previousPublishedVersion === version) {
+  throw new Error("previousPublishedVersion must not equal the active version");
 }
 if (!Number.isInteger(androidVersionCode) || androidVersionCode <= 0) throw new Error("androidVersionCode must be positive");
 
@@ -117,6 +123,13 @@ if (baseVersion) {
     }
     return 0;
   };
+
+  if (previousPublishedVersion && compareSemver(previousPublishedVersion, version) >= 0) {
+    throw new Error("previousPublishedVersion must be older than active source version");
+  }
+  if (previousPublishedVersion && previousVersion && compareSemver(previousPublishedVersion, previousVersion) > 0) {
+    throw new Error("previousPublishedVersion must not be ahead of the previous development source");
+  }
 
   const relation = compareSemver(version, baseVersion);
   if (relation < 0) {
