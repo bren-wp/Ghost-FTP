@@ -104,7 +104,7 @@ final class FTPControlSessionTests: XCTestCase {
             try FTPControlCodec.transferCommand("RETR", remoteName: "../secret.txt")
         )
         XCTAssertThrowsError(
-            try FTPControlCodec.transferCommand("STOR", remoteName: "file\\r\\nDELE /")
+            try FTPControlCodec.transferCommand("STOR", remoteName: "file\r\nDELE /")
         )
     }
 
@@ -125,11 +125,11 @@ final class FTPControlSessionTests: XCTestCase {
                 "type=file;size=3; good.txt",
                 "type=file;size=3; ..",
                 "type=file;size=3; nested/escape.txt",
-                "type=file;size=3; attack\\u{0000}file",
-            ].joined(separator: "\\r\\n").appending("\\r\\n").utf8
+                "type=file;size=3; attack\u{0000}file",
+            ].joined(separator: "\r\n").appending("\r\n").utf8
         )
         let entries = try FTPControlCodec.parseMLSD(listing)
-        XCTAssertEqual(entries.map(\\.name), ["good.txt"])
+        XCTAssertEqual(entries.map(\.name), ["good.txt"])
     }
 
     func testExtendedPassivePortParsesEPSVReply() throws {
