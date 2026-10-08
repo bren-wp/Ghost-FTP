@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Use Android 12+ platform splash with the approved Ghost FTP vector.
+         The system owns the launch animation, so there is no fake/loading
+         Activity and no additional permissions or background services. -->
+    <style name="GhostFtpTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowBackground">@color/ghost_background</item>
+        <item name="android:colorAccent">@color/ghost_accent</item>
+        <item name="android:navigationBarColor">@color/ghost_background</item>
+        <item name="android:statusBarColor">@color/ghost_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowSplashScreenBackground">@color/ghost_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_ghost_ftp</item>
+    </style>
+</resources>
