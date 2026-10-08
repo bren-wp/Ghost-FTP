@@ -1,6 +1,6 @@
 <div align="center">
 
-Current source/release cycle: **0.30.12**. Previous canonical release: **0.30.11**.
+Current source/release cycle: **0.30.13**. Previous canonical release: **0.30.10**. Versions 0.30.11 and 0.30.12 merged but were not published.
 
 <img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="430">
 
@@ -41,12 +41,12 @@ Current source/release cycle: **0.30.12**. Previous canonical release: **0.30.11
 
 ## Current status
 
-- **Active source/release cycle:** `0.30.12`.
-- **Previous canonical release:** `0.30.11`.
+- **Active source/release cycle:** `0.30.13`.
+- **Previous canonical release:** `0.30.10`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
-- **macOS development source:** `macos/` — dedicated SwiftUI client with its own security/build gate. 0.30.12 extends the separately verified macOS Preview with the same six-workspace shell used by the Windows/Linux reference, credential-free transfer history and password-free site backup/restore in addition to real plain-FTP browsing/upload/download; it is not yet a notarized production deliverable.
+- **macOS development source:** `macos/` — dedicated SwiftUI client with its own security/build gate. 0.30.13 extends the separately verified macOS Preview with the same six-workspace shell used by the Windows/Linux reference, credential-free transfer history and password-free site backup/restore in addition to real plain-FTP browsing/upload/download; it is not yet a notarized production deliverable.
 - **No website application is maintained in this repository.** Releases, source, documentation and support/security material live in GitHub/repository artifacts.
 
 ## Product scope
