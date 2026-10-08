@@ -81,6 +81,18 @@ jobs:
           grep -Fq 'https://github.com/bren-wp/Ghost-FTP/releases' README.md
           grep -Fq 'sha256sum -c' .github/scripts/publish-release.sh
 
+      - name: Cross-platform premium branding integration contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq -- '--bg: 7 14 26;' ghostftp-desktop/src/styles.css
+          grep -Fq -- '--accent: 56 171 255;' ghostftp-desktop/src/styles.css
+          grep -Fq '#38ABFF' android/app/src/main/res/values/colors.xml
+          grep -Fq 'M10,51.5c4.2' android/app/src/main/res/drawable/ic_ghost_ftp.xml
+          grep -Fq 'GhostPremiumPalette.accent' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+          grep -Fq 'No macOS mockups were provided' docs/product/PREMIUM_BRAND_2026.md
+          test -s assets/branding/ghostftp-app-icon.svg
+
       - name: Historical release recovery script syntax and source lock
         shell: bash
         run: |
