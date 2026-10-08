@@ -6,5 +6,7 @@
         <item name="android:colorAccent">@color/ghost_accent</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowSplashScreenBackground">@color/ghost_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_ghost_ftp</item>
     </style>
 </resources>
