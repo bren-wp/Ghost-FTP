@@ -186,6 +186,41 @@ final class FTPControlSessionTests: XCTestCase {
     }
 
 
+    func testPrivateDownloadStagingIsOwnerOnlyAndExclusive() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "ghostftp-staging-tests-\(UUID().uuidString)", isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        let temporaryURL = folder.appendingPathComponent(".invoice.pdf.ghostftp-test.part")
+        let handle = try PrivateDownloadStaging.openNewFile(at: temporaryURL)
+        defer { try? handle.close() }
+        try handle.write(contentsOf: Data("confidential transfer".utf8))
+
+        let attributes = try FileManager.default.attributesOfItem(atPath: temporaryURL.path)
+        XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
+        XCTAssertThrowsError(try PrivateDownloadStaging.openNewFile(at: temporaryURL))
+        try handle.synchronize()
+        XCTAssertEqual(try Data(contentsOf: temporaryURL), Data("confidential transfer".utf8))
+    }
+
+    func testPrivateDownloadStagingRejectsPreexistingSymlink() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "ghostftp-symlink-tests-\(UUID().uuidString)", isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        let target = folder.appendingPathComponent("protected.txt")
+        let link = folder.appendingPathComponent("staging.part")
+        try Data("untouched".utf8).write(to: target)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+
+        XCTAssertThrowsError(try PrivateDownloadStaging.openNewFile(at: link))
+        XCTAssertEqual(try Data(contentsOf: target), Data("untouched".utf8))
+    }
+
     func testDirectoryListingBufferRejectsOversizedPayload() throws {
         var output = Data(repeating: 0x41, count: 7)
 
