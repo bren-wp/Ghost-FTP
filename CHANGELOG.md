@@ -1,3 +1,13 @@
+## 0.30.15 — premium design parity and cross-platform hardening — 9 October 2026
+
+- Windows/Linux: reference-width premium sidebar, consistent active/disabled keyboard focus states and preserved compact-window behaviour.
+- Android: a single approved launcher/vector mark replaces the divergent Canvas ghost in the actual header and sidebar; Android 12–15 platform splash now uses the premium vector and navy canvas.
+- macOS: refined SwiftUI connection action and sidebar brand lockup, compact-window minimum and previously merged exclusive `0600` private FTP staging protections.
+- All 75 Windows/Linux/Android reference screen IDs are now mapped to live source components; the exact-head CI contract detects missing screens, but pixel acceptance remains pending.
+- The source train advances from published v0.30.14 to v0.30.15 without retargeting any public release tags. macOS remains a Preview without FTPS/SFTP operations or notarization.
+
+See [docs/releases/0.30.15.md](docs/releases/0.30.15.md).
+
 ## Unreleased — macOS FTP private download staging
 
 - macOS plain-FTP downloads now create unique temporary files with exclusive, no-symlink POSIX creation and owner-only `0600` permissions before streaming any server data.
