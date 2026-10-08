@@ -5,19 +5,21 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 ## Rules
 
 - Root `version.json` is the single source of truth for the active product version/build metadata.
-- A meaningful new development/feature cycle may advance to a later SemVer line chosen for the planned scope. CI requires the new version to be strictly newer than the base release and `previousVersion` to identify that exact published base.
+- A meaningful new development/feature cycle may advance to a later SemVer line chosen for the planned scope. CI requires the new version to be strictly newer than the preceding source version and `previousVersion` to identify that exact source base.
 - A hotfix to an already published release advances the patch component.
 - Meaningful fixes may remain within an already-active unpublished development version; version-only commits are not required.
 - Once a version tag is published, that tag is immutable and may not be retargeted to newer source.
 - `1.0.0` is reserved for the first production-stable release.
 - CI rejects metadata drift and invalid version progression.
-- Publication is sequential: the declared previous canonical release must exist before the next release is published.
+- `previousPublishedVersion` independently records the last verified public GitHub Release. Publication requires GitHub's actual latest published release to match it; merged-but-unpublished versions must not block the release indefinitely or be misrepresented as published.
 - Version synchronization also refreshes the committed canonical Cargo.lock so Cargo metadata and lock state move atomically.
 
 ## Current cycle
 
-- Active source/release cycle: **0.30.12**
-- Previous canonical release: **0.30.11**
+- Active source/release cycle: **0.30.13**
+- Previous canonical release: **0.30.10**
+- Previous source version: **0.30.12** (merged, not published).
+- Versions **0.30.11** and **0.30.12** were merged but never published. The next public release must carry their real changes with new, tested fixes.
 - Live publication state: GitHub Releases is authoritative.
 
 ## Published-history migration
