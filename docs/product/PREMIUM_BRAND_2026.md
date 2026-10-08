@@ -33,6 +33,7 @@ Inter, Segoe UI and Noto Sans are preferred with platform system fallbacks. No f
 ## Real implementation
 
 - Windows/Linux: existing React/Tauri components for navigation, file panes, transfers, dialogs and settings; shared dark semantic tokens and GhostMark. Linux preserves native window-manager differences.
+  - Quick tools from the approved reference sidebar are connected to the existing, functional SFTP Terminal, command palette and local duplicate scanner. Terminal is disabled without an active SFTP session.
 - Android: existing native Kotlin UI with shared semantic colors and vector launcher mark. Standard-width phones now dock the 88 dp rail rather than covering the file workspace with a menu; devices under 360 dp retain an accessible overlay. Touch-target and accessibility checks stay mandatory.
 - macOS: existing SwiftUI workspace shell with shared palette/tint. Light appearance remains independently supported.
 - Secrets, permission prompts and security warnings must retain the existing platform policies.
