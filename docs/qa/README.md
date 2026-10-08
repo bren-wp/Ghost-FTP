@@ -28,6 +28,11 @@ Each is captured at canonical, compact and near-minimum viewport sizes by the ca
 - [Protocol E2E](PROTOCOL_E2E.md)
 - [Android QA](ANDROID.md)
 
+## Premium reference completeness
+
+- [All 75 reference screens and implementation pointers](premium-75-screen-contract.json) are checked by `.github/scripts/check-premium-75-screens.mjs`. Every pixel acceptance status is deliberately pending until actual installed screenshots are compared; a mapped component alone is not visual QA.
+- There are no independent macOS mockups in the supplied reference archive.
+
 ## Visual acceptance
 
 - [Pixel parity](PIXEL_PARITY.md)
