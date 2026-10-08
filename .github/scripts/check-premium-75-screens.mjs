@@ -72,7 +72,7 @@ for (const [asset, originalBlob] of Object.entries({
     continue;
   }
   const content = fs.readFileSync(path.join(root, asset));
-  const digest = createHash("sha1").update(`blob ${content.length}\\0`.replace("\\0", "\0")).update(content).digest("hex");
+  const digest = createHash("sha1").update("blob " + content.length).update(Buffer.from([0])).update(content).digest("hex");
   if (digest !== originalBlob) errors.push(`approved vector bytes changed: ${asset}`);
 }
 
