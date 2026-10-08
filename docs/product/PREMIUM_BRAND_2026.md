@@ -1,6 +1,6 @@
 # Ghost FTP premium UI — implementation and acceptance contract
 
-Source: user-provided `GhostFTP-Premium-Brand-UI(1).zip` (8 October 2026).
+Canonical mark: exact `assets/branding/ghostftp-app-icon.svg` geometry and corresponding React/Android vector implementations.\n\nSource: user-provided `GhostFTP-Premium-Brand-UI(1).zip` (8 October 2026).
 
 ## Reference contract
 
