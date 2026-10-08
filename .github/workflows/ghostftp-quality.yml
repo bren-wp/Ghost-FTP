@@ -92,6 +92,9 @@ jobs:
           grep -Fq 'GhostPremiumPalette.accent' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
           grep -Fq 'No macOS mockups were provided' docs/product/PREMIUM_BRAND_2026.md
           test -s assets/branding/ghostftp-app-icon.svg
+          grep -Fq 'viewBox="0 0 1280 330"' ghostftp-desktop/branding/ghostftp-logo.svg
+          grep -Fq 'MORE THAN TRANSFER. TOTAL CONTROL.' ghostftp-desktop/branding/ghostftp-logo.svg
+          ! grep -Fq 'FILES MOVE FORWARD' ghostftp-desktop/branding/ghostftp-logo.svg
 
       - name: Historical release recovery script syntax and source lock
         shell: bash

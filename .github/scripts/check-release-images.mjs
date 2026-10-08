@@ -88,6 +88,14 @@ for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.lo
     continue;
   }
 
+  // Product-authored SVG wordmarks are not runtime screenshots. They must
+  // be allowed to evolve in a release PR, while all photographed app screens
+  // and other documentation media stay pinned to the latest public release.
+  // The premium brand geometry and tagline are enforced separately in CI.
+  if (relative === "ghostftp-desktop/branding/ghostftp-logo.svg") {
+    continue;
+  }
+
   let releaseBlob;
   try {
     releaseBlob = execFileSync("git", ["rev-parse", `${releaseTag}:${relative}`], {

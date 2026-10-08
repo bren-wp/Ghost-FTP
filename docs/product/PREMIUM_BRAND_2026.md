@@ -2,6 +2,8 @@
 
 Canonical mark: exact `assets/branding/ghostftp-app-icon.svg` geometry and corresponding React/Android vector implementations.
 
+Approved horizontal lockup: `ghostftp-desktop/branding/ghostftp-logo.svg` now follows the ZIP's exact 1280 × 330 wordmark, background, ghost mark, palette, spacing and uppercase tagline; its SVG title/description provide accessible naming. The product README uses this asset directly.
+
 Source: user-provided `GhostFTP-Premium-Brand-UI(1).zip` (8 October 2026).
 
 ## Reference contract
