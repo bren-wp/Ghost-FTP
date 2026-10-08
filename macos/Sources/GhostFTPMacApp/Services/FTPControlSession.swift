@@ -182,6 +182,22 @@ enum FTPControlCodec {
     }
 
 
+    static func transferCommand(_ verb: String, remoteName: String) throws -> String {
+        guard verb == "RETR" || verb == "STOR" else {
+            throw FTPControlError.unsafeCommandArgument
+        }
+        try validateRemoteFileName(remoteName)
+        return "\(verb) \(remoteName)"
+    }
+
+    static func temporaryDownloadFilename(
+        for finalName: String,
+        identifier: UUID = UUID()
+    ) throws -> String {
+        try validateRemoteFileName(finalName)
+        return ".\(finalName).ghostftp-\(identifier.uuidString).part"
+    }
+
     static func extendedPassivePort(from reply: FTPReply) throws -> UInt16 {
         guard reply.code == 229, let line = reply.lines.first,
               let open = line.firstIndex(of: "("),
@@ -229,7 +245,12 @@ enum FTPControlCodec {
 
             let factsText = line[..<split]
             let name = String(line[line.index(after: split)...])
-            if name.isEmpty || name == "." || name == ".." {
+            // Server-provided MLSD names are untrusted input. Do not render
+            // entries that could traverse outside the selected directory or
+            // inject a second FTP control command during file operations.
+            do {
+                try validateRemoteFileName(name)
+            } catch {
                 continue
             }
 
@@ -380,7 +401,7 @@ actor FTPControlSession {
         let dataConnection = try await openPassiveDataConnection(timeoutSeconds: timeoutSeconds)
         let directoryURL = localURL.deletingLastPathComponent()
         let temporaryURL = directoryURL.appendingPathComponent(
-            ".(localURL.lastPathComponent).ghostftp-(UUID().uuidString).part"
+            try FTPControlCodec.temporaryDownloadFilename(for: localURL.lastPathComponent)
         )
 
         guard FileManager.default.createFile(atPath: temporaryURL.path, contents: nil) else {
@@ -389,7 +410,10 @@ actor FTPControlSession {
         }
 
         do {
-            let reply = try await command("RETR (remoteName)", timeoutSeconds: timeoutSeconds)
+            let reply = try await command(
+                FTPControlCodec.transferCommand("RETR", remoteName: remoteName),
+                timeoutSeconds: timeoutSeconds
+            )
             try expect(
                 reply,
                 accepted: [125, 150],
@@ -460,7 +484,10 @@ actor FTPControlSession {
         let dataConnection = try await openPassiveDataConnection(timeoutSeconds: timeoutSeconds)
 
         do {
-            let reply = try await command("STOR (remoteName)", timeoutSeconds: timeoutSeconds)
+            let reply = try await command(
+                FTPControlCodec.transferCommand("STOR", remoteName: remoteName),
+                timeoutSeconds: timeoutSeconds
+            )
             try expect(
                 reply,
                 accepted: [125, 150],
