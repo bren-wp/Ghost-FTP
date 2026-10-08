@@ -8,6 +8,7 @@ enum FTPControlError: LocalizedError {
     case connectionFailed(String)
     case disconnected
     case malformedReply
+    case controlReplyTooLarge
     case unexpectedReply(expected: String, actual: Int, message: String)
     case unsafeCommandArgument
     case invalidWorkingDirectory
@@ -31,6 +32,8 @@ enum FTPControlError: LocalizedError {
             return "The FTP server closed the connection."
         case .malformedReply:
             return "The FTP server returned a malformed control reply."
+        case .controlReplyTooLarge:
+            return "The FTP server response exceeded the safe control-reply limit."
         case .unexpectedReply(let expected, let actual, _):
             return "The FTP server returned reply code \(actual); expected \(expected)."
         case .unsafeCommandArgument:
@@ -84,7 +87,19 @@ struct FTPDirectoryEntry: Identifiable, Equatable {
 }
 
 enum FTPControlCodec {
+    static let maximumControlReplyBytes = 256 * 1024
+
+    static func appendControlChunk(_ data: Data, to buffer: inout Data) throws {
+        guard data.count <= maximumControlReplyBytes - buffer.count else {
+            throw FTPControlError.controlReplyTooLarge
+        }
+        buffer.append(data)
+    }
+
     static func takeReply(from buffer: inout Data) throws -> FTPReply? {
+        guard buffer.count <= maximumControlReplyBytes else {
+            throw FTPControlError.controlReplyTooLarge
+        }
         let bytes = [UInt8](buffer)
 
         func nextLine(from offset: Int) -> (line: String, nextOffset: Int)? {
@@ -677,7 +692,7 @@ actor FTPControlSession {
             }
 
             let chunk = try await receiveChunk(timeoutSeconds: timeoutSeconds)
-            receiveBuffer.append(chunk)
+            try FTPControlCodec.appendControlChunk(chunk, to: &receiveBuffer)
         }
     }
 
