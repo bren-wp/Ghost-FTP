@@ -40,13 +40,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: bash .github/scripts/backfill-releases.sh \
-          0.30.11 3ddfee0edb0039f090c3b7b7c475fe536ba0d040 \
-          37524113700 37524113554 37524113566
+        run: |
+          bash .github/scripts/backfill-releases.sh \
+            0.30.11 3ddfee0edb0039f090c3b7b7c475fe536ba0d040 \
+            37524113700 37524113554 37524113566
       - name: Recover and verify v0.30.12
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: bash .github/scripts/backfill-releases.sh \
-          0.30.12 8c768856bee6226f0dab00191a5d0f74123008a5 \
-          37533065106 37533065145 37533065127
+        run: |
+          bash .github/scripts/backfill-releases.sh \
+            0.30.12 8c768856bee6226f0dab00191a5d0f74123008a5 \
+            37533065106 37533065145 37533065127
