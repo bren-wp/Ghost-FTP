@@ -5241,3 +5241,42 @@ input.ghost-pane-address:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Ghost FTP 0.30.15 — desktop reference rail: 214px / 43px rows at the
+   supplied 1290x852 reference, with a compact rail for narrow windows.
+   This only styles actual React controls, never mockup PNG backgrounds. */
+@media (min-width: 1100px) {
+  [data-theme="dark"] .ghost-primary-sidebar {
+    flex: 0 0 214px !important;
+    width: 214px !important;
+    min-width: 214px !important;
+    padding: 22px 11px 15px !important;
+  }
+}
+[data-theme="dark"] .ghost-primary-sidebar .ghost-file-nav-row {
+  min-height: 43px;
+  border-radius: 10px;
+  gap: 13px;
+}
+[data-theme="dark"] .ghost-primary-sidebar .ghost-file-nav-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-theme="dark"] .ghost-primary-sidebar .ghost-sidebar-section-label {
+  letter-spacing: .2em;
+}
+[data-theme="dark"] .ghost-primary-sidebar .ghost-sidebar-new {
+  min-height: 42px;
+  border-radius: 10px;
+}
+[data-theme="dark"] .ghost-primary-sidebar .ghost-file-nav-row:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+[data-theme="dark"] .ghost-primary-sidebar .ghost-file-nav-row:focus-visible,
+[data-theme="dark"] .ghost-primary-sidebar .ghost-sidebar-new:focus-visible {
+  outline: 2px solid #7edeff;
+  outline-offset: 2px;
+}
