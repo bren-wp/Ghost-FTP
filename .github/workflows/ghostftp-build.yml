@@ -71,6 +71,17 @@ jobs:
       - name: Install frontend dependencies
         working-directory: ghostftp-desktop
         run: npm ci
+      - name: Generate native product icons from approved premium vector
+        working-directory: ghostftp-desktop
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run tauri -- icon ../assets/branding/ghostftp-app-icon.svg --output src-tauri/icons
+          test -s src-tauri/icons/32x32.png
+          test -s src-tauri/icons/128x128.png
+          test -s src-tauri/icons/128x128@2x.png
+          test -s src-tauri/icons/icon.ico
+
       - name: TypeScript/frontend build
         working-directory: ghostftp-desktop
         shell: bash
