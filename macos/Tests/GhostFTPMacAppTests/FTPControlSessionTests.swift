@@ -85,6 +85,53 @@ final class FTPControlSessionTests: XCTestCase {
     }
 
 
+    func testFTPTransferCommandsIncludeRealRemoteName() throws {
+        XCTAssertEqual(
+            try FTPControlCodec.transferCommand("RETR", remoteName: "Račun 2026.pdf"),
+            "RETR Račun 2026.pdf"
+        )
+        XCTAssertEqual(
+            try FTPControlCodec.transferCommand("STOR", remoteName: "backup-01.zip"),
+            "STOR backup-01.zip"
+        )
+    }
+
+    func testFTPTransferCommandsRejectUnsafeArguments() {
+        XCTAssertThrowsError(
+            try FTPControlCodec.transferCommand("DELE", remoteName: "file.txt")
+        )
+        XCTAssertThrowsError(
+            try FTPControlCodec.transferCommand("RETR", remoteName: "../secret.txt")
+        )
+        XCTAssertThrowsError(
+            try FTPControlCodec.transferCommand("STOR", remoteName: "file\\r\\nDELE /")
+        )
+    }
+
+    func testDownloadStagingNameIsUniqueAndDerivedFromDestination() throws {
+        let first = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
+        let second = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
+        let a = try FTPControlCodec.temporaryDownloadFilename(for: "invoice.pdf", identifier: first)
+        let b = try FTPControlCodec.temporaryDownloadFilename(for: "invoice.pdf", identifier: second)
+
+        XCTAssertEqual(a, ".invoice.pdf.ghostftp-11111111-2222-3333-4444-555555555555.part")
+        XCTAssertNotEqual(a, b)
+        XCTAssertThrowsError(try FTPControlCodec.temporaryDownloadFilename(for: "../escape"))
+    }
+
+    func testMLSDIgnoresHostileServerFilenames() throws {
+        let listing = Data(
+            [
+                "type=file;size=3; good.txt",
+                "type=file;size=3; ..",
+                "type=file;size=3; nested/escape.txt",
+                "type=file;size=3; attack\\u{0000}file",
+            ].joined(separator: "\\r\\n").appending("\\r\\n").utf8
+        )
+        let entries = try FTPControlCodec.parseMLSD(listing)
+        XCTAssertEqual(entries.map(\\.name), ["good.txt"])
+    }
+
     func testExtendedPassivePortParsesEPSVReply() throws {
         let reply = FTPReply(
             code: 229,
