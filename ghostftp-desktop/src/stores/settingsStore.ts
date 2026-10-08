@@ -42,7 +42,7 @@ export interface ThemeMeta {
 }
 
 export const APP_THEMES: ThemeMeta[] = [
-  { value: "dark", label: "Dark", swatch: "rgb(139 127 246)", dark: true, neutral: true },
+  { value: "dark", label: "Dark", swatch: "rgb(56 171 255)", dark: true, neutral: true },
   { value: "light", label: "Light", swatch: "rgb(99 88 220)", dark: false, neutral: true },
   { value: "tokyo", label: "Tokyo Night", swatch: "rgb(122 162 247)", dark: true },
   { value: "nord", label: "Nord", swatch: "rgb(136 192 208)", dark: true },

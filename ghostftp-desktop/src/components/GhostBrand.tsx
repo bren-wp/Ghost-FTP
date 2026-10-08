@@ -17,6 +17,11 @@ export function GhostMark({ size = 28, className = "" }: { size?: number; classN
           <stop offset="0.45" stopColor="#BEEBFF" />
           <stop offset="1" stopColor="#42AEFF" />
         </linearGradient>
+        <linearGradient id={`${gid}-icon-bg`} x1="0" y1="0" x2="1" y2="1">
+          <stop stopColor="#173D65" />
+          <stop offset="0.56" stopColor="#0A1B32" />
+          <stop offset="1" stopColor="#050D19" />
+        </linearGradient>
         <filter id={`${gid}-glow`} x="-40%" y="-40%" width="180%" height="180%">
           <feGaussianBlur stdDeviation="3" result="blur" />
           <feMerge>
@@ -25,6 +30,7 @@ export function GhostMark({ size = 28, className = "" }: { size?: number; classN
           </feMerge>
         </filter>
       </defs>
+      <rect x="1" y="1" width="62" height="62" rx="14" fill={`url(#${gid}-icon-bg)`} stroke="#4EBBFC" strokeOpacity="0.35" />
       <path
         d="M10 51.5c4.2-1.2 7.3-4.6 7.8-8.7l1.7-15.2C20.6 17.2 25.4 10 32 10s11.4 7.2 12.5 17.6l1.7 15.2c.5 4.1 3.6 7.5 7.8 8.7-2.2 2.3-5.5 3.6-8.7 2.7-2.5-.7-4.8-2.7-6.1-5.2-1.4 3.2-4.1 5.4-7.2 5.4s-5.8-2.2-7.2-5.4c-1.3 2.5-3.6 4.5-6.1 5.2-3.2.9-6.5-.4-8.7-2.7Z"
         fill={`url(#${gid}-body)`}
