@@ -49,7 +49,7 @@ class MainActivitySmokeTest {
     @Test
     fun primaryWorkspaceAndToolbarRender() {
         assertTextPresent(appString(R.string.app_name))
-        assertNavigationTogglePresent()
+        if (usesOverlayNavigation()) assertNavigationTogglePresent()
         ensureNavigationOpen()
         assertDescriptionPresent(appString(R.string.workspace_open, appString(R.string.workspace_files)))
         for (actionRes in listOf(
@@ -93,6 +93,10 @@ class MainActivitySmokeTest {
 
     @Test
     fun navigationRailCanOpenAndCloseWithoutPopupNavigation() {
+        if (!usesOverlayNavigation()) {
+            assertDescriptionPresent(appString(R.string.workspace_open, appString(R.string.workspace_files)))
+            return
+        }
         ensureNavigationOpen()
         assertDescriptionPresent(appString(R.string.nav_close))
         clickByDescription(appString(R.string.nav_close))
@@ -105,7 +109,7 @@ class MainActivitySmokeTest {
     fun compactNavigationUsesOverlayScrimInsteadOfShrinkingContent() {
         var compact = false
         scenario.onActivity { activity ->
-            compact = activity.resources.configuration.screenWidthDp < 600
+            compact = activity.resources.configuration.screenWidthDp < 360
         }
         if (!compact) return
 
@@ -113,6 +117,16 @@ class MainActivitySmokeTest {
         assertDescriptionPresent(appString(R.string.nav_close_overlay))
         clickByDescription(appString(R.string.nav_close_overlay))
         assertDescriptionPresent(appString(R.string.nav_open))
+    }
+
+    @Test
+    fun referenceNavigationRailStaysDockedAcrossWorkspaces() {
+        if (usesOverlayNavigation()) return
+        assertDescriptionPresent(appString(R.string.workspace_open, appString(R.string.workspace_files)))
+        openWorkspace(R.string.workspace_sites)
+        assertDescriptionPresent(appString(R.string.workspace_open, appString(R.string.workspace_transfers)))
+        openWorkspace(R.string.workspace_files)
+        assertDescriptionPresent(appString(R.string.workspace_open, appString(R.string.workspace_sites)))
     }
 
     @Test
@@ -348,6 +362,14 @@ class MainActivitySmokeTest {
 
     private fun appString(resId: Int, vararg formatArgs: Any): String =
         InstrumentationRegistry.getInstrumentation().targetContext.getString(resId, *formatArgs)
+
+    private fun usesOverlayNavigation(): Boolean {
+        var result = false
+        scenario.onActivity { activity ->
+            result = activity.resources.configuration.screenWidthDp < 360
+        }
+        return result
+    }
 
     private fun assertNavigationTogglePresent() {
         scenario.onActivity { activity ->
