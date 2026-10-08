@@ -49,6 +49,16 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertTrue(buffer.isEmpty)
     }
 
+    func testControlReplyBufferCapsUntrustedServerOutput() throws {
+        var buffer = Data(repeating: 0x41, count: FTPControlCodec.maximumControlReplyBytes - 1)
+        XCTAssertNoThrow(try FTPControlCodec.appendControlChunk(Data([0x42]), to: &buffer))
+        XCTAssertEqual(buffer.count, FTPControlCodec.maximumControlReplyBytes)
+        XCTAssertThrowsError(try FTPControlCodec.appendControlChunk(Data([0x43]), to: &buffer))
+        XCTAssertEqual(buffer.count, FTPControlCodec.maximumControlReplyBytes)
+        buffer.append(0x43)
+        XCTAssertThrowsError(try FTPControlCodec.takeReply(from: &buffer))
+    }
+
     func testWorkingDirectoryParsesEscapedQuotes() throws {
         let reply = FTPReply(
             code: 257,
