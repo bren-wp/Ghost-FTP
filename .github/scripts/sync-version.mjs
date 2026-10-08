@@ -8,7 +8,7 @@ const checkOnly = process.argv.includes("--check");
 const nextIndex = process.argv.indexOf("--check-next");
 const baseVersion = nextIndex >= 0 ? process.argv[nextIndex + 1] : null;
 const config = JSON.parse(fs.readFileSync(path.join(root, "version.json"), "utf8"));
-const { version, previousVersion, build, releaseDate, androidVersionCode, legacyVersion, legacyDisplay } = config;
+const { version, previousVersion, previousPublishedVersion, build, releaseDate, androidVersionCode, legacyVersion, legacyDisplay } = config;
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 if (!semverPattern.test(version)) throw new Error(`invalid SemVer: ${version}`);
@@ -17,6 +17,12 @@ if (previousVersion && !semverPattern.test(previousVersion)) {
 }
 if (previousVersion === version) {
   throw new Error("previousVersion must not equal the active version");
+}
+if (previousPublishedVersion && !semverPattern.test(previousPublishedVersion)) {
+  throw new Error(`invalid previous published SemVer: ${previousPublishedVersion}`);
+}
+if (previousPublishedVersion === version) {
+  throw new Error("previousPublishedVersion must not equal the active version");
 }
 if (!Number.isInteger(androidVersionCode) || androidVersionCode <= 0) throw new Error("androidVersionCode must be positive");
 
@@ -103,21 +109,30 @@ updateJson("updates/latest.template.json", (j) => {
 // release. Development version bumps must not relabel release-proven imagery
 // before that version is actually published.
 
-if (baseVersion) {
-  const parse = (v) => {
-    const m = semverPattern.exec(v);
-    if (!m) throw new Error(`invalid base version: ${v}`);
-    return m.slice(1).map(Number);
-  };
-  const compareSemver = (left, right) => {
-    const a = parse(left);
-    const b = parse(right);
-    for (let index = 0; index < 3; index += 1) {
-      if (a[index] !== b[index]) return a[index] > b[index] ? 1 : -1;
-    }
-    return 0;
-  };
+const parseSemver = (v) => {
+  const m = semverPattern.exec(v);
+  if (!m) throw new Error(`invalid version: ${v}`);
+  return m.slice(1).map(Number);
+};
+const compareSemver = (left, right) => {
+  const a = parseSemver(left);
+  const b = parseSemver(right);
+  for (let index = 0; index < 3; index += 1) {
+    if (a[index] !== b[index]) return a[index] > b[index] ? 1 : -1;
+  }
+  return 0;
+};
 
+// Always validate the public-release lineage, including during automatic
+// metadata synchronization (which does not pass --check-next).
+if (previousPublishedVersion && compareSemver(previousPublishedVersion, version) >= 0) {
+  throw new Error("previousPublishedVersion must be older than active source version");
+}
+if (previousPublishedVersion && previousVersion && compareSemver(previousPublishedVersion, previousVersion) > 0) {
+  throw new Error("previousPublishedVersion must not be ahead of the previous development source");
+}
+
+if (baseVersion) {
   const relation = compareSemver(version, baseVersion);
   if (relation < 0) {
     throw new Error(`invalid version rollback ${baseVersion} -> ${version}`);

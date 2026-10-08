@@ -102,20 +102,25 @@ jobs:
           wait_for_gate "validate-win-hardening.yml" "Windows hardening"
           wait_for_gate "ghostftp-macos.yml" "macOS preview"
 
-          PREVIOUS_VERSION="$(node -p 'require("./version.json").previousVersion || ""')"
-          if [ -n "$PREVIOUS_VERSION" ]; then
-            echo "Waiting for previous canonical release v$PREVIOUS_VERSION before publishing v$VERSION"
-            found_previous=false
-            for attempt in $(seq 1 90); do
-              if gh release view "v$PREVIOUS_VERSION" >/dev/null 2>&1; then
-                found_previous=true
-                break
+          # A merged source version is not necessarily a published release.
+          # Verify the actual latest canonical public release instead of waiting
+          # for a tag which does not exist (0.30.11/0.30.12 were not published).
+          PREVIOUS_PUBLISHED_VERSION="$(node -p 'const v = require("./version.json"); v.previousPublishedVersion || v.previousVersion || ""')"
+          if [ -n "$PREVIOUS_PUBLISHED_VERSION" ]; then
+            if gh release view "v$VERSION" >/dev/null 2>&1; then
+              EXISTING_TAG_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" --jq '.object.sha')"
+              if [ "$EXISTING_TAG_SHA" != "$SOURCE_SHA" ]; then
+                echo "::error::Existing release tag v$VERSION points at a different source SHA." >&2
+                exit 1
               fi
-              sleep 20
-            done
-            if [ "$found_previous" != "true" ]; then
-              echo "Previous release v$PREVIOUS_VERSION was not published in time." >&2
-              exit 1
+              echo "The exact-source v$VERSION release already exists; validating its artifacts again."
+            else
+              LATEST_PUBLISHED_TAG="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')"
+              if [ "$LATEST_PUBLISHED_TAG" != "v$PREVIOUS_PUBLISHED_VERSION" ]; then
+                echo "::error::Release lineage mismatch: expected latest public v$PREVIOUS_PUBLISHED_VERSION, found $LATEST_PUBLISHED_TAG." >&2
+                exit 1
+              fi
+              echo "Verified published predecessor: $LATEST_PUBLISHED_TAG"
             fi
           fi
 

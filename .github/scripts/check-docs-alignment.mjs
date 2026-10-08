@@ -9,7 +9,9 @@ const exists = (rel) => fs.existsSync(path.join(root, rel));
 
 const meta = JSON.parse(read("version.json"));
 const version = meta.version;
-const previousVersion = meta.previousVersion;
+// Previous merged source and previous public release can differ when a CI-verified
+// development version merged but its release publication was blocked.
+const previousVersion = meta.previousPublishedVersion || meta.previousVersion;
 
 const failures = [];
 if (exists("website")) {
