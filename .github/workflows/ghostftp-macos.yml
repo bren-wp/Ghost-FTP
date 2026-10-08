@@ -45,6 +45,14 @@ jobs:
         shell: bash
         run: swift build --package-path macos -c release
 
+      - name: Install SVG icon rasterizer
+        shell: bash
+        run: |
+          if ! command -v rsvg-convert >/dev/null 2>&1; then
+            brew install librsvg
+          fi
+          command -v rsvg-convert
+
       - name: Package ad-hoc signed macOS preview
         shell: bash
         run: bash macos/scripts/package-app.sh
@@ -56,6 +64,8 @@ jobs:
           APP="dist/macos/Ghost FTP.app"
           test -x "$APP/Contents/MacOS/GhostFTP"
           plutil -lint "$APP/Contents/Info.plist"
+          test -s "$APP/Contents/Resources/GhostFTP.icns"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$APP/Contents/Info.plist")" = "GhostFTP.icns"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" = "com.brendigo.ghostftp.macos"
           codesign --verify --deep --strict --verbose=2 "$APP"
           test -s dist/macos/GhostFTP-macOS-SHA256SUMS.txt

@@ -81,6 +81,27 @@ jobs:
           grep -Fq 'https://github.com/bren-wp/Ghost-FTP/releases' README.md
           grep -Fq 'sha256sum -c' .github/scripts/publish-release.sh
 
+      - name: Cross-platform premium branding integration contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq -- '--bg: 7 14 26;' ghostftp-desktop/src/styles.css
+          grep -Fq -- '--accent: 56 171 255;' ghostftp-desktop/src/styles.css
+          grep -Fq '#38ABFF' android/app/src/main/res/values/colors.xml
+          grep -Fq 'M24,155c16,-4' android/app/src/main/res/drawable/ic_ghost_ftp.xml
+          grep -Fq 'GhostPremiumPalette.accent' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+          grep -Fq 'No macOS mockups were provided' docs/product/PREMIUM_BRAND_2026.md
+          test -s assets/branding/ghostftp-app-icon.svg
+
+      - name: Historical release recovery script syntax and source lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/scripts/backfill-releases.sh
+          grep -Fq '0.30.11:3ddfee0edb0039f090c3b7b7c475fe536ba0d040' .github/scripts/backfill-releases.sh
+          grep -Fq '0.30.12:8c768856bee6226f0dab00191a5d0f74123008a5' .github/scripts/backfill-releases.sh
+          grep -Fq -- '--latest=false' .github/scripts/backfill-releases.sh
+
       - name: Native window architecture guard
         shell: bash
         run: |

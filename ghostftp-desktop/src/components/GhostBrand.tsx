@@ -1,37 +1,40 @@
 import { useId } from "react";
 
+/** Exact shape and geometry of the approved premium Ghost FTP brand icon. */
 export function GhostMark({ size = 28, className = "" }: { size?: number; className?: string }) {
-  const gid = useId().replace(/:/g, "");
+  const id = useId().replace(/:/g, "");
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 64 64"
-      className={className}
-      role="img"
-      aria-label="Ghost FTP"
-    >
+    <svg width={size} height={size} viewBox="0 0 512 512" className={className}
+      role="img" aria-label="Ghost FTP">
       <defs>
-        <linearGradient id={`${gid}-body`} x1="14" y1="8" x2="50" y2="57" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#F4FDFF" />
-          <stop offset="0.45" stopColor="#BEEBFF" />
-          <stop offset="1" stopColor="#42AEFF" />
+        <linearGradient id={`${id}-bg`} x1="0" y1="0" x2="1" y2="1">
+          <stop stopColor="#173D65" /><stop offset=".56" stopColor="#0A1B32" />
+          <stop offset="1" stopColor="#050D19" />
         </linearGradient>
-        <filter id={`${gid}-glow`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
+        <linearGradient id={`${id}-ghost`} x1="0" y1="0" x2="1" y2="1">
+          <stop stopColor="#FFFFFF" /><stop offset=".48" stopColor="#C7F0FF" />
+          <stop offset="1" stopColor="#38ABFF" />
+        </linearGradient>
+        <linearGradient id={`${id}-stripe`} x1="0" y1="0" x2="1" y2="0">
+          <stop stopColor="#38ABFF" /><stop offset="1" stopColor="#7EDEFF" />
+        </linearGradient>
+        <radialGradient id={`${id}-glow`}>
+          <stop stopColor="#38ABFF" stopOpacity=".38" />
+          <stop offset="1" stopColor="#38ABFF" stopOpacity="0" />
+        </radialGradient>
       </defs>
-      <path
-        d="M10 51.5c4.2-1.2 7.3-4.6 7.8-8.7l1.7-15.2C20.6 17.2 25.4 10 32 10s11.4 7.2 12.5 17.6l1.7 15.2c.5 4.1 3.6 7.5 7.8 8.7-2.2 2.3-5.5 3.6-8.7 2.7-2.5-.7-4.8-2.7-6.1-5.2-1.4 3.2-4.1 5.4-7.2 5.4s-5.8-2.2-7.2-5.4c-1.3 2.5-3.6 4.5-6.1 5.2-3.2.9-6.5-.4-8.7-2.7Z"
-        fill={`url(#${gid}-body)`}
-        filter={`url(#${gid}-glow)`}
-      />
-      <ellipse cx="27" cy="30" rx="3.1" ry="5.1" fill="#0A2B51" />
-      <ellipse cx="38.5" cy="30" rx="3.1" ry="5.1" fill="#0A2B51" />
+      <rect x="6" y="6" width="500" height="500" rx="116" fill={`url(#${id}-bg)`} />
+      <rect x="12" y="12" width="488" height="488" rx="111" fill="none" stroke="#4EBBFC"
+        strokeOpacity=".35" strokeWidth="3" />
+      <circle cx="270" cy="235" r="207" fill={`url(#${id}-glow)`} />
+      <g transform="translate(120 115) scale(1.39)">
+        <path d="M24 155c16-4 28-17 30-33l7-57C65 24 78 8 96 8s31 16 35 57l7 57c2 16 14 29 30 33-9 9-22 15-35 11-10-3-19-11-24-21-6 13-16 21-29 21s-23-8-29-21c-5 10-14 18-24 21-13 4-26-2-35-11Z"
+          transform="translate(16 12) scale(.83)" fill={`url(#${id}-ghost)`} />
+        <ellipse cx="82" cy="83" rx="8" ry="13" fill="#0A2B51" />
+        <ellipse cx="111" cy="83" rx="8" ry="13" fill="#0A2B51" />
+      </g>
+      <path d="M105 403H408" stroke={`url(#${id}-stripe)`} opacity=".5"
+        strokeWidth="4" strokeLinecap="round" />
     </svg>
   );
 }

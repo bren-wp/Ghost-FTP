@@ -5119,3 +5119,103 @@ input.ghost-pane-address:focus-visible {
     display: none;
   }
 }
+
+
+/* Premium Ghost FTP brand system 0.30.14. Real controls, never screenshot-backed.
+   Shared semantic colors from the approved 2026 concept for all platforms. */
+:root,
+[data-theme="dark"] {
+  --bg: 7 14 26;
+  --bg-panel: 13 25 43;
+  --bg-subtle: 17 31 52;
+  --bg-hover: 20 45 73;
+  --border: 39 70 99;
+  --border-subtle: 25 47 72;
+  --text: 234 246 255;
+  --text-muted: 151 179 206;
+  --text-dim: 111 144 172;
+  --accent: 56 171 255;
+  --accent-hover: 100 203 255;
+  --accent-strong: 27 135 229;
+  --accent-glow: 56 171 255;
+  --danger: 255 114 132;
+  --success: 38 220 143;
+  --warning: 255 192 107;
+  --info: 126 222 255;
+  --shadow: 2 7 16;
+  color-scheme: dark;
+}
+[data-theme="dark"] .ghost-app-shell,
+[data-theme="dark"] .ghost-standalone-view {
+  background: #070e1a !important;
+  border-color: rgba(124,167,216,.14) !important;
+  box-shadow: none !important;
+}
+[data-theme="dark"] .ghost-app-header,
+[data-theme="dark"] .ghost-title-row,
+[data-theme="dark"] .ghost-menu-row,
+[data-theme="dark"] .ghost-standalone-titlebar,
+[data-theme="dark"] .ghost-standalone-menubar {
+  background: #091220 !important;
+  border-color: rgba(124,167,216,.14) !important;
+  box-shadow: none !important;
+}
+[data-theme="dark"] .ghost-sites-panel,
+[data-theme="dark"] .ghost-primary-sidebar {
+  background: linear-gradient(172deg,#0c182b 0%,#091321 100%) !important;
+  border-color: rgba(124,167,216,.14) !important;
+}
+[data-theme="dark"] .ghost-file-nav-row {
+  border-radius: 10px !important;
+  color: #8fa6bc !important;
+}
+[data-theme="dark"] .ghost-file-nav-row.active,
+[data-theme="dark"] .ghost-file-nav-row[aria-current="page"] {
+  color: #eaf6ff !important;
+  background: linear-gradient(90deg,#153a61,#122940) !important;
+  border: 1px solid #245078 !important;
+}
+[data-theme="dark"] .ghost-file-nav-row.active svg,
+[data-theme="dark"] .ghost-file-nav-row[aria-current="page"] svg {
+  color: #38abff !important;
+}
+[data-theme="dark"] .ghost-file-pane,
+[data-theme="dark"] .ghost-transfer-box,
+[data-theme="dark"] .ghost-server-log,
+[data-theme="dark"] .ghost-settings-card,
+[data-theme="dark"] .ghost-about-card,
+[data-theme="dark"] .ghost-site-manager-nav,
+[data-theme="dark"] .ghost-site-manager-table,
+[data-theme="dark"] .ghost-site-manager-details {
+  background: linear-gradient(175deg,#111f34,#0f1c2d) !important;
+  border: 1px solid rgba(124,167,216,.14) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 35px rgba(2,7,14,.12) !important;
+}
+[data-theme="dark"] .ghost-pane-header,
+[data-theme="dark"] .ghost-transfer-tabs,
+[data-theme="dark"] .ghost-log-head {
+  background: #0b192c !important;
+  border-bottom-color: rgba(124,167,216,.14) !important;
+}
+[data-theme="dark"] .ghost-primary-button,
+[data-theme="dark"] .ghost-quick-connect-main,
+[data-theme="dark"] .ghost-quick-connect-menu {
+  color: #031321 !important;
+  background: linear-gradient(130deg,#78d7ff,#329cff) !important;
+  border-color: #6cc8ff !important;
+  border-radius: 10px !important;
+  box-shadow: 0 5px 24px rgba(35,141,242,.17) !important;
+}
+[data-theme="dark"] .ghost-app-shell button:focus-visible,
+[data-theme="dark"] .ghost-app-shell input:focus-visible {
+  outline: 2px solid #7edeff !important;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="dark"] .ghost-app-shell,
+  [data-theme="dark"] .ghost-app-shell * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

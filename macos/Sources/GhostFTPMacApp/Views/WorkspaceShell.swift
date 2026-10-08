@@ -2,6 +2,14 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+// Shared 2026 premium design tokens, aligned with React/Tauri and Android.
+private enum GhostPremiumPalette {
+    static let background = Color(red: 7/255, green: 14/255, blue: 26/255)
+    static let sidebar = Color(red: 12/255, green: 24/255, blue: 43/255)
+    static let accent = Color(red: 56/255, green: 171/255, blue: 255/255)
+    static let text = Color(red: 234/255, green: 246/255, blue: 255/255)
+}
+
 private enum MacWorkspace: String, CaseIterable, Identifiable, Hashable {
     case files
     case sites
@@ -76,13 +84,17 @@ struct ContentView: View {
                 }
             }
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+            .background(darkAppearance ? GhostPremiumPalette.sidebar : Color(nsColor: .windowBackgroundColor))
             .navigationTitle("Ghost FTP")
             .frame(minWidth: 210)
         } detail: {
             workspaceDetail
+                .background(darkAppearance ? GhostPremiumPalette.background : Color(nsColor: .windowBackgroundColor))
                 .navigationTitle(workspace.title)
         }
         .frame(minWidth: 1_080, minHeight: 680)
+        .tint(GhostPremiumPalette.accent)
         .preferredColorScheme(darkAppearance ? .dark : .light)
         .onAppear {
             if rememberWorkspace {

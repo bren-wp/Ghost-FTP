@@ -252,8 +252,8 @@ require_text "desktop parity download toolbar" "$MAIN_ACTIVITY" 'toolbarButton(g
 require_text "desktop parity new folder toolbar" "$MAIN_ACTIVITY" 'toolbarButton(getString(R.string.action_new_folder))'
 require_text "desktop parity rename toolbar" "$MAIN_ACTIVITY" 'toolbarButton(getString(R.string.action_rename))'
 require_text "desktop parity delete toolbar" "$MAIN_ACTIVITY" 'toolbarButton(getString(R.string.action_delete), destructive = true)'
-require_text "desktop parity ghost midnight background" "$MAIN_ACTIVITY" 'Color.rgb(13, 17, 23)'
-require_text "desktop parity ghost midnight accent" "$MAIN_ACTIVITY" 'Color.rgb(47, 129, 247)'
+require_text "premium cross-platform navy background" "$MAIN_ACTIVITY" 'Color.rgb(7, 14, 26)'
+require_text "premium cross-platform blue accent" "$MAIN_ACTIVITY" 'Color.rgb(56, 171, 255)'
 
 require_text "connect action" "$MAIN_ACTIVITY" 'primaryButton(getString(R.string.action_connect))'
 require_text "disconnect action" "$MAIN_ACTIVITY" 'secondaryButton(getString(R.string.action_disconnect))'

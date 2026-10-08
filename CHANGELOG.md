@@ -1,3 +1,12 @@
+## 0.30.14 — premium cross-platform brand foundations — 8 October 2026
+
+- Applies the supplied premium navy/electric-blue design tokens to the real Windows/Linux, Android and macOS UI components rather than displaying mockups as application backgrounds.
+- Refreshes the desktop brand mark frame, Android launcher vector and platform accent/status palettes; retains accessible focus states and reduced-motion behavior.
+- Adds a shared design contract identifying screenshot/reference screens, platform-specific layout differences and the remaining measured parity/functional release blockers.
+- This is a visual foundation, not a claim of 75 finished production screens or FTPS/SFTP macOS parity.
+
+See [docs/releases/0.30.14.md](docs/releases/0.30.14.md).
+
 ## 0.30.13 — macOS FTP reliability and publication lineage — 8 October 2026
 
 - Fixes actual macOS FTP RETR/STOR names and per-download unique staging filenames; adds hostile server-listing filtering, bounded FTP control replies and Swift regression tests.

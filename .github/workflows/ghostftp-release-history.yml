@@ -1,0 +1,52 @@
+name: Ghost FTP historical release recovery
+
+# Recover older fully-tested source packages without rewriting published history.
+# Triggers only when this workflow or its audited script enters main, or manually.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ghostftp-release-history.yml'
+      - '.github/scripts/backfill-releases.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: ghostftp-historical-release-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.repository == 'bren-wp/Ghost-FTP'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Verify release recovery script and current canonical successor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/scripts/backfill-releases.sh
+          test "$(gh api repos/$GITHUB_REPOSITORY/git/ref/tags/v0.30.13 --jq '.object.sha')" = "ddebaa5d3a0657caaa5d5b1ffe8be257d2556ea3"
+          gh release view v0.30.13 --json assets --jq '.assets | length' | grep -Eq '^[2-9][0-9]$'
+      - name: Recover and verify v0.30.11
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: bash .github/scripts/backfill-releases.sh \
+          0.30.11 3ddfee0edb0039f090c3b7b7c475fe536ba0d040 \
+          37524113700 37524113554 37524113566
+      - name: Recover and verify v0.30.12
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: bash .github/scripts/backfill-releases.sh \
+          0.30.12 8c768856bee6226f0dab00191a5d0f74123008a5 \
+          37533065106 37533065145 37533065127
