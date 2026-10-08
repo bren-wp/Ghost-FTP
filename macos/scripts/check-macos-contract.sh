@@ -47,6 +47,18 @@ grep -Fq 'func uploadFile' macos/Sources/GhostFTPMacApp/Services/FTPControlSessi
 grep -Fq 'func downloadFile' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'STOR ' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'RETR ' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'FTPControlCodec.transferCommand("STOR", remoteName: remoteName)' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'FTPControlCodec.transferCommand("RETR", remoteName: remoteName)' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'FTPControlCodec.temporaryDownloadFilename(for: localURL.lastPathComponent)' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'maximumControlReplyBytes = 256 * 1024' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'FTPControlCodec.appendControlChunk(chunk, to: &receiveBuffer)' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'testFTPTransferCommandsIncludeRealRemoteName' macos/Tests/GhostFTPMacAppTests/FTPControlSessionTests.swift
+grep -Fq 'testMLSDIgnoresHostileServerFilenames' macos/Tests/GhostFTPMacAppTests/FTPControlSessionTests.swift
+if grep -Fq 'STOR (remoteName)' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift || \
+   grep -Fq 'RETR (remoteName)' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift; then
+  echo "macOS FTP transfers must interpolate the actual remote filename." >&2
+  exit 1
+fi
 grep -Fq '64 * 1024' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq '.ghostftp-' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'extendedPassivePort' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
