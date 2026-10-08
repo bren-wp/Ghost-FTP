@@ -109,28 +109,30 @@ updateJson("updates/latest.template.json", (j) => {
 // release. Development version bumps must not relabel release-proven imagery
 // before that version is actually published.
 
+const parseSemver = (v) => {
+  const m = semverPattern.exec(v);
+  if (!m) throw new Error(`invalid version: ${v}`);
+  return m.slice(1).map(Number);
+};
+const compareSemver = (left, right) => {
+  const a = parseSemver(left);
+  const b = parseSemver(right);
+  for (let index = 0; index < 3; index += 1) {
+    if (a[index] !== b[index]) return a[index] > b[index] ? 1 : -1;
+  }
+  return 0;
+};
+
+// Always validate the public-release lineage, including during automatic
+// metadata synchronization (which does not pass --check-next).
+if (previousPublishedVersion && compareSemver(previousPublishedVersion, version) >= 0) {
+  throw new Error("previousPublishedVersion must be older than active source version");
+}
+if (previousPublishedVersion && previousVersion && compareSemver(previousPublishedVersion, previousVersion) > 0) {
+  throw new Error("previousPublishedVersion must not be ahead of the previous development source");
+}
+
 if (baseVersion) {
-  const parse = (v) => {
-    const m = semverPattern.exec(v);
-    if (!m) throw new Error(`invalid base version: ${v}`);
-    return m.slice(1).map(Number);
-  };
-  const compareSemver = (left, right) => {
-    const a = parse(left);
-    const b = parse(right);
-    for (let index = 0; index < 3; index += 1) {
-      if (a[index] !== b[index]) return a[index] > b[index] ? 1 : -1;
-    }
-    return 0;
-  };
-
-  if (previousPublishedVersion && compareSemver(previousPublishedVersion, version) >= 0) {
-    throw new Error("previousPublishedVersion must be older than active source version");
-  }
-  if (previousPublishedVersion && previousVersion && compareSemver(previousPublishedVersion, previousVersion) > 0) {
-    throw new Error("previousPublishedVersion must not be ahead of the previous development source");
-  }
-
   const relation = compareSemver(version, baseVersion);
   if (relation < 0) {
     throw new Error(`invalid version rollback ${baseVersion} -> ${version}`);
