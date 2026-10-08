@@ -45,8 +45,7 @@ grep -Fq 'func noop' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swi
 grep -Fq 'func listDirectory' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'func uploadFile' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'func downloadFile' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
-grep -Fq 'STOR ' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
-grep -Fq 'RETR ' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
+grep -Fq 'guard verb == "RETR" || verb == "STOR"' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'FTPControlCodec.transferCommand("STOR", remoteName: remoteName)' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'FTPControlCodec.transferCommand("RETR", remoteName: remoteName)' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'FTPControlCodec.temporaryDownloadFilename(for: localURL.lastPathComponent)' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
