@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import Darwin
 
 enum FTPControlError: LocalizedError {
     case unsupportedProtocol
@@ -302,6 +303,27 @@ enum FTPControlCodec {
     }
 }
 
+// FTP downloads may contain sensitive data. Never replace an existing staging
+// path (including a symlink) and never inherit a permissive process umask.
+enum PrivateDownloadStaging {
+    static func openNewFile(at url: URL) throws -> FileHandle {
+        let descriptor = url.withUnsafeFileSystemRepresentation { path -> Int32 in
+            guard let path else { return -1 }
+            return Darwin.open(
+                path,
+                O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW,
+                mode_t(0o600)
+            )
+        }
+        guard descriptor >= 0 else {
+            throw FTPControlError.localFileFailure(
+                "Could not create a private temporary download file."
+            )
+        }
+        return FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+    }
+}
+
 private final class OneShotGate: @unchecked Sendable {
     private let lock = NSLock()
     private var claimed = false
@@ -419,10 +441,14 @@ actor FTPControlSession {
             try FTPControlCodec.temporaryDownloadFilename(for: localURL.lastPathComponent)
         )
 
-        guard FileManager.default.createFile(atPath: temporaryURL.path, contents: nil) else {
+        let handle: FileHandle
+        do {
+            handle = try PrivateDownloadStaging.openNewFile(at: temporaryURL)
+        } catch {
             dataConnection.cancel()
-            throw FTPControlError.localFileFailure("Could not create a temporary download file.")
+            throw error
         }
+        defer { try? handle.close() }
 
         do {
             let reply = try await command(
@@ -434,9 +460,6 @@ actor FTPControlSession {
                 accepted: [125, 150],
                 description: "125 or 150 download start"
             )
-
-            let handle = try FileHandle(forWritingTo: temporaryURL)
-            defer { try? handle.close() }
 
             while true {
                 try Task.checkCancellation()
@@ -453,6 +476,7 @@ actor FTPControlSession {
             }
 
             try handle.synchronize()
+            try handle.close()
             dataConnection.cancel()
 
             let completion = try await readReply(timeoutSeconds: timeoutSeconds)
