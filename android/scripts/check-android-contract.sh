@@ -182,6 +182,10 @@ require_text "desktop shared upload action" "$DESKTOP_BROWSER" 'await enqueueUpl
 require_text "desktop shared download action" "$DESKTOP_BROWSER" 'await enqueueDownloads(serverSid, entries.map(toTransferItem), dest)'
 
 require_text "desktop parity ghost mark" "$MAIN_ACTIVITY" 'GhostMarkView'
+require_text "single approved launcher vector for live brand" "$MAIN_ACTIVITY" 'setImageResource(R.drawable.ic_ghost_ftp)'
+require_absent "obsolete Android Canvas ghost approximation" "$MAIN_ACTIVITY" 'bodyPath.cubicTo'
+require_text "Android 12 splash shows premium icon" "$ANDROID_DIR/app/src/main/res/values-v31/styles.xml" 'android:windowSplashScreenAnimatedIcon'
+require_text "Android 15 splash shows premium icon" "$ANDROID_DIR/app/src/main/res/values-v35/styles.xml" 'android:windowSplashScreenAnimatedIcon'
 require_text "left workspace navigation rail" "$MAIN_ACTIVITY" 'buildNavigationRail()'
 require_text "scrollable left workspace navigation" "$MAIN_ACTIVITY" 'private fun buildNavigationRail(): View = ScrollView(this).apply'
 require_text "left rail accessibility remains child-focused" "$MAIN_ACTIVITY" 'importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO'
