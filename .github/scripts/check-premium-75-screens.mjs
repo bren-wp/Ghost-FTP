@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -57,6 +58,22 @@ for (const [label, condition] of [
   ["macOS premium brand tagline", macShell.includes('Text("TOTAL CONTROL")')],
 ]) {
   if (!condition) errors.push(`missing real platform brand contract: ${label}`);
+}
+
+// These three vector resources were copied unchanged from the user-provided
+// design ZIP. Git-blob SHA-1 comparisons catch even tiny Bézier/gradient drift.
+for (const [asset, originalBlob] of Object.entries({
+  "assets/branding/ghostftp-adaptive-foreground.svg": "88466c215763451a4a2830a69a11c5097cb4fd5a",
+  "assets/branding/ghostftp-logo-light.svg": "6beb59d914f407bbe3e40667c9f70923df9707f0",
+  "assets/branding/ghostftp-symbol-monochrome.svg": "f7e90f05aa15bfcee747ff668e19a32eeff7ac53",
+})) {
+  if (!fs.existsSync(path.join(root, asset))) {
+    errors.push(`missing approved vector: ${asset}`);
+    continue;
+  }
+  const content = fs.readFileSync(path.join(root, asset));
+  const digest = createHash("sha1").update(`blob ${content.length}\\0`.replace("\\0", "\0")).update(content).digest("hex");
+  if (digest !== originalBlob) errors.push(`approved vector bytes changed: ${asset}`);
 }
 
 if (errors.length) {
