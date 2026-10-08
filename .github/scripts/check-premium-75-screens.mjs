@@ -38,6 +38,27 @@ if (seen.size !== 75) errors.push(`expected 75 unique references, got ${seen.siz
 if (contract.macos?.referenceCount !== 0) {
   errors.push("macOS must not invent a reference-screen set absent from the ZIP");
 }
+// The registry alone is insufficient: enforce that the real UI uses the
+// shared brand mark and that platform-specific launch/window geometries survive.
+const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
+const desktopCSS = read("ghostftp-desktop/src/styles.css");
+const androidActivity = read("android/app/src/main/java/com/ghostftp/android/MainActivity.kt");
+const androidSplash31 = read("android/app/src/main/res/values-v31/styles.xml");
+const androidSplash35 = read("android/app/src/main/res/values-v35/styles.xml");
+const macShell = read("macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
+for (const [label, condition] of [
+  ["214px reference sidebar", desktopCSS.includes("width: 214px !important")],
+  ["43px desktop navigation rows", desktopCSS.includes("min-height: 43px")],
+  ["approved Android live icon", androidActivity.includes("setImageResource(R.drawable.ic_ghost_ftp)")],
+  ["no divergent Canvas-drawn ghost", !androidActivity.includes("bodyPath.cubicTo")],
+  ["Android 12-14 navy splash", androidSplash31.includes("android:windowSplashScreenAnimatedIcon")],
+  ["Android 15 navy splash", androidSplash35.includes("android:windowSplashScreenAnimatedIcon")],
+  ["responsive macOS window", macShell.includes(".frame(minWidth: 840, minHeight: 560)")],
+  ["macOS premium brand tagline", macShell.includes('Text("TOTAL CONTROL")')],
+]) {
+  if (!condition) errors.push(`missing real platform brand contract: ${label}`);
+}
+
 if (errors.length) {
   console.error("Ghost FTP premium reference traceability failed:");
   for (const failure of errors) console.error(" - " + failure);
