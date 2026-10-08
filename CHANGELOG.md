@@ -1,3 +1,10 @@
+## Unreleased — macOS FTP private download staging
+
+- macOS plain-FTP downloads now create unique temporary files with exclusive, no-symlink POSIX creation and owner-only `0600` permissions before streaming any server data.
+- Existing staging paths cannot be overwritten, even if an attacker substitutes a symlink. Transfer failures continue to remove incomplete data and close the FTP transport.
+- Adds Swift regression coverage for private permissions, collision rejection and symlink protection.
+- macOS FTPS/SFTP remain disabled pending complete certificate/hostname and SSH host-key verification; no protocol-security checks were bypassed.
+
 ## 0.30.14 — premium cross-platform brand foundations — 8 October 2026
 
 - Applies the supplied premium navy/electric-blue design tokens to the real Windows/Linux, Android and macOS UI components rather than displaying mockups as application backgrounds.
