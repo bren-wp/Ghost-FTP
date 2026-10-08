@@ -110,7 +110,9 @@ for file in "$DIST"/*; do
 done
 test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.sha')" = "$SOURCE_SHA"
 gh release edit "$TAG" --latest=false
-test "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')" = "v0.30.13" || {
-  echo "Historical recovery changed canonical latest release" >&2; exit 1;
-}
+latest="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')"
+case "$latest" in
+  v0.30.13|v0.30.14) ;;
+  *) echo "Historical recovery unexpectedly changed canonical latest release: $latest" >&2; exit 1 ;;
+esac
 echo "Verified historical release $TAG from exact merged source $SOURCE_SHA"
