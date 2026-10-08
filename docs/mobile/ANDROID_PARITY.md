@@ -45,9 +45,9 @@ Android keeps the same primary product model as desktop where it makes sense on 
 
 ## Mobile layout rules
 
-- Use a persistent left navigation rail for Files, Sites, Transfers, Settings and Help & About.
+- Use a persistent left navigation rail for Files, Sites, Transfers, Sync & Backup, Settings and Help & About. On standard phones (360–599 dp), keep the rail docked at 88 dp to match the 480 × 960 premium design reference; on devices narrower than 360 dp, use the overlay to preserve workspace width. At 600 dp and above, use the expanded 184 dp rail.
 - Render only the active workspace in the main content area instead of stacking every workspace in one long screen.
-- Keep the selected workspace across Activity recreation while never persisting the password or authenticated session.
+- Keep the selected workspace across Activity recreation while never persisting the password or authenticated session; restore never hides a permanently docked rail.
 - Return to Files after a successful connection and move to Transfers after the document picker returns an upload selection.
 - Prioritize one-handed use and readable touch targets.
 - Keep connection/session state visible.

@@ -25,6 +25,10 @@ From the repository root:
 
 Production signing/notarization and full FTP/explicit FTPS/SFTP session/file-transfer engines remain gated until their implementation and security tests are complete.
 
-## Protocol and release status (0.30.13)
+## Protocol and release status (0.30.14)
+
+The premium SwiftUI sidebar now displays the bundled Ghost FTP application icon alongside the product name. The icon is sourced from the packaged `GhostFTP.icns` and is not a static mockup or a placeholder symbol.
+
+### Protocol groundwork (0.30.13)
 
 The SwiftUI Preview supports plain FTP browsing and upload/download. The 0.30.13 source fixes RETR/STOR filename interpolation, staged-download naming, rejects unsafe server listing names and bounds FTP control replies. Explicit FTPS and SFTP file operations remain blocked until real TLS certificate/hostname verification and SSH host-key verification are complete. CI-green ad-hoc signing is not Developer ID signing or Apple notarization; this is not a production macOS package.

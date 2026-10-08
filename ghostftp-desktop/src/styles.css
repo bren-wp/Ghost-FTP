@@ -4550,6 +4550,27 @@ input.ghost-pane-address:focus-visible {
   gap: 3px;
 }
 
+.ghost-tools-nav {
+  margin-top: 18px;
+  padding-top: 11px;
+  border-top: 1px solid rgb(var(--border-subtle));
+}
+
+.ghost-sidebar-section-label {
+  display: block;
+  margin: 0 9px 7px;
+  color: rgb(var(--text-dim));
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+}
+
+.ghost-tools-nav .ghost-file-nav-row:disabled {
+  cursor: not-allowed;
+  opacity: .42;
+}
+
 .ghost-primary-sidebar .ghost-file-nav-row {
   min-height: 38px;
   border-radius: 7px;
@@ -4666,7 +4687,8 @@ input.ghost-pane-address:focus-visible {
     padding: 0;
   }
   .ghost-primary-sidebar .ghost-file-nav-row span,
-  .ghost-sidebar-new span {
+  .ghost-sidebar-new span,
+  .ghost-sidebar-section-label {
     display: none;
   }
   .ghost-current-workspace {

@@ -73,12 +73,21 @@ struct ContentView: View {
                 }
 
                 Section {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Ghost FTP")
-                            .font(.headline)
-                        Text("Brendigo · Private session")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 10) {
+                        // Use the app's bundled GhostFTP.icns for the sidebar brand.
+                        Image(nsImage: NSApplication.shared.applicationIconImage)
+                            .resizable()
+                            .interpolation(.high)
+                            .frame(width: 34, height: 34)
+                            .accessibilityHidden(true)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Ghost FTP")
+                                .font(.headline)
+                            Text("Brendigo · Private session")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .padding(.vertical, 4)
                 }

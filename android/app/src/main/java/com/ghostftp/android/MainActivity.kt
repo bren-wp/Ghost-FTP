@@ -235,9 +235,15 @@ class MainActivity : Activity() {
             addView(aboutSection)
         }
 
-        val compactNavigation = resources.configuration.screenWidthDp < 600
+        // The 480px visual reference uses an always-visible compact rail.
+        // Very narrow devices keep the overlay so file actions remain usable.
+        val compactNavigation = usesOverlayNavigation()
         navigationOpen = !compactNavigation
-        val railWidth = if (compactNavigation) dp(152) else dp(184)
+        val railWidth = when {
+            compactNavigation -> dp(152)
+            resources.configuration.screenWidthDp < 600 -> dp(88)
+            else -> dp(184)
+        }
         navigationRail = buildNavigationRail().apply {
             visibility = if (navigationOpen) View.VISIBLE else View.GONE
         }
@@ -398,8 +404,10 @@ class MainActivity : Activity() {
             minWidth = 0
             minimumWidth = 0
         }
-        titleRow.addView(navigationToggleButton, LinearLayout.LayoutParams(dp(48), dp(44)))
-        titleRow.addView(gap(8))
+        if (usesOverlayNavigation()) {
+            titleRow.addView(navigationToggleButton, LinearLayout.LayoutParams(dp(48), dp(44)))
+            titleRow.addView(gap(8))
+        }
         titleRow.addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(44), dp(44)))
         titleRow.addView(gap(10))
         titleRow.addView(TextView(this@MainActivity).apply {
@@ -852,21 +860,25 @@ class MainActivity : Activity() {
                 }
             }
         }
-        if (announce && resources.configuration.screenWidthDp < 600) {
+        if (announce && usesOverlayNavigation()) {
             setNavigationOpen(false, announce = false)
         }
     }
 
+    private fun usesOverlayNavigation(): Boolean =
+        resources.configuration.screenWidthDp < 360
+
     private fun setNavigationOpen(open: Boolean, announce: Boolean = true) {
-        navigationOpen = open
-        val compactNavigation = resources.configuration.screenWidthDp < 600
+        val compactNavigation = usesOverlayNavigation()
+        // Rotation / Activity restore must never hide a permanently docked rail.
+        navigationOpen = if (compactNavigation) open else true
         if (::navigationRail.isInitialized) {
-            navigationRail.visibility = if (open) View.VISIBLE else View.GONE
+            navigationRail.visibility = if (navigationOpen) View.VISIBLE else View.GONE
         }
         if (::navigationScrim.isInitialized) {
             navigationScrim.visibility =
-                if (compactNavigation && open) View.VISIBLE else View.GONE
-            navigationScrim.isFocusable = compactNavigation && open
+                if (compactNavigation && navigationOpen) View.VISIBLE else View.GONE
+            navigationScrim.isFocusable = compactNavigation && navigationOpen
         }
         if (::navigationToggleButton.isInitialized) {
             navigationToggleButton.text = if (open) "←" else "☰"
@@ -1401,7 +1413,7 @@ class MainActivity : Activity() {
             ?: Workspace.FILES
         setWorkspace(activeWorkspace, announce = false)
         setNavigationOpen(
-            state.getBoolean(STATE_NAVIGATION_OPEN, resources.configuration.screenWidthDp >= 600),
+            state.getBoolean(STATE_NAVIGATION_OPEN, !usesOverlayNavigation()),
             announce = false
         )
 

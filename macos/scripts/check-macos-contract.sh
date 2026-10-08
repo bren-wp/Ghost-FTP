@@ -77,6 +77,7 @@ grep -Fq 'case sync' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
 grep -Fq 'case settings' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
 grep -Fq 'case about' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
 grep -Fq 'New connection' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+grep -Fq 'Image(nsImage: NSApplication.shared.applicationIconImage)' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
 grep -Fq 'Sync & Backup' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
 grep -Fq 'TransferHistoryStore.shared' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
 grep -Fq 'exportProfiles()' macos/Sources/GhostFTPMacApp/Services/ProfileStore.swift
