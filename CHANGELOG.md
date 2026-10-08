@@ -1,3 +1,12 @@
+## 0.30.13 — macOS FTP reliability and publication lineage — 8 October 2026
+
+- Fixes actual macOS FTP RETR/STOR names and per-download unique staging filenames; adds hostile server-listing filtering, bounded FTP control replies and Swift regression tests.
+- Locks the macOS FTP wire command and safety contracts into release-blocking CI.
+- Distinguishes the preceding merged source version 0.30.12 from the latest **published** canonical release 0.30.10, and makes release publication verify the actual latest GitHub Release instead of waiting for missing 0.30.11/0.30.12 tags.
+- Preserves Windows/Linux protocol and native build gates, Android emulator checks, and macOS Preview limitations without claiming unsupported cross-platform parity.
+
+See [docs/releases/0.30.13.md](docs/releases/0.30.13.md).
+
 ## 0.30.12 — privacy and security hardening — 6 October 2026
 
 - Hardens Windows/Linux encrypted backup restore with bounded input/decompression, Ghost FTP-only credential targets, private staging files, stronger new-backup password policy, explicit in-memory secret overwrites, command-layer secret wiping and guaranteed temporary snapshot cleanup.

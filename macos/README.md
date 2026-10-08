@@ -24,3 +24,7 @@ From the repository root:
 `package-app.sh` creates an ad-hoc-signed preview application bundle and ZIP for CI validation. It is not a Developer ID/notarized production distribution.
 
 Production signing/notarization and full FTP/explicit FTPS/SFTP session/file-transfer engines remain gated until their implementation and security tests are complete.
+
+## Protocol and release status (0.30.13)
+
+The SwiftUI Preview supports plain FTP browsing and upload/download. The 0.30.13 source fixes RETR/STOR filename interpolation, staged-download naming, rejects unsafe server listing names and bounds FTP control replies. Explicit FTPS and SFTP file operations remain blocked until real TLS certificate/hostname verification and SSH host-key verification are complete. CI-green ad-hoc signing is not Developer ID signing or Apple notarization; this is not a production macOS package.
