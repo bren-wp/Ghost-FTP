@@ -385,7 +385,7 @@ require_text "SFTP host-key verification disclosure" "$ANDROID_DIR/app/src/main/
 require_text "official support link" "$MAIN_ACTIVITY" 'https://github.com/bren-wp/Ghost-FTP/issues'
 require_text "official privacy link" "$MAIN_ACTIVITY" 'https://github.com/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md'
 require_text "official documentation link" "$MAIN_ACTIVITY" 'https://github.com/bren-wp/Ghost-FTP/tree/main/docs'
-require_text "canonical project repository link" "$MAIN_ACTIVITY" 'https://github.com/bren-wp/Ghost-FTP"'
+require_text "canonical project repository link" "$MAIN_ACTIVITY" 'const val REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP"'
 require_text "canonical EULA link" "$MAIN_ACTIVITY" 'https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt'
 require_text "Android 15 edge-to-edge API gate" "$MAIN_ACTIVITY" 'if (Build.VERSION.SDK_INT >= 35)'
 require_text "Android 15 system bar insets" "$MAIN_ACTIVITY" 'WindowInsets.Type.systemBars()'
