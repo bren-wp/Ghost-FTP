@@ -25,6 +25,7 @@ export function DualPaneBrowser() {
   );
   const [reloadToken, setReloadToken] = useState(0);
   const previousActiveCount = useRef(0);
+  const pickerInFlight = useRef(false);
 
   // A transfer batch changes files on disk or on the server. Re-list both
   // real directories when the batch drains, as the single-pane UI already does.
@@ -82,13 +83,20 @@ export function DualPaneBrowser() {
 
   useEffect(() => {
     const pickFromSharedToolbar = () => {
-      if (!activeSessionId) return;
+      if (!activeSessionId || pickerInFlight.current) return;
+      pickerInFlight.current = true;
       void (async () => {
         try {
           const picked = await open({ multiple: true, directory: false, title: "Upload files" });
           if (!picked) return;
           const paths = Array.isArray(picked) ? picked : [picked];
           if (paths.length === 0) return;
+          // The selected server can disconnect while the native picker is open.
+          // Never silently queue against an obsolete session after user selection.
+          if (useConnections.getState().activeSessionId !== activeSessionId) {
+            toastError(new Error("The active connection changed"), "Please reconnect before uploading");
+            return;
+          }
           await enqueueUploads(
             activeSessionId,
             paths.map((path) => ({ path, kind: "file" as const })),
@@ -96,6 +104,8 @@ export function DualPaneBrowser() {
           );
         } catch (error) {
           toastError(error, "Couldn't upload files");
+        } finally {
+          pickerInFlight.current = false;
         }
       })();
     };
