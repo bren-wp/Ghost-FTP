@@ -1,6 +1,8 @@
-# Ghost FTP Security Audit — 0.91.1
+# Ghost FTP Security Audit — 0.92.0
 
-Previous canonical release: **0.91.0**.
+Previous canonical release: **0.91.1**.
+
+0.92.0 advisory duplicate matching on macOS reads non-secret protocol, host, port and username. Neither credentials nor Keychain values are inspected; profiles are never merged, deleted or sent over the network. Unit tests cover account casing, hostname normalization, invalid inputs and membership of duplicate groups. This is not a new full penetration test.
 
 0.91.1 focused fixes: Android error diagnostics redact FTP/SFTP URL userinfo with or without an inline password; macOS prevents silently overwriting unreadable profile data by retaining an original-byte recovery copy and disallows duplicate-ID backup imports. Windows/Linux preserve in-progress site edits across selection changes. These checks are not an independent security assessment.
 
