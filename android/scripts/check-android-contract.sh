@@ -110,9 +110,13 @@ declaration = re.compile(
 
 for path in sorted(root.rglob("*.kt")):
     source = path.read_text(encoding="utf-8")
-    code = re.sub(r"/\*[\s\S]*?\*/", " ", source)
-    code = re.sub(r"//[^\n]*", " ", code)
+    # Kotlin regular and triple-quoted strings can contain https://.
+    # Hide strings before stripping line comments, or the slash pair can
+    # swallow a later symbol reference and cause false dead-code reports.
+    code = re.sub(r'/\*[\s\S]*?\*/', " ", source)
+    code = re.sub(r'"""[\s\S]*?"""', '""', code)
     code = re.sub(r'"(?:\\.|[^"\\])*"', '""', code)
+    code = re.sub(r"//[^\n]*", " ", code)
     for match in declaration.finditer(code):
         name = match.group(1)
         if len(re.findall(rf"\b{re.escape(name)}\b", code)) < 2:
