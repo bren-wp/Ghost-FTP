@@ -1,10 +1,14 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 0.91.1 development/release source. Previous canonical release: **0.91.0**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.92.0 development/release source. Previous canonical release: **0.91.1**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+
+## macOS Sites — advisory duplicate discovery (0.92.0)
+
+The SwiftUI Sites list can filter possible duplicate saved connection endpoints and account identities. The Files connection editor warns about other saved entries matching protocol, DNS-case-insensitive host (ignoring a final dot), port and case-sensitive username. Matching does not touch Keychain or modify stored profiles; empty/incomplete records are skipped. Swift XCTest covers these rules. This is macOS saved-sites parity, not macOS encrypted FTPS/SFTP protocol parity.
 
 ## Windows/Linux Site Manager (0.91.0)
 
-Advisory duplicate discovery highlights saved profiles that share protocol, normalized host, port and case-sensitive username, while retaining separate credentials and metadata. The Duplicates filter and count are specific to Windows/Linux; Android/macOS parity is not implied.
+Advisory duplicate discovery highlights saved profiles that share protocol, normalized host, port and case-sensitive username, while retaining separate credentials and metadata. The Duplicates filter and count are implemented in Windows/Linux, while a corresponding advisory filter and editor warning now exist on macOS 0.92.0. Android does not currently maintain an equivalent persistent saved-profile list.
 
 ## 0.91.1 cross-platform maintenance
 
