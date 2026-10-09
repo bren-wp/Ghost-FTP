@@ -1,6 +1,8 @@
-# Ghost FTP Security Audit — 0.30.15
+# Ghost FTP Security Audit — 0.30.16
 
-Previous canonical release: **0.30.14**.
+Previous canonical release: **0.30.15**.
+
+Security posture is carried forward from the previously reviewed 0.30.15 baseline; the 0.30.16 code delta changes color tokens and does not replace a full independent security audit.
 
 ## Current controls
 

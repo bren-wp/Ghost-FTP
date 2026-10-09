@@ -47,6 +47,14 @@ Inter, Segoe UI and Noto Sans are preferred with platform system fallbacks. No f
 - At 1290px the desktop dark primary sidebar uses the approved 214px reference width; below 1100px the earlier compact layout remains.
 - macOS receives its own functional SwiftUI spacing and branded connection action rather than a static Android/Windows screenshot; its minimum window size now supports 840×560.
 
+## 0.30.16 live color-surface correction
+
+- Desktop Windows and Linux navigation now consumes the same theme-aware `--bg-panel` RGB token as the rest of the current theme, removing the obsolete hard-coded sidebar shade. The dark theme resolves this to `#0D192B`.
+- Android row/input surfaces reference their single existing `Brand.panel` / `Brand.background` constants rather than independently duplicating RGB triples.
+- macOS SwiftUI sidebar now uses the canonical `#0D192B` exact RGB components. This matches the dark-mode color reference without forcing platform-specific light mode to use a dark background.
+- GitHub quality gates assert all three implementation contracts, while screenshots/interaction comparisons remain necessary before accepting individual reference screens.
+- No credential handling, transfer implementation or transport security settings were changed by this color-only refinement.
+
 ## Release gating / not yet completed
 
 - Automated builds and functional protocol gates **do not** prove pixel-by-pixel parity; acceptance requires screenshot comparison at reference sizes on each platform.

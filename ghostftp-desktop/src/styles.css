@@ -4526,7 +4526,7 @@ input.ghost-pane-address:focus-visible {
   min-width: 184px !important;
   padding: 10px !important;
   border-right: 1px solid rgb(var(--border));
-  background: #051929 !important;
+  background: rgb(var(--bg-panel)) !important;
 }
 
 .ghost-sidebar-new {

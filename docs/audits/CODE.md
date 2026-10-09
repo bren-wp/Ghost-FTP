@@ -1,8 +1,10 @@
-# Ghost FTP Code Audit — 0.30.15
+# Ghost FTP Code Audit — 0.30.16
 
 ## Scope
 
-This audit covers the current Ghost FTP 0.30.15 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.30.14**.
+This audit covers the current Ghost FTP 0.30.16 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.30.15**.
+
+These findings build on the previously reviewed 0.30.15 code-audit baseline; the 0.30.16 changes are limited to live premium color surfaces and their CI contract. A complete new dead-code audit has not been claimed.
 
 ## Dead-code and reachability evidence
 
