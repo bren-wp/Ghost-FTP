@@ -1,6 +1,6 @@
 # Ghost FTP — Recommended Next Work
 
-This is the prioritized improvement backlog for the Ghost FTP 0.90.1 development line. Previous canonical release: **0.90.0**. Items here are recommendations, not claims of completed functionality.
+This is the prioritized improvement backlog for the Ghost FTP 0.91.0 development line. Previous canonical release: **0.90.1**. Items here are recommendations, not claims of completed functionality.
 
 ## Release blockers before FINAL
 
@@ -76,7 +76,7 @@ Recommended:
 Recommended:
 
 - Encrypted export/import package for selected sites.
-- Duplicate profile detection.
+- Cross-platform duplicate-profile discovery parity (Windows/Linux advisory discovery shipped in 0.91.0).
 - Connection-profile templates.
 - Search by tag, host, username and notes.
 - Optional per-profile color/icon.

@@ -1,3 +1,12 @@
+## 0.91.0 — saved-site duplicate discovery — 9 October 2026
+
+- **Windows/Linux Sites:** New Duplicates filter and count identifies saved profiles sharing a protocol/host/port/username; details show a live advisory while editing.
+- **Data preservation:** Duplicate detection never merges or deletes site profiles, bookmarks or separate OS-backed credentials. Ephemeral Quick Connect sessions are excluded.
+- **Regression tests:** Production TypeScript identity-matching, case sensitivity, malformed site handling and UI wiring are exercised by the existing desktop quality gate.
+- **Release limits:** Previous v0.90.1 remains immutable; existing real README images are preserved. Installed 75-screen acceptance and macOS FTPS/SFTP identity work remain open.
+
+See [docs/releases/0.91.0.md](docs/releases/0.91.0.md).
+
 ## 0.90.1 — lossless settings migration and password-generation stability — 9 October 2026
 
 - **Windows/Linux data integrity:** retain the legacy browser settings until every key's exact serialized value is returned by the database; wrong or partial writes cannot delete the recovery backup.
