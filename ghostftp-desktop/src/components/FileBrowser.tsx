@@ -130,7 +130,7 @@ export function FileBrowser() {
 
   useEffect(() => {
     const pickFromSharedToolbar = () => {
-      if (!browseLocal && serverSid) void pickAndUpload("files");
+      if (serverSid) void pickAndUpload("files");
     };
     window.addEventListener("ghostftp:pick-upload", pickFromSharedToolbar);
     return () => window.removeEventListener("ghostftp:pick-upload", pickFromSharedToolbar);
