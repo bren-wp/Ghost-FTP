@@ -12,6 +12,7 @@ struct FilesWorkspace: View {
                let profile = profiles.profiles.first(where: { $0.id == selectedID }) {
                 ConnectionEditor(
                     profile: profile,
+                    savedProfiles: profiles.profiles,
                     onSave: profiles.save,
                     onDelete: { id in
                         try? KeychainStore().removePassword(for: id)
@@ -43,6 +44,7 @@ struct FilesWorkspace: View {
 }
 
 private struct ConnectionEditor: View {
+    let savedProfiles: [ConnectionProfile]
     let onSave: (ConnectionProfile) -> Void
     let onDelete: (UUID) -> Void
 
@@ -59,9 +61,11 @@ private struct ConnectionEditor: View {
 
     init(
         profile: ConnectionProfile,
+        savedProfiles: [ConnectionProfile],
         onSave: @escaping (ConnectionProfile) -> Void,
         onDelete: @escaping (UUID) -> Void
     ) {
+        self.savedProfiles = savedProfiles
         self.onSave = onSave
         self.onDelete = onDelete
         _draft = State(initialValue: profile)
@@ -103,6 +107,26 @@ private struct ConnectionEditor: View {
                 SecureField("Password", text: $password)
 
                 Toggle("Remember password in macOS Keychain", isOn: $rememberPassword)
+            }
+
+            // Advisory only: never merge or remove another saved profile.
+            // Recomputed from the live editor draft as host/account values change.
+            let matchingSites = SavedSiteDuplicates.matchingProfiles(
+                for: draft,
+                in: savedProfiles
+            )
+            if !matchingSites.isEmpty {
+                Section("Saved site inventory") {
+                    Label(
+                        "Possible duplicate saved site (\(matchingSites.count) match\(matchingSites.count == 1 ? "" : "es"))",
+                        systemImage: "rectangle.on.rectangle"
+                    )
+                    .foregroundStyle(.orange)
+
+                    Text("Another saved site uses this protocol, server, port and username. Review the entries before saving. Ghost FTP will not merge, overwrite or delete either site.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("Connection reliability") {

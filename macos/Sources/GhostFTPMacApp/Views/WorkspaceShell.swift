@@ -170,6 +170,17 @@ private struct SitesWorkspace: View {
     @ObservedObject var profiles: ProfileStore
     @Binding var selectedID: UUID?
     let onOpen: (UUID) -> Void
+    @State private var duplicatesOnly = false
+
+    private var duplicateIDs: Set<UUID> {
+        SavedSiteDuplicates.duplicateIDs(in: profiles.profiles)
+    }
+
+    private var displayedProfiles: [ConnectionProfile] {
+        duplicatesOnly
+            ? profiles.profiles.filter { duplicateIDs.contains($0.id) }
+            : profiles.profiles
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -185,8 +196,19 @@ private struct SitesWorkspace: View {
                     detail: "Create a connection from the sidebar to add your first site."
                 )
             } else {
-                List {
-                    ForEach(profiles.profiles) { profile in
+                Toggle(isOn: $duplicatesOnly) {
+                    Text("Possible duplicates (\(duplicateIDs.count))")
+                }
+                .toggleStyle(.checkbox)
+                .accessibilityHint("Show only saved sites with matching protocol, server, port and username.")
+
+                if displayedProfiles.isEmpty {
+                    Text("No possible duplicate saved sites.")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                    ForEach(displayedProfiles) { profile in
                         HStack(spacing: 14) {
                             Image(systemName: profile.protocolKind == .sftp ? "lock.shield" : "server.rack")
                                 .font(.title3)
@@ -198,6 +220,11 @@ private struct SitesWorkspace: View {
                                 Text("\(profile.protocolKind.title) · \(profile.host):\(profile.port)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                if duplicateIDs.contains(profile.id) {
+                                    Label("Possible duplicate", systemImage: "rectangle.on.rectangle")
+                                        .font(.caption2)
+                                        .foregroundStyle(.orange)
+                                }
                             }
 
                             Spacer()
@@ -221,7 +248,8 @@ private struct SitesWorkspace: View {
                         .padding(.vertical, 5)
                     }
                 }
-                .listStyle(.inset)
+                    .listStyle(.inset)
+                }
             }
         }
         .padding(24)

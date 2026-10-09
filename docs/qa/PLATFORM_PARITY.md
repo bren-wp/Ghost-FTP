@@ -1,6 +1,6 @@
-# Ghost FTP platform parity — 0.91.1
+# Ghost FTP platform parity — 0.92.0
 
-Last reviewed: 9 October 2026. Latest **verified published release at the start of this patch**: **v0.91.0**. v0.91.1 remains a proposed patch until the exact-SHA CI, merged-main gates and canonical release workflow have passed. This matrix describes source-level availability, not a claim of full installed-build 1:1 or production signing on all platforms.
+Last reviewed: 10 October 2026. Latest **verified published release at the start of this feature**: **v0.91.1**. v0.92.0 is unreleased until all exact-SHA CI, merged-main gates and the canonical release workflow pass. This matrix describes source-level availability, not installed-build 1:1 or production signing across all platforms.
 
 | Gate or capability | Windows | Linux | Android | macOS |
 | --- | --- | --- | --- | --- |
@@ -26,3 +26,7 @@ The previous public release must be read from GitHub Releases rather than inferr
 - User-supplied design ZIP includes **75 concept images**: **30 Windows, 29 Linux, 16 Android**. macOS has no supplied reference screenshots. These are visual targets, not real captures or evidence of operational interactions.
 - v0.91.1 Windows/Linux Site Manager protects drafts against accidental dismissal; Android improves username-only URL privacy; macOS retains corrupt profile bytes and checks imported identity collisions. The changes improve real behavior but do not establish identical UI implementations.
 - Keep the 75-screen per-screen acceptance entries pending until actual installed app captures, input interactions, keyboard/a11y checks and matching-scale comparisons are documented.
+
+## 0.92.0 macOS source improvement
+
+macOS now includes an advisory matching-endpoint filter with a duplicate count in the Sites workspace and a live warning while editing saved connection settings. This matches Windows/Linux identity-detection semantics without accessing Keychain secrets or modifying stored entries. It does not make Android profile inventory equivalent, enable macOS FTPS/SFTP operations, or certify the 75 concept-reference screenshots as pixel-perfect installed-device captures.

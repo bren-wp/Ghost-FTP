@@ -1,3 +1,13 @@
+## 0.92.0 — macOS saved-site duplicate discovery — 10 October 2026
+
+- **macOS Sites:** Added a live **Possible duplicates** filter and per-site labels for saved connections that share protocol, normalized hostname, port and case-sensitive username.
+- **macOS Files/editor:** Editing a saved connection now displays an accessible, non-destructive advisory when another saved profile uses the same endpoint and account.
+- **Privacy:** Never compare or export Keychain passwords, SSH secrets, profile labels or file paths to infer duplicates; all profiles remain separate.
+- **Quality:** Swift XCTest cases cover DNS host casing and trailing dots, username case, protocol/port differences, incomplete records and multiple matching entries.
+- **No false parity:** Windows/Linux keep their existing filter; Android's saved-profile inventory differs; FTPS/SFTP remain unavailable for macOS file operations pending trusted identity verification. Pixel-perfect, signed/notarized and cross-device acceptance are not claimed.
+
+See [docs/releases/0.92.0.md](docs/releases/0.92.0.md).
+
 ## 0.91.1 — cross-platform profile integrity, privacy and unsaved-edit safety — 9 October 2026
 
 - **Windows/Linux:** Editing a saved site no longer silently drops an unsaved draft when the user switches sites or filters. The site editor has an explicit Cancel control; Escape preserves the draft until Save/Cancel.
