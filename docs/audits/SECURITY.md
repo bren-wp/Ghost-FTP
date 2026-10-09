@@ -1,6 +1,6 @@
-# Ghost FTP Security Audit — 0.30.19
+# Ghost FTP Security Audit — 0.30.20
 
-Previous canonical release: **0.30.18**.
+Previous canonical release: **0.30.19**.
 
 Security posture is carried forward from the previously reviewed 0.30.15 baseline; the 0.30.16 code delta changes color tokens and does not replace a full independent security audit.
 
@@ -10,7 +10,7 @@ Security posture is carried forward from the previously reviewed 0.30.15 baselin
 
 0.30.19 incremental review: native OS file selection is invoked after a user-facing action and only against active connections, using unchanged authenticated transfer and overwrite-conflict controls. Directory refresh re-reads current lists, not an unprompted remote mutation. This is not an independent full security audit.
 
-## Unreleased 0.30.20 privacy and security review
+## 0.30.20 privacy and security review
 
 - **Android diagnostics:** secrets and userinfo/token patterns are masked before the 600-character display truncation. Oversized messages are bounded before regex processing, and exceedingly long supplied secrets fail closed. Unit regressions cover truncated-password prefixes and giant server-origin error strings.
 - **macOS profile backup:** an import of up to 512 profiles no longer permits the **merged total** to silently exceed the 512-profile cap. Rejected imports leave current profiles and persisted data unchanged; Swift tests exercise the failure.
