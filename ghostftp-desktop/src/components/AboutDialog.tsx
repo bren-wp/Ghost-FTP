@@ -21,7 +21,7 @@ import { ipc } from "@/lib/ipc";
 import { useDialog } from "@/hooks/useDialog";
 
 // Canonical public documentation and support live with the open-source release.
-// PRODUCT_SITE remains reserved for the existing trusted update endpoint.
+// PRODUCT_SITE remains reserved for the separately configured secure update service.
 const PROJECT_REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP";
 
 type AboutTab = "about" | "updates" | "help" | "privacy";
