@@ -7,7 +7,7 @@
 # import name is preserved via `package = "ghostftp"` so the source needs no edits.
 [package]
 name = "ghostftp-cli"
-version = "0.90.0"
+version = "0.90.1"
 edition = "2021"
 description = "Ghost FTP CLI — SFTP / FTP / S3 / R2 / B2 / Azure Blob from the terminal."
 authors = ["Ghost FTP"]
