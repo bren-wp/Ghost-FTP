@@ -90,6 +90,10 @@ jobs:
           grep -Fq '#38ABFF' android/app/src/main/res/values/colors.xml
           grep -Fq 'M24,155c16,-4' android/app/src/main/res/drawable/ic_ghost_ftp.xml
           grep -Fq 'GhostPremiumPalette.accent' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+          grep -Fq 'static let sidebar = Color(red: 13/255, green: 25/255, blue: 43/255)' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+          grep -Fq 'val row: Int = panel' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
+          grep -Fq 'val input: Int = background' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
+          grep -Fq 'background: rgb(var(--bg-panel)) !important;' ghostftp-desktop/src/styles.css
           grep -Fq 'No macOS mockups were provided' docs/product/PREMIUM_BRAND_2026.md
           test -s assets/branding/ghostftp-app-icon.svg
           grep -Fq 'viewBox="0 0 1280 330"' ghostftp-desktop/branding/ghostftp-logo.svg
