@@ -1,80 +1,42 @@
-# Ghost FTP Pixel-Parity QA
+# Ghost FTP — installed-build visual acceptance
 
-The approved images under `docs/assets/screenshots/` are the visual specification. They are documentation/QA references only and are never loaded as application backgrounds or used as click maps.
+Visual reference authority: the user-supplied GhostFTP-Premium-Brand-UI(2).zip and the 75-entry source map in docs/qa/premium-75-screen-contract.json. The references are design **concepts**, never real file data or executable screens. Do not embed them as application backgrounds.
 
-## Canonical main-window geometry
+## What the 0.30.18 Help/About increment can verify
 
-At the approved **1290×852** desktop frame the real Ghost FTP component shell targets:
+| Target | Reference file in ZIP | Genuine surface | Acceptance |
+| --- | --- | --- | --- |
+| Windows | screens/windows/help.png | ghostftp-desktop/src/components/AboutDialog.tsx + styles.css | **Pending** installed Windows capture |
+| Linux | screens/linux/help.png | Same React About surface, native Linux packaging | **Pending** installed Linux capture |
+| Android | screens/android/about.png | android/app/src/main/java/com/ghostftp/android/MainActivity.kt | **Pending** emulator/device capture |
+| macOS | No supplied mockup | macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift | Shared-token/platform usability review only |
 
-- 52 px integrated custom titlebar + application menubar;
-- 72 px Quick Connect row;
-- 60 px toolbar;
-- 216 px Sites rail;
-- 416 px file workspace;
-- 210 px transfer/log band;
-- 40 px status bar;
-- thin separators/borders consume the remaining pixels of the 852 px native inner frame.
+The source now implements the reference's main product identity, compact real version metadata, contextual facts, and adjacent support actions, but code presence **cannot** certify pixel parity. Do not set visual_acceptance to accepted until captured application screenshots have been reviewed.
 
-Reference modal envelopes:
+## Reference geometry to compare
 
-- New Connection: **752×628**
-- File Properties: **530×770**
+Desktop mockups use **1290×852** reference images. The left primary rail targets **214 px** and main navigation rows **43 px** at that size. In the Help reference, the page presents a heading and two large adjacent cards (product facts on the left, support/resources on the right). Verify the real desktop About state at 1290×852, then at 1100×720, 840×560 and the minimum supported window size without cropped primary actions. Preserve the real top-level menu/navigation and avoid inserting a nested duplicate rail.
 
-## Visual system
+Android mockups are **480×960**. The About reference has the real Ghost brand centered inside a dark raised card, then a separate facts card; bottom navigation, system bars and scroll behavior must be tested on small devices as well. Unlike mockup-only elements, real external resource links must remain reachable by ordinary vertical scrolling and have spoken accessibility names.
 
-Core Ghost FTP colors:
+The concept's *fake* paths, host names, credentials, status indicators, transfer percentages and file sizes must **never** be seeded in the installed product to imitate the screenshot.
 
-- Electric Blue: `#38ABFF`
-- Deep Navy: `#0B1E36`
-- Slate Blue: `#132D52`
-- Ice White: `#EAF6FF`
+## How to accept a screen
 
-The UI should use dark navy hierarchy, restrained Electric Blue emphasis, readable Ice White text, thin blue borders and selective glow.
+1. Install/run a CI-built package on the actual target OS, with no seeded test profiles or fake transfers; record exact commit SHA, OS version, app version, viewport and display scale.
+2. Capture the named real app state; inspect typography, icon/wordmark proportions, sidebar geometry, card layout, spacing, radii, borders, focus order and keyboard access.
+3. Compare against the correct ZIP reference at matching dimensions; record screenshot paths, measured differences, human acceptance, and legitimate deviations (especially accessibility or smaller window layouts).
+4. Click every visible control, including Update, GitHub support/docs/privacy/EULA links, scroll/focus/keyboard navigation and window resize. Confirm honest errors if external browser is absent.
+5. Only then update that single screen's visual_acceptance in the 75-screen source map, with traceable evidence. No blanket bulk acceptance.
 
-## Reference screens
+For macOS, supplied reference screenshots do not exist; require separate functional, accessibility, security and premium-token acceptance without calling that platform a pixel-perfect 1:1 screenshot reproduction.
 
-Current branded reference files cover:
+## Shared premium tokens
 
-- Main File Manager;
-- Site Manager;
-- New Connection;
-- Preferences;
-- Transfer Center;
-- File Properties;
-- About;
-- Windows/Linux platform presentation;
-- brand identity.
+Canvas #070E1A; panel #0D192B; raised #111F34; action blue #38ABFF; primary text #EAF6FF. Respect actual application theme controls and reduced-motion preferences.
 
-## Acceptance rule
+## Known gates
 
-The current development line does **not** claim pixel-perfect FINAL acceptance yet.
+The six exact-HEAD CI suites verify builds, source regression contracts, selected security behavior, Android smoke tests, Swift unit tests and protocol roundtrips. **None automatically measures all 75 installed UI screenshots.** A green release build therefore does not grant 1:1 final sign-off.
 
-Before FINAL, capture real native Windows renders at 100% display scale and compare:
-
-- window bounds;
-- typography;
-- row heights;
-- dividers;
-- radii;
-- icon placement;
-- selected/hover/focus states;
-- modal dimensions;
-- custom titlebar;
-- spacing and alignment.
-
-Measured differences must be accepted or corrected before the release is described as 1:1 / pixel-perfect FINAL.
-
-
-## Stacking acceptance
-
-At every documented viewport size:
-
-- opening New Connection, Site Manager, Preferences, Transfer Center or About must fully cover the underlying application chrome;
-- no titlebar, Quick Connect row or toolbar control may paint above a modal/standalone surface;
-- top application menus must float over the Quick Connect row without changing row height, pushing content or clipping;
-- screenshots used for comparison are specifications only; production UI must remain real React/Tauri controls.
-
-
-## Current compositor hardening
-
-Menu and protocol popovers use explicit high stacking contexts and overflow-visible ancestors. Critical standalone/dialog surfaces do not use transform entrance animations, and press feedback no longer scales controls. These are source-level flicker mitigations; real Windows/Linux soak and screenshot comparison remain required before pixel-perfect acceptance.
+Do not turn hidden or unfinished macOS FTPS/SFTP operations on until reliable certificate/hostname and SSH host-key validation is implemented and tested; the About panel must continue to describe this accurately.
