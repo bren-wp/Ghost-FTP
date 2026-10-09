@@ -18,6 +18,7 @@ final class ProfileStore: ObservableObject {
 
     private let defaults: UserDefaults
     private let storageKey = "ghostftp.macos.profiles.v1"
+    private let recoveryKey = "ghostftp.macos.profiles.recovery.v1"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -66,6 +67,11 @@ final class ProfileStore: ObservableObject {
             throw ProfileStoreError.tooManyProfiles
         }
         try imported.forEach(validateBackupProfile)
+        // Reject duplicate UUIDs inside one backup instead of silently losing
+        // entries when a dictionary keeps only the final profile for a key.
+        guard Set(imported.map(\.id)).count == imported.count else {
+            throw ProfileStoreError.invalidProfileShape
+        }
 
         var merged = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
         for profile in imported {
@@ -106,8 +112,23 @@ final class ProfileStore: ObservableObject {
         }
 
         do {
-            profiles = try JSONDecoder().decode([ConnectionProfile].self, from: data)
+            guard data.count <= Self.maximumBackupBytes else {
+                throw ProfileStoreError.backupTooLarge
+            }
+            let stored = try JSONDecoder().decode([ConnectionProfile].self, from: data)
+            guard stored.count <= Self.maximumImportedProfiles,
+                  Set(stored.map(\.id)).count == stored.count else {
+                throw ProfileStoreError.invalidProfileShape
+            }
+            try stored.forEach(validateBackupProfile)
+            profiles = stored
         } catch {
+            // Keep the unreadable original bytes for manual recovery before
+            // the next site edit writes a valid replacement settings value.
+            // Do not overwrite an older recovery copy on subsequent launches.
+            if defaults.data(forKey: recoveryKey) == nil {
+                defaults.set(data, forKey: recoveryKey)
+            }
             profiles = []
         }
     }

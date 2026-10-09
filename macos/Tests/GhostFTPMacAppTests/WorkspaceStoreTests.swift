@@ -35,6 +35,45 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(destination.profiles, [original])
     }
 
+    func testDuplicateIdentifiersInSingleImportFailWithoutDataLoss() throws {
+        let defaults = isolatedDefaults("duplicate-backup")
+        let store = ProfileStore(defaults: defaults)
+        let original = ConnectionProfile(name: "Original", protocolKind: .ftp, host: "old.example.org", username: "user")
+        store.save(original)
+
+        let id = UUID()
+        let data = try JSONEncoder().encode([
+            ConnectionProfile(id: id, name: "First", protocolKind: .ftp, host: "a.example.org", username: "user"),
+            ConnectionProfile(id: id, name: "Second", protocolKind: .ftp, host: "b.example.org", username: "user"),
+        ])
+        XCTAssertThrowsError(try store.importProfiles(from: data))
+        XCTAssertEqual(store.profiles, [original])
+        XCTAssertEqual(ProfileStore(defaults: defaults).profiles, [original])
+    }
+
+    func testCorruptPersistedSitesArePreservedBeforeNextSave() {
+        let defaults = isolatedDefaults("corrupt-recovery")
+        let corruptData = Data("{invalid json".utf8)
+        defaults.set(corruptData, forKey: "ghostftp.macos.profiles.v1")
+
+        let store = ProfileStore(defaults: defaults)
+        XCTAssertTrue(store.profiles.isEmpty)
+        XCTAssertEqual(defaults.data(forKey: "ghostftp.macos.profiles.recovery.v1"), corruptData)
+
+        let newProfile = ConnectionProfile(name: "New", protocolKind: .ftp, host: "new.example.org", username: "user")
+        store.save(newProfile)
+        XCTAssertEqual(ProfileStore(defaults: defaults).profiles, [newProfile])
+        XCTAssertEqual(defaults.data(forKey: "ghostftp.macos.profiles.recovery.v1"), corruptData)
+    }
+
+    func testOversizedPersistedSiteDataArePreservedAndNotLoaded() {
+        let defaults = isolatedDefaults("oversized-recovery")
+        let data = Data(repeating: 0x41, count: 256 * 1024 + 1)
+        defaults.set(data, forKey: "ghostftp.macos.profiles.v1")
+        XCTAssertTrue(ProfileStore(defaults: defaults).profiles.isEmpty)
+        XCTAssertEqual(defaults.data(forKey: "ghostftp.macos.profiles.recovery.v1"), data)
+    }
+
     func testProfileImportMergesByIdentifier() throws {
         let defaults = isolatedDefaults("profile-merge")
         let store = ProfileStore(defaults: defaults)

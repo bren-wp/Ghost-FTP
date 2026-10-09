@@ -132,6 +132,23 @@ requireExcludes(
 );
 
 requireIncludes(
+  "src/components/SiteManagerDialog.tsx",
+  [
+    "const closeIfIdle = () => {",
+    "onClose: closeIfIdle",
+    "if (editing || action) {",
+    "Save or cancel changes before selecting a different site.",
+    "const selected = editing",
+    "profiles.find((profile) => profile.id === draft?.id)",
+    "setDraft({ ...selected });",
+    "setEditing(false);",
+    "setShowPassword(false);",
+    "Cancel",
+  ],
+  "site editor prevents lost drafts on row changes, filters or Escape"
+);
+
+requireIncludes(
   "src/stores/transfersStore.ts",
   [
     "await start(item, policy);",
