@@ -68,7 +68,16 @@ jobs:
           set -euo pipefail
           VERSION="$(node -p 'require("./version.json").version')"
           PREVIOUS="$(node -p 'require("./version.json").previousPublishedVersion')"
-          TAG_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" --jq '.object.sha' 2>/dev/null || true)"
+          # gh may print a 404 JSON response even when no tag exists.
+          # Parse the full body, accepting only a genuine 404 as "not tagged".
+          TAG_RESPONSE="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" 2>/dev/null || true)"
+          TAG_SHA="$(printf '%s' "$TAG_RESPONSE" | jq -r '
+            if . == null then ""
+            elif ((.status | tostring) == "404") or .message == "Not Found" then ""
+            elif (.object.sha | type) == "string" then .object.sha
+            else error("Cannot verify remote tag reference")
+            end
+          ')"
           if [ -n "$TAG_SHA" ] && [ "$TAG_SHA" != "$SOURCE_SHA" ]; then
             echo "::error::Immutable tag v$VERSION already points at $TAG_SHA; this source is $SOURCE_SHA. Advance version.json without changing the existing tag."
             exit 1
