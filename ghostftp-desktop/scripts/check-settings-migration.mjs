@@ -100,4 +100,13 @@ for (const writeMode of ["wrong", "partial"]) {
   assert.equal(h.has("ghostftp.term-history.v1:example"), false);
   assert.equal(h.hasBlob(), true, "do not confuse privacy purge with settings migration");
 }
+
+for (const legacyValue of ["{corrupted", "null", '"unexpected string"', "[1,2,3]"]) {
+  const h = harness({ storageEntries: { "ghostftp.settings.v1": legacyValue } });
+  await assert.doesNotReject(h.migrate(), "bad legacy JSON must not abort application startup");
+  assert.equal(h.hasBlob(), true, "preserve damaged source for later recovery");
+  assert.equal(h.writes(), 0, "do not write malformed settings into the database");
+  assert.equal(h.hydrations(), 0);
+}
+
 console.log("Ghost FTP settings migration persistence and privacy regressions passed.");
