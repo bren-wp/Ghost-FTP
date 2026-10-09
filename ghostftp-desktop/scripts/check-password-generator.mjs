@@ -26,7 +26,7 @@ for (const length of [undefined, 0, 8, 20, 64, 128, 512]) {
   assert.match(password, /[a-z]/);
   assert.match(password, /[A-Z]/);
   assert.match(password, /[2-9]/);
-  assert.match(password, /[!@#%^*_-+=?.]/);
+  assert.match(password, /[!@#%^*+=?._-]/);
 }
 for (const invalid of [NaN, Infinity, -Infinity, 8.5, 513, Number.MAX_SAFE_INTEGER]) {
   assert.throws(() => generatePassword(invalid), /Password length/);
