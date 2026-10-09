@@ -1,10 +1,14 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 0.91.0 development/release source. Previous canonical release: **0.90.1**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.91.1 development/release source. Previous canonical release: **0.91.0**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Windows/Linux Site Manager (0.91.0)
 
 Advisory duplicate discovery highlights saved profiles that share protocol, normalized host, port and case-sensitive username, while retaining separate credentials and metadata. The Duplicates filter and count are specific to Windows/Linux; Android/macOS parity is not implied.
+
+## 0.91.1 cross-platform maintenance
+
+Windows/Linux Site Manager prevents switching away from unsaved edits and offers Cancel; Android masks URL credentials/account names in connection errors; macOS keeps a recovery copy of unreadable profile data and rejects imported backups with duplicate UUIDs. No platform acquires previously unsupported transfer protocols from these fixes.
 
 ## Cross-app shared actions
 

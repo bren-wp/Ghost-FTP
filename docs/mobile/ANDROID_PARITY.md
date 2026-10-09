@@ -4,12 +4,14 @@ Ghost FTP Android follows the same product identity and file-action model as the
 
 0.91.0 desktop's advisory duplicate-site filter is not implemented in Android; existing Android connection and transfer behavior remains unchanged.
 
+0.91.1 adds a verified diagnostic privacy contract that hides URL user info, even for username-only FTP/SFTP URLs. The 0.91.0 desktop duplicate-profile filter is still a Windows/Linux-only feature.
+
 ## Current identity contract
 
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
-- Active source version: **0.91.0**
-- Previous canonical release: **0.90.1**
+- Active source version: **0.91.1**
+- Previous canonical release: **0.91.0**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`

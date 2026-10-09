@@ -1,3 +1,13 @@
+## 0.91.1 — cross-platform profile integrity, privacy and unsaved-edit safety — 9 October 2026
+
+- **Windows/Linux:** Editing a saved site no longer silently drops an unsaved draft when the user switches sites or filters. The site editor has an explicit Cancel control; Escape preserves the draft until Save/Cancel.
+- **Android:** Connection error redaction now hides URL usernames, including username-only FTP/FTPS/SFTP authority syntax; plain host diagnostics remain available.
+- **macOS:** Corrupt/oversized persisted sites keep their original bytes under a separate recovery key before future writes; imports containing duplicate profile UUIDs fail without mutating saved data.
+- **Regression tests:** Android JUnit, macOS XCTest and desktop interaction-contract checks target these failure paths.
+- **Release boundary:** No previous release tag is moved, no mockups are presented as real screenshots, and 75-screen click/pixel certification is still pending.
+
+See [docs/releases/0.91.1.md](docs/releases/0.91.1.md).
+
 ## 0.91.0 — saved-site duplicate discovery — 9 October 2026
 
 - **Windows/Linux Sites:** New Duplicates filter and count identifies saved profiles sharing a protocol/host/port/username; details show a live advisory while editing.
