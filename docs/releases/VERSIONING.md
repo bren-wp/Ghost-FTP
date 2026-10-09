@@ -14,12 +14,21 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 - `previousPublishedVersion` independently records the last verified public GitHub Release. Publication requires GitHub's actual latest published release to match it; merged-but-unpublished versions must not block the release indefinitely or be misrepresented as published.
 - Version synchronization also refreshes the committed canonical Cargo.lock so Cargo metadata and lock state move atomically.
 
+## Required new version train
+
+- The next release after published `0.30.21` is `0.90.0` (intentional one-time migration).
+- Feature releases advance to `0.91.0`, `0.92.0`, and sequentially through `0.99.0`. Do not skip feature minor versions.
+- Fixes advance only the patch number within the current minor line: `0.90.1`, `0.90.2`, `0.91.1`, etc.
+- Only after the `0.99.x` train and separately demonstrated production readiness may `1.0.0` be published.
+- After `1.0.0`, feature versions are `1.1.0`, `1.2.0`, etc.; fixes include `1.0.1`, `1.1.1`, etc.
+- CI runs an executable version-transition regression matrix before packaging; `.github/scripts/version-policy.mjs` also validates the current `version.json` lineage.
+
 ## Current cycle
 
-- Active source/release cycle: **0.30.21**
-- Previous canonical release: **0.30.20**
-- Previous source version: **0.30.20** (last merged and published source).
-- Versions **0.30.11** and **0.30.12** were merged but never published. The next public release must carry their real changes with new, tested fixes.
+- Active source/release cycle: **0.90.0**
+- Previous canonical release: **0.30.21**
+- Previous source version: **0.30.21** (last merged and published source).
+- Historical versions **0.30.11** and **0.30.12** had merged-but-unpublished source transitions; their provenance remains in the release history.
 - Live publication state: GitHub Releases is authoritative.
 
 ## Published-history migration
