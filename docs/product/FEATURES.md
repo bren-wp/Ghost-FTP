@@ -1,6 +1,6 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 0.30.15 development/release source. Previous canonical release: **0.30.14**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.30.16 development/release source. Previous canonical release: **0.30.15**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cross-app shared actions
 
