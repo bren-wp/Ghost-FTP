@@ -1,3 +1,16 @@
+## 0.30.20 — cross-platform security, privacy, performance and verified screenshots — 9 October 2026
+
+- **Windows / Linux:** Stop unnecessary 1-second status-clock refreshes in hidden desktop windows; refresh clock immediately upon return. Normal transfer, connection, and progress monitoring remain unchanged.
+- **Android:** Mask passwords, tokens and credentials before clipping untrusted network error text to its 600-character UI budget; bound inspection cost and add regression tests for boundary-spanning secrets.
+- **macOS:** Limit merged imported saved profiles to 512 without partial mutation; bound private transfer-history file names, migrate existing stored full-path history to basenames and regression-test recovery.
+- **README visual fidelity:** Replace only seven existing Windows image assets with actual CI-verified 0.30.19 installed-Windows QA captures; keep the main README's image positions, HTML layout and written sections.
+- **Dead-code audit:** Checked TypeScript import/reachability graph, Rust module graph, Kotlin/Swift private-symbol reachability and platform builds/tests. Removed the one-time screenshot importer after use. This does not justify deleting source only because it appears old.
+- **Security and privacy review:** Verified fail-closed macOS unsupported FTPS/SFTP operations, file selection, release image SHA256 provenance and no intentionally seeded fake servers/transfer data. No independent penetration test is claimed.
+- **Release integrity:** Corrected the previously merged-but-unpublished 0.30.20 source lineage from 0.30.19 to the correct new immutable v0.30.20 tag; existing v0.30.19 remains unchanged.
+- **Acceptance limit:** Source-level checks and native build QA do not prove 75 screenshots are pixel-identical. Windows/Linux/Android 1:1 installed-build visual acceptance remains pending for unmatched screens. No macOS screenshot is present in the reference ZIP.
+
+See [docs/releases/0.30.20.md](docs/releases/0.30.20.md).
+
 ## 0.30.19 — functional two-pane file manager and upload picker — 9 October 2026
 
 - **Windows/Linux (Files UI):** With an active connection, Upload now opens a native OS file chooser if no local file is selected, in both single and dual-pane layouts. Existing selected-file upload remains one click.

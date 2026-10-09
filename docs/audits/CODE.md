@@ -1,8 +1,8 @@
-# Ghost FTP Code Audit — 0.30.19
+# Ghost FTP Code Audit — 0.30.20
 
 ## Scope
 
-This audit covers the current Ghost FTP 0.30.19 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.30.18**.
+This audit covers the current Ghost FTP 0.30.20 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.30.19**.
 
 These findings build on the previously reviewed 0.30.15 code-audit baseline; the 0.30.16 changes are limited to live premium color surfaces and their CI contract. A complete new dead-code audit has not been claimed.
 
@@ -12,7 +12,7 @@ These findings build on the previously reviewed 0.30.15 code-audit baseline; the
 
 0.30.19 incremental review: examined the Files toolbar picker event routing and both FilePane refresh cycles, preserving existing transfer conflict handling. Added source-level regression checks. This is not a complete new dead-code audit or visual 1:1 acceptance.
 
-## Unreleased 0.30.20 full-source reachability audit (all four apps)
+## 0.30.20 full-source reachability audit (all four apps)
 
 The source audit spans **86 desktop TypeScript/TSX app files, 18 shared file-UI modules, 85 Rust sources, 5 Kotlin source/test files, 15 Swift source/test files and 11 Go files**, plus workflow/release scripts (file inventory from the 0.30.19 git tree). It distinguishes static reachability, symbol-level warnings, runtime behavior and visual acceptance rather than misclassifying framework callbacks, string references or build scripts as dead code.
 

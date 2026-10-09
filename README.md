@@ -1,6 +1,6 @@
 <div align="center">
 
-Current source/release cycle: **0.30.19**. Previous canonical release: **0.30.18**. Source-verified 0.30.11 and 0.30.12 builds are handled by the historical release recovery workflow.
+Current source/release cycle: **0.30.20**. Previous canonical release: **0.30.19**. Source-verified 0.30.11 and 0.30.12 builds are handled by the historical release recovery workflow.
 
 <img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="430">
 
@@ -41,8 +41,8 @@ Current source/release cycle: **0.30.19**. Previous canonical release: **0.30.18
 
 ## Current status
 
-- **Active source/release cycle:** `0.30.19`.
-- **Previous canonical release:** `0.30.18`.
+- **Active source/release cycle:** `0.30.20`.
+- **Previous canonical release:** `0.30.19`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.

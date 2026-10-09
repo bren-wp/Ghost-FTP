@@ -57,6 +57,44 @@ jobs:
         shell: bash
         run: node .github/scripts/check-update-contract.mjs
 
+      # Detect immutable-tag reuse before expensive platform builds or merging.
+      # Re-running checks on an already published exact source SHA is valid.
+      - name: Immutable release tag and public lineage preflight
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p 'require("./version.json").version')"
+          PREVIOUS="$(node -p 'require("./version.json").previousPublishedVersion')"
+          # gh may print a 404 JSON response even when no tag exists.
+          # Parse the full body, accepting only a genuine 404 as "not tagged".
+          TAG_RESPONSE="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" 2>/dev/null || true)"
+          TAG_SHA="$(printf '%s' "$TAG_RESPONSE" | jq -r '
+            if . == null then ""
+            elif ((.status | tostring) == "404") or .message == "Not Found" then ""
+            elif (.object.sha | type) == "string" then .object.sha
+            else error("Cannot verify remote tag reference")
+            end
+          ')"
+          if [ -n "$TAG_SHA" ] && [ "$TAG_SHA" != "$SOURCE_SHA" ]; then
+            echo "::error::Immutable tag v$VERSION already points at $TAG_SHA; this source is $SOURCE_SHA. Advance version.json without changing the existing tag."
+            exit 1
+          fi
+          LATEST_TAG="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq 'map(select(.draft == false)) | sort_by(.published_at) | reverse | .[0].tag_name // empty')"
+          if [ -z "$LATEST_TAG" ]; then
+            echo "::error::Latest public GitHub release could not be resolved."
+            exit 1
+          fi
+          if [ "$LATEST_TAG" != "v$PREVIOUS" ]; then
+            if [ "$LATEST_TAG" != "v$VERSION" ] || [ "$TAG_SHA" != "$SOURCE_SHA" ]; then
+              echo "::error::Release lineage mismatch: latest $LATEST_TAG, expected previous v$PREVIOUS."
+              exit 1
+            fi
+          fi
+          echo "Release lineage verified: v$VERSION from public predecessor v$PREVIOUS."
+
       - name: Latest-release documentation image provenance
         env:
           GH_TOKEN: ${{ github.token }}

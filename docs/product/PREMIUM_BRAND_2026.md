@@ -76,3 +76,10 @@ Inter, Segoe UI and Noto Sans are preferred with platform system fallbacks. No f
 - The single-pane browsing mode also supports the same picker when local view has no selection, without changing user layout preferences.
 - When queued/transferring/paused work drains to zero, both live FilePane listings refresh, preventing stale newly transferred files.
 - No prepopulated demonstration paths, servers, progress or fake transfer rows have been introduced. All 75 reference screenshots still require installed-build visual acceptance.
+
+## 0.30.20 — verified Windows screenshot refresh and release-safe audit
+
+- Seven existing README-linked PNG images were replaced with 1290×852 screenshots **captured from a running Windows build** at v0.30.19 in GitHub Actions QA run 37879036243. Each is pinned by the exact published-run evidence and SHA256 in .github/scripts/check-release-images.mjs.
+- Main README presentation (image positions, HTML table/gallery and other page structure) was not redesigned. Only routine active-version metadata needs updating to 0.30.20.
+- React/Tauri Windows/Linux, Android Kotlin, macOS SwiftUI and shared protocol engines retained production QA gates. New privacy/security/performance fixes are documented in CODE.md and SECURITY.md.
+- **1:1 acceptance is still pending** for all 75 supplied reference mockups; replacing old READMEs with real UI photographs does not automatically make the running UI pixel-identical to a concept image.
