@@ -20,6 +20,10 @@ assert.equal(
   "https://ftp.example.invalid/download?token=<redacted>&file=sample",
 );
 assert.equal(redact("Authorization: Bearer aBcDe123"), "Authorization: <redacted>");
+assert.equal(redact('{"password":"private-value"}'), '{"password":"<redacted>"}');
+assert.equal(redact("token=abc" + "x".repeat(65_526)).startsWith("token=<redacted>"), true);
+assert.equal(redact("x".repeat(65_536)).length, 65_536);
+assert.equal(redact("x".repeat(65_537)), "[diagnostic omitted: oversized response]");
 assert.equal(redact("/Users/alice/Documents/secret.txt"), "/Users/<user>/Documents/secret.txt");
 assert.equal(redact("/home/bob/notes.txt"), "/home/<user>/notes.txt");
 assert.equal(redact("C:\\Users\\alice\\notes.txt"), "C:\\Users\\<user>\\notes.txt");
