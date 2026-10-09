@@ -114,6 +114,21 @@ jobs:
           ! grep -Fq 'ghostftp.com' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
           ! grep -Fq 'ghostftp.com' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
 
+      - name: Real premium Help/About reference hierarchy
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'ghost-about-reference-grid' ghostftp-desktop/src/components/AboutDialog.tsx
+          grep -Fq 'ghost-about-reference-brand' ghostftp-desktop/src/components/AboutDialog.tsx
+          grep -Fq 'void check(false)' ghostftp-desktop/src/components/AboutDialog.tsx
+          grep -Fq '.ghost-about-reference-resources' ghostftp-desktop/src/styles.css
+          ! grep -Fq 'function AboutLandscape(' ghostftp-desktop/src/components/AboutDialog.tsx
+          grep -Fq 'private fun aboutFactRow(' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
+          grep -Fq 'GhostMarkView(this@MainActivity)' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
+          grep -Fq 'officialLinkRow(getString(R.string.label_project_repository)' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
+          grep -Fq 'private func identityCard(version: String)' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+          grep -Fq 'FTPS and SFTP remain disabled' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+
       - name: Verify complete 75-screen premium design traceability
         shell: bash
         run: node .github/scripts/check-premium-75-screens.mjs
