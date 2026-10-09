@@ -1,14 +1,14 @@
 {
-  "version": "0.30.21",
-  "notes": "Ghost FTP 0.30.21",
+  "version": "0.90.0",
+  "notes": "Ghost FTP 0.90.0",
   "pub_date": "REPLACE_WITH_RFC3339",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/bren-wp/Ghost-FTP/releases/download/v0.30.21/GhostFTP-Windows-x64-Setup-v0.30.21.exe",
+      "url": "https://github.com/bren-wp/Ghost-FTP/releases/download/v0.90.0/GhostFTP-Windows-x64-Setup-v0.90.0.exe",
       "signature": "REPLACE_WITH_CONTENTS_OF_WINDOWS_SIG"
     },
     "linux-x86_64": {
-      "url": "https://github.com/bren-wp/Ghost-FTP/releases/download/v0.30.21/GhostFTP-Linux-x86_64-v0.30.21.AppImage",
+      "url": "https://github.com/bren-wp/Ghost-FTP/releases/download/v0.90.0/GhostFTP-Linux-x86_64-v0.90.0.AppImage",
       "signature": "REPLACE_WITH_CONTENTS_OF_LINUX_SIG"
     }
   }
