@@ -51,3 +51,9 @@ The production-identity `com.ghostftp.android` CI artifact remains intentionally
 - Target-OS signed-update/install acceptance and any future Android production-key continuity validation.
 
 Status: source controls are present; exact-SHA CI and target-system failure-path testing remain release evidence, not assumptions.
+
+## 0.30.21 targeted source changes (pending exact-SHA CI)
+
+- **Windows/Linux diagnostic privacy:** before redaction regexes run, discard wholly oversized untrusted error messages (64 KiB cap). Unterminated private-key blocks are treated as sensitive through the end of the message, and macOS-style home-directory paths are masked. Executable TypeScript regression cases are now part of `npm run check:ui`, including truncation-boundary and oversized-input tests.
+- **macOS FTP parser:** reject malformed EPSV `229` responses that contain trailing fields or omit the required final delimiter. Swift regression tests cover hostile server replies.
+- These are focused hardening changes, **not** a complete penetration test or all-platform 1:1 visual acceptance. All six CI gates, merged-main validation and release verification remain required before publication.
