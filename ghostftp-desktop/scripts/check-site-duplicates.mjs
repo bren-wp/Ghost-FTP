@@ -50,4 +50,5 @@ const ui = readFileSync(new URL("../src/components/SiteManagerDialog.tsx", impor
 assert.match(ui, /view === "duplicates" && !duplicateIds\.has\(profile\.id\)/);
 assert.match(ui, /label="Duplicates" count=\{duplicateIds\.size\}/);
 assert.match(ui, /matchingSites\.length > 0/, "visible advisory when a connection matches");
+assert.match(ui, /\$\{profile\.username\}/, "Sites search must include the server account name");
 console.log("Ghost FTP saved-site duplicate discovery and UI wiring regressions passed.");

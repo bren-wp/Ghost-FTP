@@ -106,7 +106,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
       profiles
         .filter((profile) => {
           const haystack =
-            `${profile.name} ${profile.host} ${profile.protocol} ${profile.group ?? ""} ${profile.description ?? ""} ${(
+            `${profile.name} ${profile.host} ${profile.username} ${profile.protocol} ${profile.group ?? ""} ${profile.description ?? ""} ${(
               profile.tags ?? []
             ).join(" ")}`.toLowerCase();
           if (query && !haystack.includes(query.toLowerCase())) return false;
