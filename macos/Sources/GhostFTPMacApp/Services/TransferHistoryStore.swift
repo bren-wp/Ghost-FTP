@@ -55,12 +55,20 @@ final class TransferHistoryStore: ObservableObject {
 
     @discardableResult
     func begin(direction: TransferHistoryRecord.Direction, fileName: String) -> UUID {
+        // Do not persist complete local/remote paths in UserDefaults history.
+        // File names may be untrusted: strip control characters and bound size.
+        let base = fileName.replacingOccurrences(of: "\\", with: "/")
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .last.map(String.init) ?? ""
+        let safeName = String(base.filter { character in
+            character.unicodeScalars.allSatisfy { !CharacterSet.controlCharacters.contains($0) }
+        }.prefix(180))
         let id = UUID()
         records.insert(
             TransferHistoryRecord(
                 id: id,
                 direction: direction,
-                fileName: fileName,
+                fileName: safeName.isEmpty ? "File" : safeName,
                 startedAt: Date(),
                 finishedAt: nil,
                 status: .running
