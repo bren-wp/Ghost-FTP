@@ -1,3 +1,13 @@
+## 0.30.16 — unified premium live surface colors — 9 October 2026
+
+- Windows/Linux primary sidebar now consumes the actual semantic panel token rather than a divergent hardcoded navy value; user-selected themes continue to work.
+- macOS SwiftUI sidebar uses the same exact `#0D192B` panel shade as the canonical Android and desktop dark palette.
+- Android rows and input surfaces derive from the existing shared Kotlin palette rather than duplicating RGB values.
+- Extends mandatory CI branding checks to lock the shared live colors across all four supported platform implementations.
+- No claim of complete 75-screen pixel acceptance: UI screenshots and functionality remain subject to installed-build checks. macOS FTPS/SFTP security limitations remain unchanged.
+
+See [docs/releases/0.30.16.md](docs/releases/0.30.16.md).
+
 ## 0.30.15 — premium design parity and cross-platform hardening — 9 October 2026
 
 - Windows/Linux: reference-width premium sidebar, consistent active/disabled keyboard focus states and preserved compact-window behaviour.
