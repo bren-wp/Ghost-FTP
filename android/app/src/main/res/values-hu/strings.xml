@@ -28,7 +28,7 @@
 <string name="label_support">Támogatás</string>
     <string name="label_documentation">Dokumentáció</string>
     <string name="label_privacy_policy">Adatvédelmi irányelvek</string>
-    <string name="label_official_website">Hivatalos weboldal</string>
+    <string name="label_project_repository">Projekt-repozitórium</string>
     <string name="field_host">Gazdagép</string>
     <string name="field_port">Port</string>
     <string name="field_username">Felhasználónév</string>
@@ -67,7 +67,7 @@
     <string name="about_docs_desc">A Ghost FTP hivatalos dokumentációja.</string>
     <string name="about_privacy_desc">Olvassa el a hivatalos adatvédelmi információkat.</string>
     <string name="about_eula_desc">Olvassa el a Ghost FTP szoftver hivatalos licencfeltételeit.</string>
-    <string name="about_website_desc">A Ghost FTP termék webhelye.</string>
+    <string name="about_repository_desc">Forráskód és kiadások.</string>
     <string name="link_open">Ghost FTP megnyitása: %1$s</string>
     <string name="app_name">Ghost FTP</string>
     <string name="workspace_open">%1$s munkaterület megnyitása</string>

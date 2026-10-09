@@ -28,7 +28,7 @@
 <string name="label_support">Asistență</string>
     <string name="label_documentation">Documentație</string>
     <string name="label_privacy_policy">Politica de confidențialitate</string>
-    <string name="label_official_website">Site oficial</string>
+    <string name="label_project_repository">Depozitul proiectului</string>
     <string name="field_host">Gazdă</string>
     <string name="field_port">Port</string>
     <string name="field_username">Utilizator</string>
@@ -67,7 +67,7 @@
     <string name="about_docs_desc">Documentația oficială Ghost FTP.</string>
     <string name="about_privacy_desc">Citiți informațiile oficiale despre confidențialitate.</string>
     <string name="about_eula_desc">Citiți termenii oficiali ai licenței software Ghost FTP.</string>
-    <string name="about_website_desc">Site-ul produsului Ghost FTP.</string>
+    <string name="about_repository_desc">Cod sursă și versiuni lansate.</string>
     <string name="link_open">Deschide Ghost FTP %1$s</string>
     <string name="app_name">Ghost FTP</string>
     <string name="workspace_open">Deschide spațiul de lucru %1$s</string>
