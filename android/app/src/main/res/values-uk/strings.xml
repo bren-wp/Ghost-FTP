@@ -28,7 +28,7 @@
 <string name="label_support">Підтримка</string>
     <string name="label_documentation">Документація</string>
     <string name="label_privacy_policy">Політика конфіденційності</string>
-    <string name="label_official_website">Офіційний вебсайт</string>
+    <string name="label_project_repository">Репозиторій проєкту</string>
     <string name="field_host">Хост</string>
     <string name="field_port">Порт</string>
     <string name="field_username">Ім’я користувача</string>
@@ -67,7 +67,7 @@
     <string name="about_docs_desc">Офіційна документація Ghost FTP.</string>
     <string name="about_privacy_desc">Прочитайте офіційну інформацію про конфіденційність.</string>
     <string name="about_eula_desc">Прочитайте офіційні ліцензійні умови програмного забезпечення Ghost FTP.</string>
-    <string name="about_website_desc">Вебсайт продукту Ghost FTP.</string>
+    <string name="about_repository_desc">Вихідний код і релізи.</string>
     <string name="link_open">Відкрити Ghost FTP %1$s</string>
     <string name="app_name">Ghost FTP</string>
     <string name="workspace_open">Відкрити робочий простір %1$s</string>
