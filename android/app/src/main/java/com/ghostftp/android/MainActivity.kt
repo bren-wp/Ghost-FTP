@@ -1798,8 +1798,8 @@ class MainActivity : Activity() {
         val background: Int = Color.rgb(7, 14, 26)
         val panel: Int = Color.rgb(13, 25, 43)
         val panelStrong: Int = Color.rgb(17, 31, 52)
-        val row: Int = Color.rgb(13, 25, 43)
-        val input: Int = Color.rgb(7, 14, 26)
+        val row: Int = panel
+        val input: Int = background
         val badge: Int = Color.rgb(25, 47, 72)
         val border: Int = Color.rgb(39, 70, 99)
         val borderSubtle: Int = Color.rgb(25, 47, 72)
