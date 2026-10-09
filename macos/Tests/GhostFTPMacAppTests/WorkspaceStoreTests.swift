@@ -166,6 +166,29 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(TransferHistoryStore(defaults: defaults).records.first?.fileName, "report.pdf")
     }
 
+    func testHistoricalFullPathsAreRemovedOnHistoryLoad() throws {
+        let defaults = isolatedDefaults("history-migration")
+        let oldRecord = TransferHistoryRecord(
+            id: UUID(),
+            direction: .download,
+            fileName: "/Users/secret/private/archive.zip",
+            startedAt: Date(),
+            finishedAt: Date(),
+            status: .completed
+        )
+        defaults.set(
+            try JSONEncoder().encode([oldRecord]),
+            forKey: "ghostftp.macos.transfer-history.v1"
+        )
+
+        let upgraded = TransferHistoryStore(defaults: defaults)
+        XCTAssertEqual(upgraded.records.first?.fileName, "archive.zip")
+        let persisted = defaults.data(forKey: "ghostftp.macos.transfer-history.v1")!
+        let serialized = String(decoding: persisted, as: UTF8.self)
+        XCTAssertFalse(serialized.contains("/Users/secret/private"))
+        XCTAssertTrue(serialized.contains("archive.zip"))
+    }
+
     func testTransferHistoryIsBoundedToTwoHundredRecords() {
         let history = TransferHistoryStore(defaults: isolatedDefaults("transfer-limit"))
 

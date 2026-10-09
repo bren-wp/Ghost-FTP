@@ -26,7 +26,7 @@ Date: 9 October 2026. Branch: `audit/0.30.20-cross-platform-hardening` (unreleas
 
 - Android privacy/security: fail-closed bound for unusually large provided secrets; mask credentials/token data before clipping visible error strings; precompile the redaction regex patterns for fewer allocations. Unit tests cover boundary and oversized payloads.
 - macOS security: merged profile import cap enforced before mutating current or stored data; regression protects existing profile set.
-- macOS privacy: history accepts only 180-character, control-stripped basename instead of persisting a complete local/remote path; round-trip test.
+- macOS privacy: history accepts only a 180-character, control-stripped basename instead of persisting complete paths; existing full-path history is migrated on load and re-persisted, with round-trip and migration tests.
 - Desktop Windows/Linux performance: status clock suspends its one-second update loop while the window is hidden, immediately refreshes when visible. User-facing clock and live transfer flow remain available.
 - README image provenance: seven **real installed Windows release** UI captures overwrite only the existing image bytes, with identical `README.md` source and pinned SHA256s. 75-image concepts are not disguised as actual application UI.
 
