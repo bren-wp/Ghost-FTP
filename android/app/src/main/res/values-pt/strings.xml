@@ -28,7 +28,7 @@
 <string name="label_support">Suporte</string>
     <string name="label_documentation">Documentação</string>
     <string name="label_privacy_policy">Política de privacidade</string>
-    <string name="label_official_website">Site oficial</string>
+    <string name="label_project_repository">Repositório do projeto</string>
     <string name="field_host">Servidor</string>
     <string name="field_port">Porta</string>
     <string name="field_username">Utilizador</string>
@@ -67,7 +67,7 @@
     <string name="about_docs_desc">Documentação oficial do Ghost FTP.</string>
     <string name="about_privacy_desc">Leia as informações oficiais de privacidade.</string>
     <string name="about_eula_desc">Leia os termos oficiais da licença do software Ghost FTP.</string>
-    <string name="about_website_desc">Site do produto Ghost FTP.</string>
+    <string name="about_repository_desc">Código-fonte e versões.</string>
     <string name="link_open">Abrir Ghost FTP %1$s</string>
     <string name="app_name">Ghost FTP</string>
     <string name="workspace_open">Abrir a área de trabalho %1$s</string>

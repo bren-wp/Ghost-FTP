@@ -28,7 +28,7 @@
 <string name="label_support">Destek</string>
     <string name="label_documentation">Belgeler</string>
     <string name="label_privacy_policy">Gizlilik Politikası</string>
-    <string name="label_official_website">Resmî web sitesi</string>
+    <string name="label_project_repository">Proje deposu</string>
     <string name="field_host">Ana makine</string>
     <string name="field_port">Bağlantı noktası</string>
     <string name="field_username">Kullanıcı adı</string>
@@ -67,7 +67,7 @@
     <string name="about_docs_desc">Resmî Ghost FTP belgeleri.</string>
     <string name="about_privacy_desc">Resmî gizlilik bilgilerini okuyun.</string>
     <string name="about_eula_desc">Ghost FTP yazılımının resmî lisans koşullarını okuyun.</string>
-    <string name="about_website_desc">Ghost FTP ürün web sitesi.</string>
+    <string name="about_repository_desc">Kaynak kodu ve sürümler.</string>
     <string name="link_open">Ghost FTP %1$s aç</string>
     <string name="app_name">Ghost FTP</string>
     <string name="workspace_open">%1$s çalışma alanını aç</string>

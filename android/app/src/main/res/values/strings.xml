@@ -32,7 +32,7 @@
 <string name="label_support">Support</string>
     <string name="label_documentation">Documentation</string>
     <string name="label_privacy_policy">Privacy Policy</string>
-    <string name="label_official_website">Official website</string>
+    <string name="label_project_repository">Project repository</string>
     <string name="field_host">Host</string>
     <string name="field_port">Port</string>
     <string name="field_username">Username</string>
@@ -71,7 +71,7 @@
     <string name="about_docs_desc">Official Ghost FTP documentation.</string>
     <string name="about_privacy_desc">Read the official privacy information.</string>
     <string name="about_eula_desc">Read the canonical Ghost FTP software licence terms.</string>
-    <string name="about_website_desc">Ghost FTP product website.</string>
+    <string name="about_repository_desc">Source code and releases.</string>
     <string name="link_open">Open Ghost FTP %1$s</string>
 
     <string name="security_ftp_warning">FTP sends credentials and file data without transport encryption. Prefer explicit FTPS or SFTP when the server supports it.</string>

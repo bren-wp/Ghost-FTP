@@ -148,7 +148,7 @@ localization_keys=(
   workspace_files workspace_sites workspace_transfers workspace_settings workspace_about
   action_refresh action_upload action_download action_new_folder action_rename action_delete
   action_cancel action_confirm action_connect action_disconnect action_pick_file
-  label_support label_documentation label_privacy_policy label_official_website
+  label_support label_documentation label_privacy_policy label_project_repository about_repository_desc
   field_host field_port field_username field_password field_protocol
   label_security label_connection
 )
@@ -220,7 +220,7 @@ require_text "localized password field" "$MAIN_ACTIVITY" 'formLabel(getString(R.
 require_text "localized support link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_support)'
 require_text "localized documentation link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_documentation)'
 require_text "localized privacy link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_privacy_policy)'
-require_text "localized website link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_official_website)'
+require_text "localized canonical repository link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_project_repository)'
 require_text "exclusive workspace visibility" "$MAIN_ACTIVITY" 'view.visibility = if (key == workspace) View.VISIBLE else View.GONE'
 require_text "workspace navigation control" "$MAIN_ACTIVITY" 'workspaceNavItem(workspace)'
 require_text "workspace state persistence" "$MAIN_ACTIVITY" 'STATE_WORKSPACE'
@@ -382,9 +382,10 @@ require_absent "global cleartext enabled" "$ANDROID_DIR/app/src/main/AndroidMani
 require_text "plain FTP risk disclosure" "$ANDROID_DIR/app/src/main/res/values/strings.xml" 'FTP sends credentials and file data without transport encryption.'
 require_text "FTPS hostname validation disclosure" "$ANDROID_DIR/app/src/main/res/values/strings.xml" 'validates the server hostname.'
 require_text "SFTP host-key verification disclosure" "$ANDROID_DIR/app/src/main/res/values/strings.xml" 'requires strict SSH host-key verification.'
-require_text "official support link" "$MAIN_ACTIVITY" 'https://ghostftp.com/support/'
-require_text "official privacy link" "$MAIN_ACTIVITY" 'https://ghostftp.com/privacy/'
-require_text "official documentation link" "$MAIN_ACTIVITY" 'https://ghostftp.com/docs/'
+require_text "official support link" "$MAIN_ACTIVITY" 'https://github.com/bren-wp/Ghost-FTP/issues'
+require_text "official privacy link" "$MAIN_ACTIVITY" 'https://github.com/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md'
+require_text "official documentation link" "$MAIN_ACTIVITY" 'https://github.com/bren-wp/Ghost-FTP/tree/main/docs'
+require_text "canonical project repository link" "$MAIN_ACTIVITY" 'const val REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP"'
 require_text "canonical EULA link" "$MAIN_ACTIVITY" 'https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt'
 require_text "Android 15 edge-to-edge API gate" "$MAIN_ACTIVITY" 'if (Build.VERSION.SDK_INT >= 35)'
 require_text "Android 15 system bar insets" "$MAIN_ACTIVITY" 'WindowInsets.Type.systemBars()'

@@ -12,17 +12,17 @@ import { GhostMark } from "./GhostBrand";
 import { useUpdater } from "@/stores/updaterStore";
 import {
   PRODUCT_BUILD,
-  PRODUCT_DOCUMENTATION_URL,
   PRODUCT_EULA_URL,
-  PRODUCT_PRIVACY_URL,
   PRODUCT_RELEASE_DATE,
-  PRODUCT_SUPPORT_URL,
-  PRODUCT_SITE,
   PRODUCT_VERSION_DISPLAY,
 } from "@/lib/release";
 import { APP_LOCALES, tr } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
 import { useDialog } from "@/hooks/useDialog";
+
+// Canonical public documentation and support live with the open-source release.
+// PRODUCT_SITE remains reserved for the separately configured secure update service.
+const PROJECT_REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP";
 
 type AboutTab = "about" | "updates" | "help" | "privacy";
 interface Props { onClose: () => void; initialTab?: Exclude<AboutTab, "privacy"> }
@@ -49,7 +49,7 @@ export function AboutDialog({ onClose, initialTab = "about" }: Props) {
               <div className="text-lg font-semibold">
                 {tab === "updates" ? "Ghost FTP Updates" : tab === "privacy" ? tr("Privacy") : "Ghost FTP Help Center"}
               </div>
-              <div className="text-[12px] text-text-muted">Files move forward.</div>
+              <div className="text-[12px] text-text-muted">More Than Transfer. Total Control.</div>
             </div>
           )}
 
@@ -75,7 +75,7 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
             <div className="relative flex h-28 w-28 items-center justify-center rounded-[2rem] bg-[#0b2b46]/70 shadow-[0_0_55px_rgba(58,181,255,.24)]"><GhostMark size={104}/></div>
             <div className="relative">
               <h2 className="text-[34px] font-semibold tracking-tight">Ghost FTP</h2>
-              <p className="mt-1 text-lg text-text-muted">Files Move Forward</p>
+              <p className="mt-1 text-lg text-text-muted">More Than Transfer. Total Control.</p>
             </div>
           </div>
           <div className="grid grid-cols-3 border-t border-border px-6 py-4 text-center">
@@ -104,12 +104,12 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
         <div className="rounded-lg border border-border bg-[#071f35] p-5">
           <div className="mb-4 flex items-center gap-3"><HelpCircle size={34} className="text-accent"/><div><div className="text-[16px] font-semibold">{tr("Get Help")}</div><div className="text-[12px] text-text-muted">{tr("Resources, documentation and support.")}</div></div></div>
           <LinkRow icon={<LifeBuoy size={18}/>} title={tr("Help Center")} subtitle="Guides, troubleshooting and support" onClick={() => onNavigate("help")}/>
-          <OfficialLinkRow icon={<LifeBuoy size={18}/>} title="Official Support" subtitle="Open ghostftp.com/support" url={PRODUCT_SUPPORT_URL}/>
-          <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Documentation")} subtitle="Open official Ghost FTP documentation" url={PRODUCT_DOCUMENTATION_URL}/>
+          <OfficialLinkRow icon={<LifeBuoy size={18}/>} title="Official Support" subtitle="Open the public issue tracker" url={`${PROJECT_REPOSITORY_URL}/issues`}/>
+          <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Documentation")} subtitle="Browse the maintained project documentation" url={`${PROJECT_REPOSITORY_URL}/tree/main/docs`}/>
           <LinkRow icon={<ShieldCheck size={18}/>} title={tr("Privacy")} subtitle="Privacy-first defaults and local data" onClick={() => onNavigate("privacy")}/>
-          <OfficialLinkRow icon={<ShieldCheck size={18}/>} title={tr("Privacy Policy")} subtitle="Open official privacy information" url={PRODUCT_PRIVACY_URL}/>
+          <OfficialLinkRow icon={<ShieldCheck size={18}/>} title={tr("Privacy Policy")} subtitle="Read the privacy policy in source control" url={`${PROJECT_REPOSITORY_URL}/blob/main/docs/legal/PRIVACY.md`}/>
           <OfficialLinkRow icon={<FileText size={18}/>} title="Terms of use / EULA" subtitle="Open the canonical Ghost FTP software licence" url={PRODUCT_EULA_URL}/>
-          <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Official website")} subtitle="Open ghostftp.com" url={PRODUCT_SITE}/>
+          <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Project repository")} subtitle="Source code and verified releases" url={PROJECT_REPOSITORY_URL}/>
           <LinkRow icon={<FileText size={18}/>} title="Changelog" subtitle="See what's new" onClick={() => onNavigate("updates")}/>
         </div>
         <div className="rounded-lg border border-border bg-[#071f35] p-5">

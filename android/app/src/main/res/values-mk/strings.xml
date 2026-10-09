@@ -28,7 +28,7 @@
 <string name="label_support">Поддршка</string>
     <string name="label_documentation">Документација</string>
     <string name="label_privacy_policy">Политика за приватност</string>
-    <string name="label_official_website">Официјална веб-страница</string>
+    <string name="label_project_repository">Репозиториум на проектот</string>
     <string name="field_host">Сервер</string>
     <string name="field_port">Порта</string>
     <string name="field_username">Корисничко име</string>
@@ -67,7 +67,7 @@
     <string name="about_docs_desc">Официјална документација за Ghost FTP.</string>
     <string name="about_privacy_desc">Прочитајте ги официјалните информации за приватност.</string>
     <string name="about_eula_desc">Прочитајте ги официјалните услови за лиценца на софтверот Ghost FTP.</string>
-    <string name="about_website_desc">Веб-страница на производот Ghost FTP.</string>
+    <string name="about_repository_desc">Изворен код и изданија.</string>
     <string name="link_open">Отвори Ghost FTP %1$s</string>
     <string name="app_name">Ghost FTP</string>
     <string name="workspace_open">Отвори го работниот простор %1$s</string>
