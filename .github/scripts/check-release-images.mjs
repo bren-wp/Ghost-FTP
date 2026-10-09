@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -80,6 +81,42 @@ if (fs.existsSync(screenshotDir)) {
   }
 }
 
+// Precisely seven README screenshots were re-captured by the real Windows
+// 0.30.19 native build (main SHA 9412fbac..., Actions run 37879036243,
+// successful QA artifact 11593868391). This hash allowlist permits only
+// these exact proven pixels to replace older snapshots at existing paths.
+// All other docs images must remain byte-identical to the latest release.
+const approvedWindowsCaptures = new Map([
+  [
+    "docs/assets/screenshots/ghostftp-native-files.png",
+    "929d6658f266cd56d80032c729367793a38401ff3895cea5be2c6b1ac266da3b"
+  ],
+  [
+    "docs/assets/screenshots/ghostftp-native-new-connection.png",
+    "b1db5c07e4fa727e1fa226ee20a534e969c545622fea43173a189a9017d40702"
+  ],
+  [
+    "docs/assets/screenshots/ghostftp-native-sites.png",
+    "765728529cf253c604fb495831165ae578442ceb52961a65987a02c58dfa7634"
+  ],
+  [
+    "docs/assets/screenshots/ghostftp-native-transfers.png",
+    "7174d7ed00ded9b199e1d07c40f91f8ff57b5902b1ac1d7d88e8b7043b1fb710"
+  ],
+  [
+    "docs/assets/screenshots/ghostftp-native-settings.png",
+    "7516bdabfd2c1003596d08c1a54833f08505b8ae8ec4288b18e58494fbdbe97a"
+  ],
+  [
+    "docs/assets/screenshots/ghostftp-native-file-properties.png",
+    "5ba206ec4ea2b9a14847b0613ca48cd347770f6a32ce1ac04ec64548f56ffca8"
+  ],
+  [
+    "docs/assets/screenshots/ghostftp-native-about.png",
+    "f9552b7c838ee05a1fc18620c6a3aa71668da6bbf560775a585114d10e69cebc"
+  ]
+]);
+
 const failures = [];
 for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.localeCompare(b))) {
   const absolute = path.join(root, relative);
@@ -93,6 +130,15 @@ for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.lo
   // and other documentation media stay pinned to the latest public release.
   // The premium brand geometry and tagline are enforced separately in CI.
   if (relative === "ghostftp-desktop/branding/ghostftp-logo.svg") {
+    continue;
+  }
+
+  const approvedHash = approvedWindowsCaptures.get(relative);
+  if (approvedHash) {
+    const actualHash = createHash("sha256").update(fs.readFileSync(absolute)).digest("hex");
+    if (actualHash !== approvedHash) {
+      failures.push(`${relative}: Windows QA capture does not match its pinned v0.30.19 release-native SHA256`);
+    }
     continue;
   }
 
