@@ -62,6 +62,11 @@ struct ContentView: View {
                     } label: {
                         Label("New connection", systemImage: "plus.circle.fill")
                     }
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(GhostPremiumPalette.text)
+                    .frame(maxWidth: .infinity, minHeight: 40)
+                    .background(GhostPremiumPalette.accent.opacity(0.22), in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(GhostPremiumPalette.accent.opacity(0.45)))
                     .buttonStyle(.plain)
                 }
 
@@ -83,10 +88,11 @@ struct ContentView: View {
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text("Ghost FTP")
-                                .font(.headline)
-                            Text("Brendigo · Private session")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: 16, weight: .bold))
+                            Text("TOTAL CONTROL")
+                                .font(.system(size: 9, weight: .semibold))
+                                .tracking(1.7)
+                                .foregroundStyle(GhostPremiumPalette.accent)
                         }
                     }
                     .padding(.vertical, 4)
@@ -102,7 +108,9 @@ struct ContentView: View {
                 .background(darkAppearance ? GhostPremiumPalette.background : Color(nsColor: .windowBackgroundColor))
                 .navigationTitle(workspace.title)
         }
-        .frame(minWidth: 1_080, minHeight: 680)
+        // Preserve the 1290px premium reference at full size while permitting
+        // usable windowed layouts on smaller MacBook displays.
+        .frame(minWidth: 840, minHeight: 560)
         .tint(GhostPremiumPalette.accent)
         .preferredColorScheme(darkAppearance ? .dark : .light)
         .onAppear {
@@ -495,7 +503,7 @@ private struct AboutWorkspace: View {
 private func workspaceHeader(title: String, subtitle: String) -> some View {
     VStack(alignment: .leading, spacing: 5) {
         Text(title)
-            .font(.largeTitle.bold())
+            .font(.system(size: 26, weight: .bold))
         Text(subtitle)
             .foregroundStyle(.secondary)
     }

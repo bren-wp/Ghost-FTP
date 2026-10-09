@@ -1,0 +1,472 @@
+{
+  "title": "Ghost FTP premium 75-screen reference traceability",
+  "referenceArchive": "GhostFTP-Premium-Brand-UI(2).zip",
+  "referenceKind": "visual concept, not actual app screenshot",
+  "sizes": {
+    "desktop": "1290x852",
+    "android": "480x960"
+  },
+  "acceptanceRule": "No item is complete until visually compared against an actual installed build and real interactions tested; file mapping alone is not 1:1 evidence",
+  "platforms": {
+    "windows": [
+      {
+        "id": "brand",
+        "source": "screens/windows/brand.png",
+        "surface": "ghostftp-desktop/branding/ghostftp-logo.svg",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "files",
+        "source": "screens/windows/files.png",
+        "surface": "ghostftp-desktop/src/components/FileBrowser.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "sites",
+        "source": "screens/windows/sites.png",
+        "surface": "ghostftp-desktop/src/components/SiteManagerDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "new-connection",
+        "source": "screens/windows/new-connection.png",
+        "surface": "ghostftp-desktop/src/components/QuickConnectionDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "quick-connect",
+        "source": "screens/windows/quick-connect.png",
+        "surface": "ghostftp-desktop/src/components/QuickConnectionDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "transfers",
+        "source": "screens/windows/transfers.png",
+        "surface": "ghostftp-desktop/src/components/TransferCenterDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "failed-transfers",
+        "source": "screens/windows/failed-transfers.png",
+        "surface": "ghostftp-desktop/src/components/TransferCenterDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "transfer-schedule",
+        "source": "screens/windows/transfer-schedule.png",
+        "surface": "ghostftp-desktop/src/components/TransferCenterDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "sync",
+        "source": "screens/windows/sync.png",
+        "surface": "ghostftp-desktop/src/components/SyncDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "directory-diff",
+        "source": "screens/windows/directory-diff.png",
+        "surface": "ghostftp-desktop/src/components/DirectoryDiff.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "duplicates",
+        "source": "screens/windows/duplicates.png",
+        "surface": "ghostftp-desktop/src/components/FindDuplicates.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "disk-usage",
+        "source": "screens/windows/disk-usage.png",
+        "surface": "ghostftp-desktop/src/components/DiskUsage.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "settings",
+        "source": "screens/windows/settings.png",
+        "surface": "ghostftp-desktop/src/components/Settings.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "settings-transfer",
+        "source": "screens/windows/settings-transfer.png",
+        "surface": "ghostftp-desktop/src/components/Settings.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "settings-security",
+        "source": "screens/windows/settings-security.png",
+        "surface": "ghostftp-desktop/src/components/Settings.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "settings-appearance",
+        "source": "screens/windows/settings-appearance.png",
+        "surface": "ghostftp-desktop/src/components/Settings.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "terminal",
+        "source": "screens/windows/terminal.png",
+        "surface": "ghostftp-desktop/src/components/Terminal.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "command-palette",
+        "source": "screens/windows/command-palette.png",
+        "surface": "ghostftp-desktop/src/components/CommandPalette.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "snippets",
+        "source": "screens/windows/snippets.png",
+        "surface": "ghostftp-desktop/src/components/SnippetsPanel.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "agent",
+        "source": "screens/windows/agent.png",
+        "surface": "ghostftp-desktop/src/components/AgentConsole.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "import",
+        "source": "screens/windows/import.png",
+        "surface": "ghostftp-desktop/src/components/ImportDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "host-key",
+        "source": "screens/windows/host-key.png",
+        "surface": "ghostftp-desktop/src/components/HostKeyModal.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "overwrite",
+        "source": "screens/windows/overwrite.png",
+        "surface": "ghostftp-desktop/src/components/OverwriteModal.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "properties",
+        "source": "screens/windows/properties.png",
+        "surface": "ghostftp-desktop/packages/file-ui/src/components/PropertiesModal.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "permissions",
+        "source": "screens/windows/permissions.png",
+        "surface": "ghostftp-desktop/src/components/FileBrowser.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "shortcuts",
+        "source": "screens/windows/shortcuts.png",
+        "surface": "ghostftp-desktop/src/components/KeyboardShortcutsDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "help",
+        "source": "screens/windows/help.png",
+        "surface": "ghostftp-desktop/src/components/AboutDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "updates",
+        "source": "screens/windows/updates.png",
+        "surface": "ghostftp-desktop/src/components/AboutDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "search",
+        "source": "screens/windows/search.png",
+        "surface": "ghostftp-desktop/src/components/FleetSearch.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "delete-confirm",
+        "source": "screens/windows/delete-confirm.png",
+        "surface": "ghostftp-desktop/src/components/ConfirmModal.tsx",
+        "visual_acceptance": "pending"
+      }
+    ],
+    "linux": [
+      {
+        "id": "files",
+        "source": "screens/linux/files.png",
+        "surface": "ghostftp-desktop/src/components/FileBrowser.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "sites",
+        "source": "screens/linux/sites.png",
+        "surface": "ghostftp-desktop/src/components/SiteManagerDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "new-connection",
+        "source": "screens/linux/new-connection.png",
+        "surface": "ghostftp-desktop/src/components/QuickConnectionDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "quick-connect",
+        "source": "screens/linux/quick-connect.png",
+        "surface": "ghostftp-desktop/src/components/QuickConnectionDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "transfers",
+        "source": "screens/linux/transfers.png",
+        "surface": "ghostftp-desktop/src/components/TransferCenterDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "failed-transfers",
+        "source": "screens/linux/failed-transfers.png",
+        "surface": "ghostftp-desktop/src/components/TransferCenterDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "transfer-schedule",
+        "source": "screens/linux/transfer-schedule.png",
+        "surface": "ghostftp-desktop/src/components/TransferCenterDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "sync",
+        "source": "screens/linux/sync.png",
+        "surface": "ghostftp-desktop/src/components/SyncDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "directory-diff",
+        "source": "screens/linux/directory-diff.png",
+        "surface": "ghostftp-desktop/src/components/DirectoryDiff.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "duplicates",
+        "source": "screens/linux/duplicates.png",
+        "surface": "ghostftp-desktop/src/components/FindDuplicates.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "disk-usage",
+        "source": "screens/linux/disk-usage.png",
+        "surface": "ghostftp-desktop/src/components/DiskUsage.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "settings",
+        "source": "screens/linux/settings.png",
+        "surface": "ghostftp-desktop/src/components/Settings.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "settings-transfer",
+        "source": "screens/linux/settings-transfer.png",
+        "surface": "ghostftp-desktop/src/components/Settings.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "settings-security",
+        "source": "screens/linux/settings-security.png",
+        "surface": "ghostftp-desktop/src/components/Settings.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "settings-appearance",
+        "source": "screens/linux/settings-appearance.png",
+        "surface": "ghostftp-desktop/src/components/Settings.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "terminal",
+        "source": "screens/linux/terminal.png",
+        "surface": "ghostftp-desktop/src/components/Terminal.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "command-palette",
+        "source": "screens/linux/command-palette.png",
+        "surface": "ghostftp-desktop/src/components/CommandPalette.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "snippets",
+        "source": "screens/linux/snippets.png",
+        "surface": "ghostftp-desktop/src/components/SnippetsPanel.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "agent",
+        "source": "screens/linux/agent.png",
+        "surface": "ghostftp-desktop/src/components/AgentConsole.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "import",
+        "source": "screens/linux/import.png",
+        "surface": "ghostftp-desktop/src/components/ImportDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "host-key",
+        "source": "screens/linux/host-key.png",
+        "surface": "ghostftp-desktop/src/components/HostKeyModal.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "overwrite",
+        "source": "screens/linux/overwrite.png",
+        "surface": "ghostftp-desktop/src/components/OverwriteModal.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "properties",
+        "source": "screens/linux/properties.png",
+        "surface": "ghostftp-desktop/packages/file-ui/src/components/PropertiesModal.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "permissions",
+        "source": "screens/linux/permissions.png",
+        "surface": "ghostftp-desktop/src/components/FileBrowser.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "shortcuts",
+        "source": "screens/linux/shortcuts.png",
+        "surface": "ghostftp-desktop/src/components/KeyboardShortcutsDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "help",
+        "source": "screens/linux/help.png",
+        "surface": "ghostftp-desktop/src/components/AboutDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "updates",
+        "source": "screens/linux/updates.png",
+        "surface": "ghostftp-desktop/src/components/AboutDialog.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "search",
+        "source": "screens/linux/search.png",
+        "surface": "ghostftp-desktop/src/components/FleetSearch.tsx",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "delete-confirm",
+        "source": "screens/linux/delete-confirm.png",
+        "surface": "ghostftp-desktop/src/components/ConfirmModal.tsx",
+        "visual_acceptance": "pending"
+      }
+    ],
+    "android": [
+      {
+        "id": "files",
+        "source": "screens/android/files.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "sites",
+        "source": "screens/android/sites.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "connect",
+        "source": "screens/android/connect.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "transfers",
+        "source": "screens/android/transfers.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "sync",
+        "source": "screens/android/sync.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "settings",
+        "source": "screens/android/settings.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "about",
+        "source": "screens/android/about.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "new-folder",
+        "source": "screens/android/new-folder.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "rename",
+        "source": "screens/android/rename.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "delete",
+        "source": "screens/android/delete.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "upload",
+        "source": "screens/android/upload.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "download",
+        "source": "screens/android/download.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "host-key",
+        "source": "screens/android/host-key.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "activity",
+        "source": "screens/android/activity.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "disconnected",
+        "source": "screens/android/disconnected.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      },
+      {
+        "id": "transfer-detail",
+        "source": "screens/android/transfer-detail.png",
+        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
+        "visual_acceptance": "pending"
+      }
+    ]
+  },
+  "macos": {
+    "referenceCount": 0,
+    "policy": "No standalone macOS reference supplied. Follow canonical design tokens and approved icon while preserving safe SwiftUI platform behaviour; remain Preview until FTPS/SFTP and signing verified."
+  }
+}

@@ -3,13 +3,7 @@ package com.ghostftp.android
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.Path
-import android.graphics.RectF
-import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -28,6 +22,7 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Spinner
@@ -1855,36 +1850,12 @@ class MainActivity : Activity() {
     }
 }
 
-private class GhostMarkView(context: Context) : View(context) {
-    private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val eyePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(10, 43, 81) }
-    private val bodyPath = Path()
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        val w = width.toFloat()
-        val h = height.toFloat()
-        bodyPaint.shader = LinearGradient(
-            0f,
-            0f,
-            w,
-            h,
-            intArrayOf(Color.rgb(244, 253, 255), Color.rgb(190, 235, 255), Color.rgb(66, 174, 255)),
-            floatArrayOf(0f, 0.45f, 1f),
-            Shader.TileMode.CLAMP
-        )
-        bodyPath.reset()
-        bodyPath.moveTo(w * 0.16f, h * 0.80f)
-        bodyPath.cubicTo(w * 0.25f, h * 0.76f, w * 0.30f, h * 0.66f, w * 0.31f, h * 0.54f)
-        bodyPath.cubicTo(w * 0.34f, h * 0.25f, w * 0.44f, h * 0.13f, w * 0.50f, h * 0.13f)
-        bodyPath.cubicTo(w * 0.64f, h * 0.13f, w * 0.71f, h * 0.32f, w * 0.73f, h * 0.54f)
-        bodyPath.cubicTo(w * 0.74f, h * 0.66f, w * 0.80f, h * 0.76f, w * 0.84f, h * 0.80f)
-        bodyPath.cubicTo(w * 0.77f, h * 0.89f, w * 0.66f, h * 0.88f, w * 0.61f, h * 0.77f)
-        bodyPath.cubicTo(w * 0.57f, h * 0.88f, w * 0.43f, h * 0.88f, w * 0.39f, h * 0.77f)
-        bodyPath.cubicTo(w * 0.34f, h * 0.88f, w * 0.22f, h * 0.89f, w * 0.16f, h * 0.80f)
-        bodyPath.close()
-        canvas.drawPath(bodyPath, bodyPaint)
-        canvas.drawOval(RectF(w * 0.39f, h * 0.42f, w * 0.47f, h * 0.56f), eyePaint)
-        canvas.drawOval(RectF(w * 0.57f, h * 0.42f, w * 0.65f, h * 0.56f), eyePaint)
+// Render the exact same approved drawable in the sidebar, app header and
+// launcher. A hand-drawn Canvas approximation drifted from the premium SVG.
+private class GhostMarkView(context: Context) : ImageView(context) {
+    init {
+        setImageResource(R.drawable.ic_ghost_ftp)
+        scaleType = ScaleType.FIT_CENTER
+        contentDescription = context.getString(R.string.app_name)
     }
 }

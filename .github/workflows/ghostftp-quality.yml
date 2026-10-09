@@ -96,6 +96,10 @@ jobs:
           grep -Fq 'MORE THAN TRANSFER. TOTAL CONTROL.' ghostftp-desktop/branding/ghostftp-logo.svg
           ! grep -Fq 'FILES MOVE FORWARD' ghostftp-desktop/branding/ghostftp-logo.svg
 
+      - name: Verify complete 75-screen premium design traceability
+        shell: bash
+        run: node .github/scripts/check-premium-75-screens.mjs
+
       - name: Historical release recovery script syntax and source lock
         shell: bash
         run: |

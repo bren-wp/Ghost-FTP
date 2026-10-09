@@ -4,7 +4,7 @@ Canonical mark: exact `assets/branding/ghostftp-app-icon.svg` geometry and corre
 
 Approved horizontal lockup: `ghostftp-desktop/branding/ghostftp-logo.svg` now follows the ZIP's exact 1280 × 330 wordmark, background, ghost mark, palette, spacing and uppercase tagline; its SVG title/description provide accessible naming. The product README uses this asset directly.
 
-Source: user-provided `GhostFTP-Premium-Brand-UI(1).zip` (8 October 2026).
+Source: user-provided `GhostFTP-Premium-Brand-UI(2).zip` (identical 75-screen reference family, inspected 9 October 2026).
 
 ## Reference contract
 
@@ -39,6 +39,13 @@ Inter, Segoe UI and Noto Sans are preferred with platform system fallbacks. No f
 - Android: existing native Kotlin UI with shared semantic colors and vector launcher mark. Standard-width phones now dock the 88 dp rail rather than covering the file workspace with a menu; devices under 360 dp retain an accessible overlay. Touch-target and accessibility checks stay mandatory.
 - macOS: existing SwiftUI workspace shell with shared palette/tint. Light appearance remains independently supported.
 - Secrets, permission prompts and security warnings must retain the existing platform policies.
+
+## 0.30.15 implementation traceability
+
+- The canonical `docs/qa/premium-75-screen-contract.json` records every visual reference and its live application source. A GitHub quality job verifies the 30 Windows + 29 Linux + 16 Android set without claiming visual acceptance.
+- Android now uses the identical existing launcher/vector mark in its real header and navigation, not a separate hand-painted approximation. Android 12+ launch screens reuse that approved mark.
+- At 1290px the desktop dark primary sidebar uses the approved 214px reference width; below 1100px the earlier compact layout remains.
+- macOS receives its own functional SwiftUI spacing and branded connection action rather than a static Android/Windows screenshot; its minimum window size now supports 840×560.
 
 ## Release gating / not yet completed
 
