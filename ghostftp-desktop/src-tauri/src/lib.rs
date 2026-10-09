@@ -120,13 +120,24 @@ fn build_settings_init_script(db: &db::Db) -> String {
 fn is_approved_external_url(parsed: &url::Url) -> bool {
     let host = parsed.host_str().unwrap_or_default().to_ascii_lowercase();
     let path = parsed.path();
-    let approved_product_page =
-        host == "ghostftp.com" && matches!(path, "/" | "/support/" | "/privacy/" | "/docs/");
-    let approved_eula = host == "github.com" && path == "/bren-wp/Ghost-FTP/blob/main/EULA.txt";
+    // Only vetted project help destinations. No generic host/path prefix matching:
+    // e.g. another GitHub repository or an arbitrary issue URL must stay blocked.
+    let approved_project_page = host == "github.com"
+        && matches!(
+            path,
+            "/bren-wp/Ghost-FTP"
+                | "/bren-wp/Ghost-FTP/issues"
+                | "/bren-wp/Ghost-FTP/tree/main/docs"
+                | "/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md"
+                | "/bren-wp/Ghost-FTP/blob/main/EULA.txt"
+        );
     parsed.scheme() == "https"
+        && parsed.username().is_empty()
+        && parsed.password().is_none()
+        && parsed.port().is_none()
         && parsed.query().is_none()
         && parsed.fragment().is_none()
-        && (approved_product_page || approved_eula)
+        && approved_project_page
 }
 
 #[tauri::command]
@@ -553,10 +564,10 @@ mod init_script_tests {
     #[test]
     fn approved_external_urls_are_exact_and_fail_closed() {
         for allowed in [
-            "https://ghostftp.com/",
-            "https://ghostftp.com/support/",
-            "https://ghostftp.com/privacy/",
-            "https://ghostftp.com/docs/",
+            "https://github.com/bren-wp/Ghost-FTP",
+            "https://github.com/bren-wp/Ghost-FTP/issues",
+            "https://github.com/bren-wp/Ghost-FTP/tree/main/docs",
+            "https://github.com/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md",
             "https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt",
         ] {
             let parsed = url::Url::parse(allowed).unwrap();
@@ -567,15 +578,20 @@ mod init_script_tests {
         }
 
         for blocked in [
-            "http://ghostftp.com/support/",
-            "https://www.ghostftp.com/support/",
-            "https://ghostftp.com.evil.example/support/",
-            "https://evil.example/https://ghostftp.com/support/",
-            "https://ghostftp.com/support/?next=https://evil.example",
-            "https://ghostftp.com/support/#redirect",
-            "https://ghostftp.com/terms/",
-            "https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt?raw=1",
+            "http://github.com/bren-wp/Ghost-FTP",
+            "https://ghostftp.com/support/",
+            "https://www.github.com/bren-wp/Ghost-FTP/issues",
+            "https://github.com.evil.example/bren-wp/Ghost-FTP",
+            "https://evil.example/https://github.com/bren-wp/Ghost-FTP",
+            "https://evil.example@github.com/bren-wp/Ghost-FTP/issues",
+            "https://github.com:444/bren-wp/Ghost-FTP/issues",
+            "https://github.com/bren-wp/Ghost-FTP/issues?redirect=evil",
+            "https://github.com/bren-wp/Ghost-FTP/issues#redirect",
+            "https://github.com/bren-wp/Ghost-FTP/issues/123",
+            "https://github.com/bren-wp/Ghost-FTP/tree/dev/docs",
+            "https://github.com/bren-wp/OtherProject",
             "https://github.com/bren-wp/Ghost-FTP/blob/dev/EULA.txt",
+            "https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt?raw=1",
         ] {
             let parsed = url::Url::parse(blocked).unwrap();
             assert!(
