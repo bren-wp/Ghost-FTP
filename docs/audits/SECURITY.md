@@ -10,6 +10,16 @@ Security posture is carried forward from the previously reviewed 0.30.15 baselin
 
 0.30.19 incremental review: native OS file selection is invoked after a user-facing action and only against active connections, using unchanged authenticated transfer and overwrite-conflict controls. Directory refresh re-reads current lists, not an unprompted remote mutation. This is not an independent full security audit.
 
+## Unreleased 0.30.20 privacy and security review
+
+- **Android diagnostics:** secrets and userinfo/token patterns are masked before the 600-character display truncation. Oversized messages are bounded before regex processing, and exceedingly long supplied secrets fail closed. Unit regressions cover truncated-password prefixes and giant server-origin error strings.
+- **macOS profile backup:** an import of up to 512 profiles no longer permits the **merged total** to silently exceed the 512-profile cap. Rejected imports leave current profiles and persisted data unchanged; Swift tests exercise the failure.
+- **macOS transfer-history privacy:** persisted history now carries bounded cleaned basenames, not original absolute local/remote paths. Persistence and restore tests include control characters and private path prefixes. Existing saved history written by earlier releases may still contain old entries until cleared; this migration/removal should be tested before claiming prior data erased.
+- **Windows/Linux:** hidden windows stop the otherwise unconditional one-second clock timer, lowering background activity without affecting timers for actual transfer progress. Authenticated transport, certificate and SSH host-key checks and verified updater endpoints remain unchanged.
+- **Documentation screenshots:** seven README-linked PNG files are directly hashed against the successfully published Windows 0.30.19 native-window QA artifact, pinned to the exact source commit, successful run, and SHA256. No fake concept files replace live screenshots; all unrelated documentation images stay at their previous release-proven checksums.
+
+**Outstanding:** no independent penetration test or full hardware UI/accessibility acceptance has been performed in this audit. macOS FTPS/SFTP are not enabled; plain FTP has no confidentiality protection. Do not describe those preview transports as secure or production-ready.
+
 ## Current controls
 
 - Saved-profile secrets remain outside ordinary profile JSON and use the OS credential/keychain layer where supported.

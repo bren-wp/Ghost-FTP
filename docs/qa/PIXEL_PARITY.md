@@ -40,3 +40,9 @@ Canvas #070E1A; panel #0D192B; raised #111F34; action blue #38ABFF; primary text
 The six exact-HEAD CI suites verify builds, source regression contracts, selected security behavior, Android smoke tests, Swift unit tests and protocol roundtrips. **None automatically measures all 75 installed UI screenshots.** A green release build therefore does not grant 1:1 final sign-off.
 
 Do not turn hidden or unfinished macOS FTPS/SFTP operations on until reliable certificate/hostname and SSH host-key validation is implemented and tested; the About panel must continue to describe this accurately.
+
+## Verified Windows README captures (unreleased 0.30.20 documentation maintenance)
+
+The existing seven `README.md` image **paths, anchors, ordering and layout are unchanged**. Their corresponding PNG file bytes are now sourced from the real Windows 0.30.19 native QA run `37879036243` at main SHA `9412fbac440d4231a3ebdb7869a1f171240e9681`, artifact `11593868391`; the workflow verified a 1290×852 window, Ghost FTP title and genuine desktop capture method for each screen. `.github/scripts/check-release-images.mjs` pins their SHA256 values and keeps every unrelated documentation image tied to the latest published tag.
+
+The captured file manager shows the real Windows CI runner's local files and the honest disconnected remote state. They are **not** the mocked reference's fake production servers. These seven captured states provide actual evidence, not acceptance of the entire 75-concept screenshot set. Pixel-parity and click-by-click reviews on additional installed OS/device configurations remain pending.
