@@ -4,8 +4,8 @@ This directory contains canonical release notes and historical provenance record
 
 ## Current version train
 
-- Active source/release cycle: **0.30.15**
-- Previous canonical release: **0.30.14**
+- Active source/release cycle: **0.30.21**
+- Previous canonical release: **0.30.20**
 - Live published status: the GitHub Releases page is authoritative.
 
 ## Canonical release notes
