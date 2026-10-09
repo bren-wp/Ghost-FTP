@@ -9,7 +9,7 @@ Date: 9 October 2026. Branch: `audit/0.30.20-cross-platform-hardening` (unreleas
 - Android: **5** Kotlin production/test files.
 - macOS: **15** Swift production/test files.
 - CLI/installer compatibility tooling: **11** Go files.
-- Script entrypoints: **32** MJS/shell paths in the prior release source tree; new screenshot workflow/script add to this inventory. Counts are file inventory, not all independently runtime-executed paths.
+- Script entrypoints: **32** MJS/shell paths in the prior release source tree; temporary screenshot importer workflow/script were removed after their successful one-time run. Counts are file inventory, not all independently runtime-executed paths.
 
 ## Executable dead-code / static coverage
 
