@@ -819,7 +819,7 @@ class MainActivity : Activity() {
         addView(officialLinkRow(getString(R.string.label_documentation), getString(R.string.about_docs_desc), DOCUMENTATION_URL))
         addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
         addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
-        addView(officialLinkRow("GitHub", getString(R.string.about_docs_desc), REPOSITORY_URL))
+        addView(officialLinkRow(getString(R.string.label_project_repository), getString(R.string.about_repository_desc), REPOSITORY_URL))
     }
 
     private fun setWorkspace(workspace: Workspace, announce: Boolean = true) {

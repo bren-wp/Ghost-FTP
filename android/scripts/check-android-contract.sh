@@ -148,7 +148,7 @@ localization_keys=(
   workspace_files workspace_sites workspace_transfers workspace_settings workspace_about
   action_refresh action_upload action_download action_new_folder action_rename action_delete
   action_cancel action_confirm action_connect action_disconnect action_pick_file
-  label_support label_documentation label_privacy_policy label_official_website
+  label_support label_documentation label_privacy_policy label_project_repository about_repository_desc
   field_host field_port field_username field_password field_protocol
   label_security label_connection
 )
@@ -220,7 +220,7 @@ require_text "localized password field" "$MAIN_ACTIVITY" 'formLabel(getString(R.
 require_text "localized support link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_support)'
 require_text "localized documentation link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_documentation)'
 require_text "localized privacy link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_privacy_policy)'
-require_text "localized website link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_official_website)'
+require_text "localized canonical repository link" "$MAIN_ACTIVITY" 'officialLinkRow(getString(R.string.label_project_repository)'
 require_text "exclusive workspace visibility" "$MAIN_ACTIVITY" 'view.visibility = if (key == workspace) View.VISIBLE else View.GONE'
 require_text "workspace navigation control" "$MAIN_ACTIVITY" 'workspaceNavItem(workspace)'
 require_text "workspace state persistence" "$MAIN_ACTIVITY" 'STATE_WORKSPACE'

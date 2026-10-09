@@ -1,7 +1,7 @@
 ## 0.30.17 — functional help resources and accurate cross-platform messaging — 9 October 2026
 
 - **Windows/Linux:** About and Help now link to the canonical GitHub support, documentation, privacy policy and project releases instead of the retired public site; premium approved slogan restored throughout the real About workspace.
-- **Android:** About hyperlinks use the same verified GitHub destinations and remain guarded by the existing HTTPS allowlist.
+- **Android:** About hyperlinks use the same verified GitHub destinations and remain guarded by the existing HTTPS allowlist. Repository link title and description are localized for all 24 Android languages.
 - **macOS:** Help/About links are functional project URLs. Security text distinguishes available FTP operations from FTPS/SFTP, still blocked pending identity verification.
 - **CI:** checks the real in-app URLs, approved slogan and the unaffected official update endpoint; retains all six build/protocol/security gates.
 - **Honest acceptance:** no pixel-perfect 75-screen claim without installed-build comparisons. macOS remains a non-notarized Preview.
