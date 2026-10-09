@@ -109,7 +109,7 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
           <LinkRow icon={<ShieldCheck size={18}/>} title={tr("Privacy")} subtitle="Privacy-first defaults and local data" onClick={() => onNavigate("privacy")}/>
           <OfficialLinkRow icon={<ShieldCheck size={18}/>} title={tr("Privacy Policy")} subtitle="Read the privacy policy in source control" url={`${PROJECT_REPOSITORY_URL}/blob/main/docs/legal/PRIVACY.md`}/>
           <OfficialLinkRow icon={<FileText size={18}/>} title="Terms of use / EULA" subtitle="Open the canonical Ghost FTP software licence" url={PRODUCT_EULA_URL}/>
-          <OfficialLinkRow icon={<Globe2 size={18}/>} title="GitHub project" subtitle="Source code and verified releases" url={PROJECT_REPOSITORY_URL}/>
+          <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Project repository")} subtitle="Source code and verified releases" url={PROJECT_REPOSITORY_URL}/>
           <LinkRow icon={<FileText size={18}/>} title="Changelog" subtitle="See what's new" onClick={() => onNavigate("updates")}/>
         </div>
         <div className="rounded-lg border border-border bg-[#071f35] p-5">

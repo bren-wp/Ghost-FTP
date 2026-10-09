@@ -832,7 +832,7 @@ for (const required of [
   'tr("Check for Updates")',
   'tr("Download & install")',
   "PRODUCT_SITE",
-  'title="GitHub project"',
+  'tr("Project repository")',
   "PROJECT_REPOSITORY_URL",
 ]) {
   if (!about.includes(required)) failures.push(`Help & About missing localized/official contract: ${required}`);
