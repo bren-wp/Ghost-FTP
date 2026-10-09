@@ -104,8 +104,10 @@ export function FileBrowser() {
   const [uploadMenu, setUploadMenu] = useState<{ x: number; y: number } | null>(
     null
   );
+  const pickerInFlight = useRef(false);
   const pickAndUpload = async (kind: "files" | "folder") => {
-    if (!serverSid) return;
+    if (!serverSid || pickerInFlight.current) return;
+    pickerInFlight.current = true;
     try {
       const picked = await open({
         multiple: kind === "files",
@@ -118,9 +120,15 @@ export function FileBrowser() {
         path: p,
         kind: (kind === "folder" ? "directory" : "file") as "directory" | "file",
       }));
+      if (useConnections.getState().activeSessionId !== serverSid) {
+        toast.warning("Connection changed", "Reconnect to a server before uploading selected files.");
+        return;
+      }
       await enqueueUploads(serverSid, items, serverRemotePath);
     } catch (error) {
       toastError(error, kind === "folder" ? "Couldn't upload folder" : "Couldn't upload files");
+    } finally {
+      pickerInFlight.current = false;
     }
   };
   const onUpload = (e: React.MouseEvent) => {
