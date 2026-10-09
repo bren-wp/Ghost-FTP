@@ -458,45 +458,151 @@ private struct SettingsWorkspace: View {
 }
 
 private struct AboutWorkspace: View {
+    private let repositoryURL = "https://github.com/bren-wp/Ghost-FTP"
+
     var body: some View {
-        let version =
-            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
             ?? "Preview"
 
-        VStack(alignment: .leading, spacing: 18) {
-            workspaceHeader(
-                title: "Help & About",
-                subtitle: "Ghost FTP · More Than Transfer. Total Control."
-            )
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                workspaceHeader(
+                    title: "Help & About",
+                    subtitle: "Ghost FTP · More Than Transfer. Total Control."
+                )
 
-            GroupBox {
-                VStack(alignment: .leading, spacing: 10) {
-                    Label("Ghost FTP \(version)", systemImage: "externaldrive.connected.to.line.below")
-                        .font(.title2.bold())
-                    Text("Brendigo")
-                        .foregroundStyle(.secondary)
-                    Text("FTP file operations available. FTPS and SFTP remain disabled until identity verification is implemented.")
-                        .foregroundStyle(.secondary)
+                // The supplied ZIP contains no macOS screenshots; use shared
+                // premium hierarchy with real SwiftUI controls and AppKit icon.
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 14) {
+                        identityCard(version: version)
+                            .frame(minWidth: 370, maxWidth: .infinity)
+                        resourcesCard
+                            .frame(width: 282)
+                    }
+
+                    VStack(spacing: 14) {
+                        identityCard(version: version)
+                        resourcesCard
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
             }
-
-            GroupBox("Resources") {
-                VStack(alignment: .leading, spacing: 10) {
-                    Link("Support", destination: URL(string: "https://github.com/bren-wp/Ghost-FTP/issues")!)
-                    Link("Documentation", destination: URL(string: "https://github.com/bren-wp/Ghost-FTP/tree/main/docs")!)
-                    Link("Privacy", destination: URL(string: "https://github.com/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md")!)
-                    Link("EULA", destination: URL(string: "https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt")!)
-                    Link("Project and releases", destination: URL(string: "https://github.com/bren-wp/Ghost-FTP")!)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
-            }
-
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
         }
-        .padding(24)
+    }
+
+    private func identityCard(version: String) -> some View {
+        VStack(alignment: .leading, spacing: 17) {
+            HStack(spacing: 18) {
+                Image(nsImage: NSApplication.shared.applicationIconImage)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: 76, height: 76)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("Ghost FTP")
+                        .font(.system(size: 30, weight: .bold))
+                        .foregroundStyle(GhostPremiumPalette.text)
+                    Text("MORE THAN TRANSFER. TOTAL CONTROL.")
+                        .font(.system(size: 10, weight: .medium))
+                        .tracking(1.5)
+                        .foregroundStyle(GhostPremiumPalette.accent)
+                }
+            }
+
+            Text("Version \(version)")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(GhostPremiumPalette.accent)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 6)
+                .background(GhostPremiumPalette.accent.opacity(0.12), in: Capsule())
+
+            Divider()
+
+            Text("Designed for complete control")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(GhostPremiumPalette.text)
+            Text("Manage your FTP file operations and saved connections without mandatory analytics or a Ghost FTP account. FTPS and SFTP file operations remain disabled until trusted certificate and SSH host-key verification is complete.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            aboutMetadataRow("Publisher", value: "Brendigo")
+            aboutMetadataRow("Platform", value: "macOS")
+            aboutMetadataRow("Version", value: version)
+            aboutMetadataRow("Security", value: "FTP available · FTPS/SFTP pending")
+            aboutMetadataRow("Privacy", value: "No required telemetry")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .background(GhostPremiumPalette.sidebar, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14)
+            .stroke(GhostPremiumPalette.accent.opacity(0.15), lineWidth: 1))
+    }
+
+    private func aboutMetadataRow(_ label: String, value: String) -> some View {
+        VStack(spacing: 10) {
+            Divider()
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(GhostPremiumPalette.text)
+                Spacer(minLength: 8)
+                Text(value)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.trailing)
+            }
+        }
+    }
+
+    private var resourcesCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("SUPPORT & RESOURCES")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(GhostPremiumPalette.text)
+
+            resourceLink("Documentation", symbol: "book.closed",
+                         url: "\(repositoryURL)/tree/main/docs")
+            resourceLink("Support", symbol: "questionmark.circle",
+                         url: "\(repositoryURL)/issues")
+            resourceLink("Privacy Policy", symbol: "lock.shield",
+                         url: "\(repositoryURL)/blob/main/docs/legal/PRIVACY.md")
+            resourceLink("EULA", symbol: "doc.text",
+                         url: "\(repositoryURL)/blob/main/EULA.txt")
+            resourceLink("Project and releases", symbol: "externaldrive",
+                         url: repositoryURL)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(GhostPremiumPalette.sidebar, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14)
+            .stroke(GhostPremiumPalette.accent.opacity(0.15), lineWidth: 1))
+    }
+
+    private func resourceLink(_ title: String, symbol: String, url: String) -> some View {
+        Link(destination: URL(string: url)!) {
+            HStack(spacing: 12) {
+                Image(systemName: symbol)
+                    .frame(width: 25)
+                    .foregroundStyle(GhostPremiumPalette.accent)
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(GhostPremiumPalette.text)
+                Spacer(minLength: 0)
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .frame(minHeight: 49)
+            .background(GhostPremiumPalette.background, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10)
+                .stroke(GhostPremiumPalette.accent.opacity(0.2), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 }
 
