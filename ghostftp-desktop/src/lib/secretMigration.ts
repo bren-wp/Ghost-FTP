@@ -10,9 +10,9 @@ const LEGACY_TERMINAL_HISTORY_PREFIX = "ghostftp.term-history.v1:";
 // Idempotent and safe by construction:
 //   - if ghostftp.db already holds settings, do nothing (never re-import a stale
 //     blob over newer DB values);
-//   - migrate-then-verify: only drop the localStorage blob once the DB reads
-//     back at least what we wrote (the plan's "keep the blob until ghostftp.db
-//     reads back equal" guard).
+//   - migrate-then-verify: only drop the localStorage blob once EVERY migrated
+//     key and serialized value reads back identically from ghostftp.db.
+//     Matching key counts alone cannot prove that a migration was durable.
 // A row in ghostftp.db always beats the value in DEFAULTS, and the import above
 // froze EVERY key — including ones the user never opened the settings pane to
 // touch. So changing a default in code reaches new installs only: for everyone
@@ -114,7 +114,12 @@ export async function runSettingsMigration(): Promise<void> {
     await ipc.settingsSetAll(entries);
 
     const after = await ipc.settingsGetAll();
-    if (Object.keys(after).length >= Object.keys(entries).length) {
+    // Fail closed on partial/mismatched writes: unrelated DB keys must never
+    // make the migration appear successful merely by inflating the row count.
+    const persistedExactly = Object.entries(entries).every(
+      ([key, expected]) => after[key] === expected
+    );
+    if (persistedExactly) {
       localStorage.removeItem(STORAGE_KEY);
       // Reflect the imported values in this session (they were injected empty on
       // this first upgrade boot).

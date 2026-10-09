@@ -33,6 +33,11 @@ function pick(set: string): string {
  * least one lowercase, uppercase, digit, and symbol.
  */
 export function generatePassword(length = 20): string {
+  // Reject non-finite and huge lengths before the synchronous CSPRNG loop.
+  // User-supplied or corrupted settings must not freeze the desktop window.
+  if (!Number.isSafeInteger(length) || length > 512) {
+    throw new RangeError("Password length must be an integer no greater than 512.");
+  }
   const len = Math.max(8, length);
   const chars = [pick(LOWER), pick(UPPER), pick(DIGITS), pick(SYMBOLS)];
   while (chars.length < len) chars.push(pick(ALL));
