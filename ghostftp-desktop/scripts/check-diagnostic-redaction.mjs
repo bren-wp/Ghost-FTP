@@ -20,6 +20,10 @@ assert.equal(
   "https://ftp.example.invalid/download?token=<redacted>&file=sample",
 );
 assert.equal(redact("Authorization: Bearer aBcDe123"), "Authorization: <redacted>");
+assert.equal(redact("sftp://alice:my-pass@files.example.invalid/home"), "sftp://<redacted>@files.example.invalid/home");
+assert.equal(redact("ftp://alice@files.example.invalid/home"), "ftp://<redacted>@files.example.invalid/home");
+assert.equal(redact("ftp://alice:pass@files.example.invalid/?token=hello&sort=name"), "ftp://<redacted>@files.example.invalid/?token=<redacted>&sort=name");
+assert.equal(redact("https://api.example.invalid/?token=secr3t&limit=20"), "https://api.example.invalid/?token=<redacted>&limit=20");
 assert.equal(redact('{"password":"private-value"}'), '{"password":"<redacted>"}');
 assert.equal(redact("token=abc" + "x".repeat(65_526)).startsWith("token=<redacted>"), true);
 assert.equal(redact("x".repeat(65_536)).length, 65_536);

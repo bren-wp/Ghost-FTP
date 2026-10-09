@@ -1,6 +1,6 @@
-# Ghost FTP Security Audit — 0.30.21
+# Ghost FTP Security Audit — 0.90.0
 
-Previous canonical release: **0.30.20**.
+Previous canonical release: **0.30.21**.
 
 Security posture is carried forward from the previously reviewed 0.30.15 baseline; the 0.30.16 code delta changes color tokens and does not replace a full independent security audit.
 
@@ -57,3 +57,10 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 - **Windows/Linux diagnostic privacy:** before redaction regexes run, discard wholly oversized untrusted error messages (64 KiB cap). Unterminated private-key blocks are treated as sensitive through the end of the message, and macOS-style home-directory paths are masked. Executable TypeScript regression cases are now part of `npm run check:ui`, including truncation-boundary and oversized-input tests.
 - **macOS FTP parser:** reject malformed EPSV `229` responses that contain trailing fields or omit the required final delimiter. Swift regression tests cover hostile server replies.
 - These are focused hardening changes, **not** a complete penetration test or all-platform 1:1 visual acceptance. All six CI gates, merged-main validation and release verification remain required before publication.
+
+## 0.90.0 incremental protection review (requires exact-SHA CI)
+
+- **Windows/Linux diagnostic privacy:** URL-style FTP/SFTP userinfo, including usernames without passwords, is removed from displayed errors; the protocol and host remain readable to assist troubleshooting. Automated regressions exercise the shipped TypeScript redactor and existing query-token/size-boundary controls.
+- **macOS FTP Preview:** EPSV passive-port replies now reject populated protocol/address fields instead of accepting unexpected server-supplied fields. Alternate valid delimiters remain supported; Swift tests cover accepted and rejected replies. This change does **not** enable FTPS or SFTP on macOS.
+- **Release integrity:** 0.90.0 development progression is guarded by executable version-train tests, with patch fixes (0.90.1, etc.) and consecutive feature minors (0.91.0 through 0.99.0); 1.0.0 requires its own production acceptance. Existing published tags are immutable.
+- **Limitations:** This is an incremental source hardening review, not a completed independent penetration test, every-control hardware smoke test or 75-screen installed-build visual signoff.

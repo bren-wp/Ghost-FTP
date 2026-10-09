@@ -1,3 +1,13 @@
+## 0.90.0 — new version train and cross-platform privacy/transport hardening — 9 October 2026
+
+- **Windows/Linux diagnostic privacy:** Mask credential-bearing FTP/SFTP URL userinfo (username as well as password) without hiding the useful server hostname; add executable regression coverage to the existing UI quality gate.
+- **macOS protocol parser safety:** Reject EPSV replies that populate unexpected protocol/address fields; preserve valid alternate delimiter support and add Swift negative-case tests.
+- **Release process:** Adopt 0.90.0 → 0.91.0 through 0.99.0 feature sequence; 0.90.1/0.91.1-style patch fixes, 0.99.x → 1.0.0 only after separate production acceptance, and 1.x semantic minor/patch progression. Enforce transitions and test them in CI.
+- **Preservation:** Existing Windows/Linux/Android/macOS codebases, README gallery layout, seven verified screenshot files and their SHA256 provenance are unchanged.
+- **Evidence limits:** Green source/build checks alone do not prove all 75 supplied reference screens are pixel-perfect or all interactions have passed real-device acceptance.
+
+See [docs/releases/0.90.0.md](docs/releases/0.90.0.md).
+
 ## 0.30.21 — bounded desktop diagnostics and strict macOS FTP EPSV replies — 9 October 2026
 
 - **Windows/Linux security & privacy:** Diagnostic redaction discards server-controlled text over 64 KiB before regex processing, masks macOS home-folder user names and hides unterminated private key blocks.

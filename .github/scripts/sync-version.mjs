@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateVersionTrain } from "./version-policy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const checkOnly = process.argv.includes("--check");
@@ -25,6 +26,7 @@ if (previousPublishedVersion === version) {
   throw new Error("previousPublishedVersion must not equal the active version");
 }
 if (!Number.isInteger(androidVersionCode) || androidVersionCode <= 0) throw new Error("androidVersionCode must be positive");
+if (previousVersion) validateVersionTrain(previousVersion, version);
 
 const drift = [];
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");

@@ -32,6 +32,9 @@ jobs:
           cache: npm
           cache-dependency-path: ghostftp-desktop/package-lock.json
 
+      - name: Verify version train transition regression matrix
+        run: node .github/scripts/check-version-policy.mjs
+
       - name: Version consistency and progression
         shell: bash
         run: |

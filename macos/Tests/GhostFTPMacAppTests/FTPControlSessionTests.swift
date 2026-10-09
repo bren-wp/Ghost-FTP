@@ -159,6 +159,17 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertEqual(try FTPControlCodec.extendedPassivePort(from: reply), 21000)
     }
 
+    func testExtendedPassivePortRejectsNonemptyProtocolAndAddressFields() {
+        for line in [
+            "229 Entering Extended Passive Mode (|1||6446|)",
+            "229 Entering Extended Passive Mode (||192.0.2.44|6446|)",
+        ] {
+            XCTAssertThrowsError(
+                try FTPControlCodec.extendedPassivePort(from: FTPReply(code: 229, lines: [line]))
+            )
+        }
+    }
+
     func testExtendedPassivePortRejectsInvalidReply() {
         let reply = FTPReply(code: 229, lines: ["229 Entering Extended Passive Mode (|||0|)"])
 
