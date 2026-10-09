@@ -75,12 +75,18 @@ internal fun redactSensitiveErrorText(
         Regex("""(?i)\b(password|passwd|pwd|token|secret|authorization)\s*[:=]\s*([^\s,;]+)""")
     val bearerTokenPattern =
         Regex("""(?i)\b(Bearer)\s+[A-Za-z0-9._~+/=-]+""")
-    var redacted = raw.take(600)
+    // Redact before the 600-character UI limit. Truncating first can expose
+    // a password/token prefix when a secret straddles the display boundary.
+    // Bound regex work even when a server sends a massive error message.
+    val uniqueSecrets = secrets.filter { it.isNotEmpty() }.distinct()
+    if (uniqueSecrets.any { it.length > 4096 }) {
+        return "Connection error details hidden for privacy."
+    }
+    val inspectionLimit = (600 + (uniqueSecrets.maxOfOrNull { it.length } ?: 0) + 512)
+        .coerceAtMost(8192)
+    var redacted = raw.take(inspectionLimit)
 
-    secrets
-        .filter { it.isNotEmpty() }
-        .distinct()
-        .forEach { secret -> redacted = redacted.replace(secret, "••••") }
+    uniqueSecrets.forEach { secret -> redacted = redacted.replace(secret, "••••") }
 
     redacted = urlUserInfoPattern.replace(redacted) { match ->
         "${match.groupValues[1]}${match.groupValues[2]}:••••@"
@@ -92,7 +98,7 @@ internal fun redactSensitiveErrorText(
         "${match.groupValues[1]} ••••"
     }
 
-    return redacted
+    return redacted.take(600)
 }
 
 class OperationCancellation {

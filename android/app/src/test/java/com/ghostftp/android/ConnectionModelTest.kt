@@ -314,6 +314,23 @@ class ConnectionModelTest {
     }
 
     @Test
+    fun sensitiveErrorTextHidesSecretCrossingDisplayLimit() {
+        val prefix = "x".repeat(596)
+        val secret = "dontLeakThisPassword"
+        val raw = prefix + " " + secret + " network unreachable"
+        val redacted = redactSensitiveErrorText(raw, listOf(secret))
+        assertTrue(redacted.length <= 600)
+        assertFalse(redacted.contains(secret.take(3)))
+        assertTrue(redacted.endsWith("••"))
+    }
+
+    @Test
+    fun sensitiveErrorTextTruncatesLargeUntrustedServerError() {
+        val raw = "error ".repeat(5000)
+        assertEquals(600, redactSensitiveErrorText(raw).length)
+    }
+
+    @Test
     fun sensitiveErrorTextKeepsUsefulNonSecretDiagnostics() {
         assertEquals(
             "Permission denied for /incoming/report.csv",
