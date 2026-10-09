@@ -13,6 +13,9 @@ const JSON_SECRET =
 const BEARER_TOKEN = /\b(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi;
 const URL_PASSWORD =
   /([a-z][a-z0-9+.-]*:\/\/[^:\s/@]+:)[^@\s/]+@/gi;
+// User names in protocol URLs are private, even when the password was
+// already removed. Keep the origin/host readable for useful diagnostics.
+const URL_USERINFO = /([a-z][a-z0-9+.-]*:\/\/)[^\s/@]+@/gi;
 const PRIVATE_KEY_BLOCK =
   /-----BEGIN [^-\r\n]*PRIVATE KEY-----[\s\S]*?(?:-----END [^-\r\n]*PRIVATE KEY-----|$)/gi;
 
@@ -43,6 +46,7 @@ export function redactSensitiveText(value: unknown, maxLength?: number): string 
     .replace(/\/home\/[^/\s]+/g, "/home/<user>")
     .replace(/\/Users\/[^/\s]+/g, "/Users/<user>")
     .replace(URL_PASSWORD, "$1<redacted>@")
+    .replace(URL_USERINFO, "$1<redacted>@")
     .replace(SECRET_QUERY, "$1<redacted>")
     .replace(SECRET_ASSIGNMENT, "$1<redacted>")
     .replace(SECRET_FLAG, "$1<redacted>")
