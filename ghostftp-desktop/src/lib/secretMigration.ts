@@ -10,9 +10,9 @@ const LEGACY_TERMINAL_HISTORY_PREFIX = "ghostftp.term-history.v1:";
 // Idempotent and safe by construction:
 //   - if ghostftp.db already holds settings, do nothing (never re-import a stale
 //     blob over newer DB values);
-//   - migrate-then-verify: only drop the localStorage blob once the DB reads
-//     back at least what we wrote (the plan's "keep the blob until ghostftp.db
-//     reads back equal" guard).
+//   - migrate-then-verify: only drop the localStorage blob once EVERY migrated
+//     key and serialized value reads back identically from ghostftp.db.
+//     Matching key counts alone cannot prove that a migration was durable.
 // A row in ghostftp.db always beats the value in DEFAULTS, and the import above
 // froze EVERY key — including ones the user never opened the settings pane to
 // touch. So changing a default in code reaches new installs only: for everyone
@@ -103,7 +103,20 @@ export async function runSettingsMigration(): Promise<void> {
 
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    // Corrupt legacy browser state must never prevent the desktop app from
+    // starting. Keep the original blob for recovery and use DB/default values.
+    let parsed: Record<string, unknown>;
+    try {
+      const candidate: unknown = JSON.parse(raw);
+      if (candidate === null || typeof candidate !== "object" || Array.isArray(candidate)) {
+        console.warn("Ignoring invalid legacy Ghost FTP settings format");
+        return;
+      }
+      parsed = candidate as Record<string, unknown>;
+    } catch (error) {
+      console.warn("Ignoring corrupt legacy Ghost FTP settings", messageOf(error));
+      return;
+    }
 
     const entries: Record<string, string> = {};
     for (const k of SETTINGS_KEYS) {
@@ -114,7 +127,12 @@ export async function runSettingsMigration(): Promise<void> {
     await ipc.settingsSetAll(entries);
 
     const after = await ipc.settingsGetAll();
-    if (Object.keys(after).length >= Object.keys(entries).length) {
+    // Fail closed on partial/mismatched writes: unrelated DB keys must never
+    // make the migration appear successful merely by inflating the row count.
+    const persistedExactly = Object.entries(entries).every(
+      ([key, expected]) => after[key] === expected
+    );
+    if (persistedExactly) {
       localStorage.removeItem(STORAGE_KEY);
       // Reflect the imported values in this session (they were injected empty on
       // this first upgrade boot).

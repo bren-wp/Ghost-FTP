@@ -1,8 +1,8 @@
-# Ghost FTP Code Audit — 0.90.0
+# Ghost FTP Code Audit — 0.90.1
 
 ## Scope
 
-This audit covers the current Ghost FTP 0.90.0 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.30.21**.
+This audit covers the current Ghost FTP 0.90.1 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.90.0**.
 
 These findings build on the previously reviewed 0.30.15 code-audit baseline; the 0.30.16 changes are limited to live premium color surfaces and their CI contract. A complete new dead-code audit has not been claimed.
 
@@ -51,3 +51,7 @@ No file is deleted merely because it looks old. Removal requires compiler/linter
 Large hotspots such as `bridge.rs`, `transfer.rs`, CLI `main.rs`, `commands.rs`, `session/mod.rs`, `i18n.ts`, `styles.css`, Android `MainActivity.kt`, `AgentBridge.tsx` and shared `FilePane.tsx` remain candidates for incremental, test-first decomposition. They are not considered dead solely because of size.
 
 Status: current source has stronger cross-language reachability and action wiring guards; exact-SHA CI remains authoritative for acceptance.
+
+## 0.90.1 focused data-loss and runtime-safety fixes
+
+The desktop migration previously compared database row counts; extra keys or corrupted values could make a partial write look successful and trigger premature deletion of the legacy copy. The new implementation checks exact serialized readback before removing the original. Corrupted legacy settings now cannot abort startup. Password generation validates a finite bounded integer length before entering its synchronous loop. Executable regression scripts use the shipped TypeScript production source and injected IPC/storage/CSPRNG. They are integrated into `npm run check:ui`. Existing source reachability controls remain mandatory.

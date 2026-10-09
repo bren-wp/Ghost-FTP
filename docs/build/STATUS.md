@@ -2,8 +2,8 @@
 
 ## Authoritative current state
 
-- **Active source/release cycle:** Ghost FTP **0.90.0**.
-- **Previous canonical release:** Ghost FTP **0.30.21**.
+- **Active source/release cycle:** Ghost FTP **0.90.1**.
+- **Previous canonical release:** Ghost FTP **0.90.0**.
 - **Live publication status:** GitHub Releases is authoritative and queried by CI.
 - **Version source of truth:** `version.json`.
 - **Desktop production source:** `ghostftp-desktop/`.

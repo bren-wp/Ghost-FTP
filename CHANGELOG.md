@@ -1,3 +1,14 @@
+## 0.90.1 — lossless settings migration and password-generation stability — 9 October 2026
+
+- **Windows/Linux data integrity:** retain the legacy browser settings until every key's exact serialized value is returned by the database; wrong or partial writes cannot delete the recovery backup.
+- **Startup reliability:** keep corrupt legacy settings for recovery, but ignore bad JSON without preventing app startup. Existing database preferences still take priority.
+- **Security and performance:** reject invalid, non-finite and oversized password lengths before potentially blocking cryptographic generation.
+- **Regression coverage:** executable tests cover incomplete/mismatched settings persistence, IPC failures, bad JSON, private legacy history cleanup, and password length boundaries.
+- **Release safety:** published v0.90.0 remains immutable, original README gallery and image files are untouched. All exact-SHA workflows and genuine artifact verification remain required.
+- **Acceptance limit:** the 75 reference screen pixel/click checks remain pending.
+
+See [docs/releases/0.90.1.md](docs/releases/0.90.1.md).
+
 ## 0.90.0 — new version train and cross-platform privacy/transport hardening — 9 October 2026
 
 - **Windows/Linux diagnostic privacy:** Mask credential-bearing FTP/SFTP URL userinfo (username as well as password) without hiding the useful server hostname; add executable regression coverage to the existing UI quality gate.
