@@ -1,3 +1,13 @@
+## 0.30.18 — premium Help/About interface alignment — 9 October 2026
+
+- Windows and Linux: Reference-shaped live Help/About product identity and resource cards, real version/build/date/platform values, approved tagline, genuine update action and responsive semantic-token styling; decorative mountain artwork removed.
+- Android: Centered official icon/version, real product/security/privacy facts, and localized clickable official resources, accessible on compact screens.
+- macOS: Installed app icon, responsive brand/resource panels, truthful FTP-only operation status and working external links. The concept ZIP has no macOS design screenshot.
+- CI: New source-level reference-hierarchy regression guard; all existing workflow gates still mandatory.
+- Limitation: 75 reference mockups remain pending installed-build pixel acceptance, not claimed as completed 1:1 layouts. No fake connection/activity data is shipped.
+
+See [docs/releases/0.30.18.md](docs/releases/0.30.18.md).
+
 ## 0.30.17 — functional help resources and accurate cross-platform messaging — 9 October 2026
 
 - **Windows/Linux:** About and Help now link to the canonical GitHub support, documentation, privacy policy and project releases instead of the retired public site; premium approved slogan restored throughout the real About workspace.

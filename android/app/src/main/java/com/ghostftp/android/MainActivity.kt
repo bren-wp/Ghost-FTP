@@ -810,17 +810,76 @@ class MainActivity : Activity() {
         addView(secondRow)
     }
 
-    private fun buildAboutCard(): View = panel().apply {
+    // Matches the approved mobile About hierarchy with real product data.
+    // The enclosing workspace ScrollView keeps resources reachable on small screens.
+    private fun buildAboutCard(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
         addView(sectionTitle(getString(R.string.workspace_about)))
-        addView(sectionDescription("Ghost FTP ${ReleaseInfo.VERSION_DISPLAY} · Build ${ReleaseInfo.BUILD}"))
-        addView(row(getString(R.string.label_product), "Ghost FTP · Brendigo"))
-        addView(row(getString(R.string.label_protocols), "FTP · Explicit FTPS · SFTP"))
-        addView(officialLinkRow(getString(R.string.label_support), getString(R.string.about_support_desc), SUPPORT_URL))
-        addView(officialLinkRow(getString(R.string.label_documentation), getString(R.string.about_docs_desc), DOCUMENTATION_URL))
-        addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
-        addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
-        addView(officialLinkRow(getString(R.string.label_project_repository), getString(R.string.about_repository_desc), REPOSITORY_URL))
+        addView(sectionDescription("Ghost FTP · Brendigo"))
+
+        addView(panel(strong = true).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(18), dp(22), dp(18), dp(22))
+            addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(88), dp(88)))
+            addView(space(12))
+            addView(TextView(this@MainActivity).apply {
+                text = "Ghost FTP"
+                textSize = 27f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Brand.text)
+                gravity = Gravity.CENTER
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = "MORE THAN TRANSFER. TOTAL CONTROL."
+                textSize = 10f
+                letterSpacing = 0.11f
+                setTextColor(Brand.muted)
+                gravity = Gravity.CENTER
+            })
+            addView(space(14))
+            addView(badge("v${ReleaseInfo.VERSION_DISPLAY}"))
+        })
+        addView(space(12))
+
+        addView(panel().apply {
+            addView(aboutFactRow(getString(R.string.label_product), "Ghost FTP · Brendigo"))
+            addView(aboutFactRow(getString(R.string.label_protocols), "FTP · Explicit FTPS · SFTP"))
+            addView(aboutFactRow(getString(R.string.label_security), getString(R.string.settings_security)))
+            addView(aboutFactRow(getString(R.string.label_privacy), getString(R.string.settings_no_tracking)))
+        })
+        addView(space(12))
+
+        addView(panel().apply {
+            addView(sectionTitle(getString(R.string.label_support)))
+            addView(officialLinkRow(getString(R.string.label_documentation), getString(R.string.about_docs_desc), DOCUMENTATION_URL))
+            addView(officialLinkRow(getString(R.string.label_support), getString(R.string.about_support_desc), SUPPORT_URL))
+            addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
+            addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
+            addView(officialLinkRow(getString(R.string.label_project_repository), getString(R.string.about_repository_desc), REPOSITORY_URL))
+        })
     }
+
+    // Reference About uses concise label/value rows, not editable settings controls.
+    private fun aboutFactRow(title: String, detail: String): View =
+        LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.TOP
+            setPadding(dp(2), dp(12), dp(2), dp(12))
+            contentDescription = "$title: $detail"
+            addView(TextView(this@MainActivity).apply {
+                text = title
+                textSize = 12f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Brand.text)
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.38f))
+            addView(TextView(this@MainActivity).apply {
+                text = detail
+                textSize = 12f
+                setTextColor(Brand.textSoft)
+                gravity = Gravity.END
+                setLineSpacing(0f, 1.12f)
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.62f))
+        }
 
     private fun setWorkspace(workspace: Workspace, announce: Boolean = true) {
         activeWorkspace = workspace

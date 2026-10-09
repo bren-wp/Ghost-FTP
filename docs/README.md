@@ -4,8 +4,8 @@ Ghost FTP documentation is organized around the current canonical product state,
 
 ## Current state
 
-- Active source/release cycle: **0.30.17**
-- Previous canonical release: **0.30.16**
+- Active source/release cycle: **0.30.18**
+- Previous canonical release: **0.30.17**
 - Live publication state: GitHub Releases is authoritative
 - Version source of truth: `/version.json`
 - Production desktop source: `/ghostftp-desktop`

@@ -5280,3 +5280,217 @@ input.ghost-pane-address:focus-visible {
   outline: 2px solid #7edeff;
   outline-offset: 2px;
 }
+
+
+/* 0.30.18 — reference-aligned real Help/About workspace.
+   1290×852 mockup: product facts on the left, actionable resources on the
+   right. All cards are genuine controls and use live release metadata. */
+.ghost-about-content {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  padding: 18px 20px !important;
+}
+
+.ghost-about-reference-screen {
+  display: flex;
+  width: 100%;
+  max-width: 1140px;
+  min-height: 100%;
+  margin-inline: auto;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ghost-about-reference-heading {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding-block: 4px;
+}
+
+.ghost-about-eyebrow {
+  margin-bottom: 7px;
+  color: rgb(var(--accent));
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .19em;
+  text-transform: uppercase;
+}
+
+.ghost-about-reference-grid {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1.7fr) minmax(272px, .95fr);
+  gap: 14px;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.ghost-about-reference-card,
+.ghost-about-reference-resources {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid rgb(var(--border) / .65);
+  border-radius: 14px;
+  background: rgb(var(--bg-subtle));
+}
+
+.ghost-about-reference-brand {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 22px;
+  margin-block: 9px 24px;
+}
+
+.ghost-about-mark {
+  display: grid;
+  width: 94px;
+  height: 94px;
+  flex: 0 0 94px;
+  place-items: center;
+  border-radius: 20px;
+  background: rgb(var(--bg-panel));
+}
+
+.ghost-about-tagline {
+  color: rgb(var(--text-muted));
+  font-size: 10px;
+  letter-spacing: .14em;
+}
+
+.ghost-about-version-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 4px 12px;
+  border: 1px solid rgb(var(--success) / .38);
+  border-radius: 999px;
+  background: rgb(var(--success) / .1);
+  color: rgb(var(--success));
+  font-size: 11px;
+}
+
+.ghost-about-reference-divider {
+  height: 1px;
+  margin: 17px 0;
+  background: rgb(var(--border) / .64);
+}
+
+.ghost-about-reference-description {
+  max-width: 58ch;
+  margin-top: 12px;
+  color: rgb(var(--text-muted));
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+.ghost-about-reference-details {
+  margin-top: 20px;
+}
+
+.ghost-about-reference-detail {
+  display: flex;
+  min-width: 0;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid rgb(var(--border) / .5);
+  font-size: 12px;
+}
+
+.ghost-about-reference-detail dt {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: rgb(var(--text));
+}
+
+.ghost-about-reference-detail dd {
+  min-width: 0;
+  margin: 0;
+  color: rgb(var(--text-muted));
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.ghost-about-resources-heading {
+  margin: -20px -20px 14px;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgb(var(--border) / .6);
+  color: rgb(var(--text));
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .025em;
+}
+
+.ghost-about-resources-list {
+  display: grid;
+  gap: 9px;
+}
+
+.ghost-about-resources-list > button {
+  min-width: 0;
+  min-height: 61px;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--border) / .65);
+  border-radius: 10px;
+  background: rgb(var(--bg-panel));
+  transition: background .15s ease, border-color .15s ease;
+}
+
+.ghost-about-resources-list > button:first-child {
+  border-top: 1px solid rgb(var(--border) / .65);
+}
+
+.ghost-about-resources-list > button:hover,
+.ghost-about-resources-list > button:focus-visible {
+  border-color: rgb(var(--accent) / .65);
+  background: rgb(var(--bg-hover));
+}
+
+@media (max-width: 1000px) {
+  .ghost-about-reference-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ghost-about-reference-card,
+  .ghost-about-reference-resources {
+    padding: 16px;
+  }
+
+  .ghost-about-resources-heading {
+    margin: -16px -16px 14px;
+  }
+}
+
+@media (max-width: 560px) {
+  .ghost-about-content {
+    padding: 10px !important;
+  }
+
+  .ghost-about-reference-brand {
+    gap: 12px;
+  }
+
+  .ghost-about-mark {
+    width: 72px;
+    height: 72px;
+    flex-basis: 72px;
+  }
+
+  .ghost-about-reference-brand h2 {
+    font-size: 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ghost-about-resources-list > button {
+    transition: none;
+  }
+}

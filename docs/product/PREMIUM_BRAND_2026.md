@@ -61,3 +61,10 @@ Inter, Segoe UI and Noto Sans are preferred with platform system fallbacks. No f
 - All 75 screens must be mapped to real working components before claiming 1:1 visual/functional completion. Current progress is design-token/logo alignment and the mobile navigation geometry, not a complete screenshot-by-screenshot acceptance.
 - macOS FTPS/SFTP file operations remain blocked until trusted TLS certificate/hostname and SSH host-key verification are implemented. macOS Preview is not notarized.
 - Future screen-level refinements must be scoped to real components and ship only after exact-head CI and package validation.
+
+## 0.30.18 — live Help/About structure
+
+- **Windows and Linux Help screen:** the live React workspace now has a reference-shaped official identity/fact card and right-side support panel; real version/build values, approved Ghost mark and tagline, working update action, and source-controlled help links.
+- **Android About screen:** the Kotlin workspace now has a centered official icon, actual installed version, localized security/privacy facts, and accessible resource cards within the existing ScrollView.
+- **macOS:** adopts the same semantic product/resources layout through SwiftUI; the ZIP has no macOS reference screenshot.
+- **Visual acceptance:** All 75 mockup references remain **pending pixel-by-pixel acceptance**. No installed build has yet established 1:1 matching for every reference screen; no synthetic servers, files or progress indicators are seeded.

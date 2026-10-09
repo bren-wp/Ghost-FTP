@@ -1,10 +1,12 @@
-# Ghost FTP Security Audit — 0.30.17
+# Ghost FTP Security Audit — 0.30.18
 
-Previous canonical release: **0.30.16**.
+Previous canonical release: **0.30.17**.
 
 Security posture is carried forward from the previously reviewed 0.30.15 baseline; the 0.30.16 code delta changes color tokens and does not replace a full independent security audit.
 
 0.30.17 review scope: in-app help destinations now use the documented project GitHub repository over HTTPS; Android retains explicit URL allowlisting. The application update-service URL is deliberately unchanged, as are the transfer protocols. A completed macOS TLS/SSH identity-verification implementation is **not** claimed.
+
+0.30.18 incremental review: About workspace UI changes preserve approved HTTPS URL allowlisting in Tauri and Android, canonical project links, and the macOS restriction against FTPS/SFTP file operations before trusted identity verification. This does not replace an independent full security audit.
 
 ## Current controls
 
