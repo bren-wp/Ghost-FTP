@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 // Shared 2026 premium design tokens, aligned with React/Tauri and Android.
 private enum GhostPremiumPalette {
     static let background = Color(red: 7/255, green: 14/255, blue: 26/255)
-    static let sidebar = Color(red: 12/255, green: 24/255, blue: 43/255)
+    static let sidebar = Color(red: 13/255, green: 25/255, blue: 43/255)
     static let accent = Color(red: 56/255, green: 171/255, blue: 255/255)
     static let text = Color(red: 234/255, green: 246/255, blue: 255/255)
 }
