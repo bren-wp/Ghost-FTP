@@ -1,7 +1,9 @@
 const SECRET_QUERY =
   /([?&](?:token|code|password|passphrase|secret|api[_-]?key|access[_-]?token|refresh[_-]?token)=)[^&\s]+/gi;
+// URL query fields are handled by SECRET_QUERY. Do not re-match those
+// assignments and accidentally discard unrelated query parameters.
 const SECRET_ASSIGNMENT =
-  /\b((?:password|passphrase|secret|token|api[_-]?key|access[_-]?token|refresh[_-]?token|aws_secret_access_key|pgpassword)\s*=\s*)(?:"[^"]*"|'[^']*'|[^\s;]+)/gi;
+  /\b(?<![?&])((?:password|passphrase|secret|token|api[_-]?key|access[_-]?token|refresh[_-]?token|aws_secret_access_key|pgpassword)\s*=\s*)(?:"[^"]*"|'[^']*'|[^\s;]+)/gi;
 const SECRET_FLAG =
   /(\s--?(?:password|passphrase|secret|token|api-key|apikey|access-token|refresh-token)(?:=|\s+))(?:"[^"]*"|'[^']*'|\S+)/gi;
 const AUTH_HEADER =
