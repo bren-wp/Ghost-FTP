@@ -101,6 +101,16 @@ for (const writeMode of ["wrong", "partial"]) {
   assert.equal(h.hasBlob(), true, "do not confuse privacy purge with settings migration");
 }
 
+{
+  const h = harness({
+    storageEntries: {
+      "ghostftp.settings.v1": JSON.stringify({ unrelatedLegacyField: "ignored" }),
+    },
+  });
+  await h.migrate();
+  assert.equal(h.writes(), 0, "do not import unrecognized legacy settings");
+  assert.equal(h.hasBlob(), true, "keep raw source when no recognized values exist");
+}
 for (const legacyValue of ["{corrupted", "null", '"unexpected string"', "[1,2,3]"]) {
   const h = harness({ storageEntries: { "ghostftp.settings.v1": legacyValue } });
   await assert.doesNotReject(h.migrate(), "bad legacy JSON must not abort application startup");

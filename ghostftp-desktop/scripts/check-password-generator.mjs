@@ -9,13 +9,17 @@ const output = ts.transpileModule(source, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText;
 
+let denyEntropy = false;
 const module = { exports: {} };
 runInNewContext(output, {
   module,
   exports: module.exports,
   Uint32Array,
   crypto: {
-    getRandomValues: (buf) => randomFillSync(buf),
+    getRandomValues: (buf) => {
+      if (denyEntropy) throw new Error("Entropy source unavailable");
+      return randomFillSync(buf);
+    },
   },
 }, { timeout: 2000 });
 const generatePassword = module.exports.generatePassword;
@@ -32,4 +36,8 @@ for (const invalid of [NaN, Infinity, -Infinity, 8.5, 513, Number.MAX_SAFE_INTEG
   assert.throws(() => generatePassword(invalid), /Password length/);
 }
 assert.notEqual(generatePassword(32), generatePassword(32), "passwords must be unpredictable");
+denyEntropy = true;
+assert.throws(() => generatePassword(20), /Entropy source unavailable/,
+  "no insecure fallback when the cryptographic entropy source fails");
+
 console.log("Ghost FTP password generator bounded-length regressions passed.");
