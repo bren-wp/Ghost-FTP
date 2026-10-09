@@ -227,7 +227,9 @@ enum FTPControlCodec {
         }
 
         let fields = body.split(separator: delimiter, omittingEmptySubsequences: false)
-        guard fields.count >= 5,
+        // RFC 2428 requires an empty final field after the closing delimiter.
+        // Do not accept garbage after the port from an untrusted FTP server.
+        guard fields.count == 5, fields[4].isEmpty,
               let port = UInt16(fields[3]),
               port > 0 else {
             throw FTPControlError.invalidPassiveEndpoint

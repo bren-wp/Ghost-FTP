@@ -1,3 +1,13 @@
+## 0.30.21 — bounded desktop diagnostics and strict macOS FTP EPSV replies — 9 October 2026
+
+- **Windows/Linux security & privacy:** Diagnostic redaction discards server-controlled text over 64 KiB before regex processing, masks macOS home-folder user names and hides unterminated private key blocks.
+- **Executable regression coverage:** New desktop diagnostic privacy tests run in the existing UI check workflow for credential truncation, oversized responses, auth headers, private paths and private-key output.
+- **macOS FTP safety:** Strict RFC 2428 EPSV port-reply structure rejects unexpected trailing fields from untrusted FTP servers, with added XCTest cases.
+- **Release integrity:** v0.30.20 remains immutable. All six PR and merged-main CI workflows and canonical artifact verification are mandatory before v0.30.21 publication.
+- **Limitations:** 75-screen installed-build visual parity and macOS notarization are not claimed.
+
+See [docs/releases/0.30.21.md](docs/releases/0.30.21.md).
+
 ## 0.30.20 — cross-platform security, privacy, performance and verified screenshots — 9 October 2026
 
 - **Windows / Linux:** Stop unnecessary 1-second status-clock refreshes in hidden desktop windows; refresh clock immediately upon return. Normal transfer, connection, and progress monitoring remain unchanged.

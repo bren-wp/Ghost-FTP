@@ -151,10 +151,31 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertEqual(try FTPControlCodec.extendedPassivePort(from: reply), 6446)
     }
 
+    func testExtendedPassivePortSupportsAlternateValidDelimiter() throws {
+        let reply = FTPReply(
+            code: 229,
+            lines: ["229 Entering Extended Passive Mode (!!!21000!)"]
+        )
+        XCTAssertEqual(try FTPControlCodec.extendedPassivePort(from: reply), 21000)
+    }
+
     func testExtendedPassivePortRejectsInvalidReply() {
         let reply = FTPReply(code: 229, lines: ["229 Entering Extended Passive Mode (|||0|)"])
 
         XCTAssertThrowsError(try FTPControlCodec.extendedPassivePort(from: reply))
+    }
+
+    func testExtendedPassivePortRejectsMalformedTrailingFields() {
+        for line in [
+            "229 Entering Extended Passive Mode (|||6446|junk)",
+            "229 Entering Extended Passive Mode (|||6446||)",
+            "229 Entering Extended Passive Mode (|||6446|unexpected|)",
+        ] {
+            XCTAssertThrowsError(
+                try FTPControlCodec.extendedPassivePort(from: FTPReply(code: 229, lines: [line])),
+                "Unexpectedly accepted malformed EPSV reply: \(line)"
+            )
+        }
     }
 
     func testMLSDParserBuildsTypedSortedEntries() throws {

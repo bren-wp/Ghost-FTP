@@ -1,7 +1,9 @@
 const SECRET_QUERY =
   /([?&](?:token|code|password|passphrase|secret|api[_-]?key|access[_-]?token|refresh[_-]?token)=)[^&\s]+/gi;
+// URL query fields are handled by SECRET_QUERY. Do not re-match those
+// assignments and accidentally discard unrelated query parameters.
 const SECRET_ASSIGNMENT =
-  /\b((?:password|passphrase|secret|token|api[_-]?key|access[_-]?token|refresh[_-]?token|aws_secret_access_key|pgpassword)\s*=\s*)(?:"[^"]*"|'[^']*'|[^\s;]+)/gi;
+  /\b(?<![?&])((?:password|passphrase|secret|token|api[_-]?key|access[_-]?token|refresh[_-]?token|aws_secret_access_key|pgpassword)\s*=\s*)(?:"[^"]*"|'[^']*'|[^\s;]+)/gi;
 const SECRET_FLAG =
   /(\s--?(?:password|passphrase|secret|token|api-key|apikey|access-token|refresh-token)(?:=|\s+))(?:"[^"]*"|'[^']*'|\S+)/gi;
 const AUTH_HEADER =
@@ -12,7 +14,12 @@ const BEARER_TOKEN = /\b(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi;
 const URL_PASSWORD =
   /([a-z][a-z0-9+.-]*:\/\/[^:\s/@]+:)[^@\s/]+@/gi;
 const PRIVATE_KEY_BLOCK =
-  /-----BEGIN [^-\r\n]*PRIVATE KEY-----[\s\S]*?-----END [^-\r\n]*PRIVATE KEY-----/gi;
+  /-----BEGIN [^-\r\n]*PRIVATE KEY-----[\s\S]*?(?:-----END [^-\r\n]*PRIVATE KEY-----|$)/gi;
+
+// Bound server-controlled diagnostics *before* regex work or rendering.
+// An over-limit diagnostic is discarded in full, never truncated before
+// redaction (which could expose a prefix of a secret at the cut).
+const MAX_DIAGNOSTIC_INPUT_LENGTH = 64 * 1024;
 
 /**
  * Redact common credentials before diagnostic text reaches the UI, persisted
@@ -27,9 +34,14 @@ export function redactSensitiveText(value: unknown, maxLength?: number): string 
         ? value.message
         : String(value ?? "");
 
+  if (raw.length > MAX_DIAGNOSTIC_INPUT_LENGTH) {
+    return "[diagnostic omitted: oversized response]";
+  }
+
   const redacted = raw
     .replace(/[A-Za-z]:\\Users\\[^\\\s]+/gi, "C:\\Users\\<user>")
     .replace(/\/home\/[^/\s]+/g, "/home/<user>")
+    .replace(/\/Users\/[^/\s]+/g, "/Users/<user>")
     .replace(URL_PASSWORD, "$1<redacted>@")
     .replace(SECRET_QUERY, "$1<redacted>")
     .replace(SECRET_ASSIGNMENT, "$1<redacted>")
