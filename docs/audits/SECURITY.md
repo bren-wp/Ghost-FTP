@@ -1,6 +1,8 @@
-# Ghost FTP Security Audit — 0.91.0
+# Ghost FTP Security Audit — 0.91.1
 
-Previous canonical release: **0.90.1**.
+Previous canonical release: **0.91.0**.
+
+0.91.1 focused fixes: Android error diagnostics redact FTP/SFTP URL userinfo with or without an inline password; macOS prevents silently overwriting unreadable profile data by retaining an original-byte recovery copy and disallows duplicate-ID backup imports. Windows/Linux preserve in-progress site edits across selection changes. These checks are not an independent security assessment.
 
 0.91.0 incremental scope: Windows/Linux Site Manager duplicate discovery compares non-secret endpoint/account metadata and leaves profiles, credentials, keys, stored bookmarks and ephemeral Quick Connect records unchanged. It neither attempts network connections nor auto-merges identities. This is not a new independent penetration test.
 

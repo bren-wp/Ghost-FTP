@@ -68,7 +68,7 @@ data class TransferResult(
 // Compile redaction patterns once instead of recreating them for every
 // connection error. User/server diagnostics are untrusted input.
 private val REDACT_URL_USER_INFO =
-    Regex("""(?i)\b([a-z][a-z0-9+.-]*://)([^/\s:@]+):([^/\s@]+)@""")
+    Regex("""(?i)\b([a-z][a-z0-9+.-]*://)([^/\s@]+)@""")
 private val REDACT_SECRET_ASSIGNMENT =
     Regex("""(?i)\b(password|passwd|pwd|token|secret|authorization)\s*[:=]\s*([^\s,;]+)""")
 private val REDACT_BEARER_TOKEN =
@@ -92,7 +92,7 @@ internal fun redactSensitiveErrorText(
     uniqueSecrets.forEach { secret -> redacted = redacted.replace(secret, "••••") }
 
     redacted = REDACT_URL_USER_INFO.replace(redacted) { match ->
-        "${match.groupValues[1]}${match.groupValues[2]}:••••@"
+        "${match.groupValues[1]}••••@"
     }
     redacted = REDACT_SECRET_ASSIGNMENT.replace(redacted) { match ->
         "${match.groupValues[1]}=••••"

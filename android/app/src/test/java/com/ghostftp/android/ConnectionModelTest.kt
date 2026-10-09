@@ -308,9 +308,24 @@ class ConnectionModelTest {
         assertFalse(redacted.contains("abc123"))
         assertFalse(redacted.contains("token.value"))
         assertTrue(redacted.contains("password=••••"))
-        assertTrue(redacted.contains("sftp://deploy:••••@example.com"))
+        assertTrue(redacted.contains("sftp://••••@example.com"))
+        assertFalse(redacted.contains("deploy"))
         assertTrue(redacted.contains("Authorization=••••"))
         assertTrue(redacted.contains("Bearer ••••"))
+    }
+
+    @Test
+    fun sensitiveErrorTextRedactsUsernamesWithoutPasswordsAndEncodedCredentials() {
+        val diagnostic = "ftp://deploy@example.com sftp://bob:p%40ss@host.example.com " +
+            "https://status.example.com/help and ftp://host.example.com:21/public"
+        val redacted = redactSensitiveErrorText(diagnostic)
+        assertFalse(redacted.contains("deploy"))
+        assertFalse(redacted.contains("bob"))
+        assertFalse(redacted.contains("p%40ss"))
+        assertTrue(redacted.contains("ftp://••••@example.com"))
+        assertTrue(redacted.contains("sftp://••••@host.example.com"))
+        assertTrue(redacted.contains("https://status.example.com/help"))
+        assertTrue(redacted.contains("ftp://host.example.com:21/public"))
     }
 
     @Test

@@ -1,10 +1,12 @@
-# Ghost FTP Code Audit — 0.91.0
+# Ghost FTP Code Audit — 0.91.1
 
 ## Scope
 
+0.91.1 scoped Windows/Linux review: prevented unsaved Site Manager draft loss from changing selection or closing via Escape, and gave the user an explicit Cancel action. Android privacy and macOS recovery changes have targeted unit tests. This is not a claim that all remaining code is dead-code-free or all 75 designs have passed installed-device review.
+
 0.91.0 incremental review: the saved-sites identity-matching code reads protocol, normalized host, port and username without accessing auth secrets or modifying persisted profile data. The feature is Windows/Linux-only; cross-platform UI acceptance and a new full dead-code audit are not claimed.
 
-This audit covers the current Ghost FTP 0.91.0 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.90.1**.
+This audit covers the current Ghost FTP 0.91.1 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.91.0**.
 
 These findings build on the previously reviewed 0.30.15 code-audit baseline; the 0.30.16 changes are limited to live premium color surfaces and their CI contract. A complete new dead-code audit has not been claimed.
 

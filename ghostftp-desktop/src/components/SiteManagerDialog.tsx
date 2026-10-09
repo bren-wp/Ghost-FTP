@@ -87,7 +87,15 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   const [metaValue, setMetaValue] = useState("");
   const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
 
-  useDialog(panelRef, { onClose, initialFocus: searchRef, trapFocus: false });
+  const closeIfIdle = () => {
+    if (action) return;
+    if (editing) {
+      toast.info("Unsaved changes", "Save or cancel changes to this site before leaving.");
+      return;
+    }
+    onClose();
+  };
+  useDialog(panelRef, { onClose: closeIfIdle, initialFocus: searchRef, trapFocus: false });
 
   const folders = useMemo(
     () =>
@@ -152,8 +160,11 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     setSortDirection(field === "lastUsed" ? "desc" : "asc");
   };
 
-  const selected =
-    filtered.find((profile) => profile.id === selectedId) ?? filtered[0] ?? null;
+  // Filtering cannot replace the details pane's underlying profile while
+  // its draft is being edited, even when the active filter hides that profile.
+  const selected = editing
+    ? profiles.find((profile) => profile.id === draft?.id) ?? null
+    : filtered.find((profile) => profile.id === selectedId) ?? filtered[0] ?? null;
   const matchingSites = draft ? matchingSavedSites(draft, profiles) : [];
   const isConnected = selected
     ? sessions.some((session) => session.profileId === selected.id)
@@ -177,6 +188,11 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   }, [selected, editing]);
 
   const select = (id: string) => {
+    if (id === selectedId) return;
+    if (editing || action) {
+      toast.info("Finish editing", "Save or cancel changes before selecting a different site.");
+      return;
+    }
     const profile = profiles.find((item) => item.id === id) ?? null;
     setSelectedId(id);
     setDraft(profile ? { ...profile } : null);
@@ -394,6 +410,8 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
               <button
                 type="button"
                 className="ghost-mini-button"
+                disabled={Boolean(action) || editing}
+                title={editing ? "Save or cancel changes before leaving this site." : undefined}
                 onClick={() => openDialog("import")}
               >
                 <Download size={14} /> Import
@@ -408,6 +426,8 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
               <button
                 type="button"
                 className="ghost-primary-button"
+                disabled={Boolean(action) || editing}
+                title={editing ? "Save or cancel changes before leaving this site." : undefined}
                 onClick={() => openNewConnection()}
               >
                 <Plus size={15} /> New Site
@@ -442,14 +462,18 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                 <button
                   type="button"
                   className="ghost-primary-button"
-                  onClick={() => openNewConnection()}
+                  disabled={Boolean(action) || editing}
+                title={editing ? "Save or cancel changes before leaving this site." : undefined}
+                onClick={() => openNewConnection()}
                 >
                   <Plus size={15} /> New Site
                 </button>
                 <button
                   type="button"
                   className="ghost-mini-button"
-                  onClick={() => openDialog("import")}
+                  disabled={Boolean(action) || editing}
+                title={editing ? "Save or cancel changes before leaving this site." : undefined}
+                onClick={() => openDialog("import")}
                 >
                   <Download size={14} /> Import Sites
                 </button>
@@ -530,6 +554,20 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                     {editing ? <Save size={13} /> : <Edit3 size={13} />}
                     {action === "save" ? "Saving…" : editing ? "Save" : "Edit"}
                   </button>
+                  {editing && (
+                    <button
+                      type="button"
+                      className="ghost-mini-button"
+                      disabled={Boolean(action)}
+                      onClick={() => {
+                        setDraft({ ...selected });
+                        setEditing(false);
+                        setShowPassword(false);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  )}
                 </div>
 
                 <div className="mb-4 flex items-center gap-3">
@@ -764,7 +802,9 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                   <button
                     type="button"
                     className="ghost-primary-button mt-4"
-                    onClick={() => openNewConnection()}
+                    disabled={Boolean(action) || editing}
+                title={editing ? "Save or cancel changes before leaving this site." : undefined}
+                onClick={() => openNewConnection()}
                   >
                     <Plus size={14} /> New Site
                   </button>
