@@ -524,7 +524,7 @@ private struct AboutWorkspace: View {
             Text("Designed for complete control")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(GhostPremiumPalette.text)
-            Text("Manage your FTP file operations and saved connections without mandatory analytics or a Ghost FTP account. FTPS and SFTP file operations remain disabled until trusted certificate and SSH host-key verification is complete.")
+            Text("Manage your FTP file operations and saved connections without mandatory analytics or a Ghost FTP account. FTPS and SFTP remain disabled for file operations until trusted certificate and SSH host-key verification is complete.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
