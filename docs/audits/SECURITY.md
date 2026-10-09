@@ -1,8 +1,10 @@
-# Ghost FTP Security Audit — 0.30.16
+# Ghost FTP Security Audit — 0.30.17
 
-Previous canonical release: **0.30.15**.
+Previous canonical release: **0.30.16**.
 
 Security posture is carried forward from the previously reviewed 0.30.15 baseline; the 0.30.16 code delta changes color tokens and does not replace a full independent security audit.
+
+0.30.17 review scope: in-app help destinations now use the documented project GitHub repository over HTTPS; Android retains explicit URL allowlisting. The application update-service URL is deliberately unchanged, as are the transfer protocols. A completed macOS TLS/SSH identity-verification implementation is **not** claimed.
 
 ## Current controls
 
