@@ -137,7 +137,7 @@ class MainActivitySmokeTest {
             appString(R.string.link_open, appString(R.string.label_documentation)),
             appString(R.string.link_open, appString(R.string.label_privacy_policy)),
             appString(R.string.link_open, appString(R.string.label_eula)),
-            appString(R.string.link_open, appString(R.string.label_official_website))
+            appString(R.string.link_open, appString(R.string.label_project_repository))
         )) {
             assertDescriptionPresent(description)
         }
