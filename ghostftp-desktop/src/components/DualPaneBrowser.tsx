@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FilePane } from "@ghostftp/file-ui";
+import { open } from "@tauri-apps/plugin-dialog";
 import { SyncDialog } from "./SyncDialog";
 import { useConnections } from "@/stores/connectionsStore";
 import { useTransfers, toTransferItem } from "@/stores/transfersStore";
@@ -15,6 +16,25 @@ export function DualPaneBrowser() {
   const profile = profiles.find((p) => p.id === activeProfileId) || null;
   const enqueueUploads = useTransfers((s) => s.enqueueUploads);
   const enqueueDownloads = useTransfers((s) => s.enqueueDownloads);
+  const activeCount = useTransfers((s) =>
+    Object.values(s.byId).filter((transfer) =>
+      transfer.status === "transferring" ||
+      transfer.status === "queued" ||
+      transfer.status === "paused"
+    ).length
+  );
+  const [reloadToken, setReloadToken] = useState(0);
+  const previousActiveCount = useRef(0);
+  const pickerInFlight = useRef(false);
+
+  // A transfer batch changes files on disk or on the server. Re-list both
+  // real directories when the batch drains, as the single-pane UI already does.
+  useEffect(() => {
+    if (previousActiveCount.current > 0 && activeCount === 0) {
+      setReloadToken((value) => value + 1);
+    }
+    previousActiveCount.current = activeCount;
+  }, [activeCount]);
 
   const [localPath, setLocalPath] = useState(
     navigator.userAgent.includes("Windows") ? "C:\\" : "/"
@@ -61,6 +81,38 @@ export function DualPaneBrowser() {
     }
   }, [revealTarget, activeSessionId, clearReveal]);
 
+  useEffect(() => {
+    const pickFromSharedToolbar = () => {
+      if (!activeSessionId || pickerInFlight.current) return;
+      pickerInFlight.current = true;
+      void (async () => {
+        try {
+          const picked = await open({ multiple: true, directory: false, title: "Upload files" });
+          if (!picked) return;
+          const paths = Array.isArray(picked) ? picked : [picked];
+          if (paths.length === 0) return;
+          // The selected server can disconnect while the native picker is open.
+          // Never silently queue against an obsolete session after user selection.
+          if (useConnections.getState().activeSessionId !== activeSessionId) {
+            toastError(new Error("The active connection changed"), "Please reconnect before uploading");
+            return;
+          }
+          await enqueueUploads(
+            activeSessionId,
+            paths.map((path) => ({ path, kind: "file" as const })),
+            remotePath,
+          );
+        } catch (error) {
+          toastError(error, "Couldn't upload files");
+        } finally {
+          pickerInFlight.current = false;
+        }
+      })();
+    };
+    window.addEventListener("ghostftp:pick-upload", pickFromSharedToolbar);
+    return () => window.removeEventListener("ghostftp:pick-upload", pickFromSharedToolbar);
+  }, [activeSessionId, remotePath, enqueueUploads]);
+
   const uploadAll = (entries: DirEntry[]) => {
     if (!activeSessionId) return;
     void enqueueUploads(activeSessionId, entries.map(toTransferItem), remotePath).catch(
@@ -86,6 +138,7 @@ export function DualPaneBrowser() {
         onTransfer={uploadAll}
         onDrop={downloadAll}
         transferLabel="Upload"
+        reloadToken={reloadToken}
       />
       <div className="ghost-pane-separator" aria-hidden="true" />
       <FilePane
@@ -97,6 +150,7 @@ export function DualPaneBrowser() {
         onTransfer={downloadAll}
         onDrop={uploadAll}
         transferLabel="Download"
+        reloadToken={reloadToken}
       />
 
       {syncOpen && activeSessionId && (

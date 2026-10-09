@@ -237,13 +237,16 @@ export function TitleBar() {
           <Tool
             icon={<Upload size={17}/>}
             label="Upload"
-            disabled={!activeSessionId || (singlePane ? browseLocal && paneStates.local.selectedCount === 0 : paneStates.local.selectedCount === 0)}
+            disabled={!activeSessionId}
             onClick={() => {
-              if (singlePane && !browseLocal) {
+              // Selected local entries keep the one-click upload behavior.
+              // Without a selection the button must still open the native
+              // picker (both in single-pane and reference-style dual mode).
+              if ((!singlePane || browseLocal) && paneStates.local.selectedCount > 0) {
+                fileAction("upload", "local");
+              } else {
                 window.dispatchEvent(new CustomEvent("ghostftp:pick-upload"));
-                return;
               }
-              fileAction("upload", "local");
             }}
           />
           <Tool

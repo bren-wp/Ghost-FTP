@@ -68,3 +68,11 @@ Inter, Segoe UI and Noto Sans are preferred with platform system fallbacks. No f
 - **Android About screen:** the Kotlin workspace now has a centered official icon, actual installed version, localized security/privacy facts, and accessible resource cards within the existing ScrollView.
 - **macOS:** adopts the same semantic product/resources layout through SwiftUI; the ZIP has no macOS reference screenshot.
 - **Visual acceptance:** All 75 mockup references remain **pending pixel-by-pixel acceptance**. No installed build has yet established 1:1 matching for every reference screen; no synthetic servers, files or progress indicators are seeded.
+
+## 0.30.19 — live dual-pane file manager interaction parity
+
+- The default desktop Files UI remains two real local/remote panes, closer to the reference than any screenshot-like mockup.
+- A connected user can now click Upload without selecting a local entry. The OS file picker supplies actual files for the current real server path. When files are selected, one-click transfer remains available.
+- The single-pane browsing mode also supports the same picker when local view has no selection, without changing user layout preferences.
+- When queued/transferring/paused work drains to zero, both live FilePane listings refresh, preventing stale newly transferred files.
+- No prepopulated demonstration paths, servers, progress or fake transfer rows have been introduced. All 75 reference screenshots still require installed-build visual acceptance.

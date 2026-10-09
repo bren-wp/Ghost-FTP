@@ -1,3 +1,13 @@
+## 0.30.19 — functional two-pane file manager and upload picker — 9 October 2026
+
+- **Windows/Linux (Files UI):** With an active connection, Upload now opens a native OS file chooser if no local file is selected, in both single and dual-pane layouts. Existing selected-file upload remains one click.
+- **Transfer consistency:** After an active transfer batch drains, both dual-pane file lists refresh actual local and remote directories; this matches existing single-pane refresh behavior.
+- **Quality:** Regression checks protect the upload event bridge, connected Upload button, two refresh tokens and existing queue semantics.
+- **Preservation:** Existing file operation permissions, overwrite/conflict prompts and secure protocols are unchanged. No demo servers/files/progress.
+- **Reference status:** 75-screen visual acceptance is still pending installed-build comparisons; this improves real functionality, not certified 1:1 completion.
+
+See [docs/releases/0.30.19.md](docs/releases/0.30.19.md).
+
 ## 0.30.18 — premium Help/About interface alignment — 9 October 2026
 
 - Windows and Linux: Reference-shaped live Help/About product identity and resource cards, real version/build/date/platform values, approved tagline, genuine update action and responsive semantic-token styling; decorative mountain artwork removed.

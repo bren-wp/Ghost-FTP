@@ -495,6 +495,28 @@ for (const required of [
   if (!fileBrowser.includes(required)) failures.push(`Single-pane File Browser missing navigation/upload bridge: ${required}`);
 }
 
+// A connected user must be able to upload even without a preselected file.
+// Dual-pane transfers must refresh both panes after the live queue drains.
+const dualPane = read("src/components/DualPaneBrowser.tsx");
+const uploadToolbarSource = read("src/components/TitleBar.tsx");
+for (const required of [
+  'window.addEventListener("ghostftp:pick-upload"',
+  'await open({ multiple: true, directory: false, title: "Upload files" })',
+  'previousActiveCount.current > 0 && activeCount === 0',
+  'reloadToken={reloadToken}',
+]) {
+  if (!dualPane.includes(required)) failures.push(`Dual-pane picker/refresh missing: ${required}`);
+}
+if (dualPane.split("reloadToken={reloadToken}").length !== 3) {
+  failures.push("Dual-pane refresh must re-list both local and remote FilePane controls.");
+}
+for (const required of ['disabled={!activeSessionId}', 'paneStates.local.selectedCount > 0', 'new CustomEvent("ghostftp:pick-upload")']) {
+  if (!uploadToolbarSource.includes(required)) failures.push(`Files toolbar must support native picker without local selection: ${required}`);
+}
+if (!fileBrowser.includes('if (serverSid) void pickAndUpload("files");')) {
+  failures.push("Single-pane native picker must work regardless of which pane is being browsed.");
+}
+
 const filePane = read("packages/file-ui/src/components/FilePane.tsx");
 if (!filePane.includes("Open Sites and choose a saved connection, or create a new connection.")) {
   failures.push("Remote FilePane empty state must point users to the simplified Sites/New connection navigation.");
