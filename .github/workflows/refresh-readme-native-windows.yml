@@ -1,0 +1,37 @@
+name: Refresh proven Windows README images
+on:
+  push:
+    branches:
+      - audit/0.30.20-cross-platform-hardening
+    paths:
+      - .github/workflows/refresh-readme-native-windows.yml
+      - .github/scripts/refresh-readme-native-windows.sh
+permissions:
+  contents: write
+  actions: read
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Import release-proven native Windows screenshots
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/refresh-readme-native-windows.sh
+      - name: Commit images only at existing README locations
+        run: |
+          set -euo pipefail
+          test -z "$(git diff --name-only -- README.md)"
+          git add -- docs/assets/screenshots/ghostftp-native-files.png docs/assets/screenshots/ghostftp-native-new-connection.png docs/assets/screenshots/ghostftp-native-sites.png docs/assets/screenshots/ghostftp-native-transfers.png docs/assets/screenshots/ghostftp-native-settings.png docs/assets/screenshots/ghostftp-native-file-properties.png docs/assets/screenshots/ghostftp-native-about.png
+          if git diff --cached --quiet; then
+            echo 'Screenshots are already current'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs(README): refresh only seven genuine Windows screenshot assets'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
