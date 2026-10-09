@@ -28,7 +28,7 @@
 <string name="label_support">Podpora</string>
     <string name="label_documentation">Dokumentacija</string>
     <string name="label_privacy_policy">Pravilnik o zasebnosti</string>
-    <string name="label_official_website">Uradna spletna stran</string>
+    <string name="label_project_repository">Repozitorij projekta</string>
     <string name="field_host">Gostitelj</string>
     <string name="field_port">Vrata</string>
     <string name="field_username">Uporabniško ime</string>
@@ -67,7 +67,7 @@
     <string name="about_docs_desc">Uradna dokumentacija Ghost FTP.</string>
     <string name="about_privacy_desc">Preberite uradne informacije o zasebnosti.</string>
     <string name="about_eula_desc">Preberite uradne licenčne pogoje programske opreme Ghost FTP.</string>
-    <string name="about_website_desc">Spletno mesto izdelka Ghost FTP.</string>
+    <string name="about_repository_desc">Izvorna koda in izdaje.</string>
     <string name="link_open">Odpri Ghost FTP %1$s</string>
     <string name="app_name">Ghost FTP</string>
     <string name="workspace_open">Odpri delovni prostor %1$s</string>
