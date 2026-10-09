@@ -1,6 +1,8 @@
-# Ghost FTP Security Audit — 0.90.1
+# Ghost FTP Security Audit — 0.91.0
 
-Previous canonical release: **0.90.0**.
+Previous canonical release: **0.90.1**.
+
+0.91.0 incremental scope: Windows/Linux Site Manager duplicate discovery compares non-secret endpoint/account metadata and leaves profiles, credentials, keys, stored bookmarks and ephemeral Quick Connect records unchanged. It neither attempts network connections nor auto-merges identities. This is not a new independent penetration test.
 
 Security posture is carried forward from the previously reviewed 0.30.15 baseline; the 0.30.16 code delta changes color tokens and does not replace a full independent security audit.
 

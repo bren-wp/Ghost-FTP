@@ -1,6 +1,6 @@
 # Ghost FTP Roadmap
 
-This roadmap separates the current **0.90.1 development/release** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.90.0**.
+This roadmap separates the current **0.91.0 development/release** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.90.1**.
 
 ## Implemented
 
@@ -9,7 +9,7 @@ This roadmap separates the current **0.90.1 development/release** state from fut
 - FTP, explicit FTPS and SFTP connection paths.
 - SFTP password/private-key authentication and host-key verification.
 - Ephemeral Quick Connect by default with explicitly saved profiles.
-- Sites management with favorites, recent metadata, bookmarks, tags, folders, import/export and connection testing.
+- Sites management with favorites, recent metadata, bookmarks, tags, folders, import/export, connection testing and advisory duplicate detection on Windows/Linux.
 - Dual-pane local/remote file management, queue/history, retry/cancel/pause/resume controls and bandwidth settings.
 - SHA-256, file properties and supported permission/chmod workflows.
 - OS credential/keychain-backed secret separation where supported.
@@ -50,7 +50,7 @@ This roadmap separates the current **0.90.1 development/release** state from fut
 - Verify-after-transfer checksums where both sides support them.
 - Batch rename and remote-edit conflict detection.
 - Encrypted selected-profile import/export.
-- Duplicate-profile detection and richer Sites templates/search.
+- Richer Sites templates/search and optional duplicate resolution review (never destructive without user confirmation).
 - Full screen-reader, high-contrast and touch-target audits.
 - SBOM, dependency vulnerability scanning, secret scanning and provenance attestations.
 - Optional managed Linux repositories when distribution policy requires them.

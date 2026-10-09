@@ -1,6 +1,10 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 0.90.1 development/release source. Previous canonical release: **0.90.0**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.91.0 development/release source. Previous canonical release: **0.90.1**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+
+## Windows/Linux Site Manager (0.91.0)
+
+Advisory duplicate discovery highlights saved profiles that share protocol, normalized host, port and case-sensitive username, while retaining separate credentials and metadata. The Duplicates filter and count are specific to Windows/Linux; Android/macOS parity is not implied.
 
 ## Cross-app shared actions
 

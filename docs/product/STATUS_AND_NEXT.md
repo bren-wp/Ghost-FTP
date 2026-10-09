@@ -1,14 +1,14 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.90.1 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.91.0 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.90.0**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.90.1**. Live publication state is determined from GitHub Releases.
 
 ## Implemented
 
 | Area | Current capability |
 |---|---|
-| Desktop connections | FTP, explicit FTPS, SFTP, temporary connections, saved Sites, private-key paths, host-key/TLS verification |
+| Desktop connections | FTP, explicit FTPS, SFTP, temporary connections, saved Sites, advisory duplicate discovery, private-key paths, host-key/TLS verification |
 | Desktop shell | One persistent native window for Files, Sites, Transfers, Sync & Backup, Settings and Help & About |
 | Desktop file browser | Local/remote browsing, upload/download, folder operations, rename, delete, duplicate, hidden files and multiple views |
 | Desktop file properties | SHA-256 plus supported chmod/permission and owner/group workflows |
@@ -141,7 +141,7 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 - Per-profile bandwidth limits.
 - Verify-after-transfer checksums where both endpoints support them.
 - Batch rename and remote-edit conflict detection.
-- Encrypted selected-profile import/export and duplicate detection.
+- Encrypted selected-profile import/export and optional duplicate reconciliation (advisory desktop detection shipped in 0.91.0).
 - Android stable signing-key continuity plan.
 - Windows screen-reader/high-contrast/touch-target acceptance.
 - Linux desktop integration acceptance.

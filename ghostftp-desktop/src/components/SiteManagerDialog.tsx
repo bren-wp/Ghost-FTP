@@ -23,6 +23,7 @@ import { useConnections } from "@/stores/connectionsStore";
 import { useLayout } from "@/stores/layoutStore";
 import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
+import { duplicateSavedSiteIds, matchingSavedSites } from "@/lib/siteDuplicates";
 import { ConfirmModal } from "./ConfirmModal";
 import { ipc } from "@/lib/ipc";
 import { toast } from "@/stores/toastStore";
@@ -66,6 +67,8 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     [allProfiles, ephemeralIds]
   );
 
+  const duplicateIds = useMemo(() => duplicateSavedSiteIds(profiles), [profiles]);
+
   const [query, setQuery] = useState("");
   const [sortField, setSortField] = useState<SiteSortField>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -103,13 +106,14 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
       profiles
         .filter((profile) => {
           const haystack =
-            `${profile.name} ${profile.host} ${profile.protocol} ${profile.group ?? ""} ${profile.description ?? ""} ${(
+            `${profile.name} ${profile.host} ${profile.username} ${profile.protocol} ${profile.group ?? ""} ${profile.description ?? ""} ${(
               profile.tags ?? []
             ).join(" ")}`.toLowerCase();
           if (query && !haystack.includes(query.toLowerCase())) return false;
           if (view === "favorites" && !profile.favorite) return false;
           if (view === "recent" && !profile.lastUsed) return false;
           if (view === "bookmarks" && !profile.bookmarked) return false;
+          if (view === "duplicates" && !duplicateIds.has(profile.id)) return false;
           if (
             view === "cloud" &&
             !["s3", "azure", "gcs", "webdav", "dropbox", "onedrive", "gdrive", "box"].includes(profile.protocol)
@@ -136,7 +140,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
           else cmp = a.name.localeCompare(b.name);
           return sortDirection === "asc" ? cmp : -cmp;
         }),
-    [profiles, query, view, sortField, sortDirection]
+    [profiles, duplicateIds, query, view, sortField, sortDirection]
   );
 
   const toggleSort = (field: SiteSortField) => {
@@ -150,6 +154,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
 
   const selected =
     filtered.find((profile) => profile.id === selectedId) ?? filtered[0] ?? null;
+  const matchingSites = draft ? matchingSavedSites(draft, profiles) : [];
   const isConnected = selected
     ? sessions.some((session) => session.profileId === selected.id)
     : false;
@@ -417,6 +422,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
           <FilterChip active={view === "favorites"} label="Favorites" count={profiles.filter((profile) => profile.favorite).length} onClick={() => setView("favorites")} />
           <FilterChip active={view === "recent"} label="Recent" count={profiles.filter((profile) => profile.lastUsed).length} onClick={() => setView("recent")} />
           <FilterChip active={view === "bookmarks"} label="Bookmarks" count={profiles.filter((profile) => profile.bookmarked).length} onClick={() => setView("bookmarks")} />
+          <FilterChip active={view === "duplicates"} label="Duplicates" count={duplicateIds.size} onClick={() => setView("duplicates")} />
           <FilterChip active={view === "cloud"} label="Cloud" count={profiles.filter((profile) => ["s3", "azure", "gcs", "webdav", "dropbox", "onedrive", "gdrive", "box"].includes(profile.protocol)).length} onClick={() => setView("cloud")} />
           <div className="h-6 w-px shrink-0 bg-border"/>
           <label className="ghost-site-filter-select">Tag<select aria-label="Filter by tag" value={view.startsWith("tag:") ? view : ""} onChange={(event) => setView(event.target.value || "all")}><option value="">All tags</option>{tags.map((tag) => <option key={tag} value={`tag:${tag}`}>{tag}</option>)}</select></label>
@@ -539,6 +545,15 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                     </div>
                   </div>
                 </div>
+
+                {matchingSites.length > 0 && (
+                  <div role="status" className="mb-3 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-[11px] text-text-muted">
+                    <strong className="text-warning">Possible duplicate.</strong>{" "}
+                    {matchingSites.length} other saved {matchingSites.length === 1 ? "site uses" : "sites use"}
+                    {" "}the same protocol, host, port and username. Profiles are kept separate,
+                    including their credentials and bookmarks.
+                  </div>
+                )}
 
                 {!canDirectEdit && (
                   <div className="mb-3 rounded-md border border-accent/25 bg-accent/10 px-3 py-2 text-[11px] text-text-muted">
