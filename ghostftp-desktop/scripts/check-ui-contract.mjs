@@ -498,7 +498,7 @@ for (const required of [
 // A connected user must be able to upload even without a preselected file.
 // Dual-pane transfers must refresh both panes after the live queue drains.
 const dualPane = read("src/components/DualPaneBrowser.tsx");
-const titleBar = read("src/components/TitleBar.tsx");
+const uploadToolbarSource = read("src/components/TitleBar.tsx");
 for (const required of [
   'window.addEventListener("ghostftp:pick-upload"',
   'await open({ multiple: true, directory: false, title: "Upload files" })',
@@ -511,7 +511,7 @@ if (dualPane.split("reloadToken={reloadToken}").length !== 3) {
   failures.push("Dual-pane refresh must re-list both local and remote FilePane controls.");
 }
 for (const required of ['disabled={!activeSessionId}', 'paneStates.local.selectedCount > 0', 'new CustomEvent("ghostftp:pick-upload")']) {
-  if (!titleBar.includes(required)) failures.push(`Files toolbar must support native picker without local selection: ${required}`);
+  if (!uploadToolbarSource.includes(required)) failures.push(`Files toolbar must support native picker without local selection: ${required}`);
 }
 if (!fileBrowser.includes('if (serverSid) void pickAndUpload("files");')) {
   failures.push("Single-pane native picker must work regardless of which pane is being browsed.");
