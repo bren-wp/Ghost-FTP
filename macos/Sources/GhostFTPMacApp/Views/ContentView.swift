@@ -118,7 +118,7 @@ private struct ConnectionEditor: View {
             if !matchingSites.isEmpty {
                 Section("Saved site inventory") {
                     Label(
-                        "Possible duplicate saved site (\\(matchingSites.count) match\\(matchingSites.count == 1 ? "" : "es"))",
+                        "Possible duplicate saved site (\(matchingSites.count) match\(matchingSites.count == 1 ? "" : "es"))",
                         systemImage: "rectangle.on.rectangle"
                     )
                     .foregroundStyle(.orange)

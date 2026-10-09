@@ -197,7 +197,7 @@ private struct SitesWorkspace: View {
                 )
             } else {
                 Toggle(isOn: $duplicatesOnly) {
-                    Text("Possible duplicates (\\(duplicateIDs.count))")
+                    Text("Possible duplicates (\(duplicateIDs.count))")
                 }
                 .toggleStyle(.checkbox)
                 .accessibilityHint("Show only saved sites with matching protocol, server, port and username.")
