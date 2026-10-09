@@ -1,6 +1,6 @@
 // Enforce the published Ghost FTP release train. This module has no IO so it
 // can be regression-tested independently of release metadata / CI state.
-const semver = /^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$/;
+const semver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 function parts(value) {
   const match = semver.exec(value);
