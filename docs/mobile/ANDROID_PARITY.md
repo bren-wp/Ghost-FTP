@@ -2,12 +2,14 @@
 
 Ghost FTP Android follows the same product identity and file-action model as the Windows/Linux app while using a mobile-first native Kotlin layout.
 
+0.91.0 desktop's advisory duplicate-site filter is not implemented in Android; existing Android connection and transfer behavior remains unchanged.
+
 ## Current identity contract
 
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
-- Active source version: **0.90.1**
-- Previous canonical release: **0.90.0**
+- Active source version: **0.91.0**
+- Previous canonical release: **0.90.1**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`
