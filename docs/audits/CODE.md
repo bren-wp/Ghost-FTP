@@ -1,14 +1,16 @@
-# Ghost FTP Code Audit — 0.30.18
+# Ghost FTP Code Audit — 0.30.19
 
 ## Scope
 
-This audit covers the current Ghost FTP 0.30.18 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.30.17**.
+This audit covers the current Ghost FTP 0.30.19 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.30.18**.
 
 These findings build on the previously reviewed 0.30.15 code-audit baseline; the 0.30.16 changes are limited to live premium color surfaces and their CI contract. A complete new dead-code audit has not been claimed.
 
 0.30.17 incremental review: Windows/Linux Help/About link destinations and brand copy, Android HTTPS allowlist, macOS resource links and transport-capability text changed; unrelated transfer/network implementations were not rewritten. The earlier 0.30.15/0.30.16 audit history below remains historical evidence, not an assertion of new audit coverage.
 
 0.30.18 incremental review: inspected React Help/About and removed obsolete decorative SVG helpers; inspected native Android and SwiftUI macOS About views against the supplied concept family. This does not replace an independent full-project dead-code audit or certify pixel parity.
+
+0.30.19 incremental review: examined the Files toolbar picker event routing and both FilePane refresh cycles, preserving existing transfer conflict handling. Added source-level regression checks. This is not a complete new dead-code audit or visual 1:1 acceptance.
 
 ## Dead-code and reachability evidence
 
