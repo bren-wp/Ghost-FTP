@@ -475,7 +475,7 @@ private struct AboutWorkspace: View {
                         .font(.title2.bold())
                     Text("Brendigo")
                         .foregroundStyle(.secondary)
-                    Text("Privacy-first FTP / FTPS / SFTP file transfer.")
+                    Text("FTP file operations available. FTPS and SFTP remain disabled until identity verification is implemented.")
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -484,10 +484,11 @@ private struct AboutWorkspace: View {
 
             GroupBox("Resources") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Link("Support", destination: URL(string: "https://ghostftp.com/support/")!)
-                    Link("Documentation", destination: URL(string: "https://ghostftp.com/docs/")!)
-                    Link("Privacy", destination: URL(string: "https://ghostftp.com/privacy/")!)
+                    Link("Support", destination: URL(string: "https://github.com/bren-wp/Ghost-FTP/issues")!)
+                    Link("Documentation", destination: URL(string: "https://github.com/bren-wp/Ghost-FTP/tree/main/docs")!)
+                    Link("Privacy", destination: URL(string: "https://github.com/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md")!)
                     Link("EULA", destination: URL(string: "https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt")!)
+                    Link("Project and releases", destination: URL(string: "https://github.com/bren-wp/Ghost-FTP")!)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(8)

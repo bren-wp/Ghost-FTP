@@ -100,6 +100,20 @@ jobs:
           grep -Fq 'MORE THAN TRANSFER. TOTAL CONTROL.' ghostftp-desktop/branding/ghostftp-logo.svg
           ! grep -Fq 'FILES MOVE FORWARD' ghostftp-desktop/branding/ghostftp-logo.svg
 
+      - name: Real in-app support and brand identity parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The update-service endpoint remains separate from the in-app help links.
+          grep -Fq 'PRODUCT_SITE = "https://ghostftp.com"' ghostftp-desktop/src/lib/release.ts
+          grep -Fq 'const PROJECT_REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP";' ghostftp-desktop/src/components/AboutDialog.tsx
+          grep -Fq 'More Than Transfer. Total Control.' ghostftp-desktop/src/components/AboutDialog.tsx
+          grep -Fq 'const val REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP"' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
+          grep -Fq 'FTPS and SFTP remain disabled' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+          ! grep -Fq 'ghostftp.com' ghostftp-desktop/src/components/AboutDialog.tsx
+          ! grep -Fq 'ghostftp.com' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
+          ! grep -Fq 'ghostftp.com' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+
       - name: Verify complete 75-screen premium design traceability
         shell: bash
         run: node .github/scripts/check-premium-75-screens.mjs

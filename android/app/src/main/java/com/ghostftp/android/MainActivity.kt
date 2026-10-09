@@ -819,7 +819,7 @@ class MainActivity : Activity() {
         addView(officialLinkRow(getString(R.string.label_documentation), getString(R.string.about_docs_desc), DOCUMENTATION_URL))
         addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
         addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
-        addView(officialLinkRow(getString(R.string.label_official_website), getString(R.string.about_website_desc), WEBSITE_URL))
+        addView(officialLinkRow("GitHub", getString(R.string.about_docs_desc), REPOSITORY_URL))
     }
 
     private fun setWorkspace(workspace: Workspace, announce: Boolean = true) {
@@ -1835,13 +1835,13 @@ class MainActivity : Activity() {
         const val STATE_WORKSPACE = "ghostftp.workspace"
         const val STATE_NAVIGATION_OPEN = "ghostftp.navigationOpen"
 
-        const val WEBSITE_URL = "https://ghostftp.com/"
-        const val SUPPORT_URL = "https://ghostftp.com/support/"
-        const val DOCUMENTATION_URL = "https://ghostftp.com/docs/"
-        const val PRIVACY_URL = "https://ghostftp.com/privacy/"
+        const val REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP"
+        const val SUPPORT_URL = "https://github.com/bren-wp/Ghost-FTP/issues"
+        const val DOCUMENTATION_URL = "https://github.com/bren-wp/Ghost-FTP/tree/main/docs"
+        const val PRIVACY_URL = "https://github.com/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md"
         const val EULA_URL = "https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt"
         val OFFICIAL_LINKS = setOf(
-            WEBSITE_URL,
+            REPOSITORY_URL,
             SUPPORT_URL,
             DOCUMENTATION_URL,
             PRIVACY_URL,
