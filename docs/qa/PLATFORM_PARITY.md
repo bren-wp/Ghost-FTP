@@ -1,6 +1,6 @@
-# Ghost FTP platform parity — 0.30.13
+# Ghost FTP platform parity — 0.91.1
 
-Last reviewed: 8 October 2026. The latest **published** canonical version is 0.30.10; 0.30.11 and 0.30.12 were merged and CI-verified but not released. This matrix describes source evidence, not a claim of new release publication.
+Last reviewed: 9 October 2026. Latest **verified published release at the start of this patch**: **v0.91.0**. v0.91.1 remains a proposed patch until the exact-SHA CI, merged-main gates and canonical release workflow have passed. This matrix describes source-level availability, not a claim of full installed-build 1:1 or production signing on all platforms.
 
 | Gate or capability | Windows | Linux | Android | macOS |
 | --- | --- | --- | --- | --- |
@@ -20,3 +20,9 @@ Last reviewed: 8 October 2026. The latest **published** canonical version is 0.3
 An application is not FINAL solely because its sources compile or CI is green. A release requires the exact current commit to pass Quality, real FTP/FTPS/SFTP protocol E2E, Windows/Linux native builds, Android instrumentation, Windows hardening and macOS unit/build/packaging. This proves only the tested targets and behaviors. It does not prove macOS FTPS/SFTP, Android cross-release signing, broad Linux distribution parity or notarized macOS installation.
 
 The previous public release must be read from GitHub Releases rather than inferred from the most recently merged source. Preserve missing features as explicit blockers; never implement insecure fallbacks to claim parity.
+
+## Reference and platform differences
+
+- User-supplied design ZIP includes **75 concept images**: **30 Windows, 29 Linux, 16 Android**. macOS has no supplied reference screenshots. These are visual targets, not real captures or evidence of operational interactions.
+- v0.91.1 Windows/Linux Site Manager protects drafts against accidental dismissal; Android improves username-only URL privacy; macOS retains corrupt profile bytes and checks imported identity collisions. The changes improve real behavior but do not establish identical UI implementations.
+- Keep the 75-screen per-screen acceptance entries pending until actual installed app captures, input interactions, keyboard/a11y checks and matching-scale comparisons are documented.

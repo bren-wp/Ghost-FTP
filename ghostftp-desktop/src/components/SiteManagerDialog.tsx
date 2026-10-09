@@ -410,6 +410,8 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
               <button
                 type="button"
                 className="ghost-mini-button"
+                disabled={Boolean(action) || editing}
+                title={editing ? "Save or cancel changes before leaving this site." : undefined}
                 onClick={() => openDialog("import")}
               >
                 <Download size={14} /> Import
@@ -424,6 +426,8 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
               <button
                 type="button"
                 className="ghost-primary-button"
+                disabled={Boolean(action) || editing}
+                title={editing ? "Save or cancel changes before leaving this site." : undefined}
                 onClick={() => openNewConnection()}
               >
                 <Plus size={15} /> New Site
@@ -458,14 +462,18 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                 <button
                   type="button"
                   className="ghost-primary-button"
-                  onClick={() => openNewConnection()}
+                  disabled={Boolean(action) || editing}
+                title={editing ? "Save or cancel changes before leaving this site." : undefined}
+                onClick={() => openNewConnection()}
                 >
                   <Plus size={15} /> New Site
                 </button>
                 <button
                   type="button"
                   className="ghost-mini-button"
-                  onClick={() => openDialog("import")}
+                  disabled={Boolean(action) || editing}
+                title={editing ? "Save or cancel changes before leaving this site." : undefined}
+                onClick={() => openDialog("import")}
                 >
                   <Download size={14} /> Import Sites
                 </button>
@@ -794,7 +802,9 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                   <button
                     type="button"
                     className="ghost-primary-button mt-4"
-                    onClick={() => openNewConnection()}
+                    disabled={Boolean(action) || editing}
+                title={editing ? "Save or cancel changes before leaving this site." : undefined}
+                onClick={() => openNewConnection()}
                   >
                     <Plus size={14} /> New Site
                   </button>

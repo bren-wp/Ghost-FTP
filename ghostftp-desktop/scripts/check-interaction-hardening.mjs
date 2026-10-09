@@ -144,6 +144,8 @@ requireIncludes(
     "setEditing(false);",
     "setShowPassword(false);",
     "Cancel",
+    'title={editing ? "Save or cancel changes before leaving this site." : undefined}',
+    'disabled={Boolean(action) || editing}',
   ],
   "site editor prevents lost drafts on row changes, filters or Escape"
 );

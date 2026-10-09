@@ -1,6 +1,6 @@
 # Ghost FTP — installed-build visual acceptance
 
-Visual reference authority: the user-supplied GhostFTP-Premium-Brand-UI(2).zip and the 75-entry source map in docs/qa/premium-75-screen-contract.json. The references are design **concepts**, never real file data or executable screens. Do not embed them as application backgrounds.
+Visual reference authority: the user-supplied GhostFTP-Premium-Brand-UI(3).zip and the 75-entry source map in docs/qa/premium-75-screen-contract.json. The references are design **concepts**, never real file data or executable screens. Do not embed them as application backgrounds.
 
 ## What the 0.30.18 Help/About increment can verify
 
@@ -12,6 +12,8 @@ Visual reference authority: the user-supplied GhostFTP-Premium-Brand-UI(2).zip a
 | macOS | No supplied mockup | macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift | Shared-token/platform usability review only |
 
 The source now implements the reference's main product identity, compact real version metadata, contextual facts, and adjacent support actions, but code presence **cannot** certify pixel parity. Do not set visual_acceptance to accepted until captured application screenshots have been reviewed.
+
+The most recently supplied visual reference archive enumerates **30 Windows**, **29 Linux** and **16 Android** concepts (75 total). No supplied macOS mockups are present. The reference images are static design renderings, not valid production screenshots; they must never replace installed-app release evidence.
 
 ## Reference geometry to compare
 
