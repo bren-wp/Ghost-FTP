@@ -12,6 +12,18 @@ These findings build on the previously reviewed 0.30.15 code-audit baseline; the
 
 0.30.19 incremental review: examined the Files toolbar picker event routing and both FilePane refresh cycles, preserving existing transfer conflict handling. Added source-level regression checks. This is not a complete new dead-code audit or visual 1:1 acceptance.
 
+## Unreleased 0.30.20 full-source reachability audit (all four apps)
+
+The source audit spans **86 desktop TypeScript/TSX app files, 18 shared file-UI modules, 85 Rust sources, 5 Kotlin source/test files, 15 Swift source/test files and 11 Go files**, plus workflow/release scripts (file inventory from the 0.30.19 git tree). It distinguishes static reachability, symbol-level warnings, runtime behavior and visual acceptance rather than misclassifying framework callbacks, string references or build scripts as dead code.
+
+- **Windows/Linux:** `npm run check:dead` walks the real production TypeScript import graph, Rust crate module graphs and operational script references; `tsc --noEmit` rejects unused locals; Rust `cargo check --all-targets`, tests, clippy, formatting and production bundle checks validate actual compiled code. The removed background work is a now-visibility-gated clock timer, not an unverified module deletion.
+- **Android:** production resource/locale contract, Kotlin private-symbol audit, Gradle lint and test, build and device/emulator click smoke. Privacy redaction patterns are now compiled once and applied **before** the short diagnostic UI limit, tested with a secret crossing the old boundary and an oversized untrusted message.
+- **macOS:** declaration-only private Swift-symbol audit, Swift tests and release compiler, validated backup merge count invariant and transfer-history basename-only storage. The system still explicitly blocks unsupported FTPS/SFTP until real identity validation exists.
+- **Shared CLI/Go:** Go test/vet and Rust source-graph checks. CI/download scripts receive shell/Node syntax checks; the one-shot README screenshot importer workflow/script were removed after their successful verified use; only the seven proven image assets and release-image SHA256 regression check remain.
+- **Preservation:** no dynamic-dispatched function, schema migration, compatibility entrypoint, test fixture, generated source or optional platform path is deleted just because a grep suggests zero references. False positives must be inspected before deletion.
+
+**Audit status:** source-level dead-module and declaration scans are defined and automated; an assertion that every possible runtime interaction and all 75 screenshots were manually accepted is **not** made. The exact-HEAD CI results and measured installed-build captures are the release authority.
+
 ## Dead-code and reachability evidence
 
 - TypeScript keeps `noUnusedLocals` plus production entrypoint/import-graph reachability.

@@ -81,6 +81,32 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertTrue(store.profiles.isEmpty)
     }
 
+    func testProfileImportCannotOverflowTotalProfileLimit() throws {
+        let defaults = isolatedDefaults("profile-merge-limit")
+        let store = ProfileStore(defaults: defaults)
+        let existing = (0..<512).map { index in
+            ConnectionProfile(
+                name: "Saved \(index)",
+                protocolKind: .ftp,
+                host: "existing-\(index).example.com",
+                username: "user"
+            )
+        }
+        let initialBackup = try JSONEncoder().encode(existing)
+        XCTAssertEqual(try store.importProfiles(from: initialBackup), 512)
+        let original = store.profiles
+        let extra = ConnectionProfile(
+            name: "Extra",
+            protocolKind: .ftp,
+            host: "new.example.com",
+            username: "user"
+        )
+        let backup = try JSONEncoder().encode([extra])
+        XCTAssertThrowsError(try store.importProfiles(from: backup))
+        XCTAssertEqual(store.profiles, original)
+        XCTAssertEqual(ProfileStore(defaults: defaults).profiles, original)
+    }
+
     func testProfileImportRejectsControlCharacters() throws {
         let store = ProfileStore(defaults: isolatedDefaults("profile-control-limit"))
         let profile = ConnectionProfile(
@@ -123,6 +149,44 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.records.count, 1)
         XCTAssertEqual(reloaded.records.first?.status, .cancelled)
         XCTAssertNotNil(reloaded.records.first?.finishedAt)
+    }
+
+    func testTransferHistoryDoesNotPersistDirectoriesOrControlCharacters() {
+        let defaults = isolatedDefaults("history-privacy")
+        let history = TransferHistoryStore(defaults: defaults)
+        _ = history.begin(
+            direction: .download,
+            fileName: "/Users/secret/Documents/report\u{000A}.pdf"
+        )
+        XCTAssertEqual(history.records.first?.fileName, "report.pdf")
+        let persisted = defaults.data(forKey: "ghostftp.macos.transfer-history.v1")!
+        let raw = String(decoding: persisted, as: UTF8.self)
+        XCTAssertFalse(raw.contains("/Users/secret/"))
+        XCTAssertFalse(raw.contains("Documents"))
+        XCTAssertEqual(TransferHistoryStore(defaults: defaults).records.first?.fileName, "report.pdf")
+    }
+
+    func testHistoricalFullPathsAreRemovedOnHistoryLoad() throws {
+        let defaults = isolatedDefaults("history-migration")
+        let oldRecord = TransferHistoryRecord(
+            id: UUID(),
+            direction: .download,
+            fileName: "/Users/secret/private/archive.zip",
+            startedAt: Date(),
+            finishedAt: Date(),
+            status: .completed
+        )
+        defaults.set(
+            try JSONEncoder().encode([oldRecord]),
+            forKey: "ghostftp.macos.transfer-history.v1"
+        )
+
+        let upgraded = TransferHistoryStore(defaults: defaults)
+        XCTAssertEqual(upgraded.records.first?.fileName, "archive.zip")
+        let persisted = defaults.data(forKey: "ghostftp.macos.transfer-history.v1")!
+        let serialized = String(decoding: persisted, as: UTF8.self)
+        XCTAssertFalse(serialized.contains("/Users/secret/private"))
+        XCTAssertTrue(serialized.contains("archive.zip"))
     }
 
     func testTransferHistoryIsBoundedToTwoHundredRecords() {

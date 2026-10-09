@@ -32,7 +32,7 @@ struct TransferHistoryRecord: Codable, Identifiable, Equatable {
 
     let id: UUID
     let direction: Direction
-    let fileName: String
+    var fileName: String
     let startedAt: Date
     var finishedAt: Date?
     var status: Status
@@ -55,12 +55,15 @@ final class TransferHistoryStore: ObservableObject {
 
     @discardableResult
     func begin(direction: TransferHistoryRecord.Direction, fileName: String) -> UUID {
+        // Do not persist complete local/remote paths in UserDefaults history.
+        // File names may be untrusted: strip control characters and bound size.
+        let safeName = sanitizedFileName(fileName)
         let id = UUID()
         records.insert(
             TransferHistoryRecord(
                 id: id,
                 direction: direction,
-                fileName: fileName,
+                fileName: safeName,
                 startedAt: Date(),
                 finishedAt: nil,
                 status: .running
@@ -102,6 +105,16 @@ final class TransferHistoryStore: ObservableObject {
         persist()
     }
 
+    private func sanitizedFileName(_ fileName: String) -> String {
+        let base = fileName.replacingOccurrences(of: "\\", with: "/")
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .last.map(String.init) ?? ""
+        let clean = String(base.filter { character in
+            character.unicodeScalars.allSatisfy { !CharacterSet.controlCharacters.contains($0) }
+        }.prefix(180))
+        return clean.isEmpty ? "File" : clean
+    }
+
     private func load() {
         guard let data = defaults.data(forKey: storageKey),
               let decoded = try? JSONDecoder().decode([TransferHistoryRecord].self, from: data) else {
@@ -110,14 +123,23 @@ final class TransferHistoryStore: ObservableObject {
         }
         records = decoded.prefix(maximumRecords).map { $0 }
 
-        var recoveredInterruptedTransfer = false
+        var needsPrivateHistoryMigration = false
         let recoveredAt = Date()
-        for index in records.indices where records[index].status == .running {
-            records[index].status = .cancelled
-            records[index].finishedAt = recoveredAt
-            recoveredInterruptedTransfer = true
+        for index in records.indices {
+            // Upgrade entries persisted by earlier versions, which may carry
+            // full private directory paths. Rewrite UserDefaults atomically.
+            let clean = sanitizedFileName(records[index].fileName)
+            if clean != records[index].fileName {
+                records[index].fileName = clean
+                needsPrivateHistoryMigration = true
+            }
+            if records[index].status == .running {
+                records[index].status = .cancelled
+                records[index].finishedAt = recoveredAt
+                needsPrivateHistoryMigration = true
+            }
         }
-        if recoveredInterruptedTransfer {
+        if needsPrivateHistoryMigration {
             persist()
         }
     }

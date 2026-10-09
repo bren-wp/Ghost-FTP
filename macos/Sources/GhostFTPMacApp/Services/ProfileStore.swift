@@ -71,6 +71,11 @@ final class ProfileStore: ObservableObject {
         for profile in imported {
             merged[profile.id] = profile
         }
+        // Imported backups must not bypass the total saved-profile cap.
+        // Fail before mutating in-memory or persisted profiles.
+        guard merged.count <= Self.maximumImportedProfiles else {
+            throw ProfileStoreError.tooManyProfiles
+        }
         profiles = merged.values.sorted {
             $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
         }

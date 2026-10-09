@@ -65,34 +65,43 @@ data class TransferResult(
     val remotePath: String
 )
 
+// Compile redaction patterns once instead of recreating them for every
+// connection error. User/server diagnostics are untrusted input.
+private val REDACT_URL_USER_INFO =
+    Regex("""(?i)\b([a-z][a-z0-9+.-]*://)([^/\s:@]+):([^/\s@]+)@""")
+private val REDACT_SECRET_ASSIGNMENT =
+    Regex("""(?i)\b(password|passwd|pwd|token|secret|authorization)\s*[:=]\s*([^\s,;]+)""")
+private val REDACT_BEARER_TOKEN =
+    Regex("""(?i)\b(Bearer)\s+[A-Za-z0-9._~+/=-]+""")
+
 internal fun redactSensitiveErrorText(
     raw: String,
     secrets: Iterable<String> = emptyList()
 ): String {
-    val urlUserInfoPattern =
-        Regex("""(?i)\b([a-z][a-z0-9+.-]*://)([^/\s:@]+):([^/\s@]+)@""")
-    val secretAssignmentPattern =
-        Regex("""(?i)\b(password|passwd|pwd|token|secret|authorization)\s*[:=]\s*([^\s,;]+)""")
-    val bearerTokenPattern =
-        Regex("""(?i)\b(Bearer)\s+[A-Za-z0-9._~+/=-]+""")
-    var redacted = raw.take(600)
+    // Redact before the 600-character UI limit. Truncating first can expose
+    // a password/token prefix when a secret straddles the display boundary.
+    // Bound regex work even when a server sends a massive error message.
+    val uniqueSecrets = secrets.filter { it.isNotEmpty() }.distinct()
+    if (uniqueSecrets.any { it.length > 4096 }) {
+        return "Connection error details hidden for privacy."
+    }
+    val inspectionLimit = (600 + (uniqueSecrets.maxOfOrNull { it.length } ?: 0) + 512)
+        .coerceAtMost(8192)
+    var redacted = raw.take(inspectionLimit)
 
-    secrets
-        .filter { it.isNotEmpty() }
-        .distinct()
-        .forEach { secret -> redacted = redacted.replace(secret, "••••") }
+    uniqueSecrets.forEach { secret -> redacted = redacted.replace(secret, "••••") }
 
-    redacted = urlUserInfoPattern.replace(redacted) { match ->
+    redacted = REDACT_URL_USER_INFO.replace(redacted) { match ->
         "${match.groupValues[1]}${match.groupValues[2]}:••••@"
     }
-    redacted = secretAssignmentPattern.replace(redacted) { match ->
+    redacted = REDACT_SECRET_ASSIGNMENT.replace(redacted) { match ->
         "${match.groupValues[1]}=••••"
     }
-    redacted = bearerTokenPattern.replace(redacted) { match ->
+    redacted = REDACT_BEARER_TOKEN.replace(redacted) { match ->
         "${match.groupValues[1]} ••••"
     }
 
-    return redacted
+    return redacted.take(600)
 }
 
 class OperationCancellation {

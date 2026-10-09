@@ -89,8 +89,23 @@ function TransferMetrics({
       setNow(Date.now());
       return;
     }
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
+    // Background windows should not wake React once per second just to
+    // redraw an invisible clock; refresh immediately on foreground return.
+    let interval: number | undefined;
+    const syncVisibility = () => {
+      if (interval !== undefined) window.clearInterval(interval);
+      interval = undefined;
+      if (document.visibilityState === "visible") {
+        setNow(Date.now());
+        interval = window.setInterval(() => setNow(Date.now()), 1000);
+      }
+    };
+    syncVisibility();
+    document.addEventListener("visibilitychange", syncVisibility);
+    return () => {
+      if (interval !== undefined) window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", syncVisibility);
+    };
   }, [hasLiveTransfer]);
 
   const metrics = useMemo(() => {
