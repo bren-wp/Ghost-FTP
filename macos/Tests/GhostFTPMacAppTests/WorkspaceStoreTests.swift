@@ -151,6 +151,21 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertNotNil(reloaded.records.first?.finishedAt)
     }
 
+    func testTransferHistoryDoesNotPersistDirectoriesOrControlCharacters() {
+        let defaults = isolatedDefaults("history-privacy")
+        let history = TransferHistoryStore(defaults: defaults)
+        _ = history.begin(
+            direction: .download,
+            fileName: "/Users/secret/Documents/report\u{000A}.pdf"
+        )
+        XCTAssertEqual(history.records.first?.fileName, "report.pdf")
+        let persisted = defaults.data(forKey: "ghostftp.macos.transfer-history.v1")!
+        let raw = String(decoding: persisted, as: UTF8.self)
+        XCTAssertFalse(raw.contains("/Users/secret/"))
+        XCTAssertFalse(raw.contains("Documents"))
+        XCTAssertEqual(TransferHistoryStore(defaults: defaults).records.first?.fileName, "report.pdf")
+    }
+
     func testTransferHistoryIsBoundedToTwoHundredRecords() {
         let history = TransferHistoryStore(defaults: isolatedDefaults("transfer-limit"))
 
