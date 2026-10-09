@@ -1,6 +1,6 @@
-# Ghost FTP Security Audit — 0.90.0
+# Ghost FTP Security Audit — 0.90.1
 
-Previous canonical release: **0.30.21**.
+Previous canonical release: **0.90.0**.
 
 Security posture is carried forward from the previously reviewed 0.30.15 baseline; the 0.30.16 code delta changes color tokens and does not replace a full independent security audit.
 
@@ -64,3 +64,10 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 - **macOS FTP Preview:** EPSV passive-port replies now reject populated protocol/address fields instead of accepting unexpected server-supplied fields. Alternate valid delimiters remain supported; Swift tests cover accepted and rejected replies. This change does **not** enable FTPS or SFTP on macOS.
 - **Release integrity:** 0.90.0 development progression is guarded by executable version-train tests, with patch fixes (0.90.1, etc.) and consecutive feature minors (0.91.0 through 0.99.0); 1.0.0 requires its own production acceptance. Existing published tags are immutable.
 - **Limitations:** This is an incremental source hardening review, not a completed independent penetration test, every-control hardware smoke test or 75-screen installed-build visual signoff.
+
+## 0.90.1 incremental data-integrity and stability review
+
+- **Settings migration / privacy:** only delete legacy settings after exact readback of **every serialized key/value pair**. Matching row counts are not sufficient proof of a durable migration. Extra or incorrect database rows cannot erase the known-good copy.
+- **Startup resilience:** invalid or corrupted legacy settings JSON is retained for recovery and ignored without aborting application startup. Legacy sensitive terminal/notification history is still purged.
+- **Password-generation performance:** invalid, non-finite or excessively large requested lengths are rejected before the synchronous cryptographic loop, preventing UI hangs.
+- **Verification:** executable tests for exact readback, corrupted/partial writes, write exceptions, existing DB precedence, malformed legacy JSON, privacy cleanup and bounded random password generation. This does not represent an independent penetration test or 75-screen 1:1 signoff.

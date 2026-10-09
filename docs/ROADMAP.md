@@ -1,6 +1,6 @@
 # Ghost FTP Roadmap
 
-This roadmap separates the current **0.90.0 development/release** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.30.21**.
+This roadmap separates the current **0.90.1 development/release** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.90.0**.
 
 ## Implemented
 
