@@ -103,7 +103,20 @@ export async function runSettingsMigration(): Promise<void> {
 
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    // Corrupt legacy browser state must never prevent the desktop app from
+    // starting. Keep the original blob for recovery and use DB/default values.
+    let parsed: Record<string, unknown>;
+    try {
+      const candidate: unknown = JSON.parse(raw);
+      if (candidate === null || typeof candidate !== "object" || Array.isArray(candidate)) {
+        console.warn("Ignoring invalid legacy Ghost FTP settings format");
+        return;
+      }
+      parsed = candidate as Record<string, unknown>;
+    } catch (error) {
+      console.warn("Ignoring corrupt legacy Ghost FTP settings", messageOf(error));
+      return;
+    }
 
     const entries: Record<string, string> = {};
     for (const k of SETTINGS_KEYS) {
