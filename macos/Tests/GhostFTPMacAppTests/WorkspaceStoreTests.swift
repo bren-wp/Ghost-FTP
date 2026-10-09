@@ -84,14 +84,16 @@ final class WorkspaceStoreTests: XCTestCase {
     func testProfileImportCannotOverflowTotalProfileLimit() throws {
         let defaults = isolatedDefaults("profile-merge-limit")
         let store = ProfileStore(defaults: defaults)
-        for index in 0..<512 {
-            store.save(ConnectionProfile(
+        let existing = (0..<512).map { index in
+            ConnectionProfile(
                 name: "Saved \(index)",
                 protocolKind: .ftp,
                 host: "existing-\(index).example.com",
                 username: "user"
-            ))
+            )
         }
+        let initialBackup = try JSONEncoder().encode(existing)
+        XCTAssertEqual(try store.importProfiles(from: initialBackup), 512)
         let original = store.profiles
         let extra = ConnectionProfile(
             name: "Extra",
