@@ -87,7 +87,7 @@ final class KeychainStoreTests: XCTestCase {
             },
             insert: { errSecDuplicateItem }
         )) { error in
-            guard case KeychainStoreError.unexpectedStatus(errSecAuthFailed) = error else {
+            guard case KeychainStoreError.unexpectedStatus(let status) = error else {
                 return XCTFail("Expected retry failure")
             }
             XCTAssertEqual(status, errSecAuthFailed)
