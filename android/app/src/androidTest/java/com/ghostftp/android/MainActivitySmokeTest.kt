@@ -120,6 +120,15 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun cloudWorkspaceHasCancellableTransferControls() {
+        openWorkspaceByLabel("Cloud storage")
+        assertTextVisibleInViewport("Cloud storage")
+        assertDescriptionPresent("Cancel cloud transfer")
+        assertDescriptionEnabled("Cancel cloud transfer", false)
+        assertTextVisibleInViewport("No cloud transfer in progress.")
+    }
+
+    @Test
     fun referenceNavigationRailStaysDockedAcrossWorkspaces() {
         if (usesOverlayNavigation()) return
         assertDescriptionPresent(appString(R.string.workspace_open, appString(R.string.workspace_files)))
