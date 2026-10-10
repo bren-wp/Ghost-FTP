@@ -83,3 +83,26 @@ Inter, Segoe UI and Noto Sans are preferred with platform system fallbacks. No f
 - Main README presentation (image positions, HTML table/gallery and other page structure) was not redesigned. Only routine active-version metadata needs updating to 0.30.20.
 - React/Tauri Windows/Linux, Android Kotlin, macOS SwiftUI and shared protocol engines retained production QA gates. New privacy/security/performance fixes are documented in CODE.md and SECURITY.md.
 - **1:1 acceptance is still pending** for all 75 supplied reference mockups; replacing old READMEs with real UI photographs does not automatically make the running UI pixel-identical to a concept image.
+
+## 0.94.0 — approved ZIP revalidation and live UI alignment
+
+The user supplied `GhostFTP-Premium-Brand-UI(4).zip` as the canonical visual reference. Its `manifest.json` confirms **30 Windows + 29 Linux + 16 Android** separate PNG designs. This is a design-only reference; illustrative file names, transfer states, connection passwords and progress indicators are not application fixtures.
+
+The following three vector files already present in `assets/branding` were compared byte-for-byte to the user's ZIP and their approved Git-blob SHA-1 values match the enforcement script: `ghostftp-adaptive-foreground.svg`, `ghostftp-logo-light.svg` and `ghostftp-symbol-monochrome.svg`. Existing official branding assets remain the source of launcher and app header identity; no new fabricated screenshot is introduced.
+
+- **Single token registry:** `docs/branding/premium-ui-tokens.json` defines the canonical palette and reference geometry. `check-premium-ui-tokens.mjs` verifies real desktop CSS, Android Kotlin colors/vector resources and macOS SwiftUI palettes in CI.
+- **Windows + Linux React/Tauri:** default dark semantic colors now resolve to reference `#070E1A` canvas, `#0D192B` panels, `#111F34` raised surfaces, `#38ABFF` action state, `#26DC8F` success and `#FF7284` danger. Real sidebar interaction and focus states use reference gradient/tint rather than painting the mockup PNG.
+- **Android:** on standard-width phones (360–599 dp) the docked navigation now uses **64dp**, line-art vector icons, localized visible labels, accessible full labels and a 20dp icon size. The existing under-360dp overlay remains so short screens do not lose file controls. An instrumented emulator test asserts all seven branded navigation destinations are interactive, localized and have icons.
+- **macOS:** the existing SwiftUI workspace shell uses aligned background, panel, raised, accent, cyan, success, danger and selected-navigation colors. Cloud cards use reference-derived accent borders and working cancellation controls. There are **no supplied macOS mockups**; exact pixel parity for that platform cannot be asserted.
+- **CI contract:** `ghostftp-quality.yml` now runs the token regression and existing 75-screen traceability checks. Real application captures and functional click-by-click acceptance are still required.
+
+### Mandatory 1:1 acceptance matrix
+
+| Platform | Reference screens | Implementation evidence | Pixel/interaction acceptance |
+| --- | ---: | --- | --- |
+| Windows | 30 | Live React/Tauri source + shared palette + reference vectors | **Pending:** running Windows screenshots and full click QA |
+| Linux | 29 | Same React/Tauri source with Linux packaging | **Pending:** running Linux screenshots and full click QA |
+| Android | 16 | Real Kotlin UI, 64dp icon rail, emulator smoke/unit tests | **Pending:** 480×960 screenshots, modal and device QA |
+| macOS | No supplied reference screens | SwiftUI native controls and shared palette | **Pending:** approved Mac reference or separate platform styling acceptance |
+
+A complete visual pass requires actual screenshots from launched builds captured at the defined resolution with production components (not illustration PNGs), full-size and narrow-window overflow/accessibility assessment, and verification that each enabled action executes the corresponding real operation. CI palette checks and a mapping registry alone are not a 1:1 pixel certification. No live data or successful network transfers may be invented to match concept art.

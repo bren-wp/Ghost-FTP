@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.OpenableColumns
+import android.provider.DocumentsContract
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -71,6 +72,8 @@ class MainActivity : Activity() {
     private lateinit var cloudUploadInput: EditText
     private lateinit var cloudDownloadInput: EditText
     private lateinit var cloudStatus: TextView
+    private lateinit var cloudCancelButton: Button
+    private var cloudCancellation: CloudTransferCancellation? = null
     private var cloudPendingLink: SignedCloudLink? = null
     private var cloudTransferThread: Thread? = null
     private var cloudTransferBusy = false
@@ -157,6 +160,8 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         activityClosing = true
+        cloudCancellation?.cancel()
+        cloudCancellation = null
         cloudTransferThread?.interrupt()
         cloudTransferThread = null
         cloudPendingLink = null
@@ -184,15 +189,15 @@ class MainActivity : Activity() {
             PICK_UPLOAD_REQUEST -> handleUploadSelection(data)
             CREATE_SETTINGS_BACKUP_REQUEST -> data?.data?.let(::writeConnectionSettingsBackup)
             RESTORE_SETTINGS_BACKUP_REQUEST -> data?.data?.let(::restoreConnectionSettingsBackup)
-            PICK_CLOUD_UPLOAD_REQUEST -> data?.data?.let { uri ->
+            PICK_CLOUD_UPLOAD_REQUEST, CREATE_CLOUD_DOWNLOAD_REQUEST -> {
                 val link = cloudPendingLink
                 cloudPendingLink = null
-                if (link != null) runCloudTransfer(upload = true, link = link, uri = uri)
-            }
-            CREATE_CLOUD_DOWNLOAD_REQUEST -> data?.data?.let { uri ->
-                val link = cloudPendingLink
-                cloudPendingLink = null
-                if (link != null) runCloudTransfer(upload = false, link = link, uri = uri)
+                val uri = data?.data
+                if (link != null && uri != null) {
+                    runCloudTransfer(upload = requestCode == PICK_CLOUD_UPLOAD_REQUEST, link = link, uri = uri)
+                } else {
+                    cloudStatus.text = "No cloud document was selected."
+                }
             }
         }
     }
@@ -264,7 +269,8 @@ class MainActivity : Activity() {
         navigationOpen = !compactNavigation
         val railWidth = when {
             compactNavigation -> dp(152)
-            resources.configuration.screenWidthDp < 600 -> dp(88)
+            // The approved 480 × 960 Android reference uses a 64px rail.
+            resources.configuration.screenWidthDp < 600 -> dp(64)
             else -> dp(184)
         }
         navigationRail = buildNavigationRail().apply {
@@ -354,7 +360,65 @@ class MainActivity : Activity() {
         }
         setWorkspace(activeWorkspace, announce = false)
         setNavigationOpen(navigationOpen, announce = false)
+        // In the 480×960 reference, the identity bar spans the entire viewport
+        // above the docked 64dp rail, never just the content column.
+        if (resources.configuration.screenWidthDp in 360..599) {
+            return LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setBackgroundColor(Brand.background)
+                addView(buildPremiumPhoneChrome(), LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(58)
+                ))
+                addView(root, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+                ))
+            }
+        }
         return root
+    }
+
+    private fun buildPremiumPhoneChrome(): View = LinearLayout(this).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        orientation = LinearLayout.HORIZONTAL
+        setPadding(dp(14), dp(6), dp(10), dp(6))
+        setBackgroundColor(Brand.background)
+
+        addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(34), dp(34)))
+        addView(gap(8))
+        addView(TextView(this@MainActivity).apply {
+            val title = android.text.SpannableString("Ghost FTP")
+            title.setSpan(
+                android.text.style.ForegroundColorSpan(Brand.accent),
+                6, title.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            text = title
+            setTextColor(Brand.text)
+            typeface = Typeface.DEFAULT_BOLD
+            textSize = 18f
+            gravity = Gravity.CENTER_VERTICAL
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+        val quickMenu = secondaryButton("⋯") { }.apply {
+            contentDescription = "Quick navigation"
+            textSize = 22f
+            minWidth = 0
+            minimumWidth = 0
+        }
+        quickMenu.setOnClickListener {
+            android.widget.PopupMenu(this@MainActivity, quickMenu).apply {
+                menu.add(0, 1, 0, workspaceLabel(Workspace.SETTINGS))
+                menu.add(0, 2, 1, workspaceLabel(Workspace.CLOUD))
+                menu.add(0, 3, 2, workspaceLabel(Workspace.ABOUT))
+                setOnMenuItemClickListener { item ->
+                    when (item.itemId) {
+                        1 -> setWorkspace(Workspace.SETTINGS)
+                        2 -> setWorkspace(Workspace.CLOUD)
+                        3 -> setWorkspace(Workspace.ABOUT)
+                    }
+                    true
+                }
+            }.show()
+        }
+        addView(quickMenu, LinearLayout.LayoutParams(dp(46), dp(42)))
     }
 
     private fun buildNavigationRail(): View = ScrollView(this).apply {
@@ -366,18 +430,20 @@ class MainActivity : Activity() {
         val rail = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(8), dp(14), dp(8), dp(14))
+            val iconRail = resources.configuration.screenWidthDp in 360..599
+            setPadding(dp(if (iconRail) 4 else 8), dp(14), dp(if (iconRail) 4 else 8), dp(14))
 
-            addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(42), dp(42)))
+            addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(if (iconRail) 32 else 42), dp(if (iconRail) 32 else 42)))
             addView(space(8))
             addView(TextView(this@MainActivity).apply {
                 text = "Ghost FTP"
                 setTextColor(Brand.text)
-                textSize = 14f
+                textSize = if (iconRail) 9f else 14f
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
+                maxLines = 1
             })
-            addView(TextView(this@MainActivity).apply {
+            if (!iconRail) addView(TextView(this@MainActivity).apply {
                 text = ReleaseInfo.VERSION_DISPLAY
                 setTextColor(Brand.muted)
                 textSize = 11f
@@ -393,11 +459,11 @@ class MainActivity : Activity() {
                         dp(if (resources.configuration.screenWidthDp >= 600) 50 else 56)
                     )
                 )
-                addView(space(6))
+                addView(space(if (iconRail) 2 else 6))
             }
 
             addView(space(12))
-            addView(TextView(this@MainActivity).apply {
+            if (!iconRail) addView(TextView(this@MainActivity).apply {
                 text = getString(R.string.label_private_session)
                 setTextColor(Brand.muted)
                 textSize = 10f
@@ -440,7 +506,7 @@ class MainActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         titleRow.addView(badge(ReleaseInfo.VERSION_BADGE))
-        addView(titleRow)
+        if (resources.configuration.screenWidthDp !in 360..599) addView(titleRow)
 
         workspaceTitle = TextView(this@MainActivity).apply {
             text = workspaceLabel(activeWorkspace)
@@ -838,6 +904,12 @@ class MainActivity : Activity() {
         cloudStatus = sectionDescription("No cloud transfer in progress.")
         addView(cloudStatus)
         addView(space(8))
+        cloudCancelButton = secondaryButton("Cancel cloud transfer") { cancelCloudTransfer() }.apply {
+            contentDescription = "Cancel cloud transfer"
+            isEnabled = false
+        }
+        addView(cloudCancelButton)
+        addView(space(8))
         addView(sectionDescription(
             "Generate an object-specific signed URL in your cloud provider. " +
                 "Google Drive account browsing requires a separate OAuth flow; " +
@@ -880,33 +952,59 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun cancelCloudTransfer() {
+        if (!cloudTransferBusy) return
+        cloudCancellation?.cancel()
+        cloudTransferThread?.interrupt()
+        cloudCancelButton.isEnabled = false
+        cloudStatus.text = "Canceling cloud transfer…"
+    }
+
+    /** ACTION_CREATE_DOCUMENT always creates a new document; clean up on failure. */
+    private fun removeIncompleteCloudDestination(target: Uri): Boolean = runCatching {
+        DocumentsContract.isDocumentUri(this, target) &&
+            DocumentsContract.deleteDocument(contentResolver, target)
+    }.getOrDefault(false)
+
     private fun runCloudTransfer(upload: Boolean, link: SignedCloudLink, uri: Uri) {
         if (cloudTransferBusy || activityClosing) return
+        val cancellation = CloudTransferCancellation()
+        cloudCancellation = cancellation
         cloudTransferBusy = true
+        cloudCancelButton.isEnabled = true
         cloudUploadInput.text.clear()
         cloudDownloadInput.text.clear()
         cloudStatus.text = if (upload) "Uploading to ${link.publicHost}…" else "Downloading from ${link.publicHost}…"
         cloudTransferThread = thread(start = true, name = "GhostFTP-CloudTransfer") {
             val success = try {
                 if (upload) {
-                    SignedCloudTransfer.upload(contentResolver, uri, link)
+                    SignedCloudTransfer.upload(contentResolver, uri, link, cancellation)
                 } else {
-                    SignedCloudTransfer.download(contentResolver, uri, link, cacheDir)
+                    SignedCloudTransfer.download(contentResolver, uri, link, cacheDir, cancellation)
                 }
+                cancellation.ensureActive()
                 true
             } catch (_: Exception) {
+                // Do not display exception text: a URL is a bearer credential.
                 false
             }
+            val wasCanceled = cancellation.isCancelled || Thread.currentThread().isInterrupted
+            // A newly created SAF document may be partially written. Never
+            // leave that possibility unreported to the user after a failure.
+            val leftoverDestination = !success && !upload && !removeIncompleteCloudDestination(uri)
             runOnUiThread {
+                if (activityClosing || cloudCancellation !== cancellation) return@runOnUiThread
                 cloudTransferBusy = false
+                cloudCancellation = null
                 cloudTransferThread = null
-                if (!activityClosing && ::cloudStatus.isInitialized) {
-                    cloudStatus.text = if (success) {
-                        if (upload) "Cloud upload completed successfully." else "Cloud download completed successfully."
-                    } else {
-                        "Secure cloud transfer failed or was canceled. Check link expiry, " +
-                            "TLS, provider permissions and the 1 GiB object limit."
-                    }
+                cloudCancelButton.isEnabled = false
+                cloudStatus.text = when {
+                    success && upload -> "Cloud upload completed successfully."
+                    success -> "Cloud download completed successfully."
+                    leftoverDestination -> "Download failed or was canceled. The incomplete destination may remain; remove it manually."
+                    !upload -> "Cloud download failed or was canceled. The created destination was removed."
+                    wasCanceled -> "Cloud upload canceled. Check the remote object before retrying."
+                    else -> "Cloud upload failed. Check link expiry, provider permissions and remote object state before retrying."
                 }
             }
         }
@@ -1900,13 +1998,31 @@ class MainActivity : Activity() {
 
     private fun workspaceNavItem(workspace: Workspace): TextView {
         val label = workspaceLabel(workspace)
+        val iconRail = resources.configuration.screenWidthDp in 360..599
+        // Keep the localized full label available even on the compact icon rail.
+        val displayLabel = label
+        val iconResource = when (workspace) {
+            Workspace.FILES -> R.drawable.ic_premium_nav_files
+            Workspace.SITES -> R.drawable.ic_premium_nav_sites
+            Workspace.TRANSFERS -> R.drawable.ic_premium_nav_transfers
+            Workspace.SYNC -> R.drawable.ic_premium_nav_sync
+            Workspace.CLOUD -> R.drawable.ic_premium_nav_cloud
+            Workspace.SETTINGS -> R.drawable.ic_premium_nav_settings
+            Workspace.ABOUT -> R.drawable.ic_premium_nav_about
+        }
         val view = TextView(this).apply {
-            text = label
+            text = displayLabel
             contentDescription = getString(R.string.workspace_open, label)
-            textSize = if (resources.configuration.screenWidthDp >= 600) 13f else 11f
+            textSize = if (iconRail) 9f else 12f
+            maxLines = if (iconRail) 2 else 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding(dp(6), dp(8), dp(6), dp(8))
+            compoundDrawablePadding = dp(if (iconRail) 4 else 6)
+            val icon = getDrawable(iconResource)?.mutate()
+            icon?.setBounds(0, 0, dp(20), dp(20))
+            setCompoundDrawables(null, icon, null, null)
+            setPadding(dp(if (iconRail) 2 else 6), dp(4), dp(if (iconRail) 2 else 6), dp(4))
             isClickable = true
             isFocusable = true
             setOnClickListener { setWorkspace(workspace) }
@@ -1917,10 +2033,12 @@ class MainActivity : Activity() {
     }
 
     private fun styleWorkspaceNavItem(view: TextView, selected: Boolean) {
-        view.setTextColor(if (selected) Brand.accent else Brand.textSoft)
+        val color = if (selected) Brand.accent else Brand.textSoft
+        view.setTextColor(color)
+        view.compoundDrawables[1]?.setTint(color)
         view.background = rounded(
             if (selected) Brand.accentSurface else Brand.panel,
-            dp(14),
+            dp(10),
             if (selected) Brand.accent else Brand.borderSubtle
         )
     }
@@ -2002,7 +2120,8 @@ class MainActivity : Activity() {
         val border: Int = Color.rgb(39, 70, 99)
         val borderSubtle: Int = Color.rgb(25, 47, 72)
         val accent: Int = Color.rgb(56, 171, 255)
-        val accentSurface: Int = Color.rgb(19, 48, 72)
+        val accentSurface: Int = Color.rgb(19, 45, 82)
+        val success: Int = Color.rgb(38, 220, 143)
         val danger: Int = Color.rgb(255, 114, 132)
         val dangerSurface: Int = Color.rgb(57, 32, 45)
         val text: Int = Color.rgb(234, 246, 255)

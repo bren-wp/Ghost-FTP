@@ -4,10 +4,18 @@ import UniformTypeIdentifiers
 
 // Shared 2026 premium design tokens, aligned with React/Tauri and Android.
 private enum GhostPremiumPalette {
+    // Exact design tokens shared with the 75 Windows/Linux/Android reference frames.
     static let background = Color(red: 7/255, green: 14/255, blue: 26/255)
     static let sidebar = Color(red: 13/255, green: 25/255, blue: 43/255)
+    static let raised = Color(red: 17/255, green: 31/255, blue: 52/255)
+    static let navy = Color(red: 11/255, green: 30/255, blue: 54/255)
+    static let slate = Color(red: 19/255, green: 45/255, blue: 82/255)
     static let accent = Color(red: 56/255, green: 171/255, blue: 255/255)
+    static let cyan = Color(red: 126/255, green: 222/255, blue: 255/255)
     static let text = Color(red: 234/255, green: 246/255, blue: 255/255)
+    static let muted = Color(red: 119/255, green: 144/255, blue: 172/255)
+    static let success = Color(red: 38/255, green: 220/255, blue: 143/255)
+    static let danger = Color(red: 255/255, green: 114/255, blue: 132/255)
 }
 
 private enum MacWorkspace: String, CaseIterable, Identifiable, Hashable {
@@ -77,6 +85,13 @@ struct ContentView: View {
                     ForEach(MacWorkspace.allCases) { item in
                         Label(item.title, systemImage: item.symbol)
                             .tag(item)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(darkAppearance ? GhostPremiumPalette.text : .primary)
+                            .listRowBackground(
+                                darkAppearance
+                                    ? (workspace == item ? GhostPremiumPalette.slate : GhostPremiumPalette.sidebar)
+                                    : Color.clear
+                            )
                     }
                 }
 

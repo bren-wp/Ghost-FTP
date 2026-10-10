@@ -9,6 +9,9 @@ struct CloudWorkspace: View {
     @State private var status = "No cloud transfer in progress."
     @State private var busy = false
 
+    private let premiumPanel = Color(red: 17/255, green: 31/255, blue: 52/255)
+    private let premiumLine = Color(red: 56/255, green: 171/255, blue: 255/255)
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -23,29 +26,47 @@ struct CloudWorkspace: View {
                             .textFieldStyle(.roundedBorder)
                             .privacySensitive()
                         Button("Choose file and upload") { chooseUpload() }
+                            .buttonStyle(.borderedProminent)
                             .disabled(busy || uploadLink.isEmpty)
                         Text("Generate a short-lived PUT URL for the exact object in your provider console. This sends the selected file directly to the signed destination.")
                             .font(.caption).foregroundStyle(.secondary)
                     }.padding(10)
                 }
+                .background(premiumPanel, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(premiumLine.opacity(0.23)))
                 GroupBox("Download from a signed cloud link") {
                     VStack(alignment: .leading, spacing: 12) {
                         SecureField("Paste signed HTTPS GET URL", text: $downloadLink)
                             .textFieldStyle(.roundedBorder)
                             .privacySensitive()
                         Button("Choose destination and download") { chooseDownload() }
+                            .buttonStyle(.borderedProminent)
                             .disabled(busy || downloadLink.isEmpty)
                         Text("The download is staged and only replaces the chosen file after the provider returns success.")
                             .font(.caption).foregroundStyle(.secondary)
                     }.padding(10)
                 }
-                Text(status).font(.callout).accessibilityLabel("Cloud transfer status: \(status)")
+                .background(premiumPanel, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(premiumLine.opacity(0.23)))
+                HStack(spacing: 12) {
+                    Text(status)
+                        .font(.callout)
+                        .accessibilityLabel("Cloud transfer status: \(status)")
+                    Spacer(minLength: 8)
+                    Button("Cancel transfer") {
+                        activeTask?.cancel()
+                        status = "Canceling cloud transfer…"
+                    }
+                    .disabled(!busy)
+                    .accessibilityIdentifier("ghostftp.cloud.cancel")
+                }
                 Text("Google Drive account browsing requires a separate OAuth authorization flow. Sharing a Drive page link is not a signed object URL.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             .frame(maxWidth: 760, alignment: .leading)
             .padding(28)
         }
+        .tint(premiumLine)
         .onDisappear {
             activeTask?.cancel()
             activeTask = nil

@@ -174,6 +174,10 @@ jobs:
         shell: bash
         run: node .github/scripts/check-premium-75-screens.mjs
 
+      - name: Cross-platform 2026 premium UI token and icon regression
+        shell: bash
+        run: node .github/scripts/check-premium-ui-tokens.mjs
+
       - name: Historical release recovery script syntax and source lock
         shell: bash
         run: |

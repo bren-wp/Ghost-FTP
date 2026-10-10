@@ -1,6 +1,6 @@
 # Ghost FTP — cross-platform security, privacy and trust model
 
-**Assessment scope:** inspected source and repository CI for the 0.93.0 development candidate. **Not** an external penetration test, data protection certification, guaranteed bug-free assessment or proof that every cloud provider API works on every platform. This document separates existing safeguards from gaps and acceptance criteria.
+**Assessment scope:** inspected source and repository CI for the 0.94.0 development candidate, following the published 0.93.0 foundation. **Not** an external penetration test, data protection certification, guaranteed bug-free assessment or proof that every cloud provider API works on every platform. This document separates existing safeguards from gaps and acceptance criteria.
 
 ## 1. Security objectives and assets
 
@@ -67,7 +67,7 @@ Temporary signed URLs allow an operation without holding long-lived account cred
 1. User generates an expiring, object-specific signed GET or PUT URL in a trusted provider. Links are bearer secrets, not harmless web links.
 2. UI masks text and removes it on completion/cancel; no persistence in site profiles, backups, activity history or logs.
 3. HTTPS, no URL userinfo, no fragments, no ordinary HTTP redirects, certificate/hostname validation.
-4. Reject private/local endpoints and cloud metadata addresses. Android currently pre-checks DNS; macOS currently validates syntax/hostname shape. **P0 gap:** both need robust DNS rebinding defenses, IPv4/IPv6/IDNA canonicalization and potential HTTPS proxy policy.
+4. Reject private/local endpoints and cloud metadata addresses. Android 0.94.0 validates public IPv4/IPv6 answers in OkHttp's connecting DNS resolver and forces direct/no-proxy operation; macOS currently validates syntax/hostname shape. **P0 outstanding:** verify Android transport under real rebinding/VPN and provider tests; macOS still needs a transport-level routing guard. IDNA and URL canonicalization require adversarial tests.
 5. Limit per-object input/output, total bytes, requests, timeouts, redirects and unexpected content. Current initial signed-transfer cap is 1 GiB.
 6. Verify HTTP status after streaming; a 200 response is not a guarantee of the expected object ID/version/hash. Prefer provider ETag/checksum and expected key/size when available.
 7. Avoid leaking URL in error/exception text, exception telemetry, clipboard, HTTP logs, stack traces or UI accessibility announcements.
@@ -131,3 +131,10 @@ Synchronization is not inherently atomic. A provider copy+delete operation can p
 ## 11. Reporting vulnerabilities and data requests
 
 See SECURITY.md for preferred disclosure route, and docs/legal/PRIVACY.md for current policies. Do not paste sensitive tokens, signed URLs, passwords or production customer logs into public issues. Redact diagnostic bundles before submitting. A privacy deletion request must distinguish local user-held data from information retained by the independent cloud provider.
+
+### Android signed-object transport delta (0.94.0)
+
+- Direct-only OkHttp 4.12.0 transport rejects mixed DNS answers and reserved/nonpublic IPv4/IPv6 destinations in the connection's own address resolution; keeps default TLS verifier, disables automatic 30x and unsafe retry/replay.
+- Explicit Cancel requests stop the OkHttp call rather than only setting thread interruption. File read/output loops check cancellation.
+- On failed/canceled SAF download, the app attempts deletion of the newly created output document and clearly warns if cleanup is not possible. This mitigates but does not solve non-atomic SAF writes on all providers.
+- Live S3/GCS/Azure tests, real-device VPN/proxy attack testing, size/hash verification and Android signing remain production release gates. See [Cloud E2E](../qa/CLOUD_E2E.md).

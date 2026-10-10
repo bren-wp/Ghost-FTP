@@ -1,6 +1,6 @@
 # Ghost FTP for Android — complete feature manual and release/security roadmap
 
-**Candidate:** 0.93.0 · **Platform:** Android 8 (API 26) and newer, target SDK 35 · **Source:** Kotlin Activity-based UI, FTP/FTPS through Apache Commons Net, SFTP through JSch, Android document picker for files. **Stage:** real Android application with bounded feature set, not parity with full Windows/Linux desktop.
+**Candidate:** 0.94.0 · **Platform:** Android 8 (API 26) and newer, target SDK 35 · **Source:** Kotlin Activity-based UI, FTP/FTPS through Apache Commons Net, SFTP through JSch, Android document picker for files. **Stage:** real Android application with bounded feature set, not parity with full Windows/Linux desktop.
 
 ## 1. Navigation and workspace inventory
 
@@ -12,7 +12,7 @@ The current MainActivity constructs real pages and click handlers for the follow
 | Sites | Connection form, protocol, host, port, username, password, host-key fingerprint, SFTP keep-alive, remote start path, open/disconnect/test | Session-focused rather than full desktop saved-site folder/tag/bookmark inventory |
 | Transfers | Local file selection, remote target/name, upload, download, rename, delete, create directory, activity log | Not a persistent multi-transfer scheduler with concurrency/bandwidth preferences |
 | Sync & Backup | Export and restore **non-secret connection settings** through Android documents | It is not automatic folder sync or cloud backup of user files |
-| Cloud storage | Masked signed HTTPS URL inputs, upload document selection, download document destination and status | One-object S3-compatible/GCS/Azure SAS link operations in 0.93.0 candidate; not Google Drive OAuth or S3 listing |
+| Cloud storage | Masked signed HTTPS URL inputs, upload document selection, download document destination and status | One-object S3-compatible/GCS/Azure SAS links (0.93.0 foundation, 0.94.0 connecting-DNS and cancellation hardening); not Google Drive OAuth or S3 listing |
 | Settings | App settings and supported local actions | Do not assume Windows/Linux settings inventory is mirrored here |
 | Help & About | Product/version/support/privacy links, protocol disclosure | External links must be official allow-listed URLs |
 
@@ -40,7 +40,7 @@ Android connection errors have a redaction helper which removes userinfo, bearer
 1. In the provider's authorized console or backend, create a **short-lived signed HTTPS PUT URL** with upload permission to exactly one object.
 2. Open Cloud storage in Ghost FTP, paste the URL into its masked input. Do not paste an AWS account secret, ordinary cloud sharing page, password or permanent API key.
 3. Select a file using Android's document picker; the app obtains read access to that URI only for the selection.
-4. The implementation validates the HTTPS scheme, signature parameter, username/fragment/port, public-looking hostname and DNS resolution; sends bytes with a bounded HttpsURLConnection PUT; checks HTTP response code.
+4. The implementation validates the HTTPS scheme, signature parameter, username/fragment/port, public-looking hostname and DNS resolution; uses a bounded direct-only OkHttp PUT with DNS address validation performed inside the connecting transport and checks the HTTP response code.
 5. On completion/failure, the signed URL input is cleared. The URL must not enter Android saved instance state, connection backup or activity logs.
 
 ### Download
@@ -52,7 +52,7 @@ Android connection errors have a redaction helper which removes userinfo, bearer
 
 **Current support:** S3/R2/B2-compatible signed PUT/GET, Google Cloud Storage signed URLs and Azure SAS links when the provider's required signed method/headers match this client's request. Individual objects are limited to **1 GiB**. No multipart/resumable cloud upload, Drive OAuth account navigation, OneDrive/Dropbox/Box sign-in, cloud directory browsing, cross-cloud copy or multi-file queue is implemented in this Android workspace.
 
-**Security:** Signed URLs are bearer credentials; generating a link with broad write permission is dangerous. The client requires HTTPS and system certificate trust, rejects redirects, URL-embedded username/password, private-looking names and literal IPs, and pre-checks DNS addresses. DNS rebinding/proxy routing remains a potential gap; additional transport-level IP pinning or trusted-provider allowlisting is a release-hardening item. The app does not transmit content to any Ghost FTP relay.
+**Security:** Signed URLs are bearer credentials; generating a link with broad write permission is dangerous. The client requires HTTPS and system certificate trust, rejects redirects, URL-embedded username/password, private-looking names and literal IPs, and validates every DNS answer used by its direct/no-proxy connecting transport. Network routing and IDNA attack cases still require physical-device/VPN and live-provider acceptance; macOS has independent routing limitations. The app does not transmit content to any Ghost FTP relay.
 
 ## 4. Private session model
 
@@ -110,3 +110,10 @@ The app currently calls the platform document picker rather than requesting broa
 - .github/workflows/ghostftp-android.yml — Android CI, package artifacts and emulator smoke checks.
 
 A successful CI job does not replace physical-device sign-off. Treat this candidate as **in progress** until the latest commit's tests/builds finish and public release asset checks complete.
+
+## 0.94.0 Android cloud reliability delta
+
+- Added **Cancel cloud transfer**: actively cancels the OkHttp `Call` and interrupts the transfer worker, rejecting stale UI callbacks after destruction.
+- Each new SAF target created by `ACTION_CREATE_DOCUMENT` is cleaned up on failed/canceled download where the document provider permits deletion. If removal fails, the UI warns explicitly that a partial destination may remain.
+- `CloudNetworkSafety.kt` defines the connection-level DNS address policy and `CloudTransferCancellation`; `CloudNetworkSafetyTest.kt` covers the routability and cancellation policy.
+- **Not production certified:** DNS rebinding/VPN and IDNA fuzzing, device lifecycle/cancellation, real third-party provider signatures, SAF provider failure semantics and destination checksum acceptance still need tests.

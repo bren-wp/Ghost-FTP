@@ -655,24 +655,25 @@ textarea:focus-visible:not(.xterm-helper-textarea),
 /* ========================================================================== */
 :root,
 [data-theme="dark"] {
-  --bg: 4 17 30;
-  --bg-panel: 5 24 42;
-  --bg-subtle: 7 32 54;
-  --bg-hover: 10 47 77;
-  --border: 24 73 112;
-  --border-subtle: 17 53 83;
+  /* Exact semantic colors from the approved 75-screen premium reference. */
+  --bg: 7 14 26;
+  --bg-panel: 13 25 43;
+  --bg-subtle: 17 31 52;
+  --bg-hover: 20 38 64;
+  --border: 37 72 106;
+  --border-subtle: 25 47 72;
   --text: 234 246 255;
-  --text-muted: 170 204 229;
-  --text-dim: 111 159 195;
+  --text-muted: 136 170 198;
+  --text-dim: 119 144 172;
   --accent: 56 171 255;
-  --accent-hover: 80 190 255;
-  --accent-strong: 2 123 244;
-  --accent-glow: 36 166 255;
-  --danger: 255 90 101;
+  --accent-hover: 126 222 255;
+  --accent-strong: 56 171 255;
+  --accent-glow: 56 171 255;
+  --danger: 255 114 132;
   --success: 38 220 143;
-  --warning: 255 184 67;
-  --info: 66 183 255;
-  --shadow: 0 8 30;
+  --warning: 255 192 107;
+  --info: 56 171 255;
+  --shadow: 0 0 0;
   color-scheme: dark;
 }
 
@@ -5491,6 +5492,62 @@ input.ghost-pane-address:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   .ghost-about-resources-list > button {
+    transition: none;
+  }
+}
+
+/* Premium 2026 reference alignment: Windows and Linux share these real,
+   interactive React/Tauri surfaces. Never paint reference PNGs behind controls. */
+:root,
+[data-theme="dark"] {
+  --ghost-premium-canvas: #070E1A;
+  --ghost-premium-panel: #0D192B;
+  --ghost-premium-raised: #111F34;
+  --ghost-premium-navy: #0B1E36;
+  --ghost-premium-slate: #132D52;
+  --ghost-premium-cyan: #7EDEFF;
+  --ghost-premium-hairline: rgba(124, 167, 216, .14);
+  --ghost-premium-active-line: rgba(56, 171, 255, .42);
+}
+.ghost-app-shell {
+  background: var(--ghost-premium-canvas);
+}
+.ghost-app-shell .ghost-primary-sidebar {
+  background: linear-gradient(172deg, #0C182B 0%, #091321 100%) !important;
+  border-right: 1px solid var(--ghost-premium-hairline) !important;
+}
+.ghost-app-shell .ghost-file-nav-row {
+  min-height: 43px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  transition: background-color .12s ease, border-color .12s ease;
+}
+.ghost-app-shell .ghost-file-nav-row.active,
+.ghost-app-shell .ghost-file-nav-row[aria-current="page"] {
+  border-color: var(--ghost-premium-active-line);
+  background: linear-gradient(90deg, #153A61, #122940);
+  color: #EAF6FF;
+  box-shadow: inset 3px 0 0 #38ABFF;
+}
+.ghost-app-shell .ghost-file-nav-row:focus-visible {
+  outline: 2px solid #7EDEFF;
+  outline-offset: 2px;
+}
+.ghost-app-shell .ghost-primary-button:disabled,
+.ghost-app-shell .ghost-quick-connect-main:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  box-shadow: none !important;
+}
+.ghost-app-shell .ghost-file-pane,
+.ghost-app-shell .ghost-transfer-box,
+.ghost-app-shell .ghost-settings-card,
+.ghost-app-shell .ghost-about-reference-card,
+.ghost-app-shell .ghost-about-reference-resources {
+  border-color: var(--ghost-premium-hairline) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ghost-app-shell .ghost-file-nav-row {
     transition: none;
   }
 }

@@ -1,6 +1,6 @@
 <div align="center">
 
-Current source/release cycle: **0.93.0**. Previous canonical release: **0.92.2**. Source-verified 0.30.11 and 0.30.12 builds are handled by the historical release recovery workflow.
+Current source/release cycle: **0.94.0 (in development)**. Latest confirmed public release: **0.93.0**. Source-verified 0.30.11 and 0.30.12 builds are handled by the historical release recovery workflow.
 
 <img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="430">
 
@@ -41,8 +41,8 @@ Current source/release cycle: **0.93.0**. Previous canonical release: **0.92.2**
 
 ## Current status
 
-- **Active source/release cycle:** `0.93.0`.
-- **Previous canonical release:** `0.92.2`.
+- **Active source/release cycle:** `0.94.0` (in development).
+- **Latest published canonical release:** `0.93.0`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
@@ -170,8 +170,12 @@ Canonical downloads: **GitHub Releases**
 
 The current source-level product inventory, privacy/security threat model and unimplemented-feature backlog are organized in the [Ghost FTP engineering handbook](docs/handbook/README.md): [Windows](docs/handbook/WINDOWS.md), [Linux](docs/handbook/LINUX.md), [macOS](docs/handbook/MACOS.md), [Android](docs/handbook/ANDROID.md), [feature matrix](docs/handbook/FEATURE_MATRIX.md), [security and privacy](docs/handbook/SECURITY_PRIVACY.md), and [delivery roadmap](docs/handbook/DELIVERY_ROADMAP.md). Every platform guide distinguishes source implementation, actual protocol support, candidate features and remaining acceptance gates.
 
-## Cloud storage — 0.93.0 candidate
+## Cloud storage — 0.93.0 published foundation, 0.94.0 Android hardening
 
 Windows/Linux retain the existing full S3-compatible, Azure Blob, GCS, Google Drive, OneDrive, Dropbox, Box and WebDAV connection adapters; custom S3/Azure endpoints now require HTTPS. macOS and Android gain direct cloud object upload/download using short-lived HTTPS signed PUT/GET URLs. These links are never persisted. This is **not** OAuth Google Drive browsing or S3 bucket listing on macOS/Android. See [Cloud security and supported services](docs/product/CLOUD_STORAGE.md).
 
 For the detailed 0.93.0 candidate provider compatibility, see [Cloud providers](docs/cloud/PROVIDERS.md), [Cloud authentication](docs/cloud/AUTHENTICATION.md), [Cloud E2E acceptance](docs/qa/CLOUD_E2E.md), [signed-link threat model](docs/security/CLOUD_SIGNED_URL_THREAT_MODEL.md) and [production readiness/blockers](docs/status/PRODUCTION_READINESS.md). Cloud source presence is not provider-level E2E verification.
+
+## Android cloud transfer security — 0.94.0 source candidate
+
+Android signed-object transfers use a direct-only OkHttp client with a public-address DNS policy enforced during the HTTP connection's own resolution, no proxy or automatic redirects/retries, standard TLS verification and an explicit Cancel cloud transfer action. On failed downloads the app attempts to delete the newly created SAF target and warns if incomplete output may remain. These safeguards do not establish complete DNS/VPN adversarial acceptance, atomic SAF writes, full cloud account OAuth or production device validation. See [0.94.0 release notes](docs/releases/0.94.0.md), [signed-link threat model](docs/security/CLOUD_SIGNED_URL_THREAT_MODEL.md) and [production blockers](docs/status/PRODUCTION_READINESS.md).

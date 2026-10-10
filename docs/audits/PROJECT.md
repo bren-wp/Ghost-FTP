@@ -1,6 +1,8 @@
 # Ghost FTP Audit Index — 0.93.0
 
-This index describes the current 0.93.0 source line. Previous canonical release: **0.92.2**.
+> Current development source: **0.94.0**; latest verified published release: **0.93.0**. Historical findings below retain their original version labels.
+
+This index describes the current 0.93.0 source line. Previous canonical release: **0.93.0**.
 
 - [Code audit](CODE.md)
 - [Security audit](SECURITY.md)

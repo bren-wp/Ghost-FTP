@@ -1,4 +1,6 @@
 <p align="center">
+
+> Current development source: **0.94.0**; latest verified published release: **0.93.0**. The desktop application remains on the shared Windows/Linux codebase.
   <img src="branding/ghostftp-logo.svg" alt="Ghost FTP" width="520">
 </p>
 
@@ -20,7 +22,7 @@ This directory contains the authoritative **Ghost FTP desktop application**.
 
 The release line opens as a real desktop window. It does not launch the production GUI through a localhost browser wrapper, and it must not expose a visible `127.0.0.1` address/origin bar.
 
-Current development line: **0.93.0**. Previous canonical release: **0.92.2**.
+Current development line: **0.94.0**. Previous canonical release: **0.93.0**.
 
 ## Platform deliverables
 

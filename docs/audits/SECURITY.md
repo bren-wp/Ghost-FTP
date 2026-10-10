@@ -1,6 +1,8 @@
 # Ghost FTP Security Audit — 0.93.0
 
-Previous canonical release: **0.92.2**.
+> Current development source: **0.94.0**; latest verified published release: **0.93.0**. Historical findings below retain their original version labels.
+
+Previous canonical release: **0.93.0**.
 
 0.93.0 cloud scope: custom S3/Azure desktop endpoints require HTTPS and forbid embedded credentials, query and fragments. Mobile/macOS signed-object transfers use ephemeral bearer URLs, OS TLS trust, no redirects, bounded file sizes and no stored signed links. This is targeted source hardening; penetration testing and complete provider/account parity are not claimed.
 
