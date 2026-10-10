@@ -26,6 +26,10 @@ All local README/documentation images are checked against the newest non-draft G
 - [Security/privacy architecture and threat model](handbook/SECURITY_PRIVACY.md)
 - [Detailed implementation backlog, dependencies and release criteria](handbook/DELIVERY_ROADMAP.md)
 - [Cloud storage provider and security scope](product/CLOUD_STORAGE.md)
+- [Cloud storage provider compatibility and verified status criteria](cloud/PROVIDERS.md)
+- [OAuth, object credentials and signed URL authentication](cloud/AUTHENTICATION.md)
+- [Signed cloud URL threat model and mitigations](security/CLOUD_SIGNED_URL_THREAT_MODEL.md)
+- [Release blockers and production readiness](status/PRODUCTION_READINESS.md)
 
 ## Product
 
@@ -42,6 +46,7 @@ All local README/documentation images are checked against the newest non-draft G
 - [Release process](release/PROCESS.md)
 - [Versioning](releases/VERSIONING.md)
 - [QA evidence index](qa/README.md)
+- [Cloud live E2E test matrix and evidence requirements](qa/CLOUD_E2E.md)
 
 ## Guides
 
