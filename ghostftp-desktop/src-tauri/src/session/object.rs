@@ -12,6 +12,25 @@ use uuid::Uuid;
 /// resulting Arc<dyn ObjectStore> hides the implementation from everything
 /// downstream. Future protocols (GCS, etc.) drop in with one more arm in
 /// `object_connect`.
+/// Object-store endpoints carry account data and must never fall back to HTTP.
+/// Keep provider-generated default endpoints unchanged; only custom endpoints
+/// pass through this guard, before any storage client is constructed.
+fn validated_cloud_endpoint(raw: &str) -> Result<&str> {
+    let url = url::Url::parse(raw).context("Invalid cloud storage endpoint URL")?;
+    if url.scheme() != "https"
+        || url.host_str().is_none()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        return Err(anyhow!(
+            "Cloud storage endpoints require HTTPS without embedded credentials, query or fragment"
+        ));
+    }
+    Ok(raw)
+}
+
 pub struct ObjectSession {
     pub id: String,
     pub profile: ConnectionProfile,
@@ -57,7 +76,7 @@ async fn s3_connect(profile: &ConnectionProfile) -> Result<ObjectSession> {
         .with_region(&region);
 
     if let Some(endpoint) = profile.endpoint.as_ref().filter(|s| !s.is_empty()) {
-        builder = builder.with_endpoint(endpoint);
+        builder = builder.with_endpoint(validated_cloud_endpoint(endpoint)?);
         // R2 / B2 / MinIO expect path-style addressing.
         builder = builder.with_virtual_hosted_style_request(false);
     }
@@ -110,7 +129,7 @@ async fn azure_connect(profile: &ConnectionProfile) -> Result<ObjectSession> {
         .with_access_key(&access_key);
 
     if let Some(endpoint) = profile.endpoint.as_ref().filter(|s| !s.is_empty()) {
-        builder = builder.with_endpoint(endpoint.clone());
+        builder = builder.with_endpoint(validated_cloud_endpoint(endpoint)?.to_string());
     }
 
     let store = builder
@@ -164,4 +183,29 @@ async fn gcs_connect(profile: &ConnectionProfile) -> Result<ObjectSession> {
         container: bucket,
         store: Arc::new(store),
     })
+}
+
+#[cfg(test)]
+mod cloud_endpoint_tests {
+    use super::validated_cloud_endpoint;
+
+    #[test]
+    fn rejects_plaintext_embedded_credentials_and_redirect_style_urls() {
+        for url in [
+            "http://s3.example.org",
+            "ftp://s3.example.org",
+            "https://user:secret@s3.example.org",
+            "https://s3.example.org/?sig=secret",
+            "https://s3.example.org/#fragment",
+            "not a URL",
+        ] {
+            assert!(validated_cloud_endpoint(url).is_err(), "accepted an unsafe endpoint");
+        }
+    }
+
+    #[test]
+    fn accepts_custom_tls_endpoints_used_by_s3_compatible_services() {
+        assert!(validated_cloud_endpoint("https://example.com:9000").is_ok());
+        assert!(validated_cloud_endpoint("https://s3.us-west-002.backblazeb2.com").is_ok());
+    }
 }
