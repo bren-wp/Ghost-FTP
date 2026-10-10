@@ -110,16 +110,16 @@ declaration = re.compile(
 
 for path in sorted(root.rglob("*.kt")):
     source = path.read_text(encoding="utf-8")
-    # Kotlin regular and triple-quoted strings can contain https://.
-    # Hide strings before stripping line comments, or the slash pair can
-    # swallow a later symbol reference and cause false dead-code reports.
-    code = re.sub(r'/\*[\s\S]*?\*/', " ", source)
-    # Kotlin string templates execute real code inside ${...} and $identifier.
-    # Preserve those references for reachability before masking text literals.
-    interpolated = re.findall(r'\$\{([^{}]+)\}', code)
-    interpolated.extend(re.findall(r'\$([A-Za-z_][A-Za-z0-9_]*)', code))
-    code = re.sub(r'"""[\s\S]*?"""', '""', code)
+    # Kotlin regular/triple-quoted strings can contain both https:// and
+    # MIME types such as "*/*". Mask ALL strings before stripping comments:
+    # treating /* within a MIME string as a block-comment opener can swallow
+    # thousands of real references and manufacture false dead-code findings.
+    # Preserve string-template symbol references before masking.
+    interpolated = re.findall(r'\$\{([^{}]+)\}', source)
+    interpolated.extend(re.findall(r'\$([A-Za-z_][A-Za-z0-9_]*)', source))
+    code = re.sub(r'"""[\s\S]*?"""', '""', source)
     code = re.sub(r'"(?:\\.|[^"\\])*"', '""', code)
+    code = re.sub(r'/\*[\s\S]*?\*/', " ", code)
     code = re.sub(r"//[^\n]*", " ", code)
     code += "\n" + "\n".join(interpolated)
     for match in declaration.finditer(code):
