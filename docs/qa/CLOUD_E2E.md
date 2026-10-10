@@ -43,3 +43,9 @@ See [provider compatibility](../cloud/PROVIDERS.md) and [production blockers](..
 - `android/app/src/test/java/com/ghostftp/android/CloudNetworkSafetyTest.kt` covers public/private/CGNAT/IPv6/reserved DNS answers, blocked mixed records, missing DNS, direct-only proxy policy, redirect/retry restrictions and cancellation idempotence.
 - Source tests do not prove live TLS routing, Android proxy/VPN behavior or provider-signed PUT/GET compatibility. The Android CI result for the exact candidate SHA is the authoritative compilation/unit result.
 - The save-path behavior is deliberately **best-effort**: `ACTION_CREATE_DOCUMENT` creates the SAF target; the app attempts to delete it after any failed download, but informs the user when deletion is denied. A successful `OutputStream.close()` cannot prove a cloud object's cryptographic identity.
+
+## 0.95.0 Android provider checksum verification — Issue #127 (partial)
+
+When a signed GET returns the official `x-amz-checksum-sha256` response header, Android now computes SHA-256 while streaming to its private staging file, compares the base64-decoded 32-byte digest in constant time and **rejects an invalid/mismatched checksum before it opens the user-selected SAF output URI**. `CloudChecksumTest.kt` covers correct, missing, malformed, truncated and mismatched headers. A provider that omits the header cannot be claimed cryptographically verified, and multipart S3 `ETag` must **never** be interpreted as a SHA-256 object checksum. Check the exact-sha Android CI before considering this tested.
+
+This closes neither the SAF provider-atomicity nor real-device part of [#127](https://github.com/bren-wp/Ghost-FTP/issues/127). The app still relies on provider-dependent best-effort deletion after incomplete final copy. Exercise revoked permissions, disk-full, device rotation, unexpected Content-Length and 0/1GiB objects on genuine providers before any 1.0 production readiness claim.
