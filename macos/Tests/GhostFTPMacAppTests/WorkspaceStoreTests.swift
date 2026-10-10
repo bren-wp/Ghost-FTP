@@ -164,6 +164,42 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(ProfileStore(defaults: defaults).profiles, [original])
     }
 
+    func testValidRestoreSucceedsAfterRejectedIdentityConflict() throws {
+        let defaults = isolatedDefaults("retry-credential-restore")
+        let store = ProfileStore(defaults: defaults)
+        let original = ConnectionProfile(
+            name: "Saved",
+            protocolKind: .ftp,
+            host: "ftp.example.org",
+            username: "deploy"
+        )
+        store.save(original)
+
+        var redirected = original
+        redirected.host = "other.example.org"
+        XCTAssertThrowsError(
+            try store.importProfiles(from: JSONEncoder().encode([redirected]))
+        ) { error in
+            XCTAssertEqual(error as? ProfileStoreError, .credentialIdentityConflict)
+        }
+
+        var renamed = original
+        renamed.name = "Saved (restored)"
+        let unrelated = ConnectionProfile(
+            name: "Additional site",
+            protocolKind: .ftp,
+            host: "additional.example.org",
+            username: "other"
+        )
+        XCTAssertEqual(
+            try store.importProfiles(from: JSONEncoder().encode([renamed, unrelated])),
+            2
+        )
+        XCTAssertEqual(store.profiles.count, 2)
+        XCTAssertEqual(store.profiles.first(where: { $0.id == original.id }), renamed)
+        XCTAssertEqual(ProfileStore(defaults: defaults).profiles, store.profiles)
+    }
+
     func testProfileImportRejectsTooManyProfiles() throws {
         let store = ProfileStore(defaults: isolatedDefaults("profile-count-limit"))
         let manyProfiles = (0..<513).map { index in
