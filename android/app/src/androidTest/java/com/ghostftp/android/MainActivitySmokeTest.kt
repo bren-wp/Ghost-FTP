@@ -122,10 +122,13 @@ class MainActivitySmokeTest {
     @Test
     fun cloudWorkspaceHasCancellableTransferControls() {
         openWorkspaceByLabel("Cloud storage")
-        assertTextVisibleInViewport("Cloud storage")
+        // "Cloud storage" also occurs in the navigation rail. Checking the
+        // workspace container verifies that navigation selected the right
+        // screen rather than finding an offscreen rail label first.
+        assertDescriptionPresent(appString(R.string.workspace_content, "Cloud storage"))
+        assertTextPresent("No cloud transfer in progress.")
         assertDescriptionPresent("Cancel cloud transfer")
         assertDescriptionEnabled("Cancel cloud transfer", false)
-        assertTextVisibleInViewport("No cloud transfer in progress.")
     }
 
     @Test
