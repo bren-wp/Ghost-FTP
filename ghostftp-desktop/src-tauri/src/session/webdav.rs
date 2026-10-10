@@ -177,9 +177,8 @@ pub async fn webdav_connect(profile: &ConnectionProfile) -> Result<WebdavSession
     }
     if !(status.is_success() || status.as_u16() == 207) {
         return Err(anyhow!(
-            "WebDAV server returned {} for {} — check the URL path.",
-            status.as_u16(),
-            session.base
+            "WebDAV server returned {} — check the HTTPS endpoint path.",
+            status.as_u16()
         ));
     }
 

@@ -23,3 +23,7 @@
 ## Future parity and acceptance
 
 Run real S3/R2/GCS/Azure signed-object tests, expiry/403/revocation tests, Android on-device SAF checks, macOS file privacy/TLS testing, correct region/bucket browsers, secure token exchange, user-driven OAuth account disconnection, multipart/resumable transfers and localization checks. Do not label these as implemented.
+
+## Authenticated WebDAV protection on Windows/Linux
+
+The WebDAV client now rejects plaintext HTTP, URL userinfo, query and fragments before Basic/Bearer authorization. Automatic 30x following is disabled to prevent credential leakage to a redirected endpoint. Users must configure a certificate-valid HTTPS WebDAV root.
