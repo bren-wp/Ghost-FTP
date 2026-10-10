@@ -269,7 +269,8 @@ class MainActivity : Activity() {
         navigationOpen = !compactNavigation
         val railWidth = when {
             compactNavigation -> dp(152)
-            resources.configuration.screenWidthDp < 600 -> dp(88)
+            // The approved 480 × 960 Android reference uses a 64px rail.
+            resources.configuration.screenWidthDp < 600 -> dp(64)
             else -> dp(184)
         }
         navigationRail = buildNavigationRail().apply {
@@ -371,18 +372,20 @@ class MainActivity : Activity() {
         val rail = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(8), dp(14), dp(8), dp(14))
+            val iconRail = resources.configuration.screenWidthDp in 360..599
+            setPadding(dp(if (iconRail) 4 else 8), dp(14), dp(if (iconRail) 4 else 8), dp(14))
 
-            addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(42), dp(42)))
+            addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(if (iconRail) 32 else 42), dp(if (iconRail) 32 else 42)))
             addView(space(8))
             addView(TextView(this@MainActivity).apply {
                 text = "Ghost FTP"
                 setTextColor(Brand.text)
-                textSize = 14f
+                textSize = if (iconRail) 9f else 14f
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
+                maxLines = 1
             })
-            addView(TextView(this@MainActivity).apply {
+            if (!iconRail) addView(TextView(this@MainActivity).apply {
                 text = ReleaseInfo.VERSION_DISPLAY
                 setTextColor(Brand.muted)
                 textSize = 11f
@@ -398,11 +401,11 @@ class MainActivity : Activity() {
                         dp(if (resources.configuration.screenWidthDp >= 600) 50 else 56)
                     )
                 )
-                addView(space(6))
+                addView(space(if (iconRail) 2 else 6))
             }
 
             addView(space(12))
-            addView(TextView(this@MainActivity).apply {
+            if (!iconRail) addView(TextView(this@MainActivity).apply {
                 text = getString(R.string.label_private_session)
                 setTextColor(Brand.muted)
                 textSize = 10f
@@ -1937,13 +1940,37 @@ class MainActivity : Activity() {
 
     private fun workspaceNavItem(workspace: Workspace): TextView {
         val label = workspaceLabel(workspace)
+        val iconRail = resources.configuration.screenWidthDp in 360..599
+        val displayLabel = if (iconRail) {
+            when (workspace) {
+                Workspace.SYNC -> getString(R.string.workspace_sync_short)
+                Workspace.CLOUD -> getString(R.string.workspace_cloud_short)
+                Workspace.ABOUT -> getString(R.string.workspace_about_short)
+                else -> label
+            }
+        } else label
+        val iconResource = when (workspace) {
+            Workspace.FILES -> R.drawable.ic_premium_nav_files
+            Workspace.SITES -> R.drawable.ic_premium_nav_sites
+            Workspace.TRANSFERS -> R.drawable.ic_premium_nav_transfers
+            Workspace.SYNC -> R.drawable.ic_premium_nav_sync
+            Workspace.CLOUD -> R.drawable.ic_premium_nav_cloud
+            Workspace.SETTINGS -> R.drawable.ic_premium_nav_settings
+            Workspace.ABOUT -> R.drawable.ic_premium_nav_about
+        }
         val view = TextView(this).apply {
-            text = label
+            text = displayLabel
             contentDescription = getString(R.string.workspace_open, label)
-            textSize = if (resources.configuration.screenWidthDp >= 600) 13f else 11f
+            textSize = if (iconRail) 9f else 12f
+            maxLines = if (iconRail) 2 else 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding(dp(6), dp(8), dp(6), dp(8))
+            compoundDrawablePadding = dp(if (iconRail) 4 else 6)
+            val icon = getDrawable(iconResource)?.mutate()
+            icon?.setBounds(0, 0, dp(20), dp(20))
+            setCompoundDrawables(null, icon, null, null)
+            setPadding(dp(if (iconRail) 2 else 6), dp(4), dp(if (iconRail) 2 else 6), dp(4))
             isClickable = true
             isFocusable = true
             setOnClickListener { setWorkspace(workspace) }
@@ -1954,10 +1981,12 @@ class MainActivity : Activity() {
     }
 
     private fun styleWorkspaceNavItem(view: TextView, selected: Boolean) {
-        view.setTextColor(if (selected) Brand.accent else Brand.textSoft)
+        val color = if (selected) Brand.accent else Brand.textSoft
+        view.setTextColor(color)
+        view.compoundDrawables[1]?.setTint(color)
         view.background = rounded(
             if (selected) Brand.accentSurface else Brand.panel,
-            dp(14),
+            dp(10),
             if (selected) Brand.accent else Brand.borderSubtle
         )
     }
@@ -2039,7 +2068,8 @@ class MainActivity : Activity() {
         val border: Int = Color.rgb(39, 70, 99)
         val borderSubtle: Int = Color.rgb(25, 47, 72)
         val accent: Int = Color.rgb(56, 171, 255)
-        val accentSurface: Int = Color.rgb(19, 48, 72)
+        val accentSurface: Int = Color.rgb(19, 45, 82)
+        val success: Int = Color.rgb(38, 220, 143)
         val danger: Int = Color.rgb(255, 114, 132)
         val dangerSurface: Int = Color.rgb(57, 32, 45)
         val text: Int = Color.rgb(234, 246, 255)
