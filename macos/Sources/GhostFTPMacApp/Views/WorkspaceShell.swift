@@ -14,6 +14,7 @@ private enum MacWorkspace: String, CaseIterable, Identifiable, Hashable {
     case files
     case sites
     case transfers
+    case cloud
     case sync
     case settings
     case about
@@ -25,6 +26,7 @@ private enum MacWorkspace: String, CaseIterable, Identifiable, Hashable {
         case .files: return "Files"
         case .sites: return "Sites"
         case .transfers: return "Transfers"
+        case .cloud: return "Cloud storage"
         case .sync: return "Sync & Backup"
         case .settings: return "Settings"
         case .about: return "Help & About"
@@ -36,6 +38,7 @@ private enum MacWorkspace: String, CaseIterable, Identifiable, Hashable {
         case .files: return "folder"
         case .sites: return "server.rack"
         case .transfers: return "arrow.up.arrow.down"
+        case .cloud: return "externaldrive.fill.badge.icloud"
         case .sync: return "arrow.triangle.2.circlepath"
         case .settings: return "gearshape"
         case .about: return "questionmark.circle"
@@ -150,6 +153,8 @@ struct ContentView: View {
             )
         case .transfers:
             TransfersWorkspace(history: transferHistory)
+        case .cloud:
+            CloudWorkspace()
         case .sync:
             SyncBackupWorkspace(profiles: profiles)
         case .settings:
