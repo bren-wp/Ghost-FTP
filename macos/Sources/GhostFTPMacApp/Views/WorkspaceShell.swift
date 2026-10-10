@@ -171,6 +171,7 @@ private struct SitesWorkspace: View {
     @Binding var selectedID: UUID?
     let onOpen: (UUID) -> Void
     @State private var duplicatesOnly = false
+    @State private var deletionWarning: String?
 
     private var duplicateIDs: Set<UUID> {
         SavedSiteDuplicates.duplicateIDs(in: profiles.profiles)
@@ -188,6 +189,12 @@ private struct SitesWorkspace: View {
                 title: "Sites",
                 subtitle: "Saved connections use the same site model as Ghost FTP on Windows and Linux."
             )
+
+            if let deletionWarning {
+                Label(deletionWarning, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+                    .font(.callout)
+            }
 
             if profiles.profiles.isEmpty {
                 emptyWorkspace(
@@ -234,10 +241,15 @@ private struct SitesWorkspace: View {
                             }
 
                             Button(role: .destructive) {
-                                try? KeychainStore().removePassword(for: profile.id)
-                                profiles.delete(profile.id)
-                                if selectedID == profile.id {
-                                    selectedID = nil
+                                do {
+                                    try KeychainStore().removePassword(for: profile.id)
+                                    profiles.delete(profile.id)
+                                    deletionWarning = nil
+                                    if selectedID == profile.id {
+                                        selectedID = nil
+                                    }
+                                } catch {
+                                    deletionWarning = "The site was not deleted because its Keychain credential could not be removed."
                                 }
                             } label: {
                                 Image(systemName: "trash")
