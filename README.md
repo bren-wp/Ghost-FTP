@@ -166,6 +166,10 @@ Canonical downloads: **GitHub Releases**
 
 </div>
 
+## Complete documentation by platform
+
+The current source-level product inventory, privacy/security threat model and unimplemented-feature backlog are organized in the [Ghost FTP engineering handbook](docs/handbook/README.md): [Windows](docs/handbook/WINDOWS.md), [Linux](docs/handbook/LINUX.md), [macOS](docs/handbook/MACOS.md), [Android](docs/handbook/ANDROID.md), [feature matrix](docs/handbook/FEATURE_MATRIX.md), [security and privacy](docs/handbook/SECURITY_PRIVACY.md), and [delivery roadmap](docs/handbook/DELIVERY_ROADMAP.md). Every platform guide distinguishes source implementation, actual protocol support, candidate features and remaining acceptance gates.
+
 ## Cloud storage — 0.93.0 candidate
 
 Windows/Linux retain the existing full S3-compatible, Azure Blob, GCS, Google Drive, OneDrive, Dropbox, Box and WebDAV connection adapters; custom S3/Azure endpoints now require HTTPS. macOS and Android gain direct cloud object upload/download using short-lived HTTPS signed PUT/GET URLs. These links are never persisted. This is **not** OAuth Google Drive browsing or S3 bucket listing on macOS/Android. See [Cloud security and supported services](docs/product/CLOUD_STORAGE.md).

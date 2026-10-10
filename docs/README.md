@@ -15,6 +15,18 @@ Current status documents use the canonical `0.x` version train. Historical relea
 
 All local README/documentation images are checked against the newest non-draft GitHub Release tag. A documentation image that is missing from or differs from that release fails CI.
 
+## Complete platform manuals, current status and security review
+
+- [Full product handbook and status rules](handbook/README.md)
+- [Windows app — all source features, settings, cloud connectors and QA](handbook/WINDOWS.md)
+- [Linux app — capabilities, packaging, keyring and protocol testing](handbook/LINUX.md)
+- [macOS app — SwiftUI workspaces, actual protocol limits and Keychain](handbook/MACOS.md)
+- [Android app — Kotlin workspaces, transfers, SAF and mobile privacy](handbook/ANDROID.md)
+- [Cross-platform feature-by-feature status matrix](handbook/FEATURE_MATRIX.md)
+- [Security/privacy architecture and threat model](handbook/SECURITY_PRIVACY.md)
+- [Detailed implementation backlog, dependencies and release criteria](handbook/DELIVERY_ROADMAP.md)
+- [Cloud storage provider and security scope](product/CLOUD_STORAGE.md)
+
 ## Product
 
 - [Features](product/FEATURES.md)
