@@ -40,7 +40,7 @@ jobs:
         run: bash android/scripts/check-android-contract.sh
       - name: Native Android lint and APK build
         shell: bash
-        run: gradle -p android testDebugUnitTest lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview
+        run: gradle -p android testDebugUnitTest lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview bundleRelease
       - name: Android click-through emulator smoke
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
@@ -72,6 +72,7 @@ jobs:
           ANDROID_VERSION_CODE="$(node -p 'require("./version.json").androidVersionCode')"
           PREVIEW_APK="android/app/build/outputs/apk/preview/app-preview.apk"
           UNSIGNED_RELEASE_APK="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          RELEASE_AAB="android/app/build/outputs/bundle/release/app-release.aab"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -n1)"
           AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n1)"
 
@@ -125,6 +126,13 @@ jobs:
             exit 1
           fi
           cp "$UNSIGNED_RELEASE_APK" "dist/android/GhostFTP-Android-v${VERSION}-Release-Unsigned.apk.unsigned"
+
+          # AAB is not installable directly. The release build is intentionally
+          # unsigned until a trusted production Play signing identity is supplied.
+          test -s "$RELEASE_AAB"
+          unzip -tqq "$RELEASE_AAB"
+          unzip -Z -1 "$RELEASE_AAB" | grep -Fxq 'base/manifest/AndroidManifest.xml'
+          cp "$RELEASE_AAB" "dist/android/GhostFTP-Android-v${VERSION}-Release-Unsigned.aab.unsigned"
 
           (
             cd dist/android
