@@ -96,7 +96,7 @@ enum SignedCloudTransfer {
         let client = session()
         defer { client.finishTasksAndInvalidate() }
         let (_, response) = try await client.upload(for: request, fromFile: file)
-        try verify(response)
+        try verify(response, isDownload: false)
     }
 
     static func download(from link: SignedCloudLink, to destination: URL) async throws {
@@ -105,7 +105,7 @@ enum SignedCloudTransfer {
         let client = session()
         defer { client.finishTasksAndInvalidate() }
         let (temporary, response) = try await client.download(for: request)
-        try verify(response)
+        try verify(response, isDownload: true)
         let manager = FileManager.default
         guard let size = try? manager.attributesOfItem(atPath: temporary.path)[.size] as? NSNumber,
               size.int64Value <= 1024 * 1024 * 1024 else {
@@ -126,11 +126,13 @@ enum SignedCloudTransfer {
         }
     }
 
-    private static func verify(_ response: URLResponse) throws {
+    private static func verify(_ response: URLResponse, isDownload: Bool) throws {
         guard let http = response as? HTTPURLResponse else {
             throw SignedCloudLinkError.invalidResponse
         }
-        guard (200...299).contains(http.statusCode) else {
+        // A GET without a Range request must not silently install a partial
+        // object returned as HTTP 206 in place of the complete destination.
+        guard isDownload ? http.statusCode == 200 : (200...299).contains(http.statusCode) else {
             throw SignedCloudLinkError.failedResponse(http.statusCode)
         }
     }

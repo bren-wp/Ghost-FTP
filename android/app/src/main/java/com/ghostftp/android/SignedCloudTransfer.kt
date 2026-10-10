@@ -79,7 +79,9 @@ internal object SignedCloudTransfer {
 
     private fun ensureSuccess(connection: HttpsURLConnection) {
         val status = connection.responseCode
-        if (status !in 200..299) {
+        // A signed GET must return the complete object. HTTP 206 without an
+        // explicit Range request is not a safe replacement for an existing file.
+        if (status !in 200..299 || (connection.requestMethod == "GET" && status != 200)) {
             throw IOException("Cloud provider rejected the request (HTTP $status). Check link expiry and permissions.")
         }
     }
