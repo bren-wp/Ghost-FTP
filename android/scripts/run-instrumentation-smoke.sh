@@ -29,10 +29,45 @@ adb wait-for-device
 # The approved Android visual reference has an actual 480x960px viewport.
 # Set 160dpi so the app's 64dp rail occupies 64 real screenshot pixels.
 # This is limited to the isolated CI emulator, never a user's device.
+# The ATD image can report its effective dimensions as "Physical" when a
+# requested override equals its baseline. Do not require only the textual
+# "Override" label. Also give WindowManager time to apply both changes.
 adb shell wm size 480x960
 adb shell wm density 160
-adb shell wm size | grep -Fq 'Override size: 480x960'
-adb shell wm density | grep -Fq 'Override density: 160'
+size_output=""
+density_output=""
+geometry_ready=0
+for _ in {1..15}; do
+  size_output="$(adb shell wm size 2>&1 | tr -d '\r')" || size_output="ADB size query failed"
+  density_output="$(adb shell wm density 2>&1 | tr -d '\r')" || density_output="ADB density query failed"
+  size_ok=0
+  density_ok=0
+  # If Override is present it must match. Physical is authoritative only
+  # when Android reports no active override.
+  case "$size_output" in
+    *"Override size: 480x960"*) size_ok=1 ;;
+    *"Override size:"*) ;;
+    *"Physical size: 480x960"*) size_ok=1 ;;
+  esac
+  case "$density_output" in
+    *"Override density: 160"*) density_ok=1 ;;
+    *"Override density:"*) ;;
+    *"Physical density: 160"*) density_ok=1 ;;
+  esac
+  if [ "$size_ok" -eq 1 ] && [ "$density_ok" -eq 1 ]; then
+    geometry_ready=1
+    break
+  fi
+  sleep 1
+done
+printf 'Android emulator effective display size: %s\n' "$size_output"
+printf 'Android emulator effective display density: %s\n' "$density_output"
+printf '%s\n' "$size_output" > "$DIAG_DIR/emulator-wm-size.txt"
+printf '%s\n' "$density_output" > "$DIAG_DIR/emulator-wm-density.txt"
+if [ "$geometry_ready" -ne 1 ]; then
+  echo "Emulator did not reach the required 480x960 / 160dpi QA geometry." >&2
+  exit 1
+fi
 adb shell input keyevent KEYCODE_WAKEUP || true
 adb shell wm dismiss-keyguard || true
 adb shell svc power stayon true || true
