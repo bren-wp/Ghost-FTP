@@ -12,6 +12,15 @@ Protocol session work must preserve these rules:
 - Passwords and future private-key passphrases must not be written to UserDefaults/profile JSON.
 - A TCP reachability check is not evidence that authentication or protocol negotiation succeeded.
 
+## Saved-site restore safety (0.92.1)
+
+Saved-site backups never contain Keychain passwords. An imported profile UUID
+that already belongs to a saved site may update its display name or connection
+preferences only when protocol, hostname, port and username remain unchanged.
+A conflicting import is rejected in full before mutating any saved sites;
+Keychain credentials remain untouched. Add a different destination as a new
+site rather than restoring it over an existing UUID.
+
 ## Build and test
 
 From the repository root:

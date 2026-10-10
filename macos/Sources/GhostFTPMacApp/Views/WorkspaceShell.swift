@@ -397,6 +397,8 @@ private struct SyncBackupWorkspace: View {
             let data = try readBoundedBackup(from: url)
             let count = try profiles.importProfiles(from: data)
             statusMessage = "Restored \(count) site definition(s). Passwords remain unchanged in Keychain."
+        } catch ProfileStoreError.credentialIdentityConflict {
+            statusMessage = "Restore blocked: an imported site ID changes the server, protocol, port or username of an existing site. No profiles or Keychain passwords were changed. Add the site separately instead."
         } catch {
             statusMessage = "The selected backup is invalid or could not be read."
         }

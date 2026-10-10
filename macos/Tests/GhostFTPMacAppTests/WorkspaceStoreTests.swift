@@ -93,15 +93,75 @@ final class WorkspaceStoreTests: XCTestCase {
             id: id,
             name: "Updated",
             protocolKind: .ftp,
-            host: "new.example.com",
-            username: "user"
+            host: "old.example.com",
+            username: "user",
+            reconnectAttempts: 2
         )
         let data = try JSONEncoder().encode([replacement])
 
         XCTAssertEqual(try store.importProfiles(from: data), 1)
         XCTAssertEqual(store.profiles.count, 1)
         XCTAssertEqual(store.profiles.first?.name, "Updated")
-        XCTAssertEqual(store.profiles.first?.host, "new.example.com")
+        XCTAssertEqual(store.profiles.first?.host, "old.example.com")
+        XCTAssertEqual(store.profiles.first?.reconnectAttempts, 2)
+    }
+
+    func testProfileImportRejectsKeychainIdentityRedirects() throws {
+        let defaults = isolatedDefaults("credential-identity")
+        let store = ProfileStore(defaults: defaults)
+        let original = ConnectionProfile(
+            name: "Production",
+            protocolKind: .ftp,
+            host: "ftp.example.org",
+            port: 21,
+            username: "deploy"
+        )
+        store.save(original)
+
+        var changedHost = original
+        changedHost.host = "attacker.example.org"
+        var changedProtocol = original
+        changedProtocol.protocolKind = .sftp
+        var changedPort = original
+        changedPort.port = 2121
+        var changedUsername = original
+        changedUsername.username = "other"
+
+        for conflicting in [changedHost, changedProtocol, changedPort, changedUsername] {
+            let data = try JSONEncoder().encode([conflicting])
+            XCTAssertThrowsError(try store.importProfiles(from: data)) { error in
+                XCTAssertEqual(error as? ProfileStoreError, .credentialIdentityConflict)
+            }
+            XCTAssertEqual(store.profiles, [original])
+            XCTAssertEqual(ProfileStore(defaults: defaults).profiles, [original])
+        }
+    }
+
+    func testConflictingImportDoesNotPartiallyAddUnrelatedSites() throws {
+        let defaults = isolatedDefaults("atomic-credential-import")
+        let store = ProfileStore(defaults: defaults)
+        let original = ConnectionProfile(
+            name: "Protected",
+            protocolKind: .ftp,
+            host: "old.example.org",
+            username: "deploy"
+        )
+        store.save(original)
+
+        var conflicting = original
+        conflicting.host = "redirect.example.org"
+        let newSite = ConnectionProfile(
+            name: "Unrelated",
+            protocolKind: .ftp,
+            host: "new.example.org",
+            username: "other"
+        )
+        let backup = try JSONEncoder().encode([newSite, conflicting])
+        XCTAssertThrowsError(try store.importProfiles(from: backup)) { error in
+            XCTAssertEqual(error as? ProfileStoreError, .credentialIdentityConflict)
+        }
+        XCTAssertEqual(store.profiles, [original])
+        XCTAssertEqual(ProfileStore(defaults: defaults).profiles, [original])
     }
 
     func testProfileImportRejectsTooManyProfiles() throws {
