@@ -43,6 +43,8 @@ requireSource(mac, "static let slate = Color(red: 19/255, green: 45/255, blue: 8
 requireSource(css, "width: 214px !important", "214px desktop sidebar reference not enforced");
 requireSource(css, "min-height: 43px", "43px desktop navigation reference not enforced");
 requireSource(android, "resources.configuration.screenWidthDp < 600 -> dp(64)", "64dp Android compact rail not implemented");
+requireSource(android, "private fun buildPremiumPhoneChrome(): View", "full-width reference identity bar absent on Android");
+requireSource(android, "ViewGroup.LayoutParams.MATCH_PARENT, dp(58)", "58dp reference identity bar geometry missing");
 requireSource(android, "resources.configuration.screenWidthDp in 360..599", "compact navigation labels lack responsive mode");
 requireSource(android, "icon?.setBounds(0, 0, dp(20), dp(20))", "Android 20dp reference icon dimensions not implemented");
 requireSource(android, "setCompoundDrawables(null, icon, null, null)", "Android interactive vector navigation icons missing");
