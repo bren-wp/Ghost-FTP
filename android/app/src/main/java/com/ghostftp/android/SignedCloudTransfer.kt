@@ -73,6 +73,15 @@ internal class SignedCloudLink(raw: String) {
         }
 
         internal fun isPublicHost(host: String): Boolean {
+            // Do not let IDNA/punycode, unusual Unicode or malformed DNS
+            // labels broaden the signed provider allowlist. This does not
+            // replace PublicCloudDns validation on the actual HTTP lookup.
+            if (host.length !in 4..253 ||
+                host.any { ch -> ch !in 'a'..'z' && ch !in '0'..'9' && ch != '-' && ch != '.' } ||
+                host.split('.').any { label ->
+                    label.isEmpty() || label.length > 63 || label.startsWith('-') ||
+                        label.endsWith('-') || label.startsWith("xn--")
+                }) return false
             if (host == "localhost" || host.endsWith(".localhost") ||
                 host.endsWith(".local") || host.endsWith(".internal") ||
                 host == "::1" || host.startsWith("fe80:") ||
