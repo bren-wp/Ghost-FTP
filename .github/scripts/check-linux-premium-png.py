@@ -18,7 +18,7 @@ def validate(filename: str) -> None:
             raise ValueError(f"Unexpected PNG format or reference size: {image.format} {image.size}")
         # Exclude window manager decorations; analyse only app content.
         content = image.convert("RGB").crop((75, 65, 1215, 785))
-        pixels = list(content.resize((190, 120), Image.Resampling.NEAREST).getdata())
+        pixels = list(content.resize((190, 120), Image.NEAREST).getdata())
 
     colors = {(r // 16, g // 16, b // 16) for r, g, b in pixels}
     # A blank WebKit surface can still produce >18 KiB PNG due to Openbox
