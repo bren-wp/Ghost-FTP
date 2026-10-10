@@ -1,6 +1,8 @@
-# Ghost FTP Code Audit — 0.92.1
+# Ghost FTP Code Audit — 0.92.2
 
 ## Scope
+
+0.92.2 focused macOS review: Keychain password changes use in-place updates and recover safely from concurrent inserts rather than deleting a prior secret before a write. Failed credential saves and Keychain deletes do not falsely mark an edit saved or silently remove the site. Dedicated XCTest covers status transitions. The review does not establish total defect or dead-code freedom.
 
 0.92.1 focused macOS review: saved-site restore now rejects profile UUID collisions when connection identity changes, preventing reuse of a UUID-bound Keychain password at another endpoint. Tests cover atomic import rejection and safe metadata-only updates. This is not a complete multi-platform dead-code or security audit.
 
@@ -10,7 +12,7 @@
 
 0.91.0 incremental review: the saved-sites identity-matching code reads protocol, normalized host, port and username without accessing auth secrets or modifying persisted profile data. The feature is Windows/Linux-only; cross-platform UI acceptance and a new full dead-code audit are not claimed.
 
-This audit covers the current Ghost FTP 0.92.1 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.92.0**.
+This audit covers the current Ghost FTP 0.92.2 source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.92.1**.
 
 These findings build on the previously reviewed 0.30.15 code-audit baseline; the 0.30.16 changes are limited to live premium color surfaces and their CI contract. A complete new dead-code audit has not been claimed.
 

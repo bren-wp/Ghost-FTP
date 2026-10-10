@@ -1,6 +1,8 @@
-# Ghost FTP Security Audit — 0.92.1
+# Ghost FTP Security Audit — 0.92.2
 
-Previous canonical release: **0.92.0**.
+Previous canonical release: **0.92.1**.
+
+0.92.2 macOS Keychain write boundary: password rotation updates a matching Keychain record in place; existing secrets are not deleted ahead of an unverified new write. Concurrent insertion is retried by update. Credential write/removal failures now block the corresponding site edit/removal and surface errors to users. Six injected-status XCTest cases cover error paths; this is targeted assurance, not an independent security assessment.
 
 0.92.1 macOS restore boundary: imported backups cannot redirect a saved UUID to a different protocol, server, port or username while retaining the UUID-bound Keychain secret. Conflicting imports abort before any profile mutation; XCTest covers both redirects and atomic rollback. This is a targeted source fix, not a penetration assessment.
 

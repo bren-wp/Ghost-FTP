@@ -1,6 +1,10 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 0.92.1 development/release source. Previous canonical release: **0.92.0**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.92.2 development/release source. Previous canonical release: **0.92.1**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+
+## macOS Keychain write failure safety (0.92.2)
+
+Existing saved-site passwords are updated in place instead of removed before inserting replacements. A concurrent insert collision retries the update without destructive deletion. If writing or deleting a password fails, the Sites editor preserves the prior profile state and presents an error rather than reporting a successful save/deletion. Six isolated Keychain status-path unit tests cover these transitions. The macOS application remains a Preview with intentionally unsupported FTPS/SFTP transfers.
 
 ## macOS backup restore — credential isolation (0.92.1)
 
