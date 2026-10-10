@@ -5,6 +5,7 @@ import Foundation
 enum SignedCloudLinkError: LocalizedError {
     case invalidLink
     case privateEndpoint
+    case unsupportedProvider
     case failedResponse(Int)
     case invalidResponse
     case invalidFile
@@ -15,6 +16,8 @@ enum SignedCloudLinkError: LocalizedError {
             return "Paste an HTTPS object URL signed by S3 or Google Cloud Storage (or an Azure SAS URL)."
         case .privateEndpoint:
             return "Local and private network addresses are not allowed for signed cloud transfers."
+        case .unsupportedProvider:
+            return "Use a signed URL from a supported cloud storage provider. Custom S3 endpoints require a separately trusted connection."
         case .failedResponse(let status):
             return "Cloud provider rejected the request (HTTP \(status)). Check link expiry and permissions."
         case .invalidResponse:
@@ -45,8 +48,33 @@ struct SignedCloudLink {
         guard Self.isPublicHost(hostname) else {
             throw SignedCloudLinkError.privateEndpoint
         }
+        guard Self.isKnownProviderHost(hostname) else {
+            throw SignedCloudLinkError.unsupportedProvider
+        }
         url = validURL
         host = hostname
+    }
+
+    /// A fake signature query on an arbitrary HTTPS host is not sufficient
+    /// authorization to send a user's file. Start with known public provider
+    /// domains; custom S3 endpoints require an explicit trust flow in the future.
+    static func isKnownProviderHost(_ host: String) -> Bool {
+        if host == "storage.googleapis.com" ||
+            host.hasSuffix(".storage.googleapis.com") ||
+            host.hasSuffix(".blob.core.windows.net") ||
+            host.hasSuffix(".r2.cloudflarestorage.com") ||
+            host.hasSuffix(".digitaloceanspaces.com") {
+            return true
+        }
+        if host.hasSuffix(".amazonaws.com") ||
+            host.hasSuffix(".backblazeb2.com") ||
+            host.hasSuffix(".wasabisys.com") ||
+            host.hasSuffix(".scw.cloud") {
+            return host.split(separator: ".").contains {
+                $0 == "s3" || $0.hasPrefix("s3-")
+            }
+        }
+        return false
     }
 
     static func isPublicHost(_ host: String) -> Bool {

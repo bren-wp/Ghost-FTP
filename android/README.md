@@ -133,3 +133,5 @@ An Android release candidate is not accepted merely because it compiles. The exa
 ## Cloud storage workspace (0.93.0 candidate)
 
 Direct one-object signed HTTPS PUT/GET transfers for S3/R2/B2, Google Cloud Storage and Azure SAS are available in the Cloud storage workspace. Android document pickers select source and destination files; no signed bearer URLs are saved in Activity instance state, settings or logs. Transfers require OS TLS verification, reject redirect targets, check for public network resolution and use bounded 1 GiB streaming. Android does not yet have direct S3 bucket navigation or Google Drive OAuth account authorization.
+
+For this initial signed-link workflow, only recognized public storage provider domains are accepted by default. Arbitrary custom S3 endpoint domains must use a future explicit trust configuration; pasting a fake signature on an unrelated site is rejected.

@@ -34,11 +34,31 @@ internal class SignedCloudLink(raw: String) {
             "Use a short-lived HTTPS PUT/GET link signed by your cloud provider."
         }
         require(isPublicHost(host)) { "Local or private cloud endpoints are not permitted." }
+        require(isKnownProviderHost(host)) {
+            "Signed cloud link must use a supported cloud storage provider domain."
+        }
         destination = uri.toURL()
         publicHost = host
     }
 
     companion object {
+        // A fake signature parameter on any arbitrary HTTPS host must not
+        // authorize the upload of an arbitrary local file.
+        internal fun isKnownProviderHost(host: String): Boolean {
+            if (host == "storage.googleapis.com" ||
+                host.endsWith(".storage.googleapis.com") ||
+                host.endsWith(".blob.core.windows.net") ||
+                host.endsWith(".r2.cloudflarestorage.com") ||
+                host.endsWith(".digitaloceanspaces.com")) return true
+            if (host.endsWith(".amazonaws.com") ||
+                host.endsWith(".backblazeb2.com") ||
+                host.endsWith(".wasabisys.com") ||
+                host.endsWith(".scw.cloud")) {
+                return host.split('.').any { it == "s3" || it.startsWith("s3-") }
+            }
+            return false
+        }
+
         internal fun isPublicHost(host: String): Boolean {
             if (host == "localhost" || host.endsWith(".localhost") ||
                 host.endsWith(".local") || host.endsWith(".internal") ||

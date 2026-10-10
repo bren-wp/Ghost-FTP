@@ -9,6 +9,7 @@ class SignedCloudLinkTest {
             SignedCloudLink("https://bucket.s3.amazonaws.com/key?X-Amz-Signature=abc").publicHost)
         SignedCloudLink("https://storage.googleapis.com/bucket/file?X-Goog-Signature=abc")
         SignedCloudLink("https://account.blob.core.windows.net/files/test?sig=abc")
+        SignedCloudLink("https://account.r2.cloudflarestorage.com/bucket/object?X-Amz-Signature=abc")
     }
 
     @Test fun rejectsUnsignedPrivateAndInsecureEndpoints() {
@@ -24,7 +25,9 @@ class SignedCloudLinkTest {
             "https://10.1.2.3/a?sig=x",
             "https://172.16.0.1/a?sig=x",
             "https://169.254.2.3/a?sig=x",
-            "https://metadata.internal/a?sig=x"
+            "https://metadata.internal/a?sig=x",
+            "https://example.com/a?sig=x",
+            "https://bucket.s3.amazonaws.com.attacker.example/a?X-Amz-Signature=x"
         )
         rejected.forEach { value ->
             try {

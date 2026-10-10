@@ -7,6 +7,7 @@ final class SignedCloudLinkTests: XCTestCase {
         XCTAssertEqual(s3.host, "bucket.s3.amazonaws.com")
         XCTAssertNotNil(try SignedCloudLink("https://storage.googleapis.com/bucket/object?X-Goog-Signature=abc"))
         XCTAssertNotNil(try SignedCloudLink("https://account.blob.core.windows.net/container/blob?sig=abc"))
+        XCTAssertNotNil(try SignedCloudLink("https://account.r2.cloudflarestorage.com/bucket/object?X-Amz-Signature=abc"))
     }
 
     func testRejectsInsecureOrUnsignedAndCredentialedLinks() {
@@ -24,6 +25,8 @@ final class SignedCloudLinkTests: XCTestCase {
             "https://172.20.0.1/a?sig=abc",
             "https://169.254.0.1/a?sig=abc",
             "https://private.local/a?sig=abc",
+            "https://example.com/a?sig=abc",
+            "https://bucket.s3.amazonaws.com.attacker.example/a?X-Amz-Signature=abc",
             "https://[::1]/a?sig=abc",
         ]
         for value in bad {
