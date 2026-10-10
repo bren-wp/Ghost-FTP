@@ -1,6 +1,8 @@
-# Ghost FTP Security Audit — 0.92.0
+# Ghost FTP Security Audit — 0.92.1
 
-Previous canonical release: **0.91.1**.
+Previous canonical release: **0.92.0**.
+
+0.92.1 macOS restore boundary: imported backups cannot redirect a saved UUID to a different protocol, server, port or username while retaining the UUID-bound Keychain secret. Conflicting imports abort before any profile mutation; XCTest covers both redirects and atomic rollback. This is a targeted source fix, not a penetration assessment.
 
 0.92.0 advisory duplicate matching on macOS reads non-secret protocol, host, port and username. Neither credentials nor Keychain values are inspected; profiles are never merged, deleted or sent over the network. Unit tests cover account casing, hostname normalization, invalid inputs and membership of duplicate groups. This is not a new full penetration test.
 
