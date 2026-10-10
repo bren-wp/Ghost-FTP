@@ -360,7 +360,65 @@ class MainActivity : Activity() {
         }
         setWorkspace(activeWorkspace, announce = false)
         setNavigationOpen(navigationOpen, announce = false)
+        // In the 480×960 reference, the identity bar spans the entire viewport
+        // above the docked 64dp rail, never just the content column.
+        if (resources.configuration.screenWidthDp in 360..599) {
+            return LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setBackgroundColor(Brand.background)
+                addView(buildPremiumPhoneChrome(), LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(58)
+                ))
+                addView(root, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+                ))
+            }
+        }
         return root
+    }
+
+    private fun buildPremiumPhoneChrome(): View = LinearLayout(this).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        orientation = LinearLayout.HORIZONTAL
+        setPadding(dp(14), dp(6), dp(10), dp(6))
+        setBackgroundColor(Brand.background)
+
+        addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(34), dp(34)))
+        addView(gap(8))
+        addView(TextView(this@MainActivity).apply {
+            val title = android.text.SpannableString("Ghost FTP")
+            title.setSpan(
+                android.text.style.ForegroundColorSpan(Brand.accent),
+                6, title.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            text = title
+            setTextColor(Brand.text)
+            typeface = Typeface.DEFAULT_BOLD
+            textSize = 18f
+            gravity = Gravity.CENTER_VERTICAL
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+        val quickMenu = secondaryButton("⋯") { }.apply {
+            contentDescription = "Quick navigation"
+            textSize = 22f
+            minWidth = 0
+            minimumWidth = 0
+        }
+        quickMenu.setOnClickListener {
+            android.widget.PopupMenu(this@MainActivity, quickMenu).apply {
+                menu.add(0, 1, 0, workspaceLabel(Workspace.SETTINGS))
+                menu.add(0, 2, 1, workspaceLabel(Workspace.CLOUD))
+                menu.add(0, 3, 2, workspaceLabel(Workspace.ABOUT))
+                setOnMenuItemClickListener { item ->
+                    when (item.itemId) {
+                        1 -> setWorkspace(Workspace.SETTINGS)
+                        2 -> setWorkspace(Workspace.CLOUD)
+                        3 -> setWorkspace(Workspace.ABOUT)
+                    }
+                    true
+                }
+            }.show()
+        }
+        addView(quickMenu, LinearLayout.LayoutParams(dp(46), dp(42)))
     }
 
     private fun buildNavigationRail(): View = ScrollView(this).apply {
@@ -448,7 +506,7 @@ class MainActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         titleRow.addView(badge(ReleaseInfo.VERSION_BADGE))
-        addView(titleRow)
+        if (resources.configuration.screenWidthDp !in 360..599) addView(titleRow)
 
         workspaceTitle = TextView(this@MainActivity).apply {
             text = workspaceLabel(activeWorkspace)
