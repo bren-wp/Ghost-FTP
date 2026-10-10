@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.OpenableColumns
+import android.provider.DocumentsContract
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -71,6 +72,8 @@ class MainActivity : Activity() {
     private lateinit var cloudUploadInput: EditText
     private lateinit var cloudDownloadInput: EditText
     private lateinit var cloudStatus: TextView
+    private lateinit var cloudCancelButton: Button
+    private var cloudCancellation: CloudTransferCancellation? = null
     private var cloudPendingLink: SignedCloudLink? = null
     private var cloudTransferThread: Thread? = null
     private var cloudTransferBusy = false
@@ -157,6 +160,8 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         activityClosing = true
+        cloudCancellation?.cancel()
+        cloudCancellation = null
         cloudTransferThread?.interrupt()
         cloudTransferThread = null
         cloudPendingLink = null
@@ -838,6 +843,12 @@ class MainActivity : Activity() {
         cloudStatus = sectionDescription("No cloud transfer in progress.")
         addView(cloudStatus)
         addView(space(8))
+        cloudCancelButton = secondaryButton("Cancel cloud transfer") { cancelCloudTransfer() }.apply {
+            contentDescription = "Cancel cloud transfer"
+            isEnabled = false
+        }
+        addView(cloudCancelButton)
+        addView(space(8))
         addView(sectionDescription(
             "Generate an object-specific signed URL in your cloud provider. " +
                 "Google Drive account browsing requires a separate OAuth flow; " +
@@ -880,33 +891,59 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun cancelCloudTransfer() {
+        if (!cloudTransferBusy) return
+        cloudCancellation?.cancel()
+        cloudTransferThread?.interrupt()
+        cloudCancelButton.isEnabled = false
+        cloudStatus.text = "Canceling cloud transfer…"
+    }
+
+    /** ACTION_CREATE_DOCUMENT always creates a new document; clean up on failure. */
+    private fun removeIncompleteCloudDestination(target: Uri): Boolean = runCatching {
+        DocumentsContract.isDocumentUri(this, target) &&
+            DocumentsContract.deleteDocument(contentResolver, target)
+    }.getOrDefault(false)
+
     private fun runCloudTransfer(upload: Boolean, link: SignedCloudLink, uri: Uri) {
         if (cloudTransferBusy || activityClosing) return
+        val cancellation = CloudTransferCancellation()
+        cloudCancellation = cancellation
         cloudTransferBusy = true
+        cloudCancelButton.isEnabled = true
         cloudUploadInput.text.clear()
         cloudDownloadInput.text.clear()
         cloudStatus.text = if (upload) "Uploading to ${link.publicHost}…" else "Downloading from ${link.publicHost}…"
         cloudTransferThread = thread(start = true, name = "GhostFTP-CloudTransfer") {
             val success = try {
                 if (upload) {
-                    SignedCloudTransfer.upload(contentResolver, uri, link)
+                    SignedCloudTransfer.upload(contentResolver, uri, link, cancellation)
                 } else {
-                    SignedCloudTransfer.download(contentResolver, uri, link, cacheDir)
+                    SignedCloudTransfer.download(contentResolver, uri, link, cacheDir, cancellation)
                 }
+                cancellation.ensureActive()
                 true
             } catch (_: Exception) {
+                // Do not display exception text: a URL is a bearer credential.
                 false
             }
+            val wasCanceled = cancellation.isCancelled || Thread.currentThread().isInterrupted
+            // A newly created SAF document may be partially written. Never
+            // leave that possibility unreported to the user after a failure.
+            val leftoverDestination = !success && !upload && !removeIncompleteCloudDestination(uri)
             runOnUiThread {
+                if (activityClosing || cloudCancellation !== cancellation) return@runOnUiThread
                 cloudTransferBusy = false
+                cloudCancellation = null
                 cloudTransferThread = null
-                if (!activityClosing && ::cloudStatus.isInitialized) {
-                    cloudStatus.text = if (success) {
-                        if (upload) "Cloud upload completed successfully." else "Cloud download completed successfully."
-                    } else {
-                        "Secure cloud transfer failed or was canceled. Check link expiry, " +
-                            "TLS, provider permissions and the 1 GiB object limit."
-                    }
+                cloudCancelButton.isEnabled = false
+                cloudStatus.text = when {
+                    success && upload -> "Cloud upload completed successfully."
+                    success -> "Cloud download completed successfully."
+                    leftoverDestination -> "Download failed or was canceled. The incomplete destination may remain; remove it manually."
+                    !upload -> "Cloud download failed or was canceled. The created destination was removed."
+                    wasCanceled -> "Cloud upload canceled. Check the remote object before retrying."
+                    else -> "Cloud upload failed. Check link expiry, provider permissions and remote object state before retrying."
                 }
             }
         }
