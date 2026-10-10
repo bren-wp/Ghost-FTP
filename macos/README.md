@@ -33,6 +33,19 @@ credentials. These protections are exercised with injected Security
 `OSStatus` failures in the Swift unit tests; production Keychain permission
 acceptance remains a target-device verification item.
 
+## Failure-safe Keychain updates (planned 0.92.2 patch)
+
+Ghost FTP updates existing macOS Keychain password entries in place rather than
+deleting the previous credential before attempting to add a replacement. Failed
+writes retain the existing entry, while missing entries can be created and a
+concurrent duplicate insertion can retry the update. Saved-site edits and both
+Files/Sites deletion paths do not commit profile changes if their Keychain
+write/removal fails; a non-secret error message is shown instead.
+
+Swift regression tests exercise Keychain OSStatus error paths without depending
+on a real test-runner Keychain. Production permissions and upgrade acceptance
+still require macOS device testing.
+
 ## Build and test
 
 From the repository root:
