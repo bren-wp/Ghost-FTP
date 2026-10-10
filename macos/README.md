@@ -21,6 +21,18 @@ A conflicting import is rejected in full before mutating any saved sites;
 Keychain credentials remain untouched. Add a different destination as a new
 site rather than restoring it over an existing UUID.
 
+## Keychain integrity in the 0.92.2 patch branch
+
+Replacing an existing password uses an in-place Keychain update, not
+delete-then-add. If the update fails, the previous credential remains available.
+A missing item is inserted, with one update retry if concurrent insertion
+reports a duplicate. Site Save and Delete both stop without changing the saved
+profile if the relevant Keychain operation fails. Both deletion paths
+(Files and Sites) display a non-secret error rather than silently orphaning
+credentials. These protections are exercised with injected Security
+`OSStatus` failures in the Swift unit tests; production Keychain permission
+acceptance remains a target-device verification item.
+
 ## Build and test
 
 From the repository root:
