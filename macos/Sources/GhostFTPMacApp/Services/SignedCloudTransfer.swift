@@ -101,7 +101,7 @@ struct SignedCloudLink {
         // IDNA/punycode or unusual Unicode labels must not expand the
         // provider suffix allowlist through inconsistent normalization.
         let bytes = Array(host.utf8)
-        guard bytes.count in 4...253,
+        guard (4...253).contains(bytes.count),
               bytes.allSatisfy({ byte in
                   (48...57).contains(byte) || (97...122).contains(byte) ||
                   byte == 45 || byte == 46
