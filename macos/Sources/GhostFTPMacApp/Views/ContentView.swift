@@ -15,7 +15,8 @@ struct FilesWorkspace: View {
                     savedProfiles: profiles.profiles,
                     onSave: profiles.save,
                     onDelete: { id in
-                        try? KeychainStore().removePassword(for: id)
+                        // Never orphan a still-saved Keychain credential.
+                        try KeychainStore().removePassword(for: id)
                         profiles.delete(id)
                         self.selectedID = nil
                     }
@@ -46,7 +47,7 @@ struct FilesWorkspace: View {
 private struct ConnectionEditor: View {
     let savedProfiles: [ConnectionProfile]
     let onSave: (ConnectionProfile) -> Void
-    let onDelete: (UUID) -> Void
+    let onDelete: (UUID) throws -> Void
 
     @State private var draft: ConnectionProfile
     @State private var password = ""
@@ -63,7 +64,7 @@ private struct ConnectionEditor: View {
         profile: ConnectionProfile,
         savedProfiles: [ConnectionProfile],
         onSave: @escaping (ConnectionProfile) -> Void,
-        onDelete: @escaping (UUID) -> Void
+        onDelete: @escaping (UUID) throws -> Void
     ) {
         self.savedProfiles = savedProfiles
         self.onSave = onSave
@@ -328,7 +329,11 @@ private struct ConnectionEditor: View {
             Section {
                 HStack {
                     Button("Delete site", role: .destructive) {
-                        onDelete(draft.id)
+                        do {
+                            try onDelete(draft.id)
+                        } catch {
+                            credentialMessage = "The site was not deleted because its Keychain credential could not be removed."
+                        }
                     }
 
                     Spacer()
@@ -478,8 +483,9 @@ private struct ConnectionEditor: View {
             }
             onSave(draft)
         } catch {
-            credentialMessage = "The site was saved, but the password could not be updated in macOS Keychain."
-            onSave(draft)
+            // A password write/remove failure must not persist a changed
+            // destination while the old secret is still linked to its UUID.
+            credentialMessage = "The site was not saved because its macOS Keychain credential could not be updated."
         }
     }
 }

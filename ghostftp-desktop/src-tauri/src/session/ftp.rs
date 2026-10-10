@@ -111,15 +111,21 @@ fn verified_upload_prefix_after_abort(
                 Ok(0)
             }
         }
+        // A server may queue the ABOR "225 No transfer to abort" reply
+        // after SuppaFTP already consumed the transfer's 226. In that race,
+        // SIZE receives the stale 225, not a verified byte count. Retire the
+        // control connection and force a restart from byte zero: resuming
+        // from the locally attempted offset could silently corrupt data.
         Err(FtpError::UnexpectedResponse(response))
-            if matches!(
-                response.status,
-                Status::BadCommand
-                    | Status::BadArguments
-                    | Status::NotImplemented
-                    | Status::NotImplementedParameter
-                    | Status::FileUnavailable
-            ) =>
+            if response.status.code() == 225
+                || matches!(
+                    response.status,
+                    Status::BadCommand
+                        | Status::BadArguments
+                        | Status::NotImplemented
+                        | Status::NotImplementedParameter
+                        | Status::FileUnavailable
+                ) =>
         {
             Ok(0)
         }

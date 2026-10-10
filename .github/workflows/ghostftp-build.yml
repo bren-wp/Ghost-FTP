@@ -173,9 +173,26 @@ jobs:
             }
           } finally {
             if (-not $installedProc.HasExited) {
-              Stop-Process -Id $installedProc.Id -Force -ErrorAction SilentlyContinue
-              $installedProc.WaitForExit()
+              Stop-Process -Id $installedProc.Id -Force -ErrorAction Stop
+              if (-not $installedProc.WaitForExit(15000)) {
+                throw 'NSIS-installed Ghost FTP remained running after forced smoke-test shutdown.'
+              }
             }
+          }
+
+          # A WebView or single-instance handoff may outlive the process returned
+          # by Start-Process. Verify that no copy of the installed executable is
+          # still running before exercising the actual uninstaller.
+          $remainingProcesses = @()
+          for ($attempt = 0; $attempt -lt 40; $attempt++) {
+            $remainingProcesses = @(Get-CimInstance Win32_Process -Filter "Name = '$($installedExe.Name)'" |
+              Where-Object { $_.ExecutablePath -eq $installedExe.FullName })
+            if ($remainingProcesses.Count -eq 0) { break }
+            Start-Sleep -Milliseconds 250
+          }
+          if ($remainingProcesses.Count -ne 0) {
+            $ids = ($remainingProcesses | ForEach-Object { $_.ProcessId }) -join ', '
+            throw "NSIS-installed Ghost FTP still has running processes after launch smoke: $ids"
           }
 
           $uninstaller = Get-ChildItem $installDir -Filter '*uninstall*.exe' -Recurse | Select-Object -First 1
@@ -184,12 +201,21 @@ jobs:
           $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
           if ($uninstall.ExitCode -ne 0) { throw "Ghost FTP uninstaller failed with exit code $($uninstall.ExitCode)" }
 
-          for ($attempt = 0; $attempt -lt 20 -and (Test-Path $installedExe.FullName); $attempt++) {
+          # Windows AV/indexing and NSIS's temporary self-copy can delay file
+          # removal after an exit-code-0 uninstall. Keep the assertion strict:
+          # the installed app must actually disappear within a bounded window.
+          for ($attempt = 0; $attempt -lt 120 -and (Test-Path $installedExe.FullName); $attempt++) {
             Start-Sleep -Milliseconds 500
           }
           if (Test-Path $installedExe.FullName) {
-            throw 'Ghost FTP executable remained after silent uninstall.'
+            Write-Host "NSIS uninstall returned $($uninstall.ExitCode), but executable is still present: $($installedExe.FullName)"
+            Get-ChildItem $installDir -Recurse -Force -ErrorAction SilentlyContinue |
+              Select-Object -First 40 FullName,Length,LastWriteTime | Format-Table -AutoSize
+            Get-CimInstance Win32_Process -Filter "Name = '$($installedExe.Name)'" |
+              Select-Object ProcessId,ExecutablePath | Format-Table -AutoSize
+            throw 'Ghost FTP executable remained after silent uninstall (60-second timeout).'
           }
+          Write-Host 'NSIS uninstall removed the installed Ghost FTP executable.'
 
           $msi = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/msi' -Filter '*.msi' -Recurse |
             Sort-Object Length -Descending |

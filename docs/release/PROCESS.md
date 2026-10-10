@@ -9,7 +9,7 @@ A successful compile is not equivalent to stable/FINAL acceptance.
 1. Start from current `main`.
 2. Make meaningful product/code/documentation changes.
 3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
-4. Keep `previousVersion` pointing to the preceding merged source (`0.92.0`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (`0.92.0`). Never call an unpublished merge a canonical release.
+4. Keep `previousVersion` pointing to the preceding merged source (`0.92.1`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (`0.92.1`). Never call an unpublished merge a canonical release.
 5. Open a PR.
 6. Require exact-head success for:
    - Ghost FTP quality
@@ -17,7 +17,7 @@ A successful compile is not equivalent to stable/FINAL acceptance.
    - Ghost FTP native build
    - Ghost FTP Android
    - Validate Windows hardening
-   - Ghost FTP macOS (development Preview gate for 0.92.0)
+   - Ghost FTP macOS (development Preview gate for 0.92.2)
 7. Read and fix concrete workflow logs if any gate fails.
 8. Merge only the tested source.
 9. On `main`, the successful **Ghost FTP native build** triggers the canonical **Ghost FTP release** workflow.
@@ -81,8 +81,8 @@ If no updater signatures are present, the stable GitHub release may still publis
 
 ## Current release cycle
 
-- Active source/release cycle: **0.92.1**
-- Previous canonical release: **0.92.0**
+- Active source/release cycle: **0.92.2**
+- Previous canonical release: **0.92.1**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Release integrity

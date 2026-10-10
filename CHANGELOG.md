@@ -1,3 +1,13 @@
+## 0.92.2 — macOS Keychain password write integrity — 10 October 2026
+
+- **macOS:** Change saved-site passwords with `SecItemUpdate`, falling back to add only when no Keychain item exists; retry updates safely on concurrent duplicate inserts. Do not delete the existing secret ahead of a failed write.
+- **macOS UI:** Failed password writes or removals no longer appear successful or remove an otherwise valid saved-site profile. Both the quick editor and Sites workspace report errors without exposing secrets.
+- **FTP/FTPS:** When a late ABOR `225` response reaches the post-cancel SIZE check, force an unverified-offset restart rather than consuming a stale control reply as a fatal size error; all other unexpected server failures remain fatal.
+- **Regression coverage:** Six XCTest cases exercise update, insert, concurrent collision and failure branches. This is scoped protection, not full device/UI or platform-protocol parity certification.
+- **Release lineage:** Builds on publicly released v0.92.1. All six exact-SHA PR and merged-main checks plus verified package/checksum publication are required before publishing v0.92.2; published tags remain immutable.
+
+See [docs/releases/0.92.2.md](docs/releases/0.92.2.md).
+
 ## 0.92.1 — macOS saved-site restore credential isolation — 10 October 2026
 
 - **macOS privacy and safety:** Reject an imported saved-site UUID if its protocol, hostname, port or username differs from the already-saved connection. This closes a Keychain-credential reuse path where a backup could silently redirect an existing password to a different server.
