@@ -131,7 +131,7 @@ jobs:
           # unsigned until a trusted production Play signing identity is supplied.
           test -s "$RELEASE_AAB"
           unzip -tqq "$RELEASE_AAB"
-          unzip -Z -1 "$RELEASE_AAB" | grep -Fxq 'base/manifest/AndroidManifest.xml'
+          unzip -Z -1 "$RELEASE_AAB" | grep -Fx 'base/manifest/AndroidManifest.xml' > /dev/null
           cp "$RELEASE_AAB" "dist/android/GhostFTP-Android-v${VERSION}-Release-Unsigned.aab.unsigned"
 
           (
