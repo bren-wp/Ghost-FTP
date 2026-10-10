@@ -6,12 +6,14 @@ import android.provider.OpenableColumns
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.io.InterruptedIOException
-import java.net.InetAddress
 import java.net.URI
 import java.net.URL
 import java.util.Locale
-import javax.net.ssl.HttpsURLConnection
+import okhttp3.MediaType
+import okhttp3.Request
+import okhttp3.RequestBody
+import okio.BufferedSink
+import okhttp3.MediaType.Companion.toMediaType
 
 /**
  * Signed S3/R2/GCS object URLs and Azure SAS links, without account passwords,
@@ -35,7 +37,6 @@ internal class SignedCloudLink(raw: String) {
         require(isKnownProviderHost(host)) {
             "Signed cloud link must use a supported cloud storage provider domain."
         }
-        // A mismatched, empty or duplicate signature must not authorize a file upload.
         val expectedSignature = when {
             host.endsWith(".blob.core.windows.net") -> "sig"
             host == "storage.googleapis.com" || host.endsWith(".storage.googleapis.com") -> "x-goog-signature"
@@ -54,8 +55,6 @@ internal class SignedCloudLink(raw: String) {
     }
 
     companion object {
-        // A fake signature parameter on any arbitrary HTTPS host must not
-        // authorize the upload of an arbitrary local file.
         internal fun isKnownProviderHost(host: String): Boolean {
             if (host == "storage.googleapis.com" ||
                 host.endsWith(".storage.googleapis.com") ||
@@ -76,118 +75,145 @@ internal class SignedCloudLink(raw: String) {
                 host.endsWith(".local") || host.endsWith(".internal") ||
                 host == "::1" || host.startsWith("fe80:") ||
                 host.startsWith("fc") || host.startsWith("fd")) return false
-            // Public cloud endpoints use DNS names; never accept direct IPs.
             if (host.contains(':') || host.all { it.isDigit() || it == '.' }) return false
             return host.contains('.')
         }
-    }
-
-    /** Verify DNS resolution before cloud data is sent to a user-supplied host. */
-    fun verifyResolvedAddresses() {
-        val addresses = InetAddress.getAllByName(publicHost)
-        val safe = addresses.isNotEmpty() && addresses.all { address ->
-            !address.isAnyLocalAddress && !address.isLoopbackAddress &&
-                !address.isLinkLocalAddress && !address.isSiteLocalAddress &&
-                !address.isMulticastAddress
-        }
-        require(safe) { "Cloud URL resolved to a private network address." }
     }
 }
 
 internal object SignedCloudTransfer {
     private const val MAX_BYTES = 1024L * 1024L * 1024L
+    private val BINARY_TYPE: MediaType = "application/octet-stream".toMediaType()
 
-    private fun open(link: SignedCloudLink, verb: String): HttpsURLConnection {
-        link.verifyResolvedAddresses()
-        return (link.destination.openConnection() as HttpsURLConnection).apply {
-            requestMethod = verb
-            instanceFollowRedirects = false
-            connectTimeout = 20000
-            readTimeout = 120000
-            useCaches = false
-            setRequestProperty("Cache-Control", "no-store")
-            setRequestProperty("Accept-Encoding", "identity")
-        }
-    }
-
-    private fun ensureSuccess(connection: HttpsURLConnection) {
-        val status = connection.responseCode
-        // A signed GET must return the complete object. HTTP 206 without an
-        // explicit Range request is not a safe replacement for an existing file.
-        if (status !in 200..299 || (connection.requestMethod == "GET" && status != 200)) {
+    private fun checkResponse(status: Int, isDownload: Boolean) {
+        if (status !in 200..299 || (isDownload && status != 200)) {
             throw IOException("Cloud provider rejected the request (HTTP $status). Check link expiry and permissions.")
         }
-        if (connection.requestMethod == "GET" &&
-            connection.contentEncoding?.let { !it.equals("identity", ignoreCase = true) } == true) {
-            throw IOException("Cloud provider returned an unexpected encoded object.")
-        }
     }
 
-    fun upload(resolver: ContentResolver, source: Uri, link: SignedCloudLink) {
+    fun upload(
+        resolver: ContentResolver,
+        source: Uri,
+        link: SignedCloudLink,
+        cancellation: CloudTransferCancellation = CloudTransferCancellation()
+    ) {
+        cancellation.ensureActive()
         val length = resolver.query(source, arrayOf(OpenableColumns.SIZE), null, null, null)?.use {
             if (it.moveToFirst() && !it.isNull(0)) it.getLong(0) else null
         } ?: throw IOException("Selected document size is unavailable; a fixed-length signed upload is required.")
         require(length in 0..MAX_BYTES) { "Cloud uploads are limited to 1 GiB per signed URL." }
-        val connection = open(link, "PUT")
-        try {
-            connection.doOutput = true
-            connection.setFixedLengthStreamingMode(length)
-            connection.setRequestProperty("Content-Type", "application/octet-stream")
-            if (link.publicHost.endsWith(".blob.core.windows.net")) {
-                connection.setRequestProperty("x-ms-blob-type", "BlockBlob")
-            }
-            var copied = 0L
-            resolver.openInputStream(source)?.use { input ->
-                connection.outputStream.use { output ->
+        val body = object : RequestBody() {
+            override fun contentType(): MediaType = BINARY_TYPE
+            override fun contentLength(): Long = length
+
+            override fun writeTo(sink: BufferedSink) {
+                cancellation.ensureActive()
+                var copied = 0L
+                resolver.openInputStream(source)?.use { input ->
                     val buffer = ByteArray(64 * 1024)
                     while (true) {
-                        if (Thread.currentThread().isInterrupted) throw InterruptedIOException("Cloud upload canceled.")
+                        cancellation.ensureActive()
                         val read = input.read(buffer)
                         if (read == -1) break
                         copied += read
                         if (copied > length) throw IOException("Selected document changed during upload.")
-                        output.write(buffer, 0, read)
+                        sink.write(buffer, 0, read)
                     }
-                }
-            } ?: throw IOException("The selected document is unavailable.")
-            if (copied != length) throw IOException("Selected document changed during upload.")
-            ensureSuccess(connection)
+                } ?: throw IOException("Selected document is unavailable.")
+                if (copied != length) throw IOException("Selected document changed during upload.")
+                cancellation.ensureActive()
+            }
+        }
+        val builder = Request.Builder()
+            .url(link.destination)
+            .header("Cache-Control", "no-store")
+            .header("Accept-Encoding", "identity")
+            .put(body)
+        if (link.publicHost.endsWith(".blob.core.windows.net")) {
+            builder.header("x-ms-blob-type", "BlockBlob")
+        }
+        val client = CloudHttpClient.create()
+        val call = client.newCall(builder.build())
+        cancellation.attach(call)
+        try {
+            cancellation.ensureActive()
+            call.execute().use { response ->
+                cancellation.ensureActive()
+                checkResponse(response.code, isDownload = false)
+            }
         } finally {
-            connection.disconnect()
+            cancellation.clear(call)
+            client.connectionPool.evictAll()
         }
     }
 
-    fun download(resolver: ContentResolver, target: Uri, link: SignedCloudLink, cache: File) {
-        val connection = open(link, "GET")
+    fun download(
+        resolver: ContentResolver,
+        target: Uri,
+        link: SignedCloudLink,
+        cache: File,
+        cancellation: CloudTransferCancellation = CloudTransferCancellation()
+    ) {
+        cancellation.ensureActive()
         val stage = File.createTempFile("ghostftp-cloud-", ".part", cache)
+        val request = Request.Builder()
+            .url(link.destination)
+            .header("Cache-Control", "no-store")
+            .header("Accept-Encoding", "identity")
+            .get()
+            .build()
+        val client = CloudHttpClient.create()
+        val call = client.newCall(request)
         try {
-            ensureSuccess(connection)
-            if (connection.contentLengthLong > MAX_BYTES) {
-                throw IOException("Cloud downloads are limited to 1 GiB per signed URL.")
-            }
-            var count = 0L
-            connection.inputStream.use { input ->
-                FileOutputStream(stage).use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    while (true) {
-                        if (Thread.currentThread().isInterrupted) throw InterruptedIOException("Cloud download canceled.")
-                        val read = input.read(buffer)
-                        if (read == -1) break
-                        count += read
-                        if (count > MAX_BYTES) throw IOException("Cloud download exceeded its 1 GiB safety limit.")
-                        output.write(buffer, 0, read)
+            cancellation.attach(call)
+            call.execute().use { response ->
+                cancellation.ensureActive()
+                checkResponse(response.code, isDownload = true)
+                if (response.header("Content-Encoding")?.let { !it.equals("identity", ignoreCase = true) } == true) {
+                    throw IOException("Cloud provider returned an unexpected encoded object.")
+                }
+                val body = response.body ?: throw IOException("Cloud provider returned no response body.")
+                if (body.contentLength() > MAX_BYTES) {
+                    throw IOException("Cloud downloads are limited to 1 GiB per signed URL.")
+                }
+                var received = 0L
+                body.byteStream().use { input ->
+                    FileOutputStream(stage).use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        while (true) {
+                            cancellation.ensureActive()
+                            val read = input.read(buffer)
+                            if (read == -1) break
+                            received += read
+                            if (received > MAX_BYTES) throw IOException("Cloud download exceeded its 1 GiB safety limit.")
+                            output.write(buffer, 0, read)
+                        }
                     }
                 }
+                cancellation.ensureActive()
+                if (body.contentLength() >= 0 && received != body.contentLength()) {
+                    throw IOException("Cloud download was incomplete.")
+                }
             }
-            if (connection.contentLengthLong >= 0 && count != connection.contentLengthLong) {
-                throw IOException("Cloud download was incomplete.")
-            }
+            // SAF destinations are generally not atomic. The caller must
+            // remove a newly created destination if this final copy fails.
             resolver.openOutputStream(target, "w")?.use { output ->
-                stage.inputStream().use { input -> input.copyTo(output, 64 * 1024) }
+                stage.inputStream().use { input ->
+                    val buffer = ByteArray(64 * 1024)
+                    while (true) {
+                        cancellation.ensureActive()
+                        val read = input.read(buffer)
+                        if (read == -1) break
+                        output.write(buffer, 0, read)
+                    }
+                    output.flush()
+                }
             } ?: throw IOException("Selected download destination is not writable.")
+            cancellation.ensureActive()
         } finally {
+            cancellation.clear(call)
             stage.delete()
-            connection.disconnect()
+            client.connectionPool.evictAll()
         }
     }
 }
