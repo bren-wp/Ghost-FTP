@@ -8,6 +8,7 @@ import { TerminalDock } from "./components/Terminal";
 import { HostKeyModal } from "./components/HostKeyModal";
 import { AuthPromptModal } from "./components/AuthPromptModal";
 import { TitleBar } from "./components/TitleBar";
+import { PremiumFilesChrome, PremiumLiveTransferStrip } from "./components/PremiumFilesChrome";
 import { useConnections } from "./stores/connectionsStore";
 import { useTransfers } from "./stores/transfersStore";
 import { useLayout } from "./stores/layoutStore";
@@ -211,12 +212,14 @@ export default function App() {
               {workspace === "updates" && <AboutDialog onClose={closeDialog} initialTab="updates" />}
 
               {fileManager && (
-                <div className="flex h-full min-h-0 flex-col">
+                <div className="ghost-premium-files-workspace flex h-full min-h-0 flex-col">
+                  <PremiumFilesChrome />
                   <div className="min-h-0 flex-1 overflow-hidden">
                     <FileUiBridge>
                       {browserLayout === "dual" ? <DualPaneBrowser /> : <FileBrowser />}
                     </FileUiBridge>
                   </div>
+                  <PremiumLiveTransferStrip />
                   {consoleOpen && (
                     <div className="h-64 border-t border-border">
                       <AgentConsoleDock />
