@@ -22,11 +22,11 @@ Each must be re-evaluated on the **exact latest PR head SHA**. Listing a test fi
 | CL-003 | Expired or wrong-method signature | No upload/download; safe status | Same | NOT RUN |
 | CL-004 | URL with wrong/duplicate/empty signature key | Rejected before local upload file opens | Android/macOS | SOURCE TEST ADDED; CI VERIFY |
 | CL-005 | HTTP redirect with signed capability | Redirect refused; URL not leaked | Android/macOS | LIVE TEST PENDING |
-| CL-006 | DNS rebinding / private IPv4 / IPv6 / DNS-over-proxy | Connection refused at socket boundary | Android/macOS | BLOCKED: mitigation incomplete |
+| CL-006 | DNS rebinding / private IPv4 / IPv6 / DNS-over-proxy | Unsafe addresses never reach the HTTP client's connect path | Android/macOS | ANDROID guard + unit tests ADDED; DEVICE E2E PENDING; macOS BLOCKED |
 | CL-007 | Response gzip / encoded content | Refused; no corrupted promotion | Android/macOS | SOURCE GUARD ADDED; CI VERIFY |
 | CL-008 | Connection interrupted midway | Original good target survives if atomic | macOS; Android SAF may not support | PARTIAL, manual QA pending |
 | CL-009 | Provider 401/403/404/429/5xx and retry limits | User-safe errors, no credential logs | All | NOT RUN |
-| CL-010 | Restart/rotation/cancellation | No leaked task, stale URL, corrupt output | Android/macOS | NOT RUN |
+| CL-010 | Restart/rotation/cancellation | No leaked task, stale URL, corrupt output | Android/macOS | ANDROID cancellation source ADDED; physical-device test NOT RUN |
 | CL-011 | Token invalidation/disconnect | Revoked and locally erased | Authenticated cloud | BLOCKED mobile OAuth |
 | CL-012 | Folder recursive transfer and conflicts | Safe, idempotent operation | Vendor APIs where offered | BLOCKED mobile workflows |
 
@@ -37,3 +37,9 @@ Use disposable least-privileged accounts and a private test bucket/container, wi
 Android package readiness requires inspecting unsigned AAB (`bundleRelease`) separately from the independently installable preview APK; an unsigned AAB is not a Play-ready signed production package.
 
 See [provider compatibility](../cloud/PROVIDERS.md) and [production blockers](../status/PRODUCTION_READINESS.md).
+
+### Additional Android source tests (0.94.0)
+
+- `android/app/src/test/java/com/ghostftp/android/CloudNetworkSafetyTest.kt` covers public/private/CGNAT/IPv6/reserved DNS answers, blocked mixed records, missing DNS, direct-only proxy policy, redirect/retry restrictions and cancellation idempotence.
+- Source tests do not prove live TLS routing, Android proxy/VPN behavior or provider-signed PUT/GET compatibility. The Android CI result for the exact candidate SHA is the authoritative compilation/unit result.
+- The save-path behavior is deliberately **best-effort**: `ACTION_CREATE_DOCUMENT` creates the SAF target; the app attempts to delete it after any failed download, but informs the user when deletion is denied. A successful `OutputStream.close()` cannot prove a cloud object's cryptographic identity.
