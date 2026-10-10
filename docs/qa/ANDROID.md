@@ -65,3 +65,11 @@ Before a stable/FINAL claim, also test on representative physical Android device
 - real FTP/FTPS/SFTP servers over Wi-Fi/mobile/VPN as applicable;
 - accessibility, font scaling and rotation;
 - installation behavior for the chosen distribution/signing method, if a future production signing policy is introduced.
+
+## 0.95.0 — protected 480 × 960 premium UI evidence
+
+Normal Android `adb screencap` can be black because `MainActivity` deliberately keeps `FLAG_SECURE`. A black screenshot from CI is **not** valid visual evidence. `PremiumVisualReferenceTest.kt` now draws the authentic empty Activity view hierarchy only in debug instrumentation and rejects unexpected non-default editable values before writing any bytes.
+
+The Android workflow configures its isolated test emulator to **480 × 960 pixels at 160dpi**, checks actual **64dp navigation rail / 58dp brand bar** bounds and captures seven real empty workspaces: Files, Sites, Transfers, Sync, Cloud, Settings and About. A separate artifact `GhostFTP-Android-Premium-Visual-QA-480x960` contains seven PNGs, the instrumentation log and SHA-256 hashes. It is explicitly **not** distributed as an app release asset.
+
+Captured empty states are not automatically equivalent to the supplied concept screens; the concept images include illustrative connections and file rows which must never be faked. Of the 16 Android reference screens, six share names with these seven empty workspaces; Cloud is an additional product screen without an approved reference image. The remaining dialog, connected and transfer-detail scenarios still require real data from approved test systems, explicit per-screen visual comparisons and functional tap/accessibility acceptance.
