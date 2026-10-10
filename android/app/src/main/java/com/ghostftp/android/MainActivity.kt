@@ -1941,14 +1941,8 @@ class MainActivity : Activity() {
     private fun workspaceNavItem(workspace: Workspace): TextView {
         val label = workspaceLabel(workspace)
         val iconRail = resources.configuration.screenWidthDp in 360..599
-        val displayLabel = if (iconRail) {
-            when (workspace) {
-                Workspace.SYNC -> getString(R.string.workspace_sync_short)
-                Workspace.CLOUD -> getString(R.string.workspace_cloud_short)
-                Workspace.ABOUT -> getString(R.string.workspace_about_short)
-                else -> label
-            }
-        } else label
+        // Keep the localized full label available even on the compact icon rail.
+        val displayLabel = label
         val iconResource = when (workspace) {
             Workspace.FILES -> R.drawable.ic_premium_nav_files
             Workspace.SITES -> R.drawable.ic_premium_nav_sites
