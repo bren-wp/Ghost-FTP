@@ -1,6 +1,6 @@
 # Cloud authentication and credential lifecycle
 
-**Status:** Architectural contract for 0.93.0. Presence of a desktop account adapter does not establish that every third-party identity flow has passed live integration testing.
+**Status:** Architectural contract for 0.94.0 (continuing the 0.93.0 cloud foundations). Presence of a desktop account adapter does not establish that every third-party identity flow has passed live integration testing.
 
 ## Identity classes
 
@@ -19,7 +19,7 @@
 
 ## Signed-object workflow contract
 
-**Android:** `SignedCloudTransfer.kt` accepts HTTPS with public provider hostnames and provider-specific, nonempty, nonduplicated signature query parameters; signed inputs stay transient. The current DNS preflight is **not** transport-level protection against DNS rebinding. Document picker grants narrow user-approved URI access. The output SAF document may be partially written after a failure.
+**Android:** `SignedCloudTransfer.kt` accepts HTTPS with public provider hostnames and provider-specific, nonempty, nonduplicated signature query parameters; signed inputs stay transient. Android 0.94.0 routes signed requests through a direct-only OkHttp client whose DNS resolver refuses any mixed or non-public answer **at the actual HTTP transport's resolution point**. This closes the preflight/connection mismatch in the original HttpsURLConnection code, but does not replace real-device DNS rebinding, VPN or malicious network provider tests. Document picker grants narrow user-approved URI access. The output SAF document may be partially written after a failure.
 
 **macOS:** `SignedCloudTransfer.swift` uses an ephemeral URLSession, no redirects, identity-encoded download requests, staged destination promotion and ephemeral in-memory URL state. Explicit DNS/socket binding and account OAuth are not yet complete.
 
