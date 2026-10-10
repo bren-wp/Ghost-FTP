@@ -97,6 +97,22 @@ struct SignedCloudLink {
     }
 
     static func isPublicHost(_ host: String) -> Bool {
+        // Restrict signed provider hostnames to unambiguous ASCII DNS labels.
+        // IDNA/punycode or unusual Unicode labels must not expand the
+        // provider suffix allowlist through inconsistent normalization.
+        let bytes = Array(host.utf8)
+        guard bytes.count in 4...253,
+              bytes.allSatisfy({ byte in
+                  (48...57).contains(byte) || (97...122).contains(byte) ||
+                  byte == 45 || byte == 46
+              }) else { return false }
+        let labels = host.split(separator: ".", omittingEmptySubsequences: false)
+        guard labels.count >= 2,
+              labels.allSatisfy({ label in
+                  !label.isEmpty && label.count <= 63 &&
+                  label.first != "-" && label.last != "-" &&
+                  !label.hasPrefix("xn--")
+              }) else { return false }
         if host == "localhost" || host.hasSuffix(".localhost") ||
             host.hasSuffix(".local") || host.hasSuffix(".internal") ||
             host == "::1" || host.hasPrefix("fe80:") ||
@@ -127,6 +143,13 @@ enum SignedCloudTransfer {
         config.urlCache = nil
         config.httpCookieStorage = nil
         config.httpShouldSetCookies = false
+        // Disable URLSession's proxy auto-discovery and configured proxies
+        // for signed bearer requests. This is defense-in-depth, *not* an IP
+        // pin: Issue #126 still requires transport-bound destination checks.
+        config.connectionProxyDictionary = [
+            "HTTPEnable": 0, "HTTPSEnable": 0, "SOCKSEnable": 0,
+            "ProxyAutoConfigEnable": 0, "ProxyAutoDiscoveryEnable": 0
+        ]
         config.timeoutIntervalForRequest = 120
         config.timeoutIntervalForResource = 3600
         return URLSession(configuration: config, delegate: SignedCloudNoRedirects(), delegateQueue: nil)
