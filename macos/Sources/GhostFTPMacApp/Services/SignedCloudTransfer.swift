@@ -40,8 +40,6 @@ struct SignedCloudLink {
               components.user == nil, components.password == nil,
               components.fragment == nil,
               components.port == nil || components.port == 443,
-              let queryNames = components.queryItems?.map({ $0.name.lowercased() }),
-              queryNames.contains(where: { ["x-amz-signature", "x-goog-signature", "sig"].contains($0) }),
               let validURL = components.url else {
             throw SignedCloudLinkError.invalidLink
         }
@@ -50,6 +48,23 @@ struct SignedCloudLink {
         }
         guard Self.isKnownProviderHost(hostname) else {
             throw SignedCloudLinkError.unsupportedProvider
+        }
+        // Match precisely one nonempty signature field to its cloud provider.
+        let signatureKey: String
+        if hostname.hasSuffix(".blob.core.windows.net") {
+            signatureKey = "sig"
+        } else if hostname == "storage.googleapis.com" ||
+                    hostname.hasSuffix(".storage.googleapis.com") {
+            signatureKey = "x-goog-signature"
+        } else {
+            signatureKey = "x-amz-signature"
+        }
+        let signatures = components.queryItems?.filter {
+            $0.name.lowercased() == signatureKey
+        } ?? []
+        guard signatures.count == 1, let signature = signatures.first?.value,
+              !signature.isEmpty else {
+            throw SignedCloudLinkError.invalidLink
         }
         url = validURL
         host = hostname
@@ -135,6 +150,7 @@ enum SignedCloudTransfer {
     static func download(from link: SignedCloudLink, to destination: URL) async throws {
         var request = URLRequest(url: link.url)
         request.httpMethod = "GET"
+        request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
         let client = session()
         defer { client.finishTasksAndInvalidate() }
         let (temporary, response) = try await client.download(for: request)
@@ -167,6 +183,10 @@ enum SignedCloudTransfer {
         // object returned as HTTP 206 in place of the complete destination.
         guard isDownload ? http.statusCode == 200 : (200...299).contains(http.statusCode) else {
             throw SignedCloudLinkError.failedResponse(http.statusCode)
+        }
+        if isDownload, let encoding = http.value(forHTTPHeaderField: "Content-Encoding"),
+           encoding.lowercased() != "identity" {
+            throw SignedCloudLinkError.invalidResponse
         }
     }
 }
