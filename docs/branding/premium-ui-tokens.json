@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ghost FTP Premium UI reference tokens",
+  "source": "User-supplied GhostFTP-Premium-Brand-UI(4).zip",
+  "sourceType": "design concept, not installed-application screenshots",
+  "version": "2026-10-10",
+  "colors": {
+    "background": "#070E1A",
+    "panel": "#0D192B",
+    "raised": "#111F34",
+    "navy": "#0B1E36",
+    "slate": "#132D52",
+    "accent": "#38ABFF",
+    "cyan": "#7EDEFF",
+    "text": "#EAF6FF",
+    "muted": "#7790AC",
+    "success": "#26DC8F",
+    "danger": "#FF7284"
+  },
+  "desktop": {
+    "referenceWidthPx": 1290,
+    "referenceHeightPx": 852,
+    "sidebarWidthPx": 214,
+    "navRowHeightPx": 43,
+    "topChromeHeightPx": 52
+  },
+  "android": {
+    "referenceWidthPx": 480,
+    "referenceHeightPx": 960,
+    "compactRailWidthDp": 64,
+    "iconSizeDp": 20,
+    "compactTextSp": 9,
+    "overlayBelowDp": 360
+  },
+  "macos": {
+    "referenceScreenCount": 0,
+    "policy": "Share semantic identity and native platform behavior. No 1:1 macOS screenshot can be claimed without an approved macOS visual reference."
+  },
+  "referenceCounts": {
+    "windows": 30,
+    "linux": 29,
+    "android": 16
+  },
+  "status": "implementation in progress; visual and device acceptance pending",
+  "acceptance": {
+    "requireRealAppCaptures": true,
+    "requireWorkingActions": true,
+    "forbidScreenshotBackgrounds": true,
+    "doNotClaimPixelParityFromCI": true
+  }
+}
