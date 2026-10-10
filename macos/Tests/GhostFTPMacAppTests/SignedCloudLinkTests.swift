@@ -18,6 +18,7 @@ final class SignedCloudLinkTests: XCTestCase {
             "https://bucket.s3.amazonaws.com:8443/a?sig=abc",
             "https://localhost/a?sig=abc",
             "https://127.0.0.1/a?sig=abc",
+            "https://8.8.8.8/a?sig=abc",
             "https://192.168.1.5/a?sig=abc",
             "https://10.0.0.1/a?sig=abc",
             "https://172.20.0.1/a?sig=abc",

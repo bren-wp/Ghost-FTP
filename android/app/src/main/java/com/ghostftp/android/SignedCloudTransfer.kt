@@ -44,21 +44,16 @@ internal class SignedCloudLink(raw: String) {
                 host.endsWith(".local") || host.endsWith(".internal") ||
                 host == "::1" || host.startsWith("fe80:") ||
                 host.startsWith("fc") || host.startsWith("fd")) return false
-            val octets = host.split('.').mapNotNull { it.toIntOrNull()?.takeIf { n -> n in 0..255 } }
-            if (octets.size == 4) {
-                val a = octets[0]
-                val b = octets[1]
-                return a !in listOf(0, 10, 127) && a < 224 &&
-                    !(a == 169 && b == 254) && !(a == 172 && b in 16..31) &&
-                    !(a == 192 && b == 168) && !(a == 100 && b in 64..127)
-            }
+            // Public cloud endpoints use DNS names; never accept direct IPs.
+            if (host.contains(':') || host.all { it.isDigit() || it == '.' }) return false
             return host.contains('.')
         }
     }
 
     /** Verify DNS resolution before cloud data is sent to a user-supplied host. */
     fun verifyResolvedAddresses() {
-        val safe = InetAddress.getAllByName(publicHost).all { address ->
+        val addresses = InetAddress.getAllByName(publicHost)
+        val safe = addresses.isNotEmpty() && addresses.all { address ->
             !address.isAnyLocalAddress && !address.isLoopbackAddress &&
                 !address.isLinkLocalAddress && !address.isSiteLocalAddress &&
                 !address.isMulticastAddress

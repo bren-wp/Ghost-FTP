@@ -173,7 +173,12 @@ class MainActivity : Activity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode != RESULT_OK || !uiReady()) return
+        if (resultCode != RESULT_OK || !uiReady()) {
+            if (requestCode == PICK_CLOUD_UPLOAD_REQUEST || requestCode == CREATE_CLOUD_DOWNLOAD_REQUEST) {
+                cloudPendingLink = null
+            }
+            return
+        }
 
         when (requestCode) {
             PICK_UPLOAD_REQUEST -> handleUploadSelection(data)

@@ -56,13 +56,10 @@ struct SignedCloudLink {
             host.hasPrefix("fc") || host.hasPrefix("fd") {
             return false
         }
-        let parts = host.split(separator: ".")
-        if parts.count == 4, let octets = Optional(parts.compactMap({ UInt8($0) })),
-            octets.count == 4 {
-            let a = octets[0], b = octets[1]
-            return a != 0 && a != 10 && a != 127 && a < 224 &&
-                !(a == 169 && b == 254) && !(a == 172 && (16...31).contains(b)) &&
-                !(a == 192 && b == 168) && !(a == 100 && (64...127).contains(b))
+        // Signed public cloud links use DNS hosts. Reject literal IPs to reduce
+        // accidental uploads to local services and bypasses via IP notation.
+        if host.contains(":") || host.allSatisfy({ $0.isNumber || $0 == "." }) {
+            return false
         }
         return host.contains(".")
     }
@@ -89,7 +86,9 @@ enum SignedCloudTransfer {
     }
 
     static func upload(file: URL, to link: SignedCloudLink) async throws {
-        guard FileManager.default.isReadableFile(atPath: file.path) else {
+        guard FileManager.default.isReadableFile(atPath: file.path),
+              let size = try? FileManager.default.attributesOfItem(atPath: file.path)[.size] as? NSNumber,
+              size.int64Value <= 1024 * 1024 * 1024 else {
             throw SignedCloudLinkError.invalidFile
         }
         var request = URLRequest(url: link.url)
@@ -108,6 +107,10 @@ enum SignedCloudTransfer {
         let (temporary, response) = try await client.download(for: request)
         try verify(response)
         let manager = FileManager.default
+        guard let size = try? manager.attributesOfItem(atPath: temporary.path)[.size] as? NSNumber,
+              size.int64Value <= 1024 * 1024 * 1024 else {
+            throw SignedCloudLinkError.invalidFile
+        }
         let staged = destination.deletingLastPathComponent()
             .appendingPathComponent(".ghostftp-cloud-\(UUID().uuidString).part")
         do {
