@@ -215,7 +215,7 @@ import sys
 source = pathlib.Path(sys.argv[1])
 label = sys.argv[2]
 header = source.open("rb").read(24)
-if len(header) != 24 or header[:8] != b"\\x89PNG\\r\\n\\x1a\\n":
+if len(header) != 24 or header[:8] != b"\x89PNG\r\n\x1a\n":
     raise SystemExit(f"Invalid actual Android PNG for {label}")
 if header[12:16] != b"IHDR":
     raise SystemExit(f"Missing PNG IHDR for {label}")
