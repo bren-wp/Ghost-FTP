@@ -1,6 +1,6 @@
-# Ghost FTP platform parity — 0.92.0
+# Ghost FTP platform parity — 0.92.1
 
-Last reviewed: 10 October 2026. Latest **verified published release at the start of this feature**: **v0.91.1**. v0.92.0 is unreleased until all exact-SHA CI, merged-main gates and the canonical release workflow pass. This matrix describes source-level availability, not installed-build 1:1 or production signing across all platforms.
+Last reviewed: 10 October 2026. Latest verified public release before this patch: **v0.92.0**. v0.92.1 must pass exact-SHA CI, merged-main gates and the canonical release workflow before publication. This matrix describes source-level availability, not installed-build 1:1 or production signing across all platforms.
 
 | Gate or capability | Windows | Linux | Android | macOS |
 | --- | --- | --- | --- | --- |

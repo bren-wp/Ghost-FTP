@@ -1,10 +1,11 @@
 import Combine
 import Foundation
 
-enum ProfileStoreError: Error {
+enum ProfileStoreError: Error, Equatable {
     case backupTooLarge
     case tooManyProfiles
     case invalidProfileShape
+    case credentialIdentityConflict
 }
 
 @MainActor
@@ -73,7 +74,21 @@ final class ProfileStore: ObservableObject {
             throw ProfileStoreError.invalidProfileShape
         }
 
-        var merged = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
+        let existingByID = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
+        // Keychain passwords are indexed by UUID. A backup must not silently
+        // redirect an existing saved password to a different server/account.
+        // Reject the entire import before changing the saved-site inventory.
+        for profile in imported {
+            guard let existing = existingByID[profile.id] else { continue }
+            guard existing.protocolKind == profile.protocolKind,
+                  existing.host == profile.host,
+                  existing.port == profile.port,
+                  existing.username == profile.username else {
+                throw ProfileStoreError.credentialIdentityConflict
+            }
+        }
+
+        var merged = existingByID
         for profile in imported {
             merged[profile.id] = profile
         }

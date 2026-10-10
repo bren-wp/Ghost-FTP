@@ -1,3 +1,13 @@
+## 0.92.1 — macOS saved-site restore credential isolation — 10 October 2026
+
+- **macOS privacy and safety:** Reject an imported saved-site UUID if its protocol, hostname, port or username differs from the already-saved connection. This closes a Keychain-credential reuse path where a backup could silently redirect an existing password to a different server.
+- **Atomic restoration:** A conflicting backup changes no saved site, including unrelated entries in the same import. Metadata-only updates for the same connection identity remain supported.
+- **User-facing feedback:** The Sync & Backup workspace explains why restoration was blocked without claiming any credentials were modified.
+- **Regression coverage:** Swift XCTest cases cover host/protocol/port/username conflicts, full rollback and same-identity metadata updates.
+- **Scope:** No change to FTP/FTPS/SFTP trust policy or existing release tags. Android production signing, macOS notarization and installed-device pixel parity remain unverified.
+
+See [docs/releases/0.92.1.md](docs/releases/0.92.1.md).
+
 ## 0.92.0 — macOS saved-site duplicate discovery — 10 October 2026
 
 - **macOS Sites:** Added a live **Possible duplicates** filter and per-site labels for saved connections that share protocol, normalized hostname, port and case-sensitive username.

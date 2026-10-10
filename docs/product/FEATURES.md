@@ -1,6 +1,14 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 0.92.0 development/release source. Previous canonical release: **0.91.1**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.92.1 development/release source. Previous canonical release: **0.92.0**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+
+## macOS backup restore — credential isolation (0.92.1)
+
+Saved-site JSON restores reject existing profile UUIDs when the imported protocol,
+server hostname, port or username differs from the saved site. This prevents an
+import from redirecting an existing UUID-bound macOS Keychain password to another
+connection. The whole backup is rejected without partial profile updates;
+same-identity display-name and reliability-setting updates remain supported.
 
 ## macOS Sites — advisory duplicate discovery (0.92.0)
 
