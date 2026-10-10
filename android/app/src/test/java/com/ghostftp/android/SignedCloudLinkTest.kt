@@ -27,7 +27,14 @@ class SignedCloudLinkTest {
             "https://169.254.2.3/a?sig=x",
             "https://metadata.internal/a?sig=x",
             "https://example.com/a?sig=x",
-            "https://bucket.s3.amazonaws.com.attacker.example/a?X-Amz-Signature=x"
+            "https://bucket.s3.amazonaws.com.attacker.example/a?X-Amz-Signature=x",
+            "https://bucket.s3.amazonaws.com/a?X-Amz-Signature=",
+            "https://bucket.s3.amazonaws.com/a?X-Amz-Signature=x&X-Amz-Signature=y",
+            "https://bucket.s3.amazonaws.com/a?sig=x",
+            "https://storage.googleapis.com/bucket/file?X-Amz-Signature=x",
+            "https://account.blob.core.windows.net/a/b?X-Goog-Signature=x",
+            "https://account.blob.core.windows.net/a/b?sig=",
+            "https://account.blob.core.windows.net/a/b?sig=x&sig=y"
         )
         rejected.forEach { value ->
             try {
