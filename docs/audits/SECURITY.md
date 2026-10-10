@@ -1,6 +1,8 @@
-# Ghost FTP Security Audit — 0.92.2
+# Ghost FTP Security Audit — 0.93.0
 
-Previous canonical release: **0.92.1**.
+Previous canonical release: **0.92.2**.
+
+0.93.0 cloud scope: custom S3/Azure desktop endpoints require HTTPS and forbid embedded credentials, query and fragments. Mobile/macOS signed-object transfers use ephemeral bearer URLs, OS TLS trust, no redirects, bounded file sizes and no stored signed links. This is targeted source hardening; penetration testing and complete provider/account parity are not claimed.
 
 0.92.2 macOS Keychain write boundary: password rotation updates a matching Keychain record in place; existing secrets are not deleted ahead of an unverified new write. Concurrent insertion is retried by update. Credential write/removal failures now block the corresponding site edit/removal and surface errors to users. Six injected-status XCTest cases cover error paths; this is targeted assurance, not an independent security assessment.
 

@@ -1,3 +1,12 @@
+## 0.93.0 — private cloud storage transfer foundations — 10 October 2026
+
+- **Windows/Linux:** Keep the existing S3, GCS, Azure Blob, WebDAV, Google Drive, OneDrive, Dropbox and Box account/file adapters. Custom S3/Azure endpoints now require HTTPS without embedded userinfo, query or fragment.
+- **macOS:** A dedicated Cloud storage workspace supports direct signed HTTPS PUT/GET object upload/download, URLSession ephemeral mode, no redirects, a 1 GiB object limit and staged downloads. Signed link values are not persisted.
+- **Android:** A Cloud storage workspace supports direct signed HTTPS PUT/GET object transfer through SAF documents, validates public endpoints, rejects redirects, stages downloads and limits each object to 1 GiB. Signed link values are not saved in Activity state or logs.
+- **Scope boundary:** This is signed-object transfer on macOS/Android, not Google Drive OAuth or S3 bucket listing on those platforms. Real provider/device tests and exact-commit release CI remain mandatory.
+
+See [docs/releases/0.93.0.md](docs/releases/0.93.0.md).
+
 ## 0.92.2 — macOS Keychain password write integrity — 10 October 2026
 
 - **macOS:** Change saved-site passwords with `SecItemUpdate`, falling back to add only when no Keychain item exists; retry updates safely on concurrent duplicate inserts. Do not delete the existing secret ahead of a failed write.

@@ -149,7 +149,7 @@ jobs:
           gh run download "${{ github.event.workflow_run.id }}" -D dist/native
           find dist/native -type f -print
 
-      - name: Download verified Android APK artifacts
+      - name: Download verified Android APK/AAB artifacts
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -162,8 +162,11 @@ jobs:
           find dist/android -type f -print
           UNSIGNED_ANDROID_APK="$(find dist/android -type f -iname '*Release-Unsigned.apk.unsigned' | head -n1 || true)"
           PREVIEW_ANDROID_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
+          UNSIGNED_ANDROID_AAB="$(find dist/android -type f -iname '*Release-Unsigned.aab.unsigned' | head -n1 || true)"
           test -n "$UNSIGNED_ANDROID_APK"; test -s "$UNSIGNED_ANDROID_APK"
           test -n "$PREVIEW_ANDROID_APK"; test -s "$PREVIEW_ANDROID_APK"
+          test -n "$UNSIGNED_ANDROID_AAB"; test -s "$UNSIGNED_ANDROID_AAB"
+          unzip -tqq "$UNSIGNED_ANDROID_AAB"
           echo "::notice::Android production package is intentionally unsigned; installable preview evidence is retained separately."
 
       - name: Download verified macOS preview artifact
@@ -195,11 +198,12 @@ jobs:
           RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
           ANDROID_UNSIGNED_APK="$(find dist/android -type f -iname '*Release-Unsigned.apk.unsigned' | head -n1 || true)"
           ANDROID_PREVIEW_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
+          ANDROID_UNSIGNED_AAB="$(find dist/android -type f -iname '*Release-Unsigned.aab.unsigned' | head -n1 || true)"
           MACOS_PREVIEW="$(find dist/macos -type f -name "GhostFTP-macOS-v$VERSION-Preview.zip" | head -n1 || true)"
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"
-          test -n "$ANDROID_UNSIGNED_APK"; test -n "$ANDROID_PREVIEW_APK"
+          test -n "$ANDROID_UNSIGNED_APK"; test -n "$ANDROID_PREVIEW_APK"; test -n "$ANDROID_UNSIGNED_AAB"; test -s "$ANDROID_UNSIGNED_AAB"
           test -n "$MACOS_PREVIEW"; test -s "$MACOS_PREVIEW"
           if [ -n "$WIN_SETUP_SIG" ] || [ -n "$APPIMAGE_SIG" ]; then
             test -n "$WIN_SETUP_SIG"
@@ -224,6 +228,7 @@ jobs:
           cp "$DEB" "dist/GhostFTP-Linux-amd64-v$VERSION.deb"
           cp "$RPM" "dist/GhostFTP-Linux-x86_64-v$VERSION.rpm"
           cp "$ANDROID_UNSIGNED_APK" "dist/GhostFTP-Android-v$VERSION.apk.unsigned"
+          cp "$ANDROID_UNSIGNED_AAB" "dist/GhostFTP-Android-v$VERSION.aab.unsigned"
           cp "$ANDROID_PREVIEW_APK" "dist/GhostFTP-Android-v$VERSION-Installable-Preview.apk"
           cp "$MACOS_PREVIEW" "dist/GhostFTP-macOS-v$VERSION-Preview.zip"
 

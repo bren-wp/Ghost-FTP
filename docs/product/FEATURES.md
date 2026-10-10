@@ -1,6 +1,10 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 0.92.2 development/release source. Previous canonical release: **0.92.1**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.93.0 development/release source. Previous canonical release: **0.92.2**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+
+## Cloud storage — 0.93.0 candidate
+
+Windows/Linux already implement authenticated S3-compatible object storage, Google Cloud Storage, Azure Blob, WebDAV, Google Drive, OneDrive, Dropbox and Box adapters. Custom S3/Azure endpoints now require HTTPS without URL-embedded credentials. Android and macOS Cloud storage workspaces transfer individual objects through temporary provider-signed HTTPS PUT/GET URLs (S3/R2/B2, GCS, Azure SAS), without persisting bearer links. Android stages downloads before writing a user-selected document; macOS stages before replacing a selected file. Both limit objects to 1 GiB and block HTTP redirects. Neither platform has implemented OAuth Drive account browsing or general S3 bucket navigation.
 
 ## macOS Keychain write failure safety (0.92.2)
 

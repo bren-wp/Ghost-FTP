@@ -6,12 +6,16 @@ Ghost FTP Android follows the same product identity and file-action model as the
 
 0.91.1 adds a verified diagnostic privacy contract that hides URL user info, even for username-only FTP/SFTP URLs. The 0.91.0 desktop duplicate-profile filter is still a Windows/Linux-only feature.
 
+## Cloud storage — 0.93.0 candidate
+
+The Android Cloud storage workspace transfers one object at a time using short-lived provider-signed S3-compatible/GCS HTTPS PUT/GET and Azure SAS links. Signed URL credentials are not saved in state/backups; document picker files and staged download safety are used. Transfers are bounded to 1 GiB. Google Drive OAuth browsing and S3 bucket listing are not available on Android.
+
 ## Current identity contract
 
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
-- Active source version: **0.92.2**
-- Previous canonical release: **0.92.1**
+- Active source version: **0.93.0**
+- Previous canonical release: **0.92.2**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`

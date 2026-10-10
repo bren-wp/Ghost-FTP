@@ -77,6 +77,34 @@ impl WebdavSession {
     }
 }
 
+/// Parse WebDAV endpoints without allowing password/token transport over HTTP.
+fn parse_webdav_base(raw: &str) -> Result<Url> {
+    let raw = raw.trim();
+    let with_scheme = if raw.contains("://") {
+        raw.to_string()
+    } else {
+        format!("https://{raw}")
+    };
+    let with_slash = if with_scheme.ends_with('/') {
+        with_scheme
+    } else {
+        format!("{with_scheme}/")
+    };
+    let base = Url::parse(&with_slash).context("Invalid WebDAV endpoint URL")?;
+    if base.scheme() != "https"
+        || base.host_str().is_none()
+        || !base.username().is_empty()
+        || base.password().is_some()
+        || base.query().is_some()
+        || base.fragment().is_some()
+    {
+        return Err(anyhow!(
+            "WebDAV requires HTTPS without URL-embedded credentials, query or fragment"
+        ));
+    }
+    Ok(base)
+}
+
 /// Connect a WebDAV session: parse the server URL, resolve the auth style, and
 /// do a cheap `PROPFIND` depth-0 on the root so bad credentials / wrong URLs
 /// fail here instead of on the first browse.
@@ -89,24 +117,8 @@ pub async fn webdav_connect(profile: &ConnectionProfile) -> Result<WebdavSession
         .trim()
         .to_string();
 
-    // Normalize: ensure a scheme and a trailing slash so `url_for` joins cleanly.
-    let with_scheme = if raw.contains("://") {
-        raw.clone()
-    } else {
-        format!("https://{raw}")
-    };
-    let with_slash = if with_scheme.ends_with('/') {
-        with_scheme
-    } else {
-        format!("{with_scheme}/")
-    };
-    let base = Url::parse(&with_slash).with_context(|| format!("parse WebDAV URL {raw}"))?;
-    if !matches!(base.scheme(), "http" | "https") {
-        return Err(anyhow!(
-            "WebDAV URL must be http or https, got {}",
-            base.scheme()
-        ));
-    }
+    // This check occurs before Basic/Bearer credentials can be sent.
+    let base = parse_webdav_base(&raw)?;
 
     let password = match &profile.auth {
         AuthMethod::Password { password } => password.clone(),
@@ -129,6 +141,9 @@ pub async fn webdav_connect(profile: &ConnectionProfile) -> Result<WebdavSession
     };
 
     let client = Client::builder()
+        // Fail closed on 30x rather than following an untrusted endpoint with
+        // a Basic/Bearer credential (including an HTTPS-to-HTTP downgrade).
+        .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(20))
         .timeout(Duration::from_secs(120))
         .user_agent(concat!("Ghost FTP/", env!("CARGO_PKG_VERSION")))
@@ -152,7 +167,7 @@ pub async fn webdav_connect(profile: &ConnectionProfile) -> Result<WebdavSession
         .body(PROPFIND_BODY)
         .send()
         .await
-        .with_context(|| format!("PROPFIND {}", session.base))?;
+        .context("WebDAV PROPFIND connection failed")?;
     let status = resp.status();
     if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
         return Err(anyhow!(
@@ -162,9 +177,8 @@ pub async fn webdav_connect(profile: &ConnectionProfile) -> Result<WebdavSession
     }
     if !(status.is_success() || status.as_u16() == 207) {
         return Err(anyhow!(
-            "WebDAV server returned {} for {} — check the URL path.",
-            status.as_u16(),
-            session.base
+            "WebDAV server returned {} — check the HTTPS endpoint path.",
+            status.as_u16()
         ));
     }
 
@@ -182,3 +196,35 @@ pub const PROPFIND_BODY: &str = r#"<?xml version="1.0" encoding="utf-8"?>
     <D:getetag/>
   </D:prop>
 </D:propfind>"#;
+
+#[cfg(test)]
+mod webdav_transport_tests {
+    use super::parse_webdav_base;
+
+    #[test]
+    fn rejects_plaintext_auth_redirect_style_and_embedded_secrets() {
+        for endpoint in [
+            "http://dav.example.org/remote.php/dav/files/alice",
+            "ftp://dav.example.org",
+            "https://alice:password@dav.example.org",
+            "https://dav.example.org/?access_token=secret",
+            "https://dav.example.org/#fragment",
+            "not a URL",
+        ] {
+            assert!(
+                parse_webdav_base(endpoint).is_err(),
+                "accepted insecure WebDAV endpoint"
+            );
+        }
+    }
+
+    #[test]
+    fn normalizes_https_endpoint_and_preserves_dav_root_path() {
+        let root = parse_webdav_base("dav.example.org/remote.php/dav/files/alice").unwrap();
+        assert_eq!(
+            root.as_str(),
+            "https://dav.example.org/remote.php/dav/files/alice/"
+        );
+        assert!(parse_webdav_base("https://dav.example.org").is_ok());
+    }
+}
