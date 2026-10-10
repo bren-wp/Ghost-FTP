@@ -54,6 +54,15 @@ jobs:
             adb version
             adb devices
           script: bash android/scripts/run-instrumentation-smoke.sh
+      - name: Upload Android premium visual QA evidence
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-Android-Premium-Visual-QA-480x960
+          path: |
+            dist/visual-qa/android/*
+          if-no-files-found: error
+
       - name: Upload Android instrumentation diagnostics
         if: always()
         uses: actions/upload-artifact@v7
