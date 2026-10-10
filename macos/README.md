@@ -66,3 +66,7 @@ The premium SwiftUI sidebar now displays the bundled Ghost FTP application icon 
 ### Protocol groundwork (0.30.13)
 
 The SwiftUI Preview supports plain FTP browsing and upload/download. The 0.30.13 source fixes RETR/STOR filename interpolation, staged-download naming, rejects unsafe server listing names and bounds FTP control replies. Explicit FTPS and SFTP file operations remain blocked until real TLS certificate/hostname verification and SSH host-key verification are complete. CI-green ad-hoc signing is not Developer ID signing or Apple notarization; this is not a production macOS package.
+
+## Cloud storage workspace (0.93.0 candidate)
+
+The Cloud storage workspace offers direct one-object HTTPS PUT and GET for provider-signed S3-compatible, Google Cloud Storage and Azure SAS links. A signed URL is a short-lived bearer credential: it is masked in the UI, never saved, never logged, and never relayed through a Ghost FTP server. URLSession uses OS TLS trust and ephemeral configuration without cookies, cache or redirect following. Transfers are limited to 1 GiB and downloads are staged before replacing selected files. macOS does not yet have S3 bucket browsing or Google Drive OAuth account authorization.

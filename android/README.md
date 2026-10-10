@@ -6,8 +6,8 @@ Native Android application for Ghost FTP.
 
 - Product: Ghost FTP
 - Brand: Brendigo
-- Active source/release cycle: 0.30.13
-- Previous canonical release: 0.30.10
+- Active source/release cycle: 0.93.0
+- Previous canonical release: 0.92.2
 - Version source of truth: ../version.json
 - Release identity is rendered from `ReleaseInfo.kt`; this document does not carry an independent version badge.
 
@@ -129,3 +129,7 @@ The preview signing identity is intentionally ephemeral. A persistent production
 ## Completion gate
 
 An Android release candidate is not accepted merely because it compiles. The exact release SHA must pass the Android production contract, lint/build, emulator click-through smoke and the repository-wide release gates before the canonical GitHub Release can be published.
+
+## Cloud storage workspace (0.93.0 candidate)
+
+Direct one-object signed HTTPS PUT/GET transfers for S3/R2/B2, Google Cloud Storage and Azure SAS are available in the Cloud storage workspace. Android document pickers select source and destination files; no signed bearer URLs are saved in Activity instance state, settings or logs. Transfers require OS TLS verification, reject redirect targets, check for public network resolution and use bounded 1 GiB streaming. Android does not yet have direct S3 bucket navigation or Google Drive OAuth account authorization.
