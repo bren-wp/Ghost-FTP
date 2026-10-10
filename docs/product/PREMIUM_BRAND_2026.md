@@ -36,7 +36,7 @@ Inter, Segoe UI and Noto Sans are preferred with platform system fallbacks. No f
 
 - Windows/Linux: existing React/Tauri components for navigation, file panes, transfers, dialogs and settings; shared dark semantic tokens and GhostMark. Linux preserves native window-manager differences.
   - Quick tools from the approved reference sidebar are connected to the existing, functional SFTP Terminal, command palette and local duplicate scanner. Terminal is disabled without an active SFTP session.
-- Android: existing native Kotlin UI with shared semantic colors and vector launcher mark. Standard-width phones now dock the 88 dp rail rather than covering the file workspace with a menu; devices under 360 dp retain an accessible overlay. Touch-target and accessibility checks stay mandatory.
+- Android: existing native Kotlin UI with shared semantic colors and vector launcher mark. Standard-width phones now dock the 64 dp rail rather than covering the file workspace with a menu; devices under 360 dp retain an accessible overlay. Touch-target and accessibility checks stay mandatory.
 - macOS: existing SwiftUI workspace shell with shared palette/tint. Light appearance remains independently supported.
 - Secrets, permission prompts and security warnings must retain the existing platform policies.
 
@@ -106,3 +106,9 @@ The following three vector files already present in `assets/branding` were compa
 | macOS | No supplied reference screens | SwiftUI native controls and shared palette | **Pending:** approved Mac reference or separate platform styling acceptance |
 
 A complete visual pass requires actual screenshots from launched builds captured at the defined resolution with production components (not illustration PNGs), full-size and narrow-window overflow/accessibility assessment, and verification that each enabled action executes the corresponding real operation. CI palette checks and a mapping registry alone are not a 1:1 pixel certification. No live data or successful network transfers may be invented to match concept art.
+
+## 0.95.0 — actual protected Android render evidence
+
+The initial single Android ADB screenshot was effectively black due to the existing `FLAG_SECURE` policy. **Do not disable this privacy control to obtain marketing images.** The new `PremiumVisualReferenceTest.kt` renders only a credential-free debug Activity view tree at the 480px reference width, after failing closed on unexpected form values. An emulator run at 480×960/160dpi captures seven authentic idle workspaces with exact per-file SHA-256 hashes to a dedicated internal QA artifact. No concept PNG is used as an interactive background, and no fake connection/file/transfer state is inserted.
+
+This is a capture *foundation*, not 16 completed visual comparisons; all 75 concept entries remain `visual_acceptance: pending`. The Android 64dp rail and 58dp header receive real laid-out geometry assertions. Desktop real screenshot comparison and separate macOS platform acceptance remain necessary.
