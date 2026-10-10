@@ -10,6 +10,7 @@ import java.io.InterruptedIOException
 import java.net.InetAddress
 import java.net.URI
 import java.net.URL
+import java.util.Locale
 import javax.net.ssl.HttpsURLConnection
 
 /**
@@ -24,18 +25,29 @@ internal class SignedCloudLink(raw: String) {
     init {
         require(raw.toByteArray(Charsets.UTF_8).size <= 8192) { "Signed cloud link is too long." }
         val uri = try { URI(raw) } catch (_: Exception) { throw IllegalArgumentException("Invalid signed cloud URL.") }
-        val host = uri.host?.lowercase()
-        val signed = uri.rawQuery?.split('&')?.any {
-            it.substringBefore('=').lowercase() in setOf("x-amz-signature", "x-goog-signature", "sig")
-        } ?: false
-        require(uri.scheme?.lowercase() == "https" &&
+        val host = uri.host?.lowercase(Locale.ROOT)
+        require(uri.scheme?.lowercase(Locale.ROOT) == "https" &&
             !host.isNullOrBlank() && uri.userInfo == null && uri.fragment == null &&
-            (uri.port == -1 || uri.port == 443) && signed) {
+            (uri.port == -1 || uri.port == 443)) {
             "Use a short-lived HTTPS PUT/GET link signed by your cloud provider."
         }
         require(isPublicHost(host)) { "Local or private cloud endpoints are not permitted." }
         require(isKnownProviderHost(host)) {
             "Signed cloud link must use a supported cloud storage provider domain."
+        }
+        // A mismatched, empty or duplicate signature must not authorize a file upload.
+        val expectedSignature = when {
+            host.endsWith(".blob.core.windows.net") -> "sig"
+            host == "storage.googleapis.com" || host.endsWith(".storage.googleapis.com") -> "x-goog-signature"
+            else -> "x-amz-signature"
+        }
+        val signatures = uri.rawQuery?.split('&')?.mapNotNull { field ->
+            if (field.substringBefore('=').lowercase(Locale.ROOT) == expectedSignature) {
+                field.substringAfter('=', "")
+            } else null
+        } ?: emptyList()
+        require(signatures.size == 1 && signatures[0].isNotBlank()) {
+            "The signed cloud link is missing a valid provider-specific signature."
         }
         destination = uri.toURL()
         publicHost = host
@@ -94,6 +106,7 @@ internal object SignedCloudTransfer {
             readTimeout = 120000
             useCaches = false
             setRequestProperty("Cache-Control", "no-store")
+            setRequestProperty("Accept-Encoding", "identity")
         }
     }
 
@@ -103,6 +116,10 @@ internal object SignedCloudTransfer {
         // explicit Range request is not a safe replacement for an existing file.
         if (status !in 200..299 || (connection.requestMethod == "GET" && status != 200)) {
             throw IOException("Cloud provider rejected the request (HTTP $status). Check link expiry and permissions.")
+        }
+        if (connection.requestMethod == "GET" &&
+            connection.contentEncoding?.let { !it.equals("identity", ignoreCase = true) } == true) {
+            throw IOException("Cloud provider returned an unexpected encoded object.")
         }
     }
 
