@@ -40,6 +40,7 @@ class MainActivity : Activity() {
         SITES(R.string.workspace_sites),
         TRANSFERS(R.string.workspace_transfers),
         SYNC(null, "Sync & Backup"),
+        CLOUD(null, "Cloud storage"),
         SETTINGS(R.string.workspace_settings),
         ABOUT(R.string.workspace_about)
     }
@@ -66,6 +67,13 @@ class MainActivity : Activity() {
     private lateinit var uploadSelectionText: TextView
     private lateinit var transferStateText: TextView
     private lateinit var syncBackupStatus: TextView
+    private lateinit var cloudSection: View
+    private lateinit var cloudUploadInput: EditText
+    private lateinit var cloudDownloadInput: EditText
+    private lateinit var cloudStatus: TextView
+    private var cloudPendingLink: SignedCloudLink? = null
+    private var cloudTransferThread: Thread? = null
+    private var cloudTransferBusy = false
     private lateinit var protocolSpinner: Spinner
     private lateinit var protocolSecurityText: TextView
     private lateinit var connectButton: Button
@@ -149,6 +157,9 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         activityClosing = true
+        cloudTransferThread?.interrupt()
+        cloudTransferThread = null
+        cloudPendingLink = null
         operationGeneration += 1
         operationInFlight = false
         activeCancellation?.cancel()
@@ -168,6 +179,16 @@ class MainActivity : Activity() {
             PICK_UPLOAD_REQUEST -> handleUploadSelection(data)
             CREATE_SETTINGS_BACKUP_REQUEST -> data?.data?.let(::writeConnectionSettingsBackup)
             RESTORE_SETTINGS_BACKUP_REQUEST -> data?.data?.let(::restoreConnectionSettingsBackup)
+            PICK_CLOUD_UPLOAD_REQUEST -> data?.data?.let { uri ->
+                val link = cloudPendingLink
+                cloudPendingLink = null
+                if (link != null) runCloudTransfer(upload = true, link = link, uri = uri)
+            }
+            CREATE_CLOUD_DOWNLOAD_REQUEST -> data?.data?.let { uri ->
+                val link = cloudPendingLink
+                cloudPendingLink = null
+                if (link != null) runCloudTransfer(upload = false, link = link, uri = uri)
+            }
         }
     }
 
@@ -217,6 +238,7 @@ class MainActivity : Activity() {
         filesSection = buildFilesCard()
         transfersSection = buildTransfersCard()
         syncSection = buildSyncBackupCard()
+        cloudSection = buildCloudCard()
         settingsSection = buildSettingsCard()
         aboutSection = buildAboutCard()
 
@@ -226,6 +248,7 @@ class MainActivity : Activity() {
             addView(sitesSection)
             addView(transfersSection)
             addView(syncSection)
+            addView(cloudSection)
             addView(settingsSection)
             addView(aboutSection)
         }
@@ -774,6 +797,116 @@ class MainActivity : Activity() {
         addView(actions)
     }
 
+    private fun cloudLinkField(hintText: String): EditText = EditText(this).apply {
+        hint = hintText
+        contentDescription = hintText
+        inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        isSaveEnabled = false
+        isSingleLine = true
+        textSize = 14f
+        setTextColor(Brand.text)
+        setHintTextColor(Brand.muted)
+        setPadding(dp(14), dp(12), dp(14), dp(12))
+        background = rounded(Brand.input, dp(14), Brand.border)
+    }
+
+    private fun buildCloudCard(): View = panel().apply {
+        addView(sectionTitle("Cloud storage"))
+        addView(sectionDescription(
+            "Direct, private object transfers to S3 / R2 / B2, Google Cloud Storage " +
+                "and Azure SAS using short-lived provider-signed HTTPS links. " +
+                "Links never enter settings, backups or activity history."
+        ))
+        addView(space(12))
+        addView(formLabel("Signed upload link (HTTPS PUT)"))
+        cloudUploadInput = cloudLinkField("Paste short-lived signed PUT URL")
+        addView(cloudUploadInput)
+        addView(space(8))
+        addView(primaryButton("Choose file and upload") { chooseCloudFile(upload = true) })
+        addView(space(18))
+        addView(formLabel("Signed download link (HTTPS GET)"))
+        cloudDownloadInput = cloudLinkField("Paste short-lived signed GET URL")
+        addView(cloudDownloadInput)
+        addView(space(8))
+        addView(secondaryButton("Choose destination and download") { chooseCloudFile(upload = false) })
+        addView(space(14))
+        cloudStatus = sectionDescription("No cloud transfer in progress.")
+        addView(cloudStatus)
+        addView(space(8))
+        addView(sectionDescription(
+            "Generate an object-specific signed URL in your cloud provider. " +
+                "Google Drive account browsing requires a separate OAuth flow; " +
+                "a Drive sharing-page link cannot be used here."
+        ))
+    }
+
+    private fun chooseCloudFile(upload: Boolean) {
+        if (cloudTransferBusy || cloudPendingLink != null) return
+        val input = if (upload) cloudUploadInput else cloudDownloadInput
+        val link = try {
+            SignedCloudLink(input.text.toString().trim())
+        } catch (_: IllegalArgumentException) {
+            cloudStatus.text = "Invalid link. Use a signed public HTTPS object URL, not a sharing page."
+            input.text.clear()
+            return
+        }
+        cloudPendingLink = link
+        val intent = if (upload) {
+            Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        } else {
+            Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "application/octet-stream"
+                putExtra(Intent.EXTRA_TITLE, "cloud-download.bin")
+                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            }
+        }
+        try {
+            startActivityForResult(
+                intent, if (upload) PICK_CLOUD_UPLOAD_REQUEST else CREATE_CLOUD_DOWNLOAD_REQUEST
+            )
+        } catch (_: Exception) {
+            cloudPendingLink = null
+            cloudStatus.text = "No document picker is available."
+        }
+    }
+
+    private fun runCloudTransfer(upload: Boolean, link: SignedCloudLink, uri: Uri) {
+        if (cloudTransferBusy || activityClosing) return
+        cloudTransferBusy = true
+        cloudUploadInput.text.clear()
+        cloudDownloadInput.text.clear()
+        cloudStatus.text = if (upload) "Uploading to ${link.publicHost}…" else "Downloading from ${link.publicHost}…"
+        cloudTransferThread = thread(start = true, name = "GhostFTP-CloudTransfer") {
+            val success = try {
+                if (upload) {
+                    SignedCloudTransfer.upload(contentResolver, uri, link)
+                } else {
+                    SignedCloudTransfer.download(contentResolver, uri, link, cacheDir)
+                }
+                true
+            } catch (_: Exception) {
+                false
+            }
+            runOnUiThread {
+                cloudTransferBusy = false
+                cloudTransferThread = null
+                if (!activityClosing && ::cloudStatus.isInitialized) {
+                    cloudStatus.text = if (success) {
+                        if (upload) "Cloud upload completed successfully." else "Cloud download completed successfully."
+                    } else {
+                        "Secure cloud transfer failed or was canceled. Check link expiry, " +
+                            "TLS, provider permissions and the 1 GiB object limit."
+                    }
+                }
+            }
+        }
+    }
+
     private fun buildSettingsCard(): View = panel().apply {
         addView(sectionTitle(getString(R.string.workspace_settings)))
         addView(sectionDescription(getString(R.string.desc_settings)))
@@ -888,6 +1021,7 @@ class MainActivity : Activity() {
             Workspace.SITES to sitesSection,
             Workspace.TRANSFERS to transfersSection,
             Workspace.SYNC to syncSection,
+            Workspace.CLOUD to cloudSection,
             Workspace.SETTINGS to settingsSection,
             Workspace.ABOUT to aboutSection
         )
@@ -1875,6 +2009,8 @@ class MainActivity : Activity() {
         const val PICK_UPLOAD_REQUEST = 22091
         const val CREATE_SETTINGS_BACKUP_REQUEST = 22092
         const val RESTORE_SETTINGS_BACKUP_REQUEST = 22093
+        const val PICK_CLOUD_UPLOAD_REQUEST = 22094
+        const val CREATE_CLOUD_DOWNLOAD_REQUEST = 22095
         const val MAX_ACTIVITY_ROWS = 8
 
         const val STATE_PROTOCOL = "ghostftp.protocol"
