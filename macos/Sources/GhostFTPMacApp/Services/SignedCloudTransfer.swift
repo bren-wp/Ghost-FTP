@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// Transfers one object through an HTTPS URL signed by the user's own cloud provider.
 /// The signed URL is a short-lived credential: never persist, log, or include it in an error.
@@ -9,6 +10,7 @@ enum SignedCloudLinkError: LocalizedError {
     case failedResponse(Int)
     case invalidResponse
     case invalidFile
+    case invalidChecksum
 
     var errorDescription: String? {
         switch self {
@@ -24,6 +26,8 @@ enum SignedCloudLinkError: LocalizedError {
             return "The cloud provider returned an invalid response."
         case .invalidFile:
             return "The selected file could not be read or saved."
+        case .invalidChecksum:
+            return "Cloud object checksum verification failed; the destination was not changed."
         }
     }
 }
@@ -160,6 +164,7 @@ enum SignedCloudTransfer {
               size.int64Value <= 1024 * 1024 * 1024 else {
             throw SignedCloudLinkError.invalidFile
         }
+        try verifyProviderSHA256(response: response, stagedFile: temporary)
         let staged = destination.deletingLastPathComponent()
             .appendingPathComponent(".ghostftp-cloud-\(UUID().uuidString).part")
         do {
@@ -173,6 +178,40 @@ enum SignedCloudTransfer {
             try? manager.removeItem(at: staged)
             throw SignedCloudLinkError.invalidFile
         }
+    }
+
+    /// The S3 checksum header is optional. Never claim ETag is a checksum:
+    /// multipart objects use ETags that are not the SHA-256 of the content.
+    /// Invalid/mismatched headers fail before replacing an existing file.
+    static func verifySHA256(header: String?, digest: Data) throws {
+        guard let header else { return }
+        guard let expected = Data(base64Encoded: header.trimmingCharacters(in: .whitespacesAndNewlines)),
+              expected.count == 32, digest.count == 32 else {
+            throw SignedCloudLinkError.invalidChecksum
+        }
+        var mismatch: UInt8 = 0
+        for index in 0..<32 {
+            mismatch |= expected[index] ^ digest[index]
+        }
+        guard mismatch == 0 else { throw SignedCloudLinkError.invalidChecksum }
+    }
+
+    private static func verifyProviderSHA256(response: URLResponse, stagedFile: URL) throws {
+        guard let http = response as? HTTPURLResponse else {
+            throw SignedCloudLinkError.invalidResponse
+        }
+        guard let checksum = http.value(forHTTPHeaderField: "x-amz-checksum-sha256") else {
+            return // A missing checksum is not proof of object integrity.
+        }
+        let handle = try FileHandle(forReadingFrom: stagedFile)
+        defer { try? handle.close() }
+        var hasher = SHA256()
+        while true {
+            let bytes = try handle.read(upToCount: 64 * 1024) ?? Data()
+            if bytes.isEmpty { break }
+            hasher.update(data: bytes)
+        }
+        try verifySHA256(header: checksum, digest: Data(hasher.finalize()))
     }
 
     private static func verify(_ response: URLResponse, isDownload: Bool) throws {
