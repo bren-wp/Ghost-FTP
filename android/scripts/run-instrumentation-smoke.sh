@@ -239,9 +239,9 @@ fi
 for screen in files sites transfers sync cloud settings about; do
   adb exec-out run-as "$PACKAGE_ID" cat "files/premium-qa/${screen}.png" > "$VISUAL_DIR/${screen}.png"
   test -s "$VISUAL_DIR/${screen}.png"
-  # Ubuntu Actions runners do not provide macOS-only sips. Validate the
-  # PNG signature, IHDR dimensions and reasonable uncompressed image size
-  # using the Python 3 standard library (no third-party image dependency).
+  # The Android emulator CI runs on macOS. Verify PNG signature, IHDR
+  # dimensions and actual file bytes using portable Python 3, not a
+  # platform-specific image inspection command.
   python3 - "$VISUAL_DIR/${screen}.png" "$screen" <<'PYTHON_PNG'
 import pathlib
 import struct
@@ -265,7 +265,7 @@ done
 (
   cd "$VISUAL_DIR"
   for screen in files sites transfers sync cloud settings about; do
-    sha256sum "${screen}.png"
+    shasum -a 256 "${screen}.png"
   done
 ) > "$VISUAL_DIR/SHA256SUMS.txt"
 test -s "$VISUAL_DIR/SHA256SUMS.txt"
