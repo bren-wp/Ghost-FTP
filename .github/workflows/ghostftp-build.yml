@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm xvfb xauth xdotool scrot
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm xvfb xauth xdotool scrot openbox wmctrl x11-utils
       - name: Validate central version metadata
         shell: bash
         run: node .github/scripts/sync-version.mjs --check
