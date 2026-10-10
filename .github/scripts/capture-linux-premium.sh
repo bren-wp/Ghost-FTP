@@ -24,7 +24,8 @@ export WEBKIT_DISABLE_COMPOSITING_MODE=1
 # A VM without /dev/dri must use a software renderer; do not disable the
 # WebKit process sandbox or TLS/security checks to obtain screenshots.
 export LIBGL_ALWAYS_SOFTWARE=1
-export GDK_GL=disable
+# Do not set GDK_GL=disable: GTK/WebKit may fail to map the Tauri window.
+# Use the ordinary GTK X11 path with Mesa's CPU renderer instead.
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME"
 
 # Xvfb exposes an X server but does not launch a window manager. A live
