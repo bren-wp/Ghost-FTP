@@ -204,15 +204,33 @@ fi
 for screen in files sites transfers sync cloud settings about; do
   adb exec-out run-as "$PACKAGE_ID" cat "files/premium-qa/${screen}.png" > "$VISUAL_DIR/${screen}.png"
   test -s "$VISUAL_DIR/${screen}.png"
-  if ! sips -g pixelWidth "$VISUAL_DIR/${screen}.png" | grep -Fq 'pixelWidth: 480'; then
-    echo "Android reference QA capture has incorrect width: $screen" >&2
-    exit 1
-  fi
+  # Ubuntu Actions runners do not provide macOS-only sips. Validate the
+  # PNG signature, IHDR dimensions and reasonable uncompressed image size
+  # using the Python 3 standard library (no third-party image dependency).
+  python3 - "$VISUAL_DIR/${screen}.png" "$screen" <<'PYTHON_PNG'
+import pathlib
+import struct
+import sys
+
+source = pathlib.Path(sys.argv[1])
+label = sys.argv[2]
+header = source.open("rb").read(24)
+if len(header) != 24 or header[:8] != b"\\x89PNG\\r\\n\\x1a\\n":
+    raise SystemExit(f"Invalid actual Android PNG for {label}")
+if header[12:16] != b"IHDR":
+    raise SystemExit(f"Missing PNG IHDR for {label}")
+width, height = struct.unpack(">II", header[16:24])
+if width != 480 or not 800 <= height <= 960:
+    raise SystemExit(f"Wrong Android viewport for {label}: {width}x{height}; expected width 480 and normal Android system bars")
+if source.stat().st_size < 4096:
+    raise SystemExit(f"Suspiciously empty Android visual capture for {label}")
+print(f"Verified real Android view capture: {label} {width}x{height}")
+PYTHON_PNG
 done
 (
   cd "$VISUAL_DIR"
   for screen in files sites transfers sync cloud settings about; do
-    shasum -a 256 "${screen}.png"
+    sha256sum "${screen}.png"
   done
 ) > "$VISUAL_DIR/SHA256SUMS.txt"
 test -s "$VISUAL_DIR/SHA256SUMS.txt"
