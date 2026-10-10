@@ -6,8 +6,8 @@ Native Android application for Ghost FTP.
 
 - Product: Ghost FTP
 - Brand: Brendigo
-- Active source/release cycle: 0.93.0
-- Previous canonical release: 0.92.2
+- Active source/release cycle: 0.94.0
+- Previous canonical release: 0.93.0
 - Version source of truth: ../version.json
 - Release identity is rendered from `ReleaseInfo.kt`; this document does not carry an independent version badge.
 
@@ -138,3 +138,7 @@ Direct one-object signed HTTPS PUT/GET transfers for S3/R2/B2, Google Cloud Stor
 For this initial signed-link workflow, only recognized public storage provider domains are accepted by default. Arbitrary custom S3 endpoint domains must use a future explicit trust configuration; pasting a fake signature on an unrelated site is rejected.
 
 Signed cloud links with empty, duplicated or provider-mismatched signature fields are rejected before transfer. Signed GETs reject unexpected compressed/encoded bodies. DNS rebinding and SAF destination atomicity still require P0 work; these changes do not establish live-cloud E2E verification.
+
+## 0.94.0 Cloud transport hardening
+
+Android cloud transfers now use a direct-only OkHttp client whose DNS selection rejects any resolved private, reserved or metadata-route address before connecting. Redirects and automatic retries are disabled; default TLS hostname/certificate validation remains enabled. The cloud UI provides Cancel cloud transfer, which cancels the active HTTP call. The app attempts to remove a newly created SAF document when download fails; if deletion is unsupported, the user sees a clear incomplete-destination warning. These source changes require exact-SHA CI, emulator/device verification and live signed provider URLs before production acceptance.
