@@ -1,6 +1,6 @@
 <div align="center">
 
-Current source/release cycle: **0.92.2**. Previous canonical release: **0.92.1**. Source-verified 0.30.11 and 0.30.12 builds are handled by the historical release recovery workflow.
+Current source/release cycle: **0.93.0**. Previous canonical release: **0.92.2**. Source-verified 0.30.11 and 0.30.12 builds are handled by the historical release recovery workflow.
 
 <img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="430">
 
@@ -41,8 +41,8 @@ Current source/release cycle: **0.92.2**. Previous canonical release: **0.92.1**
 
 ## Current status
 
-- **Active source/release cycle:** `0.92.2`.
-- **Previous canonical release:** `0.92.1`.
+- **Active source/release cycle:** `0.93.0`.
+- **Previous canonical release:** `0.92.2`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
 - **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
@@ -165,3 +165,7 @@ Publisher: **Brendigo**
 Canonical downloads: **GitHub Releases**
 
 </div>
+
+## Cloud storage — 0.93.0 candidate
+
+Windows/Linux retain the existing full S3-compatible, Azure Blob, GCS, Google Drive, OneDrive, Dropbox, Box and WebDAV connection adapters; custom S3/Azure endpoints now require HTTPS. macOS and Android gain direct cloud object upload/download using short-lived HTTPS signed PUT/GET URLs. These links are never persisted. This is **not** OAuth Google Drive browsing or S3 bucket listing on macOS/Android. See [Cloud security and supported services](docs/product/CLOUD_STORAGE.md).

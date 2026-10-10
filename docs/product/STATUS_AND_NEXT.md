@@ -1,8 +1,12 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-This document describes the current **0.92.2 development** source. Historical release details belong in `docs/releases/`.
+This document describes the current **0.93.0 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.92.1**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.92.2**. Live publication state is determined from GitHub Releases.
+
+## Cloud capabilities — 0.93.0 candidate
+
+Windows/Linux already support S3-compatible storage, GCS, Azure Blob, WebDAV, Google Drive, OneDrive, Dropbox and Box with existing native adapters. macOS and Android add private, direct signed-object transfer, **not** general S3 browsing or Google Drive OAuth account access. Live provider/device acceptance and all CI gates remain mandatory.
 
 ## Implemented
 
