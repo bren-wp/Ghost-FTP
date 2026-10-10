@@ -4,8 +4,8 @@ Ghost FTP documentation is organized around the current canonical product state,
 
 ## Current state
 
-- Active source/release cycle: **0.93.0**
-- Previous canonical release: **0.92.2**
+- Active source/release cycle: **0.94.0 (in development)**
+- Latest canonical release: **0.93.0**
 - Live publication state: GitHub Releases is authoritative
 - Version source of truth: `/version.json`
 - Production desktop source: `/ghostftp-desktop`
@@ -68,3 +68,10 @@ All local README/documentation images are checked against the newest non-draft G
 - [Version mapping/provenance](releases/version-map.json) records the verified legacy-to-canonical migration.
 - Files named `2.1.1-rc.*` under `docs/releases/` are historical snapshots only.
 - `docs/audits/` contains point-in-time audit records whose labels describe the audited snapshot, not the active version.
+
+## Current 0.94.0 development and QA
+
+- [0.94.0 Android transport and cancellation changes](releases/0.94.0.md)
+- [Cloud signed URL threat model](security/CLOUD_SIGNED_URL_THREAT_MODEL.md)
+- [Android DNS/cancellation/SAF unit and integration acceptance](qa/CLOUD_E2E.md)
+- [Production readiness and explicit blockers](status/PRODUCTION_READINESS.md)
