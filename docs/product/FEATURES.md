@@ -1,6 +1,8 @@
 # Ghost FTP — Implemented Features
 
-This document describes what is implemented in the current Ghost FTP 0.93.0 development/release source. Previous canonical release: **0.92.2**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+> Current development cycle: **0.94.0**; latest verified public release: **0.93.0**. Historical sections remain version-specific.
+
+This document describes what is implemented in the current Ghost FTP 0.93.0 development/release source. Previous canonical release: **0.93.0**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
