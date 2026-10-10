@@ -21,6 +21,10 @@ export GDK_BACKEND=x11
 # Prevent WebKit's DMABUF compositor from returning black screenshots under Xvfb.
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
 export WEBKIT_DISABLE_COMPOSITING_MODE=1
+# A VM without /dev/dri must use a software renderer; do not disable the
+# WebKit process sandbox or TLS/security checks to obtain screenshots.
+export LIBGL_ALWAYS_SOFTWARE=1
+export GDK_GL=disable
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME"
 
 # Xvfb exposes an X server but does not launch a window manager. A live
@@ -103,24 +107,29 @@ xdotool getwindowname "$window" > "$output/window-title.txt" 2>&1 || true
 # undecorated; move the real top-level window to (0, 0) before capture.
 xdotool windowsize "$window" 1290 852
 xdotool windowmove "$window" 0 0
-sleep 4
-scrot --silent --overwrite "$output/Linux-Files-1290x852.png"
 
-python3 - "$output/Linux-Files-1290x852.png" <<'PYTHON'
-import pathlib
-import struct
-import sys
-p = pathlib.Path(sys.argv[1])
-header = p.open("rb").read(24)
-if len(header) != 24 or header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
-    raise SystemExit("Linux native screenshot is not a valid PNG")
-width, height = struct.unpack(">II", header[16:24])
-if (width, height) != (1290, 852):
-    raise SystemExit(f"Linux screenshot has unexpected size: {width}x{height}")
-if p.stat().st_size < 18000:
-    raise SystemExit("Linux UI screenshot appears empty or blank")
-print(f"Captured genuine Linux Ghost FTP UI: {width}x{height}, {p.stat().st_size} bytes")
-PYTHON
+# The old test accepted a 1290x852 PNG that contained ONLY an Openbox
+# titlebar around a fully black WebKit view. Size and byte count are
+# insufficient. Keep waiting for genuine rendered controls and fail closed.
+validator="$(dirname "$(realpath "${BASH_SOURCE[0]}")")/check-linux-premium-png.py"
+test -s "$validator"
+valid_capture=0
+for attempt in $(seq 1 6); do
+  sleep 5
+  scrot --silent --overwrite "$output/Linux-Files-1290x852.png"
+  echo "Capture attempt $attempt at 1290x852:" >> "$output/capture-attempts.log"
+  if /usr/bin/python3 "$validator" "$output/Linux-Files-1290x852.png" >> "$output/capture-attempts.log" 2>&1; then
+    valid_capture=1
+    echo "Validated real Linux app content on attempt $attempt"
+    break
+  fi
+done
+if [ "$valid_capture" -ne 1 ]; then
+  echo "Ghost FTP X11 window exists but its WebKit contents are still blank/structureless." >&2
+  cat "$output/capture-attempts.log" >&2 || true
+  echo "Openbox window evidence and the invalid PNG are preserved in the QA artifact." >&2
+  exit 1
+fi
 sha256sum "$output/Linux-Files-1290x852.png" > "$output/SHA256SUMS.txt"
 cat > "$output/README.txt" <<'TEXT'
 Ghost FTP real Linux native QA screenshot at 1290 x 852 from Tauri/WebKit
