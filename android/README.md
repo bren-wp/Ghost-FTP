@@ -104,14 +104,14 @@ Android Settings is an actionable workspace, not an informational placeholder:
 From the repository root:
 
 ```bash
-gradle -p android lintDebug lintRelease assembleDebug assembleRelease
+gradle -p android testDebugUnitTest lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview bundleRelease
 ```
 
 Release-relevant CI additionally runs:
 
 - `android/scripts/check-android-contract.sh`
 - Android lint for debug/release
-- debug/release APK builds
+- debug/release/preview APK builds and an unsigned release AAB
 - emulator click-through instrumentation smoke
 - exact-SHA artifact packaging for the canonical release workflow
 
@@ -122,6 +122,7 @@ The contract requires the working shared action surface, rename backends for FTP
 Canonical release naming:
 
 - `GhostFTP-Android-v<version>.apk.unsigned` — unsigned production output used for release verification.
+- `GhostFTP-Android-v<version>.aab.unsigned` — unsigned release Android App Bundle; not directly installable and not Play-ready without controlled production signing.
 - `GhostFTP-Android-v<version>-Installable-Preview.apk` — release-optimized, non-debuggable installable CI preview using the isolated `com.ghostftp.android.preview` application id.
 
 The preview signing identity is intentionally ephemeral. A persistent production upgrade identity requires a persistent signing key and is never silently simulated by the keyless CI workflow.
@@ -135,3 +136,5 @@ An Android release candidate is not accepted merely because it compiles. The exa
 Direct one-object signed HTTPS PUT/GET transfers for S3/R2/B2, Google Cloud Storage and Azure SAS are available in the Cloud storage workspace. Android document pickers select source and destination files; no signed bearer URLs are saved in Activity instance state, settings or logs. Transfers require OS TLS verification, reject redirect targets, check for public network resolution and use bounded 1 GiB streaming. Android does not yet have direct S3 bucket navigation or Google Drive OAuth account authorization.
 
 For this initial signed-link workflow, only recognized public storage provider domains are accepted by default. Arbitrary custom S3 endpoint domains must use a future explicit trust configuration; pasting a fake signature on an unrelated site is rejected.
+
+Signed cloud links with empty, duplicated or provider-mismatched signature fields are rejected before transfer. Signed GETs reject unexpected compressed/encoded bodies. DNS rebinding and SAF destination atomicity still require P0 work; these changes do not establish live-cloud E2E verification.
