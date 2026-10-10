@@ -6,8 +6,8 @@ Native Android application for Ghost FTP.
 
 - Product: Ghost FTP
 - Brand: Brendigo
-- Active source/release cycle: 0.94.0
-- Previous canonical release: 0.93.0
+- Active source/release cycle: 0.95.0
+- Previous canonical release: 0.94.0
 - Version source of truth: ../version.json
 - Release identity is rendered from `ReleaseInfo.kt`; this document does not carry an independent version badge.
 
@@ -142,3 +142,9 @@ Signed cloud links with empty, duplicated or provider-mismatched signature field
 ## 0.94.0 Cloud transport hardening
 
 Android cloud transfers now use a direct-only OkHttp client whose DNS selection rejects any resolved private, reserved or metadata-route address before connecting. Redirects and automatic retries are disabled; default TLS hostname/certificate validation remains enabled. The cloud UI provides Cancel cloud transfer, which cancels the active HTTP call. The app attempts to remove a newly created SAF document when download fails; if deletion is unsupported, the user sees a clear incomplete-destination warning. These source changes require exact-SHA CI, emulator/device verification and live signed provider URLs before production acceptance.
+
+## 0.95.0 Protected premium visual QA
+
+The CI Android emulator uses the approved **480×960** pixel viewport at 160dpi. In addition to normal APK/AAB builds, unit tests and click-through instrumentation, `PremiumVisualReferenceTest.kt` verifies the 64dp navigation rail and 58dp full-width brand bar using real layout bounds. A debug-only instrumentation pass captures seven genuine empty application workspaces into the separate `GhostFTP-Android-Premium-Visual-QA-480x960` artifact, with SHA-256 hashes. **Production `FLAG_SECURE` remains enabled**; ordinary screenshots of the application are deliberately restricted to protect user secrets. No fabricated files, server connections or transfer states are introduced for screenshots.
+
+This is evidence for visual review, not certification that 16 Android reference screens or all platforms are 1:1. Compare the captures manually with `screens/android/` and log legitimate empty-state deviations; Cloud has no approved reference screen in the user archive.
