@@ -120,6 +120,34 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun brandedNavigationUsesRealVectorIconsAndLocalizedLabels() {
+        ensureNavigationOpen()
+        val destinations = listOf(
+            appString(R.string.workspace_files),
+            appString(R.string.workspace_sites),
+            appString(R.string.workspace_transfers),
+            "Sync & Backup",
+            "Cloud storage",
+            appString(R.string.workspace_settings),
+            appString(R.string.workspace_about)
+        )
+        scenario.onActivity { activity ->
+            for (label in destinations) {
+                val description = appString(R.string.workspace_open, label)
+                val item = findView(activity.window.decorView) {
+                    it is TextView && it.contentDescription?.toString() == description
+                } as? TextView
+                assertNotNull("Navigation destination is missing: $description", item)
+                assertNotNull("Navigation destination lacks its real vector glyph: $description",
+                    item!!.compoundDrawables[1])
+                assertEquals("Navigation label must stay localized: $description", label,
+                    item.text.toString())
+                assertTrue("Navigation item must be actionable: $description", item.isClickable)
+            }
+        }
+    }
+
+    @Test
     fun cloudWorkspaceHasCancellableTransferControls() {
         openWorkspaceByLabel("Cloud storage")
         // "Cloud storage" also occurs in the navigation rail. Checking the
