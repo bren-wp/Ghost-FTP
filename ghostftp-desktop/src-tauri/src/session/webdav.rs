@@ -211,14 +211,20 @@ mod webdav_transport_tests {
             "https://dav.example.org/#fragment",
             "not a URL",
         ] {
-            assert!(parse_webdav_base(endpoint).is_err(), "accepted insecure WebDAV endpoint");
+            assert!(
+                parse_webdav_base(endpoint).is_err(),
+                "accepted insecure WebDAV endpoint"
+            );
         }
     }
 
     #[test]
     fn normalizes_https_endpoint_and_preserves_dav_root_path() {
         let root = parse_webdav_base("dav.example.org/remote.php/dav/files/alice").unwrap();
-        assert_eq!(root.as_str(), "https://dav.example.org/remote.php/dav/files/alice/");
+        assert_eq!(
+            root.as_str(),
+            "https://dav.example.org/remote.php/dav/files/alice/"
+        );
         assert!(parse_webdav_base("https://dav.example.org").is_ok());
     }
 }

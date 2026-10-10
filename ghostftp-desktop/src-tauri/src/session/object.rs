@@ -199,7 +199,10 @@ mod cloud_endpoint_tests {
             "https://s3.example.org/#fragment",
             "not a URL",
         ] {
-            assert!(validated_cloud_endpoint(url).is_err(), "accepted an unsafe endpoint");
+            assert!(
+                validated_cloud_endpoint(url).is_err(),
+                "accepted an unsafe endpoint"
+            );
         }
     }
 
