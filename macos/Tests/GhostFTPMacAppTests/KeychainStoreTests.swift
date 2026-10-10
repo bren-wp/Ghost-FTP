@@ -29,9 +29,10 @@ final class KeychainStoreTests: XCTestCase {
                 return errSecSuccess
             }
         )) { error in
-            guard case KeychainStoreError.unexpectedStatus(errSecAuthFailed) = error else {
+            guard case KeychainStoreError.unexpectedStatus(let status) = error else {
                 return XCTFail("Expected Keychain authorization failure")
             }
+            XCTAssertEqual(status, errSecAuthFailed)
         }
         XCTAssertFalse(insertCalled)
     }
@@ -70,9 +71,10 @@ final class KeychainStoreTests: XCTestCase {
             update: { errSecItemNotFound },
             insert: { errSecNotAvailable }
         )) { error in
-            guard case KeychainStoreError.unexpectedStatus(errSecNotAvailable) = error else {
+            guard case KeychainStoreError.unexpectedStatus(let status) = error else {
                 return XCTFail("Expected unavailable Keychain status")
             }
+            XCTAssertEqual(status, errSecNotAvailable)
         }
     }
 
@@ -88,6 +90,7 @@ final class KeychainStoreTests: XCTestCase {
             guard case KeychainStoreError.unexpectedStatus(errSecAuthFailed) = error else {
                 return XCTFail("Expected retry failure")
             }
+            XCTAssertEqual(status, errSecAuthFailed)
         }
         XCTAssertEqual(attempts, 2)
     }
