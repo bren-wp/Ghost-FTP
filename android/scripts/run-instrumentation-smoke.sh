@@ -26,6 +26,13 @@ on_exit() {
 trap on_exit EXIT
 
 adb wait-for-device
+# The approved Android visual reference has an actual 480x960px viewport.
+# Set 160dpi so the app's 64dp rail occupies 64 real screenshot pixels.
+# This is limited to the isolated CI emulator, never a user's device.
+adb shell wm size 480x960
+adb shell wm density 160
+adb shell wm size | grep -Fq 'Override size: 480x960'
+adb shell wm density | grep -Fq 'Override density: 160'
 adb shell input keyevent KEYCODE_WAKEUP || true
 adb shell wm dismiss-keyguard || true
 adb shell svc power stayon true || true
@@ -175,6 +182,48 @@ case "$PACKAGE_PATH" in
     exit 1
     ;;
 esac
+
+# Collect real rendered, empty application workspaces. FLAG_SECURE remains
+# active for production and ordinary OS screen capture. This isolated debug
+# instrumentation renders only approved idle, credential-free view trees.
+TEST_APK="android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+test -s "$TEST_APK"
+adb install -r "$TEST_APK"
+VISUAL_DIR="dist/visual-qa/android"
+mkdir -p "$VISUAL_DIR"
+CAPTURE_RESULT="$(adb shell am instrument -w \
+  -e class 'com.ghostftp.android.PremiumVisualReferenceTest#captureSevenIdleWorkspacesAt480x960' \
+  "$PACKAGE_ID.test/androidx.test.runner.AndroidJUnitRunner" 2>&1)"
+printf '%s\n' "$CAPTURE_RESULT" > "$VISUAL_DIR/instrumentation.log"
+if ! grep -Fq 'OK (1 test)' <<< "$CAPTURE_RESULT" \
+  || ! grep -Fq 'INSTRUMENTATION_CODE: -1' <<< "$CAPTURE_RESULT"; then
+  echo "Real Android visual QA capture did not complete successfully." >&2
+  tail -n 80 "$VISUAL_DIR/instrumentation.log" >&2
+  exit 1
+fi
+for screen in files sites transfers sync cloud settings about; do
+  adb exec-out run-as "$PACKAGE_ID" cat "files/premium-qa/${screen}.png" > "$VISUAL_DIR/${screen}.png"
+  test -s "$VISUAL_DIR/${screen}.png"
+  if ! sips -g pixelWidth "$VISUAL_DIR/${screen}.png" | grep -Fq 'pixelWidth: 480'; then
+    echo "Android reference QA capture has incorrect width: $screen" >&2
+    exit 1
+  fi
+done
+(
+  cd "$VISUAL_DIR"
+  for screen in files sites transfers sync cloud settings about; do
+    shasum -a 256 "${screen}.png"
+  done
+) > "$VISUAL_DIR/SHA256SUMS.txt"
+test -s "$VISUAL_DIR/SHA256SUMS.txt"
+cat > "$VISUAL_DIR/README.txt" <<'VISUAL_EVIDENCE'
+Ghost FTP Android visual QA: actual live debug-view renders at a 480px-wide,
+160dpi emulator viewport. Captures show idle application workspaces only.
+No reference concept screenshots, fake cloud connections, passwords, or
+simulated transfers are inserted. These are visual-comparison INPUTS and do
+not certify 1:1 parity with the 16 reference PNGs.
+Production FLAG_SECURE and private credentials remain protected.
+VISUAL_EVIDENCE
 
 AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n1)"
 test -x "$AAPT"
