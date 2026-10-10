@@ -48,6 +48,23 @@ final class SignedCloudLinkTests: XCTestCase {
         }
     }
 
+    func testRejectsPunycodeIDNAAndAmbiguousCloudProviderHosts() {
+        let unsafe = [
+            "https://xn--bcher-kva.s3.amazonaws.com/item?X-Amz-Signature=x",
+            "https://under_score.s3.amazonaws.com/item?X-Amz-Signature=x",
+            "https://a..s3.amazonaws.com/item?X-Amz-Signature=x",
+            "https://-bucket.s3.amazonaws.com/item?X-Amz-Signature=x",
+            "https://bucket-.s3.amazonaws.com/item?X-Amz-Signature=x",
+            "https://bucket.s3.amazonaws.com./item?X-Amz-Signature=x"
+        ]
+        for link in unsafe {
+            XCTAssertThrowsError(try SignedCloudLink(link), "Unsafe host should be rejected.")
+        }
+        XCTAssertTrue(SignedCloudLink.isPublicHost("bucket.s3.amazonaws.com"))
+        XCTAssertFalse(SignedCloudLink.isPublicHost("xn--bcher-kva.s3.amazonaws.com"))
+        XCTAssertFalse(SignedCloudLink.isPublicHost("bucket-.s3.amazonaws.com"))
+    }
+
     func testS3SHA256AcceptsMatchingAndMissingOptionalHeader() throws {
         let bytes = Data("Ghost FTP streamed data".utf8)
         let digest = Data(SHA256.hash(data: bytes))
