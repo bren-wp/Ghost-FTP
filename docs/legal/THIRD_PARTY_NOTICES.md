@@ -13,6 +13,8 @@ The exact dependency set for a release is determined from the source and lock/bu
 
 Current direct Android protocol dependencies include Apache Commons Net for FTP/FTPS and the maintained mwiede JSch distribution for SSH/SFTP.
 
+The 0.94.0 Android cloud transport additionally uses **Square OkHttp 4.12.0** (Apache License 2.0) and its resolved Okio dependencies. OkHttp provides TLS certificate and hostname verification, controlled DNS selection, streaming I/O and cancelable HTTP calls. No HTTP logging interceptor is enabled. Verify the resolved dependency graph and include the required Apache/OkHttp/Okio notices in distributed packages before production promotion.
+
 Release/legal review must use the exact dependency graph of the source SHA being published rather than copying a stale manually curated version list.
 
 ## Trademarks and interoperability names
