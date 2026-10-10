@@ -93,6 +93,11 @@ enum SignedCloudTransfer {
         }
         var request = URLRequest(url: link.url)
         request.httpMethod = "PUT"
+        request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+        if link.host.hasSuffix(".blob.core.windows.net") {
+            // Azure SAS Put Blob requires the block blob type header.
+            request.setValue("BlockBlob", forHTTPHeaderField: "x-ms-blob-type")
+        }
         let client = session()
         defer { client.finishTasksAndInvalidate() }
         let (_, response) = try await client.upload(for: request, fromFile: file)
