@@ -121,6 +121,13 @@ class MainActivitySmokeTest {
 
     @Test
     fun brandedNavigationUsesRealVectorIconsAndLocalizedLabels() {
+        var isReferencePhone = false
+        scenario.onActivity { activity ->
+            isReferencePhone = activity.resources.configuration.screenWidthDp in 360..599
+        }
+        if (isReferencePhone) {
+            assertDescriptionPresent("Quick navigation")
+        }
         ensureNavigationOpen()
         val destinations = listOf(
             appString(R.string.workspace_files),
