@@ -27,3 +27,7 @@ Run real S3/R2/GCS/Azure signed-object tests, expiry/403/revocation tests, Andro
 ## Authenticated WebDAV protection on Windows/Linux
 
 The WebDAV client now rejects plaintext HTTP, URL userinfo, query and fragments before Basic/Bearer authorization. Automatic 30x following is disabled to prevent credential leakage to a redirected endpoint. Users must configure a certificate-valid HTTPS WebDAV root.
+
+## 0.93.0 signed URL parsing hardening
+
+Android/macOS require exactly one nonempty signature query value matching the supported provider: `X-Amz-Signature` for S3-style hosts, `X-Goog-Signature` for GCS, or `sig` for Azure Blob. Signed download requests use identity content encoding and reject unexpected encoded responses. These changes do not authenticate the URL locally, remove DNS rebinding risk or guarantee SAF atomic writes. See the [signed cloud threat model](../security/CLOUD_SIGNED_URL_THREAT_MODEL.md), [provider matrix](../cloud/PROVIDERS.md) and [test matrix](../qa/CLOUD_E2E.md).
