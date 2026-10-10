@@ -30,7 +30,8 @@
     "compactRailWidthDp": 64,
     "iconSizeDp": 20,
     "compactTextSp": 9,
-    "overlayBelowDp": 360
+    "overlayBelowDp": 360,
+    "phoneTopChromeHeightDp": 58
   },
   "macos": {
     "referenceScreenCount": 0,
