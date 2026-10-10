@@ -20,16 +20,48 @@ struct KeychainStore {
             kSecAttrSynchronizable as String: kCFBooleanFalse as Any,
         ]
 
-        SecItemDelete(baseQuery as CFDictionary)
+        // Update in place: deleting first could lose the existing password
+        // if a subsequent Keychain insertion fails or the device is locked.
+        let attributes: [String: Any] = [
+            kSecValueData as String: encoded,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+        ]
+        try Self.updateOrInsert(
+            update: {
+                SecItemUpdate(baseQuery as CFDictionary, attributes as CFDictionary)
+            },
+            insert: {
+                var item = baseQuery
+                for (key, value) in attributes {
+                    item[key] = value
+                }
+                return SecItemAdd(item as CFDictionary, nil)
+            }
+        )
+    }
 
-        var insert = baseQuery
-        insert[kSecValueData as String] = encoded
-        insert[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-
-        let status = SecItemAdd(insert as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw KeychainStoreError.unexpectedStatus(status)
+    // Injectable OSStatus operations keep the failure handling executable
+    // in unit tests without touching a user's or CI runner's actual Keychain.
+    static func updateOrInsert(
+        update: () -> OSStatus,
+        insert: () -> OSStatus
+    ) throws {
+        let updateStatus = update()
+        if updateStatus == errSecSuccess { return }
+        guard updateStatus == errSecItemNotFound else {
+            throw KeychainStoreError.unexpectedStatus(updateStatus)
         }
+
+        let insertStatus = insert()
+        if insertStatus == errSecSuccess { return }
+        // Another process may have created the same item after the first
+        // lookup. Retry an in-place update without deleting that item.
+        if insertStatus == errSecDuplicateItem {
+            let retryStatus = update()
+            if retryStatus == errSecSuccess { return }
+            throw KeychainStoreError.unexpectedStatus(retryStatus)
+        }
+        throw KeychainStoreError.unexpectedStatus(insertStatus)
     }
 
     func password(for profileID: UUID) throws -> String? {
