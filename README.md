@@ -130,7 +130,7 @@ The Windows/Linux build additionally performs Windows NSIS/MSI lifecycle smoke t
 
 ## Release model
 
-The canonical **Ghost FTP release** workflow runs only from a successful native build on `main`, waits for every required exact-SHA gate, consumes the same Windows/Linux artifacts, adds the verified Android APK and publishes normalized source/documentation/update/checksum assets.
+The canonical **Ghost FTP release** workflow runs only from a successful native build on `main`, waits for every required exact-SHA gate, consumes the same Windows/Linux artifacts, adds the verified unsigned Android APK and AAB plus the installable Android preview APK and publishes normalized source/documentation/update/checksum assets. Release bundles do not represent production app-store signing.
 
 Version tags are immutable. A published tag is never retargeted to newer source.
 
@@ -173,3 +173,5 @@ The current source-level product inventory, privacy/security threat model and un
 ## Cloud storage — 0.93.0 candidate
 
 Windows/Linux retain the existing full S3-compatible, Azure Blob, GCS, Google Drive, OneDrive, Dropbox, Box and WebDAV connection adapters; custom S3/Azure endpoints now require HTTPS. macOS and Android gain direct cloud object upload/download using short-lived HTTPS signed PUT/GET URLs. These links are never persisted. This is **not** OAuth Google Drive browsing or S3 bucket listing on macOS/Android. See [Cloud security and supported services](docs/product/CLOUD_STORAGE.md).
+
+For the detailed 0.93.0 candidate provider compatibility, see [Cloud providers](docs/cloud/PROVIDERS.md), [Cloud authentication](docs/cloud/AUTHENTICATION.md), [Cloud E2E acceptance](docs/qa/CLOUD_E2E.md), [signed-link threat model](docs/security/CLOUD_SIGNED_URL_THREAT_MODEL.md) and [production readiness/blockers](docs/status/PRODUCTION_READINESS.md). Cloud source presence is not provider-level E2E verification.
