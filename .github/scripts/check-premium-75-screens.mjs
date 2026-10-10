@@ -47,6 +47,9 @@ const androidActivity = read("android/app/src/main/java/com/ghostftp/android/Mai
 const androidSplash31 = read("android/app/src/main/res/values-v31/styles.xml");
 const androidSplash35 = read("android/app/src/main/res/values-v35/styles.xml");
 const macShell = read("macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
+const visualInstrumentation = read("android/app/src/androidTest/java/com/ghostftp/android/PremiumVisualReferenceTest.kt");
+const androidSmoke = read("android/scripts/run-instrumentation-smoke.sh");
+const androidWorkflow = read(".github/workflows/ghostftp-android.yml");
 for (const [label, condition] of [
   ["214px reference sidebar", desktopCSS.includes("width: 214px !important")],
   ["43px desktop navigation rows", desktopCSS.includes("min-height: 43px")],
@@ -58,6 +61,26 @@ for (const [label, condition] of [
   ["macOS premium brand tagline", macShell.includes('Text("TOTAL CONTROL")')],
 ]) {
   if (!condition) errors.push(`missing real platform brand contract: ${label}`);
+}
+
+// The reference source is a visual concept, not a captured running app.
+// Require a separate, strictly debug-only renderer so FLAG_SECURE and user
+// credential handling are unchanged by the new QA screenshot evidence.
+for (const [label, ok] of [
+  ["debug-only view-tree screenshot test", visualInstrumentation.includes("class PremiumVisualReferenceTest")],
+  ["nondefault user data capture blocker", visualInstrumentation.includes("assertNoUserInputInHierarchy")],
+  ["actual Activity View draw", visualInstrumentation.includes("decor.draw(Canvas(pixels))")],
+  ["480 px reference width", visualInstrumentation.includes('480, decor.width')],
+  ["real 64dp rail geometry", visualInstrumentation.includes("64 * density")],
+  ["real 58dp brand chrome geometry", visualInstrumentation.includes("58 * density")],
+  ["actual 480px/160dpi emulator", androidSmoke.includes("adb shell wm size 480x960") && androidSmoke.includes("adb shell wm density 160")],
+  ["isolated debug screenshot collection", androidSmoke.includes('run-as "$PACKAGE_ID" cat "files/premium-qa/')],
+  ["seven screenshot checksums", androidSmoke.includes("SHA256SUMS.txt")],
+  ["separate QA artifact", androidWorkflow.includes("GhostFTP-Android-Premium-Visual-QA-480x960")],
+  ["no release-path visual QA artifact", androidWorkflow.includes("dist/visual-qa/android/*")],
+  ["production screenshot protection retained", androidActivity.includes("window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)")],
+]) {
+  if (!ok) errors.push(`missing Android premium visual evidence contract: ${label}`);
 }
 
 // These three vector resources were copied unchanged from the user-provided
