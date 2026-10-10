@@ -1,5 +1,7 @@
 # Ghost FTP Android parity
 
+> Current development cycle: **0.94.0**; latest verified public release: **0.93.0**. Historical sections remain version-specific.
+
 Ghost FTP Android follows the same product identity and file-action model as the Windows/Linux app while using a mobile-first native Kotlin layout.
 
 0.92.0 macOS adds an advisory saved-site duplicate filter to join the Windows/Linux 0.91.0 capability. The Android app does not maintain the same persistent saved-profile inventory, so this feature does not imply Android saved-site parity; FTP/FTPS/SFTP connection and transfer capabilities remain as documented.
@@ -15,7 +17,7 @@ The Android Cloud storage workspace transfers one object at a time using short-l
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
 - Active source version: **0.93.0**
-- Previous canonical release: **0.92.2**
+- Previous canonical release: **0.93.0**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`
