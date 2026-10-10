@@ -189,15 +189,15 @@ class MainActivity : Activity() {
             PICK_UPLOAD_REQUEST -> handleUploadSelection(data)
             CREATE_SETTINGS_BACKUP_REQUEST -> data?.data?.let(::writeConnectionSettingsBackup)
             RESTORE_SETTINGS_BACKUP_REQUEST -> data?.data?.let(::restoreConnectionSettingsBackup)
-            PICK_CLOUD_UPLOAD_REQUEST -> data?.data?.let { uri ->
+            PICK_CLOUD_UPLOAD_REQUEST, CREATE_CLOUD_DOWNLOAD_REQUEST -> {
                 val link = cloudPendingLink
                 cloudPendingLink = null
-                if (link != null) runCloudTransfer(upload = true, link = link, uri = uri)
-            }
-            CREATE_CLOUD_DOWNLOAD_REQUEST -> data?.data?.let { uri ->
-                val link = cloudPendingLink
-                cloudPendingLink = null
-                if (link != null) runCloudTransfer(upload = false, link = link, uri = uri)
+                val uri = data?.data
+                if (link != null && uri != null) {
+                    runCloudTransfer(upload = requestCode == PICK_CLOUD_UPLOAD_REQUEST, link = link, uri = uri)
+                } else {
+                    cloudStatus.text = "No cloud document was selected."
+                }
             }
         }
     }
