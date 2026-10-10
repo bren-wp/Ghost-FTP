@@ -1,8 +1,10 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
+> Current development cycle: **0.94.0**; latest verified public release: **0.93.0**. Historical sections remain version-specific.
+
 This document describes the current **0.93.0 development** source. Historical release details belong in `docs/releases/`.
 
-Previous canonical release: **0.92.2**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.93.0**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
