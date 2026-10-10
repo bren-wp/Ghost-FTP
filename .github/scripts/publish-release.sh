@@ -25,6 +25,7 @@ REQUIRED_CORE_FILES=(
   "GhostFTP-Linux-x86_64-v${VERSION}.rpm"
   "GhostFTP-Linux-x86_64-v${VERSION}.tar.gz"
   "GhostFTP-Android-v${VERSION}.apk.unsigned"
+  "GhostFTP-Android-v${VERSION}.aab.unsigned"
   "GhostFTP-Android-v${VERSION}-Installable-Preview.apk"
   "GhostFTP-macOS-v${VERSION}-Preview.zip"
   "GhostFTP-v${VERSION}-Source.zip"
