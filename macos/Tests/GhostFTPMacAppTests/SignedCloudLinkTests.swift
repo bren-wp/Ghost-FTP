@@ -33,4 +33,18 @@ final class SignedCloudLinkTests: XCTestCase {
             XCTAssertThrowsError(try SignedCloudLink(value))
         }
     }
+    func testRejectsEmptyDuplicateAndWrongProviderSignatures() {
+        let invalid = [
+            "https://bucket.s3.amazonaws.com/object?X-Amz-Signature=",
+            "https://bucket.s3.amazonaws.com/object?X-Amz-Signature=a&X-Amz-Signature=b",
+            "https://bucket.s3.amazonaws.com/object?sig=a",
+            "https://storage.googleapis.com/bucket/object?X-Amz-Signature=a",
+            "https://account.blob.core.windows.net/container/object?X-Goog-Signature=a",
+            "https://account.blob.core.windows.net/container/object?sig="
+        ]
+        for url in invalid {
+            XCTAssertThrowsError(try SignedCloudLink(url), "Accepted an invalid cloud signature")
+        }
+    }
+
 }
