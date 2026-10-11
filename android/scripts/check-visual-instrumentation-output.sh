@@ -27,8 +27,15 @@ if grep -Eq '^(FAILURES!!!|INSTRUMENTATION_FAILED:|INSTRUMENTATION_ABORTED:)' "$
 fi
 # Some API images append this legacy line; when present, a non-success
 # code must not be allowed to contradict the textual OK summary.
-if grep -q '^INSTRUMENTATION_CODE:' "$log" &&
-  ! grep -Eq '^INSTRUMENTATION_CODE:[[:space:]]*-1[[:space:]]*$' "$log"; then
+if grep '^INSTRUMENTATION_CODE:' "$log" |
+  grep -Ev '^INSTRUMENTATION_CODE:[[:space:]]*-1[[:space:]]*
+  echo "Visual instrumentation's final result code was not successful." >&2
+  exit 1
+fi
+
+echo "Android visual instrumentation: one test passed and adb returned success."
+ |
+  grep -q .; then
   echo "Visual instrumentation's final result code was not successful." >&2
   exit 1
 fi
