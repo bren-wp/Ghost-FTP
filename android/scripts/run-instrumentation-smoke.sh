@@ -26,6 +26,48 @@ on_exit() {
 trap on_exit EXIT
 
 adb wait-for-device
+# The approved Android visual reference has an actual 480x960px viewport.
+# Set 160dpi so the app's 64dp rail occupies 64 real screenshot pixels.
+# This is limited to the isolated CI emulator, never a user's device.
+# The ATD image can report its effective dimensions as "Physical" when a
+# requested override equals its baseline. Do not require only the textual
+# "Override" label. Also give WindowManager time to apply both changes.
+adb shell wm size 480x960
+adb shell wm density 160
+size_output=""
+density_output=""
+geometry_ready=0
+for _ in {1..15}; do
+  size_output="$(adb shell wm size 2>&1 | tr -d '\r')" || size_output="ADB size query failed"
+  density_output="$(adb shell wm density 2>&1 | tr -d '\r')" || density_output="ADB density query failed"
+  size_ok=0
+  density_ok=0
+  # If Override is present it must match. Physical is authoritative only
+  # when Android reports no active override.
+  case "$size_output" in
+    *"Override size: 480x960"*) size_ok=1 ;;
+    *"Override size:"*) ;;
+    *"Physical size: 480x960"*) size_ok=1 ;;
+  esac
+  case "$density_output" in
+    *"Override density: 160"*) density_ok=1 ;;
+    *"Override density:"*) ;;
+    *"Physical density: 160"*) density_ok=1 ;;
+  esac
+  if [ "$size_ok" -eq 1 ] && [ "$density_ok" -eq 1 ]; then
+    geometry_ready=1
+    break
+  fi
+  sleep 1
+done
+printf 'Android emulator effective display size: %s\n' "$size_output"
+printf 'Android emulator effective display density: %s\n' "$density_output"
+printf '%s\n' "$size_output" > "$DIAG_DIR/emulator-wm-size.txt"
+printf '%s\n' "$density_output" > "$DIAG_DIR/emulator-wm-density.txt"
+if [ "$geometry_ready" -ne 1 ]; then
+  echo "Emulator did not reach the required 480x960 / 160dpi QA geometry." >&2
+  exit 1
+fi
 adb shell input keyevent KEYCODE_WAKEUP || true
 adb shell wm dismiss-keyguard || true
 adb shell svc power stayon true || true
@@ -175,6 +217,76 @@ case "$PACKAGE_PATH" in
     exit 1
     ;;
 esac
+
+# Collect real rendered, empty application workspaces. FLAG_SECURE remains
+# active for production and ordinary OS screen capture. This isolated debug
+# instrumentation renders only approved idle, credential-free view trees.
+TEST_APK="android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+test -s "$TEST_APK"
+adb install -r "$TEST_APK"
+VISUAL_DIR="dist/visual-qa/android"
+mkdir -p "$VISUAL_DIR"
+# Android's am instrument -w does not promise to print an
+# INSTRUMENTATION_CODE line on a passing shell-runner invocation. In particular,
+# API 35 has returned "OK (1 test)" without that line after all 17 full-suite
+# tests also passed. Check the command exit code and the exact instrumentation
+# test summary; if a final code IS present it must report success (-1).
+# Preserve the raw output and exit status for incident diagnostics.
+set +e
+CAPTURE_RESULT="$(adb shell am instrument -w \
+  -e class 'com.ghostftp.android.PremiumVisualReferenceTest#captureSevenIdleWorkspacesAt480x960' \
+  "$PACKAGE_ID.test/androidx.test.runner.AndroidJUnitRunner" 2>&1)"
+CAPTURE_EXIT=$?
+set -e
+printf '%s\n' "$CAPTURE_RESULT" > "$VISUAL_DIR/instrumentation.log"
+printf 'adb am instrument exit: %s\n' "$CAPTURE_EXIT" > "$VISUAL_DIR/instrumentation-exit.txt"
+if ! bash android/scripts/check-visual-instrumentation-output.sh \
+  "$VISUAL_DIR/instrumentation.log" "$CAPTURE_EXIT"; then
+  echo "Real Android visual QA capture did not complete successfully." >&2
+  tail -n 80 "$VISUAL_DIR/instrumentation.log" >&2
+  exit 1
+fi
+for screen in files sites transfers sync cloud settings about; do
+  adb exec-out run-as "$PACKAGE_ID" cat "files/premium-qa/${screen}.png" > "$VISUAL_DIR/${screen}.png"
+  test -s "$VISUAL_DIR/${screen}.png"
+  # The Android emulator CI runs on macOS. Verify PNG signature, IHDR
+  # dimensions and actual file bytes using portable Python 3, not a
+  # platform-specific image inspection command.
+  python3 - "$VISUAL_DIR/${screen}.png" "$screen" <<'PYTHON_PNG'
+import pathlib
+import struct
+import sys
+
+source = pathlib.Path(sys.argv[1])
+label = sys.argv[2]
+header = source.open("rb").read(24)
+if len(header) != 24 or header[:8] != b"\x89PNG\r\n\x1a\n":
+    raise SystemExit(f"Invalid actual Android PNG for {label}")
+if header[12:16] != b"IHDR":
+    raise SystemExit(f"Missing PNG IHDR for {label}")
+width, height = struct.unpack(">II", header[16:24])
+if width != 480 or not 800 <= height <= 960:
+    raise SystemExit(f"Wrong Android viewport for {label}: {width}x{height}; expected width 480 and normal Android system bars")
+if source.stat().st_size < 4096:
+    raise SystemExit(f"Suspiciously empty Android visual capture for {label}")
+print(f"Verified real Android view capture: {label} {width}x{height}")
+PYTHON_PNG
+done
+(
+  cd "$VISUAL_DIR"
+  for screen in files sites transfers sync cloud settings about; do
+    shasum -a 256 "${screen}.png"
+  done
+) > "$VISUAL_DIR/SHA256SUMS.txt"
+test -s "$VISUAL_DIR/SHA256SUMS.txt"
+cat > "$VISUAL_DIR/README.txt" <<'VISUAL_EVIDENCE'
+Ghost FTP Android visual QA: actual live debug-view renders at a 480px-wide,
+160dpi emulator viewport. Captures show idle application workspaces only.
+No reference concept screenshots, fake cloud connections, passwords, or
+simulated transfers are inserted. These are visual-comparison INPUTS and do
+not certify 1:1 parity with the 16 reference PNGs.
+Production FLAG_SECURE and private credentials remain protected.
+VISUAL_EVIDENCE
 
 AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n1)"
 test -x "$AAPT"

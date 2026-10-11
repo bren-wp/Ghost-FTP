@@ -1,0 +1,144 @@
+package com.ghostftp.android
+
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.view.View
+import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.ScrollView
+import android.widget.TextView
+import androidx.test.core.app.ActivityScenario
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+
+/**
+ * Renders only the live, empty, debug-only workspace hierarchy at the approved
+ * Android reference viewport. These images are QA evidence, not mockup copies.
+ *
+ * The production FLAG_SECURE window policy remains untouched: rendering the
+ * empty view tree inside a test process is deliberately separate from taking
+ * unrestricted screenshots of user credentials via Android's capture APIs.
+ */
+@RunWith(AndroidJUnit4::class)
+class PremiumVisualReferenceTest {
+    private val instrumentation = InstrumentationRegistry.getInstrumentation()
+
+    @Test
+    fun captureSevenIdleWorkspacesAt480x960() {
+        val screens = listOf(
+            "files" to R.string.workspace_files,
+            "sites" to R.string.workspace_sites,
+            "transfers" to R.string.workspace_transfers,
+            "sync" to null,
+            "cloud" to null,
+            "settings" to R.string.workspace_settings,
+            "about" to R.string.workspace_about
+        )
+        val output = File(instrumentation.targetContext.filesDir, "premium-qa")
+        assertTrue("Cannot create private debug QA directory.", output.isDirectory || output.mkdirs())
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            for ((name, labelRes) in screens) {
+                scenario.onActivity { activity ->
+                    val label = when (name) {
+                        "sync" -> "Sync & Backup"
+                        "cloud" -> "Cloud storage"
+                        else -> activity.getString(labelRes!!)
+                    }
+                    val description = activity.getString(R.string.workspace_open, label)
+                    val destination = findView(activity.window.decorView) {
+                        it is TextView && it.contentDescription?.toString() == description
+                    } as? TextView
+                    assertNotNull("Live workspace is missing: $name", destination)
+                    assertTrue("Workspace cannot be selected: $name", destination!!.performClick())
+                }
+                instrumentation.waitForIdleSync()
+                scenario.onActivity { activity ->
+                    // Do not publish any screenshot if test state contains a
+                    // host, account, credential, custom path or object URL.
+                    assertNoUserInputInHierarchy(activity.window.decorView)
+                    val decor = activity.window.decorView
+                    assertEquals("QA capture must use approved 480 px viewport.", 480, decor.width)
+                    assertTrue("Application window not laid out.", decor.height > 0)
+                    val pixels = Bitmap.createBitmap(decor.width, decor.height, Bitmap.Config.ARGB_8888)
+                    try {
+                        pixels.eraseColor(android.graphics.Color.rgb(7, 14, 26))
+                        decor.draw(Canvas(pixels))
+                        val file = File(output, "$name.png")
+                        file.outputStream().use { stream ->
+                            assertTrue("Cannot encode live $name workspace.", pixels.compress(Bitmap.CompressFormat.PNG, 100, stream))
+                        }
+                        assertTrue("Empty screenshot: $name", file.length() > 4096L)
+                    } finally {
+                        pixels.recycle()
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun premiumChromeAndRailUseReferenceGeometry() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                val density = activity.resources.displayMetrics.density
+                val widthDp = activity.resources.configuration.screenWidthDp
+                assertEquals("Reference QA emulator must have width 480dp.", 480, widthDp)
+                val nav = findView(root) {
+                    it is TextView &&
+                        it.contentDescription?.toString() ==
+                        activity.getString(R.string.workspace_open, activity.getString(R.string.workspace_files))
+                }
+                assertNotNull("Real branded Files navigation missing.", nav)
+                var rail: View? = nav
+                while (rail != null && rail !is ScrollView) {
+                    rail = rail.parent as? View
+                }
+                assertNotNull("Real scrollable navigation rail missing.", rail)
+                assertEquals("64dp rail must match approved layout.", (64 * density + .5f).toInt(), rail!!.width)
+
+                val quick = findView(root) {
+                    it.contentDescription?.toString() == "Quick navigation"
+                }
+                assertNotNull("Full-width top brand bar must remain actionable.", quick)
+                val chrome = quick!!.parent as? View
+                assertNotNull("Full-width top brand bar missing.", chrome)
+                assertEquals("58dp brand bar must match approved geometry.", (58 * density + .5f).toInt(), chrome!!.height)
+                assertEquals("Brand bar must cover viewport.", decorWidth(activity), chrome.width)
+            }
+        }
+    }
+
+    private fun decorWidth(activity: MainActivity): Int = activity.window.decorView.width
+
+    private fun assertNoUserInputInHierarchy(root: View) {
+        if (root is EditText) {
+            val raw = root.text?.toString()?.trim().orEmpty()
+            val allowedDefaults = setOf("", "21", "22", "15", "/", "990", "2222")
+            assertTrue("Refusing to export a QA screenshot containing nondefault user input.", raw in allowedDefaults)
+        }
+        if (root is ViewGroup) {
+            for (index in 0 until root.childCount) {
+                assertNoUserInputInHierarchy(root.getChildAt(index))
+            }
+        }
+    }
+
+    private fun findView(root: View, predicate: (View) -> Boolean): View? {
+        if (predicate(root)) return root
+        if (root is ViewGroup) {
+            for (index in 0 until root.childCount) {
+                val found = findView(root.getChildAt(index), predicate)
+                if (found != null) return found
+            }
+        }
+        return null
+    }
+}

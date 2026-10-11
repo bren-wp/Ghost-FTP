@@ -50,3 +50,7 @@ The authoritative current source/build state is [Build Status](../build/STATUS.m
 ## FINAL rule
 
 Ghost FTP must not be labelled FINAL solely because source compiles or packages. Stable promotion still requires the documented target-OS installer, visual, security and accessibility acceptance appropriate to that release.
+
+## 0.95.0 Android protected visual evidence
+
+The Android CI now produces seven separate, real idle-workspace 480px screenshots and an accompanying SHA-256 file from a private debug-only instrumentation renderer. The production `FLAG_SECURE` screenshot block remains active; ordinary ADB screenshots may be black, so do not treat those as actual UI evidence. These captures are available as `GhostFTP-Android-Premium-Visual-QA-480x960` in the Actions run's artifacts, separate from installable APKs. Manual comparison against the 16 source references is still pending; one of the seven captures (Cloud) has no corresponding source reference and is not a fabricated match.

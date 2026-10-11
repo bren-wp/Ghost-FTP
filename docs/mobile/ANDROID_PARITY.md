@@ -1,5 +1,7 @@
 # Ghost FTP Android parity
 
+Current development source: **0.95.0** (premium visual QA); previous published release: **0.94.0**. Historical versioned notes below remain unchanged.
+
 > Current development cycle: **0.94.0**; latest verified public release: **0.93.0**. Historical sections remain version-specific.
 
 Ghost FTP Android follows the same product identity and file-action model as the Windows/Linux app while using a mobile-first native Kotlin layout.
@@ -17,7 +19,7 @@ The Android Cloud storage workspace transfers one object at a time using short-l
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
 - Active source version: **0.93.0**
-- Previous canonical release: **0.93.0**
+- Previous canonical release: **0.94.0**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`

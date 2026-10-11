@@ -12,6 +12,27 @@ class SignedCloudLinkTest {
         SignedCloudLink("https://account.r2.cloudflarestorage.com/bucket/object?X-Amz-Signature=abc")
     }
 
+    @Test fun rejectsIDNAAndMalformedSupportedProviderDomains() {
+        val bad = listOf(
+            "https://xn--bcher-kva.s3.amazonaws.com/object?X-Amz-Signature=x",
+            "https://under_score.s3.amazonaws.com/object?X-Amz-Signature=x",
+            "https://a..s3.amazonaws.com/object?X-Amz-Signature=x",
+            "https://-bucket.s3.amazonaws.com/object?X-Amz-Signature=x",
+            "https://bucket-.s3.amazonaws.com/object?X-Amz-Signature=x",
+            "https://bucket.s3.amazonaws.com./object?X-Amz-Signature=x"
+        )
+        for (link in bad) {
+            try {
+                SignedCloudLink(link)
+                fail("Ambiguous cloud provider domain was accepted.")
+            } catch (_: IllegalArgumentException) {
+                // Expected: fail before any network request.
+            }
+        }
+        assertTrue(SignedCloudLink.isPublicHost("bucket.s3.amazonaws.com"))
+        assertFalse(SignedCloudLink.isPublicHost("xn--bcher-kva.s3.amazonaws.com"))
+    }
+
     @Test fun rejectsUnsignedPrivateAndInsecureEndpoints() {
         val rejected = listOf(
             "http://bucket.s3.amazonaws.com/a?X-Amz-Signature=x",

@@ -8,6 +8,8 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.net.URI
 import java.net.URL
+import java.security.MessageDigest
+import java.util.Base64
 import java.util.Locale
 import okhttp3.MediaType
 import okhttp3.Request
@@ -71,6 +73,15 @@ internal class SignedCloudLink(raw: String) {
         }
 
         internal fun isPublicHost(host: String): Boolean {
+            // Do not let IDNA/punycode, unusual Unicode or malformed DNS
+            // labels broaden the signed provider allowlist. This does not
+            // replace PublicCloudDns validation on the actual HTTP lookup.
+            if (host.length !in 4..253 ||
+                host.any { ch -> ch !in 'a'..'z' && ch !in '0'..'9' && ch != '-' && ch != '.' } ||
+                host.split('.').any { label ->
+                    label.isEmpty() || label.length > 63 || label.startsWith('-') ||
+                        label.endsWith('-') || label.startsWith("xn--")
+                }) return false
             if (host == "localhost" || host.endsWith(".localhost") ||
                 host.endsWith(".local") || host.endsWith(".internal") ||
                 host == "::1" || host.startsWith("fe80:") ||
@@ -84,6 +95,21 @@ internal class SignedCloudLink(raw: String) {
 internal object SignedCloudTransfer {
     private const val MAX_BYTES = 1024L * 1024L * 1024L
     private val BINARY_TYPE: MediaType = "application/octet-stream".toMediaType()
+
+    // S3 can return its SHA-256 object checksum with a presigned GET.
+    // Verify before opening the SAF destination. ETag is not an object
+    // checksum for multipart uploads and must not be treated as one.
+    internal fun requireMatchingSha256Header(header: String?, computedDigest: ByteArray) {
+        if (header == null) return
+        val expected = try {
+            Base64.getDecoder().decode(header.trim())
+        } catch (_: IllegalArgumentException) {
+            throw IOException("Cloud provider returned an invalid SHA-256 checksum.")
+        }
+        if (expected.size != 32 || !MessageDigest.isEqual(expected, computedDigest)) {
+            throw IOException("Cloud download checksum mismatch; destination was not written.")
+        }
+    }
 
     private fun checkResponse(status: Int, isDownload: Boolean) {
         if (status !in 200..299 || (isDownload && status != 200)) {
@@ -177,6 +203,7 @@ internal object SignedCloudTransfer {
                     throw IOException("Cloud downloads are limited to 1 GiB per signed URL.")
                 }
                 var received = 0L
+                val contentDigest = MessageDigest.getInstance("SHA-256")
                 body.byteStream().use { input ->
                     FileOutputStream(stage).use { output ->
                         val buffer = ByteArray(64 * 1024)
@@ -187,6 +214,7 @@ internal object SignedCloudTransfer {
                             received += read
                             if (received > MAX_BYTES) throw IOException("Cloud download exceeded its 1 GiB safety limit.")
                             output.write(buffer, 0, read)
+                            contentDigest.update(buffer, 0, read)
                         }
                     }
                 }
@@ -194,6 +222,7 @@ internal object SignedCloudTransfer {
                 if (body.contentLength() >= 0 && received != body.contentLength()) {
                     throw IOException("Cloud download was incomplete.")
                 }
+                requireMatchingSha256Header(response.header("x-amz-checksum-sha256"), contentDigest.digest())
             }
             // SAF destinations are generally not atomic. The caller must
             // remove a newly created destination if this final copy fails.

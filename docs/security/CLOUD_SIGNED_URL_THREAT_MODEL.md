@@ -38,3 +38,10 @@ Companion documents: [cloud security overview](../handbook/SECURITY_PRIVACY.md),
 - `CloudTransferCancellation` cancels the underlying HTTP call. The Android UI exposes Cancel and invalidates stale callback results.
 - `MainActivity.kt` attempts to delete a new SAF document after failed/canceled downloads; if the provider rejects deletion, the app explicitly warns that an incomplete file can remain.
 - This is **not** a certified fix for custom VPN routing, all IDNA cases, provider URL canonicalization, macOS routing or complete atomicity on every SAF document provider. Keep #126 and #127 open until controlled device E2E closes those risks.
+
+
+## 0.95.0 macOS defense-in-depth and outstanding P0 routing boundary
+
+The previous macOS URLSession implementation checked the signed URL's provider suffix and refused HTTP redirects, but its actual TCP peer route was not constrained to a verified public address. It would be incorrect to mark Issue #126 fixed merely after a separate getaddrinfo lookup or an HTTP completion metric. The 0.95.0 candidate strengthens URL parsing to require strictly lowercase ASCII DNS labels, no empty/leading/trailing-hyphen or punycode `xn--` labels, and disables automatic proxy discovery in the ephemeral signed-link session. It also validates official S3 SHA-256 response checksums before promoting downloaded bytes over a local destination.
+
+**Residual blocker:** none of these steps pins DNS decisions to the socket that performs the TLS request. A vetted peer-bound macOS transport and adversarial private-address/proxy/DNS-rebind testing with real public signed hosts are still needed. Do not disable certificate or hostname verification, silently accept VPN proxy routing, or claim Issue #126 resolved without that evidence.

@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm xvfb xauth
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm xvfb xauth xdotool scrot openbox wmctrl x11-utils python3-pil dbus-x11
       - name: Validate central version metadata
         shell: bash
         run: node .github/scripts/sync-version.mjs --check
@@ -326,6 +326,28 @@ jobs:
             echo "Ghost FTP executable remains after package removal: $INSTALLED_BIN" >&2
             exit 1
           fi
+
+      - name: Capture genuine Linux 1290x852 Files window
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/capture-linux-premium.sh
+          # A disposable session bus lets GTK/WebKit initialize its normal
+          # window/rendering services without reducing its sandbox policy.
+          dbus-run-session -- xvfb-run -a -s '-screen 0 1290x852x24' bash .github/scripts/capture-linux-premium.sh \
+            ghostftp-desktop/src-tauri/target/release/ghostftp qa/linux
+          test -s qa/linux/Linux-Files-1290x852.png
+          test -s qa/linux/SHA256SUMS.txt
+
+      - name: Upload genuine Linux visual QA evidence
+        if: runner.os == 'Linux' && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-Linux-x86_64-Preview-QA
+          path: qa/linux/*
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Capture Windows native-window QA evidence
         if: runner.os == 'Windows'

@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 @testable import GhostFTPMacApp
 
@@ -44,6 +45,38 @@ final class SignedCloudLinkTests: XCTestCase {
         ]
         for url in invalid {
             XCTAssertThrowsError(try SignedCloudLink(url), "Accepted an invalid cloud signature")
+        }
+    }
+
+    func testRejectsPunycodeIDNAAndAmbiguousCloudProviderHosts() {
+        let unsafe = [
+            "https://xn--bcher-kva.s3.amazonaws.com/item?X-Amz-Signature=x",
+            "https://under_score.s3.amazonaws.com/item?X-Amz-Signature=x",
+            "https://a..s3.amazonaws.com/item?X-Amz-Signature=x",
+            "https://-bucket.s3.amazonaws.com/item?X-Amz-Signature=x",
+            "https://bucket-.s3.amazonaws.com/item?X-Amz-Signature=x",
+            "https://bucket.s3.amazonaws.com./item?X-Amz-Signature=x"
+        ]
+        for link in unsafe {
+            XCTAssertThrowsError(try SignedCloudLink(link), "Unsafe host should be rejected.")
+        }
+        XCTAssertTrue(SignedCloudLink.isPublicHost("bucket.s3.amazonaws.com"))
+        XCTAssertFalse(SignedCloudLink.isPublicHost("xn--bcher-kva.s3.amazonaws.com"))
+        XCTAssertFalse(SignedCloudLink.isPublicHost("bucket-.s3.amazonaws.com"))
+    }
+
+    func testS3SHA256AcceptsMatchingAndMissingOptionalHeader() throws {
+        let bytes = Data("Ghost FTP streamed data".utf8)
+        let digest = Data(SHA256.hash(data: bytes))
+        XCTAssertNoThrow(try SignedCloudTransfer.verifySHA256(header: digest.base64EncodedString(), digest: digest))
+        XCTAssertNoThrow(try SignedCloudTransfer.verifySHA256(header: nil, digest: digest))
+    }
+
+    func testS3SHA256RejectsWrongMalformedAndShortHeadersBeforeReplacingFile() throws {
+        let actual = Data(SHA256.hash(data: Data("trusted".utf8)))
+        let wrong = Data(SHA256.hash(data: Data("untrusted".utf8)))
+        for bad in [wrong.base64EncodedString(), "%%%bad", "AA==", ""] {
+            XCTAssertThrowsError(try SignedCloudTransfer.verifySHA256(header: bad, digest: actual))
         }
     }
 

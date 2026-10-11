@@ -36,7 +36,7 @@ Inter, Segoe UI and Noto Sans are preferred with platform system fallbacks. No f
 
 - Windows/Linux: existing React/Tauri components for navigation, file panes, transfers, dialogs and settings; shared dark semantic tokens and GhostMark. Linux preserves native window-manager differences.
   - Quick tools from the approved reference sidebar are connected to the existing, functional SFTP Terminal, command palette and local duplicate scanner. Terminal is disabled without an active SFTP session.
-- Android: existing native Kotlin UI with shared semantic colors and vector launcher mark. Standard-width phones now dock the 88 dp rail rather than covering the file workspace with a menu; devices under 360 dp retain an accessible overlay. Touch-target and accessibility checks stay mandatory.
+- Android: existing native Kotlin UI with shared semantic colors and vector launcher mark. Standard-width phones now dock the 64 dp rail rather than covering the file workspace with a menu; devices under 360 dp retain an accessible overlay. Touch-target and accessibility checks stay mandatory.
 - macOS: existing SwiftUI workspace shell with shared palette/tint. Light appearance remains independently supported.
 - Secrets, permission prompts and security warnings must retain the existing platform policies.
 
@@ -106,3 +106,20 @@ The following three vector files already present in `assets/branding` were compa
 | macOS | No supplied reference screens | SwiftUI native controls and shared palette | **Pending:** approved Mac reference or separate platform styling acceptance |
 
 A complete visual pass requires actual screenshots from launched builds captured at the defined resolution with production components (not illustration PNGs), full-size and narrow-window overflow/accessibility assessment, and verification that each enabled action executes the corresponding real operation. CI palette checks and a mapping registry alone are not a 1:1 pixel certification. No live data or successful network transfers may be invented to match concept art.
+
+## 0.95.0 — actual protected Android render evidence
+
+The initial single Android ADB screenshot was effectively black due to the existing `FLAG_SECURE` policy. **Do not disable this privacy control to obtain marketing images.** The new `PremiumVisualReferenceTest.kt` renders only a credential-free debug Activity view tree at the 480px reference width, after failing closed on unexpected form values. An emulator run at 480×960/160dpi captures seven authentic idle workspaces with exact per-file SHA-256 hashes to a dedicated internal QA artifact. No concept PNG is used as an interactive background, and no fake connection/file/transfer state is inserted.
+
+This is a capture *foundation*, not 16 completed visual comparisons; all 75 concept entries remain `visual_acceptance: pending`. The Android 64dp rail and 58dp header receive real laid-out geometry assertions. Desktop real screenshot comparison and separate macOS platform acceptance remain necessary.
+
+## 0.95.0 — genuine Windows/Linux Files information architecture (Issue #131)
+
+The Files workspace now includes a visible page heading, working **New connection** button, reference-style inline **Host / Username / Port / Protocol** form and **Review & connect** action. This form does **not** request or save a password: it hands non-secret input into the pre-existing validated connection dialog, which owns credential, host-key and TLS decisions. The real current connection state is displayed rather than a fabricated demo host.
+
+Beneath the actual local/remote file panes, a constrained responsive strip shows up to three **real active/queued/paused transfers** from the backend store, genuine byte-count progress, a truthful empty state and an actionable link to Transfer Center. No mock transfer rows are seeded. The desktop CI has a source-level action/data-binding contract at `ghostftp-desktop/scripts/check-premium-files-reference.mjs` plus the existing Windows native QA captures; actual 1290×852 pixel comparison and keyboard/click QA remain pending. Issue [#131](https://github.com/bren-wp/Ghost-FTP/issues/131) is not accepted until Windows/Linux running-build screenshots are reviewed with responsive states.
+
+
+## 0.95.0 desktop audit provenance and Linux capture
+
+The 0.95.0 Windows native QA screenshots for Files, Sites, Transfers, New Connection, Settings and Help/About have been compared against the six corresponding premium concept images. The [visual comparison audit](../qa/0.95.0-DESKTOP-VISUAL-COMPARISON.md) records the specific differences. A real Linux Tauri executable was verified through the build and GUI smoke; a separate 1290×852 Xvfb screenshot step is now under CI test and **cannot** count as Linux pixel acceptance until the actual PNG is examined. All 75 reference screen statuses remain pending.

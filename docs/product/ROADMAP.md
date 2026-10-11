@@ -1,8 +1,10 @@
 # Ghost FTP — Recommended Next Work
 
+> Current development: **0.95.0** (real premium Android visual evidence), following published **0.94.0**. Historical sections are retained unchanged.
+
 > Current development cycle: **0.94.0**; latest verified public release: **0.93.0**. Historical sections remain version-specific.
 
-This is the prioritized improvement backlog for the Ghost FTP 0.93.0 development line. Previous canonical release: **0.93.0**. Items here are recommendations, not claims of completed functionality.
+This is the prioritized improvement backlog for the Ghost FTP 0.93.0 development line. Previous canonical release: **0.94.0**. Items here are recommendations, not claims of completed functionality.
 
 ## Release blockers before FINAL
 
