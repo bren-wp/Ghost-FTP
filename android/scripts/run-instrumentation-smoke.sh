@@ -226,12 +226,22 @@ test -s "$TEST_APK"
 adb install -r "$TEST_APK"
 VISUAL_DIR="dist/visual-qa/android"
 mkdir -p "$VISUAL_DIR"
+# Android's am instrument -w does not promise to print an
+# INSTRUMENTATION_CODE line on a passing shell-runner invocation. In particular,
+# API 35 has returned "OK (1 test)" without that line after all 17 full-suite
+# tests also passed. Check the command exit code and the exact instrumentation
+# test summary; if a final code IS present it must report success (-1).
+# Preserve the raw output and exit status for incident diagnostics.
+set +e
 CAPTURE_RESULT="$(adb shell am instrument -w \
   -e class 'com.ghostftp.android.PremiumVisualReferenceTest#captureSevenIdleWorkspacesAt480x960' \
   "$PACKAGE_ID.test/androidx.test.runner.AndroidJUnitRunner" 2>&1)"
+CAPTURE_EXIT=$?
+set -e
 printf '%s\n' "$CAPTURE_RESULT" > "$VISUAL_DIR/instrumentation.log"
-if ! grep -Fq 'OK (1 test)' <<< "$CAPTURE_RESULT" \
-  || ! grep -Fq 'INSTRUMENTATION_CODE: -1' <<< "$CAPTURE_RESULT"; then
+printf 'adb am instrument exit: %s\n' "$CAPTURE_EXIT" > "$VISUAL_DIR/instrumentation-exit.txt"
+if ! bash android/scripts/check-visual-instrumentation-output.sh \
+  "$VISUAL_DIR/instrumentation.log" "$CAPTURE_EXIT"; then
   echo "Real Android visual QA capture did not complete successfully." >&2
   tail -n 80 "$VISUAL_DIR/instrumentation.log" >&2
   exit 1
