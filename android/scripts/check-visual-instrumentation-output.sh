@@ -25,19 +25,19 @@ if grep -Eq '^(FAILURES!!!|INSTRUMENTATION_FAILED:|INSTRUMENTATION_ABORTED:)' "$
   echo "Visual instrumentation also reported an error or an abort." >&2
   exit 1
 fi
-# Some API images append this legacy line; when present, a non-success
-# code must not be allowed to contradict the textual OK summary.
-if grep '^INSTRUMENTATION_CODE:' "$log" |
-  grep -Ev '^INSTRUMENTATION_CODE:[[:space:]]*-1[[:space:]]*
-  echo "Visual instrumentation's final result code was not successful." >&2
-  exit 1
-fi
 
-echo "Android visual instrumentation: one test passed and adb returned success."
- |
-  grep -q .; then
-  echo "Visual instrumentation's final result code was not successful." >&2
-  exit 1
-fi
+# Some API versions print a final legacy status, others omit it. Reject
+# ANY contradictory code instead of requiring a particular line to exist.
+while IFS= read -r line || [ -n "$line" ]; do
+  line="${line%$'\r'}"
+  case "$line" in
+    INSTRUMENTATION_CODE:*)
+      if [ "$line" != 'INSTRUMENTATION_CODE: -1' ]; then
+        echo "Visual instrumentation reported a non-success completion code." >&2
+        exit 1
+      fi
+      ;;
+  esac
+done < "$log"
 
 echo "Android visual instrumentation: one test passed and adb returned success."
