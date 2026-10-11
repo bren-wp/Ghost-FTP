@@ -35,9 +35,11 @@ jobs:
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Android production contract
+      - name: Android production and visual instrumentation result contracts
         shell: bash
-        run: bash android/scripts/check-android-contract.sh
+        run: |
+          bash android/scripts/check-android-contract.sh
+          bash android/scripts/test-visual-instrumentation-output.sh
       - name: Native Android lint and APK build
         shell: bash
         run: gradle -p android testDebugUnitTest lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview bundleRelease
