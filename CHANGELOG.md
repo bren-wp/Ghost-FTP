@@ -1,3 +1,13 @@
+## 0.95.5 — cross-platform signed cloud URL privacy and SAF recovery (development) — 12 October 2026
+
+- **Windows/Linux:** Treat signed S3, GCS and Azure SAS object URLs as bearer credentials in diagnostics; hide the entire signed URL and add executable redaction regression cases without removing ordinary URL diagnostics.
+- **Android:** Clear signed URL fields before invoking system SAF document pickers, avoid bucket hostname exposure in transfer status, and remove newly created orphaned documents after Activity recreation when temporary authorization is unavailable; warn if provider deletion fails.
+- **macOS:** Clear signed object URLs from SwiftUI input before open/save panels appear, including canceled selections, and keep transfer progress messages generic.
+- **Version + QA:** Advance source to 0.95.5 without reusing immutable published v0.95.4; retain TS/Rust source-reachability, Kotlin/Swift private-symbol, native platform and signed-updater CI. This is not visual 1:1 or real-provider/device security acceptance.
+- **Still open:** #126 network/provider lab, #127 physical Android SAF fault-injection, #128 real OAuth PKCE/account browsing.
+
+See [docs/releases/0.95.5.md](docs/releases/0.95.5.md).
+
 ## 0.95.4 — Android post-write SAF integrity security fix (in development) — 12 October 2026
 
 - **Security / Android:** Verify a newly created cloud download document after the SAF output stream closes, using exact byte count and SHA-256 of the destination readback against the staged transfer. Reject silent truncation, same-size corruption, extra bytes, unreadable destinations and cancellation rather than reporting success.
