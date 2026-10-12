@@ -51,7 +51,7 @@ for (const rel of [
 const releaseWorkflow = fs.readFileSync(
   path.join(workflowDir, "ghostftp-release.yml"), "utf8"
 );
-if (!/^  group: ghostftp-release-\\$\\{\\{ github\\.event\\.workflow_run\\.head_branch \\}\\}$/m.test(releaseWorkflow)) {
+if (!releaseWorkflow.includes("  group: ghostftp-release-${{ github.event.workflow_run.head_branch }}")) {
   failures.push("Release concurrency must be isolated by triggering head_branch");
 }
 if (!/^  cancel-in-progress: false$/m.test(releaseWorkflow)) {
