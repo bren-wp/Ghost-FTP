@@ -39,8 +39,7 @@ impl FtpFs {
 fn is_ftps_data_tls_failure(error: &anyhow::Error) -> bool {
     error.chain().any(|cause| {
         let message = cause.to_string();
-        message.contains("522 SSL handshake failed")
-            || message.contains("522 TLS handshake failed")
+        message.contains("522 SSL handshake failed") || message.contains("522 TLS handshake failed")
     })
 }
 
@@ -118,8 +117,9 @@ fn list_lines_with_dot_visibility(
         // A failed TLS data handshake invalidates the control/data state.
         // Issuing another LIST on it loses the original error and cannot
         // safely recover. Only the async caller can replace that session.
-        Err(error) if is_ftps_data_tls_failure(&error) => Err(error)
-            .with_context(|| format!("FTPS LIST -a {target} data TLS handshake")),
+        Err(error) if is_ftps_data_tls_failure(&error) => {
+            Err(error).with_context(|| format!("FTPS LIST -a {target} data TLS handshake"))
+        }
         // Retain compatibility with FTP servers that interpret -a as a
         // literal path or reject that non-standard listing option.
         Err(_) => stream
