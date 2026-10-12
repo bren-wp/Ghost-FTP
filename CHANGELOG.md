@@ -1,5 +1,6 @@
 ## 0.95.6 — Android provider stream progress and SAF copy hardening (development) — 13 October 2026
 
+- **Android cancellation stability:** When a transfer is canceled, attempt to close registered SAF provider input/output streams on a daemon worker instead of blocking the Android UI. Synchronize stream registration with cancellation to reject late stream opens; add three race-oriented JVM regressions.
 - **Android reliability/security:** Add a bounded copy primitive for SAF uploads, signed cloud network download staging and SAF destination writes. Reject endless zero-byte reads from broken providers, early EOF, size growth and cancellation rather than allowing a hanging copy or optimistic success.
 - **Android regression tests:** Add deterministic JVM tests for exact/empty files, truncated and oversized streams, eight recoverable zero-byte reads versus unbounded zero-byte responses, cancellation, impossible length metadata and write failures.
 - **Multi-platform release discipline:** Windows/Linux/macOS continue from the merged v0.95.5 source, with no unrelated platform features removed. This is not a claim of full 1:1 parity or provider/device acceptance.
