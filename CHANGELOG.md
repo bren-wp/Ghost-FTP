@@ -1,3 +1,13 @@
+## 0.95.4 — Android post-write SAF integrity security fix (in development) — 12 October 2026
+
+- **Security / Android:** Verify a newly created cloud download document after the SAF output stream closes, using exact byte count and SHA-256 of the destination readback against the staged transfer. Reject silent truncation, same-size corruption, extra bytes, unreadable destinations and cancellation rather than reporting success.
+- **Recovery:** The existing Android failure path attempts to remove the new SAF document and warns when deletion fails; providers without atomic/transactional writes remain unverified.
+- **Tests:** Add six JVM regression scenarios for actual byte integrity (no secrets or remote provider credentials).
+- **Accurate acceptance:** Reopen #126, #127 and #128 because real DNS/VPN/provider, SAF physical device and OAuth end-to-end criteria are unmet. Do not confuse a green build with security acceptance.
+- **Release lineage:** v0.95.3 remains public and immutable; 0.95.4 is unpublished source.
+
+See [docs/releases/0.95.4.md](docs/releases/0.95.4.md).
+
 ## 0.95.3 — real cross-platform Transfers overview (in development) — 12 October 2026
 
 - **Windows/Linux:** Interactive premium metric cards read active, completed and failed transfer counts directly from the existing backend queue; selected cards switch actual filters, with accessible keyboard states and responsive grid sizing.
