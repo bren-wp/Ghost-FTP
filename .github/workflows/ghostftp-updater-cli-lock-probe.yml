@@ -1,0 +1,37 @@
+name: Ghost FTP updater CLI lock regeneration probe
+
+on:
+  push:
+    branches:
+      - security/0.95.4-android-saf-integrity
+
+permissions:
+  contents: read
+
+jobs:
+  npm-lock-probe:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Regenerate npm dependency lock
+        run: |
+          set -euo pipefail
+          cd ghostftp-desktop
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Emit reproducible npm lock snapshot
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, json
+          path = "ghostftp-desktop/package-lock.json"
+          data = {path: open(path, "r", encoding="utf-8").read()}
+          encoded = base64.b64encode(json.dumps(data, separators=(",", ":")).encode()).decode()
+          print("GHOSTFTP_LOCK_SNAPSHOT_BEGIN")
+          for offset in range(0, len(encoded), 16000):
+              print("GHOSTFTP_LOCK_CHUNK=" + encoded[offset:offset + 16000])
+          print("GHOSTFTP_LOCK_SNAPSHOT_END")
+          PY
