@@ -230,9 +230,14 @@ internal object SignedCloudTransfer {
             override fun writeTo(sink: BufferedSink) {
                 cancellation.ensureActive()
                 resolver.openInputStream(source)?.use { input ->
-                    streamWithBoundedProgress(
-                        input, length, length, cancellation
-                    ) { bytes, count -> sink.write(bytes, 0, count) }
+                    cancellation.watchStream(input)
+                    try {
+                        streamWithBoundedProgress(
+                            input, length, length, cancellation
+                        ) { bytes, count -> sink.write(bytes, 0, count) }
+                    } finally {
+                        cancellation.unwatchStream(input)
+                    }
                 } ?: throw IOException("Selected document is unavailable.")
             }
         }
@@ -306,16 +311,26 @@ internal object SignedCloudTransfer {
             // SAF destinations are generally not atomic. The caller must
             // remove a newly created destination if this final copy fails.
             resolver.openOutputStream(target, "w")?.use { output ->
-                stage.inputStream().use { input ->
-                    streamWithBoundedProgress(
-                        input, expectedBytes, expectedBytes, cancellation
-                    ) { bytes, count -> output.write(bytes, 0, count) }
-                    output.flush()
+                cancellation.watchStream(output)
+                try {
+                    stage.inputStream().use { input ->
+                        streamWithBoundedProgress(
+                            input, expectedBytes, expectedBytes, cancellation
+                        ) { bytes, count -> output.write(bytes, 0, count) }
+                        output.flush()
+                    }
+                } finally {
+                    cancellation.unwatchStream(output)
                 }
             } ?: throw IOException("Selected download destination is not writable.")
             cancellation.ensureActive()
             resolver.openInputStream(target)?.use { saved ->
-                verifyPersistedCopy(saved, expectedBytes, expectedDigest, cancellation)
+                cancellation.watchStream(saved)
+                try {
+                    verifyPersistedCopy(saved, expectedBytes, expectedDigest, cancellation)
+                } finally {
+                    cancellation.unwatchStream(saved)
+                }
             } ?: throw IOException("Cloud destination cannot be read back for integrity verification.")
             cancellation.ensureActive()
         } finally {
