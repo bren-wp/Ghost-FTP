@@ -30,6 +30,15 @@ enum PinnedCloudPublicAddress {
             if bytes[0] == 0x20 && bytes[1] == 0x02 { return false }
             if bytes[0] == 0x20 && bytes[1] == 0x01 &&
                 bytes[2] == 0 && bytes[3] == 0 { return false }
+            // IANA: benchmark 2001:2::/48, deprecated 2001:10::/28,
+            // and RFC 9637 documentation 3fff::/20 aren't public peers.
+            if bytes[0] == 0x20 && bytes[1] == 0x01 &&
+                bytes[2] == 0 && bytes[3] == 2 &&
+                bytes[4] == 0 && bytes[5] == 0 { return false }
+            if bytes[0] == 0x20 && bytes[1] == 0x01 &&
+                bytes[2] == 0 && (bytes[3] & 0xf0) == 0x10 { return false }
+            if bytes[0] == 0x3f && bytes[1] == 0xff &&
+                (bytes[2] & 0xf0) == 0 { return false }
             return true
         }
         return false

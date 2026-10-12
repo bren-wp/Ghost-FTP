@@ -24,7 +24,10 @@ final class PinnedCloudTransportTests: XCTestCase {
         let blockedIPv6Prefixes: [[UInt8]] = [
             [0, 0, 0, 0], [0xfc, 0, 0, 0], [0xfe, 0x80, 0, 0],
             [0x20, 0x01, 0x0d, 0xb8], [0x20, 0x02, 0, 0],
-            [0x20, 0x01, 0, 0]
+            [0x20, 0x01, 0, 0],
+            [0x20, 0x01, 0, 2], // IANA benchmarking /48
+            [0x20, 0x01, 0, 0x10], // deprecated ORCHID /28
+            [0x3f, 0xff, 0, 0] // documentation /20 (RFC 9637)
         ]
         for prefix in blockedIPv6Prefixes {
             XCTAssertFalse(PinnedCloudPublicAddress.allowed(
