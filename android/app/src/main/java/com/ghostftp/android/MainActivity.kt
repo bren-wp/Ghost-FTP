@@ -199,6 +199,17 @@ class MainActivity : Activity() {
                 val uri = data?.data
                 if (link != null && uri != null) {
                     runCloudTransfer(upload = requestCode == PICK_CLOUD_UPLOAD_REQUEST, link = link, uri = uri)
+                } else if (requestCode == CREATE_CLOUD_DOWNLOAD_REQUEST && uri != null) {
+                    // Android may recreate this Activity while the system picker
+                    // is visible. The URL is deliberately not saved in Bundle;
+                    // delete the newly created orphan SAF output when the
+                    // missing in-memory authorization prevents any transfer.
+                    val removed = removeIncompleteCloudDestination(uri)
+                    cloudStatus.text = if (removed) {
+                        "Cloud download was not started. The empty document was removed."
+                    } else {
+                        "Cloud download was not started. A blank document may remain; remove it manually."
+                    }
                 } else {
                     cloudStatus.text = "No cloud document was selected."
                 }
