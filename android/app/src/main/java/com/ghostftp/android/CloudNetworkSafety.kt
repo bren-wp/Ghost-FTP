@@ -1,5 +1,6 @@
 package com.ghostftp.android
 
+import java.io.Closeable
 import java.io.InterruptedIOException
 import java.net.InetAddress
 import java.net.Proxy
@@ -86,6 +87,30 @@ internal class PublicCloudDns(private val upstream: Dns = Dns.SYSTEM) : Dns {
 internal class CloudTransferCancellation {
     private val cancelled = AtomicBoolean(false)
     private val active = AtomicReference<Call?>(null)
+    private val streamLock = Any()
+    private val providerStreams = mutableSetOf<Closeable>()
+
+    /**
+     * Track SAF provider streams, which may ignore thread interrupts while
+     * blocked in a Binder-backed read or write. Registration is synchronized
+     * with cancel() so even a stream opened during cancellation is rejected.
+     */
+    fun watchStream(stream: Closeable) {
+        val alreadyCancelled = synchronized(streamLock) {
+            if (cancelled.get()) true else {
+                providerStreams.add(stream)
+                false
+            }
+        }
+        if (alreadyCancelled) {
+            runCatching { stream.close() }
+            throw InterruptedIOException("Cloud transfer canceled.")
+        }
+    }
+
+    fun unwatchStream(stream: Closeable) {
+        synchronized(streamLock) { providerStreams.remove(stream) }
+    }
 
     fun attach(call: Call) {
         check(active.compareAndSet(null, call)) { "A cloud transfer is already in progress." }
@@ -93,8 +118,21 @@ internal class CloudTransferCancellation {
     }
 
     fun cancel() {
-        cancelled.set(true)
+        if (!cancelled.compareAndSet(false, true)) return
         active.get()?.cancel()
+
+        val streams = synchronized(streamLock) { providerStreams.toList() }
+        if (streams.isNotEmpty()) {
+            // ContentProvider.close() itself can block. Never perform it on
+            // MainActivity's UI thread: abort pending provider I/O off-thread
+            // and let the transfer worker's finally/use close its streams.
+            Thread({
+                streams.forEach { runCatching { it.close() } }
+            }, "GhostFTP-CloudProviderCancel").apply {
+                isDaemon = true
+                start()
+            }
+        }
     }
 
     fun ensureActive() {
