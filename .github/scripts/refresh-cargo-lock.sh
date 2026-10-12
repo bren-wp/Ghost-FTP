@@ -31,7 +31,7 @@ check_locked() {
 
 # The Tauri core lock must follow the exact pinned version in the manifest;
 # do not hardcode an older unrelated version in the refresh workflow.
-TAURI_PIN="$(sed -nE 's/^tauri = \\{ version = "=([^"]+)".*/\\1/p' Cargo.toml)"
+TAURI_PIN="$(sed -nE 's/^tauri = \{ version = "=([^"]+)".*/\1/p' Cargo.toml)"
 if [[ -z "$TAURI_PIN" ]]; then
   echo "Cannot resolve the exact Tauri dependency pin from Cargo.toml." >&2
   exit 1
