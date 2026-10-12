@@ -45,4 +45,19 @@ for (const text of [
   'transferOverviewText.contentDescription = message',
 ]) assert.ok(android.includes(text), `Missing Android live session-operation behavior: ${text}`);
 
+const historyStore = read("macos/Sources/GhostFTPMacApp/Services/TransferHistoryStore.swift");
+const macTests = read("macos/Tests/GhostFTPMacAppTests/WorkspaceStoreTests.swift");
+assert.ok(
+  historyStore.includes("records.removeAll { $0.status != .running }"),
+  "Clearing macOS history must retain running transfer records"
+);
+assert.ok(
+  mac.includes('Button("Clear finished", role: .destructive)'),
+  "macOS history action must clearly describe its safe scope"
+);
+assert.ok(
+  macTests.includes("testClearingFinishedHistoryPreservesRunningTransferAndItsOutcome"),
+  "Missing macOS running-history-preservation regression"
+);
+
 console.log("Live Transfers UI: Windows/Linux backend-queue metrics, macOS actual credential-free history and Android session-only operation counters verified. Installed visual and device acceptance remain pending.");
