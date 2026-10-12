@@ -1,0 +1,37 @@
+name: Ghost FTP npm lock regeneration probe
+
+on:
+  push:
+    branches:
+      - security/0.95.4-android-saf-integrity
+
+permissions:
+  contents: read
+
+jobs:
+  npm-lock-probe:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Regenerate canonical npm dependency lock
+        run: |
+          set -euo pipefail
+          cd ghostftp-desktop
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Emit npm lock for reproducible GitHub commit
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, json
+          path = "ghostftp-desktop/package-lock.json"
+          content = {path: open(path, "r", encoding="utf-8").read()}
+          data = base64.b64encode(json.dumps(content, separators=(",", ":")).encode()).decode()
+          print("GHOSTFTP_LOCK_SNAPSHOT_BEGIN")
+          for i in range(0, len(data), 16000):
+              print("GHOSTFTP_LOCK_CHUNK=" + data[i:i+16000])
+          print("GHOSTFTP_LOCK_SNAPSHOT_END")
+          PY
