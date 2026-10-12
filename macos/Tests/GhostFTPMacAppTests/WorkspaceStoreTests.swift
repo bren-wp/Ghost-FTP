@@ -274,6 +274,25 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.records, history.records)
     }
 
+    func testClearingFinishedHistoryPreservesRunningTransferAndItsOutcome() {
+        let defaults = isolatedDefaults("history-clear-running")
+        let history = TransferHistoryStore(defaults: defaults)
+        let finished = history.begin(direction: .upload, fileName: "old.zip")
+        history.complete(finished)
+        let active = history.begin(direction: .download, fileName: "active.zip")
+
+        history.clear()
+        XCTAssertEqual(history.records.map(\.id), [active])
+        XCTAssertEqual(history.records.first?.status, .running)
+
+        history.complete(active)
+        XCTAssertEqual(history.records.first?.status, .completed)
+        XCTAssertEqual(TransferHistoryStore(defaults: defaults).records, history.records)
+
+        history.clear()
+        XCTAssertTrue(history.records.isEmpty)
+    }
+
     func testRunningTransferIsRecoveredAsCancelledAfterRestart() {
         let defaults = isolatedDefaults("transfer-recovery")
         let history = TransferHistoryStore(defaults: defaults)
