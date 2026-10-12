@@ -1,3 +1,12 @@
+## 0.95.7 — SAF provider cancellation isolation and release-lineage repair (development) — 13 October 2026
+
+- **Android SAF cancellation (#127, partial):** Close each registered provider stream through a separate daemon worker. A blocked `close()` for one DocumentsProvider cannot prevent another active stream from receiving its close request.
+- **Regression coverage:** Add a two-provider JVM cancellation test, alongside the existing lifecycle/race regressions.
+- **Immutable release history:** The public v0.95.6 tag remains fixed at `a25403c78cb8d26e0dd57495c23598d81ed2860f`. PR #139 merged after that release; these changes advance the source to 0.95.7 from published v0.95.6, never rewriting published binaries or tags.
+- **Acceptance limits:** Real Android 8–15 SAF device tests, provider DNS/proxy/VPN labs, OAuth integration, macOS secure FTPS/SFTP and 75-screen pixel comparisons still require evidence; no blanket 1:1 or production signing claim.
+
+See [docs/releases/0.95.7.md](docs/releases/0.95.7.md).
+
 ## 0.95.6 — Android provider stream progress and SAF copy hardening (development) — 13 October 2026
 
 - **Android cancellation stability:** When a transfer is canceled, attempt to close registered SAF provider input/output streams on a daemon worker instead of blocking the Android UI. Synchronize stream registration with cancellation to reject late stream opens; add three race-oriented JVM regressions.
