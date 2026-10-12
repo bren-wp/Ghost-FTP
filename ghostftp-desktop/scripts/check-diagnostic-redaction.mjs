@@ -19,6 +19,20 @@ assert.equal(
   redact("https://ftp.example.invalid/download?token=VeryPrivate&file=sample"),
   "https://ftp.example.invalid/download?token=<redacted>&file=sample",
 );
+const signedCloudUrls = [
+  "https://bucket.s3.amazonaws.com/private/file.zip?X-Amz-Credential=account-id&X-Amz-Signature=aws-secret-signature&X-Amz-Expires=3600",
+  "https://storage.googleapis.com/bucket/private?X-Goog-Credential=account-id&X-Goog-Signature=google-secret-signature",
+  "https://account.blob.core.windows.net/container/private?sv=2026-01-01&sig=azure-secret-signature&sp=rw",
+  "https://bucket.r2.cloudflarestorage.com/my/private?X-Amz-Signature=cloudflare-secret",
+];
+for (const url of signedCloudUrls) {
+  const result = redact("Transfer failed for " + url);
+  assert.equal(result, "Transfer failed for <redacted signed cloud URL>");
+  for (const secret of ["account-id", "signature", "private", "sp=rw", "sv=2026"]) {
+    assert.ok(!result.includes(secret), "signed URL metadata leaked in diagnostics");
+  }
+}
+assert.equal(redact("response ?X-Amz-Signature=secret&code=42"), "response ?X-Amz-Signature=<redacted>&code=<redacted>");
 assert.equal(redact("Authorization: Bearer aBcDe123"), "Authorization: <redacted>");
 assert.equal(redact("sftp://alice:my-pass@files.example.invalid/home"), "sftp://<redacted>@files.example.invalid/home");
 assert.equal(redact("ftp://alice@files.example.invalid/home"), "ftp://<redacted>@files.example.invalid/home");

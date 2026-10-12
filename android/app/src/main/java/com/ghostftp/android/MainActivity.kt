@@ -945,6 +945,10 @@ class MainActivity : Activity() {
             input.text.clear()
             return
         }
+        // The validated signed URL is retained only for the pending picker
+        // operation; remove its plaintext from the view before launching
+        // another Activity, including when the user cancels the picker.
+        input.text.clear()
         cloudPendingLink = link
         val intent = if (upload) {
             Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
@@ -994,7 +998,7 @@ class MainActivity : Activity() {
         cloudCancelButton.isEnabled = true
         cloudUploadInput.text.clear()
         cloudDownloadInput.text.clear()
-        cloudStatus.text = if (upload) "Uploading to ${link.publicHost}…" else "Downloading from ${link.publicHost}…"
+        cloudStatus.text = if (upload) "Uploading cloud object…" else "Downloading cloud object…"
         cloudTransferThread = thread(start = true, name = "GhostFTP-CloudTransfer") {
             val success = try {
                 if (upload) {

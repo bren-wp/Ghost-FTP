@@ -84,12 +84,16 @@ struct CloudWorkspace: View {
             uploadLink = ""
             return
         }
+        // A signed object URL is a bearer credential. The validated value
+        // remains in the local transfer request, not the SwiftUI text field
+        // while a system file picker is on screen.
+        uploadLink = ""
         let panel = NSOpenPanel()
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
         guard panel.runModal() == .OK, let file = panel.url else { return }
         busy = true
-        status = "Uploading to \(link.host)…"
+        status = "Uploading cloud object…"
         activeTask = Task {
             defer { busy = false; uploadLink = ""; activeTask = nil }
             do {
@@ -112,11 +116,14 @@ struct CloudWorkspace: View {
             downloadLink = ""
             return
         }
+        // Never leave the live signed URL visible in view state while the
+        // save panel is open or after its cancellation.
+        downloadLink = ""
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "cloud-download.bin"
         guard panel.runModal() == .OK, let destination = panel.url else { return }
         busy = true
-        status = "Downloading from \(link.host)…"
+        status = "Downloading cloud object…"
         activeTask = Task {
             defer { busy = false; downloadLink = ""; activeTask = nil }
             do {
