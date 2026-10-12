@@ -91,6 +91,26 @@ enum PinnedCloudPublicAddress {
 /// -q suppresses ~/.curlrc; --proxy "" overrides proxy environment; no
 /// --location, --insecure or custom certificate verifier is ever used.
 enum PinnedCloudTransport {
+    /// Curl can emit interim HTTP 100 Continue headers followed by the actual
+    /// provider response. Inspect only the last complete HTTP header block;
+    /// duplicate security headers in that response are rejected.
+    static func parseFinalHeaders(_ raw: String) throws -> [String: String] {
+        let normalized = raw.replacingOccurrences(of: "\r\n", with: "\n")
+        let blocks = normalized.components(separatedBy: "\n\n")
+        guard let last = blocks.last(where: { $0.hasPrefix("HTTP/") }) else {
+            throw SignedCloudLinkError.invalidResponse
+        }
+        var headers: [String: String] = [:]
+        for line in last.components(separatedBy: "\n").dropFirst() {
+            guard let colon = line.firstIndex(of: ":") else { continue }
+            let name = String(line[..<colon]).lowercased()
+            let value = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+            if headers[name] != nil { throw SignedCloudLinkError.invalidResponse }
+            headers[name] = value
+        }
+        return headers
+    }
+
     static func quoted(_ text: String) throws -> String {
         guard !text.unicodeScalars.contains(where: { $0.value < 0x20 || $0.value == 0x7f }) else {
             throw SignedCloudLinkError.invalidLink
@@ -171,19 +191,16 @@ enum PinnedCloudTransport {
                   uploading ? (200...299).contains(status) : status == 200 else {
                 throw SignedCloudLinkError.invalidResponse
             }
-            let data = try Data(contentsOf: headersFile)
-            guard data.count <= 65536,
-                  let headerText = String(data: data, encoding: .utf8) else {
+            guard let headerSize = try? FileManager.default.attributesOfItem(
+                atPath: headersFile.path
+            )[.size] as? NSNumber, headerSize.intValue <= 65536 else {
                 throw SignedCloudLinkError.invalidResponse
             }
-            var headers: [String: String] = [:]
-            for line in headerText.components(separatedBy: "\r\n") {
-                guard let colon = line.firstIndex(of: ":") else { continue }
-                let name = String(line[..<colon]).lowercased()
-                let value = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
-                if headers[name] != nil { throw SignedCloudLinkError.invalidResponse }
-                headers[name] = value
+            let data = try Data(contentsOf: headersFile)
+            guard let headerText = String(data: data, encoding: .utf8) else {
+                throw SignedCloudLinkError.invalidResponse
             }
+            let headers = try parseFinalHeaders(headerText)
             if !uploading {
                 let manager = FileManager.default
                 guard let size = try? manager.attributesOfItem(atPath: outputFile.path)[.size] as? NSNumber,
@@ -219,8 +236,8 @@ enum PinnedCloudTransport {
                 // ordinary local file, not a cloud account token.
                 let staged = localFile.deletingLastPathComponent()
                     .appendingPathComponent(".ghostftp-\(UUID().uuidString).part")
-                try manager.copyItem(at: outputFile, to: staged)
                 do {
+                    try manager.copyItem(at: outputFile, to: staged)
                     try Task.checkCancellation()
                     if manager.fileExists(atPath: localFile.path) {
                         _ = try manager.replaceItemAt(localFile, withItemAt: staged)
