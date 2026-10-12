@@ -43,7 +43,7 @@ if (tauri.plugins?.updater?.requireSignedVersion !== true) {
   failures.push("updater manifest version must match the artifact's signed trusted version");
 }
 const cli = JSON.parse(read("ghostftp-desktop/package.json")).devDependencies?.["@tauri-apps/cli"];
-if (!/^~2\\.(?:1[2-9]|[2-9]\\d)\\.\\d+$/.test(cli ?? "")) {
+if (!/^~2\.(?:1[2-9]|[2-9]\d)\.\d+$/.test(cli ?? "")) {
   failures.push("signed-version updater must use a Tauri CLI 2.12+ release toolchain");
 }
 
