@@ -5766,3 +5766,74 @@ input.ghost-pane-address:focus-visible {
   .ghost-premium-transfer-strip { max-height: 39px; }
   .ghost-premium-transfer-idle, .ghost-premium-transfer-list { display: none; }
 }
+
+/* Issue #131: real premium Settings information architecture.
+   The 1290px Windows/Linux reference has a persistent category rail. Compact
+   widths retain the existing accessible horizontal category navigation. */
+@media (min-width: 900px) and (min-height: 520px) {
+  .ghost-preferences-body.ghost-settings-premium-layout {
+    flex-direction: row !important;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .ghost-settings-premium-layout > .ghost-preferences-nav.ghost-settings-tabs {
+    display: flex;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+    align-self: stretch;
+    gap: 6px !important;
+    width: 204px !important;
+    min-width: 204px !important;
+    max-width: 204px !important;
+    height: 100%;
+    min-height: 0;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    border-right: 1px solid rgba(126, 222, 255, .17) !important;
+    border-bottom: 0 !important;
+    padding: 18px 12px !important;
+    background: linear-gradient(180deg, #081b31, #071525) !important;
+    scrollbar-width: thin;
+  }
+  .ghost-settings-premium-layout > .ghost-preferences-nav.ghost-settings-tabs::before {
+    content: "PREFERENCES";
+    display: block;
+    margin: 0 8px 10px;
+    color: #8caecb;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .13em;
+  }
+  .ghost-settings-premium-layout > .ghost-preferences-nav .ghost-settings-tab {
+    display: flex;
+    flex: 0 0 auto !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    min-height: 41px;
+    margin: 0 !important;
+    padding: 9px 12px !important;
+    border-radius: 8px;
+    white-space: normal !important;
+    font-size: 12px;
+  }
+  .ghost-settings-premium-layout > .ghost-preferences-nav .ghost-settings-tab-label {
+    display: inline !important;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .ghost-settings-premium-layout > main {
+    min-width: 0;
+    flex: 1 1 0%;
+  }
+  .ghost-settings-premium-layout > main > .ghost-preferences-heading {
+    min-width: 0;
+    background: #0b1e36;
+  }
+  .ghost-settings-premium-layout > main > .ghost-preferences-content {
+    min-width: 0;
+    min-height: 0;
+    background: #091a2c;
+  }
+}
