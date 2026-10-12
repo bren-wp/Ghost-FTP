@@ -1,0 +1,43 @@
+name: Ghost FTP security dependency lock probe
+on:
+  push:
+    branches:
+      - security/0.95.4-android-saf-integrity
+permissions:
+  contents: read
+jobs:
+  emit-verified-lockfiles:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Resolve patched Rust and npm dependency graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ghostftp-desktop/src-tauri
+          cargo update -p tauri --precise 2.11.6
+          cargo update -p tauri-plugin-updater --precise 2.12.0
+          cd ..
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Emit exact reproducible lockfile snapshot for GitHub PR
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, json
+          files = [
+              "ghostftp-desktop/src-tauri/Cargo.lock",
+              "ghostftp-desktop/package-lock.json"
+          ]
+          data = {path: open(path, "r", encoding="utf-8").read() for path in files}
+          text = base64.b64encode(json.dumps(data, separators=(",", ":")).encode()).decode()
+          print("GHOSTFTP_LOCK_SNAPSHOT_BEGIN")
+          for pos in range(0, len(text), 16000):
+              print("GHOSTFTP_LOCK_CHUNK=" + text[pos:pos + 16000])
+          print("GHOSTFTP_LOCK_SNAPSHOT_END")
+          PY
