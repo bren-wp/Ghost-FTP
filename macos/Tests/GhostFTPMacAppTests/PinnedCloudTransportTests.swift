@@ -40,4 +40,22 @@ final class PinnedCloudTransportTests: XCTestCase {
         XCTAssertThrowsError(try PinnedCloudTransport.quoted("https://bucket.s3.amazonaws.com/\nproxy = evil"))
         XCTAssertThrowsError(try PinnedCloudTransport.quoted("a\rb"))
     }
+    func testParsesLastHttpHeadersWithoutConfusing100Continue() throws {
+        let raw = "HTTP/1.1 100 Continue\r\nServer: intermediary\r\n\r\n" +
+            "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n" +
+            "x-amz-checksum-sha256: checksum\r\n\r\n"
+        let parsed = try PinnedCloudTransport.parseFinalHeaders(raw)
+        XCTAssertEqual(parsed["content-length"], "5")
+        XCTAssertEqual(parsed["x-amz-checksum-sha256"], "checksum")
+        XCTAssertNil(parsed["server"])
+    }
+
+    func testRejectsDuplicateProviderHeadersAndMissingResponseBlock() {
+        XCTAssertThrowsError(try PinnedCloudTransport.parseFinalHeaders(
+            "HTTP/1.1 200 OK\r\nx-amz-checksum-sha256: one\r\n" +
+            "X-Amz-Checksum-Sha256: two\r\n\r\n"
+        ))
+        XCTAssertThrowsError(try PinnedCloudTransport.parseFinalHeaders("Content-Length: 99"))
+    }
+
 }
