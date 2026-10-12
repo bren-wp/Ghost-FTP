@@ -66,6 +66,21 @@ class CloudSavedDocumentIntegrityTest {
         }
     }
 
+    @Test fun rejectsNonProgressingDocumentProviderStream() {
+        val input = object : java.io.InputStream() {
+            override fun read(): Int = 0
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int = 0
+        }
+        try {
+            SignedCloudTransfer.verifyPersistedCopy(
+                input, 1L, hash(byteArrayOf(1)), CloudTransferCancellation()
+            )
+            fail("A SAF provider returning endless zero-byte reads must fail closed.")
+        } catch (_: IOException) {
+            // A stalled readback must not hang the app or claim success.
+        }
+    }
+
     @Test fun rejectsInvalidExpectedChecksumMetadata() {
         try {
             SignedCloudTransfer.verifyPersistedCopy(
