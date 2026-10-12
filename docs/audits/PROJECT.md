@@ -1,8 +1,8 @@
 # Ghost FTP Audit Index — 0.93.0
 
-> Current development: **0.95.0** (real premium Android visual evidence), following published **0.94.0**. Historical sections are retained unchanged.
+> Current development: **0.95.1** (premium QA and cloud hardening), following published **0.95.0**. Historical sections are retained unchanged.
 
-> Current development source: **0.94.0**; latest verified published release: **0.93.0**. Historical findings below retain their original version labels.
+> Current development source: **0.95.1**; latest verified published release: **0.95.0**. Historical findings below retain their original version labels.
 
 This index describes the current 0.93.0 source line. Previous canonical release: **0.94.0**.
 
