@@ -41,10 +41,11 @@ assert.equal(tauriConfig.plugins?.updater?.allowDowngrades, false, "Updater poli
 assert.equal(tauriConfig.plugins?.updater?.requireSignedVersion, true, "Updater must cryptographically bind installed version to the signed update payload");
 
 const jsRange = pkg.dependencies?.["@tauri-apps/plugin-updater"];
-const jsMin = jsRange?.match(/^\^(\d+\.\d+\.\d+)$/)?.[1];
+const jsMin = jsRange?.match(/^~(\d+\.\d+\.\d+)$/)?.[1];
 const jsLocked = pkgLock.packages?.["node_modules/@tauri-apps/plugin-updater"]?.version;
 assert.ok(jsMin && atLeast(jsMin, "2.12.0"), "JS updater minimum version is vulnerable");
 assert.ok(jsLocked && atLeast(jsLocked, "2.12.0"), "JS updater lock is vulnerable");
+assert.equal(jsLocked.split(".").slice(0, 2).join("."), rustLocked("tauri-plugin-updater").split(".").slice(0, 2).join("."), "Tauri Rust/JS updater minors must match for native packaging");
 assert.equal(pkgLock.packages?.[""]?.dependencies?.["@tauri-apps/plugin-updater"], jsRange);
 
 const cliRange = pkg.devDependencies?.["@tauri-apps/cli"];
