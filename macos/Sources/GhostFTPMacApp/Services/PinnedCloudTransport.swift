@@ -85,6 +85,26 @@ enum PinnedCloudPublicAddress {
     }
 }
 
+/// Shares cancellation state between SwiftUI's parent Task and a detached
+/// background process waiter without letting curl block the main actor.
+private final class PinnedTransferCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+
+    func cancel() {
+        lock.lock()
+        cancelled = true
+        lock.unlock()
+    }
+
+    func ensureActive() throws {
+        lock.lock()
+        let stopped = cancelled
+        lock.unlock()
+        if stopped { throw CancellationError() }
+    }
+}
+
 /// Fail-closed signed-object HTTPS transport for macOS. No caller-provided
 /// URL is placed in process arguments, logs, environment or on disk. Apple's
 /// /usr/bin/curl receives an escaped config through its private stdin pipe.
@@ -168,8 +188,10 @@ enum PinnedCloudTransport {
         process.standardOutput = output
         process.standardError = FileHandle.nullDevice
 
-        return try await withTaskCancellationHandler {
-            try Task.checkCancellation()
+        let cancellation = PinnedTransferCancellation()
+        return try await withTaskCancellationHandler(operation: {
+            let result = try await Task.detached(priority: .userInitiated) { () throws -> (status: Int, headers: [String: String]) in
+            try cancellation.ensureActive()
             try process.run()
             do {
                 try input.fileHandleForWriting.write(contentsOf: Data(config.utf8))
@@ -185,7 +207,7 @@ enum PinnedCloudTransport {
                 as: UTF8.self
             ).trimmingCharacters(in: .whitespacesAndNewlines)
             process.waitUntilExit()
-            try Task.checkCancellation()
+            try cancellation.ensureActive()
             guard process.terminationStatus == 0,
                   let status = Int(responseText),
                   uploading ? (200...299).contains(status) : status == 200 else {
@@ -221,7 +243,7 @@ enum PinnedCloudTransport {
                     defer { try? handle.close() }
                     var hasher = SHA256()
                     while true {
-                        try Task.checkCancellation()
+                        try cancellation.ensureActive()
                         let bytes = try handle.read(upToCount: 64 * 1024) ?? Data()
                         if bytes.isEmpty { break }
                         hasher.update(data: bytes)
@@ -230,7 +252,7 @@ enum PinnedCloudTransport {
                         header: checksum, digest: Data(hasher.finalize())
                     )
                 }
-                try Task.checkCancellation()
+                try cancellation.ensureActive()
                 // Preserve the destination until response and checksum are
                 // accepted. Caller owns the user-selected path; this is an
                 // ordinary local file, not a cloud account token.
@@ -238,20 +260,27 @@ enum PinnedCloudTransport {
                     .appendingPathComponent(".ghostftp-\(UUID().uuidString).part")
                 do {
                     try manager.copyItem(at: outputFile, to: staged)
-                    try Task.checkCancellation()
+                    try cancellation.ensureActive()
                     if manager.fileExists(atPath: localFile.path) {
                         _ = try manager.replaceItemAt(localFile, withItemAt: staged)
                     } else {
                         try manager.moveItem(at: staged, to: localFile)
                     }
+                } catch is CancellationError {
+                    try? manager.removeItem(at: staged)
+                    throw CancellationError()
                 } catch {
                     try? manager.removeItem(at: staged)
                     throw SignedCloudLinkError.invalidFile
                 }
             }
             return (status, headers)
-        } onCancel: {
+            }.value
+            try Task.checkCancellation()
+            return result
+        }, onCancel: {
+            cancellation.cancel()
             if process.isRunning { process.terminate() }
-        }
+        })
     }
 }
