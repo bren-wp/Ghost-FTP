@@ -514,7 +514,15 @@ export function TransferCenterDialog({ onClose }: Props) {
 
         <div className="min-h-0 flex-1 overflow-auto p-4">
           {filtered.length === 0 ? (
-            <Empty />
+            <Empty
+              hasHistory={transfers.length > 0}
+              onClearFilters={() => {
+                setTab("all");
+                setQuery("");
+                setDirectionFilter("all");
+                setTimeFilter("all");
+              }}
+            />
           ) : (
             <>
               <div className="grid min-w-[920px] grid-cols-[36px_minmax(220px,1.4fr)_95px_90px_160px_90px_90px_100px_106px] border-b border-border px-2 py-2 text-[10px] uppercase tracking-wider text-text-dim">
@@ -834,15 +842,24 @@ function Tab({
   );
 }
 
-function Empty() {
+function Empty({ hasHistory, onClearFilters }: { hasHistory: boolean; onClearFilters: () => void }) {
   return (
     <div className="grid min-h-48 place-items-center px-6 py-8 text-text-muted">
       <div className="w-full max-w-md rounded-xl border border-border bg-[#071f35] px-6 py-7 text-center shadow-[inset_0_1px_0_rgba(255,255,255,.02)]">
         <Activity size={28} className="mx-auto mb-3 text-accent" />
-        <div className="font-semibold text-text">No transfers in this view</div>
-        <div className="mx-auto mt-1 max-w-sm text-[12px] leading-5">
-          Start an upload or download from Files, or change the active filters.
+        <div className="font-semibold text-text">
+          {hasHistory ? "No matching transfers" : "No transfers yet"}
         </div>
+        <div className="mx-auto mt-1 max-w-sm text-[12px] leading-5">
+          {hasHistory
+            ? "No transfer matches the current status, search, direction or time filters."
+            : "Start an actual upload or download from Files to populate transfer history."}
+        </div>
+        {hasHistory && (
+          <button type="button" className="ghost-mini-button mx-auto mt-4" onClick={onClearFilters}>
+            Clear filters
+          </button>
+        )}
       </div>
     </div>
   );
