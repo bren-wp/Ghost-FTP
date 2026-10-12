@@ -2,6 +2,7 @@
 
 - **Security / Android:** Verify a newly created cloud download document after the SAF output stream closes, using exact byte count and SHA-256 of the destination readback against the staged transfer. Reject silent truncation, same-size corruption, extra bytes, unreadable destinations and cancellation rather than reporting success.
 - **Recovery:** The existing Android failure path attempts to remove the new SAF document and warns when deletion fails; providers without atomic/transactional writes remain unverified.
+- **Android/macOS cloud routing:** Close gaps in the public-address allowlist for reserved IPv6 benchmarking/documentation/retired ranges; recheck ASCII approved hostname policy at Android's connection-time DNS hook. Unit-test the rejection policy without weakening TLS or accepting private IPs.
 - **Tests:** Add six JVM regression scenarios for actual byte integrity (no secrets or remote provider credentials).
 - **Accurate acceptance:** Reopen #126, #127 and #128 because real DNS/VPN/provider, SAF physical device and OAuth end-to-end criteria are unmet. Do not confuse a green build with security acceptance.
 - **Release lineage:** v0.95.3 remains public and immutable; 0.95.4 is unpublished source.

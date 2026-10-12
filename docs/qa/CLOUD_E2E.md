@@ -64,3 +64,9 @@ The next candidate re-opens the newly created SAF output document **after** clos
 **Open acceptance:** Run on real Android 8–15 with an actual cloud-backed DocumentsProvider and revoked permissions, full disk, rotation, background death, zero-byte and 1 GiB objects. SAF providers can lie about both reads and writes and may not support atomic replacement. These are explicit limitations, not closed security items.
 
 **Additional open items:** #126 requires controlled DNS/proxy/VPN + live provider proof; #128 requires complete mobile/macOS OAuth and provider E2E. The source-only evidence does not close either.
+
+## 0.95.4 IPv6 and canonical DNS routing regression (reopened #126)
+
+The Android `PublicCloudDns` hook, whose return values are used by OkHttp to establish the actual connection, now **also** validates the canonical hostname with the signed-link ASCII/provider policy (defense against future bypassing callers). Android and macOS IP filters both reject IANA's `3fff::/20` IPv6 documentation prefix (RFC 9637), `2001:2::/48` benchmarking and deprecated `2001:10::/28`. Their unit tests cover these cases. All other existing controls stay enabled: HTTPS certificate/hostname trust, no redirects, direct-only networking, and macOS curl `--resolve` peer pinning.
+
+**Unmet acceptance remains**: no controlled proxy/VPN/split-horizon/rebinding lab and no disposable signed public-provider success evidence was provided in this cycle. Keep #126 open until that work is completed.

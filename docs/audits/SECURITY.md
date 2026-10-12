@@ -87,3 +87,10 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 - **Startup resilience:** invalid or corrupted legacy settings JSON is retained for recovery and ignored without aborting application startup. Legacy sensitive terminal/notification history is still purged.
 - **Password-generation performance:** invalid, non-finite or excessively large requested lengths are rejected before the synchronous cryptographic loop, preventing UI hangs.
 - **Verification:** executable tests for exact readback, corrupted/partial writes, write exceptions, existing DB precedence, malformed legacy JSON, privacy cleanup and bounded random password generation. This does not represent an independent penetration test or 75-screen 1:1 signoff.
+
+## 0.95.4 supplemental security audit — candidate, not final
+
+- Android SAF: after staging and checksum verification, the freshly created destination is re-read to verify the actual persisted byte count and SHA-256; silent provider truncation/corruption fails closed.
+- Android and macOS cloud peers: exclude IANA IPv6 documentation `3fff::/20`, benchmarking `2001:2::/48` and deprecated ORCHID `2001:10::/28`; Android validates hostname syntax in its actual OkHttp DNS hook.
+- #126, #127 and #128 are reopened because physical SAF/device, controlled network/provider, and account OAuth acceptance criteria have not been demonstrated. Source tests and CI packages alone do not complete those criteria.
+
