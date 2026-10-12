@@ -1,8 +1,8 @@
 # Ghost FTP Android parity
 
-Current development source: **0.95.0** (premium visual QA); previous published release: **0.94.0**. Historical versioned notes below remain unchanged.
+Current development source: **0.95.1** (security and premium visual QA); previous published release: **0.95.0**. Historical versioned notes below remain unchanged.
 
-> Current development cycle: **0.94.0**; latest verified public release: **0.93.0**. Historical sections remain version-specific.
+> Older 0.94.0/0.93.0 notes below remain historical; current development is **0.95.1**, and the latest public release is **0.95.0**.
 
 Ghost FTP Android follows the same product identity and file-action model as the Windows/Linux app while using a mobile-first native Kotlin layout.
 
