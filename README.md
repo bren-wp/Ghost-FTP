@@ -41,7 +41,7 @@ Current source/release cycle: **0.95.7 (in development)**. Latest confirmed publ
 
 ## Current status
 
-- **Active source/release cycle:** `0.95.6` (in development).
+- **Active source/release cycle:** `0.95.7` (in development).
 - **Latest published canonical release:** `0.95.0`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
