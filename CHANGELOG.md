@@ -1,3 +1,13 @@
+## 0.95.3 — real cross-platform Transfers overview (in development) — 12 October 2026
+
+- **Windows/Linux:** Interactive premium metric cards read active, completed and failed transfer counts directly from the existing backend queue; selected cards switch actual filters, with accessible keyboard states and responsive grid sizing.
+- **macOS:** Credential-free persisted history supplies In progress, Completed, Failed and Cancelled counters; no synthetic file entries, progress, rate or provider claims.
+- **Android:** Transfers workspace displays real, session-only remote-operation outcomes rather than mock transfer statistics.
+- **QA:** Shared CI source-contract verification and mandatory platform builds; visual 1:1 acceptance remains pending until installed screenshots and real interactions are reviewed.
+- **Release lineage:** Published v0.95.2 remains immutable; 0.95.3 starts a new source candidate.
+
+See [docs/releases/0.95.3.md](docs/releases/0.95.3.md).
+
 ## 0.95.2 — post-release cloud cancellation safety and version lineage (in development) — 12 October 2026
 
 - **macOS transfer cancellation:** Carry forward the race fix from the merged post-v0.95.1 PR #133. Curl launch and cancellation now share a process coordination lock; cancel before launch prevents a late network process, and cancellation after launch terminates the active process. Two XCTest regressions and a Quality contract guard this behavior.
