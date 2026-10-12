@@ -29,21 +29,31 @@ for (const [label, value] of Object.entries({ rustReq, apiSpec, cliSpec, apiReso
 }
 
 const expected = minor(rustReq);
-for (const [label, value] of [["frontend API", apiResolved], ["frontend CLI", cliResolved]]) {
-  if (minor(value) !== expected) {
-    throw new Error(`Tauri version mismatch: Rust ${rustReq} expects ${expected}.x but ${label} resolved to ${value}`);
-  }
+if (minor(apiResolved) !== expected) {
+  throw new Error(`Tauri version mismatch: Rust ${rustReq} expects frontend API ${expected}.x but resolved to ${apiResolved}`);
+}
+if (!String(apiSpec).startsWith(`~${expected}.`)) {
+  throw new Error(`@tauri-apps/api must stay on the ~${expected}.x train; found ${apiSpec}`);
 }
 
-// Use a tilde train so npm/Cargo patch updates stay available while a future
-// minor release cannot silently create the mismatch that breaks Tauri bundling.
-for (const [label, spec] of [["@tauri-apps/api", apiSpec], ["@tauri-apps/cli", cliSpec]]) {
-  if (!String(spec).startsWith(`~${expected}.`)) {
-    throw new Error(`${label} must stay on the ~${expected}.x train; found ${spec}`);
-  }
+// Signed updater version binding requires the security-patched Tauri CLI 2.12+.
+// The CLI is a packaging tool, not the runtime JS API: keep its own explicit
+// patch train and requireSignedVersion guard instead of forcing its minor to
+// equal Rust tauri's last supported 2.11.x runtime train.
+const cliMinor = minor(cliResolved);
+if (cliMinor !== "2.12" || !String(cliSpec).startsWith("~2.12.")) {
+  throw new Error(`Signed-version updater requires a locked @tauri-apps/cli ~2.12.x train; found ${cliSpec} -> ${cliResolved}`);
 }
-if (rustReq !== "=2.11.4") {
-  throw new Error(`Rust tauri must stay pinned to the last verified coherent core patch (=2.11.4); found ${rustReq}`);
+const cliPatch = Number(cliResolved.split(".")[2]);
+if (!Number.isInteger(cliPatch) || cliPatch < 2) {
+  throw new Error(`Signed-version Tauri CLI must include the verified 2.12.2+ patch; found ${cliResolved}`);
+}
+if (tauriConfig.plugins?.updater?.requireSignedVersion !== true ||
+    tauriConfig.plugins?.updater?.allowDowngrades !== false) {
+  throw new Error("Signed updater version binding and downgrade prevention must remain enabled");
+}
+if (rustReq !== "=2.11.6") {
+  throw new Error(`Rust tauri must stay pinned to the security-patched tested core (=2.11.6); found ${rustReq}`);
 }
 
 if (!/\[profile\.release\][\s\S]*?opt-level\s*=\s*"s"/m.test(cargo)) {
