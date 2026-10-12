@@ -4,7 +4,7 @@
 
 > Current development source: **0.95.1**; latest verified published release: **0.95.0**. Historical findings below retain their original version labels.
 
-This index describes the current 0.93.0 source line. Previous canonical release: **0.94.0**.
+This index retains historical 0.93.0 findings. Previous canonical release: **0.95.0**.
 
 - [Code audit](CODE.md)
 - [Security audit](SECURITY.md)
