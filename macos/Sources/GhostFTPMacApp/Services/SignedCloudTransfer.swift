@@ -128,79 +128,25 @@ struct SignedCloudLink {
     }
 }
 
-private final class SignedCloudNoRedirects: NSObject, URLSessionTaskDelegate {
-    func urlSession(_ session: URLSession, task: URLSessionTask,
-                    willPerformHTTPRedirection response: HTTPURLResponse,
-                    newRequest request: URLRequest,
-                    completionHandler: @escaping (URLRequest?) -> Void) {
-        completionHandler(nil)
-    }
-}
-
+/// Signed object transfers use only peers bound to approved public IPs.
+/// The transport preserves the original hostname for OS certificate checking
+/// and keeps signed URLs out of process arguments and filesystem config.
 enum SignedCloudTransfer {
-    private static func session() -> URLSession {
-        let config = URLSessionConfiguration.ephemeral
-        config.urlCache = nil
-        config.httpCookieStorage = nil
-        config.httpShouldSetCookies = false
-        // Disable URLSession's proxy auto-discovery and configured proxies
-        // for signed bearer requests. This is defense-in-depth, *not* an IP
-        // pin: Issue #126 still requires transport-bound destination checks.
-        config.connectionProxyDictionary = [
-            "HTTPEnable": 0, "HTTPSEnable": 0, "SOCKSEnable": 0,
-            "ProxyAutoConfigEnable": 0, "ProxyAutoDiscoveryEnable": 0
-        ]
-        config.timeoutIntervalForRequest = 120
-        config.timeoutIntervalForResource = 3600
-        return URLSession(configuration: config, delegate: SignedCloudNoRedirects(), delegateQueue: nil)
-    }
-
     static func upload(file: URL, to link: SignedCloudLink) async throws {
         guard FileManager.default.isReadableFile(atPath: file.path),
               let size = try? FileManager.default.attributesOfItem(atPath: file.path)[.size] as? NSNumber,
-              size.int64Value <= 1024 * 1024 * 1024 else {
+              size.int64Value <= 1_073_741_824 else {
             throw SignedCloudLinkError.invalidFile
         }
-        var request = URLRequest(url: link.url)
-        request.httpMethod = "PUT"
-        request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
-        if link.host.hasSuffix(".blob.core.windows.net") {
-            // Azure SAS Put Blob requires the block blob type header.
-            request.setValue("BlockBlob", forHTTPHeaderField: "x-ms-blob-type")
-        }
-        let client = session()
-        defer { client.finishTasksAndInvalidate() }
-        let (_, response) = try await client.upload(for: request, fromFile: file)
-        try verify(response, isDownload: false)
+        _ = try await PinnedCloudTransport.transfer(
+            from: link, localFile: file, uploading: true
+        )
     }
 
     static func download(from link: SignedCloudLink, to destination: URL) async throws {
-        var request = URLRequest(url: link.url)
-        request.httpMethod = "GET"
-        request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
-        let client = session()
-        defer { client.finishTasksAndInvalidate() }
-        let (temporary, response) = try await client.download(for: request)
-        try verify(response, isDownload: true)
-        let manager = FileManager.default
-        guard let size = try? manager.attributesOfItem(atPath: temporary.path)[.size] as? NSNumber,
-              size.int64Value <= 1024 * 1024 * 1024 else {
-            throw SignedCloudLinkError.invalidFile
-        }
-        try verifyProviderSHA256(response: response, stagedFile: temporary)
-        let staged = destination.deletingLastPathComponent()
-            .appendingPathComponent(".ghostftp-cloud-\(UUID().uuidString).part")
-        do {
-            try manager.moveItem(at: temporary, to: staged)
-            if manager.fileExists(atPath: destination.path) {
-                _ = try manager.replaceItemAt(destination, withItemAt: staged)
-            } else {
-                try manager.moveItem(at: staged, to: destination)
-            }
-        } catch {
-            try? manager.removeItem(at: staged)
-            throw SignedCloudLinkError.invalidFile
-        }
+        _ = try await PinnedCloudTransport.transfer(
+            from: link, localFile: destination, uploading: false
+        )
     }
 
     /// The S3 checksum header is optional. Never claim ETag is a checksum:
@@ -219,36 +165,4 @@ enum SignedCloudTransfer {
         guard mismatch == 0 else { throw SignedCloudLinkError.invalidChecksum }
     }
 
-    private static func verifyProviderSHA256(response: URLResponse, stagedFile: URL) throws {
-        guard let http = response as? HTTPURLResponse else {
-            throw SignedCloudLinkError.invalidResponse
-        }
-        guard let checksum = http.value(forHTTPHeaderField: "x-amz-checksum-sha256") else {
-            return // A missing checksum is not proof of object integrity.
-        }
-        let handle = try FileHandle(forReadingFrom: stagedFile)
-        defer { try? handle.close() }
-        var hasher = SHA256()
-        while true {
-            let bytes = try handle.read(upToCount: 64 * 1024) ?? Data()
-            if bytes.isEmpty { break }
-            hasher.update(data: bytes)
-        }
-        try verifySHA256(header: checksum, digest: Data(hasher.finalize()))
-    }
-
-    private static func verify(_ response: URLResponse, isDownload: Bool) throws {
-        guard let http = response as? HTTPURLResponse else {
-            throw SignedCloudLinkError.invalidResponse
-        }
-        // A GET without a Range request must not silently install a partial
-        // object returned as HTTP 206 in place of the complete destination.
-        guard isDownload ? http.statusCode == 200 : (200...299).contains(http.statusCode) else {
-            throw SignedCloudLinkError.failedResponse(http.statusCode)
-        }
-        if isDownload, let encoding = http.value(forHTTPHeaderField: "Content-Encoding"),
-           encoding.lowercased() != "identity" {
-            throw SignedCloudLinkError.invalidResponse
-        }
-    }
 }
