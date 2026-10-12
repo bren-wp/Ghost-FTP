@@ -908,7 +908,8 @@ for (const required of [
 ]) {
   if (!transferCenter.includes(required)) failures.push(`Transfer Center missing action/filter contract: ${required}`);
 }
-if (!/filtered\.length\s*===\s*0\s*\?\s*\(\s*<Empty\s*\/>/.test(transferCenter)) {
+// Accept functional props on Empty, but require it outside the wide table.
+if (!/filtered\.length\s*===\s*0\s*\?\s*\(\s*<Empty\b[^<>]*\/>/.test(transferCenter)) {
   failures.push("Transfer Center empty state must render outside the wide transfer table so compact windows do not inherit table overflow.");
 }
 if (/<div className="min-w-\[920px\]">\s*\{filtered\.length\s*===\s*0\s*\?/.test(transferCenter)) {
