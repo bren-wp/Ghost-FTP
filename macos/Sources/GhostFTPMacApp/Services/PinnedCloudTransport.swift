@@ -87,13 +87,25 @@ enum PinnedCloudPublicAddress {
 
 /// Shares cancellation state between SwiftUI's parent Task and a detached
 /// background process waiter without letting curl block the main actor.
-private final class PinnedTransferCancellation: @unchecked Sendable {
+final class PinnedTransferCancellation: @unchecked Sendable {
     private let lock = NSLock()
     private var cancelled = false
 
-    func cancel() {
+    /// Serializes cancellation with Process.run so a cancellation delivered
+    /// immediately before launch cannot leave an untracked curl process alive.
+    func start(_ process: Process) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        if cancelled { throw CancellationError() }
+        try process.run()
+    }
+
+    func cancel(_ process: Process) {
         lock.lock()
         cancelled = true
+        if process.isRunning {
+            process.terminate()
+        }
         lock.unlock()
     }
 
@@ -191,14 +203,15 @@ enum PinnedCloudTransport {
         let cancellation = PinnedTransferCancellation()
         return try await withTaskCancellationHandler(operation: {
             let result = try await Task.detached(priority: .userInitiated) { () throws -> (status: Int, headers: [String: String]) in
+            try cancellation.start(process)
             try cancellation.ensureActive()
-            try process.run()
             do {
                 try input.fileHandleForWriting.write(contentsOf: Data(config.utf8))
                 try input.fileHandleForWriting.close()
             } catch {
-                process.terminate()
+                if process.isRunning { process.terminate() }
                 process.waitUntilExit()
+                try cancellation.ensureActive()
                 throw SignedCloudLinkError.invalidResponse
             }
             // Curl only sends a 3-digit status to stdout, never the signed URL.
@@ -279,8 +292,7 @@ enum PinnedCloudTransport {
             try Task.checkCancellation()
             return result
         }, onCancel: {
-            cancellation.cancel()
-            if process.isRunning { process.terminate() }
+            cancellation.cancel(process)
         })
     }
 }
