@@ -40,7 +40,7 @@ jobs:
           node .github/scripts/sync-version.mjs
           node .github/scripts/sync-version.mjs --check
 
-      - name: Refresh canonical Cargo lockfile
+      - name: Validate canonical Cargo lockfile
         shell: bash
         run: bash .github/scripts/refresh-cargo-lock.sh
 

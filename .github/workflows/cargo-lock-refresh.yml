@@ -28,11 +28,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Generate and validate canonical lockfile
+      - name: Validate canonical lockfile without re-resolving dependencies
         shell: bash
         run: bash .github/scripts/refresh-cargo-lock.sh
 
-      - name: Commit Cargo-generated lockfile
+      - name: Confirm committed Cargo lockfile
         shell: bash
         run: |
           set -euo pipefail
