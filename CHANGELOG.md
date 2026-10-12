@@ -1,3 +1,11 @@
+## 0.95.2 — post-release cloud cancellation safety and version lineage (in development) — 12 October 2026
+
+- **macOS transfer cancellation:** Carry forward the race fix from the merged post-v0.95.1 PR #133. Curl launch and cancellation now share a process coordination lock; cancel before launch prevents a late network process, and cancellation after launch terminates the active process. Two XCTest regressions and a Quality contract guard this behavior.
+- **Release integrity:** The immutable public v0.95.1 tag points to `ad3f9b546600dea53fbf5a9b14b1dd7799d84fcf`; the later merged `main` commit cannot reuse that tag. Advance the canonical source version, Android code, desktop/Rust/Go metadata and lockfiles to 0.95.2, and keep v0.95.1 unchanged.
+- **Release gating:** This is source code in development, not a published 0.95.2 release. Require all six exact-head workflows, platform-package validation, security acceptance for #126/#127 and honest premium visual QA before publication. Vendor OAuth (#128) and UI parity (#131) remain outstanding.
+
+See [docs/releases/0.95.2.md](docs/releases/0.95.2.md).
+
 ## 0.93.0 — private cloud storage transfer foundations — 10 October 2026
 
 - **Windows/Linux:** Keep the existing S3, GCS, Azure Blob, WebDAV, Google Drive, OneDrive, Dropbox and Box account/file adapters. Custom S3/Azure endpoints now require HTTPS without embedded userinfo, query or fragment.

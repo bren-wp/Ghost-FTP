@@ -1,6 +1,6 @@
 <div align="center">
 
-Current source/release cycle: **0.95.1 (in development)**. Latest confirmed public release: **0.95.0**. Source-verified 0.30.11 and 0.30.12 builds are handled by the historical release recovery workflow.
+Current source/release cycle: **0.95.2 (in development)**. Latest confirmed public release: **0.95.1**. Source-verified 0.30.11 and 0.30.12 builds are handled by the historical release recovery workflow.
 
 <img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="430">
 
@@ -41,7 +41,7 @@ Current source/release cycle: **0.95.1 (in development)**. Latest confirmed publ
 
 ## Current status
 
-- **Active source/release cycle:** `0.95.1` (in development).
+- **Active source/release cycle:** `0.95.2` (in development).
 - **Latest published canonical release:** `0.95.0`.
 - **Version source of truth:** root `version.json`.
 - **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
