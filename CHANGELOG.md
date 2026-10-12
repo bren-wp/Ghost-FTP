@@ -1,3 +1,15 @@
+## 0.95.4 — Android post-write SAF integrity security fix (in development) — 12 October 2026
+
+- **Security / Android:** Verify a newly created cloud download document after the SAF output stream closes, using exact byte count and SHA-256 of the destination readback against the staged transfer. Reject silent truncation, same-size corruption, extra bytes, unreadable destinations and cancellation rather than reporting success.
+- **Recovery:** The existing Android failure path attempts to remove the new SAF document and warns when deletion fails; providers without atomic/transactional writes remain unverified.
+- **Android/macOS cloud routing:** Close gaps in the public-address allowlist for reserved IPv6 benchmarking/documentation/retired ranges; recheck ASCII approved hostname policy at Android's connection-time DNS hook. Unit-test the rejection policy without weakening TLS or accepting private IPs.
+- **Windows/Linux desktop security:** Patch the Tauri IPC core from 2.11.4 to 2.11.6, Rust updater to 2.12.0, npm updater to 2.12.0, and signing CLI to 2.12.2. Disable `allowDowngrades`, require cryptographically bound update versions with `requireSignedVersion`, regenerate Cargo/npm lockfiles in GitHub Actions and enforce these in Quality CI. The release still needs verified signed updater packages and all six exact-SHA gates.
+- **Tests:** Add six JVM regression scenarios for actual byte integrity (no secrets or remote provider credentials).
+- **Accurate acceptance:** Reopen #126, #127 and #128 because real DNS/VPN/provider, SAF physical device and OAuth end-to-end criteria are unmet. Do not confuse a green build with security acceptance.
+- **Release lineage:** v0.95.3 remains public and immutable; 0.95.4 is unpublished source.
+
+See [docs/releases/0.95.4.md](docs/releases/0.95.4.md).
+
 ## 0.95.3 — real cross-platform Transfers overview (in development) — 12 October 2026
 
 - **Windows/Linux:** Interactive premium metric cards read active, completed and failed transfer counts directly from the existing backend queue; selected cards switch actual filters, with accessible keyboard states and responsive grid sizing.

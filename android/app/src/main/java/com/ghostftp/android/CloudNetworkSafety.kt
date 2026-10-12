@@ -21,7 +21,12 @@ import okhttp3.OkHttpClient
  */
 internal class PublicCloudDns(private val upstream: Dns = Dns.SYSTEM) : Dns {
     override fun lookup(hostname: String): List<InetAddress> {
-        if (!SignedCloudLink.isKnownProviderHost(hostname.lowercase(Locale.ROOT))) {
+        // Revalidate canonical host syntax inside the DNS hook itself.
+        // A later caller must not bypass URL validation by using OkHttp
+        // directly with an ambiguous IDNA/hostname spelling.
+        val canonicalHost = hostname.lowercase(Locale.ROOT)
+        if (!SignedCloudLink.isPublicHost(canonicalHost) ||
+            !SignedCloudLink.isKnownProviderHost(canonicalHost)) {
             throw UnknownHostException("Cloud storage provider hostname is not permitted.")
         }
         val addresses = upstream.lookup(hostname)
@@ -59,7 +64,17 @@ internal class PublicCloudDns(private val upstream: Dns = Dns.SYSTEM) : Dns {
                           bytes[2] == 0x0d && bytes[3] == 0xb8) &&
                         !(bytes[0] == 0x20 && bytes[1] == 0x02) &&
                         !(bytes[0] == 0x20 && bytes[1] == 0x01 &&
-                          bytes[2] == 0x00 && bytes[3] == 0x00)
+                          bytes[2] == 0x00 && bytes[3] == 0x00) &&
+                        // IANA non-global IPv6 special-purpose blocks:
+                        // 2001:2::/48 benchmarking, 2001:10::/28 deprecated
+                        // ORCHID, and 3fff::/20 documentation (RFC 9637).
+                        !(bytes[0] == 0x20 && bytes[1] == 0x01 &&
+                          bytes[2] == 0 && bytes[3] == 2 &&
+                          bytes[4] == 0 && bytes[5] == 0) &&
+                        !(bytes[0] == 0x20 && bytes[1] == 0x01 &&
+                          bytes[2] == 0 && (bytes[3] and 0xf0) == 0x10) &&
+                        !(bytes[0] == 0x3f && bytes[1] == 0xff &&
+                          (bytes[2] and 0xf0) == 0)
                 }
                 else -> false
             }

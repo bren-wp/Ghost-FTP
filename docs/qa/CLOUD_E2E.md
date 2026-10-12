@@ -56,3 +56,19 @@ This closes neither the SAF provider-atomicity nor real-device part of [#127](ht
 Mac signed-object downloads now stream-verify S3's **optional** `x-amz-checksum-sha256` on the temporary file **before replacing any existing destination**. A malformed or mismatching header throws a generic error that does not leak the signed URL. An absent checksum does not authorize any claim of object authenticity. `SignedCloudLinkTests.swift` covers valid, absent, truncated and mismatched digests.
 
 Additional macOS hardening rejects invalid/IDNA-punycode/underscore/trailing-dot/empty-label provider hostnames and disables automatic HTTP/HTTPS/SOCKS/proxy discovery on the signed URLSession configuration. These are layered safeguards, **not a transport-bound IP-pin**: URLSession can still independently resolve the hostname during connection. #126 remains **open/P0** until public-IP-only peer selection is guaranteed on the real macOS connect path, and split-horizon DNS, IPv6, VPN/PAC and real provider tests pass.
+
+## 0.95.4 Android SAF read-back integrity (reopened #127)
+
+The next candidate re-opens the newly created SAF output document **after** closing its output stream, re-reads all persisted bytes, and checks both length and SHA-256 against the temporary staged object. Extra bytes, truncation, silent same-length mutation and permission/provider read errors fail closed. An unreadable provider document cannot be counted as a successful download. The existing best-effort cleanup attempts to delete the newly created document; if denied, users are warned of possible incomplete output. New `CloudSavedDocumentIntegrityTest.kt` unit regressions cover exact/zero-length, truncated, mutated, extra, cancellation and invalid-checksum paths. Source tests alone are **not** acceptance for third-party SAF providers.
+
+**Open acceptance:** Run on real Android 8–15 with an actual cloud-backed DocumentsProvider and revoked permissions, full disk, rotation, background death, zero-byte and 1 GiB objects. SAF providers can lie about both reads and writes and may not support atomic replacement. These are explicit limitations, not closed security items.
+
+**Additional open items:** #126 requires controlled DNS/proxy/VPN + live provider proof; #128 requires complete mobile/macOS OAuth and provider E2E. The source-only evidence does not close either.
+
+## 0.95.4 IPv6 and canonical DNS routing regression (reopened #126)
+
+The Android `PublicCloudDns` hook, whose return values are used by OkHttp to establish the actual connection, now **also** validates the canonical hostname with the signed-link ASCII/provider policy (defense against future bypassing callers). Android and macOS IP filters both reject IANA's `3fff::/20` IPv6 documentation prefix (RFC 9637), `2001:2::/48` benchmarking and deprecated `2001:10::/28`. Their unit tests cover these cases. All other existing controls stay enabled: HTTPS certificate/hostname trust, no redirects, direct-only networking, and macOS curl `--resolve` peer pinning.
+
+**Unmet acceptance remains**: no controlled proxy/VPN/split-horizon/rebinding lab and no disposable signed public-provider success evidence was provided in this cycle. Keep #126 open until that work is completed.
+
+0.95.4 additional provider-reliability guard: the final readback also limits repeated zero-byte reads from contract-violating SAF providers. Isolated `CloudSavedDocumentIntegrityTest.rejectsNonProgressingDocumentProviderStream` covers this stall; real device/provider acceptance is still outstanding.

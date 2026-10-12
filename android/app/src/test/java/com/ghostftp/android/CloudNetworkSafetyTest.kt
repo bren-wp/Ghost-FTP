@@ -41,6 +41,9 @@ class CloudNetworkSafetyTest {
             InetAddress.getByName("fc00::1"),
             InetAddress.getByName("fe80::1"),
             InetAddress.getByName("2001:db8::1"),
+            InetAddress.getByName("2001:2::1234"),  // IANA benchmarking
+            InetAddress.getByName("2001:10::1"),   // deprecated ORCHID
+            InetAddress.getByName("3fff::1"),      // RFC 9637 documentation
             InetAddress.getByName("2002::1")
         )
         unsafe.forEach { assertFalse("Accepted nonpublic address ${it.hostAddress}", PublicCloudDns.isPublicAddress(it)) }
@@ -72,6 +75,18 @@ class CloudNetworkSafetyTest {
             fail("Empty DNS answer must be rejected.")
         } catch (_: UnknownHostException) {
             // Correct.
+        }
+        for (invalid in listOf(
+            "xn--bcher-kva.s3.amazonaws.com",
+            "under_score.s3.amazonaws.com",
+            "bucket-.s3.amazonaws.com"
+        )) {
+            try {
+                PublicCloudDns(dns(ip(8, 8, 8, 8))).lookup(invalid)
+                fail("Cloud DNS hook accepted ambiguous provider hostname: $invalid")
+            } catch (_: UnknownHostException) {
+                // Reject before upstream DNS resolution can be used.
+            }
         }
     }
 

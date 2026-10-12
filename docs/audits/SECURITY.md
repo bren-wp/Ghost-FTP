@@ -1,10 +1,10 @@
 # Ghost FTP Security Audit — 0.93.0
 
-> Current development: **0.95.3** (premium QA and cloud hardening), following published **0.95.2**. Historical sections are retained unchanged.
+> Current development: **0.95.4** (premium QA and cloud hardening), following published **0.95.3**. Historical sections are retained unchanged.
 
-> Current development source: **0.95.3**; latest verified published release: **0.95.2**. Historical findings below retain their original version labels.
+> Current development source: **0.95.4**; latest verified published release: **0.95.3**. Historical findings below retain their original version labels.
 
-Previous canonical release: **0.95.2**.
+Previous canonical release: **0.95.3**.
 
 0.93.0 cloud scope: custom S3/Azure desktop endpoints require HTTPS and forbid embedded credentials, query and fragments. Mobile/macOS signed-object transfers use ephemeral bearer URLs, OS TLS trust, no redirects, bounded file sizes and no stored signed links. This is targeted source hardening; penetration testing and complete provider/account parity are not claimed.
 
@@ -87,3 +87,18 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 - **Startup resilience:** invalid or corrupted legacy settings JSON is retained for recovery and ignored without aborting application startup. Legacy sensitive terminal/notification history is still purged.
 - **Password-generation performance:** invalid, non-finite or excessively large requested lengths are rejected before the synchronous cryptographic loop, preventing UI hangs.
 - **Verification:** executable tests for exact readback, corrupted/partial writes, write exceptions, existing DB precedence, malformed legacy JSON, privacy cleanup and bounded random password generation. This does not represent an independent penetration test or 75-screen 1:1 signoff.
+
+## 0.95.4 supplemental security audit — candidate, not final
+
+- Android SAF: after staging and checksum verification, the freshly created destination is re-read to verify the actual persisted byte count and SHA-256; silent provider truncation/corruption fails closed.
+- Android and macOS cloud peers: exclude IANA IPv6 documentation `3fff::/20`, benchmarking `2001:2::/48` and deprecated ORCHID `2001:10::/28`; Android validates hostname syntax in its actual OkHttp DNS hook.
+- #126, #127 and #128 are reopened because physical SAF/device, controlled network/provider, and account OAuth acceptance criteria have not been demonstrated. Source tests and CI packages alone do not complete those criteria.
+
+
+## 0.95.4 desktop dependency risk remediation — exact-source candidate
+
+- Tauri Rust core 2.11.4 was below the published >=2.11.6 patched line for GHSA-w28w-mhc8-qvjv (webview IPC channel response separation). Source now pins `=2.11.6` and Cargo.lock resolves that version.
+- Tauri Rust updater 2.10.1 was below updater 2.12.0's patched policy for webview-supplied `allowDowngrades` (GHSA-rjc6-5hfg-grp9). Rust now locks 2.12.0, frontend npm lock uses patched 2.12.0, and the app explicitly sets `allowDowngrades: false`.
+- Signed update metadata is separately untrusted: the updater now requires `requireSignedVersion: true` (GHSA-j38x-g3m3-95fr) so the announced release version must match the version embedded in the artifact's signed trusted comment. Tauri CLI / bundler upgraded to locked 2.12.2 to produce that signed version metadata. Existing updater artifacts signed with an older CLI may be incompatible with this stricter policy; don't bypass validation to use them.
+- Version/security-floor validation is a CI gate. Package/signature integrity, server-side signed update manifest provenance and recovery from network MITM still need independent verification. Successful build alone is not complete updater penetration testing.
+
