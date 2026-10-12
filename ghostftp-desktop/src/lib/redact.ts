@@ -1,5 +1,8 @@
+const SIGNED_CLOUD_URL = /\bhttps?:\/\/[^\s<>"']+/gi;
+const CLOUD_SIGNATURE_PARAMETER =
+  /[?&](?:x-amz-signature|x-goog-signature|sig|signature|awsaccesskeyid|googleaccessid)=/i;
 const SECRET_QUERY =
-  /([?&](?:token|code|password|passphrase|secret|api[_-]?key|access[_-]?token|refresh[_-]?token)=)[^&\s]+/gi;
+  /([?&](?:token|code|password|passphrase|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|x-amz-signature|x-amz-security-token|x-amz-credential|x-goog-signature|x-goog-credential|sig|signature|awsaccesskeyid|googleaccessid)=)[^&\s]+/gi;
 // URL query fields are handled by SECRET_QUERY. Do not re-match those
 // assignments and accidentally discard unrelated query parameters.
 const SECRET_ASSIGNMENT =
@@ -42,6 +45,11 @@ export function redactSensitiveText(value: unknown, maxLength?: number): string 
   }
 
   const redacted = raw
+    // Cloud signed object URLs are bearer credentials. Redact the complete
+    // URL, not only its signature field: remaining query fields may contain
+    // temporary access keys, account IDs and sensitive object names.
+    .replace(SIGNED_CLOUD_URL, (url) =>
+      CLOUD_SIGNATURE_PARAMETER.test(url) ? "<redacted signed cloud URL>" : url)
     .replace(/[A-Za-z]:\\Users\\[^\\\s]+/gi, "C:\\Users\\<user>")
     .replace(/\/home\/[^/\s]+/g, "/home/<user>")
     .replace(/\/Users\/[^/\s]+/g, "/Users/<user>")

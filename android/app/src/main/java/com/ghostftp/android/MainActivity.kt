@@ -199,6 +199,17 @@ class MainActivity : Activity() {
                 val uri = data?.data
                 if (link != null && uri != null) {
                     runCloudTransfer(upload = requestCode == PICK_CLOUD_UPLOAD_REQUEST, link = link, uri = uri)
+                } else if (requestCode == CREATE_CLOUD_DOWNLOAD_REQUEST && uri != null) {
+                    // Android may recreate this Activity while the system picker
+                    // is visible. The URL is deliberately not saved in Bundle;
+                    // delete the newly created orphan SAF output when the
+                    // missing in-memory authorization prevents any transfer.
+                    val removed = removeIncompleteCloudDestination(uri)
+                    cloudStatus.text = if (removed) {
+                        "Cloud download was not started. The empty document was removed."
+                    } else {
+                        "Cloud download was not started. A blank document may remain; remove it manually."
+                    }
                 } else {
                     cloudStatus.text = "No cloud document was selected."
                 }
@@ -945,6 +956,10 @@ class MainActivity : Activity() {
             input.text.clear()
             return
         }
+        // The validated signed URL is retained only for the pending picker
+        // operation; remove its plaintext from the view before launching
+        // another Activity, including when the user cancels the picker.
+        input.text.clear()
         cloudPendingLink = link
         val intent = if (upload) {
             Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
@@ -994,7 +1009,7 @@ class MainActivity : Activity() {
         cloudCancelButton.isEnabled = true
         cloudUploadInput.text.clear()
         cloudDownloadInput.text.clear()
-        cloudStatus.text = if (upload) "Uploading to ${link.publicHost}…" else "Downloading from ${link.publicHost}…"
+        cloudStatus.text = if (upload) "Uploading cloud object…" else "Downloading cloud object…"
         cloudTransferThread = thread(start = true, name = "GhostFTP-CloudTransfer") {
             val success = try {
                 if (upload) {
