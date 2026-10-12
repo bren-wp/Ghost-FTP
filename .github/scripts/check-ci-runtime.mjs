@@ -44,6 +44,23 @@ for (const rel of [
   }
 }
 
+// workflow_run emits PR native-build completion events as well as main.
+// The trigger job skips PR events, but concurrency is evaluated *before*
+// that job runs; a shared cancel-in-progress group used to terminate a
+// genuine main release while waiting for exact-SHA Android tests.
+const releaseWorkflow = fs.readFileSync(
+  path.join(workflowDir, "ghostftp-release.yml"), "utf8"
+);
+if (!/^  group: ghostftp-release-\\$\\{\\{ github\\.event\\.workflow_run\\.head_branch \\}\\}$/m.test(releaseWorkflow)) {
+  failures.push("Release concurrency must be isolated by triggering head_branch");
+}
+if (!/^  cancel-in-progress: false$/m.test(releaseWorkflow)) {
+  failures.push("Unrelated workflow_run completion must never cancel an active release");
+}
+if (!releaseWorkflow.includes("github.event.workflow_run.head_branch == 'main'")) {
+  failures.push("Release must continue to accept only successful main builds");
+}
+
 const viteConfig = fs.readFileSync(
   path.join(root, "ghostftp-desktop", "vite.config.ts"),
   "utf8"
