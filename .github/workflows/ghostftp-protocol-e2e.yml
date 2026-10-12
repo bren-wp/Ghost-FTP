@@ -202,12 +202,21 @@ jobs:
           ssl_enable=YES
           force_local_logins_ssl=YES
           force_local_data_ssl=YES
-          ssl_tlsv1_2=YES
-          ssl_tlsv1_3=NO
+          ssl_tlsv12=YES
+          ssl_tlsv13=NO
           require_ssl_reuse=NO
           rsa_cert_file=/etc/ssl/certs/ghostftp-e2e-server.crt
           rsa_private_key_file=/etc/ssl/private/ghostftp-e2e-server.key
           EOF
+          # vsftpd 3.0.5's actual parseconf_bool_array uses ssl_tlsv12 /
+          # ssl_tlsv13 (NOT the underscore spellings listed in some manpages).
+          # The wrong names caused exit_group(2) before binding port 2122.
+          if ! grep -Fxq 'ssl_tlsv12=YES' "$RUNNER_TEMP/ghostftp-vsftpd.conf" ||
+             ! grep -Fxq 'ssl_tlsv13=NO' "$RUNNER_TEMP/ghostftp-vsftpd.conf" ||
+             grep -Eq '^ssl_tlsv1_[23]=' "$RUNNER_TEMP/ghostftp-vsftpd.conf"; then
+            echo "FTPS test fixture has unsupported vsftpd TLS option names." >&2
+            exit 1
+          fi
           # Session reuse is disabled only for this loopback fixture because
           # SuppaFTP/native-tls does not expose control-session resumption to
           # the separate data socket. TLS encryption remains mandatory.
