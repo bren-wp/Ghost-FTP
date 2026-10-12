@@ -9,9 +9,12 @@ permissions:
   contents: write
   actions: read
 
+# workflow_run fires for PR branch builds too. A skipped PR release trigger
+# must never cancel an active verified main release awaiting Android/device CI.
+# Serialize releases per triggering branch and let in-progress publication finish.
 concurrency:
-  group: ghostftp-release
-  cancel-in-progress: true
+  group: ghostftp-release-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
 
 jobs:
   select-trigger:
