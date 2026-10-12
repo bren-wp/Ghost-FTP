@@ -86,8 +86,10 @@ final class TransferHistoryStore: ObservableObject {
         finish(id, status: .cancelled)
     }
 
+    /// Clear only terminal outcomes. A running transfer must retain its
+    /// record so the subsequent completion/failure cannot silently disappear.
     func clear() {
-        records.removeAll()
+        records.removeAll { $0.status != .running }
         persist()
     }
 
