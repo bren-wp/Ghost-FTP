@@ -188,41 +188,25 @@ jobs:
           sudo install -m 0600 -o root -g root \
             "$RUNNER_TEMP/ghostftp-e2e-server.key" /etc/ssl/private/ghostftp-e2e-server.key
           cat > "$RUNNER_TEMP/ghostftp-vsftpd.conf" <<EOF
+          # Localhost-only FTPS fixture with mandatory TLS on both channels.
           listen=YES
-          listen_ipv6=NO
           listen_address=127.0.0.1
           listen_port=2122
-          background=NO
           anonymous_enable=NO
           local_enable=YES
           write_enable=YES
-          local_umask=022
           local_root=/home/$USERNAME
-          chroot_local_user=YES
-          allow_writeable_chroot=YES
           pam_service_name=vsftpd
-          pasv_enable=YES
-          pasv_address=127.0.0.1
           pasv_min_port=30010
           pasv_max_port=30019
-          port_enable=NO
           ssl_enable=YES
           force_local_logins_ssl=YES
           force_local_data_ssl=YES
-          allow_anon_ssl=NO
-          ssl_request_cert=NO
-          ssl_sslv2=NO
-          ssl_sslv3=NO
-          ssl_tlsv1=NO
-          ssl_tlsv1_1=NO
           ssl_tlsv1_2=YES
           ssl_tlsv1_3=NO
           require_ssl_reuse=NO
           rsa_cert_file=/etc/ssl/certs/ghostftp-e2e-server.crt
           rsa_private_key_file=/etc/ssl/private/ghostftp-e2e-server.key
-          secure_chroot_dir=/var/run/vsftpd/empty
-          xferlog_enable=YES
-          log_ftp_protocol=NO
           EOF
           # Session reuse is disabled only for this loopback fixture because
           # SuppaFTP/native-tls does not expose control-session resumption to
@@ -240,6 +224,8 @@ jobs:
           if ! kill -0 "$FTPS_PID" 2>/dev/null; then
             echo "FTPS test daemon quit before binding port 2122." >&2
             cat "$RUNNER_TEMP/ghostftp-ftps.log" >&2 || true
+            echo "Last safe daemon process/file/socket syscalls:" >&2
+            sudo sh -c 'tail -n 70 "$1"/ghostftp-vsftpd-trace*' sh "$RUNNER_TEMP" >&2 || true
             echo "Diagnostic file/socket/process errno and exit codes:" >&2
             sudo sh -c 'grep -hE "ENOENT|EACCES|EINVAL|EADDRINUSE|EPERM|exit_group|SIG" "$1"/ghostftp-vsftpd-trace* | tail -n 50' sh "$RUNNER_TEMP" >&2 || true
             ps -ef | grep '[v]sftpd' >&2 || true
@@ -265,6 +251,8 @@ jobs:
               cat "$RUNNER_TEMP/ghostftp-ftps.log" 2>/dev/null || true
               echo "--- vsftpd process/socket/file errno ---" >&2
               sudo sh -c 'grep -hE "ENOENT|EACCES|EINVAL|EADDRINUSE|EPERM|exit_group|SIG" "$1"/ghostftp-vsftpd-trace* | tail -n 50' sh "$RUNNER_TEMP" >&2 || true
+              echo "--- last safe process/file/socket syscalls ---" >&2
+              sudo sh -c 'tail -n 70 "$1"/ghostftp-vsftpd-trace*' sh "$RUNNER_TEMP" >&2 || true
               echo "--- vsftpd daemon and bound ports ---" >&2
               ps -ef | grep '[v]sftpd' >&2 || true
               sudo ss -ltnp '( sport = :2122 )' >&2 || true
