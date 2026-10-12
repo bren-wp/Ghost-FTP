@@ -95,7 +95,56 @@ internal class SignedCloudLink(raw: String) {
 
 internal object SignedCloudTransfer {
     private const val MAX_BYTES = 1024L * 1024L * 1024L
+    private const val MAX_EMPTY_READS = 8
     private val BINARY_TYPE: MediaType = "application/octet-stream".toMediaType()
+
+    /**
+     * Copy data from a potentially untrusted provider/network stream. Some
+     * broken SAF providers return zero bytes indefinitely instead of EOF,
+     * while others report a file size that changes mid-copy. Neither case
+     * may produce an apparent successful transfer or an unbounded loop.
+     *
+     * This bounds *zero-progress returns*, not a read that blocks inside
+     * the provider; real-device cancellation and lifecycle proof remains
+     * separately required by Issue #127.
+     */
+    internal fun streamWithBoundedProgress(
+        input: InputStream,
+        maximumBytes: Long,
+        expectedBytes: Long?,
+        cancellation: CloudTransferCancellation,
+        writeChunk: (ByteArray, Int) -> Unit
+    ): Long {
+        if (maximumBytes !in 0..MAX_BYTES ||
+            (expectedBytes != null && expectedBytes !in 0..maximumBytes)) {
+            throw IOException("Cloud transfer size metadata is invalid.")
+        }
+        val buffer = ByteArray(64 * 1024)
+        var copied = 0L
+        var emptyReads = 0
+        while (true) {
+            cancellation.ensureActive()
+            val read = input.read(buffer)
+            if (read < 0) break
+            if (read == 0) {
+                if (++emptyReads > MAX_EMPTY_READS) {
+                    throw IOException("Cloud transfer source did not make read progress.")
+                }
+                continue
+            }
+            emptyReads = 0
+            if (read.toLong() > maximumBytes - copied) {
+                throw IOException("Cloud transfer source exceeded its permitted size.")
+            }
+            writeChunk(buffer, read)
+            copied += read
+        }
+        cancellation.ensureActive()
+        if (expectedBytes != null && copied != expectedBytes) {
+            throw IOException("Cloud transfer source changed or was truncated.")
+        }
+        return copied
+    }
 
     // S3 can return its SHA-256 object checksum with a presigned GET.
     // Verify before opening the SAF destination. ETag is not an object
@@ -180,20 +229,11 @@ internal object SignedCloudTransfer {
 
             override fun writeTo(sink: BufferedSink) {
                 cancellation.ensureActive()
-                var copied = 0L
                 resolver.openInputStream(source)?.use { input ->
-                    val buffer = ByteArray(64 * 1024)
-                    while (true) {
-                        cancellation.ensureActive()
-                        val read = input.read(buffer)
-                        if (read == -1) break
-                        copied += read
-                        if (copied > length) throw IOException("Selected document changed during upload.")
-                        sink.write(buffer, 0, read)
-                    }
+                    streamWithBoundedProgress(
+                        input, length, length, cancellation
+                    ) { bytes, count -> sink.write(bytes, 0, count) }
                 } ?: throw IOException("Selected document is unavailable.")
-                if (copied != length) throw IOException("Selected document changed during upload.")
-                cancellation.ensureActive()
             }
         }
         val builder = Request.Builder()
@@ -248,25 +288,16 @@ internal object SignedCloudTransfer {
                 if (body.contentLength() > MAX_BYTES) {
                     throw IOException("Cloud downloads are limited to 1 GiB per signed URL.")
                 }
-                var received = 0L
                 val contentDigest = MessageDigest.getInstance("SHA-256")
-                body.byteStream().use { input ->
+                val received = body.byteStream().use { input ->
                     FileOutputStream(stage).use { output ->
-                        val buffer = ByteArray(64 * 1024)
-                        while (true) {
-                            cancellation.ensureActive()
-                            val read = input.read(buffer)
-                            if (read == -1) break
-                            received += read
-                            if (received > MAX_BYTES) throw IOException("Cloud download exceeded its 1 GiB safety limit.")
-                            output.write(buffer, 0, read)
-                            contentDigest.update(buffer, 0, read)
+                        streamWithBoundedProgress(
+                            input, MAX_BYTES, body.contentLength().takeIf { it >= 0 }, cancellation
+                        ) { bytes, count ->
+                            output.write(bytes, 0, count)
+                            contentDigest.update(bytes, 0, count)
                         }
                     }
-                }
-                cancellation.ensureActive()
-                if (body.contentLength() >= 0 && received != body.contentLength()) {
-                    throw IOException("Cloud download was incomplete.")
                 }
                 val digest = contentDigest.digest()
                 requireMatchingSha256Header(response.header("x-amz-checksum-sha256"), digest)
@@ -276,13 +307,9 @@ internal object SignedCloudTransfer {
             // remove a newly created destination if this final copy fails.
             resolver.openOutputStream(target, "w")?.use { output ->
                 stage.inputStream().use { input ->
-                    val buffer = ByteArray(64 * 1024)
-                    while (true) {
-                        cancellation.ensureActive()
-                        val read = input.read(buffer)
-                        if (read == -1) break
-                        output.write(buffer, 0, read)
-                    }
+                    streamWithBoundedProgress(
+                        input, expectedBytes, expectedBytes, cancellation
+                    ) { bytes, count -> output.write(bytes, 0, count) }
                     output.flush()
                 }
             } ?: throw IOException("Selected download destination is not writable.")
