@@ -99,5 +99,6 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 
 - Tauri Rust core 2.11.4 was below the published >=2.11.6 patched line for GHSA-w28w-mhc8-qvjv (webview IPC channel response separation). Source now pins `=2.11.6` and Cargo.lock resolves that version.
 - Tauri Rust updater 2.10.1 was below updater 2.12.0's patched policy for webview-supplied `allowDowngrades` (GHSA-rjc6-5hfg-grp9). Rust now locks 2.12.0, frontend npm lock uses patched 2.13.3, and the app explicitly sets `allowDowngrades: false`.
+- Signed update metadata is separately untrusted: the updater now requires `requireSignedVersion: true` (GHSA-j38x-g3m3-95fr) so the announced release version must match the version embedded in the artifact's signed trusted comment. Tauri CLI / bundler upgraded to locked 2.12.2 to produce that signed version metadata. Existing updater artifacts signed with an older CLI may be incompatible with this stricter policy; don't bypass validation to use them.
 - Version/security-floor validation is a CI gate. Package/signature integrity, server-side signed update manifest provenance and recovery from network MITM still need independent verification. Successful build alone is not complete updater penetration testing.
 

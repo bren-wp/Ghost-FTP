@@ -36,6 +36,17 @@ const tauri = JSON.parse(read("ghostftp-desktop/src-tauri/tauri.conf.json"));
 if (tauri.plugins?.updater?.endpoints?.[0] !== "https://ghostftp.com/updates/latest.json") {
   failures.push("desktop updater must use the official Ghost FTP update service");
 }
+if (tauri.plugins?.updater?.allowDowngrades !== false) {
+  failures.push("signed updater must forbid downgrading to previously released packages");
+}
+if (tauri.plugins?.updater?.requireSignedVersion !== true) {
+  failures.push("updater manifest version must match the artifact's signed trusted version");
+}
+const cli = JSON.parse(read("ghostftp-desktop/package.json")).devDependencies?.["@tauri-apps/cli"];
+if (!/^~2\\.(?:1[2-9]|[2-9]\\d)\\.\\d+$/.test(cli ?? "")) {
+  failures.push("signed-version updater must use a Tauri CLI 2.12+ release toolchain");
+}
+
 const releaseConfig = JSON.parse(read("ghostftp-desktop/src-tauri/updater-release.conf.json"));
 if (releaseConfig.bundle?.createUpdaterArtifacts !== true) {
   failures.push("release updater config must enable createUpdaterArtifacts");
