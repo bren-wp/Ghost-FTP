@@ -88,17 +88,17 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
         <fieldset
           disabled={asyncMutation !== null}
           aria-busy={asyncMutation !== null}
-          className="ghost-preferences-body flex min-h-0 flex-1 flex-col border-0 p-0"
+          className={`ghost-preferences-body ${syncOnly ? "" : "ghost-settings-premium-layout"} flex min-h-0 flex-1 flex-col border-0 p-0`}
         >
         {!syncOnly && (
-          <div className="ghost-preferences-nav ghost-settings-tabs flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-[#061a2d] px-3 py-2">
+          <nav aria-label="Preferences categories" className="ghost-preferences-nav ghost-settings-tabs flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-[#061a2d] px-3 py-2">
             <Nav section="appearance" current={section} set={setSection} icon={<Monitor/>} label="Appearance"/>
             <Nav section="language" current={section} set={setSection} icon={<Globe2/>} label="Language"/>
             <Nav section="transfers" current={section} set={setSection} icon={<ArrowDownUp/>} label="Transfers"/>
             <Nav section="connection" current={section} set={setSection} icon={<Wifi/>} label="Connection"/>
             <Nav section="security" current={section} set={setSection} icon={<ShieldCheck/>} label="Security"/>
             <Nav section="advanced" current={section} set={setSection} icon={<SlidersHorizontal/>} label="Advanced"/>
-          </div>
+          </nav>
         )}
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
