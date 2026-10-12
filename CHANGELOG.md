@@ -1,3 +1,12 @@
+## 0.95.6 — Android provider stream progress and SAF copy hardening (development) — 13 October 2026
+
+- **Android reliability/security:** Add a bounded copy primitive for SAF uploads, signed cloud network download staging and SAF destination writes. Reject endless zero-byte reads from broken providers, early EOF, size growth and cancellation rather than allowing a hanging copy or optimistic success.
+- **Android regression tests:** Add deterministic JVM tests for exact/empty files, truncated and oversized streams, eight recoverable zero-byte reads versus unbounded zero-byte responses, cancellation, impossible length metadata and write failures.
+- **Multi-platform release discipline:** Windows/Linux/macOS continue from the merged v0.95.5 source, with no unrelated platform features removed. This is not a claim of full 1:1 parity or provider/device acceptance.
+- **Security evidence limitation:** #126 real hostile DNS/proxy/VPN and signed cloud provider lab proof, #127 physical Android SAF failure injection and #128 OAuth browsing remain open.
+
+See [docs/releases/0.95.6.md](docs/releases/0.95.6.md).
+
 ## 0.95.5 — cross-platform signed cloud URL privacy and SAF recovery (development) — 12 October 2026
 
 - **Windows/Linux:** Treat signed S3, GCS and Azure SAS object URLs as bearer credentials in diagnostics; hide the entire signed URL and add executable redaction regression cases without removing ordinary URL diagnostics.

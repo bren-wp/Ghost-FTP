@@ -72,3 +72,9 @@ The Android `PublicCloudDns` hook, whose return values are used by OkHttp to est
 **Unmet acceptance remains**: no controlled proxy/VPN/split-horizon/rebinding lab and no disposable signed public-provider success evidence was provided in this cycle. Keep #126 open until that work is completed.
 
 0.95.4 additional provider-reliability guard: the final readback also limits repeated zero-byte reads from contract-violating SAF providers. Isolated `CloudSavedDocumentIntegrityTest.rejectsNonProgressingDocumentProviderStream` covers this stall; real device/provider acceptance is still outstanding.
+
+## 0.95.6 Android bounded cloud source reads (Issue #127 — partial)
+
+Cloud SAF uploads, cloud GET staging and final SAF writes now share a size-limited and cancellation-aware stream copier. Broken streams that return zero bytes repeatedly are rejected after eight consecutive nonprogress returns, rather than spinning forever. Unexpected extra bytes or early EOF against provider-stated lengths fail closed. `CloudStreamProgressTest.kt` includes JVM tests for valid zero-byte/exact objects, truncation, expansion, zero-progress, recovery, cancellation and output errors.
+
+**Remaining blocker:** A provider that blocks inside a single `read()` call may not respond to cancellation until it unblocks. Emulator/JVM tests cannot verify real Android DocumentsProvider lifecycle and kernel/device I/O behavior, storage exhaustion or large object transfer. Do not close #127 based only on these changes.
