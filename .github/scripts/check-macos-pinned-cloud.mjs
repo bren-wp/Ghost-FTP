@@ -27,11 +27,13 @@ for (const [pattern, why] of [
   ["SignedCloudTransfer.verifySHA256(", "Provider SHA-256 check lost"],
   ["manager.replaceItemAt(", "Existing local file protection lost"],
   ["withTaskCancellationHandler", "Actual live transport cancellation lost"],
+  ["try cancellation.start(process)", "Curl launch is not synchronized with cancellation"],
+  ["cancellation.cancel(process)", "Curl cancellation does not terminate the guarded active process"],
 ]) requireToken(pinned, pattern, why);
 for (const forbidden of ['"--insecure"', '"--location"', '"--location-trusted"', "ProcessInfo.processInfo.arguments", "print(link.url)", "print(config)"]) {
   if (pinned.includes(forbidden)) errors.push(`Forbidden unsafe transport option: ${forbidden}`);
 }
-for (const t of ["testOnlyGlobalPublicIPv4CanBecomePeerCandidates", "testOnlyReviewedGlobalUnicastIPv6CanBecomePeerCandidates", "testCurlConfigEscapesBearerURLAndRejectsNewlines", "testRejectsDuplicateProviderHeadersAndMissingResponseBlock"]) {
+for (const t of ["testOnlyGlobalPublicIPv4CanBecomePeerCandidates", "testOnlyReviewedGlobalUnicastIPv6CanBecomePeerCandidates", "testCurlConfigEscapesBearerURLAndRejectsNewlines", "testRejectsDuplicateProviderHeadersAndMissingResponseBlock", "testCancellationBeforeLaunchPreventsProcessStart", "testCancellationAfterLaunchTerminatesActiveProcess"]) {
   requireToken(tests, t, `Missing macOS security regression: ${t}`);
 }
 if (errors.length) {

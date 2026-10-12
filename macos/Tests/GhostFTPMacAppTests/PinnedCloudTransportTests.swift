@@ -58,4 +58,33 @@ final class PinnedCloudTransportTests: XCTestCase {
         XCTAssertThrowsError(try PinnedCloudTransport.parseFinalHeaders("Content-Length: 99"))
     }
 
+    func testCancellationBeforeLaunchPreventsProcessStart() {
+        let cancellation = PinnedTransferCancellation()
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/true")
+
+        cancellation.cancel(process)
+        XCTAssertThrowsError(try cancellation.start(process)) { error in
+            XCTAssertTrue(error is CancellationError)
+        }
+        XCTAssertFalse(process.isRunning)
+    }
+
+    func testCancellationAfterLaunchTerminatesActiveProcess() throws {
+        let cancellation = PinnedTransferCancellation()
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        process.arguments = ["5"]
+
+        try cancellation.start(process)
+        cancellation.cancel(process)
+        process.waitUntilExit()
+
+        XCTAssertFalse(process.isRunning)
+        XCTAssertThrowsError(try cancellation.ensureActive()) { error in
+            XCTAssertTrue(error is CancellationError)
+        }
+        // A repeated user cancel must not signal an already exited process.
+        cancellation.cancel(process)
+    }
 }
