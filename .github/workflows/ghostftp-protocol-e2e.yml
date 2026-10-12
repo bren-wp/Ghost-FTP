@@ -46,7 +46,8 @@ jobs:
             netcat-openbsd \
             ca-certificates \
             openssl \
-            vsftpd
+            vsftpd \
+            strace
 
           python3 -m pip install --disable-pip-version-check --no-cache-dir pyftpdlib pyopenssl
 
@@ -228,13 +229,19 @@ jobs:
           # the separate data socket. TLS encryption remains mandatory.
           sudo install -m 0600 -o root -g root \
             "$RUNNER_TEMP/ghostftp-vsftpd.conf" /etc/ghostftp-e2e-vsftpd.conf
-          sudo /usr/sbin/vsftpd /etc/ghostftp-e2e-vsftpd.conf \
+          # Trace metadata only (process/file/socket, no read/write payloads)
+          # so an immediate daemon exit has diagnosable errno evidence.
+          sudo strace -ff -qq -e trace=process,file,network \
+            -o "$RUNNER_TEMP/ghostftp-vsftpd-trace" \
+            /usr/sbin/vsftpd /etc/ghostftp-e2e-vsftpd.conf \
             >"$RUNNER_TEMP/ghostftp-ftps.log" 2>&1 &
           FTPS_PID=$!
           sleep 1
           if ! kill -0 "$FTPS_PID" 2>/dev/null; then
             echo "FTPS test daemon quit before binding port 2122." >&2
             cat "$RUNNER_TEMP/ghostftp-ftps.log" >&2 || true
+            echo "Diagnostic file/socket/process errno and exit codes:" >&2
+            sudo sh -c 'grep -hE "ENOENT|EACCES|EINVAL|EADDRINUSE|EPERM|exit_group|SIG" "$1"/ghostftp-vsftpd-trace* | tail -n 50' sh "$RUNNER_TEMP" >&2 || true
             ps -ef | grep '[v]sftpd' >&2 || true
           fi
 
@@ -256,6 +263,8 @@ jobs:
               cat "$RUNNER_TEMP/ghostftp-ftp.log" 2>/dev/null || true
               echo "--- FTPS log ---" >&2
               cat "$RUNNER_TEMP/ghostftp-ftps.log" 2>/dev/null || true
+              echo "--- vsftpd process/socket/file errno ---" >&2
+              sudo sh -c 'grep -hE "ENOENT|EACCES|EINVAL|EADDRINUSE|EPERM|exit_group|SIG" "$1"/ghostftp-vsftpd-trace* | tail -n 50' sh "$RUNNER_TEMP" >&2 || true
               echo "--- vsftpd daemon and bound ports ---" >&2
               ps -ef | grep '[v]sftpd' >&2 || true
               sudo ss -ltnp '( sport = :2122 )' >&2 || true
