@@ -299,10 +299,11 @@ private struct TransfersWorkspace: View {
                     subtitle: "Credential-free FTP upload and download history from this Mac."
                 )
                 Spacer()
-                Button("Clear history", role: .destructive) {
+                Button("Clear finished", role: .destructive) {
                     history.clear()
                 }
-                .disabled(history.records.isEmpty)
+                .disabled(!history.records.contains { $0.status != .running })
+                .help("Remove finished transfers without losing active transfer records")
             }
 
             // A truthful transfer dashboard derived only from persisted,
