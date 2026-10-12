@@ -296,12 +296,9 @@ export function TransferCenterDialog({ onClose }: Props) {
     }
   };
 
-  const activeCount = transfers.filter(
-    (transfer) =>
-      transfer.status === "transferring" ||
-      transfer.status === "queued" ||
-      transfer.status === "paused"
-  ).length;
+  // These counters describe the real backend snapshot, never seeded sample
+  // jobs. Reuse the same totals as the filter tabs and queue actions.
+  const activeCount = activeFilterCount;
 
   const canPauseSelected =
     selected?.status === "transferring" ||
@@ -430,6 +427,30 @@ export function TransferCenterDialog({ onClose }: Props) {
             )}
           </div>
         </div>
+
+        <section className="ghost-transfer-overview" aria-label="Live transfer overview">
+          {([
+            { filter: "all", title: "Total transfers", count: transfers.length, icon: Activity },
+            { filter: "active", title: "Active & queued", count: activeFilterCount, icon: Play },
+            { filter: "completed", title: "Completed", count: completed, icon: CheckCircle2 },
+            { filter: "failed", title: "Failed", count: failed, icon: XCircle },
+          ] as const).map(({ filter, title, count, icon: Icon }) => (
+            <button
+              key={filter}
+              type="button"
+              className={`ghost-transfer-overview-card${tab === filter ? " is-selected" : ""}`}
+              onClick={() => setTab(filter)}
+              aria-pressed={tab === filter}
+              aria-label={`${title}: ${count}. Show ${filter === "all" ? "all" : filter} transfers`}
+            >
+              <span className="ghost-transfer-overview-label">
+                <Icon size={16} aria-hidden="true" />
+                {title}
+              </span>
+              <strong className="ghost-transfer-overview-count">{count}</strong>
+            </button>
+          ))}
+        </section>
 
         <div className="ghost-transfer-filters flex items-center gap-2 border-b border-border px-4 py-3 text-[12px]">
           <Tab
