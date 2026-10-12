@@ -179,6 +179,13 @@ jobs:
           # vsftpd server provides genuine protected control AND data sockets.
           # Do not disable certificate or hostname validation in the client.
           sudo systemctl stop vsftpd 2>/dev/null || true
+          # vsftpd reads its TLS key and configuration from system-controlled
+          # paths, not a runner-owned work directory. The test CA is ephemeral.
+          sudo install -d -m 0555 -o root -g root /var/run/vsftpd/empty
+          sudo install -m 0644 -o root -g root \
+            "$RUNNER_TEMP/ghostftp-e2e-server.crt" /etc/ssl/certs/ghostftp-e2e-server.crt
+          sudo install -m 0600 -o root -g root \
+            "$RUNNER_TEMP/ghostftp-e2e-server.key" /etc/ssl/private/ghostftp-e2e-server.key
           cat > "$RUNNER_TEMP/ghostftp-vsftpd.conf" <<EOF
           listen=YES
           listen_ipv6=NO
@@ -210,17 +217,26 @@ jobs:
           ssl_tlsv1_2=YES
           ssl_tlsv1_3=NO
           require_ssl_reuse=NO
-          rsa_cert_file=$RUNNER_TEMP/ghostftp-e2e-server.crt
-          rsa_private_key_file=$RUNNER_TEMP/ghostftp-e2e-server.key
+          rsa_cert_file=/etc/ssl/certs/ghostftp-e2e-server.crt
+          rsa_private_key_file=/etc/ssl/private/ghostftp-e2e-server.key
+          secure_chroot_dir=/var/run/vsftpd/empty
           xferlog_enable=YES
           log_ftp_protocol=NO
           EOF
           # Session reuse is disabled only for this loopback fixture because
           # SuppaFTP/native-tls does not expose control-session resumption to
           # the separate data socket. TLS encryption remains mandatory.
-          sudo /usr/sbin/vsftpd "$RUNNER_TEMP/ghostftp-vsftpd.conf" \
+          sudo install -m 0600 -o root -g root \
+            "$RUNNER_TEMP/ghostftp-vsftpd.conf" /etc/ghostftp-e2e-vsftpd.conf
+          sudo /usr/sbin/vsftpd /etc/ghostftp-e2e-vsftpd.conf \
             >"$RUNNER_TEMP/ghostftp-ftps.log" 2>&1 &
           FTPS_PID=$!
+          sleep 1
+          if ! kill -0 "$FTPS_PID" 2>/dev/null; then
+            echo "FTPS test daemon quit before binding port 2122." >&2
+            cat "$RUNNER_TEMP/ghostftp-ftps.log" >&2 || true
+            ps -ef | grep '[v]sftpd' >&2 || true
+          fi
 
           echo "Ghost FTP FTP test server PID: $FTP_PID"
           echo "Ghost FTP FTPS test server PID: $FTPS_PID"
@@ -240,6 +256,10 @@ jobs:
               cat "$RUNNER_TEMP/ghostftp-ftp.log" 2>/dev/null || true
               echo "--- FTPS log ---" >&2
               cat "$RUNNER_TEMP/ghostftp-ftps.log" 2>/dev/null || true
+              echo "--- vsftpd daemon and bound ports ---" >&2
+              ps -ef | grep '[v]sftpd' >&2 || true
+              sudo ss -ltnp '( sport = :2122 )' >&2 || true
+              sudo test -r /etc/ghostftp-e2e-vsftpd.conf || true
               echo "--- SFTP log ---" >&2
               cat "$RUNNER_TEMP/ghostftp-sshd.log" 2>/dev/null || true
               exit 1
