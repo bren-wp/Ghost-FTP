@@ -186,6 +186,10 @@ jobs:
         shell: bash
         run: node ghostftp-desktop/scripts/check-premium-settings-reference.mjs
 
+      - name: macOS signed cloud peer routing and bearer-token safety
+        shell: bash
+        run: node .github/scripts/check-macos-pinned-cloud.mjs
+
       - name: Historical release recovery script syntax and source lock
         shell: bash
         run: |
