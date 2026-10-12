@@ -45,7 +45,8 @@ jobs:
             python3-pip \
             netcat-openbsd \
             ca-certificates \
-            openssl
+            openssl \
+            vsftpd
 
           python3 -m pip install --disable-pip-version-check --no-cache-dir pyftpdlib pyopenssl
 
@@ -133,9 +134,8 @@ jobs:
           cat > "$RUNNER_TEMP/ghostftp_ftp_server.py" <<'PY'
           import os
           import sys
-          from OpenSSL import SSL
           from pyftpdlib.authorizers import DummyAuthorizer
-          from pyftpdlib.handlers import FTPHandler, TLS_FTPHandler
+          from pyftpdlib.handlers import FTPHandler
           from pyftpdlib.servers import FTPServer
 
           mode = sys.argv[1]
@@ -146,28 +146,11 @@ jobs:
           authorizer = DummyAuthorizer()
           authorizer.add_user(username, password, home, perm="elradfmwMT")
 
-          if mode == "ftp":
-              handler = FTPHandler
-              handler.passive_ports = range(30000, 30010)
-              port = 2121
-          elif mode == "ftps":
-              handler = TLS_FTPHandler
-              handler.certfile = os.environ["GHOSTFTP_SERVER_CERT"]
-              handler.keyfile = os.environ["GHOSTFTP_SERVER_KEY"]
-              handler.tls_control_required = True
-              handler.tls_data_required = True
-              # pyftpdlib issue #602 is an open server-side bug where TLS 1.3
-              # uploads can be acknowledged after being randomly truncated.
-              # Keep this client E2E deterministic on TLS 1.2; TLS 1.3 must be
-              # covered with a different FTPS server implementation.
-              tls_options = handler.ssl_options
-              for option_name in ("OP_NO_TLSv1", "OP_NO_TLSv1_1", "OP_NO_TLSv1_3"):
-                  tls_options |= getattr(SSL, option_name, 0)
-              handler.ssl_options = tls_options
-              handler.passive_ports = range(30010, 30020)
-              port = 2122
-          else:
+          if mode != "ftp":
               raise SystemExit(f"unknown server mode: {mode}")
+          handler = FTPHandler
+          handler.passive_ports = range(30000, 30010)
+          port = 2121
 
           handler.authorizer = authorizer
           handler.banner = f"Ghost FTP {mode.upper()} E2E"
@@ -190,7 +173,52 @@ jobs:
           python3 "$RUNNER_TEMP/ghostftp_ftp_server.py" ftp \
             >"$RUNNER_TEMP/ghostftp-ftp.log" 2>&1 &
           FTP_PID=$!
-          python3 "$RUNNER_TEMP/ghostftp_ftp_server.py" ftps \
+
+          # The pyftpdlib/PyOpenSSL fixture repeatedly returned data TLS 522
+          # on LIST, including after reauthentication. This independent local
+          # vsftpd server provides genuine protected control AND data sockets.
+          # Do not disable certificate or hostname validation in the client.
+          sudo systemctl stop vsftpd 2>/dev/null || true
+          cat > "$RUNNER_TEMP/ghostftp-vsftpd.conf" <<EOF
+          listen=YES
+          listen_ipv6=NO
+          listen_address=127.0.0.1
+          listen_port=2122
+          background=NO
+          anonymous_enable=NO
+          local_enable=YES
+          write_enable=YES
+          local_umask=022
+          local_root=/home/$USERNAME
+          chroot_local_user=YES
+          allow_writeable_chroot=YES
+          pam_service_name=vsftpd
+          pasv_enable=YES
+          pasv_address=127.0.0.1
+          pasv_min_port=30010
+          pasv_max_port=30019
+          port_enable=NO
+          ssl_enable=YES
+          force_local_logins_ssl=YES
+          force_local_data_ssl=YES
+          allow_anon_ssl=NO
+          ssl_request_cert=NO
+          ssl_sslv2=NO
+          ssl_sslv3=NO
+          ssl_tlsv1=NO
+          ssl_tlsv1_1=NO
+          ssl_tlsv1_2=YES
+          ssl_tlsv1_3=NO
+          require_ssl_reuse=NO
+          rsa_cert_file=$RUNNER_TEMP/ghostftp-e2e-server.crt
+          rsa_private_key_file=$RUNNER_TEMP/ghostftp-e2e-server.key
+          xferlog_enable=YES
+          log_ftp_protocol=NO
+          EOF
+          # Session reuse is disabled only for this loopback fixture because
+          # SuppaFTP/native-tls does not expose control-session resumption to
+          # the separate data socket. TLS encryption remains mandatory.
+          sudo /usr/sbin/vsftpd "$RUNNER_TEMP/ghostftp-vsftpd.conf" \
             >"$RUNNER_TEMP/ghostftp-ftps.log" 2>&1 &
           FTPS_PID=$!
 
@@ -218,8 +246,7 @@ jobs:
             fi
           done
 
-          # Guard the fixture itself: pyftpdlib issue #602 makes TLS 1.3
-          # uploads unreliable, so this server must remain TLS 1.2-only.
+          # Require TLS 1.2 in the local vsftpd fixture; refuse TLS 1.3.
           TLS12_PROBE="$(printf 'QUIT\r\n' | openssl s_client \
             -starttls ftp -connect 127.0.0.1:2122 -tls1_2 -brief 2>&1 || true)"
           if ! grep -q "Protocol version: TLSv1.2" <<<"$TLS12_PROBE"; then
