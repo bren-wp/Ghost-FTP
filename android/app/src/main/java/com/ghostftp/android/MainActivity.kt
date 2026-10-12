@@ -957,7 +957,9 @@ class MainActivity : Activity() {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "application/octet-stream"
                 putExtra(Intent.EXTRA_TITLE, "cloud-download.bin")
-                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                // Post-write integrity check must read back the final SAF
+                // document, not merely trust the provider's output stream.
+                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
         }
         try {
