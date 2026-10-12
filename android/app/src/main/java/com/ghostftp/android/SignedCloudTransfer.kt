@@ -6,6 +6,7 @@ import android.provider.OpenableColumns
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.InputStream
 import java.net.URI
 import java.net.URL
 import java.security.MessageDigest
@@ -111,6 +112,41 @@ internal object SignedCloudTransfer {
         }
     }
 
+    /**
+     * SAF providers may acknowledge a successful OutputStream.close() while
+     * silently truncating or altering the persisted document. Read the exact
+     * destination back after close before reporting success. Refuse providers
+     * that cannot offer a readable committed document: integrity takes
+     * precedence over an optimistic success notification.
+     */
+    internal fun verifyPersistedCopy(
+        input: InputStream,
+        expectedBytes: Long,
+        expectedDigest: ByteArray,
+        cancellation: CloudTransferCancellation
+    ) {
+        if (expectedBytes !in 0..MAX_BYTES || expectedDigest.size != 32) {
+            throw IOException("Cloud download integrity metadata is invalid.")
+        }
+        var received = 0L
+        val digest = MessageDigest.getInstance("SHA-256")
+        val buffer = ByteArray(64 * 1024)
+        while (true) {
+            cancellation.ensureActive()
+            val read = input.read(buffer)
+            if (read < 0) break
+            received += read
+            if (received > expectedBytes) {
+                throw IOException("Saved cloud document is larger than the downloaded object.")
+            }
+            digest.update(buffer, 0, read)
+        }
+        cancellation.ensureActive()
+        if (received != expectedBytes || !MessageDigest.isEqual(digest.digest(), expectedDigest)) {
+            throw IOException("Saved cloud document failed the read-back integrity check.")
+        }
+    }
+
     private fun checkResponse(status: Int, isDownload: Boolean) {
         if (status !in 200..299 || (isDownload && status != 200)) {
             throw IOException("Cloud provider rejected the request (HTTP $status). Check link expiry and permissions.")
@@ -192,7 +228,7 @@ internal object SignedCloudTransfer {
         val call = client.newCall(request)
         try {
             cancellation.attach(call)
-            call.execute().use { response ->
+            val (expectedBytes, expectedDigest) = call.execute().use { response ->
                 cancellation.ensureActive()
                 checkResponse(response.code, isDownload = true)
                 if (response.header("Content-Encoding")?.let { !it.equals("identity", ignoreCase = true) } == true) {
@@ -222,7 +258,9 @@ internal object SignedCloudTransfer {
                 if (body.contentLength() >= 0 && received != body.contentLength()) {
                     throw IOException("Cloud download was incomplete.")
                 }
-                requireMatchingSha256Header(response.header("x-amz-checksum-sha256"), contentDigest.digest())
+                val digest = contentDigest.digest()
+                requireMatchingSha256Header(response.header("x-amz-checksum-sha256"), digest)
+                received to digest
             }
             // SAF destinations are generally not atomic. The caller must
             // remove a newly created destination if this final copy fails.
@@ -238,6 +276,10 @@ internal object SignedCloudTransfer {
                     output.flush()
                 }
             } ?: throw IOException("Selected download destination is not writable.")
+            cancellation.ensureActive()
+            resolver.openInputStream(target)?.use { saved ->
+                verifyPersistedCopy(saved, expectedBytes, expectedDigest, cancellation)
+            } ?: throw IOException("Cloud destination cannot be read back for integrity verification.")
             cancellation.ensureActive()
         } finally {
             cancellation.clear(call)
