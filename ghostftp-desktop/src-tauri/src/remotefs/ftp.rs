@@ -13,6 +13,35 @@ impl FtpFs {
     pub fn new(session: Arc<FtpSession>) -> Self {
         Self { session }
     }
+
+    /// A single read-only listing, with no automatic reconnect in the
+    /// underlying blocking FTP stream. The outer list_dir decides whether
+    /// an FTPS data-TLS failure permits one new authenticated session.
+    async fn list_dir_once(&self, path: &str) -> Result<Vec<DirEntry>> {
+        let target = if path.is_empty() { "." } else { path }.to_string();
+        let parent = path.to_string();
+        self.session
+            .with_stream(move |stream| {
+                let listing = list_lines(stream, &target)?;
+                Ok(listing
+                    .into_iter()
+                    .filter_map(|line| entry_from_listing(&parent, &line))
+                    .collect())
+            })
+            .await
+    }
+}
+
+/// A 522 from a protected FTPS data channel is a *TLS handshake failure*,
+/// not an unsupported LIST option. A new authenticated control connection
+/// may recover from a transient server-side data-socket race; no TLS
+/// verification or PROT P requirement is bypassed, and the retry is bounded.
+fn is_ftps_data_tls_failure(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        let message = cause.to_string();
+        message.contains("522 SSL handshake failed")
+            || message.contains("522 TLS handshake failed")
+    })
 }
 
 fn join(base: &str, name: &str) -> String {
@@ -86,6 +115,13 @@ fn list_lines_with_dot_visibility(
 ) -> Result<(Vec<String>, bool)> {
     match stream.list(Some(&format!("-a {target}"))) {
         Ok(lines) => Ok((lines, true)),
+        // A failed TLS data handshake invalidates the control/data state.
+        // Issuing another LIST on it loses the original error and cannot
+        // safely recover. Only the async caller can replace that session.
+        Err(error) if is_ftps_data_tls_failure(&error) => Err(error)
+            .with_context(|| format!("FTPS LIST -a {target} data TLS handshake")),
+        // Retain compatibility with FTP servers that interpret -a as a
+        // literal path or reject that non-standard listing option.
         Err(_) => stream
             .list(Some(target))
             .with_context(|| format!("FTP LIST {target}"))
@@ -152,25 +188,25 @@ pub async fn path_exists_fail_closed(session: &Arc<FtpSession>, path: &str) -> R
 #[async_trait]
 impl RemoteFs for FtpFs {
     async fn list_dir(&self, path: &str) -> Result<Vec<DirEntry>> {
-        let path_owned = path.to_string();
-        let parent_for_entries = path_owned.clone();
-        self.session
-            .with_stream(move |stream| {
-                let target = if path_owned.is_empty() {
-                    "."
-                } else {
-                    &path_owned
-                };
-                let listing = list_lines(stream, target)?;
-                let mut out = Vec::with_capacity(listing.len());
-                for line in listing {
-                    if let Some(entry) = entry_from_listing(&parent_for_entries, &line) {
-                        out.push(entry);
-                    }
-                }
-                Ok(out)
-            })
-            .await
+        match self.list_dir_once(path).await {
+            Ok(entries) => Ok(entries),
+            Err(first_error)
+                if self.session.profile.protocol.eq_ignore_ascii_case("ftps")
+                    && is_ftps_data_tls_failure(&first_error) =>
+            {
+                // Listing is idempotent. Retire the failed TLS control
+                // session and allow exactly ONE retry with a fresh TLS
+                // handshake, unchanged certificate validation and PROT P.
+                self.session
+                    .reconnect()
+                    .await
+                    .context("re-authenticate FTPS after data-channel TLS 522")?;
+                self.list_dir_once(path)
+                    .await
+                    .context("FTPS LIST failed after one fresh TLS session retry")
+            }
+            Err(error) => Err(error),
+        }
     }
 
     async fn rename(&self, from: &str, to: &str) -> Result<()> {
@@ -303,4 +339,29 @@ async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> 
             Ok(())
         })
         .await
+}
+
+#[cfg(test)]
+mod ftps_handshake_regression {
+    use super::is_ftps_data_tls_failure;
+    use anyhow::anyhow;
+
+    #[test]
+    fn only_explicit_data_tls_522_is_reconnect_eligible() {
+        assert!(is_ftps_data_tls_failure(&anyhow!(
+            "Invalid response: [0] 522 SSL handshake failed."
+        )));
+        assert!(is_ftps_data_tls_failure(&anyhow!(
+            "FTPS LIST: 522 TLS handshake failed."
+        )));
+        for error in [
+            "530 Not logged in",
+            "550 Permission denied",
+            "522 Unknown data network protocol",
+            "Certificate verify failed",
+            "FTP connect timeout",
+        ] {
+            assert!(!is_ftps_data_tls_failure(&anyhow!("{error}")));
+        }
+    }
 }
