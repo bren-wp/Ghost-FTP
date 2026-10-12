@@ -185,6 +185,9 @@ jobs:
       - name: Real Windows and Linux premium Settings reference navigation
         shell: bash
         run: node ghostftp-desktop/scripts/check-premium-settings-reference.mjs
+      - name: Live transfer overview cross-platform parity regression
+        shell: bash
+        run: node .github/scripts/check-live-transfers-parity.mjs
 
       - name: macOS signed cloud peer routing and bearer-token safety
         shell: bash
