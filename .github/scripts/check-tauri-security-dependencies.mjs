@@ -38,6 +38,7 @@ const updaterFloor = cargo.match(/^tauri-plugin-updater = "~(\d+\.\d+\.\d+)"$/m)
 assert.ok(updaterFloor && atLeast(updaterFloor, "2.12.0"), "Updater must not allow webview-selected downgrades");
 assert.ok(atLeast(rustLocked("tauri-plugin-updater"), "2.12.0"), "Rust updater lock is vulnerable to downgrade attacks");
 assert.equal(tauriConfig.plugins?.updater?.allowDowngrades, false, "Updater policy must disallow downgrades");
+assert.equal(tauriConfig.plugins?.updater?.requireSignedVersion, true, "Updater must cryptographically bind installed version to the signed update payload");
 
 const jsRange = pkg.dependencies?.["@tauri-apps/plugin-updater"];
 const jsMin = jsRange?.match(/^\^(\d+\.\d+\.\d+)$/)?.[1];
@@ -46,4 +47,12 @@ assert.ok(jsMin && atLeast(jsMin, "2.12.0"), "JS updater minimum version is vuln
 assert.ok(jsLocked && atLeast(jsLocked, "2.12.0"), "JS updater lock is vulnerable");
 assert.equal(pkgLock.packages?.[""]?.dependencies?.["@tauri-apps/plugin-updater"], jsRange);
 
-console.log(`Security dependency floor passed: Tauri ${corePin}, Rust updater ${rustLocked("tauri-plugin-updater")}, JS updater ${jsLocked}; allowDowngrades=false.`);
+const cliRange = pkg.devDependencies?.["@tauri-apps/cli"];
+const cliMinimum = cliRange?.match(/^~(\d+\.\d+\.\d+)$/)?.[1];
+const cliLocked = pkgLock.packages?.["node_modules/@tauri-apps/cli"]?.version;
+assert.ok(cliMinimum && atLeast(cliMinimum, "2.12.0"), "Tauri CLI must embed the signed updater version into trusted signature metadata");
+assert.ok(cliLocked && atLeast(cliLocked, "2.12.0"), "Locked Tauri CLI predates signed-version support");
+assert.equal(pkgLock.packages?.[""]?.devDependencies?.["@tauri-apps/cli"], cliRange);
+
+
+console.log(`Security dependency floor passed: Tauri ${corePin}, Rust updater ${rustLocked("tauri-plugin-updater")}, JS updater ${jsLocked}; allowDowngrades=false, requireSignedVersion=true, CLI ${cliLocked}.`);

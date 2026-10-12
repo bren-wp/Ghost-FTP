@@ -31,7 +31,8 @@
       "windows": {
         "installMode": "passive"
       },
-      "allowDowngrades": false
+      "allowDowngrades": false,
+      "requireSignedVersion": true
     }
   },
   "bundle": {
