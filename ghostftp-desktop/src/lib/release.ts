@@ -1,8 +1,8 @@
 export const PRODUCT_NAME = "Ghost FTP";
-export const PRODUCT_VERSION = "0.95.2";
-export const PRODUCT_VERSION_DISPLAY = "0.95.2";
-export const PRODUCT_VERSION_BADGE = "0.95.2";
-export const PRODUCT_BUILD = "2026.10.12.02";
+export const PRODUCT_VERSION = "0.95.3";
+export const PRODUCT_VERSION_DISPLAY = "0.95.3";
+export const PRODUCT_VERSION_BADGE = "0.95.3";
+export const PRODUCT_BUILD = "2026.10.12.03";
 export const PRODUCT_RELEASE_DATE = "12 October 2026";
 export const PRODUCT_SITE = "https://ghostftp.com";
 export const PRODUCT_SUPPORT_URL = `${PRODUCT_SITE}/support/`;

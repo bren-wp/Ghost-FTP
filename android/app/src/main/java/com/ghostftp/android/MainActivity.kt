@@ -67,6 +67,10 @@ class MainActivity : Activity() {
     private lateinit var renameRemoteNameInput: EditText
     private lateinit var uploadSelectionText: TextView
     private lateinit var transferStateText: TextView
+    private lateinit var transferOverviewText: TextView
+    private var sessionCompletedOperations = 0
+    private var sessionFailedOperations = 0
+    private var sessionCancelledOperations = 0
     private lateinit var syncBackupStatus: TextView
     private lateinit var cloudSection: View
     private lateinit var cloudUploadInput: EditText
@@ -774,6 +778,20 @@ class MainActivity : Activity() {
     private fun buildTransfersCard(): View = panel().apply {
         addView(sectionTitle(getString(R.string.workspace_transfers)))
         addView(sectionDescription(getString(R.string.desc_transfers)))
+
+        // Session-only, real remote-operation outcomes. Unlike the desktop
+        // engine this activity does not own a persisted transfer queue.
+        // Never show imaginary history, speed or progress percentages.
+        transferOverviewText = TextView(this@MainActivity).apply {
+            setTextColor(Brand.textSoft)
+            textSize = 12f
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            background = rounded(Brand.panelStrong, dp(12), Brand.border)
+            contentDescription = "Session operation status"
+        }
+        updateSessionOperationOverview()
+        addView(transferOverviewText)
+        addView(space(12))
 
         transferRemotePathInput = input(getString(R.string.hint_transfer_remote_path), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         addView(formLabel(getString(R.string.field_transfer_remote_path)))
@@ -1626,6 +1644,7 @@ class MainActivity : Activity() {
         val cancellation = OperationCancellation()
         activeCancellation = cancellation
         operationInFlight = true
+        updateSessionOperationOverview()
         setBusy(true)
         statusTitle.text = title
         statusDetail.text = detail
@@ -1646,9 +1665,21 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun updateSessionOperationOverview() {
+        if (!::transferOverviewText.isInitialized || closingOrDestroyed()) return
+        val active = if (operationInFlight) 1 else 0
+        val message = "This session · $active active · " +
+            "$sessionCompletedOperations completed · " +
+            "$sessionFailedOperations failed · $sessionCancelledOperations canceled"
+        transferOverviewText.text = message
+        transferOverviewText.contentDescription = message
+    }
+
     private fun showTransferResult(result: TransferResult, refreshAfter: Boolean) {
         if (!uiReady()) return
         lastCompletedTransferPath = result.remotePath
+        sessionCompletedOperations++
+        updateSessionOperationOverview()
         statusTitle.text = result.title
         statusDetail.text = result.detail
         transferStateText.text = result.detail
@@ -1659,6 +1690,8 @@ class MainActivity : Activity() {
     private fun showTransferFailure(error: Throwable) {
         if (!uiReady()) return
         val canceled = error is OperationCanceledException
+        if (canceled) sessionCancelledOperations++ else sessionFailedOperations++
+        updateSessionOperationOverview()
         val rawDetail = error.message ?: if (canceled) {
             getString(R.string.msg_operation_canceled)
         } else {

@@ -299,11 +299,41 @@ private struct TransfersWorkspace: View {
                     subtitle: "Credential-free FTP upload and download history from this Mac."
                 )
                 Spacer()
-                Button("Clear history", role: .destructive) {
+                Button("Clear finished", role: .destructive) {
                     history.clear()
                 }
-                .disabled(history.records.isEmpty)
+                .disabled(!history.records.contains { $0.status != .running })
+                .help("Remove finished transfers without losing active transfer records")
             }
+
+            // A truthful transfer dashboard derived only from persisted,
+            // credential-free local history. No illustrative jobs or rates.
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 130), spacing: 10)],
+                spacing: 10
+            ) {
+                transferMetric(
+                    "In progress",
+                    count: history.records.filter { $0.status == .running }.count,
+                    symbol: "arrow.triangle.2.circlepath"
+                )
+                transferMetric(
+                    "Completed",
+                    count: history.records.filter { $0.status == .completed }.count,
+                    symbol: "checkmark.circle"
+                )
+                transferMetric(
+                    "Failed",
+                    count: history.records.filter { $0.status == .failed }.count,
+                    symbol: "xmark.circle"
+                )
+                transferMetric(
+                    "Cancelled",
+                    count: history.records.filter { $0.status == .cancelled }.count,
+                    symbol: "minus.circle"
+                )
+            }
+            .accessibilityIdentifier("ghostftp-transfer-overview")
 
             if history.records.isEmpty {
                 emptyWorkspace(
@@ -338,6 +368,26 @@ private struct TransfersWorkspace: View {
             }
         }
         .padding(24)
+    }
+
+    private func transferMetric(_ title: String, count: Int, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Label(title, systemImage: symbol)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(count.formatted())
+                .font(.system(size: 23, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+        .padding(12)
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(GhostPremiumPalette.accent.opacity(0.25))
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title), \(count)")
     }
 }
 
