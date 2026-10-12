@@ -76,6 +76,18 @@ class CloudNetworkSafetyTest {
         } catch (_: UnknownHostException) {
             // Correct.
         }
+        for (invalid in listOf(
+            "xn--bcher-kva.s3.amazonaws.com",
+            "under_score.s3.amazonaws.com",
+            "bucket-.s3.amazonaws.com"
+        )) {
+            try {
+                PublicCloudDns(dns(ip(8, 8, 8, 8))).lookup(invalid)
+                fail("Cloud DNS hook accepted ambiguous provider hostname: $invalid")
+            } catch (_: UnknownHostException) {
+                // Reject before upstream DNS resolution can be used.
+            }
+        }
     }
 
     @Test fun disablesRedirectsAutomaticRetriesAndProxyRouting() {

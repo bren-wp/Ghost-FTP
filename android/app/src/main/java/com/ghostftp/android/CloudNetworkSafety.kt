@@ -21,7 +21,12 @@ import okhttp3.OkHttpClient
  */
 internal class PublicCloudDns(private val upstream: Dns = Dns.SYSTEM) : Dns {
     override fun lookup(hostname: String): List<InetAddress> {
-        if (!SignedCloudLink.isKnownProviderHost(hostname.lowercase(Locale.ROOT))) {
+        // Revalidate canonical host syntax inside the DNS hook itself.
+        // A later caller must not bypass URL validation by using OkHttp
+        // directly with an ambiguous IDNA/hostname spelling.
+        val canonicalHost = hostname.lowercase(Locale.ROOT)
+        if (!SignedCloudLink.isPublicHost(canonicalHost) ||
+            !SignedCloudLink.isKnownProviderHost(canonicalHost)) {
             throw UnknownHostException("Cloud storage provider hostname is not permitted.")
         }
         val addresses = upstream.lookup(hostname)
