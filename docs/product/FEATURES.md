@@ -2,7 +2,7 @@
 
 > Current development cycle: **0.95.10**; latest verified public release: **0.95.9**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.10 development source. Previous canonical release: **0.95.9**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.10 development source. Previous canonical release: **0.95.10**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
