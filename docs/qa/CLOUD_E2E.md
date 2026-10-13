@@ -93,3 +93,9 @@ The Android cloud cancellation token now tracks live user-provider `InputStream`
 A new process can start after Android terminates a transfer without running Kotlin `finally`; this leaves an object body in `cacheDir/ghostftp-cloud-*.part`. The proposed `CloudStageCleanup` removes strictly named regular staging files *once* at app process startup, before any new transfer, and preserves unrelated cache content and SAF documents. The once-per-process guard prevents Activity recreation from deleting a file used by a live transfer. JVM tests cover a real `File.createTempFile` stage, unrelated files, a similarly named directory and absent cache directory.
 
 This does not guarantee cleanup while the process remains dead, on disk-full, after Android revokes storage grants, or with a broken SAF provider. On-device Android 8–15 process-death/device-provider acceptance remains open in #127. This section documents an unmerged development candidate, **not** a published or physically validated feature.
+
+## 0.95.9 signed-cloud public-peer scope (#126 — partial)
+
+Both Android's socket-routing DNS filter and macOS's curl-pinned peer address selector now reject RFC 7343 ORCHIDv2 `2001:20::/28` as a non-public transport destination. Unit tests cover the first and last prefix nibble. Default platform TLS verification, no redirects, direct-only routing and public cloud provider host allowlists remain unchanged.
+
+This is **not** the controlled DNS/rebinding/proxy/VPN laboratory test or a genuine, successful signed-provider transfer. Do not close #126 without both; #127 and #128 also remain open.
