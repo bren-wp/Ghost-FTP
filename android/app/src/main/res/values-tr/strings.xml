@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Seçilen uzak klasör: %1$s</string>
     <string name="state_selected_remote_file">Seçilen uzak dosya: %1$s</string>
     <string name="label_selected">Seçildi</string>
+    <string name="label_author">Geliştirici</string>
 </resources>

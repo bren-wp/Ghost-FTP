@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Izbrana oddaljena mapa: %1$s</string>
     <string name="state_selected_remote_file">Izbrana oddaljena datoteka: %1$s</string>
     <string name="label_selected">Izbrano</string>
+    <string name="label_author">Avtor</string>
 </resources>
