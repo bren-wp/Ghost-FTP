@@ -177,6 +177,28 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun settingsShowsVisibleLegalLinksAndBrendigoAuthor() {
+        openWorkspace(R.string.workspace_settings)
+        for (label in listOf(R.string.label_privacy_policy, R.string.label_eula)) {
+            val description = appString(R.string.link_open, appString(label))
+            scenario.onActivity { activity ->
+                val link = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == description && it.isShown
+                }
+                assertNotNull("Legal link must be visible in Settings: $description", link)
+                assertTrue("Legal link must be clickable.", link!!.isClickable)
+            }
+        }
+        scenario.onActivity { activity ->
+            val label = appString(R.string.label_author)
+            val author = findView(activity.window.decorView) {
+                it.contentDescription?.toString() == "$label: Brendigo" && it.isShown
+            }
+            assertNotNull("Settings must credit Brendigo.", author)
+        }
+    }
+
+    @Test
     fun helpWorkspaceExposesCanonicalProductLinks() {
         openWorkspace(R.string.workspace_about)
         for (description in listOf(

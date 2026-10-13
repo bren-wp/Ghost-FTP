@@ -32,10 +32,14 @@ User-facing diagnostics pass through credential redaction for common password, p
 
 Ghost FTP does not claim ownership of files, server data, connection profiles or credentials processed by the application. Users remain responsible for authorization, server identity verification, backups and the consequences of requested file operations.
 
+## Privacy and product information
+
+Ghost FTP is authored by Brendigo. Privacy Policy and Terms of use are available at the bottom of Android Settings and in Help & About, using the same approved HTTPS destinations. Ordinary FTP/FTPS/SFTP transfers require no Ghost FTP account; therefore no Ghost FTP account-deletion workflow exists. Server-side data remains under the control of the selected provider or server operator.
+
 ## Canonical privacy record
 
 This file is the canonical privacy description for the Ghost FTP software configuration distributed from this repository. Hosted services, if introduced separately in the future, require their own service-specific privacy terms.
 
-## Signed cloud storage links (0.93.0 candidate)
+## Temporary signed cloud storage links
 
 On macOS and Android, users may transfer one object using a temporary provider-signed HTTPS URL. This URL is a bearer credential. The client keeps it only in volatile session memory and clears the UI after use; it is never included in connection profile files, backups, recent-transfer history or diagnostics. Files move directly between the user-selected device and provider endpoint; Ghost FTP does not proxy the contents. The provider may collect normal request metadata and enforce its own retention and access policy. System TLS verification is mandatory and redirects are rejected. Users control the link's expiry, scope and permission on the cloud provider's side.

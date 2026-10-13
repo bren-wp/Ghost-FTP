@@ -1198,6 +1198,12 @@ class MainActivity : Activity() {
             contentDescription = "${getString(R.string.workspace_settings)} ${getString(R.string.action_disconnect)}"
         }), buttonParams(weight = 1f))
         addView(secondRow)
+
+        // Canonical trusted legal links stay accessible at the end of Settings.
+        addView(space(16))
+        addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
+        addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
+        addView(aboutFactRow(getString(R.string.label_author), "Brendigo"))
     }
 
     // Matches the approved mobile About hierarchy with real product data.
@@ -1233,6 +1239,7 @@ class MainActivity : Activity() {
 
         addView(panel().apply {
             addView(aboutFactRow(getString(R.string.label_product), "Ghost FTP · Brendigo"))
+            addView(aboutFactRow(getString(R.string.label_author), "Brendigo"))
             addView(aboutFactRow(getString(R.string.label_protocols), "FTP · Explicit FTPS · SFTP"))
             addView(aboutFactRow(getString(R.string.label_security), getString(R.string.settings_security)))
             addView(aboutFactRow(getString(R.string.label_privacy), getString(R.string.settings_no_tracking)))
