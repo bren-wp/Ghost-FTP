@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Link2, Plus, ShieldCheck, XCircle } from "lucide-react";
+import { ArrowDown, ArrowUp, Link2, ShieldCheck, XCircle } from "lucide-react";
 import { useConnections } from "@/stores/connectionsStore";
 import { useLayout } from "@/stores/layoutStore";
 import { useTransfers } from "@/stores/transfersStore";
-import { PROTOCOL_DEFAULT_PORT, type Protocol } from "@/lib/types";
+import { PROTOCOL_DEFAULT_PORT, type ConnectionProfile, type Protocol } from "@/lib/types";
 
 type QuickProtocol = Extract<Protocol, "sftp" | "ftps" | "ftp">;
 
@@ -15,8 +15,9 @@ type QuickProtocol = Extract<Protocol, "sftp" | "ftps" | "ftp">;
  * authentication, host-key confirmation and TLS handling remain authoritative.
  */
 export function PremiumFilesChrome() {
-  const openNewConnection = useLayout((state) => state.openNewConnection);
   const activeSessionId = useConnections((state) => state.activeSessionId);
+  const connecting = useConnections((state) => state.connecting);
+  const connectTemporary = useConnections((state) => state.connectTemporary);
   const activeProfileId = useConnections((state) => state.activeProfileId);
   const profiles = useConnections((state) => state.profiles);
   const profile = profiles.find((item) => item.id === activeProfileId);
@@ -24,17 +25,44 @@ export function PremiumFilesChrome() {
   const [host, setHost] = useState("");
   const [username, setUsername] = useState("");
   const [port, setPort] = useState(String(PROTOCOL_DEFAULT_PORT.sftp));
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [inputError, setInputError] = useState<string | null>(null);
 
-  const openReviewedConnection = () => {
-    const parsedPort = Number(port);
-    openNewConnection({
+  const parsedPort = Number(port);
+  const canConnect = host.trim().length > 0 && username.trim().length > 0 &&
+    Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535;
+
+  // Quick Connect must open a real ephemeral backend session. It never
+  // creates a saved Site or launches the new-profile editor.
+  const connectNow = async () => {
+    if (submitting || connecting) return;
+    if (!canConnect) {
+      setInputError("Enter a host, username and valid port (1–65535).");
+      return;
+    }
+    const profile: ConnectionProfile = {
+      id: crypto.randomUUID(),
+      name: host.trim(),
       protocol,
       host: host.trim(),
+      port: parsedPort,
       username: username.trim(),
-      port: Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535
-        ? parsedPort
-        : PROTOCOL_DEFAULT_PORT[protocol],
-    });
+      auth: { kind: "password", password },
+      defaultRemotePath: ".",
+      autoConnect: false,
+    };
+    setSubmitting(true);
+    setInputError(null);
+    try {
+      await connectTemporary(profile);
+      setPassword("");
+    } catch {
+      // The store already shows a redacted backend error; never echo secrets.
+      setInputError("Connection failed. Check the server and authentication details.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -44,17 +72,13 @@ export function PremiumFilesChrome() {
           <h1>Files</h1>
           <p>Manage local and remote files in one secure workspace</p>
         </div>
-        <button type="button" className="ghost-premium-files-cta" onClick={() => openNewConnection()}>
-          <Plus size={16} aria-hidden="true" />
-          <span>New connection</span>
-        </button>
       </div>
       <form
         className="ghost-premium-quickconnect"
         aria-label="Quick connection details"
         onSubmit={(event) => {
           event.preventDefault();
-          openReviewedConnection();
+          void connectNow();
         }}
       >
         <label>
@@ -81,6 +105,18 @@ export function PremiumFilesChrome() {
             placeholder="Account name"
             onChange={(event) => setUsername(event.target.value)}
             maxLength={255}
+          />
+        </label>
+        <label className="ghost-premium-password">
+          <span>Password</span>
+          <input
+            aria-label="Quick connection password"
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            value={password}
+            placeholder="Session password"
+            onChange={(event) => setPassword(event.target.value)}
           />
         </label>
         <label className="ghost-premium-port">
@@ -110,17 +146,20 @@ export function PremiumFilesChrome() {
             <option value="ftp">FTP</option>
           </select>
         </label>
-        <button type="submit" className="ghost-premium-review">
+        <button type="submit" className="ghost-premium-review"
+          disabled={submitting || connecting || !canConnect}
+          aria-busy={submitting || connecting}>
           <Link2 size={15} aria-hidden="true" />
-          Review &amp; connect
+          {submitting || connecting ? "Connecting…" : "Connect"}
         </button>
       </form>
+      {inputError && <p role="alert" className="ghost-premium-connection-error">{inputError}</p>}
       <div className="ghost-premium-connection-state" role="status">
         <ShieldCheck size={14} aria-hidden="true" />
         {activeSessionId && profile
           ? `Connected: ${profile.name} (${profile.protocol.toUpperCase()})`
           : "Disconnected — enter connection details or select a saved site"}
-        <span>Credentials are requested only in the secure connection dialog</span>
+        <span>Quick Connect is temporary. Use New connection to save a site.</span>
       </div>
     </section>
   );

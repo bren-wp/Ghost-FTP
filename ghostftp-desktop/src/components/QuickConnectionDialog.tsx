@@ -12,15 +12,12 @@ import { toastError } from "@/lib/errors";
 interface Props {
   prefill?: Partial<ConnectionProfile> | null;
   onClose: () => void;
-  saveByDefault?: boolean;
   cancelLabel?: string;
 }
 
-export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false, cancelLabel = "Cancel" }: Props) {
+export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const saveProfile = useConnections((s) => s.saveProfile);
-  const connectProfile = useConnections((s) => s.connect);
-  const connectTemporary = useConnections((s) => s.connectTemporary);
   const initialProtocol = (prefill?.protocol === "ftp" || prefill?.protocol === "ftps" || prefill?.protocol === "sftp" ? prefill.protocol : "sftp") as Protocol;
   const [protocol, setProtocol] = useState<Protocol>(initialProtocol);
   const [host, setHost] = useState(prefill?.host ?? "");
@@ -32,7 +29,6 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
   const [keyPath, setKeyPath] = useState(prefill?.auth?.kind === "key" ? prefill.auth.path : "");
   const [keyPassphrase, setKeyPassphrase] = useState(prefill?.auth?.kind === "key" ? (prefill.auth.passphrase ?? "") : "");
   const [showKeyPassphrase, setShowKeyPassphrase] = useState(false);
-  const [remember, setRemember] = useState(saveByDefault);
   const [advanced, setAdvanced] = useState(false);
   const [remotePath, setRemotePath] = useState(prefill?.defaultRemotePath ?? ".");
   const [keepAliveSeconds, setKeepAliveSeconds] = useState(prefill?.keepAliveSeconds ?? 15);
@@ -77,45 +73,23 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
     autoConnect: false,
     keepAliveSeconds: protocol === "sftp" ? keepAliveSeconds : undefined,
     reconnectAttempts: protocol === "sftp" ? reconnectAttempts : undefined,
-    group: remember ? "My Sites" : undefined,
+    group: "My Sites",
   });
 
   useEffect(() => {
     setTestStatus("idle");
   }, [protocol, host, port, username, password, useKey, keyPath, keyPassphrase, remotePath, keepAliveSeconds, reconnectAttempts]);
 
-  const submit = async (connectNow: boolean) => {
+  const submit = async () => {
     if (!canConnect || actionBusy) return;
     setBusy(true);
     const profile = makeProfile();
-    const ephemeral = !remember;
     try {
-      if (connectNow && ephemeral) {
-        try {
-          await connectTemporary(profile);
-        } catch {
-          // connectionsStore already presents the redacted structured error.
-          return;
-        }
-      } else {
-        try {
-          await saveProfile(profile);
-        } catch (error) {
-          toastError(error, `Couldn't save ${profile.name}`);
-          return;
-        }
-        if (connectNow) {
-          try {
-            await connectProfile(profile.id);
-          } catch {
-            // The profile is safely persisted; connectionsStore already surfaced
-            // the redacted FTP/FTPS/SFTP connection failure.
-            return;
-          }
-        }
-      }
+      await saveProfile(profile);
       clearSecrets();
       onClose();
+    } catch (error) {
+      toastError(error, `Couldn't save ${profile.name}`);
     } finally {
       setBusy(false);
     }
@@ -151,12 +125,12 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
       <div ref={panelRef} role="dialog" aria-modal="true" className="ghost-new-connection-dialog flex w-[min(752px,94vw)] flex-col overflow-hidden rounded-xl border border-accent/70 bg-[#061a2d] shadow-[0_0_0_1px_rgba(65,181,255,.08),0_30px_90px_rgba(0,0,0,.7),0_0_38px_rgba(31,149,255,.15)]">
         <div className="ghost-new-connection-head flex shrink-0 items-center gap-3 border-b border-border px-5 py-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0b3151]"><GhostMark size={34}/></div>
-          <div><div className="text-[19px] font-semibold">New Connection</div><div className="text-[12px] text-text-muted">Enter your server details, then connect or optionally save it in Sites.</div></div>
+          <div><div className="text-[19px] font-semibold">New saved site</div><div className="text-[12px] text-text-muted">Save a reusable connection profile for faster future access. Connecting is a separate action in Files or Sites.</div></div>
           <div className="flex-1"/><button type="button" disabled={actionBusy} onClick={closeIfIdle} aria-label="Close connection dialog" className="rounded-md p-2 text-text-muted hover:bg-bg-hover hover:text-white disabled:cursor-not-allowed disabled:opacity-50"><X size={18}/></button>
         </div>
 
         <div className="ghost-new-connection-body min-h-0 overflow-y-auto p-5">
-          {remember && <Field label="Site name"><input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Site name" disabled={actionBusy}/></Field>}
+          {<Field label="Site name"><input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Site name" disabled={actionBusy}/></Field>}
           <div className="grid grid-cols-[1.1fr_1.7fr_.55fr] gap-3">
             <Field label="Protocol"><select value={protocol} disabled={actionBusy} onChange={(e)=>{const p=e.target.value as Protocol;setProtocol(p);setPort(PROTOCOL_DEFAULT_PORT[p]);}}><option value="sftp">SFTP (SSH File Transfer)</option><option value="ftp">FTP</option><option value="ftps">FTPS (FTP over TLS)</option></select></Field>
             <Field label="Host / Address"><input value={host} disabled={actionBusy} onChange={(e)=>setHost(e.target.value)} placeholder="Hostname or IP address"/></Field>
@@ -249,7 +223,7 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
             <ConnectionModeStatus protocol={protocol}/>
           </div>
 
-          <div className="mt-4 flex items-center gap-3"><Check checked={remember} disabled={actionBusy} onChange={setRemember} label="Save this connection in Sites" icon={<Bookmark size={15}/>}/><div className="flex-1"/><button type="button" className="ghost-mini-button" disabled={!canConnect||actionBusy} onClick={()=>void testConnection()} aria-live="polite" aria-busy={testStatus==="testing"}><Radio size={14}/>{testStatus==="testing"?"Testing…":testStatus==="ok"?"Connection OK":testStatus==="error"?"Test Failed":"Test Connection"}</button></div>
+          <div className="mt-4 flex items-center gap-3"><span className="text-[12px] text-text-muted">Save the profile for future use; Test Connection does not save it.</span><div className="flex-1"/><button type="button" className="ghost-mini-button" disabled={!canConnect||actionBusy} onClick={()=>void testConnection()} aria-live="polite" aria-busy={testStatus==="testing"}><Radio size={14}/>{testStatus==="testing"?"Testing…":testStatus==="ok"?"Connection OK":testStatus==="error"?"Test Failed":"Test Connection"}</button></div>
 
           <div className="mt-4 overflow-hidden rounded-md border border-border bg-[#051929]">
             <button type="button" disabled={actionBusy} onClick={()=>setAdvanced(v=>!v)} className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-text-muted hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-60"><Settings2 size={16}/><span>Advanced Settings</span><div className="flex-1"/><ChevronDown size={14} className={advanced?'rotate-180':''}/></button>
@@ -264,8 +238,7 @@ export function QuickConnectionDialog({ prefill, onClose, saveByDefault = false,
 
         <div className="ghost-new-connection-actions flex shrink-0 items-center border-t border-border bg-[#051929] px-5 py-4">
           <button type="button" className="ghost-mini-button" disabled={actionBusy} onClick={closeIfIdle}>{cancelLabel}</button><div className="flex-1"/>
-          {remember && <button type="button" disabled={!canConnect||actionBusy} className="ghost-mini-button mr-2" onClick={()=>void submit(false)}><Bookmark size={14}/> {busy?'Saving…':'Save'}</button>}
-          <button type="button" disabled={!canConnect||actionBusy} aria-busy={busy} className="ghost-primary-button" onClick={()=>void submit(true)}><Link2 size={15}/> {busy?'Connecting…':'Connect'}</button>
+          <button type="button" disabled={!canConnect||actionBusy} aria-busy={busy} className="ghost-primary-button" onClick={()=>void submit()}><Bookmark size={15}/> {busy?'Saving…':'Save profile'}</button>
         </div>
       </div>
     </div>
@@ -283,4 +256,3 @@ function ConnectionModeStatus({protocol}:{protocol:Protocol}) {
   </div>;
 }
 function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="block"><span className="mb-1.5 block text-[11px] font-medium text-text-muted">{label}</span><div className="ghost-ref-field">{children}</div></label>}
-function Check({checked,onChange,label,icon,disabled=false}:{checked:boolean;onChange:(v:boolean)=>void;label:string;icon?:React.ReactNode;disabled?:boolean}){return <label className={`flex items-center gap-2 text-[12px] ${disabled?'opacity-40':'cursor-pointer'} text-text-muted`}><input type="checkbox" disabled={disabled} checked={checked} onChange={(e)=>onChange(e.target.checked)} className="accent-[#189dff]"/>{icon}<span>{label}</span></label>}

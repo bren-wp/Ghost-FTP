@@ -15,7 +15,11 @@ const requireText = (actual, text, error) => {
 for (const component of ["PremiumFilesChrome", "PremiumLiveTransferStrip"]) {
   requireText(app, `<${component} />`, `${component} is missing from real Files workspace`);
 }
-requireText(chrome, 'openNewConnection({', "Quick connection does not hand off to validated editor");
+requireText(chrome, "await connectTemporary(profile)", "Quick Connect does not create a real ephemeral backend session");
+requireText(chrome, 'type="password"', "Quick Connect must collect a masked transient password");
+requireText(chrome, 'setPassword("")', "Quick Connect does not clear the transient credential on success");
+if (chrome.includes("openNewConnection(")) violations.push("Quick Connect still launches the saved-profile editor");
+if (chrome.includes("New connection</span>")) violations.push("Duplicate New connection button in Files chrome");
 requireText(chrome, 'type="submit"', "Quick connection cannot submit from keyboard");
 requireText(chrome, 'event.preventDefault()', "Quick connection submits an invalid native form");
 requireText(chrome, 'PROTOCOL_DEFAULT_PORT[value]', "Protocol change does not update default port");
@@ -32,7 +36,7 @@ for (const cssClass of [
 ]) {
   requireText(css, `.${cssClass}`, `Missing genuine Files reference styling: ${cssClass}`);
 }
-for (const dangerous of ['type="password"', 'localStorage', 'sessionStorage', 'fakeTransfer', 'mockTransfer', 'example.com']) {
+for (const dangerous of ['localStorage', 'sessionStorage', 'fakeTransfer', 'mockTransfer', 'example.com']) {
   if (chrome.includes(dangerous)) violations.push(`Credential/demo logic in inline quick-connect: ${dangerous}`);
 }
 if (violations.length > 0) {
@@ -40,4 +44,4 @@ if (violations.length > 0) {
   for (const violation of violations) console.error(" - " + violation);
   process.exit(1);
 }
-console.log("Real Windows/Linux Files header, secure quick-connect handoff and live transfer strip: contract passed. Pixel acceptance still pending.");
+console.log("Real Windows/Linux Files header, immediate ephemeral Quick Connect, one saved-profile action and live transfer strip: contract passed. Pixel acceptance still pending.");
