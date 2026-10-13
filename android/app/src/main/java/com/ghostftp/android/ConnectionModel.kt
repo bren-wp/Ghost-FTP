@@ -33,6 +33,26 @@ enum class ConnectionProtocol(val label: String, val defaultPort: Int) {
     }
 }
 
+/**
+ * Return an automatic default-port update only for a genuine user protocol
+ * change. A saved/backup profile may intentionally use the previous protocol's
+ * default as its custom port; programmatic same-item Spinner callbacks cannot
+ * silently overwrite it.
+ */
+internal fun portOnProtocolChange(
+    previous: ConnectionProtocol,
+    next: ConnectionProtocol,
+    currentPort: String
+): String? {
+    if (previous == next) return null
+    val typedPort = currentPort.trim()
+    return if (typedPort.isEmpty() || typedPort == previous.defaultPort.toString()) {
+        next.defaultPort.toString()
+    } else {
+        null
+    }
+}
+
 data class ConnectionProfile(
     val protocol: ConnectionProtocol,
     val host: String,

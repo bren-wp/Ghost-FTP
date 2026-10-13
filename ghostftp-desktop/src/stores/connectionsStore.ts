@@ -200,10 +200,21 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
 
       try {
         const sessionId = await ipc.connectEphemeral(profile);
+        // Keep only nonsecret display metadata for an active temporary session.
+        // The backend already owns the connected transport; a UI profile must
+        // not retain the password or private-key passphrase after Connect.
+        const sessionProfile: ConnectionProfile = {
+          ...profile,
+          auth: profile.auth.kind === "password"
+            ? { kind: "password", password: "" }
+            : profile.auth.kind === "key"
+              ? { ...profile.auth, passphrase: undefined }
+              : profile.auth,
+        };
         set((state) => ({
           profiles: state.profiles.some((item) => item.id === profile.id)
             ? state.profiles
-            : [...state.profiles, profile],
+            : [...state.profiles, sessionProfile],
           sessions: state.sessions.some((session) => session.sessionId === sessionId)
             ? state.sessions
             : [

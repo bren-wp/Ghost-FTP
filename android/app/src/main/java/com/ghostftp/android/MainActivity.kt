@@ -579,6 +579,9 @@ class MainActivity : Activity() {
     }
 
     private fun buildInlineConfirmationCard(): View = panel(strong = true).apply {
+        // A panel built without saving this reference makes every destructive
+        // confirmation a silent no-op (including saved-site removal).
+        confirmationPanel = this
         visibility = View.GONE
         contentDescription = getString(R.string.action_confirm)
 
@@ -663,9 +666,8 @@ class MainActivity : Activity() {
             if (entry == null) {
                 showMessage("Saved profiles", "Select a saved profile first.")
             } else {
-                protocolSpinner.setSelection(entry.protocol.ordinal)
+                selectConnectionProtocolAndPort(entry.protocol, entry.port)
                 hostInput.setText(entry.host)
-                portInput.setText(entry.port.toString())
                 usernameInput.setText(entry.username)
                 passwordInput.text.clear()
                 hostKeyFingerprintInput.setText(entry.fingerprint)
@@ -677,7 +679,7 @@ class MainActivity : Activity() {
         })
         addView(space(12))
         siteNameInput = input("Name for saved profile", InputType.TYPE_CLASS_TEXT)
-        addView(formLabel("New connection profile name (optional for Quick Connect)"))
+        addView(formLabel("Saved profile name (new or edit; optional for Quick Connect)"))
         addView(siteNameInput)
 
         protocolSpinner = Spinner(this@MainActivity).apply {
@@ -770,16 +772,72 @@ class MainActivity : Activity() {
             } else if (SavedSiteProfiles.save(this@MainActivity, name, profile)) {
                 // Saving is distinct from Connect, and never persists secrets.
                 passwordInput.text.clear()
-                val names = SavedSiteProfiles.read(this@MainActivity).map { it.name }
-                savedSitesSpinner.adapter = ArrayAdapter(this@MainActivity,
-                    android.R.layout.simple_spinner_item,
-                    listOf("Select saved profile") + names
-                ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+                refreshSavedProfiles(name)
                 showMessage("Saved site", "Profile saved without a password. Select it later, enter credentials and tap Connect.")
             } else {
                 showMessage("Could not save site", "Check the name, duplicate profiles or 100-profile limit. Existing sites were kept.")
             }
         })
+        addView(space(8))
+        addView(secondaryButton("Update selected profile") {
+            val selected = savedSitesSpinner.selectedItemPosition - 1
+            val original = SavedSiteProfiles.read(this@MainActivity).getOrNull(selected)
+            if (original == null) {
+                showMessage("Saved profiles", "Select the profile to update first.")
+            } else {
+                val profile = readProfile() ?: return@secondaryButton
+                val name = siteNameInput.text.toString().trim()
+                if (SavedSiteProfiles.update(this@MainActivity, original.name, name, profile)) {
+                    passwordInput.text.clear()
+                    refreshSavedProfiles(name)
+                    showMessage("Saved profile updated", "Only the selected profile was changed. No password was saved.")
+                } else {
+                    showMessage("Could not update profile", "Check the name, duplicates or stored data integrity. Other profiles were preserved.")
+                }
+            }
+        })
+        addView(space(8))
+        addView(secondaryButton("Remove selected profile") {
+            val selected = savedSitesSpinner.selectedItemPosition - 1
+            val entry = SavedSiteProfiles.read(this@MainActivity).getOrNull(selected)
+            if (entry == null) {
+                showMessage("Saved profiles", "Select the profile to remove first.")
+            } else {
+                requestInlineConfirmation(
+                    "Remove saved profile?",
+                    "Remove ${entry.name} from this device? Other saved sites will be kept.",
+                    "Remove profile"
+                ) {
+                    if (SavedSiteProfiles.remove(this@MainActivity, entry.name)) {
+                        passwordInput.text.clear()
+                        refreshSavedProfiles()
+                        showMessage("Profile removed", "The selected saved profile was removed. Other sites were preserved.")
+                    } else {
+                        showMessage("Could not remove profile", "Stored data changed or cannot be written. Other sites were kept.")
+                    }
+                }
+            }
+        })
+    }
+
+    private fun refreshSavedProfiles(selectedName: String? = null) {
+        val profiles = SavedSiteProfiles.read(this)
+        savedSitesSpinner.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_item,
+            listOf("Select saved profile") + profiles.map { it.name }
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        val index = profiles.indexOfFirst { it.name.equals(selectedName, ignoreCase = true) }
+        savedSitesSpinner.setSelection(index + 1)
+    }
+
+    private fun selectConnectionProtocolAndPort(protocol: ConnectionProtocol, port: Int) {
+        // Update the logical selection before setSelection: Spinner callbacks may be
+        // synchronous, deferred, or omitted when the same item is already selected.
+        // The next matching callback must never rewrite this saved custom port.
+        selectedProtocol = protocol
+        protocolSpinner.setSelection(protocol.ordinal)
+        portInput.setText(port.toString())
+        updateProtocolSpecificFields(protocol)
     }
 
     private fun installProtocolSelectionBehavior(seedDefaultPort: Boolean) {
@@ -797,11 +855,15 @@ class MainActivity : Activity() {
                 position: Int,
                 id: Long
             ) {
+                // A delayed callback for an earlier selection must not undo a
+                // more recent saved-site load or a subsequent manual selection.
+                if (position != protocolSpinner.selectedItemPosition) return
                 val nextProtocol = ConnectionProtocol.fromIndex(position)
-                val currentPort = portInput.text.toString().trim()
-                if (currentPort.isBlank() || currentPort == selectedProtocol.defaultPort.toString()) {
-                    portInput.setText(nextProtocol.defaultPort.toString())
-                }
+                portOnProtocolChange(
+                    previous = selectedProtocol,
+                    next = nextProtocol,
+                    currentPort = portInput.text.toString()
+                )?.let { portInput.setText(it) }
                 selectedProtocol = nextProtocol
                 updateProtocolSpecificFields(nextProtocol)
             }
@@ -1368,9 +1430,10 @@ class MainActivity : Activity() {
 
     private fun resetConnectionForm() {
         disconnect()
-        if (::protocolSpinner.isInitialized) protocolSpinner.setSelection(ConnectionProtocol.FTP.ordinal)
+        if (::protocolSpinner.isInitialized && ::portInput.isInitialized) {
+            selectConnectionProtocolAndPort(ConnectionProtocol.FTP, ConnectionProtocol.FTP.defaultPort)
+        }
         if (::hostInput.isInitialized) hostInput.text.clear()
-        if (::portInput.isInitialized) portInput.setText(ConnectionProtocol.FTP.defaultPort.toString())
         if (::usernameInput.isInitialized) usernameInput.text.clear()
         if (::hostKeyFingerprintInput.isInitialized) hostKeyFingerprintInput.text.clear()
         if (::sftpKeepAliveInput.isInitialized) sftpKeepAliveInput.setText("15")
@@ -1669,16 +1732,13 @@ class MainActivity : Activity() {
             }
 
             disconnect()
-            protocolSpinner.setSelection(protocol.ordinal)
+            selectConnectionProtocolAndPort(protocol, port)
             hostInput.setText(json.optString("host").trim())
-            portInput.setText(port.toString())
             usernameInput.setText(json.optString("username").trim())
             passwordInput.text.clear()
             hostKeyFingerprintInput.setText(json.optString("hostKeyFingerprint").trim())
             sftpKeepAliveInput.setText(keepAlive.toString())
             remotePathInput.setText(json.optString("remotePath", "/").trim().ifBlank { "/" })
-            selectedProtocol = protocol
-            updateProtocolSpecificFields(protocol)
         }.fold(
             onSuccess = {
                 syncBackupStatus.text = "Connection settings restored. Reconnect and enter the password again."

@@ -1,3 +1,14 @@
+## 0.95.11 — post-release connection safety and review fixes (development candidate) — 13 October 2026
+
+- **Windows/Linux:** Compact Files layouts retain Host, Username and a usable Quick Connect action; connection status shows real pending/success/failure/disconnected states.
+- **macOS:** Opening an existing saved Site discards an abandoned unsaved New connection draft.
+- **Android:** A saved connection's custom port is preserved across deferred protocol-spinner selection callbacks; saved Sites now support editing and confirmed removal, preserving all unrelated profiles and never persisting credentials.
+- **Privacy:** The desktop UI store retains redacted metadata for a successful temporary session, not plaintext passwords or private-key passphrases.
+- **Verification:** Extended premium Files contract checks. Installed native screenshots, Android physical-device port behavior and macOS selection acceptance remain pending.
+- **Release lineage:** Follows published immutable v0.95.10 (21 assets). This source is not a published release.
+
+See [0.95.11 release notes](docs/releases/0.95.11.md).
+
 ## 0.95.10 — direct Quick Connect and saved connection profiles (development candidate) — 13 October 2026
 
 - **Windows/Linux:** The Files Quick Connect form now has an in-memory masked password input and connects using the existing ephemeral Rust FTP/FTPS/SFTP backend without opening the New Connection editor. The duplicate header New Connection action is removed.

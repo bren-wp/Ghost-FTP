@@ -20,6 +20,33 @@ class ConnectionModelTest {
     }
 
     @Test
+    fun loadingSavedProtocolNeverOverwritesCustomPortWhenSelectionIsUnchanged() {
+        // Android Spinner may omit onItemSelected if setSelection is a no-op.
+        // Subsequent callbacks for the current selection must preserve the port.
+        assertEquals(null, portOnProtocolChange(ConnectionProtocol.FTP, ConnectionProtocol.FTP, "2121"))
+        assertEquals(null, portOnProtocolChange(ConnectionProtocol.SFTP, ConnectionProtocol.SFTP, "21"))
+        assertEquals(null, portOnProtocolChange(ConnectionProtocol.EXPLICIT_FTPS, ConnectionProtocol.EXPLICIT_FTPS, "22"))
+    }
+
+    @Test
+    fun userProtocolChangesOnlyReplaceOldDefaultAndNeverChangeCustomPorts() {
+        assertEquals("22", portOnProtocolChange(ConnectionProtocol.FTP, ConnectionProtocol.SFTP, "21"))
+        assertEquals("21", portOnProtocolChange(ConnectionProtocol.SFTP, ConnectionProtocol.FTP, "22"))
+        assertEquals("21", portOnProtocolChange(ConnectionProtocol.SFTP, ConnectionProtocol.EXPLICIT_FTPS, " "))
+        assertEquals(null, portOnProtocolChange(ConnectionProtocol.FTP, ConnectionProtocol.SFTP, "2121"))
+        assertEquals(null, portOnProtocolChange(ConnectionProtocol.SFTP, ConnectionProtocol.FTP, "21"))
+    }
+
+    @Test
+    fun switchingAwayAndBackCannotResurrectPreviouslyLoadedPort() {
+        // A loaded FTP:2121 profile is edited to 2021. The user changes the
+        // protocol twice; neither callback can resurrect the old saved port.
+        val edited = "2021"
+        assertEquals(null, portOnProtocolChange(ConnectionProtocol.FTP, ConnectionProtocol.SFTP, edited))
+        assertEquals(null, portOnProtocolChange(ConnectionProtocol.SFTP, ConnectionProtocol.FTP, edited))
+    }
+
+    @Test
     fun cancellationBecomesStickyAndThrows() {
         val cancellation = OperationCancellation()
         assertFalse(cancellation.isCanceled())

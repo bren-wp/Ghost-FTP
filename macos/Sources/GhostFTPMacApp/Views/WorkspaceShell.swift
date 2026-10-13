@@ -164,6 +164,8 @@ struct ContentView: View {
                 profiles: profiles,
                 selectedID: $selectedSiteID,
                 onOpen: { id in
+                    // A saved site must take precedence over an abandoned New connection draft.
+                    newSiteDraft = nil
                     selectedSiteID = id
                     workspace = .files
                 }

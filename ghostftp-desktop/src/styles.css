@@ -5760,14 +5760,16 @@ input.ghost-pane-address:focus-visible {
   .ghost-premium-files-heading { margin-bottom: 6px; }
   .ghost-premium-files-heading h1 { font-size: 17px; }
   .ghost-premium-files-heading p { display: none; }
-  .ghost-premium-quickconnect { grid-template-columns: minmax(85px, 1fr) 72px 75px; }
-  .ghost-premium-quickconnect > label:nth-child(2) { display: none; }
+  /* Keep Host and Username available on narrow/short supported windows. */
+  .ghost-premium-quickconnect { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ghost-premium-quickconnect > label:first-child { grid-column: 1 / -1; }
   .ghost-premium-connection-state > span { display: none; }
   .ghost-premium-transfer-strip { max-height: 83px; }
   .ghost-premium-transfer-item:nth-child(n+2) { display: none; }
 }
 @media (max-height: 490px) {
-  .ghost-premium-quickconnect { display: none; }
+  /* Preserve Quick Connect even on very short windows; scroll the form rather than hide credentials. */
+  .ghost-premium-files-chrome { max-height: 70vh; overflow-y: auto; }
   .ghost-premium-transfer-strip { max-height: 39px; }
   .ghost-premium-transfer-idle, .ghost-premium-transfer-list { display: none; }
 }

@@ -17,6 +17,7 @@ type QuickProtocol = Extract<Protocol, "sftp" | "ftps" | "ftp">;
 export function PremiumFilesChrome() {
   const activeSessionId = useConnections((state) => state.activeSessionId);
   const connecting = useConnections((state) => state.connecting);
+  const connectionError = useConnections((state) => state.error);
   const connectTemporary = useConnections((state) => state.connectTemporary);
   const activeProfileId = useConnections((state) => state.activeProfileId);
   const profiles = useConnections((state) => state.profiles);
@@ -32,6 +33,13 @@ export function PremiumFilesChrome() {
   const parsedPort = Number(port);
   const canConnect = host.trim().length > 0 && username.trim().length > 0 &&
     Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535;
+  const connectionStatus = submitting || connecting
+    ? "Connecting…"
+    : activeSessionId && profile
+      ? `Connected: ${profile.name} (${profile.protocol.toUpperCase()})`
+      : inputError || connectionError
+        ? "Failed — check connection details"
+        : "Disconnected — enter connection details or select a saved site";
 
   // Quick Connect must open a real ephemeral backend session. It never
   // creates a saved Site or launches the new-profile editor.
@@ -154,11 +162,11 @@ export function PremiumFilesChrome() {
         </button>
       </form>
       {inputError && <p role="alert" className="ghost-premium-connection-error">{inputError}</p>}
-      <div className="ghost-premium-connection-state" role="status">
-        <ShieldCheck size={14} aria-hidden="true" />
+      <div className="ghost-premium-connection-state" role="status" aria-live="polite">
         {activeSessionId && profile
-          ? `Connected: ${profile.name} (${profile.protocol.toUpperCase()})`
-          : "Disconnected — enter connection details or select a saved site"}
+          ? <ShieldCheck size={14} aria-hidden="true" />
+          : <XCircle size={14} aria-hidden="true" />}
+        {connectionStatus}
         <span>Quick Connect is temporary. Use New connection to save a site.</span>
       </div>
     </section>

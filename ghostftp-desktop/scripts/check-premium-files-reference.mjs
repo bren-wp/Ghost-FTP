@@ -14,6 +14,7 @@ const macOS = source("macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
 const macOSFiles = source("macos/Sources/GhostFTPMacApp/Views/ContentView.swift");
 const android = source("android/app/src/main/java/com/ghostftp/android/MainActivity.kt");
 const androidSaved = source("android/app/src/main/java/com/ghostftp/android/SavedSiteProfiles.kt");
+const connectionStore = source("ghostftp-desktop/src/stores/connectionsStore.ts");
 const violations = [];
 const requireText = (actual, text, error) => {
   if (!actual.includes(text)) violations.push(error);
@@ -38,11 +39,31 @@ requireText(macOSFiles, "session.connect(profile: profile, password: password)",
 requireText(macOSFiles, "profiles.save(profile)", "macOS saved-site draft cannot be persisted on explicit Save");
 requireText(android, 'primaryButton(getString(R.string.action_connect)) { openConnection() }', "Android direct Connect no longer invokes its transport");
 requireText(android, 'SavedSiteProfiles.save(this@MainActivity, name, profile)', "Android lacks explicit Save new profile");
+requireText(android, "SavedSiteProfiles.update(this@MainActivity, original.name, name, profile)", "Android saved-site editing is not wired");
+requireText(android, "SavedSiteProfiles.remove(this@MainActivity, entry.name)", "Android saved-site deletion is not wired");
+requireText(android, 'requestInlineConfirmation(', "Android deletion must require confirmation");
+requireText(androidSaved, 'saved.toMutableList().apply', "Android editing must not replace other Sites");
+requireText(androidSaved, 'return decode(raw)', "Android storage must reject corrupted inventory before mutation");
 requireText(android, 'passwordInput.text.clear()', "Android saved-profile selection does not clear credentials");
 if (androidSaved.includes('put("password"') || androidSaved.includes('put("token"')) {
   violations.push("Android saved-site metadata includes secrets");
 }
 requireText(chrome, 'type="submit"', "Quick connection cannot submit from keyboard");
+requireText(chrome, '"Connecting…"', "Quick Connect must report the pending state");
+requireText(chrome, '"Failed — check connection details"', "Quick Connect must report a failed attempt");
+requireText(connectionStore, 'password: ""', "Temporary sessions retain a password in the UI store");
+requireText(connectionStore, 'passphrase: undefined', "Temporary sessions retain a key passphrase in the UI store");
+requireText(macOS, "newSiteDraft = nil\n                    selectedSiteID = id", "macOS saved-site Open must clear an abandoned draft");
+requireText(android, "selectConnectionProtocolAndPort(entry.protocol, entry.port)", "Android saved-site loading must preserve custom ports");
+requireText(android, "selectConnectionProtocolAndPort(protocol, port)", "Android restored backup ports must be preserved");
+requireText(android, "position != protocolSpinner.selectedItemPosition", "Android must ignore stale Spinner events");
+requireText(android, "portOnProtocolChange(", "Android user protocol changes must respect typed ports");
+if (android.includes("pendingSavedProfilePort")) {
+  violations.push("Android retains a stale saved-port guard that can overwrite later user edits");
+}
+if (/ghost-premium-quickconnect\s*>\s*label:nth-child\(2\)\s*\{\s*display:\s*none/i.test(css)) {
+  violations.push("Compact desktop layout hides the required Quick Connect username");
+}
 requireText(chrome, 'event.preventDefault()', "Quick connection submits an invalid native form");
 requireText(chrome, 'PROTOCOL_DEFAULT_PORT[value]', "Protocol change does not update default port");
 requireText(chrome, 'state.activeSessionId', "Connected status not bound to real session");
