@@ -273,70 +273,75 @@ internal object SignedCloudTransfer {
     ) {
         cancellation.ensureActive()
         val stage = File.createTempFile("ghostftp-cloud-", ".part", cache)
-        val request = Request.Builder()
-            .url(link.destination)
-            .header("Cache-Control", "no-store")
-            .header("Accept-Encoding", "identity")
-            .get()
-            .build()
-        val client = CloudHttpClient.create()
-        val call = client.newCall(request)
+        // The stage must be removed even if request/client setup fails before
+        // a network call has been attached to the cancellation token.
         try {
-            cancellation.attach(call)
-            val (expectedBytes, expectedDigest) = call.execute().use { response ->
-                cancellation.ensureActive()
-                checkResponse(response.code, isDownload = true)
-                if (response.header("Content-Encoding")?.let { !it.equals("identity", ignoreCase = true) } == true) {
-                    throw IOException("Cloud provider returned an unexpected encoded object.")
-                }
-                val body = response.body ?: throw IOException("Cloud provider returned no response body.")
-                if (body.contentLength() > MAX_BYTES) {
-                    throw IOException("Cloud downloads are limited to 1 GiB per signed URL.")
-                }
-                val contentDigest = MessageDigest.getInstance("SHA-256")
-                val received = body.byteStream().use { input ->
-                    FileOutputStream(stage).use { output ->
-                        streamWithBoundedProgress(
-                            input, MAX_BYTES, body.contentLength().takeIf { it >= 0 }, cancellation
-                        ) { bytes, count ->
-                            output.write(bytes, 0, count)
-                            contentDigest.update(bytes, 0, count)
+            val request = Request.Builder()
+                .url(link.destination)
+                .header("Cache-Control", "no-store")
+                .header("Accept-Encoding", "identity")
+                .get()
+                .build()
+            val client = CloudHttpClient.create()
+            val call = client.newCall(request)
+            try {
+                cancellation.attach(call)
+                val (expectedBytes, expectedDigest) = call.execute().use { response ->
+                    cancellation.ensureActive()
+                    checkResponse(response.code, isDownload = true)
+                    if (response.header("Content-Encoding")?.let { !it.equals("identity", ignoreCase = true) } == true) {
+                        throw IOException("Cloud provider returned an unexpected encoded object.")
+                    }
+                    val body = response.body ?: throw IOException("Cloud provider returned no response body.")
+                    if (body.contentLength() > MAX_BYTES) {
+                        throw IOException("Cloud downloads are limited to 1 GiB per signed URL.")
+                    }
+                    val contentDigest = MessageDigest.getInstance("SHA-256")
+                    val received = body.byteStream().use { input ->
+                        FileOutputStream(stage).use { output ->
+                            streamWithBoundedProgress(
+                                input, MAX_BYTES, body.contentLength().takeIf { it >= 0 }, cancellation
+                            ) { bytes, count ->
+                                output.write(bytes, 0, count)
+                                contentDigest.update(bytes, 0, count)
+                            }
                         }
                     }
+                    val digest = contentDigest.digest()
+                    requireMatchingSha256Header(response.header("x-amz-checksum-sha256"), digest)
+                    received to digest
                 }
-                val digest = contentDigest.digest()
-                requireMatchingSha256Header(response.header("x-amz-checksum-sha256"), digest)
-                received to digest
-            }
-            // SAF destinations are generally not atomic. The caller must
-            // remove a newly created destination if this final copy fails.
-            resolver.openOutputStream(target, "w")?.use { output ->
-                cancellation.watchStream(output)
-                try {
-                    stage.inputStream().use { input ->
-                        streamWithBoundedProgress(
-                            input, expectedBytes, expectedBytes, cancellation
-                        ) { bytes, count -> output.write(bytes, 0, count) }
-                        output.flush()
+                // SAF destinations are generally not atomic. The caller must
+                // remove a newly created destination if this final copy fails.
+                resolver.openOutputStream(target, "w")?.use { output ->
+                    cancellation.watchStream(output)
+                    try {
+                        stage.inputStream().use { input ->
+                            streamWithBoundedProgress(
+                                input, expectedBytes, expectedBytes, cancellation
+                            ) { bytes, count -> output.write(bytes, 0, count) }
+                            output.flush()
+                        }
+                    } finally {
+                        cancellation.unwatchStream(output)
                     }
-                } finally {
-                    cancellation.unwatchStream(output)
-                }
-            } ?: throw IOException("Selected download destination is not writable.")
-            cancellation.ensureActive()
-            resolver.openInputStream(target)?.use { saved ->
-                cancellation.watchStream(saved)
-                try {
-                    verifyPersistedCopy(saved, expectedBytes, expectedDigest, cancellation)
-                } finally {
-                    cancellation.unwatchStream(saved)
-                }
-            } ?: throw IOException("Cloud destination cannot be read back for integrity verification.")
-            cancellation.ensureActive()
+                } ?: throw IOException("Selected download destination is not writable.")
+                cancellation.ensureActive()
+                resolver.openInputStream(target)?.use { saved ->
+                    cancellation.watchStream(saved)
+                    try {
+                        verifyPersistedCopy(saved, expectedBytes, expectedDigest, cancellation)
+                    } finally {
+                        cancellation.unwatchStream(saved)
+                    }
+                } ?: throw IOException("Cloud destination cannot be read back for integrity verification.")
+                cancellation.ensureActive()
+            } finally {
+                cancellation.clear(call)
+                client.connectionPool.evictAll()
+            }
         } finally {
-            cancellation.clear(call)
             stage.delete()
-            client.connectionPool.evictAll()
         }
     }
 }

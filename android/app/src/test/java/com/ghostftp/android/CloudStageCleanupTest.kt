@@ -1,0 +1,91 @@
+package com.ghostftp.android
+
+import java.io.File
+import java.nio.file.Files
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class CloudStageCleanupTest {
+    @Test fun cleansOnlyMatchingOrphanStagesWithoutTouchingUserFilesOrFolders() {
+        val cache = Files.createTempDirectory("ghostftp-stage-qa-").toFile()
+        try {
+            val orphan = File.createTempFile("ghostftp-cloud-", ".part", cache)
+            orphan.writeBytes(byteArrayOf(1, 2, 3))
+            val unrelated = File(cache, "unrelated.part").apply { writeText("preserve") }
+            val similar = File(cache, "ghostftp-cloud-download.tmp").apply { writeText("preserve") }
+            val directory = File(cache, "ghostftp-cloud-123456.part").apply { mkdir() }
+            val nested = File(directory, "nested.part").apply { writeText("preserve") }
+            val tooShort = File(cache, "ghostftp-cloud-x.part").apply { writeText("preserve") }
+            val unrelatedExtension = File(cache, "ghostftp-cloud-abcdef.other").apply { writeText("preserve") }
+
+            assertEquals(1, CloudStageCleanup.purge(cache))
+            assertFalse(orphan.exists())
+            assertTrue(unrelated.exists())
+            assertEquals("preserve", unrelated.readText())
+            assertTrue(similar.exists())
+            assertTrue(directory.isDirectory)
+            assertTrue(nested.exists())
+            assertTrue(tooShort.exists())
+            assertTrue(unrelatedExtension.exists())
+            assertEquals(0, CloudStageCleanup.purge(cache))
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test fun processScopedCleanupDoesNotTouchNewStagesDuringActivityRecreation() {
+        val cache = Files.createTempDirectory("ghostftp-cold-start-").toFile()
+        try {
+            val orphan = File.createTempFile("ghostftp-cloud-", ".part", cache)
+            CloudStageCleanup.purgeOnProcessStart(cache)
+            assertFalse("orphaned prior-process stage must be removed", orphan.exists())
+
+            val inFlight = File.createTempFile("ghostftp-cloud-", ".part", cache)
+            inFlight.writeBytes(byteArrayOf(9, 8, 7))
+            CloudStageCleanup.purgeOnProcessStart(cache)
+            assertTrue("same-process Activity recreation must preserve active transfer", inFlight.exists())
+            assertEquals(3L, inFlight.length())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
+    @Test fun symlinkThatLooksLikeAStageIsNeverFollowedOrDeleted() {
+        val cache = Files.createTempDirectory("ghostftp-symlink-cache-").toFile()
+        val outside = Files.createTempDirectory("ghostftp-symlink-target-").toFile()
+        try {
+            val target = File(outside, "must-be-preserved.bin").apply {
+                writeBytes(byteArrayOf(42, 41, 40))
+            }
+            val link = File(cache, "ghostftp-cloud-abcdef.part")
+            try {
+                Files.createSymbolicLink(link.toPath(), target.toPath())
+            } catch (error: UnsupportedOperationException) {
+                org.junit.Assume.assumeNoException("Symlinks unsupported by this filesystem", error)
+            } catch (error: java.io.IOException) {
+                org.junit.Assume.assumeNoException("Symlink creation unavailable", error)
+            } catch (error: SecurityException) {
+                org.junit.Assume.assumeNoException("Symlink creation denied", error)
+            }
+
+            assertEquals(0, CloudStageCleanup.purge(cache))
+            assertTrue("an external target must not be removed", target.exists())
+            assertEquals(3L, target.length())
+            assertTrue("the symbolic link itself is excluded", Files.isSymbolicLink(link.toPath()))
+        } finally {
+            cache.deleteRecursively()
+            outside.deleteRecursively()
+        }
+    }
+
+    @Test fun missingCacheDirectoryDoesNotCrashStartup() {
+        val missing = File(Files.createTempDirectory("ghostftp-no-cache-").toFile(), "absent")
+        try {
+            assertEquals(0, CloudStageCleanup.purge(missing))
+        } finally {
+            missing.parentFile?.deleteRecursively()
+        }
+    }
+}

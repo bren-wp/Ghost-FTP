@@ -1,3 +1,12 @@
+## 0.95.8 — Android private cloud stage recovery after process termination (development candidate) — 13 October 2026
+
+- **Crash-residue cleanup:** On cold Android process start, remove strictly named app-private cloud download `*.part` staging files left if the process died before its `finally` block. Activity recreation in a live process never repeats the cleanup.
+- **Privacy and safety:** Only regular stage files matching the internal prefix/suffix in `cacheDir` are eligible; no unrelated cache files, folders, symlinks, or SAF destinations are removed.
+- **Regression tests:** Verify real temporary-file cleanup, unrelated-file and directory preservation, missing cache directory, and repeat-sweep idempotency; this does not replace physical Android 8–15/provider testing.
+- **Release train:** Bump source metadata to `0.95.8` from the immutable verified public `v0.95.7` release. Windows/Linux/macOS/Android artifacts still require exact-head CI gates.
+
+See [docs/releases/0.95.8.md](docs/releases/0.95.8.md).
+
 ## 0.95.7 — SAF provider cancellation isolation and release-lineage repair (development) — 13 October 2026
 
 - **Android SAF cancellation (#127, partial):** Close each registered provider stream through a separate daemon worker. A blocked `close()` for one DocumentsProvider cannot prevent another active stream from receiving its close request.

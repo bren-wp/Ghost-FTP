@@ -123,6 +123,9 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        // Process death skips a transfer worker's finally block. Clear only
+        // our app-private cloud staging files before new work can begin.
+        CloudStageCleanup.purgeOnProcessStart(cacheDir)
         clearLegacyPersistedDocumentGrants()
         activityClosing = false
         val content = buildContent()

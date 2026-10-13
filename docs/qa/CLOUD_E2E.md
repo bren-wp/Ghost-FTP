@@ -87,3 +87,9 @@ The Android cloud cancellation token now tracks live user-provider `InputStream`
 ## 0.95.7 cancellation isolation follow-up (#127; source-level)
 
 `CloudProviderCancellationTest.blockedProviderCloseDoesNotHoldUpAnotherProviderStream` covers two concurrently watched SAF streams, where a simulated provider's `close()` blocks. Cancellation dispatches independent daemon close attempts so the other stream still receives its close request. This JVM regression alone does not prove termination of real provider Binder calls, Android 8–15 lifecycle behavior, revoked permissions, disk-full/1 GiB edge cases or atomic SAF replacement. #127 remains open pending physical-device and real DocumentsProvider acceptance.
+
+## 0.95.8 development candidate: orphaned app-private cloud stage cleanup (#127 — partial)
+
+A new process can start after Android terminates a transfer without running Kotlin `finally`; this leaves an object body in `cacheDir/ghostftp-cloud-*.part`. The proposed `CloudStageCleanup` removes strictly named regular staging files *once* at app process startup, before any new transfer, and preserves unrelated cache content and SAF documents. The once-per-process guard prevents Activity recreation from deleting a file used by a live transfer. JVM tests cover a real `File.createTempFile` stage, unrelated files, a similarly named directory and absent cache directory.
+
+This does not guarantee cleanup while the process remains dead, on disk-full, after Android revokes storage grants, or with a broken SAF provider. On-device Android 8–15 process-death/device-provider acceptance remains open in #127. This section documents an unmerged development candidate, **not** a published or physically validated feature.
