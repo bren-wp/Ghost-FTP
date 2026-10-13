@@ -37,6 +37,10 @@ enum PinnedCloudPublicAddress {
                 bytes[4] == 0 && bytes[5] == 0 { return false }
             if bytes[0] == 0x20 && bytes[1] == 0x01 &&
                 bytes[2] == 0 && (bytes[3] & 0xf0) == 0x10 { return false }
+            // RFC 7343 ORCHIDv2 identifiers (2001:20::/28) do not
+            // belong on public provider transport sockets.
+            if bytes[0] == 0x20 && bytes[1] == 0x01 &&
+                bytes[2] == 0 && (bytes[3] & 0xf0) == 0x20 { return false }
             if bytes[0] == 0x3f && bytes[1] == 0xff &&
                 (bytes[2] & 0xf0) == 0 { return false }
             return true

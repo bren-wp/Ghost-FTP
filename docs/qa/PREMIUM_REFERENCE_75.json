@@ -1,0 +1,103 @@
+{
+  "type": "concept-reference-only",
+  "provenance": "User-supplied GhostFTP-Premium-Brand-UI(5).zip; not app screenshots",
+  "screen_size": {
+    "windows": [
+      1290,
+      852
+    ],
+    "linux": [
+      1290,
+      852
+    ],
+    "android": [
+      480,
+      960
+    ]
+  },
+  "screens": {
+    "windows": [
+      "brand",
+      "files",
+      "sites",
+      "new-connection",
+      "quick-connect",
+      "transfers",
+      "failed-transfers",
+      "transfer-schedule",
+      "sync",
+      "directory-diff",
+      "duplicates",
+      "disk-usage",
+      "settings",
+      "settings-transfer",
+      "settings-security",
+      "settings-appearance",
+      "terminal",
+      "command-palette",
+      "snippets",
+      "agent",
+      "import",
+      "host-key",
+      "overwrite",
+      "properties",
+      "permissions",
+      "shortcuts",
+      "help",
+      "updates",
+      "search",
+      "delete-confirm"
+    ],
+    "linux": [
+      "files",
+      "sites",
+      "new-connection",
+      "quick-connect",
+      "transfers",
+      "failed-transfers",
+      "transfer-schedule",
+      "sync",
+      "directory-diff",
+      "duplicates",
+      "disk-usage",
+      "settings",
+      "settings-transfer",
+      "settings-security",
+      "settings-appearance",
+      "terminal",
+      "command-palette",
+      "snippets",
+      "agent",
+      "import",
+      "host-key",
+      "overwrite",
+      "properties",
+      "permissions",
+      "shortcuts",
+      "help",
+      "updates",
+      "search",
+      "delete-confirm"
+    ],
+    "android": [
+      "files",
+      "sites",
+      "connect",
+      "transfers",
+      "sync",
+      "settings",
+      "about",
+      "new-folder",
+      "rename",
+      "delete",
+      "upload",
+      "download",
+      "host-key",
+      "activity",
+      "disconnected",
+      "transfer-detail"
+    ]
+  },
+  "total": 75,
+  "qa_state": "unverified"
+}

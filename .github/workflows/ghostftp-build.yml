@@ -335,7 +335,12 @@ jobs:
           chmod +x .github/scripts/capture-linux-premium.sh
           # A disposable session bus lets GTK/WebKit initialize its normal
           # window/rendering services without reducing its sandbox policy.
-          dbus-run-session -- xvfb-run -a -s '-screen 0 1290x852x24' bash .github/scripts/capture-linux-premium.sh \
+          mkdir -p qa/linux
+          # Give Xvfb time to initialize before entering the script; the
+          # script independently verifies the live authenticated display.
+          # Retain server stderr in the QA artifact when startup fails.
+          dbus-run-session -- xvfb-run -a -w 2 -e qa/linux/xvfb-stderr.log \
+            -s '-screen 0 1290x852x24' bash .github/scripts/capture-linux-premium.sh \
             ghostftp-desktop/src-tauri/target/release/ghostftp qa/linux
           test -s qa/linux/Linux-Files-1290x852.png
           test -s qa/linux/SHA256SUMS.txt

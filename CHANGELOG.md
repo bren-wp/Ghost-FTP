@@ -1,3 +1,12 @@
+## 0.95.9 — Android/macOS signed-cloud public peer policy alignment (development candidate) — 13 October 2026
+
+- **Security (#126 partial):** Disallow the RFC 7343 ORCHIDv2 `2001:20::/28` IPv6 address family as a signed-cloud socket destination on both Android OkHttp DNS and macOS peer-pinned curl.
+- **Regression tests:** Cover the low and high nibble edges of that IPv6 prefix on each platform. Existing mixed-answer, direct-only, TLS-verifying transport and cancellation protections remain intact.
+- **Visual QA:** Register the supplied 75-screen Windows/Linux/Android design concepts as explicit *references*, not application captures. Real installed-platform screenshots and behavior must be compared before claiming 1:1 parity.
+- **Release lineage:** Advance package and source metadata to `0.95.9` after verified public `v0.95.8`; published tags are immutable. Issues #126–#128 remain open pending full device/provider acceptance.
+
+See [docs/releases/0.95.9.md](docs/releases/0.95.9.md).
+
 ## 0.95.8 — Android private cloud stage recovery after process termination (development candidate) — 13 October 2026
 
 - **Crash-residue cleanup:** On cold Android process start, remove strictly named app-private cloud download `*.part` staging files left if the process died before its `finally` block. Activity recreation in a live process never repeats the cleanup.

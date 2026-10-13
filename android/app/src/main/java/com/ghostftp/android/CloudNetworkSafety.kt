@@ -74,6 +74,10 @@ internal class PublicCloudDns(private val upstream: Dns = Dns.SYSTEM) : Dns {
                           bytes[4] == 0 && bytes[5] == 0) &&
                         !(bytes[0] == 0x20 && bytes[1] == 0x01 &&
                           bytes[2] == 0 && (bytes[3] and 0xf0) == 0x10) &&
+                        // ORCHIDv2 identifiers (RFC 7343, 2001:20::/28)
+                        // are not ordinary globally reachable cloud peers.
+                        !(bytes[0] == 0x20 && bytes[1] == 0x01 &&
+                          bytes[2] == 0 && (bytes[3] and 0xf0) == 0x20) &&
                         !(bytes[0] == 0x3f && bytes[1] == 0xff &&
                           (bytes[2] and 0xf0) == 0)
                 }
@@ -103,7 +107,8 @@ internal class CloudTransferCancellation {
             }
         }
         if (alreadyCancelled) {
-            runCatching { stream.close() }
+            // Late SAF provider close() may block indefinitely.
+            closeProviderOffThread(stream, "Late")
             throw InterruptedIOException("Cloud transfer canceled.")
         }
     }
@@ -130,13 +135,17 @@ internal class CloudTransferCancellation {
             // DocumentsProvider may block indefinitely in close(), and must
             // not prevent cancellation of other active provider streams.
             streams.forEachIndexed { index, stream ->
-                Thread({
-                    runCatching { stream.close() }
-                }, "GhostFTP-CloudProviderCancel-$index").apply {
-                    isDaemon = true
-                    start()
-                }
+                closeProviderOffThread(stream, index.toString())
             }
+        }
+    }
+
+    private fun closeProviderOffThread(stream: Closeable, label: String) {
+        Thread({
+            runCatching { stream.close() }
+        }, "GhostFTP-CloudProviderCancel-$label").apply {
+            isDaemon = true
+            start()
         }
     }
 
