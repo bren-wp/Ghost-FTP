@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Επιλεγμένος απομακρυσμένος φάκελος: %1$s</string>
     <string name="state_selected_remote_file">Επιλεγμένο απομακρυσμένο αρχείο: %1$s</string>
     <string name="label_selected">Επιλεγμένο</string>
+    <string name="label_author">Δημιουργός</string>
 </resources>

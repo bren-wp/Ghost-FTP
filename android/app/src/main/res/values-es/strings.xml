@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Carpeta remota seleccionada: %1$s</string>
     <string name="state_selected_remote_file">Archivo remoto seleccionado: %1$s</string>
     <string name="label_selected">Seleccionado</string>
+    <string name="label_author">Autor</string>
 </resources>
