@@ -94,5 +94,5 @@ internal object SavedSiteProfiles {
             site.fingerprint.length <= 255 && site.remotePath.length <= 1024 &&
             site.keepAliveSeconds in 5..300 &&
             listOf(site.name, site.host, site.username, site.fingerprint, site.remotePath)
-                .all { field -> field.none(Char::isISOControl) }
+                .all { field -> field.none { char -> char.code < 32 || char.code == 127 } }
 }
