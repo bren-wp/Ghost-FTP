@@ -15,7 +15,9 @@ concurrency:
 
 jobs:
   android:
-    runs-on: macos-15-intel
+    # Android 16 x86_64 AOSP ATD remained ADB-offline until the emulator boot
+    # timeout on macOS Intel; Linux KVM supplies hardware acceleration.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
         with:
@@ -50,8 +52,16 @@ jobs:
           target: aosp_atd
           arch: x86_64
           disable-animations: true
+          emulator-boot-timeout: 900
           pre-emulator-launch-script: |
             set -euo pipefail
+            # Fail with an actionable error instead of timing out with
+            # "adb: device offline" when the runner has no KVM access.
+            if [ ! -c /dev/kvm ]; then
+              echo "::error::Android 16 emulator requires /dev/kvm on the Linux runner."
+              exit 1
+            fi
+            sudo chmod 666 /dev/kvm
             adb start-server
             adb version
             adb devices
