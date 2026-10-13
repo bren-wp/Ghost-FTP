@@ -1,11 +1,10 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
@@ -110,6 +109,9 @@ pub struct ConnectionProfile {
 pub struct ProfileStore {
     path: PathBuf,
     inner: Arc<Mutex<Vec<ConnectionProfile>>>,
+    // Preserve the last recoverable snapshot until the user explicitly
+    // repairs storage; never silently replace malformed files with [].
+    recovery_required: Option<String>,
 }
 
 impl ProfileStore {
@@ -135,36 +137,48 @@ impl ProfileStore {
         }
         let path = dir.join("profiles.json");
         let backup = dir.join("profiles.json.bak");
+        let mut recovery_required = None;
         let profiles: Vec<ConnectionProfile> = if path.exists() {
             let bytes =
                 std::fs::read(&path).with_context(|| format!("reading {}", path.display()))?;
             match serde_json::from_slice(&bytes) {
                 Ok(v) => v,
-                Err(_main_err) => {
-                    // A partial/corrupt profile write must not crash Ghost FTP or
-                    // silently destroy the last known-good data. Prefer the backup
-                    // and preserve the broken file for manual recovery/support.
+                Err(main_error) => {
+                    // Keep corrupt bytes in a private, uniquely named snapshot,
+                    // never reusing a recovery filename for the backup.
+                    preserve_corrupt_copy(&path, &bytes)?;
+                    recovery_required = Some(format!(
+                        "profiles.json is damaged ({main_error}); profile changes are disabled until storage is repaired from its recovery copies"
+                    ));
                     if backup.exists() {
                         let backup_bytes = std::fs::read(&backup)
                             .with_context(|| format!("reading {}", backup.display()))?;
-                        if let Ok(v) = serde_json::from_slice(&backup_bytes) {
-                            preserve_corrupt_copy(&path, &bytes);
-                            v
-                        } else {
-                            // Both copies are corrupt. Preserve both for support/recovery,
-                            // then start with an empty store instead of crashing the entire
-                            // application during startup. No corrupt data is silently deleted.
-                            preserve_corrupt_copy(&path, &bytes);
-                            preserve_corrupt_copy(&backup, &backup_bytes);
-                            Vec::new()
+                        match serde_json::from_slice(&backup_bytes) {
+                            Ok(v) => v,
+                            Err(_) => {
+                                preserve_corrupt_copy(&backup, &backup_bytes)?;
+                                Vec::new()
+                            }
                         }
                     } else {
-                        // A malformed profiles.json must not make Ghost FTP unusable. Keep
-                        // the broken file for recovery and continue with an empty profile
-                        // list; the next successful write will create a new known-good file.
-                        preserve_corrupt_copy(&path, &bytes);
                         Vec::new()
                     }
+                }
+            }
+        } else if backup.exists() {
+            // An interrupted file promotion can leave only profiles.json.bak.
+            // Expose recoverable data but do not delete the last valid copy.
+            let bytes =
+                std::fs::read(&backup).with_context(|| format!("reading {}", backup.display()))?;
+            recovery_required = Some(
+                "profiles.json is missing but profiles.json.bak exists; changes are disabled until the primary file is restored"
+                    .to_string(),
+            );
+            match serde_json::from_slice(&bytes) {
+                Ok(v) => v,
+                Err(_) => {
+                    preserve_corrupt_copy(&backup, &bytes)?;
+                    Vec::new()
                 }
             }
         } else {
@@ -173,6 +187,7 @@ impl ProfileStore {
         Ok(Self {
             path,
             inner: Arc::new(Mutex::new(profiles)),
+            recovery_required,
         })
     }
 
@@ -228,16 +243,21 @@ impl ProfileStore {
     }
 
     fn write(&self, profiles: &[ConnectionProfile]) -> Result<()> {
+        if let Some(reason) = &self.recovery_required {
+            bail!("{reason}");
+        }
         let bytes = serde_json::to_vec_pretty(profiles)?;
         let parent = self.path.parent().context("profile path has no parent")?;
-        let tmp = parent.join("profiles.json.tmp");
+        // Never truncate a predictable temporary filename: a stale file or a
+        // symlink must not redirect profile metadata writes outside app data.
+        let tmp = parent.join(format!(".profiles.json.{}.tmp", uuid::Uuid::new_v4()));
         let backup = parent.join("profiles.json.bak");
 
         // Write + fsync a sibling temp file first, so a process/power failure
         // never leaves a half-written profiles.json.
         {
             let mut options = std::fs::OpenOptions::new();
-            options.create(true).truncate(true).write(true);
+            options.create_new(true).write(true);
             #[cfg(unix)]
             options.mode(0o600);
             let mut file = options
@@ -276,13 +296,136 @@ impl ProfileStore {
     }
 }
 
-fn preserve_corrupt_copy(path: &Path, bytes: &[u8]) {
-    let stamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    if let Some(parent) = path.parent() {
-        let recovery = parent.join(format!("profiles.corrupt.{stamp}.json"));
-        let _ = std::fs::write(recovery, bytes);
+/// Never overwrite a recovery file, and never place recovered credentials or
+/// connection metadata in a world-readable default-mode file on Unix.
+fn preserve_corrupt_copy(path: &Path, bytes: &[u8]) -> Result<PathBuf> {
+    let parent = path
+        .parent()
+        .context("corrupt profile path has no parent")?;
+    let source = path
+        .file_name()
+        .context("corrupt profile path has no filename")?
+        .to_string_lossy();
+    let recovery = parent.join(format!(
+        ".{source}.ghostftp-corrupt-{}.recovery",
+        uuid::Uuid::new_v4()
+    ));
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let mut file = options
+        .open(&recovery)
+        .with_context(|| format!("creating private recovery copy {}", recovery.display()))?;
+    file.write_all(bytes)
+        .with_context(|| format!("writing recovery copy {}", recovery.display()))?;
+    file.sync_all()
+        .with_context(|| format!("syncing recovery copy {}", recovery.display()))?;
+    #[cfg(unix)]
+    std::fs::set_permissions(&recovery, std::fs::Permissions::from_mode(0o600))
+        .with_context(|| format!("securing recovery copy {}", recovery.display()))?;
+    Ok(recovery)
+}
+
+#[cfg(test)]
+mod recovery_tests {
+    use super::*;
+
+    fn temp_profile_dir() -> PathBuf {
+        let path = std::env::temp_dir().join(format!(
+            "ghostftp-profile-integrity-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir(&path).expect("private test directory");
+        path
+    }
+
+    fn recovery_files(dir: &Path) -> Vec<PathBuf> {
+        std::fs::read_dir(dir)
+            .expect("read test directory")
+            .map(|entry| entry.expect("directory entry").path())
+            .filter(|path| path.to_string_lossy().contains(".ghostftp-corrupt-"))
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn corrupt_main_and_valid_backup_remain_readable_but_never_get_overwritten() {
+        let dir = temp_profile_dir();
+        let primary = dir.join("profiles.json");
+        let backup = dir.join("profiles.json.bak");
+        std::fs::write(&primary, b"{broken-primary").unwrap();
+        std::fs::write(&backup, b"[]").unwrap();
+        let store = ProfileStore::from_dir(&dir).expect("load backup read-only");
+        assert!(store.list().await.unwrap().is_empty());
+        assert!(store.delete("any").await.is_err());
+        assert_eq!(std::fs::read(&backup).unwrap(), b"[]");
+        assert_eq!(std::fs::read(&primary).unwrap(), b"{broken-primary");
+        assert_eq!(recovery_files(&dir).len(), 1);
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn two_corrupt_copies_are_preserved_separately_and_never_replaced() {
+        let dir = temp_profile_dir();
+        let primary = dir.join("profiles.json");
+        let backup = dir.join("profiles.json.bak");
+        std::fs::write(&primary, b"{broken-primary").unwrap();
+        std::fs::write(&backup, b"{broken-backup").unwrap();
+        let store = ProfileStore::from_dir(&dir).expect("open read-only");
+        assert!(store.reorder(&[]).await.is_err());
+        let copies = recovery_files(&dir);
+        assert_eq!(copies.len(), 2);
+        let bytes: Vec<Vec<u8>> = copies
+            .iter()
+            .map(|path| std::fs::read(path).unwrap())
+            .collect();
+        assert!(bytes.contains(&b"{broken-primary".to_vec()));
+        assert!(bytes.contains(&b"{broken-backup".to_vec()));
+        #[cfg(unix)]
+        for path in &copies {
+            assert_eq!(
+                std::fs::metadata(path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn only_backup_after_interrupted_commit_is_loaded_read_only() {
+        let dir = temp_profile_dir();
+        let backup = dir.join("profiles.json.bak");
+        std::fs::write(&backup, b"[]").unwrap();
+        let store = ProfileStore::from_dir(&dir).unwrap();
+        assert!(store.list().await.unwrap().is_empty());
+        assert!(store.delete("any").await.is_err());
+        assert_eq!(std::fs::read(&backup).unwrap(), b"[]");
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn predictable_legacy_staging_file_is_not_overwritten() {
+        let dir = temp_profile_dir();
+        let legacy = dir.join("profiles.json.tmp");
+        std::fs::write(&legacy, b"keep-existing-staging").unwrap();
+        let store = ProfileStore::from_dir(&dir).unwrap();
+        store.reorder(&[]).await.unwrap();
+        assert_eq!(std::fs::read(&legacy).unwrap(), b"keep-existing-staging");
+        assert_eq!(std::fs::read(dir.join("profiles.json")).unwrap(), b"[]");
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn healthy_store_still_persists_updates() {
+        let dir = temp_profile_dir();
+        let store = ProfileStore::from_dir(&dir).unwrap();
+        store.reorder(&[]).await.unwrap();
+        assert_eq!(std::fs::read(dir.join("profiles.json")).unwrap(), b"[]");
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }
