@@ -1,12 +1,12 @@
 # Ghost FTP — Project Status & Recommended Next Work
 
-Current development source: **0.95.8** (security and premium visual QA); previous published release: **0.95.7**. Historical versioned notes below remain unchanged.
+Current development source: **0.95.9** (security and premium visual QA); previous published release: **0.95.8**. Historical versioned notes below remain unchanged.
 
-> Older 0.94.0/0.93.0 status notes remain historical. Current source is **0.95.8**, latest public release **0.95.7**.
+> Older 0.94.0/0.93.0 status notes remain historical. Current source is **0.95.9**, latest public release **0.95.8**.
 
-Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.8** release notes.
+Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.9** release notes.
 
-Previous canonical release: **0.95.7**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.95.8**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
