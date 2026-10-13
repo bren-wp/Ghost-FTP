@@ -250,10 +250,7 @@ impl ProfileStore {
         let parent = self.path.parent().context("profile path has no parent")?;
         // Never truncate a predictable temporary filename: a stale file or a
         // symlink must not redirect profile metadata writes outside app data.
-        let tmp = parent.join(format!(
-            ".profiles.json.{}.tmp",
-            uuid::Uuid::new_v4()
-        ));
+        let tmp = parent.join(format!(".profiles.json.{}.tmp", uuid::Uuid::new_v4()));
         let backup = parent.join("profiles.json.bak");
 
         // Write + fsync a sibling temp file first, so a process/power failure
@@ -302,7 +299,9 @@ impl ProfileStore {
 /// Never overwrite a recovery file, and never place recovered credentials or
 /// connection metadata in a world-readable default-mode file on Unix.
 fn preserve_corrupt_copy(path: &Path, bytes: &[u8]) -> Result<PathBuf> {
-    let parent = path.parent().context("corrupt profile path has no parent")?;
+    let parent = path
+        .parent()
+        .context("corrupt profile path has no parent")?;
     let source = path
         .file_name()
         .context("corrupt profile path has no filename")?
@@ -377,7 +376,10 @@ mod recovery_tests {
         assert!(store.reorder(&[]).await.is_err());
         let copies = recovery_files(&dir);
         assert_eq!(copies.len(), 2);
-        let bytes: Vec<Vec<u8>> = copies.iter().map(|path| std::fs::read(path).unwrap()).collect();
+        let bytes: Vec<Vec<u8>> = copies
+            .iter()
+            .map(|path| std::fs::read(path).unwrap())
+            .collect();
         assert!(bytes.contains(&b"{broken-primary".to_vec()));
         assert!(bytes.contains(&b"{broken-backup".to_vec()));
         #[cfg(unix)]

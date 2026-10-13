@@ -281,24 +281,39 @@ mod tests {
     #[test]
     fn reject_newlines_controls_patterns_and_ambiguous_host_fields() {
         for host in [
-            "", " server.test", "server.test ", "server\nattacker.test",
-            "server\rattacker.test", "server\tattacker.test",
-            "server.test,attacker.test", "*.test", "!trusted.test",
-            "|1|injected|entry", "#comment",
+            "",
+            " server.test",
+            "server.test ",
+            "server\nattacker.test",
+            "server\rattacker.test",
+            "server\tattacker.test",
+            "server.test,attacker.test",
+            "*.test",
+            "!trusted.test",
+            "|1|injected|entry",
+            "#comment",
         ] {
-            assert!(validate_host_key_target(host, 22).is_err(), "accepted {host:?}");
+            assert!(
+                validate_host_key_target(host, 22).is_err(),
+                "accepted {host:?}"
+            );
         }
         assert!(validate_host_key_target("example.test", 0).is_err());
     }
 
     #[test]
     fn permit_literal_ipv4_ipv6_dns_and_nondefault_ports() {
-        for host in ["example.test", "127.0.0.1", "::1", "2001:db8::1234", "xn--bcher-kva.example"] {
+        for host in [
+            "example.test",
+            "127.0.0.1",
+            "::1",
+            "2001:db8::1234",
+            "xn--bcher-kva.example",
+        ] {
             assert!(validate_host_key_target(host, 22).is_ok());
             assert!(validate_host_key_target(host, 2222).is_ok());
         }
     }
-
 
     #[test]
     fn rewrite_matching_lines_replaces_once_and_preserves_unrelated_rows() {
