@@ -22,3 +22,12 @@ A visible **Connect** must attempt an actual network session using entered crede
 6. Verify click targets and keyboard/Android focus behavior in all target screen sizes; user-supplied reference art is not evidence of running-app parity.
 
 **Status:** v0.95.10 was published from merge commit `a74d0515d74501ef99b7dfd4bcca26f92ecf7d8a` with 21 release assets. Its six PR-SHA workflows succeeded, but the published source still has three unresolved review findings. A subsequent corrective branch `fix/0.95.11-connection-review-followups` addresses compact desktop Username visibility, stale macOS drafts when opening saved sites, and Android saved custom ports; it also avoids retaining temporary credentials in the desktop UI store. These changes are **not part of the existing v0.95.10 release** and require fresh CI and device QA. Do not declare pixel parity or promote an unverified replacement release.
+
+## Android saved-site management acceptance — 0.95.11 candidate
+
+1. Save three Sites in reverse alphabetical order, then verify the saved profile spinner sorts names without losing metadata.
+2. Load a Site, edit its hostname, name and custom port, then select **Update selected profile**. Verify only that Site changes and no credential is stored.
+3. Attempt to rename the Site to another Site's name (case-insensitive); the update must fail without affecting any saved profile.
+4. Select **Remove selected profile**, cancel its confirmation and verify no deletion. Confirm removal and verify the other Sites remain unmodified.
+5. When stored JSON is invalid or storage cannot commit, Save/Update/Remove must fail closed, not destroy the original inventory.
+6. Repeat on a physical Android 8–15 device and verify keyboard, rotation and accessibility. JVM tests alone do not establish device acceptance.

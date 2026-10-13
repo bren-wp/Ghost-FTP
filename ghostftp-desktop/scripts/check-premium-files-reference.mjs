@@ -39,6 +39,11 @@ requireText(macOSFiles, "session.connect(profile: profile, password: password)",
 requireText(macOSFiles, "profiles.save(profile)", "macOS saved-site draft cannot be persisted on explicit Save");
 requireText(android, 'primaryButton(getString(R.string.action_connect)) { openConnection() }', "Android direct Connect no longer invokes its transport");
 requireText(android, 'SavedSiteProfiles.save(this@MainActivity, name, profile)', "Android lacks explicit Save new profile");
+requireText(android, "SavedSiteProfiles.update(this@MainActivity, original.name, name, profile)", "Android saved-site editing is not wired");
+requireText(android, "SavedSiteProfiles.remove(this@MainActivity, entry.name)", "Android saved-site deletion is not wired");
+requireText(android, 'requestInlineConfirmation(', "Android deletion must require confirmation");
+requireText(androidSaved, 'saved.toMutableList().apply', "Android editing must not replace other Sites");
+requireText(androidSaved, 'return decode(raw)', "Android storage must reject corrupted inventory before mutation");
 requireText(android, 'passwordInput.text.clear()', "Android saved-profile selection does not clear credentials");
 if (androidSaved.includes('put("password"') || androidSaved.includes('put("token"')) {
   violations.push("Android saved-site metadata includes secrets");
