@@ -107,7 +107,8 @@ internal class CloudTransferCancellation {
             }
         }
         if (alreadyCancelled) {
-            runCatching { stream.close() }
+            // Late SAF provider close() may block indefinitely.
+            closeProviderOffThread(stream, "Late")
             throw InterruptedIOException("Cloud transfer canceled.")
         }
     }
@@ -134,13 +135,17 @@ internal class CloudTransferCancellation {
             // DocumentsProvider may block indefinitely in close(), and must
             // not prevent cancellation of other active provider streams.
             streams.forEachIndexed { index, stream ->
-                Thread({
-                    runCatching { stream.close() }
-                }, "GhostFTP-CloudProviderCancel-$index").apply {
-                    isDaemon = true
-                    start()
-                }
+                closeProviderOffThread(stream, index.toString())
             }
+        }
+    }
+
+    private fun closeProviderOffThread(stream: Closeable, label: String) {
+        Thread({
+            runCatching { stream.close() }
+        }, "GhostFTP-CloudProviderCancel-$label").apply {
+            isDaemon = true
+            start()
         }
     }
 

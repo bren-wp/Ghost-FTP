@@ -69,15 +69,47 @@ class CloudProviderCancellationTest {
     @Test fun streamOpenedAfterCancellationIsClosedAndRejected() {
         val cancellation = CloudTransferCancellation()
         cancellation.cancel()
-        val closed = AtomicInteger(0)
+        val closed = CountDownLatch(1)
         val stream = object : Closeable {
-            override fun close() { closed.incrementAndGet() }
+            override fun close() { closed.countDown() }
         }
         try {
             cancellation.watchStream(stream)
             fail("An already cancelled transfer must not accept a new provider stream")
         } catch (_: InterruptedIOException) {
-            assertEquals(1, closed.get())
+            assertTrue("late SAF stream must receive off-thread close", closed.await(2, TimeUnit.SECONDS))
+        }
+    }
+
+    @Test fun lateStreamRegistrationDoesNotBlockOnHostileProviderClose() {
+        val cancellation = CloudTransferCancellation()
+        cancellation.cancel()
+        val closeEntered = CountDownLatch(1)
+        val unblockProvider = CountDownLatch(1)
+        val registrationReturned = CountDownLatch(1)
+        val lateStream = object : Closeable {
+            override fun close() {
+                closeEntered.countDown()
+                unblockProvider.await(5, TimeUnit.SECONDS)
+            }
+        }
+        try {
+            val registrar = Thread({
+                try {
+                    cancellation.watchStream(lateStream)
+                    fail("A cancelled transfer must reject late streams")
+                } catch (_: InterruptedIOException) {
+                    registrationReturned.countDown()
+                }
+            }, "test-cloud-late-registration")
+            registrar.start()
+            assertTrue("late registration must reject without waiting for SAF close",
+                registrationReturned.await(2, TimeUnit.SECONDS))
+            assertTrue("provider close request must still be dispatched",
+                closeEntered.await(2, TimeUnit.SECONDS))
+            registrar.join(1000)
+        } finally {
+            unblockProvider.countDown()
         }
     }
 

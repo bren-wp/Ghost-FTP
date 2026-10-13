@@ -99,3 +99,7 @@ This does not guarantee cleanup while the process remains dead, on disk-full, af
 Both Android's socket-routing DNS filter and macOS's curl-pinned peer address selector now reject RFC 7343 ORCHIDv2 `2001:20::/28` as a non-public transport destination. Unit tests cover the first and last prefix nibble. Default platform TLS verification, no redirects, direct-only routing and public cloud provider host allowlists remain unchanged.
 
 This is **not** the controlled DNS/rebinding/proxy/VPN laboratory test or a genuine, successful signed-provider transfer. Do not close #126 without both; #127 and #128 also remain open.
+
+## 0.95.9 Android late-provider cancellation dispatch (#127 — partial)
+
+Provider streams first registered **after** cancellation are rejected immediately and signaled for close on a daemon closer, instead of synchronously waiting on a misbehaving DocumentsProvider. JVM tests cover asynchronous signal and a deliberately blocked provider close. A surrounding Kotlin `use` cleanup can still block if the provider itself never returns; this is not a guarantee of eventual Binder cancellation or a replacement for Android 8–15 physical SAF testing.
