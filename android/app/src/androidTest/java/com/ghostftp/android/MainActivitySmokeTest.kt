@@ -248,6 +248,74 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun savedSftpCustomPortSurvivesLoadEditAndProtocolRoundtrip() {
+        // Reproduce the real Spinner sequence behind the v0.95.10 review:
+        // loading SFTP on port 21 while FTP is selected, then editing the
+        // port and switching away/back must never restore the old saved value.
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "Port regression " + System.nanoTime()
+        val fixture = ConnectionProfile(
+            protocol = ConnectionProtocol.SFTP,
+            host = "sftp.invalid",
+            port = 21,
+            username = "qa-user",
+            password = "not-persisted",
+            hostKeyFingerprint = "",
+            remotePath = "/",
+            keepAliveSeconds = 15
+        )
+        assertTrue(SavedSiteProfiles.save(context, name, fixture))
+        try {
+            scenario.recreate()
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            openWorkspace(R.string.workspace_sites)
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                val sites = findView(root) {
+                    it is Spinner && it.contentDescription?.toString() == "Saved connection profiles"
+                } as Spinner
+                val index = SavedSiteProfiles.read(context).indexOfFirst { it.name == name }
+                assertTrue("Test saved profile missing from inventory", index >= 0)
+                sites.setSelection(index + 1)
+                val open = findText(root, "Use saved profile")
+                assertNotNull("Use saved profile action missing", open)
+                assertTrue(open!!.performClick())
+            }
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                val port = findView(root) {
+                    it is EditText && it.hint?.toString() == "21"
+                } as EditText
+                val protocol = findView(root) {
+                    it is Spinner && it.contentDescription?.toString() == appString(R.string.field_protocol)
+                } as Spinner
+                assertEquals(ConnectionProtocol.SFTP.ordinal, protocol.selectedItemPosition)
+                assertEquals("21", port.text.toString())
+                port.setText("2021")
+                protocol.setSelection(ConnectionProtocol.FTP.ordinal)
+            }
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                val protocol = findView(root) {
+                    it is Spinner && it.contentDescription?.toString() == appString(R.string.field_protocol)
+                } as Spinner
+                protocol.setSelection(ConnectionProtocol.SFTP.ordinal)
+            }
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            scenario.onActivity { activity ->
+                val port = findView(activity.window.decorView) {
+                    it is EditText && it.hint?.toString() == "21"
+                } as EditText
+                assertEquals("2021", port.text.toString())
+            }
+        } finally {
+            assertTrue("Failed to remove isolated QA profile", SavedSiteProfiles.remove(context, name))
+        }
+    }
+
+    @Test
     fun connectionValidationAndIdleRecoveryWorkClickByClick() {
         openWorkspace(R.string.workspace_sites)
         clickByDescription(appString(R.string.action_connect))
