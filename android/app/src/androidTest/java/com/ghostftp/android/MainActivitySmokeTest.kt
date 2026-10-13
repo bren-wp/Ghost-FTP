@@ -631,7 +631,7 @@ class MainActivitySmokeTest {
     private fun clickByDescription(description: String) {
         scenario.onActivity { activity ->
             val view = findView(activity.window.decorView) {
-                it.contentDescription?.toString() == description
+                it.contentDescription?.toString() == description && it.isShown
             }
             assertNotNull("Missing control with content description: $description", view)
             view!!
@@ -649,7 +649,7 @@ class MainActivitySmokeTest {
     private fun assertDescriptionEnabled(description: String, expected: Boolean) {
         scenario.onActivity { activity ->
             val view = findView(activity.window.decorView) {
-                it.contentDescription?.toString() == description
+                it.contentDescription?.toString() == description && it.isShown
             }
             assertNotNull("Missing control with content description: $description", view)
             assertEquals(
@@ -663,10 +663,10 @@ class MainActivitySmokeTest {
     private fun assertDescriptionPresent(description: String) {
         scenario.onActivity { activity ->
             val view = findView(activity.window.decorView) {
-                it.contentDescription?.toString() == description
+                it.contentDescription?.toString() == description && it.isShown
             }
             assertNotNull("Missing control with content description: $description", view)
-            assertTrue("Control is not shown in the Activity hierarchy: $description", view!!.isShown)
+            assertTrue("Matched control must remain visible: $description", view!!.isShown)
         }
     }
 
