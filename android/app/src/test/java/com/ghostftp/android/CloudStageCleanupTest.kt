@@ -52,6 +52,34 @@ class CloudStageCleanupTest {
         }
     }
 
+    @Test fun symlinkThatLooksLikeAStageIsNeverFollowedOrDeleted() {
+        val cache = Files.createTempDirectory("ghostftp-symlink-cache-").toFile()
+        val outside = Files.createTempDirectory("ghostftp-symlink-target-").toFile()
+        try {
+            val target = File(outside, "must-be-preserved.bin").apply {
+                writeBytes(byteArrayOf(42, 41, 40))
+            }
+            val link = File(cache, "ghostftp-cloud-abcdef.part")
+            try {
+                Files.createSymbolicLink(link.toPath(), target.toPath())
+            } catch (error: UnsupportedOperationException) {
+                org.junit.Assume.assumeNoException("Symlinks unsupported by this filesystem", error)
+            } catch (error: java.io.IOException) {
+                org.junit.Assume.assumeNoException("Symlink creation unavailable", error)
+            } catch (error: SecurityException) {
+                org.junit.Assume.assumeNoException("Symlink creation denied", error)
+            }
+
+            assertEquals(0, CloudStageCleanup.purge(cache))
+            assertTrue("an external target must not be removed", target.exists())
+            assertEquals(3L, target.length())
+            assertTrue("the symbolic link itself is excluded", Files.isSymbolicLink(link.toPath()))
+        } finally {
+            cache.deleteRecursively()
+            outside.deleteRecursively()
+        }
+    }
+
     @Test fun missingCacheDirectoryDoesNotCrashStartup() {
         val missing = File(Files.createTempDirectory("ghostftp-no-cache-").toFile(), "absent")
         try {
