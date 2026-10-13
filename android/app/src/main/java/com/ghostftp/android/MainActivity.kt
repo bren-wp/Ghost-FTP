@@ -118,6 +118,8 @@ class MainActivity : Activity() {
     private var operationInFlight = false
     private var activeCancellation: OperationCancellation? = null
     private var selectedProtocol = ConnectionProtocol.FTP
+    // Spinner callbacks may arrive after setSelection; preserve the saved site's exact port.
+    private var pendingSavedProfilePort: Pair<ConnectionProtocol, Int>? = null
 
     @Volatile
     private var activityClosing = false
@@ -663,6 +665,7 @@ class MainActivity : Activity() {
             if (entry == null) {
                 showMessage("Saved profiles", "Select a saved profile first.")
             } else {
+                pendingSavedProfilePort = entry.protocol to entry.port
                 protocolSpinner.setSelection(entry.protocol.ordinal)
                 hostInput.setText(entry.host)
                 portInput.setText(entry.port.toString())
@@ -799,7 +802,13 @@ class MainActivity : Activity() {
             ) {
                 val nextProtocol = ConnectionProtocol.fromIndex(position)
                 val currentPort = portInput.text.toString().trim()
-                if (currentPort.isBlank() || currentPort == selectedProtocol.defaultPort.toString()) {
+                val loadedPort = pendingSavedProfilePort
+                if (loadedPort != null && nextProtocol == loadedPort.first) {
+                    // The selected profile's port wins over the previous protocol default.
+                    portInput.setText(loadedPort.second.toString())
+                    pendingSavedProfilePort = null
+                } else if (loadedPort == null &&
+                    (currentPort.isBlank() || currentPort == selectedProtocol.defaultPort.toString())) {
                     portInput.setText(nextProtocol.defaultPort.toString())
                 }
                 selectedProtocol = nextProtocol

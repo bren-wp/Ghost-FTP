@@ -14,6 +14,7 @@ const macOS = source("macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
 const macOSFiles = source("macos/Sources/GhostFTPMacApp/Views/ContentView.swift");
 const android = source("android/app/src/main/java/com/ghostftp/android/MainActivity.kt");
 const androidSaved = source("android/app/src/main/java/com/ghostftp/android/SavedSiteProfiles.kt");
+const connectionStore = source("ghostftp-desktop/src/stores/connectionsStore.ts");
 const violations = [];
 const requireText = (actual, text, error) => {
   if (!actual.includes(text)) violations.push(error);
@@ -43,6 +44,16 @@ if (androidSaved.includes('put("password"') || androidSaved.includes('put("token
   violations.push("Android saved-site metadata includes secrets");
 }
 requireText(chrome, 'type="submit"', "Quick connection cannot submit from keyboard");
+requireText(chrome, '"Connecting…"', "Quick Connect must report the pending state");
+requireText(chrome, '"Failed — check connection details"', "Quick Connect must report a failed attempt");
+requireText(connectionStore, 'password: ""', "Temporary sessions retain a password in the UI store");
+requireText(connectionStore, 'passphrase: undefined', "Temporary sessions retain a key passphrase in the UI store");
+requireText(macOS, "newSiteDraft = nil\n                    selectedSiteID = id", "macOS saved-site Open must clear an abandoned draft");
+requireText(android, "pendingSavedProfilePort = entry.protocol to entry.port", "Android saved-site loading has no custom-port guard");
+requireText(android, "nextProtocol == loadedPort.first", "Android protocol spinner can overwrite a loaded port");
+if (/ghost-premium-quickconnect\s*>\s*label:nth-child\(2\)\s*\{\s*display:\s*none/i.test(css)) {
+  violations.push("Compact desktop layout hides the required Quick Connect username");
+}
 requireText(chrome, 'event.preventDefault()', "Quick connection submits an invalid native form");
 requireText(chrome, 'PROTOCOL_DEFAULT_PORT[value]', "Protocol change does not update default port");
 requireText(chrome, 'state.activeSessionId', "Connected status not bound to real session");
