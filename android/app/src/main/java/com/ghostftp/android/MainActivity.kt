@@ -579,6 +579,9 @@ class MainActivity : Activity() {
     }
 
     private fun buildInlineConfirmationCard(): View = panel(strong = true).apply {
+        // A panel built without saving this reference makes every destructive
+        // confirmation a silent no-op (including saved-site removal).
+        confirmationPanel = this
         visibility = View.GONE
         contentDescription = getString(R.string.action_confirm)
 
