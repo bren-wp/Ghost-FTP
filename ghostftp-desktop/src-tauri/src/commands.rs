@@ -109,6 +109,77 @@ pub async fn list_profiles(state: State<'_, AppState>) -> Result<Vec<ConnectionP
     Ok(sanitized)
 }
 
+/// Export server/user metadata through an exclusive, private staging file.
+///
+/// Never stream directly into an existing destination: disk-full errors could
+/// otherwise truncate the user's last export. Reject symlink targets and keep
+/// a rollback copy until the new file has been promoted on Windows or Unix.
+fn write_private_profile_export(destination: &Path, bytes: &[u8]) -> Result<(), String> {
+    use std::io::Write;
+    #[cfg(unix)]
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+
+    let parent = destination
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    std::fs::create_dir_all(parent).map_err(err)?;
+    let filename = destination
+        .file_name()
+        .ok_or_else(|| "export destination must identify a file".to_string())?
+        .to_string_lossy();
+    let temporary = parent.join(format!(".{filename}.ghostftp-{}.tmp", Uuid::new_v4()));
+    let rollback = parent.join(format!(".{filename}.ghostftp-{}.previous", Uuid::new_v4()));
+
+    let result = (|| -> Result<(), String> {
+        let mut options = std::fs::OpenOptions::new();
+        options.create_new(true).write(true);
+        #[cfg(unix)]
+        options.mode(0o600);
+        let mut file = options.open(&temporary).map_err(err)?;
+        file.write_all(bytes).map_err(err)?;
+        file.sync_all().map_err(err)?;
+        #[cfg(unix)]
+        std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o600))
+            .map_err(err)?;
+        drop(file);
+
+        let existed = match std::fs::symlink_metadata(destination) {
+            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+                return Err("Profile exports cannot replace links or non-files.".to_string());
+            }
+            Ok(_) => true,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+            Err(error) => return Err(err(error)),
+        };
+        if existed {
+            std::fs::rename(destination, &rollback).map_err(err)?;
+            #[cfg(unix)]
+            std::fs::set_permissions(&rollback, std::fs::Permissions::from_mode(0o600))
+                .map_err(err)?;
+        }
+        if let Err(install_error) = std::fs::rename(&temporary, destination) {
+            if existed {
+                if let Err(recovery_error) = std::fs::rename(&rollback, destination) {
+                    return Err(format!(
+                        "Profile export failed ({install_error}); original file remains at {}: {recovery_error}",
+                        rollback.display()
+                    ));
+                }
+            }
+            return Err(err(install_error));
+        }
+        if existed {
+            let _ = std::fs::remove_file(&rollback);
+        }
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temporary);
+    }
+    result
+}
+
 #[tauri::command]
 pub async fn export_profiles(path: String, state: State<'_, AppState>) -> Result<usize, String> {
     let destination = Path::new(&path);
@@ -129,7 +200,7 @@ pub async fn export_profiles(path: String, state: State<'_, AppState>) -> Result
         sanitized.push(profile);
     }
     let bytes = serde_json::to_vec_pretty(&sanitized).map_err(err)?;
-    std::fs::write(&path, bytes).map_err(err)?;
+    write_private_profile_export(destination, &bytes)?;
     Ok(sanitized.len())
 }
 
@@ -2562,5 +2633,63 @@ mod transfer_history_export_tests {
         assert_eq!(transfer_history_csv_cell("=SUM(A1:A2)"), "'=SUM(A1:A2)");
         assert_eq!(transfer_history_csv_cell("@cmd"), "'@cmd");
         assert_eq!(transfer_history_csv_cell("/safe/path"), "/safe/path");
+    }
+}
+
+#[cfg(test)]
+mod private_profile_export_tests {
+    use super::write_private_profile_export;
+    use std::path::PathBuf;
+
+    fn sandbox() -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-export-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn profile_export_creates_private_complete_file() {
+        let dir = sandbox();
+        let target = dir.join("profiles.json");
+        write_private_profile_export(&target, b"[]").unwrap();
+        assert_eq!(std::fs::read(&target).unwrap(), b"[]");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&target).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn profile_export_replaces_regular_file_without_residual_staging() {
+        let dir = sandbox();
+        let target = dir.join("profiles.json");
+        std::fs::write(&target, b"old").unwrap();
+        write_private_profile_export(&target, b"new-complete-content").unwrap();
+        assert_eq!(std::fs::read(&target).unwrap(), b"new-complete-content");
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn profile_export_rejects_symlink_without_modifying_target() {
+        use std::os::unix::fs::symlink;
+        let dir = sandbox();
+        let protected = dir.join("protected.txt");
+        let link = dir.join("profiles.json");
+        std::fs::write(&protected, b"do-not-touch").unwrap();
+        symlink(&protected, &link).unwrap();
+        assert!(write_private_profile_export(&link, b"new-content").is_err());
+        assert_eq!(std::fs::read(&protected).unwrap(), b"do-not-touch");
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 2);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }
