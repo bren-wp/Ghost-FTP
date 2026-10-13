@@ -58,7 +58,6 @@ private struct MacQuickConnect: View {
         Form {
             Section("Quick Connect · temporary FTP session") {
                 TextField("Host", text: $host)
-                    .textContentType(.URL)
                 TextField("Username", text: $username)
                 SecureField("Password", text: $password)
                     .privacySensitive()
