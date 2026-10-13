@@ -28,6 +28,28 @@ export LIBGL_ALWAYS_SOFTWARE=1
 # Use the ordinary GTK X11 path with Mesa's CPU renderer instead.
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME"
 
+# xvfb-run starts its X server asynchronously. Some GitHub-hosted runners
+# schedule this child after the capture script has already reached Openbox.
+# Probe a real authenticated X11 connection before starting the window
+# manager; a populated DISPLAY alone is not proof of a usable X server.
+if [ -z "${DISPLAY:-}" ]; then
+  echo "Linux capture requires an X11 DISPLAY from xvfb-run." >&2
+  exit 1
+fi
+display_ready=0
+for attempt in $(seq 1 80); do
+  if xdpyinfo -display "$DISPLAY" > "$output/display-state.txt" 2> "$output/display-errors.log"; then
+    display_ready=1
+    break
+  fi
+  sleep 0.25
+done
+if [ "$display_ready" -ne 1 ]; then
+  echo "Linux capture could not authenticate to the Xvfb display within 20 seconds." >&2
+  cat "$output/display-errors.log" >&2 || true
+  exit 1
+fi
+
 # Xvfb exposes an X server but does not launch a window manager. A live
 # Tauri/GTK window can remain unmapped or lack WM_VISIBLE state without one.
 # Run a lightweight WM in this disposable display; don't hide a missing GUI.
