@@ -363,6 +363,7 @@ class MainActivitySmokeTest {
             assertTrue(afterEdit.any { it.name == renamed && it.port == 2244 })
             assertTrue(afterEdit.none { it.name == secondName })
 
+            // First cancel and verify the profile is not deleted.
             scenario.onActivity { activity ->
                 val root = activity.window.decorView
                 assertTrue(findText(root, "Remove selected profile")!!.performClick())
@@ -370,7 +371,27 @@ class MainActivitySmokeTest {
                     it.contentDescription?.toString() == "Remove profile"
                 }
                 assertNotNull("Inline removal confirmation missing", confirm)
-                assertTrue(confirm!!.performClick())
+                assertTrue("Confirmation must be visible before any deletion", confirm!!.isShown)
+                val cancel = findView(root) {
+                    it.contentDescription?.toString() == appString(R.string.action_cancel)
+                }
+                assertNotNull("Inline confirmation cancel action missing", cancel)
+                assertTrue(cancel!!.performClick())
+            }
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            assertTrue("Cancel must preserve the selected profile",
+                SavedSiteProfiles.read(context).any { it.name == renamed && it.port == 2244 })
+
+            // Then explicitly confirm and verify only the selected entry is removed.
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                assertTrue(findText(root, "Remove selected profile")!!.performClick())
+                val confirm = findView(root) {
+                    it.contentDescription?.toString() == "Remove profile"
+                }
+                assertNotNull("Inline removal confirmation missing", confirm)
+                assertTrue(confirm!!.isShown)
+                assertTrue(confirm.performClick())
             }
             InstrumentationRegistry.getInstrumentation().waitForIdleSync()
             val afterDelete = SavedSiteProfiles.read(context)
