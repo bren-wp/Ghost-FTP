@@ -8,6 +8,12 @@ const source = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const chrome = source("ghostftp-desktop/src/components/PremiumFilesChrome.tsx");
 const app = source("ghostftp-desktop/src/App.tsx");
 const css = source("ghostftp-desktop/src/styles.css");
+const savedSiteDialog = source("ghostftp-desktop/src/components/QuickConnectionDialog.tsx");
+const desktopSidebar = source("ghostftp-desktop/src/components/ReferenceSiteSidebar.tsx");
+const macOS = source("macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
+const macOSFiles = source("macos/Sources/GhostFTPMacApp/Views/ContentView.swift");
+const android = source("android/app/src/main/java/com/ghostftp/android/MainActivity.kt");
+const androidSaved = source("android/app/src/main/java/com/ghostftp/android/SavedSiteProfiles.kt");
 const violations = [];
 const requireText = (actual, text, error) => {
   if (!actual.includes(text)) violations.push(error);
@@ -20,6 +26,22 @@ requireText(chrome, 'type="password"', "Quick Connect must collect a masked tran
 requireText(chrome, 'setPassword("")', "Quick Connect does not clear the transient credential on success");
 if (chrome.includes("openNewConnection(")) violations.push("Quick Connect still launches the saved-profile editor");
 if (chrome.includes("New connection</span>")) violations.push("Duplicate New connection button in Files chrome");
+requireText(savedSiteDialog, "await saveProfile(profile)", "New connection does not save a reusable profile");
+requireText(savedSiteDialog, "Save profile", "New connection editor lacks a visible Save profile action");
+if (savedSiteDialog.includes("await connectTemporary(") || savedSiteDialog.includes("await connectProfile(")) {
+  violations.push("New saved-site dialog must not start network sessions");
+}
+requireText(desktopSidebar, 'aria-label="New connection"', "Sidebar lacks the single New connection action");
+requireText(macOS, "newSiteDraft = ConnectionProfile()", "macOS New connection does not start an unsaved draft");
+if (macOS.includes("profiles.addProfile()")) violations.push("macOS New connection persists an empty site before Save");
+requireText(macOSFiles, "session.connect(profile: profile, password: password)", "macOS temporary FTP Connect is not bound to its backend");
+requireText(macOSFiles, "profiles.save(profile)", "macOS saved-site draft cannot be persisted on explicit Save");
+requireText(android, 'primaryButton(getString(R.string.action_connect)) { openConnection() }', "Android direct Connect no longer invokes its transport");
+requireText(android, 'SavedSiteProfiles.save(this@MainActivity, name, profile)', "Android lacks explicit Save new profile");
+requireText(android, 'passwordInput.text.clear()', "Android saved-profile selection does not clear credentials");
+if (androidSaved.includes('put("password"') || androidSaved.includes('put("token"')) {
+  violations.push("Android saved-site metadata includes secrets");
+}
 requireText(chrome, 'type="submit"', "Quick connection cannot submit from keyboard");
 requireText(chrome, 'event.preventDefault()', "Quick connection submits an invalid native form");
 requireText(chrome, 'PROTOCOL_DEFAULT_PORT[value]', "Protocol change does not update default port");

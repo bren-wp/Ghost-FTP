@@ -44,3 +44,7 @@ Automation cannot prove every OS compositor, accessibility technology, language 
 Before a stable/FINAL claim, perform a complete Windows/Linux pointer + keyboard sweep and Android physical-device sweep, including repeated open/close cycles, focus traversal, destructive confirmations, disabled states, file picker/storage behavior and supported languages.
 
 For the pre-1.0 0.19.0 release, automated exact-SHA gates are mandatory and manual stable/FINAL acceptance remains a separate criterion.
+
+## 0.95.10 connection workflow regression
+
+See [Connection actions](CONNECTION_WORKFLOW_0.95.10.md): desktop Connect submits to a temporary backend session without a new-profile modal; only an explicit saved-profile Save persists New Connection. macOS Files supports immediate temporary FTP and New Connection begins as an unsaved draft. Android Connect stays separate from saving/loading password-free reusable site metadata. Source contracts are checked automatically, but actual installed-app click-through and real-server checks remain necessary.
