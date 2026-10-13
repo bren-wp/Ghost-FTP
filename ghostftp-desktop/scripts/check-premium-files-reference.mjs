@@ -49,8 +49,13 @@ requireText(chrome, '"Failed — check connection details"', "Quick Connect must
 requireText(connectionStore, 'password: ""', "Temporary sessions retain a password in the UI store");
 requireText(connectionStore, 'passphrase: undefined', "Temporary sessions retain a key passphrase in the UI store");
 requireText(macOS, "newSiteDraft = nil\n                    selectedSiteID = id", "macOS saved-site Open must clear an abandoned draft");
-requireText(android, "pendingSavedProfilePort = entry.protocol to entry.port", "Android saved-site loading has no custom-port guard");
-requireText(android, "nextProtocol == loadedPort.first", "Android protocol spinner can overwrite a loaded port");
+requireText(android, "selectConnectionProtocolAndPort(entry.protocol, entry.port)", "Android saved-site loading must preserve custom ports");
+requireText(android, "selectConnectionProtocolAndPort(protocol, port)", "Android restored backup ports must be preserved");
+requireText(android, "position != protocolSpinner.selectedItemPosition", "Android must ignore stale Spinner events");
+requireText(android, "portOnProtocolChange(", "Android user protocol changes must respect typed ports");
+if (android.includes("pendingSavedProfilePort")) {
+  violations.push("Android retains a stale saved-port guard that can overwrite later user edits");
+}
 if (/ghost-premium-quickconnect\s*>\s*label:nth-child\(2\)\s*\{\s*display:\s*none/i.test(css)) {
   violations.push("Compact desktop layout hides the required Quick Connect username");
 }

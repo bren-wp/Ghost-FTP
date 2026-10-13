@@ -118,8 +118,6 @@ class MainActivity : Activity() {
     private var operationInFlight = false
     private var activeCancellation: OperationCancellation? = null
     private var selectedProtocol = ConnectionProtocol.FTP
-    // Spinner callbacks may arrive after setSelection; preserve the saved site's exact port.
-    private var pendingSavedProfilePort: Pair<ConnectionProtocol, Int>? = null
 
     @Volatile
     private var activityClosing = false
@@ -665,10 +663,8 @@ class MainActivity : Activity() {
             if (entry == null) {
                 showMessage("Saved profiles", "Select a saved profile first.")
             } else {
-                pendingSavedProfilePort = entry.protocol to entry.port
-                protocolSpinner.setSelection(entry.protocol.ordinal)
+                selectConnectionProtocolAndPort(entry.protocol, entry.port)
                 hostInput.setText(entry.host)
-                portInput.setText(entry.port.toString())
                 usernameInput.setText(entry.username)
                 passwordInput.text.clear()
                 hostKeyFingerprintInput.setText(entry.fingerprint)
@@ -785,6 +781,16 @@ class MainActivity : Activity() {
         })
     }
 
+    private fun selectConnectionProtocolAndPort(protocol: ConnectionProtocol, port: Int) {
+        // Update the logical selection before setSelection: Spinner callbacks may be
+        // synchronous, deferred, or omitted when the same item is already selected.
+        // The next matching callback must never rewrite this saved custom port.
+        selectedProtocol = protocol
+        protocolSpinner.setSelection(protocol.ordinal)
+        portInput.setText(port.toString())
+        updateProtocolSpecificFields(protocol)
+    }
+
     private fun installProtocolSelectionBehavior(seedDefaultPort: Boolean) {
         selectedProtocol = ConnectionProtocol.fromIndex(protocolSpinner.selectedItemPosition)
         updateProtocolSpecificFields(selectedProtocol)
@@ -800,17 +806,15 @@ class MainActivity : Activity() {
                 position: Int,
                 id: Long
             ) {
+                // A delayed callback for an earlier selection must not undo a
+                // more recent saved-site load or a subsequent manual selection.
+                if (position != protocolSpinner.selectedItemPosition) return
                 val nextProtocol = ConnectionProtocol.fromIndex(position)
-                val currentPort = portInput.text.toString().trim()
-                val loadedPort = pendingSavedProfilePort
-                if (loadedPort != null && nextProtocol == loadedPort.first) {
-                    // The selected profile's port wins over the previous protocol default.
-                    portInput.setText(loadedPort.second.toString())
-                    pendingSavedProfilePort = null
-                } else if (loadedPort == null &&
-                    (currentPort.isBlank() || currentPort == selectedProtocol.defaultPort.toString())) {
-                    portInput.setText(nextProtocol.defaultPort.toString())
-                }
+                portOnProtocolChange(
+                    previous = selectedProtocol,
+                    next = nextProtocol,
+                    currentPort = portInput.text.toString()
+                )?.let { portInput.setText(it) }
                 selectedProtocol = nextProtocol
                 updateProtocolSpecificFields(nextProtocol)
             }
@@ -1377,9 +1381,10 @@ class MainActivity : Activity() {
 
     private fun resetConnectionForm() {
         disconnect()
-        if (::protocolSpinner.isInitialized) protocolSpinner.setSelection(ConnectionProtocol.FTP.ordinal)
+        if (::protocolSpinner.isInitialized && ::portInput.isInitialized) {
+            selectConnectionProtocolAndPort(ConnectionProtocol.FTP, ConnectionProtocol.FTP.defaultPort)
+        }
         if (::hostInput.isInitialized) hostInput.text.clear()
-        if (::portInput.isInitialized) portInput.setText(ConnectionProtocol.FTP.defaultPort.toString())
         if (::usernameInput.isInitialized) usernameInput.text.clear()
         if (::hostKeyFingerprintInput.isInitialized) hostKeyFingerprintInput.text.clear()
         if (::sftpKeepAliveInput.isInitialized) sftpKeepAliveInput.setText("15")
@@ -1678,16 +1683,13 @@ class MainActivity : Activity() {
             }
 
             disconnect()
-            protocolSpinner.setSelection(protocol.ordinal)
+            selectConnectionProtocolAndPort(protocol, port)
             hostInput.setText(json.optString("host").trim())
-            portInput.setText(port.toString())
             usernameInput.setText(json.optString("username").trim())
             passwordInput.text.clear()
             hostKeyFingerprintInput.setText(json.optString("hostKeyFingerprint").trim())
             sftpKeepAliveInput.setText(keepAlive.toString())
             remotePathInput.setText(json.optString("remotePath", "/").trim().ifBlank { "/" })
-            selectedProtocol = protocol
-            updateProtocolSpecificFields(protocol)
         }.fold(
             onSuccess = {
                 syncBackupStatus.text = "Connection settings restored. Reconnect and enter the password again."
