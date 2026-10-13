@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Kiválasztott távoli mappa: %1$s</string>
     <string name="state_selected_remote_file">Kiválasztott távoli fájl: %1$s</string>
     <string name="label_selected">Kiválasztva</string>
+    <string name="label_author">Fejlesztő</string>
 </resources>

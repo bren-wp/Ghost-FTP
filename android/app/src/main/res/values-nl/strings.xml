@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Geselecteerde externe map: %1$s</string>
     <string name="state_selected_remote_file">Geselecteerd extern bestand: %1$s</string>
     <string name="label_selected">Geselecteerd</string>
+    <string name="label_author">Maker</string>
 </resources>
