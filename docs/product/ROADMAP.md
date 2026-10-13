@@ -1,10 +1,10 @@
 # Ghost FTP — Recommended Next Work
 
-> Current development: **0.95.10** (premium UI and cloud security), following published **0.95.9**. Historical sections are retained unchanged.
+> Current development: **0.95.11** (premium UI and cloud security), following published **0.95.10**. Historical sections are retained unchanged.
 
-> Earlier 0.94.0/0.93.0 sections remain historical. Current source is **0.95.10** and latest public release **0.95.9**.
+> Earlier 0.94.0/0.93.0 sections remain historical. Current source is **0.95.11** and latest public release **0.95.10**.
 
-This prioritized improvement backlog covers Ghost FTP **0.95.10**. Previous canonical release: **0.95.9**. Items here are recommendations, not claims of completed functionality.
+This prioritized improvement backlog covers Ghost FTP **0.95.11**. Previous canonical release: **0.95.10**. Items here are recommendations, not claims of completed functionality.
 
 ## Release blockers before FINAL
 
