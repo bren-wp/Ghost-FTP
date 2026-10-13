@@ -1,10 +1,10 @@
 # Ghost FTP Audit Index — 0.93.0
 
-> Current development: **0.95.7** (premium QA and cloud hardening), following published **0.95.6**. Historical sections are retained unchanged.
+> Current development: **0.95.8** (premium QA and cloud hardening), following published **0.95.7**. Historical sections are retained unchanged.
 
-> Current development source: **0.95.7**; latest verified published release: **0.95.6**. Historical findings below retain their original version labels.
+> Current development source: **0.95.8**; latest verified published release: **0.95.7**. Historical findings below retain their original version labels.
 
-This index retains historical 0.93.0 findings. Previous canonical release: **0.95.6**.
+This index retains historical 0.93.0 findings. Previous canonical release: **0.95.7**.
 
 - [Code audit](CODE.md)
 - [Security audit](SECURITY.md)
