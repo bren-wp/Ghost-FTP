@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { open as openNativeDialog } from "@tauri-apps/plugin-dialog";
-import { Bookmark, ChevronDown, Eye, EyeOff, FolderOpen, KeyRound, Link2, Radio, Settings2, X } from "lucide-react";
+import { Bookmark, ChevronDown, Eye, EyeOff, FolderOpen, KeyRound, Radio, Settings2, X } from "lucide-react";
 import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
 import { useConnections } from "@/stores/connectionsStore";

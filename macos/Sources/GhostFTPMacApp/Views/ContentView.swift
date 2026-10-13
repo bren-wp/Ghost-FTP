@@ -4,11 +4,25 @@ import SwiftUI
 struct FilesWorkspace: View {
     @ObservedObject var profiles: ProfileStore
     @Binding var selectedID: UUID?
+    @Binding var newSiteDraft: ConnectionProfile?
     let onOpenSites: () -> Void
 
     var body: some View {
         Group {
-            if let selectedID,
+            if let newSiteDraft {
+                ConnectionEditor(
+                    profile: newSiteDraft,
+                    savedProfiles: profiles.profiles,
+                    isNewSite: true,
+                    onSave: { profile in
+                        profiles.save(profile)
+                        self.newSiteDraft = nil
+                        self.selectedID = profile.id
+                    },
+                    onDelete: { _ in self.newSiteDraft = nil }
+                )
+                .id(newSiteDraft.id)
+            } else if let selectedID,
                let profile = profiles.profiles.first(where: { $0.id == selectedID }) {
                 ConnectionEditor(
                     profile: profile,
@@ -23,29 +37,118 @@ struct FilesWorkspace: View {
                 )
                 .id(profile.id)
             } else {
-                VStack(spacing: 14) {
-                    Image(systemName: "externaldrive.connected.to.line.below")
-                        .font(.system(size: 42))
-                        .foregroundStyle(.secondary)
-                    Text("Choose a site")
-                        .font(.title2.weight(.semibold))
-                    Text("Open Sites to select a saved connection, or use New connection in the sidebar.")
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
-                    Button("Open Sites") {
-                        onOpenSites()
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(24)
+                MacQuickConnect(onOpenSites: onOpenSites)
             }
         }
         .frame(minWidth: 760, minHeight: 600)
     }
 }
 
+/// Real temporary FTP connection — no ProfileStore or Keychain writes.
+private struct MacQuickConnect: View {
+    let onOpenSites: () -> Void
+    @StateObject private var session = FTPConnectionController()
+    @State private var host = ""
+    @State private var username = ""
+    @State private var password = ""
+    @State private var port = "21"
+    @State private var validationMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Quick Connect · temporary FTP session") {
+                TextField("Host", text: $host)
+                    .textContentType(.URL)
+                TextField("Username", text: $username)
+                SecureField("Password", text: $password)
+                    .privacySensitive()
+                TextField("Port", text: $port)
+                Text("Connect uses the entered credentials directly and never creates a saved site. FTP traffic is unencrypted; macOS FTPS/SFTP session engines are not yet available.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+
+                HStack {
+                    if session.isConnected {
+                        Button("Disconnect") { session.disconnect() }
+                    } else {
+                        Button {
+                            connectNow()
+                        } label: {
+                            if session.state == .connecting {
+                                ProgressView().controlSize(.small)
+                                Text("Connecting…")
+                            } else {
+                                Label("Connect", systemImage: "bolt.horizontal.circle")
+                            }
+                        }
+                        .disabled(session.state == .connecting)
+                        .keyboardShortcut(.return, modifiers: [])
+                    }
+                    Button("Saved sites") { onOpenSites() }
+                }
+            }
+            if let validationMessage {
+                Text(validationMessage).foregroundStyle(.red)
+            }
+            switch session.state {
+            case .idle:
+                EmptyView()
+            case .connecting:
+                Text("Authenticating with the FTP server…")
+            case .connected(let path):
+                Label("Connected · \(path)", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            case .failed(let message):
+                Text(message).foregroundStyle(.red)
+            }
+            if session.isConnected {
+                Section("Remote files") {
+                    Button("Refresh listing") { session.refreshDirectory() }
+                    if session.entries.isEmpty && !session.isListing {
+                        Text("The server returned no entries.")
+                    }
+                    ForEach(session.entries) { item in
+                        Label(item.name, systemImage: item.isDirectory ? "folder" : "doc")
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .onChange(of: session.state) { state in
+            if case .connected = state { password = "" }
+        }
+        .onDisappear {
+            session.disconnect()
+            password = ""
+        }
+    }
+
+    private func connectNow() {
+        guard let parsedPort = UInt16(port), !host.trimmingCharacters(in: .whitespaces).isEmpty,
+              !username.trimmingCharacters(in: .whitespaces).isEmpty else {
+            validationMessage = "Enter a host, username and port (1–65535)."
+            return
+        }
+        let profile = ConnectionProfile(
+            name: host.trimmingCharacters(in: .whitespaces),
+            protocolKind: .ftp,
+            host: host.trimmingCharacters(in: .whitespaces),
+            port: parsedPort,
+            username: username.trimmingCharacters(in: .whitespaces)
+        )
+        do {
+            try ConnectionValidator.validate(profile)
+            validationMessage = nil
+            session.connect(profile: profile, password: password)
+        } catch {
+            validationMessage = error.localizedDescription
+        }
+    }
+}
+
 private struct ConnectionEditor: View {
     let savedProfiles: [ConnectionProfile]
+    let isNewSite: Bool
     let onSave: (ConnectionProfile) -> Void
     let onDelete: (UUID) throws -> Void
 
@@ -63,10 +166,12 @@ private struct ConnectionEditor: View {
     init(
         profile: ConnectionProfile,
         savedProfiles: [ConnectionProfile],
+        isNewSite: Bool = false,
         onSave: @escaping (ConnectionProfile) -> Void,
         onDelete: @escaping (UUID) throws -> Void
     ) {
         self.savedProfiles = savedProfiles
+        self.isNewSite = isNewSite
         self.onSave = onSave
         self.onDelete = onDelete
         _draft = State(initialValue: profile)
@@ -208,7 +313,7 @@ private struct ConnectionEditor: View {
                 }
             }
 
-            if draft.protocolKind == .ftp {
+            if !isNewSite && draft.protocolKind == .ftp {
                 Section("FTP session") {
                     HStack {
                         if ftpSession.isConnected {
@@ -328,7 +433,7 @@ private struct ConnectionEditor: View {
 
             Section {
                 HStack {
-                    Button("Delete site", role: .destructive) {
+                    Button(isNewSite ? "Cancel new site" : "Delete site", role: .destructive) {
                         do {
                             try onDelete(draft.id)
                         } catch {
@@ -338,7 +443,7 @@ private struct ConnectionEditor: View {
 
                     Spacer()
 
-                    Button("Save") {
+                    Button(isNewSite ? "Save profile" : "Save") {
                         save()
                     }
                     .keyboardShortcut("s", modifiers: .command)
@@ -347,7 +452,7 @@ private struct ConnectionEditor: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(draft.name.isEmpty ? "New site" : draft.name)
+        .navigationTitle(isNewSite ? "New saved site" : (draft.name.isEmpty ? "Site settings" : draft.name))
         .onAppear {
             do {
                 if let saved = try keychain.password(for: draft.id) {

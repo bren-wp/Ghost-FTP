@@ -10,9 +10,9 @@ type QuickProtocol = Extract<Protocol, "sftp" | "ftps" | "ftp">;
 /**
  * Reference-aligned real Files chrome for Windows/Linux.
  *
- * The inline connect form intentionally never handles credentials. It passes
- * only non-secret fields to the existing validated connection editor, where
- * authentication, host-key confirmation and TLS handling remain authoritative.
+ * Quick Connect uses the real ephemeral backend with a transient password.
+ * Host-key verification and TLS are enforced by the existing Rust protocol
+ * adapters; the form never saves a profile or transfers secrets to storage.
  */
 export function PremiumFilesChrome() {
   const activeSessionId = useConnections((state) => state.activeSessionId);

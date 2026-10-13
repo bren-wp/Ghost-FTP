@@ -59,6 +59,7 @@ struct ContentView: View {
     @StateObject private var transferHistory = TransferHistoryStore.shared
     @State private var workspace: MacWorkspace = .files
     @State private var selectedSiteID: UUID?
+    @State private var newSiteDraft: ConnectionProfile?
 
     @AppStorage("ghostftp.macos.workspace") private var storedWorkspace = MacWorkspace.files.rawValue
     @AppStorage("ghostftp.macos.remember-workspace") private var rememberWorkspace = true
@@ -71,7 +72,7 @@ struct ContentView: View {
                     Button {
                         createConnection()
                     } label: {
-                        Label("New connection", systemImage: "plus.circle.fill")
+                        Label("New connection · Save profile", systemImage: "plus.circle.fill")
                     }
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(GhostPremiumPalette.text)
@@ -155,6 +156,7 @@ struct ContentView: View {
             FilesWorkspace(
                 profiles: profiles,
                 selectedID: $selectedSiteID,
+                newSiteDraft: $newSiteDraft,
                 onOpenSites: { workspace = .sites }
             )
         case .sites:
@@ -180,8 +182,9 @@ struct ContentView: View {
     }
 
     private func createConnection() {
-        let profile = profiles.addProfile()
-        selectedSiteID = profile.id
+        // Do not persist an empty Site merely because New connection was clicked.
+        newSiteDraft = ConnectionProfile()
+        selectedSiteID = nil
         workspace = .files
     }
 }
