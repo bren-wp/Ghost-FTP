@@ -74,6 +74,10 @@ internal class PublicCloudDns(private val upstream: Dns = Dns.SYSTEM) : Dns {
                           bytes[4] == 0 && bytes[5] == 0) &&
                         !(bytes[0] == 0x20 && bytes[1] == 0x01 &&
                           bytes[2] == 0 && (bytes[3] and 0xf0) == 0x10) &&
+                        // ORCHIDv2 identifiers (RFC 7343, 2001:20::/28)
+                        // are not ordinary globally reachable cloud peers.
+                        !(bytes[0] == 0x20 && bytes[1] == 0x01 &&
+                          bytes[2] == 0 && (bytes[3] and 0xf0) == 0x20) &&
                         !(bytes[0] == 0x3f && bytes[1] == 0xff &&
                           (bytes[2] and 0xf0) == 0)
                 }

@@ -27,6 +27,8 @@ final class PinnedCloudTransportTests: XCTestCase {
             [0x20, 0x01, 0, 0],
             [0x20, 0x01, 0, 2], // IANA benchmarking /48
             [0x20, 0x01, 0, 0x10], // deprecated ORCHID /28
+            [0x20, 0x01, 0, 0x20], // RFC 7343 ORCHIDv2 /28
+            [0x20, 0x01, 0, 0x2f], // final ORCHIDv2 prefix nibble
             [0x3f, 0xff, 0, 0] // documentation /20 (RFC 9637)
         ]
         for prefix in blockedIPv6Prefixes {

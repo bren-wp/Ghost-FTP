@@ -43,6 +43,8 @@ class CloudNetworkSafetyTest {
             InetAddress.getByName("2001:db8::1"),
             InetAddress.getByName("2001:2::1234"),  // IANA benchmarking
             InetAddress.getByName("2001:10::1"),   // deprecated ORCHID
+            InetAddress.getByName("2001:20::1"),   // RFC 7343 ORCHIDv2
+            InetAddress.getByName("2001:2f::1"),   // last /28 nibble
             InetAddress.getByName("3fff::1"),      // RFC 9637 documentation
             InetAddress.getByName("2002::1")
         )
