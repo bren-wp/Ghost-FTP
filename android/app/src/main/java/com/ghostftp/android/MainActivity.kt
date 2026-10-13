@@ -645,7 +645,8 @@ class MainActivity : Activity() {
 
     private fun buildConnectionCard(): View = panel().apply {
         addView(sectionTitle(getString(R.string.workspace_sites)))
-        addView(sectionDescription("Quick Connect: enter credentials and tap Connect. New profiles are saved separately for future use; passwords are never saved."))
+        addView(sectionDescription(getString(R.string.desc_sites)))
+        addView(sectionDescription("Quick Connect uses these credentials immediately. Save new connection profile is a separate action; passwords are never saved."))
 
         val savedProfiles = SavedSiteProfiles.read(this@MainActivity)
         addView(formLabel("Saved connection profiles"))
