@@ -29,11 +29,11 @@ jobs:
           packages: platform-tools
       - uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '8.10.2'
+          gradle-version: '8.11.1'
       - name: Install Android SDK packages
         shell: bash
         run: |
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager "platforms;android-35" "platforms;android-36" "build-tools;35.0.0"
 
       - name: Android production and visual instrumentation result contracts
         shell: bash
@@ -46,7 +46,7 @@ jobs:
       - name: Android click-through emulator smoke
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
-          api-level: 35
+          api-level: 36
           target: aosp_atd
           arch: x86_64
           disable-animations: true
@@ -104,7 +104,7 @@ jobs:
           test "$PREVIEW_VERSION_CODE" = "$ANDROID_VERSION_CODE"
           test "$PREVIEW_VERSION_NAME" = "${VERSION}-preview"
           test "$PREVIEW_MIN_SDK" = "26"
-          test "$PREVIEW_TARGET_SDK" = "35"
+          test "$PREVIEW_TARGET_SDK" = "36"
           test "$PREVIEW_LAUNCH_ACTIVITY" = "com.ghostftp.android.MainActivity"
           if grep -Fq "application-debuggable" <<< "$PREVIEW_BADGING"; then
             echo "Installable preview APK unexpectedly remains debuggable." >&2
@@ -130,7 +130,7 @@ jobs:
           test "$RELEASE_VERSION_CODE" = "$ANDROID_VERSION_CODE"
           test "$RELEASE_VERSION_NAME" = "$VERSION"
           test "$RELEASE_MIN_SDK" = "26"
-          test "$RELEASE_TARGET_SDK" = "35"
+          test "$RELEASE_TARGET_SDK" = "36"
           test "$RELEASE_LAUNCH_ACTIVITY" = "com.ghostftp.android.MainActivity"
           if grep -Fq "application-debuggable" <<< "$RELEASE_BADGING"; then
             echo "Unsigned release APK unexpectedly remains debuggable." >&2
