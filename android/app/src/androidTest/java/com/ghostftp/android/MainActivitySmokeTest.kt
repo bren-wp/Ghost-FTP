@@ -316,6 +316,76 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun savedSiteEditAndConfirmedRemoveKeepUnrelatedProfiles() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val suffix = System.nanoTime().toString()
+        val firstName = "First-" + suffix
+        val secondName = "Second-" + suffix
+        val renamed = "Edited-" + suffix
+        val base = ConnectionProfile(
+            protocol = ConnectionProtocol.FTP,
+            host = "ftp.invalid",
+            port = 21,
+            username = "qa-user",
+            password = "never-store",
+            hostKeyFingerprint = "",
+            remotePath = "/",
+            keepAliveSeconds = 15
+        )
+        assertTrue(SavedSiteProfiles.save(context, firstName, base))
+        assertTrue(SavedSiteProfiles.save(context, secondName, base.copy(port = 2121)))
+        try {
+            scenario.recreate()
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            openWorkspace(R.string.workspace_sites)
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                val spinner = findView(root) {
+                    it is Spinner && it.contentDescription?.toString() == "Saved connection profiles"
+                } as Spinner
+                val index = SavedSiteProfiles.read(context).indexOfFirst { it.name == secondName }
+                assertTrue("Second test site missing", index >= 0)
+                spinner.setSelection(index + 1)
+                assertTrue(findText(root, "Use saved profile")!!.performClick())
+                val siteName = findView(root) {
+                    it is EditText && it.hint?.toString() == "Name for saved profile"
+                } as EditText
+                val port = findView(root) {
+                    it is EditText && it.hint?.toString() == "21"
+                } as EditText
+                siteName.setText(renamed)
+                port.setText("2244")
+                assertTrue(findText(root, "Update selected profile")!!.performClick())
+            }
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            val afterEdit = SavedSiteProfiles.read(context)
+            assertTrue(afterEdit.any { it.name == firstName && it.port == 21 })
+            assertTrue(afterEdit.any { it.name == renamed && it.port == 2244 })
+            assertTrue(afterEdit.none { it.name == secondName })
+
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                assertTrue(findText(root, "Remove selected profile")!!.performClick())
+                val confirm = findView(root) {
+                    it.contentDescription?.toString() == "Remove profile"
+                }
+                assertNotNull("Inline removal confirmation missing", confirm)
+                assertTrue(confirm!!.performClick())
+            }
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            val afterDelete = SavedSiteProfiles.read(context)
+            assertTrue(afterDelete.any { it.name == firstName && it.port == 21 })
+            assertTrue(afterDelete.none { it.name == renamed })
+        } finally {
+            for (name in listOf(firstName, secondName, renamed)) {
+                if (SavedSiteProfiles.read(context).any { it.name == name }) {
+                    SavedSiteProfiles.remove(context, name)
+                }
+            }
+        }
+    }
+
+    @Test
     fun connectionValidationAndIdleRecoveryWorkClickByClick() {
         openWorkspace(R.string.workspace_sites)
         clickByDescription(appString(R.string.action_connect))
