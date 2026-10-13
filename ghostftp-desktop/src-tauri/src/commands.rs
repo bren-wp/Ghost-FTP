@@ -2639,10 +2639,7 @@ mod private_profile_export_tests {
     use std::path::PathBuf;
 
     fn sandbox() -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "ghostftp-export-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let dir = std::env::temp_dir().join(format!("ghostftp-export-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir(&dir).unwrap();
         dir
     }

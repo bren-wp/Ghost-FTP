@@ -617,3 +617,11 @@ for pattern in "${blocked_patterns[@]}"; do
 done
 
 echo "Ghost FTP Android $VERSION production contract OK"
+
+# Google Play 2026 submission baseline (Android 16 / API 36).
+require_text "Android 16 compileSdk" "$ANDROID_DIR/app/build.gradle.kts" 'compileSdk = 36'
+require_text "Google Play targetSdk" "$ANDROID_DIR/app/build.gradle.kts" 'targetSdk = 36'
+require_text "API 36-capable AGP" "$ANDROID_DIR/build.gradle.kts" 'version "8.10.1"'
+require_text "compatible Gradle" "$ANDROID_DIR/../.github/workflows/ghostftp-android.yml" "gradle-version: '8.11.1'"
+require_text "Android 16 emulator" "$ANDROID_DIR/../.github/workflows/ghostftp-android.yml" 'api-level: 36'
+require_text "release artifact targetSdk" "$ANDROID_DIR/../.github/workflows/ghostftp-android.yml" 'test "$RELEASE_TARGET_SDK" = "36"'
