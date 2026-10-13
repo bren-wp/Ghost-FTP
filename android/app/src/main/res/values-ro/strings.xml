@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Folder la distanță selectat: %1$s</string>
     <string name="state_selected_remote_file">Fișier la distanță selectat: %1$s</string>
     <string name="label_selected">Selectat</string>
+    <string name="label_author">Autor</string>
 </resources>

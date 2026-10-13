@@ -1,3 +1,14 @@
+## 0.95.13 — privacy-first Settings and adaptive Android identity — 14 October 2026
+
+- **Android privacy:** Privacy Policy and Terms of use now appear at the bottom of Settings, alongside the Brendigo author credit. These reuse the HTTPS-only allowlisted official links from Help & About.
+- **Accessible QA:** Android instrumentation checks the legal links are visible and clickable in Settings and confirms the author row.
+- **Adaptive app icon:** Android 8+ launcher icon now uses the approved Ghost FTP mark with the dark brand background; original in-app vector is preserved.
+- **Localization:** Localized author attribution across English and 22 existing Android translation sets. Improved main English workspace messaging and Croatian privacy Settings introduction.
+- **Production integrity:** Android API 36, separate installable Preview APK and intentionally unsigned release APK/AAB, real emulator/visual QA, desktop build and protocol E2E remain mandatory.
+- **Privacy documentation:** Removed stale candidate language and clearly documented the Brendigo identity and account-free transfer architecture.
+
+See [0.95.13 release notes](docs/releases/0.95.13.md).
+
 ## 0.95.12 — private profile export, Android 16 compatibility and premium README — 13 October 2026
 
 - **Windows/Linux:** Export connection profile metadata using exclusive private staging, rollback during replacement, and symlink refusal. Added regressions for permissions and complete replacement.

@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Cartella remota selezionata: %1$s</string>
     <string name="state_selected_remote_file">File remoto selezionato: %1$s</string>
     <string name="label_selected">Selezionato</string>
+    <string name="label_author">Autore</string>
 </resources>

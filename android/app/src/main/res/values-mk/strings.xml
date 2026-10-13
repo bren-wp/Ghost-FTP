@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Избрана оддалечена папка: %1$s</string>
     <string name="state_selected_remote_file">Избрана оддалечена датотека: %1$s</string>
     <string name="label_selected">Избрано</string>
+    <string name="label_author">Автор</string>
 </resources>

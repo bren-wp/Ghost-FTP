@@ -51,9 +51,9 @@
     <string name="hint_sftp_fingerprint">SHA256 fingerprint for SFTP</string>
     <string name="field_remote_path">Remote path</string>
     <string name="desc_sites">Connect to FTP, explicit FTPS or SFTP. Passwords stay in memory for the active session and are cleared on disconnect.</string>
-    <string name="desc_files">Open folders, select files, then use the toolbar actions aligned with Ghost FTP desktop.</string>
-    <string name="desc_transfers">Manage the selected remote entry, upload target, rename target and remote folder action for the active session.</string>
-    <string name="desc_settings">Working session and privacy controls aligned with Ghost FTP desktop safety rules.</string>
+    <string name="desc_files">Browse your server with confidence. Select files and explore folders with essential actions within reach.</string>
+    <string name="desc_transfers">Choose what to transfer, where it belongs and what happens next.</string>
+    <string name="desc_settings">Your files, your rules. Manage your private session and review trusted privacy and security information.</string>
     <string name="label_privacy">Privacy</string>
     <string name="settings_no_tracking">No required tracking, analytics or telemetry.</string>
     <string name="label_credentials">Credentials</string>
@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Selected remote folder: %1$s</string>
     <string name="state_selected_remote_file">Selected remote file: %1$s</string>
     <string name="label_selected">Selected</string>
+    <string name="label_author">Author</string>
 </resources>

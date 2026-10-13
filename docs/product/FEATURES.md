@@ -1,10 +1,10 @@
-> Ghost FTP **0.95.12** (release cycle), following published **v0.95.11**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.13** (release cycle), following published **v0.95.12**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
 
-> Current development cycle: **0.95.11**; latest verified public release: **0.95.10**. Historical sections remain version-specific.
+> Current development cycle: **0.95.12**; latest verified public release: **0.95.10**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.11 development source. Previous canonical release: **0.95.11**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.12 development source. Previous canonical release: **0.95.12**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 

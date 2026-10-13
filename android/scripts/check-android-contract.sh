@@ -625,3 +625,12 @@ require_text "API 36-capable AGP" "$ANDROID_DIR/build.gradle.kts" 'version "8.10
 require_text "compatible Gradle" "$ANDROID_DIR/../.github/workflows/ghostftp-android.yml" "gradle-version: '8.11.1'"
 require_text "Android 16 emulator" "$ANDROID_DIR/../.github/workflows/ghostftp-android.yml" 'api-level: 36'
 require_text "release artifact targetSdk" "$ANDROID_DIR/../.github/workflows/ghostftp-android.yml" 'test "$RELEASE_TARGET_SDK" = "36"'
+
+# Android 16 adaptive launcher and trusted Settings legal-link contracts.
+require_text "adaptive launcher icon" "$ANDROID_DIR/app/src/main/AndroidManifest.xml" 'android:icon="@mipmap/ic_ghost_ftp_launcher"'
+require_text "adaptive launcher round icon" "$ANDROID_DIR/app/src/main/AndroidManifest.xml" 'android:roundIcon="@mipmap/ic_ghost_ftp_launcher"'
+require_text "adaptive icon foreground" "$ANDROID_DIR/app/src/main/res/mipmap-anydpi-v26/ic_ghost_ftp_launcher.xml" '@drawable/ic_ghost_ftp_foreground'
+require_text "adaptive icon background" "$ANDROID_DIR/app/src/main/res/mipmap-anydpi-v26/ic_ghost_ftp_launcher.xml" '@drawable/ic_ghost_ftp_launcher_background'
+require_text "privacy in Settings" "$MAIN_ACTIVITY" 'addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))'
+require_text "terms in Settings" "$MAIN_ACTIVITY" 'addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))'
+require_text "Brendigo author" "$MAIN_ACTIVITY" 'addView(aboutFactRow(getString(R.string.label_author), "Brendigo"))'

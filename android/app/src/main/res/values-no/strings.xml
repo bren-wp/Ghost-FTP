@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Valgt ekstern mappe: %1$s</string>
     <string name="state_selected_remote_file">Valgt ekstern fil: %1$s</string>
     <string name="label_selected">Valgt</string>
+    <string name="label_author">Utvikler</string>
 </resources>

@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Vald fjärrmapp: %1$s</string>
     <string name="state_selected_remote_file">Vald fjärrfil: %1$s</string>
     <string name="label_selected">Vald</string>
+    <string name="label_author">Utvecklare</string>
 </resources>

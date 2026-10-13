@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Vybraný vzdialený priečinok: %1$s</string>
     <string name="state_selected_remote_file">Vybraný vzdialený súbor: %1$s</string>
     <string name="label_selected">Vybrané</string>
+    <string name="label_author">Autor</string>
 </resources>

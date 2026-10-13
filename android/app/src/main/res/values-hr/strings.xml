@@ -49,7 +49,7 @@
     <string name="desc_sites">Povežite se putem FTP-a, eksplicitnog FTPS-a ili SFTP-a. Lozinke ostaju u memoriji tijekom aktivne sesije i brišu se pri prekidu veze.</string>
     <string name="desc_files">Otvarajte mape, odaberite datoteke, a zatim koristite radnje alatne trake usklađene s Ghost FTP desktop aplikacijom.</string>
     <string name="desc_transfers">Upravljajte odabranom udaljenom stavkom, ciljem prijenosa, ciljem preimenovanja i radnjom udaljene mape za aktivnu sesiju.</string>
-    <string name="desc_settings">Kontrole aktivne sesije i privatnosti usklađene sa sigurnosnim pravilima Ghost FTP desktop aplikacije.</string>
+    <string name="desc_settings">Vaše datoteke, vaša pravila. Upravljajte privatnom sesijom i pregledajte informacije o sigurnosti i privatnosti.</string>
     <string name="label_privacy">Privatnost</string>
     <string name="settings_no_tracking">Nema obaveznog praćenja, analitike ni telemetrije.</string>
     <string name="label_credentials">Vjerodajnice</string>
@@ -147,4 +147,5 @@
     <string name="state_selected_remote_folder">Odabrana udaljena mapa: %1$s</string>
     <string name="state_selected_remote_file">Odabrana udaljena datoteka: %1$s</string>
     <string name="label_selected">Odabrano</string>
+    <string name="label_author">Autor</string>
 </resources>
