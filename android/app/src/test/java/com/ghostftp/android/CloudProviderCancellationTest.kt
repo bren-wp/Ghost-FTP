@@ -41,6 +41,31 @@ class CloudProviderCancellationTest {
         }
     }
 
+    @Test fun blockedProviderCloseDoesNotHoldUpAnotherProviderStream() {
+        val firstCloseEntered = CountDownLatch(1)
+        val unblockFirst = CountDownLatch(1)
+        val secondClosed = CountDownLatch(1)
+        val cancellation = CloudTransferCancellation()
+        cancellation.watchStream(object : Closeable {
+            override fun close() {
+                firstCloseEntered.countDown()
+                unblockFirst.await(5, TimeUnit.SECONDS)
+            }
+        })
+        cancellation.watchStream(object : Closeable {
+            override fun close() { secondClosed.countDown() }
+        })
+        try {
+            cancellation.cancel()
+            assertTrue("first provider close should begin",
+                firstCloseEntered.await(2, TimeUnit.SECONDS))
+            assertTrue("blocked close must not starve other SAF provider handles",
+                secondClosed.await(2, TimeUnit.SECONDS))
+        } finally {
+            unblockFirst.countDown()
+        }
+    }
+
     @Test fun streamOpenedAfterCancellationIsClosedAndRejected() {
         val cancellation = CloudTransferCancellation()
         cancellation.cancel()

@@ -82,3 +82,8 @@ Cloud SAF uploads, cloud GET staging and final SAF writes now share a size-limit
 ## 0.95.6 active SAF stream cancellation (Issue #127 — additional partial mitigation)
 
 The Android cloud cancellation token now tracks live user-provider `InputStream`/`OutputStream` handles for signed upload, final SAF output write and persisted-document readback. Cancellation first aborts the OkHttp request, then attempts to close the provider handles from a dedicated daemon thread rather than blocking the Android UI. A stream registered after cancellation is immediately closed and rejected; closed/deregistered streams are not reused. `CloudProviderCancellationTest.kt` adds three JVM race and lifecycle tests. This is *best-effort* provider I/O abortion, not a guarantee that malicious, defective or disconnected DocumentsProviders unblock their own Binder transactions. Device acceptance of #127 remains open; cancellation still has to be verified against real SAF providers and Android 8–15 lifecycle states.
+
+
+## 0.95.7 cancellation isolation follow-up (#127; source-level)
+
+`CloudProviderCancellationTest.blockedProviderCloseDoesNotHoldUpAnotherProviderStream` covers two concurrently watched SAF streams, where a simulated provider's `close()` blocks. Cancellation dispatches independent daemon close attempts so the other stream still receives its close request. This JVM regression alone does not prove termination of real provider Binder calls, Android 8–15 lifecycle behavior, revoked permissions, disk-full/1 GiB edge cases or atomic SAF replacement. #127 remains open pending physical-device and real DocumentsProvider acceptance.

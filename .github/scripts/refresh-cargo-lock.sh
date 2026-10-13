@@ -6,21 +6,14 @@ TAURI_DIR="$ROOT/ghostftp-desktop/src-tauri"
 
 cd "$TAURI_DIR"
 
-cargo generate-lockfile
-
-# Tauri 2.11.5+ currently publishes menu plugin code that is incompatible with
-# its own Error enum, while unconstrained transitive ranges can also pull 2.12
-# runtime/macros/utils into a 2.11 core. Lock the last coherent upstream set.
-cargo update -p tauri --precise 2.11.4
-# Downgrade dependants before their dependencies so Cargo never has to satisfy
-# a 2.12-only requirement with a 2.11 package during the transition.
-cargo update -p tauri-runtime-wry --precise 2.11.4
-cargo update -p tauri-runtime --precise 2.11.3
-cargo update -p tauri-macros --precise 2.6.3
-cargo update -p tauri-codegen --precise 2.6.3
-cargo update -p tauri-plugin --precise 2.6.3
-cargo update -p tauri-utils --precise 2.9.3
-cargo update -p tauri-build --precise 2.6.3
+# Verify the existing committed lock graph rather than regenerating it.
+# Re-resolving all registry packages can silently upgrade transitive
+# dependencies and previously tried to downgrade Tauri below the exact
+# version required by Cargo.toml (2.11.6). A development version bump
+# must not change third-party dependency versions or published hashes.
+# If workspace package versions drift, fail closed and require a reviewed
+# lockfile update committed with the manifest changes.
+cargo metadata --locked --format-version 1 >/dev/null
 
 check_locked() {
   local package="$1"
@@ -36,7 +29,15 @@ check_locked() {
   fi
 }
 
-check_locked tauri 2.11.4
+# The Tauri core lock must follow the exact pinned version in the manifest;
+# do not hardcode an older unrelated version in the refresh workflow.
+TAURI_PIN="$(sed -nE 's/^tauri = \{ version = "=([^"]+)".*/\1/p' Cargo.toml)"
+if [[ -z "$TAURI_PIN" ]]; then
+  echo "Cannot resolve the exact Tauri dependency pin from Cargo.toml." >&2
+  exit 1
+fi
+
+check_locked tauri "$TAURI_PIN"
 check_locked tauri-runtime 2.11.3
 check_locked tauri-runtime-wry 2.11.4
 check_locked tauri-macros 2.6.3
@@ -45,6 +46,4 @@ check_locked tauri-codegen 2.6.3
 check_locked tauri-plugin 2.6.3
 check_locked tauri-build 2.6.3
 
-cargo metadata --locked --format-version 1 >/dev/null
-
-echo "Canonical Cargo.lock generated and verified."
+echo "Canonical Cargo.lock metadata and dependency versions verified."

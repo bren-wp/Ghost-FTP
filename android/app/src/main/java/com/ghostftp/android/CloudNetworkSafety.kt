@@ -126,11 +126,16 @@ internal class CloudTransferCancellation {
             // ContentProvider.close() itself can block. Never perform it on
             // MainActivity's UI thread: abort pending provider I/O off-thread
             // and let the transfer worker's finally/use close its streams.
-            Thread({
-                streams.forEach { runCatching { it.close() } }
-            }, "GhostFTP-CloudProviderCancel").apply {
-                isDaemon = true
-                start()
+            // Each SAF handle needs an independent close attempt: a broken
+            // DocumentsProvider may block indefinitely in close(), and must
+            // not prevent cancellation of other active provider streams.
+            streams.forEachIndexed { index, stream ->
+                Thread({
+                    runCatching { stream.close() }
+                }, "GhostFTP-CloudProviderCancel-$index").apply {
+                    isDaemon = true
+                    start()
+                }
             }
         }
     }
