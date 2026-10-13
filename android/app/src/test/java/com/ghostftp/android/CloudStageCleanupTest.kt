@@ -17,6 +17,8 @@ class CloudStageCleanupTest {
             val similar = File(cache, "ghostftp-cloud-download.tmp").apply { writeText("preserve") }
             val directory = File(cache, "ghostftp-cloud-123456.part").apply { mkdir() }
             val nested = File(directory, "nested.part").apply { writeText("preserve") }
+            val tooShort = File(cache, "ghostftp-cloud-x.part").apply { writeText("preserve") }
+            val unrelatedExtension = File(cache, "ghostftp-cloud-abcdef.other").apply { writeText("preserve") }
 
             assertEquals(1, CloudStageCleanup.purge(cache))
             assertFalse(orphan.exists())
@@ -25,6 +27,8 @@ class CloudStageCleanupTest {
             assertTrue(similar.exists())
             assertTrue(directory.isDirectory)
             assertTrue(nested.exists())
+            assertTrue(tooShort.exists())
+            assertTrue(unrelatedExtension.exists())
             assertEquals(0, CloudStageCleanup.purge(cache))
         } finally {
             cache.deleteRecursively()
