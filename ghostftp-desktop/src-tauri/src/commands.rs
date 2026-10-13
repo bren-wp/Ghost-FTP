@@ -154,9 +154,6 @@ fn write_private_profile_export(destination: &Path, bytes: &[u8]) -> Result<(), 
         };
         if existed {
             std::fs::rename(destination, &rollback).map_err(err)?;
-            #[cfg(unix)]
-            std::fs::set_permissions(&rollback, std::fs::Permissions::from_mode(0o600))
-                .map_err(err)?;
         }
         if let Err(install_error) = std::fs::rename(&temporary, destination) {
             if existed {
