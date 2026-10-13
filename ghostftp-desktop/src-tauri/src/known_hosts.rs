@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use russh::keys::{PublicKey, PublicKeyBase64};
 use std::collections::BTreeSet;
 #[cfg(unix)]
@@ -16,6 +16,24 @@ pub fn known_hosts_path() -> Option<PathBuf> {
     Some(home.join(".ssh").join("known_hosts"))
 }
 
+/// Reject hostnames that could inject or override known_hosts entries.
+/// OpenSSH host patterns use commas, wildcards and negations; a connection
+/// target must be one literal host, not a pattern or another line.
+fn validate_host_key_target(host: &str, port: u16) -> Result<()> {
+    if port == 0
+        || host.is_empty()
+        || host.trim() != host
+        || host.chars().any(|character| {
+            character.is_control()
+                || character.is_whitespace()
+                || matches!(character, ',' | '*' | '?' | '!' | '|' | '#')
+        })
+    {
+        bail!("invalid SSH host/port for known_hosts");
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HostKeyStatus {
     /// File doesn't exist, or no entries match the host:port — caller must prompt.
@@ -27,6 +45,7 @@ pub enum HostKeyStatus {
 }
 
 pub fn check(host: &str, port: u16, key: &PublicKey) -> Result<HostKeyStatus> {
+    validate_host_key_target(host, port)?;
     let Some(path) = known_hosts_path() else {
         return Ok(HostKeyStatus::Unknown);
     };
@@ -55,13 +74,16 @@ pub fn check(host: &str, port: u16, key: &PublicKey) -> Result<HostKeyStatus> {
 /// non-standard-port form (`[host]:port`). Creates `~/.ssh` with `0700` on
 /// unix if needed.
 pub fn append(host: &str, port: u16, key: &PublicKey) -> Result<()> {
+    validate_host_key_target(host, port)?;
     let path = known_hosts_path().context("could not resolve ~/.ssh/known_hosts")?;
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).ok();
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("creating known_hosts parent {}", parent.display()))?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700));
+            std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700))
+                .with_context(|| format!("securing known_hosts parent {}", parent.display()))?;
         }
     }
     let host_field = if port == 22 {
@@ -95,6 +117,7 @@ pub fn append(host: &str, port: u16, key: &PublicKey) -> Result<()> {
 /// rename fails. Matching line numbers come from russh, so hashed host
 /// fields are removed as safely as plaintext entries.
 pub fn replace(host: &str, port: u16, key: &PublicKey) -> Result<()> {
+    validate_host_key_target(host, port)?;
     let path = known_hosts_path().context("could not resolve ~/.ssh/known_hosts")?;
     let metadata_before = std::fs::metadata(&path)
         .with_context(|| format!("reading metadata for {}", path.display()))?;
@@ -254,6 +277,28 @@ fn base64_no_pad(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reject_newlines_controls_patterns_and_ambiguous_host_fields() {
+        for host in [
+            "", " server.test", "server.test ", "server\nattacker.test",
+            "server\rattacker.test", "server\tattacker.test",
+            "server.test,attacker.test", "*.test", "!trusted.test",
+            "|1|injected|entry", "#comment",
+        ] {
+            assert!(validate_host_key_target(host, 22).is_err(), "accepted {host:?}");
+        }
+        assert!(validate_host_key_target("example.test", 0).is_err());
+    }
+
+    #[test]
+    fn permit_literal_ipv4_ipv6_dns_and_nondefault_ports() {
+        for host in ["example.test", "127.0.0.1", "::1", "2001:db8::1234", "xn--bcher-kva.example"] {
+            assert!(validate_host_key_target(host, 22).is_ok());
+            assert!(validate_host_key_target(host, 2222).is_ok());
+        }
+    }
+
 
     #[test]
     fn rewrite_matching_lines_replaces_once_and_preserves_unrelated_rows() {
