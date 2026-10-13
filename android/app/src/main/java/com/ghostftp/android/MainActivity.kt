@@ -676,7 +676,7 @@ class MainActivity : Activity() {
         })
         addView(space(12))
         siteNameInput = input("Name for saved profile", InputType.TYPE_CLASS_TEXT)
-        addView(formLabel("New connection profile name (optional for Quick Connect)"))
+        addView(formLabel("Saved profile name (new or edit; optional for Quick Connect)"))
         addView(siteNameInput)
 
         protocolSpinner = Spinner(this@MainActivity).apply {
@@ -769,16 +769,62 @@ class MainActivity : Activity() {
             } else if (SavedSiteProfiles.save(this@MainActivity, name, profile)) {
                 // Saving is distinct from Connect, and never persists secrets.
                 passwordInput.text.clear()
-                val names = SavedSiteProfiles.read(this@MainActivity).map { it.name }
-                savedSitesSpinner.adapter = ArrayAdapter(this@MainActivity,
-                    android.R.layout.simple_spinner_item,
-                    listOf("Select saved profile") + names
-                ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+                refreshSavedProfiles(name)
                 showMessage("Saved site", "Profile saved without a password. Select it later, enter credentials and tap Connect.")
             } else {
                 showMessage("Could not save site", "Check the name, duplicate profiles or 100-profile limit. Existing sites were kept.")
             }
         })
+        addView(space(8))
+        addView(secondaryButton("Update selected profile") {
+            val selected = savedSitesSpinner.selectedItemPosition - 1
+            val original = SavedSiteProfiles.read(this@MainActivity).getOrNull(selected)
+            if (original == null) {
+                showMessage("Saved profiles", "Select the profile to update first.")
+            } else {
+                val profile = readProfile() ?: return@secondaryButton
+                val name = siteNameInput.text.toString().trim()
+                if (SavedSiteProfiles.update(this@MainActivity, original.name, name, profile)) {
+                    passwordInput.text.clear()
+                    refreshSavedProfiles(name)
+                    showMessage("Saved profile updated", "Only the selected profile was changed. No password was saved.")
+                } else {
+                    showMessage("Could not update profile", "Check the name, duplicates or stored data integrity. Other profiles were preserved.")
+                }
+            }
+        })
+        addView(space(8))
+        addView(secondaryButton("Remove selected profile") {
+            val selected = savedSitesSpinner.selectedItemPosition - 1
+            val entry = SavedSiteProfiles.read(this@MainActivity).getOrNull(selected)
+            if (entry == null) {
+                showMessage("Saved profiles", "Select the profile to remove first.")
+            } else {
+                requestInlineConfirmation(
+                    "Remove saved profile?",
+                    "Remove ${entry.name} from this device? Other saved sites will be kept.",
+                    "Remove profile"
+                ) {
+                    if (SavedSiteProfiles.remove(this@MainActivity, entry.name)) {
+                        passwordInput.text.clear()
+                        refreshSavedProfiles()
+                        showMessage("Profile removed", "The selected saved profile was removed. Other sites were preserved.")
+                    } else {
+                        showMessage("Could not remove profile", "Stored data changed or cannot be written. Other sites were kept.")
+                    }
+                }
+            }
+        })
+    }
+
+    private fun refreshSavedProfiles(selectedName: String? = null) {
+        val profiles = SavedSiteProfiles.read(this)
+        savedSitesSpinner.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_item,
+            listOf("Select saved profile") + profiles.map { it.name }
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        val index = profiles.indexOfFirst { it.name.equals(selectedName, ignoreCase = true) }
+        savedSitesSpinner.setSelection(index + 1)
     }
 
     private fun selectConnectionProtocolAndPort(protocol: ConnectionProtocol, port: Int) {
