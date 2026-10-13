@@ -1,181 +1,103 @@
 <div align="center">
 
-Current source/release cycle: **0.95.11 (in development)**. Latest confirmed public release: **0.95.10**. Source-verified 0.30.11 and 0.30.12 builds are handled by the historical release recovery workflow.
+<img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="420" />
 
-<img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="430">
+# Ghost FTP
 
 ### More Than Transfer. Total Control.
 
-**A privacy-first FTP / FTPS / SFTP client for Windows, Linux and Android, with a dedicated macOS client now in active development.**
+**Your files. Your servers. One beautifully focused workspace.**
 
-[Releases](https://github.com/bren-wp/Ghost-FTP/releases) ·
-[Documentation](docs/README.md) ·
-[Security](SECURITY.md) ·
-[Privacy](docs/legal/PRIVACY.md) ·
-[Changelog](CHANGELOG.md)
+Move files, manage connections and keep important server work organized with an elegant, privacy-conscious file-transfer client.
+
+**Windows** · **Linux** · **Android** · **macOS Preview**
+
+[**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases/latest) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](docs/README.md) · [Release notes](CHANGELOG.md)
 
 </div>
 
+---
+
+## See Ghost FTP in action
+
 <p align="center">
-  <a href="docs/assets/screenshots/ghostftp-native-files.png"><img src="docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP native Files workspace" width="100%"></a>
+<a href="docs/assets/screenshots/ghostftp-native-files.png">
+<img src="docs/assets/screenshots/ghostftp-native-files.png" alt="Actual Ghost FTP Windows Files workspace with local and remote file manager" width="100%" />
+</a>
 </p>
 
-<p align="center"><sub><strong>Real native application screenshot.</strong> README/documentation images are CI-verified against the newest published Ghost FTP release tag.</sub></p>
-
-## Application gallery
+<p align="center"><sub>Actual Ghost FTP Windows application capture. Screenshots depict the running product, not concept art or generated interface mockups.</sub></p>
 
 <table>
 <tr>
-<td width="50%"><a href="docs/assets/screenshots/ghostftp-native-new-connection.png"><img src="docs/assets/screenshots/ghostftp-native-new-connection.png" alt="Ghost FTP New Connection"></a><br><strong>New Connection</strong></td>
-<td width="50%"><a href="docs/assets/screenshots/ghostftp-native-sites.png"><img src="docs/assets/screenshots/ghostftp-native-sites.png" alt="Ghost FTP Sites"></a><br><strong>Sites</strong></td>
+<td width="50%" align="center"><a href="docs/assets/screenshots/ghostftp-native-new-connection.png"><img src="docs/assets/screenshots/ghostftp-native-new-connection.png" alt="Actual New Connection interface" /></a><br /><strong>New Connection</strong><br />Your connection, your settings.</td>
+<td width="50%" align="center"><a href="docs/assets/screenshots/ghostftp-native-sites.png"><img src="docs/assets/screenshots/ghostftp-native-sites.png" alt="Actual saved Sites interface" /></a><br /><strong>Saved Sites</strong><br />Everything organized in one place.</td>
 </tr>
 <tr>
-<td><a href="docs/assets/screenshots/ghostftp-native-transfers.png"><img src="docs/assets/screenshots/ghostftp-native-transfers.png" alt="Ghost FTP Transfers"></a><br><strong>Transfers</strong></td>
-<td><a href="docs/assets/screenshots/ghostftp-native-settings.png"><img src="docs/assets/screenshots/ghostftp-native-settings.png" alt="Ghost FTP Settings"></a><br><strong>Settings</strong></td>
+<td align="center"><a href="docs/assets/screenshots/ghostftp-native-transfers.png"><img src="docs/assets/screenshots/ghostftp-native-transfers.png" alt="Actual Transfers interface" /></a><br /><strong>Transfer Center</strong><br />Stay in control of every transfer.</td>
+<td align="center"><a href="docs/assets/screenshots/ghostftp-native-settings.png"><img src="docs/assets/screenshots/ghostftp-native-settings.png" alt="Actual Settings interface" /></a><br /><strong>Settings</strong><br />Make the workspace yours.</td>
 </tr>
 <tr>
-<td><a href="docs/assets/screenshots/ghostftp-native-file-properties.png"><img src="docs/assets/screenshots/ghostftp-native-file-properties.png" alt="Ghost FTP File Properties"></a><br><strong>File properties</strong></td>
-<td><a href="docs/assets/screenshots/ghostftp-native-about.png"><img src="docs/assets/screenshots/ghostftp-native-about.png" alt="Ghost FTP Help and About"></a><br><strong>Help & About</strong></td>
+<td align="center"><a href="docs/assets/screenshots/ghostftp-native-file-properties.png"><img src="docs/assets/screenshots/ghostftp-native-file-properties.png" alt="Actual file properties interface" /></a><br /><strong>File Properties</strong><br />Know exactly what you manage.</td>
+<td align="center"><a href="docs/assets/screenshots/ghostftp-native-about.png"><img src="docs/assets/screenshots/ghostftp-native-about.png" alt="Actual Ghost FTP Help and About interface" /></a><br /><strong>Help & About</strong><br />Everything you need, close at hand.</td>
 </tr>
 </table>
 
-## Current status
+## Designed for your workflow
 
-- **Active source/release cycle:** `0.95.11` (in development).
-- **Latest published canonical release:** `0.95.10`.
-- **Version source of truth:** root `version.json`.
-- **Production desktop source:** `ghostftp-desktop/` — one native Tauri/React/Rust product used by Windows and Linux.
-- **Production Android source:** `android/` — native Kotlin mobile application aligned to the same Files/Sites/Transfers connection and action model.
-- **macOS development source:** `macos/` — dedicated SwiftUI client with its own security/build gate. 0.30.13 extends the separately verified macOS Preview with the same six-workspace shell used by the Windows/Linux reference, credential-free transfer history and password-free site backup/restore in addition to real plain-FTP browsing/upload/download; it is not yet a notarized production deliverable.
-- **No website application is maintained in this repository.** Releases, source, documentation and support/security material live in GitHub/repository artifacts.
+### 🔐 Connections you can trust
 
-## Product scope
+Connect to servers with **FTP, explicit FTPS or SFTP** on Windows, Linux and Android. See connection status clearly, manage reusable Sites and use temporary connections without saving credentials. Encrypted protocols validate the server's identity; ordinary FTP remains unencrypted.
 
-Ghost FTP combines secure server connections, local/remote file management, saved Sites, transfer queues, synchronization, checksums, permissions, terminal tools and server workflows in a single desktop product. Android follows the same core connection/file-action terminology using a touch-first layout.
+### 📁 A better place for files
 
-### Secure connections
+Navigate local and remote directories, upload and download, create folders, rename, inspect properties and manage files from a focused workspace. Destructive operations use explicit safeguards so important changes are intentional.
 
-FTP, explicit FTPS and SFTP with TLS/SSH verification, protected credential handling where supported, timeout/cleanup controls and guarded remote mutations.
+### ⚡ Transfers with more control
 
-### Files and transfers
+Follow transfer progress and manage queues, retries, conflicts and interruptions on the Windows/Linux desktop. Sync, backup and productivity tools help keep routine server tasks organized.
 
-Local/remote browsing, upload/download, folder creation, rename/delete/properties, concurrent transfer queues, pause/resume/retry, conflict handling and bandwidth controls. Desktop transfer history is persisted without credentials so interrupted work remains visible after restart; recovered retries restart safely from byte zero unless file identity can be proven. The 0.30.2 development line extends the published 0.30.1 foundation with fail-safe local download promotion, stricter remote replacement checks and protocol-aware Android connection UX while retaining strict transfer-conflict safety, changed-host-key/permission/Unicode/zero-byte protocol coverage and non-aligned multi-chunk resume tests. Stable GitHub packages do not require private updater keys; signed in-app updater assets are published only when the complete verified signature/manifest/package set exists.
+### 🛡️ Privacy is part of the design
 
-### Productivity
+**No Ghost FTP account required. No mandatory analytics or telemetry.** Passwords and sensitive keys use protected storage where supported, and connection metadata is handled with privacy in mind. Ghost FTP does not use a relay server for ordinary file transfers.
 
-Sites, Sync & Backup, terminal tools, command palette, snippets, shortcuts, checksums, permissions and platform integration.
+### 🎨 A polished, consistent experience
 
-### Privacy
+Dark premium styling, clear navigation, accessible controls and responsive layouts help you focus on the files—not the interface. Each platform uses its own controls and capabilities rather than pretending unsupported functions exist.
 
-No required analytics or telemetry. Sensitive diagnostic text is redacted and secrets are kept out of ordinary profile storage where supported.
+## Choose your platform
 
-## Platform scope
+| Platform | Package options | Supported connections |
+| --- | --- | --- |
+| **🪟 Windows x64** | Portable EXE, Setup EXE, MSI | FTP, explicit FTPS, SFTP |
+| **🐧 Linux x86-64** | AppImage, DEB, RPM, standalone binary | FTP, explicit FTPS, SFTP |
+| **🤖 Android** | Installable Preview APK; separate unsigned APK/AAB for release signing | FTP, explicit FTPS, SFTP |
+| **🍎 macOS** | Preview ZIP | FTP; FTPS/SFTP not yet available in the macOS client |
 
-### Windows x64
+**[Get the latest Ghost FTP release →](https://github.com/bren-wp/Ghost-FTP/releases/latest)**
 
-The production Windows application is the native Tauri desktop build. Release packaging provides a portable executable, a branded NSIS Setup and a Windows Installer (`.msi`) package. CI performs real silent install/uninstall smoke coverage for both installer formats before either can reach a release.
+Android's unsigned release packages are intended for your authorized signing process; the installable Preview uses a separate preview identity. The macOS Preview is not a Developer ID-signed, notarized App Store distribution. Availability in Google Play and Apple's distribution channels is subject to platform-specific signing, testing and review.
 
-### Linux x86-64
+## Cloud storage, without confusion
 
-Linux uses the same desktop frontend and Rust/native engine as Windows. Release packaging provides the native executable, AppImage, DEB and RPM packages. CI validates package metadata and lifecycle behavior before publication.
+Windows and Linux offer additional cloud and remote-storage integrations, including supported S3-compatible and WebDAV services and account-based connectors. Android and macOS support direct object uploads/downloads with short-lived provider-signed HTTPS links. **A signed object link is not an account-browser login** to Google Drive, OneDrive, Dropbox or Box on those platforms.
 
-### Android
+[Cloud storage information](docs/product/CLOUD_STORAGE.md) · [Privacy policy](docs/legal/PRIVACY.md)
 
-The native Kotlin application supports FTP, explicit FTPS and SFTP connection/listing workflows plus upload, download, new-folder, delete, refresh and guarded session handling. Uploads/downloads use staged replacement, lifecycle cancellation propagates into remote mutations, and persisted document access keeps SAF permissions without storing session credentials. Android keeps the same product terminology and branding while using separate Files, Sites, Transfers, Settings and Help & About workspaces behind a persistent left navigation rail.
+## Questions? We're here to help.
 
-### macOS
+For instructions, troubleshooting, updates and product information, use these official resources:
 
-The dedicated SwiftUI client is being developed in `macos/` and remains a Preview. It includes validated connection profiles, Keychain-backed optional password storage, explicit transport warnings and TCP endpoint reachability checks. Plain FTP has a real control session: the client validates the `220` greeting, performs `USER`/`PASS` authentication, switches to binary mode with `TYPE I`, supports `PWD`, `CWD` and `NOOP`, and sends `QUIT` during a normal disconnect with bounded timeout/cancellation behavior. The Files slice now opens a real extended-passive data connection with `EPSV`, requests `MLSD`, parses typed directory entries and renders the current remote directory.
+[Documentation](docs/README.md) · [Release downloads](https://github.com/bren-wp/Ghost-FTP/releases) · [Report an issue](https://github.com/bren-wp/Ghost-FTP/issues) · [Security](SECURITY.md) · [Privacy](docs/legal/PRIVACY.md) · [License](LICENSE.txt) · [Terms](EULA.txt)
 
-Plain-FTP upload/download are now enabled through streamed passive data channels and fail closed on ambiguous transfer errors. Servers that do not provide the required MLSD listing path still fail explicitly instead of receiving a simulated listing. Explicit FTPS still requires a real `AUTH TLS` session with certificate and hostname validation, while SFTP still requires a real SSH/SFTP engine with host-key verification before authentication. Developer ID signing and notarization also remain gated development work; none of those unfinished capabilities are presented as production-ready.
-
-## Verification
-
-Desktop:
-
-```bash
-cd ghostftp-desktop
-npm ci
-npm run check:i18n
-npm run check:ui
-npm run check
-npm run build
-```
-
-Android:
-
-```bash
-gradle -p android lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview
-```
-
-macOS development:
-
-```bash
-bash macos/scripts/check-macos-contract.sh
-swift test --package-path macos
-swift build --package-path macos -c release
-```
-
-Required exact-head gates:
-
-- **Ghost FTP quality**
-- **Ghost FTP protocol E2E**
-- **Ghost FTP native build**
-- **Ghost FTP Android**
-- **Validate Windows hardening**
-
-The **Ghost FTP macOS** gate validates the dedicated SwiftUI preview. For 0.30.8 the canonical release waits for this gate and may publish the clearly labeled macOS Preview alongside production Windows/Linux and verified Android packages.
-
-The Windows/Linux build additionally performs Windows NSIS/MSI lifecycle smoke tests, Linux package lifecycle checks, native QA evidence capture and artifact-size budget checks.
-
-## Release model
-
-The canonical **Ghost FTP release** workflow runs only from a successful native build on `main`, waits for every required exact-SHA gate, consumes the same Windows/Linux artifacts, adds the verified unsigned Android APK and AAB plus the installable Android preview APK and publishes normalized source/documentation/update/checksum assets. Release bundles do not represent production app-store signing.
-
-Version tags are immutable. A published tag is never retargeted to newer source.
-
-## Repository layout
-
-```text
-Ghost-FTP/
-├── android/                 Native Android application
-├── macos/                   Dedicated SwiftUI macOS application (development)
-├── ghostftp-desktop/        Native Windows/Linux application
-├── updates/                 Desktop update-service tooling and operator docs
-├── tools/                   Support/runtime/installer tooling
-├── docs/                    Product, QA, release, legal and development docs
-├── version.json             Canonical active version/build metadata
-├── .github/workflows/       Quality, build, platform and release automation
-├── README.md
-├── CHANGELOG.md
-├── SECURITY.md
-├── LICENSE.txt
-└── EULA.txt
-```
-
-Use **Ghost FTP** in user-facing copy and **GhostFTP** in executable/archive names.
+---
 
 <div align="center">
 
-**Ghost FTP**  
-*More Than Transfer. Total Control.*  
-**Simple. Secure. Powerful.**
+<img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="" width="150" />
 
-Publisher: **Brendigo**  
-Canonical downloads: **GitHub Releases**
+**Ghost FTP — More Than Transfer. Total Control.**
+
+Made by **Brendigo**.
 
 </div>
-
-## Complete documentation by platform
-
-The current source-level product inventory, privacy/security threat model and unimplemented-feature backlog are organized in the [Ghost FTP engineering handbook](docs/handbook/README.md): [Windows](docs/handbook/WINDOWS.md), [Linux](docs/handbook/LINUX.md), [macOS](docs/handbook/MACOS.md), [Android](docs/handbook/ANDROID.md), [feature matrix](docs/handbook/FEATURE_MATRIX.md), [security and privacy](docs/handbook/SECURITY_PRIVACY.md), and [delivery roadmap](docs/handbook/DELIVERY_ROADMAP.md). Every platform guide distinguishes source implementation, actual protocol support, candidate features and remaining acceptance gates.
-
-## Cloud storage — 0.93.0 published foundation, 0.94.0 Android hardening
-
-Windows/Linux retain the existing full S3-compatible, Azure Blob, GCS, Google Drive, OneDrive, Dropbox, Box and WebDAV connection adapters; custom S3/Azure endpoints now require HTTPS. macOS and Android gain direct cloud object upload/download using short-lived HTTPS signed PUT/GET URLs. These links are never persisted. This is **not** OAuth Google Drive browsing or S3 bucket listing on macOS/Android. See [Cloud security and supported services](docs/product/CLOUD_STORAGE.md).
-
-For the detailed 0.93.0 candidate provider compatibility, see [Cloud providers](docs/cloud/PROVIDERS.md), [Cloud authentication](docs/cloud/AUTHENTICATION.md), [Cloud E2E acceptance](docs/qa/CLOUD_E2E.md), [signed-link threat model](docs/security/CLOUD_SIGNED_URL_THREAT_MODEL.md) and [production readiness/blockers](docs/status/PRODUCTION_READINESS.md). Cloud source presence is not provider-level E2E verification.
-
-## Android cloud transfer security — 0.94.0 source candidate
-
-Android signed-object transfers use a direct-only OkHttp client with a public-address DNS policy enforced during the HTTP connection's own resolution, no proxy or automatic redirects/retries, standard TLS verification and an explicit Cancel cloud transfer action. On failed downloads the app attempts to delete the newly created SAF target and warns if incomplete output may remain. These safeguards do not establish complete DNS/VPN adversarial acceptance, atomic SAF writes, full cloud account OAuth or production device validation. See [0.94.0 release notes](docs/releases/0.94.0.md), [signed-link threat model](docs/security/CLOUD_SIGNED_URL_THREAT_MODEL.md) and [production blockers](docs/status/PRODUCTION_READINESS.md).
