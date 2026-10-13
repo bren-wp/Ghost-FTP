@@ -1,3 +1,13 @@
+## 0.95.12 — private profile export, Android 16 compatibility and premium README — 13 October 2026
+
+- **Windows/Linux:** Export connection profile metadata using exclusive private staging, rollback during replacement, and symlink refusal. Added regressions for permissions and complete replacement.
+- **Android:** Set API 36 compile/target, update Android Gradle Plugin and Gradle, test with an API 36 emulator; production bundles still require authorized signing and store acceptance.
+- **Product:** Rewrite README for users with seven existing authentic desktop screenshots and honest platform compatibility details.
+- **QA:** Validate source reachability, types, Rust/Swift/Kotlin tests, real protocol transfers and native installation artifacts on the exact commit before publication. Remaining #127/#128 are not marked resolved.
+- **Release lineage:** Following published immutable v0.95.11 (21 artifacts).
+
+See [0.95.12 release notes](docs/releases/0.95.12.md).
+
 ## 0.95.11 — post-release connection safety and review fixes (development candidate) — 13 October 2026
 
 - **Windows/Linux:** Compact Files layouts retain Host, Username and a usable Quick Connect action; connection status shows real pending/success/failure/disconnected states.

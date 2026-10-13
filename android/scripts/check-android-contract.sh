@@ -566,7 +566,7 @@ require_text "Android workflow verifies installable signature" "$ANDROID_WORKFLO
 require_text "Android workflow verifies preview version code" "$ANDROID_WORKFLOW" 'test "$PREVIEW_VERSION_CODE" = "$ANDROID_VERSION_CODE"'
 require_text "Android workflow verifies preview version name" "$ANDROID_WORKFLOW" 'test "$PREVIEW_VERSION_NAME" = "${VERSION}-preview"'
 require_text "Android workflow verifies preview minSdk" "$ANDROID_WORKFLOW" 'test "$PREVIEW_MIN_SDK" = "26"'
-require_text "Android workflow verifies preview targetSdk" "$ANDROID_WORKFLOW" 'test "$PREVIEW_TARGET_SDK" = "35"'
+require_text "Android workflow verifies preview targetSdk" "$ANDROID_WORKFLOW" 'test "$PREVIEW_TARGET_SDK" = "36"'
 require_text "Android workflow verifies preview launcher" "$ANDROID_WORKFLOW" 'test "$PREVIEW_LAUNCH_ACTIVITY" = "com.ghostftp.android.MainActivity"'
 require_text "Android workflow rejects debuggable preview" "$ANDROID_WORKFLOW" 'Installable preview APK unexpectedly remains debuggable.'
 require_text "unsigned APK is clearly non-installable" "$ANDROID_WORKFLOW" 'Release-Unsigned.apk.unsigned'
@@ -617,3 +617,11 @@ for pattern in "${blocked_patterns[@]}"; do
 done
 
 echo "Ghost FTP Android $VERSION production contract OK"
+
+# Google Play 2026 submission baseline (Android 16 / API 36).
+require_text "Android 16 compileSdk" "$ANDROID_DIR/app/build.gradle.kts" 'compileSdk = 36'
+require_text "Google Play targetSdk" "$ANDROID_DIR/app/build.gradle.kts" 'targetSdk = 36'
+require_text "API 36-capable AGP" "$ANDROID_DIR/build.gradle.kts" 'version "8.10.1"'
+require_text "compatible Gradle" "$ANDROID_DIR/../.github/workflows/ghostftp-android.yml" "gradle-version: '8.11.1'"
+require_text "Android 16 emulator" "$ANDROID_DIR/../.github/workflows/ghostftp-android.yml" 'api-level: 36'
+require_text "release artifact targetSdk" "$ANDROID_DIR/../.github/workflows/ghostftp-android.yml" 'test "$RELEASE_TARGET_SDK" = "36"'

@@ -5,14 +5,14 @@ plugins {
 
 android {
     namespace = "com.ghostftp.android"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.ghostftp.android"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 951100
-        versionName = "0.95.11"
+        targetSdk = 36
+        versionCode = 951200
+        versionName = "0.95.12"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
