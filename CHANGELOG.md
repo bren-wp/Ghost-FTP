@@ -1,3 +1,14 @@
+## 0.95.10 — direct Quick Connect and saved connection profiles (development candidate) — 13 October 2026
+
+- **Windows/Linux:** The Files Quick Connect form now has an in-memory masked password input and connects using the existing ephemeral Rust FTP/FTPS/SFTP backend without opening the New Connection editor. The duplicate header New Connection action is removed.
+- **Profile separation:** Sidebar New Connection is a save-only reusable Site editor. Save profile persists only after user action; Test Connection never persists. Saved Sites provide future one-click selection and connection.
+- **macOS:** Creating a new Site no longer persists an empty profile. Files offers immediate temporary FTP Connect from the entered credentials, with existing FTPS/SFTP engine limitations stated plainly. Reusable profiles are saved only on Save and passwords use Keychain when explicitly remembered.
+- **Android:** Sites supports locally saved reusable profile metadata (never passwords, tokens or key passphrases), selection repopulates the existing form, clears credentials and requires a fresh Connect action.
+- **QA:** Static interaction contracts, product CI, platform-specific native build and real protocol testing are required. Real-device UI parity has not been independently certified.
+- **Release lineage:** New source v0.95.10 follows published immutable v0.95.9; do not rewrite older tags.
+
+See [0.95.10 release notes](docs/releases/0.95.10.md).
+
 ## 0.95.9 — Android/macOS signed-cloud public peer policy alignment (development candidate) — 13 October 2026
 
 - **Security (#126 partial):** Disallow the RFC 7343 ORCHIDv2 `2001:20::/28` IPv6 address family as a signed-cloud socket destination on both Android OkHttp DNS and macOS peer-pinned curl.

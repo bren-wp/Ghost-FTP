@@ -248,7 +248,6 @@ export default function App() {
         <QuickConnectionDialog
           prefill={connectionPrefill}
           onClose={closeDialog}
-          saveByDefault={returnDialog === "siteManager"}
           cancelLabel={returnDialog === "siteManager" ? "Back to Sites" : "Cancel"}
         />
       )}

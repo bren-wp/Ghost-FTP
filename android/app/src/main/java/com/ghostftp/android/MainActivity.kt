@@ -56,6 +56,8 @@ class MainActivity : Activity() {
     private lateinit var portInput: EditText
     private lateinit var usernameInput: EditText
     private lateinit var passwordInput: EditText
+    private lateinit var siteNameInput: EditText
+    private lateinit var savedSitesSpinner: Spinner
     private lateinit var hostKeyFingerprintInput: EditText
     private lateinit var sftpFingerprintGroup: View
     private lateinit var sftpKeepAliveInput: EditText
@@ -644,6 +646,39 @@ class MainActivity : Activity() {
     private fun buildConnectionCard(): View = panel().apply {
         addView(sectionTitle(getString(R.string.workspace_sites)))
         addView(sectionDescription(getString(R.string.desc_sites)))
+        addView(sectionDescription("Quick Connect uses these credentials immediately. Save new connection profile is a separate action; passwords are never saved."))
+
+        val savedProfiles = SavedSiteProfiles.read(this@MainActivity)
+        addView(formLabel("Saved connection profiles"))
+        savedSitesSpinner = Spinner(this@MainActivity).apply {
+            contentDescription = "Saved connection profiles"
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_item,
+                listOf("Select saved profile") + savedProfiles.map { it.name }
+            ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        }
+        addView(savedSitesSpinner)
+        addView(secondaryButton("Use saved profile") {
+            val selected = savedSitesSpinner.selectedItemPosition - 1
+            val entry = SavedSiteProfiles.read(this@MainActivity).getOrNull(selected)
+            if (entry == null) {
+                showMessage("Saved profiles", "Select a saved profile first.")
+            } else {
+                protocolSpinner.setSelection(entry.protocol.ordinal)
+                hostInput.setText(entry.host)
+                portInput.setText(entry.port.toString())
+                usernameInput.setText(entry.username)
+                passwordInput.text.clear()
+                hostKeyFingerprintInput.setText(entry.fingerprint)
+                remotePathInput.setText(entry.remotePath)
+                sftpKeepAliveInput.setText(entry.keepAliveSeconds.toString())
+                siteNameInput.setText(entry.name)
+                showMessage("Saved profile loaded", "Enter your password and tap Connect. No saved password was read.")
+            }
+        })
+        addView(space(12))
+        siteNameInput = input("Name for saved profile", InputType.TYPE_CLASS_TEXT)
+        addView(formLabel("New connection profile name (optional for Quick Connect)"))
+        addView(siteNameInput)
 
         protocolSpinner = Spinner(this@MainActivity).apply {
             contentDescription = getString(R.string.field_protocol)
@@ -726,6 +761,25 @@ class MainActivity : Activity() {
         actions.addView(gap(8))
         actions.addView(refreshButton, buttonParams(weight = 1f))
         addView(actions)
+        addView(space(8))
+        addView(secondaryButton("Save new connection profile") {
+            val profile = readProfile() ?: return@secondaryButton
+            val name = siteNameInput.text.toString().trim()
+            if (name.isEmpty()) {
+                showMessage("Site name required", "Enter a name before saving a reusable connection profile.")
+            } else if (SavedSiteProfiles.save(this@MainActivity, name, profile)) {
+                // Saving is distinct from Connect, and never persists secrets.
+                passwordInput.text.clear()
+                val names = SavedSiteProfiles.read(this@MainActivity).map { it.name }
+                savedSitesSpinner.adapter = ArrayAdapter(this@MainActivity,
+                    android.R.layout.simple_spinner_item,
+                    listOf("Select saved profile") + names
+                ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+                showMessage("Saved site", "Profile saved without a password. Select it later, enter credentials and tap Connect.")
+            } else {
+                showMessage("Could not save site", "Check the name, duplicate profiles or 100-profile limit. Existing sites were kept.")
+            }
+        })
     }
 
     private fun installProtocolSelectionBehavior(seedDefaultPort: Boolean) {
