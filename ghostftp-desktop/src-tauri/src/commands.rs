@@ -183,11 +183,7 @@ pub async fn export_profiles(path: String, state: State<'_, AppState>) -> Result
     if path.trim().is_empty() || destination.file_name().is_none() {
         return Err("export destination must identify a file".into());
     }
-    if let Some(parent) = destination.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent).map_err(err)?;
-        }
-    }
+    // write_private_profile_export owns destination setup and validation.
     let profiles = state.profiles.list().await.map_err(err)?;
     let mut sanitized = Vec::with_capacity(profiles.len());
     for mut profile in profiles {
