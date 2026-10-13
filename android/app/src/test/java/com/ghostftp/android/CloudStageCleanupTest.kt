@@ -35,6 +35,23 @@ class CloudStageCleanupTest {
         }
     }
 
+    @Test fun processScopedCleanupDoesNotTouchNewStagesDuringActivityRecreation() {
+        val cache = Files.createTempDirectory("ghostftp-cold-start-").toFile()
+        try {
+            val orphan = File.createTempFile("ghostftp-cloud-", ".part", cache)
+            CloudStageCleanup.purgeOnProcessStart(cache)
+            assertFalse("orphaned prior-process stage must be removed", orphan.exists())
+
+            val inFlight = File.createTempFile("ghostftp-cloud-", ".part", cache)
+            inFlight.writeBytes(byteArrayOf(9, 8, 7))
+            CloudStageCleanup.purgeOnProcessStart(cache)
+            assertTrue("same-process Activity recreation must preserve active transfer", inFlight.exists())
+            assertEquals(3L, inFlight.length())
+        } finally {
+            cache.deleteRecursively()
+        }
+    }
+
     @Test fun missingCacheDirectoryDoesNotCrashStartup() {
         val missing = File(Files.createTempDirectory("ghostftp-no-cache-").toFile(), "absent")
         try {
