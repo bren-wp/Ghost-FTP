@@ -248,14 +248,19 @@ impl ProfileStore {
         }
         let bytes = serde_json::to_vec_pretty(profiles)?;
         let parent = self.path.parent().context("profile path has no parent")?;
-        let tmp = parent.join("profiles.json.tmp");
+        // Never truncate a predictable temporary filename: a stale file or a
+        // symlink must not redirect profile metadata writes outside app data.
+        let tmp = parent.join(format!(
+            ".profiles.json.{}.tmp",
+            uuid::Uuid::new_v4()
+        ));
         let backup = parent.join("profiles.json.bak");
 
         // Write + fsync a sibling temp file first, so a process/power failure
         // never leaves a half-written profiles.json.
         {
             let mut options = std::fs::OpenOptions::new();
-            options.create(true).truncate(true).write(true);
+            options.create_new(true).write(true);
             #[cfg(unix)]
             options.mode(0o600);
             let mut file = options
@@ -395,6 +400,19 @@ mod recovery_tests {
         assert!(store.list().await.unwrap().is_empty());
         assert!(store.delete("any").await.is_err());
         assert_eq!(std::fs::read(&backup).unwrap(), b"[]");
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn predictable_legacy_staging_file_is_not_overwritten() {
+        let dir = temp_profile_dir();
+        let legacy = dir.join("profiles.json.tmp");
+        std::fs::write(&legacy, b"keep-existing-staging").unwrap();
+        let store = ProfileStore::from_dir(&dir).unwrap();
+        store.reorder(&[]).await.unwrap();
+        assert_eq!(std::fs::read(&legacy).unwrap(), b"keep-existing-staging");
+        assert_eq!(std::fs::read(dir.join("profiles.json")).unwrap(), b"[]");
         drop(store);
         std::fs::remove_dir_all(dir).unwrap();
     }
