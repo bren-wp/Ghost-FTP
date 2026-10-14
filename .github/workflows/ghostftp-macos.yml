@@ -29,9 +29,62 @@ jobs:
         shell: bash
         run: bash macos/scripts/check-macos-contract.sh
 
-      - name: macOS unit tests
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Start real FTP fixture for macOS protocol acceptance
         shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --no-cache-dir pyftpdlib
+          ROOT="$RUNNER_TEMP/ghostftp-macos-ftp-root"
+          mkdir -p "$ROOT"
+          printf 'macOS FTP socket fixture\n' > "$ROOT/fixture.txt"
+          cat > "$RUNNER_TEMP/ghostftp-macos-ftp-server.py" <<'PY'
+          import os
+          from pyftpdlib.authorizers import DummyAuthorizer
+          from pyftpdlib.handlers import FTPHandler
+          from pyftpdlib.servers import FTPServer
+
+          authorizer = DummyAuthorizer()
+          authorizer.add_user(
+              "ghostftp-e2e", "ghostftp-e2e-secret",
+              os.path.join(os.environ["RUNNER_TEMP"], "ghostftp-macos-ftp-root"),
+              perm="elradfmwMT",
+          )
+          handler = FTPHandler
+          handler.authorizer = authorizer
+          handler.passive_ports = range(32000, 32010)
+          FTPServer(("127.0.0.1", 2127), handler).serve_forever()
+          PY
+          nohup python3 "$RUNNER_TEMP/ghostftp-macos-ftp-server.py" \
+            > "$RUNNER_TEMP/ghostftp-macos-ftp-server.log" 2>&1 < /dev/null &
+          echo "$!" > "$RUNNER_TEMP/ghostftp-macos-ftp-server.pid"
+          for attempt in $(seq 1 30); do
+            if nc -z 127.0.0.1 2127; then
+              echo "Real local macOS FTP service accepts TCP connections."
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/ghostftp-macos-ftp-server.log"
+          echo "::error::macOS real FTP test server did not start."
+          exit 1
+
+      - name: macOS unit and real FTP integration tests
+        shell: bash
+        env:
+          GHOSTFTP_MACOS_E2E_PORT: '2127'
         run: swift test --package-path macos
+
+      - name: Stop macOS FTP fixture
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/ghostftp-macos-ftp-server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/ghostftp-macos-ftp-server.pid")" || true
+          fi
 
       - name: macOS release build
         shell: bash
