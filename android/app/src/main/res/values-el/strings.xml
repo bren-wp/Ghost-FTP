@@ -148,4 +148,10 @@
     <string name="state_selected_remote_file">Επιλεγμένο απομακρυσμένο αρχείο: %1$s</string>
     <string name="label_selected">Επιλεγμένο</string>
     <string name="label_author">Δημιουργός</string>
+    <string name="workspace_sync">Συγχρονισμός και αντίγραφα ασφαλείας</string>
+    <string name="workspace_cloud">Αποθήκευση στο cloud</string>
+    <string name="action_cancel_cloud">Ακύρωση μεταφοράς cloud</string>
+    <string name="cloud_no_transfer">Δεν υπάρχει μεταφορά cloud σε εξέλιξη.</string>
+    <string name="label_contact">Επικοινωνία</string>
+    <string name="about_contact_desc">Κάντε μια ερώτηση ή αναφέρετε ένα πρόβλημα.</string>
 </resources>
