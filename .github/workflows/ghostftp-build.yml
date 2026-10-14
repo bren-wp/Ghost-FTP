@@ -610,10 +610,17 @@ jobs:
                 # target. Some Windows runner drivers expose only one path.
                 $surfaceMode = ($captureAttempt % 2 -eq 0)
                 Start-Sleep -Milliseconds 500
-                $capture = Invoke-GhostFtpCdp -Socket $socket -Id (3 + $captureAttempt) -Method 'Page.captureScreenshot' -Params @{
-                  format='png'
-                  fromSurface=$surfaceMode
-                  captureBeyondViewport=$false
+                try {
+                  $capture = Invoke-GhostFtpCdp -Socket $socket -Id (3 + $captureAttempt) -Method 'Page.captureScreenshot' -Params @{
+                    format='png'
+                    fromSurface=$surfaceMode
+                    captureBeyondViewport=$false
+                  }
+                } catch {
+                  # A compositor mode may be unavailable on this runner.
+                  # Continue checking real frames via the other CDP mode.
+                  $lastReason = 'cdp-capture-rejected'
+                  continue
                 }
                 if (-not $capture.result.data) {
                   $lastReason = 'cdp-missing-data'
