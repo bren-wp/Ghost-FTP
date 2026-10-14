@@ -136,6 +136,15 @@ fn is_approved_external_url(parsed: &url::Url) -> bool {
         && parsed.query().is_none()
         && parsed.fragment().is_none()
         && (official_help_page || approved_project_page)
+        && matches!(
+            parsed.as_str(),
+            "https://ghostftp.com/hr/support"
+                | "https://ghostftp.com/hr/contact"
+                | "https://ghostftp.com/hr/how-to-download"
+                | "https://ghostftp.com/hr/privacy"
+                | "https://ghostftp.com/hr/terms"
+                | "https://github.com/bren-wp/Ghost-FTP"
+        )
 }
 
 #[tauri::command]
@@ -582,6 +591,9 @@ mod init_script_tests {
             "https://ghostftp.com/hr/support/",
             "https://www.ghostftp.com/hr/support",
             "https://ghostftp.com/hr/unknown",
+            "https://ghostftp.com/hr/../hr/support",
+            "https://ghostftp.com/hr/%2e%2e/hr/support",
+            "https://ghostftp.com/hr//support",
             "https://ghostftp.com:444/hr/support",
             "https://ghostftp.com/hr/support?return=https://evil.example",
             "https://ghostftp.com/hr/privacy#redirect",

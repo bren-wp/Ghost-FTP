@@ -36,7 +36,7 @@ import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
 class MainActivity : Activity() {
-    private enum class Workspace(val labelRes: Int? = null, val fixedLabel: String? = null) {
+    private enum class Workspace(val labelRes: Int) {
         FILES(R.string.workspace_files),
         SITES(R.string.workspace_sites),
         TRANSFERS(R.string.workspace_transfers),
@@ -1223,8 +1223,10 @@ class MainActivity : Activity() {
         }), buttonParams(weight = 1f))
         addView(secondRow)
 
-        // Canonical trusted legal links stay accessible at the end of Settings.
+        // Official support and legal links remain accessible in Settings.
         addView(space(16))
+        addView(officialLinkRow(getString(R.string.label_support), getString(R.string.about_support_desc), SUPPORT_URL))
+        addView(officialLinkRow(getString(R.string.label_contact), getString(R.string.about_contact_desc), CONTACT_URL))
         addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
         addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
         addView(aboutFactRow(getString(R.string.label_author), "Brendigo"))
@@ -2192,8 +2194,7 @@ class MainActivity : Activity() {
         background = rounded(Brand.badge, dp(999), Brand.border)
     }
 
-    private fun workspaceLabel(workspace: Workspace): String =
-        workspace.labelRes?.let { getString(it) } ?: workspace.fixedLabel ?: workspace.name
+    private fun workspaceLabel(workspace: Workspace): String = getString(workspace.labelRes)
 
     private fun workspaceNavItem(workspace: Workspace): TextView {
         val label = workspaceLabel(workspace)
