@@ -1058,24 +1058,31 @@ async fn ftp_dos_listing_roundtrip(
     let fs = FtpFs::new(ftp);
     let result = fs.list_dir(".").await;
     if malformed {
-        let error = result.err().ok_or_else(|| {
-            anyhow!("malformed MS-DOS LIST was silently accepted as complete")
-        })?;
+        let error = result
+            .err()
+            .ok_or_else(|| anyhow!("malformed MS-DOS LIST was silently accepted as complete"))?;
         if !format!("{error:#}").contains("unsupported or ambiguous") {
-            return Err(anyhow!("unexpected MS-DOS LIST rejection category: {error:#}"));
+            return Err(anyhow!(
+                "unexpected MS-DOS LIST rejection category: {error:#}"
+            ));
         }
         return Ok(());
     }
     let entries = result.context("real socket-backed DOS LIST")?;
     if entries.len() != 3 {
-        return Err(anyhow!("expected 3 real DOS LIST entries, got {}", entries.len()));
+        return Err(anyhow!(
+            "expected 3 real DOS LIST entries, got {}",
+            entries.len()
+        ));
     }
     let unicode = entries
         .iter()
         .find(|entry| entry.name == "report čćž 文件 with spaces.txt")
         .ok_or_else(|| anyhow!("Unicode IIS-style file was not returned"))?;
     if unicode.size != 427 || !matches!(unicode.kind, FileKind::File) {
-        return Err(anyhow!("DOS file metadata/kind did not survive real data channel"));
+        return Err(anyhow!(
+            "DOS file metadata/kind did not survive real data channel"
+        ));
     }
     let folder = entries
         .iter()
@@ -1109,13 +1116,7 @@ async fn real_ftp_ftps_sftp_roundtrips() -> Result<()> {
     )
     .await?;
 
-    ftp_dos_listing_roundtrip(
-        port("GHOSTFTP_E2E_DOS_PORT")?,
-        &username,
-        &password,
-        false,
-    )
-    .await?;
+    ftp_dos_listing_roundtrip(port("GHOSTFTP_E2E_DOS_PORT")?, &username, &password, false).await?;
     ftp_dos_listing_roundtrip(
         port("GHOSTFTP_E2E_DOS_INVALID_PORT")?,
         &username,
