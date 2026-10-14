@@ -52,7 +52,11 @@ grep -Fq 'FTPControlCodec.temporaryDownloadFilename(for: localURL.lastPathCompon
 grep -Fq 'maximumControlReplyBytes = 256 * 1024' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'FTPControlCodec.appendControlChunk(chunk, to: &receiveBuffer)' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift
 grep -Fq 'testFTPTransferCommandsIncludeRealRemoteName' macos/Tests/GhostFTPMacAppTests/FTPControlSessionTests.swift
-grep -Fq 'testMLSDIgnoresHostileServerFilenames' macos/Tests/GhostFTPMacAppTests/FTPControlSessionTests.swift
+grep -Fq 'testMLSDRefusesIncompleteDirectoryWhenServerReturnsHostileFileNames' macos/Tests/GhostFTPMacAppTests/FTPControlSessionTests.swift
+grep -Fq 'testMLSDRefusesUnknownFormatsAndMalformedFactsRatherThanHidingFiles' macos/Tests/GhostFTPMacAppTests/FTPControlSessionTests.swift
+grep -Fq 'testMLSDPreservesValidRFC3659NamedPseudoEntriesAndEmptyFactValues' macos/Tests/GhostFTPMacAppTests/FTPControlSessionTests.swift
+grep -Fq 'testMLSDRejectsAmbiguousDuplicateNames' macos/Tests/GhostFTPMacAppTests/FTPControlSessionTests.swift
+grep -Fq 'testRealLocalFTPLoginListUploadAndDownload' macos/Tests/GhostFTPMacAppTests/FTPControlSessionTests.swift
 if grep -Fq 'STOR (remoteName)' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift || \
    grep -Fq 'RETR (remoteName)' macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift; then
   echo "macOS FTP transfers must interpolate the actual remote filename." >&2
