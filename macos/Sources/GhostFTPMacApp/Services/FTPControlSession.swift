@@ -259,34 +259,52 @@ enum FTPControlCodec {
         for rawLine in text.split(whereSeparator: \.isNewline) {
             let line = String(rawLine)
             guard let split = line.firstIndex(of: " ") else {
-                continue
+                // An unrecognized record might represent a real file. Silently
+                // dropping it would make the remote inventory incomplete.
+                throw FTPControlError.invalidDirectoryListing
             }
 
             let factsText = line[..<split]
             let name = String(line[line.index(after: split)...])
-            // Server-provided MLSD names are untrusted input. Do not render
-            // entries that could traverse outside the selected directory or
-            // inject a second FTP control command during file operations.
-            do {
-                try validateRemoteFileName(name)
-            } catch {
-                continue
-            }
-
             var facts: [String: String] = [:]
-            for fact in factsText.split(separator: ";") {
-                guard let equals = fact.firstIndex(of: "=") else { continue }
+            for fact in factsText.split(separator: ";", omittingEmptySubsequences: true) {
+                guard let equals = fact.firstIndex(of: "=") else {
+                    throw FTPControlError.invalidDirectoryListing
+                }
                 let key = fact[..<equals].lowercased()
                 let value = String(fact[fact.index(after: equals)...])
+                guard !key.isEmpty, !value.isEmpty, facts[key] == nil else {
+                    throw FTPControlError.invalidDirectoryListing
+                }
                 facts[key] = value
             }
 
-            let type = facts["type"]?.lowercased()
+            guard let type = facts["type"]?.lowercased() else {
+                throw FTPControlError.invalidDirectoryListing
+            }
             if type == "cdir" || type == "pdir" {
+                // RFC 3659 pseudo-directory markers are intentionally omitted.
+                guard (type == "cdir" && name == ".") ||
+                    (type == "pdir" && name == "..") else {
+                    throw FTPControlError.invalidDirectoryListing
+                }
                 continue
             }
-
-            let size = facts["size"].flatMap(UInt64.init)
+            // Ghost FTP currently exposes only file and directory entry types
+            // here; an unknown type must not be mislabeled as a normal file.
+            guard type == "file" || type == "dir" else {
+                throw FTPControlError.invalidDirectoryListing
+            }
+            try validateRemoteFileName(name)
+            let size: UInt64?
+            if let sizeText = facts["size"] {
+                guard let parsedSize = UInt64(sizeText) else {
+                    throw FTPControlError.invalidDirectoryListing
+                }
+                size = parsedSize
+            } else {
+                size = nil
+            }
             entries.append(
                 FTPDirectoryEntry(
                     name: name,
