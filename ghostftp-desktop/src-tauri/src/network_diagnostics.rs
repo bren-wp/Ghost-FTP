@@ -6,10 +6,11 @@ use crate::profiles::ConnectionProfile;
 use crate::AppState;
 use serde::Serialize;
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::AppHandle;
 
 const TCP_PROBE_TIMEOUT: Duration = Duration::from_secs(3);
+const TCP_TOTAL_BUDGET: Duration = Duration::from_secs(8);
 const DNS_PROBE_TIMEOUT: Duration = Duration::from_secs(8);
 const MAX_ADDRESSES: usize = 8;
 
@@ -44,13 +45,24 @@ impl Default for FtpNetworkDiagnostic {
 /// An actual direct TCP handshake, not an FTP login or data-channel proof.
 /// The selected saved site is the only permitted target; no public test host
 /// or firewall/router setting is ever modified.
-fn probe_control(addresses: &[SocketAddr]) -> Option<&'static str> {
+fn probe_control_with_budget(addresses: &[SocketAddr], budget: Duration) -> Option<&'static str> {
+    let deadline = Instant::now() + budget;
     for address in addresses {
-        if TcpStream::connect_timeout(address, TCP_PROBE_TIMEOUT).is_ok() {
+        // Multiple DNS answers must not multiply a nominal three-second
+        // timeout into 24+ seconds. Bound the *entire* direct TCP probe.
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        if TcpStream::connect_timeout(address, remaining.min(TCP_PROBE_TIMEOUT)).is_ok() {
             return Some(if address.is_ipv4() { "IPv4" } else { "IPv6" });
         }
     }
     None
+}
+
+fn probe_control(addresses: &[SocketAddr]) -> Option<&'static str> {
+    probe_control_with_budget(addresses, TCP_TOTAL_BUDGET)
 }
 
 /// Probe the user's configured default remote directory instead of always
@@ -132,8 +144,9 @@ pub async fn diagnose(
 
 #[cfg(test)]
 mod tests {
-    use super::{listing_path, probe_control, FtpNetworkDiagnostic};
+    use super::{listing_path, probe_control, probe_control_with_budget, FtpNetworkDiagnostic};
     use std::net::{SocketAddr, TcpListener};
+    use std::time::Duration;
 
     #[test]
     fn tcp_probe_uses_an_actual_open_loopback_listener() {
@@ -150,6 +163,30 @@ mod tests {
         };
         let address = listener.local_addr().expect("IPv6 listener address");
         assert_eq!(probe_control(&[address]), Some("IPv6"));
+    }
+
+    #[test]
+    fn zero_budget_refuses_even_a_reachable_control_port() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test listener");
+        let address = listener.local_addr().expect("listener address");
+        assert_eq!(probe_control_with_budget(&[address], Duration::ZERO), None);
+        assert_eq!(
+            probe_control_with_budget(&[address], Duration::from_secs(1)),
+            Some("IPv4")
+        );
+    }
+
+    #[test]
+    fn a_refused_address_does_not_hide_a_later_reachable_address() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test listener");
+        let live = listener.local_addr().expect("listener address");
+        let refused = TcpListener::bind("127.0.0.1:0").expect("bind refused address");
+        let closed = refused.local_addr().expect("refused address");
+        drop(refused);
+        assert_eq!(
+            probe_control_with_budget(&[closed, live], Duration::from_secs(2)),
+            Some("IPv4")
+        );
     }
 
     #[test]
