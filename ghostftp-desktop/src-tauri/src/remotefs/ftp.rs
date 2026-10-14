@@ -415,6 +415,16 @@ impl RemoteFs for FtpFs {
     }
 }
 
+/// Never start deleting a tree when a server refused the LIST -a
+/// inventory request. A bare LIST can look successful while hiding dotfiles.
+fn require_complete_listing_for_recursive_delete(includes_dotfiles: bool) -> Result<()> {
+    anyhow::ensure!(
+        includes_dotfiles,
+        "FTP recursive delete refused: LIST -a unsupported; hidden entries may be omitted"
+    );
+    Ok(())
+}
+
 /// Walk an FTP tree breadth-first and delete leaves then parents.
 async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> {
     // Collect a list of (full_path, is_dir) entries, deepest-last.
@@ -425,10 +435,13 @@ async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> 
                 let mut stack = vec![root.clone()];
                 let mut out = Vec::new();
                 while let Some(d) = stack.pop() {
-                    // `-a`, so a directory holding only dotfiles isn't reported
-                    // as empty and left behind by the RMD pass below.
-                    let listing = list_lines(stream, &d)
-                        .with_context(|| format!("FTP recursive LIST {d}"))?;
+                    // Never begin a destructive pass on an incomplete inventory.
+                    // If LIST -a is rejected, a successful bare LIST may omit
+                    // hidden files, making it unsafe to delete only visible ones.
+                    let (listing, includes_dotfiles) =
+                        list_lines_with_dot_visibility(stream, &d)
+                            .with_context(|| format!("FTP recursive LIST {d}"))?;
+                    require_complete_listing_for_recursive_delete(includes_dotfiles)?;
                     for line in listing {
                         if is_ignorable_listing_line(&line) {
                             continue;
@@ -468,6 +481,19 @@ async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> 
             Ok(())
         })
         .await
+}
+
+#[cfg(test)]
+mod ftp_recursive_delete_safety_tests {
+    use super::require_complete_listing_for_recursive_delete;
+
+    #[test]
+    fn recursive_delete_requires_hidden_entry_listing_before_deleting_anything() {
+        assert!(require_complete_listing_for_recursive_delete(true).is_ok());
+        let error = require_complete_listing_for_recursive_delete(false)
+            .expect_err("bare LIST is not a complete destructive inventory");
+        assert!(error.to_string().contains("hidden entries may be omitted"));
+    }
 }
 
 #[cfg(test)]
