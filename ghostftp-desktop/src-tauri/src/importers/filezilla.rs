@@ -1,8 +1,13 @@
 use super::ProfilePreview;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use quick_xml::events::Event;
 use quick_xml::Reader;
+use std::io::Read;
 use std::path::PathBuf;
+
+const MAX_XML_BYTES: usize = 8 * 1024 * 1024;
+const MAX_IMPORT_SITES: usize = 2_048;
+const MAX_FOLDER_DEPTH: usize = 32;
 
 /// Locate FileZilla's `sitemanager.xml` for the current user. FileZilla
 /// stores its config under platform-conventional config dirs:
@@ -36,8 +41,14 @@ pub fn default_path() -> Option<PathBuf> {
 }
 
 pub fn parse_file(path: &PathBuf) -> Result<Vec<ProfilePreview>> {
-    let text =
-        std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+    // FileZilla profiles can come from an arbitrary user-selected XML file.
+    // Bound allocations before parsing so a huge file cannot freeze the UI.
+    let mut text = String::new();
+    std::fs::File::open(path)
+        .with_context(|| format!("opening {}", path.display()))?
+        .take((MAX_XML_BYTES + 1) as u64)
+        .read_to_string(&mut text)
+        .with_context(|| format!("reading {}", path.display()))?;
     parse(&text)
 }
 
@@ -45,6 +56,9 @@ pub fn parse_file(path: &PathBuf) -> Result<Vec<ProfilePreview>> {
 /// nodes. We walk it depth-first and collect every <Server>, attaching the
 /// folder breadcrumb to the preview's `note` field.
 pub fn parse(xml: &str) -> Result<Vec<ProfilePreview>> {
+    if xml.len() > MAX_XML_BYTES {
+        bail!("FileZilla import exceeds the 8 MiB safety limit");
+    }
     let mut reader = Reader::from_str(xml);
     reader.config_mut().trim_text(true);
     let mut buf = Vec::new();
@@ -53,7 +67,6 @@ pub fn parse(xml: &str) -> Result<Vec<ProfilePreview>> {
     let mut folder_stack: Vec<String> = Vec::new();
     let mut current_server: Option<ServerAccum> = None;
     let mut current_field: Option<String> = None;
-    let mut expecting_folder_name = false;
 
     loop {
         match reader.read_event_into(&mut buf) {
@@ -61,50 +74,70 @@ pub fn parse(xml: &str) -> Result<Vec<ProfilePreview>> {
                 let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
                 match name.as_str() {
                     "Folder" => {
-                        // The Folder element contains a text node *before*
-                        // its child <Server>/<Folder> entries — that text is
-                        // the folder's display name. We can't easily peek;
-                        // we set a flag and grab the next Text event.
-                        expecting_folder_name = true;
+                        if current_server.is_some() {
+                            bail!("A FileZilla site may not contain nested folders");
+                        }
+                        if folder_stack.len() >= MAX_FOLDER_DEPTH {
+                            bail!("FileZilla folder hierarchy exceeds the safe depth limit");
+                        }
                         folder_stack.push(String::new());
+                        current_field = None;
                     }
                     "Server" => {
+                        if current_server.is_some() {
+                            bail!("Nested FileZilla server entries are not supported");
+                        }
+                        current_field = None;
                         current_server = Some(ServerAccum::default());
                     }
-                    _ => {
+                    _ if current_server.is_some() => {
                         current_field = Some(name);
                     }
+                    _ => {}
                 }
             }
             Ok(Event::Text(t)) => {
-                let txt = t
-                    .unescape()
-                    .map(|c| c.into_owned())
-                    .unwrap_or_else(|_| String::new());
-                if expecting_folder_name && !txt.trim().is_empty() {
-                    if let Some(slot) = folder_stack.last_mut() {
-                        *slot = txt.trim().to_string();
-                    }
-                    expecting_folder_name = false;
+                // A malformed XML escape must never silently erase a host
+                // or turn a partial site into a plausibly valid import.
+                let txt = t.unescape().context("invalid FileZilla XML text escape")?;
+                let trimmed = txt.trim();
+                if trimmed.is_empty() {
+                    buf.clear();
                     continue;
                 }
-                if let (Some(server), Some(field)) =
-                    (current_server.as_mut(), current_field.as_ref())
-                {
-                    server.set(field, txt.trim());
+                if let Some(server) = current_server.as_mut() {
+                    if let Some(field) = current_field.as_ref() {
+                        server.set(field, trimmed);
+                    } else if server.name.is_none() {
+                        // FileZilla can save the site label as trailing direct
+                        // text in <Server>, not only as a <Name> element.
+                        server.name = Some(trimmed.to_owned());
+                    }
+                } else if let Some(folder) = folder_stack.last_mut() {
+                    // Only the first non-empty direct text names this folder.
+                    // Child <Server> field text must never overwrite its name.
+                    if folder.is_empty() {
+                        *folder = trimmed.to_owned();
+                    }
                 }
             }
             Ok(Event::End(e)) => {
                 let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
                 match name.as_str() {
                     "Folder" => {
-                        folder_stack.pop();
+                        if folder_stack.pop().is_none() {
+                            bail!("Unexpected end of FileZilla folder");
+                        }
+                        current_field = None;
                     }
                     "Server" => {
-                        if let Some(server) = current_server.take() {
-                            if let Some(preview) = server.into_preview(&folder_stack) {
-                                out.push(preview);
+                        let server = current_server.take().context("Unexpected end of FileZilla server")?;
+                        current_field = None;
+                        if let Some(preview) = server.into_preview(&folder_stack) {
+                            if out.len() >= MAX_IMPORT_SITES {
+                                bail!("FileZilla import exceeds the 2048-site safety limit");
                             }
+                            out.push(preview);
                         }
                     }
                     _ => {
@@ -112,6 +145,7 @@ pub fn parse(xml: &str) -> Result<Vec<ProfilePreview>> {
                     }
                 }
             }
+            Ok(Event::DocType(_)) => bail!("FileZilla imports must not contain XML DTDs"),
             Ok(Event::Eof) => break,
             Ok(_) => {}
             Err(e) => {
@@ -122,6 +156,9 @@ pub fn parse(xml: &str) -> Result<Vec<ProfilePreview>> {
             }
         }
         buf.clear();
+    }
+    if current_server.is_some() || !folder_stack.is_empty() {
+        bail!("Truncated FileZilla saved-site XML");
     }
     Ok(out)
 }
@@ -202,6 +239,9 @@ impl ServerAccum {
             Some(warning) => format!("{origin} — {warning}"),
             None => origin,
         });
+        // Import into Ghost FTP's existing Sites folder surface, rather than
+        // displaying the breadcrumb only as an informational note.
+        p.group = (!breadcrumb.is_empty()).then_some(breadcrumb);
         Some(p)
     }
 }
