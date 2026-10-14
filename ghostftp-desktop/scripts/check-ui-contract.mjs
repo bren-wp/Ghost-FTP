@@ -854,7 +854,10 @@ for (const required of [
   'tr("Privacy")',
   'tr("Check for Updates")',
   'tr("Download & install")',
-  "PRODUCT_SITE",
+  "PRODUCT_SUPPORT_URL",
+  "PRODUCT_DOCUMENTATION_URL",
+  "PRODUCT_PRIVACY_URL",
+  "PRODUCT_CONTACT_URL",
   'tr("Project repository")',
   "PROJECT_REPOSITORY_URL",
 ]) {

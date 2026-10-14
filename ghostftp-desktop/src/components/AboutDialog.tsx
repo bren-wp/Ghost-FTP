@@ -12,6 +12,10 @@ import { GhostMark } from "./GhostBrand";
 import { useUpdater } from "@/stores/updaterStore";
 import {
   PRODUCT_BUILD,
+  PRODUCT_SUPPORT_URL,
+  PRODUCT_CONTACT_URL,
+  PRODUCT_DOCUMENTATION_URL,
+  PRODUCT_PRIVACY_URL,
   PRODUCT_EULA_URL,
   PRODUCT_RELEASE_DATE,
   PRODUCT_VERSION_DISPLAY,
@@ -20,8 +24,7 @@ import { APP_LOCALES, tr } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
 import { useDialog } from "@/hooks/useDialog";
 
-// Canonical public documentation and support live with the open-source release.
-// PRODUCT_SITE remains reserved for the separately configured secure update service.
+// GitHub remains available only as a separately labelled source-code destination.
 const PROJECT_REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP";
 
 type AboutTab = "about" | "updates" | "help" | "privacy";
@@ -108,11 +111,12 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
         <aside className="ghost-about-reference-resources" aria-label="Support and resources">
           <h3 className="ghost-about-resources-heading">{tr("Resources, documentation and support.")}</h3>
           <div className="ghost-about-resources-list">
-            <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Documentation")} subtitle="Guides and installation instructions" url={`${PROJECT_REPOSITORY_URL}/tree/main/docs`}/>
+            <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Documentation")} subtitle="Official installation and getting-started guide" url={PRODUCT_DOCUMENTATION_URL}/>
             <LinkRow icon={<HelpCircle size={18}/>} title={tr("Help Center")} subtitle="Connections and troubleshooting" onClick={() => onNavigate("help")}/>
-            <OfficialLinkRow icon={<LifeBuoy size={18}/>} title="Official Support" subtitle="Open the GitHub issue tracker" url={`${PROJECT_REPOSITORY_URL}/issues`}/>
-            <OfficialLinkRow icon={<ShieldCheck size={18}/>} title={tr("Privacy Policy")} subtitle="Privacy policy in the project repository" url={`${PROJECT_REPOSITORY_URL}/blob/main/docs/legal/PRIVACY.md`}/>
-            <OfficialLinkRow icon={<FileText size={18}/>} title="Terms of use / EULA" subtitle="Software licence" url={PRODUCT_EULA_URL}/>
+            <OfficialLinkRow icon={<LifeBuoy size={18}/>} title={tr("Support")} subtitle="Official help and troubleshooting" url={PRODUCT_SUPPORT_URL}/>
+            <OfficialLinkRow icon={<ShieldCheck size={18}/>} title={tr("Privacy Policy")} subtitle="Official privacy policy" url={PRODUCT_PRIVACY_URL}/>
+            <OfficialLinkRow icon={<FileText size={18}/>} title="Terms of use / EULA" subtitle="Official terms of use" url={PRODUCT_EULA_URL}/>
+            <OfficialLinkRow icon={<LifeBuoy size={18}/>} title="Contact" subtitle="Ask a question or report a problem" url={PRODUCT_CONTACT_URL}/>
             <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Project repository")} subtitle="Source code and verified releases" url={PROJECT_REPOSITORY_URL}/>
             <LinkRow icon={<RefreshCw size={18}/>} title={tr("Updates")} subtitle="Check the update status" onClick={() => onNavigate("updates")}/>
           </div>

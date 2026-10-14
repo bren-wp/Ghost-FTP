@@ -94,7 +94,7 @@ On Android, open **Settings** for direct access to our [Privacy Policy](docs/leg
 
 For instructions, troubleshooting, updates and product information, use these official resources:
 
-[Documentation](docs/README.md) · [Release downloads](https://github.com/bren-wp/Ghost-FTP/releases) · [Report an issue](https://github.com/bren-wp/Ghost-FTP/issues) · [Security](SECURITY.md) · [Privacy](docs/legal/PRIVACY.md) · [License](LICENSE.txt) · [Terms](EULA.txt)
+[Documentation](https://ghostftp.com/hr/how-to-download) · [Release downloads](https://github.com/bren-wp/Ghost-FTP/releases) · [Report an issue](https://ghostftp.com/hr/contact) · [Support](https://ghostftp.com/hr/support) · [Security](https://ghostftp.com/hr/security) · [Privacy](https://ghostftp.com/hr/privacy) · [License](LICENSE.txt) · [Terms](https://ghostftp.com/hr/terms)
 
 ---
 

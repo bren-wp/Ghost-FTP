@@ -1276,6 +1276,7 @@ class MainActivity : Activity() {
             addView(officialLinkRow(getString(R.string.label_support), getString(R.string.about_support_desc), SUPPORT_URL))
             addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
             addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
+            addView(officialLinkRow(getString(R.string.label_support), getString(R.string.about_support_desc), CONTACT_URL))
             addView(officialLinkRow(getString(R.string.label_project_repository), getString(R.string.about_repository_desc), REPOSITORY_URL))
         })
     }
@@ -2353,16 +2354,18 @@ class MainActivity : Activity() {
         const val STATE_NAVIGATION_OPEN = "ghostftp.navigationOpen"
 
         const val REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP"
-        const val SUPPORT_URL = "https://github.com/bren-wp/Ghost-FTP/issues"
-        const val DOCUMENTATION_URL = "https://github.com/bren-wp/Ghost-FTP/tree/main/docs"
-        const val PRIVACY_URL = "https://github.com/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md"
-        const val EULA_URL = "https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt"
+        const val SUPPORT_URL = "https://ghostftp.com/hr/support"
+        const val DOCUMENTATION_URL = "https://ghostftp.com/hr/how-to-download"
+        const val PRIVACY_URL = "https://ghostftp.com/hr/privacy"
+        const val EULA_URL = "https://ghostftp.com/hr/terms"
+        const val CONTACT_URL = "https://ghostftp.com/hr/contact"
         val OFFICIAL_LINKS = setOf(
             REPOSITORY_URL,
             SUPPORT_URL,
             DOCUMENTATION_URL,
             PRIVACY_URL,
-            EULA_URL
+            EULA_URL,
+            CONTACT_URL
         )
     }
 }
