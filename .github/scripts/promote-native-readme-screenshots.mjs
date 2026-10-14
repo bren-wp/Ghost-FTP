@@ -72,7 +72,7 @@ fs.writeFileSync(manifestFile,JSON.stringify({
 },null,2)+"\n");
 const readmePath=path.join(root,"README.md");
 let readme=fs.readFileSync(readmePath,"utf8");
-const label=`Seven authentic Ghost FTP Windows ${version} running-application screenshots (1290×852), captured in [GitHub Actions native QA](https://github.com/bren-wp/Ghost-FTP/actions/runs/${runId}) at source commit \\`${sourceSha.slice(0,12)}\\`. Each PNG is SHA-256 pinned in [the capture manifest](docs/assets/screenshots/README-NATIVE-CAPTURE.json). No concept artwork or generated screenshots.`;
+const label=`Seven authentic Ghost FTP Windows ${version} running-application screenshots (1290×852), captured in [GitHub Actions native QA](https://github.com/bren-wp/Ghost-FTP/actions/runs/${runId}) at source commit <code>${sourceSha.slice(0,12)}</code>. Each PNG is SHA-256 pinned in [the capture manifest](docs/assets/screenshots/README-NATIVE-CAPTURE.json). No concept artwork or generated screenshots.`;
 readme=readme.replace(/<p align="center"><sub>[^<]*<\/sub><\/p>/, `<p align="center"><sub>${label}</sub></p>`);
 fs.writeFileSync(readmePath,readme);
 console.log(`Promoted ${Object.keys(mapping).length} genuine Windows ${version} QA screenshots, run ${runId}.`);
