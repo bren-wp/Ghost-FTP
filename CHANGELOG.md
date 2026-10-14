@@ -1,3 +1,11 @@
+## 0.95.14 — safer cloud cancellation and clearer transfer controls — 14 October 2026
+
+- **Android cancellation safety:** Recheck cancellation immediately after each provider/network read, before processing a returned block; a regression test prevents late writes after cancellation.
+- **Android cloud UX:** Upload/download picker actions disable while a document picker is pending or a transfer runs, and restore when the operation finishes. Invalid signed links are rejected and wiped from the input.
+- **Documentation:** Keep the seven verified native Windows captures as the sole README gallery; advance version metadata and identify the remaining 75-screen pixel-parity and full function-level dead-code audit gaps.
+
+See [0.95.14 release notes](docs/releases/0.95.14.md).
+
 ## 0.95.13 — privacy-first Settings and adaptive Android identity — 14 October 2026
 
 - **Android privacy:** Privacy Policy and Terms of use now appear at the bottom of Settings, alongside the Brendigo author credit. These reuse the HTTPS-only allowlisted official links from Help & About.

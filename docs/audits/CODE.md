@@ -1,10 +1,10 @@
-> Ghost FTP **0.95.13** (release cycle), following published **v0.95.12**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.14** (release cycle), following published **v0.95.13**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP Code Audit — 0.93.0
 
-> Current development: **0.95.12** (premium QA and cloud hardening), following published **0.95.12**. Historical sections are retained unchanged.
+> Current development: **0.95.13** (premium QA and cloud hardening), following published **0.95.13**. Historical sections are retained unchanged.
 
-> Current development source: **0.95.12**; latest verified published release: **0.95.12**. Historical findings below retain their original version labels.
+> Current development source: **0.95.13**; latest verified published release: **0.95.13**. Historical findings below retain their original version labels.
 
 ## Scope
 
@@ -21,7 +21,7 @@
 
 0.91.0 incremental review: the saved-sites identity-matching code reads protocol, normalized host, port and username without accessing auth secrets or modifying persisted profile data. The feature is Windows/Linux-only; cross-platform UI acceptance and a new full dead-code audit are not claimed.
 
-Historical 0.93.0 findings here covered the Ghost FTP source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.95.12**.
+Historical 0.93.0 findings here covered the Ghost FTP source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.95.13**.
 
 These findings build on the previously reviewed 0.30.15 code-audit baseline; the 0.30.16 changes are limited to live premium color surfaces and their CI contract. A complete new dead-code audit has not been claimed.
 
@@ -74,3 +74,7 @@ Status: current source has stronger cross-language reachability and action wirin
 ## 0.90.1 focused data-loss and runtime-safety fixes
 
 The desktop migration previously compared database row counts; extra keys or corrupted values could make a partial write look successful and trigger premature deletion of the legacy copy. The new implementation checks exact serialized readback before removing the original. Corrupted legacy settings now cannot abort startup. Password generation validates a finite bounded integer length before entering its synchronous loop. Executable regression scripts use the shipped TypeScript production source and injected IPC/storage/CSPRNG. They are integrated into `npm run check:ui`. Existing source reachability controls remain mandatory.
+
+### 0.95.14 audit scope
+
+TypeScript `noUnusedLocals`, production reachability, Rust Clippy, Go vet and Android shrinking remain enforced by CI. These checks identify only portions of dead code; exported-symbol reachability, reflective entrypoints, lifecycle callbacks and platform migrations require a separately evidenced function-level review before deletion. No unverified code removal is claimed for this release.
