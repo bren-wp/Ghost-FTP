@@ -67,13 +67,32 @@ pub fn parse(xml: &str) -> Result<Vec<ProfilePreview>> {
     let mut folder_stack: Vec<String> = Vec::new();
     let mut current_server: Option<ServerAccum> = None;
     let mut current_field: Option<String> = None;
+    let mut opened_root = false;
+    let mut closed_root = false;
+    let mut opened_servers = false;
+    let mut closed_servers = false;
 
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => {
                 let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
                 match name.as_str() {
+                    "FileZilla3" => {
+                        if opened_root || closed_root {
+                            bail!("Unexpected FileZilla document root");
+                        }
+                        opened_root = true;
+                    }
+                    "Servers" => {
+                        if !opened_root || opened_servers {
+                            bail!("Unexpected FileZilla Servers element");
+                        }
+                        opened_servers = true;
+                    }
                     "Folder" => {
+                        if !opened_servers || closed_servers {
+                            bail!("FileZilla folder is outside the Servers section");
+                        }
                         if current_server.is_some() {
                             bail!("A FileZilla site may not contain nested folders");
                         }
@@ -84,6 +103,9 @@ pub fn parse(xml: &str) -> Result<Vec<ProfilePreview>> {
                         current_field = None;
                     }
                     "Server" => {
+                        if !opened_servers || closed_servers {
+                            bail!("FileZilla site is outside the Servers section");
+                        }
                         if current_server.is_some() {
                             bail!("Nested FileZilla server entries are not supported");
                         }
@@ -124,6 +146,15 @@ pub fn parse(xml: &str) -> Result<Vec<ProfilePreview>> {
             Ok(Event::End(e)) => {
                 let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
                 match name.as_str() {
+                    "FileZilla3" => {
+                        closed_root = true;
+                    }
+                    "Servers" => {
+                        if current_server.is_some() || !folder_stack.is_empty() {
+                            bail!("FileZilla Servers closed with unfinished entries");
+                        }
+                        closed_servers = true;
+                    }
                     "Folder" => {
                         if folder_stack.pop().is_none() {
                             bail!("Unexpected end of FileZilla folder");
@@ -147,6 +178,16 @@ pub fn parse(xml: &str) -> Result<Vec<ProfilePreview>> {
                     }
                 }
             }
+            Ok(Event::Empty(e)) => {
+                // Empty server collections are valid exported FileZilla sites.
+                if e.name().as_ref() == b"Servers" {
+                    if !opened_root || opened_servers {
+                        bail!("Unexpected empty FileZilla Servers element");
+                    }
+                    opened_servers = true;
+                    closed_servers = true;
+                }
+            }
             Ok(Event::DocType(_)) => bail!("FileZilla imports must not contain XML DTDs"),
             Ok(Event::Eof) => break,
             Ok(_) => {}
@@ -159,8 +200,14 @@ pub fn parse(xml: &str) -> Result<Vec<ProfilePreview>> {
         }
         buf.clear();
     }
-    if current_server.is_some() || !folder_stack.is_empty() {
-        bail!("Truncated FileZilla saved-site XML");
+    if current_server.is_some()
+        || !folder_stack.is_empty()
+        || !opened_root
+        || !closed_root
+        || !opened_servers
+        || !closed_servers
+    {
+        bail!("Truncated or invalid FileZilla saved-site XML");
     }
     Ok(out)
 }
