@@ -1,3 +1,11 @@
+## 0.95.18 — Strict IIS/MS-DOS FTP LIST compatibility (under verification) — 14 October 2026
+
+- Rust desktop FTP/explicit FTPS listing parser now recognizes strict Windows IIS/MS-DOS file and directory listing records, including Unicode names and spaces, and preserves exact 64-bit file sizes.
+- Invalid or unsupported server LIST rows fail the directory listing instead of silently hiding existing files from browsing, recursive operations and conflict detection.
+- Regression tests cover Unix listing continuity, DOS dates/leap years, 12-hour clock, invalid paths, overflow, dot rows and mixed valid/invalid data.
+- **Validation scope:** compatibility with a real Windows IIS FTP server remains UNVERIFIED until an independent IIS run is documented. No new UI artwork.
+- #127 physical Android SAF acceptance and #128 Android/macOS authenticated cloud accounts remain OPEN; free FileZilla Client equivalence is NOT asserted.
+
 ## 0.95.17 — Android SAF recovery QA and real protocol binary edge cases — 14 October 2026
 
 - **Safety:** Corrupted or tampered Android SAF download recovery journals now block new signed-object transfers until the user explicitly reviews and dismisses the warning. A second transfer can no longer overwrite a still-unresolved document record.
