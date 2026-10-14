@@ -131,7 +131,9 @@ pub fn parse(xml: &str) -> Result<Vec<ProfilePreview>> {
                         current_field = None;
                     }
                     "Server" => {
-                        let server = current_server.take().context("Unexpected end of FileZilla server")?;
+                        let server = current_server
+                            .take()
+                            .context("Unexpected end of FileZilla server")?;
                         current_field = None;
                         if let Some(preview) = server.into_preview(&folder_stack) {
                             if out.len() >= MAX_IMPORT_SITES {
@@ -321,8 +323,14 @@ mod tests {
         assert_eq!(site.name, "Website deployment");
         assert_eq!(site.group.as_deref(), Some("Production / EU"));
         assert_eq!(site.protocol, "sftp");
-        assert!(site.note.as_deref().unwrap_or("").contains("Production / EU"));
-        assert!(!serde_json::to_string(site).unwrap().contains("super-secret"));
+        assert!(site
+            .note
+            .as_deref()
+            .unwrap_or("")
+            .contains("Production / EU"));
+        assert!(!serde_json::to_string(site)
+            .unwrap()
+            .contains("super-secret"));
         let stored = sites[0].clone().into_profile();
         assert_eq!(stored.group.as_deref(), Some("Production / EU"));
         assert_eq!(stored.name, "Website deployment");
@@ -382,9 +390,8 @@ mod tests {
     fn oversized_and_truncated_imports_fail_closed() {
         let too_large = " ".repeat(super::MAX_XML_BYTES + 1);
         assert!(parse(&too_large).is_err());
-        assert!(parse(
-            "<FileZilla3><Servers><Folder>Team<Server><Host>example.org</Host>"
-        ).is_err());
+        assert!(
+            parse("<FileZilla3><Servers><Folder>Team<Server><Host>example.org</Host>").is_err()
+        );
     }
-
 }
