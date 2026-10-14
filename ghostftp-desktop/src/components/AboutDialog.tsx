@@ -111,13 +111,13 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
         <aside className="ghost-about-reference-resources" aria-label="Support and resources">
           <h3 className="ghost-about-resources-heading">{tr("Resources, documentation and support.")}</h3>
           <div className="ghost-about-resources-list">
-            <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Documentation")} subtitle="Official installation and getting-started guide" url={PRODUCT_DOCUMENTATION_URL}/>
+            <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Documentation")} subtitle={tr("Official installation and getting-started guide")} url={PRODUCT_DOCUMENTATION_URL}/>
             <LinkRow icon={<HelpCircle size={18}/>} title={tr("Help Center")} subtitle="Connections and troubleshooting" onClick={() => onNavigate("help")}/>
-            <OfficialLinkRow icon={<LifeBuoy size={18}/>} title={tr("Support")} subtitle="Official help and troubleshooting" url={PRODUCT_SUPPORT_URL}/>
-            <OfficialLinkRow icon={<ShieldCheck size={18}/>} title={tr("Privacy Policy")} subtitle="Official privacy policy" url={PRODUCT_PRIVACY_URL}/>
-            <OfficialLinkRow icon={<FileText size={18}/>} title="Terms of use / EULA" subtitle="Official terms of use" url={PRODUCT_EULA_URL}/>
-            <OfficialLinkRow icon={<LifeBuoy size={18}/>} title="Contact" subtitle="Ask a question or report a problem" url={PRODUCT_CONTACT_URL}/>
-            <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Project repository")} subtitle="Source code and verified releases" url={PROJECT_REPOSITORY_URL}/>
+            <OfficialLinkRow icon={<LifeBuoy size={18}/>} title={tr("Support")} subtitle={tr("Official help and troubleshooting")} url={PRODUCT_SUPPORT_URL}/>
+            <OfficialLinkRow icon={<ShieldCheck size={18}/>} title={tr("Privacy Policy")} subtitle={tr("Official privacy policy")} url={PRODUCT_PRIVACY_URL}/>
+            <OfficialLinkRow icon={<FileText size={18}/>} title={tr("Terms of use / EULA")} subtitle={tr("Official terms of use")} url={PRODUCT_EULA_URL}/>
+            <OfficialLinkRow icon={<LifeBuoy size={18}/>} title={tr("Contact")} subtitle={tr("Ask a question or report a problem")} url={PRODUCT_CONTACT_URL}/>
+            <OfficialLinkRow icon={<Globe2 size={18}/>} title={tr("Project repository")} subtitle={tr("Source code and verified releases")} url={PROJECT_REPOSITORY_URL}/>
             <LinkRow icon={<RefreshCw size={18}/>} title={tr("Updates")} subtitle="Check the update status" onClick={() => onNavigate("updates")}/>
           </div>
         </aside>

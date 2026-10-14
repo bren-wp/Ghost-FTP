@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+const supportSource = readFileSync(new URL("../src/lib/i18n-support.ts", import.meta.url), "utf8");
 
 const source = readFileSync(new URL("../src/lib/i18n.ts", import.meta.url), "utf8");
 const completionSource = readFileSync(
@@ -98,6 +99,26 @@ for (const locale of completionLocales) {
         `count=${keys.length}/${referenceKeys.length}`,
       ].filter(Boolean).join("; ")
     );
+  }
+}
+
+
+const supportKeyMatch = supportSource.match(/export const SUPPORT_UI_KEYS = (\[[^\]]+\]) as const;/);
+if (!supportKeyMatch) throw new Error("Missing official support localization keys");
+const supportKeys = JSON.parse(supportKeyMatch[1]);
+if (supportKeys.length !== 8 || new Set(supportKeys).size !== supportKeys.length) {
+  throw new Error("Invalid official support localization keys");
+}
+for (const locale of expectedLocales.filter((name) => name !== "en")) {
+  const row = supportSource.match(new RegExp(
+    `^  ${locale}: (\\[[^\\n]+\\]),?`,
+    "m"
+  ));
+  if (!row) throw new Error(`Missing official support translations for ${locale}`);
+  const values = JSON.parse(row[1]);
+  if (values.length !== supportKeys.length ||
+      values.some((value) => typeof value !== "string" || value.trim().length === 0)) {
+    throw new Error(`Invalid official support translation values for ${locale}`);
   }
 }
 
