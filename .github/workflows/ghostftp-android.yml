@@ -53,6 +53,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          : "${ANDROID_HOME:?Android SDK location is required}"
+          test "$ANDROID_HOME" != "/"
           IMAGE="system-images;android-36;aosp_atd;x86_64"
           INSTALLED="$ANDROID_HOME/system-images/android-36/aosp_atd/x86_64"
           for attempt in 1 2 3; do
