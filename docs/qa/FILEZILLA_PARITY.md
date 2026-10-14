@@ -1,6 +1,6 @@
 # Ghost FTP / FileZilla functional parity
 
-Last reviewed: 2026-10-14 (0.95.18 PR #152; final CI pending)
+Last reviewed: 2026-10-15 (0.95.18 PR #152; latest exact-SHA CI pending)
 Benchmark: FileZilla Client
 Reference: https://filezilla-project.org/client_features.php
 
@@ -124,3 +124,10 @@ For every parity change:
 3. run the relevant platform and protocol gates;
 4. update this file only after the evidence exists;
 5. never promote a status because a feature merely compiles or because a mock reports success.
+
+### 2026-10-15 continuation — bounded diagnostics, SAF crash recovery and visual QA
+
+- **FTP diagnostics (PARTIAL):** `src-tauri/src/network_diagnostics.rs` previously gave each of up to eight resolved addresses a three-second TCP timeout, permitting up to 24 seconds in a multi-address failure. The existing direct-control probe now has an eight-second **total** deadline, retaining the three-second per-address maximum and family detection. Real loopback and zero-budget/refused-address regressions were added. Active FTP, NAT and proxy wizard diagnostics are **not** implemented by this change.
+- **Android SAF (#127, PARTIAL):** `CloudDestinationJournal.kt` now treats an abandoned `pending-cloud-download.tmp` staging record as unresolved after process death. New downloads refuse to replace this record; explicit dismissal clears the staged marker without following symlinks, and failed atomic journal writes retain uncertainty rather than deleting the evidence. Two JVM regressions cover a crash-left staging record and staging symlinks. These are not substitutes for real DocumentsProvider fault injection or physical Android 8–15 acceptance.
+- **Windows native QA (UNVERIFIED until exact-SHA run):** On 2026-10-14, exact SHA `66b6fa912c5a137063dcdad0de7860a48c6aa818` passed quality, protocol E2E, macOS, Android, and Windows hardening, but **failed** Windows native screenshot QA: both `PrintWindow` and the first CDP capture yielded structureless frames (`main`: one color, zero edge ratio). The workflow now retries **real** WebView2 compositor screenshots with both CDP surface modes and validates each frame using the same strict screenshot contract; it still fails if no real UI appears. It does not substitute mock assets or skip the acceptance gate.
+- No broad category is promoted to `EQUIVALENT`, and neither #127 nor #128 is closed. Recheck all six workflows on the **new exact head SHA**, then inspect the Windows screenshot artifacts and physical-device/protocol evidence before merge or release.
