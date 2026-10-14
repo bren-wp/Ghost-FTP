@@ -154,9 +154,12 @@ jobs:
           grep -Fq 'More Than Transfer. Total Control.' ghostftp-desktop/src/components/AboutDialog.tsx
           grep -Fq 'const val REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP"' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
           grep -Fq 'FTPS and SFTP remain disabled' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
-          ! grep -Fq 'ghostftp.com' ghostftp-desktop/src/components/AboutDialog.tsx
-          ! grep -Fq 'ghostftp.com' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
-          ! grep -Fq 'ghostftp.com' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+          grep -Fq 'PRODUCT_SUPPORT_URL' ghostftp-desktop/src/components/AboutDialog.tsx
+          grep -Fq 'PRODUCT_PRIVACY_URL' ghostftp-desktop/src/components/AboutDialog.tsx
+          grep -Fq 'https://ghostftp.com/hr/support' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
+          grep -Fq 'https://ghostftp.com' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
+          ! grep -Fq 'github.com/bren-wp/Ghost-FTP/issues' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
+          ! grep -Fq 'Open the GitHub issue tracker' ghostftp-desktop/src/components/AboutDialog.tsx
 
       - name: Real premium Help/About reference hierarchy
         shell: bash

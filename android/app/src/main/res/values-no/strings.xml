@@ -148,4 +148,10 @@
     <string name="state_selected_remote_file">Valgt ekstern fil: %1$s</string>
     <string name="label_selected">Valgt</string>
     <string name="label_author">Utvikler</string>
+    <string name="workspace_sync">Synkronisering og sikkerhetskopi</string>
+    <string name="workspace_cloud">Skylagring</string>
+    <string name="action_cancel_cloud">Avbryt skyoverføring</string>
+    <string name="cloud_no_transfer">Ingen skyoverføring pågår.</string>
+    <string name="label_contact">Kontakt</string>
+    <string name="about_contact_desc">Still et spørsmål eller rapporter et problem.</string>
 </resources>

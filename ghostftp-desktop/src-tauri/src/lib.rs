@@ -120,30 +120,30 @@ fn build_settings_init_script(db: &db::Db) -> String {
 fn is_approved_external_url(parsed: &url::Url) -> bool {
     let host = parsed.host_str().unwrap_or_default().to_ascii_lowercase();
     let path = parsed.path();
-    // Only vetted project help destinations. No generic host/path prefix matching:
-    // e.g. another GitHub repository or an arbitrary issue URL must stay blocked.
-    let approved_project_page = host == "github.com"
+    // Exact, verified public help routes. No generic prefix matching or
+    // arbitrary URL forwarding, even on the official host.
+    let official_help_page = host == "ghostftp.com"
         && matches!(
             path,
-            "/bren-wp/Ghost-FTP"
-                | "/bren-wp/Ghost-FTP/issues"
-                | "/bren-wp/Ghost-FTP/tree/main/docs"
-                | "/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md"
-                | "/bren-wp/Ghost-FTP/blob/main/EULA.txt"
+            "/hr/support" | "/hr/contact" | "/hr/how-to-download" | "/hr/privacy" | "/hr/terms"
         );
+    // The source-code repository is explicitly distinguished from support.
+    let approved_project_page = host == "github.com" && path == "/bren-wp/Ghost-FTP";
     parsed.scheme() == "https"
         && parsed.username().is_empty()
         && parsed.password().is_none()
         && parsed.port().is_none()
         && parsed.query().is_none()
         && parsed.fragment().is_none()
-        && approved_project_page
+        && (official_help_page || approved_project_page)
 }
 
 #[tauri::command]
 fn open_external_url(url: String) -> Result<(), String> {
     let parsed = url::Url::parse(&url).map_err(|_| "Invalid external URL".to_string())?;
-    if !is_approved_external_url(&parsed) {
+    // Compare the original input as well: URL parsers normalize dot segments,
+    // percent-encoded path segments and host casing before path verification.
+    if parsed.as_str() != url || !is_approved_external_url(&parsed) {
         return Err("Ghost FTP only opens approved official product links".to_string());
     }
 
@@ -564,15 +564,16 @@ mod init_script_tests {
     #[test]
     fn approved_external_urls_are_exact_and_fail_closed() {
         for allowed in [
+            "https://ghostftp.com/hr/support",
+            "https://ghostftp.com/hr/contact",
+            "https://ghostftp.com/hr/how-to-download",
+            "https://ghostftp.com/hr/privacy",
+            "https://ghostftp.com/hr/terms",
             "https://github.com/bren-wp/Ghost-FTP",
-            "https://github.com/bren-wp/Ghost-FTP/issues",
-            "https://github.com/bren-wp/Ghost-FTP/tree/main/docs",
-            "https://github.com/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md",
-            "https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt",
         ] {
             let parsed = url::Url::parse(allowed).unwrap();
             assert!(
-                is_approved_external_url(&parsed),
+                parsed.as_str() == allowed && is_approved_external_url(&parsed),
                 "expected approved URL: {allowed}"
             );
         }
@@ -580,6 +581,18 @@ mod init_script_tests {
         for blocked in [
             "http://github.com/bren-wp/Ghost-FTP",
             "https://ghostftp.com/support/",
+            "https://ghostftp.com/hr/support/",
+            "https://www.ghostftp.com/hr/support",
+            "https://ghostftp.com/hr/unknown",
+            "https://ghostftp.com/hr/../hr/support",
+            "https://ghostftp.com/hr/%2e%2e/hr/support",
+            "https://ghostftp.com/hr//support",
+            "https://ghostftp.com:444/hr/support",
+            "https://ghostftp.com/hr/support?return=https://evil.example",
+            "https://ghostftp.com/hr/privacy#redirect",
+            "https://evil.example@ghostftp.com/hr/support",
+            "https://ghostftp.com.evil.example/hr/support",
+            "https://github.com/bren-wp/Ghost-FTP/issues",
             "https://www.github.com/bren-wp/Ghost-FTP/issues",
             "https://github.com.evil.example/bren-wp/Ghost-FTP",
             "https://evil.example/https://github.com/bren-wp/Ghost-FTP",
@@ -595,7 +608,7 @@ mod init_script_tests {
         ] {
             let parsed = url::Url::parse(blocked).unwrap();
             assert!(
-                !is_approved_external_url(&parsed),
+                parsed.as_str() != blocked || !is_approved_external_url(&parsed),
                 "expected blocked URL: {blocked}"
             );
         }

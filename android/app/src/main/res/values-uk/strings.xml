@@ -148,4 +148,10 @@
     <string name="state_selected_remote_file">Вибраний віддалений файл: %1$s</string>
     <string name="label_selected">Вибрано</string>
     <string name="label_author">Автор</string>
+    <string name="workspace_sync">Синхронізація та резервне копіювання</string>
+    <string name="workspace_cloud">Хмарне сховище</string>
+    <string name="action_cancel_cloud">Скасувати хмарне передавання</string>
+    <string name="cloud_no_transfer">Зараз немає хмарного передавання.</string>
+    <string name="label_contact">Контакт</string>
+    <string name="about_contact_desc">Поставте запитання або повідомте про проблему.</string>
 </resources>

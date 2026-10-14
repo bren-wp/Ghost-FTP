@@ -1,4 +1,5 @@
 import { REFERENCE_UI_COMPLETION_TRANSLATIONS } from "./i18n-reference-completion";
+import { SUPPORT_UI_COPY } from "./i18n-support";
 
 export const APP_LOCALES = ["en","hr","cs","sk","hu","ro","bg","el","tr","uk","da","sv","no","de","fr","es","it","pt","nl","pl","sl","sr","bs","mk"] as const;
 export type AppLocale = (typeof APP_LOCALES)[number];
@@ -4478,7 +4479,7 @@ export function tr(value: string, locale: AppLocale = getLocale()): string {
   if (locale === "en") return value;
   const trimmed = value.trim();
   const dict = locale === "hr" ? HR : OTHER[locale];
-  const translated = dict?.[trimmed];
+  const translated = SUPPORT_UI_COPY[locale]?.[trimmed] ?? dict?.[trimmed];
   return translated ? value.replace(trimmed, translated) : value;
 }
 

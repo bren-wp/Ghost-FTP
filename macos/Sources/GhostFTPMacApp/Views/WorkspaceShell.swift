@@ -576,6 +576,7 @@ private struct SettingsWorkspace: View {
 
 private struct AboutWorkspace: View {
     private let repositoryURL = "https://github.com/bren-wp/Ghost-FTP"
+    private let officialSiteURL = "https://ghostftp.com"
 
     var body: some View {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
@@ -682,14 +683,16 @@ private struct AboutWorkspace: View {
                 .foregroundStyle(GhostPremiumPalette.text)
 
             resourceLink("Documentation", symbol: "book.closed",
-                         url: "\(repositoryURL)/tree/main/docs")
+                         url: "\(officialSiteURL)/hr/how-to-download")
             resourceLink("Support", symbol: "questionmark.circle",
-                         url: "\(repositoryURL)/issues")
+                         url: "\(officialSiteURL)/hr/support")
             resourceLink("Privacy Policy", symbol: "lock.shield",
-                         url: "\(repositoryURL)/blob/main/docs/legal/PRIVACY.md")
+                         url: "\(officialSiteURL)/hr/privacy")
             resourceLink("EULA", symbol: "doc.text",
-                         url: "\(repositoryURL)/blob/main/EULA.txt")
-            resourceLink("Project and releases", symbol: "externaldrive",
+                         url: "\(officialSiteURL)/hr/terms")
+            resourceLink("Contact", symbol: "envelope",
+                         url: "\(officialSiteURL)/hr/contact")
+            resourceLink("Source repository", symbol: "externaldrive",
                          url: repositoryURL)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

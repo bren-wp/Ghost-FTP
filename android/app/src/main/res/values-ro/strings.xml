@@ -148,4 +148,10 @@
     <string name="state_selected_remote_file">Fișier la distanță selectat: %1$s</string>
     <string name="label_selected">Selectat</string>
     <string name="label_author">Autor</string>
+    <string name="workspace_sync">Sincronizare și copie de rezervă</string>
+    <string name="workspace_cloud">Stocare în cloud</string>
+    <string name="action_cancel_cloud">Anulează transferul în cloud</string>
+    <string name="cloud_no_transfer">Nu există niciun transfer în cloud în desfășurare.</string>
+    <string name="label_contact">Contact</string>
+    <string name="about_contact_desc">Pune o întrebare sau raportează o problemă.</string>
 </resources>

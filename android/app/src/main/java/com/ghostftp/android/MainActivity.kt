@@ -36,12 +36,12 @@ import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
 class MainActivity : Activity() {
-    private enum class Workspace(val labelRes: Int? = null, val fixedLabel: String? = null) {
+    private enum class Workspace(val labelRes: Int) {
         FILES(R.string.workspace_files),
         SITES(R.string.workspace_sites),
         TRANSFERS(R.string.workspace_transfers),
-        SYNC(null, "Sync & Backup"),
-        CLOUD(null, "Cloud storage"),
+        SYNC(R.string.workspace_sync),
+        CLOUD(R.string.workspace_cloud),
         SETTINGS(R.string.workspace_settings),
         ABOUT(R.string.workspace_about)
     }
@@ -1034,7 +1034,7 @@ class MainActivity : Activity() {
     }
 
     private fun buildCloudCard(): View = panel().apply {
-        addView(sectionTitle("Cloud storage"))
+        addView(sectionTitle(getString(R.string.workspace_cloud)))
         addView(sectionDescription(
             "Direct, private object transfers to S3 / R2 / B2, Google Cloud Storage " +
                 "and Azure SAS using short-lived provider-signed HTTPS links. " +
@@ -1059,11 +1059,11 @@ class MainActivity : Activity() {
         }
         addView(cloudDownloadButton)
         addView(space(14))
-        cloudStatus = sectionDescription("No cloud transfer in progress.")
+        cloudStatus = sectionDescription(getString(R.string.cloud_no_transfer))
         addView(cloudStatus)
         addView(space(8))
-        cloudCancelButton = secondaryButton("Cancel cloud transfer") { cancelCloudTransfer() }.apply {
-            contentDescription = "Cancel cloud transfer"
+        cloudCancelButton = secondaryButton(getString(R.string.action_cancel_cloud)) { cancelCloudTransfer() }.apply {
+            contentDescription = getString(R.string.action_cancel_cloud)
             isEnabled = false
         }
         addView(cloudCancelButton)
@@ -1223,8 +1223,10 @@ class MainActivity : Activity() {
         }), buttonParams(weight = 1f))
         addView(secondRow)
 
-        // Canonical trusted legal links stay accessible at the end of Settings.
+        // Official support and legal links remain accessible in Settings.
         addView(space(16))
+        addView(officialLinkRow(getString(R.string.label_support), getString(R.string.about_support_desc), SUPPORT_URL))
+        addView(officialLinkRow(getString(R.string.label_contact), getString(R.string.about_contact_desc), CONTACT_URL))
         addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
         addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
         addView(aboutFactRow(getString(R.string.label_author), "Brendigo"))
@@ -1276,6 +1278,7 @@ class MainActivity : Activity() {
             addView(officialLinkRow(getString(R.string.label_support), getString(R.string.about_support_desc), SUPPORT_URL))
             addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
             addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
+            addView(officialLinkRow(getString(R.string.label_contact), getString(R.string.about_contact_desc), CONTACT_URL))
             addView(officialLinkRow(getString(R.string.label_project_repository), getString(R.string.about_repository_desc), REPOSITORY_URL))
         })
     }
@@ -2191,8 +2194,7 @@ class MainActivity : Activity() {
         background = rounded(Brand.badge, dp(999), Brand.border)
     }
 
-    private fun workspaceLabel(workspace: Workspace): String =
-        workspace.labelRes?.let { getString(it) } ?: workspace.fixedLabel ?: workspace.name
+    private fun workspaceLabel(workspace: Workspace): String = getString(workspace.labelRes)
 
     private fun workspaceNavItem(workspace: Workspace): TextView {
         val label = workspaceLabel(workspace)
@@ -2353,16 +2355,18 @@ class MainActivity : Activity() {
         const val STATE_NAVIGATION_OPEN = "ghostftp.navigationOpen"
 
         const val REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP"
-        const val SUPPORT_URL = "https://github.com/bren-wp/Ghost-FTP/issues"
-        const val DOCUMENTATION_URL = "https://github.com/bren-wp/Ghost-FTP/tree/main/docs"
-        const val PRIVACY_URL = "https://github.com/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md"
-        const val EULA_URL = "https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt"
+        const val SUPPORT_URL = "https://ghostftp.com/hr/support"
+        const val DOCUMENTATION_URL = "https://ghostftp.com/hr/how-to-download"
+        const val PRIVACY_URL = "https://ghostftp.com/hr/privacy"
+        const val EULA_URL = "https://ghostftp.com/hr/terms"
+        const val CONTACT_URL = "https://ghostftp.com/hr/contact"
         val OFFICIAL_LINKS = setOf(
             REPOSITORY_URL,
             SUPPORT_URL,
             DOCUMENTATION_URL,
             PRIVACY_URL,
-            EULA_URL
+            EULA_URL,
+            CONTACT_URL
         )
     }
 }

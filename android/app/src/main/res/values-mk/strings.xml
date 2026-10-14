@@ -148,4 +148,10 @@
     <string name="state_selected_remote_file">Избрана оддалечена датотека: %1$s</string>
     <string name="label_selected">Избрано</string>
     <string name="label_author">Автор</string>
+    <string name="workspace_sync">Синхронизација и резервна копија</string>
+    <string name="workspace_cloud">Складирање во облак</string>
+    <string name="action_cancel_cloud">Откажи пренос во облак</string>
+    <string name="cloud_no_transfer">Нема активен пренос во облак.</string>
+    <string name="label_contact">Контакт</string>
+    <string name="about_contact_desc">Поставете прашање или пријавете проблем.</string>
 </resources>

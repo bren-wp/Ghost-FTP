@@ -201,7 +201,7 @@ class MainActivitySmokeTest {
     @Test
     fun settingsShowsVisibleLegalLinksAndBrendigoAuthor() {
         openWorkspace(R.string.workspace_settings)
-        for (label in listOf(R.string.label_privacy_policy, R.string.label_eula)) {
+        for (label in listOf(R.string.label_support, R.string.label_contact, R.string.label_privacy_policy, R.string.label_eula)) {
             val description = appString(R.string.link_open, appString(label))
             scenario.onActivity { activity ->
                 val link = findView(activity.window.decorView) {
@@ -225,6 +225,7 @@ class MainActivitySmokeTest {
         openWorkspace(R.string.workspace_about)
         for (description in listOf(
             appString(R.string.link_open, appString(R.string.label_support)),
+            appString(R.string.link_open, appString(R.string.label_contact)),
             appString(R.string.link_open, appString(R.string.label_documentation)),
             appString(R.string.link_open, appString(R.string.label_privacy_policy)),
             appString(R.string.link_open, appString(R.string.label_eula)),

@@ -148,4 +148,10 @@
     <string name="state_selected_remote_file">Izbrana oddaljena datoteka: %1$s</string>
     <string name="label_selected">Izbrano</string>
     <string name="label_author">Avtor</string>
+    <string name="workspace_sync">Sinhronizacija in varnostno kopiranje</string>
+    <string name="workspace_cloud">Shramba v oblaku</string>
+    <string name="action_cancel_cloud">Prekliči prenos v oblak</string>
+    <string name="cloud_no_transfer">Trenutno ni prenosa v oblak.</string>
+    <string name="label_contact">Kontakt</string>
+    <string name="about_contact_desc">Postavite vprašanje ali prijavite težavo.</string>
 </resources>

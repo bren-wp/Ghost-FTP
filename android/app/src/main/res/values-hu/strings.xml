@@ -148,4 +148,10 @@
     <string name="state_selected_remote_file">Kiválasztott távoli fájl: %1$s</string>
     <string name="label_selected">Kiválasztva</string>
     <string name="label_author">Fejlesztő</string>
+    <string name="workspace_sync">Szinkronizálás és biztonsági mentés</string>
+    <string name="workspace_cloud">Felhőtárhely</string>
+    <string name="action_cancel_cloud">Felhőátvitel megszakítása</string>
+    <string name="cloud_no_transfer">Nincs folyamatban felhőátvitel.</string>
+    <string name="label_contact">Kapcsolat</string>
+    <string name="about_contact_desc">Tegyen fel kérdést, vagy jelentse a problémát.</string>
 </resources>

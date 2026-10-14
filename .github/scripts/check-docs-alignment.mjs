@@ -79,7 +79,8 @@ const forbidden = [
   [/ghostftp-native-preview/i, "obsolete duplicate native-build workflow"],
   [/\bwebsite\//i, "obsolete website source path"],
   [/GhostFTP-v<version>-Website\.zip/i, "obsolete website release archive"],
-  [/https?:\/\/(?:www\.)?ghostftp\.com/i, "retired public website URL"],
+  [/http:\/\/(?:www\.)?ghostftp\.com/i, "insecure official website URL"],
+  [/https:\/\/www\.ghostftp\.com/i, "unverified website host (use canonical ghostftp.com)"],
 ];
 
 for (const rel of operationalDocs) {

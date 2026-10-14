@@ -148,4 +148,10 @@
     <string name="state_selected_remote_file">Wybrany zdalny plik: %1$s</string>
     <string name="label_selected">Wybrano</string>
     <string name="label_author">Autor</string>
+    <string name="workspace_sync">Synchronizacja i kopia zapasowa</string>
+    <string name="workspace_cloud">Pamięć w chmurze</string>
+    <string name="action_cancel_cloud">Anuluj transfer w chmurze</string>
+    <string name="cloud_no_transfer">Brak aktywnego transferu w chmurze.</string>
+    <string name="label_contact">Kontakt</string>
+    <string name="about_contact_desc">Zadaj pytanie lub zgłoś problem.</string>
 </resources>

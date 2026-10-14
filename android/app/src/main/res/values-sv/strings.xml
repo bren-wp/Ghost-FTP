@@ -148,4 +148,10 @@
     <string name="state_selected_remote_file">Vald fjärrfil: %1$s</string>
     <string name="label_selected">Vald</string>
     <string name="label_author">Utvecklare</string>
+    <string name="workspace_sync">Synkronisering och säkerhetskopiering</string>
+    <string name="workspace_cloud">Molnlagring</string>
+    <string name="action_cancel_cloud">Avbryt molnöverföring</string>
+    <string name="cloud_no_transfer">Ingen molnöverföring pågår.</string>
+    <string name="label_contact">Kontakt</string>
+    <string name="about_contact_desc">Ställ en fråga eller rapportera ett problem.</string>
 </resources>

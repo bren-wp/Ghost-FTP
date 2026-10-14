@@ -155,6 +155,7 @@ ANDROID_STRINGS="$ANDROID_DIR/app/src/main/res/values/strings.xml"
 require_text "app label" "$ANDROID_STRINGS" '<string name="app_name">Ghost FTP</string>'
 localization_keys=(
   workspace_files workspace_sites workspace_transfers workspace_settings workspace_about
+  workspace_sync workspace_cloud action_cancel_cloud cloud_no_transfer label_contact about_contact_desc
   action_refresh action_upload action_download action_new_folder action_rename action_delete
   action_cancel action_confirm action_connect action_disconnect action_pick_file
   label_support label_documentation label_privacy_policy label_project_repository about_repository_desc
@@ -206,7 +207,7 @@ require_text "restored permanent rail stays docked" "$MAIN_ACTIVITY" 'navigation
 require_text "Files workspace localization" "$MAIN_ACTIVITY" 'FILES(R.string.workspace_files)'
 require_text "Sites workspace localization" "$MAIN_ACTIVITY" 'SITES(R.string.workspace_sites)'
 require_text "Transfers workspace localization" "$MAIN_ACTIVITY" 'TRANSFERS(R.string.workspace_transfers)'
-require_text "Sync and Backup Windows-parity workspace" "$MAIN_ACTIVITY" 'SYNC(null, "Sync & Backup")'
+require_text "Sync and Backup Windows-parity workspace" "$MAIN_ACTIVITY" 'SYNC(R.string.workspace_sync)'
 require_text "Settings workspace localization" "$MAIN_ACTIVITY" 'SETTINGS(R.string.workspace_settings)'
 require_text "Help workspace localization" "$MAIN_ACTIVITY" 'ABOUT(R.string.workspace_about)'
 require_text "localized private session label" "$MAIN_ACTIVITY" 'getString(R.string.label_private_session)'
@@ -401,11 +402,16 @@ require_absent "global cleartext enabled" "$ANDROID_DIR/app/src/main/AndroidMani
 require_text "plain FTP risk disclosure" "$ANDROID_DIR/app/src/main/res/values/strings.xml" 'FTP sends credentials and file data without transport encryption.'
 require_text "FTPS hostname validation disclosure" "$ANDROID_DIR/app/src/main/res/values/strings.xml" 'validates the server hostname.'
 require_text "SFTP host-key verification disclosure" "$ANDROID_DIR/app/src/main/res/values/strings.xml" 'requires strict SSH host-key verification.'
-require_text "official support link" "$MAIN_ACTIVITY" 'https://github.com/bren-wp/Ghost-FTP/issues'
-require_text "official privacy link" "$MAIN_ACTIVITY" 'https://github.com/bren-wp/Ghost-FTP/blob/main/docs/legal/PRIVACY.md'
-require_text "official documentation link" "$MAIN_ACTIVITY" 'https://github.com/bren-wp/Ghost-FTP/tree/main/docs'
+require_text "official support link" "$MAIN_ACTIVITY" 'const val SUPPORT_URL = "https://ghostftp.com/hr/support"'
+require_text "official contact link" "$MAIN_ACTIVITY" 'const val CONTACT_URL = "https://ghostftp.com/hr/contact"'
+require_text "official privacy link" "$MAIN_ACTIVITY" 'const val PRIVACY_URL = "https://ghostftp.com/hr/privacy"'
+require_text "official documentation link" "$MAIN_ACTIVITY" 'const val DOCUMENTATION_URL = "https://ghostftp.com/hr/how-to-download"'
 require_text "canonical project repository link" "$MAIN_ACTIVITY" 'const val REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP"'
-require_text "canonical EULA link" "$MAIN_ACTIVITY" 'https://github.com/bren-wp/Ghost-FTP/blob/main/EULA.txt'
+require_text "canonical EULA link" "$MAIN_ACTIVITY" 'const val EULA_URL = "https://ghostftp.com/hr/terms"'
+require_absent "GitHub issues are not the support destination" "$MAIN_ACTIVITY" 'github.com/bren-wp/Ghost-FTP/issues'
+require_text "localized Sync workspace" "$MAIN_ACTIVITY" 'SYNC(R.string.workspace_sync)'
+require_text "localized Cloud workspace" "$MAIN_ACTIVITY" 'CLOUD(R.string.workspace_cloud)'
+require_text "localized Cloud cancel control" "$MAIN_ACTIVITY" 'getString(R.string.action_cancel_cloud)'
 require_text "Android 15 edge-to-edge API gate" "$MAIN_ACTIVITY" 'if (Build.VERSION.SDK_INT >= 35)'
 require_text "Android 15 system bar insets" "$MAIN_ACTIVITY" 'WindowInsets.Type.systemBars()'
 require_text "Android 15 root inset padding" "$MAIN_ACTIVITY" 'view.setPadding(bars.left, bars.top, bars.right, bars.bottom)'

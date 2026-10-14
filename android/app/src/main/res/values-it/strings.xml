@@ -148,4 +148,10 @@
     <string name="state_selected_remote_file">File remoto selezionato: %1$s</string>
     <string name="label_selected">Selezionato</string>
     <string name="label_author">Autore</string>
+    <string name="workspace_sync">Sincronizzazione e backup</string>
+    <string name="workspace_cloud">Archiviazione cloud</string>
+    <string name="action_cancel_cloud">Annulla trasferimento cloud</string>
+    <string name="cloud_no_transfer">Nessun trasferimento cloud in corso.</string>
+    <string name="label_contact">Contatti</string>
+    <string name="about_contact_desc">Fai una domanda o segnala un problema.</string>
 </resources>
