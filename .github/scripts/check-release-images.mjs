@@ -117,6 +117,28 @@ const approvedWindowsCaptures = new Map([
   ]
 ]);
 
+// The optional current-version manifest is generated from the actual
+// installed native Windows QA artifact, not invented screenshot pixels.
+const manifestPath = path.join(screenshotDir, "README-NATIVE-CAPTURE.json");
+const captureManifest = fs.existsSync(manifestPath)
+  ? JSON.parse(fs.readFileSync(manifestPath, "utf8"))
+  : null;
+if (captureManifest) {
+  const candidateVersion = JSON.parse(fs.readFileSync(path.join(root,"version.json"),"utf8")).version;
+  if (captureManifest.version !== candidateVersion ||
+      !/^[a-f0-9]{40}$/.test(captureManifest.capture_source_sha ?? "") ||
+      !/^\\d+$/.test(captureManifest.github_actions_run_id ?? "") ||
+      captureManifest.platform !== "Windows" ||
+      captureManifest.provenance !== "Ghost FTP native build, real Windows WebView2 compositor QA, 1290x852" ||
+      Object.keys(captureManifest.images ?? {}).length !== approvedWindowsCaptures.size) {
+    throw new Error("README screenshot manifest does not describe this exact native build.");
+  }
+  for (const pathName of approvedWindowsCaptures.keys()) {
+    if (!/^[a-f0-9]{64}$/.test(captureManifest.images[pathName] ?? "")) {
+      throw new Error("Missing verified README capture SHA-256: " + pathName);
+    }
+  }
+}
 const failures = [];
 for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.localeCompare(b))) {
   const absolute = path.join(root, relative);
@@ -133,11 +155,11 @@ for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.lo
     continue;
   }
 
-  const approvedHash = approvedWindowsCaptures.get(relative);
+  const approvedHash = captureManifest?.images?.[relative] ?? approvedWindowsCaptures.get(relative);
   if (approvedHash) {
     const actualHash = createHash("sha256").update(fs.readFileSync(absolute)).digest("hex");
     if (actualHash !== approvedHash) {
-      failures.push(`${relative}: Windows QA capture does not match its pinned v0.30.19 release-native SHA256`);
+      failures.push(`${relative}: Windows QA capture does not match the pinned SHA256 provenance`);
     }
     continue;
   }
