@@ -111,3 +111,10 @@ A created SAF destination URI is recorded before downloading, in app-private no-
 ## 0.95.17 Android recovery consistency and click QA
 
 An invalid/truncated recovery journal is now an unresolved condition, not an absent download. Cloud actions remain disabled until the user explicitly reviews/dismisses the warning; overwrite of an existing recovery record is rejected. Emulator instrumentation exercises both valid and corrupt journals through Activity recreation and visible recovery buttons. This improves fail-closed behavior but does **not** substitute for physical Android 8–15 and real DocumentsProvider fault-injection acceptance required by #127.
+
+
+## 0.95.18 SAF orphan cleanup follow-up (#127 — source only, device acceptance open)
+
+- The Android `ACTION_CREATE_DOCUMENT` callback previously called `DocumentsContract.deleteDocument` directly on the UI thread when a picker returned without an in-memory signed link or durable recovery could not be committed. That can block the screen indefinitely on a slow/faulty DocumentsProvider. The new path first attempts to record only the safe `content://` document URI to the private recovery journal and dispatches deletion on a daemon worker. A failed delete leaves an unresolved reminder when journaling succeeded; when journaling itself fails, users receive a non-success manual-cleanup warning. No signed URL or token is written to the journal.
+- `CloudDestinationJournal.clearIfMatches` prevents an old completion callback from clearing a different pending document's recovery reminder. `clear` now refuses dangling journal symlinks rather than incorrectly reporting success because `File.exists()` follows the missing target.
+- JVM regression cases cover matching/mismatching URI completion and an unresolved dangling symlink. **Physical Android 8–15 with real SAF provider, process death, revoked grants and disk-full testing remain NOT RUN.** This does not close issue #127 or guarantee atomic SAF destination writes. The last PR SHA CI run must be confirmed before claiming these tests executed.
