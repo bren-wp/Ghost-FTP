@@ -170,7 +170,7 @@ fn looks_like_unix_listing(line: &str) -> bool {
         || !matches!(bytes[0], b'-' | b'd' | b'l' | b'c' | b'b' | b'p' | b's')
         || !bytes[1..10]
             .iter()
-            .all(|ch| matches!(ch, b'r' | b'w' | b'x' | b'-' | b's' | b'S' | b't' | b'T'))
+            .all(|ch| matches!(*ch, b'r' | b'w' | b'x' | b'-' | b's' | b'S' | b't' | b'T'))
     {
         return false;
     }
