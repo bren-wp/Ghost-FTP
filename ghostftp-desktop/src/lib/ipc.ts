@@ -100,6 +100,9 @@ export const ipc = {
   testProfileConnection: (profileId: string) =>
     invoke<void>("test_profile_connection", { profileId }),
 
+  diagnoseFtpConnection: (profileId: string) =>
+    invoke<FtpNetworkDiagnostic>("diagnose_ftp_connection", { profileId }),
+
   testEphemeralConnection: (profile: ConnectionProfile) =>
     invoke<void>("test_ephemeral_connection", { profile }),
 
