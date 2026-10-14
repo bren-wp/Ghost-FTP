@@ -148,4 +148,10 @@
     <string name="state_selected_remote_file">Geselecteerd extern bestand: %1$s</string>
     <string name="label_selected">Geselecteerd</string>
     <string name="label_author">Maker</string>
+    <string name="workspace_sync">Synchronisatie en back-up</string>
+    <string name="workspace_cloud">Cloudopslag</string>
+    <string name="action_cancel_cloud">Cloudoverdracht annuleren</string>
+    <string name="cloud_no_transfer">Er is geen cloudoverdracht bezig.</string>
+    <string name="label_contact">Contact</string>
+    <string name="about_contact_desc">Stel een vraag of meld een probleem.</string>
 </resources>

@@ -148,4 +148,10 @@
     <string name="state_selected_remote_file">Seçilen uzak dosya: %1$s</string>
     <string name="label_selected">Seçildi</string>
     <string name="label_author">Geliştirici</string>
+    <string name="workspace_sync">Eşitleme ve yedekleme</string>
+    <string name="workspace_cloud">Bulut depolama</string>
+    <string name="action_cancel_cloud">Bulut aktarımını iptal et</string>
+    <string name="cloud_no_transfer">Devam eden bulut aktarımı yok.</string>
+    <string name="label_contact">İletişim</string>
+    <string name="about_contact_desc">Soru sorun veya sorun bildirin.</string>
 </resources>
