@@ -34,6 +34,12 @@ Scope: **free FileZilla Client**, not commercial FileZilla Pro. Feature referenc
 
 The matrix deliberately distinguishes **source implementation**, **validated local test**, and **real cross-vendor interoperability**. Report actual source SHA and workflow ID before upgrading statuses.
 
+### PR #152 follow-up security assertions (exact-SHA CI pending)
+
+- The FileZilla Site Manager importer now interprets IDs `0` (opportunistic TLS), `3` (implicit FTPS), `4` (required explicit TLS) and `6` (plaintext FTP) according to the upstream protocol enum, not the former inverted mapping. An opportunistic-TLS site is imported as **required explicit FTPS** with a visible explanatory note rather than silently downgraded. An implicit-TLS site is skipped rather than misrepresented as explicit FTPS; the import dialog warns about this limitation. Source: `src-tauri/src/importers/filezilla.rs` plus five regression cases.
+- Recursive FTP deletion now refuses to begin if the server rejects `LIST -a`. Bare `LIST` cannot prove hidden entries are included; deleting only visible entries can otherwise leave a partially deleted directory tree. Source: `src-tauri/src/remotefs/ftp.rs` with a guard regression. A real server that rejects `LIST -a`, with existing hidden files, is still required for destructive-operation E2E evidence.
+- These are targeted safety improvements, not proof of FileZilla equivalence or complete FTP interoperability.
+
 ## Ghost FTP better
 
 No capability is claimed here yet. Marketing superiority is not a substitute for measured evidence.
