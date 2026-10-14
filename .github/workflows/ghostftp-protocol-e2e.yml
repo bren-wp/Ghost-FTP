@@ -147,11 +147,29 @@ jobs:
           authorizer = DummyAuthorizer()
           authorizer.add_user(username, password, home, perm="elradfmwMT")
 
-          if mode != "ftp":
+          if mode not in ("ftp", "dos-list", "dos-invalid"):
               raise SystemExit(f"unknown server mode: {mode}")
-          handler = FTPHandler
+
+          # This is a REAL FTP data-channel interaction through a running
+          # pyftpdlib daemon, not a static/mock return from the Rust parser.
+          # It emulates the IIS LIST byte format, NOT the IIS FTP engine.
+          class DosListHandler(FTPHandler):
+              def ftp_LIST(self, path):
+                  rows = [
+                      "05-13-25  04:17PM                427 report čćž 文件 with spaces.txt",
+                      "04-27-00  09:09PM       <DIR>          Folder Name",
+                      "04-27-25  09:09AM                  0 .htaccess",
+                      "04-27-00  09:09PM       <DIR>          .",
+                      "04-27-00  09:09PM       <DIR>          ..",
+                  ]
+                  if mode == "dos-invalid":
+                      rows.append("04-27-25  09:99AM                77 malformed.txt")
+                  self.push_dtp_data(("\\r\\n".join(rows) + "\\r\\n").encode("utf-8"), cmd="LIST")
+                  return path
+
+          handler = FTPHandler if mode == "ftp" else DosListHandler
           handler.passive_ports = range(30000, 30010)
-          port = 2121
+          port = {"ftp": 2121, "dos-list": 2123, "dos-invalid": 2124}[mode]
 
           handler.authorizer = authorizer
           handler.banner = f"Ghost FTP {mode.upper()} E2E"
@@ -174,6 +192,12 @@ jobs:
           python3 "$RUNNER_TEMP/ghostftp_ftp_server.py" ftp \
             >"$RUNNER_TEMP/ghostftp-ftp.log" 2>&1 &
           FTP_PID=$!
+          python3 "$RUNNER_TEMP/ghostftp_ftp_server.py" dos-list \
+            >"$RUNNER_TEMP/ghostftp-dos-list.log" 2>&1 &
+          DOS_PID=$!
+          python3 "$RUNNER_TEMP/ghostftp_ftp_server.py" dos-invalid \
+            >"$RUNNER_TEMP/ghostftp-dos-invalid.log" 2>&1 &
+          DOS_INVALID_PID=$!
 
           # The pyftpdlib/PyOpenSSL fixture repeatedly returned data TLS 522
           # on LIST, including after reauthentication. This independent local
@@ -243,7 +267,7 @@ jobs:
           echo "Ghost FTP FTP test server PID: $FTP_PID"
           echo "Ghost FTP FTPS test server PID: $FTPS_PID"
 
-          for port in 2121 2122 2222; do
+          for port in 2121 2122 2123 2124 2222; do
             ready=0
             for _ in $(seq 1 30); do
               if nc -z 127.0.0.1 "$port"; then
@@ -294,6 +318,8 @@ jobs:
             echo "GHOSTFTP_E2E_USERNAME=$USERNAME"
             echo "GHOSTFTP_E2E_PASSWORD=$PASSWORD"
             echo "GHOSTFTP_E2E_FTP_PORT=2121"
+            echo "GHOSTFTP_E2E_DOS_PORT=2123"
+            echo "GHOSTFTP_E2E_DOS_INVALID_PORT=2124"
             echo "GHOSTFTP_E2E_FTPS_PORT=2122"
             echo "GHOSTFTP_E2E_SFTP_PORT=2222"
             echo "GHOSTFTP_E2E_KEY_PATH=$RUNNER_TEMP/ghostftp_e2e_ed25519"
@@ -323,6 +349,9 @@ jobs:
           cat "$RUNNER_TEMP/ghostftp-ftp.log" 2>/dev/null || true
           echo "--- FTPS server log ---"
           cat "$RUNNER_TEMP/ghostftp-ftps.log" 2>/dev/null || true
+          echo "--- DOS LIST FTP emulation logs ---"
+          cat "$RUNNER_TEMP/ghostftp-dos-list.log" 2>/dev/null || true
+          cat "$RUNNER_TEMP/ghostftp-dos-invalid.log" 2>/dev/null || true
           echo "--- SFTP server log ---"
           cat "$RUNNER_TEMP/ghostftp-sshd.log" 2>/dev/null || true
           echo "--- TLS runtime ---"
