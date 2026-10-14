@@ -26,13 +26,23 @@ Scope: **free FileZilla Client**, not commercial FileZilla Pro. Feature referenc
 | Filename/directory filtering and remote search | Supported | Existing search/filter surfaces, completeness not reviewed here | Source audit needed | Safe bounded regex, multi-rule presets and recursive cancellation tests | Not established | UNVERIFIED |
 | Site Manager, bookmarks and importing | Supported | Existing profile store and site UI, FileZilla XML importer with security-aware protocol ID mapping | `src-tauri/src/importers/filezilla.rs` source plus 5 unit regressions added in PR #152 (exact-SHA CI pending) | Implicit FTPS ID 3 safely skipped until a real implicit engine exists; surface skipped entries in UI, validate per-site settings and migrations | CI pending; no live IIS | PARTIAL |
 | File editing and drag/drop | Supported | Existing managed temporary editor and drag/drop UI | `docs/qa/TRANSFERS.md` | Remote conflict, editor atomic-save and OS integration tests | Not established | PARTIAL |
-| Network Configuration Wizard | Supported | No verified parity in current settings | No reproducible end-to-end wizard | Implement real network/DNS/control/data diagnostics without router changes | No | MISSING |
+| Network Configuration Wizard | Supported | Saved FTP/FTPS sites: measured DNS, direct TCP, authenticated session and passive directory LIST via new Settings control | `src-tauri/src/network_diagnostics.rs`, `commands.rs`, `lib.rs`, `src/components/Settings.tsx`; three unit regressions; final exact-SHA CI pending | Active PORT/EPRT, NAT detection, proxy tests, error-specific TLS diagnostics and real multi-host network fixture | Existing protocol E2E proves underlying FTP LIST; wizard IPC E2E pending | PARTIAL |
 | SOCKS5/HTTP CONNECT proxy | Supported | No verified complete proxy support | No reproducible proxy fixture tests | Securely implement/authenticate proxy with DNS and data-channel tests | No | UNVERIFIED |
 | Android SAF interrupted cloud recovery | Ghost FTP extension | Fail-closed, private document URI journal and recovery choices | Android 0.95.17 instrumentation success (run 38619915768) | Physical Android 8–15 and provider errors/permission acceptance, issue #127 | Emulator only | PARTIAL |
 | Android/macOS cloud account OAuth | Separate FileZilla Pro-type extension | Ephemeral PKCE foundations; no end-to-end account browsing | Platform unit tests, issue #128 | Registered clients, token vault, list/paging, refresh, revocation and provider tests | No | PARTIAL |
 | 75-screen premium visual target | Ghost FTP-specific design, not FileZilla parity | Reference registry = concepts; real build capture registry separate | `docs/qa/PREMIUM_REFERENCE_75.md` | Exact screen-by-screen pixel and click QA on each native OS | Not complete | UNVERIFIED |
 
 The matrix deliberately distinguishes **source implementation**, **validated local test**, and **real cross-vendor interoperability**. Report actual source SHA and workflow ID before upgrading statuses.
+
+### Saved-site network diagnostics — 0.95.18 development candidate
+
+A collapsed diagnostics control has been added inside existing **Settings → Connection** without changing the Ghost FTP palette or layout. It intentionally selects an existing saved FTP/FTPS profile rather than accepting an arbitrary URL. Running it explicitly performs:
+1. bounded DNS resolution, reporting IPv4/IPv6 *resolved* (not automatically reachable);
+2. a direct TCP control-port connect with bounded socket timeouts, recording which family actually connected;
+3. the real saved connection path, including mandatory TLS for FTPS and secrets hydrated inside Rust;
+4. `LIST` over the authenticated server session via the existing RemoteFs engine, proving a usable passive data channel or reporting its failure.
+
+This diagnostic never changes OS firewall/router, never exposes secret values in its report, does not support proxy paths and **does not** claim active FTP/NAT or FileZilla wizard equivalence. A failed stage suppresses all subsequent success claims. Three Rust helper tests cover loopback TCP, zero targets and not-run states. Source additions are pending final exact-SHA CI and a first-party UI automation / real multi-host network matrix.
 
 ### PR #152 follow-up security assertions (exact-SHA CI pending)
 
