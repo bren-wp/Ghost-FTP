@@ -53,6 +53,12 @@ fn probe_control(addresses: &[SocketAddr]) -> Option<&'static str> {
     None
 }
 
+/// Probe the user's configured default remote directory instead of always
+/// checking the login home, which some servers legitimately make unlistable.
+fn listing_path(configured: Option<&str>) -> &str {
+    configured.map(str::trim).filter(|path| !path.is_empty()).unwrap_or(".")
+}
+
 pub async fn diagnose(
     profile: ConnectionProfile,
     app: AppHandle,
@@ -94,6 +100,7 @@ pub async fn diagnose(
     }
 
     report.control = "passed";
+    let initial_path = listing_path(profile.default_remote_path.as_deref()).to_owned();
     let session_id = match state.sessions.connect(profile, app).await {
         Ok(id) => id,
         Err(_) => {
@@ -104,7 +111,7 @@ pub async fn diagnose(
     };
     report.authentication = "passed";
     let data_result = match state.sessions.get(&session_id).await {
-        Some(session) => fs_for_session(&session).list_dir(".").await,
+        Some(session) => fs_for_session(&session).list_dir(&initial_path).await,
         None => Err(anyhow::anyhow!("diagnostic session was lost")),
     };
     // Always release the temporary authenticated session, including after a
@@ -122,7 +129,7 @@ pub async fn diagnose(
 
 #[cfg(test)]
 mod tests {
-    use super::{probe_control, FtpNetworkDiagnostic};
+    use super::{listing_path, probe_control, FtpNetworkDiagnostic};
     use std::net::{SocketAddr, TcpListener};
 
     #[test]
@@ -136,6 +143,15 @@ mod tests {
     fn an_empty_probe_cannot_report_control_connectivity() {
         let addresses: [SocketAddr; 0] = [];
         assert_eq!(probe_control(&addresses), None);
+    }
+
+    #[test]
+    fn data_probe_uses_saved_remote_directory_when_present() {
+        assert_eq!(listing_path(Some("/private/site")), "/private/site");
+        assert_eq!(listing_path(Some("  /public  ")), "/public");
+        assert_eq!(listing_path(Some("")), ".");
+        assert_eq!(listing_path(Some("   ")), ".");
+        assert_eq!(listing_path(None), ".");
     }
 
     #[test]
