@@ -84,11 +84,9 @@ pub async fn diagnose(
     report.dns = "passed";
     report.resolved_ipv4 = addresses.iter().any(SocketAddr::is_ipv4);
     report.resolved_ipv6 = addresses.iter().any(SocketAddr::is_ipv6);
-    let connected_family = tokio::task::spawn_blocking(move || probe_control(&addresses)).await;
-    report.connected_family = match connected_family {
-        Ok(family) => family,
-        Err(_) => None,
-    };
+    report.connected_family = tokio::task::spawn_blocking(move || probe_control(&addresses))
+        .await
+        .unwrap_or_default();
     if report.connected_family.is_none() {
         report.control = "failed";
         report.advice = "The FTP control TCP port is unreachable. Check server availability, firewall and port.";
