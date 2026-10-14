@@ -151,8 +151,8 @@ final class FTPControlSessionTests: XCTestCase {
             "type=file;size=not-a-number; broken.txt",
             "type=file;type=dir; duplicate.txt",
             "type=OS.unix=slink; symlink.txt",
-            "type=cdir; not-current-directory",
-            "type=pdir; not-parent-directory",
+            "type=cdir; ",
+            "type=pdir; bad\u{0000}name",
             "type=file;invalidfact; broken.txt",
         ]
         for line in malformed {
@@ -161,6 +161,19 @@ final class FTPControlSessionTests: XCTestCase {
                 "Unexpectedly accepted invalid MLSD row: \(line)"
             )
         }
+    }
+
+    func testMLSDPreservesValidRFC3659NamedPseudoEntriesAndEmptyFactValues() throws {
+        let listing = Data(
+            [
+                "type=cdir;perm=; /srv/data",
+                "type=pdir;perm=; /srv",
+                "type=file;size=0;perm=; ordinary.txt",
+            ].joined(separator: "\r\n").appending("\r\n").utf8
+        )
+        let entries = try FTPControlCodec.parseMLSD(listing)
+        XCTAssertEqual(entries.map(\.name), ["ordinary.txt"])
+        XCTAssertEqual(entries.first?.size, 0)
     }
 
     func testMLSDAllowsOrdinaryUnicodeAndSpacesWithStrictFacts() throws {
