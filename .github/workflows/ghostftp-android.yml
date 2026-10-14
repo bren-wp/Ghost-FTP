@@ -45,6 +45,34 @@ jobs:
       - name: Native Android lint and APK build
         shell: bash
         run: gradle -p android testDebugUnitTest lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview bundleRelease
+      # SDK mirror/CDN corruption can surface as "Archive is not a ZIP
+      # archive" before an AVD ever boots. Install the exact Android 16 ATD
+      # image with bounded retries and verify files, *before* invoking the
+      # emulator runner. Never skip click-through/instrumentation tests.
+      - name: Install verified Android 16 emulator system image
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE="system-images;android-36;aosp_atd;x86_64"
+          INSTALLED="$ANDROID_HOME/system-images/android-36/aosp_atd/x86_64"
+          for attempt in 1 2 3; do
+            echo "Installing Android 16 ATD system image (attempt $attempt/3)."
+            if sdkmanager --install "$IMAGE" &&
+               test -s "$INSTALLED/system.img" &&
+               test -s "$INSTALLED/source.properties" &&
+               test -s "$INSTALLED/package.xml"; then
+              echo "Android 16 emulator system image installed and checked."
+              exit 0
+            fi
+            echo "::warning::Android 16 SDK image download/extraction is incomplete."
+            # Only clear this exact AVD system-image installation and the SDK's
+            # incomplete extraction cache on this disposable GitHub runner.
+            rm -rf -- "$INSTALLED" "$ANDROID_HOME/.temp"
+            if [ "$attempt" -lt 3 ]; then sleep "$((attempt * 5))"; fi
+          done
+          echo "::error::Android 16 emulator image installation failed after 3 attempts."
+          exit 1
+
       # reactivecircus detects /dev/kvm access when the action STARTS,
       # before pre-emulator-launch-script. Configure Linux KVM beforehand,
       # otherwise the action silently launches the emulator with -accel off.
