@@ -135,6 +135,50 @@ class CloudDestinationJournalTest {
         assertTrue(CloudDestinationJournal.hasUnresolved(root))
     }
 
+    @Test fun crashedStagingWriteBlocksNextCloudDownloadUntilReviewed() = withDirectory { root ->
+        val staging = File(root, "pending-cloud-download.tmp")
+        staging.writeText("content://com.example.documents/document/incomplete", Charsets.UTF_8)
+        assertTrue("abandoned atomic-write stage is unresolved", CloudDestinationJournal.hasUnresolved(root))
+        assertNull("never trust an uncommitted staging record", CloudDestinationJournal.pending(root))
+        try {
+            CloudDestinationJournal.record(root, "content://com.example.documents/document/next")
+            throw AssertionError("new transfer must not overwrite a crash recovery marker")
+        } catch (_: IOException) {
+            assertTrue(staging.exists())
+        }
+        assertTrue("explicit dismissal clears the staging file", CloudDestinationJournal.clear(root))
+        assertFalse(CloudDestinationJournal.hasUnresolved(root))
+        CloudDestinationJournal.record(root, "content://com.example.documents/document/next")
+        assertTrue(CloudDestinationJournal.hasUnresolved(root))
+    }
+
+    @Test fun stagingSymlinkCannotBeDismissedOrOverwritten() = withDirectory { root ->
+        val staging = File(root, "pending-cloud-download.tmp").toPath()
+        val outside = Files.createTempFile("ghostftp-external-stage", ".txt")
+        try {
+            try {
+                Files.createSymbolicLink(staging, outside)
+            } catch (_: UnsupportedOperationException) {
+                org.junit.Assume.assumeTrue("Symlink unavailable", false)
+            } catch (_: IOException) {
+                org.junit.Assume.assumeTrue("Symlink unavailable", false)
+            }
+            assertTrue(CloudDestinationJournal.hasUnresolved(root))
+            assertNull(CloudDestinationJournal.pending(root))
+            assertFalse(CloudDestinationJournal.clear(root))
+            try {
+                CloudDestinationJournal.record(root, "content://com.example.documents/document/next")
+                throw AssertionError("symlink stage must refuse record")
+            } catch (_: IOException) {
+                assertTrue(Files.isSymbolicLink(staging))
+                assertEquals(0L, Files.size(outside))
+            }
+        } finally {
+            Files.deleteIfExists(staging)
+            Files.deleteIfExists(outside)
+        }
+    }
+
     @Test fun clearingMissingJournalIsSafeAndIdempotent() = withDirectory { root ->
         assertTrue(CloudDestinationJournal.clear(root))
         assertNull(CloudDestinationJournal.pending(root))
