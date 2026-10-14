@@ -79,12 +79,14 @@ const CLICK_TRANSFER_SIZES: [usize; 5] = [1, 65535, 65536, 65537, 262147];
 
 fn simulated_transfer_data(size: usize) -> Vec<u8> {
     let mut state = 0xa52b_97d1u32;
-    (0..size).map(|_| {
-        state ^= state << 13;
-        state ^= state >> 17;
-        state ^= state << 5;
-        (state & 0xff) as u8
-    }).collect()
+    (0..size)
+        .map(|_| {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            (state & 0xff) as u8
+        })
+        .collect()
 }
 
 fn enabled() -> bool {
@@ -334,31 +336,44 @@ async fn ftp_roundtrip(
             let mut reader = Cursor::new(up_bytes);
             let written = stream.put_from_reader(&up_path, &mut reader)?;
             if written as usize != size {
-                return Err(anyhow!("binary upload count mismatch at size {size}: {written}"));
+                return Err(anyhow!(
+                    "binary upload count mismatch at size {size}: {written}"
+                ));
             }
             Ok(())
         })
         .await
         .with_context(|| format!("{protocol} binary upload {size}"))?;
         let listing = fs.list_dir(&base).await.context("binary upload listing")?;
-        if !listing.iter().any(|entry| entry.name == format!("matrix-{size}.bin")) {
-            return Err(anyhow!("{protocol} binary upload missing from listing ({size})"));
+        if !listing
+            .iter()
+            .any(|entry| entry.name == format!("matrix-{size}.bin"))
+        {
+            return Err(anyhow!(
+                "{protocol} binary upload missing from listing ({size})"
+            ));
         }
         fs.rename(&initial, &moved)
             .await
             .with_context(|| format!("{protocol} binary rename {size}"))?;
         let down_path = moved.clone();
-        let downloaded = ftp.with_stream(move |stream| {
-            let mut bytes = Vec::new();
-            stream.retr_to_writer(&down_path, &mut bytes)?;
-            Ok(bytes)
-        })
-        .await
-        .with_context(|| format!("{protocol} binary download {size}"))?;
+        let downloaded = ftp
+            .with_stream(move |stream| {
+                let mut bytes = Vec::new();
+                stream.retr_to_writer(&down_path, &mut bytes)?;
+                Ok(bytes)
+            })
+            .await
+            .with_context(|| format!("{protocol} binary download {size}"))?;
         if downloaded != raw {
-            return Err(anyhow!("{protocol} binary mismatch at {size}: {}", byte_mismatch(&downloaded, &raw)));
+            return Err(anyhow!(
+                "{protocol} binary mismatch at {size}: {}",
+                byte_mismatch(&downloaded, &raw)
+            ));
         }
-        fs.delete(&moved, false).await.context("binary transfer cleanup")?;
+        fs.delete(&moved, false)
+            .await
+            .context("binary transfer cleanup")?;
     }
 
     // Exercise the same SuppaFTP 12 restart + transfer-stream primitives production
@@ -867,22 +882,35 @@ async fn sftp_password_roundtrip(
         out.flush().await.context("SFTP binary flush")?;
         drop(out);
         let listing = fs.list_dir(&base).await.context("SFTP binary listing")?;
-        if !listing.iter().any(|entry| entry.name == format!("matrix-{size}.bin")) {
+        if !listing
+            .iter()
+            .any(|entry| entry.name == format!("matrix-{size}.bin"))
+        {
             return Err(anyhow!("SFTP binary upload missing from listing ({size})"));
         }
-        fs.rename(&original, &renamed).await.context("SFTP binary rename")?;
+        fs.rename(&original, &renamed)
+            .await
+            .context("SFTP binary rename")?;
         let cell = ssh.ensure_sftp().await?;
         let mut incoming = {
             let sftp = cell.lock().await;
             sftp.open(&renamed).await.context("SFTP binary open")?
         };
         let mut bytes = Vec::new();
-        incoming.read_to_end(&mut bytes).await.context("SFTP binary download")?;
+        incoming
+            .read_to_end(&mut bytes)
+            .await
+            .context("SFTP binary download")?;
         if bytes != raw {
-            return Err(anyhow!("SFTP binary mismatch at {size}: {}", byte_mismatch(&bytes, &raw)));
+            return Err(anyhow!(
+                "SFTP binary mismatch at {size}: {}",
+                byte_mismatch(&bytes, &raw)
+            ));
         }
         drop(incoming);
-        fs.delete(&renamed, false).await.context("SFTP binary cleanup")?;
+        fs.delete(&renamed, false)
+            .await
+            .context("SFTP binary cleanup")?;
     }
 
     // Prove the exact SFTP primitives used by production pause/resume against
