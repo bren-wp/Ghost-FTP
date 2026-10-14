@@ -25,19 +25,7 @@ impl FtpFs {
                 let listing = list_lines(stream, &target)?;
                 // Never silently omit unknown server entries: a partial listing
                 // could hide existing targets from sync and conflict checks.
-                let mut entries = Vec::with_capacity(listing.len());
-                for line in listing {
-                    if is_ignorable_listing_line(&line) {
-                        continue;
-                    }
-                    let entry = entry_from_listing(&parent, &line).ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "FTP LIST includes an unsupported or ambiguous directory entry"
-                        )
-                    })?;
-                    entries.push(entry);
-                }
-                Ok(entries)
+                parse_directory_listing(&parent, listing)
             })
             .await
     }
@@ -67,7 +55,7 @@ fn join(base: &str, name: &str) -> String {
 }
 
 /// IIS and Windows FTP servers also return MS-DOS-style LIST records.
-//// Keep this parser strict: an ambiguous line is *not* proof that a target
+/// Keep this parser strict: an ambiguous line is *not* proof that a target
 /// is absent, and its size must never silently overflow.
 fn dos_listing_entry(line: &str) -> Option<(String, FileKind, u64)> {
     fn token(input: &str) -> Option<(&str, &str)> {
@@ -79,7 +67,7 @@ fn dos_listing_entry(line: &str) -> Option<(String, FileKind, u64)> {
     let (time, rest) = token(rest)?;
     let (kind_or_size, rest) = token(rest)?;
     let name = rest.trim_start_matches(char::is_whitespace).trim_end_matches('\r');
-    if name.is_empty() || name.contains(['/', '\\', '\n', '\r', '\0']) {
+    if name.is_empty() || name.chars().any(|ch| matches!(ch, '/' | '\\' | '\n' | '\r' | '\0')) {
         return None;
     }
 
@@ -127,6 +115,19 @@ fn dos_listing_entry(line: &str) -> Option<(String, FileKind, u64)> {
         (FileKind::File, size)
     };
     Some((name.to_string(), kind, size))
+}
+
+fn parse_directory_listing(parent: &str, listing: Vec<String>) -> Result<Vec<DirEntry>> {
+    let mut entries = Vec::with_capacity(listing.len());
+    for line in listing {
+        if is_ignorable_listing_line(&line) {
+            continue;
+        }
+        entries.push(entry_from_listing(parent, &line).ok_or_else(|| {
+            anyhow::anyhow!("FTP LIST includes an unsupported or ambiguous directory entry")
+        })?);
+    }
+    Ok(entries)
 }
 
 fn is_dot_listing(line: &str) -> bool {
@@ -464,7 +465,10 @@ mod ftps_handshake_regression {
 
 #[cfg(test)]
 mod ftp_list_compatibility_tests {
-    use super::{dos_listing_entry, entry_from_listing, is_dot_listing, is_ignorable_listing_line};
+    use super::{
+        dos_listing_entry, entry_from_listing, is_dot_listing, is_ignorable_listing_line,
+        parse_directory_listing,
+    };
     use super::FileKind;
 
     #[test]
@@ -515,6 +519,18 @@ mod ftp_list_compatibility_tests {
         }
         assert!(dos_listing_entry("02-29-24  12:01AM       0 leap-day").is_some());
         assert!(dos_listing_entry("01/31/2025  12:01PM       1 slash-date").is_some());
+    }
+
+    #[test]
+    fn unknown_list_format_refuses_partial_directory_results() {
+        let valid = "04-27-25  09:09AM       42 good.txt".to_string();
+        let unknown = "LIST malformed entry".to_string();
+        let rows = vec![valid.clone(), unknown];
+        assert!(parse_directory_listing("/root", rows).is_err());
+        let rows = vec!["total 1".to_string(), valid];
+        let entries = parse_directory_listing("/root", rows).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].path, "/root/good.txt");
     }
 
     #[test]
