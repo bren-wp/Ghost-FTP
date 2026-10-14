@@ -1,3 +1,12 @@
+## 0.95.15 — official website support, stricter URL safety and localization improvements — 14 October 2026
+
+- **Official help:** Windows, Linux, Android and macOS Help/About links now use verified ghostftp.com support, contact, getting-started, privacy and terms pages, instead of sending users to GitHub issues/legal markdown.
+- **Security:** Exact HTTPS route allowlists prevent credential-bearing, redirected, off-domain or unknown URLs. GitHub remains a separately labelled source-code destination.
+- **Language and UX:** Audit and reduce hard-coded interface copy, improve localized contact navigation, and retain protected FTP/FTPS/SFTP transfer controls.
+- **QA:** CI must pass on the exact commit before merge and public release. This release does not claim completed vendor OAuth, 75-screen pixel parity or exhaustive dead-code certification.
+
+See [0.95.15 release notes](docs/releases/0.95.15.md).
+
 ## 0.95.14 — safer cloud cancellation and clearer transfer controls — 14 October 2026
 
 - **Android cancellation safety:** Recheck cancellation immediately after each provider/network read, before processing a returned block; a regression test prevents late writes after cancellation.
