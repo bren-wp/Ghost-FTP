@@ -1119,13 +1119,13 @@ class MainActivity : Activity() {
     private fun updateCloudPickerButtons() {
         if (!::cloudUploadButton.isInitialized || !::cloudDownloadButton.isInitialized) return
         val canChoose = !cloudTransferBusy && cloudPendingLink == null &&
-            CloudDestinationJournal.pending(noBackupFilesDir) == null
+            !CloudDestinationJournal.hasUnresolved(noBackupFilesDir)
         cloudUploadButton.isEnabled = canChoose
         cloudDownloadButton.isEnabled = canChoose
     }
 
     private fun chooseCloudFile(upload: Boolean) {
-        if (CloudDestinationJournal.pending(noBackupFilesDir) != null) {
+        if (CloudDestinationJournal.hasUnresolved(noBackupFilesDir)) {
             cloudStatus.text = "Resolve the previous incomplete download reminder before starting another transfer."
             displayPendingCloudRecovery()
             return
@@ -1177,8 +1177,17 @@ class MainActivity : Activity() {
 
     private fun displayPendingCloudRecovery() {
         if (!::cloudRecoveryNotice.isInitialized) return
-        val pending = CloudDestinationJournal.pending(noBackupFilesDir) != null
-        val visibility = if (pending) View.VISIBLE else View.GONE
+        val unresolved = CloudDestinationJournal.hasUnresolved(noBackupFilesDir)
+        val visibility = if (unresolved) View.VISIBLE else View.GONE
+        cloudRecoveryNotice.text = if (unresolved &&
+            CloudDestinationJournal.pending(noBackupFilesDir) == null) {
+            "Cloud recovery details were damaged. The previous document may still be incomplete. " +
+                "Review your cloud provider's files manually before dismissing this warning."
+        } else {
+            "A previous cloud download may have left an incomplete document. Review it before continuing."
+        }
+        cloudRecoveryCleanupButton.isEnabled = unresolved &&
+            CloudDestinationJournal.pending(noBackupFilesDir) != null
         cloudRecoveryNotice.visibility = visibility
         cloudRecoveryCleanupButton.visibility = visibility
         cloudRecoveryKeepButton.visibility = visibility
@@ -1186,7 +1195,12 @@ class MainActivity : Activity() {
     }
 
     private fun cleanupPendingCloudRecovery() {
-        val recorded = CloudDestinationJournal.pending(noBackupFilesDir) ?: return
+        val recorded = CloudDestinationJournal.pending(noBackupFilesDir)
+        if (recorded == null) {
+            cloudStatus.text = "Cannot identify the previous document from the recovery record. " +
+                "Check your provider and dismiss this warning only after reviewing its files."
+            return
+        }
         // DocumentProvider.deleteDocument may block on Binder: never perform
         // remote provider I/O on the Android UI thread.
         cloudRecoveryCleanupButton.isEnabled = false
