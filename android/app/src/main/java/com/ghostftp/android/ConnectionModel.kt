@@ -389,6 +389,7 @@ class ConnectionController {
         }
         val workingPath = client.printWorkingDirectory() ?: requestedPath
         val files = client.listFiles()
+        requireSuccessfulFtpListing(client.replyCode)
         ConnectionProbeResult(
             reachable = true,
             title = "Connected",
@@ -825,7 +826,11 @@ class ConnectionController {
                 "Unable to verify the existing remote upload target before replacement."
             )
         }
-        val target = entries.firstOrNull { it.name == name } ?: return false
+        val matches = entries.filter { it.name == name }
+        if (matches.size > 1) {
+            throw IOException("Remote upload target is ambiguous: duplicate file names.")
+        }
+        val target = matches.singleOrNull() ?: return false
         if (!target.isFile) {
             throw IOException("Remote upload target is not a regular file: $remoteFilePath")
         }
@@ -874,49 +879,101 @@ class ConnectionController {
         return total
     }
 
-    private fun ftpRows(path: String, files: Array<FTPFile>): List<RemoteRow> {
-        val entries = files
-            .filter { it.name != "." && it.name != ".." }
-            .take(MAX_ROWS)
-            .map { file ->
-                val remotePath = joinRemotePath(path, file.name)
-                RemoteRow(
-                    name = if (file.isDirectory) "[DIR] ${file.name}" else "[FILE] ${file.name}",
-                    detail = when {
-                        file.isDirectory -> "Folder · $path"
-                        file.size >= 0L -> "File · ${formatBytes(file.size)}"
-                        else -> "File"
-                    },
-                    remotePath = remotePath,
-                    isDirectory = file.isDirectory,
-                    isFile = file.isFile
-                )
-            }
-        return listOf(RemoteRow("Remote path", path)) + entries.ifEmpty {
-            listOf(RemoteRow("Remote folder", "No visible files returned by the server."))
+    internal fun requireSuccessfulFtpListing(replyCode: Int) {
+        if (!FTPReply.isPositiveCompletion(replyCode)) {
+            throw IOException("FTP directory listing failed. Check permissions and data-channel connectivity.")
         }
     }
 
-    private fun sftpRows(path: String, entries: Vector<*>): List<RemoteRow> {
-        val rows = entries
-            .asSequence()
-            .filterIsInstance<ChannelSftp.LsEntry>()
-            .filter { it.filename != "." && it.filename != ".." }
-            .take(MAX_ROWS)
-            .map { entry ->
-                val remotePath = joinRemotePath(path, entry.filename)
-                RemoteRow(
-                    name = if (entry.attrs.isDir) "[DIR] ${entry.filename}" else "[FILE] ${entry.filename}",
-                    detail = if (entry.attrs.isDir) "Folder · $path" else "File · ${formatBytes(entry.attrs.size)}",
-                    remotePath = remotePath,
-                    isDirectory = entry.attrs.isDir,
-                    isFile = !entry.attrs.isDir
-                )
+    internal fun validateRemoteInventoryName(name: String) {
+        if (name.isEmpty() || name == "." || name == ".." ||
+            '/' in name || name.any { it == '\u0000' || it == '\r' || it == '\n' }) {
+            throw IOException("Remote directory listing contains an unsafe file name.")
+        }
+    }
+
+    internal fun ftpRows(path: String, files: Array<FTPFile>): List<RemoteRow> {
+        val visible = files.filter { it.name != "." && it.name != ".." }
+        val knownNames = HashSet<String>()
+        for (file in visible) {
+            validateRemoteInventoryName(file.name)
+            if (!knownNames.add(file.name)) {
+                throw IOException("Remote directory listing contains duplicate file names.")
             }
-            .toList()
-        return listOf(RemoteRow("Remote path", path)) + rows.ifEmpty {
+        }
+        val rows = visible.take(MAX_ROWS).map { file ->
+            val name = file.name
+            val type = when {
+                file.isDirectory -> "[DIR]"
+                file.isFile -> "[FILE]"
+                file.isSymbolicLink -> "[LINK]"
+                else -> "[OTHER]"
+            }
+            RemoteRow(
+                name = "$type $name",
+                detail = when {
+                    file.isDirectory -> "Folder · $path"
+                    file.isSymbolicLink -> "Symbolic link · not directly actionable"
+                    file.isFile && file.size >= 0L -> "File · ${formatBytes(file.size)}"
+                    else -> "Unsupported remote entry"
+                },
+                remotePath = joinRemotePath(path, name),
+                isDirectory = file.isDirectory,
+                isFile = file.isFile
+            )
+        }
+        return buildRemoteRows(path, rows, visible.size)
+    }
+
+    private fun sftpRows(path: String, entries: Vector<*>): List<RemoteRow> {
+        if (entries.any { it !is ChannelSftp.LsEntry }) {
+            throw IOException("SFTP directory listing contains an unsupported entry.")
+        }
+        val visible = entries.filterIsInstance<ChannelSftp.LsEntry>()
+            .filter { it.filename != "." && it.filename != ".." }
+        val knownNames = HashSet<String>()
+        for (entry in visible) {
+            validateRemoteInventoryName(entry.filename)
+            if (!knownNames.add(entry.filename)) {
+                throw IOException("SFTP directory listing contains duplicate file names.")
+            }
+        }
+        val rows = visible.take(MAX_ROWS).map { entry ->
+            val name = entry.filename
+            val isLink = entry.attrs.isLink
+            val isDirectory = entry.attrs.isDir && !isLink
+            RemoteRow(
+                name = when {
+                    isLink -> "[LINK] $name"
+                    isDirectory -> "[DIR] $name"
+                    else -> "[FILE] $name"
+                },
+                detail = when {
+                    isLink -> "Symbolic link · not directly actionable"
+                    isDirectory -> "Folder · $path"
+                    else -> "File · ${formatBytes(entry.attrs.size)}"
+                },
+                remotePath = joinRemotePath(path, name),
+                isDirectory = isDirectory,
+                isFile = !entry.attrs.isDir && !isLink
+            )
+        }
+        return buildRemoteRows(path, rows, visible.size)
+    }
+
+    internal fun buildRemoteRows(path: String, rows: List<RemoteRow>, total: Int): List<RemoteRow> {
+        val content = rows.ifEmpty {
             listOf(RemoteRow("Remote folder", "No visible files returned by the server."))
         }
+        val notice = if (total > MAX_ROWS) {
+            listOf(RemoteRow(
+                "Additional files not shown",
+                "Showing first $MAX_ROWS of $total entries; open a narrower folder to see more."
+            ))
+        } else {
+            emptyList()
+        }
+        return listOf(RemoteRow("Remote path", path)) + content + notice
     }
 
     internal fun normalizedProfile(profile: ConnectionProfile): ConnectionProfile {
