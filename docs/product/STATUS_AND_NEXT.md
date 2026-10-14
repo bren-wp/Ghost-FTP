@@ -8,7 +8,7 @@ Current development source: **0.95.16** (security and premium visual QA); previo
 
 Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.16** release notes.
 
-Previous canonical release: **0.95.14**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.95.15**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
