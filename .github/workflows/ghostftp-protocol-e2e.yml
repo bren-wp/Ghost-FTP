@@ -164,7 +164,7 @@ jobs:
                   ]
                   if mode == "dos-invalid":
                       rows.append("04-27-25  09:99AM                77 malformed.txt")
-                  self.push_dtp_data(("\\r\\n".join(rows) + "\\r\\n").encode("utf-8"), cmd="LIST")
+                  self.push_dtp_data(("\r\n".join(rows) + "\r\n").encode("utf-8"), cmd="LIST")
                   return path
 
           handler = FTPHandler if mode == "ftp" else DosListHandler
