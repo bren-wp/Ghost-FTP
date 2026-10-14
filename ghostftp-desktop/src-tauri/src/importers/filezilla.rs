@@ -434,6 +434,29 @@ mod tests {
     }
 
     #[test]
+    fn truncated_outer_xml_cannot_return_partial_successful_sites() {
+        assert!(parse(
+            "<FileZilla3><Servers><Server><Host>example.org</Host></Server>"
+        )
+        .is_err());
+        assert!(parse(
+            "<FileZilla3><Servers><Server><Host>example.org</Host></Server></Servers>"
+        )
+        .is_err());
+        assert!(parse(
+            "<FileZilla3><Server><Host>example.org</Host></Server></FileZilla3>"
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn empty_saved_site_collection_is_valid() {
+        assert!(parse("<FileZilla3><Servers /></FileZilla3>")
+            .expect("an empty saved-site collection is valid")
+            .is_empty());
+    }
+
+    #[test]
     fn oversized_and_truncated_imports_fail_closed() {
         let too_large = " ".repeat(super::MAX_XML_BYTES + 1);
         assert!(parse(&too_large).is_err());
