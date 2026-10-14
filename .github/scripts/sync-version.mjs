@@ -98,6 +98,25 @@ updateJson("ghostftp-desktop/src-tauri/tauri.conf.json", (j) => { j.version = ve
 for (const rel of ["tools/ghostftp-runtime/main.go", "tools/ghostftp-installer/main.go"]) {
   apply(rel, replaceRequired(read(rel), /const version = "[^"]+"/, `const version = "${version}"`, rel));
 }
+// Keep the legacy Windows compatibility installer information consistent
+// with the actual product version and advertised desktop language registry.
+{
+  const rel = "tools/ghostftp-installer/site/index.html";
+  const localeSource = read("ghostftp-desktop/src/lib/i18n.ts");
+  const match = localeSource.match(/^export const APP_LOCALES = \[([^\]]+)\] as const;/m);
+  if (!match) throw new Error("Cannot resolve the advertised desktop language registry");
+  const languageCount = [...match[1].matchAll(/"[^"]+"/g)].length;
+  let installer = read(rel);
+  installer = replaceRequired(
+    installer, /<dt>Version<\/dt><dd>[^<]+<\/dd>/,
+    `<dt>Version</dt><dd>${version}</dd>`, rel
+  );
+  installer = replaceRequired(
+    installer, /<dt>Languages<\/dt><dd>[^<]+<\/dd>/,
+    `<dt>Languages</dt><dd>${languageCount} interface languages</dd>`, rel
+  );
+  apply(rel, installer);
+}
 updateJson("updates/latest.template.json", (j) => {
   j.version = version;
   j.notes = `Ghost FTP ${version}`;
