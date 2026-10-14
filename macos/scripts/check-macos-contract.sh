@@ -116,6 +116,10 @@ for path in sorted(root.rglob("*.swift")):
     code = re.sub(r'"(?:\\.|[^"\\])*"', '""', code)
     code = re.sub(r"/\*[\s\S]*?\*/", " ", code)
     code = re.sub(r"//[^\n]*", " ", code)
+    # Swift string interpolation is legitimate symbol use after masking
+    # strings. Preserve simple referenced identifiers for dead-code audit.
+    interpolation = re.findall(r"\\\\\(([A-Za-z_][A-Za-z0-9_]*)\)", source)
+    code += "\\n" + "\\n".join(interpolation)
 
     for match in declaration.finditer(code):
         name = match.group(1)
