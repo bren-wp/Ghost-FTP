@@ -110,9 +110,12 @@ declaration = re.compile(r"\bprivate\s+(?:(?:static|class)\s+)?(?:func|var|let)\
 
 for path in sorted(root.rglob("*.swift")):
     source = path.read_text(encoding="utf-8")
-    code = re.sub(r"/\*[\s\S]*?\*/", " ", source)
-    code = re.sub(r"//[^\n]*", " ", code)
+    # Mask Swift raw string literals and normal strings BEFORE stripping
+    # comments: HTTPS strings contain // and raw regex strings use #"..."#.
+    code = re.sub(r'#+"(?:\\.|[^"\\])*"#+', '""', source)
     code = re.sub(r'"(?:\\.|[^"\\])*"', '""', code)
+    code = re.sub(r"/\*[\s\S]*?\*/", " ", code)
+    code = re.sub(r"//[^\n]*", " ", code)
 
     for match in declaration.finditer(code):
         name = match.group(1)
