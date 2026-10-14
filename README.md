@@ -14,7 +14,7 @@ Move files, manage connections and keep important server work organized with an 
 
 <sub>Ghost FTP 0.95.15 · Previous release: [v0.95.14](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.14)</sub>
 
-[**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases/latest) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](docs/README.md) · [Release notes](CHANGELOG.md)
+[**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases/latest) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
 </div>
 
@@ -84,7 +84,7 @@ Android's unsigned release packages are intended for your authorized signing pro
 
 Windows and Linux offer additional cloud and remote-storage integrations, including supported S3-compatible and WebDAV services and account-based connectors. Android and macOS support direct object uploads/downloads with short-lived provider-signed HTTPS links. **A signed object link is not an account-browser login** to Google Drive, OneDrive, Dropbox or Box on those platforms.
 
-[Cloud storage information](docs/product/CLOUD_STORAGE.md) · [Privacy policy](docs/legal/PRIVACY.md)
+[Cloud storage information](docs/product/CLOUD_STORAGE.md) · [Privacy policy](https://ghostftp.com/hr/privacy)
 
 ## Privacy that stays in your hands
 
