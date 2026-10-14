@@ -80,9 +80,23 @@ internal object CloudDestinationJournal {
         return content.takeIf(::validDocumentUri)
     }
 
+    /**
+     * Only acknowledge a finished or successfully removed document when the
+     * durable recovery hint still identifies that exact SAF URI. A stale
+     * callback must never dismiss a different document's recovery warning.
+     */
+    @Synchronized
+    fun clearIfMatches(noBackupDir: File, documentUri: String): Boolean {
+        if (!validDocumentUri(documentUri) || pending(noBackupDir) != documentUri) return false
+        return clear(noBackupDir)
+    }
+
     @Synchronized
     fun clear(noBackupDir: File): Boolean {
         val file = File(noBackupDir, FILE_NAME)
-        return !file.exists() || (!Files.isSymbolicLink(file.toPath()) && file.delete())
+        // File.exists() returns false for dangling symlinks. Such a record
+        // is still unresolved and must not be reported as successfully clear.
+        if (Files.isSymbolicLink(file.toPath())) return false
+        return !file.exists() || file.delete()
     }
 }
