@@ -444,6 +444,7 @@ function NetworkDiagnosticsCard() {
             Saved FTP/FTPS site
             <select
               value={selected}
+              disabled={running}
               onChange={(event) => { setSelected(event.target.value); setReport(null); }}
               className="mt-1 w-full rounded-md border border-border bg-bg-subtle px-2.5 py-1.5 text-[12px]"
             >
