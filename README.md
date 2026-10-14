@@ -28,7 +28,7 @@ Move files, manage connections and keep important server work organized with an 
 </a>
 </p>
 
-<p align="center"><sub>These are genuine but archived Windows v0.30.19 captures, NOT images from the current 0.95.16 build. Up-to-date v0.95.15 running-app screenshots can be found in GitHub native-build QA artifacts; the README gallery needs a verified screenshot refresh. No concept/mock images are presented as captures.</sub></p>
+<p align="center"><sub>Seven authentic Ghost FTP Windows 0.95.16 running-application screenshots (1290×852), captured in [GitHub Actions native QA](https://github.com/bren-wp/Ghost-FTP/actions/runs/38498732043) at source commit <code>cfb75df5c1db</code>. Each PNG is SHA-256 pinned in [the capture manifest](docs/assets/screenshots/README-NATIVE-CAPTURE.json). No concept artwork or generated screenshots.</sub></p>
 
 <table>
 <tr>
