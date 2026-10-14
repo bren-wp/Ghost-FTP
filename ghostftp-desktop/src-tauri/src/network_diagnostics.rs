@@ -47,14 +47,18 @@ impl Default for FtpNetworkDiagnostic {
 /// or firewall/router setting is ever modified.
 fn probe_control_with_budget(addresses: &[SocketAddr], budget: Duration) -> Option<&'static str> {
     let deadline = Instant::now() + budget;
-    for address in addresses {
-        // Multiple DNS answers must not multiply a nominal three-second
-        // timeout into 24+ seconds. Bound the *entire* direct TCP probe.
+    for (index, address) in addresses.iter().enumerate() {
+        // Bound the entire DNS-answer probe, while reserving an actual
+        // timeout slice for later IPv4/IPv6 answers. A single blackholed
+        // address must not consume the remaining budget when alternatives
+        // exist; each address gets at most its fair share and three seconds.
         let remaining = deadline.saturating_duration_since(Instant::now());
-        if remaining.is_zero() {
+        let addresses_left = (addresses.len() - index) as u32;
+        let attempt_timeout = (remaining / addresses_left).min(TCP_PROBE_TIMEOUT);
+        if attempt_timeout.is_zero() {
             break;
         }
-        if TcpStream::connect_timeout(address, remaining.min(TCP_PROBE_TIMEOUT)).is_ok() {
+        if TcpStream::connect_timeout(address, attempt_timeout).is_ok() {
             return Some(if address.is_ipv4() { "IPv4" } else { "IPv6" });
         }
     }
@@ -184,7 +188,7 @@ mod tests {
         let closed = refused.local_addr().expect("refused address");
         drop(refused);
         assert_eq!(
-            probe_control_with_budget(&[closed, live], Duration::from_secs(2)),
+            probe_control_with_budget(&[closed, live], Duration::from_secs(8)),
             Some("IPv4")
         );
     }
