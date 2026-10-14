@@ -59,3 +59,7 @@ Before FINAL, execute against controlled test servers:
 - Optional checksum verification where both sides can calculate it.
 
 Status: **production transfer implementation exists; real FTP/FTPS/SFTP end-to-end acceptance remains open before FINAL.**
+
+## 0.95.18 remote FTP listing integrity
+
+Desktop FTP/FTPS directory operations now reject an unknown or malformed LIST record rather than return a falsely complete partial directory. This protects against accidentally skipping remote files in sync, remote search or recursive delete and against incorrect absence-based conflict decisions. Unix and IIS-style DOS listing formats have deterministic parser regressions, and a real FTP data-channel fixture must prove both acceptance and rejection. Unsupported formatting may result in a visible listing error; that is safer than pretending the directory is empty. Cross-server interoperability remains to be tested, including Microsoft IIS directly.
