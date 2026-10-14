@@ -2,9 +2,9 @@
 
 # Ghost FTP Code Audit — 0.93.0
 
-> Current development: **0.95.13** (premium QA and cloud hardening), following published **0.95.13**. Historical sections are retained unchanged.
+> Current development: **0.95.14** (premium QA and cloud hardening), following published **0.95.13**. Historical sections are retained unchanged.
 
-> Current development source: **0.95.13**; latest verified published release: **0.95.13**. Historical findings below retain their original version labels.
+> Current development source: **0.95.14**; latest verified published release: **0.95.13**. Historical findings below retain their original version labels.
 
 ## Scope
 
