@@ -273,7 +273,7 @@ enum FTPControlCodec {
                 }
                 let key = fact[..<equals].lowercased()
                 let value = String(fact[fact.index(after: equals)...])
-                guard !key.isEmpty, !value.isEmpty, facts[key] == nil else {
+                guard !key.isEmpty, facts[key] == nil else {
                     throw FTPControlError.invalidDirectoryListing
                 }
                 facts[key] = value
@@ -283,9 +283,13 @@ enum FTPControlCodec {
                 throw FTPControlError.invalidDirectoryListing
             }
             if type == "cdir" || type == "pdir" {
-                // RFC 3659 pseudo-directory markers are intentionally omitted.
-                guard (type == "cdir" && name == ".") ||
-                    (type == "pdir" && name == "..") else {
+                // RFC 3659 permits named current/parent directory markers
+                // (including a full path), not only "." and "..". Do not
+                // mistake these pseudo-entries for user files or directories.
+                guard !name.isEmpty,
+                      !name.unicodeScalars.contains(where: {
+                          $0.value == 0 || $0.value == 10 || $0.value == 13
+                      }) else {
                     throw FTPControlError.invalidDirectoryListing
                 }
                 continue
