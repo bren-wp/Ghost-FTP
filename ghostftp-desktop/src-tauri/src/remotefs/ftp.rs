@@ -641,7 +641,9 @@ mod ftp_list_compatibility_tests {
             "04-27-25  09:10AM       <DIR> collision.txt".to_string(),
         ];
         let error = parse_directory_listing("/root", rows).unwrap_err();
-        assert!(error.to_string().contains("duplicate directory entry names"));
+        assert!(error
+            .to_string()
+            .contains("duplicate directory entry names"));
     }
 
     #[test]
