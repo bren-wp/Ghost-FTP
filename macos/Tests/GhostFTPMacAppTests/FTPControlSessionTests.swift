@@ -176,6 +176,16 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertEqual(entries.first?.size, 0)
     }
 
+    func testMLSDRejectsAmbiguousDuplicateNames() throws {
+        let payload = Data(
+            [
+                "type=file;size=1; repeated.txt",
+                "type=dir;size=0; repeated.txt",
+            ].joined(separator: "\r\n").appending("\r\n").utf8
+        )
+        XCTAssertThrowsError(try FTPControlCodec.parseMLSD(payload))
+    }
+
     func testMLSDAllowsOrdinaryUnicodeAndSpacesWithStrictFacts() throws {
         let listing = Data(
             "type=file;size=4;modify=20261014203000; Račun 2026.txt\r\n".utf8
