@@ -302,4 +302,89 @@ mod tests {
     fn unsupported_cloud_protocol_is_not_imported_as_an_ftp_profile() {
         assert!(site(7).is_empty());
     }
+    #[test]
+    fn real_filezilla_trailing_site_name_and_nested_folders_survive_save() {
+        let xml = r#"<FileZilla3><Servers>
+            <Folder expanded="1">Production
+                <Folder expanded="1">EU
+                    <Server><Host>example.org</Host><Port>22</Port>
+                        <Protocol>1</Protocol><User>deploy</User>
+                        <Pass encoding="base64">c3VwZXItc2VjcmV0</Pass>
+                        Website deployment
+                    </Server>
+                </Folder>
+            </Folder>
+        </Servers></FileZilla3>"#;
+        let sites = parse(xml).expect("FileZilla exported tree");
+        assert_eq!(sites.len(), 1);
+        let site = &sites[0];
+        assert_eq!(site.name, "Website deployment");
+        assert_eq!(site.group.as_deref(), Some("Production / EU"));
+        assert_eq!(site.protocol, "sftp");
+        assert!(site.note.as_deref().unwrap_or("").contains("Production / EU"));
+        assert!(!serde_json::to_string(site).unwrap().contains("super-secret"));
+        let stored = sites[0].clone().into_profile();
+        assert_eq!(stored.group.as_deref(), Some("Production / EU"));
+        assert_eq!(stored.name, "Website deployment");
+        match stored.auth {
+            crate::profiles::AuthMethod::Password { password } => assert!(password.is_empty()),
+            _ => panic!("FileZilla plaintext secrets must not be imported"),
+        }
+    }
+
+    #[test]
+    fn legacy_name_element_remains_authoritative_when_trailing_text_exists() {
+        let sites = parse(
+            "<FileZilla3><Servers><Server><Name>Explicit name</Name><Host>example.org</Host>             <Protocol>4</Protocol>Trailing label</Server></Servers></FileZilla3>",
+        ).unwrap();
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].name, "Explicit name");
+        assert!(sites[0].group.is_none());
+    }
+
+    #[test]
+    fn unnamed_folder_does_not_take_a_nested_server_field_as_its_name() {
+        let sites = parse(
+            "<FileZilla3><Servers><Folder><Server><Host>example.org</Host>             <Name>A site</Name><Protocol>1</Protocol></Server></Folder></Servers></FileZilla3>",
+        ).unwrap();
+        assert_eq!(sites.len(), 1);
+        assert!(sites[0].group.is_none());
+        assert_eq!(sites[0].name, "A site");
+    }
+
+    #[test]
+    fn dtd_and_invalid_xml_entities_are_not_silently_accepted() {
+        assert!(parse(
+            "<!DOCTYPE FileZilla3 [<!ENTITY password SYSTEM 'file:///private/key'>]>             <FileZilla3><Servers /></FileZilla3>",
+        ).is_err());
+        assert!(parse(
+            "<FileZilla3><Servers><Server><Host>good&amp;bad&unresolved;</Host>             <Protocol>1</Protocol></Server></Servers></FileZilla3>",
+        ).is_err());
+    }
+
+    #[test]
+    fn folder_nesting_and_site_count_are_bounded() {
+        let xml = format!(
+            "<FileZilla3><Servers>{}<Server><Host>example.org</Host></Server>{}</Servers></FileZilla3>",
+            "<Folder>x".repeat(33),
+            "</Folder>".repeat(33)
+        );
+        assert!(parse(&xml).is_err());
+
+        let xml = format!(
+            "<FileZilla3><Servers>{}</Servers></FileZilla3>",
+            "<Server><Host>example.org</Host><Protocol>1</Protocol></Server>".repeat(2_049)
+        );
+        assert!(parse(&xml).is_err());
+    }
+
+    #[test]
+    fn oversized_and_truncated_imports_fail_closed() {
+        let too_large = " ".repeat(super::MAX_XML_BYTES + 1);
+        assert!(parse(&too_large).is_err());
+        assert!(parse(
+            "<FileZilla3><Servers><Folder>Team<Server><Host>example.org</Host>"
+        ).is_err());
+    }
+
 }
