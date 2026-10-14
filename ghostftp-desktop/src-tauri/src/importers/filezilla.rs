@@ -155,18 +155,32 @@ impl ServerAccum {
         if host.is_empty() {
             return None;
         }
-        // FileZilla protocol numeric ids (see FileZilla source, ServerProtocol):
-        //   0  = FTP
-        //   1  = SFTP
-        //   3  = FTPES (explicit FTP over TLS)
-        //   4  = FTPS  (implicit FTP over TLS)
-        //   6  = STORJ + various — out of scope for us
-        let (proto, default_port): (&str, u16) = match self.protocol.unwrap_or(0) {
-            1 => ("sftp", 22),
-            3 | 4 => ("ftps", 21),
-            0 => ("ftp", 21),
-            _ => return None, // unsupported protocol
-        };
+        // FileZilla ServerProtocol numeric IDs are persisted in sitemanager.xml:
+        //   0 FTP (attempts AUTH TLS, may fall back to plaintext)
+        //   1 SFTP
+        //   3 FTPS (implicit TLS, typically port 990)
+        //   4 FTPES (required explicit TLS, typically port 21)
+        //   6 INSECURE_FTP (plaintext only)
+        // Ghost FTP currently supports required explicit FTPS, not implicit
+        // TLS or opportunistic downgrade. Never mis-import implicit TLS as
+        // explicit, and never downgrade an opportunistic-TLS site to plaintext.
+        let (proto, default_port, security_note): (&str, u16, Option<&str>) =
+            match self.protocol.unwrap_or(0) {
+                1 => ("sftp", 22, None),
+                4 => ("ftps", 21, None),
+                0 => (
+                    "ftps",
+                    21,
+                    Some("FileZilla optional TLS upgraded to required explicit FTPS; verify server support"),
+                ),
+                6 => (
+                    "ftp",
+                    21,
+                    Some("FileZilla insecure FTP: passwords and file data are sent without encryption"),
+                ),
+                3 => return None, // implicit TLS must not be represented as explicit
+                _ => return None, // unsupported protocol
+            };
 
         let mut p = ProfilePreview::new(self.name.unwrap_or_else(|| host.clone()));
         p.protocol = proto.into();
@@ -179,11 +193,65 @@ impl ServerAccum {
             .cloned()
             .collect::<Vec<_>>()
             .join(" / ");
-        p.note = if breadcrumb.is_empty() {
-            Some("from FileZilla".to_string())
+        let origin = if breadcrumb.is_empty() {
+            "from FileZilla".to_string()
         } else {
-            Some(format!("FileZilla: {breadcrumb}"))
+            format!("FileZilla: {breadcrumb}")
         };
+        p.note = Some(match security_note {
+            Some(warning) => format!("{origin} — {warning}"),
+            None => origin,
+        });
         Some(p)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse;
+
+    fn site(protocol: u8) -> Vec<super::ProfilePreview> {
+        let xml = format!(
+            "<FileZilla3><Servers><Server><Name>Test</Name><Host>example.com</Host><Port>0</Port><Protocol>{protocol}</Protocol><User>alice</User><Pass encoding=\"base64\">c2VjcmV0</Pass></Server></Servers></FileZilla3>"
+        );
+        parse(&xml).expect("valid FileZilla XML")
+    }
+
+    #[test]
+    fn filezilla_required_explicit_tls_maps_to_real_backend() {
+        let sites = site(4);
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].protocol, "ftps");
+        assert_eq!(sites[0].port, 21);
+        assert_eq!(sites[0].username, "alice");
+    }
+
+    #[test]
+    fn filezilla_opportunistic_tls_never_silently_downgrades_to_plaintext() {
+        let sites = site(0);
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].protocol, "ftps");
+        assert!(sites[0].note.as_deref().unwrap_or("").contains("required explicit FTPS"));
+    }
+
+    #[test]
+    fn filezilla_explicit_plaintext_retains_a_clear_security_warning() {
+        let sites = site(6);
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].protocol, "ftp");
+        assert_eq!(sites[0].port, 21);
+        assert!(sites[0].note.as_deref().unwrap_or("").contains("without encryption"));
+    }
+
+    #[test]
+    fn filezilla_implicit_tls_cannot_be_misrepresented_as_explicit_tls() {
+        // The current backend's FTPS path negotiates AUTH TLS after plaintext
+        // greeting; sending that to an implicit TLS site would be misleading.
+        assert!(site(3).is_empty());
+    }
+
+    #[test]
+    fn unsupported_cloud_protocol_is_not_imported_as_an_ftp_profile() {
+        assert!(site(7).is_empty());
     }
 }
