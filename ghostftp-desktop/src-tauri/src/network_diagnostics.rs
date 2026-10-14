@@ -56,7 +56,10 @@ fn probe_control(addresses: &[SocketAddr]) -> Option<&'static str> {
 /// Probe the user's configured default remote directory instead of always
 /// checking the login home, which some servers legitimately make unlistable.
 fn listing_path(configured: Option<&str>) -> &str {
-    configured.map(str::trim).filter(|path| !path.is_empty()).unwrap_or(".")
+    configured
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+        .unwrap_or(".")
 }
 
 pub async fn diagnose(
@@ -137,6 +140,16 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind test listener");
         let address = listener.local_addr().expect("listener address");
         assert_eq!(probe_control(&[address]), Some("IPv4"));
+    }
+
+    #[test]
+    fn tcp_probe_preserves_ipv6_family_when_loopback_is_available() {
+        let listener = match TcpListener::bind("[::1]:0") {
+            Ok(listener) => listener,
+            Err(_) => return, // IPv6 is optional on this CI host.
+        };
+        let address = listener.local_addr().expect("IPv6 listener address");
+        assert_eq!(probe_control(&[address]), Some("IPv6"));
     }
 
     #[test]
