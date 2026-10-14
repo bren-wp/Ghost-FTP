@@ -77,7 +77,7 @@ fn dos_listing_entry(line: &str) -> Option<(String, FileKind, u64)> {
         return None;
     }
 
-    let mut date_parts = date.split(|c| c == '-' || c == '/');
+    let mut date_parts = date.split(['-', '/']);
     let month = date_parts.next()?.parse::<u8>().ok()?;
     let day = date_parts.next()?.parse::<u8>().ok()?;
     let year_text = date_parts.next()?;
