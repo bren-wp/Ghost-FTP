@@ -79,6 +79,25 @@ class CloudStreamProgressTest {
         assertEquals(true, cancellation.isCancelled)
     }
 
+    @Test fun cancellationDuringProviderReadMustNotReachTheOutput() {
+        val cancellation = CloudTransferCancellation()
+        var writes = 0
+        val input = object : InputStream() {
+            override fun read(): Int = 7
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                buffer[offset] = 7
+                cancellation.cancel()
+                return 1
+            }
+        }
+        shouldReject {
+            SignedCloudTransfer.streamWithBoundedProgress(
+                input, 5, 1, cancellation
+            ) { _, _ -> writes += 1 }
+        }
+        assertEquals("Cancellation during a blocked read must not write a late chunk.", 0, writes)
+    }
+
     @Test fun invalidDeclaredSizeIsRejected() {
         shouldReject { copy(ByteArrayInputStream(byteArrayOf()), -1, 0) }
         shouldReject { copy(ByteArrayInputStream(byteArrayOf()), 1, 2) }

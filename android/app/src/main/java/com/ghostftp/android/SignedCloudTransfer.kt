@@ -125,6 +125,9 @@ internal object SignedCloudTransfer {
         while (true) {
             cancellation.ensureActive()
             val read = input.read(buffer)
+            // A blocking SAF read can return bytes after Cancel was pressed.
+            // Never forward those late bytes into a destination or HTTP sink.
+            cancellation.ensureActive()
             if (read < 0) break
             if (read == 0) {
                 if (++emptyReads > MAX_EMPTY_READS) {
@@ -184,6 +187,7 @@ internal object SignedCloudTransfer {
         while (true) {
             cancellation.ensureActive()
             val read = input.read(buffer)
+            cancellation.ensureActive()
             if (read < 0) break
             if (read == 0) {
                 // Contract-violating DocumentsProviders can return zero

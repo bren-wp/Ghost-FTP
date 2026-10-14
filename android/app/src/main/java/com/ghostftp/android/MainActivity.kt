@@ -79,6 +79,8 @@ class MainActivity : Activity() {
     private lateinit var cloudDownloadInput: EditText
     private lateinit var cloudStatus: TextView
     private lateinit var cloudCancelButton: Button
+    private lateinit var cloudUploadButton: Button
+    private lateinit var cloudDownloadButton: Button
     private var cloudCancellation: CloudTransferCancellation? = null
     private var cloudPendingLink: SignedCloudLink? = null
     private var cloudTransferThread: Thread? = null
@@ -190,6 +192,7 @@ class MainActivity : Activity() {
         if (resultCode != RESULT_OK || !uiReady()) {
             if (requestCode == PICK_CLOUD_UPLOAD_REQUEST || requestCode == CREATE_CLOUD_DOWNLOAD_REQUEST) {
                 cloudPendingLink = null
+                updateCloudPickerButtons()
             }
             return
         }
@@ -201,6 +204,7 @@ class MainActivity : Activity() {
             PICK_CLOUD_UPLOAD_REQUEST, CREATE_CLOUD_DOWNLOAD_REQUEST -> {
                 val link = cloudPendingLink
                 cloudPendingLink = null
+                updateCloudPickerButtons()
                 val uri = data?.data
                 if (link != null && uri != null) {
                     runCloudTransfer(upload = requestCode == PICK_CLOUD_UPLOAD_REQUEST, link = link, uri = uri)
@@ -1041,13 +1045,19 @@ class MainActivity : Activity() {
         cloudUploadInput = cloudLinkField("Paste short-lived signed PUT URL")
         addView(cloudUploadInput)
         addView(space(8))
-        addView(primaryButton("Choose file and upload") { chooseCloudFile(upload = true) })
+        cloudUploadButton = primaryButton("Choose file and upload") { chooseCloudFile(upload = true) }.apply {
+            contentDescription = "Choose file and upload"
+        }
+        addView(cloudUploadButton)
         addView(space(18))
         addView(formLabel("Signed download link (HTTPS GET)"))
         cloudDownloadInput = cloudLinkField("Paste short-lived signed GET URL")
         addView(cloudDownloadInput)
         addView(space(8))
-        addView(secondaryButton("Choose destination and download") { chooseCloudFile(upload = false) })
+        cloudDownloadButton = secondaryButton("Choose destination and download") { chooseCloudFile(upload = false) }.apply {
+            contentDescription = "Choose destination and download"
+        }
+        addView(cloudDownloadButton)
         addView(space(14))
         cloudStatus = sectionDescription("No cloud transfer in progress.")
         addView(cloudStatus)
@@ -1065,8 +1075,18 @@ class MainActivity : Activity() {
         ))
     }
 
+    private fun updateCloudPickerButtons() {
+        if (!::cloudUploadButton.isInitialized || !::cloudDownloadButton.isInitialized) return
+        val canChoose = !cloudTransferBusy && cloudPendingLink == null
+        cloudUploadButton.isEnabled = canChoose
+        cloudDownloadButton.isEnabled = canChoose
+    }
+
     private fun chooseCloudFile(upload: Boolean) {
-        if (cloudTransferBusy || cloudPendingLink != null) return
+        if (cloudTransferBusy || cloudPendingLink != null) {
+            cloudStatus.text = "Finish or cancel the current cloud operation before starting another."
+            return
+        }
         val input = if (upload) cloudUploadInput else cloudDownloadInput
         val link = try {
             SignedCloudLink(input.text.toString().trim())
@@ -1080,6 +1100,7 @@ class MainActivity : Activity() {
         // another Activity, including when the user cancels the picker.
         input.text.clear()
         cloudPendingLink = link
+        updateCloudPickerButtons()
         val intent = if (upload) {
             Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
@@ -1102,6 +1123,7 @@ class MainActivity : Activity() {
             )
         } catch (_: Exception) {
             cloudPendingLink = null
+            updateCloudPickerButtons()
             cloudStatus.text = "No document picker is available."
         }
     }
@@ -1125,6 +1147,7 @@ class MainActivity : Activity() {
         val cancellation = CloudTransferCancellation()
         cloudCancellation = cancellation
         cloudTransferBusy = true
+        updateCloudPickerButtons()
         cloudCancelButton.isEnabled = true
         cloudUploadInput.text.clear()
         cloudDownloadInput.text.clear()
@@ -1149,6 +1172,7 @@ class MainActivity : Activity() {
             runOnUiThread {
                 if (activityClosing || cloudCancellation !== cancellation) return@runOnUiThread
                 cloudTransferBusy = false
+                updateCloudPickerButtons()
                 cloudCancellation = null
                 cloudTransferThread = null
                 cloudCancelButton.isEnabled = false

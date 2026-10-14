@@ -28,7 +28,7 @@ Move files, manage connections and keep important server work organized with an 
 </a>
 </p>
 
-<p align="center"><sub>Actual Ghost FTP Windows application capture. Screenshots depict the running product, not concept art or generated interface mockups.</sub></p>
+<p align="center"><sub>Seven genuine Windows application captures, verified against their archived native QA capture checksums. No concept artwork is used in this gallery. Android and Linux screenshots are not substituted for unverified captures.</sub></p>
 
 <table>
 <tr>
