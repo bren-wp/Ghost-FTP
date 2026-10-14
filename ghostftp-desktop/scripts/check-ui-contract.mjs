@@ -417,7 +417,7 @@ for (const required of [
   "FILES(R.string.workspace_files)",
   "SITES(R.string.workspace_sites)",
   "TRANSFERS(R.string.workspace_transfers)",
-  'SYNC(null, "Sync & Backup")',
+  'SYNC(R.string.workspace_sync)',
   "SETTINGS(R.string.workspace_settings)",
   "ABOUT(R.string.workspace_about)",
   "buildNavigationRail()",
