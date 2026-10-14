@@ -66,8 +66,14 @@ fn dos_listing_entry(line: &str) -> Option<(String, FileKind, u64)> {
     let (date, rest) = token(line)?;
     let (time, rest) = token(rest)?;
     let (kind_or_size, rest) = token(rest)?;
-    let name = rest.trim_start_matches(char::is_whitespace).trim_end_matches('\r');
-    if name.is_empty() || name.chars().any(|ch| matches!(ch, '/' | '\\' | '\n' | '\r' | '\0')) {
+    let name = rest
+        .trim_start_matches(char::is_whitespace)
+        .trim_end_matches('\r');
+    if name.is_empty()
+        || name
+            .chars()
+            .any(|ch| matches!(ch, '/' | '\\' | '\n' | '\r' | '\0'))
+    {
         return None;
     }
 
@@ -75,15 +81,22 @@ fn dos_listing_entry(line: &str) -> Option<(String, FileKind, u64)> {
     let month = date_parts.next()?.parse::<u8>().ok()?;
     let day = date_parts.next()?.parse::<u8>().ok()?;
     let year_text = date_parts.next()?;
-    if date_parts.next().is_some() || !matches!(year_text.len(), 2 | 4)
+    if date_parts.next().is_some()
+        || !matches!(year_text.len(), 2 | 4)
         || !year_text.bytes().all(|b| b.is_ascii_digit())
     {
         return None;
     }
     let year = year_text.parse::<u16>().ok()?;
     let full_year = if year_text.len() == 2 {
-        if year < 70 { year + 2000 } else { year + 1900 }
-    } else { year };
+        if year < 70 {
+            year + 2000
+        } else {
+            year + 1900
+        }
+    } else {
+        year
+    };
     let leap = full_year % 4 == 0 && (full_year % 100 != 0 || full_year % 400 == 0);
     let max_day = match month {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
@@ -97,9 +110,12 @@ fn dos_listing_entry(line: &str) -> Option<(String, FileKind, u64)> {
     }
 
     let upper_time = time.to_ascii_uppercase();
-    let clock = upper_time.strip_suffix("AM").or_else(|| upper_time.strip_suffix("PM"))?;
+    let clock = upper_time
+        .strip_suffix("AM")
+        .or_else(|| upper_time.strip_suffix("PM"))?;
     let (hour, minute) = clock.split_once(':')?;
-    if !(1..=2).contains(&hour.len()) || minute.len() != 2
+    if !(1..=2).contains(&hour.len())
+        || minute.len() != 2
         || !hour.bytes().all(|b| b.is_ascii_digit())
         || !minute.bytes().all(|b| b.is_ascii_digit())
         || !(1..=12).contains(&hour.parse::<u8>().ok()?)
@@ -134,14 +150,15 @@ fn is_dot_listing(line: &str) -> bool {
     FtpFile::try_from(line.to_string())
         .map(|file| matches!(file.name(), "." | ".."))
         .unwrap_or(false)
-        || dos_listing_entry(line)
-            .is_some_and(|(name, _, _)| matches!(name.as_str(), "." | ".."))
+        || dos_listing_entry(line).is_some_and(|(name, _, _)| matches!(name.as_str(), "." | ".."))
 }
 
 fn is_ignorable_listing_line(line: &str) -> bool {
     let line = line.trim();
-    is_dot_listing(line) || line.is_empty()
-        || line.strip_prefix("total ")
+    is_dot_listing(line)
+        || line.is_empty()
+        || line
+            .strip_prefix("total ")
             .is_some_and(|count| !count.is_empty() && count.bytes().all(|b| b.is_ascii_digit()))
 }
 
@@ -152,7 +169,9 @@ fn entry_from_listing(parent: &str, line: &str) -> Option<DirEntry> {
         Ok(file) => file,
         Err(_) => {
             let (name, kind, size) = dos_listing_entry(line)?;
-            if matches!(name.as_str(), "." | "..") { return None; }
+            if matches!(name.as_str(), "." | "..") {
+                return None;
+            }
             return Some(DirEntry {
                 path: join(parent, &name),
                 name,
@@ -465,18 +484,19 @@ mod ftps_handshake_regression {
 
 #[cfg(test)]
 mod ftp_list_compatibility_tests {
+    use super::FileKind;
     use super::{
         dos_listing_entry, entry_from_listing, is_dot_listing, is_ignorable_listing_line,
         parse_directory_listing,
     };
-    use super::FileKind;
 
     #[test]
     fn iis_dos_files_and_directories_preserve_long_unicode_names() {
         let file = entry_from_listing(
             "/incoming",
             "05-13-25  04:17PM                427 report čćž 文件 with spaces.txt",
-        ).expect("IIS file");
+        )
+        .expect("IIS file");
         assert_eq!(file.name, "report čćž 文件 with spaces.txt");
         assert_eq!(file.path, "/incoming/report čćž 文件 with spaces.txt");
         assert!(matches!(file.kind, FileKind::File));
@@ -485,7 +505,8 @@ mod ftp_list_compatibility_tests {
         let directory = entry_from_listing(
             "/incoming",
             "04-27-00  09:09PM       <DIR>          Folder Name",
-        ).expect("IIS directory");
+        )
+        .expect("IIS directory");
         assert!(matches!(directory.kind, FileKind::Directory));
         assert_eq!(directory.path, "/incoming/Folder Name");
         assert_eq!(directory.size, 0);
@@ -515,7 +536,10 @@ mod ftp_list_compatibility_tests {
             "04-27-25  09:09AM                42",
             "04-27-25  09:09AM                42 bad\nname",
         ] {
-            assert!(dos_listing_entry(line).is_none(), "accepted malformed IIS record: {line:?}");
+            assert!(
+                dos_listing_entry(line).is_none(),
+                "accepted malformed IIS record: {line:?}"
+            );
         }
         assert!(dos_listing_entry("02-29-24  12:01AM       0 leap-day").is_some());
         assert!(dos_listing_entry("01/31/2025  12:01PM       1 slash-date").is_some());
