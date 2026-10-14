@@ -72,6 +72,21 @@ impl HostKeyVerifier for MismatchTrackingVerifier {
 
 const MULTI_CHUNK_E2E_BYTES: usize = 2 * 1024 * 1024 + 257;
 
+// Simulated data (not fake UI progress): deterministic, binary-safe transfer
+// payloads spanning the 64 KiB boundary used by native buffered streams.
+// Every payload is uploaded and downloaded from real localhost servers.
+const CLICK_TRANSFER_SIZES: [usize; 5] = [1, 65535, 65536, 65537, 262147];
+
+fn simulated_transfer_data(size: usize) -> Vec<u8> {
+    let mut state = 0xa52b_97d1u32;
+    (0..size).map(|_| {
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        (state & 0xff) as u8
+    }).collect()
+}
+
 fn enabled() -> bool {
     std::env::var("GHOSTFTP_PROTOCOL_E2E").as_deref() == Ok("1")
 }
@@ -305,6 +320,45 @@ async fn ftp_roundtrip(
         .with_context(|| format!("{protocol} Unicode-name download"))?;
     if unicode_downloaded != unicode_payload {
         return Err(anyhow!("{protocol} Unicode-name download content mismatch"));
+    }
+
+    // Real FTP/FTPS click-path matrix: upload, list, rename, download,
+    // verify EVERY byte and delete for nonaligned/boundary binary sizes.
+    for size in CLICK_TRANSFER_SIZES {
+        let raw = simulated_transfer_data(size);
+        let initial = format!("{base}/matrix-{size}.bin");
+        let moved = format!("{base}/matrix-{size}-renamed.bin");
+        let up_path = initial.clone();
+        let up_bytes = raw.clone();
+        ftp.with_stream(move |stream| {
+            let mut reader = Cursor::new(up_bytes);
+            let written = stream.put_from_reader(&up_path, &mut reader)?;
+            if written as usize != size {
+                return Err(anyhow!("binary upload count mismatch at size {size}: {written}"));
+            }
+            Ok(())
+        })
+        .await
+        .with_context(|| format!("{protocol} binary upload {size}"))?;
+        let listing = fs.list_dir(&base).await.context("binary upload listing")?;
+        if !listing.iter().any(|entry| entry.name == format!("matrix-{size}.bin")) {
+            return Err(anyhow!("{protocol} binary upload missing from listing ({size})"));
+        }
+        fs.rename(&initial, &moved)
+            .await
+            .with_context(|| format!("{protocol} binary rename {size}"))?;
+        let down_path = moved.clone();
+        let downloaded = ftp.with_stream(move |stream| {
+            let mut bytes = Vec::new();
+            stream.retr_to_writer(&down_path, &mut bytes)?;
+            Ok(bytes)
+        })
+        .await
+        .with_context(|| format!("{protocol} binary download {size}"))?;
+        if downloaded != raw {
+            return Err(anyhow!("{protocol} binary mismatch at {size}: {}", byte_mismatch(&downloaded, &raw)));
+        }
+        fs.delete(&moved, false).await.context("binary transfer cleanup")?;
     }
 
     // Exercise the same SuppaFTP 12 restart + transfer-stream primitives production
@@ -796,6 +850,39 @@ async fn sftp_password_roundtrip(
         .context("SFTP download Unicode-name file")?;
     if unicode_downloaded != unicode_payload {
         return Err(anyhow!("SFTP Unicode-name download content mismatch"));
+    }
+
+    // Real SFTP click-path matrix: create/upload, list, rename, download,
+    // verify binary data and remove via the same production RemoteFs actions.
+    for size in CLICK_TRANSFER_SIZES {
+        let original = format!("{base}/matrix-{size}.bin");
+        let renamed = format!("{base}/matrix-{size}-renamed.bin");
+        let raw = simulated_transfer_data(size);
+        let cell = ssh.ensure_sftp().await?;
+        let mut out = {
+            let sftp = cell.lock().await;
+            sftp.create(&original).await.context("SFTP binary create")?
+        };
+        out.write_all(&raw).await.context("SFTP binary upload")?;
+        out.flush().await.context("SFTP binary flush")?;
+        drop(out);
+        let listing = fs.list_dir(&base).await.context("SFTP binary listing")?;
+        if !listing.iter().any(|entry| entry.name == format!("matrix-{size}.bin")) {
+            return Err(anyhow!("SFTP binary upload missing from listing ({size})"));
+        }
+        fs.rename(&original, &renamed).await.context("SFTP binary rename")?;
+        let cell = ssh.ensure_sftp().await?;
+        let mut incoming = {
+            let sftp = cell.lock().await;
+            sftp.open(&renamed).await.context("SFTP binary open")?
+        };
+        let mut bytes = Vec::new();
+        incoming.read_to_end(&mut bytes).await.context("SFTP binary download")?;
+        if bytes != raw {
+            return Err(anyhow!("SFTP binary mismatch at {size}: {}", byte_mismatch(&bytes, &raw)));
+        }
+        drop(incoming);
+        fs.delete(&renamed, false).await.context("SFTP binary cleanup")?;
     }
 
     // Prove the exact SFTP primitives used by production pause/resume against
