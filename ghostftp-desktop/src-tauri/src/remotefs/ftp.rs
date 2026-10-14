@@ -635,6 +635,25 @@ mod ftp_list_compatibility_tests {
     }
 
     #[test]
+    fn duplicate_names_fail_closed_before_any_partial_inventory_is_returned() {
+        let rows = vec![
+            "04-27-25  09:09AM       42 collision.txt".to_string(),
+            "04-27-25  09:10AM       <DIR> collision.txt".to_string(),
+        ];
+        let error = parse_directory_listing("/root", rows).unwrap_err();
+        assert!(error.to_string().contains("duplicate directory entry names"));
+    }
+
+    #[test]
+    fn repeated_names_are_detected_across_unix_and_dos_listing_formats() {
+        let rows = vec![
+            "-rw-r--r-- 1 ftp ftp 1 Apr 12 12:00 same.txt".to_string(),
+            "04-27-25  09:09AM       1 same.txt".to_string(),
+        ];
+        assert!(parse_directory_listing("/root", rows).is_err());
+    }
+
+    #[test]
     fn unix_listing_still_parses_and_dos_listing_stays_non_destructive() {
         let unix = "-rw-r--r-- 1 ftp ftp 5 Apr 12 12:00 ordinary.txt";
         let parsed = entry_from_listing("/root", unix).expect("Unix LIST still supported");
