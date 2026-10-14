@@ -125,15 +125,10 @@ fn is_approved_external_url(parsed: &url::Url) -> bool {
     let official_help_page = host == "ghostftp.com"
         && matches!(
             path,
-            "/hr/support"
-                | "/hr/contact"
-                | "/hr/how-to-download"
-                | "/hr/privacy"
-                | "/hr/terms"
+            "/hr/support" | "/hr/contact" | "/hr/how-to-download" | "/hr/privacy" | "/hr/terms"
         );
     // The source-code repository is explicitly distinguished from support.
-    let approved_project_page =
-        host == "github.com" && path == "/bren-wp/Ghost-FTP";
+    let approved_project_page = host == "github.com" && path == "/bren-wp/Ghost-FTP";
     parsed.scheme() == "https"
         && parsed.username().is_empty()
         && parsed.password().is_none()
