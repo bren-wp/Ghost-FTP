@@ -1,12 +1,38 @@
 # Ghost FTP / FileZilla functional parity
 
-Last reviewed: 2026-09-28
+Last reviewed: 2026-10-14 (0.95.18 PR #152; final CI pending)
 Benchmark: FileZilla Client
 Reference: https://filezilla-project.org/client_features.php
 
 FileZilla is used only as a functional benchmark. Ghost FTP must not copy FileZilla UI, branding or visual identity.
 
 This tracker deliberately errs toward **Partial** or **Missing**. A capability moves to **Equivalent** only after the Ghost FTP implementation and regression tests cover the relevant behavior. A capability moves to **Ghost FTP better** only after reproducible evidence demonstrates a concrete advantage.
+
+## Evidence matrix — 0.95.18 development candidate
+
+Scope: **free FileZilla Client**, not commercial FileZilla Pro. Feature reference: [official FileZilla Client features](https://filezilla-project.org/client_features.php) (the JavaScript-only page may not expose text in a headless environment) and [FileZilla documentation index](https://filezillapro.com/docs/v3/) (differentiate Pro-specific features). Items are not marked EQUIVALENT solely because a method or UI button exists. The latest **published** Ghost FTP baseline is v0.95.17; this branch has **unreleased**, not yet final-CI-verified 0.95.18 code.
+
+| Function | FileZilla Client | Ghost FTP implementation | Evidence | Work needed | E2E | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| FTP passive control and file transfers | Supported | Rust session plus FTP RemoteFs | Real loopback FTP fixture at v0.95.17, CI run 38619915744 | Additional real FTP server and NAT/IPv6 tests | Local FTP yes | PARTIAL |
+| Explicit FTPS private data channel | Supported | Rust TLS FTP stream and guarded data-channel retry | FTPS local server, hostname mismatch rejection (run 38619915744) | Expiry/revocation/chain and multiple server matrices | Local FTPS yes | PARTIAL |
+| SFTP / SSH keys / fingerprint changes | Supported | Russh SFTP and OS known-hosts | Real OpenSSH password/encrypted-key auth and changed-key regression (run 38619915744) | Agent, ProxyJump and keyboard-interactive provider matrix | Local OpenSSH yes | PARTIAL |
+| IIS/MS-DOS and Unix FTP LIST | Required server compatibility | Strict DOS and Unix row parse; unknown lines abort instead of silently dropping | `src-tauri/src/remotefs/ftp.rs` DOS/Unix unit tests on PR #152 | Finish exact-SHA Rust CI and real Windows IIS FTP run | IIS: not yet | UNVERIFIED |
+| FEAT, MLSD/MLST and LIST fallback | Supported by FTP ecosystem | Current production LIST parser, guarded dot visibility | `src-tauri/src/remotefs/ftp.rs` | Negotiate/verify MLSD and multiple daemon behavior | LIST on local fixtures | PARTIAL |
+| Active FTP PORT/EPRT and IPv6 | Supported | No documented E2E for active IPv6/NAT paths | No active network fixture coverage | Implement/configure/test active data channel and NAT safety | No | UNVERIFIED |
+| Transfer queue and retries | Supported | Existing Rust queue, TS Transfer Center, SQLite recovery snapshots | `docs/qa/TRANSFERS.md`; 0.95.17 tests | Per-site controls, crash, concurrency and real network failure matrix | Partial | PARTIAL |
+| Interrupted upload/download resume | Supported | FTP REST/SFTP range and resume primitives | Protocol E2E v0.95.17 tests multi-chunk resume | Verify large files, cross-protocol loss/cancel and identity changes | Local subset yes | PARTIAL |
+| Synchronized browsing and directory compare | Supported | Existing compare/sync modules | `docs/product/FEATURES.md`, inspection pending | Bidirectional root traversal with security and UI tests | Not established | UNVERIFIED |
+| Filename/directory filtering and remote search | Supported | Existing search/filter surfaces, completeness not reviewed here | Source audit needed | Safe bounded regex, multi-rule presets and recursive cancellation tests | Not established | UNVERIFIED |
+| Site Manager, bookmarks and importing | Supported | Existing profile store and site UI | `docs/product/FEATURES.md` | FileZilla XML import security, per-site options and migrations | Partial | PARTIAL |
+| File editing and drag/drop | Supported | Existing managed temporary editor and drag/drop UI | `docs/qa/TRANSFERS.md` | Remote conflict, editor atomic-save and OS integration tests | Not established | PARTIAL |
+| Network Configuration Wizard | Supported | No verified parity in current settings | No reproducible end-to-end wizard | Implement real network/DNS/control/data diagnostics without router changes | No | MISSING |
+| SOCKS5/HTTP CONNECT proxy | Supported | No verified complete proxy support | No reproducible proxy fixture tests | Securely implement/authenticate proxy with DNS and data-channel tests | No | UNVERIFIED |
+| Android SAF interrupted cloud recovery | Ghost FTP extension | Fail-closed, private document URI journal and recovery choices | Android 0.95.17 instrumentation success (run 38619915768) | Physical Android 8–15 and provider errors/permission acceptance, issue #127 | Emulator only | PARTIAL |
+| Android/macOS cloud account OAuth | Separate FileZilla Pro-type extension | Ephemeral PKCE foundations; no end-to-end account browsing | Platform unit tests, issue #128 | Registered clients, token vault, list/paging, refresh, revocation and provider tests | No | PARTIAL |
+| 75-screen premium visual target | Ghost FTP-specific design, not FileZilla parity | Reference registry = concepts; real build capture registry separate | `docs/qa/PREMIUM_REFERENCE_75.md` | Exact screen-by-screen pixel and click QA on each native OS | Not complete | UNVERIFIED |
+
+The matrix deliberately distinguishes **source implementation**, **validated local test**, and **real cross-vendor interoperability**. Report actual source SHA and workflow ID before upgrading statuses.
 
 ## Ghost FTP better
 
