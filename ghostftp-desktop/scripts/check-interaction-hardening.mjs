@@ -287,6 +287,18 @@ requireExcludes(
   "raw settings migration diagnostics"
 );
 
+requireIncludes(
+  "src/stores/editorStore.ts",
+  [
+    "let listenerSetup: Promise<void> | null = null;",
+    "if (listenerSetup) return listenerSetup;",
+    "listenerSetup = setup;",
+    "if (listenerSetup === setup) listenerSetup = null;",
+    "unlistenSaved();",
+  ],
+  "single-flight editor save/error listeners with safe retry after failure"
+);
+
 for (const storeFile of [
   "src/stores/diffStore.ts",
   "src/stores/editorStore.ts",
