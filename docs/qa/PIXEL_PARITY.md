@@ -1,6 +1,6 @@
 # Ghost FTP — installed-build visual acceptance
 
-Visual reference authority: the user-supplied GhostFTP-Premium-Brand-UI(3).zip and the 75-entry source map in docs/qa/premium-75-screen-contract.json. The references are design **concepts**, never real file data or executable screens. Do not embed them as application backgrounds.
+Visual reference authority: the user-supplied GhostFTP-Premium-Brand-UI(7).zip and the 75-entry source map in docs/qa/premium-75-screen-contract.json. The references are design **concepts**, never real file data or executable screens. Do not embed them as application backgrounds.
 
 ## What the 0.30.18 Help/About increment can verify
 

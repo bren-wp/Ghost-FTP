@@ -107,3 +107,7 @@ Provider streams first registered **after** cancellation are rejected immediatel
 ## 0.95.16 Android crash-survivable SAF recovery (source-only)
 
 A created SAF destination URI is recorded before downloading, in app-private no-backup storage with no signed URL. A restart shows explicit cleanup or Keep controls instead of silently deleting an uncertain provider document. Device/provider ability to delete after an app kill, permissions revoked and Android 8–15 physical QA remain unverified. Issue #127 is not closed.
+
+## 0.95.17 Android recovery consistency and click QA
+
+An invalid/truncated recovery journal is now an unresolved condition, not an absent download. Cloud actions remain disabled until the user explicitly reviews/dismisses the warning; overwrite of an existing recovery record is rejected. Emulator instrumentation exercises both valid and corrupt journals through Activity recreation and visible recovery buttons. This improves fail-closed behavior but does **not** substitute for physical Android 8–15 and real DocumentsProvider fault-injection acceptance required by #127.
