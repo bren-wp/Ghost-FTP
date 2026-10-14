@@ -17,7 +17,7 @@ Scope: **free FileZilla Client**, not commercial FileZilla Pro. Feature referenc
 | FTP passive control and file transfers | Supported | Rust session plus FTP RemoteFs | Real loopback FTP fixture at v0.95.17, CI run 38619915744 | Additional real FTP server and NAT/IPv6 tests | Local FTP yes | PARTIAL |
 | Explicit FTPS private data channel | Supported | Rust TLS FTP stream and guarded data-channel retry | FTPS local server, hostname mismatch rejection (run 38619915744) | Expiry/revocation/chain and multiple server matrices | Local FTPS yes | PARTIAL |
 | SFTP / SSH keys / fingerprint changes | Supported | Russh SFTP and OS known-hosts | Real OpenSSH password/encrypted-key auth and changed-key regression (run 38619915744) | Agent, ProxyJump and keyboard-interactive provider matrix | Local OpenSSH yes | PARTIAL |
-| IIS/MS-DOS and Unix FTP LIST | Required server compatibility | Strict DOS and Unix row parse; unknown lines abort instead of silently dropping | `src-tauri/src/remotefs/ftp.rs` DOS/Unix unit tests on PR #152 | Finish exact-SHA Rust CI and real Windows IIS FTP run | IIS: not yet | UNVERIFIED |
+| IIS/MS-DOS and Unix FTP LIST | Required server compatibility | Strict DOS date/size, Unix permission/type precheck and safe filename validation; unknown lines abort rather than partially inventory | `src-tauri/src/remotefs/ftp.rs` tests plus actual pyftpdlib DOS listing E2E (last green 38635511490 before final strict-Unix follow-up) | Confirm latest SHA Rust unit suite and real Windows IIS/ProFTPD cases | DOS-format socket E2E, real IIS not yet | PARTIAL |
 | FEAT, MLSD/MLST and LIST fallback | Supported by FTP ecosystem | Current production LIST parser, guarded dot visibility | `src-tauri/src/remotefs/ftp.rs` | Negotiate/verify MLSD and multiple daemon behavior | LIST on local fixtures | PARTIAL |
 | Active FTP PORT/EPRT and IPv6 | Supported | No documented E2E for active IPv6/NAT paths | No active network fixture coverage | Implement/configure/test active data channel and NAT safety | No | UNVERIFIED |
 | Transfer queue and retries | Supported | Existing Rust queue, TS Transfer Center, SQLite recovery snapshots | `docs/qa/TRANSFERS.md`; 0.95.17 tests | Per-site controls, crash, concurrency and real network failure matrix | Partial | PARTIAL |
@@ -33,6 +33,10 @@ Scope: **free FileZilla Client**, not commercial FileZilla Pro. Feature referenc
 | 75-screen premium visual target | Ghost FTP-specific design, not FileZilla parity | Reference registry = concepts; real build capture registry separate | `docs/qa/PREMIUM_REFERENCE_75.md` | Exact screen-by-screen pixel and click QA on each native OS | Not complete | UNVERIFIED |
 
 The matrix deliberately distinguishes **source implementation**, **validated local test**, and **real cross-vendor interoperability**. Report actual source SHA and workflow ID before upgrading statuses.
+
+### Strict Unix LIST parser hardening (CI follow-up)
+
+The Rust workspace suite identified two failing tests where SuppaFTP's Unix parser accepted arbitrary server text such as `LIST malformed entry` as if it were a file. The production Ghost FTP parser now validates the Unix permission/type token *before* calling SuppaFTP, rejects path separators/control characters in file names, and refuses an unsupported listing instead of returning a partial inventory. This also guards recursive deletes and remote-existence/conflict checks that depend on the listing. Valid Unix files/directories, IIS/MS-DOS rows, and traversal cases have source-level regressions. Final exact-SHA test results remain pending; real Microsoft IIS remains unverified.
 
 ### Saved-site network diagnostics — 0.95.18 development candidate
 
