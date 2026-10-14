@@ -2,7 +2,8 @@
 
 - **Official help:** Windows, Linux, Android and macOS Help/About links now use verified ghostftp.com support, contact, getting-started, privacy and terms pages, instead of sending users to GitHub issues/legal markdown.
 - **Security:** Exact HTTPS route allowlists prevent credential-bearing, redirected, off-domain or unknown URLs. GitHub remains a separately labelled source-code destination.
-- **Language and UX:** Audit and reduce hard-coded interface copy, improve localized contact navigation, and retain protected FTP/FTPS/SFTP transfer controls.
+- **Language and UX:** Localized cloud/navigation/contact labels on all Android translations and eight official-resource texts on all desktop locales; other copy remains under review.
+- **External file editing reliability:** Register native save/error event listeners exactly once when editing multiple files concurrently; preserve cleanup and retry when registration fails.
 - **QA:** CI must pass on the exact commit before merge and public release. This release does not claim completed vendor OAuth, 75-screen pixel parity or exhaustive dead-code certification.
 
 See [0.95.15 release notes](docs/releases/0.95.15.md).
