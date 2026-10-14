@@ -256,6 +256,7 @@ enum FTPControlCodec {
         }
 
         var entries: [FTPDirectoryEntry] = []
+        var seenNames = Set<String>()
         for rawLine in text.split(whereSeparator: \.isNewline) {
             let line = String(rawLine)
             guard let split = line.firstIndex(of: " ") else {
@@ -300,6 +301,11 @@ enum FTPControlCodec {
                 throw FTPControlError.invalidDirectoryListing
             }
             try validateRemoteFileName(name)
+            guard seenNames.insert(name).inserted else {
+                // Duplicate identities would collide in SwiftUI lists and
+                // make file-level actions select an ambiguous remote object.
+                throw FTPControlError.invalidDirectoryListing
+            }
             let size: UInt64?
             if let sizeText = facts["size"] {
                 guard let parsedSize = UInt64(sizeText) else {
