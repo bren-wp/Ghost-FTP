@@ -109,6 +109,32 @@ class CloudDestinationJournalTest {
         }
     }
 
+    @Test fun completedDocumentCannotEraseAnotherDocumentRecovery() = withDirectory { root ->
+        val pending = "content://com.example.documents/document/pending"
+        val other = "content://com.example.documents/document/other"
+        CloudDestinationJournal.record(root, pending)
+        assertFalse(CloudDestinationJournal.clearIfMatches(root, other))
+        assertEquals(pending, CloudDestinationJournal.pending(root))
+        assertTrue(CloudDestinationJournal.clearIfMatches(root, pending))
+        assertNull(CloudDestinationJournal.pending(root))
+    }
+
+    @Test fun danglingSymlinkIsNeverMistakenForSuccessfulRecoveryClear() = withDirectory { root ->
+        val journal = File(root, "pending-cloud-download.uri").toPath()
+        val nonexistent = File(root, "deleted-target").toPath()
+        try {
+            Files.createSymbolicLink(journal, nonexistent)
+        } catch (_: UnsupportedOperationException) {
+            org.junit.Assume.assumeTrue("Symlink unavailable", false)
+        } catch (_: IOException) {
+            org.junit.Assume.assumeTrue("Symlink unavailable", false)
+        }
+        assertFalse(journal.toFile().exists())
+        assertTrue(CloudDestinationJournal.hasUnresolved(root))
+        assertFalse(CloudDestinationJournal.clear(root))
+        assertTrue(CloudDestinationJournal.hasUnresolved(root))
+    }
+
     @Test fun clearingMissingJournalIsSafeAndIdempotent() = withDirectory { root ->
         assertTrue(CloudDestinationJournal.clear(root))
         assertNull(CloudDestinationJournal.pending(root))
