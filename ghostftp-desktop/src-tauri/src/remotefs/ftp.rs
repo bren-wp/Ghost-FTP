@@ -158,14 +158,34 @@ fn looks_like_dos_listing(line: &str) -> bool {
     })
 }
 
+/// Reject non-Unix server prose before entering SuppaFTP's permissive
+/// Unix LIST parser. These are the standard 10 permission/type positions,
+/// optionally followed by an ACL/xattr marker.
+fn looks_like_unix_listing(line: &str) -> bool {
+    let Some(mode) = line.split_whitespace().next() else {
+        return false;
+    };
+    let bytes = mode.as_bytes();
+    if !matches!(bytes.len(), 10 | 11)
+        || !matches!(bytes[0], b'-' | b'd' | b'l' | b'c' | b'b' | b'p' | b's')
+        || !bytes[1..10]
+            .iter()
+            .all(|ch| matches!(ch, b'r' | b'w' | b'x' | b'-' | b's' | b'S' | b't' | b'T'))
+    {
+        return false;
+    }
+    bytes.len() == 10 || matches!(bytes[10], b'+' | b'@' | b'.')
+}
+
 fn is_dot_listing(line: &str) -> bool {
     if looks_like_dos_listing(line) {
         return dos_listing_entry(line)
             .is_some_and(|(name, _, _)| matches!(name.as_str(), "." | ".."));
     }
-    FtpFile::try_from(line.to_string())
-        .map(|file| matches!(file.name(), "." | ".."))
-        .unwrap_or(false)
+    looks_like_unix_listing(line)
+        && FtpFile::try_from(line.to_string())
+            .map(|file| matches!(file.name(), "." | ".."))
+            .unwrap_or(false)
 }
 
 fn is_ignorable_listing_line(line: &str) -> bool {
@@ -195,9 +215,17 @@ fn entry_from_listing(parent: &str, line: &str) -> Option<DirEntry> {
             etag: None,
         });
     }
+    if !looks_like_unix_listing(line) {
+        return None;
+    }
     let f = FtpFile::try_from(line.to_string()).ok()?;
     let name = f.name().to_string();
-    if name == "." || name == ".." {
+    if name.is_empty()
+        || matches!(name.as_str(), "." | "..")
+        || name
+            .chars()
+            .any(|ch| matches!(ch, '/' | '\\' | '\n' | '\r' | '\0'))
+    {
         return None;
     }
     let kind = if f.is_directory() {
@@ -608,5 +636,8 @@ mod ftp_list_compatibility_tests {
         assert_eq!(parsed.size, 5);
         assert!(matches!(parsed.kind, FileKind::File));
         assert!(entry_from_listing("/root", "LIST server returned malformed data").is_none());
+        assert!(entry_from_listing("/root", "drwxr-xr-x 1 ftp ftp 0 Apr 12 12:00 Folder").is_some());
+        assert!(entry_from_listing("/root", "-rw-r--r-- 1 ftp ftp 5 Apr 12 12:00 ../escape").is_none());
+        assert!(entry_from_listing("/root", "-rw-r--r-- 1 ftp ftp 5 Apr 12 12:00 bad\\name").is_none());
     }
 }
