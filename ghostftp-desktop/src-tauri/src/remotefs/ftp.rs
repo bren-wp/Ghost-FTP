@@ -135,13 +135,19 @@ fn dos_listing_entry(line: &str) -> Option<(String, FileKind, u64)> {
 
 fn parse_directory_listing(parent: &str, listing: Vec<String>) -> Result<Vec<DirEntry>> {
     let mut entries = Vec::with_capacity(listing.len());
+    let mut seen_names = std::collections::HashSet::new();
     for line in listing {
         if is_ignorable_listing_line(&line) {
             continue;
         }
-        entries.push(entry_from_listing(parent, &line).ok_or_else(|| {
+        let entry = entry_from_listing(parent, &line).ok_or_else(|| {
             anyhow::anyhow!("FTP LIST includes an unsupported or ambiguous directory entry")
-        })?);
+        })?;
+        anyhow::ensure!(
+            seen_names.insert(entry.name.clone()),
+            "FTP LIST contains duplicate directory entry names"
+        );
+        entries.push(entry);
     }
     Ok(entries)
 }
