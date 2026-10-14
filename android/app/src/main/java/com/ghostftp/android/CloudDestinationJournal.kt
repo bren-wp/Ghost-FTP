@@ -45,19 +45,18 @@ internal object CloudDestinationJournal {
         // Never replace an unresolved journal: two overlapping SAF results
         // could otherwise cause the first incomplete document to be lost.
         if (target.exists() || Files.isSymbolicLink(target.toPath()) ||
-            Files.isSymbolicLink(temporary.toPath())) {
+            temporary.exists() || Files.isSymbolicLink(temporary.toPath())) {
             throw IOException("Previous cloud recovery must be resolved first.")
         }
-        try {
-            FileOutputStream(temporary).use { output ->
-                output.write(documentUri.toByteArray(Charsets.UTF_8))
-                output.fd.sync()
-            }
-            if (!temporary.renameTo(target)) {
-                throw IOException("Cloud recovery record could not be committed.")
-            }
-        } finally {
-            temporary.delete()
+        // If an I/O error or process death leaves this temporary record,
+        // preserve it as an unresolved recovery warning. Deleting it on an
+        // unsuccessful commit could silently hide a partial SAF destination.
+        FileOutputStream(temporary).use { output ->
+            output.write(documentUri.toByteArray(Charsets.UTF_8))
+            output.fd.sync()
+        }
+        if (!temporary.renameTo(target)) {
+            throw IOException("Cloud recovery record could not be committed.")
         }
     }
 
@@ -68,7 +67,12 @@ internal object CloudDestinationJournal {
     @Synchronized
     fun hasUnresolved(noBackupDir: File): Boolean {
         val file = File(noBackupDir, FILE_NAME)
-        return file.exists() || Files.isSymbolicLink(file.toPath())
+        val temporary = File(noBackupDir, TEMP_NAME)
+        // A crash during the journal's atomic write can leave only the
+        // temporary file. Even an unreadable partial record must block a new
+        // download until the user explicitly acknowledges the uncertainty.
+        return file.exists() || Files.isSymbolicLink(file.toPath()) ||
+            temporary.exists() || Files.isSymbolicLink(temporary.toPath())
     }
 
     @Synchronized
@@ -94,9 +98,14 @@ internal object CloudDestinationJournal {
     @Synchronized
     fun clear(noBackupDir: File): Boolean {
         val file = File(noBackupDir, FILE_NAME)
-        // File.exists() returns false for dangling symlinks. Such a record
-        // is still unresolved and must not be reported as successfully clear.
-        if (Files.isSymbolicLink(file.toPath())) return false
+        val temporary = File(noBackupDir, TEMP_NAME)
+        // File.exists() returns false for dangling symlinks. Neither record
+        // may be followed or reported as cleared through a symlink.
+        if (Files.isSymbolicLink(file.toPath()) ||
+            Files.isSymbolicLink(temporary.toPath())) return false
+        // Remove the incomplete staging record first. If this fails, retain
+        // the committed URI so the user still has a recovery hint.
+        if (temporary.exists() && !temporary.delete()) return false
         return !file.exists() || file.delete()
     }
 }
