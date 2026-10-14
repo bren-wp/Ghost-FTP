@@ -127,7 +127,7 @@ if (captureManifest) {
   const candidateVersion = JSON.parse(fs.readFileSync(path.join(root,"version.json"),"utf8")).version;
   if (captureManifest.version !== candidateVersion ||
       !/^[a-f0-9]{40}$/.test(captureManifest.capture_source_sha ?? "") ||
-      !/^\\d+$/.test(captureManifest.github_actions_run_id ?? "") ||
+      !/^[0-9]+$/.test(captureManifest.github_actions_run_id ?? "") ||
       captureManifest.platform !== "Windows" ||
       captureManifest.provenance !== "Ghost FTP native build, real Windows WebView2 compositor QA, 1290x852" ||
       Object.keys(captureManifest.images ?? {}).length !== approvedWindowsCaptures.size) {
