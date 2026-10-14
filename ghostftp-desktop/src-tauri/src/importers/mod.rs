@@ -30,6 +30,10 @@ pub struct ProfilePreview {
     /// "from ~/.ssh/config", "site folder: Personal/Work", etc.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// The source client's saved-site folder path, not an arbitrary local path.
+    /// Other importers leave this unset for backward-compatible previews.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
 }
 
 impl ProfilePreview {
@@ -43,6 +47,7 @@ impl ProfilePreview {
             username: String::new(),
             identity_file: None,
             note: None,
+            group: None,
         }
     }
 
@@ -82,7 +87,7 @@ impl ProfilePreview {
             endpoint: None,
             account: None,
             agent_key: None,
-            group: None,
+            group: self.group,
             favorite: None,
             bookmarked: None,
             tags: None,
