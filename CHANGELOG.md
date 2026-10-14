@@ -1,3 +1,10 @@
+## 0.95.16 — SAF document recovery and cloud authorization foundations — 14 October 2026
+
+- Android: recover uncertain partial SAF download documents following process death with explicit user-controlled cleanup; journal only a bounded content URI in no-backup app storage.
+- Android/macOS: implement S256-PKCE and single-use callback authorization primitives for future registered Google Drive OAuth clients, with regression tests.
+- README: clarify that the checked-in screenshots were captured at v0.30.19 and must be replaced by verified current-build QA captures.
+- Acceptance: #127 requires physical Android 8–15 SAF-provider tests; #128 requires full OAuth token storage, authorized account browsing, upload/download, expiry/revocation and real-provider E2E. Both remain open.
+
 ## 0.95.15 — official website support, stricter URL safety and localization improvements — 14 October 2026
 
 - **Official help:** Windows, Linux, Android and macOS Help/About links now use verified ghostftp.com support, contact, getting-started, privacy and terms pages, instead of sending users to GitHub issues/legal markdown.

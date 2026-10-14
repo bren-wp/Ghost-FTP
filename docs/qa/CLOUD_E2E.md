@@ -103,3 +103,7 @@ This is **not** the controlled DNS/rebinding/proxy/VPN laboratory test or a genu
 ## 0.95.9 Android late-provider cancellation dispatch (#127 — partial)
 
 Provider streams first registered **after** cancellation are rejected immediately and signaled for close on a daemon closer, instead of synchronously waiting on a misbehaving DocumentsProvider. JVM tests cover asynchronous signal and a deliberately blocked provider close. A surrounding Kotlin `use` cleanup can still block if the provider itself never returns; this is not a guarantee of eventual Binder cancellation or a replacement for Android 8–15 physical SAF testing.
+
+## 0.95.16 Android crash-survivable SAF recovery (source-only)
+
+A created SAF destination URI is recorded before downloading, in app-private no-backup storage with no signed URL. A restart shows explicit cleanup or Keep controls instead of silently deleting an uncertain provider document. Device/provider ability to delete after an app kill, permissions revoked and Android 8–15 physical QA remain unverified. Issue #127 is not closed.
