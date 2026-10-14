@@ -124,8 +124,13 @@ const captureManifest = fs.existsSync(manifestPath)
   ? JSON.parse(fs.readFileSync(manifestPath, "utf8"))
   : null;
 if (captureManifest) {
-  const candidateVersion = JSON.parse(fs.readFileSync(path.join(root,"version.json"),"utf8")).version;
-  if (captureManifest.version !== candidateVersion ||
+  const versionMeta = JSON.parse(fs.readFileSync(path.join(root, "version.json"), "utf8"));
+  // A new development branch initially contains real screenshots from the
+  // previously published version. Accept precisely that version until the
+  // successful current-build Windows QA promotion commits fresh screenshots.
+  // Never accept arbitrary older captures or mock reference art.
+  const acceptableVersions = [versionMeta.version, versionMeta.previousPublishedVersion];
+  if (!acceptableVersions.includes(captureManifest.version) ||
       !/^[a-f0-9]{40}$/.test(captureManifest.capture_source_sha ?? "") ||
       !/^[0-9]+$/.test(captureManifest.github_actions_run_id ?? "") ||
       captureManifest.platform !== "Windows" ||
