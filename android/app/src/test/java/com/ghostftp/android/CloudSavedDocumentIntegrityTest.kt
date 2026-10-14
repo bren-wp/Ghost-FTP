@@ -81,6 +81,26 @@ class CloudSavedDocumentIntegrityTest {
         }
     }
 
+    @Test fun readBackRejectsCancellationDuringBlockedProviderRead() {
+        val cancellation = CloudTransferCancellation()
+        val input = object : java.io.InputStream() {
+            override fun read(): Int = 7
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                buffer[offset] = 7
+                cancellation.cancel()
+                return 1
+            }
+        }
+        try {
+            SignedCloudTransfer.verifyPersistedCopy(
+                input, 1L, hash(byteArrayOf(7)), cancellation
+            )
+            fail("A canceled SAF provider read must never report a verified document.")
+        } catch (_: java.io.InterruptedIOException) {
+            assertTrue(cancellation.isCancelled)
+        }
+    }
+
     @Test fun rejectsInvalidExpectedChecksumMetadata() {
         try {
             SignedCloudTransfer.verifyPersistedCopy(
