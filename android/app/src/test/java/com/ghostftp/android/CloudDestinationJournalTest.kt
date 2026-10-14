@@ -78,6 +78,37 @@ class CloudDestinationJournalTest {
         }
     }
 
+    @Test fun damagedJournalBlocksNextTransferUntilExplicitReview() = withDirectory { root ->
+        val record = File(root, "pending-cloud-download.uri")
+        record.writeText("incomplete-or-tampered", Charsets.UTF_8)
+        assertTrue("damaged record must still block new transfers",
+            CloudDestinationJournal.hasUnresolved(root))
+        assertNull("never interpret malformed data as a valid provider URI",
+            CloudDestinationJournal.pending(root))
+        try {
+            CloudDestinationJournal.record(root, "content://com.example.documents/document/new")
+            throw AssertionError("overwriting an unresolved record would lose cleanup information")
+        } catch (_: IOException) {
+            assertEquals("incomplete-or-tampered", record.readText(Charsets.UTF_8))
+        }
+        assertTrue(CloudDestinationJournal.clear(root))
+        assertFalse(CloudDestinationJournal.hasUnresolved(root))
+        CloudDestinationJournal.record(root, "content://com.example.documents/document/next")
+        assertTrue(CloudDestinationJournal.hasUnresolved(root))
+    }
+
+    @Test fun aSecondConcurrentDocumentCannotOverwriteFirstUnresolvedUri() = withDirectory { root ->
+        val first = "content://com.example.documents/document/first"
+        val second = "content://com.example.documents/document/second"
+        CloudDestinationJournal.record(root, first)
+        try {
+            CloudDestinationJournal.record(root, second)
+            throw AssertionError("the original SAF output lost its recovery hint")
+        } catch (_: IOException) {
+            assertEquals(first, CloudDestinationJournal.pending(root))
+        }
+    }
+
     @Test fun clearingMissingJournalIsSafeAndIdempotent() = withDirectory { root ->
         assertTrue(CloudDestinationJournal.clear(root))
         assertNull(CloudDestinationJournal.pending(root))

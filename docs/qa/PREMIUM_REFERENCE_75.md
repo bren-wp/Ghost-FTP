@@ -2,7 +2,7 @@
 
 ## Provenance and limits
 
-User-supplied archive `GhostFTP-Premium-Brand-UI(5).zip`, original README: **visual design concept**, not screenshots from a working Ghost FTP app. It contains 75 PNG screens, a static HTML concept, vectors and branding. Example filenames, fake transfer progress, file content and accounts inside concepts are illustrative and must never be injected into application behavior.
+User-supplied archive `GhostFTP-Premium-Brand-UI(7).zip`, original README: **visual design concept**, not screenshots from a working Ghost FTP app. It contains 75 PNG screens, a static HTML concept, vectors and branding. Example filenames, fake transfer progress, file content and accounts inside concepts are illustrative and must never be injected into application behavior.
 
 The archive records an earlier source snapshot (0.30.12 / 8 October 2026), not proof of today's rendered platform layout.
 
@@ -33,3 +33,9 @@ Windows adds the `brand` concept; the other 29 named Windows/Linux screens match
 5. **Security and privacy:** No mock credentials, signed URLs, tokens, personal data or server addresses in committed QA evidence. Redact network logs. Respect reduced motion and accessibility contrast.
 
 **Current acceptance:** color tokens and several shell elements already overlap with the reference; there is **no verified 75/75 real installed-screen 1:1 parity** and no proof that all illustrated features are implemented. Existing QA outputs must stay identified as actual captures, and these reference concepts must stay identified as design inputs.
+
+## Reference archive re-audit — v0.95.17
+
+The supplied `GhostFTP-Premium-Brand-UI(7).zip` contains `manifest.json`, a static reference renderer, 30 Windows PNGs, 29 Linux PNGs and 16 Android PNGs. Windows/Linux PNGs are 1290×852 pixels and Android PNGs 480×960 pixels. Its own README explicitly warns that paths, accounts, statistics and transfers are illustrative mockups, **not** a functioning application. The working Windows/Android/Linux UI must be assessed against these files at the exact native build SHA; automated screenshot existence and capture checks do not establish all 75 pixel comparisons. macOS has no supplied screen reference in this archive.
+
+Release 0.95.17 improves real backend file-operation QA and the Android SAF recovery click path, but this is not all-screen visual sign-off.

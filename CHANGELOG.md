@@ -1,3 +1,13 @@
+## 0.95.17 — Android SAF recovery QA and real protocol binary edge cases — 14 October 2026
+
+- **Safety:** Corrupted or tampered Android SAF download recovery journals now block new signed-object transfers until the user explicitly reviews and dismisses the warning. A second transfer can no longer overwrite a still-unresolved document record.
+- **Android UI:** Explicit accessible descriptions for the two recovery actions, and on-emulator click-through tests for the valid/crash-restarted and damaged-record flows, including safe return to the cloud workspace.
+- **Live protocol testing:** Real loopback FTP, explicit FTPS and SFTP servers receive deterministic binary data of 1, 65,535, 65,536, 65,537 and 262,147 bytes. Every case must pass upload, list, rename, download, exact-byte comparison and deletion. Existing multimegabyte pause/resume/cancel and host-key/certificate tests remain active.
+- **Design QA:** Rechecked the new user-provided 75-screen `GhostFTP-Premium-Brand-UI(7).zip` mockup inventory and the existing real-app capture contract. No screenshots are generated from mockups and 1:1 pixel QA remains separately pending.
+- **Limitations:** Full Android/macOS authenticated cloud account operations (#128), real Android 8–15 SAF provider acceptance (#127), and all 75 screen-by-screen installed-build comparisons are not certified. Do not claim FINAL or close these issues from a green CI job alone.
+
+See [0.95.17 release notes](docs/releases/0.95.17.md).
+
 ## 0.95.16 — SAF document recovery and cloud authorization foundations — 14 October 2026
 
 - Android: recover uncertain partial SAF download documents following process death with explicit user-controlled cleanup; journal only a bounded content URI in no-backup app storage.

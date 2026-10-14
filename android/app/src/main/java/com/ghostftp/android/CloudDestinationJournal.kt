@@ -42,8 +42,11 @@ internal object CloudDestinationJournal {
         }
         val target = File(noBackupDir, FILE_NAME)
         val temporary = File(noBackupDir, TEMP_NAME)
-        if (Files.isSymbolicLink(target.toPath()) || Files.isSymbolicLink(temporary.toPath())) {
-            throw IOException("Cloud recovery storage is unsafe.")
+        // Never replace an unresolved journal: two overlapping SAF results
+        // could otherwise cause the first incomplete document to be lost.
+        if (target.exists() || Files.isSymbolicLink(target.toPath()) ||
+            Files.isSymbolicLink(temporary.toPath())) {
+            throw IOException("Previous cloud recovery must be resolved first.")
         }
         try {
             FileOutputStream(temporary).use { output ->
@@ -56,6 +59,16 @@ internal object CloudDestinationJournal {
         } finally {
             temporary.delete()
         }
+    }
+
+    /**
+     * A corrupt, truncated or tampered journal is still an unresolved
+     * recovery condition. Do not silently allow a new transfer to replace it.
+     */
+    @Synchronized
+    fun hasUnresolved(noBackupDir: File): Boolean {
+        val file = File(noBackupDir, FILE_NAME)
+        return file.exists() || Files.isSymbolicLink(file.toPath())
     }
 
     @Synchronized
