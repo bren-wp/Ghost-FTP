@@ -23,10 +23,21 @@ impl FtpFs {
         self.session
             .with_stream(move |stream| {
                 let listing = list_lines(stream, &target)?;
-                Ok(listing
-                    .into_iter()
-                    .filter_map(|line| entry_from_listing(&parent, &line))
-                    .collect())
+                // Never silently omit unknown server entries: a partial listing
+                // could hide existing targets from sync and conflict checks.
+                let mut entries = Vec::with_capacity(listing.len());
+                for line in listing {
+                    if is_ignorable_listing_line(&line) {
+                        continue;
+                    }
+                    let entry = entry_from_listing(&parent, &line).ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "FTP LIST includes an unsupported or ambiguous directory entry"
+                        )
+                    })?;
+                    entries.push(entry);
+                }
+                Ok(entries)
             })
             .await
     }
@@ -55,18 +66,103 @@ fn join(base: &str, name: &str) -> String {
     }
 }
 
+/// IIS and Windows FTP servers also return MS-DOS-style LIST records.
+//// Keep this parser strict: an ambiguous line is *not* proof that a target
+/// is absent, and its size must never silently overflow.
+fn dos_listing_entry(line: &str) -> Option<(String, FileKind, u64)> {
+    fn token(input: &str) -> Option<(&str, &str)> {
+        let input = input.trim_start_matches(char::is_whitespace);
+        let end = input.find(char::is_whitespace)?;
+        Some((&input[..end], &input[end..]))
+    }
+    let (date, rest) = token(line)?;
+    let (time, rest) = token(rest)?;
+    let (kind_or_size, rest) = token(rest)?;
+    let name = rest.trim_start_matches(char::is_whitespace).trim_end_matches('\r');
+    if name.is_empty() || name.contains(['/', '\\', '\n', '\r', '\0']) {
+        return None;
+    }
+
+    let mut date_parts = date.split(|c| c == '-' || c == '/');
+    let month = date_parts.next()?.parse::<u8>().ok()?;
+    let day = date_parts.next()?.parse::<u8>().ok()?;
+    let year_text = date_parts.next()?;
+    if date_parts.next().is_some() || !matches!(year_text.len(), 2 | 4)
+        || !year_text.bytes().all(|b| b.is_ascii_digit())
+    {
+        return None;
+    }
+    let year = year_text.parse::<u16>().ok()?;
+    let full_year = if year_text.len() == 2 {
+        if year < 70 { year + 2000 } else { year + 1900 }
+    } else { year };
+    let leap = full_year % 4 == 0 && (full_year % 100 != 0 || full_year % 400 == 0);
+    let max_day = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return None,
+    };
+    if day == 0 || day > max_day {
+        return None;
+    }
+
+    let upper_time = time.to_ascii_uppercase();
+    let clock = upper_time.strip_suffix("AM").or_else(|| upper_time.strip_suffix("PM"))?;
+    let (hour, minute) = clock.split_once(':')?;
+    if !(1..=2).contains(&hour.len()) || minute.len() != 2
+        || !hour.bytes().all(|b| b.is_ascii_digit())
+        || !minute.bytes().all(|b| b.is_ascii_digit())
+        || !(1..=12).contains(&hour.parse::<u8>().ok()?)
+        || minute.parse::<u8>().ok()? > 59
+    {
+        return None;
+    }
+
+    let (kind, size) = if kind_or_size.eq_ignore_ascii_case("<DIR>") {
+        (FileKind::Directory, 0)
+    } else {
+        let size = kind_or_size.parse::<u64>().ok()?;
+        (FileKind::File, size)
+    };
+    Some((name.to_string(), kind, size))
+}
+
 fn is_dot_listing(line: &str) -> bool {
     FtpFile::try_from(line.to_string())
         .map(|file| matches!(file.name(), "." | ".."))
         .unwrap_or(false)
+        || dos_listing_entry(line)
+            .is_some_and(|(name, _, _)| matches!(name.as_str(), "." | ".."))
+}
+
+fn is_ignorable_listing_line(line: &str) -> bool {
+    let line = line.trim();
+    is_dot_listing(line) || line.is_empty()
+        || line.strip_prefix("total ")
+            .is_some_and(|count| !count.is_empty() && count.bytes().all(|b| b.is_ascii_digit()))
 }
 
 fn entry_from_listing(parent: &str, line: &str) -> Option<DirEntry> {
-    // suppaftp::list::File parses Unix-style `ls -l` lines emitted by most FTP
-    // daemons. Some servers (notably IIS in MS-DOS mode) use a different
-    // format that won't parse here; users can switch to UNIX listing on the
-    // server side or rely on coarse type detection in v0.5.
-    let f = FtpFile::try_from(line.to_string()).ok()?;
+    // FTP LIST is not standardized. Parse Unix and IIS/MS-DOS records, but
+    // never invent missing metadata: DOS listings do not prove an mtime.
+    let f = match FtpFile::try_from(line.to_string()) {
+        Ok(file) => file,
+        Err(_) => {
+            let (name, kind, size) = dos_listing_entry(line)?;
+            if matches!(name.as_str(), "." | "..") { return None; }
+            return Some(DirEntry {
+                path: join(parent, &name),
+                name,
+                kind,
+                size,
+                modified: None,
+                mode: None,
+                etag: None,
+            });
+        }
+    };
     let name = f.name().to_string();
     if name == "." || name == ".." {
         return None;
@@ -161,7 +257,7 @@ pub async fn path_exists_fail_closed(session: &Arc<FtpSession>, path: &str) -> R
                     .with_context(|| format!("FTP existence LIST {parent}"))?;
             let mut saw_unrecognized = false;
             for line in listing {
-                if line.trim().is_empty() || is_dot_listing(&line) {
+                if is_ignorable_listing_line(&line) {
                     continue;
                 }
                 match entry_from_listing(&parent, &line) {
@@ -301,7 +397,7 @@ async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> 
                     let listing = list_lines(stream, &d)
                         .with_context(|| format!("FTP recursive LIST {d}"))?;
                     for line in listing {
-                        if is_dot_listing(&line) {
+                        if is_ignorable_listing_line(&line) {
                             continue;
                         }
                         let entry = entry_from_listing(&d, &line).ok_or_else(|| {
@@ -363,5 +459,71 @@ mod ftps_handshake_regression {
         ] {
             assert!(!is_ftps_data_tls_failure(&anyhow!("{error}")));
         }
+    }
+}
+
+#[cfg(test)]
+mod ftp_list_compatibility_tests {
+    use super::{dos_listing_entry, entry_from_listing, is_dot_listing, is_ignorable_listing_line};
+    use super::FileKind;
+
+    #[test]
+    fn iis_dos_files_and_directories_preserve_long_unicode_names() {
+        let file = entry_from_listing(
+            "/incoming",
+            "05-13-25  04:17PM                427 report čćž 文件 with spaces.txt",
+        ).expect("IIS file");
+        assert_eq!(file.name, "report čćž 文件 with spaces.txt");
+        assert_eq!(file.path, "/incoming/report čćž 文件 with spaces.txt");
+        assert!(matches!(file.kind, FileKind::File));
+        assert_eq!(file.size, 427);
+        assert_eq!(file.modified, None, "DOS timestamps must not be guessed");
+        let directory = entry_from_listing(
+            "/incoming",
+            "04-27-00  09:09PM       <DIR>          Folder Name",
+        ).expect("IIS directory");
+        assert!(matches!(directory.kind, FileKind::Directory));
+        assert_eq!(directory.path, "/incoming/Folder Name");
+        assert_eq!(directory.size, 0);
+    }
+
+    #[test]
+    fn iis_dos_dot_and_total_rows_are_not_files() {
+        assert!(is_dot_listing("04-27-00  09:09PM       <DIR>          ."));
+        assert!(is_dot_listing("04-27-00  09:09PM       <DIR>          .."));
+        assert!(is_ignorable_listing_line("total 15"));
+        assert!(is_ignorable_listing_line(""));
+        assert!(!is_ignorable_listing_line("total private notes"));
+        assert!(entry_from_listing("/", "04-27-00  09:09PM       <DIR>          ..").is_none());
+    }
+
+    #[test]
+    fn invalid_dos_records_fail_closed_instead_of_hiding_files() {
+        for line in [
+            "13-13-25  04:17PM                427 file.txt",
+            "02-29-25  04:17PM                427 file.txt",
+            "04-27-25  13:17PM                427 file.txt",
+            "04-27-25  09:99AM                427 file.txt",
+            "04-27-25  09:09AM                -1 file.txt",
+            "04-27-25  09:09AM                18446744073709551616 huge",
+            "04-27-25  09:09AM                42 ../escape.txt",
+            "04-27-25  09:09AM                42 folder\\escape.txt",
+            "04-27-25  09:09AM                42",
+            "04-27-25  09:09AM                42 bad\nname",
+        ] {
+            assert!(dos_listing_entry(line).is_none(), "accepted malformed IIS record: {line:?}");
+        }
+        assert!(dos_listing_entry("02-29-24  12:01AM       0 leap-day").is_some());
+        assert!(dos_listing_entry("01/31/2025  12:01PM       1 slash-date").is_some());
+    }
+
+    #[test]
+    fn unix_listing_still_parses_and_dos_listing_stays_non_destructive() {
+        let unix = "-rw-r--r-- 1 ftp ftp 5 Apr 12 12:00 ordinary.txt";
+        let parsed = entry_from_listing("/root", unix).expect("Unix LIST still supported");
+        assert_eq!(parsed.name, "ordinary.txt");
+        assert_eq!(parsed.size, 5);
+        assert!(matches!(parsed.kind, FileKind::File));
+        assert!(entry_from_listing("/root", "LIST server returned malformed data").is_none());
     }
 }
