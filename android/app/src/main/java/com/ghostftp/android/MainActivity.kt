@@ -1097,7 +1097,10 @@ class MainActivity : Activity() {
         addView(cloudRecoveryNotice)
         cloudRecoveryCleanupButton = secondaryButton("Try removing incomplete document") {
             cleanupPendingCloudRecovery()
-        }.apply { visibility = View.GONE }
+        }.apply {
+            contentDescription = "Try removing incomplete document"
+            visibility = View.GONE
+        }
         addView(cloudRecoveryCleanupButton)
         cloudRecoveryKeepButton = secondaryButton("Keep document and dismiss warning") {
             if (CloudDestinationJournal.clear(noBackupFilesDir)) {
@@ -1106,7 +1109,10 @@ class MainActivity : Activity() {
             } else {
                 cloudStatus.text = "Could not clear recovery reminder. Check app storage."
             }
-        }.apply { visibility = View.GONE }
+        }.apply {
+            contentDescription = "Keep document and dismiss warning"
+            visibility = View.GONE
+        }
         addView(cloudRecoveryKeepButton)
         addView(space(8))
         addView(sectionDescription(
