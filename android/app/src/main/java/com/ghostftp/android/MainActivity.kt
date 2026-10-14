@@ -79,6 +79,9 @@ class MainActivity : Activity() {
     private lateinit var cloudDownloadInput: EditText
     private lateinit var cloudStatus: TextView
     private lateinit var cloudCancelButton: Button
+    private lateinit var cloudRecoveryNotice: TextView
+    private lateinit var cloudRecoveryCleanupButton: Button
+    private lateinit var cloudRecoveryKeepButton: Button
     private lateinit var cloudUploadButton: Button
     private lateinit var cloudDownloadButton: Button
     private var cloudCancellation: CloudTransferCancellation? = null
@@ -143,6 +146,7 @@ class MainActivity : Activity() {
         setContentView(content)
         if (Build.VERSION.SDK_INT >= 35) content.requestApplyInsets()
         showIdleState()
+        displayPendingCloudRecovery()
         if (savedInstanceState != null) restoreUiState(savedInstanceState)
         installProtocolSelectionBehavior(seedDefaultPort = savedInstanceState == null)
     }
@@ -207,7 +211,26 @@ class MainActivity : Activity() {
                 updateCloudPickerButtons()
                 val uri = data?.data
                 if (link != null && uri != null) {
-                    runCloudTransfer(upload = requestCode == PICK_CLOUD_UPLOAD_REQUEST, link = link, uri = uri)
+                    val upload = requestCode == PICK_CLOUD_UPLOAD_REQUEST
+                    if (upload) {
+                        runCloudTransfer(upload = true, link = link, uri = uri)
+                    } else {
+                        // ACTION_CREATE_DOCUMENT already created a potentially
+                        // empty user document: journal it BEFORE any bytes move.
+                        val recorded = runCatching {
+                            CloudDestinationJournal.record(noBackupFilesDir, uri.toString())
+                        }.isSuccess
+                        if (recorded) {
+                            runCloudTransfer(upload = false, link = link, uri = uri)
+                        } else {
+                            val removed = removeIncompleteCloudDestination(uri)
+                            cloudStatus.text = if (removed) {
+                                "Recovery storage unavailable. No download started; the empty document was removed."
+                            } else {
+                                "Recovery storage unavailable. Delete the newly created empty document manually."
+                            }
+                        }
+                    }
                 } else if (requestCode == CREATE_CLOUD_DOWNLOAD_REQUEST && uri != null) {
                     // Android may recreate this Activity while the system picker
                     // is visible. The URL is deliberately not saved in Bundle;
@@ -1067,6 +1090,24 @@ class MainActivity : Activity() {
             isEnabled = false
         }
         addView(cloudCancelButton)
+        addView(space(12))
+        cloudRecoveryNotice = sectionDescription(
+            "A previous cloud download may have left an incomplete document. Review it before continuing."
+        ).apply { visibility = View.GONE }
+        addView(cloudRecoveryNotice)
+        cloudRecoveryCleanupButton = secondaryButton("Try removing incomplete document") {
+            cleanupPendingCloudRecovery()
+        }.apply { visibility = View.GONE }
+        addView(cloudRecoveryCleanupButton)
+        cloudRecoveryKeepButton = secondaryButton("Keep document and dismiss warning") {
+            if (CloudDestinationJournal.clear(noBackupFilesDir)) {
+                cloudStatus.text = "Recovery reminder dismissed. The document was not changed."
+                displayPendingCloudRecovery()
+            } else {
+                cloudStatus.text = "Could not clear recovery reminder. Check app storage."
+            }
+        }.apply { visibility = View.GONE }
+        addView(cloudRecoveryKeepButton)
         addView(space(8))
         addView(sectionDescription(
             "Generate an object-specific signed URL in your cloud provider. " +
@@ -1077,12 +1118,18 @@ class MainActivity : Activity() {
 
     private fun updateCloudPickerButtons() {
         if (!::cloudUploadButton.isInitialized || !::cloudDownloadButton.isInitialized) return
-        val canChoose = !cloudTransferBusy && cloudPendingLink == null
+        val canChoose = !cloudTransferBusy && cloudPendingLink == null &&
+            CloudDestinationJournal.pending(noBackupFilesDir) == null
         cloudUploadButton.isEnabled = canChoose
         cloudDownloadButton.isEnabled = canChoose
     }
 
     private fun chooseCloudFile(upload: Boolean) {
+        if (CloudDestinationJournal.pending(noBackupFilesDir) != null) {
+            cloudStatus.text = "Resolve the previous incomplete download reminder before starting another transfer."
+            displayPendingCloudRecovery()
+            return
+        }
         if (cloudTransferBusy || cloudPendingLink != null) {
             cloudStatus.text = "Finish or cancel the current cloud operation before starting another."
             return
@@ -1128,6 +1175,40 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun displayPendingCloudRecovery() {
+        if (!::cloudRecoveryNotice.isInitialized) return
+        val pending = CloudDestinationJournal.pending(noBackupFilesDir) != null
+        val visibility = if (pending) View.VISIBLE else View.GONE
+        cloudRecoveryNotice.visibility = visibility
+        cloudRecoveryCleanupButton.visibility = visibility
+        cloudRecoveryKeepButton.visibility = visibility
+        updateCloudPickerButtons()
+    }
+
+    private fun cleanupPendingCloudRecovery() {
+        val recorded = CloudDestinationJournal.pending(noBackupFilesDir) ?: return
+        // DocumentProvider.deleteDocument may block on Binder: never perform
+        // remote provider I/O on the Android UI thread.
+        cloudRecoveryCleanupButton.isEnabled = false
+        cloudRecoveryKeepButton.isEnabled = false
+        thread(start = true, isDaemon = true, name = "GhostFTP-CloudRecovery") {
+            val removed = removeIncompleteCloudDestination(Uri.parse(recorded))
+            val cleared = removed && CloudDestinationJournal.clear(noBackupFilesDir)
+            runOnUiThread {
+                if (activityClosing || !::cloudStatus.isInitialized) return@runOnUiThread
+                cloudRecoveryCleanupButton.isEnabled = true
+                cloudRecoveryKeepButton.isEnabled = true
+                cloudStatus.text = if (cleared) {
+                    "Recovered: the previous incomplete document was removed."
+                } else {
+                    "Cleanup unavailable: the provider may have revoked access. " +
+                        "Remove the previous document manually, then choose Keep to dismiss this warning."
+                }
+                displayPendingCloudRecovery()
+            }
+        }
+    }
+
     private fun cancelCloudTransfer() {
         if (!cloudTransferBusy) return
         cloudCancellation?.cancel()
@@ -1169,6 +1250,11 @@ class MainActivity : Activity() {
             // A newly created SAF document may be partially written. Never
             // leave that possibility unreported to the user after a failure.
             val leftoverDestination = !success && !upload && !removeIncompleteCloudDestination(uri)
+            // A successful verified document or a confirmed successful delete
+            // no longer needs a recovery hint. An uncertain output keeps it.
+            if (!upload && (success || !leftoverDestination)) {
+                CloudDestinationJournal.clear(noBackupFilesDir)
+            }
             runOnUiThread {
                 if (activityClosing || cloudCancellation !== cancellation) return@runOnUiThread
                 cloudTransferBusy = false
@@ -1176,6 +1262,7 @@ class MainActivity : Activity() {
                 cloudCancellation = null
                 cloudTransferThread = null
                 cloudCancelButton.isEnabled = false
+                displayPendingCloudRecovery()
                 cloudStatus.text = when {
                     success && upload -> "Cloud upload completed successfully."
                     success -> "Cloud download completed successfully."
