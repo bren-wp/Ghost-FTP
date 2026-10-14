@@ -132,3 +132,9 @@ Evidence applies only to the exact tested source SHA.
 `0.95.18` is the active unreleased development cycle after published `0.95.17`. Live publication status is determined by the canonical GitHub Release/tag, not by documentation wording or a successful compile.
 
 Existing version tags are immutable. Stable/FINAL status is separate from publishing a pre-1.0 release and still requires the target-OS lifecycle, visual, security, accessibility and signing acceptance described in QA/release documentation.
+
+## 2026-10-15 Windows hardening test failure and fix (unreleased PR #152)
+
+- `b0069334`: quality, protocol E2E, Android, macOS succeeded; `Validate Windows hardening` failed a real Rust loopback TCP diagnostic test (250 passed, 1 failed, 13 ignored). Native Windows screenshot QA must be independently confirmed; do not infer success from installed NSIS/MSI smoke.
+- Current candidate changes preserve the global eight-second TCP diagnostic budget and reserve fair per-address slices, preventing a blackholed first DNS answer from hiding a reachable later answer. The fallback regression now uses that actual production total budget. No CI gate was skipped.
+- Exact-head CI, artifact verification, Android physical SAF #127, full OAuth #128 and 75-screen visual acceptance remain mandatory before merge/release.
