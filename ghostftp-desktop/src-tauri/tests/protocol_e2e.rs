@@ -1063,7 +1063,9 @@ async fn ftp_dos_listing_roundtrip(
             .await
             .context("read raw malformed MS-DOS LIST through FTP")?;
         if !raw.iter().any(|row| row.contains("09:99AM")) {
-            return Err(anyhow!("malformed DOS fixture did not send its invalid row"));
+            return Err(anyhow!(
+                "malformed DOS fixture did not send its invalid row"
+            ));
         }
     }
     let fs = FtpFs::new(ftp);
