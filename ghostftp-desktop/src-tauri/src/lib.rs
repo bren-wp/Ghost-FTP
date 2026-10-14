@@ -136,21 +136,14 @@ fn is_approved_external_url(parsed: &url::Url) -> bool {
         && parsed.query().is_none()
         && parsed.fragment().is_none()
         && (official_help_page || approved_project_page)
-        && matches!(
-            parsed.as_str(),
-            "https://ghostftp.com/hr/support"
-                | "https://ghostftp.com/hr/contact"
-                | "https://ghostftp.com/hr/how-to-download"
-                | "https://ghostftp.com/hr/privacy"
-                | "https://ghostftp.com/hr/terms"
-                | "https://github.com/bren-wp/Ghost-FTP"
-        )
 }
 
 #[tauri::command]
 fn open_external_url(url: String) -> Result<(), String> {
     let parsed = url::Url::parse(&url).map_err(|_| "Invalid external URL".to_string())?;
-    if !is_approved_external_url(&parsed) {
+    // Compare the original input as well: URL parsers normalize dot segments,
+    // percent-encoded path segments and host casing before path verification.
+    if parsed.as_str() != url || !is_approved_external_url(&parsed) {
         return Err("Ghost FTP only opens approved official product links".to_string());
     }
 
@@ -580,7 +573,7 @@ mod init_script_tests {
         ] {
             let parsed = url::Url::parse(allowed).unwrap();
             assert!(
-                is_approved_external_url(&parsed),
+                parsed.as_str() == allowed && is_approved_external_url(&parsed),
                 "expected approved URL: {allowed}"
             );
         }
@@ -615,7 +608,7 @@ mod init_script_tests {
         ] {
             let parsed = url::Url::parse(blocked).unwrap();
             assert!(
-                !is_approved_external_url(&parsed),
+                parsed.as_str() != blocked || !is_approved_external_url(&parsed),
                 "expected blocked URL: {blocked}"
             );
         }
