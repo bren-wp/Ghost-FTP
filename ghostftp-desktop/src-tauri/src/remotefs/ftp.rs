@@ -636,8 +636,14 @@ mod ftp_list_compatibility_tests {
         assert_eq!(parsed.size, 5);
         assert!(matches!(parsed.kind, FileKind::File));
         assert!(entry_from_listing("/root", "LIST server returned malformed data").is_none());
-        assert!(entry_from_listing("/root", "drwxr-xr-x 1 ftp ftp 0 Apr 12 12:00 Folder").is_some());
-        assert!(entry_from_listing("/root", "-rw-r--r-- 1 ftp ftp 5 Apr 12 12:00 ../escape").is_none());
-        assert!(entry_from_listing("/root", "-rw-r--r-- 1 ftp ftp 5 Apr 12 12:00 bad\\name").is_none());
+        assert!(
+            entry_from_listing("/root", "drwxr-xr-x 1 ftp ftp 0 Apr 12 12:00 Folder").is_some()
+        );
+        assert!(
+            entry_from_listing("/root", "-rw-r--r-- 1 ftp ftp 5 Apr 12 12:00 ../escape").is_none()
+        );
+        assert!(
+            entry_from_listing("/root", "-rw-r--r-- 1 ftp ftp 5 Apr 12 12:00 bad\\name").is_none()
+        );
     }
 }
