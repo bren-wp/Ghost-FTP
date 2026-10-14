@@ -75,7 +75,8 @@ pub async fn diagnose(
         Ok(Ok(Ok(addresses))) if !addresses.is_empty() => addresses,
         _ => {
             report.dns = "failed";
-            report.advice = "DNS lookup failed or timed out. Check the saved hostname and DNS settings.";
+            report.advice =
+                "DNS lookup failed or timed out. Check the saved hostname and DNS settings.";
             return report;
         }
     };
