@@ -1146,7 +1146,9 @@ async fn ftp_rejects_incomplete_recursive_delete(
         .await
         .expect_err("recursive FTP delete must reject a bare LIST inventory");
     if !format!("{error:#}").contains("hidden entries may be omitted") {
-        return Err(anyhow!("recursive delete failed for wrong reason: {error:#}"));
+        return Err(anyhow!(
+            "recursive delete failed for wrong reason: {error:#}"
+        ));
     }
     let after = preserved
         .with_stream(move |stream| stream.size(path))
