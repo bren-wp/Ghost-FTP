@@ -307,6 +307,48 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: target), Data("untouched".utf8))
     }
 
+    func testRealLocalFTPLoginListUploadAndDownload() async throws {
+        guard let rawPort = ProcessInfo.processInfo.environment["GHOSTFTP_MACOS_E2E_PORT"],
+              let port = UInt16(rawPort) else {
+            throw XCTSkip("Real FTP fixture is not configured on this macOS runner.")
+        }
+
+        let session = FTPControlSession()
+        let profile = ConnectionProfile(
+            name: "Local protocol acceptance",
+            protocolKind: .ftp,
+            host: "127.0.0.1",
+            port: port,
+            username: "ghostftp-e2e"
+        )
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "ghostftp-macos-ftp-e2e-\(UUID().uuidString)",
+            isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let unique = UUID().uuidString
+        let remoteName = "uploaded-\(unique)-Racun.txt"
+        let source = directory.appendingPathComponent("source.txt")
+        let destination = directory.appendingPathComponent("downloaded.txt")
+        let content = Data("Ghost FTP macOS real FTP roundtrip – \(unique)".utf8)
+        try content.write(to: source)
+
+        let cwd = try await session.connect(profile: profile, password: "ghostftp-e2e-secret")
+        XCTAssertFalse(cwd.isEmpty)
+        try await session.noop()
+        let initial = try await session.listDirectory()
+        XCTAssertTrue(initial.contains(where: { $0.name == "fixture.txt" }))
+
+        try await session.uploadFile(from: source, remoteName: remoteName)
+        let afterUpload = try await session.listDirectory()
+        XCTAssertTrue(afterUpload.contains(where: { $0.name == remoteName }))
+        try await session.downloadFile(remoteName: remoteName, to: destination)
+        XCTAssertEqual(try Data(contentsOf: destination), content)
+        await session.disconnect()
+    }
+
     func testDirectoryListingBufferRejectsOversizedPayload() throws {
         var output = Data(repeating: 0x41, count: 7)
 
