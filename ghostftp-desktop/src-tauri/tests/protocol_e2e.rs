@@ -1110,6 +1110,54 @@ async fn ftp_dos_listing_roundtrip(
     Ok(())
 }
 
+/// Real FTP data/control socket case: the server rejects the initial
+/// LIST -a but returns a believable bare LIST omitting a hidden file.
+/// Recursive deletion must refuse before removing the visible file.
+async fn ftp_rejects_incomplete_recursive_delete(
+    port_number: u16,
+    user: &str,
+    password: &str,
+) -> Result<()> {
+    let p = profile(
+        "ftp",
+        "127.0.0.1",
+        port_number,
+        user,
+        AuthMethod::Password {
+            password: password.to_string(),
+        },
+    );
+    let session = open_session(&p, Arc::new(FixedVerifier(HostDecision::Accept))).await?;
+    let Session::Ftp(ftp) = session else {
+        return Err(anyhow!("incomplete LIST fixture did not open FTP"));
+    };
+    let preserved = Arc::clone(&ftp);
+    let path = "ghostftp-e2e-safety/visible.txt";
+    let before = preserved
+        .with_stream(move |stream| stream.size(path))
+        .await
+        .context("stat real visible file before guarded recursive delete")?;
+    if before != 8 {
+        return Err(anyhow!("unexpected guarded fixture file size: {before}"));
+    }
+    let fs = FtpFs::new(ftp);
+    let error = fs
+        .delete("ghostftp-e2e-safety", true)
+        .await
+        .expect_err("recursive FTP delete must reject a bare LIST inventory");
+    if !format!("{error:#}").contains("hidden entries may be omitted") {
+        return Err(anyhow!("recursive delete failed for wrong reason: {error:#}"));
+    }
+    let after = preserved
+        .with_stream(move |stream| stream.size(path))
+        .await
+        .context("stat real visible file after rejected recursive delete")?;
+    if after != before {
+        return Err(anyhow!("guarded recursive deletion damaged a visible file"));
+    }
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn real_ftp_ftps_sftp_roundtrips() -> Result<()> {
     if !enabled() {
@@ -1135,6 +1183,12 @@ async fn real_ftp_ftps_sftp_roundtrips() -> Result<()> {
         &username,
         &password,
         true,
+    )
+    .await?;
+    ftp_rejects_incomplete_recursive_delete(
+        port("GHOSTFTP_E2E_DOS_NO_A_PORT")?,
+        &username,
+        &password,
     )
     .await?;
 
