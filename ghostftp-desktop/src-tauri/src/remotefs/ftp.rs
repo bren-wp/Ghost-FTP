@@ -146,11 +146,26 @@ fn parse_directory_listing(parent: &str, listing: Vec<String>) -> Result<Vec<Dir
     Ok(entries)
 }
 
+/// DOS LIST records have a numeric date token. Dispatch them to the strict
+/// DOS parser *before* using the more tolerant Unix LIST implementation:
+/// otherwise a malformed DOS time can be interpreted as a valid Unix row.
+fn looks_like_dos_listing(line: &str) -> bool {
+    line.split_whitespace().next().is_some_and(|date| {
+        (date.contains('-') || date.contains('/'))
+            && date
+                .bytes()
+                .all(|b| b.is_ascii_digit() || matches!(b, b'-' | b'/'))
+    })
+}
+
 fn is_dot_listing(line: &str) -> bool {
+    if looks_like_dos_listing(line) {
+        return dos_listing_entry(line)
+            .is_some_and(|(name, _, _)| matches!(name.as_str(), "." | ".."));
+    }
     FtpFile::try_from(line.to_string())
         .map(|file| matches!(file.name(), "." | ".."))
         .unwrap_or(false)
-        || dos_listing_entry(line).is_some_and(|(name, _, _)| matches!(name.as_str(), "." | ".."))
 }
 
 fn is_ignorable_listing_line(line: &str) -> bool {
@@ -165,24 +180,22 @@ fn is_ignorable_listing_line(line: &str) -> bool {
 fn entry_from_listing(parent: &str, line: &str) -> Option<DirEntry> {
     // FTP LIST is not standardized. Parse Unix and IIS/MS-DOS records, but
     // never invent missing metadata: DOS listings do not prove an mtime.
-    let f = match FtpFile::try_from(line.to_string()) {
-        Ok(file) => file,
-        Err(_) => {
-            let (name, kind, size) = dos_listing_entry(line)?;
-            if matches!(name.as_str(), "." | "..") {
-                return None;
-            }
-            return Some(DirEntry {
-                path: join(parent, &name),
-                name,
-                kind,
-                size,
-                modified: None,
-                mode: None,
-                etag: None,
-            });
+    if looks_like_dos_listing(line) {
+        let (name, kind, size) = dos_listing_entry(line)?;
+        if matches!(name.as_str(), "." | "..") {
+            return None;
         }
-    };
+        return Some(DirEntry {
+            path: join(parent, &name),
+            name,
+            kind,
+            size,
+            modified: None,
+            mode: None,
+            etag: None,
+        });
+    }
+    let f = FtpFile::try_from(line.to_string()).ok()?;
     let name = f.name().to_string();
     if name == "." || name == ".." {
         return None;
@@ -539,6 +552,10 @@ mod ftp_list_compatibility_tests {
             assert!(
                 dos_listing_entry(line).is_none(),
                 "accepted malformed IIS record: {line:?}"
+            );
+            assert!(
+                entry_from_listing("/root", line).is_none(),
+                "malformed IIS row was accepted by the permissive Unix parser: {line:?}"
             );
         }
         assert!(dos_listing_entry("02-29-24  12:01AM       0 leap-day").is_some());

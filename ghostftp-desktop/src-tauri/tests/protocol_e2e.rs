@@ -1055,6 +1055,17 @@ async fn ftp_dos_listing_roundtrip(
     let Session::Ftp(ftp) = session else {
         return Err(anyhow!("DOS fixture did not open an FTP session"));
     };
+    if malformed {
+        // Prove the bad row really arrived across the FTP data channel
+        // before asserting that the production listing rejects it.
+        let raw = ftp
+            .with_stream(|stream| stream.list(Some(".")))
+            .await
+            .context("read raw malformed MS-DOS LIST through FTP")?;
+        if !raw.iter().any(|row| row.contains("09:99AM")) {
+            return Err(anyhow!("malformed DOS fixture did not send its invalid row"));
+        }
+    }
     let fs = FtpFs::new(ftp);
     let result = fs.list_dir(".").await;
     if malformed {
