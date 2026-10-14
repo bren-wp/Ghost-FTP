@@ -30,3 +30,7 @@
 Disconnect must cancel outstanding token use, clear in-memory and at-rest secrets, sever account references without deleting user files and surface remote revocation errors separately from local deletion. A crash/restart must not auto-replay a destructive upload with a stale signed URL.
 
 See [providers](PROVIDERS.md), [security review](../handbook/SECURITY_PRIVACY.md), [privacy policy](../legal/PRIVACY.md).
+
+## 0.95.16 public-client authorization groundwork (not account integration)
+
+Android `CloudOAuthPkce.kt` and macOS `CloudOAuthPKCE.swift` create ephemeral S256 PKCE verifier/challenge pairs and 256-bit random state, enforce exact callbacks, and reject replay. No embedded Google OAuth client secret or credential persistence. This is **not** functional account sign-in: registered app/redirect identities, system browser integration, Android Keystore / macOS Keychain token vault, token refresh and actual paginated Drive API operations are still required by #128.

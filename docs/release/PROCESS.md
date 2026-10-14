@@ -81,8 +81,8 @@ If no updater signatures are present, the stable GitHub release may still publis
 
 ## Current release cycle
 
-- Active source/release cycle: **0.95.15**
-- Previous canonical release: **0.95.14**
+- Active source/release cycle: **0.95.16**
+- Previous canonical release: **0.95.15**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Release integrity

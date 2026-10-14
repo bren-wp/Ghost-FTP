@@ -1,0 +1,16 @@
+{
+  "version": "0.95.16",
+  "platform": "Windows",
+  "capture_source_sha": "cfb75df5c1dba1bd76205a2ecd98e5cb6c8cd6a4",
+  "github_actions_run_id": "38498732043",
+  "provenance": "Ghost FTP native build, real Windows WebView2 compositor QA, 1290x852",
+  "images": {
+    "docs/assets/screenshots/ghostftp-native-files.png": "9379921f4efcad476956cd5108c49d0a3057f6f700f9054239fc406edabcace0",
+    "docs/assets/screenshots/ghostftp-native-new-connection.png": "95380e5e3ffa34e18298965f415942420b8d482a85395578994b61befb305c9c",
+    "docs/assets/screenshots/ghostftp-native-sites.png": "c5b7441338d5edacc348b43e92b8e220060c9958b8cf0e7fc7e2538fd8c1c434",
+    "docs/assets/screenshots/ghostftp-native-transfers.png": "407df80fbec95640928e9a275f0b52d2c7721b448ff21806d497681870ac1a44",
+    "docs/assets/screenshots/ghostftp-native-settings.png": "a9752626d513f9bd9ea33b8b369af8a913f80bb9daa908844d4ff22695a0fca2",
+    "docs/assets/screenshots/ghostftp-native-file-properties.png": "9f3953358b2729510737cfb5105cf0987c50d14b2c3461ae22303239c72f19c8",
+    "docs/assets/screenshots/ghostftp-native-about.png": "4e35a065e754fc7c01f1df93e90c56773cffefe6be6d4d4f51f6266b872192b6"
+  }
+}

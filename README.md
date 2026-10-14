@@ -12,7 +12,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.95.15 · Previous release: [v0.95.14](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.14)</sub>
+<sub>Ghost FTP 0.95.16 (development) · Latest verified release: [v0.95.15](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.15)</sub>
 
 [**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases/latest) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -28,7 +28,7 @@ Move files, manage connections and keep important server work organized with an 
 </a>
 </p>
 
-<p align="center"><sub>Seven genuine Windows application captures, verified against their archived native QA capture checksums. No concept artwork is used in this gallery. Android and Linux screenshots are not substituted for unverified captures.</sub></p>
+<p align="center"><sub>Seven authentic Ghost FTP Windows 0.95.16 running-application screenshots (1290×852), captured in [GitHub Actions native QA](https://github.com/bren-wp/Ghost-FTP/actions/runs/38498732043) at source commit <code>cfb75df5c1db</code>. Each PNG is SHA-256 pinned in [the capture manifest](docs/assets/screenshots/README-NATIVE-CAPTURE.json). No concept artwork or generated screenshots.</sub></p>
 
 <table>
 <tr>
