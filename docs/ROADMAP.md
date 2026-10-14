@@ -1,8 +1,8 @@
-> Ghost FTP **0.95.16** (release cycle), following published **v0.95.15**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.17** (release cycle), following published **v0.95.16**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP Roadmap
 
-This roadmap separates the current **0.95.16 development/release** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.95.15**.
+This roadmap separates the current **0.95.17 development/release** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.95.16**.
 
 ## Implemented
 
