@@ -18,6 +18,7 @@ import type {
   ProfilePreview,
   SessionId,
   SessionHealth,
+  FtpNetworkDiagnostic,
   SyncDirection,
   SyncPlan,
   SyncStrategy,
