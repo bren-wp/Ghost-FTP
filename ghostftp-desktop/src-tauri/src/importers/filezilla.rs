@@ -435,18 +435,14 @@ mod tests {
 
     #[test]
     fn truncated_outer_xml_cannot_return_partial_successful_sites() {
-        assert!(parse(
-            "<FileZilla3><Servers><Server><Host>example.org</Host></Server>"
-        )
-        .is_err());
-        assert!(parse(
-            "<FileZilla3><Servers><Server><Host>example.org</Host></Server></Servers>"
-        )
-        .is_err());
-        assert!(parse(
-            "<FileZilla3><Server><Host>example.org</Host></Server></FileZilla3>"
-        )
-        .is_err());
+        assert!(parse("<FileZilla3><Servers><Server><Host>example.org</Host></Server>").is_err());
+        assert!(
+            parse("<FileZilla3><Servers><Server><Host>example.org</Host></Server></Servers>")
+                .is_err()
+        );
+        assert!(
+            parse("<FileZilla3><Server><Host>example.org</Host></Server></FileZilla3>").is_err()
+        );
     }
 
     #[test]
