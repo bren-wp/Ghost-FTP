@@ -129,17 +129,48 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertThrowsError(try FTPControlCodec.temporaryDownloadFilename(for: "../escape"))
     }
 
-    func testMLSDIgnoresHostileServerFilenames() throws {
+    func testMLSDRefusesIncompleteDirectoryWhenServerReturnsHostileFileNames() throws {
+        for bad in [
+            "type=file;size=3; ..",
+            "type=file;size=3; nested/escape.txt",
+            "type=file;size=3; attack\u{0000}file",
+        ] {
+            let listing = Data(
+                ["type=file;size=3; good.txt", bad]
+                    .joined(separator: "\r\n").appending("\r\n").utf8
+            )
+            XCTAssertThrowsError(try FTPControlCodec.parseMLSD(listing))
+        }
+    }
+
+    func testMLSDRefusesUnknownFormatsAndMalformedFactsRatherThanHidingFiles() {
+        let malformed = [
+            "unexpected listing record",
+            "type=file;size=3; good.txt\r\nunknown entry",
+            "size=3; missing-type.txt",
+            "type=file;size=not-a-number; broken.txt",
+            "type=file;type=dir; duplicate.txt",
+            "type=OS.unix=slink; symlink.txt",
+            "type=cdir; not-current-directory",
+            "type=pdir; not-parent-directory",
+            "type=file;invalidfact; broken.txt",
+        ]
+        for line in malformed {
+            XCTAssertThrowsError(
+                try FTPControlCodec.parseMLSD(Data("\(line)\r\n".utf8)),
+                "Unexpectedly accepted invalid MLSD row: \(line)"
+            )
+        }
+    }
+
+    func testMLSDAllowsOrdinaryUnicodeAndSpacesWithStrictFacts() throws {
         let listing = Data(
-            [
-                "type=file;size=3; good.txt",
-                "type=file;size=3; ..",
-                "type=file;size=3; nested/escape.txt",
-                "type=file;size=3; attack\u{0000}file",
-            ].joined(separator: "\r\n").appending("\r\n").utf8
+            "type=file;size=4;modify=20261014203000; Račun 2026.txt\r\n".utf8
         )
         let entries = try FTPControlCodec.parseMLSD(listing)
-        XCTAssertEqual(entries.map(\.name), ["good.txt"])
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.name, "Račun 2026.txt")
+        XCTAssertEqual(entries.first?.size, 4)
     }
 
     func testExtendedPassivePortParsesEPSVReply() throws {
