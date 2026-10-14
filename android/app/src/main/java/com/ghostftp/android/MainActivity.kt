@@ -223,12 +223,10 @@ class MainActivity : Activity() {
                         if (recorded) {
                             runCloudTransfer(upload = false, link = link, uri = uri)
                         } else {
-                            val removed = removeIncompleteCloudDestination(uri)
-                            cloudStatus.text = if (removed) {
-                                "Recovery storage unavailable. No download started; the empty document was removed."
-                            } else {
-                                "Recovery storage unavailable. Delete the newly created empty document manually."
-                            }
+                            // Recovery storage may be unavailable or already
+                            // contain another unresolved document. Never call
+                            // DocumentsProvider.deleteDocument on the UI thread.
+                            cleanupUnstartedCloudDestination(uri)
                         }
                     }
                 } else if (requestCode == CREATE_CLOUD_DOWNLOAD_REQUEST && uri != null) {
@@ -236,12 +234,7 @@ class MainActivity : Activity() {
                     // is visible. The URL is deliberately not saved in Bundle;
                     // delete the newly created orphan SAF output when the
                     // missing in-memory authorization prevents any transfer.
-                    val removed = removeIncompleteCloudDestination(uri)
-                    cloudStatus.text = if (removed) {
-                        "Cloud download was not started. The empty document was removed."
-                    } else {
-                        "Cloud download was not started. A blank document may remain; remove it manually."
-                    }
+                    cleanupUnstartedCloudDestination(uri)
                 } else {
                     cloudStatus.text = "No cloud document was selected."
                 }
@@ -1237,6 +1230,37 @@ class MainActivity : Activity() {
         cloudStatus.text = "Canceling cloud transfer…"
     }
 
+    /**
+     * A canceled/recreated picker can return a newly created SAF document even
+     * when the signed capability was intentionally not retained. Commit a
+     * recovery hint synchronously before scheduling provider I/O, then attempt
+     * deletion on a daemon worker so a blocked Binder provider cannot freeze
+     * the Activity. Never clear a different download's durable recovery hint.
+     */
+    private fun cleanupUnstartedCloudDestination(target: Uri) {
+        val directory = noBackupFilesDir
+        val destination = target.toString()
+        val recorded = CloudDestinationJournal.pending(directory) == destination ||
+            runCatching { CloudDestinationJournal.record(directory, destination) }.isSuccess
+        cloudStatus.text = "Removing unused cloud destination…"
+        displayPendingCloudRecovery()
+        thread(start = true, isDaemon = true, name = "GhostFTP-CloudOrphanCleanup") {
+            val removed = removeIncompleteCloudDestination(target)
+            val cleared = removed && recorded &&
+                CloudDestinationJournal.clearIfMatches(directory, destination)
+            runOnUiThread {
+                if (activityClosing || !::cloudStatus.isInitialized) return@runOnUiThread
+                displayPendingCloudRecovery()
+                cloudStatus.text = when {
+                    cleared -> "Cloud download was not started. The unused destination was removed."
+                    removed -> "Unused cloud document was removed. Check any earlier recovery reminder."
+                    recorded -> "Cloud destination could not be removed. A recovery reminder was saved."
+                    else -> "Cloud destination could not be removed or journaled. Remove the empty document manually."
+                }
+            }
+        }
+    }
+
     /** ACTION_CREATE_DOCUMENT always creates a new document; clean up on failure. */
     private fun removeIncompleteCloudDestination(target: Uri): Boolean = runCatching {
         DocumentsContract.isDocumentUri(this, target) &&
@@ -1273,7 +1297,7 @@ class MainActivity : Activity() {
             // A successful verified document or a confirmed successful delete
             // no longer needs a recovery hint. An uncertain output keeps it.
             if (!upload && (success || !leftoverDestination)) {
-                CloudDestinationJournal.clear(noBackupFilesDir)
+                CloudDestinationJournal.clearIfMatches(noBackupFilesDir, uri.toString())
             }
             runOnUiThread {
                 if (activityClosing || cloudCancellation !== cancellation) return@runOnUiThread
