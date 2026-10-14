@@ -264,6 +264,13 @@ function ImporterTab({
         </div>
       )}
 
+      {kind === "filezilla" && previews !== null && (
+        <p className="mb-2 text-[11px] text-text-muted" role="status">
+          Implicit FTPS sites are skipped. FileZilla optional TLS imports require
+          explicit FTPS; review each connection before saving.
+        </p>
+      )}
+
       <div className="flex-1 overflow-y-auto rounded-md border border-border bg-bg-subtle">
         {previews === null && !loading && !error && (
           <Empty>
@@ -378,7 +385,12 @@ function PreviewRow({
         </span>
       )}
       {p.note && (
-        <span className="text-[10px] text-text-dim">{p.note}</span>
+        <span
+          title={p.note}
+          className="max-w-36 truncate text-[10px] text-text-dim"
+        >
+          {p.note}
+        </span>
       )}
     </label>
   );

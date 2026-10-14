@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use ghostftp_lib::profiles::{AuthMethod, ConnectionProfile};
-use ghostftp_lib::remotefs::{ftp::FtpFs, sftp::SftpFs, RemoteFs};
+use ghostftp_lib::remotefs::{ftp::FtpFs, sftp::SftpFs, FileKind, RemoteFs};
 use ghostftp_lib::session::ftp::FtpTransferControl;
 use ghostftp_lib::session::{open_session, HostDecision, HostKeyVerifier, HostPromptKind, Session};
 use std::io::{Cursor, Read, SeekFrom, Write};
@@ -1033,6 +1033,133 @@ async fn sftp_key_auth(
     Ok(())
 }
 
+/// Verifies the production FTP LIST parser over a real authenticated FTP
+/// control connection and socket-backed passive data channel. The fixture
+/// emits IIS-style bytes but does NOT claim real Microsoft IIS compatibility.
+async fn ftp_dos_listing_roundtrip(
+    port_number: u16,
+    user: &str,
+    password: &str,
+    malformed: bool,
+) -> Result<()> {
+    let p = profile(
+        "ftp",
+        "127.0.0.1",
+        port_number,
+        user,
+        AuthMethod::Password {
+            password: password.to_string(),
+        },
+    );
+    let session = open_session(&p, Arc::new(FixedVerifier(HostDecision::Accept))).await?;
+    let Session::Ftp(ftp) = session else {
+        return Err(anyhow!("DOS fixture did not open an FTP session"));
+    };
+    if malformed {
+        // Prove the bad row really arrived across the FTP data channel
+        // before asserting that the production listing rejects it.
+        let raw = ftp
+            .with_stream(|stream| stream.list(Some(".")))
+            .await
+            .context("read raw malformed MS-DOS LIST through FTP")?;
+        if !raw.iter().any(|row| row.contains("09:99AM")) {
+            return Err(anyhow!(
+                "malformed DOS fixture did not send its invalid row"
+            ));
+        }
+    }
+    let fs = FtpFs::new(ftp);
+    let result = fs.list_dir(".").await;
+    if malformed {
+        let error = result
+            .err()
+            .ok_or_else(|| anyhow!("malformed MS-DOS LIST was silently accepted as complete"))?;
+        if !format!("{error:#}").contains("unsupported or ambiguous") {
+            return Err(anyhow!(
+                "unexpected MS-DOS LIST rejection category: {error:#}"
+            ));
+        }
+        return Ok(());
+    }
+    let entries = result.context("real socket-backed DOS LIST")?;
+    if entries.len() != 3 {
+        return Err(anyhow!(
+            "expected 3 real DOS LIST entries, got {}",
+            entries.len()
+        ));
+    }
+    let unicode = entries
+        .iter()
+        .find(|entry| entry.name == "report čćž 文件 with spaces.txt")
+        .ok_or_else(|| anyhow!("Unicode IIS-style file was not returned"))?;
+    if unicode.size != 427 || !matches!(unicode.kind, FileKind::File) {
+        return Err(anyhow!(
+            "DOS file metadata/kind did not survive real data channel"
+        ));
+    }
+    let folder = entries
+        .iter()
+        .find(|entry| entry.name == "Folder Name")
+        .ok_or_else(|| anyhow!("IIS-style directory was not returned"))?;
+    if !matches!(folder.kind, FileKind::Directory) {
+        return Err(anyhow!("DOS directory was misclassified"));
+    }
+    if !entries.iter().any(|entry| entry.name == ".htaccess") {
+        return Err(anyhow!("hidden IIS-style entry was lost in data channel"));
+    }
+    Ok(())
+}
+
+/// Real FTP data/control socket case: the server rejects the initial
+/// LIST -a but returns a believable bare LIST omitting a hidden file.
+/// Recursive deletion must refuse before removing the visible file.
+async fn ftp_rejects_incomplete_recursive_delete(
+    port_number: u16,
+    user: &str,
+    password: &str,
+) -> Result<()> {
+    let p = profile(
+        "ftp",
+        "127.0.0.1",
+        port_number,
+        user,
+        AuthMethod::Password {
+            password: password.to_string(),
+        },
+    );
+    let session = open_session(&p, Arc::new(FixedVerifier(HostDecision::Accept))).await?;
+    let Session::Ftp(ftp) = session else {
+        return Err(anyhow!("incomplete LIST fixture did not open FTP"));
+    };
+    let preserved = Arc::clone(&ftp);
+    let path = "ghostftp-e2e-safety/visible.txt";
+    let before = preserved
+        .with_stream(move |stream| stream.size(path))
+        .await
+        .context("stat real visible file before guarded recursive delete")?;
+    if before != 8 {
+        return Err(anyhow!("unexpected guarded fixture file size: {before}"));
+    }
+    let fs = FtpFs::new(ftp);
+    let error = fs
+        .delete("ghostftp-e2e-safety", true)
+        .await
+        .expect_err("recursive FTP delete must reject a bare LIST inventory");
+    if !format!("{error:#}").contains("hidden entries may be omitted") {
+        return Err(anyhow!(
+            "recursive delete failed for wrong reason: {error:#}"
+        ));
+    }
+    let after = preserved
+        .with_stream(move |stream| stream.size(path))
+        .await
+        .context("stat real visible file after rejected recursive delete")?;
+    if after != before {
+        return Err(anyhow!("guarded recursive deletion damaged a visible file"));
+    }
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn real_ftp_ftps_sftp_roundtrips() -> Result<()> {
     if !enabled() {
@@ -1047,6 +1174,21 @@ async fn real_ftp_ftps_sftp_roundtrips() -> Result<()> {
         "ftp",
         "127.0.0.1",
         port("GHOSTFTP_E2E_FTP_PORT")?,
+        &username,
+        &password,
+    )
+    .await?;
+
+    ftp_dos_listing_roundtrip(port("GHOSTFTP_E2E_DOS_PORT")?, &username, &password, false).await?;
+    ftp_dos_listing_roundtrip(
+        port("GHOSTFTP_E2E_DOS_INVALID_PORT")?,
+        &username,
+        &password,
+        true,
+    )
+    .await?;
+    ftp_rejects_incomplete_recursive_delete(
+        port("GHOSTFTP_E2E_DOS_NO_A_PORT")?,
         &username,
         &password,
     )

@@ -22,6 +22,7 @@ pub mod grant;
 pub mod importers;
 pub mod keys;
 mod known_hosts;
+mod network_diagnostics;
 pub mod oauth;
 mod path_integration;
 mod preview;
@@ -419,6 +420,7 @@ pub fn run() {
             commands::generate_ssh_key,
             commands::ssh_public_key_for,
             commands::test_profile_connection,
+            commands::diagnose_ftp_connection,
             commands::test_ephemeral_connection,
             commands::connect,
             commands::check_session_health,

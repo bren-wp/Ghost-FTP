@@ -598,19 +598,49 @@ jobs:
                 mobile=$false
               }
               $null = Invoke-GhostFtpCdp -Socket $socket -Id 2 -Method 'Page.bringToFront'
-              Start-Sleep -Milliseconds 250
-              $capture = Invoke-GhostFtpCdp -Socket $socket -Id 3 -Method 'Page.captureScreenshot' -Params @{
-                format='png'
-                fromSurface=$true
-                captureBeyondViewport=$false
+              # A ready native window or a successful CDP call does not mean
+              # WebView2 has painted its first frame. On hosted Windows runners
+              # CDP can return a valid all-black PNG during compositor startup.
+              # Retry only actual compositor captures; never accept a blank
+              # frame, substitute a design mock or weaken the screenshot gate.
+              $captureValid = $false
+              $lastReason = 'no-frame'
+              for ($captureAttempt = 0; $captureAttempt -lt 12; $captureAttempt++) {
+                # Both Chromium paths are real screenshots of this live WebView2
+                # target. Some Windows runner drivers expose only one path.
+                $surfaceMode = ($captureAttempt % 2 -eq 0)
+                Start-Sleep -Milliseconds 500
+                try {
+                  $capture = Invoke-GhostFtpCdp -Socket $socket -Id (3 + $captureAttempt) -Method 'Page.captureScreenshot' -Params @{
+                    format='png'
+                    fromSurface=$surfaceMode
+                    captureBeyondViewport=$false
+                  }
+                } catch {
+                  # A compositor mode may be unavailable on this runner.
+                  # Continue checking real frames via the other CDP mode.
+                  $lastReason = 'cdp-capture-rejected'
+                  continue
+                }
+                if (-not $capture.result.data) {
+                  $lastReason = 'cdp-missing-data'
+                  continue
+                }
+                [System.IO.File]::WriteAllBytes(
+                  $OutputPath,
+                  [Convert]::FromBase64String([string]$capture.result.data)
+                )
+                $check = Test-GhostFtpPng -Path $OutputPath -ExpectedWidth $Width -ExpectedHeight $Height
+                if ($check.Valid) {
+                  $captureValid = $true
+                  Write-Host "WebView2 real compositor capture validated (attempt=$($captureAttempt + 1), fromSurface=$surfaceMode, colors=$($check.Colors))."
+                  break
+                }
+                $lastReason = $check.Reason
               }
-              if (-not $capture.result.data) {
-                throw "WebView2 DevTools returned no screenshot data"
+              if (-not $captureValid) {
+                throw "WebView2 did not paint a valid $($Width)x$($Height) UI screenshot after 12 real capture attempts (last reason=$lastReason)."
               }
-              [System.IO.File]::WriteAllBytes(
-                $OutputPath,
-                [Convert]::FromBase64String([string]$capture.result.data)
-              )
             } finally {
               if ($socket.State -eq [System.Net.WebSockets.WebSocketState]::Open) {
                 $socket.CloseAsync(
@@ -1023,7 +1053,7 @@ jobs:
   # separately reviewable commit. Never use synthetic/reference images.
   promote_readme_native_captures:
     needs: build
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'development/0.95.17-') }}
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'development/0.95.18-') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

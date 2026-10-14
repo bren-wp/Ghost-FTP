@@ -4,6 +4,15 @@ Ghost FTP has a dedicated protocol E2E workflow at `.github/workflows/ghostftp-p
 
 The workflow starts real local protocol servers on an Ubuntu GitHub runner and exercises the same Rust backend used by the desktop application. It does not use fake transfer state or a browser simulation.
 
+## 0.95.18 — real FTP data-channel IIS-format emulation
+
+The 0.95.18 PR extends the existing **live socket E2E** with two additional authenticated loopback FTP daemons running pyftpdlib. They emit IIS/MS-DOS-format LIST *bytes* via the actual passive FTP data channel; the Ghost FTP production Rust session and RemoteFs code must parse the valid listing (Unicode filename, spaced directory, dotfile and omitted dot/dotdot), and must reject the second listing containing one invalid time alongside good entries.
+
+- Local ports: 2123 valid MS-DOS-format LIST, 2124 malformed mixed LIST.
+- Source: `ghostftp-desktop/src-tauri/tests/protocol_e2e.rs` and `.github/workflows/ghostftp-protocol-e2e.yml`.
+- Important distinction: this is real FTP transport with **emulated IIS LIST formatting**, **not** Microsoft's IIS daemon. Windows IIS interoperability remains a separate UNVERIFIED acceptance item.
+- On the development candidate, passing the gate for the **exact PR source SHA** is required before asserting E2E success. Never claim the fixture has passed merely because it was committed.
+
 ## Covered operations
 
 For FTP and explicit FTPS:

@@ -419,6 +419,25 @@ pub async fn test_profile_connection(
     Ok(())
 }
 
+#[tauri::command]
+pub async fn diagnose_ftp_connection(
+    profile_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<crate::network_diagnostics::FtpNetworkDiagnostic, String> {
+    let mut profile = state
+        .profiles
+        .get(&profile_id)
+        .await
+        .map_err(err)?
+        .ok_or_else(|| "Selected FTP profile was not found".to_string())?;
+    if !matches!(profile.protocol.as_str(), "ftp" | "ftps") {
+        return Err("Network diagnostics currently support saved FTP/FTPS sites only".to_string());
+    }
+    hydrate_profile_secrets(&mut profile).map_err(err)?;
+    Ok(crate::network_diagnostics::diagnose(profile, app, &state).await)
+}
+
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionHealth {

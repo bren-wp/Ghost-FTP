@@ -1,6 +1,7 @@
 package com.ghostftp.android
 
 import com.jcraft.jsch.ChannelSftp
+import org.apache.commons.net.ftp.FTPFile
 import com.jcraft.jsch.SftpException
 import java.io.IOException
 import org.junit.Assert.assertEquals
@@ -133,6 +134,64 @@ class ConnectionModelTest {
         assertThrows(IllegalArgumentException::class.java) {
             controller.normalizedProfile(sftp.copy(keepAliveSeconds = 301))
         }
+    }
+
+    @Test
+    fun ftpListingRequiresSuccessfulFinalControlReply() {
+        controller.requireSuccessfulFtpListing(226)
+        assertThrows(IOException::class.java) {
+            controller.requireSuccessfulFtpListing(550)
+        }
+        assertThrows(IOException::class.java) {
+            controller.requireSuccessfulFtpListing(421)
+        }
+    }
+
+    @Test
+    fun remoteListingRejectsPathInjectionAndAmbiguousNames() {
+        for (invalid in listOf("", ".", "..", "../secret", "nested/file", "bad\nname", "bad\rname", "bad\u0000name")) {
+            assertThrows(IOException::class.java) {
+                controller.validateRemoteInventoryName(invalid)
+            }
+        }
+        controller.validateRemoteInventoryName("Račun 2026.txt")
+
+        val duplicated = arrayOf(
+            FTPFile().apply { name = "same.txt"; type = FTPFile.FILE_TYPE; size = 3L },
+            FTPFile().apply { name = "same.txt"; type = FTPFile.DIRECTORY_TYPE },
+        )
+        assertThrows(IOException::class.java) {
+            controller.ftpRows("/docs", duplicated)
+        }
+    }
+
+    @Test
+    fun remoteListingDisclosesDisplayLimitInsteadOfPretendingToShowAllFiles() {
+        val files = Array(27) { index ->
+            FTPFile().apply {
+                name = "file-$index.txt"
+                type = FTPFile.FILE_TYPE
+                size = 2L
+            }
+        }
+        val rows = controller.ftpRows("/docs", files)
+        assertEquals(26, rows.size)
+        assertEquals("Remote path", rows.first().name)
+        assertTrue(rows.last().detail.contains("first 24 of 27"))
+        assertFalse(rows.last().isFile)
+        assertFalse(rows.last().isDirectory)
+    }
+
+    @Test
+    fun remoteSymlinksAreVisibleButCannotBeMistakenForRegularFiles() {
+        val link = FTPFile().apply {
+            name = "target-link"
+            type = FTPFile.SYMBOLIC_LINK_TYPE
+        }
+        val rows = controller.ftpRows("/docs", arrayOf(link))
+        assertEquals("[LINK] target-link", rows[1].name)
+        assertFalse(rows[1].isFile)
+        assertFalse(rows[1].isDirectory)
     }
 
     @Test

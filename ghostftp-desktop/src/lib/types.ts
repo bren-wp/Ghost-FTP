@@ -71,6 +71,18 @@ export interface SessionHealth {
   protocol: string;
 }
 
+/** Actual saved FTP/FTPS network checks; notRun means no probe was attempted. */
+export interface FtpNetworkDiagnostic {
+  dns: "passed" | "failed" | "notRun";
+  control: "passed" | "failed" | "notRun";
+  authentication: "passed" | "failed" | "notRun";
+  data: "passed" | "failed" | "notRun";
+  resolvedIpv4: boolean;
+  resolvedIpv6: boolean;
+  connectedFamily: "IPv4" | "IPv6" | null;
+  advice: string;
+}
+
 export interface ConnectionProfile {
   id: string;
   name: string;

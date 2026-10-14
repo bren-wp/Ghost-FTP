@@ -129,17 +129,71 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertThrowsError(try FTPControlCodec.temporaryDownloadFilename(for: "../escape"))
     }
 
-    func testMLSDIgnoresHostileServerFilenames() throws {
+    func testMLSDRefusesIncompleteDirectoryWhenServerReturnsHostileFileNames() throws {
+        for bad in [
+            "type=file;size=3; ..",
+            "type=file;size=3; nested/escape.txt",
+            "type=file;size=3; attack\u{0000}file",
+        ] {
+            let listing = Data(
+                ["type=file;size=3; good.txt", bad]
+                    .joined(separator: "\r\n").appending("\r\n").utf8
+            )
+            XCTAssertThrowsError(try FTPControlCodec.parseMLSD(listing))
+        }
+    }
+
+    func testMLSDRefusesUnknownFormatsAndMalformedFactsRatherThanHidingFiles() {
+        let malformed = [
+            "unexpected listing record",
+            "type=file;size=3; good.txt\r\nunknown entry",
+            "size=3; missing-type.txt",
+            "type=file;size=not-a-number; broken.txt",
+            "type=file;type=dir; duplicate.txt",
+            "type=OS.unix=slink; symlink.txt",
+            "type=cdir; ",
+            "type=pdir; bad\u{0000}name",
+            "type=file;invalidfact; broken.txt",
+        ]
+        for line in malformed {
+            XCTAssertThrowsError(
+                try FTPControlCodec.parseMLSD(Data("\(line)\r\n".utf8)),
+                "Unexpectedly accepted invalid MLSD row: \(line)"
+            )
+        }
+    }
+
+    func testMLSDPreservesValidRFC3659NamedPseudoEntriesAndEmptyFactValues() throws {
         let listing = Data(
             [
-                "type=file;size=3; good.txt",
-                "type=file;size=3; ..",
-                "type=file;size=3; nested/escape.txt",
-                "type=file;size=3; attack\u{0000}file",
+                "type=cdir;perm=; /srv/data",
+                "type=pdir;perm=; /srv",
+                "type=file;size=0;perm=; ordinary.txt",
             ].joined(separator: "\r\n").appending("\r\n").utf8
         )
         let entries = try FTPControlCodec.parseMLSD(listing)
-        XCTAssertEqual(entries.map(\.name), ["good.txt"])
+        XCTAssertEqual(entries.map(\.name), ["ordinary.txt"])
+        XCTAssertEqual(entries.first?.size, 0)
+    }
+
+    func testMLSDRejectsAmbiguousDuplicateNames() throws {
+        let payload = Data(
+            [
+                "type=file;size=1; repeated.txt",
+                "type=dir;size=0; repeated.txt",
+            ].joined(separator: "\r\n").appending("\r\n").utf8
+        )
+        XCTAssertThrowsError(try FTPControlCodec.parseMLSD(payload))
+    }
+
+    func testMLSDAllowsOrdinaryUnicodeAndSpacesWithStrictFacts() throws {
+        let listing = Data(
+            "type=file;size=4;modify=20261014203000; Račun 2026.txt\r\n".utf8
+        )
+        let entries = try FTPControlCodec.parseMLSD(listing)
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.name, "Račun 2026.txt")
+        XCTAssertEqual(entries.first?.size, 4)
     }
 
     func testExtendedPassivePortParsesEPSVReply() throws {
@@ -251,6 +305,48 @@ final class FTPControlSessionTests: XCTestCase {
 
         XCTAssertThrowsError(try PrivateDownloadStaging.openNewFile(at: link))
         XCTAssertEqual(try Data(contentsOf: target), Data("untouched".utf8))
+    }
+
+    func testRealLocalFTPLoginListUploadAndDownload() async throws {
+        guard let rawPort = ProcessInfo.processInfo.environment["GHOSTFTP_MACOS_E2E_PORT"],
+              let port = UInt16(rawPort) else {
+            throw XCTSkip("Real FTP fixture is not configured on this macOS runner.")
+        }
+
+        let session = FTPControlSession()
+        let profile = ConnectionProfile(
+            name: "Local protocol acceptance",
+            protocolKind: .ftp,
+            host: "127.0.0.1",
+            port: port,
+            username: "ghostftp-e2e"
+        )
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "ghostftp-macos-ftp-e2e-\(UUID().uuidString)",
+            isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let unique = UUID().uuidString
+        let remoteName = "uploaded-\(unique)-Racun.txt"
+        let source = directory.appendingPathComponent("source.txt")
+        let destination = directory.appendingPathComponent("downloaded.txt")
+        let content = Data("Ghost FTP macOS real FTP roundtrip – \(unique)".utf8)
+        try content.write(to: source)
+
+        let cwd = try await session.connect(profile: profile, password: "ghostftp-e2e-secret")
+        XCTAssertFalse(cwd.isEmpty)
+        try await session.noop()
+        let initial = try await session.listDirectory()
+        XCTAssertTrue(initial.contains(where: { $0.name == "fixture.txt" }))
+
+        try await session.uploadFile(from: source, remoteName: remoteName)
+        let afterUpload = try await session.listDirectory()
+        XCTAssertTrue(afterUpload.contains(where: { $0.name == remoteName }))
+        try await session.downloadFile(remoteName: remoteName, to: destination)
+        XCTAssertEqual(try Data(contentsOf: destination), content)
+        await session.disconnect()
     }
 
     func testDirectoryListingBufferRejectsOversizedPayload() throws {

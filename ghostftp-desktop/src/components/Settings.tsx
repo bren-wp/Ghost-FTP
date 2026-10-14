@@ -21,6 +21,7 @@ import {
 } from "@/stores/settingsStore";
 import { APP_LANGUAGE_OPTIONS, getLocale, setLocale, type AppLocale } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
+import type { ConnectionProfile, FtpNetworkDiagnostic } from "@/lib/types";
 import { useDialog } from "@/hooks/useDialog";
 import { requestDesktopNotificationPermission } from "@/lib/notifications";
 import { SyncSettings } from "./SyncSettings";
@@ -377,6 +378,116 @@ function ConnectionCard({
     </Card>
   );
 }
+
+/** The first stage of a real network configuration wizard. Direct saved-site
+ * DNS/control/authentication/passive LIST checks only; no router changes. */
+function NetworkDiagnosticsCard() {
+  const [expanded, setExpanded] = useState(false);
+  const [profiles, setProfiles] = useState<ConnectionProfile[]>([]);
+  const [selected, setSelected] = useState("");
+  const [running, setRunning] = useState(false);
+  const [report, setReport] = useState<FtpNetworkDiagnostic | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void ipc.listProfiles().then((items) => {
+      if (!active) return;
+      const ftpSites = items.filter((item) => item.protocol === "ftp" || item.protocol === "ftps");
+      setProfiles(ftpSites);
+      setSelected((previous) => previous || ftpSites[0]?.id || "");
+    }).catch((reason) => {
+      if (active) setError(messageOf(reason));
+    });
+    return () => { active = false; };
+  }, []);
+
+  const run = async () => {
+    if (!selected || running) return;
+    setRunning(true);
+    setReport(null);
+    setError(null);
+    try {
+      setReport(await ipc.diagnoseFtpConnection(selected));
+    } catch (reason) {
+      setError(messageOf(reason));
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const stages: Array<[string, keyof Pick<FtpNetworkDiagnostic, "dns" | "control" | "authentication" | "data">]> = [
+    ["DNS resolution", "dns"],
+    ["TCP control connection", "control"],
+    ["Login and TLS negotiation", "authentication"],
+    ["Passive directory data channel", "data"],
+  ];
+
+  return (
+    <Card icon={<Wifi size={20} />} title="Network Configuration" subtitle="Read-only FTP / FTPS connectivity diagnostics.">
+      <button
+        type="button"
+        className="ghost-mini-button"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+      >
+        {expanded ? "Hide diagnostics" : "Open network diagnostics"}
+        <ChevronDown size={13} aria-hidden="true" />
+      </button>
+      {expanded && (
+        <div className="space-y-3">
+          <p className="text-[11px] text-text-muted">
+            Tests the selected saved site directly. No changes to firewall, router,
+            proxy, or saved credentials. Active FTP and external NAT are not tested.
+          </p>
+          <label className="block text-[12px] text-text">
+            Saved FTP/FTPS site
+            <select
+              value={selected}
+              disabled={running}
+              onChange={(event) => { setSelected(event.target.value); setReport(null); }}
+              className="mt-1 w-full rounded-md border border-border bg-bg-subtle px-2.5 py-1.5 text-[12px]"
+            >
+              {profiles.length === 0 && <option value="">No saved FTP/FTPS connections</option>}
+              {profiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>{profile.name}</option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="ghost-primary-button"
+            onClick={() => void run()}
+            disabled={!selected || running}
+            aria-busy={running}
+          >
+            {running ? "Testing…" : "Run connection diagnostics"}
+          </button>
+          {error && <p role="alert" className="text-[11px] text-danger">{error}</p>}
+          {report && (
+            <div role="status" aria-live="polite" className="space-y-1 rounded-md border border-border bg-bg-subtle p-3 text-[12px]">
+              {stages.map(([label, key]) => (
+                <div key={key} className="flex items-center justify-between gap-3">
+                  <span>{label}</span>
+                  <span className={report[key] === "passed" ? "text-success" : report[key] === "failed" ? "text-danger" : "text-text-muted"}>
+                    {report[key] === "notRun" ? "Not tested" : report[key] === "passed" ? "Passed" : "Failed"}
+                  </span>
+                </div>
+              ))}
+              <p className="pt-1 text-text-muted">
+                DNS records: {report.resolvedIpv4 ? "IPv4 " : ""}{report.resolvedIpv6 ? "IPv6" : ""}
+                {!report.resolvedIpv4 && !report.resolvedIpv6 ? "none" : ""}
+                {report.connectedFamily ? ` · TCP: ${report.connectedFamily}` : ""}
+              </p>
+              <p className="pt-1 text-text">{report.advice}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function SecurityCard() { return <Card icon={<ShieldCheck size={20}/>} title="Security & Privacy" subtitle="Privacy and credential protections built into Ghost FTP."><StatusRow label="No tracking"/><StatusRow label="No analytics or telemetry"/><StatusRow label="Credentials stored with the operating system keychain"/></Card> }
 
 function IntegrationsCard({
@@ -431,7 +542,7 @@ function StatusRow({ label }: { label: string }){return <div className="flex min
 function AppearancePanel(){return <div className="mx-auto w-full max-w-4xl"><AppearanceCard/></div>}
 function LanguagePanel({ locale, setLocale }: { locale: AppLocale; setLocale: (value: AppLocale) => void }){return <div className="mx-auto w-full max-w-4xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
 function TransfersPanel(){return <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-4"><PerformanceCard/><TransfersCard/></div>}
-function ConnectionPanel({ mutation, runMutation }: { mutation: SettingsAsyncMutation | null; runMutation: RunSettingsAsyncMutation }){return <div className="mx-auto w-full max-w-4xl"><ConnectionCard mutation={mutation} runMutation={runMutation}/></div>}
+function ConnectionPanel({ mutation, runMutation }: { mutation: SettingsAsyncMutation | null; runMutation: RunSettingsAsyncMutation }){return <div className="mx-auto w-full max-w-4xl space-y-4"><ConnectionCard mutation={mutation} runMutation={runMutation}/><NetworkDiagnosticsCard/></div>}
 function SecurityPanel(){return <div className="mx-auto w-full max-w-4xl"><SecurityCard/></div>}
 function ShortcutsCard(){return <Card icon={<Keyboard size={20}/>} title="Keyboard Shortcuts" subtitle="Core Ghost FTP shortcuts."><div className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-[12px]"><span>New connection</span><kbd>Ctrl + N</kbd><span>Settings</span><kbd>Ctrl + ,</kbd><span>Open Transfers</span><kbd>Ctrl + T</kbd><span>Command palette</span><kbd>Ctrl + K</kbd></div></Card>}
 function AdvancedPanel({ mutation, runMutation }: { mutation: SettingsAsyncMutation | null; runMutation: RunSettingsAsyncMutation }){return <div className="mx-auto grid w-full max-w-5xl gap-4 xl:grid-cols-2"><IntegrationsCard mutation={mutation} runMutation={runMutation}/><ShortcutsCard/><div className="xl:col-span-2"><TerminalCard/></div></div>}
