@@ -189,6 +189,64 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun interruptedSafDownloadRecoveryIsClickableAndNeverDeletesWithoutConsent() {
+        val uri = "content://com.example.missing.documentprovider/document/potentially-incomplete"
+        scenario.onActivity { activity ->
+            CloudDestinationJournal.record(activity.noBackupFilesDir, uri)
+        }
+        try {
+            scenario.recreate()
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            openWorkspaceByLabel("Cloud storage")
+            assertTextPresent(
+                "A previous cloud download may have left an incomplete document. Review it before continuing."
+            )
+            assertDescriptionEnabled("Choose file and upload", false)
+            assertDescriptionEnabled("Choose destination and download", false)
+            assertDescriptionEnabled("Try removing incomplete document", true)
+            clickByDescription("Keep document and dismiss warning")
+            assertTextPresent("Recovery reminder dismissed. The document was not changed.")
+            assertDescriptionEnabled("Choose file and upload", true)
+            assertDescriptionEnabled("Choose destination and download", true)
+            scenario.onActivity { activity ->
+                assertTrue("Recovery must be cleared only by user consent",
+                    !CloudDestinationJournal.hasUnresolved(activity.noBackupFilesDir))
+            }
+        } finally {
+            scenario.onActivity { activity ->
+                CloudDestinationJournal.clear(activity.noBackupFilesDir)
+            }
+        }
+    }
+
+    @Test
+    fun corruptSafRecoveryBlocksAllNewCloudActionsUntilUserReview() {
+        scenario.onActivity { activity ->
+            java.io.File(activity.noBackupFilesDir, "pending-cloud-download.uri")
+                .writeText("unrecoverable-invalid-uri")
+        }
+        try {
+            scenario.recreate()
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            openWorkspaceByLabel("Cloud storage")
+            assertTextPresent(
+                "Cloud recovery details were damaged. The previous document may still be incomplete. " +
+                    "Review your cloud provider's files manually before dismissing this warning."
+            )
+            assertDescriptionEnabled("Choose file and upload", false)
+            assertDescriptionEnabled("Choose destination and download", false)
+            assertDescriptionEnabled("Try removing incomplete document", false)
+            assertDescriptionEnabled("Keep document and dismiss warning", true)
+            clickByDescription("Keep document and dismiss warning")
+            assertDescriptionEnabled("Choose destination and download", true)
+        } finally {
+            scenario.onActivity { activity ->
+                CloudDestinationJournal.clear(activity.noBackupFilesDir)
+            }
+        }
+    }
+
+    @Test
     fun referenceNavigationRailStaysDockedAcrossWorkspaces() {
         if (usesOverlayNavigation()) return
         assertDescriptionPresent(appString(R.string.workspace_open, appString(R.string.workspace_files)))
