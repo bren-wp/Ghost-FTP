@@ -942,20 +942,23 @@ class ConnectionController {
             val name = entry.filename
             val isLink = entry.attrs.isLink
             val isDirectory = entry.attrs.isDir && !isLink
+            val isRegularFile = entry.attrs.isReg && !isLink
             RemoteRow(
                 name = when {
                     isLink -> "[LINK] $name"
                     isDirectory -> "[DIR] $name"
-                    else -> "[FILE] $name"
+                    isRegularFile -> "[FILE] $name"
+                    else -> "[OTHER] $name"
                 },
                 detail = when {
                     isLink -> "Symbolic link · not directly actionable"
                     isDirectory -> "Folder · $path"
-                    else -> "File · ${formatBytes(entry.attrs.size)}"
+                    isRegularFile -> "File · ${formatBytes(entry.attrs.size)}"
+                    else -> "Unsupported SFTP entry · not directly actionable"
                 },
                 remotePath = joinRemotePath(path, name),
                 isDirectory = isDirectory,
-                isFile = !entry.attrs.isDir && !isLink
+                isFile = isRegularFile
             )
         }
         return buildRemoteRows(path, rows, visible.size)
