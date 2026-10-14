@@ -1,6 +1,6 @@
 # Ghost FTP / FileZilla functional parity
 
-Last reviewed: 2026-10-15 (0.95.18 PR #152; latest exact-SHA CI pending)
+Last reviewed: 2026-10-15 (v0.95.18 published; post-release FileZilla importer PR pending CI)
 Benchmark: FileZilla Client
 Reference: https://filezilla-project.org/client_features.php
 
@@ -8,7 +8,17 @@ FileZilla is used only as a functional benchmark. Ghost FTP must not copy FileZi
 
 This tracker deliberately errs toward **Partial** or **Missing**. A capability moves to **Equivalent** only after the Ghost FTP implementation and regression tests cover the relevant behavior. A capability moves to **Ghost FTP better** only after reproducible evidence demonstrates a concrete advantage.
 
-## Evidence matrix — 0.95.18 development candidate
+## Post-v0.95.18 FileZilla Site Manager import — development candidate (CI pending)
+
+On the new development branch after published v0.95.18, the existing FileZilla XML importer now maps nested saved-site folder breadcrumbs into the real Ghost FTP `ConnectionProfile.group` field; previously it only displayed them as a note. This reuses the existing Sites group selection: nested FileZilla folders are represented by their full breadcrumb as a single Ghost FTP group label, **not** a claim of a nested tree UI. Existing import preview checkbox, credential-free profile save and premium UI remain unchanged.
+
+The importer also recognizes FileZilla exports whose site display name is direct trailing `<Server>` text rather than a `<Name>` element. An explicit `<Name>` still takes priority. Regression source tests cover two-level folder mapping through `into_profile`, trailing site names, unnamed folders and no password import.
+
+Security boundary: 8 MiB XML input cap, 2,048 accepted site limit, 32 nested folder levels, rejected DTD and malformed text escapes, and rejected structurally incomplete folder/server records. These caps apply before or during parsing; no password/credential XML content is transferred to the preview. These changes do **not** implement FileZilla bookmark-path pairs, default remote directory path decoding, arbitrary platform-specific setting migration, or implicit FTPS protocol support.
+
+**Status: PARTIAL / unverified until exact-head Rust, UI, Android, macOS and native CI results.** A Rust unit test proves the importer's behavior on representative exported XML shapes; real user-import acceptance and every FileZilla version are not claimed. Existing issue #127/#128 and broader protocol/visual parity remain open.
+
+## Evidence matrix — 0.95.18 published baseline
 
 Scope: **free FileZilla Client**, not commercial FileZilla Pro. Feature reference: [official FileZilla Client features](https://filezilla-project.org/client_features.php) (the JavaScript-only page may not expose text in a headless environment) and [FileZilla documentation index](https://filezillapro.com/docs/v3/) (differentiate Pro-specific features). Items are not marked EQUIVALENT solely because a method or UI button exists. The latest **published** Ghost FTP baseline is v0.95.17; this branch has **unreleased**, not yet final-CI-verified 0.95.18 code.
 
