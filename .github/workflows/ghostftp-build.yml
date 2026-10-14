@@ -1016,3 +1016,53 @@ jobs:
           name: ${{ matrix.artifact }}
           path: dist/native/*
           if-no-files-found: error
+
+
+  # Native QA must succeed on both Windows and Linux first. Only a
+  # same-repository v0.95.16 PR may promote screenshots, and only as a
+  # separately reviewable commit. Never use synthetic/reference images.
+  promote_readme_native_captures:
+    needs: build
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'development/0.95.16-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 2
+          persist-credentials: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v7
+        with:
+          name: GhostFTP-Windows-x64-Preview-QA
+          path: qa/windows
+      - name: Promote exact-build running-app captures to README
+        shell: bash
+        env:
+          GHOSTFTP_CAPTURE_COMMIT: ${{ github.event.pull_request.head.sha }}
+          PR_BRANCH: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GHOSTFTP_CAPTURE_COMMIT"
+          node --check .github/scripts/promote-native-readme-screenshots.mjs
+          node .github/scripts/promote-native-readme-screenshots.mjs qa/windows
+          # Validation on the new commit is performed by the normal CI gates.
+      - name: Commit real QA screenshots for review
+        shell: bash
+        env:
+          PR_BRANCH: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          git add README.md docs/assets/screenshots/
+          if git diff --cached --quiet; then
+            echo 'Current native QA captures are already committed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs(qa): replace README gallery with real current-build Windows captures'
+          git push origin "HEAD:refs/heads/$PR_BRANCH"
