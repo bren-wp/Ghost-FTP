@@ -164,6 +164,28 @@ class MainActivitySmokeTest {
         assertTextPresent("No cloud transfer in progress.")
         assertDescriptionPresent("Cancel cloud transfer")
         assertDescriptionEnabled("Cancel cloud transfer", false)
+        assertDescriptionEnabled("Choose file and upload", true)
+        assertDescriptionEnabled("Choose destination and download", true)
+    }
+
+    @Test
+    fun invalidSignedCloudLinkClearsBearerInputWithoutStartingPicker() {
+        openWorkspaceByLabel("Cloud storage")
+        scenario.onActivity { activity ->
+            val input = findView(activity.window.decorView) {
+                it is EditText && it.hint?.toString() == "Paste short-lived signed GET URL"
+            } as? EditText
+            assertNotNull("Signed download input is missing.", input)
+            input!!.setText("http://localhost/?sig=secret")
+            val button = findView(activity.window.decorView) {
+                it.contentDescription?.toString() == "Choose destination and download" && it.isShown
+            }
+            assertNotNull("Download picker action is missing.", button)
+            button!!.performClick()
+            assertEquals("Invalid bearer link must not stay in the form.", "", input.text.toString())
+            assertTrue("Invalid URL must not disable the picker permanently.", button.isEnabled)
+        }
+        assertTextPresent("Invalid link. Use a signed public HTTPS object URL, not a sharing page.")
     }
 
     @Test

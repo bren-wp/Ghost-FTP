@@ -125,6 +125,9 @@ internal object SignedCloudTransfer {
         while (true) {
             cancellation.ensureActive()
             val read = input.read(buffer)
+            // A blocking SAF read can return bytes after Cancel was pressed.
+            // Never forward those late bytes into a destination or HTTP sink.
+            cancellation.ensureActive()
             if (read < 0) break
             if (read == 0) {
                 if (++emptyReads > MAX_EMPTY_READS) {
@@ -177,31 +180,13 @@ internal object SignedCloudTransfer {
         if (expectedBytes !in 0..MAX_BYTES || expectedDigest.size != 32) {
             throw IOException("Cloud download integrity metadata is invalid.")
         }
-        var received = 0L
         val digest = MessageDigest.getInstance("SHA-256")
-        val buffer = ByteArray(64 * 1024)
-        var emptyReads = 0
-        while (true) {
-            cancellation.ensureActive()
-            val read = input.read(buffer)
-            if (read < 0) break
-            if (read == 0) {
-                // Contract-violating DocumentsProviders can return zero
-                // bytes forever. Never permit an unbounded verification loop.
-                if (++emptyReads > 8) {
-                    throw IOException("Saved cloud document did not make read progress.")
-                }
-                continue
-            }
-            emptyReads = 0
-            received += read
-            if (received > expectedBytes) {
-                throw IOException("Saved cloud document is larger than the downloaded object.")
-            }
-            digest.update(buffer, 0, read)
+        // Share the exact same bounded, cancel-aware stream policy used by
+        // uploads and downloads. SAF read-back must not silently diverge.
+        streamWithBoundedProgress(input, expectedBytes, expectedBytes, cancellation) { bytes, count ->
+            digest.update(bytes, 0, count)
         }
-        cancellation.ensureActive()
-        if (received != expectedBytes || !MessageDigest.isEqual(digest.digest(), expectedDigest)) {
+        if (!MessageDigest.isEqual(digest.digest(), expectedDigest)) {
             throw IOException("Saved cloud document failed the read-back integrity check.")
         }
     }
