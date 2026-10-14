@@ -1,3 +1,11 @@
+## 0.95.19 — FileZilla Site Manager folder migration and XML safety (unreleased, CI pending) — 15 October 2026
+
+- Preserve saved FileZilla folder breadcrumbs in Ghost FTP's Sites grouping, without changing the premium layout.
+- Import FileZilla exported trailing Server display names; preserve explicit Name priority.
+- Reject oversized input, excess sites/folder nesting, XML DTDs, malformed entities and incomplete folder/server data.
+- Never import external passwords; retain explicit FTPS policy. Add Rust safety and migration regressions.
+- **Not a completed FileZilla parity or cross-platform device acceptance claim.** Issues #127/#128 remain open.
+
 ## 0.95.18 — Strict IIS/MS-DOS FTP LIST compatibility (under verification) — 14 October 2026
 
 - Rust desktop FTP/explicit FTPS listing parser now recognizes strict Windows IIS/MS-DOS file and directory listing records, including Unicode names and spaces, and preserves exact 64-bit file sizes.

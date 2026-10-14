@@ -1,10 +1,16 @@
-> Ghost FTP **0.95.18** (development cycle), following published **v0.95.17**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.19** (development cycle), following published **v0.95.18**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
 
-> Current development cycle: **0.95.18**; latest verified public release: **0.95.17**. Historical sections remain version-specific.
+## Post-v0.95.18 development: safer FileZilla saved-site import (PR candidate)
 
-This document describes what is implemented in the current Ghost FTP 0.95.18 development source. Previous canonical release: **0.95.17**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+The existing FileZilla XML importer now brings saved folder breadcrumbs into Ghost FTP's Sites grouping, accepts a trailing text site label as exported by FileZilla, and retains mandatory explicit FTPS mapping without importing credentials. The selected-profile preview and save UI remain the same. Bounded input, nesting, site count and DTD/malformed-entity rejection prevent incomplete or oversized imports from being treated as success. This work is **unreleased** until a reviewed PR passes exact-SHA CI; refer to `docs/qa/FILEZILLA_PARITY.md` for evidence and limitations.
+
+
+
+> Current development cycle: **0.95.19**; latest verified public release: **0.95.18**. Historical sections remain version-specific.
+
+This document describes what is implemented in the current Ghost FTP 0.95.19 development source. Previous canonical release: **0.95.18**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 

@@ -317,6 +317,7 @@ export interface ProfilePreview {
   username: string;
   identityFile?: string;
   note?: string;
+  group?: string;
 }
 
 export type ImporterKind = "openssh" | "filezilla" | "putty";
