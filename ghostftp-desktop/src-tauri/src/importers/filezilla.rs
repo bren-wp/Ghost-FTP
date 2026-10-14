@@ -231,7 +231,11 @@ mod tests {
         let sites = site(0);
         assert_eq!(sites.len(), 1);
         assert_eq!(sites[0].protocol, "ftps");
-        assert!(sites[0].note.as_deref().unwrap_or("").contains("required explicit FTPS"));
+        assert!(sites[0]
+            .note
+            .as_deref()
+            .unwrap_or("")
+            .contains("required explicit FTPS"));
     }
 
     #[test]
@@ -240,7 +244,11 @@ mod tests {
         assert_eq!(sites.len(), 1);
         assert_eq!(sites[0].protocol, "ftp");
         assert_eq!(sites[0].port, 21);
-        assert!(sites[0].note.as_deref().unwrap_or("").contains("without encryption"));
+        assert!(sites[0]
+            .note
+            .as_deref()
+            .unwrap_or("")
+            .contains("without encryption"));
     }
 
     #[test]
