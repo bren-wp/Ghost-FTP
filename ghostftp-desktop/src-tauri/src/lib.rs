@@ -22,6 +22,7 @@ pub mod grant;
 pub mod importers;
 pub mod keys;
 mod known_hosts;
+mod network_diagnostics;
 pub mod oauth;
 mod path_integration;
 mod preview;
