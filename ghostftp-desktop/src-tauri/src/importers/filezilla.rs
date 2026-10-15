@@ -529,7 +529,9 @@ mod tests {
             }
             _ => panic!("FileZilla SFTP key login must remain key authentication"),
         }
-        assert!(!serde_json::to_string(&sites).unwrap().contains("copy-me-not"));
+        assert!(!serde_json::to_string(&sites)
+            .unwrap()
+            .contains("copy-me-not"));
     }
 
     #[test]
