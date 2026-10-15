@@ -9,7 +9,7 @@ A successful compile is not equivalent to stable/FINAL acceptance.
 1. Start from current `main`.
 2. Make meaningful product/code/documentation changes.
 3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
-4. Keep `previousVersion` pointing to the preceding merged source (currently `0.95.18`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.95.18`). Never call an unpublished merge a canonical release.
+4. Keep `previousVersion` pointing to the preceding merged source (currently `0.95.19`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.95.18`). Never call an unpublished merge a canonical release.
 5. Open a PR.
 6. Require exact-head success for:
    - Ghost FTP quality
@@ -81,8 +81,8 @@ If no updater signatures are present, the stable GitHub release may still publis
 
 ## Current release cycle
 
-- Active source/release cycle: **0.95.19**
-- Previous canonical release: **0.95.18**
+- Active source/release cycle: **0.95.20**
+- Previous canonical release: **0.95.19**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Release integrity
