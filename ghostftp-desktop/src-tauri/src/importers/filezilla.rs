@@ -484,6 +484,70 @@ mod tests {
             .is_empty());
     }
 
+    fn sftp_key_site(logon_type: u8, keyfile: &str, protocol: u8) -> Vec<super::ProfilePreview> {
+        let xml = format!(
+            "<FileZilla3><Servers><Server><Name>Keyed site</Name><Host>sftp.example.org</Host><Protocol>{protocol}</Protocol><Logontype>{logon_type}</Logontype><User>deploy</User><Keyfile>{keyfile}</Keyfile><Pass encoding=\"base64\">Y29weS1tZS1ub3Q=</Pass></Server></Servers></FileZilla3>"
+        );
+        parse(&xml).expect("valid FileZilla key profile")
+    }
+
+    #[test]
+    fn filezilla_sftp_key_login_survives_import_without_loading_private_key() {
+        // The key path is not required to exist at import time; connecting
+        // is the only point where the SSH engine may read key material.
+        let sites = sftp_key_site(5, "/home/alice/.ssh/id_ed25519", 1);
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].protocol, "sftp");
+        assert_eq!(
+            sites[0].identity_file.as_deref(),
+            Some("/home/alice/.ssh/id_ed25519")
+        );
+        let profile = sites[0].clone().into_profile();
+        match profile.auth {
+            crate::profiles::AuthMethod::Key { path, passphrase } => {
+                assert_eq!(path, "/home/alice/.ssh/id_ed25519");
+                assert!(passphrase.is_none());
+            }
+            _ => panic!("FileZilla SFTP key login must remain key authentication"),
+        }
+        assert!(!serde_json::to_string(&sites).unwrap().contains("copy-me-not"));
+    }
+
+    #[test]
+    fn filezilla_stale_keyfield_must_not_switch_password_login_to_key_login() {
+        let sites = sftp_key_site(1, "/home/alice/.ssh/stale_key", 1);
+        assert_eq!(sites.len(), 1);
+        assert!(sites[0].identity_file.is_none());
+        match sites[0].clone().into_profile().auth {
+            crate::profiles::AuthMethod::Password { password } => assert!(password.is_empty()),
+            _ => panic!("Stale Keyfile must not silently replace password login"),
+        }
+    }
+
+    #[test]
+    fn filezilla_non_sftp_keyfile_is_never_used_as_an_ssh_key() {
+        let sites = sftp_key_site(5, "/home/alice/.ssh/id_ed25519", 4);
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].protocol, "ftps");
+        assert!(sites[0].identity_file.is_none());
+    }
+
+    #[test]
+    fn filezilla_ppk_and_missing_key_are_visible_but_not_activated() {
+        let ppk = sftp_key_site(5, "C:\\Users\\Alice\\keys\\legacy.PPK", 1);
+        assert_eq!(ppk.len(), 1);
+        assert!(ppk[0].identity_file.is_none());
+        assert!(ppk[0].note.as_deref().unwrap_or("").contains("conversion"));
+        let missing = sftp_key_site(5, "", 1);
+        assert_eq!(missing.len(), 1);
+        assert!(missing[0].identity_file.is_none());
+        assert!(missing[0]
+            .note
+            .as_deref()
+            .unwrap_or("")
+            .contains("no key path"));
+    }
+
     #[test]
     fn oversized_and_truncated_imports_fail_closed() {
         let too_large = " ".repeat(super::MAX_XML_BYTES + 1);
