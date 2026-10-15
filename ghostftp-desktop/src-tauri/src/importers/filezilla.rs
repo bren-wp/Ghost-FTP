@@ -219,6 +219,8 @@ struct ServerAccum {
     port: Option<u16>,
     protocol: Option<u8>,
     user: Option<String>,
+    logon_type: Option<u8>,
+    keyfile: Option<String>,
 }
 
 impl ServerAccum {
@@ -232,6 +234,8 @@ impl ServerAccum {
             "Port" => self.port = value.parse().ok(),
             "Protocol" => self.protocol = value.parse().ok(),
             "User" => self.user = Some(value.to_string()),
+            "Logontype" => self.logon_type = value.parse().ok(),
+            "Keyfile" => self.keyfile = Some(value.to_string()),
             _ => {}
         }
     }
@@ -273,6 +277,32 @@ impl ServerAccum {
         p.host = host;
         p.port = self.port.filter(|port| *port != 0).unwrap_or(default_port);
         p.username = self.user.unwrap_or_default();
+        // FileZilla's LogonType::key is 5. A Keyfile field can remain in
+        // an export even after changing the logon mode; only honor it when
+        // the explicitly selected SFTP key-file mode is still active.
+        let key_warning = if proto == "sftp" && self.logon_type == Some(5) {
+            match self.keyfile {
+                Some(path) if !path.trim().is_empty() => {
+                    let path = path.trim();
+                    if path.chars().any(char::is_control) {
+                        Some("FileZilla key path contains invalid control characters; choose a valid SSH private key in Ghost FTP")
+                    } else if path.to_ascii_lowercase().ends_with(".ppk") {
+                        // russh's private-key loader does not promise support
+                        // for PuTTY's proprietary PPK format. Never mark a
+                        // PPK path as working key authentication by default.
+                        Some("FileZilla PuTTY .ppk key needs conversion to OpenSSH/PEM before connecting")
+                    } else {
+                        // This transfers only the path string, never key
+                        // material, and does not read the key during import.
+                        p.identity_file = Some(path.to_owned());
+                        None
+                    }
+                }
+                _ => Some("FileZilla key-file login has no key path; select an SSH private key before connecting"),
+            }
+        } else {
+            None
+        };
         let breadcrumb = folder_stack
             .iter()
             .filter(|s| !s.is_empty())
@@ -284,9 +314,11 @@ impl ServerAccum {
         } else {
             format!("FileZilla: {breadcrumb}")
         };
-        p.note = Some(match security_note {
-            Some(warning) => format!("{origin} — {warning}"),
-            None => origin,
+        p.note = Some(match (security_note, key_warning) {
+            (Some(security), Some(key)) => format!("{origin} — {security} — {key}"),
+            (Some(security), None) => format!("{origin} — {security}"),
+            (None, Some(key)) => format!("{origin} — {key}"),
+            (None, None) => origin,
         });
         // Import into Ghost FTP's existing Sites folder surface, rather than
         // displaying the breadcrumb only as an informational note.
