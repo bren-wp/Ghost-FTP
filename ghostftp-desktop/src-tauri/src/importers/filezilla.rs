@@ -212,6 +212,25 @@ pub fn parse(xml: &str) -> Result<Vec<ProfilePreview>> {
     Ok(out)
 }
 
+/// Reject untrusted relative and network key paths from an imported profile.
+/// Relative paths resolve against Ghost FTP's process working directory, while
+/// Windows UNC paths may access an attacker-controlled SMB server. A saved
+/// FileZilla site still requires user approval and an explicit connection.
+fn safe_local_keyfile_path(path: &str) -> bool {
+    if path.is_empty() || path.chars().any(char::is_control) {
+        return false;
+    }
+    if path.starts_with("//") || path.starts_with(r"\\") {
+        return false;
+    }
+    let bytes = path.as_bytes();
+    let windows_absolute = bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/');
+    path.starts_with('/') || path.starts_with("~/") || windows_absolute
+}
+
 #[derive(Default)]
 struct ServerAccum {
     name: Option<String>,
@@ -284,8 +303,8 @@ impl ServerAccum {
             match self.keyfile {
                 Some(path) if !path.trim().is_empty() => {
                     let path = path.trim();
-                    if path.chars().any(char::is_control) {
-                        Some("FileZilla key path contains invalid control characters; choose a valid SSH private key in Ghost FTP")
+                    if !safe_local_keyfile_path(path) {
+                        Some("FileZilla key path must be local and absolute; choose a safe SSH private key in Ghost FTP")
                     } else if path.to_ascii_lowercase().ends_with(".ppk") {
                         // russh's private-key loader does not promise support
                         // for PuTTY's proprietary PPK format. Never mark a
