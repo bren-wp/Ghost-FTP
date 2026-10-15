@@ -130,7 +130,22 @@ if (captureManifest) {
   // successful current-build Windows QA promotion commits fresh screenshots.
   // Never accept arbitrary older captures or mock reference art.
   const acceptableVersions = [versionMeta.version, versionMeta.previousPublishedVersion];
-  if (!acceptableVersions.includes(captureManifest.version) ||
+  // A newly published patch can legitimately keep the last genuine Windows
+  // captures when the pictured app screens have not changed. Allow only ONE
+  // older published patch on the same minor line, then require all seven
+  // screenshot blobs to be byte-identical to the newest published release.
+  // Never rewrite captureManifest.version/source SHA to pretend recapture.
+  const parseVersion = (raw) => {
+    const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(raw ?? "");
+    return m ? m.slice(1).map(Number) : null;
+  };
+  const prior = parseVersion(versionMeta.previousPublishedVersion);
+  const captured = parseVersion(captureManifest.version);
+  const unchangedPredecessorCapture = Boolean(prior && captured &&
+    prior[0] === captured[0] &&
+    prior[1] === captured[1] &&
+    prior[2] === captured[2] + 1);
+  if (!(acceptableVersions.includes(captureManifest.version) || unchangedPredecessorCapture) ||
       !/^[a-f0-9]{40}$/.test(captureManifest.capture_source_sha ?? "") ||
       !/^[0-9]+$/.test(captureManifest.github_actions_run_id ?? "") ||
       captureManifest.platform !== "Windows" ||
@@ -165,6 +180,30 @@ for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.lo
     const actualHash = createHash("sha256").update(fs.readFileSync(absolute)).digest("hex");
     if (actualHash !== approvedHash) {
       failures.push(`${relative}: Windows QA capture does not match the pinned SHA256 provenance`);
+    }
+    // An old but genuine capture is acceptable for unchanged release images,
+    // not for screen pixels changed after the provenance source release.
+    // Compare Git blobs against the current *published* release rather than
+    // simply trusting a handwritten manifest version or asset filename.
+    if (captureManifest?.images?.[relative]) {
+      let latestReleaseBlob;
+      try {
+        latestReleaseBlob = execFileSync("git", ["rev-parse", `${releaseTag}:${relative}`], {
+          cwd: root,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        }).trim();
+      } catch {
+        failures.push(`${relative}: verified screenshot is missing from latest published ${releaseTag}`);
+        continue;
+      }
+      const currentBlob = execFileSync("git", ["hash-object", "--", relative], {
+        cwd: root,
+        encoding: "utf8",
+      }).trim();
+      if (currentBlob !== latestReleaseBlob) {
+        failures.push(`${relative}: screenshot differs from the latest published ${releaseTag}; capture new real Windows QA pixels`);
+      }
     }
     continue;
   }

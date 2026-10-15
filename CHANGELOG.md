@@ -1,3 +1,10 @@
+## 0.95.20 — FileZilla SFTP key-auth migration (unreleased) — 15 October 2026
+
+- Preserve FileZilla SFTP `Keyfile` path only when `Logontype=5`; do not read/copy private key material during import.
+- Reject stale Keyfile on password/other protocol profiles as authentication settings. Explain unsupported PuTTY PPK files and missing keys in the existing import preview, avoiding false working-key claims.
+- Add Rust regression tests for key login, field isolation, PPK and missing-key warnings. FileZilla XML protections introduced in 0.95.19 remain enabled.
+- Not a claim of completed multi-server SFTP, SSH agent, or cross-platform parity.
+
 ## 0.95.19 — FileZilla Site Manager folder migration and XML safety (unreleased, CI pending) — 15 October 2026
 
 - Preserve saved FileZilla folder breadcrumbs in Ghost FTP's Sites grouping, without changing the premium layout.

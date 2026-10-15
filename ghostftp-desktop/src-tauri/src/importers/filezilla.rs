@@ -212,6 +212,25 @@ pub fn parse(xml: &str) -> Result<Vec<ProfilePreview>> {
     Ok(out)
 }
 
+/// Reject untrusted relative and network key paths from an imported profile.
+/// Relative paths resolve against Ghost FTP's process working directory, while
+/// Windows UNC paths may access an attacker-controlled SMB server. A saved
+/// FileZilla site still requires user approval and an explicit connection.
+fn safe_local_keyfile_path(path: &str) -> bool {
+    if path.is_empty() || path.chars().any(char::is_control) {
+        return false;
+    }
+    if path.starts_with("//") || path.starts_with(r"\\") {
+        return false;
+    }
+    let bytes = path.as_bytes();
+    let windows_absolute = bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/');
+    path.starts_with('/') || path.starts_with("~/") || windows_absolute
+}
+
 #[derive(Default)]
 struct ServerAccum {
     name: Option<String>,
@@ -219,6 +238,8 @@ struct ServerAccum {
     port: Option<u16>,
     protocol: Option<u8>,
     user: Option<String>,
+    logon_type: Option<u8>,
+    keyfile: Option<String>,
 }
 
 impl ServerAccum {
@@ -232,6 +253,8 @@ impl ServerAccum {
             "Port" => self.port = value.parse().ok(),
             "Protocol" => self.protocol = value.parse().ok(),
             "User" => self.user = Some(value.to_string()),
+            "Logontype" => self.logon_type = value.parse().ok(),
+            "Keyfile" => self.keyfile = Some(value.to_string()),
             _ => {}
         }
     }
@@ -273,6 +296,32 @@ impl ServerAccum {
         p.host = host;
         p.port = self.port.filter(|port| *port != 0).unwrap_or(default_port);
         p.username = self.user.unwrap_or_default();
+        // FileZilla's LogonType::key is 5. A Keyfile field can remain in
+        // an export even after changing the logon mode; only honor it when
+        // the explicitly selected SFTP key-file mode is still active.
+        let key_warning = if proto == "sftp" && self.logon_type == Some(5) {
+            match self.keyfile {
+                Some(path) if !path.trim().is_empty() => {
+                    let path = path.trim();
+                    if !safe_local_keyfile_path(path) {
+                        Some("FileZilla key path must be local and absolute; choose a safe SSH private key in Ghost FTP")
+                    } else if path.to_ascii_lowercase().ends_with(".ppk") {
+                        // russh's private-key loader does not promise support
+                        // for PuTTY's proprietary PPK format. Never mark a
+                        // PPK path as working key authentication by default.
+                        Some("FileZilla PuTTY .ppk key needs conversion to OpenSSH/PEM before connecting")
+                    } else {
+                        // This transfers only the path string, never key
+                        // material, and does not read the key during import.
+                        p.identity_file = Some(path.to_owned());
+                        None
+                    }
+                }
+                _ => Some("FileZilla key-file login has no key path; select an SSH private key before connecting"),
+            }
+        } else {
+            None
+        };
         let breadcrumb = folder_stack
             .iter()
             .filter(|s| !s.is_empty())
@@ -284,9 +333,11 @@ impl ServerAccum {
         } else {
             format!("FileZilla: {breadcrumb}")
         };
-        p.note = Some(match security_note {
-            Some(warning) => format!("{origin} — {warning}"),
-            None => origin,
+        p.note = Some(match (security_note, key_warning) {
+            (Some(security), Some(key)) => format!("{origin} — {security} — {key}"),
+            (Some(security), None) => format!("{origin} — {security}"),
+            (None, Some(key)) => format!("{origin} — {key}"),
+            (None, None) => origin,
         });
         // Import into Ghost FTP's existing Sites folder surface, rather than
         // displaying the breadcrumb only as an informational note.
@@ -450,6 +501,100 @@ mod tests {
         assert!(parse("<FileZilla3><Servers /></FileZilla3>")
             .expect("an empty saved-site collection is valid")
             .is_empty());
+    }
+
+    fn sftp_key_site(logon_type: u8, keyfile: &str, protocol: u8) -> Vec<super::ProfilePreview> {
+        let xml = format!(
+            "<FileZilla3><Servers><Server><Name>Keyed site</Name><Host>sftp.example.org</Host><Protocol>{protocol}</Protocol><Logontype>{logon_type}</Logontype><User>deploy</User><Keyfile>{keyfile}</Keyfile><Pass encoding=\"base64\">Y29weS1tZS1ub3Q=</Pass></Server></Servers></FileZilla3>"
+        );
+        parse(&xml).expect("valid FileZilla key profile")
+    }
+
+    #[test]
+    fn filezilla_sftp_key_login_survives_import_without_loading_private_key() {
+        // The key path is not required to exist at import time; connecting
+        // is the only point where the SSH engine may read key material.
+        let sites = sftp_key_site(5, "/home/alice/.ssh/id_ed25519", 1);
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].protocol, "sftp");
+        assert_eq!(
+            sites[0].identity_file.as_deref(),
+            Some("/home/alice/.ssh/id_ed25519")
+        );
+        let profile = sites[0].clone().into_profile();
+        match profile.auth {
+            crate::profiles::AuthMethod::Key { path, passphrase } => {
+                assert_eq!(path, "/home/alice/.ssh/id_ed25519");
+                assert!(passphrase.is_none());
+            }
+            _ => panic!("FileZilla SFTP key login must remain key authentication"),
+        }
+        assert!(!serde_json::to_string(&sites)
+            .unwrap()
+            .contains("copy-me-not"));
+    }
+
+    #[test]
+    fn filezilla_stale_keyfield_must_not_switch_password_login_to_key_login() {
+        let sites = sftp_key_site(1, "/home/alice/.ssh/stale_key", 1);
+        assert_eq!(sites.len(), 1);
+        assert!(sites[0].identity_file.is_none());
+        match sites[0].clone().into_profile().auth {
+            crate::profiles::AuthMethod::Password { password } => assert!(password.is_empty()),
+            _ => panic!("Stale Keyfile must not silently replace password login"),
+        }
+    }
+
+    #[test]
+    fn filezilla_non_sftp_keyfile_is_never_used_as_an_ssh_key() {
+        let sites = sftp_key_site(5, "/home/alice/.ssh/id_ed25519", 4);
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].protocol, "ftps");
+        assert!(sites[0].identity_file.is_none());
+    }
+
+    #[test]
+    fn filezilla_ppk_and_missing_key_are_visible_but_not_activated() {
+        let ppk = sftp_key_site(5, "C:\\Users\\Alice\\keys\\legacy.PPK", 1);
+        assert_eq!(ppk.len(), 1);
+        assert!(ppk[0].identity_file.is_none());
+        assert!(ppk[0].note.as_deref().unwrap_or("").contains("conversion"));
+        let missing = sftp_key_site(5, "", 1);
+        assert_eq!(missing.len(), 1);
+        assert!(missing[0].identity_file.is_none());
+        assert!(missing[0]
+            .note
+            .as_deref()
+            .unwrap_or("")
+            .contains("no key path"));
+    }
+
+    #[test]
+    fn untrusted_remote_or_relative_key_paths_never_activate_authentication() {
+        for candidate in [
+            "../keys/id_ed25519",
+            r"\\attacker.example\keys\private",
+            "//attacker.example/keys/private",
+            "C:relative_private_key",
+            "file:///home/alice/.ssh/id_ed25519",
+        ] {
+            assert!(!super::safe_local_keyfile_path(candidate));
+            let sites = sftp_key_site(5, candidate, 1);
+            assert_eq!(sites.len(), 1);
+            assert!(sites[0].identity_file.is_none());
+            assert!(sites[0]
+                .note
+                .as_deref()
+                .unwrap_or("")
+                .contains("local and absolute"));
+        }
+        for candidate in [
+            "/home/alice/.ssh/id_ed25519",
+            "~/.ssh/id_ed25519",
+            r"C:\Users\Alice\.ssh\id_ed25519",
+        ] {
+            assert!(super::safe_local_keyfile_path(candidate));
+        }
     }
 
     #[test]

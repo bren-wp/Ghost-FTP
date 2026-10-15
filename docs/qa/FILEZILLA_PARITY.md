@@ -1,6 +1,6 @@
 # Ghost FTP / FileZilla functional parity
 
-Last reviewed: 2026-10-15 (v0.95.18 published; post-release FileZilla importer PR pending CI)
+Last reviewed: 2026-10-15 (v0.95.19 published, 0.95.20 FileZilla SFTP key import PR #154 pending exact-head QA)
 Benchmark: FileZilla Client
 Reference: https://filezilla-project.org/client_features.php
 
@@ -18,7 +18,15 @@ Security boundary: 8 MiB XML input cap, 2,048 accepted site limit, 32 nested fol
 
 **Status: PARTIAL / unverified until exact-head Rust, UI, Android, macOS and native CI results.** A Rust unit test proves the importer's behavior on representative exported XML shapes; real user-import acceptance and every FileZilla version are not claimed. Existing issue #127/#128 and broader protocol/visual parity remain open.
 
-## Evidence matrix — 0.95.18 published baseline
+## Ghost FTP 0.95.20 — FileZilla SFTP key-auth import (PR #154, CI pending)
+
+The FileZilla Site Manager XML importer now recognizes `Logontype=5` (key-file authentication) exclusively on `Protocol=1` (SFTP). It copies the `Keyfile` **pathname string**, not key bytes, to the existing Ghost FTP `ProfilePreview.identity_file` and persisted `ConnectionProfile` key authentication. It neither reads the key file nor imports a FileZilla password or passphrase during import. The user still chooses which preview profiles to save before any connection.
+
+A `Keyfile` XML element left on a password-mode SFTP site or an FTP/FTPS site never changes that site's authentication type. Relative paths, Windows UNC/SMB shares, URL-shaped inputs and control characters are rejected from automatic key authentication; only explicit local absolute or `~/` private-key paths are accepted. Missing key paths and PuTTY `.ppk` paths cannot be advertised as functional OpenSSH key authentication: they are deferred with an explicit note. Rust regression tests exercise each case. FileZilla's numeric logon enum and key-file UI are documented in its published server definitions at https://fossies.org/linux/FileZilla/src/include/server.h and https://fossies.org/linux/FileZilla/src/interface/sitemanager_controls.cpp .
+
+This is **PARTIAL** compatibility. It is not proof of SSH agent compatibility, authenticated connection to a third-party server, PuTTY private-key conversion, FileZilla XML import on physical mobile devices, nor complete premium UI/pixel parity. Six exact-SHA GitHub workflows remain the required candidate gates; published v0.95.19 is the baseline.
+
+## Evidence matrix — v0.95.19 published baseline
 
 Scope: **free FileZilla Client**, not commercial FileZilla Pro. Feature reference: [official FileZilla Client features](https://filezilla-project.org/client_features.php) (the JavaScript-only page may not expose text in a headless environment) and [FileZilla documentation index](https://filezillapro.com/docs/v3/) (differentiate Pro-specific features). Items are not marked EQUIVALENT solely because a method or UI button exists. The latest **published** Ghost FTP baseline is v0.95.17; this branch has **unreleased**, not yet final-CI-verified 0.95.18 code.
 
