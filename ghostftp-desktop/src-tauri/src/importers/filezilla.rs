@@ -568,6 +568,34 @@ mod tests {
     }
 
     #[test]
+    fn untrusted_remote_or_relative_key_paths_never_activate_authentication() {
+        for candidate in [
+            "../keys/id_ed25519",
+            r"\\attacker.example\keys\private",
+            "//attacker.example/keys/private",
+            "C:relative_private_key",
+            "file:///home/alice/.ssh/id_ed25519",
+        ] {
+            assert!(!super::safe_local_keyfile_path(candidate));
+            let sites = sftp_key_site(5, candidate, 1);
+            assert_eq!(sites.len(), 1);
+            assert!(sites[0].identity_file.is_none());
+            assert!(sites[0]
+                .note
+                .as_deref()
+                .unwrap_or("")
+                .contains("local and absolute"));
+        }
+        for candidate in [
+            "/home/alice/.ssh/id_ed25519",
+            "~/.ssh/id_ed25519",
+            r"C:\Users\Alice\.ssh\id_ed25519",
+        ] {
+            assert!(super::safe_local_keyfile_path(candidate));
+        }
+    }
+
+    #[test]
     fn oversized_and_truncated_imports_fail_closed() {
         let too_large = " ".repeat(super::MAX_XML_BYTES + 1);
         assert!(parse(&too_large).is_err());
