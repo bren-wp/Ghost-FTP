@@ -136,7 +136,7 @@ if (captureManifest) {
   // screenshot blobs to be byte-identical to the newest published release.
   // Never rewrite captureManifest.version/source SHA to pretend recapture.
   const parseVersion = (raw) => {
-    const m = /^(\\d+)\\.(\\d+)\\.(\\d+)$/.exec(raw ?? "");
+    const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(raw ?? "");
     return m ? m.slice(1).map(Number) : null;
   };
   const prior = parseVersion(versionMeta.previousPublishedVersion);
