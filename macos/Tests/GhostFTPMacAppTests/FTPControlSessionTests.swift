@@ -411,6 +411,16 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertTrue(afterUpload.contains(where: { $0.name == remoteName }))
         try await session.downloadFile(remoteName: remoteName, to: destination)
         XCTAssertEqual(try Data(contentsOf: destination), content)
+
+        let folder = "ghostftp-qa-\(UUID().uuidString)"
+        try await session.createDirectory(named: folder)
+        XCTAssertTrue(try await session.listDirectory().contains(where: {
+            $0.name == folder && $0.isDirectory
+        }))
+        try await session.deleteFile(named: remoteName)
+        try await session.removeEmptyDirectory(named: folder)
+        let afterDelete = try await session.listDirectory()
+        XCTAssertFalse(afterDelete.contains(where: { $0.name == remoteName || $0.name == folder }))
         await session.disconnect()
     }
 
