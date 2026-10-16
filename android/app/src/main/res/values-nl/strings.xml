@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Er is geen cloudoverdracht bezig.</string>
     <string name="label_contact">Contact</string>
     <string name="about_contact_desc">Stel een vraag of meld een probleem.</string>
+    <string name="workspace_bookmarks">Bladwijzers</string>
+    <string name="bookmarks_add">Bladwijzer toevoegen</string>
+    <string name="bookmarks_empty_title">Nog geen bladwijzers</string>
+    <string name="bookmarks_empty_detail">Maak verbinding met een opgeslagen site, open een externe map en tik op +.</string>
+    <string name="bookmarks_connect_first">Maak eerst verbinding met een echte FTP-, FTPS- of SFTP-server.</string>
+    <string name="bookmarks_save_site_first">Sla de server eerst op onder Sites. Bladwijzers slaan nooit wachtwoorden op.</string>
+    <string name="bookmarks_invalid">Naam of pad ongeldig, dubbel of opslag niet beschikbaar. Bestaande bladwijzers blijven behouden.</string>
+    <string name="bookmarks_remove_title">Bladwijzer verwijderen?</string>
+    <string name="bookmarks_site_missing">De opgeslagen site bestaat niet meer. De bladwijzer blijft behouden.</string>
+    <string name="bookmarks_reconnect">Vul je inloggegevens in en maak opnieuw verbinding om de map te openen.</string>
 </resources>
