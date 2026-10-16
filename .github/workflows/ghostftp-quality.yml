@@ -110,6 +110,12 @@ jobs:
           LATEST_TAG="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq 'map(select(.draft == false)) | sort_by(.published_at) | reverse | .[0].tag_name // empty')"
           test -n "$LATEST_TAG"
           git fetch --force origin "refs/tags/$LATEST_TAG:refs/tags/$LATEST_TAG" --depth=1
+          CAPTURE_VERSION="$(node -p 'require("./docs/assets/screenshots/README-NATIVE-CAPTURE.json").version')"
+          test -n "$CAPTURE_VERSION"
+          CAPTURE_TAG="v$CAPTURE_VERSION"
+          if [ "$CAPTURE_TAG" != "$LATEST_TAG" ]; then
+            git fetch --force origin "refs/tags/$CAPTURE_TAG:refs/tags/$CAPTURE_TAG" --depth=1
+          fi
           GHOSTFTP_LATEST_RELEASE_TAG="$LATEST_TAG" node .github/scripts/check-release-images.mjs
 
       - name: Reject legacy/demo branding
