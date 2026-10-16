@@ -74,6 +74,7 @@ class MainActivity : Activity() {
     private lateinit var transferQueueSurface: LinearLayout
     private lateinit var transferDetailsSurface: LinearLayout
     private lateinit var transferDetailsStatus: TextView
+    private lateinit var transferCancelAction: TextView
     private var sessionCompletedOperations = 0
     private var sessionFailedOperations = 0
     private var sessionCancelledOperations = 0
@@ -1773,11 +1774,17 @@ class MainActivity : Activity() {
                     closeTransferDetails()
                 }, LinearLayout.LayoutParams(0, dp(44), 1f))
                 addView(gap(8))
-                addView(PremiumReferenceStyle.action(this@MainActivity, "Cancel") {
-                    activeCancellation?.cancel()
-                    transferDetailsStatus.text =
-                        "Cancellation requested. Waiting for the current I/O checkpoint."
-                }, LinearLayout.LayoutParams(0, dp(44), 1f))
+                transferCancelAction = PremiumReferenceStyle.action(this@MainActivity, "Cancel") {
+                    val cancellation = activeCancellation
+                    if (operationInFlight && cancellation != null) {
+                        cancellation.cancel()
+                        transferDetailsStatus.text =
+                            "Cancellation requested. Waiting for the current I/O checkpoint."
+                    }
+                }.apply {
+                    contentDescription = "Cancel active transfer"
+                }
+                addView(transferCancelAction, LinearLayout.LayoutParams(0, dp(44), 1f))
                 addView(gap(8))
                 addView(PremiumReferenceStyle.action(this@MainActivity, "Retry") {
                     closeTransferDetails()
@@ -1796,6 +1803,7 @@ class MainActivity : Activity() {
             lastCompletedTransferPath.isNotBlank() -> "Last operation completed"
             else -> "No active transfer"
         }
+        transferCancelAction.isEnabled = operationInFlight && activeCancellation != null
         transferDetailsStatus.text = actual + "\n" +
             (path.ifBlank { lastCompletedTransferPath }.ifBlank {
                 "Select a remote file or start a transfer."
@@ -2598,6 +2606,11 @@ class MainActivity : Activity() {
         if (::searchSection.isInitialized) searchSection.visibility = View.GONE
         if (::workspaceFeedbackPanel.isInitialized) {
             workspaceFeedbackPanel.visibility = View.GONE
+        }
+        if (workspace != Workspace.TRANSFERS &&
+            ::transferDetailsSurface.isInitialized &&
+            transferDetailsSurface.visibility == View.VISIBLE) {
+            closeTransferDetails()
         }
         val targets = mapOf(
             Workspace.FILES to filesSection,
