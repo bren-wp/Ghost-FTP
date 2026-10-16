@@ -138,6 +138,84 @@ class PremiumVisualReferenceTest {
                 }
             }
         }
+
+        // Actual reference #11 Search screenshot, from a disconnected fresh
+        // Activity. No fake remote rows, hostname, credentials or server.
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val button = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "Search files" && it.isShown
+                }
+                assertNotNull("Real Files search action missing", button)
+                assertTrue(button!!.performClick())
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val query = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "Search file name" && it.isShown
+                }
+                assertNotNull("Real editable Search form missing", query)
+                captureIdleReference(activity, output, "search")
+                val close = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "Close Search" && it.isShown
+                }
+                assertTrue("Search must close back to Files", close?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val open = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == activity.getString(R.string.nav_open)
+                }
+                assertTrue("Open the native drawer for reference #2", open?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val siteItem = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == activity.getString(
+                        R.string.workspace_open, activity.getString(R.string.workspace_sites))
+                }
+                assertTrue("Drawer must visibly expose saved-site entry",
+                    siteItem?.isShown == true)
+                captureIdleReference(activity, output, "drawer")
+            }
+        }
+        val context = instrumentation.targetContext
+        val splashIntent = android.content.Intent(context, SplashActivity::class.java)
+            .putExtra("ghostftp.qa.hold_splash", true)
+        ActivityScenario.launch<SplashActivity>(splashIntent).use { scenario ->
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val brand = findView(activity.window.decorView) {
+                    it is TextView && it.text.toString() == "Ghost FTP" && it.isShown
+                }
+                assertNotNull("Actual branded splash frame missing", brand)
+                captureIdleReference(activity, output, "splash")
+            }
+        }
+    }
+
+    private fun captureIdleReference(
+        activity: android.app.Activity, directory: File, filename: String
+    ) {
+        val decor = activity.window.decorView
+        assertNoUserInputInHierarchy(decor)
+        assertEquals("Reference width must remain exactly 480 px.", 480, decor.width)
+        assertTrue("Actual app screenshot has no height.", decor.height > 0)
+        val capture = Bitmap.createBitmap(decor.width, decor.height, Bitmap.Config.ARGB_8888)
+        try {
+            capture.eraseColor(android.graphics.Color.rgb(7, 14, 26))
+            decor.draw(Canvas(capture))
+            val target = File(directory, filename + ".png")
+            target.outputStream().use {
+                assertTrue("Could not encode actual " + filename + " screen",
+                    capture.compress(Bitmap.CompressFormat.PNG, 100, it))
+            }
+            assertTrue("Empty actual visual QA frame: " + filename,
+                target.length() > 4096L)
+        } finally {
+            capture.recycle()
+        }
     }
 
     @Test
