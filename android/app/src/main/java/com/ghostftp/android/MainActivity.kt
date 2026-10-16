@@ -2551,7 +2551,7 @@ class MainActivity : Activity() {
                 "Version " + ReleaseInfo.VERSION_DISPLAY, 11f, true).apply {
                 gravity = Gravity.CENTER
             })
-            // Real product attribution; no placeholder version or author.
+            // Real product attribution comes from the build's release metadata.
             addView(PremiumReferenceStyle.caption(this@MainActivity,
                 "Ghost FTP · Brendigo", 10f, true).apply {
                 gravity = Gravity.CENTER
