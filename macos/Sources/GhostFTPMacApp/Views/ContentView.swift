@@ -445,24 +445,23 @@ private struct ConnectionEditor: View {
                                         .buttonStyle(.borderless)
                                         .help("Download \(entry.name)")
                                         .disabled(ftpSession.isTransferring)
-
-                                        Button {
-                                            pendingRemoteDelete = entry
-                                            showRemoteDeleteConfirmation = true
-                                        } label: {
-                                            Image(systemName: "trash")
-                                        }
-                                        .buttonStyle(.borderless)
-                                        .help("Delete \(entry.name)")
-                                        .disabled(ftpSession.isTransferring || ftpSession.isListing)
                                     }
+                                    Button {
+                                        pendingRemoteDelete = entry
+                                        showRemoteDeleteConfirmation = true
+                                    } label: {
+                                        Image(systemName: "trash")
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .help(entry.isDirectory ? "Remove empty folder \(entry.name)" : "Delete \(entry.name)")
+                                    .disabled(ftpSession.isTransferring || ftpSession.isListing)
                                 }
                             }
                             .frame(minHeight: 180, idealHeight: 240)
                         }
                     }
 
-                    Text("FTP session: passive EPSV + MLSD (or validated Unix LIST fallback), directory navigation, folder creation, file deletion, upload and download. FTPS/SFTP engines are not yet available on macOS.")
+                    Text("FTP session: passive EPSV + MLSD (or validated Unix LIST fallback), directory navigation, folder creation, confirmed file/empty-folder deletion, upload and download. FTPS/SFTP engines are not yet available on macOS.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -496,7 +495,7 @@ private struct ConnectionEditor: View {
         ) {
             Button("Delete file", role: .destructive) {
                 if let entry = pendingRemoteDelete {
-                    ftpSession.deleteFile(entry)
+                    ftpSession.deleteEntry(entry)
                 }
                 pendingRemoteDelete = nil
             }
@@ -504,7 +503,7 @@ private struct ConnectionEditor: View {
                 pendingRemoteDelete = nil
             }
         } message: {
-            Text("This permanently deletes the selected file from the connected FTP server.")
+            Text(pendingRemoteDelete?.isDirectory == true ? "Only empty folders can be removed. Nothing inside will be deleted." : "This permanently deletes the selected file from the connected FTP server.")
         }
         .navigationTitle(isNewSite ? "New saved site" : (draft.name.isEmpty ? "Site settings" : draft.name))
         .onAppear {
