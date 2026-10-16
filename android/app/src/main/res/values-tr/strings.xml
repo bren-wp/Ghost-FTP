@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Devam eden bulut aktarımı yok.</string>
     <string name="label_contact">İletişim</string>
     <string name="about_contact_desc">Soru sorun veya sorun bildirin.</string>
+    <string name="workspace_bookmarks">Yer imleri</string>
+    <string name="bookmarks_add">Yer imi ekle</string>
+    <string name="bookmarks_empty_title">Henüz yer imi yok</string>
+    <string name="bookmarks_empty_detail">Kayıtlı bir siteye bağlanın, uzak bir klasör açın ve + düğmesine dokunun.</string>
+    <string name="bookmarks_connect_first">Önce gerçek bir FTP, FTPS veya SFTP sunucusuna bağlanın.</string>
+    <string name="bookmarks_save_site_first">Önce sunucuyu Siteler bölümüne kaydedin. Yer imleri asla parola kaydetmez.</string>
+    <string name="bookmarks_invalid">Geçersiz veya yinelenen ad ya da yol veya depolama kullanılamıyor. Mevcut yer imleri korundu.</string>
+    <string name="bookmarks_remove_title">Yer imi kaldırılsın mı?</string>
+    <string name="bookmarks_site_missing">Kayıtlı site artık mevcut değil. Yer imi korundu.</string>
+    <string name="bookmarks_reconnect">Klasörü açmak için kimlik bilgilerinizi girin ve yeniden bağlanın.</string>
 </resources>
