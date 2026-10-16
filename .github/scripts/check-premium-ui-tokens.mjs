@@ -31,21 +31,33 @@ const colorAssertions = [
 for (const [semantic, cssName, androidName] of colorAssertions) {
   const [r, g, b] = rgb(tokens.colors[semantic]);
   requireSource(css, `${cssName}: ${r} ${g} ${b};`, `desktop ${semantic} token drift`);
-  requireSource(android, `val ${androidName}: Int = Color.rgb(${r}, ${g}, ${b})`, `Android ${semantic} token drift`);
+  if (semantic === "accent") {
+    // The October 16 mobile reference intentionally uses violet while the
+    // Windows/Linux/macOS brand palette remains the original blue. Check the
+    // Android token and actual runtime value, not a stale shared RGB literal.
+    requireSource(android, "val accent: Int = PremiumReferenceStyle.purple", "Android reference accent token drift");
+  } else {
+    requireSource(android, `val ${androidName}: Int = Color.rgb(${r}, ${g}, ${b})`, `Android ${semantic} token drift`);
+  }
   const macName = semantic === "panel" ? "sidebar" : semantic === "raised" ? "raised" : semantic;
   requireSource(mac, `static let ${macName} = Color(red: ${r}/255, green: ${g}/255, blue: ${b}/255)`, `macOS ${semantic} token drift`);
 }
 for (const semantic of ["navy", "slate", "cyan"]) {
   requireSource(css, `--ghost-premium-${semantic}: ${tokens.colors[semantic]};`, `desktop ${semantic} token drift`);
 }
-requireSource(android, "val accentSurface: Int = Color.rgb(19, 45, 82)", "Android active surface differs from slate token");
+requireSource(android, "val accentSurface: Int = PremiumReferenceStyle.selected", "Android active surface differs from user-approved violet selection token");
+const androidReference = read("android/app/src/main/java/com/ghostftp/android/PremiumReferenceStyle.kt");
+requireSource(androidReference, "val purple = Color.rgb(101, 75, 255)", "actual Android violet accent is not #654BFF");
+requireSource(androidReference, "val selected = Color.rgb(32, 40, 88)", "Android reference selected-row color drift");
+if (tokens.android?.accent !== "#654BFF") errors.push("Android mobile-only reference accent changed");
 requireSource(mac, "static let slate = Color(red: 19/255, green: 45/255, blue: 82/255)", "macOS active surface differs from slate token");
 requireSource(css, "width: 214px !important", "214px desktop sidebar reference not enforced");
 requireSource(css, "min-height: 43px", "43px desktop navigation reference not enforced");
-requireSource(android, "resources.configuration.screenWidthDp < 600 -> dp(64)", "64dp Android compact rail not implemented");
+requireSource(android, "compactNavigation -> dp(if (resources.configuration.screenWidthDp < 400) 260 else 280)", "reference 280dp phone drawer not implemented");
 requireSource(android, "private fun buildPremiumPhoneChrome(): View", "full-width reference identity bar absent on Android");
-requireSource(android, "ViewGroup.LayoutParams.MATCH_PARENT, dp(58)", "58dp reference identity bar geometry missing");
-requireSource(android, "resources.configuration.screenWidthDp in 360..599", "compact navigation labels lack responsive mode");
+requireSource(android, "ViewGroup.LayoutParams.MATCH_PARENT, dp(52)", "52dp mobile reference top chrome geometry missing");
+requireSource(android, "resources.configuration.screenWidthDp < 600", "full-width phone/overlay breakpoint missing");
+requireSource(android, "val iconRail = false", "mobile reference drawer labels hidden by legacy compact rail");
 requireSource(android, "icon?.setBounds(0, 0, dp(20), dp(20))", "Android 20dp reference icon dimensions not implemented");
 requireSource(android, "setCompoundDrawables(null, icon, null, null)", "Android interactive vector navigation icons missing");
 for (const name of ["files","sites","transfers","sync","cloud","settings","about"]) {
