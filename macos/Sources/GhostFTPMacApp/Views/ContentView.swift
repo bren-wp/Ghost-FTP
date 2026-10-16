@@ -159,6 +159,9 @@ private struct ConnectionEditor: View {
     @StateObject private var probe = EndpointProbe()
     @StateObject private var ftpSession = FTPConnectionController()
     @State private var remoteDirectory = ""
+    @State private var newRemoteFolderName = ""
+    @State private var pendingRemoteDelete: FTPDirectoryEntry?
+    @State private var showRemoteDeleteConfirmation = false
 
     private let keychain = KeychainStore()
 
@@ -383,6 +386,23 @@ private struct ConnectionEditor: View {
                             .disabled(ftpSession.isTransferring)
                         }
 
+                        HStack {
+                            TextField("New folder name", text: $newRemoteFolderName)
+                                .textFieldStyle(.roundedBorder)
+                            Button {
+                                let name = newRemoteFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
+                                guard !name.isEmpty else { return }
+                                ftpSession.createDirectory(named: name)
+                                newRemoteFolderName = ""
+                            } label: {
+                                Label("Create folder", systemImage: "folder.badge.plus")
+                            }
+                            .disabled(
+                                newRemoteFolderName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                                ftpSession.isTransferring || ftpSession.isListing
+                            )
+                        }
+
                         transferStatus
 
                         if ftpSession.entries.isEmpty && !ftpSession.isListing {
@@ -395,7 +415,15 @@ private struct ConnectionEditor: View {
                                     Image(systemName: entry.isDirectory ? "folder.fill" : "doc")
                                         .foregroundStyle(.secondary)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(entry.name)
+                                        if entry.isDirectory {
+                                            Button(entry.name) {
+                                                ftpSession.changeDirectory(to: entry.name)
+                                            }
+                                            .buttonStyle(.plain)
+                                            .disabled(ftpSession.isTransferring || ftpSession.isListing)
+                                        } else {
+                                            Text(entry.name)
+                                        }
                                         HStack(spacing: 8) {
                                             if let size = entry.size, !entry.isDirectory {
                                                 Text(FTPControlCodec.displayFileSize(size))
@@ -417,6 +445,16 @@ private struct ConnectionEditor: View {
                                         .buttonStyle(.borderless)
                                         .help("Download \(entry.name)")
                                         .disabled(ftpSession.isTransferring)
+
+                                        Button {
+                                            pendingRemoteDelete = entry
+                                            showRemoteDeleteConfirmation = true
+                                        } label: {
+                                            Image(systemName: "trash")
+                                        }
+                                        .buttonStyle(.borderless)
+                                        .help("Delete \(entry.name)")
+                                        .disabled(ftpSession.isTransferring || ftpSession.isListing)
                                     }
                                 }
                             }
@@ -424,7 +462,7 @@ private struct ConnectionEditor: View {
                         }
                     }
 
-                    Text("FTP session: passive EPSV + MLSD (or validated Unix LIST fallback), binary file upload/download. FTPS/SFTP engines are not yet available on macOS.")
+                    Text("FTP session: passive EPSV + MLSD (or validated Unix LIST fallback), directory navigation, folder creation, file deletion, upload and download. FTPS/SFTP engines are not yet available on macOS.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -451,6 +489,23 @@ private struct ConnectionEditor: View {
             }
         }
         .formStyle(.grouped)
+        .confirmationDialog(
+            "Delete remote file?",
+            isPresented: $showRemoteDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete file", role: .destructive) {
+                if let entry = pendingRemoteDelete {
+                    ftpSession.deleteFile(entry)
+                }
+                pendingRemoteDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingRemoteDelete = nil
+            }
+        } message: {
+            Text("This permanently deletes the selected file from the connected FTP server.")
+        }
         .navigationTitle(isNewSite ? "New saved site" : (draft.name.isEmpty ? "Site settings" : draft.name))
         .onAppear {
             do {
