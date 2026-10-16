@@ -30,10 +30,11 @@ class PremiumVisualReferenceTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
     @Test
-    fun captureSevenIdleWorkspacesAt480x960() {
+    fun captureEightIdleWorkspacesAt480x960() {
         val screens = listOf(
             "files" to R.string.workspace_files,
             "sites" to R.string.workspace_sites,
+            "bookmarks" to R.string.workspace_bookmarks,
             "transfers" to R.string.workspace_transfers,
             "sync" to null,
             "cloud" to null,

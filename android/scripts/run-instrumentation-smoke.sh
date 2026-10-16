@@ -234,7 +234,7 @@ mkdir -p "$VISUAL_DIR"
 # Preserve the raw output and exit status for incident diagnostics.
 set +e
 CAPTURE_RESULT="$(adb shell am instrument -w \
-  -e class 'com.ghostftp.android.PremiumVisualReferenceTest#captureSevenIdleWorkspacesAt480x960' \
+  -e class 'com.ghostftp.android.PremiumVisualReferenceTest#captureEightIdleWorkspacesAt480x960' \
   "$PACKAGE_ID.test/androidx.test.runner.AndroidJUnitRunner" 2>&1)"
 CAPTURE_EXIT=$?
 set -e
@@ -246,7 +246,7 @@ if ! bash android/scripts/check-visual-instrumentation-output.sh \
   tail -n 80 "$VISUAL_DIR/instrumentation.log" >&2
   exit 1
 fi
-for screen in files sites transfers sync cloud settings about; do
+for screen in files sites transfers sync cloud bookmarks settings about; do
   adb exec-out run-as "$PACKAGE_ID" cat "files/premium-qa/${screen}.png" > "$VISUAL_DIR/${screen}.png"
   test -s "$VISUAL_DIR/${screen}.png"
   # The Android emulator CI runs on macOS. Verify PNG signature, IHDR
@@ -274,7 +274,7 @@ PYTHON_PNG
 done
 (
   cd "$VISUAL_DIR"
-  for screen in files sites transfers sync cloud settings about; do
+  for screen in files sites transfers sync cloud bookmarks settings about; do
     shasum -a 256 "${screen}.png"
   done
 ) > "$VISUAL_DIR/SHA256SUMS.txt"
