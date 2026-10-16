@@ -48,20 +48,21 @@ class MainActivitySmokeTest {
 
     @Test
     fun primaryWorkspaceAndToolbarRender() {
-        assertTextPresent(appString(R.string.app_name))
+        // Mobile reference #6 uses the active page title rather than
+        // a duplicated Ghost FTP banner above every workspace.
+        assertTextPresent(appString(R.string.workspace_files))
         if (usesOverlayNavigation()) assertNavigationTogglePresent()
         ensureNavigationOpen()
         assertDescriptionPresent(appString(R.string.workspace_open, appString(R.string.workspace_files)))
         for (actionRes in listOf(
-            R.string.action_refresh,
             R.string.action_upload,
             R.string.action_download,
             R.string.action_new_folder,
-            R.string.action_rename,
             R.string.action_delete
         )) {
             assertDescriptionPresent(appString(actionRes))
         }
+        assertDescriptionPresent("More file actions")
     }
 
     @Test
@@ -109,7 +110,7 @@ class MainActivitySmokeTest {
     fun compactNavigationUsesOverlayScrimInsteadOfShrinkingContent() {
         var compact = false
         scenario.onActivity { activity ->
-            compact = activity.resources.configuration.screenWidthDp < 360
+            compact = activity.resources.configuration.screenWidthDp < 600
         }
         if (!compact) return
 
@@ -126,7 +127,7 @@ class MainActivitySmokeTest {
             isReferencePhone = activity.resources.configuration.screenWidthDp in 360..599
         }
         if (isReferencePhone) {
-            assertDescriptionPresent("Quick navigation")
+            assertDescriptionPresent(appString(R.string.nav_open))
         }
         ensureNavigationOpen()
         val destinations = listOf(
@@ -523,15 +524,14 @@ class MainActivitySmokeTest {
     @Test
     fun guardedFileActionsStayDisabledWithoutActiveSession() {
         for (actionRes in listOf(
-            R.string.action_refresh,
             R.string.action_upload,
             R.string.action_download,
             R.string.action_new_folder,
-            R.string.action_rename,
             R.string.action_delete
         )) {
             assertDescriptionEnabled(appString(actionRes), false)
         }
+        assertDescriptionPresent("More file actions")
 
         openWorkspace(R.string.workspace_transfers)
         assertDescriptionEnabled(appString(R.string.action_pick_file), true)
@@ -702,6 +702,11 @@ class MainActivitySmokeTest {
     private fun openWorkspace(labelRes: Int) {
         ensureNavigationOpen()
         clickByDescription(appString(R.string.workspace_open, appString(labelRes)))
+        // The user-approved Sites screen is a real metadata list. Legacy
+        // connection form tests navigate through its working Add Site action.
+        if (labelRes == R.string.workspace_sites) {
+            clickByDescription("Add Site")
+        }
     }
 
     private fun openWorkspaceByLabel(label: String) {
