@@ -337,8 +337,12 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(outerPadding, dp(14), outerPadding, dp(22))
         }
-        content.addView(buildHeader())
-        content.addView(space(10))
+        // Construct the existing live actions, but do not render an extra
+        // competing title/toolbar above the premium phone workspace.
+        val legacyHeader = buildHeader()
+        legacyHeader.visibility =
+            if (resources.configuration.screenWidthDp < 600) View.GONE else View.VISIBLE
+        content.addView(legacyHeader)
         sessionStatusCard = buildStatusCard().apply {
             contentDescription = "Session status panel"
         }
@@ -429,23 +433,26 @@ class MainActivity : Activity() {
     private fun buildPremiumPhoneChrome(): View = LinearLayout(this).apply {
         gravity = Gravity.CENTER_VERTICAL
         orientation = LinearLayout.HORIZONTAL
-        setPadding(dp(14), dp(6), dp(10), dp(6))
+        setPadding(dp(8), dp(4), dp(10), dp(4))
         setBackgroundColor(Brand.background)
 
-        addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(34), dp(34)))
+        addView(secondaryButton("☰") { setNavigationOpen(true) }.apply {
+            contentDescription = "Quick navigation"
+            textSize = 20f
+            minWidth = 0
+            minimumWidth = 0
+        }, LinearLayout.LayoutParams(dp(44), dp(44)))
         addView(gap(8))
-        addView(TextView(this@MainActivity).apply {
-            val title = android.text.SpannableString("Ghost FTP")
-            title.setSpan(
-                android.text.style.ForegroundColorSpan(Brand.accent),
-                6, title.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-            text = title
+        phoneChromeTitle = TextView(this@MainActivity).apply {
+            text = workspaceLabel(activeWorkspace)
             setTextColor(Brand.text)
             typeface = Typeface.DEFAULT_BOLD
             textSize = 18f
             gravity = Gravity.CENTER_VERTICAL
-        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+        }
+        addView(phoneChromeTitle, LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.MATCH_PARENT, 1f
+        ))
         val quickMenu = secondaryButton("⋯") { }.apply {
             contentDescription = "Quick navigation"
             textSize = 22f
@@ -1491,7 +1498,8 @@ class MainActivity : Activity() {
         }
         if (::sessionStatusCard.isInitialized) {
             sessionStatusCard.visibility =
-                if (workspace == Workspace.FILES || workspace == Workspace.SITES) View.VISIBLE else View.GONE
+                if (activeProfile != null && (workspace == Workspace.FILES || workspace == Workspace.SITES))
+                    View.VISIBLE else View.GONE
         }
         if (::workspaceContainer.isInitialized) {
             workspaceContainer.contentDescription = getString(R.string.workspace_content, workspaceLabel(workspace))
