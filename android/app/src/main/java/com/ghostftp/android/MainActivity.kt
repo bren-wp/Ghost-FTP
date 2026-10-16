@@ -78,6 +78,15 @@ class MainActivity : Activity() {
     private lateinit var cloudSection: View
     private lateinit var cloudTransferOptionsPanel: View
     private lateinit var bookmarksSection: View
+    private lateinit var searchSection: View
+    private lateinit var searchResults: LinearLayout
+    private lateinit var searchQueryInput: EditText
+    private lateinit var searchFeedback: TextView
+    private var searchMode = false
+    private var searchRemote = true
+    private var searchMatchCase = false
+    private var searchRecursive = false
+    private var lastRemoteInventory: List<RemoteRow> = emptyList()
     private lateinit var bookmarksRows: LinearLayout
     private lateinit var cloudUploadInput: EditText
     private lateinit var cloudDownloadInput: EditText
@@ -323,6 +332,7 @@ class MainActivity : Activity() {
         syncSection = buildSyncBackupCard()
         cloudSection = buildCloudCard()
         bookmarksSection = buildBookmarksCard()
+        searchSection = buildSearchCard().apply { visibility = View.GONE }
         settingsSection = buildSettingsCard()
         aboutSection = buildAboutCard()
 
@@ -334,6 +344,7 @@ class MainActivity : Activity() {
             addView(syncSection)
             addView(cloudSection)
             addView(bookmarksSection)
+            addView(searchSection)
             addView(settingsSection)
             addView(aboutSection)
         }
@@ -510,6 +521,8 @@ class MainActivity : Activity() {
             when {
                 activeWorkspace == Workspace.SITES && !siteEditorVisible -> showSiteEditor(null)
                 activeWorkspace == Workspace.BOOKMARKS -> promptSaveCurrentBookmark()
+                activeWorkspace == Workspace.FILES && !searchMode -> openSearch()
+                searchMode -> closeSearch()
                 else -> showPhoneQuickMenu()
             }
         }
@@ -549,6 +562,14 @@ class MainActivity : Activity() {
         val sitesOverview = activeWorkspace == Workspace.SITES && !siteEditorVisible
         val bookmarks = activeWorkspace == Workspace.BOOKMARKS
         when {
+            searchMode -> {
+                phoneQuickButton.text = "×"
+                phoneQuickButton.contentDescription = "Close Search"
+            }
+            activeWorkspace == Workspace.FILES -> {
+                phoneQuickButton.text = "⌕"
+                phoneQuickButton.contentDescription = "Search files"
+            }
             sitesOverview -> {
                 phoneQuickButton.text = "+"
                 phoneQuickButton.contentDescription = "Add Site"
@@ -1417,6 +1438,178 @@ class MainActivity : Activity() {
             contentDescription = (if (directory) "Open folder " else "File ") + name
             setOnClickListener { onClick() }
         }
+
+    /** Reference screen #11: a real, scoped search of actual file entries.
+     * The current remote directory is searched from the verified last server
+     * response. Local search traverses ONLY the app-owned Downloads sandbox.
+     * Neither claims global remote indexing nor reads outside Android SAF.
+     */
+    private fun buildSearchCard(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(4), dp(4), dp(4), dp(14))
+        val scope = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+        val remoteButton = PremiumReferenceStyle.action(this@MainActivity,
+            "Remote", true) {
+            searchRemote = true
+            searchFeedback.text = "Search currently listed remote folder"
+        }
+        val localButton = PremiumReferenceStyle.action(this@MainActivity,
+            "Local") {
+            searchRemote = false
+            searchFeedback.text = "Search app-owned Downloads"
+        }
+        scope.addView(remoteButton, LinearLayout.LayoutParams(0, dp(39), 1f))
+        scope.addView(localButton, LinearLayout.LayoutParams(0, dp(39), 1f))
+        addView(PremiumReferenceStyle.caption(this@MainActivity, "Location", 12f, true))
+        addView(scope)
+        addView(space(11))
+        addView(PremiumReferenceStyle.caption(this@MainActivity, "File name", 12f, true))
+        searchQueryInput = input("*.php", InputType.TYPE_CLASS_TEXT).apply {
+            contentDescription = "Search file name"
+        }
+        addView(searchQueryInput, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(46)))
+        addView(space(8))
+        addView(PremiumReferenceStyle.caption(this@MainActivity,
+            "Supports * and ? filename wildcards", 11f, true))
+        val match = android.widget.Switch(this@MainActivity).apply {
+            text = "Match case"
+            textSize = 13f
+            setTextColor(Brand.text)
+            isChecked = false
+            setOnCheckedChangeListener { _, value -> searchMatchCase = value }
+        }
+        addView(match)
+        val recurse = android.widget.Switch(this@MainActivity).apply {
+            text = "Search subdirectories"
+            textSize = 13f
+            setTextColor(Brand.text)
+            setOnCheckedChangeListener { _, value -> searchRecursive = value }
+        }
+        addView(recurse)
+        searchFeedback = PremiumReferenceStyle.caption(this@MainActivity,
+            "Search the actual connected folder or app-owned local files.", 12f, true)
+        addView(searchFeedback)
+        addView(space(11))
+        addView(PremiumReferenceStyle.action(this@MainActivity, "Search", true) {
+            runScopedSearch()
+        }.apply {
+            contentDescription = "Run file search"
+        }, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(45)))
+        addView(space(11))
+        searchResults = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            contentDescription = "Actual search results"
+        }
+        addView(searchResults)
+    }
+
+    private fun openSearch() {
+        if (!::searchSection.isInitialized) return
+        setWorkspace(Workspace.FILES, announce = false)
+        searchMode = true
+        filesSection.visibility = View.GONE
+        searchSection.visibility = View.VISIBLE
+        fileActionToolbar.visibility = View.GONE
+        phoneChromeTitle.text = "Search"
+        updatePhoneChromeActions()
+        contentScroll.post { contentScroll.scrollTo(0, workspaceContainer.top) }
+    }
+
+    private fun closeSearch() {
+        searchMode = false
+        searchSection.visibility = View.GONE
+        filesSection.visibility = View.VISIBLE
+        setWorkspace(Workspace.FILES, announce = false)
+    }
+
+    private fun runScopedSearch() {
+        if (!::searchResults.isInitialized) return
+        searchResults.removeAllViews()
+        val namePattern = searchQueryInput.text.toString().trim()
+        if (namePattern.isBlank() || namePattern.length > 80) {
+            searchFeedback.text = "Enter a filename (up to 80 characters)."
+            return
+        }
+        val expression = buildString {
+            append("^")
+            namePattern.forEach { ch ->
+                when (ch) {
+                    '*' -> append(".*")
+                    '?' -> append(".")
+                    else -> append(Regex.escape(ch.toString()))
+                }
+            }
+            append("$")
+        }
+        val pattern = try {
+            Regex(expression, if (searchMatchCase) emptySet() else
+                setOf(RegexOption.IGNORE_CASE))
+        } catch (_: IllegalArgumentException) {
+            searchFeedback.text = "Invalid search pattern."
+            return
+        }
+        if (searchRemote) {
+            if (activeProfile == null) {
+                searchFeedback.text = "Connect to a server before searching."
+                return
+            }
+            if (searchRecursive) {
+                searchFeedback.text = "Recursive remote search is not available yet. " +
+                    "Disable subdirectories to search the loaded remote folder safely."
+                return
+            }
+            val matches = lastRemoteInventory.filter {
+                (it.isFile || it.isDirectory) && pattern.matches(it.name)
+            }.take(150)
+            matches.forEach { item ->
+                searchResults.addView(compactBrowserRow(item.name, item.isDirectory) {
+                    selectRemoteEntry(item)
+                    closeSearch()
+                })
+            }
+            searchFeedback.text = matches.size.toString() +
+                " matches in the current remote listing"
+        } else {
+            val base = (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                ?: filesDir).canonicalFile
+            val queue = java.util.ArrayDeque<Pair<File, Int>>()
+            queue.add(base to 0)
+            var scanned = 0
+            var matches = 0
+            while (queue.isNotEmpty() && scanned < 1000 && matches < 150) {
+                val (directory, depth) = queue.removeFirst()
+                val entries = directory.listFiles()?.sortedBy { it.name } ?: emptyList()
+                for (entry in entries) {
+                    scanned += 1
+                    if (scanned > 1000) break
+                    val canonical = runCatching { entry.canonicalFile }.getOrNull()
+                        ?: continue
+                    if (!canonical.path.startsWith(base.path + File.separator)) continue
+                    if (entry.isDirectory && searchRecursive && depth < 4) {
+                        queue.add(entry to depth + 1)
+                    }
+                    if (pattern.matches(entry.name)) {
+                        matches += 1
+                        searchResults.addView(compactBrowserRow(entry.name,
+                            entry.isDirectory) {
+                            if (entry.isDirectory) {
+                                localBrowseDirectory = entry
+                                refreshLocalPane()
+                            }
+                            closeSearch()
+                        })
+                        if (matches >= 150) break
+                    }
+                }
+            }
+            searchFeedback.text = matches.toString() +
+                " results from app-owned local storage"
+        }
+    }
 
     private fun buildTransfersCard(): View = panel().apply {
         addView(sectionTitle(getString(R.string.workspace_transfers)))
@@ -2325,6 +2518,8 @@ class MainActivity : Activity() {
 
     private fun setWorkspace(workspace: Workspace, announce: Boolean = true) {
         activeWorkspace = workspace
+        searchMode = false
+        if (::searchSection.isInitialized) searchSection.visibility = View.GONE
         if (::workspaceFeedbackPanel.isInitialized) {
             workspaceFeedbackPanel.visibility = View.GONE
         }
@@ -2399,6 +2594,7 @@ class MainActivity : Activity() {
     override fun onBackPressed() {
         when {
             usesOverlayNavigation() && navigationOpen -> setNavigationOpen(false)
+            searchMode -> closeSearch()
             activeWorkspace == Workspace.SITES && siteEditorVisible -> showSitesOverview()
             activeWorkspace != Workspace.FILES -> setWorkspace(Workspace.FILES)
             else -> super.onBackPressed()
@@ -2583,6 +2779,10 @@ class MainActivity : Activity() {
         if (!uiReady()) return
         statusTitle.text = result.title
         statusDetail.text = result.detail
+        lastRemoteInventory = result.rows.filter { it.remotePath != null }
+        if (::remoteDirectoryLabel.isInitialized) {
+            remoteDirectoryLabel.text = profile.remotePath
+        }
         remoteRows.removeAllViews()
         result.rows.forEach { remoteRows.addView(remoteRow(it)) }
         activityRows.removeAllViews()
@@ -2662,6 +2862,7 @@ class MainActivity : Activity() {
         if (!uiReady()) return
         statusTitle.text = getString(R.string.status_ready)
         statusDetail.text = getString(R.string.status_no_active_session)
+        lastRemoteInventory = emptyList()
         remoteRows.removeAllViews()
         remoteRows.addView(row(getString(R.string.workspace_files), getString(R.string.state_connect_to_load_files)))
         activityRows.removeAllViews()
