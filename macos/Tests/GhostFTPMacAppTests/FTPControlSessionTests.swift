@@ -240,6 +240,18 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertThrowsError(try FTPControlCodec.parseUnixLIST(Data([0xff, 0xfe])))
     }
 
+    func testExtremeRemoteSizeDoesNotOverflowSwiftInt64() throws {
+        let entry = try FTPControlCodec.parseMLSD(
+            Data("type=file;size=18446744073709551615; huge.bin\r\n".utf8)
+        )
+        XCTAssertEqual(entry.first?.size, UInt64.max)
+        XCTAssertEqual(
+            FTPControlCodec.displayFileSize(UInt64.max),
+            "18446744073709551615 bytes"
+        )
+        XCTAssertFalse(FTPControlCodec.displayFileSize(4).isEmpty)
+    }
+
     func testUnixLISTFallbackOnlyForExplicitUnsupportedCommand() {
         for code in [500, 501, 502, 504] {
             XCTAssertTrue(FTPControlCodec.mlsdIsUnsupported(FTPReply(code: code, lines: [])))
