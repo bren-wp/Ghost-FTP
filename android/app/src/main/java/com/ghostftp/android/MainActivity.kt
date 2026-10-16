@@ -1989,53 +1989,59 @@ class MainActivity : Activity() {
 
     // Matches the approved mobile About hierarchy with real product data.
     // The enclosing workspace ScrollView keeps resources reachable on small screens.
+    /** The compact center-aligned About page from approved Android frame 16. */
     private fun buildAboutCard(): View = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        addView(sectionTitle(getString(R.string.workspace_about)))
-        addView(sectionDescription("Ghost FTP · Brendigo"))
-
-        addView(panel(strong = true).apply {
+        setPadding(dp(2), dp(8), dp(2), dp(6))
+        addView(LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(18), dp(22), dp(18), dp(22))
-            addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(88), dp(88)))
-            addView(space(12))
-            addView(TextView(this@MainActivity).apply {
-                text = "Ghost FTP"
-                textSize = 27f
+            addView(GhostMarkView(this@MainActivity),
+                LinearLayout.LayoutParams(dp(52), dp(52)))
+            addView(PremiumReferenceStyle.caption(this@MainActivity, "Ghost FTP", 15f).apply {
                 typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Brand.text)
                 gravity = Gravity.CENTER
             })
-            addView(TextView(this@MainActivity).apply {
-                text = "MORE THAN TRANSFER. TOTAL CONTROL."
-                textSize = 10f
-                letterSpacing = 0.11f
-                setTextColor(Brand.muted)
+            addView(PremiumReferenceStyle.caption(this@MainActivity,
+                "Version " + ReleaseInfo.VERSION_DISPLAY, 11f, true).apply {
                 gravity = Gravity.CENTER
             })
-            addView(space(14))
-            addView(badge("v${ReleaseInfo.VERSION_DISPLAY}"))
+            // Real product attribution; no placeholder version or author.
+            addView(PremiumReferenceStyle.caption(this@MainActivity,
+                "Ghost FTP · Brendigo", 10f, true).apply {
+                gravity = Gravity.CENTER
+            })
         })
-        addView(space(12))
-
-        addView(panel().apply {
-            addView(aboutFactRow(getString(R.string.label_product), "Ghost FTP · Brendigo"))
-            addView(aboutFactRow(getString(R.string.label_author), "Brendigo"))
-            addView(aboutFactRow(getString(R.string.label_protocols), "FTP · Explicit FTPS · SFTP"))
-            addView(aboutFactRow(getString(R.string.label_security), getString(R.string.settings_security)))
-            addView(aboutFactRow(getString(R.string.label_privacy), getString(R.string.settings_no_tracking)))
+        addView(space(19))
+        val additionalLinks = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            addView(officialLinkRow(getString(R.string.label_documentation),
+                getString(R.string.about_docs_desc), DOCUMENTATION_URL))
+            addView(officialLinkRow(getString(R.string.label_support),
+                getString(R.string.about_support_desc), SUPPORT_URL))
+            addView(officialLinkRow(getString(R.string.label_contact),
+                getString(R.string.about_contact_desc), CONTACT_URL))
+            addView(officialLinkRow(getString(R.string.label_privacy_policy),
+                getString(R.string.about_privacy_desc), PRIVACY_URL))
+            addView(officialLinkRow(getString(R.string.label_eula),
+                getString(R.string.about_eula_desc), EULA_URL))
+            addView(officialLinkRow(getString(R.string.label_project_repository),
+                getString(R.string.about_repository_desc), REPOSITORY_URL))
+        }
+        addView(settingsCategory("Licenses", R.drawable.ic_premium_nav_files) {
+            additionalLinks.visibility =
+                if (additionalLinks.visibility == View.VISIBLE) View.GONE else View.VISIBLE
         })
-        addView(space(12))
-
-        addView(panel().apply {
-            addView(sectionTitle(getString(R.string.label_support)))
-            addView(officialLinkRow(getString(R.string.label_documentation), getString(R.string.about_docs_desc), DOCUMENTATION_URL))
-            addView(officialLinkRow(getString(R.string.label_support), getString(R.string.about_support_desc), SUPPORT_URL))
-            addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
-            addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
-            addView(officialLinkRow(getString(R.string.label_contact), getString(R.string.about_contact_desc), CONTACT_URL))
-            addView(officialLinkRow(getString(R.string.label_project_repository), getString(R.string.about_repository_desc), REPOSITORY_URL))
+        addView(space(6))
+        addView(settingsCategory("Terms of Service", R.drawable.ic_premium_nav_files) {
+            openOfficialLink(EULA_URL)
         })
+        addView(space(6))
+        addView(settingsCategory("Check for Updates", R.drawable.ic_premium_nav_settings) {
+            openOfficialLink(RELEASES_URL)
+        })
+        addView(additionalLinks)
     }
 
     // Reference About uses concise label/value rows, not editable settings controls.
@@ -3211,6 +3217,7 @@ class MainActivity : Activity() {
         const val STATE_NAVIGATION_OPEN = "ghostftp.navigationOpen"
 
         const val REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP"
+        const val RELEASES_URL = "https://github.com/bren-wp/Ghost-FTP/releases"
         const val SUPPORT_URL = "https://ghostftp.com/hr/support"
         const val DOCUMENTATION_URL = "https://ghostftp.com/hr/how-to-download"
         const val PRIVACY_URL = "https://ghostftp.com/hr/privacy"
@@ -3218,6 +3225,7 @@ class MainActivity : Activity() {
         const val CONTACT_URL = "https://ghostftp.com/hr/contact"
         val OFFICIAL_LINKS = setOf(
             REPOSITORY_URL,
+            RELEASES_URL,
             SUPPORT_URL,
             DOCUMENTATION_URL,
             PRIVACY_URL,
