@@ -473,7 +473,11 @@ require_exact_count "single debug UI smoke screenshot" "$SMOKE_SCRIPT" 'adb exec
 require_exact_count "single release-candidate UI smoke screenshot" "$SMOKE_SCRIPT" 'adb exec-out screencap -p > dist/android/GhostFTP-Android-Release-Candidate-Smoke.png' 1
 require_text "release-candidate APK path" "$SMOKE_SCRIPT" 'PREVIEW_APK="android/app/build/outputs/apk/preview/app-preview.apk"'
 require_text "release-candidate package id" "$SMOKE_SCRIPT" 'PREVIEW_PACKAGE_ID="com.ghostftp.android.preview"'
-require_text "release-candidate launcher class" "$SMOKE_SCRIPT" 'PREVIEW_ACTIVITY_CLASS="com.ghostftp.android.MainActivity"'
+require_text "release-candidate launcher class" "$SMOKE_SCRIPT" 'PREVIEW_ACTIVITY_CLASS="com.ghostftp.android.SplashActivity"'
+require_text "real native splash manifest launcher" "$APP_DIR/AndroidManifest.xml" 'android:name=".SplashActivity"'
+require_text "real splash hands off to working MainActivity" "$APP_DIR/java/com/ghostftp/android/SplashActivity.kt" 'startActivity(Intent(this, MainActivity::class.java))'
+require_text "non-exported working app activity" "$APP_DIR/AndroidManifest.xml" 'android:name=".MainActivity"'
+require_text "post-splash real app resume gate" "$SMOKE_SCRIPT" 'Ghost FTP release-candidate MainActivity did not reach RESUMED state.'
 require_text "release-candidate non-debuggable gate" "$SMOKE_SCRIPT" 'Release-candidate APK must remain non-debuggable.'
 require_text "post-launch success marker" "$SMOKE_SCRIPT" 'Ghost FTP Android instrumentation, release-candidate install and launch smoke OK'
 require_text "post-launch resumed activity gate" "$SMOKE_SCRIPT" 'Ghost FTP MainActivity did not reach RESUMED state after launch.'
