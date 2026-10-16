@@ -230,13 +230,17 @@ final class FTPConnectionController: ObservableObject {
         }
     }
 
-    func deleteFile(_ entry: FTPDirectoryEntry) {
-        guard isConnected, !isTransferring, !isListing, !entry.isDirectory else { return }
+    func deleteEntry(_ entry: FTPDirectoryEntry) {
+        guard isConnected, !isTransferring, !isListing else { return }
         operation?.cancel()
         operation = Task { [weak self] in
             guard let self else { return }
             do {
-                try await session.deleteFile(named: entry.name)
+                if entry.isDirectory {
+                    try await session.removeEmptyDirectory(named: entry.name)
+                } else {
+                    try await session.deleteFile(named: entry.name)
+                }
                 guard !Task.isCancelled else { return }
                 transferState = .completed("Deleted \(entry.name)")
                 await refreshDirectoryInternal()
