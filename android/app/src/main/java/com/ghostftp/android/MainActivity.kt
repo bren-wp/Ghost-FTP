@@ -98,6 +98,7 @@ class MainActivity : Activity() {
     private lateinit var contentScroll: ScrollView
     private lateinit var workspaceContainer: LinearLayout
     private lateinit var workspaceTitle: TextView
+    private lateinit var phoneChromeTitle: TextView
     // Reference workspaces must not inherit Files-only actions or status cards.
     private lateinit var fileActionToolbar: View
     private lateinit var sessionStatusCard: View
@@ -307,14 +308,12 @@ class MainActivity : Activity() {
             addView(aboutSection)
         }
 
-        // The 480px visual reference uses an always-visible compact rail.
-        // Very narrow devices keep the overlay so file actions remain usable.
+        // User-approved 16-screen reference: full-width phone content with a
+        // slide-over drawer; a persistent rail is reserved for tablets.
         val compactNavigation = usesOverlayNavigation()
         navigationOpen = !compactNavigation
         val railWidth = when {
-            compactNavigation -> dp(152)
-            // The approved 480 × 960 Android reference uses a 64px rail.
-            resources.configuration.screenWidthDp < 600 -> dp(64)
+            compactNavigation -> dp(if (resources.configuration.screenWidthDp < 400) 260 else 280)
             else -> dp(184)
         }
         navigationRail = buildNavigationRail().apply {
@@ -333,7 +332,7 @@ class MainActivity : Activity() {
             setBackgroundColor(Brand.background)
             isFillViewport = true
         }
-        val outerPadding = if (resources.configuration.screenWidthDp < 480) dp(10) else dp(14)
+        val outerPadding = if (resources.configuration.screenWidthDp < 600) dp(10) else dp(14)
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(outerPadding, dp(14), outerPadding, dp(22))
@@ -407,21 +406,24 @@ class MainActivity : Activity() {
         }
         setWorkspace(activeWorkspace, announce = false)
         setNavigationOpen(navigationOpen, announce = false)
-        // In the 480×960 reference, the identity bar spans the entire viewport
-        // above the docked 64dp rail, never just the content column.
-        if (resources.configuration.screenWidthDp in 360..599) {
-            return LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setBackgroundColor(Brand.background)
+        // The approved phone reference has a top title, full-width content
+        // and contextual file actions above the Android system navigation.
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Brand.background)
+            if (resources.configuration.screenWidthDp < 600) {
                 addView(buildPremiumPhoneChrome(), LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(58)
-                ))
-                addView(root, LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(52)
                 ))
             }
+            addView(root, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+            ))
+            addView(fileActionToolbar, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
         }
-        return root
     }
 
     private fun buildPremiumPhoneChrome(): View = LinearLayout(this).apply {
@@ -477,7 +479,7 @@ class MainActivity : Activity() {
         val rail = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            val iconRail = resources.configuration.screenWidthDp in 360..599
+            val iconRail = false
             setPadding(dp(if (iconRail) 4 else 8), dp(14), dp(if (iconRail) 4 else 8), dp(14))
 
             addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(if (iconRail) 32 else 42), dp(if (iconRail) 32 else 42)))
@@ -593,7 +595,7 @@ class MainActivity : Activity() {
             addView(toolbar)
             addView(toolbarMore)
         }
-        addView(fileActionToolbar)
+        // Actions are docked below the viewport, never stacked above the files.
     }
 
     private fun buildStatusCard(): View = panel().apply {
@@ -1481,6 +1483,7 @@ class MainActivity : Activity() {
             styleWorkspaceNavItem(view, selected = key == workspace)
         }
         if (::workspaceTitle.isInitialized) workspaceTitle.text = workspaceLabel(workspace)
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = workspaceLabel(workspace)
         // Do not show stale success/status messages when switching workspaces.
         if (::settingsFeedback.isInitialized) settingsFeedback.visibility = View.GONE
         if (::fileActionToolbar.isInitialized) {
@@ -1512,7 +1515,7 @@ class MainActivity : Activity() {
     }
 
     private fun usesOverlayNavigation(): Boolean =
-        resources.configuration.screenWidthDp < 360
+        resources.configuration.screenWidthDp < 600
 
     private fun setNavigationOpen(open: Boolean, announce: Boolean = true) {
         val compactNavigation = usesOverlayNavigation()
@@ -2373,7 +2376,7 @@ class MainActivity : Activity() {
 
     private fun workspaceNavItem(workspace: Workspace): TextView {
         val label = workspaceLabel(workspace)
-        val iconRail = resources.configuration.screenWidthDp in 360..599
+        val iconRail = false
         // Keep the localized full label available even on the compact icon rail.
         val displayLabel = label
         val iconResource = when (workspace) {
@@ -2424,7 +2427,7 @@ class MainActivity : Activity() {
         setTextColor(Brand.background)
         textSize = 14f
         typeface = Typeface.DEFAULT_BOLD
-        background = rounded(Brand.accent, dp(14), Brand.accent)
+        background = PremiumReferenceStyle.actionBackground(this@MainActivity)
         setOnClickListener { onClick() }
     }
 
@@ -2494,8 +2497,8 @@ class MainActivity : Activity() {
         val badge: Int = Color.rgb(25, 47, 72)
         val border: Int = Color.rgb(39, 70, 99)
         val borderSubtle: Int = Color.rgb(25, 47, 72)
-        val accent: Int = Color.rgb(56, 171, 255)
-        val accentSurface: Int = Color.rgb(19, 45, 82)
+        val accent: Int = PremiumReferenceStyle.purple
+        val accentSurface: Int = PremiumReferenceStyle.selected
         val success: Int = Color.rgb(38, 220, 143)
         val danger: Int = Color.rgb(255, 114, 132)
         val dangerSurface: Int = Color.rgb(57, 32, 45)
