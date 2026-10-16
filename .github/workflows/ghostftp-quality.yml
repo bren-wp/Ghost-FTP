@@ -137,7 +137,12 @@ jobs:
           set -euo pipefail
           grep -Fq -- '--bg: 7 14 26;' ghostftp-desktop/src/styles.css
           grep -Fq -- '--accent: 56 171 255;' ghostftp-desktop/src/styles.css
-          grep -Fq '#38ABFF' android/app/src/main/res/values/colors.xml
+          # Keep the original desktop cyan branding while the two approved
+          # 2026-10-16 Android references use a distinct violet action accent.
+          grep -Fq -- '--accent: 56 171 255;' ghostftp-desktop/src/styles.css
+          grep -Fq '"accent": "#38ABFF"' docs/branding/premium-ui-tokens.json
+          grep -Fq '<color name="ghost_accent">#654BFF</color>' android/app/src/main/res/values/colors.xml
+          grep -Fq 'val accent: Int = PremiumReferenceStyle.purple' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
           grep -Fq 'M24,155c16,-4' android/app/src/main/res/drawable/ic_ghost_ftp.xml
           grep -Fq 'GhostPremiumPalette.accent' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
           grep -Fq 'static let sidebar = Color(red: 13/255, green: 25/255, blue: 43/255)' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
