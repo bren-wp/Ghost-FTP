@@ -475,7 +475,13 @@ class MainActivity : Activity() {
         setPadding(dp(8), dp(4), dp(10), dp(4))
         setBackgroundColor(Brand.background)
 
-        phoneMenuButton = secondaryButton("☰") { setNavigationOpen(!navigationOpen) }.apply {
+        phoneMenuButton = secondaryButton("☰") {
+            if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
+                showSitesOverview()
+            } else {
+                setNavigationOpen(!navigationOpen)
+            }
+        }.apply {
             contentDescription = getString(R.string.nav_open)
             textSize = 20f
             minWidth = 0
@@ -528,6 +534,17 @@ class MainActivity : Activity() {
 
     private fun updatePhoneChromeActions() {
         if (!::phoneQuickButton.isInitialized) return
+        if (::phoneMenuButton.isInitialized) {
+            if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
+                phoneMenuButton.text = "‹"
+                phoneMenuButton.contentDescription = "Back to Sites"
+            } else if (phoneMenuButton.contentDescription == "Back to Sites") {
+                phoneMenuButton.text = if (navigationOpen) "←" else "☰"
+                phoneMenuButton.contentDescription =
+                    if (navigationOpen) getString(R.string.nav_close)
+                    else getString(R.string.nav_open)
+            }
+        }
         val sitesOverview = activeWorkspace == Workspace.SITES && !siteEditorVisible
         val bookmarks = activeWorkspace == Workspace.BOOKMARKS
         when {
