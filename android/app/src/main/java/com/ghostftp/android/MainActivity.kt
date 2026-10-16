@@ -1721,6 +1721,10 @@ class MainActivity : Activity() {
                 setPadding(dp(10), dp(8), dp(8), dp(8))
                 background = PremiumReferenceStyle.surface(this@MainActivity)
                 minimumHeight = dp(62)
+                isClickable = true
+                isFocusable = true
+                contentDescription = "Open bookmark " + bookmark.title
+                setOnClickListener { openRemoteBookmark(bookmark) }
             }
             val folder = PremiumReferenceStyle.caption(this, "▣", 21f).apply {
                 gravity = Gravity.CENTER
@@ -1737,10 +1741,6 @@ class MainActivity : Activity() {
                     maxLines = 1
                     ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
                 })
-                isClickable = true
-                isFocusable = true
-                contentDescription = "Open bookmark " + bookmark.title
-                setOnClickListener { openRemoteBookmark(bookmark) }
             }
             tile.addView(description, LinearLayout.LayoutParams(0, dp(45), 1f))
             val menuButton = PremiumReferenceStyle.action(this, "⋮") {}.apply {
