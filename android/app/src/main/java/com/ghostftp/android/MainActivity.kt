@@ -76,6 +76,7 @@ class MainActivity : Activity() {
     private var sessionCancelledOperations = 0
     private lateinit var syncBackupStatus: TextView
     private lateinit var cloudSection: View
+    private lateinit var cloudTransferOptionsPanel: View
     private lateinit var bookmarksSection: View
     private lateinit var bookmarksRows: LinearLayout
     private lateinit var cloudUploadInput: EditText
@@ -1664,6 +1665,70 @@ class MainActivity : Activity() {
                 "Google Drive account browsing requires a separate OAuth flow; " +
                 "a Drive sharing-page link cannot be used here."
         ))
+
+        // Reference #9 provider choices are clearly DISCONNECTED: an OAuth
+        // provider login is not implemented on Android. Do not invent accounts,
+        // auth sessions or API capabilities. A tap opens the working signed
+        // HTTPS object-transfer path and explains its actual limitation.
+        val savedContent = (0 until childCount).map { getChildAt(it) }
+        removeAllViews()
+        val providers = listOf(
+            "Google Drive" to "G",
+            "Dropbox" to "D",
+            "OneDrive" to "O",
+            "iCloud" to "i"
+        )
+        val advanced = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+        }
+        cloudTransferOptionsPanel = advanced
+        val feedback = PremiumReferenceStyle.caption(this@MainActivity, "", 12f, true).apply {
+            visibility = View.GONE
+        }
+        providers.forEach { (provider, monogram) ->
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(11), dp(6), dp(10), dp(6))
+                minimumHeight = dp(57)
+                background = PremiumReferenceStyle.surface(this@MainActivity,
+                    PremiumReferenceStyle.raised, 9)
+                addView(PremiumReferenceStyle.caption(this@MainActivity, monogram, 22f).apply {
+                    gravity = Gravity.CENTER
+                    setTextColor(PremiumReferenceStyle.purpleLight)
+                    typeface = Typeface.DEFAULT_BOLD
+                }, LinearLayout.LayoutParams(dp(36), dp(37)))
+                addView(LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(PremiumReferenceStyle.caption(this@MainActivity, provider, 13f))
+                    addView(PremiumReferenceStyle.caption(this@MainActivity,
+                        "Not connected", 11f, true))
+                }, LinearLayout.LayoutParams(0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                addView(PremiumReferenceStyle.caption(this@MainActivity, "›", 20f, true))
+                contentDescription = provider + " — not connected"
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    feedback.text = provider +
+                        " account login is not yet available. For supported cloud storage, " +
+                        "use a provider-signed HTTPS object link below."
+                    feedback.visibility = View.VISIBLE
+                    advanced.visibility = View.VISIBLE
+                }
+            }, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp(6) })
+        }
+        addView(feedback)
+        addView(space(7))
+        addView(secondaryButton("Cloud transfer options") {
+            advanced.visibility = if (advanced.visibility == View.VISIBLE)
+                View.GONE else View.VISIBLE
+        }.apply { contentDescription = "Cloud transfer options" })
+        savedContent.forEach { advanced.addView(it) }
+        addView(advanced)
     }
 
     private fun updateCloudPickerButtons() {
@@ -1728,6 +1793,11 @@ class MainActivity : Activity() {
     private fun displayPendingCloudRecovery() {
         if (!::cloudRecoveryNotice.isInitialized) return
         val unresolved = CloudDestinationJournal.hasUnresolved(noBackupFilesDir)
+        // Show real incomplete-download safety warnings even when signed-URL
+        // transfer controls are normally collapsed under provider cards.
+        if (unresolved && ::cloudTransferOptionsPanel.isInitialized) {
+            cloudTransferOptionsPanel.visibility = View.VISIBLE
+        }
         val visibility = if (unresolved) View.VISIBLE else View.GONE
         cloudRecoveryNotice.text = if (unresolved &&
             CloudDestinationJournal.pending(noBackupFilesDir) == null) {
