@@ -386,7 +386,7 @@ private struct ConnectionEditor: View {
                         transferStatus
 
                         if ftpSession.entries.isEmpty && !ftpSession.isListing {
-                            Text("The current directory is empty or the server returned no MLSD entries.")
+                            Text("The current directory is empty or the FTP server returned no listable entries.")
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
                         } else {
@@ -398,7 +398,7 @@ private struct ConnectionEditor: View {
                                         Text(entry.name)
                                         HStack(spacing: 8) {
                                             if let size = entry.size, !entry.isDirectory {
-                                                Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
+                                                Text(FTPControlCodec.displayFileSize(size))
                                             }
                                             if let modified = entry.modified {
                                                 Text(modified)
@@ -415,7 +415,7 @@ private struct ConnectionEditor: View {
                                             Image(systemName: "arrow.down.circle")
                                         }
                                         .buttonStyle(.borderless)
-                                        .help("Download (entry.name)")
+                                        .help("Download \(entry.name)")
                                         .disabled(ftpSession.isTransferring)
                                     }
                                 }
@@ -424,7 +424,7 @@ private struct ConnectionEditor: View {
                         }
                     }
 
-                    Text("This opens a real unencrypted FTP control session, loads the current directory through EPSV + MLSD, and performs file upload/download through passive FTP data channels. FTPS/SFTP session engines are not enabled by this control.")
+                    Text("FTP session: passive EPSV + MLSD (or validated Unix LIST fallback), binary file upload/download. FTPS/SFTP engines are not yet available on macOS.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
