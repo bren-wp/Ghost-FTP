@@ -104,6 +104,16 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun transferDetailsOpensRealStateAndDisablesCancelWhenIdle() {
+        openWorkspace(R.string.workspace_transfers)
+        clickByDescription("View transfer details")
+        assertTextPresent("Transfer Details")
+        assertDescriptionEnabled("Cancel active transfer", false)
+        clickByDescription("Back")
+        assertTextVisibleInViewport(appString(R.string.state_no_transfer))
+    }
+
+    @Test
     fun referenceFilesMoreExposesRealRenameAndRefreshMenuActions() {
         clickByDescription("More file actions")
         onView(withText(appString(R.string.action_rename))).check(matches(isDisplayed()))
