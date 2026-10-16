@@ -196,6 +196,59 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertEqual(entries.first?.size, 4)
     }
 
+    func testUnixLISTFallbackParsesCompleteValidInventory() throws {
+        let listing = Data(
+            [
+                "total 16",
+                "drwxr-xr-x 2 user group 4096 Oct 14 10:30 Assets Folder",
+                "-rw-r--r-- 1 user group 4 Oct 15 2026 Račun 2026.txt",
+                "-rw------- 1 user group 0 Jan 1 00:00 .private",
+            ].joined(separator: "\r\n").appending("\r\n").utf8
+        )
+        let entries = try FTPControlCodec.parseUnixLIST(listing)
+        XCTAssertEqual(entries.map(\.name), ["Assets Folder", ".private", "Račun 2026.txt"])
+        XCTAssertTrue(entries[0].isDirectory)
+        XCTAssertEqual(entries[2].size, 4)
+        XCTAssertNil(entries[2].modified) // ls timestamps are not reliable UTC instants
+    }
+
+    func testUnixLISTFallbackRejectsUnknownRowsInsteadOfHidingEntries() {
+        for row in [
+            "something malicious.txt",
+            "lrwxrwxrwx 1 user group 5 Oct 14 10:30 link -> secret",
+            "-rw-r--r-- 1 user group 4 Oct 14 10:30 nested/escape.txt",
+            "-rw-r--r-- 1 user group 4 Oct 14 10:30 ../traversal",
+            "-rw-r--r-- 1 user group 18446744073709551616 Oct 14 10:30 huge",
+            "-rw-r--r-- 1 user group 4 Oct 32 10:30 invalid-date",
+            "-rw-r--r-- 1 user group 4 Oct 14 25:99 invalid-time",
+        ] {
+            let listing = Data(
+                "drwxr-xr-x 2 user group 0 Oct 14 10:30 good\r\n\(row)\r\n".utf8
+            )
+            XCTAssertThrowsError(try FTPControlCodec.parseUnixLIST(listing), row)
+        }
+    }
+
+    func testUnixLISTFallbackRejectsAmbiguousDuplicateNames() {
+        let listing = Data(
+            [
+                "-rw-r--r-- 1 user group 3 Oct 14 10:30 same.txt",
+                "drwxr-xr-x 2 user group 0 Oct 14 10:30 same.txt",
+            ].joined(separator: "\r\n").appending("\r\n").utf8
+        )
+        XCTAssertThrowsError(try FTPControlCodec.parseUnixLIST(listing))
+        XCTAssertThrowsError(try FTPControlCodec.parseUnixLIST(Data([0xff, 0xfe])))
+    }
+
+    func testUnixLISTFallbackOnlyForExplicitUnsupportedCommand() {
+        for code in [500, 501, 502, 504] {
+            XCTAssertTrue(FTPControlCodec.mlsdIsUnsupported(FTPReply(code: code, lines: [])))
+        }
+        for code in [125, 150, 226, 425, 426, 450, 550] {
+            XCTAssertFalse(FTPControlCodec.mlsdIsUnsupported(FTPReply(code: code, lines: [])))
+        }
+    }
+
     func testExtendedPassivePortParsesEPSVReply() throws {
         let reply = FTPReply(
             code: 229,
