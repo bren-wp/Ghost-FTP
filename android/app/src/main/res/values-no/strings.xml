@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Ingen skyoverføring pågår.</string>
     <string name="label_contact">Kontakt</string>
     <string name="about_contact_desc">Still et spørsmål eller rapporter et problem.</string>
+    <string name="workspace_bookmarks">Bokmerker</string>
+    <string name="bookmarks_add">Legg til bokmerke</string>
+    <string name="bookmarks_empty_title">Ingen bokmerker ennå</string>
+    <string name="bookmarks_empty_detail">Koble til et lagret nettsted, åpne en ekstern mappe og trykk på +.</string>
+    <string name="bookmarks_connect_first">Koble først til en ekte FTP-, FTPS- eller SFTP-server.</string>
+    <string name="bookmarks_save_site_first">Lagre serveren under Nettsteder først. Bokmerker lagrer aldri passord.</string>
+    <string name="bookmarks_invalid">Ugyldig eller duplisert navn eller bane, eller lagring er utilgjengelig. Eksisterende bokmerker er bevart.</string>
+    <string name="bookmarks_remove_title">Fjerne bokmerke?</string>
+    <string name="bookmarks_site_missing">Det lagrede nettstedet finnes ikke lenger. Bokmerket er bevart.</string>
+    <string name="bookmarks_reconnect">Angi påloggingsinformasjon og koble til på nytt for å åpne mappen.</string>
 </resources>
