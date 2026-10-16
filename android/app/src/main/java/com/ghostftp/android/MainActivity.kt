@@ -103,6 +103,7 @@ class MainActivity : Activity() {
     private lateinit var workspaceContainer: LinearLayout
     private lateinit var workspaceTitle: TextView
     private lateinit var phoneChromeTitle: TextView
+    private lateinit var phoneMenuButton: Button
     // Reference workspaces must not inherit Files-only actions or status cards.
     private lateinit var fileActionToolbar: View
     private lateinit var sessionStatusCard: View
@@ -452,12 +453,13 @@ class MainActivity : Activity() {
         setPadding(dp(8), dp(4), dp(10), dp(4))
         setBackgroundColor(Brand.background)
 
-        addView(secondaryButton("☰") { setNavigationOpen(true) }.apply {
-            contentDescription = "Quick navigation"
+        phoneMenuButton = secondaryButton("☰") { setNavigationOpen(!navigationOpen) }.apply {
+            contentDescription = getString(R.string.nav_open)
             textSize = 20f
             minWidth = 0
             minimumWidth = 0
-        }, LinearLayout.LayoutParams(dp(44), dp(44)))
+        }
+        addView(phoneMenuButton, LinearLayout.LayoutParams(dp(44), dp(44)))
         addView(gap(8))
         phoneChromeTitle = TextView(this@MainActivity).apply {
             text = workspaceLabel(activeWorkspace)
@@ -1791,6 +1793,11 @@ class MainActivity : Activity() {
         workspaceNavButtons.forEach { (key, view) ->
             styleWorkspaceNavItem(view, selected = key == workspace)
         }
+        if (workspace != Workspace.SITES && siteEditorVisible) {
+            siteEditorVisible = false
+            siteEditorPanel.visibility = View.GONE
+            sitesOverviewPanel.visibility = View.VISIBLE
+        }
         if (::workspaceTitle.isInitialized) workspaceTitle.text = workspaceLabel(workspace)
         if (::phoneChromeTitle.isInitialized) {
             phoneChromeTitle.text = if (workspace == Workspace.SITES && siteEditorVisible)
@@ -1830,6 +1837,16 @@ class MainActivity : Activity() {
         }
     }
 
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        when {
+            usesOverlayNavigation() && navigationOpen -> setNavigationOpen(false)
+            activeWorkspace == Workspace.SITES && siteEditorVisible -> showSitesOverview()
+            activeWorkspace != Workspace.FILES -> setWorkspace(Workspace.FILES)
+            else -> super.onBackPressed()
+        }
+    }
+
     private fun usesOverlayNavigation(): Boolean =
         resources.configuration.screenWidthDp < 600
 
@@ -1845,8 +1862,13 @@ class MainActivity : Activity() {
                 if (compactNavigation && navigationOpen) View.VISIBLE else View.GONE
             navigationScrim.isFocusable = compactNavigation && navigationOpen
         }
+        if (::phoneMenuButton.isInitialized) {
+            phoneMenuButton.text = if (navigationOpen) "←" else "☰"
+            phoneMenuButton.contentDescription =
+                if (navigationOpen) getString(R.string.nav_close) else getString(R.string.nav_open)
+        }
         if (::navigationToggleButton.isInitialized) {
-            navigationToggleButton.text = if (open) "←" else "☰"
+            navigationToggleButton.text = if (navigationOpen) "←" else "☰"
             navigationToggleButton.contentDescription =
                 if (open) getString(R.string.nav_close) else getString(R.string.nav_open)
             if (announce) {
@@ -2346,6 +2368,7 @@ class MainActivity : Activity() {
         statusDetail.text = result.detail
         transferStateText.text = result.detail
         appendActivity(result.title, result.detail)
+        if (::localRows.isInitialized) refreshLocalPane()
         if (refreshAfter && activeProfile != null) refreshActive()
     }
 
