@@ -1,5 +1,6 @@
 ## 0.95.21 — macOS FTP interoperability, desktop connect budget and Android workspace polish (unreleased) — 16 October 2026
 
+- macOS: real navigation, create-folder and confirmation-protected file/empty-folder deletion (MKD, DELE, RMD) with live FTP fixture coverage; no recursive-delete shortcut.
 - macOS: fall back to strict Unix LIST only after an explicit unsupported MLSD response; refuse unknown, ambiguous or hostile entries rather than returning an incomplete remote inventory.
 - macOS: render arbitrary UInt64 remote file sizes without crashing on Int64 overflow.
 - Windows/Linux: FTP/FTPS control TCP attempts share a bounded overall connect budget across DNS answers, with loopback regressions.

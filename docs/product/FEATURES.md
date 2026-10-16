@@ -2,6 +2,14 @@
 
 # Ghost FTP — Implemented Features
 
+## 0.95.21 development candidate — cross-platform reliability (not yet released)
+
+macOS native FTP now negotiates an authenticated passive directory listing and supports fail-closed Unix LIST fallback for servers that explicitly reject MLSD. The Files editor supports navigable folders, creating directories (MKD), confirmed deletion of files (DELE), and confirmed removal of **empty** folders (RMD). Untrusted remote file sizes are formatted without converting UInt64 values beyond Int64 capacity. These macOS additions are for unencrypted FTP only: macOS FTPS, SFTP, signed/notarized distribution and full FileZilla parity are **not implemented** by this patch.
+
+Windows/Linux FTP and explicit FTPS now bound the sum of TCP attempts across DNS addresses. Android uses existing premium tokens but limits contextual FTP buttons and status to relevant workspaces. The 16 Android 1:1 screen acceptance tests have not passed; do not claim pixel-perfect or full visual parity.
+
+
+
 ## Post-v0.95.18 development: safer FileZilla saved-site import (PR candidate)
 
 The existing FileZilla XML importer now brings saved folder breadcrumbs into Ghost FTP's Sites grouping, accepts a trailing text site label as exported by FileZilla, and retains mandatory explicit FTPS mapping without importing credentials. The selected-profile preview and save UI remain the same. Bounded input, nesting, site count and DTD/malformed-entity rejection prevent incomplete or oversized imports from being treated as success. This work is **unreleased** until a reviewed PR passes exact-SHA CI; refer to `docs/qa/FILEZILLA_PARITY.md` for evidence and limitations.
