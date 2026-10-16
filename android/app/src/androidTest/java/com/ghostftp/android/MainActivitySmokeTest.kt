@@ -285,6 +285,24 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun referenceCloudShowsFourHonestProviderCardsAndKeepsRealSignedTransfer() {
+        openWorkspaceByLabel("Cloud storage")
+        for (provider in listOf("Google Drive", "Dropbox", "OneDrive", "iCloud")) {
+            assertDescriptionPresent(provider + " — not connected")
+        }
+        assertDescriptionPresent("Choose file and upload")
+        assertDescriptionPresent("Choose destination and download")
+        clickByDescription("Google Drive — not connected")
+        scenario.onActivity { activity ->
+            val notice = findView(activity.window.decorView) {
+                it is TextView && it.isShown &&
+                    it.text.toString().startsWith("Google Drive account login is not yet available.")
+            }
+            assertNotNull("Cannot present pretend account login instead of real signed-link fallback", notice)
+        }
+    }
+
+    @Test
     fun settingsShowsVisibleLegalLinksAndBrendigoAuthor() {
         openWorkspace(R.string.workspace_settings)
         clickByDescription("Settings: Advanced")
@@ -771,6 +789,7 @@ class MainActivitySmokeTest {
     private fun openWorkspaceByLabel(label: String) {
         ensureNavigationOpen()
         clickByDescription(appString(R.string.workspace_open, label))
+        if (label == "Cloud storage") clickByDescription("Cloud transfer options")
     }
 
     private fun clickByDescription(description: String) {
