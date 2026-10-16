@@ -94,6 +94,10 @@ class MainActivity : Activity() {
     private lateinit var disconnectButton: Button
     private lateinit var refreshButton: Button
     private lateinit var remoteRows: LinearLayout
+    private lateinit var localRows: LinearLayout
+    private lateinit var remoteDirectoryLabel: TextView
+    private lateinit var localDirectoryLabel: TextView
+    private var localBrowseDirectory: File? = null
     private lateinit var activityRows: LinearLayout
     private lateinit var contentScroll: ScrollView
     private lateinit var workspaceContainer: LinearLayout
@@ -1090,14 +1094,108 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun buildFilesCard(): View = panel().apply {
-        addView(sectionTitle(getString(R.string.workspace_files)))
-        addView(sectionDescription(getString(R.string.desc_files)))
-        remoteRows = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.VERTICAL
+    private fun buildFilesCard(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        val twoPane = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.TOP
         }
-        addView(remoteRows)
+        fun pane(label: String, isRemote: Boolean): LinearLayout =
+            LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(7), dp(8), dp(7), dp(10))
+                background = PremiumReferenceStyle.surface(this@MainActivity)
+                val header = TextView(this@MainActivity).apply {
+                    text = label
+                    textSize = 13f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(PremiumReferenceStyle.text)
+                    setPadding(dp(4), dp(4), dp(4), dp(9))
+                    ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
+                    maxLines = 1
+                }
+                if (isRemote) remoteDirectoryLabel = header else localDirectoryLabel = header
+                addView(header)
+                val entries = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
+                if (isRemote) remoteRows = entries else localRows = entries
+                addView(entries)
+            }
+        twoPane.addView(pane("Remote /", true),
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                .apply { marginEnd = dp(4) })
+        twoPane.addView(pane("Local", false),
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                .apply { marginStart = dp(4) })
+        addView(twoPane)
+        refreshLocalPane()
     }
+
+    // Android SAF does not grant arbitrary /storage/emulated/0 traversal.
+    // The local pane is a REAL, bounded app-owned downloads directory, never
+    // a fake listing of system Download/Pictures/DCIM folders.
+    private fun refreshLocalPane() {
+        if (!::localRows.isInitialized) return
+        val base = (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir)
+            .canonicalFile
+        val current = (localBrowseDirectory ?: base).canonicalFile
+        val inside = current.path == base.path ||
+            current.path.startsWith(base.path + File.separator)
+        if (!inside || !current.isDirectory) localBrowseDirectory = base
+        else localBrowseDirectory = current
+        val directory = localBrowseDirectory ?: base
+        localDirectoryLabel.text = "Local · " + directory.name
+        localRows.removeAllViews()
+        if (directory != base) {
+            localRows.addView(compactBrowserRow("..", true) {
+                localBrowseDirectory = directory.parentFile
+                refreshLocalPane()
+            })
+        }
+        val entries = directory.listFiles()
+            ?.filter {
+                runCatching {
+                    val path = it.canonicalFile.path
+                    path.startsWith(base.path + File.separator) && !it.isHidden
+                }.getOrDefault(false)
+            }?.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase(Locale.ROOT) }))
+            ?.take(150).orEmpty()
+        if (entries.isEmpty()) {
+            localRows.addView(PremiumReferenceStyle.caption(this, "No local files", 11f, true))
+        }
+        entries.forEach { file ->
+            localRows.addView(compactBrowserRow(file.name, file.isDirectory) {
+                if (file.isDirectory) {
+                    localBrowseDirectory = file
+                    refreshLocalPane()
+                } else {
+                    android.widget.Toast.makeText(this@MainActivity,
+                        file.name + " · use Upload to choose a document", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            })
+        }
+    }
+
+    private fun compactBrowserRow(name: String, directory: Boolean, onClick: () -> Unit): View =
+        LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = dp(43)
+            val icon = PremiumReferenceStyle.caption(this@MainActivity,
+                if (directory) "▣" else "▤", 17f).apply {
+                setTextColor(if (directory) PremiumReferenceStyle.yellow else PremiumReferenceStyle.purpleLight)
+            }
+            addView(icon, LinearLayout.LayoutParams(dp(24), dp(36)))
+            addView(PremiumReferenceStyle.caption(this@MainActivity, name, 12f).apply {
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }, LinearLayout.LayoutParams(0, dp(40), 1f))
+            isClickable = true
+            isFocusable = true
+            contentDescription = (if (directory) "Open folder " else "File ") + name
+            setOnClickListener { onClick() }
+        }
 
     private fun buildTransfersCard(): View = panel().apply {
         addView(sectionTitle(getString(R.string.workspace_transfers)))
