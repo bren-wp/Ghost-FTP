@@ -250,6 +250,96 @@ enum FTPControlCodec {
         output.append(chunk)
     }
 
+    /// A server may not implement RFC 3659 MLSD. Its traditional Unix LIST
+    /// response is usable only if EVERY record is recognized. Guessing a
+    /// file type or dropping unknown lines would make destructive actions
+    /// operate on an incomplete remote directory.
+    static func parseUnixLIST(_ data: Data) throws -> [FTPDirectoryEntry] {
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw FTPControlError.invalidDirectoryListing
+        }
+        let pattern = #"^([d-][rwxstST-]{9})\s+[0-9]+\s+\S+\s+\S+\s+([0-9]+)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+([0-9]{1,2})\s+([0-9]{4}|[0-9]{1,2}:[0-9]{2})\s+(.+)$"#
+        let matcher = try NSRegularExpression(pattern: pattern)
+        var entries: [FTPDirectoryEntry] = []
+        var seen = Set<String>()
+        for row in text.split(whereSeparator: \.isNewline) {
+            let line = String(row)
+            // POSIX ls often emits a single aggregate "total N" record.
+            if line.hasPrefix("total "), UInt64(line.dropFirst(6)) != nil {
+                continue
+            }
+            let range = NSRange(line.startIndex..<line.endIndex, in: line)
+            guard let match = matcher.firstMatch(in: line, range: range),
+                  match.range == range else {
+                throw FTPControlError.invalidDirectoryListing
+            }
+            func part(_ index: Int) throws -> String {
+                guard let range = Range(match.range(at: index), in: line) else {
+                    throw FTPControlError.invalidDirectoryListing
+                }
+                return String(line[range])
+            }
+            let mode = try part(1)
+            let rawSize = try part(2)
+            let day = try part(4)
+            let timestamp = try part(5)
+            let name = try part(6)
+            guard let size = UInt64(rawSize),
+                  let dayNumber = Int(day),
+                  (1...31).contains(dayNumber) else {
+                throw FTPControlError.invalidDirectoryListing
+            }
+            if timestamp.contains(":") {
+                let components = timestamp.split(separator: ":")
+                guard components.count == 2,
+                      let hour = Int(components[0]), hour < 24,
+                      let minute = Int(components[1]), minute < 60 else {
+                    throw FTPControlError.invalidDirectoryListing
+                }
+            }
+            // Unix LIST may include dot pseudodirectories with -a.
+            if name == "." || name == ".." {
+                guard mode.first == "d" else {
+                    throw FTPControlError.invalidDirectoryListing
+                }
+                continue
+            }
+            try validateRemoteFileName(name)
+            guard seen.insert(name).inserted else {
+                throw FTPControlError.invalidDirectoryListing
+            }
+            entries.append(
+                FTPDirectoryEntry(
+                    name: name,
+                    isDirectory: mode.first == "d",
+                    size: size,
+                    modified: nil // ls time fields have no timezone/UTC proof
+                )
+            )
+        }
+        return entries.sorted {
+            if $0.isDirectory != $1.isDirectory {
+                return $0.isDirectory && !$1.isDirectory
+            }
+            return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+    }
+
+    static func displayFileSize(_ size: UInt64) -> String {
+        // Untrusted MLSD facts may legally represent all UInt64 values.
+        // Int64(size) traps at runtime for values above Int64.max.
+        guard size <= UInt64(Int64.max) else {
+            return "\(size) bytes"
+        }
+        return ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
+    }
+
+    static func mlsdIsUnsupported(_ reply: FTPReply) -> Bool {
+        // Only explicit command-not-supported replies permit LIST fallback.
+        // A 550 denial, 425 socket failure or other server error must fail.
+        return [500, 501, 502, 504].contains(reply.code)
+    }
+
     static func parseMLSD(_ data: Data) throws -> [FTPDirectoryEntry] {
         guard let text = String(data: data, encoding: .utf8) else {
             throw FTPControlError.invalidDirectoryListing
@@ -458,6 +548,24 @@ actor FTPControlSession {
         try expect(reply, accepted: [200], description: "200 NOOP")
     }
 
+    func createDirectory(named name: String, timeoutSeconds: TimeInterval = 8) async throws {
+        try FTPControlCodec.validateRemoteFileName(name)
+        let reply = try await command("MKD \(name)", timeoutSeconds: timeoutSeconds)
+        try expect(reply, accepted: [257], description: "257 directory created")
+    }
+
+    func deleteFile(named name: String, timeoutSeconds: TimeInterval = 8) async throws {
+        try FTPControlCodec.validateRemoteFileName(name)
+        let reply = try await command("DELE \(name)", timeoutSeconds: timeoutSeconds)
+        try expect(reply, accepted: [250], description: "250 file deleted")
+    }
+
+    func removeEmptyDirectory(named name: String, timeoutSeconds: TimeInterval = 8) async throws {
+        try FTPControlCodec.validateRemoteFileName(name)
+        let reply = try await command("RMD \(name)", timeoutSeconds: timeoutSeconds)
+        try expect(reply, accepted: [250], description: "250 empty directory removed")
+    }
+
 
     func downloadFile(
         remoteName: String,
@@ -609,6 +717,10 @@ actor FTPControlSession {
         do {
             try await sendLine("MLSD", timeoutSeconds: timeoutSeconds)
             let preliminary = try await readReply(timeoutSeconds: timeoutSeconds)
+            if FTPControlCodec.mlsdIsUnsupported(preliminary) {
+                dataConnection.cancel()
+                return try await listUnixDirectory(timeoutSeconds: timeoutSeconds)
+            }
             try expect(
                 preliminary,
                 accepted: [125, 150],
@@ -629,6 +741,36 @@ actor FTPControlSession {
             )
 
             return try FTPControlCodec.parseMLSD(payload)
+        } catch {
+            dataConnection.cancel()
+            throw error
+        }
+    }
+
+    /// Open a new passive data connection after an explicit MLSD rejection.
+    /// The rejected transfer's data socket is never reused.
+    private func listUnixDirectory(timeoutSeconds: TimeInterval) async throws -> [FTPDirectoryEntry] {
+        let dataConnection = try await openPassiveDataConnection(timeoutSeconds: timeoutSeconds)
+        do {
+            try await sendLine("LIST", timeoutSeconds: timeoutSeconds)
+            let preliminary = try await readReply(timeoutSeconds: timeoutSeconds)
+            try expect(
+                preliminary,
+                accepted: [125, 150],
+                description: "125 or 150 LIST transfer start"
+            )
+            let payload = try await readDataUntilClosed(
+                dataConnection,
+                timeoutSeconds: timeoutSeconds
+            )
+            dataConnection.cancel()
+            let completion = try await readReply(timeoutSeconds: timeoutSeconds)
+            try expect(
+                completion,
+                accepted: [226, 250],
+                description: "226 or 250 LIST transfer complete"
+            )
+            return try FTPControlCodec.parseUnixLIST(payload)
         } catch {
             dataConnection.cancel()
             throw error

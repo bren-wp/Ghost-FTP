@@ -3,7 +3,7 @@ use anyhow::{anyhow, Context, Result};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::sync::{Arc, Mutex as StdMutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use suppaftp::native_tls::TlsConnector;
 use suppaftp::types::{FileType, Mode};
 use suppaftp::{FtpError, FtpStream, NativeTlsConnector, NativeTlsFtpStream, Status};
@@ -504,30 +504,49 @@ const FTP_IO_TIMEOUT: Duration = Duration::from_secs(60);
 /// bounded TCP connect plus read/write deadlines. Platform-default socket
 /// waits can otherwise make an unreachable site look like a frozen app.
 fn connect_control_socket(host: &str, port: u16) -> Result<TcpStream> {
-    let addrs = (host, port)
+    let addrs: Vec<SocketAddr> = (host, port)
         .to_socket_addrs()
-        .with_context(|| format!("resolve FTP host {host}"))?;
+        .with_context(|| format!("resolve FTP host {host}"))?
+        .collect();
+    let stream = connect_control_addresses(&addrs, FTP_CONNECT_TIMEOUT)
+        .with_context(|| format!("FTP connect {host}:{port}"))?;
+    stream
+        .set_read_timeout(Some(FTP_IO_TIMEOUT))
+        .context("set FTP control read timeout")?;
+    stream
+        .set_write_timeout(Some(FTP_IO_TIMEOUT))
+        .context("set FTP control write timeout")?;
+    stream
+        .set_nodelay(true)
+        .context("set FTP control TCP_NODELAY")?;
+    Ok(stream)
+}
+
+/// Bound the entire connect attempt across all DNS answers (IPv4 + IPv6),
+/// not 15 seconds PER address. Keep a fair time slice for later reachable
+/// answers if the first route is blackholed. The session still authenticates
+/// only after a real successful socket connect.
+fn connect_control_addresses(addrs: &[SocketAddr], budget: Duration) -> Result<TcpStream> {
+    if addrs.is_empty() {
+        return Err(anyhow!("FTP hostname resolved to no addresses"));
+    }
+    let deadline = Instant::now() + budget;
     let mut last_error = None;
-    for addr in addrs {
-        match TcpStream::connect_timeout(&addr, FTP_CONNECT_TIMEOUT) {
-            Ok(stream) => {
-                stream
-                    .set_read_timeout(Some(FTP_IO_TIMEOUT))
-                    .context("set FTP control read timeout")?;
-                stream
-                    .set_write_timeout(Some(FTP_IO_TIMEOUT))
-                    .context("set FTP control write timeout")?;
-                stream
-                    .set_nodelay(true)
-                    .context("set FTP control TCP_NODELAY")?;
-                return Ok(stream);
-            }
+    for (index, addr) in addrs.iter().enumerate() {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        let addresses_left = (addrs.len() - index) as u32;
+        let attempt = remaining / addresses_left;
+        if attempt.is_zero() {
+            break;
+        }
+        match TcpStream::connect_timeout(addr, attempt) {
+            Ok(stream) => return Ok(stream),
             Err(error) => last_error = Some(error),
         }
     }
     match last_error {
-        Some(error) => Err(error).with_context(|| format!("FTP connect {host}:{port}")),
-        None => Err(anyhow!("FTP host {host} resolved to no addresses")),
+        Some(error) => Err(error).context("all FTP control endpoints failed"),
+        None => Err(anyhow!("FTP control connect time budget exhausted")),
     }
 }
 
@@ -699,4 +718,33 @@ fn login(stream: &mut FtpStreamKind, user: &str, password: &str) -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod control_connect_budget_tests {
+    use super::connect_control_addresses;
+    use std::net::{SocketAddr, TcpListener};
+    use std::time::Duration;
+
+    #[test]
+    fn closed_first_address_cannot_hide_a_reachable_second_address() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("loopback listener");
+        let reachable = listener.local_addr().expect("reachable address");
+        let unused = TcpListener::bind("127.0.0.1:0").expect("temporary listener");
+        let refused = unused.local_addr().expect("refused address");
+        drop(unused);
+
+        let socket = connect_control_addresses(&[refused, reachable], Duration::from_secs(6))
+            .expect("second address should be tried");
+        assert_eq!(socket.peer_addr().expect("peer"), reachable);
+    }
+
+    #[test]
+    fn zero_budget_and_empty_dns_answers_must_never_report_connected() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("loopback listener");
+        let reachable = listener.local_addr().expect("reachable address");
+        assert!(connect_control_addresses(&[reachable], Duration::ZERO).is_err());
+        let empty: [SocketAddr; 0] = [];
+        assert!(connect_control_addresses(&empty, Duration::from_secs(1)).is_err());
+    }
 }

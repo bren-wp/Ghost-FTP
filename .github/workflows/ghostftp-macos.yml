@@ -53,38 +53,57 @@ jobs:
               os.path.join(os.environ["RUNNER_TEMP"], "ghostftp-macos-ftp-root"),
               perm="elradfmwMT",
           )
-          handler = FTPHandler
+          class LegacyFTPHandler(FTPHandler):
+              def ftp_MLSD(self, path):
+                  self.respond("502 MLSD is not implemented on this FTP server")
+
+          port = int(os.environ.get("GHOSTFTP_MACOS_TEST_PORT", "2127"))
+          handler = LegacyFTPHandler if os.environ.get("GHOSTFTP_MACOS_LEGACY") == "1" else FTPHandler
           handler.authorizer = authorizer
-          handler.passive_ports = range(32000, 32010)
-          FTPServer(("127.0.0.1", 2127), handler).serve_forever()
+          handler.passive_ports = range(32000 + (port - 2127) * 10, 32010 + (port - 2127) * 10)
+          FTPServer(("127.0.0.1", port), handler).serve_forever()
           PY
-          nohup python3 "$RUNNER_TEMP/ghostftp-macos-ftp-server.py" \
-            > "$RUNNER_TEMP/ghostftp-macos-ftp-server.log" 2>&1 < /dev/null &
-          echo "$!" > "$RUNNER_TEMP/ghostftp-macos-ftp-server.pid"
-          for attempt in $(seq 1 30); do
-            if nc -z 127.0.0.1 2127; then
-              echo "Real local macOS FTP service accepts TCP connections."
-              exit 0
-            fi
-            sleep 1
+          for port in 2127 2128; do
+            legacy=0
+            if [ "$port" = 2128 ]; then legacy=1; fi
+            GHOSTFTP_MACOS_TEST_PORT="$port" GHOSTFTP_MACOS_LEGACY="$legacy" \
+              nohup python3 "$RUNNER_TEMP/ghostftp-macos-ftp-server.py" \
+                > "$RUNNER_TEMP/ghostftp-macos-ftp-server-$port.log" 2>&1 < /dev/null &
+            echo "$!" > "$RUNNER_TEMP/ghostftp-macos-ftp-server-$port.pid"
           done
-          cat "$RUNNER_TEMP/ghostftp-macos-ftp-server.log"
-          echo "::error::macOS real FTP test server did not start."
-          exit 1
+          for port in 2127 2128; do
+            ready=0
+            for attempt in $(seq 1 30); do
+              if nc -z 127.0.0.1 "$port"; then
+                ready=1
+                break
+              fi
+              sleep 1
+            done
+            if [ "$ready" != 1 ]; then
+              cat "$RUNNER_TEMP/ghostftp-macos-ftp-server-$port.log"
+              echo "::error::macOS real FTP test server $port did not start."
+              exit 1
+            fi
+          done
+          echo "Real MLSD and legacy LIST macOS FTP fixtures are accepting connections."
 
       - name: macOS unit and real FTP integration tests
         shell: bash
         env:
           GHOSTFTP_MACOS_E2E_PORT: '2127'
+          GHOSTFTP_MACOS_LIST_E2E_PORT: '2128'
         run: swift test --package-path macos
 
       - name: Stop macOS FTP fixture
         if: always()
         shell: bash
         run: |
-          if [ -f "$RUNNER_TEMP/ghostftp-macos-ftp-server.pid" ]; then
-            kill "$(cat "$RUNNER_TEMP/ghostftp-macos-ftp-server.pid")" || true
-          fi
+          for port in 2127 2128; do
+            if [ -f "$RUNNER_TEMP/ghostftp-macos-ftp-server-$port.pid" ]; then
+              kill "$(cat "$RUNNER_TEMP/ghostftp-macos-ftp-server-$port.pid")" || true
+            fi
+          done
 
       - name: macOS release build
         shell: bash

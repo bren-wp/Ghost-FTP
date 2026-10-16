@@ -98,6 +98,10 @@ class MainActivity : Activity() {
     private lateinit var contentScroll: ScrollView
     private lateinit var workspaceContainer: LinearLayout
     private lateinit var workspaceTitle: TextView
+    // Reference workspaces must not inherit Files-only actions or status cards.
+    private lateinit var fileActionToolbar: View
+    private lateinit var sessionStatusCard: View
+    private lateinit var settingsFeedback: TextView
     private lateinit var navigationRail: View
     private lateinit var navigationScrim: View
     private lateinit var navigationToggleButton: Button
@@ -336,7 +340,10 @@ class MainActivity : Activity() {
         }
         content.addView(buildHeader())
         content.addView(space(10))
-        content.addView(buildStatusCard())
+        sessionStatusCard = buildStatusCard().apply {
+            contentDescription = "Session status panel"
+        }
+        content.addView(sessionStatusCard)
         content.addView(space(10))
         content.addView(buildInlineConfirmationCard())
         content.addView(space(10))
@@ -567,7 +574,6 @@ class MainActivity : Activity() {
         toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_upload)) { uploadOrPickFile() }), buttonParams(weight = 1f))
         toolbar.addView(gap(8))
         toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_download)) { downloadRemoteFile() }), buttonParams(weight = 1f))
-        addView(toolbar)
 
         val toolbarMore = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -579,7 +585,15 @@ class MainActivity : Activity() {
         toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_rename)) { renameRemoteEntry() }), buttonParams(weight = 1f))
         toolbarMore.addView(gap(8))
         toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_delete), destructive = true) { deleteRemoteFile() }), buttonParams(weight = 1f))
-        addView(toolbarMore)
+        // Contextual actions belong to the Files workspace, not Settings,
+        // About, Sites, Sync or transfer-history surfaces.
+        fileActionToolbar = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            contentDescription = "File actions"
+            addView(toolbar)
+            addView(toolbarMore)
+        }
+        addView(fileActionToolbar)
     }
 
     private fun buildStatusCard(): View = panel().apply {
@@ -1354,6 +1368,19 @@ class MainActivity : Activity() {
         }), buttonParams(weight = 1f))
         addView(secondRow)
 
+        // Settings actions must report real outcomes in the currently visible
+        // workspace. Hiding the Files-only session panel must not also hide
+        // Clear activity / Reset transfer / Reset connection feedback.
+        settingsFeedback = TextView(this@MainActivity).apply {
+            visibility = View.GONE
+            contentDescription = "Settings action feedback"
+            setTextColor(Brand.textSoft)
+            textSize = 12f
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = rounded(Brand.panelStrong, dp(12), Brand.border)
+        }
+        addView(settingsFeedback)
+
         // Official support and legal links remain accessible in Settings.
         addView(space(16))
         addView(officialLinkRow(getString(R.string.label_support), getString(R.string.about_support_desc), SUPPORT_URL))
@@ -1454,6 +1481,15 @@ class MainActivity : Activity() {
             styleWorkspaceNavItem(view, selected = key == workspace)
         }
         if (::workspaceTitle.isInitialized) workspaceTitle.text = workspaceLabel(workspace)
+        // Do not show stale success/status messages when switching workspaces.
+        if (::settingsFeedback.isInitialized) settingsFeedback.visibility = View.GONE
+        if (::fileActionToolbar.isInitialized) {
+            fileActionToolbar.visibility = if (workspace == Workspace.FILES) View.VISIBLE else View.GONE
+        }
+        if (::sessionStatusCard.isInitialized) {
+            sessionStatusCard.visibility =
+                if (workspace == Workspace.FILES || workspace == Workspace.SITES) View.VISIBLE else View.GONE
+        }
         if (::workspaceContainer.isInitialized) {
             workspaceContainer.contentDescription = getString(R.string.workspace_content, workspaceLabel(workspace))
         }
@@ -1674,6 +1710,14 @@ class MainActivity : Activity() {
 
     private fun showMessage(title: String, detail: String) {
         if (!::statusTitle.isInitialized || !::statusDetail.isInitialized) return
+        if (activeWorkspace == Workspace.SETTINGS && ::settingsFeedback.isInitialized) {
+            // Only the currently visible Settings notice owns this message.
+            // Updating hidden Files/Transfers labels as well makes screen
+            // readers and hierarchy tests pick the invisible duplicate first.
+            settingsFeedback.text = detail
+            settingsFeedback.visibility = View.VISIBLE
+            return
+        }
         statusTitle.text = title
         statusDetail.text = detail
         if (::transferStateText.isInitialized) transferStateText.text = detail

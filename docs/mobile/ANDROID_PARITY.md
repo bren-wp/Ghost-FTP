@@ -1,10 +1,15 @@
-> Ghost FTP **0.95.20** (release cycle), following published **v0.95.19**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.21** (release cycle), following published **v0.95.20**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+
+
+### 0.95.21 Android layout parity increment — source only, exact-device acceptance pending
+
+The docked 64dp rail and 58dp top bar remain on the 480dp reference layout. Files-only FTP actions now hide when switching to Sites, Transfers, Sync, Cloud, Settings and About. The live FTP session status is visible only on Files and Sites; instrumented navigation asserts the proper visibility. This removes a concrete source-level source of extra/irrelevant rows. The original 16 design images are not currently mounted for direct comparison; no screen is certified 1:1 yet. The app still needs actual device capture, pixel diff and interaction QA against the user-provided designs.
 
 # Ghost FTP Android parity
 
-Current development source: **0.95.20** (security and premium visual QA); previous published release: **0.95.19**. Historical versioned notes below remain unchanged.
+Current development source: **0.95.21** (security and premium visual QA); previous published release: **0.95.20**. Historical versioned notes below remain unchanged.
 
-> Older 0.94.0/0.93.0 notes below remain historical; current development is **0.95.20**, and the latest public release is **0.95.19**.
+> Older 0.94.0/0.93.0 notes below remain historical; current development is **0.95.21**, and the latest public release is **0.95.20**.
 
 Ghost FTP Android follows the same product identity and file-action model as the Windows/Linux app while using a mobile-first native Kotlin layout.
 
@@ -21,7 +26,7 @@ The Android Cloud storage workspace transfers one object at a time using short-l
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
 - Active source version: **0.95.18**
-- Previous canonical release: **0.95.19**
+- Previous canonical release: **0.95.20**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`

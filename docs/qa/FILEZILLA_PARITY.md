@@ -87,6 +87,13 @@ This diagnostic never changes OS firewall/router, never exposes secret values in
 - Recursive FTP deletion now refuses to begin if the server rejects `LIST -a`. Bare `LIST` cannot prove hidden entries are included; deleting only visible entries can otherwise leave a partially deleted directory tree. Source: `src-tauri/src/remotefs/ftp.rs` with a guard regression. A real server that rejects `LIST -a`, with existing hidden files, is still required for destructive-operation E2E evidence.
 - These are targeted safety improvements, not proof of FileZilla equivalence or complete FTP interoperability.
 
+
+## v0.95.21 macOS FTP and Android reference QA (candidate; CI pending)
+
+The macOS native FTP Preview now uses verified EPSV/MLSD with strict Unix LIST fallback **only** for 500/501/502/504 unsupported-MLSD replies. The parser rejects unknown and duplicate records, symlinks, invalid paths, corrupt UTF-8, overflowed file sizes and date/time fields, so incomplete listings cannot authorize destructive actions. The editor adds working directory navigation, real MKD, confirmed DELE file deletion, and confirmed nonrecursive RMD for empty folders, plus an overflow-safe `UInt64` file-size label. Swift XCTest covers the parser and the local FTP fixture now exercises MKD/DELE/RMD, but third-party servers and macOS FTPS/SFTP remain unverified. Do not mark macOS complete.
+
+Android now hides FTP-only action buttons and session status on unrelated workspaces, with an instrumented navigation visibility test; **none of the 16 Android reference screenshots has been certified 1:1 against real app output**. Source/reference traceability is not pixel parity. Windows/Linux FTP uses a shared connect deadline across DNS IPv4/IPv6 entries, covered by Rust loopback tests. v0.95.20 remains the published baseline until exact-SHA release gates pass.
+
 ## Ghost FTP better
 
 No capability is claimed here yet. Marketing superiority is not a substitute for measured evidence.

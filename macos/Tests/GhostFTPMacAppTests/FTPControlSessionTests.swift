@@ -196,6 +196,71 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertEqual(entries.first?.size, 4)
     }
 
+    func testUnixLISTFallbackParsesCompleteValidInventory() throws {
+        let listing = Data(
+            [
+                "total 16",
+                "drwxr-xr-x 2 user group 4096 Oct 14 10:30 Assets Folder",
+                "-rw-r--r-- 1 user group 4 Oct 15 2026 Račun 2026.txt",
+                "-rw------- 1 user group 0 Jan 1 00:00 .private",
+            ].joined(separator: "\r\n").appending("\r\n").utf8
+        )
+        let entries = try FTPControlCodec.parseUnixLIST(listing)
+        XCTAssertEqual(entries.map(\.name), ["Assets Folder", ".private", "Račun 2026.txt"])
+        XCTAssertTrue(entries[0].isDirectory)
+        XCTAssertEqual(entries[2].size, 4)
+        XCTAssertNil(entries[2].modified) // ls timestamps are not reliable UTC instants
+    }
+
+    func testUnixLISTFallbackRejectsUnknownRowsInsteadOfHidingEntries() {
+        for row in [
+            "something malicious.txt",
+            "lrwxrwxrwx 1 user group 5 Oct 14 10:30 link -> secret",
+            "-rw-r--r-- 1 user group 4 Oct 14 10:30 nested/escape.txt",
+            "-rw-r--r-- 1 user group 4 Oct 14 10:30 ../traversal",
+            "-rw-r--r-- 1 user group 18446744073709551616 Oct 14 10:30 huge",
+            "-rw-r--r-- 1 user group 4 Oct 32 10:30 invalid-date",
+            "-rw-r--r-- 1 user group 4 Oct 14 25:99 invalid-time",
+        ] {
+            let listing = Data(
+                "drwxr-xr-x 2 user group 0 Oct 14 10:30 good\r\n\(row)\r\n".utf8
+            )
+            XCTAssertThrowsError(try FTPControlCodec.parseUnixLIST(listing), row)
+        }
+    }
+
+    func testUnixLISTFallbackRejectsAmbiguousDuplicateNames() {
+        let listing = Data(
+            [
+                "-rw-r--r-- 1 user group 3 Oct 14 10:30 same.txt",
+                "drwxr-xr-x 2 user group 0 Oct 14 10:30 same.txt",
+            ].joined(separator: "\r\n").appending("\r\n").utf8
+        )
+        XCTAssertThrowsError(try FTPControlCodec.parseUnixLIST(listing))
+        XCTAssertThrowsError(try FTPControlCodec.parseUnixLIST(Data([0xff, 0xfe])))
+    }
+
+    func testExtremeRemoteSizeDoesNotOverflowSwiftInt64() throws {
+        let entry = try FTPControlCodec.parseMLSD(
+            Data("type=file;size=18446744073709551615; huge.bin\r\n".utf8)
+        )
+        XCTAssertEqual(entry.first?.size, UInt64.max)
+        XCTAssertEqual(
+            FTPControlCodec.displayFileSize(UInt64.max),
+            "18446744073709551615 bytes"
+        )
+        XCTAssertFalse(FTPControlCodec.displayFileSize(4).isEmpty)
+    }
+
+    func testUnixLISTFallbackOnlyForExplicitUnsupportedCommand() {
+        for code in [500, 501, 502, 504] {
+            XCTAssertTrue(FTPControlCodec.mlsdIsUnsupported(FTPReply(code: code, lines: [])))
+        }
+        for code in [125, 150, 226, 425, 426, 450, 550] {
+            XCTAssertFalse(FTPControlCodec.mlsdIsUnsupported(FTPReply(code: code, lines: [])))
+        }
+    }
+
     func testExtendedPassivePortParsesEPSVReply() throws {
         let reply = FTPReply(
             code: 229,
@@ -346,6 +411,38 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertTrue(afterUpload.contains(where: { $0.name == remoteName }))
         try await session.downloadFile(remoteName: remoteName, to: destination)
         XCTAssertEqual(try Data(contentsOf: destination), content)
+
+        let folder = "ghostftp-qa-\(UUID().uuidString)"
+        try await session.createDirectory(named: folder)
+        let afterMKD = try await session.listDirectory()
+        XCTAssertTrue(afterMKD.contains(where: {
+            $0.name == folder && $0.isDirectory
+        }))
+        try await session.deleteFile(named: remoteName)
+        try await session.removeEmptyDirectory(named: folder)
+        let afterDelete = try await session.listDirectory()
+        XCTAssertFalse(afterDelete.contains(where: { $0.name == remoteName || $0.name == folder }))
+        await session.disconnect()
+    }
+
+    func testLiveLegacyServerRejectsMLSDAndListsViaUnixLIST() async throws {
+        guard let rawPort = ProcessInfo.processInfo.environment["GHOSTFTP_MACOS_LIST_E2E_PORT"],
+              let port = UInt16(rawPort) else {
+            throw XCTSkip("Legacy Unix LIST FTP fixture not configured.")
+        }
+        let session = FTPControlSession()
+        let profile = ConnectionProfile(
+            name: "Legacy Unix LIST FTP acceptance",
+            protocolKind: .ftp,
+            host: "127.0.0.1",
+            port: port,
+            username: "ghostftp-e2e"
+        )
+        let cwd = try await session.connect(profile: profile, password: "ghostftp-e2e-secret")
+        XCTAssertFalse(cwd.isEmpty)
+        let entries = try await session.listDirectory()
+        XCTAssertTrue(entries.contains(where: { $0.name == "fixture.txt" }))
+        try await session.noop() // rejected MLSD reply and LIST completion were consumed.
         await session.disconnect()
     }
 

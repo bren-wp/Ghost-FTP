@@ -1,6 +1,14 @@
-> Ghost FTP **0.95.20** (development cycle), following published **v0.95.19**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.21** (development cycle), following published **v0.95.20**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## 0.95.21 development candidate — cross-platform reliability (not yet released)
+
+macOS native FTP now negotiates an authenticated passive directory listing and supports fail-closed Unix LIST fallback for servers that explicitly reject MLSD. The Files editor supports navigable folders, creating directories (MKD), confirmed deletion of files (DELE), and confirmed removal of **empty** folders (RMD). Untrusted remote file sizes are formatted without converting UInt64 values beyond Int64 capacity. These macOS additions are for unencrypted FTP only: macOS FTPS, SFTP, signed/notarized distribution and full FileZilla parity are **not implemented** by this patch.
+
+Windows/Linux FTP and explicit FTPS now bound the sum of TCP attempts across DNS addresses. Android uses existing premium tokens but limits contextual FTP buttons and status to relevant workspaces. The 16 Android 1:1 screen acceptance tests have not passed; do not claim pixel-perfect or full visual parity.
+
+
 
 ## Post-v0.95.18 development: safer FileZilla saved-site import (PR candidate)
 
@@ -8,9 +16,9 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 
 
-> Current development cycle: **0.95.20**; latest verified public release: **0.95.19**. Historical sections remain version-specific.
+> Current development cycle: **0.95.21**; latest verified public release: **0.95.20**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.20 development source. Previous canonical release: **0.95.19**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.21 development source. Previous canonical release: **0.95.20**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
