@@ -966,6 +966,77 @@ class MainActivity : Activity() {
                 }
             }
         })
+        // Reference frame #4: General / Advanced / Sync segmented editor.
+        // Move existing native controls into contextual tabs WITHOUT replacing
+        // password handling, save/update/connection handlers or validation.
+        val original = (0 until childCount).map { getChildAt(it) }
+        val generalViews = mutableSetOf<View>(siteFeedback)
+        for (field in listOf<View>(
+            siteNameInput, protocolSpinner, hostInput, portInput,
+            usernameInput, passwordInput
+        )) {
+            generalViews.add(field)
+            val index = original.indexOf(field)
+            if (index > 0 && original[index - 1] is TextView) {
+                generalViews.add(original[index - 1])
+            }
+        }
+        original.filterTo(generalViews) { view ->
+            view is ViewGroup && (0 until view.childCount)
+                .any { index -> view.getChildAt(index) === connectButton }
+        }
+        original.filterTo(generalViews) { view ->
+            view is Button && view.text.toString() == "Save new connection profile"
+        }
+        val general = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        val advanced = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+        }
+        removeAllViews()
+        val tabs = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = PremiumReferenceStyle.surface(this@MainActivity,
+                PremiumReferenceStyle.raised, 8)
+        }
+        fun tab(label: String, selected: Boolean, action: () -> Unit): TextView =
+            PremiumReferenceStyle.action(this@MainActivity, label, selected, action).apply {
+                textSize = 12f
+                contentDescription = "Site editor " + label + " tab"
+            }
+        lateinit var generalTab: TextView
+        lateinit var advancedTab: TextView
+        fun activateGeneral() {
+            general.visibility = View.VISIBLE
+            advanced.visibility = View.GONE
+            generalTab.background = PremiumReferenceStyle.actionBackground(this@MainActivity)
+            advancedTab.background = PremiumReferenceStyle.surface(this@MainActivity)
+        }
+        fun activateAdvanced() {
+            general.visibility = View.GONE
+            advanced.visibility = View.VISIBLE
+            advancedTab.background = PremiumReferenceStyle.actionBackground(this@MainActivity)
+            generalTab.background = PremiumReferenceStyle.surface(this@MainActivity)
+        }
+        generalTab = tab("General", true) { activateGeneral() }
+        advancedTab = tab("Advanced", false) { activateAdvanced() }
+        tabs.addView(generalTab, LinearLayout.LayoutParams(0, dp(39), 1f))
+        tabs.addView(advancedTab, LinearLayout.LayoutParams(0, dp(39), 1f))
+        tabs.addView(tab("Sync", false) { setWorkspace(Workspace.SYNC) },
+            LinearLayout.LayoutParams(0, dp(39), 1f))
+        addView(tabs)
+        addView(space(12))
+        original.forEach { view ->
+            (if (view in generalViews) general else advanced).addView(view)
+        }
+        general.addView(space(8))
+        general.addView(secondaryButton(getString(R.string.action_cancel)) {
+            showSitesOverview()
+        }.apply { contentDescription = "Cancel site editing" })
+        addView(general)
+        addView(advanced)
     }
 
     // Real metadata-only Site Manager; no example hosts or imported passwords.
@@ -1093,6 +1164,16 @@ class MainActivity : Activity() {
                 it.name.equals(site.name, ignoreCase = true)
             }
             if (index >= 0) savedSitesSpinner.setSelection(index + 1)
+            // Editing must actually load the selected metadata, not just
+            // highlight a hidden spinner in the Advanced tab.
+            siteNameInput.setText(site.name)
+            selectConnectionProtocolAndPort(site.protocol, site.port)
+            hostInput.setText(site.host)
+            usernameInput.setText(site.username)
+            hostKeyFingerprintInput.setText(site.fingerprint)
+            sftpKeepAliveInput.setText(site.keepAliveSeconds.toString())
+            remotePathInput.setText(site.remotePath)
+            passwordInput.text.clear()
         }
         setWorkspace(Workspace.SITES)
     }
