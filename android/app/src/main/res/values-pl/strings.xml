@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Brak aktywnego transferu w chmurze.</string>
     <string name="label_contact">Kontakt</string>
     <string name="about_contact_desc">Zadaj pytanie lub zgłoś problem.</string>
+    <string name="workspace_bookmarks">Zakładki</string>
+    <string name="bookmarks_add">Dodaj zakładkę</string>
+    <string name="bookmarks_empty_title">Brak zakładek</string>
+    <string name="bookmarks_empty_detail">Połącz się z zapisanym serwerem, otwórz zdalny folder i dotknij +.</string>
+    <string name="bookmarks_connect_first">Najpierw połącz się z rzeczywistym serwerem FTP, FTPS lub SFTP.</string>
+    <string name="bookmarks_save_site_first">Najpierw zapisz serwer w Witrynach. Zakładki nigdy nie zapisują haseł.</string>
+    <string name="bookmarks_invalid">Nazwa lub ścieżka jest nieprawidłowa, zduplikowana albo brak dostępu do pamięci. Pozostałe zakładki zachowano.</string>
+    <string name="bookmarks_remove_title">Usunąć zakładkę?</string>
+    <string name="bookmarks_site_missing">Zapisany serwer już nie istnieje. Zakładka została zachowana.</string>
+    <string name="bookmarks_reconnect">Wprowadź dane logowania i połącz się ponownie, aby otworzyć folder.</string>
 </resources>
