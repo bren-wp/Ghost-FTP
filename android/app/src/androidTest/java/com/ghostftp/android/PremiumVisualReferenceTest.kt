@@ -94,7 +94,6 @@ class PremiumVisualReferenceTest {
             instrumentation.waitForIdleSync()
             scenario.onActivity { activity ->
                 val root = activity.window.decorView
-                val density = activity.resources.displayMetrics.density
                 val widthDp = activity.resources.configuration.screenWidthDp
                 assertEquals("Reference QA emulator must have width 480dp.", 480, widthDp)
                 val drawerButton = findView(root) {
@@ -102,6 +101,14 @@ class PremiumVisualReferenceTest {
                 }
                 assertNotNull("Reference phone drawer opener missing", drawerButton)
                 assertTrue("Reference drawer must open", drawerButton!!.performClick())
+            }
+            // A View changing GONE -> VISIBLE has width 0 until the
+            // actual next layout traversal. Measure after Android layout,
+            // not synchronously inside the click callback.
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                val density = activity.resources.displayMetrics.density
                 val nav = findView(root) {
                     it is TextView &&
                         it.contentDescription?.toString() ==

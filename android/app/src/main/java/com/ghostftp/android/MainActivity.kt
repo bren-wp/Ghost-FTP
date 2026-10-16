@@ -107,6 +107,9 @@ class MainActivity : Activity() {
     // Reference workspaces must not inherit Files-only actions or status cards.
     private lateinit var fileActionToolbar: View
     private lateinit var sessionStatusCard: View
+    private lateinit var workspaceFeedbackPanel: LinearLayout
+    private lateinit var workspaceFeedbackTitle: TextView
+    private lateinit var workspaceFeedbackDetail: TextView
     private lateinit var settingsFeedback: TextView
     private lateinit var navigationRail: View
     private lateinit var navigationScrim: View
@@ -367,6 +370,11 @@ class MainActivity : Activity() {
             contentDescription = "Session status panel"
         }
         content.addView(sessionStatusCard)
+        // Status can be hidden in the approved phone reference when no
+        // server is connected. Errors and lifecycle recovery MUST still
+        // have a visible, accessibility-readable home in the active page.
+        workspaceFeedbackPanel = buildWorkspaceFeedback()
+        content.addView(workspaceFeedbackPanel)
         content.addView(space(10))
         content.addView(buildInlineConfirmationCard())
         content.addView(space(10))
@@ -1800,6 +1808,9 @@ class MainActivity : Activity() {
 
     private fun setWorkspace(workspace: Workspace, announce: Boolean = true) {
         activeWorkspace = workspace
+        if (::workspaceFeedbackPanel.isInitialized) {
+            workspaceFeedbackPanel.visibility = View.GONE
+        }
         val targets = mapOf(
             Workspace.FILES to filesSection,
             Workspace.SITES to sitesSection,
@@ -2079,6 +2090,25 @@ class MainActivity : Activity() {
         transferStateText.text = getString(R.string.state_transfer_wait_connection)
     }
 
+    private fun buildWorkspaceFeedback(): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        visibility = View.GONE
+        setPadding(dp(12), dp(8), dp(12), dp(8))
+        background = PremiumReferenceStyle.surface(this@MainActivity)
+        contentDescription = "Current workspace feedback"
+        workspaceFeedbackTitle = TextView(this@MainActivity).apply {
+            setTextColor(Brand.text)
+            typeface = Typeface.DEFAULT_BOLD
+            textSize = 13f
+        }
+        workspaceFeedbackDetail = TextView(this@MainActivity).apply {
+            setTextColor(Brand.textSoft)
+            textSize = 12f
+        }
+        addView(workspaceFeedbackTitle)
+        addView(workspaceFeedbackDetail)
+    }
+
     private fun showMessage(title: String, detail: String) {
         if (!::statusTitle.isInitialized || !::statusDetail.isInitialized) return
         if (activeWorkspace == Workspace.SITES && siteEditorVisible &&
@@ -2098,6 +2128,12 @@ class MainActivity : Activity() {
         statusTitle.text = title
         statusDetail.text = detail
         if (::transferStateText.isInitialized) transferStateText.text = detail
+        if (::workspaceFeedbackPanel.isInitialized) {
+            workspaceFeedbackTitle.text = title
+            workspaceFeedbackDetail.text = detail
+            workspaceFeedbackPanel.visibility = View.VISIBLE
+            workspaceFeedbackPanel.announceForAccessibility("$title. $detail")
+        }
     }
 
     private fun showIdleState() {
@@ -2484,6 +2520,10 @@ class MainActivity : Activity() {
             getString(R.string.state_last_completed_remote_path, lastCompletedTransferPath)
         }
         setBusy(false)
+        // Security: credentials and authenticated transport never survive a
+        // recreated Activity. Display reconnection state in the actual Sites
+        // editor or active page, not a hidden disconnected session card.
+        showMessage(getString(R.string.status_ready), statusDetail.text.toString())
     }
 
     private fun requiredRemoteFilePath(profile: ConnectionProfile): String? {
