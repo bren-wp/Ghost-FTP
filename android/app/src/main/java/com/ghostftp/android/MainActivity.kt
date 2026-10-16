@@ -572,37 +572,32 @@ class MainActivity : Activity() {
 
         val rail = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
+            gravity = Gravity.START
             val iconRail = false
-            setPadding(dp(if (iconRail) 4 else 8), dp(14), dp(if (iconRail) 4 else 8), dp(14))
+            setPadding(dp(13), dp(16), dp(13), dp(16))
 
-            addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(if (iconRail) 32 else 42), dp(if (iconRail) 32 else 42)))
-            addView(space(8))
-            addView(TextView(this@MainActivity).apply {
-                text = "Ghost FTP"
-                setTextColor(Brand.text)
-                textSize = if (iconRail) 9f else 14f
-                typeface = Typeface.DEFAULT_BOLD
-                gravity = Gravity.CENTER
-                maxLines = 1
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_ghost_premium_splash)
+                    contentDescription = "Ghost FTP"
+                }, LinearLayout.LayoutParams(dp(44), dp(44)))
+                addView(PremiumReferenceStyle.caption(this@MainActivity,
+                    "Ghost FTP", 19f).apply { typeface = Typeface.DEFAULT_BOLD },
+                    LinearLayout.LayoutParams(0, dp(44), 1f))
             })
-            if (!iconRail) addView(TextView(this@MainActivity).apply {
-                text = ReleaseInfo.VERSION_DISPLAY
-                setTextColor(Brand.muted)
-                textSize = 11f
-                gravity = Gravity.CENTER
-            })
-            addView(space(18))
+            addView(space(19))
 
             Workspace.entries.forEach { workspace ->
                 addView(
                     workspaceNavItem(workspace),
                     LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
-                        dp(if (resources.configuration.screenWidthDp >= 600) 50 else 56)
+                        dp(if (resources.configuration.screenWidthDp >= 600) 52 else 48)
                     )
                 )
-                addView(space(if (iconRail) 2 else 6))
+                addView(space(3))
             }
 
             addView(space(12))
@@ -3334,16 +3329,20 @@ class MainActivity : Activity() {
         val view = TextView(this).apply {
             text = displayLabel
             contentDescription = getString(R.string.workspace_open, label)
-            textSize = if (iconRail) 9f else 12f
-            maxLines = if (iconRail) 2 else 1
+            textSize = 14f
+            maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            compoundDrawablePadding = dp(if (iconRail) 4 else 6)
+            typeface = Typeface.DEFAULT
+            gravity = Gravity.CENTER_VERTICAL or Gravity.START
+            compoundDrawablePadding = dp(14)
             val icon = getDrawable(iconResource)?.mutate()
             icon?.setBounds(0, 0, dp(20), dp(20))
-            setCompoundDrawables(null, icon, null, null)
-            setPadding(dp(if (iconRail) 2 else 6), dp(4), dp(if (iconRail) 2 else 6), dp(4))
+            if (resources.configuration.screenWidthDp < 600) {
+                setCompoundDrawables(icon, null, null, null)
+            } else {
+                setCompoundDrawables(null, icon, null, null)
+            }
+            setPadding(dp(14), dp(4), dp(8), dp(4))
             isClickable = true
             isFocusable = true
             setOnClickListener { setWorkspace(workspace) }
@@ -3354,13 +3353,15 @@ class MainActivity : Activity() {
     }
 
     private fun styleWorkspaceNavItem(view: TextView, selected: Boolean) {
-        val color = if (selected) Brand.accent else Brand.textSoft
+        val color = if (selected) Brand.text else Brand.textSoft
         view.setTextColor(color)
-        view.compoundDrawables[1]?.setTint(color)
+        view.compoundDrawables.forEach { drawable ->
+            drawable?.setTint(if (selected) Brand.accent else Brand.textSoft)
+        }
         view.background = rounded(
-            if (selected) Brand.accentSurface else Brand.panel,
-            dp(10),
-            if (selected) Brand.accent else Brand.borderSubtle
+            if (selected) Brand.accentSurface else Brand.background,
+            dp(9),
+            if (selected) Brand.border else Brand.background
         )
     }
 
