@@ -1,11 +1,24 @@
-> Ghost FTP **0.95.22** (release cycle), following published **v0.95.21**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Android 16-screen reference candidate v0.95.23: **preview only**. Real Bookmarks, contextual Settings/Advanced, Add/Edit tabs, native About and stored-profile loading are implemented in source. Pixel-perfect 16/16 acceptance and real-device screenshot comparison are not yet established. Latest published baseline: v0.95.22.
+
+> Ghost FTP **0.95.23** (release cycle), following published **v0.95.22**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 
-### 0.95.22 Android layout parity increment — source only, exact-device acceptance pending
+### 0.95.23 Android layout parity increment — source only, exact-device acceptance pending
 
-The docked 64dp rail and 58dp top bar remain on the 480dp reference layout. Files-only FTP actions now hide when switching to Sites, Transfers, Sync, Cloud, Settings and About. The live FTP session status is visible only on Files and Sites; instrumented navigation asserts the proper visibility. This removes a concrete source-level source of extra/irrelevant rows. The original 16 design images are not currently mounted for direct comparison; no screen is certified 1:1 yet. The app still needs actual device capture, pixel diff and interaction QA against the user-provided designs.
+The Android phone UI now uses a full-width page with a 260/280dp overlay drawer under 600dp and a 52dp contextual top bar. Only tablets keep a docked rail. Files-only FTP actions now hide when switching to Sites, Transfers, Sync, Cloud, Settings and About. The live FTP session status is visible only on Files and Sites; instrumented navigation asserts the proper visibility. This removes a concrete source-level source of extra/irrelevant rows. The original 16 design images are not currently mounted for direct comparison; no screen is certified 1:1 yet. The app still needs actual device capture, pixel diff and interaction QA against the user-provided designs.
 
 # Ghost FTP Android parity
+
+## Next Android reference increment — Bookmarks screen #10 (development)
+
+- A real **Bookmarks** workspace now uses the approved dark/violet card system, folder icon, Add action, title and path rows, contextual delete action, and consistent slide-out phone navigation.
+- `SavedRemoteBookmarks` stores only a bookmark title, an existing saved-site name, and an absolute validated remote directory; no passwords, private keys, access tokens, sample servers, fake folders or fabricated history.
+- A bookmark requires a currently authenticated matching profile to open directly. Otherwise the app routes to the saved-site editor and requires explicit authentication again. It cannot bypass SSH host-key checking.
+- Persistent data decoding is size-bounded and mutation fails closed on corruption, traversal, duplicates or malformed names. Removal requires confirmation.
+- Source unit regression plus Android 16 emulator click-through test checks empty/no-demo state and Add refusal without a live session.
+- The eighth **real** Android QA render is `bookmarks.png` at 480px width. The image is an installed debug Activity tree capture under protected test conditions, not an invented design render. It still needs actual reference pixel-diff and physical device acceptance.
+
+**Remaining:** Connect, Transfer Details, real Queue, remote search, comparison/sync, remote editing, batch actions, and full 16/16 parity. Build/test green alone does not establish 1:1 acceptance.
 
 ## 2026-10-16 user reference: sixteen distinct Android screens
 
@@ -32,7 +45,7 @@ The Android Cloud storage workspace transfers one object at a time using short-l
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
 - Active source version: **0.95.18**
-- Previous canonical release: **0.95.21**
+- Previous canonical release: **0.95.22**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`

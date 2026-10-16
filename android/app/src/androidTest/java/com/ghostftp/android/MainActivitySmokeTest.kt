@@ -70,6 +70,50 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun referenceSearchUsesRealSessionDataAndCannotInventRemoteResults() {
+        clickByDescription("Search files")
+        assertDescriptionPresent("Search file name")
+        assertDescriptionPresent("Run file search")
+        clickByDescription("Run file search")
+        assertTextPresent("Enter a filename (up to 80 characters).")
+        scenario.onActivity { activity ->
+            val query = findView(activity.window.decorView) {
+                it is EditText && it.contentDescription?.toString() == "Search file name"
+            } as? EditText
+            assertNotNull("Search field must exist", query)
+            query!!.setText("*.php")
+        }
+        clickByDescription("Run file search")
+        assertTextPresent("Connect to a server before searching.")
+        clickByDescription("Close Search")
+        assertTextVisibleInViewport(appString(R.string.state_connect_to_load_files))
+        assertDescriptionPresent("Search files")
+    }
+
+    @Test
+    fun launcherRoutesThroughNativePremiumSplashRatherThanDirectFiles() {
+        scenario.onActivity { activity ->
+            val intent = activity.packageManager.getLaunchIntentForPackage(activity.packageName)
+            assertNotNull("Android launcher must resolve", intent)
+            assertEquals(
+                "Official launcher must display the branded splash before MainActivity",
+                SplashActivity::class.java.name,
+                intent!!.component?.className
+            )
+        }
+    }
+
+    @Test
+    fun transferDetailsOpensRealStateAndDisablesCancelWhenIdle() {
+        openWorkspace(R.string.workspace_transfers)
+        clickByDescription("View transfer details")
+        assertTextPresent("Transfer Details")
+        assertDescriptionEnabled("Cancel active transfer", false)
+        clickByDescription("Back")
+        assertTextVisibleInViewport(appString(R.string.state_no_transfer))
+    }
+
+    @Test
     fun referenceFilesMoreExposesRealRenameAndRefreshMenuActions() {
         clickByDescription("More file actions")
         onView(withText(appString(R.string.action_rename))).check(matches(isDisplayed()))
@@ -90,6 +134,7 @@ class MainActivitySmokeTest {
         assertDescriptionPresent("Restore settings")
 
         openWorkspace(R.string.workspace_settings)
+        clickByDescription("Settings: Advanced")
         assertTextVisibleInViewport(appString(R.string.settings_no_tracking))
         assertDescriptionPresent(appString(R.string.action_clear_activity))
         assertDescriptionPresent(appString(R.string.action_reset_transfers))
@@ -157,8 +202,11 @@ class MainActivitySmokeTest {
                     it is TextView && it.contentDescription?.toString() == description
                 } as? TextView
                 assertNotNull("Navigation destination is missing: $description", item)
+                // In the approved 480dp design icons sit to the LEFT of
+                // their labels; only the tablet navigation uses top icons.
+                val vectorSlot = if (isReferencePhone) 0 else 1
                 assertNotNull("Navigation destination lacks its real vector glyph: $description",
-                    item!!.compoundDrawables[1])
+                    item!!.compoundDrawables[vectorSlot])
                 assertEquals("Navigation label must stay localized: $description", label,
                     item.text.toString())
                 assertTrue("Navigation item must be actionable: $description", item.isClickable)
@@ -269,8 +317,42 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun referenceSettingsDashboardIsTwoColumnAndNavigable() {
+        openWorkspace(R.string.workspace_settings)
+        // The reference displays exactly four rows of two real categories;
+        // the legacy actions remain behind the interactive Advanced card.
+        for (name in listOf("Appearance", "Security", "Connections", "Notifications",
+            "Transfers", "Advanced", "Cloud Storage", "About")) {
+            assertDescriptionPresent("Settings: " + name)
+        }
+        clickByDescription("Settings: Appearance")
+        assertTextPresent("Dark premium appearance is enabled.")
+        clickByDescription("Settings: Security")
+        assertDescriptionPresent("Settings: Advanced")
+    }
+
+    @Test
+    fun referenceCloudShowsFourHonestProviderCardsAndKeepsRealSignedTransfer() {
+        openWorkspaceByLabel("Cloud storage")
+        for (provider in listOf("Google Drive", "Dropbox", "OneDrive", "iCloud")) {
+            assertDescriptionPresent(provider + " — not connected")
+        }
+        assertDescriptionPresent("Choose file and upload")
+        assertDescriptionPresent("Choose destination and download")
+        clickByDescription("Google Drive — not connected")
+        scenario.onActivity { activity ->
+            val notice = findView(activity.window.decorView) {
+                it is TextView && it.isShown &&
+                    it.text.toString().startsWith("Google Drive account login is not yet available.")
+            }
+            assertNotNull("Cannot present pretend account login instead of real signed-link fallback", notice)
+        }
+    }
+
+    @Test
     fun settingsShowsVisibleLegalLinksAndBrendigoAuthor() {
         openWorkspace(R.string.workspace_settings)
+        clickByDescription("Settings: Advanced")
         for (label in listOf(R.string.label_support, R.string.label_contact, R.string.label_privacy_policy, R.string.label_eula)) {
             val description = appString(R.string.link_open, appString(label))
             scenario.onActivity { activity ->
@@ -293,6 +375,7 @@ class MainActivitySmokeTest {
     @Test
     fun helpWorkspaceExposesCanonicalProductLinks() {
         openWorkspace(R.string.workspace_about)
+        clickByDescription("Settings: Licenses")
         for (description in listOf(
             appString(R.string.link_open, appString(R.string.label_support)),
             appString(R.string.link_open, appString(R.string.label_contact)),
@@ -549,6 +632,7 @@ class MainActivitySmokeTest {
         assertDescriptionEnabled(appString(R.string.action_upload), false)
 
         openWorkspace(R.string.workspace_settings)
+        clickByDescription("Settings: Advanced")
         assertDescriptionEnabled(appString(R.string.action_reset_transfers), true)
         assertDescriptionEnabled(appString(R.string.action_reset_connection), true)
         assertDescriptionEnabled("${appString(R.string.workspace_settings)} ${appString(R.string.action_disconnect)}", false)
@@ -563,6 +647,7 @@ class MainActivitySmokeTest {
         assertDescriptionEnabled(appString(R.string.action_upload), false)
 
         openWorkspace(R.string.workspace_settings)
+        clickByDescription("Settings: Advanced")
         assertDescriptionEnabled("${appString(R.string.workspace_settings)} ${appString(R.string.action_disconnect)}", false)
         clickByDescription(appString(R.string.action_clear_activity))
         assertTextPresent(appString(R.string.msg_activity_cleared_detail))
@@ -601,6 +686,18 @@ class MainActivitySmokeTest {
         assertTextPresent(appString(R.string.msg_selected_file_unavailable_title))
         openWorkspace(R.string.workspace_transfers)
         assertDescriptionEnabled(appString(R.string.action_upload), false)
+    }
+
+    @Test
+    fun bookmarksReferenceWorkspaceHasWorkingAddActionWithoutInventingSites() {
+        openWorkspace(R.string.workspace_bookmarks)
+        assertTextPresent(appString(R.string.workspace_bookmarks))
+        assertDescriptionPresent(appString(R.string.bookmarks_add))
+        clickByDescription(appString(R.string.bookmarks_add))
+        assertTextPresent(appString(R.string.bookmarks_connect_first))
+        // A bookmark never stores credentials or bypasses SSH host-key trust:
+        // the add action must refuse to create anything before a live session.
+        assertTextNotShown("Production Server")
     }
 
     @Test
@@ -701,6 +798,17 @@ class MainActivitySmokeTest {
     }
 
     private fun ensureNavigationOpen() {
+        // Reference #4 has a genuine Back to Sites action while editing a
+        // site. Return to the Sites list BEFORE opening the main drawer.
+        // Attempting to open the drawer directly from the editor would
+        // bypass the reference back-navigation semantics.
+        var editorBackVisible = false
+        scenario.onActivity { activity ->
+            editorBackVisible = findView(activity.window.decorView) {
+                it.contentDescription?.toString() == "Back to Sites" && it.isShown
+            } != null
+        }
+        if (editorBackVisible) clickByDescription("Back to Sites")
         var needsOpen = false
         scenario.onActivity { activity ->
             val root = activity.window.decorView
@@ -715,6 +823,16 @@ class MainActivitySmokeTest {
         clickByDescription(appString(R.string.workspace_open, appString(labelRes)))
         // The user-approved Sites screen is a real metadata list. Legacy
         // connection form tests navigate through its working Add Site action.
+        if (labelRes == R.string.workspace_transfers) {
+            var optionsAlreadyVisible = false
+            scenario.onActivity { activity ->
+                optionsAlreadyVisible = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == appString(R.string.action_pick_file) &&
+                        it.isShown
+                } != null
+            }
+            if (!optionsAlreadyVisible) clickByDescription("Transfer options")
+        }
         if (labelRes == R.string.workspace_sites) {
             var addVisible = false
             scenario.onActivity { activity ->
@@ -729,6 +847,7 @@ class MainActivitySmokeTest {
     private fun openWorkspaceByLabel(label: String) {
         ensureNavigationOpen()
         clickByDescription(appString(R.string.workspace_open, label))
+        if (label == "Cloud storage") clickByDescription("Cloud transfer options")
     }
 
     private fun clickByDescription(description: String) {

@@ -78,7 +78,7 @@ for (const [label, ok] of [
   ["native no-mockup Files split layout", androidActivity.includes("private fun refreshLocalPane()")],
   ["actual 480px/160dpi emulator", androidSmoke.includes("adb shell wm size 480x960") && androidSmoke.includes("adb shell wm density 160")],
   ["isolated debug screenshot collection", androidSmoke.includes('run-as "$PACKAGE_ID" cat "files/premium-qa/')],
-  ["seven screenshot checksums", androidSmoke.includes("SHA256SUMS.txt")],
+  ["eight screenshot checksums", androidSmoke.includes("SHA256SUMS.txt") && androidSmoke.includes("cloud bookmarks settings about")],
   ["separate QA artifact", androidWorkflow.includes("GhostFTP-Android-Premium-Visual-QA-480x960")],
   ["no release-path visual QA artifact", androidWorkflow.includes("dist/visual-qa/android/*")],
   ["production screenshot protection retained", androidActivity.includes("window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)")],

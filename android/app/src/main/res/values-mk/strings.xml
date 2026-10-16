@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Нема активен пренос во облак.</string>
     <string name="label_contact">Контакт</string>
     <string name="about_contact_desc">Поставете прашање или пријавете проблем.</string>
+    <string name="workspace_bookmarks">Обележувачи</string>
+    <string name="bookmarks_add">Додај обележувач</string>
+    <string name="bookmarks_empty_title">Сè уште нема обележувачи</string>
+    <string name="bookmarks_empty_detail">Поврзете се со зачувана локација, отворете оддалечена папка и допрете +.</string>
+    <string name="bookmarks_connect_first">Прво поврзете се со вистински FTP, FTPS или SFTP сервер.</string>
+    <string name="bookmarks_save_site_first">Прво зачувајте го серверот во Локации. Обележувачите никогаш не чуваат лозинки.</string>
+    <string name="bookmarks_invalid">Невалидно или дупликат име или патека, или складирањето е недостапно. Постојните обележувачи се зачувани.</string>
+    <string name="bookmarks_remove_title">Отстрани обележувач?</string>
+    <string name="bookmarks_site_missing">Зачуваната локација повеќе не постои. Обележувачот е зачуван.</string>
+    <string name="bookmarks_reconnect">Внесете податоци за најава и поврзете се повторно за да ја отворите папката.</string>
 </resources>

@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Ingen molnöverföring pågår.</string>
     <string name="label_contact">Kontakt</string>
     <string name="about_contact_desc">Ställ en fråga eller rapportera ett problem.</string>
+    <string name="workspace_bookmarks">Bokmärken</string>
+    <string name="bookmarks_add">Lägg till bokmärke</string>
+    <string name="bookmarks_empty_title">Inga bokmärken ännu</string>
+    <string name="bookmarks_empty_detail">Anslut till en sparad plats, öppna en fjärrmapp och tryck på +.</string>
+    <string name="bookmarks_connect_first">Anslut först till en riktig FTP-, FTPS- eller SFTP-server.</string>
+    <string name="bookmarks_save_site_first">Spara först servern i Platser. Bokmärken sparar aldrig lösenord.</string>
+    <string name="bookmarks_invalid">Ogiltigt eller duplicerat namn eller sökväg, eller lagring saknas. Befintliga bokmärken är bevarade.</string>
+    <string name="bookmarks_remove_title">Ta bort bokmärke?</string>
+    <string name="bookmarks_site_missing">Den sparade platsen finns inte längre. Bokmärket är bevarat.</string>
+    <string name="bookmarks_reconnect">Ange inloggningsuppgifter och anslut igen för att öppna mappen.</string>
 </resources>

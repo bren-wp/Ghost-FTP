@@ -1,3 +1,11 @@
+## 0.95.23 — Android premium 16-screen reference: structural fidelity (preview candidate) — 17 October 2026
+
+- Android: approved violet/navy native visual primitives and full-width phone drawer; searchable real Bookmarks list and safe site navigation from saved metadata; no mock site credentials.
+- Android: reference Settings screen #15 now uses a 4-by-2 grid of eight functional categories; actual security/legal/transfer/reset actions are available under Advanced, not removed.
+- Android: reference About #16 centers the real Ghost FTP logo and running version, and offers Licenses/resources, official Terms and current GitHub Releases updates.
+- Android: Add/Edit Site #4 has functional General/Advanced/Sync tabs, safe existing-profile field prepopulation, and no credential restoration. Existing FTP/FTPS/SFTP validation remains active.
+- Tests must confirm the interactive transitions, honest empty states and privacy guards. 16/16 pixel-for-pixel and device acceptance remain PENDING. Release must remain preview until actually proven.
+
 ## 0.95.22 — Android 16-screen premium reference implementation (unreleased) — 16 October 2026
 
 - Align native phone UI with the two user-supplied sixteen-screen Android reference images: full-width content, a slide-over site/navigation drawer, a 52dp contextual title bar, an Android-only violet premium action palette, real dual-pane Files layout and a five-action fixed footer.

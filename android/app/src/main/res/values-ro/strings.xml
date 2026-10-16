@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Nu există niciun transfer în cloud în desfășurare.</string>
     <string name="label_contact">Contact</string>
     <string name="about_contact_desc">Pune o întrebare sau raportează o problemă.</string>
+    <string name="workspace_bookmarks">Marcaje</string>
+    <string name="bookmarks_add">Adaugă marcaj</string>
+    <string name="bookmarks_empty_title">Niciun marcaj încă</string>
+    <string name="bookmarks_empty_detail">Conectați-vă la un site salvat, deschideți un folder la distanță și atingeți +.</string>
+    <string name="bookmarks_connect_first">Conectați-vă mai întâi la un server FTP, FTPS sau SFTP real.</string>
+    <string name="bookmarks_save_site_first">Salvați mai întâi serverul în Site-uri. Marcajele nu salvează parole.</string>
+    <string name="bookmarks_invalid">Nume sau cale invalidă, duplicat sau stocare indisponibilă. Marcajele existente au fost păstrate.</string>
+    <string name="bookmarks_remove_title">Eliminați marcajul?</string>
+    <string name="bookmarks_site_missing">Site-ul salvat nu mai există. Marcajul a fost păstrat.</string>
+    <string name="bookmarks_reconnect">Introduceți acreditările și reconectați-vă pentru a deschide folderul.</string>
 </resources>

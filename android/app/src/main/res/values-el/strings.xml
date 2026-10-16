@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Δεν υπάρχει μεταφορά cloud σε εξέλιξη.</string>
     <string name="label_contact">Επικοινωνία</string>
     <string name="about_contact_desc">Κάντε μια ερώτηση ή αναφέρετε ένα πρόβλημα.</string>
+    <string name="workspace_bookmarks">Σελιδοδείκτες</string>
+    <string name="bookmarks_add">Προσθήκη σελιδοδείκτη</string>
+    <string name="bookmarks_empty_title">Δεν υπάρχουν σελιδοδείκτες</string>
+    <string name="bookmarks_empty_detail">Συνδεθείτε σε αποθηκευμένο ιστότοπο, ανοίξτε έναν απομακρυσμένο φάκελο και πατήστε +.</string>
+    <string name="bookmarks_connect_first">Συνδεθείτε πρώτα σε πραγματικό διακομιστή FTP, FTPS ή SFTP.</string>
+    <string name="bookmarks_save_site_first">Αποθηκεύστε πρώτα τον διακομιστή στις Τοποθεσίες. Οι σελιδοδείκτες δεν αποθηκεύουν κωδικούς.</string>
+    <string name="bookmarks_invalid">Μη έγκυρο ή διπλό όνομα ή διαδρομή, ή μη διαθέσιμος χώρος. Οι υπάρχοντες σελιδοδείκτες διατηρήθηκαν.</string>
+    <string name="bookmarks_remove_title">Κατάργηση σελιδοδείκτη;</string>
+    <string name="bookmarks_site_missing">Η αποθηκευμένη τοποθεσία δεν υπάρχει πλέον. Ο σελιδοδείκτης διατηρήθηκε.</string>
+    <string name="bookmarks_reconnect">Εισαγάγετε διαπιστευτήρια και συνδεθείτε ξανά για να ανοίξετε τον φάκελο.</string>
 </resources>

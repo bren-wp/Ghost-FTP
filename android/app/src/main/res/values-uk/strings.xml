@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Зараз немає хмарного передавання.</string>
     <string name="label_contact">Контакт</string>
     <string name="about_contact_desc">Поставте запитання або повідомте про проблему.</string>
+    <string name="workspace_bookmarks">Закладки</string>
+    <string name="bookmarks_add">Додати закладку</string>
+    <string name="bookmarks_empty_title">Закладок ще немає</string>
+    <string name="bookmarks_empty_detail">Підключіться до збереженого сайту, відкрийте віддалену папку й натисніть +.</string>
+    <string name="bookmarks_connect_first">Спершу підключіться до справжнього сервера FTP, FTPS або SFTP.</string>
+    <string name="bookmarks_save_site_first">Спершу збережіть сервер у Сайтах. Закладки ніколи не зберігають паролі.</string>
+    <string name="bookmarks_invalid">Недійсна або повторна назва чи шлях або недоступне сховище. Наявні закладки збережено.</string>
+    <string name="bookmarks_remove_title">Видалити закладку?</string>
+    <string name="bookmarks_site_missing">Збережений сайт більше не існує. Закладку збережено.</string>
+    <string name="bookmarks_reconnect">Введіть облікові дані та підключіться знову, щоб відкрити папку.</string>
 </resources>

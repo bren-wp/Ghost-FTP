@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Няма активен облачен трансфер.</string>
     <string name="label_contact">Контакт</string>
     <string name="about_contact_desc">Задайте въпрос или съобщете за проблем.</string>
+    <string name="workspace_bookmarks">Отметки</string>
+    <string name="bookmarks_add">Добавяне на отметка</string>
+    <string name="bookmarks_empty_title">Все още няма отметки</string>
+    <string name="bookmarks_empty_detail">Свържете се със запазен сайт, отворете отдалечена папка и натиснете +.</string>
+    <string name="bookmarks_connect_first">Първо се свържете с реален FTP, FTPS или SFTP сървър.</string>
+    <string name="bookmarks_save_site_first">Първо запазете сървъра в Сайтове. Отметките никога не съхраняват пароли.</string>
+    <string name="bookmarks_invalid">Невалидно или дублирано име или път, или недостъпно хранилище. Съществуващите отметки са запазени.</string>
+    <string name="bookmarks_remove_title">Премахване на отметка?</string>
+    <string name="bookmarks_site_missing">Запазеният сайт вече не съществува. Отметката е запазена.</string>
+    <string name="bookmarks_reconnect">Въведете данните за вход и се свържете отново, за да отворите папката.</string>
 </resources>

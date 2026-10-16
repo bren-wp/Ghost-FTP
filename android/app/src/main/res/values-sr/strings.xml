@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Nema aktivnog prenosa u oblak.</string>
     <string name="label_contact">Kontakt</string>
     <string name="about_contact_desc">Postavite pitanje ili prijavite problem.</string>
+    <string name="workspace_bookmarks">Обележивачи</string>
+    <string name="bookmarks_add">Додај обележивач</string>
+    <string name="bookmarks_empty_title">Још нема обележивача</string>
+    <string name="bookmarks_empty_detail">Повежите се са сачуваном локацијом, отворите удаљену фасциклу и додирните +.</string>
+    <string name="bookmarks_connect_first">Прво се повежите са стварним FTP, FTPS или SFTP сервером.</string>
+    <string name="bookmarks_save_site_first">Прво сачувајте сервер у Локације. Обележивачи не чувају лозинке.</string>
+    <string name="bookmarks_invalid">Назив или путања нису исправни, обележивач већ постоји или чување није доступно. Постојећи су сачувани.</string>
+    <string name="bookmarks_remove_title">Уклонити обележивач?</string>
+    <string name="bookmarks_site_missing">Сачувана локација више не постоји. Обележивач је сачуван.</string>
+    <string name="bookmarks_reconnect">Унесите податке за пријаву и поново се повежите да отворите фасциклу.</string>
 </resources>

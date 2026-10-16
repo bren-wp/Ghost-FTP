@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Nema aktivnog prijenosa u oblak.</string>
     <string name="label_contact">Kontakt</string>
     <string name="about_contact_desc">Postavite pitanje ili prijavite problem.</string>
+    <string name="workspace_bookmarks">Oznake</string>
+    <string name="bookmarks_add">Dodaj oznaku</string>
+    <string name="bookmarks_empty_title">Još nema oznaka</string>
+    <string name="bookmarks_empty_detail">Povežite se sa sačuvanom lokacijom, otvorite udaljenu mapu i dodirnite +.</string>
+    <string name="bookmarks_connect_first">Prvo se povežite sa stvarnim FTP, FTPS ili SFTP serverom.</string>
+    <string name="bookmarks_save_site_first">Prvo sačuvajte server u Lokacije. Oznake nikada ne čuvaju lozinke.</string>
+    <string name="bookmarks_invalid">Naziv ili putanja nisu valjani, oznaka već postoji ili čuvanje nije dostupno. Postojeće oznake su sačuvane.</string>
+    <string name="bookmarks_remove_title">Ukloniti oznaku?</string>
+    <string name="bookmarks_site_missing">Sačuvana lokacija više ne postoji. Oznaka je sačuvana.</string>
+    <string name="bookmarks_reconnect">Unesite podatke za prijavu i ponovo se povežite da otvorite mapu.</string>
 </resources>

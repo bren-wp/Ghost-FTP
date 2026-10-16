@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Trenutno ni prenosa v oblak.</string>
     <string name="label_contact">Kontakt</string>
     <string name="about_contact_desc">Postavite vprašanje ali prijavite težavo.</string>
+    <string name="workspace_bookmarks">Zaznamki</string>
+    <string name="bookmarks_add">Dodaj zaznamek</string>
+    <string name="bookmarks_empty_title">Zaznamkov še ni</string>
+    <string name="bookmarks_empty_detail">Povežite se s shranjenim mestom, odprite oddaljeno mapo in tapnite +.</string>
+    <string name="bookmarks_connect_first">Najprej se povežite s pravim strežnikom FTP, FTPS ali SFTP.</string>
+    <string name="bookmarks_save_site_first">Najprej shranite strežnik med mesta. Zaznamki nikoli ne shranjujejo gesel.</string>
+    <string name="bookmarks_invalid">Ime ali pot ni veljavna, zaznamek že obstaja ali shramba ni na voljo. Obstoječi zaznamki so ohranjeni.</string>
+    <string name="bookmarks_remove_title">Odstranim zaznamek?</string>
+    <string name="bookmarks_site_missing">Shranjeno mesto ne obstaja več. Zaznamek je ohranjen.</string>
+    <string name="bookmarks_reconnect">Vnesite prijavne podatke in se znova povežite, da odprete mapo.</string>
 </resources>

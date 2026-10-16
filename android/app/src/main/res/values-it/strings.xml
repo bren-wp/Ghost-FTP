@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Nessun trasferimento cloud in corso.</string>
     <string name="label_contact">Contatti</string>
     <string name="about_contact_desc">Fai una domanda o segnala un problema.</string>
+    <string name="workspace_bookmarks">Segnalibri</string>
+    <string name="bookmarks_add">Aggiungi segnalibro</string>
+    <string name="bookmarks_empty_title">Nessun segnalibro</string>
+    <string name="bookmarks_empty_detail">Connettiti a un sito salvato, apri una cartella remota e tocca +.</string>
+    <string name="bookmarks_connect_first">Connettiti a un server FTP, FTPS o SFTP reale prima di salvare la cartella.</string>
+    <string name="bookmarks_save_site_first">Salva prima il server in Siti. I segnalibri non salvano mai le password.</string>
+    <string name="bookmarks_invalid">Nome o percorso non valido, duplicato o archivio non disponibile. I segnalibri esistenti restano intatti.</string>
+    <string name="bookmarks_remove_title">Rimuovere il segnalibro?</string>
+    <string name="bookmarks_site_missing">Il sito salvato non esiste più. Il segnalibro è stato conservato.</string>
+    <string name="bookmarks_reconnect">Inserisci le credenziali e riconnettiti per aprire la cartella.</string>
 </resources>

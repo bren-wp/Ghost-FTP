@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Keine Cloud-Übertragung aktiv.</string>
     <string name="label_contact">Kontakt</string>
     <string name="about_contact_desc">Stellen Sie eine Frage oder melden Sie ein Problem.</string>
+    <string name="workspace_bookmarks">Lesezeichen</string>
+    <string name="bookmarks_add">Lesezeichen hinzufügen</string>
+    <string name="bookmarks_empty_title">Noch keine Lesezeichen</string>
+    <string name="bookmarks_empty_detail">Mit einem gespeicherten Server verbinden, einen Remote-Ordner öffnen und auf + tippen.</string>
+    <string name="bookmarks_connect_first">Verbinden Sie sich zuerst mit einem echten FTP-, FTPS- oder SFTP-Server.</string>
+    <string name="bookmarks_save_site_first">Speichern Sie den Server zuerst unter Sites. Lesezeichen speichern niemals Passwörter.</string>
+    <string name="bookmarks_invalid">Name oder Pfad ungültig, bereits vorhanden oder Speicher nicht verfügbar. Bestehende Lesezeichen bleiben erhalten.</string>
+    <string name="bookmarks_remove_title">Lesezeichen entfernen?</string>
+    <string name="bookmarks_site_missing">Der gespeicherte Server existiert nicht mehr. Das Lesezeichen bleibt erhalten.</string>
+    <string name="bookmarks_reconnect">Geben Sie Ihre Anmeldedaten ein und verbinden Sie sich erneut, um den Ordner zu öffnen.</string>
 </resources>

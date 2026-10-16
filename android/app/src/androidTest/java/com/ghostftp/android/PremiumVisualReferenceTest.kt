@@ -30,10 +30,11 @@ class PremiumVisualReferenceTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
     @Test
-    fun captureSevenIdleWorkspacesAt480x960() {
+    fun captureNineReferenceScreensAt480x960() {
         val screens = listOf(
             "files" to R.string.workspace_files,
             "sites" to R.string.workspace_sites,
+            "bookmarks" to R.string.workspace_bookmarks,
             "transfers" to R.string.workspace_transfers,
             "sync" to null,
             "cloud" to null,
@@ -85,6 +86,168 @@ class PremiumVisualReferenceTest {
                     }
                 }
             }
+            // Ninth real Android screenshot: Add/Edit Site, General tab
+            // (reference #4), using only empty safe fields. No dummy account,
+            // password, hostname, protocol response or fake login.
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                val toggle = findView(root) {
+                    it.contentDescription?.toString() == activity.getString(R.string.nav_open)
+                }
+                assertNotNull("Site editor capture needs real drawer navigation", toggle)
+                assertTrue(toggle!!.performClick())
+                val nav = findView(root) {
+                    it.contentDescription?.toString() ==
+                        activity.getString(R.string.workspace_open,
+                            activity.getString(R.string.workspace_sites))
+                }
+                assertNotNull("Sites workspace must be available", nav)
+                assertTrue(nav!!.performClick())
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val add = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "Add Site" && it.isShown
+                }
+                assertNotNull("Real contextual + Add Site button required", add)
+                assertTrue(add!!.performClick())
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                assertNoUserInputInHierarchy(root)
+                val general = findView(root) {
+                    it.contentDescription?.toString() == "Site editor General tab" && it.isShown
+                }
+                assertNotNull("Native reference General tab missing", general)
+                val decor = activity.window.decorView
+                assertEquals(480, decor.width)
+                val screenshot = Bitmap.createBitmap(decor.width, decor.height,
+                    Bitmap.Config.ARGB_8888)
+                try {
+                    screenshot.eraseColor(android.graphics.Color.rgb(7, 14, 26))
+                    decor.draw(Canvas(screenshot))
+                    val target = File(output, "site-editor.png")
+                    target.outputStream().use { stream ->
+                        assertTrue("Cannot export real Add/Edit Site capture",
+                            screenshot.compress(Bitmap.CompressFormat.PNG, 100, stream))
+                    }
+                    assertTrue("Empty Add/Edit Site screenshot", target.length() > 4096L)
+                } finally {
+                    screenshot.recycle()
+                }
+            }
+        }
+
+        // Actual reference #11 Search screenshot, from a disconnected fresh
+        // Activity. No fake remote rows, hostname, credentials or server.
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val button = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "Search files" && it.isShown
+                }
+                assertNotNull("Real Files search action missing", button)
+                assertTrue(button!!.performClick())
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val query = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "Search file name" && it.isShown
+                }
+                assertNotNull("Real editable Search form missing", query)
+                captureIdleReference(activity, output, "search")
+                val close = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "Close Search" && it.isShown
+                }
+                assertTrue("Search must close back to Files", close?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val open = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == activity.getString(R.string.nav_open)
+                }
+                assertTrue("Open the native drawer for reference #2", open?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val siteItem = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == activity.getString(
+                        R.string.workspace_open, activity.getString(R.string.workspace_sites))
+                }
+                assertTrue("Drawer must visibly expose saved-site entry",
+                    siteItem?.isShown == true)
+                captureIdleReference(activity, output, "drawer")
+            }
+        }
+        val context = instrumentation.targetContext
+        val splashIntent = android.content.Intent(context, SplashActivity::class.java)
+            .putExtra("ghostftp.qa.hold_splash", true)
+        ActivityScenario.launch<SplashActivity>(splashIntent).use { scenario ->
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val brand = findView(activity.window.decorView) {
+                    it is TextView && it.text.toString() == "Ghost FTP" && it.isShown
+                }
+                assertNotNull("Actual branded splash frame missing", brand)
+                captureIdleReference(activity, output, "splash")
+            }
+        }
+        // Real transfer-details surface, currently idle; never forge a
+        // percentage, transfer speed, ETA or server result for screenshot QA.
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val open = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == activity.getString(R.string.nav_open)
+                }
+                assertTrue("Open drawer before Transfers", open?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val menu = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == activity.getString(
+                        R.string.workspace_open, activity.getString(R.string.workspace_transfers))
+                }
+                assertTrue("Open actual Transfers", menu?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val details = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "View transfer details" && it.isShown
+                }
+                assertTrue("Real details route must be tappable", details?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val cancel = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "Cancel active transfer"
+                }
+                assertTrue("No idle cancel action may be enabled", cancel?.isEnabled == false)
+                captureIdleReference(activity, output, "transfer-details")
+            }
+        }
+    }
+
+    private fun captureIdleReference(
+        activity: android.app.Activity, directory: File, filename: String
+    ) {
+        val decor = activity.window.decorView
+        assertNoUserInputInHierarchy(decor)
+        assertEquals("Reference width must remain exactly 480 px.", 480, decor.width)
+        assertTrue("Actual app screenshot has no height.", decor.height > 0)
+        val capture = Bitmap.createBitmap(decor.width, decor.height, Bitmap.Config.ARGB_8888)
+        try {
+            capture.eraseColor(android.graphics.Color.rgb(7, 14, 26))
+            decor.draw(Canvas(capture))
+            val target = File(directory, filename + ".png")
+            target.outputStream().use {
+                assertTrue("Could not encode actual " + filename + " screen",
+                    capture.compress(Bitmap.CompressFormat.PNG, 100, it))
+            }
+            assertTrue("Empty actual visual QA frame: " + filename,
+                target.length() > 4096L)
+        } finally {
+            capture.recycle()
         }
     }
 
