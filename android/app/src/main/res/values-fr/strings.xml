@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Aucun transfert cloud en cours.</string>
     <string name="label_contact">Contact</string>
     <string name="about_contact_desc">Posez une question ou signalez un problème.</string>
+    <string name="workspace_bookmarks">Favoris</string>
+    <string name="bookmarks_add">Ajouter un favori</string>
+    <string name="bookmarks_empty_title">Aucun favori</string>
+    <string name="bookmarks_empty_detail">Connectez-vous à un site enregistré, ouvrez un dossier distant et touchez +.</string>
+    <string name="bookmarks_connect_first">Connectez-vous à un serveur FTP, FTPS ou SFTP réel avant de créer un favori.</string>
+    <string name="bookmarks_save_site_first">Enregistrez le serveur dans Sites. Les favoris ne sauvegardent jamais de mots de passe.</string>
+    <string name="bookmarks_invalid">Nom ou chemin invalide, doublon ou stockage indisponible. Les favoris existants sont conservés.</string>
+    <string name="bookmarks_remove_title">Supprimer ce favori ?</string>
+    <string name="bookmarks_site_missing">Le site enregistré a disparu. Le favori est conservé.</string>
+    <string name="bookmarks_reconnect">Saisissez vos identifiants et reconnectez-vous pour ouvrir le dossier.</string>
 </resources>
