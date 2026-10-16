@@ -1,3 +1,11 @@
+## 0.95.21 — macOS FTP interoperability, desktop connect budget and Android workspace polish (unreleased) — 16 October 2026
+
+- macOS: fall back to strict Unix LIST only after an explicit unsupported MLSD response; refuse unknown, ambiguous or hostile entries rather than returning an incomplete remote inventory.
+- macOS: render arbitrary UInt64 remote file sizes without crashing on Int64 overflow.
+- Windows/Linux: FTP/FTPS control TCP attempts share a bounded overall connect budget across DNS answers, with loopback regressions.
+- Android: show Files-only remote-action toolbar only in the Files workspace, and session status only in Files and Sites; instrumented navigation assertions.
+- No claim of Android 75-reference 1:1 pixel acceptance or complete macOS secure FTPS/SFTP feature parity; real device and third-party FTP/SSH matrix remain open.
+
 ## 0.95.20 — FileZilla SFTP key-auth migration (unreleased) — 15 October 2026
 
 - Preserve FileZilla SFTP `Keyfile` path only when `Logontype=5`; do not read/copy private key material during import.
