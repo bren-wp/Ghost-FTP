@@ -27,11 +27,15 @@
   "android": {
     "referenceWidthPx": 480,
     "referenceHeightPx": 960,
-    "compactRailWidthDp": 64,
+    "compactRailWidthDp": null,
     "iconSizeDp": 20,
     "compactTextSp": 9,
-    "overlayBelowDp": 360,
-    "phoneTopChromeHeightDp": 58
+    "overlayBelowDp": 600,
+    "phoneTopChromeHeightDp": 52,
+    "drawerWidthDp": 280,
+    "actionFooterHeightDp": 59,
+    "accent": "#654BFF",
+    "note": "2026-10-16 user-approved 16-screen mobile mockup, 480x960 reference, native interactive views; Windows/Linux desktop blue palette unchanged"
   },
   "macos": {
     "referenceScreenCount": 0,
