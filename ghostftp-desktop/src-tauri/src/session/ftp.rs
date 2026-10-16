@@ -719,3 +719,32 @@ fn login(stream: &mut FtpStreamKind, user: &str, password: &str) -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod control_connect_budget_tests {
+    use super::connect_control_addresses;
+    use std::net::{SocketAddr, TcpListener};
+    use std::time::Duration;
+
+    #[test]
+    fn closed_first_address_cannot_hide_a_reachable_second_address() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("loopback listener");
+        let reachable = listener.local_addr().expect("reachable address");
+        let unused = TcpListener::bind("127.0.0.1:0").expect("temporary listener");
+        let refused = unused.local_addr().expect("refused address");
+        drop(unused);
+
+        let socket = connect_control_addresses(&[refused, reachable], Duration::from_secs(6))
+            .expect("second address should be tried");
+        assert_eq!(socket.peer_addr().expect("peer"), reachable);
+    }
+
+    #[test]
+    fn zero_budget_and_empty_dns_answers_must_never_report_connected() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("loopback listener");
+        let reachable = listener.local_addr().expect("reachable address");
+        assert!(connect_control_addresses(&[reachable], Duration::ZERO).is_err());
+        let empty: [SocketAddr; 0] = [];
+        assert!(connect_control_addresses(&empty, Duration::from_secs(1)).is_err());
+    }
+}
