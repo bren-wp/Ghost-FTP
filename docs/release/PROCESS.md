@@ -4,6 +4,8 @@ Ghost FTP uses a canonical pre-1.0 semantic-version release train. Root `version
 
 A successful compile is not equivalent to stable/FINAL acceptance.
 
+Every releasable source version **must use an explicit `preview` or `stable` channel** in `version.json`. The source CI verifies this before merge; the release workflow independently enforces it. Until actual Android 16-screen pixel-parity and physical-device acceptance are complete, use `preview`, not `stable`.
+
 ## Development/release flow
 
 1. Start from current `main`.

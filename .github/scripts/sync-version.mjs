@@ -13,6 +13,12 @@ const { version, previousVersion, previousPublishedVersion, build, releaseDate, 
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 if (!semverPattern.test(version)) throw new Error(`invalid SemVer: ${version}`);
+// Fail before merge rather than blocking publication after a fully green CI.
+// Development-only source cycles use the preview channel; stable may be used
+// only when its separate release acceptance is evidenced.
+if (!["preview", "stable"].includes(config.channel)) {
+  throw new Error(`Unsupported release channel: ${String(config.channel || "missing")}. Use preview or stable.`);
+}
 if (previousVersion && !semverPattern.test(previousVersion)) {
   throw new Error(`invalid previous SemVer: ${previousVersion}`);
 }
