@@ -30,7 +30,7 @@ class PremiumVisualReferenceTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
     @Test
-    fun captureEightIdleWorkspacesAt480x960() {
+    fun captureNineReferenceScreensAt480x960() {
         val screens = listOf(
             "files" to R.string.workspace_files,
             "sites" to R.string.workspace_sites,
@@ -84,6 +84,57 @@ class PremiumVisualReferenceTest {
                     } finally {
                         pixels.recycle()
                     }
+                }
+            }
+            // Ninth real Android screenshot: Add/Edit Site, General tab
+            // (reference #4), using only empty safe fields. No dummy account,
+            // password, hostname, protocol response or fake login.
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                val toggle = findView(root) {
+                    it.contentDescription?.toString() == activity.getString(R.string.nav_open)
+                }
+                assertNotNull("Site editor capture needs real drawer navigation", toggle)
+                assertTrue(toggle!!.performClick())
+                val nav = findView(root) {
+                    it.contentDescription?.toString() ==
+                        activity.getString(R.string.workspace_open,
+                            activity.getString(R.string.workspace_sites))
+                }
+                assertNotNull("Sites workspace must be available", nav)
+                assertTrue(nav!!.performClick())
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val add = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "Add Site" && it.isShown
+                }
+                assertNotNull("Real contextual + Add Site button required", add)
+                assertTrue(add!!.performClick())
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                assertNoUserInputInHierarchy(root)
+                val general = findView(root) {
+                    it.contentDescription?.toString() == "Site editor General tab" && it.isShown
+                }
+                assertNotNull("Native reference General tab missing", general)
+                val decor = activity.window.decorView
+                assertEquals(480, decor.width)
+                val screenshot = Bitmap.createBitmap(decor.width, decor.height,
+                    Bitmap.Config.ARGB_8888)
+                try {
+                    screenshot.eraseColor(android.graphics.Color.rgb(7, 14, 26))
+                    decor.draw(Canvas(screenshot))
+                    val target = File(output, "site-editor.png")
+                    target.outputStream().use { stream ->
+                        assertTrue("Cannot export real Add/Edit Site capture",
+                            screenshot.compress(Bitmap.CompressFormat.PNG, 100, stream))
+                    }
+                    assertTrue("Empty Add/Edit Site screenshot", target.length() > 4096L)
+                } finally {
+                    screenshot.recycle()
                 }
             }
         }
