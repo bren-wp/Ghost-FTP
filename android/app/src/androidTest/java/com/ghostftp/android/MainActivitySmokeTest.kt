@@ -673,10 +673,10 @@ class MainActivitySmokeTest {
 
     private fun assertTextNotShown(expected: String) {
         scenario.onActivity { activity ->
-            val view = findText(activity.window.decorView, expected)
-            if (view != null) {
-                assertTrue("Text should not be shown in the active workspace: $expected", !view.isShown)
+            val visible = findView(activity.window.decorView) {
+                it is TextView && it.text?.toString() == expected && it.isShown
             }
+            assertTrue("Text should not be shown in the active workspace: $expected", visible == null)
         }
     }
 
@@ -686,7 +686,7 @@ class MainActivitySmokeTest {
     private fun usesOverlayNavigation(): Boolean {
         var result = false
         scenario.onActivity { activity ->
-            result = activity.resources.configuration.screenWidthDp < 360
+            result = activity.resources.configuration.screenWidthDp < 600
         }
         return result
     }
@@ -775,9 +775,13 @@ class MainActivitySmokeTest {
 
     private fun assertTextPresent(expected: String) {
         scenario.onActivity { activity ->
-            val view = findText(activity.window.decorView, expected)
-            assertNotNull("Missing text in MainActivity hierarchy: $expected", view)
-            assertTrue("Text is not shown in MainActivity hierarchy: $expected", view!!.isShown)
+            // The full-width design keeps an off-screen navigation drawer.
+            // A hidden drawer label may precede the visible page heading;
+            // assert against a genuinely visible matching TextView.
+            val view = findView(activity.window.decorView) {
+                it is TextView && it.text?.toString() == expected && it.isShown
+            }
+            assertNotNull("Missing visible text in MainActivity hierarchy: $expected", view)
         }
     }
 
@@ -785,10 +789,11 @@ class MainActivitySmokeTest {
         repeat(12) {
             var visible = false
             scenario.onActivity { activity ->
-                val view = findText(activity.window.decorView, expected)
-                assertNotNull("Missing text in MainActivity hierarchy: $expected", view)
+                val view = findView(activity.window.decorView) {
+                    it is TextView && it.text?.toString() == expected && it.isShown
+                }
                 val rect = Rect()
-                visible = view!!.getGlobalVisibleRect(rect) && rect.width() > 0 && rect.height() > 0
+                visible = view?.getGlobalVisibleRect(rect) == true && rect.width() > 0 && rect.height() > 0
             }
             if (visible) return
             SystemClock.sleep(50)
