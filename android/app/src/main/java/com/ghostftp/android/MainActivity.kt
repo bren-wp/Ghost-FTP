@@ -71,6 +71,9 @@ class MainActivity : Activity() {
     private lateinit var uploadSelectionText: TextView
     private lateinit var transferStateText: TextView
     private lateinit var transferOverviewText: TextView
+    private lateinit var transferQueueSurface: LinearLayout
+    private lateinit var transferDetailsSurface: LinearLayout
+    private lateinit var transferDetailsStatus: TextView
     private var sessionCompletedOperations = 0
     private var sessionFailedOperations = 0
     private var sessionCancelledOperations = 0
@@ -1736,6 +1739,78 @@ class MainActivity : Activity() {
                 if (optionsPanel.visibility == View.VISIBLE) View.GONE else View.VISIBLE
         }.apply { contentDescription = "Transfer options" })
         addView(optionsPanel)
+
+        // Reference #8: a real transfer-details route, never invented progress
+        // bars, speed, ETA or synthetic queue jobs. This Android engine runs a
+        // single cancellable operation and preserves its actual status/path.
+        transferOverviewText.isClickable = true
+        transferOverviewText.isFocusable = true
+        transferOverviewText.contentDescription = "View transfer details"
+        transferOverviewText.setOnClickListener { openTransferDetails() }
+        val queueContent = (0 until childCount).map { getChildAt(it) }
+        removeAllViews()
+        transferQueueSurface = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            queueContent.forEach { addView(it) }
+        }
+        addView(transferQueueSurface)
+        transferDetailsSurface = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(dp(3), dp(4), dp(3), dp(8))
+            addView(PremiumReferenceStyle.caption(this@MainActivity,
+                "Transfer Details", 19f).apply {
+                typeface = Typeface.DEFAULT_BOLD
+            })
+            addView(space(13))
+            transferDetailsStatus = PremiumReferenceStyle.caption(this@MainActivity,
+                "No active transfer", 13f, true)
+            addView(transferDetailsStatus)
+            addView(space(10))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                addView(PremiumReferenceStyle.action(this@MainActivity, "Back") {
+                    closeTransferDetails()
+                }, LinearLayout.LayoutParams(0, dp(44), 1f))
+                addView(gap(8))
+                addView(PremiumReferenceStyle.action(this@MainActivity, "Cancel") {
+                    activeCancellation?.cancel()
+                    transferDetailsStatus.text =
+                        "Cancellation requested. Waiting for the current I/O checkpoint."
+                }, LinearLayout.LayoutParams(0, dp(44), 1f))
+                addView(gap(8))
+                addView(PremiumReferenceStyle.action(this@MainActivity, "Retry") {
+                    closeTransferDetails()
+                    optionsPanel.visibility = View.VISIBLE
+                }, LinearLayout.LayoutParams(0, dp(44), 1f))
+            })
+        }
+        addView(transferDetailsSurface)
+    }
+
+    private fun openTransferDetails() {
+        if (!::transferDetailsSurface.isInitialized) return
+        val path = transferRemotePathInput.text.toString().trim()
+        val actual = when {
+            operationInFlight -> "Transfer in progress"
+            lastCompletedTransferPath.isNotBlank() -> "Last operation completed"
+            else -> "No active transfer"
+        }
+        transferDetailsStatus.text = actual + "\n" +
+            (path.ifBlank { lastCompletedTransferPath }.ifBlank {
+                "Select a remote file or start a transfer."
+            }) + "\n" + transferStateText.text.toString()
+        transferQueueSurface.visibility = View.GONE
+        transferDetailsSurface.visibility = View.VISIBLE
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = "Transfer Details"
+        contentScroll.post { contentScroll.scrollTo(0, workspaceContainer.top) }
+    }
+
+    private fun closeTransferDetails() {
+        transferDetailsSurface.visibility = View.GONE
+        transferQueueSurface.visibility = View.VISIBLE
+        if (::phoneChromeTitle.isInitialized)
+            phoneChromeTitle.text = workspaceLabel(Workspace.TRANSFERS)
     }
 
     private fun buildSyncBackupCard(): View = panel().apply {
@@ -2596,6 +2671,9 @@ class MainActivity : Activity() {
         when {
             usesOverlayNavigation() && navigationOpen -> setNavigationOpen(false)
             searchMode -> closeSearch()
+            activeWorkspace == Workspace.TRANSFERS &&
+                ::transferDetailsSurface.isInitialized &&
+                transferDetailsSurface.visibility == View.VISIBLE -> closeTransferDetails()
             activeWorkspace == Workspace.SITES && siteEditorVisible -> showSitesOverview()
             activeWorkspace != Workspace.FILES -> setWorkspace(Workspace.FILES)
             else -> super.onBackPressed()
