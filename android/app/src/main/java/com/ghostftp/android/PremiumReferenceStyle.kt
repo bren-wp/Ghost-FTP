@@ -49,7 +49,7 @@ internal object PremiumReferenceStyle {
     fun caption(context: Context, value: String, size: Float = 13f, muted: Boolean = false) =
         TextView(context).apply {
             text = value
-            setTextColor(if (muted) secondary else text)
+            setTextColor(if (muted) PremiumReferenceStyle.secondary else PremiumReferenceStyle.text)
             textSize = size
             includeFontPadding = false
             gravity = Gravity.CENTER_VERTICAL
