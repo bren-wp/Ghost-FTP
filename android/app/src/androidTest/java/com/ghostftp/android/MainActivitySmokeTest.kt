@@ -604,6 +604,18 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun bookmarksReferenceWorkspaceHasWorkingAddActionWithoutInventingSites() {
+        openWorkspace(R.string.workspace_bookmarks)
+        assertTextPresent(appString(R.string.workspace_bookmarks))
+        assertDescriptionPresent(appString(R.string.bookmarks_add))
+        clickByDescription(appString(R.string.bookmarks_add))
+        assertTextPresent(appString(R.string.bookmarks_connect_first))
+        // A bookmark never stores credentials or bypasses SSH host-key trust:
+        // the add action must refuse to create anything before a live session.
+        assertTextNotShown("Production Server")
+    }
+
+    @Test
     fun workspacesAreExclusiveInsteadOfOneLongScreen() {
         assertTextVisibleInViewport(appString(R.string.state_connect_to_load_files))
         assertTextNotShown(appString(R.string.field_protocol))
