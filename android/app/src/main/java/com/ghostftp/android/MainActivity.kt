@@ -1469,6 +1469,60 @@ class MainActivity : Activity() {
             setPadding(0, dp(12), 0, 0)
         }
         addView(activityRows)
+
+        // Reference #7 uses Queue / History tabs, NOT a page of raw editable
+        // transfer paths. This app currently has a single active operation and
+        // session-local real history, not a fabricated multi-file queue.
+        val original = (0 until childCount).map { getChildAt(it) }
+        removeAllViews()
+        val queuePanel = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        val historyPanel = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+        }
+        val optionsPanel = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+        }
+        for (view in original) {
+            when (view) {
+                transferOverviewText, transferStateText -> queuePanel.addView(view)
+                activityRows -> historyPanel.addView(view)
+                else -> optionsPanel.addView(view)
+            }
+        }
+        fun setTab(queue: Boolean) {
+            queuePanel.visibility = if (queue) View.VISIBLE else View.GONE
+            historyPanel.visibility = if (queue) View.GONE else View.VISIBLE
+            if (!queue) optionsPanel.visibility = View.GONE
+        }
+        addView(LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = PremiumReferenceStyle.surface(this@MainActivity,
+                PremiumReferenceStyle.raised, 8)
+            addView(PremiumReferenceStyle.action(this@MainActivity, "Queue", true) {
+                setTab(true)
+            }.apply {
+                contentDescription = "Transfer Queue tab"
+            }, LinearLayout.LayoutParams(0, dp(40), 1f))
+            addView(PremiumReferenceStyle.action(this@MainActivity, "History") {
+                setTab(false)
+            }.apply {
+                contentDescription = "Transfer History tab"
+            }, LinearLayout.LayoutParams(0, dp(40), 1f))
+        })
+        addView(space(12))
+        addView(queuePanel)
+        addView(historyPanel)
+        addView(space(8))
+        addView(secondaryButton("Transfer options") {
+            setTab(true)
+            optionsPanel.visibility =
+                if (optionsPanel.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }.apply { contentDescription = "Transfer options" })
+        addView(optionsPanel)
     }
 
     private fun buildSyncBackupCard(): View = panel().apply {
