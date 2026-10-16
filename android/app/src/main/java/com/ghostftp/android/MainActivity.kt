@@ -1710,13 +1710,17 @@ class MainActivity : Activity() {
 
     private fun showMessage(title: String, detail: String) {
         if (!::statusTitle.isInitialized || !::statusDetail.isInitialized) return
+        if (activeWorkspace == Workspace.SETTINGS && ::settingsFeedback.isInitialized) {
+            // Only the currently visible Settings notice owns this message.
+            // Updating hidden Files/Transfers labels as well makes screen
+            // readers and hierarchy tests pick the invisible duplicate first.
+            settingsFeedback.text = detail
+            settingsFeedback.visibility = View.VISIBLE
+            return
+        }
         statusTitle.text = title
         statusDetail.text = detail
         if (::transferStateText.isInitialized) transferStateText.text = detail
-        if (::settingsFeedback.isInitialized && activeWorkspace == Workspace.SETTINGS) {
-            settingsFeedback.text = detail
-            settingsFeedback.visibility = View.VISIBLE
-        }
     }
 
     private fun showIdleState() {
