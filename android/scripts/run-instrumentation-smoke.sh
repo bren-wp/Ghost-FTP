@@ -234,7 +234,7 @@ mkdir -p "$VISUAL_DIR"
 # Preserve the raw output and exit status for incident diagnostics.
 set +e
 CAPTURE_RESULT="$(adb shell am instrument -w \
-  -e class 'com.ghostftp.android.PremiumVisualReferenceTest#captureEightIdleWorkspacesAt480x960' \
+  -e class 'com.ghostftp.android.PremiumVisualReferenceTest#captureNineReferenceScreensAt480x960' \
   "$PACKAGE_ID.test/androidx.test.runner.AndroidJUnitRunner" 2>&1)"
 CAPTURE_EXIT=$?
 set -e
@@ -246,7 +246,7 @@ if ! bash android/scripts/check-visual-instrumentation-output.sh \
   tail -n 80 "$VISUAL_DIR/instrumentation.log" >&2
   exit 1
 fi
-for screen in files sites transfers sync cloud bookmarks settings about; do
+for screen in files sites transfers sync cloud bookmarks settings about site-editor; do
   adb exec-out run-as "$PACKAGE_ID" cat "files/premium-qa/${screen}.png" > "$VISUAL_DIR/${screen}.png"
   test -s "$VISUAL_DIR/${screen}.png"
   # The Android emulator CI runs on macOS. Verify PNG signature, IHDR
@@ -274,14 +274,14 @@ PYTHON_PNG
 done
 (
   cd "$VISUAL_DIR"
-  for screen in files sites transfers sync cloud bookmarks settings about; do
+  for screen in files sites transfers sync cloud bookmarks settings about site-editor; do
     shasum -a 256 "${screen}.png"
   done
 ) > "$VISUAL_DIR/SHA256SUMS.txt"
 test -s "$VISUAL_DIR/SHA256SUMS.txt"
 cat > "$VISUAL_DIR/README.txt" <<'VISUAL_EVIDENCE'
 Ghost FTP Android visual QA: actual live debug-view renders at a 480px-wide,
-160dpi emulator viewport. Captures show idle application workspaces only.
+160dpi emulator viewport. Captures show eight idle workspaces plus an empty Add/Edit Site native General tab.
 No reference concept screenshots, fake cloud connections, passwords, or
 simulated transfers are inserted. These are visual-comparison INPUTS and do
 not certify 1:1 parity with the 16 reference PNGs.
