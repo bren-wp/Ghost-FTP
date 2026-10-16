@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Nenhuma transferência na nuvem em curso.</string>
     <string name="label_contact">Contato</string>
     <string name="about_contact_desc">Faça uma pergunta ou relate um problema.</string>
+    <string name="workspace_bookmarks">Marcadores</string>
+    <string name="bookmarks_add">Adicionar marcador</string>
+    <string name="bookmarks_empty_title">Ainda sem marcadores</string>
+    <string name="bookmarks_empty_detail">Ligue-se a um site guardado, abra uma pasta remota e toque em +.</string>
+    <string name="bookmarks_connect_first">Ligue-se primeiro a um servidor FTP, FTPS ou SFTP real.</string>
+    <string name="bookmarks_save_site_first">Guarde primeiro o servidor em Sites. Os marcadores nunca guardam palavras-passe.</string>
+    <string name="bookmarks_invalid">Nome ou caminho inválido, duplicado ou armazenamento indisponível. Os marcadores existentes mantêm-se.</string>
+    <string name="bookmarks_remove_title">Remover marcador?</string>
+    <string name="bookmarks_site_missing">O site guardado já não existe. O marcador foi mantido.</string>
+    <string name="bookmarks_reconnect">Introduza as credenciais e volte a ligar-se para abrir a pasta.</string>
 </resources>
