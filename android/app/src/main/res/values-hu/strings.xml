@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Nincs folyamatban felhőátvitel.</string>
     <string name="label_contact">Kapcsolat</string>
     <string name="about_contact_desc">Tegyen fel kérdést, vagy jelentse a problémát.</string>
+    <string name="workspace_bookmarks">Könyvjelzők</string>
+    <string name="bookmarks_add">Könyvjelző hozzáadása</string>
+    <string name="bookmarks_empty_title">Még nincsenek könyvjelzők</string>
+    <string name="bookmarks_empty_detail">Kapcsolódjon egy mentett helyhez, nyisson meg egy távoli mappát, majd koppintson a + jelre.</string>
+    <string name="bookmarks_connect_first">Először kapcsolódjon egy valódi FTP, FTPS vagy SFTP kiszolgálóhoz.</string>
+    <string name="bookmarks_save_site_first">Előbb mentse a kiszolgálót a Helyek között. A könyvjelzők nem tárolnak jelszavakat.</string>
+    <string name="bookmarks_invalid">Érvénytelen vagy ismétlődő név vagy útvonal, illetve a tárhely nem érhető el. A meglévő könyvjelzők megmaradtak.</string>
+    <string name="bookmarks_remove_title">Könyvjelző eltávolítása?</string>
+    <string name="bookmarks_site_missing">A mentett hely már nem létezik. A könyvjelző megmaradt.</string>
+    <string name="bookmarks_reconnect">Adja meg hitelesítő adatait, majd kapcsolódjon újra a mappa megnyitásához.</string>
 </resources>
