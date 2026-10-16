@@ -282,7 +282,8 @@ require_text "reference new-folder footer and dialog" "$MAIN_ACTIVITY" 'private 
 require_text "reference rename More action" "$MAIN_ACTIVITY" 'private fun promptRenameRemoteEntry()'
 require_text "reference delete footer" "$MAIN_ACTIVITY" 'contentDescription = getString(R.string.action_delete)'
 require_text "premium cross-platform navy background" "$MAIN_ACTIVITY" 'Color.rgb(7, 14, 26)'
-require_text "premium cross-platform blue accent" "$MAIN_ACTIVITY" 'Color.rgb(56, 171, 255)'
+require_text "user-approved violet Android accent" "$MAIN_ACTIVITY" 'val accent: Int = PremiumReferenceStyle.purple'
+require_text "separate desktop blue brand source" "$ROOT/docs/branding/premium-ui-tokens.json" '"accent": "#38ABFF"'
 
 require_text "connect action" "$MAIN_ACTIVITY" 'primaryButton(getString(R.string.action_connect))'
 require_text "disconnect action" "$MAIN_ACTIVITY" 'secondaryButton(getString(R.string.action_disconnect))'
