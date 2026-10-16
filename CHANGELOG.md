@@ -1,3 +1,10 @@
+## 0.95.22 — Android 16-screen premium reference implementation (unreleased) — 16 October 2026
+
+- Align native phone UI with the two user-supplied sixteen-screen Android reference images: full-width content, a slide-over site/navigation drawer, a 52dp contextual title bar, an Android-only violet premium action palette, real dual-pane Files layout and a five-action fixed footer.
+- Replace the old Sites-first editor with a searchable list of real saved-site metadata and an Add/Edit route, without ever inventing sites or persisting passwords.
+- Keep remote FTP/FTPS/SFTP file interactions wired to their existing safe controllers; browse app-owned local downloads rather than displaying fictitious access to system-wide storage.
+- Update Android runtime UI contracts and real emulator visual/click-through tests. Remaining detailed screens, physical-device pixel comparison and complete all-six-workflow acceptance are NOT claimed.
+
 ## 0.95.21 — macOS FTP interoperability, desktop connect budget and Android workspace polish (unreleased) — 16 October 2026
 
 - macOS: real navigation, create-folder and confirmation-protected file/empty-folder deletion (MKD, DELE, RMD) with live FTP fixture coverage; no recursive-delete shortcut.

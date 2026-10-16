@@ -1,8 +1,8 @@
-> Ghost FTP **0.95.21** (development cycle), following published **v0.95.20**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.22** (development cycle), following published **v0.95.21**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
 
-## 0.95.21 development candidate — cross-platform reliability (not yet released)
+## 0.95.22 development candidate — cross-platform reliability (not yet released)
 
 macOS native FTP now negotiates an authenticated passive directory listing and supports fail-closed Unix LIST fallback for servers that explicitly reject MLSD. The Files editor supports navigable folders, creating directories (MKD), confirmed deletion of files (DELE), and confirmed removal of **empty** folders (RMD). Untrusted remote file sizes are formatted without converting UInt64 values beyond Int64 capacity. These macOS additions are for unencrypted FTP only: macOS FTPS, SFTP, signed/notarized distribution and full FileZilla parity are **not implemented** by this patch.
 
