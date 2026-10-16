@@ -1841,61 +1841,150 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun buildSettingsCard(): View = panel().apply {
-        addView(sectionTitle(getString(R.string.workspace_settings)))
-        addView(sectionDescription(getString(R.string.desc_settings)))
-        addView(row(getString(R.string.label_privacy), getString(R.string.settings_no_tracking)))
-        addView(row(getString(R.string.label_credentials), getString(R.string.settings_credentials)))
-        addView(row(getString(R.string.label_security), getString(R.string.settings_security)))
+    /** Two-column clickable dashboard from reference screen #15. */
+    private fun settingsCategory(
+        title: String, iconResource: Int, onClick: () -> Unit
+    ): View = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(8), 0, dp(8), 0)
+        minimumHeight = dp(45)
+        background = PremiumReferenceStyle.surface(this@MainActivity)
+        addView(ImageView(this@MainActivity).apply {
+            setImageResource(iconResource)
+            imageTintList = android.content.res.ColorStateList.valueOf(Brand.textSoft)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, LinearLayout.LayoutParams(dp(19), dp(19)))
+        addView(PremiumReferenceStyle.caption(this@MainActivity, title, 12f).apply {
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding(dp(6), 0, 0, 0)
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }, LinearLayout.LayoutParams(0, dp(36), 1f))
+        addView(PremiumReferenceStyle.caption(this@MainActivity, "›", 21f, true),
+            LinearLayout.LayoutParams(dp(11), dp(34)))
+        contentDescription = "Settings: " + title
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { onClick() }
+    }
 
-        val firstRow = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(12), 0, 0)
+    private fun buildSettingsCard(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        val advanced = panel().apply {
+            visibility = View.GONE
+            addView(sectionDescription(getString(R.string.settings_no_tracking)))
+            addView(row(getString(R.string.label_credentials), getString(R.string.settings_credentials)))
+            addView(row(getString(R.string.label_security), getString(R.string.settings_security)))
+            fun pair(first: Button, second: Button) {
+                addView(LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setPadding(0, dp(5), 0, dp(5))
+                    addView(first, buttonParams(1f))
+                    addView(gap(8))
+                    addView(second, buttonParams(1f))
+                })
+            }
+            pair(secondaryButton(getString(R.string.action_clear_activity)) {
+                clearActivityLog()
+            }.apply { contentDescription = getString(R.string.action_clear_activity) },
+                trackBusySensitiveLocalAction(
+                    secondaryButton(getString(R.string.action_reset_transfers)) {
+                        resetTransferFields()
+                    }.apply { contentDescription = getString(R.string.action_reset_transfers) }
+                ))
+            pair(trackBusySensitiveLocalAction(
+                    secondaryButton(getString(R.string.action_reset_connection)) {
+                        resetConnectionForm()
+                    }.apply { contentDescription = getString(R.string.action_reset_connection) }
+                ), trackSessionDisconnect(
+                    secondaryButton(getString(R.string.action_disconnect)) {
+                        disconnect()
+                    }.apply {
+                        contentDescription = getString(R.string.workspace_settings) +
+                            " " + getString(R.string.action_disconnect)
+                    }
+                ))
+            addView(space(12))
+            addView(officialLinkRow(getString(R.string.label_support),
+                getString(R.string.about_support_desc), SUPPORT_URL))
+            addView(officialLinkRow(getString(R.string.label_contact),
+                getString(R.string.about_contact_desc), CONTACT_URL))
+            addView(officialLinkRow(getString(R.string.label_privacy_policy),
+                getString(R.string.about_privacy_desc), PRIVACY_URL))
+            addView(officialLinkRow(getString(R.string.label_eula),
+                getString(R.string.about_eula_desc), EULA_URL))
+            addView(aboutFactRow(getString(R.string.label_author), "Brendigo"))
         }
-        firstRow.addView(secondaryButton(getString(R.string.action_clear_activity)) { clearActivityLog() }.apply {
-            contentDescription = getString(R.string.action_clear_activity)
-        }, buttonParams(weight = 1f))
-        firstRow.addView(gap(8))
-        firstRow.addView(trackBusySensitiveLocalAction(secondaryButton(getString(R.string.action_reset_transfers)) { resetTransferFields() }.apply {
-            contentDescription = getString(R.string.action_reset_transfers)
-        }), buttonParams(weight = 1f))
-        addView(firstRow)
-
-        val secondRow = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(8), 0, 0)
+        val details = PremiumReferenceStyle.panelColumn(this@MainActivity).apply {
+            visibility = View.GONE
         }
-        secondRow.addView(trackBusySensitiveLocalAction(secondaryButton(getString(R.string.action_reset_connection)) { resetConnectionForm() }.apply {
-            contentDescription = getString(R.string.action_reset_connection)
-        }), buttonParams(weight = 1f))
-        secondRow.addView(gap(8))
-        secondRow.addView(trackSessionDisconnect(secondaryButton(getString(R.string.action_disconnect)) { disconnect() }.apply {
-            contentDescription = "${getString(R.string.workspace_settings)} ${getString(R.string.action_disconnect)}"
-        }), buttonParams(weight = 1f))
-        addView(secondRow)
-
-        // Settings actions must report real outcomes in the currently visible
-        // workspace. Hiding the Files-only session panel must not also hide
-        // Clear activity / Reset transfer / Reset connection feedback.
+        fun showDetails(name: String, message: String) {
+            advanced.visibility = View.GONE
+            details.removeAllViews()
+            details.addView(PremiumReferenceStyle.caption(this@MainActivity, name, 15f).apply {
+                typeface = Typeface.DEFAULT_BOLD
+            })
+            details.addView(space(6))
+            details.addView(PremiumReferenceStyle.caption(this@MainActivity, message, 12f, true))
+            details.visibility = View.VISIBLE
+        }
+        val grid = listOf(
+            listOf(Triple("Appearance", R.drawable.ic_premium_nav_settings, 1),
+                Triple("Security", R.drawable.ic_premium_nav_settings, 2)),
+            listOf(Triple("Connections", R.drawable.ic_premium_nav_sites, 3),
+                Triple("Notifications", R.drawable.ic_premium_nav_about, 4)),
+            listOf(Triple("Transfers", R.drawable.ic_premium_nav_transfers, 5),
+                Triple("Advanced", R.drawable.ic_premium_nav_settings, 6)),
+            listOf(Triple("Cloud Storage", R.drawable.ic_premium_nav_cloud, 7),
+                Triple("About", R.drawable.ic_premium_nav_about, 8))
+        )
+        grid.forEach { line ->
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                line.forEachIndexed { index, item ->
+                    if (index != 0) addView(gap(8))
+                    addView(settingsCategory(item.first, item.second) {
+                        when (item.third) {
+                            1 -> showDetails(item.first, "Dark premium appearance is enabled.")
+                            2 -> showDetails(item.first, getString(R.string.settings_security) +
+                                "\n" + getString(R.string.settings_no_tracking))
+                            3 -> { showSitesOverview(); setWorkspace(Workspace.SITES) }
+                            4 -> {
+                                val intent = Intent(
+                                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                    Uri.parse("package:" + packageName)
+                                )
+                                runCatching { startActivity(intent) }.onFailure {
+                                    showDetails(item.first, "Android controls notification permissions.")
+                                }
+                            }
+                            5 -> setWorkspace(Workspace.TRANSFERS)
+                            6 -> {
+                                details.visibility = View.GONE
+                                advanced.visibility = if (advanced.visibility == View.VISIBLE)
+                                    View.GONE else View.VISIBLE
+                            }
+                            7 -> setWorkspace(Workspace.CLOUD)
+                            8 -> setWorkspace(Workspace.ABOUT)
+                        }
+                    }, LinearLayout.LayoutParams(0, dp(47), 1f))
+                }
+            }, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp(7) })
+        }
+        addView(details)
         settingsFeedback = TextView(this@MainActivity).apply {
             visibility = View.GONE
             contentDescription = "Settings action feedback"
             setTextColor(Brand.textSoft)
             textSize = 12f
             setPadding(dp(12), dp(10), dp(12), dp(10))
-            background = rounded(Brand.panelStrong, dp(12), Brand.border)
+            background = PremiumReferenceStyle.surface(this@MainActivity)
         }
         addView(settingsFeedback)
-
-        // Official support and legal links remain accessible in Settings.
-        addView(space(16))
-        addView(officialLinkRow(getString(R.string.label_support), getString(R.string.about_support_desc), SUPPORT_URL))
-        addView(officialLinkRow(getString(R.string.label_contact), getString(R.string.about_contact_desc), CONTACT_URL))
-        addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
-        addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
-        addView(aboutFactRow(getString(R.string.label_author), "Brendigo"))
+        addView(advanced)
     }
 
     // Matches the approved mobile About hierarchy with real product data.
