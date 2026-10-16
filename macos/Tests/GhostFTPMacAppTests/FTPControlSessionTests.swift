@@ -414,7 +414,8 @@ final class FTPControlSessionTests: XCTestCase {
 
         let folder = "ghostftp-qa-\(UUID().uuidString)"
         try await session.createDirectory(named: folder)
-        XCTAssertTrue(try await session.listDirectory().contains(where: {
+        let afterMKD = try await session.listDirectory()
+        XCTAssertTrue(afterMKD.contains(where: {
             $0.name == folder && $0.isDirectory
         }))
         try await session.deleteFile(named: remoteName)
