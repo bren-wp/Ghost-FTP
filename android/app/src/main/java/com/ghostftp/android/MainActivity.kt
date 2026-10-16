@@ -990,7 +990,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
         }
         addView(sitesListRows)
-        // Preserve no in-memory placeholders and no sample cloud accounts.
+        // Render only metadata actually present in the private site store.
         refreshSiteRows()
     }
 
