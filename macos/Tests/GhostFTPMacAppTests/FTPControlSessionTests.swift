@@ -425,6 +425,27 @@ final class FTPControlSessionTests: XCTestCase {
         await session.disconnect()
     }
 
+    func testLiveLegacyServerRejectsMLSDAndListsViaUnixLIST() async throws {
+        guard let rawPort = ProcessInfo.processInfo.environment["GHOSTFTP_MACOS_LIST_E2E_PORT"],
+              let port = UInt16(rawPort) else {
+            throw XCTSkip("Legacy Unix LIST FTP fixture not configured.")
+        }
+        let session = FTPControlSession()
+        let profile = ConnectionProfile(
+            name: "Legacy Unix LIST FTP acceptance",
+            protocolKind: .ftp,
+            host: "127.0.0.1",
+            port: port,
+            username: "ghostftp-e2e"
+        )
+        let cwd = try await session.connect(profile: profile, password: "ghostftp-e2e-secret")
+        XCTAssertFalse(cwd.isEmpty)
+        let entries = try await session.listDirectory()
+        XCTAssertTrue(entries.contains(where: { $0.name == "fixture.txt" }))
+        try await session.noop() // rejected MLSD reply and LIST completion were consumed.
+        await session.disconnect()
+    }
+
     func testDirectoryListingBufferRejectsOversizedPayload() throws {
         var output = Data(repeating: 0x41, count: 7)
 
