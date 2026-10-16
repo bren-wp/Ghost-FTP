@@ -1,0 +1,116 @@
+{
+  "title": "Ghost FTP Android 16-screen 1:1 QA source manifest",
+  "date": "2026-10-16",
+  "sourceKind": "user supplied rendered composite design references; NOT installed app screenshots",
+  "targetPerScreen": "480x960",
+  "images": [
+    {
+      "filename": "Ghost FTP Android UI Showcase(1).png",
+      "width": 1586,
+      "height": 992,
+      "sha256": "a79e5325afdc961d303ea25013151019f5ca98c6bfc10f14f8804d7e15de6bf3"
+    },
+    {
+      "filename": "Ghost FTP Android UI maketa(2).png",
+      "width": 1536,
+      "height": 1024,
+      "sha256": "470f9c52f9f8c6e79bd2be71af02ad551ccc1b46289bfeeb3d0d2a0d51a5a1c9"
+    }
+  ],
+  "appearance": {
+    "canvas": "#070E1A",
+    "panel": "#0D192B",
+    "raised": "#111F34",
+    "violet": "#654BFF",
+    "violetLight": "#8360FF",
+    "text": "#EAF6FF",
+    "drawer": "overlay (<600dp)",
+    "toolbarHeightDp": 52,
+    "footerActions": 5
+  },
+  "screens": [
+    {
+      "index": 1,
+      "name": "Splash Screen",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 2,
+      "name": "Sidebar / Navigation",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 3,
+      "name": "Sites List",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 4,
+      "name": "Add / Edit Site",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 5,
+      "name": "Connect Screen",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 6,
+      "name": "File Manager (Dual Pane)",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 7,
+      "name": "Transfer Queue",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 8,
+      "name": "Transfer Details",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 9,
+      "name": "Cloud Storage",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 10,
+      "name": "Bookmarks",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 11,
+      "name": "Remote File Search",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 12,
+      "name": "Sync / Compare",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 13,
+      "name": "Text Editor",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 14,
+      "name": "Batch Operations",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 15,
+      "name": "Settings",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    },
+    {
+      "index": 16,
+      "name": "About",
+      "visualAcceptance": "pending real pixel-by-pixel and interaction comparison"
+    }
+  ],
+  "releaseAcceptance": "NO screen can be certified 1:1 until an authentic runtime capture at matching dimensions is compared with these user references and all its controls perform real actions.",
+  "doNotShipFakeData": true,
+  "forbidConceptScreensAsAppBackgrounds": true
+}

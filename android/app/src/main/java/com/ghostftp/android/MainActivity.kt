@@ -94,13 +94,22 @@ class MainActivity : Activity() {
     private lateinit var disconnectButton: Button
     private lateinit var refreshButton: Button
     private lateinit var remoteRows: LinearLayout
+    private lateinit var localRows: LinearLayout
+    private lateinit var remoteDirectoryLabel: TextView
+    private lateinit var localDirectoryLabel: TextView
+    private var localBrowseDirectory: File? = null
     private lateinit var activityRows: LinearLayout
     private lateinit var contentScroll: ScrollView
     private lateinit var workspaceContainer: LinearLayout
     private lateinit var workspaceTitle: TextView
+    private lateinit var phoneChromeTitle: TextView
+    private lateinit var phoneMenuButton: Button
     // Reference workspaces must not inherit Files-only actions or status cards.
     private lateinit var fileActionToolbar: View
     private lateinit var sessionStatusCard: View
+    private lateinit var workspaceFeedbackPanel: LinearLayout
+    private lateinit var workspaceFeedbackTitle: TextView
+    private lateinit var workspaceFeedbackDetail: TextView
     private lateinit var settingsFeedback: TextView
     private lateinit var navigationRail: View
     private lateinit var navigationScrim: View
@@ -110,10 +119,17 @@ class MainActivity : Activity() {
     private lateinit var confirmationTitle: TextView
     private lateinit var confirmationDetail: TextView
     private lateinit var confirmationAction: Button
+    private lateinit var inlineNameInput: EditText
     private var pendingConfirmation: (() -> Unit)? = null
     private val workspaceNavButtons = mutableMapOf<Workspace, TextView>()
     private var activeWorkspace = Workspace.FILES
     private lateinit var sitesSection: View
+    private lateinit var sitesOverviewPanel: View
+    private lateinit var siteEditorPanel: View
+    private lateinit var siteFeedback: TextView
+    private lateinit var sitesListRows: LinearLayout
+    private lateinit var sitesSearch: EditText
+    private var siteEditorVisible = false
     private lateinit var filesSection: View
     private lateinit var transfersSection: View
     private lateinit var syncSection: View
@@ -171,6 +187,7 @@ class MainActivity : Activity() {
         outState.putString(STATE_UPLOAD_DISPLAY_NAME, selectedUploadDisplayName)
         outState.putString(STATE_LAST_COMPLETED_PATH, lastCompletedTransferPath)
         outState.putString(STATE_WORKSPACE, activeWorkspace.name)
+        outState.putBoolean(STATE_SITE_EDITOR_OPEN, siteEditorVisible)
         outState.putBoolean(STATE_NAVIGATION_OPEN, navigationOpen)
         // Intentionally never persist passwordInput or activeProfile: a recreated
         // Activity must require a fresh authenticated connection.
@@ -288,7 +305,14 @@ class MainActivity : Activity() {
     }
 
     private fun buildContent(): View {
-        sitesSection = buildConnectionCard()
+        siteEditorPanel = buildConnectionCard()
+        sitesOverviewPanel = buildSitesOverview()
+        sitesSection = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(sitesOverviewPanel)
+            addView(siteEditorPanel)
+        }
+        siteEditorPanel.visibility = View.GONE
         filesSection = buildFilesCard()
         transfersSection = buildTransfersCard()
         syncSection = buildSyncBackupCard()
@@ -307,14 +331,12 @@ class MainActivity : Activity() {
             addView(aboutSection)
         }
 
-        // The 480px visual reference uses an always-visible compact rail.
-        // Very narrow devices keep the overlay so file actions remain usable.
+        // User-approved 16-screen reference: full-width phone content with a
+        // slide-over drawer; a persistent rail is reserved for tablets.
         val compactNavigation = usesOverlayNavigation()
         navigationOpen = !compactNavigation
         val railWidth = when {
-            compactNavigation -> dp(152)
-            // The approved 480 × 960 Android reference uses a 64px rail.
-            resources.configuration.screenWidthDp < 600 -> dp(64)
+            compactNavigation -> dp(if (resources.configuration.screenWidthDp < 400) 260 else 280)
             else -> dp(184)
         }
         navigationRail = buildNavigationRail().apply {
@@ -333,17 +355,26 @@ class MainActivity : Activity() {
             setBackgroundColor(Brand.background)
             isFillViewport = true
         }
-        val outerPadding = if (resources.configuration.screenWidthDp < 480) dp(10) else dp(14)
+        val outerPadding = if (resources.configuration.screenWidthDp < 600) dp(10) else dp(14)
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(outerPadding, dp(14), outerPadding, dp(22))
         }
-        content.addView(buildHeader())
-        content.addView(space(10))
+        // Construct the existing live actions, but do not render an extra
+        // competing title/toolbar above the premium phone workspace.
+        val legacyHeader = buildHeader()
+        legacyHeader.visibility =
+            if (resources.configuration.screenWidthDp < 600) View.GONE else View.VISIBLE
+        content.addView(legacyHeader)
         sessionStatusCard = buildStatusCard().apply {
             contentDescription = "Session status panel"
         }
         content.addView(sessionStatusCard)
+        // Status can be hidden in the approved phone reference when no
+        // server is connected. Errors and lifecycle recovery MUST still
+        // have a visible, accessibility-readable home in the active page.
+        workspaceFeedbackPanel = buildWorkspaceFeedback()
+        content.addView(workspaceFeedbackPanel)
         content.addView(space(10))
         content.addView(buildInlineConfirmationCard())
         content.addView(space(10))
@@ -407,43 +438,50 @@ class MainActivity : Activity() {
         }
         setWorkspace(activeWorkspace, announce = false)
         setNavigationOpen(navigationOpen, announce = false)
-        // In the 480×960 reference, the identity bar spans the entire viewport
-        // above the docked 64dp rail, never just the content column.
-        if (resources.configuration.screenWidthDp in 360..599) {
-            return LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setBackgroundColor(Brand.background)
+        // The approved phone reference has a top title, full-width content
+        // and contextual file actions above the Android system navigation.
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Brand.background)
+            if (resources.configuration.screenWidthDp < 600) {
                 addView(buildPremiumPhoneChrome(), LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(58)
-                ))
-                addView(root, LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(52)
                 ))
             }
+            addView(root, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+            ))
+            addView(fileActionToolbar, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
         }
-        return root
     }
 
     private fun buildPremiumPhoneChrome(): View = LinearLayout(this).apply {
         gravity = Gravity.CENTER_VERTICAL
         orientation = LinearLayout.HORIZONTAL
-        setPadding(dp(14), dp(6), dp(10), dp(6))
+        setPadding(dp(8), dp(4), dp(10), dp(4))
         setBackgroundColor(Brand.background)
 
-        addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(34), dp(34)))
+        phoneMenuButton = secondaryButton("☰") { setNavigationOpen(!navigationOpen) }.apply {
+            contentDescription = getString(R.string.nav_open)
+            textSize = 20f
+            minWidth = 0
+            minimumWidth = 0
+        }
+        addView(phoneMenuButton, LinearLayout.LayoutParams(dp(44), dp(44)))
         addView(gap(8))
-        addView(TextView(this@MainActivity).apply {
-            val title = android.text.SpannableString("Ghost FTP")
-            title.setSpan(
-                android.text.style.ForegroundColorSpan(Brand.accent),
-                6, title.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-            text = title
+        phoneChromeTitle = TextView(this@MainActivity).apply {
+            text = workspaceLabel(activeWorkspace)
             setTextColor(Brand.text)
             typeface = Typeface.DEFAULT_BOLD
             textSize = 18f
             gravity = Gravity.CENTER_VERTICAL
-        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+        }
+        addView(phoneChromeTitle, LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.MATCH_PARENT, 1f
+        ))
         val quickMenu = secondaryButton("⋯") { }.apply {
             contentDescription = "Quick navigation"
             textSize = 22f
@@ -477,7 +515,7 @@ class MainActivity : Activity() {
         val rail = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            val iconRail = resources.configuration.screenWidthDp in 360..599
+            val iconRail = false
             setPadding(dp(if (iconRail) 4 else 8), dp(14), dp(if (iconRail) 4 else 8), dp(14))
 
             addView(GhostMarkView(this@MainActivity), LinearLayout.LayoutParams(dp(if (iconRail) 32 else 42), dp(if (iconRail) 32 else 42)))
@@ -565,35 +603,88 @@ class MainActivity : Activity() {
         addView(workspaceTitle)
 
         addView(space(12))
-        val toolbar = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_refresh)) { refreshActive() }), buttonParams(weight = 1f))
-        toolbar.addView(gap(8))
-        toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_upload)) { uploadOrPickFile() }), buttonParams(weight = 1f))
-        toolbar.addView(gap(8))
-        toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_download)) { downloadRemoteFile() }), buttonParams(weight = 1f))
-
-        val toolbarMore = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(8), 0, 0)
-        }
-        toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_new_folder)) { createRemoteFolder() }), buttonParams(weight = 1f))
-        toolbarMore.addView(gap(8))
-        toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_rename)) { renameRemoteEntry() }), buttonParams(weight = 1f))
-        toolbarMore.addView(gap(8))
-        toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_delete), destructive = true) { deleteRemoteFile() }), buttonParams(weight = 1f))
-        // Contextual actions belong to the Files workspace, not Settings,
-        // About, Sites, Sync or transfer-history surfaces.
+        // Reference #6: one five-action footer, not permanent toolbars above files.
         fileActionToolbar = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.VERTICAL
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(5), dp(4), dp(5), dp(4))
+            setBackgroundColor(PremiumReferenceStyle.raised)
             contentDescription = "File actions"
-            addView(toolbar)
-            addView(toolbarMore)
+            val actions = listOf(
+                trackRemoteAction(toolbarButton("⇧\n" + getString(R.string.action_upload)) {
+                    uploadOrPickFile()
+                }.apply { contentDescription = getString(R.string.action_upload) }),
+                trackRemoteAction(toolbarButton("⇩\n" + getString(R.string.action_download)) {
+                    downloadRemoteFile()
+                }.apply { contentDescription = getString(R.string.action_download) }),
+                trackRemoteAction(toolbarButton("▱\n" + getString(R.string.action_new_folder)) {
+                    promptNewRemoteFolder()
+                }.apply { contentDescription = getString(R.string.action_new_folder) }),
+                trackRemoteAction(toolbarButton("⌫\n" + getString(R.string.action_delete)) {
+                    deleteRemoteFile()
+                }.apply { contentDescription = getString(R.string.action_delete) })
+            )
+            actions.forEach { item ->
+                item.setAllCaps(false)
+                item.textSize = 11f
+                item.setPadding(dp(2), dp(3), dp(2), dp(3))
+                addView(item, LinearLayout.LayoutParams(0, dp(51), 1f))
+            }
+            val more = toolbarButton("⋯\nMore") { }.apply {
+                setAllCaps(false)
+                textSize = 11f
+                contentDescription = "More file actions"
+            }
+            more.setOnClickListener {
+                android.widget.PopupMenu(this@MainActivity, more).apply {
+                    menu.add(0, 1, 0, getString(R.string.action_refresh))
+                    menu.add(0, 2, 1, getString(R.string.action_rename))
+                    menu.add(0, 3, 2, getString(R.string.workspace_transfers))
+                    setOnMenuItemClickListener { selected ->
+                        when (selected.itemId) {
+                            1 -> refreshActive()
+                            2 -> promptRenameRemoteEntry()
+                            3 -> setWorkspace(Workspace.TRANSFERS)
+                        }
+                        true
+                    }
+                }.show()
+            }
+            addView(more, LinearLayout.LayoutParams(0, dp(51), 1f))
         }
-        addView(fileActionToolbar)
+    }
+
+    private fun promptNewRemoteFolder() {
+        if (activeProfile == null) {
+            showMessage(getString(R.string.action_new_folder), "Connect to a server first.")
+            return
+        }
+        requestInlineConfirmation(getString(R.string.action_new_folder),
+            "Enter the new remote folder name.", getString(R.string.action_confirm)) {
+            mkdirNameInput.setText(inlineNameInput.text.toString())
+            createRemoteFolder()
+        }
+        inlineNameInput.setText("")
+        inlineNameInput.hint = getString(R.string.hint_folder_target)
+        inlineNameInput.visibility = View.VISIBLE
+        contentScroll.post { contentScroll.scrollTo(0, 0) }
+    }
+
+    private fun promptRenameRemoteEntry() {
+        if (activeProfile == null) {
+            showMessage(getString(R.string.action_rename), "Connect and select a remote file first.")
+            return
+        }
+        requestInlineConfirmation(getString(R.string.action_rename),
+            "Enter a new name for the selected remote item.",
+            getString(R.string.action_confirm)) {
+            renameRemoteNameInput.setText(inlineNameInput.text.toString())
+            renameRemoteEntry()
+        }
+        inlineNameInput.setText(renameRemoteNameInput.text.toString())
+        inlineNameInput.hint = getString(R.string.hint_rename_target)
+        inlineNameInput.visibility = View.VISIBLE
+        contentScroll.post { contentScroll.scrollTo(0, 0) }
     }
 
     private fun buildStatusCard(): View = panel().apply {
@@ -632,6 +723,13 @@ class MainActivity : Activity() {
         }
         addView(confirmationTitle)
         addView(confirmationDetail)
+        inlineNameInput = input("Name", InputType.TYPE_CLASS_TEXT).apply {
+            visibility = View.GONE
+            contentDescription = "Remote action name"
+        }
+        addView(inlineNameInput, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(46)
+        ))
 
         val actions = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -664,6 +762,7 @@ class MainActivity : Activity() {
         pendingConfirmation = onConfirm
         confirmationTitle.text = title
         confirmationDetail.text = detail
+        if (::inlineNameInput.isInitialized) inlineNameInput.visibility = View.GONE
         confirmationAction.text = confirmLabel
         confirmationAction.contentDescription = confirmLabel
         confirmationPanel.visibility = View.VISIBLE
@@ -684,6 +783,16 @@ class MainActivity : Activity() {
         addView(sectionTitle(getString(R.string.workspace_sites)))
         addView(sectionDescription(getString(R.string.desc_sites)))
         addView(sectionDescription("Quick Connect uses these credentials immediately. Save new connection profile is a separate action; passwords are never saved."))
+        siteFeedback = TextView(this@MainActivity).apply {
+            visibility = View.GONE
+            textSize = 13f
+            setTextColor(PremiumReferenceStyle.secondary)
+            setPadding(dp(10), dp(9), dp(10), dp(9))
+            background = PremiumReferenceStyle.surface(this@MainActivity,
+                PremiumReferenceStyle.raised, 8)
+            contentDescription = "Site connection feedback"
+        }
+        addView(siteFeedback)
 
         val savedProfiles = SavedSiteProfiles.read(this@MainActivity)
         addView(formLabel("Saved connection profiles"))
@@ -854,6 +963,145 @@ class MainActivity : Activity() {
         })
     }
 
+    // Real metadata-only Site Manager; no example hosts or imported passwords.
+    // The editor reuses the existing secure ConnectionProfile/controller logic.
+    private fun buildSitesOverview(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(4), dp(6), dp(4), dp(8))
+        val heading = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        heading.addView(sectionTitle(getString(R.string.workspace_sites)),
+            LinearLayout.LayoutParams(0, dp(44), 1f))
+        heading.addView(PremiumReferenceStyle.action(this@MainActivity, "+", true) {
+            showSiteEditor(null)
+        }.apply {
+            contentDescription = "Add Site"
+        }, LinearLayout.LayoutParams(dp(44), dp(42)))
+        addView(heading)
+        sitesSearch = input("Search saved sites…", InputType.TYPE_CLASS_TEXT).apply {
+            contentDescription = "Search sites"
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    refreshSiteRows()
+                }
+                override fun afterTextChanged(s: android.text.Editable?) = Unit
+            })
+        }
+        addView(sitesSearch, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(44)
+        ))
+        addView(space(10))
+        sitesListRows = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        addView(sitesListRows)
+        // Render only metadata actually present in the private site store.
+        refreshSiteRows()
+    }
+
+    private fun refreshSiteRows() {
+        if (!::sitesListRows.isInitialized || closingOrDestroyed()) return
+        sitesListRows.removeAllViews()
+        val q = if (::sitesSearch.isInitialized) sitesSearch.text.toString().trim() else ""
+        val matches = SavedSiteProfiles.read(this).filter {
+            q.isBlank() || it.name.contains(q, ignoreCase = true) ||
+                it.host.contains(q, ignoreCase = true)
+        }
+        if (matches.isEmpty()) {
+            sitesListRows.addView(row("No matching saved sites",
+                "Tap + to add a real FTP, FTPS or SFTP server. Credentials are not saved."))
+            return
+        }
+        matches.forEach { site ->
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(10), dp(10), dp(8), dp(10))
+                background = PremiumReferenceStyle.surface(this@MainActivity,
+                    PremiumReferenceStyle.panel, 10)
+                isClickable = true
+                isFocusable = true
+                contentDescription = "Edit saved site " + site.name
+                setOnClickListener { showSiteEditor(site) }
+            }
+            item.addView(PremiumReferenceStyle.caption(this, "▣", 22f).apply {
+                setTextColor(PremiumReferenceStyle.purpleLight)
+                gravity = Gravity.CENTER
+                background = PremiumReferenceStyle.surface(this@MainActivity,
+                    PremiumReferenceStyle.selected, 8)
+            }, LinearLayout.LayoutParams(dp(40), dp(40)))
+            item.addView(gap(10))
+            val details = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(PremiumReferenceStyle.caption(this@MainActivity, site.name, 15f).apply {
+                    typeface = Typeface.DEFAULT_BOLD
+                })
+                addView(PremiumReferenceStyle.caption(this@MainActivity,
+                    site.protocol.label + " · " + site.host, 12f, true))
+            }
+            item.addView(details, LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            item.addView(PremiumReferenceStyle.action(this, "⋮") {
+                android.widget.PopupMenu(this@MainActivity, item.getChildAt(item.childCount - 1)).apply {
+                    menu.add(0, 1, 0, "Edit")
+                    menu.add(0, 2, 1, "Connect")
+                    menu.add(0, 3, 2, "Remove")
+                    setOnMenuItemClickListener { menuItem ->
+                        when (menuItem.itemId) {
+                            1, 2 -> showSiteEditor(site)
+                            3 -> requestInlineConfirmation("Remove saved site?",
+                                "Remove " + site.name + " from this device?", "Remove") {
+                                if (SavedSiteProfiles.remove(this@MainActivity, site.name)) {
+                                    refreshSavedProfiles()
+                                    refreshSiteRows()
+                                } else showMessage("Site removal failed",
+                                    "The saved profile was preserved.")
+                            }
+                        }
+                        true
+                    }
+                }.show()
+            }.apply { contentDescription = "Site options " + site.name },
+                LinearLayout.LayoutParams(dp(40), dp(40)))
+            sitesListRows.addView(item, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp(6) })
+        }
+    }
+
+    private fun showSiteEditor(site: SavedSiteDefinition?) {
+        siteEditorVisible = true
+        siteFeedback.visibility = View.GONE
+        siteEditorPanel.visibility = View.VISIBLE
+        sitesOverviewPanel.visibility = View.GONE
+        if (site == null) {
+            siteNameInput.text.clear()
+            hostInput.text.clear()
+            usernameInput.text.clear()
+            passwordInput.text.clear()
+            savedSitesSpinner.setSelection(0)
+        } else {
+            val index = SavedSiteProfiles.read(this).indexOfFirst {
+                it.name.equals(site.name, ignoreCase = true)
+            }
+            if (index >= 0) savedSitesSpinner.setSelection(index + 1)
+        }
+        setWorkspace(Workspace.SITES)
+    }
+
+    private fun showSitesOverview() {
+        siteEditorVisible = false
+        siteEditorPanel.visibility = View.GONE
+        sitesOverviewPanel.visibility = View.VISIBLE
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text =
+            getString(R.string.workspace_sites)
+        refreshSiteRows()
+        contentScroll.post { contentScroll.scrollTo(0, 0) }
+    }
+
     private fun refreshSavedProfiles(selectedName: String? = null) {
         val profiles = SavedSiteProfiles.read(this)
         savedSitesSpinner.adapter = ArrayAdapter(
@@ -862,6 +1110,7 @@ class MainActivity : Activity() {
         ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
         val index = profiles.indexOfFirst { it.name.equals(selectedName, ignoreCase = true) }
         savedSitesSpinner.setSelection(index + 1)
+        if (::sitesListRows.isInitialized) refreshSiteRows()
     }
 
     private fun selectConnectionProtocolAndPort(protocol: ConnectionProtocol, port: Int) {
@@ -930,14 +1179,108 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun buildFilesCard(): View = panel().apply {
-        addView(sectionTitle(getString(R.string.workspace_files)))
-        addView(sectionDescription(getString(R.string.desc_files)))
-        remoteRows = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.VERTICAL
+    private fun buildFilesCard(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        val twoPane = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.TOP
         }
-        addView(remoteRows)
+        fun pane(label: String, isRemote: Boolean): LinearLayout =
+            LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(7), dp(8), dp(7), dp(10))
+                background = PremiumReferenceStyle.surface(this@MainActivity)
+                val header = TextView(this@MainActivity).apply {
+                    text = label
+                    textSize = 13f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(PremiumReferenceStyle.text)
+                    setPadding(dp(4), dp(4), dp(4), dp(9))
+                    ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
+                    maxLines = 1
+                }
+                if (isRemote) remoteDirectoryLabel = header else localDirectoryLabel = header
+                addView(header)
+                val entries = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
+                if (isRemote) remoteRows = entries else localRows = entries
+                addView(entries)
+            }
+        twoPane.addView(pane("Remote /", true),
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                .apply { marginEnd = dp(4) })
+        twoPane.addView(pane("Local", false),
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                .apply { marginStart = dp(4) })
+        addView(twoPane)
+        refreshLocalPane()
     }
+
+    // Android SAF does not grant arbitrary /storage/emulated/0 traversal.
+    // The local pane is a REAL, bounded app-owned downloads directory, never
+    // a fake listing of system Download/Pictures/DCIM folders.
+    private fun refreshLocalPane() {
+        if (!::localRows.isInitialized) return
+        val base = (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir)
+            .canonicalFile
+        val current = (localBrowseDirectory ?: base).canonicalFile
+        val inside = current.path == base.path ||
+            current.path.startsWith(base.path + File.separator)
+        if (!inside || !current.isDirectory) localBrowseDirectory = base
+        else localBrowseDirectory = current
+        val directory = localBrowseDirectory ?: base
+        localDirectoryLabel.text = "Local · " + directory.name
+        localRows.removeAllViews()
+        if (directory != base) {
+            localRows.addView(compactBrowserRow("..", true) {
+                localBrowseDirectory = directory.parentFile
+                refreshLocalPane()
+            })
+        }
+        val entries = directory.listFiles()
+            ?.filter {
+                runCatching {
+                    val path = it.canonicalFile.path
+                    path.startsWith(base.path + File.separator) && !it.isHidden
+                }.getOrDefault(false)
+            }?.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase(Locale.ROOT) }))
+            ?.take(150).orEmpty()
+        if (entries.isEmpty()) {
+            localRows.addView(PremiumReferenceStyle.caption(this, "No local files", 11f, true))
+        }
+        entries.forEach { file ->
+            localRows.addView(compactBrowserRow(file.name, file.isDirectory) {
+                if (file.isDirectory) {
+                    localBrowseDirectory = file
+                    refreshLocalPane()
+                } else {
+                    android.widget.Toast.makeText(this@MainActivity,
+                        file.name + " · use Upload to choose a document", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            })
+        }
+    }
+
+    private fun compactBrowserRow(name: String, directory: Boolean, onClick: () -> Unit): View =
+        LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = dp(43)
+            val icon = PremiumReferenceStyle.caption(this@MainActivity,
+                if (directory) "▣" else "▤", 17f).apply {
+                setTextColor(if (directory) PremiumReferenceStyle.yellow else PremiumReferenceStyle.purpleLight)
+            }
+            addView(icon, LinearLayout.LayoutParams(dp(24), dp(36)))
+            addView(PremiumReferenceStyle.caption(this@MainActivity, name, 12f).apply {
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }, LinearLayout.LayoutParams(0, dp(40), 1f))
+            isClickable = true
+            isFocusable = true
+            contentDescription = (if (directory) "Open folder " else "File ") + name
+            setOnClickListener { onClick() }
+        }
 
     private fun buildTransfersCard(): View = panel().apply {
         addView(sectionTitle(getString(R.string.workspace_transfers)))
@@ -1465,6 +1808,9 @@ class MainActivity : Activity() {
 
     private fun setWorkspace(workspace: Workspace, announce: Boolean = true) {
         activeWorkspace = workspace
+        if (::workspaceFeedbackPanel.isInitialized) {
+            workspaceFeedbackPanel.visibility = View.GONE
+        }
         val targets = mapOf(
             Workspace.FILES to filesSection,
             Workspace.SITES to sitesSection,
@@ -1480,15 +1826,28 @@ class MainActivity : Activity() {
         workspaceNavButtons.forEach { (key, view) ->
             styleWorkspaceNavItem(view, selected = key == workspace)
         }
+        if (workspace != Workspace.SITES && siteEditorVisible) {
+            siteEditorVisible = false
+            siteEditorPanel.visibility = View.GONE
+            sitesOverviewPanel.visibility = View.VISIBLE
+        }
         if (::workspaceTitle.isInitialized) workspaceTitle.text = workspaceLabel(workspace)
+        if (::phoneChromeTitle.isInitialized) {
+            phoneChromeTitle.text = if (workspace == Workspace.SITES && siteEditorVisible)
+                "Add / Edit Site" else workspaceLabel(workspace)
+        }
         // Do not show stale success/status messages when switching workspaces.
         if (::settingsFeedback.isInitialized) settingsFeedback.visibility = View.GONE
+        if (::siteFeedback.isInitialized && workspace != Workspace.SITES) {
+            siteFeedback.visibility = View.GONE
+        }
         if (::fileActionToolbar.isInitialized) {
             fileActionToolbar.visibility = if (workspace == Workspace.FILES) View.VISIBLE else View.GONE
         }
         if (::sessionStatusCard.isInitialized) {
             sessionStatusCard.visibility =
-                if (workspace == Workspace.FILES || workspace == Workspace.SITES) View.VISIBLE else View.GONE
+                if (activeProfile != null && (workspace == Workspace.FILES || workspace == Workspace.SITES))
+                    View.VISIBLE else View.GONE
         }
         if (::workspaceContainer.isInitialized) {
             workspaceContainer.contentDescription = getString(R.string.workspace_content, workspaceLabel(workspace))
@@ -1506,13 +1865,26 @@ class MainActivity : Activity() {
                 }
             }
         }
+        if (workspace == Workspace.SITES && ::sitesListRows.isInitialized && !siteEditorVisible) {
+            refreshSiteRows()
+        }
         if (announce && usesOverlayNavigation()) {
             setNavigationOpen(false, announce = false)
         }
     }
 
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        when {
+            usesOverlayNavigation() && navigationOpen -> setNavigationOpen(false)
+            activeWorkspace == Workspace.SITES && siteEditorVisible -> showSitesOverview()
+            activeWorkspace != Workspace.FILES -> setWorkspace(Workspace.FILES)
+            else -> super.onBackPressed()
+        }
+    }
+
     private fun usesOverlayNavigation(): Boolean =
-        resources.configuration.screenWidthDp < 360
+        resources.configuration.screenWidthDp < 600
 
     private fun setNavigationOpen(open: Boolean, announce: Boolean = true) {
         val compactNavigation = usesOverlayNavigation()
@@ -1526,8 +1898,13 @@ class MainActivity : Activity() {
                 if (compactNavigation && navigationOpen) View.VISIBLE else View.GONE
             navigationScrim.isFocusable = compactNavigation && navigationOpen
         }
+        if (::phoneMenuButton.isInitialized) {
+            phoneMenuButton.text = if (navigationOpen) "←" else "☰"
+            phoneMenuButton.contentDescription =
+                if (navigationOpen) getString(R.string.nav_close) else getString(R.string.nav_open)
+        }
         if (::navigationToggleButton.isInitialized) {
-            navigationToggleButton.text = if (open) "←" else "☰"
+            navigationToggleButton.text = if (navigationOpen) "←" else "☰"
             navigationToggleButton.contentDescription =
                 if (open) getString(R.string.nav_close) else getString(R.string.nav_open)
             if (announce) {
@@ -1700,7 +2077,12 @@ class MainActivity : Activity() {
         if (!uiReady()) return
         statusTitle.text = getString(R.string.status_connection_unavailable)
         val rawDetail = error.message ?: getString(R.string.status_connection_unavailable_detail)
-        statusDetail.text = redactSensitiveErrorText(rawDetail, listOf(profile.password))
+        val safeDetail = redactSensitiveErrorText(rawDetail, listOf(profile.password))
+        if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
+            siteFeedback.text = safeDetail
+            siteFeedback.visibility = View.VISIBLE
+            statusDetail.text = ""
+        } else statusDetail.text = safeDetail
         remoteRows.removeAllViews()
         remoteRows.addView(row(getString(R.string.workspace_files), getString(R.string.state_no_server_session)))
         activityRows.removeAllViews()
@@ -1708,8 +2090,33 @@ class MainActivity : Activity() {
         transferStateText.text = getString(R.string.state_transfer_wait_connection)
     }
 
+    private fun buildWorkspaceFeedback(): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        visibility = View.GONE
+        setPadding(dp(12), dp(8), dp(12), dp(8))
+        background = PremiumReferenceStyle.surface(this@MainActivity)
+        contentDescription = "Current workspace feedback"
+        workspaceFeedbackTitle = TextView(this@MainActivity).apply {
+            setTextColor(Brand.text)
+            typeface = Typeface.DEFAULT_BOLD
+            textSize = 13f
+        }
+        workspaceFeedbackDetail = TextView(this@MainActivity).apply {
+            setTextColor(Brand.textSoft)
+            textSize = 12f
+        }
+        addView(workspaceFeedbackTitle)
+        addView(workspaceFeedbackDetail)
+    }
+
     private fun showMessage(title: String, detail: String) {
         if (!::statusTitle.isInitialized || !::statusDetail.isInitialized) return
+        if (activeWorkspace == Workspace.SITES && siteEditorVisible &&
+            ::siteFeedback.isInitialized) {
+            siteFeedback.text = detail
+            siteFeedback.visibility = View.VISIBLE
+            return
+        }
         if (activeWorkspace == Workspace.SETTINGS && ::settingsFeedback.isInitialized) {
             // Only the currently visible Settings notice owns this message.
             // Updating hidden Files/Transfers labels as well makes screen
@@ -1721,6 +2128,12 @@ class MainActivity : Activity() {
         statusTitle.text = title
         statusDetail.text = detail
         if (::transferStateText.isInitialized) transferStateText.text = detail
+        if (::workspaceFeedbackPanel.isInitialized) {
+            workspaceFeedbackTitle.text = title
+            workspaceFeedbackDetail.text = detail
+            workspaceFeedbackPanel.visibility = View.VISIBLE
+            workspaceFeedbackPanel.announceForAccessibility("$title. $detail")
+        }
     }
 
     private fun showIdleState() {
@@ -2027,6 +2440,7 @@ class MainActivity : Activity() {
         statusDetail.text = result.detail
         transferStateText.text = result.detail
         appendActivity(result.title, result.detail)
+        if (::localRows.isInitialized) refreshLocalPane()
         if (refreshAfter && activeProfile != null) refreshActive()
     }
 
@@ -2075,6 +2489,9 @@ class MainActivity : Activity() {
         selectedUploadUri = restoredUploadUri?.takeIf { restoredUploadReadable }
         selectedUploadDisplayName = restoredUploadDisplayName.takeIf { restoredUploadReadable }.orEmpty()
         lastCompletedTransferPath = state.getString(STATE_LAST_COMPLETED_PATH).orEmpty()
+        siteEditorVisible = state.getBoolean(STATE_SITE_EDITOR_OPEN, false)
+        siteEditorPanel.visibility = if (siteEditorVisible) View.VISIBLE else View.GONE
+        sitesOverviewPanel.visibility = if (siteEditorVisible) View.GONE else View.VISIBLE
         activeWorkspace = state.getString(STATE_WORKSPACE)
             ?.let { saved -> runCatching { Workspace.valueOf(saved) }.getOrNull() }
             ?: Workspace.FILES
@@ -2103,6 +2520,10 @@ class MainActivity : Activity() {
             getString(R.string.state_last_completed_remote_path, lastCompletedTransferPath)
         }
         setBusy(false)
+        // Security: credentials and authenticated transport never survive a
+        // recreated Activity. Display reconnection state in the actual Sites
+        // editor or active page, not a hidden disconnected session card.
+        showMessage(getString(R.string.status_ready), statusDetail.text.toString())
     }
 
     private fun requiredRemoteFilePath(profile: ConnectionProfile): String? {
@@ -2373,7 +2794,7 @@ class MainActivity : Activity() {
 
     private fun workspaceNavItem(workspace: Workspace): TextView {
         val label = workspaceLabel(workspace)
-        val iconRail = resources.configuration.screenWidthDp in 360..599
+        val iconRail = false
         // Keep the localized full label available even on the compact icon rail.
         val displayLabel = label
         val iconResource = when (workspace) {
@@ -2424,7 +2845,7 @@ class MainActivity : Activity() {
         setTextColor(Brand.background)
         textSize = 14f
         typeface = Typeface.DEFAULT_BOLD
-        background = rounded(Brand.accent, dp(14), Brand.accent)
+        background = PremiumReferenceStyle.actionBackground(this@MainActivity)
         setOnClickListener { onClick() }
     }
 
@@ -2494,8 +2915,8 @@ class MainActivity : Activity() {
         val badge: Int = Color.rgb(25, 47, 72)
         val border: Int = Color.rgb(39, 70, 99)
         val borderSubtle: Int = Color.rgb(25, 47, 72)
-        val accent: Int = Color.rgb(56, 171, 255)
-        val accentSurface: Int = Color.rgb(19, 45, 82)
+        val accent: Int = PremiumReferenceStyle.purple
+        val accentSurface: Int = PremiumReferenceStyle.selected
         val success: Int = Color.rgb(38, 220, 143)
         val danger: Int = Color.rgb(255, 114, 132)
         val dangerSurface: Int = Color.rgb(57, 32, 45)
@@ -2527,6 +2948,7 @@ class MainActivity : Activity() {
         const val STATE_UPLOAD_DISPLAY_NAME = "ghostftp.uploadDisplayName"
         const val STATE_LAST_COMPLETED_PATH = "ghostftp.lastCompletedPath"
         const val STATE_WORKSPACE = "ghostftp.workspace"
+        const val STATE_SITE_EDITOR_OPEN = "ghostftp.siteEditorOpen"
         const val STATE_NAVIGATION_OPEN = "ghostftp.navigationOpen"
 
         const val REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP"

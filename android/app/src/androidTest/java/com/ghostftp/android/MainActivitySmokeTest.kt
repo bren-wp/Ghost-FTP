@@ -10,6 +10,10 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.Spinner
 import android.widget.TextView
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -48,20 +52,28 @@ class MainActivitySmokeTest {
 
     @Test
     fun primaryWorkspaceAndToolbarRender() {
-        assertTextPresent(appString(R.string.app_name))
+        // Mobile reference #6 uses the active page title rather than
+        // a duplicated Ghost FTP banner above every workspace.
+        assertTextPresent(appString(R.string.workspace_files))
         if (usesOverlayNavigation()) assertNavigationTogglePresent()
         ensureNavigationOpen()
         assertDescriptionPresent(appString(R.string.workspace_open, appString(R.string.workspace_files)))
         for (actionRes in listOf(
-            R.string.action_refresh,
             R.string.action_upload,
             R.string.action_download,
             R.string.action_new_folder,
-            R.string.action_rename,
             R.string.action_delete
         )) {
             assertDescriptionPresent(appString(actionRes))
         }
+        assertDescriptionPresent("More file actions")
+    }
+
+    @Test
+    fun referenceFilesMoreExposesRealRenameAndRefreshMenuActions() {
+        clickByDescription("More file actions")
+        onView(withText(appString(R.string.action_rename))).check(matches(isDisplayed()))
+        onView(withText(appString(R.string.action_refresh))).check(matches(isDisplayed()))
     }
 
     @Test
@@ -109,7 +121,7 @@ class MainActivitySmokeTest {
     fun compactNavigationUsesOverlayScrimInsteadOfShrinkingContent() {
         var compact = false
         scenario.onActivity { activity ->
-            compact = activity.resources.configuration.screenWidthDp < 360
+            compact = activity.resources.configuration.screenWidthDp < 600
         }
         if (!compact) return
 
@@ -126,7 +138,7 @@ class MainActivitySmokeTest {
             isReferencePhone = activity.resources.configuration.screenWidthDp in 360..599
         }
         if (isReferencePhone) {
-            assertDescriptionPresent("Quick navigation")
+            assertDescriptionPresent(appString(R.string.nav_open))
         }
         ensureNavigationOpen()
         val destinations = listOf(
@@ -523,15 +535,14 @@ class MainActivitySmokeTest {
     @Test
     fun guardedFileActionsStayDisabledWithoutActiveSession() {
         for (actionRes in listOf(
-            R.string.action_refresh,
             R.string.action_upload,
             R.string.action_download,
             R.string.action_new_folder,
-            R.string.action_rename,
             R.string.action_delete
         )) {
             assertDescriptionEnabled(appString(actionRes), false)
         }
+        assertDescriptionPresent("More file actions")
 
         openWorkspace(R.string.workspace_transfers)
         assertDescriptionEnabled(appString(R.string.action_pick_file), true)
@@ -662,10 +673,10 @@ class MainActivitySmokeTest {
 
     private fun assertTextNotShown(expected: String) {
         scenario.onActivity { activity ->
-            val view = findText(activity.window.decorView, expected)
-            if (view != null) {
-                assertTrue("Text should not be shown in the active workspace: $expected", !view.isShown)
+            val visible = findView(activity.window.decorView) {
+                it is TextView && it.text?.toString() == expected && it.isShown
             }
+            assertTrue("Text should not be shown in the active workspace: $expected", visible == null)
         }
     }
 
@@ -675,7 +686,7 @@ class MainActivitySmokeTest {
     private fun usesOverlayNavigation(): Boolean {
         var result = false
         scenario.onActivity { activity ->
-            result = activity.resources.configuration.screenWidthDp < 360
+            result = activity.resources.configuration.screenWidthDp < 600
         }
         return result
     }
@@ -702,6 +713,17 @@ class MainActivitySmokeTest {
     private fun openWorkspace(labelRes: Int) {
         ensureNavigationOpen()
         clickByDescription(appString(R.string.workspace_open, appString(labelRes)))
+        // The user-approved Sites screen is a real metadata list. Legacy
+        // connection form tests navigate through its working Add Site action.
+        if (labelRes == R.string.workspace_sites) {
+            var addVisible = false
+            scenario.onActivity { activity ->
+                addVisible = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "Add Site" && it.isShown
+                } != null
+            }
+            if (addVisible) clickByDescription("Add Site")
+        }
     }
 
     private fun openWorkspaceByLabel(label: String) {
@@ -753,9 +775,13 @@ class MainActivitySmokeTest {
 
     private fun assertTextPresent(expected: String) {
         scenario.onActivity { activity ->
-            val view = findText(activity.window.decorView, expected)
-            assertNotNull("Missing text in MainActivity hierarchy: $expected", view)
-            assertTrue("Text is not shown in MainActivity hierarchy: $expected", view!!.isShown)
+            // The full-width design keeps an off-screen navigation drawer.
+            // A hidden drawer label may precede the visible page heading;
+            // assert against a genuinely visible matching TextView.
+            val view = findView(activity.window.decorView) {
+                it is TextView && it.text?.toString() == expected && it.isShown
+            }
+            assertNotNull("Missing visible text in MainActivity hierarchy: $expected", view)
         }
     }
 
@@ -763,10 +789,11 @@ class MainActivitySmokeTest {
         repeat(12) {
             var visible = false
             scenario.onActivity { activity ->
-                val view = findText(activity.window.decorView, expected)
-                assertNotNull("Missing text in MainActivity hierarchy: $expected", view)
+                val view = findView(activity.window.decorView) {
+                    it is TextView && it.text?.toString() == expected && it.isShown
+                }
                 val rect = Rect()
-                visible = view!!.getGlobalVisibleRect(rect) && rect.width() > 0 && rect.height() > 0
+                visible = view?.getGlobalVisibleRect(rect) == true && rect.width() > 0 && rect.height() > 0
             }
             if (visible) return
             SystemClock.sleep(50)

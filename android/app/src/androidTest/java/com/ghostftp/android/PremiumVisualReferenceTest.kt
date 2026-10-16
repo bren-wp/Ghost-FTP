@@ -50,12 +50,18 @@ class PremiumVisualReferenceTest {
                         "cloud" -> "Cloud storage"
                         else -> activity.getString(labelRes!!)
                     }
+                    val root = activity.window.decorView
+                    val toggle = findView(root) {
+                        it.contentDescription?.toString() == activity.getString(R.string.nav_open)
+                    }
+                    if (toggle != null) assertTrue("Navigation drawer must open", toggle.performClick())
                     val description = activity.getString(R.string.workspace_open, label)
-                    val destination = findView(activity.window.decorView) {
+                    val destination = findView(root) {
                         it is TextView && it.contentDescription?.toString() == description
                     } as? TextView
                     assertNotNull("Live workspace is missing: $name", destination)
-                    assertTrue("Workspace cannot be selected: $name", destination!!.performClick())
+                    assertTrue("Navigation item must be visible before tapping", destination!!.isShown)
+                    assertTrue("Workspace cannot be selected: $name", destination.performClick())
                 }
                 instrumentation.waitForIdleSync()
                 scenario.onActivity { activity ->
@@ -88,9 +94,21 @@ class PremiumVisualReferenceTest {
             instrumentation.waitForIdleSync()
             scenario.onActivity { activity ->
                 val root = activity.window.decorView
-                val density = activity.resources.displayMetrics.density
                 val widthDp = activity.resources.configuration.screenWidthDp
                 assertEquals("Reference QA emulator must have width 480dp.", 480, widthDp)
+                val drawerButton = findView(root) {
+                    it.contentDescription?.toString() == activity.getString(R.string.nav_open)
+                }
+                assertNotNull("Reference phone drawer opener missing", drawerButton)
+                assertTrue("Reference drawer must open", drawerButton!!.performClick())
+            }
+            // A View changing GONE -> VISIBLE has width 0 until the
+            // actual next layout traversal. Measure after Android layout,
+            // not synchronously inside the click callback.
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                val density = activity.resources.displayMetrics.density
                 val nav = findView(root) {
                     it is TextView &&
                         it.contentDescription?.toString() ==
@@ -102,15 +120,15 @@ class PremiumVisualReferenceTest {
                     rail = rail.parent as? View
                 }
                 assertNotNull("Real scrollable navigation rail missing.", rail)
-                assertEquals("64dp rail must match approved layout.", (64 * density + .5f).toInt(), rail!!.width)
+                assertEquals("280dp drawer must match the supplied phone reference.", (280 * density + .5f).toInt(), rail!!.width)
 
                 val quick = findView(root) {
-                    it.contentDescription?.toString() == "Quick navigation"
+                    it.contentDescription?.toString() == activity.getString(R.string.nav_close)
                 }
                 assertNotNull("Full-width top brand bar must remain actionable.", quick)
                 val chrome = quick!!.parent as? View
                 assertNotNull("Full-width top brand bar missing.", chrome)
-                assertEquals("58dp brand bar must match approved geometry.", (58 * density + .5f).toInt(), chrome!!.height)
+                assertEquals("52dp top bar must match approved phone geometry.", (52 * density + .5f).toInt(), chrome!!.height)
                 assertEquals("Brand bar must cover viewport.", decorWidth(activity), chrome.width)
             }
         }
@@ -127,7 +145,7 @@ class PremiumVisualReferenceTest {
                 assertNotNull("Files action toolbar must exist.", fileActions)
                 assertNotNull("Session status panel must exist.", session)
                 assertEquals(View.VISIBLE, fileActions!!.visibility)
-                assertEquals(View.VISIBLE, session!!.visibility)
+                assertEquals(View.GONE, session!!.visibility)
 
                 fun visit(label: String) {
                     val target = findView(root) {
@@ -144,10 +162,10 @@ class PremiumVisualReferenceTest {
                 assertEquals("About must not show Files-only status.", View.GONE, session.visibility)
                 visit(activity.getString(R.string.workspace_sites))
                 assertEquals("Sites must use its own connection actions.", View.GONE, fileActions.visibility)
-                assertEquals(View.VISIBLE, session.visibility)
+                assertEquals(View.GONE, session.visibility)
                 visit(activity.getString(R.string.workspace_files))
                 assertEquals(View.VISIBLE, fileActions.visibility)
-                assertEquals(View.VISIBLE, session.visibility)
+                assertEquals(View.GONE, session.visibility)
             }
         }
     }
