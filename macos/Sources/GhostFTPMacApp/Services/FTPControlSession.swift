@@ -548,6 +548,18 @@ actor FTPControlSession {
         try expect(reply, accepted: [200], description: "200 NOOP")
     }
 
+    func createDirectory(named name: String, timeoutSeconds: TimeInterval = 8) async throws {
+        try FTPControlCodec.validateRemoteFileName(name)
+        let reply = try await command("MKD \(name)", timeoutSeconds: timeoutSeconds)
+        try expect(reply, accepted: [257], description: "257 directory created")
+    }
+
+    func deleteFile(named name: String, timeoutSeconds: TimeInterval = 8) async throws {
+        try FTPControlCodec.validateRemoteFileName(name)
+        let reply = try await command("DELE \(name)", timeoutSeconds: timeoutSeconds)
+        try expect(reply, accepted: [250], description: "250 file deleted")
+    }
+
 
     func downloadFile(
         remoteName: String,
