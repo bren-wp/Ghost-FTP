@@ -590,35 +590,88 @@ class MainActivity : Activity() {
         addView(workspaceTitle)
 
         addView(space(12))
-        val toolbar = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_refresh)) { refreshActive() }), buttonParams(weight = 1f))
-        toolbar.addView(gap(8))
-        toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_upload)) { uploadOrPickFile() }), buttonParams(weight = 1f))
-        toolbar.addView(gap(8))
-        toolbar.addView(trackRemoteAction(toolbarButton(getString(R.string.action_download)) { downloadRemoteFile() }), buttonParams(weight = 1f))
-
-        val toolbarMore = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(8), 0, 0)
-        }
-        toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_new_folder)) { createRemoteFolder() }), buttonParams(weight = 1f))
-        toolbarMore.addView(gap(8))
-        toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_rename)) { renameRemoteEntry() }), buttonParams(weight = 1f))
-        toolbarMore.addView(gap(8))
-        toolbarMore.addView(trackRemoteAction(toolbarButton(getString(R.string.action_delete), destructive = true) { deleteRemoteFile() }), buttonParams(weight = 1f))
-        // Contextual actions belong to the Files workspace, not Settings,
-        // About, Sites, Sync or transfer-history surfaces.
+        // Reference #6: one five-action footer, not permanent toolbars above files.
         fileActionToolbar = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.VERTICAL
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(5), dp(4), dp(5), dp(4))
+            setBackgroundColor(PremiumReferenceStyle.raised)
             contentDescription = "File actions"
-            addView(toolbar)
-            addView(toolbarMore)
+            val actions = listOf(
+                trackRemoteAction(toolbarButton("⇧\n" + getString(R.string.action_upload)) {
+                    uploadOrPickFile()
+                }.apply { contentDescription = getString(R.string.action_upload) }),
+                trackRemoteAction(toolbarButton("⇩\n" + getString(R.string.action_download)) {
+                    downloadRemoteFile()
+                }.apply { contentDescription = getString(R.string.action_download) }),
+                trackRemoteAction(toolbarButton("▱\n" + getString(R.string.action_new_folder)) {
+                    promptNewRemoteFolder()
+                }.apply { contentDescription = getString(R.string.action_new_folder) }),
+                trackRemoteAction(toolbarButton("⌫\n" + getString(R.string.action_delete)) {
+                    deleteRemoteFile()
+                }.apply { contentDescription = getString(R.string.action_delete) })
+            )
+            actions.forEach { item ->
+                item.setAllCaps(false)
+                item.textSize = 11f
+                item.setPadding(dp(2), dp(3), dp(2), dp(3))
+                addView(item, LinearLayout.LayoutParams(0, dp(51), 1f))
+            }
+            val more = toolbarButton("⋯\nMore") { }.apply {
+                setAllCaps(false)
+                textSize = 11f
+                contentDescription = "More file actions"
+            }
+            more.setOnClickListener {
+                android.widget.PopupMenu(this@MainActivity, more).apply {
+                    menu.add(0, 1, 0, getString(R.string.action_refresh))
+                    menu.add(0, 2, 1, getString(R.string.action_rename))
+                    menu.add(0, 3, 2, getString(R.string.workspace_transfers))
+                    setOnMenuItemClickListener { selected ->
+                        when (selected.itemId) {
+                            1 -> refreshActive()
+                            2 -> promptRenameRemoteEntry()
+                            3 -> setWorkspace(Workspace.TRANSFERS)
+                        }
+                        true
+                    }
+                }.show()
+            }
+            addView(more, LinearLayout.LayoutParams(0, dp(51), 1f))
         }
-        // Actions are docked below the viewport, never stacked above the files.
+    }
+
+    private fun promptNewRemoteFolder() {
+        if (activeProfile == null) {
+            showMessage(getString(R.string.action_new_folder), "Connect to a server first.")
+            return
+        }
+        val entry = input(getString(R.string.hint_folder_target), InputType.TYPE_CLASS_TEXT)
+        android.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.action_new_folder))
+            .setView(entry)
+            .setNegativeButton(getString(R.string.action_cancel), null)
+            .setPositiveButton(getString(R.string.action_confirm)) { _, _ ->
+                mkdirNameInput.setText(entry.text.toString())
+                createRemoteFolder()
+            }.show()
+    }
+
+    private fun promptRenameRemoteEntry() {
+        if (activeProfile == null) {
+            showMessage(getString(R.string.action_rename), "Connect and select a remote file first.")
+            return
+        }
+        val entry = input(getString(R.string.hint_rename_target), InputType.TYPE_CLASS_TEXT)
+        entry.setText(renameRemoteNameInput.text.toString())
+        android.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.action_rename))
+            .setView(entry)
+            .setNegativeButton(getString(R.string.action_cancel), null)
+            .setPositiveButton(getString(R.string.action_confirm)) { _, _ ->
+                renameRemoteNameInput.setText(entry.text.toString())
+                renameRemoteEntry()
+            }.show()
     }
 
     private fun buildStatusCard(): View = panel().apply {
