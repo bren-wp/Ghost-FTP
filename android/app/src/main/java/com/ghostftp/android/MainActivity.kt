@@ -123,6 +123,7 @@ class MainActivity : Activity() {
     private lateinit var sitesSection: View
     private lateinit var sitesOverviewPanel: View
     private lateinit var siteEditorPanel: View
+    private lateinit var siteFeedback: TextView
     private lateinit var sitesListRows: LinearLayout
     private lateinit var sitesSearch: EditText
     private var siteEditorVisible = false
@@ -774,6 +775,16 @@ class MainActivity : Activity() {
         addView(sectionTitle(getString(R.string.workspace_sites)))
         addView(sectionDescription(getString(R.string.desc_sites)))
         addView(sectionDescription("Quick Connect uses these credentials immediately. Save new connection profile is a separate action; passwords are never saved."))
+        siteFeedback = TextView(this@MainActivity).apply {
+            visibility = View.GONE
+            textSize = 13f
+            setTextColor(PremiumReferenceStyle.secondary)
+            setPadding(dp(10), dp(9), dp(10), dp(9))
+            background = PremiumReferenceStyle.surface(this@MainActivity,
+                PremiumReferenceStyle.raised, 8)
+            contentDescription = "Site connection feedback"
+        }
+        addView(siteFeedback)
 
         val savedProfiles = SavedSiteProfiles.read(this@MainActivity)
         addView(formLabel("Saved connection profiles"))
@@ -1055,6 +1066,7 @@ class MainActivity : Activity() {
 
     private fun showSiteEditor(site: SavedSiteDefinition?) {
         siteEditorVisible = true
+        siteFeedback.visibility = View.GONE
         siteEditorPanel.visibility = View.VISIBLE
         sitesOverviewPanel.visibility = View.GONE
         if (site == null) {
@@ -1815,6 +1827,9 @@ class MainActivity : Activity() {
         }
         // Do not show stale success/status messages when switching workspaces.
         if (::settingsFeedback.isInitialized) settingsFeedback.visibility = View.GONE
+        if (::siteFeedback.isInitialized && workspace != Workspace.SITES) {
+            siteFeedback.visibility = View.GONE
+        }
         if (::fileActionToolbar.isInitialized) {
             fileActionToolbar.visibility = if (workspace == Workspace.FILES) View.VISIBLE else View.GONE
         }
@@ -2051,7 +2066,12 @@ class MainActivity : Activity() {
         if (!uiReady()) return
         statusTitle.text = getString(R.string.status_connection_unavailable)
         val rawDetail = error.message ?: getString(R.string.status_connection_unavailable_detail)
-        statusDetail.text = redactSensitiveErrorText(rawDetail, listOf(profile.password))
+        val safeDetail = redactSensitiveErrorText(rawDetail, listOf(profile.password))
+        if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
+            siteFeedback.text = safeDetail
+            siteFeedback.visibility = View.VISIBLE
+            statusDetail.text = ""
+        } else statusDetail.text = safeDetail
         remoteRows.removeAllViews()
         remoteRows.addView(row(getString(R.string.workspace_files), getString(R.string.state_no_server_session)))
         activityRows.removeAllViews()
@@ -2061,6 +2081,12 @@ class MainActivity : Activity() {
 
     private fun showMessage(title: String, detail: String) {
         if (!::statusTitle.isInitialized || !::statusDetail.isInitialized) return
+        if (activeWorkspace == Workspace.SITES && siteEditorVisible &&
+            ::siteFeedback.isInitialized) {
+            siteFeedback.text = detail
+            siteFeedback.visibility = View.VISIBLE
+            return
+        }
         if (activeWorkspace == Workspace.SETTINGS && ::settingsFeedback.isInitialized) {
             // Only the currently visible Settings notice owns this message.
             // Updating hidden Files/Transfers labels as well makes screen
