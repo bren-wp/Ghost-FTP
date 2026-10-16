@@ -90,6 +90,7 @@ class MainActivitySmokeTest {
         assertDescriptionPresent("Restore settings")
 
         openWorkspace(R.string.workspace_settings)
+        clickByDescription("Settings: Advanced")
         assertTextVisibleInViewport(appString(R.string.settings_no_tracking))
         assertDescriptionPresent(appString(R.string.action_clear_activity))
         assertDescriptionPresent(appString(R.string.action_reset_transfers))
@@ -269,8 +270,24 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun referenceSettingsDashboardIsTwoColumnAndNavigable() {
+        openWorkspace(R.string.workspace_settings)
+        // The reference displays exactly four rows of two real categories;
+        // the legacy actions remain behind the interactive Advanced card.
+        for (name in listOf("Appearance", "Security", "Connections", "Notifications",
+            "Transfers", "Advanced", "Cloud Storage", "About")) {
+            assertDescriptionPresent("Settings: " + name)
+        }
+        clickByDescription("Settings: Appearance")
+        assertTextPresent("Dark premium appearance is enabled.")
+        clickByDescription("Settings: Security")
+        assertDescriptionPresent("Settings: Advanced")
+    }
+
+    @Test
     fun settingsShowsVisibleLegalLinksAndBrendigoAuthor() {
         openWorkspace(R.string.workspace_settings)
+        clickByDescription("Settings: Advanced")
         for (label in listOf(R.string.label_support, R.string.label_contact, R.string.label_privacy_policy, R.string.label_eula)) {
             val description = appString(R.string.link_open, appString(label))
             scenario.onActivity { activity ->
@@ -293,6 +310,7 @@ class MainActivitySmokeTest {
     @Test
     fun helpWorkspaceExposesCanonicalProductLinks() {
         openWorkspace(R.string.workspace_about)
+        clickByDescription("Settings: Licenses")
         for (description in listOf(
             appString(R.string.link_open, appString(R.string.label_support)),
             appString(R.string.link_open, appString(R.string.label_contact)),
@@ -549,6 +567,7 @@ class MainActivitySmokeTest {
         assertDescriptionEnabled(appString(R.string.action_upload), false)
 
         openWorkspace(R.string.workspace_settings)
+        clickByDescription("Settings: Advanced")
         assertDescriptionEnabled(appString(R.string.action_reset_transfers), true)
         assertDescriptionEnabled(appString(R.string.action_reset_connection), true)
         assertDescriptionEnabled("${appString(R.string.workspace_settings)} ${appString(R.string.action_disconnect)}", false)
@@ -563,6 +582,7 @@ class MainActivitySmokeTest {
         assertDescriptionEnabled(appString(R.string.action_upload), false)
 
         openWorkspace(R.string.workspace_settings)
+        clickByDescription("Settings: Advanced")
         assertDescriptionEnabled("${appString(R.string.workspace_settings)} ${appString(R.string.action_disconnect)}", false)
         clickByDescription(appString(R.string.action_clear_activity))
         assertTextPresent(appString(R.string.msg_activity_cleared_detail))
