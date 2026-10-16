@@ -2127,6 +2127,9 @@ class MainActivity : Activity() {
         orientation = LinearLayout.VERTICAL
         val advanced = panel().apply {
             visibility = View.GONE
+            // Retain translated context in the real Advanced settings view,
+            // without adding an extra paragraph to reference frame #15.
+            addView(sectionDescription(getString(R.string.desc_settings)))
             addView(sectionDescription(getString(R.string.settings_no_tracking)))
             addView(row(getString(R.string.label_credentials), getString(R.string.settings_credentials)))
             addView(row(getString(R.string.label_security), getString(R.string.settings_security)))
