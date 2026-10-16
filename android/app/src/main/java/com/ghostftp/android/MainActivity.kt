@@ -115,6 +115,11 @@ class MainActivity : Activity() {
     private val workspaceNavButtons = mutableMapOf<Workspace, TextView>()
     private var activeWorkspace = Workspace.FILES
     private lateinit var sitesSection: View
+    private lateinit var sitesOverviewPanel: View
+    private lateinit var siteEditorPanel: View
+    private lateinit var sitesListRows: LinearLayout
+    private lateinit var sitesSearch: EditText
+    private var siteEditorVisible = false
     private lateinit var filesSection: View
     private lateinit var transfersSection: View
     private lateinit var syncSection: View
@@ -289,7 +294,14 @@ class MainActivity : Activity() {
     }
 
     private fun buildContent(): View {
-        sitesSection = buildConnectionCard()
+        siteEditorPanel = buildConnectionCard()
+        sitesOverviewPanel = buildSitesOverview()
+        sitesSection = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(sitesOverviewPanel)
+            addView(siteEditorPanel)
+        }
+        siteEditorPanel.visibility = View.GONE
         filesSection = buildFilesCard()
         transfersSection = buildTransfersCard()
         syncSection = buildSyncBackupCard()
@@ -863,6 +875,144 @@ class MainActivity : Activity() {
         })
     }
 
+    // Real metadata-only Site Manager; no example hosts or imported passwords.
+    // The editor reuses the existing secure ConnectionProfile/controller logic.
+    private fun buildSitesOverview(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(4), dp(6), dp(4), dp(8))
+        val heading = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        heading.addView(sectionTitle(getString(R.string.workspace_sites)),
+            LinearLayout.LayoutParams(0, dp(44), 1f))
+        heading.addView(PremiumReferenceStyle.action(this@MainActivity, "+", true) {
+            showSiteEditor(null)
+        }.apply {
+            contentDescription = "Add Site"
+        }, LinearLayout.LayoutParams(dp(44), dp(42)))
+        addView(heading)
+        sitesSearch = input("Search saved sites…", InputType.TYPE_CLASS_TEXT).apply {
+            contentDescription = "Search sites"
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    refreshSiteRows()
+                }
+                override fun afterTextChanged(s: android.text.Editable?) = Unit
+            })
+        }
+        addView(sitesSearch, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(44)
+        ))
+        addView(space(10))
+        sitesListRows = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        addView(sitesListRows)
+        // Preserve no in-memory placeholders and no sample cloud accounts.
+        refreshSiteRows()
+    }
+
+    private fun refreshSiteRows() {
+        if (!::sitesListRows.isInitialized || closingOrDestroyed()) return
+        sitesListRows.removeAllViews()
+        val q = if (::sitesSearch.isInitialized) sitesSearch.text.toString().trim() else ""
+        val matches = SavedSiteProfiles.read(this).filter {
+            q.isBlank() || it.name.contains(q, ignoreCase = true) ||
+                it.host.contains(q, ignoreCase = true)
+        }
+        if (matches.isEmpty()) {
+            sitesListRows.addView(row("No matching saved sites",
+                "Tap + to add a real FTP, FTPS or SFTP server. Credentials are not saved."))
+            return
+        }
+        matches.forEach { site ->
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(10), dp(10), dp(8), dp(10))
+                background = PremiumReferenceStyle.surface(this@MainActivity,
+                    PremiumReferenceStyle.panel, 10)
+                isClickable = true
+                isFocusable = true
+                contentDescription = "Edit saved site " + site.name
+                setOnClickListener { showSiteEditor(site) }
+            }
+            item.addView(PremiumReferenceStyle.caption(this, "▣", 22f).apply {
+                setTextColor(PremiumReferenceStyle.purpleLight)
+                gravity = Gravity.CENTER
+                background = PremiumReferenceStyle.surface(this@MainActivity,
+                    PremiumReferenceStyle.selected, 8)
+            }, LinearLayout.LayoutParams(dp(40), dp(40)))
+            item.addView(gap(10))
+            val details = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(PremiumReferenceStyle.caption(this@MainActivity, site.name, 15f).apply {
+                    typeface = Typeface.DEFAULT_BOLD
+                })
+                addView(PremiumReferenceStyle.caption(this@MainActivity,
+                    site.protocol.label + " · " + site.host, 12f, true))
+            }
+            item.addView(details, LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            item.addView(PremiumReferenceStyle.action(this, "⋮") {
+                android.widget.PopupMenu(this@MainActivity, item.getChildAt(item.childCount - 1)).apply {
+                    menu.add(0, 1, 0, "Edit")
+                    menu.add(0, 2, 1, "Connect")
+                    menu.add(0, 3, 2, "Remove")
+                    setOnMenuItemClickListener { menuItem ->
+                        when (menuItem.itemId) {
+                            1, 2 -> showSiteEditor(site)
+                            3 -> requestInlineConfirmation("Remove saved site?",
+                                "Remove " + site.name + " from this device?", "Remove") {
+                                if (SavedSiteProfiles.remove(this@MainActivity, site.name)) {
+                                    refreshSavedProfiles()
+                                    refreshSiteRows()
+                                } else showMessage("Site removal failed",
+                                    "The saved profile was preserved.")
+                            }
+                        }
+                        true
+                    }
+                }.show()
+            }.apply { contentDescription = "Site options " + site.name },
+                LinearLayout.LayoutParams(dp(40), dp(40)))
+            sitesListRows.addView(item, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp(6) })
+        }
+    }
+
+    private fun showSiteEditor(site: SavedSiteDefinition?) {
+        siteEditorVisible = true
+        siteEditorPanel.visibility = View.VISIBLE
+        sitesOverviewPanel.visibility = View.GONE
+        if (site == null) {
+            siteNameInput.text.clear()
+            hostInput.text.clear()
+            usernameInput.text.clear()
+            passwordInput.text.clear()
+            savedSitesSpinner.setSelection(0)
+        } else {
+            val index = SavedSiteProfiles.read(this).indexOfFirst {
+                it.name.equals(site.name, ignoreCase = true)
+            }
+            if (index >= 0) savedSitesSpinner.setSelection(index + 1)
+        }
+        setWorkspace(Workspace.SITES)
+    }
+
+    private fun showSitesOverview() {
+        siteEditorVisible = false
+        siteEditorPanel.visibility = View.GONE
+        sitesOverviewPanel.visibility = View.VISIBLE
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text =
+            getString(R.string.workspace_sites)
+        refreshSiteRows()
+        contentScroll.post { contentScroll.scrollTo(0, 0) }
+    }
+
     private fun refreshSavedProfiles(selectedName: String? = null) {
         val profiles = SavedSiteProfiles.read(this)
         savedSitesSpinner.adapter = ArrayAdapter(
@@ -871,6 +1021,7 @@ class MainActivity : Activity() {
         ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
         val index = profiles.indexOfFirst { it.name.equals(selectedName, ignoreCase = true) }
         savedSitesSpinner.setSelection(index + 1)
+        if (::sitesListRows.isInitialized) refreshSiteRows()
     }
 
     private fun selectConnectionProtocolAndPort(protocol: ConnectionProtocol, port: Int) {
@@ -1490,7 +1641,10 @@ class MainActivity : Activity() {
             styleWorkspaceNavItem(view, selected = key == workspace)
         }
         if (::workspaceTitle.isInitialized) workspaceTitle.text = workspaceLabel(workspace)
-        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = workspaceLabel(workspace)
+        if (::phoneChromeTitle.isInitialized) {
+            phoneChromeTitle.text = if (workspace == Workspace.SITES && siteEditorVisible)
+                "Add / Edit Site" else workspaceLabel(workspace)
+        }
         // Do not show stale success/status messages when switching workspaces.
         if (::settingsFeedback.isInitialized) settingsFeedback.visibility = View.GONE
         if (::fileActionToolbar.isInitialized) {
@@ -1516,6 +1670,9 @@ class MainActivity : Activity() {
                     workspaceContainer.announceForAccessibility(getString(R.string.workspace_announce, workspaceLabel(workspace)))
                 }
             }
+        }
+        if (workspace == Workspace.SITES && ::sitesListRows.isInitialized && !siteEditorVisible) {
+            refreshSiteRows()
         }
         if (announce && usesOverlayNavigation()) {
             setNavigationOpen(false, announce = false)
