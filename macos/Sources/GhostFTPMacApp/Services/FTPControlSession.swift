@@ -325,6 +325,15 @@ enum FTPControlCodec {
         }
     }
 
+    static func displayFileSize(_ size: UInt64) -> String {
+        // Untrusted MLSD facts may legally represent all UInt64 values.
+        // Int64(size) traps at runtime for values above Int64.max.
+        guard size <= UInt64(Int64.max) else {
+            return "\(size) bytes"
+        }
+        return ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
+    }
+
     static func mlsdIsUnsupported(_ reply: FTPReply) -> Bool {
         // Only explicit command-not-supported replies permit LIST fallback.
         // A 550 denial, 425 socket failure or other server error must fail.
