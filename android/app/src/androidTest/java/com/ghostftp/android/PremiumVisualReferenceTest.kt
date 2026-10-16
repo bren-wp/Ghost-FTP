@@ -193,6 +193,39 @@ class PremiumVisualReferenceTest {
                 captureIdleReference(activity, output, "splash")
             }
         }
+        // Real transfer-details surface, currently idle; never forge a
+        // percentage, transfer speed, ETA or server result for screenshot QA.
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val open = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == activity.getString(R.string.nav_open)
+                }
+                assertTrue("Open drawer before Transfers", open?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val menu = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == activity.getString(
+                        R.string.workspace_open, activity.getString(R.string.workspace_transfers))
+                }
+                assertTrue("Open actual Transfers", menu?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val details = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "View transfer details" && it.isShown
+                }
+                assertTrue("Real details route must be tappable", details?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val cancel = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "Cancel active transfer"
+                }
+                assertTrue("No idle cancel action may be enabled", cancel?.isEnabled == false)
+                captureIdleReference(activity, output, "transfer-details")
+            }
+        }
     }
 
     private fun captureIdleReference(
