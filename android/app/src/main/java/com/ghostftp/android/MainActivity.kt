@@ -385,8 +385,13 @@ class MainActivity : Activity() {
         content.addView(buildInlineConfirmationCard())
         content.addView(space(10))
         content.addView(workspaceContainer)
-        content.addView(space(10))
-        content.addView(buildFooter())
+        // The 16 approved phone references have no persistent "Private
+        // session" marketing footer; it consumed viewport space on EVERY
+        // Android page. Keep provenance footer on roomy tablets only.
+        if (resources.configuration.screenWidthDp >= 600) {
+            content.addView(space(10))
+            content.addView(buildFooter())
+        }
 
         contentScroll.addView(
             content,
