@@ -1350,13 +1350,24 @@ class MainActivity : Activity() {
             LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(7), dp(8), dp(7), dp(10))
+                // Reference #6 keeps both file panes tall, even if disconnected
+                // or the actual local app-owned directory is empty.
+                if (resources.configuration.screenWidthDp < 600) {
+                    minimumHeight = dp(
+                        (resources.configuration.screenHeightDp - 164).coerceIn(300, 850)
+                    )
+                }
                 background = PremiumReferenceStyle.surface(this@MainActivity)
                 val header = TextView(this@MainActivity).apply {
                     text = label
                     textSize = 13f
                     typeface = Typeface.DEFAULT_BOLD
                     setTextColor(PremiumReferenceStyle.text)
-                    setPadding(dp(4), dp(4), dp(4), dp(9))
+                    setPadding(dp(9), dp(5), dp(9), dp(5))
+                    gravity = Gravity.CENTER_VERTICAL
+                    minimumHeight = dp(32)
+                    background = PremiumReferenceStyle.surface(this@MainActivity,
+                        PremiumReferenceStyle.raised, 6)
                     ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
                     maxLines = 1
                 }
