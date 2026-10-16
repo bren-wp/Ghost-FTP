@@ -747,6 +747,16 @@ class MainActivitySmokeTest {
         clickByDescription(appString(R.string.workspace_open, appString(labelRes)))
         // The user-approved Sites screen is a real metadata list. Legacy
         // connection form tests navigate through its working Add Site action.
+        if (labelRes == R.string.workspace_transfers) {
+            var optionsAlreadyVisible = false
+            scenario.onActivity { activity ->
+                optionsAlreadyVisible = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == appString(R.string.action_pick_file) &&
+                        it.isShown
+                } != null
+            }
+            if (!optionsAlreadyVisible) clickByDescription("Transfer options")
+        }
         if (labelRes == R.string.workspace_sites) {
             var addVisible = false
             scenario.onActivity { activity ->
