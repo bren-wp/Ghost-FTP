@@ -116,6 +116,7 @@ class MainActivity : Activity() {
     private lateinit var confirmationTitle: TextView
     private lateinit var confirmationDetail: TextView
     private lateinit var confirmationAction: Button
+    private lateinit var inlineNameInput: EditText
     private var pendingConfirmation: (() -> Unit)? = null
     private val workspaceNavButtons = mutableMapOf<Workspace, TextView>()
     private var activeWorkspace = Workspace.FILES
@@ -649,15 +650,15 @@ class MainActivity : Activity() {
             showMessage(getString(R.string.action_new_folder), "Connect to a server first.")
             return
         }
-        val entry = input(getString(R.string.hint_folder_target), InputType.TYPE_CLASS_TEXT)
-        android.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.action_new_folder))
-            .setView(entry)
-            .setNegativeButton(getString(R.string.action_cancel), null)
-            .setPositiveButton(getString(R.string.action_confirm)) { _, _ ->
-                mkdirNameInput.setText(entry.text.toString())
-                createRemoteFolder()
-            }.show()
+        requestInlineConfirmation(getString(R.string.action_new_folder),
+            "Enter the new remote folder name.", getString(R.string.action_confirm)) {
+            mkdirNameInput.setText(inlineNameInput.text.toString())
+            createRemoteFolder()
+        }
+        inlineNameInput.setText("")
+        inlineNameInput.hint = getString(R.string.hint_folder_target)
+        inlineNameInput.visibility = View.VISIBLE
+        contentScroll.post { contentScroll.scrollTo(0, 0) }
     }
 
     private fun promptRenameRemoteEntry() {
@@ -665,16 +666,16 @@ class MainActivity : Activity() {
             showMessage(getString(R.string.action_rename), "Connect and select a remote file first.")
             return
         }
-        val entry = input(getString(R.string.hint_rename_target), InputType.TYPE_CLASS_TEXT)
-        entry.setText(renameRemoteNameInput.text.toString())
-        android.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.action_rename))
-            .setView(entry)
-            .setNegativeButton(getString(R.string.action_cancel), null)
-            .setPositiveButton(getString(R.string.action_confirm)) { _, _ ->
-                renameRemoteNameInput.setText(entry.text.toString())
-                renameRemoteEntry()
-            }.show()
+        requestInlineConfirmation(getString(R.string.action_rename),
+            "Enter a new name for the selected remote item.",
+            getString(R.string.action_confirm)) {
+            renameRemoteNameInput.setText(inlineNameInput.text.toString())
+            renameRemoteEntry()
+        }
+        inlineNameInput.setText(renameRemoteNameInput.text.toString())
+        inlineNameInput.hint = getString(R.string.hint_rename_target)
+        inlineNameInput.visibility = View.VISIBLE
+        contentScroll.post { contentScroll.scrollTo(0, 0) }
     }
 
     private fun buildStatusCard(): View = panel().apply {
@@ -713,6 +714,13 @@ class MainActivity : Activity() {
         }
         addView(confirmationTitle)
         addView(confirmationDetail)
+        inlineNameInput = input("Name", InputType.TYPE_CLASS_TEXT).apply {
+            visibility = View.GONE
+            contentDescription = "Remote action name"
+        }
+        addView(inlineNameInput, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(46)
+        ))
 
         val actions = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -745,6 +753,7 @@ class MainActivity : Activity() {
         pendingConfirmation = onConfirm
         confirmationTitle.text = title
         confirmationDetail.text = detail
+        if (::inlineNameInput.isInitialized) inlineNameInput.visibility = View.GONE
         confirmationAction.text = confirmLabel
         confirmationAction.contentDescription = confirmLabel
         confirmationPanel.visibility = View.VISIBLE
