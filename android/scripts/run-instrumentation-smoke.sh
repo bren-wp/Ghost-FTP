@@ -27,7 +27,7 @@ trap on_exit EXIT
 
 adb wait-for-device
 # The approved Android visual reference has an actual 480x960px viewport.
-# Set 160dpi so the app's 64dp rail occupies 64 real screenshot pixels.
+# Set 160dpi so native Android phone controls can be checked against the user reference.
 # This is limited to the isolated CI emulator, never a user's device.
 # The ATD image can report its effective dimensions as "Physical" when a
 # requested override equals its baseline. Do not require only the textual
@@ -246,7 +246,7 @@ if ! bash android/scripts/check-visual-instrumentation-output.sh \
   tail -n 80 "$VISUAL_DIR/instrumentation.log" >&2
   exit 1
 fi
-for screen in files sites transfers sync cloud bookmarks settings about site-editor; do
+for screen in files sites transfers sync cloud bookmarks settings about site-editor search drawer splash; do
   adb exec-out run-as "$PACKAGE_ID" cat "files/premium-qa/${screen}.png" > "$VISUAL_DIR/${screen}.png"
   test -s "$VISUAL_DIR/${screen}.png"
   # The Android emulator CI runs on macOS. Verify PNG signature, IHDR
@@ -274,14 +274,15 @@ PYTHON_PNG
 done
 (
   cd "$VISUAL_DIR"
-  for screen in files sites transfers sync cloud bookmarks settings about site-editor; do
+  for screen in files sites transfers sync cloud bookmarks settings about site-editor search drawer splash; do
     shasum -a 256 "${screen}.png"
   done
 ) > "$VISUAL_DIR/SHA256SUMS.txt"
 test -s "$VISUAL_DIR/SHA256SUMS.txt"
 cat > "$VISUAL_DIR/README.txt" <<'VISUAL_EVIDENCE'
 Ghost FTP Android visual QA: actual live debug-view renders at a 480px-wide,
-160dpi emulator viewport. Captures show eight idle workspaces plus an empty Add/Edit Site native General tab.
+160dpi emulator viewport. Captures show eight idle workspaces, empty Add/Edit Site,
+real Search form, open navigation drawer, and native cold-start splash.
 No reference concept screenshots, fake cloud connections, passwords, or
 simulated transfers are inserted. These are visual-comparison INPUTS and do
 not certify 1:1 parity with the 16 reference PNGs.
