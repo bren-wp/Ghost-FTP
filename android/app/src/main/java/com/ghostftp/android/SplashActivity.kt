@@ -120,7 +120,13 @@ class SplashActivity : Activity() {
         setContentView(frame)
         // This is the visible brand handoff, not an artificial blocking
         // loading task. It is bounded to 450 ms and only runs on cold launch.
-        handler.postDelayed(enterApp, 450L)
+        val debugBuild = applicationInfo.flags and
+            android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+        // Instrumentation can hold the real splash view for exact 480×960
+        // capture. Release/preview packages ignore this test-only flag.
+        if (!(debugBuild && intent?.getBooleanExtra("ghostftp.qa.hold_splash", false) == true)) {
+            handler.postDelayed(enterApp, 450L)
+        }
     }
 
     override fun onDestroy() {
