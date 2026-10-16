@@ -10,6 +10,10 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.Spinner
 import android.widget.TextView
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -63,6 +67,13 @@ class MainActivitySmokeTest {
             assertDescriptionPresent(appString(actionRes))
         }
         assertDescriptionPresent("More file actions")
+    }
+
+    @Test
+    fun referenceFilesMoreExposesRealRenameAndRefreshMenuActions() {
+        clickByDescription("More file actions")
+        onView(withText(appString(R.string.action_rename))).check(matches(isDisplayed()))
+        onView(withText(appString(R.string.action_refresh))).check(matches(isDisplayed()))
     }
 
     @Test
