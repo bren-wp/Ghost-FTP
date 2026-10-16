@@ -70,6 +70,40 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun referenceSearchUsesRealSessionDataAndCannotInventRemoteResults() {
+        clickByDescription("Search files")
+        assertDescriptionPresent("Search file name")
+        assertDescriptionPresent("Run file search")
+        clickByDescription("Run file search")
+        assertTextPresent("Enter a filename (up to 80 characters).")
+        scenario.onActivity { activity ->
+            val query = findView(activity.window.decorView) {
+                it is EditText && it.contentDescription?.toString() == "Search file name"
+            } as? EditText
+            assertNotNull("Search field must exist", query)
+            query!!.setText("*.php")
+        }
+        clickByDescription("Run file search")
+        assertTextPresent("Connect to a server before searching.")
+        clickByDescription("Close Search")
+        assertTextVisibleInViewport(appString(R.string.state_connect_to_load_files))
+        assertDescriptionPresent("Search files")
+    }
+
+    @Test
+    fun launcherRoutesThroughNativePremiumSplashRatherThanDirectFiles() {
+        scenario.onActivity { activity ->
+            val intent = activity.packageManager.getLaunchIntentForPackage(activity.packageName)
+            assertNotNull("Android launcher must resolve", intent)
+            assertEquals(
+                "Official launcher must display the branded splash before MainActivity",
+                SplashActivity::class.java.name,
+                intent!!.component?.className
+            )
+        }
+    }
+
+    @Test
     fun referenceFilesMoreExposesRealRenameAndRefreshMenuActions() {
         clickByDescription("More file actions")
         onView(withText(appString(R.string.action_rename))).check(matches(isDisplayed()))
