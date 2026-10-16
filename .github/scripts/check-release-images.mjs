@@ -130,10 +130,10 @@ if (captureManifest) {
   // successful current-build Windows QA promotion commits fresh screenshots.
   // Never accept arbitrary older captures or mock reference art.
   const acceptableVersions = [versionMeta.version, versionMeta.previousPublishedVersion];
-  // A newly published patch can legitimately keep the last genuine Windows
-  // captures when the pictured app screens have not changed. Allow only ONE
-  // older published patch on the same minor line, then require all seven
-  // screenshot blobs to be byte-identical to the newest published release.
+  // Previously captured real Windows pixels remain valid only while they
+  // are byte-identical in both their ORIGINAL published release tag and
+  // the newest published tag. Permit a small patch-history window, never
+  // rewriting original version/SHA or claiming a new native screenshot.
   // Never rewrite captureManifest.version/source SHA to pretend recapture.
   const parseVersion = (raw) => {
     const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(raw ?? "");
@@ -141,11 +141,12 @@ if (captureManifest) {
   };
   const prior = parseVersion(versionMeta.previousPublishedVersion);
   const captured = parseVersion(captureManifest.version);
-  const unchangedPredecessorCapture = Boolean(prior && captured &&
+  const unchangedPublishedCapture = Boolean(prior && captured &&
     prior[0] === captured[0] &&
     prior[1] === captured[1] &&
-    prior[2] === captured[2] + 1);
-  if (!(acceptableVersions.includes(captureManifest.version) || unchangedPredecessorCapture) ||
+    prior[2] >= captured[2] &&
+    prior[2] - captured[2] <= 3);
+  if (!(acceptableVersions.includes(captureManifest.version) || unchangedPublishedCapture) ||
       !/^[a-f0-9]{40}$/.test(captureManifest.capture_source_sha ?? "") ||
       !/^[0-9]+$/.test(captureManifest.github_actions_run_id ?? "") ||
       captureManifest.platform !== "Windows" ||
@@ -203,6 +204,22 @@ for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.lo
       }).trim();
       if (currentBlob !== latestReleaseBlob) {
         failures.push(`${relative}: screenshot differs from the latest published ${releaseTag}; capture new real Windows QA pixels`);
+      }
+      // The original Windows build is an immutable provenance anchor. An
+      // unchanged latest release alone cannot validate a fabricated old
+      // capture if it differs from its claimed published source tag.
+      const sourceTag = `v${captureManifest.version}`;
+      try {
+        const originalBlob = execFileSync("git", ["rev-parse", `${sourceTag}:${relative}`], {
+          cwd: root,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        }).trim();
+        if (currentBlob !== originalBlob) {
+          failures.push(`${relative}: screenshot differs from its original capture tag ${sourceTag}`);
+        }
+      } catch {
+        failures.push(`${relative}: original capture tag ${sourceTag} is missing or unverified`);
       }
     }
     continue;
