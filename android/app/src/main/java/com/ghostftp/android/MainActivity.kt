@@ -107,6 +107,7 @@ class MainActivity : Activity() {
     private lateinit var workspaceTitle: TextView
     private lateinit var phoneChromeTitle: TextView
     private lateinit var phoneMenuButton: Button
+    private lateinit var phoneQuickButton: Button
     // Reference workspaces must not inherit Files-only actions or status cards.
     private lateinit var fileActionToolbar: View
     private lateinit var sessionStatusCard: View
@@ -487,14 +488,25 @@ class MainActivity : Activity() {
         addView(phoneChromeTitle, LinearLayout.LayoutParams(
             0, ViewGroup.LayoutParams.MATCH_PARENT, 1f
         ))
-        val quickMenu = secondaryButton("⋯") { }.apply {
+        phoneQuickButton = secondaryButton("⋯") { }.apply {
             contentDescription = "Quick navigation"
             textSize = 22f
             minWidth = 0
             minimumWidth = 0
         }
-        quickMenu.setOnClickListener {
-            android.widget.PopupMenu(this@MainActivity, quickMenu).apply {
+        phoneQuickButton.setOnClickListener {
+            when {
+                activeWorkspace == Workspace.SITES && !siteEditorVisible -> showSiteEditor(null)
+                activeWorkspace == Workspace.BOOKMARKS -> promptSaveCurrentBookmark()
+                else -> showPhoneQuickMenu()
+            }
+        }
+        addView(phoneQuickButton, LinearLayout.LayoutParams(dp(46), dp(42)))
+        updatePhoneChromeActions()
+    }
+
+    private fun showPhoneQuickMenu() {
+        android.widget.PopupMenu(this, phoneQuickButton).apply {
                 menu.add(0, 1, 0, workspaceLabel(Workspace.SETTINGS))
                 menu.add(0, 2, 1, workspaceLabel(Workspace.CLOUD))
                 menu.add(0, 3, 2, workspaceLabel(Workspace.ABOUT))
@@ -507,8 +519,26 @@ class MainActivity : Activity() {
                     true
                 }
             }.show()
+    }
+
+    private fun updatePhoneChromeActions() {
+        if (!::phoneQuickButton.isInitialized) return
+        val sitesOverview = activeWorkspace == Workspace.SITES && !siteEditorVisible
+        val bookmarks = activeWorkspace == Workspace.BOOKMARKS
+        when {
+            sitesOverview -> {
+                phoneQuickButton.text = "+"
+                phoneQuickButton.contentDescription = "Add Site"
+            }
+            bookmarks -> {
+                phoneQuickButton.text = "+"
+                phoneQuickButton.contentDescription = getString(R.string.bookmarks_add)
+            }
+            else -> {
+                phoneQuickButton.text = "⋯"
+                phoneQuickButton.contentDescription = "Quick navigation"
+            }
         }
-        addView(quickMenu, LinearLayout.LayoutParams(dp(46), dp(42)))
     }
 
     private fun buildNavigationRail(): View = ScrollView(this).apply {
@@ -1055,7 +1085,7 @@ class MainActivity : Activity() {
         }.apply {
             contentDescription = "Add Site"
         }, LinearLayout.LayoutParams(dp(44), dp(42)))
-        addView(heading)
+        if (resources.configuration.screenWidthDp >= 600) addView(heading)
         sitesSearch = input("Search saved sites…", InputType.TYPE_CLASS_TEXT).apply {
             contentDescription = "Search sites"
             addTextChangedListener(object : android.text.TextWatcher {
@@ -1176,6 +1206,7 @@ class MainActivity : Activity() {
             passwordInput.text.clear()
         }
         setWorkspace(Workspace.SITES)
+        updatePhoneChromeActions()
     }
 
     private fun showSitesOverview() {
@@ -1185,6 +1216,7 @@ class MainActivity : Activity() {
         if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text =
             getString(R.string.workspace_sites)
         refreshSiteRows()
+        updatePhoneChromeActions()
         contentScroll.post { contentScroll.scrollTo(0, 0) }
     }
 
@@ -1776,7 +1808,7 @@ class MainActivity : Activity() {
             promptSaveCurrentBookmark()
         }.apply { contentDescription = getString(R.string.bookmarks_add) },
             LinearLayout.LayoutParams(dp(44), dp(42)))
-        addView(titleRow)
+        if (resources.configuration.screenWidthDp >= 600) addView(titleRow)
         bookmarksRows = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -2178,6 +2210,7 @@ class MainActivity : Activity() {
             phoneChromeTitle.text = if (workspace == Workspace.SITES && siteEditorVisible)
                 "Add / Edit Site" else workspaceLabel(workspace)
         }
+        updatePhoneChromeActions()
         // Do not show stale success/status messages when switching workspaces.
         if (::settingsFeedback.isInitialized) settingsFeedback.visibility = View.GONE
         if (::siteFeedback.isInitialized && workspace != Workspace.SITES) {
