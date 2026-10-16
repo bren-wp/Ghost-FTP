@@ -246,7 +246,7 @@ if ! bash android/scripts/check-visual-instrumentation-output.sh \
   tail -n 80 "$VISUAL_DIR/instrumentation.log" >&2
   exit 1
 fi
-for screen in files sites transfers sync cloud bookmarks settings about site-editor search drawer splash; do
+for screen in files sites transfers sync cloud bookmarks settings about site-editor search drawer splash transfer-details; do
   adb exec-out run-as "$PACKAGE_ID" cat "files/premium-qa/${screen}.png" > "$VISUAL_DIR/${screen}.png"
   test -s "$VISUAL_DIR/${screen}.png"
   # The Android emulator CI runs on macOS. Verify PNG signature, IHDR
@@ -274,7 +274,7 @@ PYTHON_PNG
 done
 (
   cd "$VISUAL_DIR"
-  for screen in files sites transfers sync cloud bookmarks settings about site-editor search drawer splash; do
+  for screen in files sites transfers sync cloud bookmarks settings about site-editor search drawer splash transfer-details; do
     shasum -a 256 "${screen}.png"
   done
 ) > "$VISUAL_DIR/SHA256SUMS.txt"
@@ -282,7 +282,7 @@ test -s "$VISUAL_DIR/SHA256SUMS.txt"
 cat > "$VISUAL_DIR/README.txt" <<'VISUAL_EVIDENCE'
 Ghost FTP Android visual QA: actual live debug-view renders at a 480px-wide,
 160dpi emulator viewport. Captures show eight idle workspaces, empty Add/Edit Site,
-real Search form, open navigation drawer, and native cold-start splash.
+real Search form, open navigation drawer, native cold-start splash and honest idle transfer details.
 No reference concept screenshots, fake cloud connections, passwords, or
 simulated transfers are inserted. These are visual-comparison INPUTS and do
 not certify 1:1 parity with the 16 reference PNGs.
