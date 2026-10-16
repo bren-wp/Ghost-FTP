@@ -42,6 +42,7 @@ class MainActivity : Activity() {
         TRANSFERS(R.string.workspace_transfers),
         SYNC(R.string.workspace_sync),
         CLOUD(R.string.workspace_cloud),
+        BOOKMARKS(R.string.workspace_bookmarks),
         SETTINGS(R.string.workspace_settings),
         ABOUT(R.string.workspace_about)
     }
@@ -75,6 +76,8 @@ class MainActivity : Activity() {
     private var sessionCancelledOperations = 0
     private lateinit var syncBackupStatus: TextView
     private lateinit var cloudSection: View
+    private lateinit var bookmarksSection: View
+    private lateinit var bookmarksRows: LinearLayout
     private lateinit var cloudUploadInput: EditText
     private lateinit var cloudDownloadInput: EditText
     private lateinit var cloudStatus: TextView
@@ -317,6 +320,7 @@ class MainActivity : Activity() {
         transfersSection = buildTransfersCard()
         syncSection = buildSyncBackupCard()
         cloudSection = buildCloudCard()
+        bookmarksSection = buildBookmarksCard()
         settingsSection = buildSettingsCard()
         aboutSection = buildAboutCard()
 
@@ -327,6 +331,7 @@ class MainActivity : Activity() {
             addView(transfersSection)
             addView(syncSection)
             addView(cloudSection)
+            addView(bookmarksSection)
             addView(settingsSection)
             addView(aboutSection)
         }
@@ -1676,6 +1681,161 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Screen 10 reference: native, compact saved remote-directory tiles. */
+    private fun buildBookmarksCard(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(4), dp(4), dp(4), dp(12))
+        val titleRow = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        titleRow.addView(sectionTitle(getString(R.string.workspace_bookmarks)),
+            LinearLayout.LayoutParams(0, dp(48), 1f))
+        titleRow.addView(PremiumReferenceStyle.action(this@MainActivity, "+", primary = true) {
+            promptSaveCurrentBookmark()
+        }.apply { contentDescription = getString(R.string.bookmarks_add) },
+            LinearLayout.LayoutParams(dp(44), dp(42)))
+        addView(titleRow)
+        bookmarksRows = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        addView(bookmarksRows)
+        refreshBookmarks()
+    }
+
+    private fun refreshBookmarks() {
+        if (!::bookmarksRows.isInitialized || closingOrDestroyed()) return
+        bookmarksRows.removeAllViews()
+        val saved = SavedRemoteBookmarks.read(this)
+        if (saved.isEmpty()) {
+            bookmarksRows.addView(row(
+                getString(R.string.bookmarks_empty_title),
+                getString(R.string.bookmarks_empty_detail)
+            ))
+            return
+        }
+        saved.forEach { bookmark ->
+            val tile = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(10), dp(8), dp(8), dp(8))
+                background = PremiumReferenceStyle.surface(this@MainActivity)
+                minimumHeight = dp(62)
+            }
+            val folder = PremiumReferenceStyle.caption(this, "▣", 21f).apply {
+                gravity = Gravity.CENTER
+                setTextColor(PremiumReferenceStyle.yellow)
+            }
+            tile.addView(folder, LinearLayout.LayoutParams(dp(36), dp(42)))
+            val description = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(PremiumReferenceStyle.caption(this@MainActivity, bookmark.title, 14f).apply {
+                    typeface = Typeface.DEFAULT_BOLD
+                })
+                addView(PremiumReferenceStyle.caption(this@MainActivity,
+                    bookmark.siteName + " · " + bookmark.remoteDirectory, 11f, muted = true).apply {
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
+                })
+                isClickable = true
+                isFocusable = true
+                contentDescription = "Open bookmark " + bookmark.title
+                setOnClickListener { openRemoteBookmark(bookmark) }
+            }
+            tile.addView(description, LinearLayout.LayoutParams(0, dp(45), 1f))
+            val menuButton = PremiumReferenceStyle.action(this, "⋮") {}.apply {
+                contentDescription = "Bookmark options " + bookmark.title
+            }
+            menuButton.setOnClickListener {
+                android.widget.PopupMenu(this@MainActivity, menuButton).apply {
+                    menu.add(0, 1, 0, getString(R.string.action_delete))
+                    setOnMenuItemClickListener {
+                        requestInlineConfirmation(
+                            getString(R.string.bookmarks_remove_title),
+                            bookmark.title + " · " + bookmark.remoteDirectory,
+                            getString(R.string.action_delete)
+                        ) {
+                            if (SavedRemoteBookmarks.remove(this@MainActivity, bookmark)) {
+                                refreshBookmarks()
+                            } else {
+                                showMessage("Bookmark was not removed", "Saved bookmarks were preserved.")
+                            }
+                        }
+                        true
+                    }
+                }.show()
+            }
+            tile.addView(menuButton, LinearLayout.LayoutParams(dp(42), dp(42)))
+            bookmarksRows.addView(tile, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp(6) })
+        }
+    }
+
+    private fun promptSaveCurrentBookmark() {
+        val active = activeProfile
+        if (active == null) {
+            showMessage(getString(R.string.workspace_bookmarks),
+                getString(R.string.bookmarks_connect_first))
+            return
+        }
+        val site = SavedSiteProfiles.read(this).firstOrNull {
+            it.host.equals(active.host, ignoreCase = true) &&
+                it.port == active.port && it.protocol == active.protocol &&
+                it.username == active.username
+        }
+        if (site == null) {
+            showMessage(getString(R.string.workspace_bookmarks),
+                getString(R.string.bookmarks_save_site_first))
+            return
+        }
+        val path = remotePathInput.text.toString().trim().ifEmpty { active.remotePath }
+        val title = if (path == "/") site.name else path.trimEnd('/').substringAfterLast('/')
+        val titleEntry = input("Bookmark name", InputType.TYPE_CLASS_TEXT).apply {
+            setText(title.take(80))
+            selectAll()
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.bookmarks_add))
+            .setView(titleEntry)
+            .setNegativeButton(getString(R.string.action_cancel), null)
+            .setPositiveButton(getString(R.string.action_confirm)) { _, _ ->
+                val candidate = SavedRemoteBookmark(titleEntry.text.toString().trim(),
+                    site.name, path)
+                if (SavedRemoteBookmarks.add(this, candidate)) {
+                    refreshBookmarks()
+                } else {
+                    showMessage(getString(R.string.workspace_bookmarks),
+                        getString(R.string.bookmarks_invalid))
+                }
+            }.show()
+    }
+
+    private fun openRemoteBookmark(bookmark: SavedRemoteBookmark) {
+        // A bookmark cannot restore credentials or bypass SSH host-key trust.
+        val site = SavedSiteProfiles.read(this).firstOrNull {
+            it.name.equals(bookmark.siteName, ignoreCase = true)
+        }
+        if (site == null) {
+            showMessage(getString(R.string.workspace_bookmarks),
+                getString(R.string.bookmarks_site_missing))
+            return
+        }
+        val active = activeProfile
+        if (active != null && active.protocol == site.protocol &&
+            active.host.equals(site.host, ignoreCase = true) &&
+            active.port == site.port && active.username == site.username) {
+            remotePathInput.setText(bookmark.remoteDirectory)
+            setWorkspace(Workspace.FILES)
+            refreshActive()
+        } else {
+            showSiteEditor(site)
+            remotePathInput.setText(bookmark.remoteDirectory)
+            showMessage(getString(R.string.workspace_bookmarks),
+                getString(R.string.bookmarks_reconnect))
+        }
+    }
+
     private fun buildSettingsCard(): View = panel().apply {
         addView(sectionTitle(getString(R.string.workspace_settings)))
         addView(sectionDescription(getString(R.string.desc_settings)))
@@ -1817,6 +1977,7 @@ class MainActivity : Activity() {
             Workspace.TRANSFERS to transfersSection,
             Workspace.SYNC to syncSection,
             Workspace.CLOUD to cloudSection,
+            Workspace.BOOKMARKS to bookmarksSection,
             Workspace.SETTINGS to settingsSection,
             Workspace.ABOUT to aboutSection
         )
@@ -1864,6 +2025,9 @@ class MainActivity : Activity() {
                     workspaceContainer.announceForAccessibility(getString(R.string.workspace_announce, workspaceLabel(workspace)))
                 }
             }
+        }
+        if (workspace == Workspace.BOOKMARKS && ::bookmarksRows.isInitialized) {
+            refreshBookmarks()
         }
         if (workspace == Workspace.SITES && ::sitesListRows.isInitialized && !siteEditorVisible) {
             refreshSiteRows()
@@ -2803,6 +2967,7 @@ class MainActivity : Activity() {
             Workspace.TRANSFERS -> R.drawable.ic_premium_nav_transfers
             Workspace.SYNC -> R.drawable.ic_premium_nav_sync
             Workspace.CLOUD -> R.drawable.ic_premium_nav_cloud
+            Workspace.BOOKMARKS -> R.drawable.ic_premium_nav_bookmarks
             Workspace.SETTINGS -> R.drawable.ic_premium_nav_settings
             Workspace.ABOUT -> R.drawable.ic_premium_nav_about
         }
