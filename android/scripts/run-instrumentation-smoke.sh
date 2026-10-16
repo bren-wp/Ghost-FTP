@@ -6,7 +6,7 @@ DEBUG_APK="android/app/build/outputs/apk/debug/app-debug.apk"
 PREVIEW_APK="android/app/build/outputs/apk/preview/app-preview.apk"
 PACKAGE_ID="com.ghostftp.android"
 PREVIEW_PACKAGE_ID="com.ghostftp.android.preview"
-PREVIEW_ACTIVITY_CLASS="com.ghostftp.android.MainActivity"
+PREVIEW_ACTIVITY_CLASS="com.ghostftp.android.SplashActivity"
 
 mkdir -p "$DIAG_DIR"
 
