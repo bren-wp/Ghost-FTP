@@ -4,6 +4,6 @@
   "build": "2026.10.17.23",
   "releaseDate": "17 October 2026",
   "androidVersionCode": 952300,
-  "channel": "development",
+  "channel": "preview",
   "previousPublishedVersion": "0.95.22"
 }
