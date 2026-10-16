@@ -3,8 +3,8 @@
     <color name="ghost_background">#070E1A</color>
     <color name="ghost_panel">#0D192B</color>
     <color name="ghost_panel_strong">#111F34</color>
-    <color name="ghost_accent">#38ABFF</color>
-    <color name="ghost_accent_strong">#329CFF</color>
+    <color name="ghost_accent">#654BFF</color>
+    <color name="ghost_accent_strong">#8360FF</color>
     <color name="ghost_text">#EAF6FF</color>
     <color name="ghost_text_muted">#97B3CE</color>
 </resources>
