@@ -2353,8 +2353,7 @@ class MainActivity : Activity() {
                     secondaryButton(getString(R.string.action_disconnect)) {
                         disconnect()
                     }.apply {
-                        contentDescription = getString(R.string.workspace_settings) +
-                            " " + getString(R.string.action_disconnect)
+                        contentDescription = "${getString(R.string.workspace_settings)} ${getString(R.string.action_disconnect)}"
                     }
                 ))
             addView(space(12))
