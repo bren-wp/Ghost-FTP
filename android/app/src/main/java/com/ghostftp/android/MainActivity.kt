@@ -182,6 +182,7 @@ class MainActivity : Activity() {
         outState.putString(STATE_UPLOAD_DISPLAY_NAME, selectedUploadDisplayName)
         outState.putString(STATE_LAST_COMPLETED_PATH, lastCompletedTransferPath)
         outState.putString(STATE_WORKSPACE, activeWorkspace.name)
+        outState.putBoolean(STATE_SITE_EDITOR_OPEN, siteEditorVisible)
         outState.putBoolean(STATE_NAVIGATION_OPEN, navigationOpen)
         // Intentionally never persist passwordInput or activeProfile: a recreated
         // Activity must require a fresh authenticated connection.
@@ -2417,6 +2418,9 @@ class MainActivity : Activity() {
         selectedUploadUri = restoredUploadUri?.takeIf { restoredUploadReadable }
         selectedUploadDisplayName = restoredUploadDisplayName.takeIf { restoredUploadReadable }.orEmpty()
         lastCompletedTransferPath = state.getString(STATE_LAST_COMPLETED_PATH).orEmpty()
+        siteEditorVisible = state.getBoolean(STATE_SITE_EDITOR_OPEN, false)
+        siteEditorPanel.visibility = if (siteEditorVisible) View.VISIBLE else View.GONE
+        sitesOverviewPanel.visibility = if (siteEditorVisible) View.GONE else View.VISIBLE
         activeWorkspace = state.getString(STATE_WORKSPACE)
             ?.let { saved -> runCatching { Workspace.valueOf(saved) }.getOrNull() }
             ?: Workspace.FILES
@@ -2869,6 +2873,7 @@ class MainActivity : Activity() {
         const val STATE_UPLOAD_DISPLAY_NAME = "ghostftp.uploadDisplayName"
         const val STATE_LAST_COMPLETED_PATH = "ghostftp.lastCompletedPath"
         const val STATE_WORKSPACE = "ghostftp.workspace"
+        const val STATE_SITE_EDITOR_OPEN = "ghostftp.siteEditorOpen"
         const val STATE_NAVIGATION_OPEN = "ghostftp.navigationOpen"
 
         const val REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP"
