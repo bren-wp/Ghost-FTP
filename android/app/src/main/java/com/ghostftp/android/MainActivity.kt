@@ -1043,7 +1043,10 @@ class MainActivity : Activity() {
         // Move existing native controls into contextual tabs WITHOUT replacing
         // password handling, save/update/connection handlers or validation.
         val original = (0 until childCount).map { getChildAt(it) }
-        val generalViews = mutableSetOf<View>(siteFeedback)
+        // SSH host-key identity is connection-critical. Unlike keep-alive,
+        // it must be visible in the General tab when SFTP is selected.
+        // Hiding it in Advanced made an unverified server appear safe to use.
+        val generalViews = mutableSetOf<View>(siteFeedback, sftpFingerprintGroup)
         for (field in listOf<View>(
             siteNameInput, protocolSpinner, hostInput, portInput,
             usernameInput, passwordInput
@@ -2008,8 +2011,16 @@ class MainActivity : Activity() {
         addView(feedback)
         addView(space(7))
         addView(secondaryButton("Cloud transfer options") {
-            advanced.visibility = if (advanced.visibility == View.VISIBLE)
-                View.GONE else View.VISIBLE
+            // An unresolved interrupted write is a data-safety condition.
+            // Never allow a collapsed provider card to hide its recovery
+            // warning and user-controlled Keep/Cleanup actions.
+            advanced.visibility = if (CloudDestinationJournal.hasUnresolved(noBackupFilesDir)) {
+                View.VISIBLE
+            } else if (advanced.visibility == View.VISIBLE) {
+                View.GONE
+            } else {
+                View.VISIBLE
+            }
         }.apply { contentDescription = "Cloud transfer options" })
         savedContent.forEach { advanced.addView(it) }
         addView(advanced)

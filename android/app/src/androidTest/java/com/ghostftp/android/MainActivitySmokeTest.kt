@@ -202,8 +202,11 @@ class MainActivitySmokeTest {
                     it is TextView && it.contentDescription?.toString() == description
                 } as? TextView
                 assertNotNull("Navigation destination is missing: $description", item)
+                // In the approved 480dp design icons sit to the LEFT of
+                // their labels; only the tablet navigation uses top icons.
+                val vectorSlot = if (isReferencePhone) 0 else 1
                 assertNotNull("Navigation destination lacks its real vector glyph: $description",
-                    item!!.compoundDrawables[1])
+                    item!!.compoundDrawables[vectorSlot])
                 assertEquals("Navigation label must stay localized: $description", label,
                     item.text.toString())
                 assertTrue("Navigation item must be actionable: $description", item.isClickable)
@@ -795,6 +798,17 @@ class MainActivitySmokeTest {
     }
 
     private fun ensureNavigationOpen() {
+        // Reference #4 has a genuine Back to Sites action while editing a
+        // site. Return to the Sites list BEFORE opening the main drawer.
+        // Attempting to open the drawer directly from the editor would
+        // bypass the reference back-navigation semantics.
+        var editorBackVisible = false
+        scenario.onActivity { activity ->
+            editorBackVisible = findView(activity.window.decorView) {
+                it.contentDescription?.toString() == "Back to Sites" && it.isShown
+            } != null
+        }
+        if (editorBackVisible) clickByDescription("Back to Sites")
         var needsOpen = false
         scenario.onActivity { activity ->
             val root = activity.window.decorView
