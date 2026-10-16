@@ -116,6 +116,42 @@ class PremiumVisualReferenceTest {
         }
     }
 
+    @Test
+    fun premiumWorkspacesDoNotShowUnrelatedFilesToolbarOrSessionCard() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                val fileActions = findView(root) { it.contentDescription == "File actions" }
+                val session = findView(root) { it.contentDescription == "Session status panel" }
+                assertNotNull("Files action toolbar must exist.", fileActions)
+                assertNotNull("Session status panel must exist.", session)
+                assertEquals(View.VISIBLE, fileActions!!.visibility)
+                assertEquals(View.VISIBLE, session!!.visibility)
+
+                fun visit(label: String) {
+                    val target = findView(root) {
+                        it is TextView &&
+                            it.contentDescription?.toString() ==
+                            activity.getString(R.string.workspace_open, label)
+                    }
+                    assertNotNull("Workspace navigation item missing: $label", target)
+                    assertTrue(target!!.performClick())
+                }
+
+                visit(activity.getString(R.string.workspace_about))
+                assertEquals("About must not display destructive FTP actions.", View.GONE, fileActions.visibility)
+                assertEquals("About must not show Files-only status.", View.GONE, session.visibility)
+                visit(activity.getString(R.string.workspace_sites))
+                assertEquals("Sites must use its own connection actions.", View.GONE, fileActions.visibility)
+                assertEquals(View.VISIBLE, session.visibility)
+                visit(activity.getString(R.string.workspace_files))
+                assertEquals(View.VISIBLE, fileActions.visibility)
+                assertEquals(View.VISIBLE, session.visibility)
+            }
+        }
+    }
+
     private fun decorWidth(activity: MainActivity): Int = activity.window.decorView.width
 
     private fun assertNoUserInputInHierarchy(root: View) {
