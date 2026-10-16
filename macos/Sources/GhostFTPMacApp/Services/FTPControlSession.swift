@@ -560,6 +560,12 @@ actor FTPControlSession {
         try expect(reply, accepted: [250], description: "250 file deleted")
     }
 
+    func removeEmptyDirectory(named name: String, timeoutSeconds: TimeInterval = 8) async throws {
+        try FTPControlCodec.validateRemoteFileName(name)
+        let reply = try await command("RMD \(name)", timeoutSeconds: timeoutSeconds)
+        try expect(reply, accepted: [250], description: "250 empty directory removed")
+    }
+
 
     func downloadFile(
         remoteName: String,
