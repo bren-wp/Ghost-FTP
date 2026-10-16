@@ -154,4 +154,14 @@
     <string name="cloud_no_transfer">Neprebieha žiadny cloudový prenos.</string>
     <string name="label_contact">Kontakt</string>
     <string name="about_contact_desc">Položte otázku alebo nahláste problém.</string>
+    <string name="workspace_bookmarks">Záložky</string>
+    <string name="bookmarks_add">Pridať záložku</string>
+    <string name="bookmarks_empty_title">Zatiaľ žiadne záložky</string>
+    <string name="bookmarks_empty_detail">Pripojte sa k uloženému serveru, otvorte vzdialený priečinok a ťuknite na +.</string>
+    <string name="bookmarks_connect_first">Najprv sa pripojte k skutočnému serveru FTP, FTPS alebo SFTP.</string>
+    <string name="bookmarks_save_site_first">Najprv uložte server medzi lokality. Záložky nikdy neukladajú heslá.</string>
+    <string name="bookmarks_invalid">Neplatný alebo duplicitný názov či cesta alebo nedostupné úložisko. Existujúce záložky ostali zachované.</string>
+    <string name="bookmarks_remove_title">Odstrániť záložku?</string>
+    <string name="bookmarks_site_missing">Uložená lokalita už neexistuje. Záložka ostala zachovaná.</string>
+    <string name="bookmarks_reconnect">Zadajte prihlasovacie údaje a znovu sa pripojte na otvorenie priečinka.</string>
 </resources>
