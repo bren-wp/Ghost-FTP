@@ -337,7 +337,7 @@ for _ in {1..20}; do
   ACTIVITY_DUMP="$(adb shell dumpsys activity activities 2>&1)"
   while IFS= read -r activity_line; do
     case "$activity_line" in
-      *ResumedActivity*"$PACKAGE_ID/"*|*topResumedActivity*"$PACKAGE_ID/"*)
+      *ResumedActivity*"$PACKAGE_ID/"*MainActivity*|*topResumedActivity*"$PACKAGE_ID/"*MainActivity*)
         RESUMED_ACTIVITY="$activity_line"
         break
         ;;
@@ -495,7 +495,7 @@ for _ in {1..20}; do
   PREVIEW_ACTIVITY_DUMP="$(adb shell dumpsys activity activities 2>&1)"
   while IFS= read -r activity_line; do
     case "$activity_line" in
-      *ResumedActivity*"$PREVIEW_PACKAGE_ID/"*|*topResumedActivity*"$PREVIEW_PACKAGE_ID/"*)
+      *ResumedActivity*"$PREVIEW_PACKAGE_ID/"*MainActivity*|*topResumedActivity*"$PREVIEW_PACKAGE_ID/"*MainActivity*)
         PREVIEW_RESUMED="$activity_line"
         break
         ;;
