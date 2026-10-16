@@ -2455,10 +2455,8 @@ class MainActivity : Activity() {
                 getString(R.string.about_support_desc), SUPPORT_URL))
             addView(officialLinkRow(getString(R.string.label_contact),
                 getString(R.string.about_contact_desc), CONTACT_URL))
-            addView(officialLinkRow(getString(R.string.label_privacy_policy),
-                getString(R.string.about_privacy_desc), PRIVACY_URL))
-            addView(officialLinkRow(getString(R.string.label_eula),
-                getString(R.string.about_eula_desc), EULA_URL))
+            addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
+            addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
             addView(aboutFactRow(getString(R.string.label_author), "Brendigo"))
         }
         val details = PremiumReferenceStyle.panelColumn(this@MainActivity).apply {
@@ -2567,10 +2565,8 @@ class MainActivity : Activity() {
                 getString(R.string.about_support_desc), SUPPORT_URL))
             addView(officialLinkRow(getString(R.string.label_contact),
                 getString(R.string.about_contact_desc), CONTACT_URL))
-            addView(officialLinkRow(getString(R.string.label_privacy_policy),
-                getString(R.string.about_privacy_desc), PRIVACY_URL))
-            addView(officialLinkRow(getString(R.string.label_eula),
-                getString(R.string.about_eula_desc), EULA_URL))
+            addView(officialLinkRow(getString(R.string.label_privacy_policy), getString(R.string.about_privacy_desc), PRIVACY_URL))
+            addView(officialLinkRow(getString(R.string.label_eula), getString(R.string.about_eula_desc), EULA_URL))
             addView(officialLinkRow(getString(R.string.label_project_repository),
                 getString(R.string.about_repository_desc), REPOSITORY_URL))
         }
