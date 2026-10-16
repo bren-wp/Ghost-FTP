@@ -1791,24 +1791,29 @@ class MainActivity : Activity() {
         }
         val path = remotePathInput.text.toString().trim().ifEmpty { active.remotePath }
         val title = if (path == "/") site.name else path.trimEnd('/').substringAfterLast('/')
-        val titleEntry = input("Bookmark name", InputType.TYPE_CLASS_TEXT).apply {
-            setText(title.take(80))
-            selectAll()
+        // Use the existing branded, accessible inline confirmation rather
+        // than a platform popup. The Android premium contract requires all
+        // real actions and confirmations to stay inside the app viewport.
+        requestInlineConfirmation(
+            getString(R.string.bookmarks_add),
+            site.name + " · " + path,
+            getString(R.string.action_confirm)
+        ) {
+            val candidate = SavedRemoteBookmark(
+                inlineNameInput.text.toString().trim(), site.name, path
+            )
+            inlineNameInput.text.clear()
+            if (SavedRemoteBookmarks.add(this, candidate)) {
+                refreshBookmarks()
+            } else {
+                showMessage(getString(R.string.workspace_bookmarks),
+                    getString(R.string.bookmarks_invalid))
+            }
         }
-        android.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.bookmarks_add))
-            .setView(titleEntry)
-            .setNegativeButton(getString(R.string.action_cancel), null)
-            .setPositiveButton(getString(R.string.action_confirm)) { _, _ ->
-                val candidate = SavedRemoteBookmark(titleEntry.text.toString().trim(),
-                    site.name, path)
-                if (SavedRemoteBookmarks.add(this, candidate)) {
-                    refreshBookmarks()
-                } else {
-                    showMessage(getString(R.string.workspace_bookmarks),
-                        getString(R.string.bookmarks_invalid))
-                }
-            }.show()
+        inlineNameInput.contentDescription = getString(R.string.bookmarks_add)
+        inlineNameInput.setText(title.take(80))
+        inlineNameInput.visibility = View.VISIBLE
+        inlineNameInput.selectAll()
     }
 
     private fun openRemoteBookmark(bookmark: SavedRemoteBookmark) {
