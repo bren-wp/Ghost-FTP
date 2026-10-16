@@ -1424,11 +1424,13 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = dp(43)
-            val icon = PremiumReferenceStyle.caption(this@MainActivity,
-                if (directory) "▣" else "▤", 17f).apply {
-                setTextColor(if (directory) PremiumReferenceStyle.yellow else PremiumReferenceStyle.purpleLight)
-            }
-            addView(icon, LinearLayout.LayoutParams(dp(24), dp(36)))
+            addView(ImageView(this@MainActivity).apply {
+                setImageResource(if (directory) R.drawable.ic_premium_file_folder
+                    else R.drawable.ic_premium_file_document)
+                contentDescription = if (directory) "Folder" else "File"
+                scaleType = ImageView.ScaleType.CENTER_INSIDE
+                setPadding(dp(2), dp(6), dp(3), dp(6))
+            }, LinearLayout.LayoutParams(dp(25), dp(36)))
             addView(PremiumReferenceStyle.caption(this@MainActivity, name, 12f).apply {
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
@@ -3300,22 +3302,23 @@ class MainActivity : Activity() {
         )
     }
 
-    private fun remoteRow(item: RemoteRow): View = row(item.name, item.detail).apply {
-        val target = item.remotePath ?: return@apply
-        when {
-            item.isDirectory -> {
-                setOnClickListener {
-                    remotePathInput.setText(target)
-                    openConnection()
-                }
-                setOnLongClickListener {
-                    selectRemoteEntry(item)
-                    setWorkspace(Workspace.TRANSFERS)
-                    true
-                }
-            }
-            item.isFile -> setOnClickListener {
+    private fun remoteRow(item: RemoteRow): View {
+        val target = item.remotePath
+        if (target == null || (!item.isDirectory && !item.isFile)) {
+            return row(item.name, item.detail)
+        }
+        return compactBrowserRow(item.name, item.isDirectory) {
+            if (item.isDirectory) {
+                remotePathInput.setText(target)
+                openConnection()
+            } else {
                 selectRemoteEntry(item)
+            }
+        }.apply {
+            setOnLongClickListener {
+                selectRemoteEntry(item)
+                setWorkspace(Workspace.TRANSFERS)
+                true
             }
         }
     }
