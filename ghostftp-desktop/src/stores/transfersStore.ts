@@ -4,7 +4,7 @@ import { useSettings } from "./settingsStore";
 import { toast } from "./toastStore";
 import { useConflicts, type ConflictDecision } from "./conflictStore";
 import { baseName } from "@/lib/format";
-import { toastError } from "@/lib/errors";
+import { messageOf, toastError } from "@/lib/errors";
 import {
   LOCAL_SESSION,
   type SessionId,
@@ -28,6 +28,12 @@ export function toTransferItem(e: {
   size?: number;
   modified?: number | null;
 }): TransferItem {
+  // A symlink must not quietly become a regular file: upload/download would
+  // then follow an unexpected target or enter a directory cycle. Explicit
+  // link transfer support needs separate protocol-aware semantics.
+  if (e.kind !== "file" && e.kind !== "directory") {
+    throw new Error(`Cannot transfer ${baseName(e.path)}: symbolic links and special files are not supported as ordinary file transfers.`);
+  }
   return {
     path: e.path,
     kind: e.kind === "directory" ? "directory" : "file",
@@ -134,11 +140,20 @@ async function runBatch(
   // "Don't ask" mode (the user ticked "remember" before, or turned prompts off
   // in Settings): apply the saved default silently — the original behaviour.
   if (!settings.promptOnOverwrite) {
+    const reservedNames = new Set<string>();
     for (const item of items) {
+      const name = baseName(item.path);
+      if (reservedNames.has(name)) {
+        toast.warning("Duplicate transfer name", `Skipped another item named ${name} to avoid overwriting a file from the same batch.`);
+        continue;
+      }
       try {
         await start(item, defaultPolicy);
+        // Reserve only after the backend accepts this enqueue. If it fails,
+        // the user can still queue a later source with the same basename.
+        reservedNames.add(name);
       } catch (error) {
-        toastError(error, `Couldn't queue ${baseName(item.path)}`);
+        toastError(error, `Couldn't queue ${name}`);
       }
     }
     return;
@@ -328,7 +343,7 @@ export const useTransfers = create<TransfersState>((set, get) => ({
             toast.success("Transfer complete", `${verb} ${baseName(t.source)}`);
           }
         } else if (kind === "error") {
-          toast.error("Transfer failed", t.error || baseName(t.source));
+          toast.error("Transfer failed", t.error ? messageOf(t.error) : baseName(t.source));
         }
       });
 

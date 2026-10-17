@@ -143,6 +143,8 @@ export interface FileUiValue {
   settings: PaneSettings;
   /** Resolve the icon + colour for an entry. Defaults to the built-in map. */
   iconFor: (entry: DirEntry) => FileIconSpec;
+  /** Optional host-owned diagnostic formatter. Use it to redact credentials before errors enter UI. */
+  formatError?: (error: unknown) => string;
 }
 
 const FileUiContext = createContext<FileUiValue | null>(null);
@@ -151,6 +153,7 @@ export function FileUiProvider({
   fs,
   settings,
   iconFor = fileIcon,
+  formatError,
   children,
 }: {
   fs: FileSystemAdapter;
@@ -160,12 +163,13 @@ export function FileUiProvider({
    * back to the package's extension-based map.
    */
   iconFor?: (entry: DirEntry) => FileIconSpec;
+  formatError?: (error: unknown) => string;
   children: ReactNode;
 }) {
   // A new object identity each render is fine — settings are small and the only
   // consumers are file panes, which re-render on settings changes anyway.
   return (
-    <FileUiContext.Provider value={{ fs, settings, iconFor }}>
+    <FileUiContext.Provider value={{ fs, settings, iconFor, formatError }}>
       {children}
     </FileUiContext.Provider>
   );

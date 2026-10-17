@@ -12,7 +12,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.95.32 (development preview) · Latest published release: [v0.95.31](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.31)</sub>
+<sub>Ghost FTP 0.95.33 (development preview) · Latest published release: [v0.95.32](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.32)</sub>
 
 [**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases/latest) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -28,7 +28,7 @@ Move files, manage connections and keep important server work organized with an 
 </a>
 </p>
 
-<p align="center"><sub>Seven authentic Ghost FTP Windows 0.95.16 running-application screenshots (1290×852), captured in [GitHub Actions native QA](https://github.com/bren-wp/Ghost-FTP/actions/runs/38498732043) at source commit <code>cfb75df5c1db</code>. Each PNG is SHA-256 pinned in [the capture manifest](docs/assets/screenshots/README-NATIVE-CAPTURE.json). No concept artwork or generated screenshots.</sub></p>
+<p align="center"><sub>Seven authentic Ghost FTP Windows 0.95.18 running-application screenshots (1290×852), captured in [native Windows WebView2 QA](https://github.com/bren-wp/Ghost-FTP/actions/runs/38642134579) from source commit <code>b26964ba476c534bd49bebf7fb73ce6011f15d92</code>. These are historical real-app captures, not 0.95.33 pixel-parity certification. Each PNG is SHA-256 pinned in [the capture manifest](docs/assets/screenshots/README-NATIVE-CAPTURE.json). No concept artwork or generated screenshots.</sub></p>
 
 <table>
 <tr>
@@ -44,6 +44,8 @@ Move files, manage connections and keep important server work organized with an 
 <td align="center"><a href="docs/assets/screenshots/ghostftp-native-about.png"><img src="docs/assets/screenshots/ghostftp-native-about.png" alt="Actual Ghost FTP Help and About interface" /></a><br /><strong>Help & About</strong><br />Everything you need, close at hand.</td>
 </tr>
 </table>
+
+**The gallery contains real Windows application captures, not generated marketing mockups.** The 1290×852 screenshot geometry is a design acceptance reference; newer desktop builds need their own native visual comparison and manual QA before 1:1 fidelity can be confirmed.
 
 ## Designed for your workflow
 
@@ -66,6 +68,10 @@ Follow transfer progress and manage queues, retries, conflicts and interruptions
 ### 🎨 A polished, consistent experience
 
 Dark premium styling, clear navigation, accessible controls and responsive layouts help you focus on the files—not the interface. Each platform uses its own controls and capabilities rather than pretending unsupported functions exist.
+
+## Safer file operations on Windows and Linux
+
+The current source hardens SFTP listings against malformed or ambiguous server data, prevents implicit transfers of symbolic links as ordinary files, avoids same-batch name collisions, and redacts sensitive errors throughout file browsing and transfer reporting. Ghost FTP does not claim atomic remote multi-file operations or blanket feature superiority without independently verified tests.
 
 ## Choose your platform
 

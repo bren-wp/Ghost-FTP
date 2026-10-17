@@ -19,7 +19,7 @@ import { liveTransferRate, useTransfers } from "@/stores/transfersStore";
 import { useConnections } from "@/stores/connectionsStore";
 import type { Transfer } from "@/lib/types";
 import { useDialog } from "@/hooks/useDialog";
-import { toastError } from "@/lib/errors";
+import { messageOf, toastError } from "@/lib/errors";
 import { toast } from "@/stores/toastStore";
 import { useTransferSchedule } from "@/stores/transferScheduleStore";
 
@@ -164,6 +164,8 @@ export function TransferCenterDialog({ onClose }: Props) {
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    // One consistent time boundary per filter pass, even for large histories.
+    const now = Date.now() / 1000;
     return transfers.filter((transfer) => {
       const tabMatch =
         tab === "all" ||
@@ -178,7 +180,6 @@ export function TransferCenterDialog({ onClose }: Props) {
 
       if (directionFilter !== "all" && transfer.kind !== directionFilter) return false;
 
-      const now = Date.now() / 1000;
       if (timeFilter === "hour" && transfer.startedAt < now - 3600) return false;
       if (timeFilter === "day" && transfer.startedAt < now - 86400) return false;
 
@@ -918,7 +919,14 @@ function TransferRow({
       </span>
       <span className="text-text-muted">{formatBytes(transfer.size || 0)}</span>
       <span className="flex items-center gap-2">
-        <span className="h-3 flex-1 overflow-hidden rounded border border-border bg-[#03111d]">
+        <span
+          role="progressbar"
+          aria-label={`${baseName(transfer.source)} transfer progress`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Number(pct.toFixed(0))}
+          className="h-3 flex-1 overflow-hidden rounded border border-border bg-[#03111d]"
+        >
           <span
             className={`block h-full ${
               transfer.status === "error"
@@ -1007,7 +1015,7 @@ function TransferDetails({ transfer, rate }: { transfer: Transfer; rate: number 
       <div>
         Status: <span className="text-accent">{transfer.status}</span>
       </div>
-      {transfer.error && <div className="text-danger">{transfer.error}</div>}
+      {transfer.error && <div role="alert" className="break-words text-danger">{messageOf(transfer.error)}</div>}
     </div>
   );
 }

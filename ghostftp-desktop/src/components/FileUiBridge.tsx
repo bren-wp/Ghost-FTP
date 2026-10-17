@@ -3,6 +3,7 @@ import { FileUiProvider } from "@ghostftp/file-ui";
 import { useSettings } from "@/stores/settingsStore";
 import { useFileBrowserKeyBindings } from "@/lib/fileBrowserKeys";
 import { tauriFileSystem } from "@/lib/fileUiAdapter";
+import { messageOf } from "@/lib/errors";
 
 // Bridges Ghost FTP's zustand settings store + Tauri adapter into the @ghostftp/file-ui
 // context. Mounted once around the browser area so every <FilePane> (single or
@@ -14,6 +15,7 @@ export function FileUiBridge({ children }: { children: ReactNode }) {
   return (
     <FileUiProvider
       fs={tauriFileSystem}
+      formatError={messageOf}
       settings={{
         showHiddenFiles: s.showHiddenFiles,
         sortField: s.sortField,

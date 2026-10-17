@@ -1,3 +1,12 @@
+## 0.95.33 — Windows/Linux protocol security, privacy and transfer UI polish (unreleased preview) — 18 October 2026
+
+- Fail closed on malformed, duplicate, oversized or ambiguous SFTP directory-listing names (100,000 entries / 16 MiB UTF-8 name bytes).
+- Refuse implicit symbolic-link and unsupported-node transfers; guard duplicate basenames in one transfer batch when confirmation prompts are disabled.
+- Redact diagnostics consistently in the shared File Manager, transfer failure notifications and Transfer Center.
+- Add accessible transfer progress semantics and consistent transfer-history filtering.
+- Correct the main README to show seven authentic Windows screenshots with the original captured-source/version provenance.
+- Preserve published v0.95.32; CI and real-device review determine whether any new candidate may be released.
+
 ## 0.95.32 — SFTP recursive deletion safety (unreleased development preview) — 17 October 2026
 
 - Use SFTP LSTAT to unlink directory symlinks without traversing their targets.

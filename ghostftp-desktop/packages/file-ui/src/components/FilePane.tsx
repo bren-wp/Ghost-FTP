@@ -88,7 +88,7 @@ interface Props {
 /** Extract a human message from any thrown value. Transport backends may reject
  *  with a structured `{ kind, message }` object (Ghost FTP's Tauri commands do); those
  *  would otherwise stringify to "[object Object]" in the error banner. */
-function errorText(e: unknown): string {
+function rawErrorText(e: unknown): string {
   if (typeof e === "string") return e;
   if (e && typeof e === "object" && typeof (e as { message?: unknown }).message === "string") {
     return (e as { message: string }).message;
@@ -120,7 +120,11 @@ export function FilePane({
   // Everything that used to be a direct Tauri call or a zustand read now comes
   // through the injected adapter + settings. The component is otherwise the
   // same presentational/interaction logic it always was.
-  const { fs, settings, iconFor } = useFileUi();
+  const { fs, settings, iconFor, formatError } = useFileUi();
+  // The application adapter sanitizes server-supplied diagnostics before a
+  // file-manager error banner or action result can expose secrets.
+  const errorText = (error: unknown): string =>
+    formatError ? formatError(error) : rawErrorText(error);
   const {
     showHiddenFiles,
     sortField,
