@@ -313,11 +313,24 @@ impl FolderSync {
         }
         if matches!(pair.strategy, SyncStrategy::Mirror) {
             let remote = pair.remote_root.trim().replace('\\', "/");
-            if remote == "/" || remote == "." || remote == ".." {
-                anyhow::bail!("mirror sync refuses a remote root path");
+            // Dot segments are dangerous even when hidden inside a longer
+            // path: '/uploads/..' resolves to root and a Mirror may delete
+            // unrelated remote files. Treat both slash spellings the same.
+            let segments: Vec<&str> = remote
+                .split('/')
+                .filter(|segment| !segment.is_empty())
+                .collect();
+            if segments.is_empty()
+                || segments.iter().any(|segment| matches!(*segment, "." | ".."))
+            {
+                anyhow::bail!("mirror sync refuses remote root aliases or traversal");
             }
-            if local.parent().is_none() {
-                anyhow::bail!("mirror sync refuses a local filesystem root");
+            if local.parent().is_none()
+                || local
+                    .components()
+                    .any(|component| component == std::path::Component::ParentDir)
+            {
+                anyhow::bail!("mirror sync refuses a local filesystem root or parent traversal");
             }
         }
         Ok(())
@@ -472,13 +485,25 @@ impl FolderSync {
                         _ = tokio::time::sleep(poll) => {}
                         r = trigger_rx.recv() => {
                             if r.is_none() { break; } // all senders dropped → stop
-                            // debounce the burst
-                            loop {
-                                tokio::select! {
-                                    _ = tokio::time::sleep(DEBOUNCE) => break,
-                                    r2 = trigger_rx.recv() => { if r2.is_none() { return; } }
-                                }
-                            }
+                            // Debounce short bursts, but a continuous
+                            // stream must not starve reconciliation forever.
+                            // No more than five seconds of delay per burst.
+                            let disconnected = tokio::time::timeout(
+                                Duration::from_secs(5),
+                                async {
+                                    loop {
+                                        tokio::select! {
+                                            _ = tokio::time::sleep(DEBOUNCE) => return false,
+                                            r2 = trigger_rx.recv() => {
+                                                if r2.is_none() { return true; }
+                                            }
+                                        }
+                                    }
+                                },
+                            )
+                            .await
+                            .unwrap_or(false);
+                            if disconnected { return; }
                         }
                     }
                 }
@@ -503,10 +528,7 @@ impl FolderSync {
 }
 
 /// Build a recursive filesystem watcher that pings `trigger` on any change.
-fn make_watcher(
-    root: &str,
-    trigger: mpsc::Sender<()>,
-) -> Result<notify::RecommendedWatcher> {
+fn make_watcher(root: &str, trigger: mpsc::Sender<()>) -> Result<notify::RecommendedWatcher> {
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         if let Ok(ev) = res {
             use notify::EventKind;
@@ -1010,6 +1032,35 @@ mod tests {
         assert!(glob_match("**/report*.pdf", "računi/report čćž.pdf"));
         assert!(!glob_match("files/*.txt", "files/nested/notes.txt"));
         assert!(glob_match("files/?otes.txt", "files/notes.txt"));
+    }
+
+    #[test]
+    fn mirror_sync_never_accepts_remote_or_local_parent_traversal() {
+        use super::FolderSync;
+        let mut candidate = pair(&[], 100);
+        candidate.local_root = std::env::temp_dir()
+            .join("ghostftp-mirror-test")
+            .to_string_lossy()
+            .into_owned();
+        candidate.remote_root = "/safe-folder".into();
+        candidate.profile_id = "test-profile".into();
+        assert!(FolderSync::validate_pair(&candidate).is_ok());
+
+        for remote in ["/", "//", "/safe/..", "/safe/./files", "safe\\..\\", "../escape"] {
+            candidate.remote_root = remote.into();
+            assert!(
+                FolderSync::validate_pair(&candidate).is_err(),
+                "unsafe mirror remote root was accepted: {remote:?}"
+            );
+        }
+        candidate.remote_root = "/safe-folder".into();
+        candidate.local_root = std::env::temp_dir()
+            .join("ghostftp-mirror-test")
+            .join("..")
+            .join("other-folder")
+            .to_string_lossy()
+            .into_owned();
+        assert!(FolderSync::validate_pair(&candidate).is_err());
     }
 
     #[test]
