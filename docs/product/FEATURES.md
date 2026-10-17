@@ -1,6 +1,11 @@
-> Ghost FTP **0.95.28** (development cycle), following published **v0.95.27**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.29** (development cycle), following published **v0.95.28**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## 0.95.29 Windows/Linux safety, connection ordering and responsive transfer UI — development candidate
+
+Local rename now uses OS-enforced no-replace operations on Windows and Linux, preventing a collision from silently overwriting an existing file, directory or symbolic link. Linux chmod now uses a no-follow file descriptor and changes permissions on that same inode, avoiding final-component symlink-swap races. React connection management honors the latest intended focused session even if an older handshake completes later, ignores stale health checks/profile lists, and coalesces Agent Bridge focus IPC requests. File browsers subscribe to a stable transfer activity count rather than recalculating the full transfer list at every progress event. Exact-source Rust/Windows/Linux/FTP E2E CI and manual device UI acceptance are required before asserting release readiness.
+
 
 ## 0.95.28 candidate — macOS FTP control-character safety
 

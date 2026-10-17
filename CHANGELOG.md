@@ -1,4 +1,13 @@
-## 0.95.28 — macOS FTP command argument safety parity (unreleased development preview) — 17 October 2026
+## 0.95.29 — Windows/Linux atomic file actions, connection races and transfer UI performance (unreleased development preview) — 17 October 2026
+
+- Windows/Linux: implement atomic local rename without replacing existing files, directories or symlinks. Linux uses renameat2(RENAME_NOREPLACE); Windows uses MoveFileW without replace flags. Protect the original source and destination on collision.
+- Linux: replace path-based chmod preflight/set_permissions with O_NOFOLLOW opening, fd metadata validation and fchmod on the same opened inode, removing final-component symlink-swap races.
+- Connection management: last user tab/connect intent wins over slower handshakes; stale connection health replies and profile reload snapshots cannot overwrite newer information; Agent Bridge focus updates are serialized and coalesced.
+- Transfer rendering: maintain an exact active/queued/paused count in the Zustand transfer store rather than O(n) list scans on every progress event in both file-browser layouts.
+- Add native Rust regressions for occupied rename destinations and dangling symlinks, and CI source contracts for concurrency and UI stability.
+- This is unreleased Preview source pending full exact-SHA CI and manual Windows 10/11 / Linux distribution acceptance. Stable, signed and full FileZilla parity are not claimed.
+
+## 0.95.28 — macOS FTP command argument safety parity (published preview) — 17 October 2026
 
 - macOS native FTP: reject all ASCII C0 control codepoints and DEL in FTP control-channel arguments, including usernames, passwords, navigation and remote file transfer names; previously only CR, LF and NUL were refused.
 - Preserve Unicode remote filenames and printable spaces without lossy normalization or changes to existing premium SwiftUI design.

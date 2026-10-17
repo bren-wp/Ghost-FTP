@@ -1,6 +1,6 @@
 # Ghost FTP / FileZilla functional parity
 
-Last reviewed: 2026-10-15 (v0.95.19 published, 0.95.20 FileZilla SFTP key import PR #154 pending exact-head QA)
+Last current-development review: 2026-10-17 (v0.95.28 published; v0.95.29 candidate pending exact-head QA; older version sections are historical)
 Benchmark: FileZilla Client
 Reference: https://filezilla-project.org/client_features.php
 
@@ -185,3 +185,10 @@ Recursive directory deletion now builds a complete bounded inventory *before* is
 ## v0.95.28 macOS FTP command safety — development candidate
 
 The native Swift FTP command codec now rejects all ASCII C0 and DEL control codepoints in command arguments, expanding previous NUL/CR/LF-only filtering. The same validation is used by USER/PASS, working-directory navigation, local remote-file command construction, and native RETR/STOR/MKD/DELE/RMD paths. Valid Unicode names and printable spaces remain supported. Swift tests cover TAB, ESC/ANSI, backspace and DEL. This is FTP framing hardening only: no secure native FTPS or SSH/SFTP engine is implied, and exact-head macOS Swift tests and real server acceptance remain required before claiming verified parity.
+
+
+## v0.95.29 Windows/Linux atomic filesystem actions and UI responsiveness — development candidate
+
+The local file manager now performs no-clobber rename using Windows MoveFileW or Linux renameat2(RENAME_NOREPLACE), rather than silently replacing existing targets. The Linux chmod backend opens targets with O_NOFOLLOW and applies fchmod through the opened file descriptor, protecting against final-component symlink swaps. React connection tabs preserve the most recent focus request despite out-of-order connection completion, ignore stale session health/profile snapshot responses, and coalesce Agent Bridge IPC focus updates. Active transfer count is stored as a primitive so the file browser does not rerender for every byte-progress update.
+
+Evidence: Rust local filesystem source/regressions, connectionStore/transferStore code, UI contract checks. This is scoped improvement: remaining risks include intermediate-directory symlink replacement, network-server races, undo/transaction semantics, manual installed Windows/Linux UI acceptance, and non-Windows/Linux fallback rename atomicity. The full FileZilla capability benchmark remains partial.
