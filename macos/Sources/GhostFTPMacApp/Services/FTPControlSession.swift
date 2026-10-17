@@ -650,6 +650,7 @@ actor FTPControlSession {
         }
         defer { try? handle.close() }
 
+        var remoteTransferCompleted = false
         do {
             let reply = try await command(
                 FTPControlCodec.transferCommand("RETR", remoteName: remoteName),
@@ -685,6 +686,7 @@ actor FTPControlSession {
                 accepted: [226, 250],
                 description: "226 or 250 download complete"
             )
+            remoteTransferCompleted = true
 
             try Task.checkCancellation()
             try PrivateDownloadStaging.publish(
@@ -695,7 +697,12 @@ actor FTPControlSession {
         } catch {
             dataConnection.cancel()
             try? FileManager.default.removeItem(at: temporaryURL)
-            closeTransport()
+            // Once the server has sent the final 226/250 reply, a local
+            // destination conflict must not disconnect an otherwise healthy
+            // FTP session. Earlier protocol/data failures still close it.
+            if !remoteTransferCompleted {
+                closeTransport()
+            }
             if error is CancellationError {
                 throw error
             }
