@@ -107,8 +107,12 @@ export function DualPaneBrowser() {
     return () => window.removeEventListener("ghostftp:pick-upload", pickFromSharedToolbar);
   }, [activeSessionId, remotePath, enqueueUploads]);
 
-  const uploadAll = (entries: DirEntry[]) => {
+  const uploadAll = (entries: DirEntry[], sourceSessionId?: string) => {
     if (!activeSessionId) return;
+    if (sourceSessionId && sourceSessionId !== LOCAL_SESSION) {
+      toastError(new Error("The local drag source changed"), "Please select files again before uploading");
+      return;
+    }
     try {
       const items = entries.map(toTransferItem);
       void enqueueUploads(activeSessionId, items, remotePath).catch(
@@ -119,8 +123,12 @@ export function DualPaneBrowser() {
     }
   };
 
-  const downloadAll = (entries: DirEntry[]) => {
+  const downloadAll = (entries: DirEntry[], sourceSessionId?: string) => {
     if (!activeSessionId) return;
+    if (sourceSessionId && sourceSessionId !== activeSessionId) {
+      toastError(new Error("The source connection changed during drag and drop"), "Please select the remote files again");
+      return;
+    }
     try {
       const items = entries.map(toTransferItem);
       void enqueueDownloads(activeSessionId, items, localPath).catch(
