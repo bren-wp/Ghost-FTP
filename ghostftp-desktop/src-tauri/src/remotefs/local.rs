@@ -303,7 +303,8 @@ mod tests {
         assert!(check_local_inventory_budget(
             LOCAL_DIRECTORY_MAX_ENTRIES,
             LOCAL_DIRECTORY_MAX_NAME_BYTES
-        ).is_ok());
+        )
+        .is_ok());
         assert!(check_local_inventory_budget(LOCAL_DIRECTORY_MAX_ENTRIES + 1, 0).is_err());
         assert!(check_local_inventory_budget(1, LOCAL_DIRECTORY_MAX_NAME_BYTES + 1).is_err());
     }
