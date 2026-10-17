@@ -2,7 +2,7 @@
 
 - Windows/Linux: prevent control-character-bearing FTP paths from reaching LIST, existence probes, RNFR/RNTO, DELE/RMD, MKD or SITE CHMOD command construction.
 - FTP: require nonempty command targets and reject CR/LF/NUL/TAB/DEL and other ASCII controls; preserve legitimate Unicode and spaces in filenames.
-- QA: add Rust regression coverage for rejected protocol-control path operands and accepted international filenames. Actual third-party daemon interoperability and production acceptance remain pending.
+- QA: add Rust regressions in both the remote filesystem and low-level FTP stream modules for rejected protocol-control path operands and accepted international filenames. Actual third-party daemon interoperability and production acceptance remain pending.
 - Development source version advances to 0.95.26 Preview without changing the immutable published v0.95.25 tag; no Android or native macOS feature change is implied.
 
 ## 0.95.25 — Windows/Linux filesystem safety and adaptive menus (published preview) — 17 October 2026

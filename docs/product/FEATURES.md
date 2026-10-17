@@ -4,7 +4,7 @@
 
 ## 0.95.26 development candidate — FTP command-path framing safety
 
-Windows/Linux FTP and explicit FTPS now reject empty or ASCII-control-bearing pathname operands (CR, LF, NUL, TAB, DEL and other ASCII controls) before LIST, existence checks, RENAME, DELETE, MKD and SITE CHMOD. Unicode filenames and ordinary spaces remain supported. This guards control-channel command framing; it is not a remote sandbox authorization guarantee and does not certify unmodified upload/download code paths.
+Windows/Linux FTP and explicit FTPS now reject empty or ASCII-control-bearing pathname operands (CR, LF, NUL, TAB, DEL and other ASCII controls) before LIST, existence checks, RENAME, DELETE, MKD, SITE CHMOD and low-level SIZE/RETR/STOR/APPE transfers (including resume paths). Unicode filenames and ordinary spaces remain supported. This guards control-channel command framing; it is not a remote sandbox authorization guarantee.
 
 ## 0.95.24 baseline — cross-platform reliability (historical published source)
 
