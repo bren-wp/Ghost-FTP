@@ -1,3 +1,12 @@
+## 0.95.30 — Windows/Linux sync safety, reliability and performance (unreleased Preview) — 17 October 2026
+
+- Windows/Linux: coalesce filesystem watcher storms into a one-slot notification queue; repeated events no longer build an unbounded pending list.
+- Windows/Linux: replace recursive, potentially exponentially costly exclude/glob matching with a linear-memory wildcard state machine while retaining existing '*', '**' and '?' semantics.
+- Windows/Linux: bound stale delta-temp cleanup to 100,000 entries and 64 levels, skip symlinked folders/files and special nodes rather than following linked paths outside the sync root.
+- Limit continuous watcher debounce to five seconds to prevent starvation; Mirror roots reject dot/parent traversal in remote/local paths before any sync plan.
+- Add Rust tests for 50,000 coalesced notifications, adversarial globs, Unicode file names, Mirror root traversal and Unix symlink escapes.
+- Canonical development metadata advances to v0.95.30 Preview; published v0.95.29 remains immutable. Exact-SHA CI and manual Windows/Linux acceptance remain pending.
+
 ## 0.95.29 — Windows/Linux atomic file actions, connection races and transfer UI performance (unreleased development preview) — 17 October 2026
 
 - Windows/Linux: implement atomic local rename without replacing existing files, directories or symlinks. Linux uses renameat2(RENAME_NOREPLACE); Windows uses MoveFileW without replace flags. Protect the original source and destination on collision.
