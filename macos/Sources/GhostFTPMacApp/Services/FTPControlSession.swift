@@ -18,6 +18,8 @@ enum FTPControlError: LocalizedError {
     case directoryListingTooLarge
     case invalidRemoteFileName
     case localFileFailure(String)
+    case destinationAlreadyExists
+    case unsafeLocalDestination
 
     var errorDescription: String? {
         switch self {
@@ -51,6 +53,10 @@ enum FTPControlError: LocalizedError {
             return "The FTP remote file name is invalid."
         case .localFileFailure:
             return "Ghost FTP could not read or write the selected local file."
+        case .destinationAlreadyExists:
+            return "A file already exists at the download destination. Choose another name or confirm replacement."
+        case .unsafeLocalDestination:
+            return "The download destination is not a regular file. Ghost FTP will not replace links or folders."
         }
     }
 
@@ -117,21 +123,25 @@ enum FTPControlCodec {
         }
 
         guard let first = nextLine(from: 0) else { return nil }
-        guard first.line.count >= 3,
-              let code = Int(first.line.prefix(3)) else {
+        let prefix = Array(first.line.utf8.prefix(4))
+        guard prefix.count >= 3,
+              prefix[0...2].allSatisfy({ (48...57).contains($0) }) else {
+            throw FTPControlError.malformedReply
+        }
+        let code = Int(prefix[0] - 48) * 100
+            + Int(prefix[1] - 48) * 10
+            + Int(prefix[2] - 48)
+        guard (100...599).contains(code) else {
             throw FTPControlError.malformedReply
         }
 
-        let separator: Character? = first.line.count > 3
-            ? first.line[first.line.index(first.line.startIndex, offsetBy: 3)]
-            : nil
-
-        if separator == nil || separator == " " {
+        let separator = prefix.count > 3 ? prefix[3] : nil
+        if separator == nil || separator == 32 {
             buffer.removeFirst(first.nextOffset)
             return FTPReply(code: code, lines: [first.line])
         }
 
-        guard separator == "-" else {
+        guard separator == 45 else {
             throw FTPControlError.malformedReply
         }
 
@@ -443,6 +453,56 @@ enum PrivateDownloadStaging {
         }
         return FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
     }
+
+    /// Publish a complete, fsynced download without silently clobbering
+    /// another file created while a transfer was running. The staging file is
+    /// in the same directory, so POSIX link is an atomic no-replace operation.
+    static func publish(
+        from temporaryURL: URL,
+        to destinationURL: URL,
+        allowReplacingExisting: Bool = false
+    ) throws {
+        if allowReplacingExisting {
+            var metadata = stat()
+            let result = destinationURL.withUnsafeFileSystemRepresentation { path -> Int32 in
+                guard let path else { return -1 }
+                return Darwin.lstat(path, &metadata)
+            }
+            if result == 0 {
+                // The save dialog can authorize replacing a regular file,
+                // never a symlink, folder, or special device.
+                guard (metadata.st_mode & mode_t(S_IFMT)) == mode_t(S_IFREG) else {
+                    throw FTPControlError.unsafeLocalDestination
+                }
+                _ = try FileManager.default.replaceItemAt(
+                    destinationURL,
+                    withItemAt: temporaryURL
+                )
+                return
+            }
+            guard errno == ENOENT else {
+                throw FTPControlError.localFileFailure(
+                    "Could not inspect the selected download destination."
+                )
+            }
+        }
+
+        let result = temporaryURL.withUnsafeFileSystemRepresentation { source -> Int32 in
+            destinationURL.withUnsafeFileSystemRepresentation { target -> Int32 in
+                guard let source, let target else { return -1 }
+                return Darwin.link(source, target)
+            }
+        }
+        guard result == 0 else {
+            if errno == EEXIST {
+                throw FTPControlError.destinationAlreadyExists
+            }
+            throw FTPControlError.localFileFailure(
+                "Could not publish the completed download."
+            )
+        }
+        try FileManager.default.removeItem(at: temporaryURL)
+    }
 }
 
 private final class OneShotGate: @unchecked Sendable {
@@ -570,6 +630,7 @@ actor FTPControlSession {
     func downloadFile(
         remoteName: String,
         to localURL: URL,
+        allowReplacingExisting: Bool = false,
         timeoutSeconds: TimeInterval = 20
     ) async throws {
         try FTPControlCodec.validateRemoteFileName(remoteName)
@@ -625,11 +686,12 @@ actor FTPControlSession {
                 description: "226 or 250 download complete"
             )
 
-            if FileManager.default.fileExists(atPath: localURL.path) {
-                _ = try FileManager.default.replaceItemAt(localURL, withItemAt: temporaryURL)
-            } else {
-                try FileManager.default.moveItem(at: temporaryURL, to: localURL)
-            }
+            try Task.checkCancellation()
+            try PrivateDownloadStaging.publish(
+                from: temporaryURL,
+                to: localURL,
+                allowReplacingExisting: allowReplacingExisting
+            )
         } catch {
             dataConnection.cancel()
             try? FileManager.default.removeItem(at: temporaryURL)
