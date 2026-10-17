@@ -4,7 +4,7 @@
 
 ## v0.95.30 development candidate — Windows/Linux folder sync safety
 
-Filesystem watcher bursts coalesce into one pending reconcile rather than exhausting memory; ignore/exclude wildcard matching runs without recursive exponential backtracking. Best-effort aged delta-transfer temp cleanup skips symlinked files/directories and special nodes and caps scanning at 100,000 entries/64 levels. This does not establish descriptor-relative, race-free containment when concurrent filesystem changes occur, or manual installed-build acceptance.
+Filesystem watcher bursts coalesce into one pending reconcile rather than exhausting memory; a five-second debounce cap prevents endless deferral; Mirror roots refuse parent/dot traversal. Ignore/exclude wildcard matching runs without recursive exponential backtracking. Best-effort aged delta-transfer temp cleanup skips symlinked files/directories and special nodes and caps scanning at 100,000 entries/64 levels. This does not establish descriptor-relative, race-free containment when concurrent filesystem changes occur, or manual installed-build acceptance.
 
 
 ## 0.95.29 Windows/Linux safety, connection ordering and responsive transfer UI — development candidate
