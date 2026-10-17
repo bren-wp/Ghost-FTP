@@ -6,13 +6,34 @@ import type { ConnectionProfile, SessionId } from "@/lib/types";
 import { useTerminals } from "./terminalsStore";
 import { redactSensitiveText } from "@/lib/redact";
 
+// A slow bridge IPC response must not restore a previously selected tab.
+// Serialize and coalesce focus updates so the final native bridge target
+// always matches the most recent user intent, even if an earlier call fails.
+let desiredBridgeSession: SessionId | null = null;
+let bridgeSyncActive = false;
+
 function syncBridgeActiveSession(sessionId: SessionId | null): void {
-  void ipc.bridgeSetActiveSession(sessionId).catch((error) => {
-    console.warn(
-      "Couldn't synchronize Agent Bridge active session",
-      redactSensitiveText(error, 240)
-    );
-  });
+  desiredBridgeSession = sessionId;
+  if (bridgeSyncActive) return;
+  bridgeSyncActive = true;
+  void (async () => {
+    try {
+      let target: SessionId | null;
+      do {
+        target = desiredBridgeSession;
+        try {
+          await ipc.bridgeSetActiveSession(target);
+        } catch (error) {
+          console.warn(
+            "Couldn't synchronize Agent Bridge active session",
+            redactSensitiveText(error, 240)
+          );
+        }
+      } while (target !== desiredBridgeSession);
+    } finally {
+      bridgeSyncActive = false;
+    }
+  })();
 }
 
 // Never let an older completed handshake replace the user's latest selected tab.
