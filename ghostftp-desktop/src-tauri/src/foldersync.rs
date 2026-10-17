@@ -169,7 +169,7 @@ pub struct PairView {
 struct Running {
     task: tauri::async_runtime::JoinHandle<()>,
     /// Manual/`notify` reconcile trigger. Dropping every clone ends the loop.
-    trigger: mpsc::UnboundedSender<()>,
+    trigger: mpsc::Sender<()>,
     /// Kept alive so the filesystem watch stays registered.
     _watcher: Option<notify::RecommendedWatcher>,
     status: Arc<Mutex<RuntimeStatus>>,
@@ -401,7 +401,8 @@ impl FolderSync {
         let running = self.running.lock().await;
         match running.get(id) {
             Some(r) => {
-                let _ = r.trigger.send(());
+                // Repeated manual requests coalesce into one pending reconcile.
+                let _ = r.trigger.try_send(());
                 Ok(())
             }
             None => anyhow::bail!("sync pair is not enabled"),
@@ -436,7 +437,8 @@ impl FolderSync {
             return Ok(());
         }
 
-        let (trigger, mut trigger_rx) = mpsc::unbounded_channel::<()>();
+        // A one-slot wake-up prevents thousands of FS events exhausting RAM.
+        let (trigger, mut trigger_rx) = mpsc::channel::<()>(1);
         let status = Arc::new(Mutex::new(RuntimeStatus::default()));
 
         // Watch the local folder for LocalToRemote so edits sync promptly.
@@ -503,7 +505,7 @@ impl FolderSync {
 /// Build a recursive filesystem watcher that pings `trigger` on any change.
 fn make_watcher(
     root: &str,
-    trigger: mpsc::UnboundedSender<()>,
+    trigger: mpsc::Sender<()>,
 ) -> Result<notify::RecommendedWatcher> {
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         if let Ok(ev) = res {
@@ -512,7 +514,8 @@ fn make_watcher(
                 ev.kind,
                 EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
             ) {
-                let _ = trigger.send(());
+                // A full queue already holds a pending filesystem change.
+                let _ = trigger.try_send(());
             }
         }
     })?;
@@ -666,41 +669,67 @@ fn snapshot_index(
     }
 }
 
-/// Best-effort recursive sweep of delta-sync temp files (`*.ghostftp-patch-*`,
-/// `*.ghostftp-new-*`, `*.ghostftp-delta-*.tmp`) older than [`DELTA_TEMP_MAX_AGE`]
-/// under the LOCAL sync root (Plan 23 Phase 3). The matcher is filename-only
-/// and the prefixes are delta-specific, so a normal user file can never
-/// match; every error is ignored — a locked or racing temp simply survives to
-/// the next reconcile.
+// Bound temporary-file cleanup work after crashes and watcher storms.
+const DELTA_SWEEP_MAX_ENTRIES: usize = 100_000;
+const DELTA_SWEEP_MAX_DEPTH: usize = 64;
+
+/// Remove stale delta transfer temps inside a selected local sync tree.
+/// Do not traverse symlinked directories or remove symlinked files. This
+/// preflight is not descriptor-relative and does not close every TOCTOU race.
 fn sweep_delta_temps(root: &Path) {
-    let Ok(entries) = std::fs::read_dir(root) else {
+    let Ok(root_meta) = std::fs::symlink_metadata(root) else {
         return;
     };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let Ok(meta) = entry.metadata() else {
+    if !root_meta.is_dir() || root_meta.file_type().is_symlink() {
+        return;
+    }
+    let mut directories = vec![(root.to_path_buf(), 0usize)];
+    let mut visited = 0usize;
+    while let Some((directory, depth)) = directories.pop() {
+        let Ok(entries) = std::fs::read_dir(&directory) else {
             continue;
         };
-        if meta.is_dir() {
-            sweep_delta_temps(&path);
-            continue;
-        }
-        let name = entry.file_name().to_string_lossy().into_owned();
-        let is_delta_temp = name.contains(".ghostftp-patch-")
-            || name.contains(".ghostftp-new-")
-            || name.contains(".ghostftp-delta-");
-        if !is_delta_temp {
-            continue;
-        }
-        let stale = meta
-            .modified()
-            .ok()
-            .and_then(|m| m.elapsed().ok())
-            .map(|age| age > DELTA_TEMP_MAX_AGE)
-            .unwrap_or(false);
-        if stale {
-            if let Err(e) = std::fs::remove_file(&path) {
-                tracing::debug!("folder sync: delta temp sweep {}: {e:#}", path.display());
+        for entry in entries {
+            if visited >= DELTA_SWEEP_MAX_ENTRIES {
+                tracing::warn!("folder sync: delta temp sweep entry limit reached");
+                return;
+            }
+            visited += 1;
+            let Ok(entry) = entry else { continue };
+            let path = entry.path();
+            // DirEntry::metadata follows symlinks; symlink_metadata does not.
+            let Ok(meta) = std::fs::symlink_metadata(&path) else {
+                continue;
+            };
+            if meta.file_type().is_symlink() {
+                continue;
+            }
+            if meta.is_dir() {
+                if depth < DELTA_SWEEP_MAX_DEPTH {
+                    directories.push((path, depth + 1));
+                }
+                continue;
+            }
+            if !meta.is_file() {
+                continue;
+            }
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let is_delta_temp = name.contains(".ghostftp-patch-")
+                || name.contains(".ghostftp-new-")
+                || name.contains(".ghostftp-delta-");
+            if !is_delta_temp {
+                continue;
+            }
+            let stale = meta
+                .modified()
+                .ok()
+                .and_then(|m| m.elapsed().ok())
+                .map(|age| age > DELTA_TEMP_MAX_AGE)
+                .unwrap_or(false);
+            if stale {
+                if let Err(e) = std::fs::remove_file(&path) {
+                    tracing::debug!("folder sync: delta temp sweep {}: {e:#}", path.display());
+                }
             }
         }
     }
@@ -865,51 +894,80 @@ fn is_excluded(rel: &str, patterns: &[String]) -> bool {
     false
 }
 
-/// Glob match with `*` (any run within a segment), `**` (any run incl. `/`),
-/// and `?` (one non-`/` char). Both sides are POSIX strings.
+/// Linear-memory NFA matcher. Previous recursive backtracking could cost
+/// exponential CPU on overlapping '*'/'**' patterns in automatic folder sync.
+/// Byte-level '?' and path-segment semantics match the old implementation.
 fn glob_match(pattern: &str, text: &str) -> bool {
-    glob_rec(pattern.as_bytes(), text.as_bytes())
-}
-
-fn glob_rec(p: &[u8], t: &[u8]) -> bool {
-    if p.is_empty() {
-        return t.is_empty();
+    #[derive(Clone, Copy)]
+    enum Token {
+        Literal(u8),
+        One,
+        SegmentStar,
+        AnyStar,
     }
-    match p[0] {
-        b'*' if p.len() >= 2 && p[1] == b'*' => {
-            // `**` — optionally followed by `/`; matches any run including `/`.
-            let rest = if p.len() >= 3 && p[2] == b'/' {
-                &p[3..]
-            } else {
-                &p[2..]
-            };
-            if glob_rec(rest, t) {
-                return true;
+
+    fn epsilon_closure(active: &mut [bool], tokens: &[Token]) {
+        for (index, token) in tokens.iter().enumerate() {
+            if active[index] && matches!(token, Token::SegmentStar | Token::AnyStar) {
+                active[index + 1] = true;
             }
-            (0..t.len()).any(|i| glob_rec(rest, &t[i + 1..]))
         }
-        b'*' => {
-            // `*` — any run of non-`/` chars.
-            if glob_rec(&p[1..], t) {
-                return true;
-            }
-            let mut i = 0;
-            while i < t.len() && t[i] != b'/' {
-                if glob_rec(&p[1..], &t[i + 1..]) {
-                    return true;
+    }
+
+    let pattern = pattern.as_bytes();
+    let mut tokens = Vec::with_capacity(pattern.len());
+    let mut i = 0;
+    while i < pattern.len() {
+        match pattern[i] {
+            b'*' if i + 1 < pattern.len() && pattern[i + 1] == b'*' => {
+                tokens.push(Token::AnyStar);
+                i += 2;
+                if i < pattern.len() && pattern[i] == b'/' {
+                    i += 1;
                 }
+            }
+            b'*' => {
+                tokens.push(Token::SegmentStar);
                 i += 1;
             }
-            false
+            b'?' => {
+                tokens.push(Token::One);
+                i += 1;
+            }
+            literal => {
+                tokens.push(Token::Literal(literal));
+                i += 1;
+            }
         }
-        b'?' => !t.is_empty() && t[0] != b'/' && glob_rec(&p[1..], &t[1..]),
-        c => !t.is_empty() && t[0] == c && glob_rec(&p[1..], &t[1..]),
     }
+
+    let mut active = vec![false; tokens.len() + 1];
+    let mut next = vec![false; tokens.len() + 1];
+    active[0] = true;
+    epsilon_closure(&mut active, &tokens);
+    for &byte in text.as_bytes() {
+        next.fill(false);
+        for (index, token) in tokens.iter().enumerate() {
+            if !active[index] {
+                continue;
+            }
+            match token {
+                Token::Literal(c) if *c == byte => next[index + 1] = true,
+                Token::One if byte != b'/' => next[index + 1] = true,
+                Token::SegmentStar if byte != b'/' => next[index] = true,
+                Token::AnyStar => next[index] = true,
+                _ => {}
+            }
+        }
+        epsilon_closure(&mut next, &tokens);
+        std::mem::swap(&mut active, &mut next);
+    }
+    active[tokens.len()]
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_safety, is_excluded, sweep_delta_temps, SyncMode, SyncPair};
+    use super::{apply_safety, glob_match, is_excluded, sweep_delta_temps, SyncMode, SyncPair};
     use crate::sync::{self, SyncDirection, SyncStrategy};
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU32, Ordering};
@@ -940,6 +998,32 @@ mod tests {
     #[test]
     fn blanks_and_comments_are_ignored() {
         assert!(!ex("src/main.rs", &["", "  ", "# a comment"]));
+    }
+
+    #[test]
+    fn adversarial_globs_complete_without_exponential_recursion() {
+        let pattern = format!("{}Z", "*a".repeat(90));
+        let value = "a".repeat(90);
+        assert!(!glob_match(&pattern, &value));
+        assert!(glob_match(&pattern, &format!("{value}Z")));
+        assert!(glob_match(&"**/".repeat(512), "deep/folder/file.txt"));
+        assert!(glob_match("**/report*.pdf", "računi/report čćž.pdf"));
+        assert!(!glob_match("files/*.txt", "files/nested/notes.txt"));
+        assert!(glob_match("files/?otes.txt", "files/notes.txt"));
+    }
+
+    #[test]
+    fn bursty_sync_notifications_use_constant_queue_capacity() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
+        assert!(tx.try_send(()).is_ok());
+        for _ in 0..50_000 {
+            assert!(matches!(
+                tx.try_send(()),
+                Err(tokio::sync::mpsc::error::TrySendError::Full(()))
+            ));
+        }
+        assert!(rx.try_recv().is_ok());
+        assert!(tx.try_send(()).is_ok());
     }
 
     // ----- on-disk exercise of the real planner + guard -----
@@ -1011,6 +1095,51 @@ mod tests {
         assert!(root.join("normal.txt").exists(), "normal file survives");
 
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn delta_sweep_does_not_follow_symlinks_outside_sync_root() {
+        use std::os::unix::fs::symlink;
+        use std::time::{Duration, SystemTime};
+
+        let root = scratch("sweep_symlink_root");
+        let outside = scratch("sweep_symlink_outside");
+        write(&outside, ".ghostftp-patch-secret", "keep");
+        write(&outside, "nested/.ghostftp-delta-secret.tmp", "keep too");
+        write(&root, ".ghostftp-patch-stale", "remove");
+        let old = SystemTime::now() - Duration::from_secs(48 * 60 * 60);
+        for path in [
+            root.join(".ghostftp-patch-stale"),
+            outside.join(".ghostftp-patch-secret"),
+            outside.join("nested/.ghostftp-delta-secret.tmp"),
+        ] {
+            std::fs::File::options()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_modified(old)
+                .unwrap();
+        }
+        symlink(&outside, root.join("linked_folder")).unwrap();
+        symlink(
+            outside.join(".ghostftp-patch-secret"),
+            root.join(".ghostftp-patch-linked"),
+        )
+        .unwrap();
+        sweep_delta_temps(&root);
+        assert!(!root.join(".ghostftp-patch-stale").exists());
+        assert!(root.join("linked_folder").is_symlink());
+        assert!(root.join(".ghostftp-patch-linked").is_symlink());
+        assert_eq!(
+            std::fs::read(outside.join(".ghostftp-patch-secret")).unwrap(),
+            b"keep"
+        );
+        assert!(outside.join("nested/.ghostftp-delta-secret.tmp").exists());
+        sweep_delta_temps(&root.join("linked_folder"));
+        assert!(outside.join(".ghostftp-patch-secret").exists());
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(&outside);
     }
 
     fn pair(exclude: &[&str], cap: u32) -> SyncPair {
