@@ -77,16 +77,29 @@ final class FTPControlSessionTests: XCTestCase {
     }
 
     func testCommandArgumentsRejectLineInjection() {
-        for value in ["user\r\nDELE /", "bad\nname", "bad\0name"] {
-            XCTAssertThrowsError(try FTPControlCodec.validateCommandArgument(value))
+        for value in [
+            "user\r\nDELE /",
+            "bad\nname",
+            "bad\0name",
+            "tab\tname",
+            "escape\u{1B}[31mname",
+            "delete\u{7F}name",
+            "backspace\u{8}name",
+            "vertical\u{B}tab"
+        ] {
+            XCTAssertThrowsError(try FTPControlCodec.validateCommandArgument(value), value)
         }
 
         XCTAssertNoThrow(try FTPControlCodec.validateCommandArgument("/safe path"))
+        XCTAssertNoThrow(try FTPControlCodec.validateCommandArgument("/računi/čćž 文件 2026.pdf"))
     }
 
 
     func testRemoteTransferNameRejectsTraversalAndCommandInjection() {
-        for value in ["", ".", "..", "nested/file.txt", "bad\r\nDELE target"] {
+        for value in [
+            "", ".", "..", "nested/file.txt", "bad\r\nDELE target",
+            "file\tname", "file\u{1B}name", "file\u{7F}name"
+        ] {
             XCTAssertThrowsError(try FTPControlCodec.validateRemoteFileName(value))
         }
 

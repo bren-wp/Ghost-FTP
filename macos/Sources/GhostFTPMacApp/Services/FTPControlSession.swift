@@ -191,9 +191,13 @@ enum FTPControlCodec {
         throw FTPControlError.invalidWorkingDirectory
     }
 
+    /// FTP commands, including USER/PASS and path arguments, are CRLF-framed.
+    /// Reject all ASCII C0 controls and DEL: TAB, ESC and other bytes can
+    /// create ambiguous command interpretation or control-sequence output.
+    /// Printable spaces and Unicode filenames remain supported.
     static func validateCommandArgument(_ value: String) throws {
         if value.unicodeScalars.contains(where: { scalar in
-            scalar.value == 0 || scalar.value == 10 || scalar.value == 13
+            scalar.value <= 0x1F || scalar.value == 0x7F
         }) {
             throw FTPControlError.unsafeCommandArgument
         }
