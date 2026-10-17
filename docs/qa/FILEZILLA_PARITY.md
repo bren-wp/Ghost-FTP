@@ -180,3 +180,8 @@ The Rust FTP backend now validates pathname operands before issuing LIST, existe
 ## v0.95.27 Windows/Linux FTP recursive delete limits — development candidate
 
 Recursive directory deletion now builds a complete bounded inventory *before* issuing destructive FTP commands: maximum 25,000 entries, 64 directory levels, and 8 MiB cumulative entry-path bytes. The inventory fails closed for duplicate paths, malformed or ambiguous LIST entries and hidden-file enumeration failure, preserving the prior reverse-order delete for valid trees. These are resource/safety guards, not undo or transaction support. Representative valid and adversarial listings are covered by Rust unit tests; real Windows IIS/ProFTPD/Pure-FTPd behavior, cancellation on very large trees and native device acceptance remain outstanding. FileZilla feature parity is not claimed.
+
+
+## v0.95.28 macOS FTP command safety — development candidate
+
+The native Swift FTP command codec now rejects all ASCII C0 and DEL control codepoints in command arguments, expanding previous NUL/CR/LF-only filtering. The same validation is used by USER/PASS, working-directory navigation, local remote-file command construction, and native RETR/STOR/MKD/DELE/RMD paths. Valid Unicode names and printable spaces remain supported. Swift tests cover TAB, ESC/ANSI, backspace and DEL. This is FTP framing hardening only: no secure native FTPS or SSH/SFTP engine is implied, and exact-head macOS Swift tests and real server acceptance remain required before claiming verified parity.
