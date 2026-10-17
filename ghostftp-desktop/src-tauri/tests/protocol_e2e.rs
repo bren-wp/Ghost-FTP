@@ -984,6 +984,41 @@ async fn sftp_password_roundtrip(
         return Err(anyhow!("SFTP byte-range resume content mismatch"));
     }
 
+    // Regression: recursively removing a directory containing a symlink
+    // must unlink the symlink, never walk into the target directory.
+    let preserved = format!("{base}/preserved");
+    let sentinel = format!("{preserved}/sentinel.txt");
+    let trash = format!("{base}/trash");
+    let nested_link = format!("{trash}/outside-link");
+    let root_link = format!("{base}/root-link");
+    fs.create_dir(&preserved).await.context("SFTP mkdir preserved")?;
+    fs.create_dir(&trash).await.context("SFTP mkdir trash")?;
+    {
+        let cell = ssh.ensure_sftp().await?;
+        let sftp = cell.lock().await;
+        sftp.write(&sentinel, b"must stay intact").await
+            .context("SFTP write preserved sentinel")?;
+        sftp.symlink("../preserved", &nested_link).await
+            .context("SFTP create nested directory symlink")?;
+        sftp.symlink("preserved", &root_link).await
+            .context("SFTP create root directory symlink")?;
+    }
+    fs.delete(&trash, true).await
+        .context("SFTP recursive delete must not follow nested symlink")?;
+    fs.delete(&root_link, true).await
+        .context("SFTP recursive delete must unlink selected root symlink")?;
+    {
+        let cell = ssh.ensure_sftp().await?;
+        let sftp = cell.lock().await;
+        let bytes = sftp.read(&sentinel).await
+            .context("SFTP sentinel disappeared after symlink delete")?;
+        if bytes != b"must stay intact" {
+            return Err(anyhow!("SFTP recursive symlink delete changed sentinel"));
+        }
+    }
+    fs.delete(&sentinel, false).await.context("SFTP cleanup sentinel")?;
+    fs.delete(&preserved, false).await.context("SFTP cleanup preserved directory")?;
+
     fs.delete(&renamed, false)
         .await
         .context("SFTP delete file")?;
