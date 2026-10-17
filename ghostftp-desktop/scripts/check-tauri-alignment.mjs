@@ -67,7 +67,7 @@ const bundle = tauriConfig.bundle ?? {};
 const nsis = bundle.windows?.nsis ?? {};
 const requiredBundleValues = {
   publisher: [bundle.publisher, "Brendigo"],
-  homepage: [bundle.homepage, "https://github.com/bren-wp/Ghost-FTP"],
+  homepage: [bundle.homepage, "https://ghostftp.com"],
   licenseFile: [bundle.licenseFile, "../../EULA.txt"],
   installerIcon: [nsis.installerIcon, "icons/icon.ico"],
   uninstallerIcon: [nsis.uninstallerIcon, "icons/icon.ico"],
