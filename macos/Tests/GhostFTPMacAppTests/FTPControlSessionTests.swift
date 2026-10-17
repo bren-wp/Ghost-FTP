@@ -372,6 +372,111 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: target), Data("untouched".utf8))
     }
 
+    func testFTPRejectsMalformedAndOutOfRangeReplyCodes() {
+        for reply in [
+            "220Unexpected separator\r\n",
+            "099 Too small\r\n",
+            "600 Out of range\r\n",
+            "+20 Invalid leading byte\r\n",
+            "2x0 Non-numeric status\r\n",
+            "220: Wrong separator\r\n",
+        ] {
+            var buffer = Data(reply.utf8)
+            XCTAssertThrowsError(try FTPControlCodec.takeReply(from: &buffer), reply)
+        }
+
+        var terseValidReply = Data("220\r\n".utf8)
+        XCTAssertEqual(try? FTPControlCodec.takeReply(from: &terseValidReply)?.code, 220)
+    }
+
+    func testPrivateDownloadPublishCreatesDestinationExclusively() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "ghostftp-publish-new-\(UUID().uuidString)", isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let staging = folder.appendingPathComponent("stage.part")
+        let destination = folder.appendingPathComponent("final.txt")
+        let handle = try PrivateDownloadStaging.openNewFile(at: staging)
+        try handle.write(contentsOf: Data("finished".utf8))
+        try handle.synchronize()
+        try handle.close()
+
+        try PrivateDownloadStaging.publish(from: staging, to: destination)
+        XCTAssertEqual(try Data(contentsOf: destination), Data("finished".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: staging.path))
+        let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
+        XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
+    }
+
+    func testPrivateDownloadPublishNeverOverwritesWithoutConfirmation() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "ghostftp-publish-existing-\(UUID().uuidString)", isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let staging = folder.appendingPathComponent("stage.part")
+        let destination = folder.appendingPathComponent("important.txt")
+        try Data("user changes".utf8).write(to: destination)
+        let handle = try PrivateDownloadStaging.openNewFile(at: staging)
+        try handle.write(contentsOf: Data("remote content".utf8))
+        try handle.close()
+
+        XCTAssertThrowsError(try PrivateDownloadStaging.publish(from: staging, to: destination)) {
+            guard case FTPControlError.destinationAlreadyExists = $0 else {
+                return XCTFail("Expected a destination conflict, got \($0)")
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: destination), Data("user changes".utf8))
+        XCTAssertEqual(try Data(contentsOf: staging), Data("remote content".utf8))
+    }
+
+    func testPrivateDownloadPublishRejectsSymlinkEvenIfOverwriteAuthorized() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "ghostftp-publish-link-\(UUID().uuidString)", isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let protected = folder.appendingPathComponent("protected.txt")
+        let destination = folder.appendingPathComponent("download.txt")
+        let staging = folder.appendingPathComponent("stage.part")
+        try Data("protected".utf8).write(to: protected)
+        try FileManager.default.createSymbolicLink(at: destination, withDestinationURL: protected)
+        let handle = try PrivateDownloadStaging.openNewFile(at: staging)
+        try handle.write(contentsOf: Data("malicious replacement".utf8))
+        try handle.close()
+
+        XCTAssertThrowsError(try PrivateDownloadStaging.publish(
+            from: staging, to: destination, allowReplacingExisting: true
+        )) {
+            guard case FTPControlError.unsafeLocalDestination = $0 else {
+                return XCTFail("Expected link rejection, got \($0)")
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: protected), Data("protected".utf8))
+        XCTAssertEqual(try Data(contentsOf: staging), Data("malicious replacement".utf8))
+    }
+
+    func testPrivateDownloadPublishReplacesOnlyWhenExplicitlyAuthorized() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "ghostftp-publish-confirmed-\(UUID().uuidString)", isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let destination = folder.appendingPathComponent("confirmed.txt")
+        let staging = folder.appendingPathComponent("stage.part")
+        try Data("old content".utf8).write(to: destination)
+        let handle = try PrivateDownloadStaging.openNewFile(at: staging)
+        try handle.write(contentsOf: Data("new content".utf8))
+        try handle.close()
+
+        try PrivateDownloadStaging.publish(
+            from: staging, to: destination, allowReplacingExisting: true
+        )
+        XCTAssertEqual(try Data(contentsOf: destination), Data("new content".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: staging.path))
+    }
+
     func testRealLocalFTPLoginListUploadAndDownload() async throws {
         guard let rawPort = ProcessInfo.processInfo.environment["GHOSTFTP_MACOS_E2E_PORT"],
               let port = UInt16(rawPort) else {
@@ -411,6 +516,20 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertTrue(afterUpload.contains(where: { $0.name == remoteName }))
         try await session.downloadFile(remoteName: remoteName, to: destination)
         XCTAssertEqual(try Data(contentsOf: destination), content)
+
+        // A second download to the same destination must not silently
+        // destroy edits made locally after the original transfer.
+        try Data("local edits must survive".utf8).write(to: destination)
+        do {
+            try await session.downloadFile(remoteName: remoteName, to: destination)
+            XCTFail("Expected a destination conflict without overwrite authorization")
+        } catch FTPControlError.destinationAlreadyExists {
+            XCTAssertEqual(
+                try Data(contentsOf: destination),
+                Data("local edits must survive".utf8)
+            )
+            try await session.noop() // final 226 reply left the control channel in sync
+        }
 
         let folder = "ghostftp-qa-\(UUID().uuidString)"
         try await session.createDirectory(named: folder)
