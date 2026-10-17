@@ -40,12 +40,12 @@ impl RemoteFs for LocalFs {
             .with_context(|| format!("read_dir {}", p.display()))?;
         let mut out = Vec::new();
         while let Some(entry) = rd.next_entry().await? {
-            // metadata() follows symlinks: a link to a directory was shown
-            // as a real directory and dangling links silently disappeared.
-            // The caller must see the complete, correctly typed inventory
-            // before it compares or acts on local/remote files.
+            // Tokio DirEntry::metadata() already uses symlink metadata
+            // (it does not follow links). Do not silently skip an entry if
+            // reading that metadata fails: comparisons or sync would then
+            // act on an incomplete local inventory.
             let meta = entry
-                .symlink_metadata()
+                .metadata()
                 .await
                 .with_context(|| format!("stat directory entry {}", entry.path().display()))?;
             let kind = if meta.is_dir() {
