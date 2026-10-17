@@ -1,3 +1,11 @@
+## 0.95.24 — macOS FTP destination safety and first-party desktop metadata (unreleased preview) — 17 October 2026
+
+- macOS: prevent unintended overwrite of existing downloaded files; publish private, completed FTP downloads using exclusive atomic creation, and replace regular files only with Save Panel confirmation.
+- macOS: reject symbolic-link and special-file destinations; retain a healthy control session if completed downloads encounter local publication conflicts.
+- macOS: validate FTP reply codes and add unit/real FTP fixture regressions for collision, confirmation and control-channel synchronization.
+- Windows/Linux: Tauri installer homepage points to https://ghostftp.com and is enforced by the frontend metadata contract.
+- Status: native macOS explicit FTPS and SFTP, FileZilla-equivalent workflows, Developer ID signing and notarization remain release blockers. This cycle is preview, not production stable.
+
 ## 0.95.23 — Android premium 16-screen reference: structural fidelity (preview candidate) — 17 October 2026
 
 - Android: approved violet/navy native visual primitives and full-width phone drawer; searchable real Bookmarks list and safe site navigation from saved metadata; no mock site credentials.

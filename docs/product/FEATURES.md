@@ -1,8 +1,8 @@
-> Ghost FTP **0.95.23** (development cycle), following published **v0.95.22**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.24** (development cycle), following published **v0.95.23**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
 
-## 0.95.23 development candidate — cross-platform reliability (not yet released)
+## 0.95.24 development candidate — cross-platform reliability (not yet released)
 
 macOS native FTP now negotiates an authenticated passive directory listing and supports fail-closed Unix LIST fallback for servers that explicitly reject MLSD. The Files editor supports navigable folders, creating directories (MKD), confirmed deletion of files (DELE), and confirmed removal of **empty** folders (RMD). Untrusted remote file sizes are formatted without converting UInt64 values beyond Int64 capacity. These macOS additions are for unencrypted FTP only: macOS FTPS, SFTP, signed/notarized distribution and full FileZilla parity are **not implemented** by this patch.
 
@@ -16,9 +16,9 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 
 
-> Current development cycle: **0.95.23**; latest verified public release: **0.95.22**. Historical sections remain version-specific.
+> Current development cycle: **0.95.24**; latest verified public release: **0.95.23**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.23 development source. Previous canonical release: **0.95.22**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.24 development source. Previous canonical release: **0.95.23**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 

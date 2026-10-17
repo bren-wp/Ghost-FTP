@@ -177,7 +177,11 @@ final class FTPConnectionController: ObservableObject {
         }
     }
 
-    func downloadFile(_ entry: FTPDirectoryEntry, to localURL: URL) {
+    func downloadFile(
+        _ entry: FTPDirectoryEntry,
+        to localURL: URL,
+        allowReplacingExisting: Bool = false
+    ) {
         guard isConnected, !isTransferring, !entry.isDirectory else { return }
 
         transferState = .downloading(entry.name)
@@ -195,7 +199,11 @@ final class FTPConnectionController: ObservableObject {
             }
 
             do {
-                try await session.downloadFile(remoteName: entry.name, to: localURL)
+                try await session.downloadFile(
+                    remoteName: entry.name,
+                    to: localURL,
+                    allowReplacingExisting: allowReplacingExisting
+                )
                 guard !Task.isCancelled else { return }
                 history.complete(transferID)
                 activeTransferID = nil
@@ -208,7 +216,18 @@ final class FTPConnectionController: ObservableObject {
                 history.fail(transferID)
                 activeTransferID = nil
                 transferState = .failed(error.localizedDescription)
-                state = .failed(error.localizedDescription)
+                // The completed remote transfer can fail to publish locally
+                // without invalidating the authenticated FTP connection.
+                if let ftpError = error as? FTPControlError {
+                    switch ftpError {
+                    case .destinationAlreadyExists, .unsafeLocalDestination:
+                        break
+                    default:
+                        state = .failed(error.localizedDescription)
+                    }
+                } else {
+                    state = .failed(error.localizedDescription)
+                }
             }
         }
     }
