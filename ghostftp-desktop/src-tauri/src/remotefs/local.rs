@@ -5,6 +5,25 @@ use anyhow::Context;
 use async_trait::async_trait;
 use std::path::{Component, Path};
 
+// Avoid unbounded allocation when a local mount, shared folder or generated
+// build directory contains an unexpectedly large number of files. Refuse to
+// publish partial lists: sync/conflict logic must never infer that omitted
+// paths do not exist.
+const LOCAL_DIRECTORY_MAX_ENTRIES: usize = 100_000;
+const LOCAL_DIRECTORY_MAX_NAME_BYTES: usize = 16 * 1024 * 1024;
+
+fn check_local_inventory_budget(entries: usize, name_bytes: usize) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        entries <= LOCAL_DIRECTORY_MAX_ENTRIES,
+        "local directory inventory limit exceeded: too many entries"
+    );
+    anyhow::ensure!(
+        name_bytes <= LOCAL_DIRECTORY_MAX_NAME_BYTES,
+        "local directory inventory limit exceeded: filename budget exhausted"
+    );
+    Ok(())
+}
+
 pub struct LocalFs;
 
 impl LocalFs {
@@ -105,7 +124,9 @@ impl RemoteFs for LocalFs {
             .await
             .with_context(|| format!("read_dir {}", p.display()))?;
         let mut out = Vec::new();
+        let mut total_name_bytes = 0usize;
         while let Some(entry) = rd.next_entry().await? {
+            check_local_inventory_budget(out.len() + 1, total_name_bytes)?;
             // Tokio DirEntry::metadata() already uses symlink metadata
             // (it does not follow links). Do not silently skip an entry if
             // reading that metadata fails: comparisons or sync would then
@@ -136,6 +157,10 @@ impl RemoteFs for LocalFs {
             let name = entry.file_name().into_string().map_err(|_| {
                 anyhow::anyhow!("local entry has a filename that cannot be represented as UTF-8")
             })?;
+            total_name_bytes = total_name_bytes
+                .checked_add(name.len())
+                .context("local directory inventory filename budget overflow")?;
+            check_local_inventory_budget(out.len() + 1, total_name_bytes)?;
             let path =
                 entry.path().into_os_string().into_string().map_err(|_| {
                     anyhow::anyhow!("local entry path cannot be represented as UTF-8")
@@ -270,6 +295,29 @@ mod tests {
         fn drop(&mut self) {
             let _ = std::fs::remove_dir_all(&self.0);
         }
+    }
+
+    #[test]
+    fn bounded_inventory_rejects_oversized_directories_without_partial_results() {
+        assert!(check_local_inventory_budget(0, 0).is_ok());
+        assert!(check_local_inventory_budget(
+            LOCAL_DIRECTORY_MAX_ENTRIES,
+            LOCAL_DIRECTORY_MAX_NAME_BYTES
+        )
+        .is_ok());
+        assert!(check_local_inventory_budget(LOCAL_DIRECTORY_MAX_ENTRIES + 1, 0).is_err());
+        assert!(check_local_inventory_budget(1, LOCAL_DIRECTORY_MAX_NAME_BYTES + 1).is_err());
+    }
+
+    #[tokio::test]
+    async fn local_listing_preserves_normal_files_and_symlinks() {
+        let fixture = TestDirectory::new();
+        std::fs::write(fixture.0.join("report čćž.txt"), b"contents").unwrap();
+        std::fs::create_dir(fixture.0.join("subfolder")).unwrap();
+        let files = LocalFs.list_dir(fixture.0.to_str().unwrap()).await.unwrap();
+        assert_eq!(files.len(), 2);
+        assert!(files.iter().any(|entry| entry.name == "report čćž.txt"));
+        assert!(files.iter().any(|entry| entry.name == "subfolder"));
     }
 
     #[test]

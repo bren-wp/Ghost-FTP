@@ -1,3 +1,9 @@
+## 0.95.31 — bounded Windows/Linux local directory inventory (unreleased development preview) — 17 October 2026
+
+- Prevent runaway memory growth and incomplete sync/conflict inventories: fail closed for more than 100,000 local entries or 16 MiB cumulative UTF-8 filename bytes.
+- Regression tests cover the exact resource limits and international filename enumeration.
+- Preserve Ghost FTP premium UI and published v0.95.30; candidate builds/CI pending.
+
 ## 0.95.30 — Windows/Linux sync safety, reliability and performance (unreleased Preview) — 17 October 2026
 
 - Windows/Linux: coalesce filesystem watcher storms into a one-slot notification queue; repeated events no longer build an unbounded pending list.

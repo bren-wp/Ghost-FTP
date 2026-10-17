@@ -1,6 +1,10 @@
-> Ghost FTP **0.95.30** (development cycle), following published **v0.95.29**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.31** (development cycle), following published **v0.95.30**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.31 Windows/Linux local directory resource limits — development candidate
+
+The local file browser and sync inventory now fail closed if a single directory exceeds 100,000 entries or 16 MiB cumulative UTF-8 filename bytes. Returning incomplete inventories could otherwise cause incorrect sync comparisons. This is source-level hardening; exact-commit native build and large-share acceptance remain pending.
 
 ## v0.95.30 development candidate — Windows/Linux folder sync safety
 
@@ -42,7 +46,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.30 development source. Previous canonical release: **0.95.29**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.31 development source. Previous canonical release: **0.95.30**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
