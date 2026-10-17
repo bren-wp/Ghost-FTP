@@ -13,7 +13,10 @@ use suppaftp::{FtpError, FtpStream, NativeTlsConnector, NativeTlsFtpStream, Stat
 /// bytes must never reach a SuppaFTP request builder.
 /// Paths with Unicode characters and ordinary spaces remain supported.
 pub(crate) fn validate_ftp_command_path(path: &str) -> Result<()> {
-    anyhow::ensure!(!path.trim().is_empty(), "FTP command path must not be empty");
+    anyhow::ensure!(
+        !path.trim().is_empty(),
+        "FTP command path must not be empty"
+    );
     anyhow::ensure!(
         !path.chars().any(|ch| ch.is_ascii_control()),
         "FTP command path contains a forbidden control character"
@@ -768,7 +771,12 @@ mod ftp_path_validation_regressions {
 
     #[test]
     fn valid_unicode_and_spaces_remain_legal() {
-        for path in [".", "/", "/računi/račun čćž 文件 2026.pdf", "folder name/file.txt"] {
+        for path in [
+            ".",
+            "/",
+            "/računi/račun čćž 文件 2026.pdf",
+            "folder name/file.txt",
+        ] {
             assert!(validate_ftp_command_path(path).is_ok(), "{path:?}");
         }
     }

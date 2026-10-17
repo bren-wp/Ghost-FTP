@@ -552,7 +552,12 @@ mod ftp_command_path_regressions {
 
     #[test]
     fn preserves_ordinary_unicode_spaces_and_listing_root_aliases() {
-        for path in [".", "/", "/invoices/report čćž 文件 2026.pdf", "folder name/child"] {
+        for path in [
+            ".",
+            "/",
+            "/invoices/report čćž 文件 2026.pdf",
+            "folder name/child",
+        ] {
             assert!(
                 validate_ftp_command_path(path).is_ok(),
                 "safe FTP command path rejected: {path:?}"
