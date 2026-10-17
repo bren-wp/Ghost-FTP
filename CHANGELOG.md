@@ -1,4 +1,11 @@
-## 0.95.27 — bounded FTP recursive delete inventory and regression tests (unreleased development preview) — 17 October 2026
+## 0.95.28 — macOS FTP command argument safety parity (unreleased development preview) — 17 October 2026
+
+- macOS native FTP: reject all ASCII C0 control codepoints and DEL in FTP control-channel arguments, including usernames, passwords, navigation and remote file transfer names; previously only CR, LF and NUL were refused.
+- Preserve Unicode remote filenames and printable spaces without lossy normalization or changes to existing premium SwiftUI design.
+- Expand native Swift XCTest regressions for TAB, ESC/ANSI sequences, BS, DEL and additional control bytes.
+- Advance shared version metadata to 0.95.28 Preview after v0.95.27; this patch does not implement secure native FTPS/SFTP, signing/notarization or full FileZilla parity.
+
+## 0.95.27 — bounded FTP recursive delete inventory and regression tests (published preview) — 17 October 2026
 
 - Windows/Linux FTP and explicit FTPS: cap recursive delete tree inventory to 25,000 entries, 64 levels and 8 MiB cumulative target-path bytes before executing any DELE/RMD.
 - Fail closed on duplicate paths, malformed directory-list entries or incomplete dotfile inventory; retain bottom-up deletion order for valid trees.

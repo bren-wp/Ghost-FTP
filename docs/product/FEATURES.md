@@ -1,6 +1,11 @@
-> Ghost FTP **0.95.27** (development cycle), following published **v0.95.26**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.28** (development cycle), following published **v0.95.27**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## 0.95.28 candidate — macOS FTP control-character safety
+
+The native macOS FTP codec rejects every ASCII C0 control code (including TAB, ESC, BS, CR, LF and NUL) and DEL in command arguments, remote paths and printable USER/PASS operands before sending a control-channel command. Previously only CR, LF and NUL were rejected. Real Unicode filenames and ordinary spaces remain accepted. Swift regression tests cover rejected control sequences and allowed international filenames. This is scoped FTP-only hardening: macOS FTPS/SFTP engines, Developer ID/notarization and full desktop parity remain outstanding (issue #157).
+
 
 ## 0.95.27 development candidate — bounded FTP recursive deletion
 
@@ -25,9 +30,9 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 
 
-> Current development cycle: **0.95.27**; latest verified public release: **0.95.26**. Historical sections remain version-specific.
+> Current development cycle: **0.95.28**; latest verified public release: **0.95.27**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.27 development source. Previous canonical release: **0.95.26**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.28 development source. Previous canonical release: **0.95.27**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
