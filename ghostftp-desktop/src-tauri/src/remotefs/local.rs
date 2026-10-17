@@ -112,6 +112,17 @@ impl RemoteFs for LocalFs {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
+            Self::reject_filesystem_root(path, "chmod")?;
+            // chmod follows symlinks on Unix. Explicitly refuse symbolic
+            // links and non-file/directory nodes rather than silently changing
+            // the target's permissions. This is a preflight check, not an
+            // atomic substitute for descriptor-based no-follow permissions.
+            let meta = tokio::fs::symlink_metadata(path)
+                .await
+                .with_context(|| format!("lstat chmod target {path}"))?;
+            if !meta.is_file() && !meta.is_dir() {
+                anyhow::bail!("chmod refuses symbolic links and special filesystem nodes");
+            }
             let perms = std::fs::Permissions::from_mode(mode);
             tokio::fs::set_permissions(path, perms)
                 .await
@@ -226,5 +237,26 @@ mod tests {
             .unwrap();
         assert!(target.join("keep.txt").is_file());
         assert!(!fixture.0.join("folder-link").exists());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn chmod_rejects_links_and_preserves_link_targets() {
+        use std::os::unix::fs::{symlink, PermissionsExt};
+
+        let fixture = TestDirectory::new();
+        let target = fixture.0.join("confidential.txt");
+        let link = fixture.0.join("confidential-link");
+        std::fs::write(&target, b"private").unwrap();
+        std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o600)).unwrap();
+        symlink(&target, &link).unwrap();
+
+        assert!(LocalFs.chmod(&link.to_string_lossy(), 0o777).await.is_err());
+        assert_eq!(
+            std::fs::metadata(&target).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        assert!(LocalFs.chmod("/", 0o777).await.is_err());
+        assert!(LocalFs.chmod(&target.to_string_lossy(), 0o640).await.is_ok());
     }
 }
