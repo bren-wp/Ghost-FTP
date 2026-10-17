@@ -31,15 +31,7 @@ export function FileBrowser() {
 
   const enqueueDownloads = useTransfers((s) => s.enqueueDownloads);
   const enqueueUploads = useTransfers((s) => s.enqueueUploads);
-  const activeCount = useTransfers(
-    (s) =>
-      Object.values(s.byId).filter(
-        (t) =>
-          t.status === "transferring" ||
-          t.status === "queued" ||
-          t.status === "paused"
-      ).length
-  );
+  const activeCount = useTransfers((s) => s.activeCount);
 
   const isWindows = navigator.userAgent.includes("Windows");
   const [localPath, setLocalPath] = useState(isWindows ? "C:\\" : "/");
