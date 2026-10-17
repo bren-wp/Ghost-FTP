@@ -4,6 +4,7 @@
 - Linux: replace path-based chmod preflight/set_permissions with O_NOFOLLOW opening, fd metadata validation and fchmod on the same opened inode, removing final-component symlink-swap races.
 - Connection management: last user tab/connect intent wins over slower handshakes; stale connection health replies and profile reload snapshots cannot overwrite newer information; Agent Bridge focus updates are serialized and coalesced.
 - Transfer rendering: maintain an exact active/queued/paused count in the Zustand transfer store rather than O(n) list scans on every progress event in both file-browser layouts.
+- File browsing: reject stale directory responses after rapid navigation, refresh or connection switches; clear obsolete file rows/selections immediately so failed reads cannot expose actions targeting a previous directory.
 - Add native Rust regressions for occupied rename destinations and dangling symlinks, and CI source contracts for concurrency and UI stability.
 - This is unreleased Preview source pending full exact-SHA CI and manual Windows 10/11 / Linux distribution acceptance. Stable, signed and full FileZilla parity are not claimed.
 
