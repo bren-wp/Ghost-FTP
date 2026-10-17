@@ -625,7 +625,15 @@ private struct ConnectionEditor: View {
         panel.nameFieldStringValue = entry.name
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        ftpSession.downloadFile(entry, to: url)
+        // NSSavePanel asks for confirmation when replacing an existing file.
+        // A new destination must remain no-clobber if another process creates
+        // the filename while the download is in progress.
+        let confirmedReplacement = FileManager.default.fileExists(atPath: url.path)
+        ftpSession.downloadFile(
+            entry,
+            to: url,
+            allowReplacingExisting: confirmedReplacement
+        )
     }
 
     private func save() {
