@@ -3,7 +3,7 @@ use super::{Capabilities, ChangeSignal, DirEntry, FileKind, RemoteFs};
 use anyhow::anyhow;
 use anyhow::Context;
 use async_trait::async_trait;
-use std::path::Path;
+use std::path::{Component, Path};
 
 pub struct LocalFs;
 
@@ -13,8 +13,19 @@ impl LocalFs {
         if path.trim().is_empty() {
             anyhow::bail!("{operation} path must not be empty");
         }
-        if candidate.parent().is_none() && candidate.has_root() {
-            anyhow::bail!("{operation} refuses the local filesystem root");
+        // Lexical aliases such as /tmp/.. and C:\\Users\\..\\.. can resolve
+        // to a filesystem root even though Path::parent() is not None.
+        // Do not require the target to exist or follow symlinks here.
+        let mut depth = 0usize;
+        for component in candidate.components() {
+            match component {
+                Component::Normal(_) => depth += 1,
+                Component::ParentDir => depth = depth.saturating_sub(1),
+                _ => {}
+            }
+        }
+        if depth == 0 {
+            anyhow::bail!("{operation} refuses a local filesystem root or empty target");
         }
         Ok(())
     }
@@ -29,10 +40,14 @@ impl RemoteFs for LocalFs {
             .with_context(|| format!("read_dir {}", p.display()))?;
         let mut out = Vec::new();
         while let Some(entry) = rd.next_entry().await? {
-            let meta = match entry.metadata().await {
-                Ok(m) => m,
-                Err(_) => continue,
-            };
+            // metadata() follows symlinks: a link to a directory was shown
+            // as a real directory and dangling links silently disappeared.
+            // The caller must see the complete, correctly typed inventory
+            // before it compares or acts on local/remote files.
+            let meta = entry
+                .symlink_metadata()
+                .await
+                .with_context(|| format!("stat directory entry {}", entry.path().display()))?;
             let kind = if meta.is_dir() {
                 FileKind::Directory
             } else if meta.file_type().is_symlink() {
@@ -119,5 +134,97 @@ impl RemoteFs for LocalFs {
             has_shell: false,
             change_signal: ChangeSignal::MtimeSize,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    struct TestDirectory(PathBuf);
+
+    impl TestDirectory {
+        fn new() -> Self {
+            let path = std::env::temp_dir()
+                .join(format!("ghostftp-localfs-{}", uuid::Uuid::new_v4()));
+            std::fs::create_dir(&path).expect("create isolated localfs fixture");
+            Self(path)
+        }
+    }
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn destructive_actions_refuse_filesystem_roots_and_dot_aliases() {
+        for path in ["", ".", "..", "folder/.."] {
+            assert!(LocalFs::reject_filesystem_root(path, "delete").is_err(), "{path:?}");
+        }
+
+        #[cfg(unix)]
+        for path in ["/", "//", "/tmp/..", "/tmp/../.", "/../../"] {
+            assert!(LocalFs::reject_filesystem_root(path, "delete").is_err(), "{path:?}");
+        }
+
+        #[cfg(windows)]
+        for path in [r"C:\\", r"C:\\Windows\\..", r"C:\\Windows\\System32\\..\\.."] {
+            assert!(LocalFs::reject_filesystem_root(path, "rename").is_err(), "{path:?}");
+        }
+
+        assert!(LocalFs::reject_filesystem_root("safe.txt", "delete").is_ok());
+        assert!(LocalFs::reject_filesystem_root("folder/child", "rename").is_ok());
+    }
+
+    #[tokio::test]
+    async fn directory_listing_includes_files_and_directories() {
+        let fixture = TestDirectory::new();
+        std::fs::write(fixture.0.join("notes.txt"), b"hello").unwrap();
+        std::fs::create_dir(fixture.0.join("assets")).unwrap();
+
+        let entries = LocalFs.list_dir(&fixture.0.to_string_lossy()).await.unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(
+            entries.iter().find(|entry| entry.name == "notes.txt").unwrap().kind,
+            FileKind::File
+        );
+        assert_eq!(
+            entries.iter().find(|entry| entry.name == "assets").unwrap().kind,
+            FileKind::Directory
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn directory_listing_keeps_real_and_dangling_symlinks_visible() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = TestDirectory::new();
+        let target = fixture.0.join("real-folder");
+        std::fs::create_dir(&target).unwrap();
+        std::fs::write(target.join("keep.txt"), b"not deleted").unwrap();
+        symlink(&target, fixture.0.join("folder-link")).unwrap();
+        symlink(fixture.0.join("missing-target"), fixture.0.join("broken-link")).unwrap();
+
+        let entries = LocalFs.list_dir(&fixture.0.to_string_lossy()).await.unwrap();
+        assert_eq!(entries.len(), 3, "dangling entries must never silently disappear");
+        for name in ["folder-link", "broken-link"] {
+            let entry = entries.iter().find(|entry| entry.name == name).unwrap();
+            assert_eq!(entry.kind, FileKind::Symlink, "{name} must not become a directory");
+        }
+        assert_eq!(
+            entries.iter().find(|entry| entry.name == "real-folder").unwrap().kind,
+            FileKind::Directory
+        );
+
+        // Deleting a symlink (even with recursive=true) must only unlink it.
+        LocalFs.delete(&fixture.0.join("folder-link").to_string_lossy(), true)
+            .await
+            .unwrap();
+        assert!(target.join("keep.txt").is_file());
+        assert!(!fixture.0.join("folder-link").exists());
     }
 }
