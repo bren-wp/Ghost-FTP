@@ -4,6 +4,9 @@
 - macOS: reject symbolic-link and special-file destinations; retain a healthy control session if completed downloads encounter local publication conflicts.
 - macOS: validate FTP reply codes and add unit/real FTP fixture regressions for collision, confirmation and control-channel synchronization.
 - Windows/Linux: Tauri installer homepage points to https://ghostftp.com and is enforced by the frontend metadata contract.
+- Windows/Linux: fail closed on unreadable local directory entries and non-UTF-8 filenames instead of hiding files or creating lossy action targets; add native filesystem regressions for real files and symlinks.
+- Windows/Linux: reject lexically root-equivalent local rename/delete targets; Linux chmod preflight refuses symbolic links, special nodes and root paths (race-free descriptor-level chmod remains outside this patch).
+- Windows/Linux premium UI: reposition and constrain context menus using measured dimensions on window resize; serialize async menu actions to prevent rapid double-dispatch.
 - Status: native macOS explicit FTPS and SFTP, FileZilla-equivalent workflows, Developer ID signing and notarization remain release blockers. This cycle is preview, not production stable.
 
 ## 0.95.23 — Android premium 16-screen reference: structural fidelity (preview candidate) — 17 October 2026
