@@ -165,7 +165,7 @@ The production TCP control probe now divides the remaining *total* timeout over 
 
 Verify all six workflows on the **new exact commit** before changing any status, merging or releasing. #127 and #128 remain OPEN.
 
-## v0.95.24 Windows/Linux local filesystem and menu reliability — development candidate
+## v0.95.25 Windows/Linux local filesystem and menu reliability — development candidate
 
 The Rust `LocalFs` backend now aborts directory enumeration if any entry metadata cannot be read, rather than silently presenting an incomplete inventory for comparison or sync. Tokio `DirEntry::metadata()` already does not follow symlinks; that behavior is retained and tested with ordinary files, real directories, live symlinks and dangling symlinks. Local rename/delete checks reject filesystem-root aliases, and Linux permission changes reject explicit symbolic links and special files. Linux's current UTF-8-only UI/IPC representation cannot faithfully carry arbitrary OS byte filenames, so the backend rejects a lossy conversion rather than allowing ambiguous file actions. A lossless OS-path transport remains future work. The chmod path check is not a race-free descriptor-based no-follow implementation.
 
