@@ -1,6 +1,10 @@
-> Ghost FTP **0.95.25** (development cycle), following published **v0.95.24**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.26** (development cycle), following published **v0.95.25**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## 0.95.26 development candidate — FTP command-path framing safety
+
+Windows/Linux FTP and explicit FTPS now reject empty or ASCII-control-bearing pathname operands (CR, LF, NUL, TAB, DEL and other ASCII controls) before LIST, existence checks, RENAME, DELETE, MKD, SITE CHMOD and low-level SIZE/RETR/STOR/APPE transfers (including resume paths). Unicode filenames and ordinary spaces remain supported. This guards control-channel command framing; it is not a remote sandbox authorization guarantee.
 
 ## 0.95.24 baseline — cross-platform reliability (historical published source)
 
@@ -16,9 +20,9 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 
 
-> Current development cycle: **0.95.25**; latest verified public release: **0.95.24**. Historical sections remain version-specific.
+> Current development cycle: **0.95.26**; latest verified public release: **0.95.25**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.25 development source. Previous canonical release: **0.95.24**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.26 development source. Previous canonical release: **0.95.25**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 

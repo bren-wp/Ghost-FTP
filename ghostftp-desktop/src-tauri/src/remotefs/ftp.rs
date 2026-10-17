@@ -1,4 +1,5 @@
 use super::{Capabilities, ChangeSignal, DirEntry, FileKind, RemoteFs};
+use crate::session::ftp::validate_ftp_command_path;
 use crate::session::FtpSession;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -18,6 +19,7 @@ impl FtpFs {
     /// underlying blocking FTP stream. The outer list_dir decides whether
     /// an FTPS data-TLS failure permits one new authenticated session.
     async fn list_dir_once(&self, path: &str) -> Result<Vec<DirEntry>> {
+        validate_ftp_command_path(if path.is_empty() { "." } else { path })?;
         let target = if path.is_empty() { "." } else { path }.to_string();
         let parent = path.to_string();
         self.session
@@ -275,6 +277,7 @@ fn list_lines_with_dot_visibility(
     stream: &mut crate::session::ftp::FtpStreamKind,
     target: &str,
 ) -> Result<(Vec<String>, bool)> {
+    validate_ftp_command_path(target)?;
     match stream.list(Some(&format!("-a {target}"))) {
         Ok(lines) => Ok((lines, true)),
         // A failed TLS data handshake invalidates the control/data state.
@@ -304,6 +307,7 @@ fn list_lines(
 /// rejects `LIST -a`, absence of a dotfile cannot be proven and therefore
 /// fails closed instead of risking overwrite of a hidden target.
 pub async fn path_exists_fail_closed(session: &Arc<FtpSession>, path: &str) -> Result<bool> {
+    validate_ftp_command_path(path)?;
     let trimmed = path.trim_end_matches('/');
     if trimmed.is_empty() || trimmed == "/" {
         return Ok(true);
@@ -373,6 +377,8 @@ impl RemoteFs for FtpFs {
     }
 
     async fn rename(&self, from: &str, to: &str) -> Result<()> {
+        validate_ftp_command_path(from)?;
+        validate_ftp_command_path(to)?;
         let from = from.to_string();
         let to = to.to_string();
         self.session
@@ -386,6 +392,7 @@ impl RemoteFs for FtpFs {
     }
 
     async fn delete(&self, path: &str, recursive: bool) -> Result<()> {
+        validate_ftp_command_path(path)?;
         super::validate_remote_delete_path(path)?;
         // FTP distinguishes file deletion (DELE) from directory deletion
         // (RMD) and has no native recursive delete command. Recursive removal
@@ -412,6 +419,7 @@ impl RemoteFs for FtpFs {
     }
 
     async fn create_dir(&self, path: &str) -> Result<()> {
+        validate_ftp_command_path(path)?;
         let path = path.to_string();
         self.session
             .with_stream(move |stream| {
@@ -424,6 +432,7 @@ impl RemoteFs for FtpFs {
     }
 
     async fn chmod(&self, path: &str, mode: u32) -> Result<()> {
+        validate_ftp_command_path(path)?;
         // Standard FTP has no permission command. Most Unix FTP servers
         // accept `SITE CHMOD <oct> <path>` as a server extension; we try it
         // and surface the server's error if it isn't supported.
@@ -515,6 +524,46 @@ async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> 
             Ok(())
         })
         .await
+}
+
+#[cfg(test)]
+mod ftp_command_path_regressions {
+    use super::validate_ftp_command_path;
+
+    #[test]
+    fn rejects_protocol_controls_and_empty_targets_before_ftp_commands() {
+        for path in [
+            "",
+            " ",
+            "\n",
+            "/safe\r\nDELE /unrelated",
+            "folder\rfile",
+            "folder\nfile",
+            "folder\0file",
+            "folder\tfile",
+            "folder\u{7f}file",
+        ] {
+            assert!(
+                validate_ftp_command_path(path).is_err(),
+                "unsafe FTP command path accepted: {path:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn preserves_ordinary_unicode_spaces_and_listing_root_aliases() {
+        for path in [
+            ".",
+            "/",
+            "/invoices/report čćž 文件 2026.pdf",
+            "folder name/child",
+        ] {
+            assert!(
+                validate_ftp_command_path(path).is_ok(),
+                "safe FTP command path rejected: {path:?}"
+            );
+        }
+    }
 }
 
 #[cfg(test)]

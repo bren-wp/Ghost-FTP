@@ -8,6 +8,22 @@ use suppaftp::native_tls::TlsConnector;
 use suppaftp::types::{FileType, Mode};
 use suppaftp::{FtpError, FtpStream, NativeTlsConnector, NativeTlsFtpStream, Status};
 
+/// One shared fail-closed path guard for every FTP/FTPS control-channel
+/// pathname operand, including transfers and resumed streams. Unsafe control
+/// bytes must never reach a SuppaFTP request builder.
+/// Paths with Unicode characters and ordinary spaces remain supported.
+pub(crate) fn validate_ftp_command_path(path: &str) -> Result<()> {
+    anyhow::ensure!(
+        !path.trim().is_empty(),
+        "FTP command path must not be empty"
+    );
+    anyhow::ensure!(
+        !path.chars().any(|ch| ch.is_ascii_control()),
+        "FTP command path contains a forbidden control character"
+    );
+    Ok(())
+}
+
 /// One FTP control connection. suppaftp is synchronous; we wrap it in a
 /// `std::sync::Mutex` and route every operation through `spawn_blocking` so
 /// it cannot block tokio's runtime threads. Data transfers go through the
@@ -135,6 +151,9 @@ fn verified_upload_prefix_after_abort(
 
 impl FtpStreamKind {
     pub fn list(&mut self, path: Option<&str>) -> Result<Vec<String>> {
+        if let Some(path) = path {
+            validate_ftp_command_path(path)?;
+        }
         match self {
             Self::Plain(s) => s.list(path).map_err(into_anyhow),
             Self::Tls(s) => s.list(path).map_err(into_anyhow),
@@ -147,42 +166,50 @@ impl FtpStreamKind {
         }
     }
     pub fn rename(&mut self, from: &str, to: &str) -> Result<()> {
+        validate_ftp_command_path(from)?;
+        validate_ftp_command_path(to)?;
         match self {
             Self::Plain(s) => s.rename(from, to).map_err(into_anyhow),
             Self::Tls(s) => s.rename(from, to).map_err(into_anyhow),
         }
     }
     pub fn rm(&mut self, path: &str) -> Result<()> {
+        validate_ftp_command_path(path)?;
         match self {
             Self::Plain(s) => s.rm(path).map_err(into_anyhow),
             Self::Tls(s) => s.rm(path).map_err(into_anyhow),
         }
     }
     pub fn rmdir(&mut self, path: &str) -> Result<()> {
+        validate_ftp_command_path(path)?;
         match self {
             Self::Plain(s) => s.rmdir(path).map_err(into_anyhow),
             Self::Tls(s) => s.rmdir(path).map_err(into_anyhow),
         }
     }
     pub fn mkdir(&mut self, path: &str) -> Result<()> {
+        validate_ftp_command_path(path)?;
         match self {
             Self::Plain(s) => s.mkdir(path).map_err(into_anyhow),
             Self::Tls(s) => s.mkdir(path).map_err(into_anyhow),
         }
     }
     pub fn site(&mut self, cmd: &str) -> Result<()> {
+        validate_ftp_command_path(cmd)?;
         match self {
             Self::Plain(s) => s.site(cmd).map(|_| ()).map_err(into_anyhow),
             Self::Tls(s) => s.site(cmd).map(|_| ()).map_err(into_anyhow),
         }
     }
     pub fn size(&mut self, path: &str) -> Result<usize> {
+        validate_ftp_command_path(path)?;
         match self {
             Self::Plain(s) => s.size(path).map_err(into_anyhow),
             Self::Tls(s) => s.size(path).map_err(into_anyhow),
         }
     }
     pub fn retr_to_writer<W: std::io::Write>(&mut self, path: &str, mut sink: W) -> Result<u64> {
+        validate_ftp_command_path(path)?;
         match self {
             Self::Plain(s) => s
                 .retr(path, |r| {
@@ -197,6 +224,7 @@ impl FtpStreamKind {
         }
     }
     pub fn put_from_reader<R: std::io::Read>(&mut self, path: &str, reader: &mut R) -> Result<u64> {
+        validate_ftp_command_path(path)?;
         match self {
             Self::Plain(s) => s.put_file(path, reader).map_err(into_anyhow),
             Self::Tls(s) => s.put_file(path, reader).map_err(into_anyhow),
@@ -219,6 +247,7 @@ impl FtpStreamKind {
         W: Write,
         C: FnMut(u64) -> FtpTransferControl,
     {
+        validate_ftp_command_path(path)?;
         match self {
             Self::Plain(stream) => {
                 if offset > 0 {
@@ -349,6 +378,7 @@ impl FtpStreamKind {
         R: Read,
         C: FnMut(u64) -> FtpTransferControl,
     {
+        validate_ftp_command_path(path)?;
         match self {
             Self::Plain(stream) => {
                 let mut data = if offset > 0 {
@@ -718,6 +748,38 @@ fn login(stream: &mut FtpStreamKind, user: &str, password: &str) -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod ftp_path_validation_regressions {
+    use super::validate_ftp_command_path;
+
+    #[test]
+    fn control_characters_cannot_be_file_operands() {
+        for path in [
+            "",
+            " ",
+            "/safe\r\nDELE /unrelated",
+            "report\0data",
+            "tab\tfilename",
+            "line\nfilename",
+            "del\u{7f}filename",
+        ] {
+            assert!(validate_ftp_command_path(path).is_err(), "{path:?}");
+        }
+    }
+
+    #[test]
+    fn valid_unicode_and_spaces_remain_legal() {
+        for path in [
+            ".",
+            "/",
+            "/računi/račun čćž 文件 2026.pdf",
+            "folder name/file.txt",
+        ] {
+            assert!(validate_ftp_command_path(path).is_ok(), "{path:?}");
+        }
+    }
 }
 
 #[cfg(test)]
