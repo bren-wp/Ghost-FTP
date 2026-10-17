@@ -1,4 +1,11 @@
-## 0.95.26 — FTP command-path validation and security regressions (unreleased development preview) — 17 October 2026
+## 0.95.27 — bounded FTP recursive delete inventory and regression tests (unreleased development preview) — 17 October 2026
+
+- Windows/Linux FTP and explicit FTPS: cap recursive delete tree inventory to 25,000 entries, 64 levels and 8 MiB cumulative target-path bytes before executing any DELE/RMD.
+- Fail closed on duplicate paths, malformed directory-list entries or incomplete dotfile inventory; retain bottom-up deletion order for valid trees.
+- Add Rust tests for nested/hidden files, duplicate or malformed entries, over-deep chains, excessive inventory entries and LIST -a rejection.
+- Advance source/build metadata to 0.95.27 Preview while leaving the published 0.95.26 tag and assets immutable. Windows/Linux installer and real third-party FTP acceptance remain subject to exact-head CI.
+
+## 0.95.26 — FTP command-path validation and security regressions (published preview) — 17 October 2026
 
 - Windows/Linux: prevent control-character-bearing FTP paths from reaching LIST, existence probes, RNFR/RNTO, DELE/RMD, MKD or SITE CHMOD command construction.
 - FTP: require nonempty command targets and reject CR/LF/NUL/TAB/DEL and other ASCII controls; preserve legitimate Unicode and spaces in filenames.
