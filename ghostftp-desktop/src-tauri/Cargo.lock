@@ -2449,6 +2449,7 @@ dependencies = [
  "ghostftp-agentd",
  "image",
  "keyring",
+ "libc",
  "mdns-sd",
  "notify",
  "object_store",
