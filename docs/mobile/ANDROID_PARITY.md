@@ -1,4 +1,4 @@
-> Current shared source cycle: **0.95.25** (preview). Published predecessor: **v0.95.24**. The Android 16-screen reference work below describes the previously published v0.95.24 candidate and is retained as historical implementation context, not a new Android feature claim.
+> Current shared source cycle: **0.95.25** (preview). Published predecessor: **v0.95.24**. The Android 16-screen reference work below describes the previously published v0.95.23 candidate and is retained as historical implementation context, not a new Android feature claim.
 
 > Android 16-screen reference candidate v0.95.23: **preview only**. Real Bookmarks, contextual Settings/Advanced, Add/Edit tabs, native About and stored-profile loading are implemented in source. Pixel-perfect 16/16 acceptance and real-device screenshot comparison are not yet established. Latest published baseline: v0.95.22.
 
