@@ -16,6 +16,38 @@ impl SftpFs {
     }
 }
 
+// Directory listings are used for overwrite/conflict and sync decisions.
+// Reject incomplete or ambiguous names instead of advertising a false absence.
+const MAX_SFTP_LIST_ENTRIES: usize = 100_000;
+const MAX_SFTP_LIST_NAME_BYTES: usize = 16 * 1024 * 1024;
+
+#[derive(Default)]
+struct SftpListingBudget {
+    entries: usize,
+    name_bytes: usize,
+}
+
+impl SftpListingBudget {
+    fn record(&mut self, name: &str) -> Result<()> {
+        check_delete_name(name)?;
+        anyhow::ensure!(
+            self.entries < MAX_SFTP_LIST_ENTRIES,
+            "SFTP listing refused: maximum entry count exceeded"
+        );
+        let bytes = self
+            .name_bytes
+            .checked_add(name.len())
+            .context("SFTP listing name byte count overflow")?;
+        anyhow::ensure!(
+            bytes <= MAX_SFTP_LIST_NAME_BYTES,
+            "SFTP listing refused: maximum filename byte count exceeded"
+        );
+        self.name_bytes = bytes;
+        self.entries += 1;
+        Ok(())
+    }
+}
+
 const MAX_SFTP_DELETE_ENTRIES: usize = 25_000;
 const MAX_SFTP_DELETE_DEPTH: usize = 64;
 const MAX_SFTP_DELETE_PATH_BYTES: usize = 8 * 1024 * 1024;
@@ -103,11 +135,18 @@ impl RemoteFs for SftpFs {
                 };
 
                 let mut out = Vec::new();
+                let mut budget = SftpListingBudget::default();
+                let mut seen = HashSet::new();
                 for entry in entries {
                     let name = entry.file_name();
                     if name == "." || name == ".." {
                         continue;
                     }
+                    budget.record(&name)?;
+                    anyhow::ensure!(
+                        seen.insert(name.clone()),
+                        "SFTP listing refused: duplicate filename"
+                    );
                     let attrs = entry.metadata();
                     let kind = if attrs.is_dir() {
                         FileKind::Directory
@@ -291,6 +330,32 @@ mod recursive_delete_safety_tests {
         for name in ["normal.txt", ".hidden", "čćž.txt", "with spaces"] {
             assert!(check_delete_name(name).is_ok(), "{name:?}");
         }
+    }
+
+    #[test]
+    fn directory_inventory_rejects_unsafe_names_and_oversized_listings() {
+        let mut budget = SftpListingBudget::default();
+        for name in ["document.txt", ".hidden", "čćž.txt", "spaced name"] {
+            budget.record(name).unwrap();
+        }
+        let before = budget.entries;
+        for name in ["", ".", "..", "dir/file", "dir\\\\file", "bad\\0name", "bad\\nname"] {
+            assert!(budget.record(name).is_err(), "{name:?}");
+        }
+        assert_eq!(budget.entries, before);
+        let mut entries = SftpListingBudget {
+            entries: MAX_SFTP_LIST_ENTRIES - 1,
+            name_bytes: 0,
+        };
+        entries.record("one").unwrap();
+        assert!(entries.record("extra").is_err());
+        let mut bytes = SftpListingBudget {
+            entries: 0,
+            name_bytes: MAX_SFTP_LIST_NAME_BYTES - 4,
+        };
+        bytes.record("four").unwrap();
+        assert!(bytes.record("extra").is_err());
+        assert_eq!(bytes.entries, 1);
     }
 
     #[test]
