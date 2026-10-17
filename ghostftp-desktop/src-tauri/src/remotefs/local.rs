@@ -34,6 +34,60 @@ impl LocalFs {
     }
 }
 
+/// Never overwrite an existing local target during a rename. Both Windows
+/// and Linux use an atomic no-replace OS operation, including for symlinks.
+fn rename_local_noreplace(from: &str, to: &str) -> anyhow::Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+        let source = std::ffi::CString::new(from.as_bytes()).context("rename source contains NUL")?;
+        let destination = std::ffi::CString::new(to.as_bytes()).context("rename target contains NUL")?;
+        let status = unsafe {
+            libc::renameat2(
+                libc::AT_FDCWD, source.as_ptr(),
+                libc::AT_FDCWD, destination.as_ptr(),
+                libc::RENAME_NOREPLACE,
+            )
+        };
+        if status != 0 {
+            return Err(std::io::Error::last_os_error())
+                .with_context(|| format!("rename without replacing {from} -> {to}"));
+        }
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        let source: Vec<u16> = std::ffi::OsStr::new(from)
+            .encode_wide().chain(std::iter::once(0)).collect();
+        let destination: Vec<u16> = std::ffi::OsStr::new(to)
+            .encode_wide().chain(std::iter::once(0)).collect();
+        let ok = unsafe {
+            windows_sys::Win32::Storage::FileSystem::MoveFileW(
+                source.as_ptr(), destination.as_ptr(),
+            )
+        };
+        if ok == 0 {
+            return Err(std::io::Error::last_os_error())
+                .with_context(|| format!("rename without replacing {from} -> {to}"));
+        }
+        Ok(())
+    }
+
+    #[cfg(not(any(target_os = "linux", windows)))]
+    {
+        // Only Windows/Linux guarantee atomic no-replace. Other platforms
+        // refuse known collisions but cannot eliminate a preflight race.
+        match std::fs::symlink_metadata(to) {
+            Ok(_) => anyhow::bail!("local rename target already exists"),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error).context("stat local rename target"),
+        }
+        std::fs::rename(from, to).with_context(|| format!("rename {from} -> {to}"))?;
+        Ok(())
+    }
+}
+
 #[async_trait]
 impl RemoteFs for LocalFs {
     async fn list_dir(&self, path: &str) -> anyhow::Result<Vec<DirEntry>> {
@@ -93,10 +147,11 @@ impl RemoteFs for LocalFs {
     async fn rename(&self, from: &str, to: &str) -> anyhow::Result<()> {
         Self::reject_filesystem_root(from, "rename")?;
         Self::reject_filesystem_root(to, "rename")?;
-        tokio::fs::rename(from, to)
+        let from = from.to_owned();
+        let to = to.to_owned();
+        tokio::task::spawn_blocking(move || rename_local_noreplace(&from, &to))
             .await
-            .with_context(|| format!("rename {from} -> {to}"))?;
-        Ok(())
+            .context("join local no-replace rename task")?
     }
 
     async fn delete(&self, path: &str, recursive: bool) -> anyhow::Result<()> {
@@ -124,29 +179,49 @@ impl RemoteFs for LocalFs {
     }
 
     async fn chmod(&self, path: &str, mode: u32) -> anyhow::Result<()> {
-        #[cfg(unix)]
+        Self::reject_filesystem_root(path, "chmod")?;
+        #[cfg(target_os = "linux")]
+        {
+            use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+            let path = path.to_owned();
+            // O_NOFOLLOW prevents final-component symlinks; fchmod works on
+            // the opened inode, so a later symlink swap cannot redirect it.
+            tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+                let file = std::fs::OpenOptions::new()
+                    .read(true)
+                    .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC)
+                    .open(&path)
+                    .with_context(|| format!("open no-follow chmod target {path}"))?;
+                let meta = file.metadata()
+                    .with_context(|| format!("fstat chmod target {path}"))?;
+                anyhow::ensure!(
+                    meta.is_file() || meta.is_dir(),
+                    "chmod refuses symbolic links and special filesystem nodes"
+                );
+                file.set_permissions(std::fs::Permissions::from_mode(mode))
+                    .with_context(|| format!("fchmod local target {path}"))?;
+                Ok(())
+            })
+            .await
+            .context("join no-follow local chmod task")?
+        }
+        #[cfg(all(unix, not(target_os = "linux")))]
         {
             use std::os::unix::fs::PermissionsExt;
-            Self::reject_filesystem_root(path, "chmod")?;
-            // chmod follows symlinks on Unix. Explicitly refuse symbolic
-            // links and non-file/directory nodes rather than silently changing
-            // the target's permissions. This is a preflight check, not an
-            // atomic substitute for descriptor-based no-follow permissions.
-            let meta = tokio::fs::symlink_metadata(path)
-                .await
+            // Legacy non-Linux preflight does not eliminate a path race.
+            let meta = tokio::fs::symlink_metadata(path).await
                 .with_context(|| format!("lstat chmod target {path}"))?;
-            if !meta.is_file() && !meta.is_dir() {
-                anyhow::bail!("chmod refuses symbolic links and special filesystem nodes");
-            }
-            let perms = std::fs::Permissions::from_mode(mode);
-            tokio::fs::set_permissions(path, perms)
-                .await
+            anyhow::ensure!(
+                meta.is_file() || meta.is_dir(),
+                "chmod refuses symbolic links and special filesystem nodes"
+            );
+            tokio::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).await
                 .with_context(|| format!("chmod {path}"))?;
             Ok(())
         }
         #[cfg(not(unix))]
         {
-            let _ = (path, mode);
+            let _ = mode;
             Err(anyhow!("chmod is not supported on this platform"))
         }
     }
@@ -223,6 +298,41 @@ mod tests {
 
         assert!(LocalFs::reject_filesystem_root("safe.txt", "delete").is_ok());
         assert!(LocalFs::reject_filesystem_root("folder/child", "rename").is_ok());
+    }
+
+    #[tokio::test]
+    async fn rename_never_replaces_an_existing_file() {
+        let fixture = TestDirectory::new();
+        let source = fixture.0.join("source.txt");
+        let occupied = fixture.0.join("existing.txt");
+        let available = fixture.0.join("renamed.txt");
+        std::fs::write(&source, b"source preserved").unwrap();
+        std::fs::write(&occupied, b"target preserved").unwrap();
+
+        assert!(LocalFs.rename(&source.to_string_lossy(), &occupied.to_string_lossy()).await.is_err());
+        assert_eq!(std::fs::read(&source).unwrap(), b"source preserved");
+        assert_eq!(std::fs::read(&occupied).unwrap(), b"target preserved");
+
+        LocalFs.rename(&source.to_string_lossy(), &available.to_string_lossy())
+            .await
+            .expect("free target must be renameable");
+        assert!(!source.exists());
+        assert_eq!(std::fs::read(&available).unwrap(), b"source preserved");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn rename_never_overwrites_a_dangling_symlink() {
+        use std::os::unix::fs::symlink;
+        let fixture = TestDirectory::new();
+        let source = fixture.0.join("source.txt");
+        let link = fixture.0.join("dangling");
+        std::fs::write(&source, b"keep source").unwrap();
+        symlink(fixture.0.join("missing"), &link).unwrap();
+
+        assert!(LocalFs.rename(&source.to_string_lossy(), &link.to_string_lossy()).await.is_err());
+        assert_eq!(std::fs::read(&source).unwrap(), b"keep source");
+        assert!(std::fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
     }
 
     #[tokio::test]
