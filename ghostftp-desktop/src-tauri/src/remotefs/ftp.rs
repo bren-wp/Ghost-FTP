@@ -635,7 +635,11 @@ mod ftp_recursive_delete_safety_tests {
                 ("/root/sub/inside.txt".to_string(), false),
             ]
         );
-        let deletion_order: Vec<&str> = planned.iter().rev().map(|(path, _)| path.as_str()).collect();
+        let deletion_order: Vec<&str> = planned
+            .iter()
+            .rev()
+            .map(|(path, _)| path.as_str())
+            .collect();
         assert_eq!(
             deletion_order,
             vec!["/root/sub/inside.txt", "/root/.env", "/root/sub"]
@@ -648,7 +652,9 @@ mod ftp_recursive_delete_safety_tests {
             vec![file("good.txt"), "malformed server LIST reply".to_string()],
             vec![file("duplicate"), file("duplicate")],
         ] {
-            assert!(collect_recursive_delete_targets("/root", |_| Ok((lines.clone(), true))).is_err());
+            assert!(
+                collect_recursive_delete_targets("/root", |_| Ok((lines.clone(), true))).is_err()
+            );
         }
     }
 
@@ -669,17 +675,16 @@ mod ftp_recursive_delete_safety_tests {
         let lines: Vec<String> = (0..=FTP_RECURSIVE_DELETE_MAX_ENTRIES)
             .map(|i| file(&format!("entry-{i}")))
             .collect();
-        let error = collect_recursive_delete_targets("/root", |_| Ok((lines.clone(), true)))
-            .unwrap_err();
+        let error =
+            collect_recursive_delete_targets("/root", |_| Ok((lines.clone(), true))).unwrap_err();
         assert!(error.to_string().contains("maximum entry count"));
     }
 
     #[test]
     fn unsupported_dotfile_listing_aborts_before_inventory_publication() {
-        let error = collect_recursive_delete_targets("/root", |_| {
-            Ok((vec![file("visible.txt")], false))
-        })
-        .unwrap_err();
+        let error =
+            collect_recursive_delete_targets("/root", |_| Ok((vec![file("visible.txt")], false)))
+                .unwrap_err();
         assert!(error.to_string().contains("hidden entries may be omitted"));
     }
 
