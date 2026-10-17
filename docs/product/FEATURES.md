@@ -35,9 +35,9 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 
 
-> Current development cycle: **0.95.28**; latest verified public release: **0.95.27**. Historical sections remain version-specific.
+> Current development cycle: **0.95.29**; latest verified public release: **0.95.28**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.28 development source. Previous canonical release: **0.95.27**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.29 development source. Previous canonical release: **0.95.28**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
