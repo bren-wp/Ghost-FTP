@@ -1,6 +1,11 @@
-> Ghost FTP **0.95.29** (development cycle), following published **v0.95.28**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.30** (development cycle), following published **v0.95.29**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.30 development candidate — Windows/Linux folder sync safety
+
+Filesystem watcher bursts coalesce into one pending reconcile rather than exhausting memory; ignore/exclude wildcard matching runs without recursive exponential backtracking. Best-effort aged delta-transfer temp cleanup skips symlinked files/directories and special nodes and caps scanning at 100,000 entries/64 levels. This does not establish descriptor-relative, race-free containment when concurrent filesystem changes occur, or manual installed-build acceptance.
+
 
 ## 0.95.29 Windows/Linux safety, connection ordering and responsive transfer UI — development candidate
 
@@ -35,9 +40,9 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 
 
-> Current development cycle: **0.95.29**; latest verified public release: **0.95.28**. Historical sections remain version-specific.
+> Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.29 development source. Previous canonical release: **0.95.28**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.30 development source. Previous canonical release: **0.95.29**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
