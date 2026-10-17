@@ -1,8 +1,8 @@
-> Current shared source cycle: **0.95.33** (preview). Published predecessor: **v0.95.32**. The Android 16-screen reference work below describes the previously published v0.95.23 candidate and is retained as historical implementation context, not a new Android feature claim.
+> Current shared source cycle: **0.95.34** (preview). Published predecessor: **v0.95.33**. The Android 16-screen reference work below describes the previously published v0.95.23 candidate and is retained as historical implementation context, not a new Android feature claim.
 
 > Android 16-screen reference candidate v0.95.23: **preview only**. Real Bookmarks, contextual Settings/Advanced, Add/Edit tabs, native About and stored-profile loading are implemented in source. Pixel-perfect 16/16 acceptance and real-device screenshot comparison are not yet established. Latest published baseline: v0.95.22.
 
-> Ghost FTP **0.95.33** (release cycle), following published **v0.95.32**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.34** (release cycle), following published **v0.95.33**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 
 ### 0.95.23 Android layout parity increment — source only, exact-device acceptance pending
@@ -47,7 +47,7 @@ The Android Cloud storage workspace transfers one object at a time using short-l
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
 - Active source version: **0.95.18**
-- Previous canonical release: **0.95.32**
+- Previous canonical release: **0.95.33**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`

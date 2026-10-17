@@ -1,3 +1,11 @@
+## 0.95.34 — FTP directory inventory limits and safer SSH host verification (development preview) — 18 October 2026
+
+- Bound FTP/FTPS LIST inventories to 100,000 rows, 32 MiB raw response bytes and 16 MiB aggregate filename bytes, refusing oversized server listings before parsing.
+- FTP overwrite/existence decisions strictly validate the **whole** server inventory; later malformed or duplicate rows cannot be silently ignored after an earlier matching filename.
+- Deduplicate SSH host-key prompt IDs, serialize decisions and dismiss only the completed request so double-clicks or slow IPC replies cannot answer the wrong host.
+- Changed SSH host fingerprints now require explicit acknowledgement of verification with the server operator over a trusted channel.
+- Preserve seven real historical Windows application screenshots and the published v0.95.33 predecessor. Manual pixel parity and universal FileZilla superiority are not claimed.
+
 ## 0.95.33 — Windows/Linux protocol security, privacy and transfer UI polish (unreleased preview) — 18 October 2026
 
 - Fail closed on malformed, duplicate, oversized or ambiguous SFTP directory-listing names (100,000 entries / 16 MiB UTF-8 name bytes).

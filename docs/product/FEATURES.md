@@ -1,6 +1,14 @@
-> Ghost FTP **0.95.33** (development cycle), following published **v0.95.32**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.34** (development cycle), following published **v0.95.33**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.34 FTP LIST and SSH host verification safety — development candidate
+
+- Bound FTP/FTPS directory inventories and reject server responses that exceed entry, raw-byte or filename-byte limits.
+- Inspect entire FTP LIST inventories before overwrite/existence decisions so malformed or duplicate rows fail closed.
+- Serialize SSH host-key decisions and require deliberate acknowledgement before trusting changed fingerprints.
+- Native 1:1 screenshot comparison and full FileZilla feature parity are not yet proven.
+
 
 ## v0.95.33 Windows/Linux SFTP safety, privacy and transfer usability — development candidate
 
@@ -59,7 +67,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.33 development source. Previous canonical release: **0.95.32**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.34 development source. Previous canonical release: **0.95.33**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 

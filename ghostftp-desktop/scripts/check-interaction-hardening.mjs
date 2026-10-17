@@ -378,6 +378,12 @@ for (const storeFile of [
   );
 }
 
+requireIncludes(
+  "src/components/HostKeyModal.tsx",
+  ["pendingRequestRef.current", "q.filter((item) => item.requestId !== requestId)", "checked={verifiedMismatch}", "disabled={unsafeDecisionDisabled}", "key={current.requestId}"],
+  "single-flight SSH host verification and explicit changed-key acknowledgement"
+);
+
 for (const componentFile of [
   "src/components/HostKeyModal.tsx",
   "src/components/AgentBridge.tsx",

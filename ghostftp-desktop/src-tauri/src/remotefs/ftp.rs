@@ -135,9 +135,36 @@ fn dos_listing_entry(line: &str) -> Option<(String, FileKind, u64)> {
     Some((name.to_string(), kind, size))
 }
 
+// The FTP library has already materialized the LIST response at this point.
+// Bound the published inventory and parse work even when a server sends a
+// pathological response; the transport-level allocation is a separate limit.
+const MAX_FTP_LIST_ENTRIES: usize = 100_000;
+const MAX_FTP_LIST_RAW_BYTES: usize = 32 * 1024 * 1024;
+const MAX_FTP_LIST_NAME_BYTES: usize = 16 * 1024 * 1024;
+
+fn validate_ftp_listing_budget(listing: &[String]) -> Result<()> {
+    anyhow::ensure!(
+        listing.len() <= MAX_FTP_LIST_ENTRIES,
+        "FTP LIST refused: maximum entry count exceeded"
+    );
+    let mut bytes = 0usize;
+    for line in listing {
+        bytes = bytes
+            .checked_add(line.len())
+            .context("FTP LIST raw byte count overflow")?;
+        anyhow::ensure!(
+            bytes <= MAX_FTP_LIST_RAW_BYTES,
+            "FTP LIST refused: maximum response byte count exceeded"
+        );
+    }
+    Ok(())
+}
+
 fn parse_directory_listing(parent: &str, listing: Vec<String>) -> Result<Vec<DirEntry>> {
+    validate_ftp_listing_budget(&listing)?;
     let mut entries = Vec::with_capacity(listing.len());
     let mut seen_names = std::collections::HashSet::new();
+    let mut name_bytes = 0usize;
     for line in listing {
         if is_ignorable_listing_line(&line) {
             continue;
@@ -145,6 +172,13 @@ fn parse_directory_listing(parent: &str, listing: Vec<String>) -> Result<Vec<Dir
         let entry = entry_from_listing(parent, &line).ok_or_else(|| {
             anyhow::anyhow!("FTP LIST includes an unsupported or ambiguous directory entry")
         })?;
+        name_bytes = name_bytes
+            .checked_add(entry.name.len())
+            .context("FTP LIST filename byte count overflow")?;
+        anyhow::ensure!(
+            name_bytes <= MAX_FTP_LIST_NAME_BYTES,
+            "FTP LIST refused: maximum filename byte count exceeded"
+        );
         anyhow::ensure!(
             seen_names.insert(entry.name.clone()),
             "FTP LIST contains duplicate directory entry names"
@@ -326,21 +360,12 @@ pub async fn path_exists_fail_closed(session: &Arc<FtpSession>, path: &str) -> R
             let (listing, includes_dotfiles) =
                 list_lines_with_dot_visibility(stream, &parent)
                     .with_context(|| format!("FTP existence LIST {parent}"))?;
-            let mut saw_unrecognized = false;
-            for line in listing {
-                if is_ignorable_listing_line(&line) {
-                    continue;
-                }
-                match entry_from_listing(&parent, &line) {
-                    Some(entry) if entry.name == name => return Ok(true),
-                    Some(_) => {}
-                    None => saw_unrecognized = true,
-                }
-            }
-            if saw_unrecognized {
-                anyhow::bail!(
-                    "FTP existence check for {name} is ambiguous because the server returned an unrecognized LIST entry"
-                );
+            // Never short-circuit on the first matching name: later malformed
+            // or duplicate entries make an overwrite/conflict decision unsafe.
+            let entries = parse_directory_listing(&parent, listing)
+                .with_context(|| format!("FTP existence inventory {parent}"))?;
+            if entries.iter().any(|entry| entry.name == name) {
+                return Ok(true);
             }
             if name.starts_with('.') && !includes_dotfiles {
                 anyhow::bail!(
@@ -727,7 +752,8 @@ mod ftp_list_compatibility_tests {
     use super::FileKind;
     use super::{
         dos_listing_entry, entry_from_listing, is_dot_listing, is_ignorable_listing_line,
-        parse_directory_listing,
+        parse_directory_listing, MAX_FTP_LIST_ENTRIES, MAX_FTP_LIST_NAME_BYTES,
+        MAX_FTP_LIST_RAW_BYTES,
     };
 
     #[test]
@@ -811,6 +837,28 @@ mod ftp_list_compatibility_tests {
         assert!(error
             .to_string()
             .contains("duplicate directory entry names"));
+    }
+
+    #[test]
+    fn oversized_ftp_listing_entry_count_fails_before_parsing() {
+        let rows = vec!["04-27-25  09:09AM       42 item".to_string(); MAX_FTP_LIST_ENTRIES + 1];
+        let error = parse_directory_listing("/root", rows).unwrap_err();
+        assert!(error.to_string().contains("maximum entry count"));
+    }
+
+    #[test]
+    fn oversized_ftp_listing_byte_budget_fails_closed() {
+        let rows = vec!["x".repeat(MAX_FTP_LIST_RAW_BYTES + 1)];
+        let error = parse_directory_listing("/root", rows).unwrap_err();
+        assert!(error.to_string().contains("maximum response byte count"));
+    }
+
+    #[test]
+    fn oversized_ftp_filename_budget_fails_closed() {
+        let huge_name = "n".repeat(MAX_FTP_LIST_NAME_BYTES + 1);
+        let rows = vec![format!("04-27-25  09:09AM       42 {huge_name}")];
+        let error = parse_directory_listing("/root", rows).unwrap_err();
+        assert!(error.to_string().contains("maximum filename byte count"));
     }
 
     #[test]
