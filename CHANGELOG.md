@@ -1,3 +1,10 @@
+## 0.95.32 — SFTP recursive deletion safety (unreleased development preview) — 17 October 2026
+
+- Use SFTP LSTAT to unlink directory symlinks without traversing their targets.
+- Inventory SFTP recursive deletions before removing anything, with depth/entry/path-byte limits and type-recheck safety.
+- Add Rust resource-limit regressions and real OpenSSH SFTP symlink-target preservation coverage.
+- Previously published v0.95.31 is immutable; exact-head CI and manual Windows/Linux acceptance still required.
+
 ## 0.95.31 — bounded Windows/Linux local directory inventory (unreleased development preview) — 17 October 2026
 
 - Prevent runaway memory growth and incomplete sync/conflict inventories: fail closed for more than 100,000 local entries or 16 MiB cumulative UTF-8 filename bytes.

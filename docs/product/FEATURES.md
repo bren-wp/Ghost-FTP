@@ -1,6 +1,12 @@
-> Ghost FTP **0.95.31** (development cycle), following published **v0.95.30**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.32** (development cycle), following published **v0.95.31**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.32 Windows/Linux SFTP recursive-delete hardening — development candidate
+
+- SFTP recursive deletion inventories targets before any destructive call and refuses unsafe/duplicate nodes or exceeded entry/depth/path limits.
+- Symlink targets are protected using LSTAT, and node kinds are rechecked before individual deletions.
+- Unit regressions and a real OpenSSH preservation test cover the failure mode. Remote SFTP cannot guarantee atomic multi-file deletion.
 
 ## v0.95.31 Windows/Linux local directory resource limits — development candidate
 
@@ -46,7 +52,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.31 development source. Previous canonical release: **0.95.30**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.32 development source. Previous canonical release: **0.95.31**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
