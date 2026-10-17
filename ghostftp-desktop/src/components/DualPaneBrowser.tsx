@@ -109,16 +109,26 @@ export function DualPaneBrowser() {
 
   const uploadAll = (entries: DirEntry[]) => {
     if (!activeSessionId) return;
-    void enqueueUploads(activeSessionId, entries.map(toTransferItem), remotePath).catch(
-      (error) => toastError(error, "Couldn't queue upload")
-    );
+    try {
+      const items = entries.map(toTransferItem);
+      void enqueueUploads(activeSessionId, items, remotePath).catch(
+        (error) => toastError(error, "Couldn't queue upload")
+      );
+    } catch (error) {
+      toastError(error, "Couldn't queue upload");
+    }
   };
 
   const downloadAll = (entries: DirEntry[]) => {
     if (!activeSessionId) return;
-    void enqueueDownloads(activeSessionId, entries.map(toTransferItem), localPath).catch(
-      (error) => toastError(error, "Couldn't queue download")
-    );
+    try {
+      const items = entries.map(toTransferItem);
+      void enqueueDownloads(activeSessionId, items, localPath).catch(
+        (error) => toastError(error, "Couldn't queue download")
+      );
+    } catch (error) {
+      toastError(error, "Couldn't queue download");
+    }
   };
 
   return (
