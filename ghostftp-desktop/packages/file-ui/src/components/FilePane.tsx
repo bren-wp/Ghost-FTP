@@ -188,6 +188,9 @@ export function FilePane({
   const typeBufRef = useRef("");
   const typeAtRef = useRef(0);
   const qaPropertiesOpened = useRef(false);
+  // Latest listing request owns this pane. A slower result from an earlier
+  // directory, connection or refresh may not replace newer visible files.
+  const listingRequestId = useRef(0);
 
   const history = usePathHistory(path, onPathChange);
 
@@ -207,28 +210,41 @@ export function FilePane({
 
   const load = useCallback(
     async (p: string) => {
+      const requestId = ++listingRequestId.current;
+      // Never keep rows/actions from the previous directory visible while a
+      // different listing is being resolved (or after it fails).
+      setEntries([]);
+      setSelected(new Set());
+      setAnchor(null);
+      setError(null);
       if (!sessionId) {
-        setEntries([]);
+        setLoading(false);
         return;
       }
       setLoading(true);
-      setError(null);
       try {
         const list = await fs.listDirectory(sessionId, p);
+        if (requestId !== listingRequestId.current) return;
         setEntries(list);
-        setSelected(new Set());
-        setAnchor(null);
       } catch (e) {
+        if (requestId !== listingRequestId.current) return;
         setError(errorText(e));
       } finally {
-        setLoading(false);
+        if (requestId === listingRequestId.current) {
+          setLoading(false);
+        }
       }
     },
     [sessionId, fs]
   );
 
   useEffect(() => {
-    load(path);
+    void load(path);
+    // Invalidate an in-flight response on navigation/unmount even if the next
+    // request has not been scheduled yet.
+    return () => {
+      ++listingRequestId.current;
+    };
   }, [sessionId, path, load, reloadToken]);
 
   // Pull capabilities once per session so chmod / mkdir / etc. can be hidden
