@@ -1529,7 +1529,7 @@ impl TransferManager {
         // second one. A Windows agent target spelled `C:\srv\` used to produce
         // `C:\srv\/file` — Win32 tolerates it, but it shows up in every error
         // message and audit line, and the mixed form trips path comparisons.
-        let initial_remote = join_remote(&remote_dir, &file_name);
+        let initial_remote = join_remote(&remote_dir, file_name);
 
         let (final_remote, skip) = remote_resolve(&session, &initial_remote, policy).await?;
 
@@ -2384,7 +2384,7 @@ impl TransferManager {
             .ok_or_else(|| {
                 anyhow::anyhow!("directory upload requires a safe UTF-8 directory name")
             })?;
-        let remote_root = join_remote(&remote_dir, &root_name);
+        let remote_root = join_remote(&remote_dir, root_name);
 
         let fs = fs_for_session(&session);
 
