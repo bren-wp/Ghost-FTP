@@ -1,4 +1,5 @@
 use super::{Capabilities, ChangeSignal, DirEntry, FileKind, RemoteFs};
+use crate::session::ftp::validate_ftp_command_path;
 use crate::session::FtpSession;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -30,19 +31,6 @@ impl FtpFs {
             })
             .await
     }
-}
-
-/// Reject protocol-control bytes before interpolating user/server-provided
-/// paths into FTP commands. Valid Unicode and spaces remain supported, while
-/// CR/LF/NUL/TAB/DEL cannot create ambiguous command lines or log records.
-/// This is a command-framing guard, not a remote sandbox/path authorization.
-fn validate_ftp_command_path(path: &str) -> Result<()> {
-    anyhow::ensure!(!path.trim().is_empty(), "FTP command path must not be empty");
-    anyhow::ensure!(
-        !path.chars().any(|ch| ch.is_ascii_control()),
-        "FTP command path contains a forbidden control character"
-    );
-    Ok(())
 }
 
 /// A 522 from a protected FTPS data channel is a *TLS handshake failure*,
