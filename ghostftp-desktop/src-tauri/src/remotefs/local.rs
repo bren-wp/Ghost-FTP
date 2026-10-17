@@ -62,9 +62,20 @@ impl RemoteFs for LocalFs {
                 .ok()
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_secs() as i64);
+            // Tauri's current DirEntry DTO uses UTF-8 strings. Lossy
+            // conversion would collapse distinct Unix byte filenames into
+            // the same U+FFFD display name and could route file actions to
+            // the wrong object. Fail closed until raw OS paths have an
+            // explicitly lossless UI/IPC representation.
+            let name = entry.file_name().into_string().map_err(|_| {
+                anyhow::anyhow!("local entry has a filename that cannot be represented as UTF-8")
+            })?;
+            let path = entry.path().into_os_string().into_string().map_err(|_| {
+                anyhow::anyhow!("local entry path cannot be represented as UTF-8")
+            })?;
             out.push(DirEntry {
-                name: entry.file_name().to_string_lossy().into_owned(),
-                path: entry.path().to_string_lossy().into_owned(),
+                name,
+                path,
                 kind,
                 size: meta.len(),
                 modified,
@@ -237,6 +248,22 @@ mod tests {
             .unwrap();
         assert!(target.join("keep.txt").is_file());
         assert!(!fixture.0.join("folder-link").exists());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn invalid_utf8_filename_never_becomes_a_lossy_file_action_target() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+
+        let fixture = TestDirectory::new();
+        let opaque_name = OsString::from_vec(vec![b'f', 0xff, b'o']);
+        std::fs::write(fixture.0.join(opaque_name), b"keep original bytes").unwrap();
+
+        // Returning a replacement-character string here would lose filename
+        // identity and permit ambiguous rename/delete from the UI.
+        let result = LocalFs.list_dir(&fixture.0.to_string_lossy()).await;
+        assert!(result.is_err(), "non-UTF8 local paths must not be advertised as editable");
     }
 
     #[cfg(unix)]
