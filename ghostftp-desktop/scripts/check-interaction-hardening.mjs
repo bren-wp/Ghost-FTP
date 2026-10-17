@@ -161,6 +161,55 @@ requireIncludes(
 );
 
 requireIncludes(
+  "src/stores/connectionsStore.ts",
+  [
+    "focusIntentSerial",
+    "profileLoadSerial",
+    "healthCheckSerial",
+    "if (request !== profileLoadSerial) return;",
+    "const shouldFocus = intent === focusIntentSerial;",
+    "if (shouldFocus) syncBridgeActiveSession(sessionId);",
+    "desiredBridgeSession",
+    "bridgeSyncActive",
+  ],
+  "connection focus, profile refresh, health and bridge race guards"
+);
+
+requireIncludes(
+  "src/stores/transfersStore.ts",
+  [
+    "activeCount: number;",
+    "countActiveTransfers(",
+    "Number(isActiveTransfer(state.byId[t.id]))",
+    "activeCount: countActiveTransfers(byId)",
+    "activeCount: countActiveTransfers(next)",
+  ],
+  "stable activity counter on every transfer-state mutation"
+);
+
+for (const pane of [
+  "src/components/FileBrowser.tsx",
+  "src/components/DualPaneBrowser.tsx",
+]) {
+  requireIncludes(pane, ["useTransfers((s) => s.activeCount)"], "stable activity selector");
+  requireExcludes(pane, ["Object.values(s.byId).filter("], "O(n) transfer-progress selector");
+}
+
+requireIncludes(
+  "src-tauri/src/remotefs/local.rs",
+  [
+    "fn rename_local_noreplace(",
+    "libc::RENAME_NOREPLACE",
+    "FileSystem::MoveFileW",
+    "libc::O_NOFOLLOW",
+    "file.set_permissions(",
+    "rename_never_replaces_an_existing_file",
+    "rename_never_overwrites_a_dangling_symlink",
+  ],
+  "atomic local destination preservation and Linux descriptor-only chmod"
+);
+
+requireIncludes(
   "src/stores/syncStore.ts",
   [
     "const pairs = await ipc.folderSyncUpsert(pair);",
