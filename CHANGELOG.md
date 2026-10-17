@@ -1,4 +1,12 @@
-## 0.95.24 — macOS FTP destination safety and first-party desktop metadata (unreleased preview) — 17 October 2026
+## 0.95.25 — Windows/Linux filesystem safety and adaptive menus (unreleased development preview) — 17 October 2026
+
+- Windows/Linux: fail closed on unreadable local directory entries and non-UTF-8 filenames instead of hiding files or creating lossy action targets; add native filesystem regressions for real files and symlinks.
+- Windows/Linux: reject lexically root-equivalent local rename/delete targets; Linux chmod preflight refuses symbolic links, special nodes and root paths (race-free descriptor-level chmod remains outside this patch).
+- Windows/Linux premium UI: reposition and constrain context menus using measured dimensions on window resize; serialize async menu actions to prevent rapid double-dispatch.
+- CI: update Rust formatting and adaptive context-menu contract; preserve immutable published v0.95.24 and advance preview source metadata.
+- Windows/Linux native installer and UI acceptance for this source remain under verification. This is not a production-stable claim.
+
+## 0.95.24 — macOS FTP destination safety and first-party desktop metadata (published baseline) — 17 October 2026
 
 - macOS: prevent unintended overwrite of existing downloaded files; publish private, completed FTP downloads using exclusive atomic creation, and replace regular files only with Save Panel confirmation.
 - macOS: reject symbolic-link and special-file destinations; retain a healthy control session if completed downloads encounter local publication conflicts.

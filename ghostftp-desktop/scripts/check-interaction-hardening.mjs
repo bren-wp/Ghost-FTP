@@ -95,7 +95,7 @@ requireIncludes(
     "const [busyIndex, setBusyIndex] = useState<number | null>(null)",
     "await item.onClick();",
     "toastError(error",
-    "Math.max(8, window.innerWidth - 220)",
+    "menu.getBoundingClientRect()",
     "aria-busy={busyIndex !== null}",
     "Working…",
   ],
@@ -507,6 +507,25 @@ requireIncludes(
     "const count = await exportHistory(path);",
   ],
   "serialized transfer-row, queue and scheduler button contracts"
+);
+
+requireIncludes(
+  "src/components/ContextMenu.tsx",
+  [
+    "const busyRef = useRef(false)",
+    "if (!item.onClick || item.disabled || busyRef.current) return;",
+    "busyRef.current = true;",
+    "busyRef.current = false;",
+    "useLayoutEffect(() => {",
+    "menu.getBoundingClientRect()",
+    'window.addEventListener("resize", positionWithinViewport)',
+    "new ResizeObserver(positionWithinViewport)",
+    'maxHeight: "calc(100vh - 16px)"',
+    'maxWidth: "calc(100vw - 16px)"',
+    "overflow-y-auto",
+    "min-w-0 flex-1 break-words",
+  ],
+  "adaptive context menu bounds and single-flight file actions"
 );
 
 if (failures.length) {
