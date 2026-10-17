@@ -16,11 +16,15 @@ import { toastError } from "@/lib/errors";
 // to several profiles quickly.
 export function HostKeyModal() {
   const [queue, setQueue] = useState<HostPromptEvent[]>([]);
+  const pendingRequestRef = useRef<string | null>(null);
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
 
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    const registration = onHostPrompt((e) => setQueue((q) => [...q, e]));
+    const registration = onHostPrompt((e) =>
+      setQueue((q) => q.some((item) => item.requestId === e.requestId) ? q : [...q, e])
+    );
 
     void registration
       .then((cleanup) => {
@@ -41,25 +45,39 @@ export function HostKeyModal() {
   const current = queue[0];
 
   const respond = async (decision: HostDecision) => {
+    // The ref locks synchronously, preventing double clicks and Escape from
+    // sending contradictory decisions before React has re-rendered.
+    if (pendingRequestRef.current !== null) return;
+    const requestId = current.requestId;
+    pendingRequestRef.current = requestId;
+    setPendingRequestId(requestId);
     try {
-      await ipc.respondToHostPrompt(current.requestId, decision);
-      setQueue((q) => q.slice(1));
+      await ipc.respondToHostPrompt(requestId, decision);
+      // A slow response must never dequeue a different, newer request.
+      setQueue((q) => q.filter((item) => item.requestId !== requestId));
     } catch (error) {
       toastError(error, "Couldn't answer host-key prompt");
+    } finally {
+      pendingRequestRef.current = null;
+      setPendingRequestId(null);
     }
   };
 
-  return <HostKeyDialog event={current} onRespond={respond} />;
+  return <HostKeyDialog key={current.requestId} event={current} pending={pendingRequestId === current.requestId} onRespond={respond} />;
 }
 
 function HostKeyDialog({
   event,
+  pending,
   onRespond,
 }: {
   event: HostPromptEvent;
+  pending: boolean;
   onRespond: (d: HostDecision) => void;
 }) {
   const isMismatch = event.kind === "mismatch";
+  const [verifiedMismatch, setVerifiedMismatch] = useState(false);
+  const unsafeDecisionDisabled = pending || (isMismatch && !verifiedMismatch);
   const panelRef = useRef<HTMLDivElement>(null);
   const rejectRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
@@ -76,6 +94,7 @@ function HostKeyDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-busy={pending}
         className="anim-modal w-[30rem] max-w-[92vw] overflow-hidden rounded-xl border border-border bg-bg-panel shadow-elev-3"
       >
         <div
@@ -103,8 +122,11 @@ function HostKeyDialog({
             </div>
           </div>
           <button
+            type="button"
+            disabled={pending}
             onClick={() => onRespond("reject")}
-            className="rounded-md p-1 text-text-muted hover:bg-bg-hover hover:text-text"
+            aria-label="Reject host key and close"
+            className="rounded-md p-1 text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-50"
             title="Cancel"
           >
             <X size={13} />
@@ -142,28 +164,46 @@ function HostKeyDialog({
               tone="neutral"
             />
           )}
+          {isMismatch && (
+            <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-md border border-danger/30 bg-danger-soft/20 p-2.5 text-xs leading-relaxed">
+              <input
+                type="checkbox"
+                checked={verifiedMismatch}
+                disabled={pending}
+                onChange={(e) => setVerifiedMismatch(e.target.checked)}
+                className="mt-0.5 shrink-0"
+              />
+              I verified the changed server fingerprint with the server operator using a trusted channel.
+            </label>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-border bg-bg-subtle px-4 py-3">
           <button
             ref={rejectRef}
+            type="button"
+            disabled={pending}
             onClick={() => onRespond("reject")}
-            className="rounded-md border border-border bg-bg-panel px-3 py-1.5 text-xs font-medium hover:bg-bg-hover"
+            className="rounded-md border border-border bg-bg-panel px-3 py-1.5 text-xs font-medium hover:bg-bg-hover disabled:opacity-50"
           >
             Reject
           </button>
           <button
+            type="button"
+            disabled={unsafeDecisionDisabled}
             onClick={() => onRespond("accept")}
-            className="rounded-md border border-border bg-bg-panel px-3 py-1.5 text-xs font-medium hover:bg-bg-hover"
+            className="rounded-md border border-border bg-bg-panel px-3 py-1.5 text-xs font-medium hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
             Accept once
           </button>
           <button
+            type="button"
+            disabled={unsafeDecisionDisabled}
             onClick={() => onRespond("trust")}
             className={
               isMismatch
-                ? "rounded-md bg-danger px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
-                : "btn-accent rounded-md px-3 py-1.5 text-xs font-medium text-white"
+                ? "rounded-md bg-danger px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                : "btn-accent rounded-md px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
             }
           >
             Trust &amp; save
