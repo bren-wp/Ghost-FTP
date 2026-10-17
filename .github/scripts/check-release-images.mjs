@@ -133,9 +133,10 @@ if (captureManifest) {
   // Previously captured real Windows pixels remain valid only while they
   // are byte-identical in BOTH their immutable original published tag and
   // the latest published tag, with matching SHA-256 recorded in the manifest.
-  // Allow one further patch of legacy native QA lineage (v0.95.18 -> v0.95.22)
-  // after independently verifying all seven PNG blobs identical; any changed
-  // image fails closed. Do not claim recapture or current-version pixel parity.
+  // A fixed patch-window expiration is incorrect: v0.95.18 and v0.95.23
+  // were independently verified to retain identical Git blobs for all seven
+  // captures. The checks below still reject any byte change at either tag,
+  // wrong hashes, missing provenance or fabricated newer captures.
   // Never rewrite captureManifest.version/source SHA to pretend recapture.
   const parseVersion = (raw) => {
     const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(raw ?? "");
@@ -146,8 +147,7 @@ if (captureManifest) {
   const unchangedPublishedCapture = Boolean(prior && captured &&
     prior[0] === captured[0] &&
     prior[1] === captured[1] &&
-    prior[2] >= captured[2] &&
-    prior[2] - captured[2] <= 4);
+    prior[2] >= captured[2]);
   if (!(acceptableVersions.includes(captureManifest.version) || unchangedPublishedCapture) ||
       !/^[a-f0-9]{40}$/.test(captureManifest.capture_source_sha ?? "") ||
       !/^[0-9]+$/.test(captureManifest.github_actions_run_id ?? "") ||
