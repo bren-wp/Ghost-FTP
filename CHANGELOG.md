@@ -1,3 +1,12 @@
+## 0.95.35 — Windows/Linux transfer safety, crash-resistant backups, cross-pane UI and audit (development preview) — 18 October 2026
+
+- Use link-aware local destination and upload-source checks; refuse symlink/special-node transfers and unsafe Unix backslash basenames rather than silently following or renaming them.
+- Preserve existing staged-download backups and use Windows/Linux atomic no-replace moves for staging, backups and restoration. Never silently overwrite a previously saved backup.
+- Inventory directory uploads fully before creating remote directories; reject special entries, non-UTF-8/unsafe names, excessive nesting, entry counts and metadata size.
+- Validate cross-pane drag/drop payload structure and originating session ID, preventing stale-source transfers when remote connections change.
+- Add Windows/Linux automated regression coverage for occupied backup files, directories, staging links, dangling links, rename collisions and inventory boundaries.
+- Document an evidence-based desktop QA/dead-code audit and explicit FileZilla feature gaps without claiming all 75 screen references are accepted.
+
 ## 0.95.34 — FTP directory inventory limits and safer SSH host verification (development preview) — 18 October 2026
 
 - Bound FTP/FTPS LIST inventories to 100,000 rows, 32 MiB raw response bytes and 16 MiB aggregate filename bytes, refusing oversized server listings before parsing.
