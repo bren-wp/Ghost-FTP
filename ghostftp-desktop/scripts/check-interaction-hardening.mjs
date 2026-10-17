@@ -161,6 +161,20 @@ requireIncludes(
 );
 
 requireIncludes(
+  "packages/file-ui/src/components/FilePane.tsx",
+  [
+    "const listingRequestId = useRef(0);",
+    "const requestId = ++listingRequestId.current;",
+    "if (requestId !== listingRequestId.current) return;",
+    "if (requestId === listingRequestId.current)",
+    "setEntries([]);",
+    "setSelected(new Set());",
+    "++listingRequestId.current;",
+  ],
+  "latest-directory-wins navigation and old-row action invalidation"
+);
+
+requireIncludes(
   "src/stores/connectionsStore.ts",
   [
     "focusIntentSerial",
