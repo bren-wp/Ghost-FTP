@@ -339,7 +339,15 @@ mod recursive_delete_safety_tests {
             budget.record(name).unwrap();
         }
         let before = budget.entries;
-        for name in ["", ".", "..", "dir/file", "dir\\\\file", "bad\\0name", "bad\\nname"] {
+        for name in [
+            "",
+            ".",
+            "..",
+            "dir/file",
+            "dir\\\\file",
+            "bad\\0name",
+            "bad\\nname",
+        ] {
             assert!(budget.record(name).is_err(), "{name:?}");
         }
         assert_eq!(budget.entries, before);
