@@ -11,7 +11,7 @@ Every releasable source version **must use an explicit `preview` or `stable` cha
 1. Start from current `main`.
 2. Make meaningful product/code/documentation changes.
 3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
-4. Keep `previousVersion` pointing to the preceding merged source (currently `0.95.22`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.95.22`). Never call an unpublished merge a canonical release.
+4. Keep `previousVersion` pointing to the preceding merged source (currently `0.95.23`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.95.23`). Never call an unpublished merge a canonical release.
 5. Open a PR.
 6. Require exact-head success for:
    - Ghost FTP quality
@@ -83,8 +83,8 @@ If no updater signatures are present, the stable GitHub release may still publis
 
 ## Current release cycle
 
-- Active source/release cycle: **0.95.23**
-- Previous canonical release: **0.95.22**
+- Active source/release cycle: **0.95.24**
+- Previous canonical release: **0.95.23**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Release integrity
