@@ -1,12 +1,12 @@
-> Ghost FTP **0.95.25** (release cycle), following published **v0.95.24**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.26** (release cycle), following published **v0.95.25**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP Audit Index — 0.93.0
 
-> Current development: **0.95.25** (premium QA and cloud hardening), following published **0.95.24**. Historical sections are retained unchanged.
+> Current development: **0.95.26** (premium QA and cloud hardening), following published **0.95.25**. Historical sections are retained unchanged.
 
-> Current development source: **0.95.25**; latest verified published release: **0.95.24**. Historical findings below retain their original version labels.
+> Current development source: **0.95.26**; latest verified published release: **0.95.25**. Historical findings below retain their original version labels.
 
-This index retains historical 0.93.0 findings. Previous canonical release: **0.95.24**.
+This index retains historical 0.93.0 findings. Previous canonical release: **0.95.25**.
 
 - [Code audit](CODE.md)
 - [Security audit](SECURITY.md)
