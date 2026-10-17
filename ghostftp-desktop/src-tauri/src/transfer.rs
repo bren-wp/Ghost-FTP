@@ -1495,10 +1495,12 @@ impl TransferManager {
         if !metadata.file_type().is_file() {
             anyhow::bail!("upload source is not a regular file: {}", local.display());
         }
-        let file_name = basename(&local_path);
-        if file_name.is_empty() || matches!(file_name.as_str(), "." | "..") {
-            anyhow::bail!("upload path does not identify a file: {}", local.display());
-        }
+        // OS path components preserve Linux filenames that contain a literal
+        // backslash. Such names cannot safely map to a remote path, so reject
+        // them instead of silently uploading under a different basename.
+        let file_name = local.file_name().and_then(|name| name.to_str())
+            .filter(|name| safe_upload_name(name))
+            .ok_or_else(|| anyhow::anyhow!("upload source has an unsafe filename: {}", local.display()))?;
         let size = metadata.len();
 
         // Join with the separator the destination already uses, and don't add a
@@ -4618,6 +4620,42 @@ mod tests {
         assert_eq!(tokio::fs::read(&final_path).await.unwrap(), b"old-safe");
         assert!(!staging.exists());
         let _ = tokio::fs::remove_dir_all(&root).await;
+    }
+
+    #[tokio::test]
+    async fn download_promotion_rejects_existing_directory_and_preserves_contents() {
+        let root = std::env::temp_dir().join(format!("ghostftp-dir-audit-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let final_path = root.join("occupied");
+        tokio::fs::create_dir(&final_path).await.unwrap();
+        tokio::fs::write(final_path.join("important.txt"), b"keep").await.unwrap();
+        let staging = download_staging_path(&final_path, "dir-id");
+        tokio::fs::write(&staging, b"staged").await.unwrap();
+
+        let error = promote_staged_download(&staging, &final_path, "dir-id").await.unwrap_err();
+        assert!(error.to_string().contains("not a regular file"));
+        assert_eq!(tokio::fs::read(final_path.join("important.txt")).await.unwrap(), b"keep");
+        assert_eq!(tokio::fs::read(&staging).await.unwrap(), b"staged");
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn staging_symlink_is_never_promoted_into_download_target() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!("ghostftp-stage-link-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let final_path = root.join("download.txt");
+        let protected = root.join("protected.txt");
+        tokio::fs::write(&protected, b"protected").await.unwrap();
+        let staging = download_staging_path(&final_path, "bad-stage");
+        symlink(&protected, &staging).unwrap();
+
+        let error = promote_staged_download(&staging, &final_path, "bad-stage").await.unwrap_err();
+        assert!(error.to_string().contains("not a regular file"));
+        assert_eq!(tokio::fs::read(&protected).await.unwrap(), b"protected");
+        assert!(!final_path.exists());
+        tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
     #[tokio::test]
