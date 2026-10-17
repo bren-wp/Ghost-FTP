@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { toastError } from "@/lib/errors";
 
@@ -21,9 +21,40 @@ interface Props {
 export function ContextMenu({ x, y, items, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [busyIndex, setBusyIndex] = useState<number | null>(null);
+  // Synchronously lock actions so rapid double-clicks cannot dispatch two
+  // destructive operations before React commits a disabled state.
+  const busyRef = useRef(false);
+  const [position, setPosition] = useState({ left: Math.max(8, x), top: Math.max(8, y) });
   const closeIfIdle = () => {
-    if (busyIndex === null) onClose();
+    if (!busyRef.current) onClose();
   };
+
+  useLayoutEffect(() => {
+    const menu = ref.current;
+    if (!menu) return;
+
+    const positionWithinViewport = () => {
+      // Use measured dimensions, not a guessed row height: long labels,
+      // separators, DPI changes and translated UI all affect the real size.
+      const rect = menu.getBoundingClientRect();
+      const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
+      const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
+      setPosition((current) =>
+        current.left === left && current.top === top ? current : { left, top }
+      );
+    };
+
+    positionWithinViewport();
+    window.addEventListener("resize", positionWithinViewport);
+    const observer = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(positionWithinViewport);
+    observer?.observe(menu);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", positionWithinViewport);
+    };
+  }, [x, y, items.length]);
 
   useEffect(() => {
     const onAnyClick = (e: MouseEvent) => {
@@ -45,7 +76,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
       window.removeEventListener("mousedown", onAnyClick);
       window.removeEventListener("keydown", onKey);
     };
-  }, [busyIndex, onClose]);
+  }, [onClose]);
 
   const onMenuKeyDown = (e: React.KeyboardEvent) => {
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
@@ -69,22 +100,18 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
   };
 
   const runItem = async (item: MenuItem, index: number) => {
-    if (!item.onClick || item.disabled || busyIndex !== null) return;
+    if (!item.onClick || item.disabled || busyRef.current) return;
+    busyRef.current = true;
     setBusyIndex(index);
     try {
       await item.onClick();
       onClose();
     } catch (error) {
       toastError(error, `Couldn't run ${item.label}`);
+      busyRef.current = false;
       setBusyIndex(null);
     }
   };
-
-  // Clamp to viewport and avoid negative coordinates on small windows.
-  const maxX = Math.max(8, window.innerWidth - 220);
-  const maxY = Math.max(8, window.innerHeight - items.length * 28 - 16);
-  const left = Math.max(8, Math.min(x, maxX));
-  const top = Math.max(8, Math.min(y, maxY));
 
   return (
     <div
@@ -93,8 +120,14 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
       aria-label="Context menu"
       aria-busy={busyIndex !== null}
       onKeyDown={onMenuKeyDown}
-      style={{ left, top }}
-      className="anim-modal fixed z-menu min-w-[200px] rounded-lg border border-border bg-bg-panel py-1 shadow-elev-3"
+      style={{
+        left: position.left,
+        top: position.top,
+        minWidth: "min(200px, calc(100vw - 16px))",
+        maxWidth: "calc(100vw - 16px)",
+        maxHeight: "calc(100vh - 16px)",
+      }}
+      className="anim-modal fixed z-menu overflow-x-hidden overflow-y-auto rounded-lg border border-border bg-bg-panel py-1 shadow-elev-3"
     >
       {items.map((item, i) => (
         <div key={i}>
@@ -114,7 +147,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
                 {item.icon}
               </span>
             )}
-            <span className="flex-1">
+            <span className="min-w-0 flex-1 break-words">
               {busyIndex === i ? "Working…" : item.label}
             </span>
           </button>
