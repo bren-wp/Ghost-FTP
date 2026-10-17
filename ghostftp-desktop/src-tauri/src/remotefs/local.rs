@@ -13,18 +13,21 @@ impl LocalFs {
         if path.trim().is_empty() {
             anyhow::bail!("{operation} path must not be empty");
         }
-        // Lexical aliases such as /tmp/.. and C:\\Users\\..\\.. can resolve
-        // to a filesystem root even though Path::parent() is not None.
-        // Do not require the target to exist or follow symlinks here.
-        let mut depth = 0usize;
+        // Parent components are unsafe for destructive operations even
+        // when their lexical depth seems harmless. If an earlier component
+        // is a symlink, "link/.." resolves relative to the link target,
+        // potentially outside the selected tree or even to the root.
+        let mut named_components = 0usize;
         for component in candidate.components() {
             match component {
-                Component::Normal(_) => depth += 1,
-                Component::ParentDir => depth = depth.saturating_sub(1),
+                Component::Normal(_) => named_components += 1,
+                Component::ParentDir => {
+                    anyhow::bail!("{operation} refuses parent traversal in a local path");
+                }
                 _ => {}
             }
         }
-        if depth == 0 {
+        if named_components == 0 {
             anyhow::bail!("{operation} refuses a local filesystem root or empty target");
         }
         Ok(())
@@ -194,6 +197,10 @@ mod tests {
 
         #[cfg(windows)]
         for path in [r"C:\\", r"C:\\Windows\\..", r"C:\\Windows\\System32\\..\\.."] {
+            assert!(LocalFs::reject_filesystem_root(path, "rename").is_err(), "{path:?}");
+        }
+
+        for path in ["link/../file.txt", "folder/../other", "../file.txt"] {
             assert!(LocalFs::reject_filesystem_root(path, "rename").is_err(), "{path:?}");
         }
 
