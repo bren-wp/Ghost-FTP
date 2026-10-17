@@ -216,7 +216,18 @@ final class FTPConnectionController: ObservableObject {
                 history.fail(transferID)
                 activeTransferID = nil
                 transferState = .failed(error.localizedDescription)
-                state = .failed(error.localizedDescription)
+                // The completed remote transfer can fail to publish locally
+                // without invalidating the authenticated FTP connection.
+                if let ftpError = error as? FTPControlError {
+                    switch ftpError {
+                    case .destinationAlreadyExists, .unsafeLocalDestination:
+                        break
+                    default:
+                        state = .failed(error.localizedDescription)
+                    }
+                } else {
+                    state = .failed(error.localizedDescription)
+                }
             }
         }
     }
