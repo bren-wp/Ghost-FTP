@@ -321,7 +321,9 @@ impl FolderSync {
                 .filter(|segment| !segment.is_empty())
                 .collect();
             if segments.is_empty()
-                || segments.iter().any(|segment| matches!(*segment, "." | ".."))
+                || segments
+                    .iter()
+                    .any(|segment| matches!(*segment, "." | ".."))
             {
                 anyhow::bail!("mirror sync refuses remote root aliases or traversal");
             }
@@ -1046,7 +1048,14 @@ mod tests {
         candidate.profile_id = "test-profile".into();
         assert!(FolderSync::validate_pair(&candidate).is_ok());
 
-        for remote in ["/", "//", "/safe/..", "/safe/./files", "safe\\..\\", "../escape"] {
+        for remote in [
+            "/",
+            "//",
+            "/safe/..",
+            "/safe/./files",
+            "safe\\..\\",
+            "../escape",
+        ] {
             candidate.remote_root = remote.into();
             assert!(
                 FolderSync::validate_pair(&candidate).is_err(),
