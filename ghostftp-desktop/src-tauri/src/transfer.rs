@@ -388,7 +388,9 @@ fn local_path_exists_sync_fail_closed(path: &Path) -> Result<bool> {
     match std::fs::symlink_metadata(path) {
         Ok(_) => Ok(true),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(error) => Err(error).with_context(|| format!("lstat local rename target {}", path.display())),
+        Err(error) => {
+            Err(error).with_context(|| format!("lstat local rename target {}", path.display()))
+        }
     }
 }
 
@@ -400,7 +402,9 @@ async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
     let to = to.to_path_buf();
     tokio::task::spawn_blocking(move || {
         let src = from.to_str().context("download path is not valid UTF-8")?;
-        let dest = to.to_str().context("download destination is not valid UTF-8")?;
+        let dest = to
+            .to_str()
+            .context("download destination is not valid UTF-8")?;
         crate::remotefs::local::rename_local_noreplace(src, dest)
     })
     .await
@@ -411,7 +415,8 @@ async fn promote_staged_download(staging: &Path, final_path: &Path, id: &str) ->
     let backup = download_backup_path(final_path, id);
     let mut backup_created = false;
 
-    let staging_meta = tokio::fs::symlink_metadata(staging).await
+    let staging_meta = tokio::fs::symlink_metadata(staging)
+        .await
         .with_context(|| format!("lstat completed download staging {}", staging.display()))?;
     anyhow::ensure!(
         staging_meta.file_type().is_file(),
@@ -419,7 +424,8 @@ async fn promote_staged_download(staging: &Path, final_path: &Path, id: &str) ->
     );
 
     if local_path_exists_fail_closed(final_path).await? {
-        let target_meta = tokio::fs::symlink_metadata(final_path).await
+        let target_meta = tokio::fs::symlink_metadata(final_path)
+            .await
             .with_context(|| format!("lstat download target {}", final_path.display()))?;
         anyhow::ensure!(
             target_meta.file_type().is_file(),
@@ -475,15 +481,27 @@ const MAX_DIRECTORY_UPLOAD_DEPTH: usize = 64;
 const MAX_DIRECTORY_UPLOAD_PATH_BYTES: usize = 16 * 1024 * 1024;
 
 fn validate_directory_upload_budget(entries: usize, depth: usize, bytes: usize) -> Result<()> {
-    anyhow::ensure!(entries <= MAX_DIRECTORY_UPLOAD_ENTRIES, "directory upload entry limit exceeded");
-    anyhow::ensure!(depth <= MAX_DIRECTORY_UPLOAD_DEPTH, "directory upload depth limit exceeded");
-    anyhow::ensure!(bytes <= MAX_DIRECTORY_UPLOAD_PATH_BYTES, "directory upload path byte limit exceeded");
+    anyhow::ensure!(
+        entries <= MAX_DIRECTORY_UPLOAD_ENTRIES,
+        "directory upload entry limit exceeded"
+    );
+    anyhow::ensure!(
+        depth <= MAX_DIRECTORY_UPLOAD_DEPTH,
+        "directory upload depth limit exceeded"
+    );
+    anyhow::ensure!(
+        bytes <= MAX_DIRECTORY_UPLOAD_PATH_BYTES,
+        "directory upload path byte limit exceeded"
+    );
     Ok(())
 }
 
 fn safe_upload_name(name: &str) -> bool {
-    !name.is_empty() && !matches!(name, "." | "..")
-        && !name.chars().any(|ch| matches!(ch, '/' | '\\' | '\0' | '\r' | '\n'))
+    !name.is_empty()
+        && !matches!(name, "." | "..")
+        && !name
+            .chars()
+            .any(|ch| matches!(ch, '/' | '\\' | '\0' | '\r' | '\n'))
 }
 
 pub(crate) fn require_directory_upload_metadata(
@@ -1498,9 +1516,13 @@ impl TransferManager {
         // OS path components preserve Linux filenames that contain a literal
         // backslash. Such names cannot safely map to a remote path, so reject
         // them instead of silently uploading under a different basename.
-        let file_name = local.file_name().and_then(|name| name.to_str())
+        let file_name = local
+            .file_name()
+            .and_then(|name| name.to_str())
             .filter(|name| safe_upload_name(name))
-            .ok_or_else(|| anyhow::anyhow!("upload source has an unsafe filename: {}", local.display()))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!("upload source has an unsafe filename: {}", local.display())
+            })?;
         let size = metadata.len();
 
         // Join with the separator the destination already uses, and don't add a
@@ -2359,7 +2381,9 @@ impl TransferManager {
             .file_name()
             .and_then(|n| n.to_str())
             .filter(|name| safe_upload_name(name))
-            .ok_or_else(|| anyhow::anyhow!("directory upload requires a safe UTF-8 directory name"))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!("directory upload requires a safe UTF-8 directory name")
+            })?;
         let remote_root = join_remote(&remote_dir, &root_name);
 
         let fs = fs_for_session(&session);
@@ -2382,16 +2406,23 @@ impl TransferManager {
                 let name = entry.file_name().into_string().map_err(|_| {
                     anyhow::anyhow!("directory upload refuses filename not representable as UTF-8")
                 })?;
-                anyhow::ensure!(safe_upload_name(&name), "directory upload refused: unsafe entry name");
-                let relative = p.strip_prefix(&local_root_path)
+                anyhow::ensure!(
+                    safe_upload_name(&name),
+                    "directory upload refused: unsafe entry name"
+                );
+                let relative = p
+                    .strip_prefix(&local_root_path)
                     .context("directory upload entry escaped its selected root")?;
-                let rel = relative.to_str()
+                let rel = relative
+                    .to_str()
                     .context("directory upload refuses non-UTF-8 relative paths")?
                     .replace('\\', "/");
                 let remote_child = format!("{remote_root}/{rel}");
-                entry_count = entry_count.checked_add(1)
+                entry_count = entry_count
+                    .checked_add(1)
                     .context("directory upload entry count overflow")?;
-                total_path_bytes = total_path_bytes.checked_add(remote_child.len())
+                total_path_bytes = total_path_bytes
+                    .checked_add(remote_child.len())
                     .context("directory upload inventory size overflow")?;
                 validate_directory_upload_budget(entry_count, depth, total_path_bytes)?;
                 if meta.file_type().is_dir() {
@@ -2401,7 +2432,10 @@ impl TransferManager {
                 } else if meta.file_type().is_file() {
                     files.push((p, remote_child));
                 } else {
-                    anyhow::bail!("directory upload refused: symbolic link or special entry {}", p.display());
+                    anyhow::bail!(
+                        "directory upload refused: symbolic link or special entry {}",
+                        p.display()
+                    );
                 }
             }
         }
@@ -4628,13 +4662,22 @@ mod tests {
         tokio::fs::create_dir_all(&root).await.unwrap();
         let final_path = root.join("occupied");
         tokio::fs::create_dir(&final_path).await.unwrap();
-        tokio::fs::write(final_path.join("important.txt"), b"keep").await.unwrap();
+        tokio::fs::write(final_path.join("important.txt"), b"keep")
+            .await
+            .unwrap();
         let staging = download_staging_path(&final_path, "dir-id");
         tokio::fs::write(&staging, b"staged").await.unwrap();
 
-        let error = promote_staged_download(&staging, &final_path, "dir-id").await.unwrap_err();
+        let error = promote_staged_download(&staging, &final_path, "dir-id")
+            .await
+            .unwrap_err();
         assert!(error.to_string().contains("not a regular file"));
-        assert_eq!(tokio::fs::read(final_path.join("important.txt")).await.unwrap(), b"keep");
+        assert_eq!(
+            tokio::fs::read(final_path.join("important.txt"))
+                .await
+                .unwrap(),
+            b"keep"
+        );
         assert_eq!(tokio::fs::read(&staging).await.unwrap(), b"staged");
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
@@ -4651,7 +4694,9 @@ mod tests {
         let staging = download_staging_path(&final_path, "bad-stage");
         symlink(&protected, &staging).unwrap();
 
-        let error = promote_staged_download(&staging, &final_path, "bad-stage").await.unwrap_err();
+        let error = promote_staged_download(&staging, &final_path, "bad-stage")
+            .await
+            .unwrap_err();
         assert!(error.to_string().contains("not a regular file"));
         assert_eq!(tokio::fs::read(&protected).await.unwrap(), b"protected");
         assert!(!final_path.exists());
@@ -4671,7 +4716,6 @@ mod tests {
         );
     }
 
-
     #[tokio::test]
     async fn download_promotion_preserves_existing_backup_instead_of_deleting_it() {
         let root = std::env::temp_dir().join(format!("ghostftp-backup-audit-{}", Uuid::new_v4()));
@@ -4681,9 +4725,13 @@ mod tests {
         let backup = download_backup_path(&final_path, "same-id");
         tokio::fs::write(&final_path, b"original").await.unwrap();
         tokio::fs::write(&staging, b"replacement").await.unwrap();
-        tokio::fs::write(&backup, b"preserved-backup").await.unwrap();
+        tokio::fs::write(&backup, b"preserved-backup")
+            .await
+            .unwrap();
 
-        let error = promote_staged_download(&staging, &final_path, "same-id").await.unwrap_err();
+        let error = promote_staged_download(&staging, &final_path, "same-id")
+            .await
+            .unwrap_err();
         assert!(format!("{error:#}").contains("without overwriting a backup"));
         assert_eq!(tokio::fs::read(&final_path).await.unwrap(), b"original");
         assert_eq!(tokio::fs::read(&backup).await.unwrap(), b"preserved-backup");
@@ -4705,9 +4753,15 @@ mod tests {
 
         assert!(local_path_exists_fail_closed(&final_path).await.unwrap());
         assert_ne!(resolve_local_rename(&final_path).unwrap(), final_path);
-        let error = promote_staged_download(&staging, &final_path, "link-id").await.unwrap_err();
+        let error = promote_staged_download(&staging, &final_path, "link-id")
+            .await
+            .unwrap_err();
         assert!(error.to_string().contains("not a regular file"));
-        assert!(tokio::fs::symlink_metadata(&final_path).await.unwrap().file_type().is_symlink());
+        assert!(tokio::fs::symlink_metadata(&final_path)
+            .await
+            .unwrap()
+            .file_type()
+            .is_symlink());
         assert!(!missing.exists());
         assert_eq!(tokio::fs::read(&staging).await.unwrap(), b"new");
         tokio::fs::remove_dir_all(root).await.unwrap();
@@ -4722,7 +4776,10 @@ mod tests {
         let base = root.join("file.txt");
         std::fs::write(&base, b"existing").unwrap();
         symlink(root.join("missing"), root.join("file_1.txt")).unwrap();
-        assert_eq!(resolve_local_rename(&base).unwrap(), root.join("file_2.txt"));
+        assert_eq!(
+            resolve_local_rename(&base).unwrap(),
+            root.join("file_2.txt")
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -4732,7 +4789,15 @@ mod tests {
         assert!(validate_directory_upload_budget(100_001, 0, 0).is_err());
         assert!(validate_directory_upload_budget(1, 65, 0).is_err());
         assert!(validate_directory_upload_budget(1, 0, 16 * 1024 * 1024 + 1).is_err());
-        for bad in ["", ".", "..", "bad\\name", "bad/name", "bad\rname", "bad\nname"] {
+        for bad in [
+            "",
+            ".",
+            "..",
+            "bad\\name",
+            "bad/name",
+            "bad\rname",
+            "bad\nname",
+        ] {
             assert!(!safe_upload_name(bad), "accepted invalid name: {bad:?}");
         }
         assert!(safe_upload_name("račun 2026.txt"));
