@@ -177,7 +177,11 @@ final class FTPConnectionController: ObservableObject {
         }
     }
 
-    func downloadFile(_ entry: FTPDirectoryEntry, to localURL: URL) {
+    func downloadFile(
+        _ entry: FTPDirectoryEntry,
+        to localURL: URL,
+        allowReplacingExisting: Bool = false
+    ) {
         guard isConnected, !isTransferring, !entry.isDirectory else { return }
 
         transferState = .downloading(entry.name)
@@ -195,7 +199,11 @@ final class FTPConnectionController: ObservableObject {
             }
 
             do {
-                try await session.downloadFile(remoteName: entry.name, to: localURL)
+                try await session.downloadFile(
+                    remoteName: entry.name,
+                    to: localURL,
+                    allowReplacingExisting: allowReplacingExisting
+                )
                 guard !Task.isCancelled else { return }
                 history.complete(transferID)
                 activeTransferID = nil
