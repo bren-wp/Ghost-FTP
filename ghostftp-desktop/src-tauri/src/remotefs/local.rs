@@ -73,9 +73,10 @@ impl RemoteFs for LocalFs {
             let name = entry.file_name().into_string().map_err(|_| {
                 anyhow::anyhow!("local entry has a filename that cannot be represented as UTF-8")
             })?;
-            let path = entry.path().into_os_string().into_string().map_err(|_| {
-                anyhow::anyhow!("local entry path cannot be represented as UTF-8")
-            })?;
+            let path =
+                entry.path().into_os_string().into_string().map_err(|_| {
+                    anyhow::anyhow!("local entry path cannot be represented as UTF-8")
+                })?;
             out.push(DirEntry {
                 name,
                 path,
@@ -171,8 +172,8 @@ mod tests {
 
     impl TestDirectory {
         fn new() -> Self {
-            let path = std::env::temp_dir()
-                .join(format!("ghostftp-localfs-{}", uuid::Uuid::new_v4()));
+            let path =
+                std::env::temp_dir().join(format!("ghostftp-localfs-{}", uuid::Uuid::new_v4()));
             std::fs::create_dir(&path).expect("create isolated localfs fixture");
             Self(path)
         }
@@ -187,21 +188,37 @@ mod tests {
     #[test]
     fn destructive_actions_refuse_filesystem_roots_and_dot_aliases() {
         for path in ["", ".", "..", "folder/.."] {
-            assert!(LocalFs::reject_filesystem_root(path, "delete").is_err(), "{path:?}");
+            assert!(
+                LocalFs::reject_filesystem_root(path, "delete").is_err(),
+                "{path:?}"
+            );
         }
 
         #[cfg(unix)]
         for path in ["/", "//", "/tmp/..", "/tmp/../.", "/../../"] {
-            assert!(LocalFs::reject_filesystem_root(path, "delete").is_err(), "{path:?}");
+            assert!(
+                LocalFs::reject_filesystem_root(path, "delete").is_err(),
+                "{path:?}"
+            );
         }
 
         #[cfg(windows)]
-        for path in [r"C:\\", r"C:\\Windows\\..", r"C:\\Windows\\System32\\..\\.."] {
-            assert!(LocalFs::reject_filesystem_root(path, "rename").is_err(), "{path:?}");
+        for path in [
+            r"C:\\",
+            r"C:\\Windows\\..",
+            r"C:\\Windows\\System32\\..\\..",
+        ] {
+            assert!(
+                LocalFs::reject_filesystem_root(path, "rename").is_err(),
+                "{path:?}"
+            );
         }
 
         for path in ["link/../file.txt", "folder/../other", "../file.txt"] {
-            assert!(LocalFs::reject_filesystem_root(path, "rename").is_err(), "{path:?}");
+            assert!(
+                LocalFs::reject_filesystem_root(path, "rename").is_err(),
+                "{path:?}"
+            );
         }
 
         assert!(LocalFs::reject_filesystem_root("safe.txt", "delete").is_ok());
@@ -214,14 +231,25 @@ mod tests {
         std::fs::write(fixture.0.join("notes.txt"), b"hello").unwrap();
         std::fs::create_dir(fixture.0.join("assets")).unwrap();
 
-        let entries = LocalFs.list_dir(&fixture.0.to_string_lossy()).await.unwrap();
+        let entries = LocalFs
+            .list_dir(&fixture.0.to_string_lossy())
+            .await
+            .unwrap();
         assert_eq!(entries.len(), 2);
         assert_eq!(
-            entries.iter().find(|entry| entry.name == "notes.txt").unwrap().kind,
+            entries
+                .iter()
+                .find(|entry| entry.name == "notes.txt")
+                .unwrap()
+                .kind,
             FileKind::File
         );
         assert_eq!(
-            entries.iter().find(|entry| entry.name == "assets").unwrap().kind,
+            entries
+                .iter()
+                .find(|entry| entry.name == "assets")
+                .unwrap()
+                .kind,
             FileKind::Directory
         );
     }
@@ -236,21 +264,41 @@ mod tests {
         std::fs::create_dir(&target).unwrap();
         std::fs::write(target.join("keep.txt"), b"not deleted").unwrap();
         symlink(&target, fixture.0.join("folder-link")).unwrap();
-        symlink(fixture.0.join("missing-target"), fixture.0.join("broken-link")).unwrap();
+        symlink(
+            fixture.0.join("missing-target"),
+            fixture.0.join("broken-link"),
+        )
+        .unwrap();
 
-        let entries = LocalFs.list_dir(&fixture.0.to_string_lossy()).await.unwrap();
-        assert_eq!(entries.len(), 3, "dangling entries must never silently disappear");
+        let entries = LocalFs
+            .list_dir(&fixture.0.to_string_lossy())
+            .await
+            .unwrap();
+        assert_eq!(
+            entries.len(),
+            3,
+            "dangling entries must never silently disappear"
+        );
         for name in ["folder-link", "broken-link"] {
             let entry = entries.iter().find(|entry| entry.name == name).unwrap();
-            assert_eq!(entry.kind, FileKind::Symlink, "{name} must not become a directory");
+            assert_eq!(
+                entry.kind,
+                FileKind::Symlink,
+                "{name} must not become a directory"
+            );
         }
         assert_eq!(
-            entries.iter().find(|entry| entry.name == "real-folder").unwrap().kind,
+            entries
+                .iter()
+                .find(|entry| entry.name == "real-folder")
+                .unwrap()
+                .kind,
             FileKind::Directory
         );
 
         // Deleting a symlink (even with recursive=true) must only unlink it.
-        LocalFs.delete(&fixture.0.join("folder-link").to_string_lossy(), true)
+        LocalFs
+            .delete(&fixture.0.join("folder-link").to_string_lossy(), true)
             .await
             .unwrap();
         assert!(target.join("keep.txt").is_file());
@@ -270,7 +318,10 @@ mod tests {
         // Returning a replacement-character string here would lose filename
         // identity and permit ambiguous rename/delete from the UI.
         let result = LocalFs.list_dir(&fixture.0.to_string_lossy()).await;
-        assert!(result.is_err(), "non-UTF8 local paths must not be advertised as editable");
+        assert!(
+            result.is_err(),
+            "non-UTF8 local paths must not be advertised as editable"
+        );
     }
 
     #[cfg(unix)]
@@ -291,6 +342,9 @@ mod tests {
             0o600
         );
         assert!(LocalFs.chmod("/", 0o777).await.is_err());
-        assert!(LocalFs.chmod(&target.to_string_lossy(), 0o640).await.is_ok());
+        assert!(LocalFs
+            .chmod(&target.to_string_lossy(), 0o640)
+            .await
+            .is_ok());
     }
 }

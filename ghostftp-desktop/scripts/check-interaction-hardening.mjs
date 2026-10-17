@@ -95,7 +95,7 @@ requireIncludes(
     "const [busyIndex, setBusyIndex] = useState<number | null>(null)",
     "await item.onClick();",
     "toastError(error",
-    "Math.max(8, window.innerWidth - 220)",
+    "menu.getBoundingClientRect()",
     "aria-busy={busyIndex !== null}",
     "Working…",
   ],
