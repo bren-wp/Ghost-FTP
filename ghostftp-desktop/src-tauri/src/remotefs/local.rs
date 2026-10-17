@@ -39,12 +39,16 @@ impl LocalFs {
 fn rename_local_noreplace(from: &str, to: &str) -> anyhow::Result<()> {
     #[cfg(target_os = "linux")]
     {
-        let source = std::ffi::CString::new(from.as_bytes()).context("rename source contains NUL")?;
-        let destination = std::ffi::CString::new(to.as_bytes()).context("rename target contains NUL")?;
+        let source =
+            std::ffi::CString::new(from.as_bytes()).context("rename source contains NUL")?;
+        let destination =
+            std::ffi::CString::new(to.as_bytes()).context("rename target contains NUL")?;
         let status = unsafe {
             libc::renameat2(
-                libc::AT_FDCWD, source.as_ptr(),
-                libc::AT_FDCWD, destination.as_ptr(),
+                libc::AT_FDCWD,
+                source.as_ptr(),
+                libc::AT_FDCWD,
+                destination.as_ptr(),
                 libc::RENAME_NOREPLACE,
             )
         };
@@ -59,12 +63,17 @@ fn rename_local_noreplace(from: &str, to: &str) -> anyhow::Result<()> {
     {
         use std::os::windows::ffi::OsStrExt;
         let source: Vec<u16> = std::ffi::OsStr::new(from)
-            .encode_wide().chain(std::iter::once(0)).collect();
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
         let destination: Vec<u16> = std::ffi::OsStr::new(to)
-            .encode_wide().chain(std::iter::once(0)).collect();
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
         let ok = unsafe {
             windows_sys::Win32::Storage::FileSystem::MoveFileW(
-                source.as_ptr(), destination.as_ptr(),
+                source.as_ptr(),
+                destination.as_ptr(),
             )
         };
         if ok == 0 {
@@ -192,7 +201,8 @@ impl RemoteFs for LocalFs {
                     .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC)
                     .open(&path)
                     .with_context(|| format!("open no-follow chmod target {path}"))?;
-                let meta = file.metadata()
+                let meta = file
+                    .metadata()
                     .with_context(|| format!("fstat chmod target {path}"))?;
                 anyhow::ensure!(
                     meta.is_file() || meta.is_dir(),
@@ -209,13 +219,15 @@ impl RemoteFs for LocalFs {
         {
             use std::os::unix::fs::PermissionsExt;
             // Legacy non-Linux preflight does not eliminate a path race.
-            let meta = tokio::fs::symlink_metadata(path).await
+            let meta = tokio::fs::symlink_metadata(path)
+                .await
                 .with_context(|| format!("lstat chmod target {path}"))?;
             anyhow::ensure!(
                 meta.is_file() || meta.is_dir(),
                 "chmod refuses symbolic links and special filesystem nodes"
             );
-            tokio::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).await
+            tokio::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
+                .await
                 .with_context(|| format!("chmod {path}"))?;
             Ok(())
         }
@@ -309,11 +321,15 @@ mod tests {
         std::fs::write(&source, b"source preserved").unwrap();
         std::fs::write(&occupied, b"target preserved").unwrap();
 
-        assert!(LocalFs.rename(&source.to_string_lossy(), &occupied.to_string_lossy()).await.is_err());
+        assert!(LocalFs
+            .rename(&source.to_string_lossy(), &occupied.to_string_lossy())
+            .await
+            .is_err());
         assert_eq!(std::fs::read(&source).unwrap(), b"source preserved");
         assert_eq!(std::fs::read(&occupied).unwrap(), b"target preserved");
 
-        LocalFs.rename(&source.to_string_lossy(), &available.to_string_lossy())
+        LocalFs
+            .rename(&source.to_string_lossy(), &available.to_string_lossy())
             .await
             .expect("free target must be renameable");
         assert!(!source.exists());
@@ -330,9 +346,15 @@ mod tests {
         std::fs::write(&source, b"keep source").unwrap();
         symlink(fixture.0.join("missing"), &link).unwrap();
 
-        assert!(LocalFs.rename(&source.to_string_lossy(), &link.to_string_lossy()).await.is_err());
+        assert!(LocalFs
+            .rename(&source.to_string_lossy(), &link.to_string_lossy())
+            .await
+            .is_err());
         assert_eq!(std::fs::read(&source).unwrap(), b"keep source");
-        assert!(std::fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+        assert!(std::fs::symlink_metadata(&link)
+            .unwrap()
+            .file_type()
+            .is_symlink());
     }
 
     #[tokio::test]
