@@ -143,10 +143,6 @@ impl RemoteFs for SftpFs {
         while let Some((directory, depth)) = pending.pop() {
             let entries = sftp.read_dir(&directory).await
                 .with_context(|| format!("sftp list {directory}"))?;
-            anyhow::ensure!(
-                entries.len() <= MAX_SFTP_DELETE_ENTRIES - budget.entries,
-                "SFTP recursive delete entry limit exceeded"
-            );
             for entry in entries {
                 let name = entry.file_name();
                 if matches!(name.as_str(), "." | "..") { continue; }
