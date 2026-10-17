@@ -147,9 +147,11 @@ async function runBatch(
         toast.warning("Duplicate transfer name", `Skipped another item named ${name} to avoid overwriting a file from the same batch.`);
         continue;
       }
-      reservedNames.add(name);
       try {
         await start(item, defaultPolicy);
+        // Reserve only after the backend accepts this enqueue. If it fails,
+        // the user can still queue a later source with the same basename.
+        reservedNames.add(name);
       } catch (error) {
         toastError(error, `Couldn't queue ${name}`);
       }
