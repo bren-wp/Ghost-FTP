@@ -468,42 +468,75 @@ fn require_complete_listing_for_recursive_delete(includes_dotfiles: bool) -> Res
     Ok(())
 }
 
-/// Walk an FTP tree breadth-first and delete leaves then parents.
+// Defensive inventory limits apply before the first DELE/RMD. A buggy or
+// adversarial server can return an unbounded directory chain or duplicate
+// entries; neither condition must make the desktop hang or exhaust memory.
+const FTP_RECURSIVE_DELETE_MAX_ENTRIES: usize = 25_000;
+const FTP_RECURSIVE_DELETE_MAX_DEPTH: usize = 64;
+const FTP_RECURSIVE_DELETE_MAX_PATH_BYTES: usize = 8 * 1024 * 1024;
+
+/// Inventory every child before issuing a destructive command. Reuse the
+/// strict LIST parser, reject duplicate paths, and bound traversal resources.
+/// The callback makes the safety gate independently testable without an FTP
+/// daemon; the live adapter supplies protected FTP/FTPS LIST responses.
+fn collect_recursive_delete_targets(
+    root: &str,
+    mut list_directory: impl FnMut(&str) -> Result<(Vec<String>, bool)>,
+) -> Result<Vec<(String, bool)>> {
+    let mut stack = vec![(root.to_string(), 0usize)];
+    let mut visited = std::collections::HashSet::new();
+    visited.insert(root.to_string());
+    let mut out = Vec::new();
+    let mut total_path_bytes = root.len();
+
+    while let Some((directory, depth)) = stack.pop() {
+        let (listing, includes_dotfiles) = list_directory(&directory)
+            .with_context(|| format!("FTP recursive LIST {directory}"))?;
+        require_complete_listing_for_recursive_delete(includes_dotfiles)?;
+        anyhow::ensure!(
+            listing.len() <= FTP_RECURSIVE_DELETE_MAX_ENTRIES - out.len(),
+            "FTP recursive delete refused: maximum entry count exceeded"
+        );
+        for entry in parse_directory_listing(&directory, listing)? {
+            anyhow::ensure!(
+                out.len() < FTP_RECURSIVE_DELETE_MAX_ENTRIES,
+                "FTP recursive delete refused: maximum entry count exceeded"
+            );
+            anyhow::ensure!(
+                visited.insert(entry.path.clone()),
+                "FTP recursive delete refused: duplicate directory entry path"
+            );
+            total_path_bytes = total_path_bytes
+                .checked_add(entry.path.len())
+                .context("FTP recursive delete path size overflow")?;
+            anyhow::ensure!(
+                total_path_bytes <= FTP_RECURSIVE_DELETE_MAX_PATH_BYTES,
+                "FTP recursive delete refused: path inventory byte limit exceeded"
+            );
+            let is_directory = entry.kind == FileKind::Directory;
+            if is_directory {
+                anyhow::ensure!(
+                    depth < FTP_RECURSIVE_DELETE_MAX_DEPTH,
+                    "FTP recursive delete refused: maximum directory depth exceeded"
+                );
+                stack.push((entry.path.clone(), depth + 1));
+            }
+            out.push((entry.path, is_directory));
+        }
+    }
+    Ok(out)
+}
+
+/// Walk the tree without deleting any part of it until the complete bounded
+/// inventory succeeds. Existing reverse-order removal is preserved.
 async fn delete_recursive(session: Arc<FtpSession>, root: String) -> Result<()> {
-    // Collect a list of (full_path, is_dir) entries, deepest-last.
-    let to_delete: Vec<(String, bool)> = session
+    let to_delete = session
         .with_stream({
             let root = root.clone();
             move |stream| {
-                let mut stack = vec![root.clone()];
-                let mut out = Vec::new();
-                while let Some(d) = stack.pop() {
-                    // Never begin a destructive pass on an incomplete inventory.
-                    // If LIST -a is rejected, a successful bare LIST may omit
-                    // hidden files, making it unsafe to delete only visible ones.
-                    let (listing, includes_dotfiles) =
-                        list_lines_with_dot_visibility(stream, &d)
-                            .with_context(|| format!("FTP recursive LIST {d}"))?;
-                    require_complete_listing_for_recursive_delete(includes_dotfiles)?;
-                    for line in listing {
-                        if is_ignorable_listing_line(&line) {
-                            continue;
-                        }
-                        let entry = entry_from_listing(&d, &line).ok_or_else(|| {
-                            anyhow::anyhow!(
-                                "FTP recursive delete refused: unrecognized LIST entry in {d}"
-                            )
-                        })?;
-                        match entry.kind {
-                            FileKind::Directory => {
-                                stack.push(entry.path.clone());
-                                out.push((entry.path, true));
-                            }
-                            _ => out.push((entry.path, false)),
-                        }
-                    }
-                }
-                Ok::<_, anyhow::Error>(out)
+                collect_recursive_delete_targets(&root, |directory| {
+                    list_lines_with_dot_visibility(stream, directory)
+                })
             }
         })
         .await?;
@@ -568,7 +601,92 @@ mod ftp_command_path_regressions {
 
 #[cfg(test)]
 mod ftp_recursive_delete_safety_tests {
-    use super::require_complete_listing_for_recursive_delete;
+    use super::{
+        collect_recursive_delete_targets, require_complete_listing_for_recursive_delete,
+        FTP_RECURSIVE_DELETE_MAX_ENTRIES,
+    };
+
+    fn file(name: &str) -> String {
+        format!("04-27-25  09:09AM       42 {name}")
+    }
+
+    fn directory(name: &str) -> String {
+        format!("04-27-25  09:09AM       <DIR> {name}")
+    }
+
+    #[test]
+    fn nested_files_and_hidden_entries_are_planned_bottom_up() {
+        let planned = collect_recursive_delete_targets("/root", |path| {
+            Ok((
+                match path {
+                    "/root" => vec![directory("sub"), file(".env")],
+                    "/root/sub" => vec![file("inside.txt")],
+                    _ => panic!("unexpected FTP traversal: {path}"),
+                },
+                true,
+            ))
+        })
+        .unwrap();
+        assert_eq!(
+            planned,
+            vec![
+                ("/root/sub".to_string(), true),
+                ("/root/.env".to_string(), false),
+                ("/root/sub/inside.txt".to_string(), false),
+            ]
+        );
+        let deletion_order: Vec<&str> = planned
+            .iter()
+            .rev()
+            .map(|(path, _)| path.as_str())
+            .collect();
+        assert_eq!(
+            deletion_order,
+            vec!["/root/sub/inside.txt", "/root/.env", "/root/sub"]
+        );
+    }
+
+    #[test]
+    fn malformed_or_duplicate_server_entries_abort_inventory() {
+        for lines in [
+            vec![file("good.txt"), "malformed server LIST reply".to_string()],
+            vec![file("duplicate"), file("duplicate")],
+        ] {
+            assert!(
+                collect_recursive_delete_targets("/root", |_| Ok((lines.clone(), true))).is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn unbounded_directory_chains_stop_before_any_delete() {
+        let mut calls = 0usize;
+        let error = collect_recursive_delete_targets("/root", |_| {
+            calls += 1;
+            Ok((vec![directory("child")], true))
+        })
+        .unwrap_err();
+        assert!(error.to_string().contains("maximum directory depth"));
+        assert!(calls <= 65, "directory traversal was not bounded");
+    }
+
+    #[test]
+    fn oversized_server_inventories_are_rejected() {
+        let lines: Vec<String> = (0..=FTP_RECURSIVE_DELETE_MAX_ENTRIES)
+            .map(|i| file(&format!("entry-{i}")))
+            .collect();
+        let error =
+            collect_recursive_delete_targets("/root", |_| Ok((lines.clone(), true))).unwrap_err();
+        assert!(error.to_string().contains("maximum entry count"));
+    }
+
+    #[test]
+    fn unsupported_dotfile_listing_aborts_before_inventory_publication() {
+        let error =
+            collect_recursive_delete_targets("/root", |_| Ok((vec![file("visible.txt")], false)))
+                .unwrap_err();
+        assert!(error.to_string().contains("hidden entries may be omitted"));
+    }
 
     #[test]
     fn recursive_delete_requires_hidden_entry_listing_before_deleting_anything() {

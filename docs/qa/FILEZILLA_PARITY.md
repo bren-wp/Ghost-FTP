@@ -175,3 +175,8 @@ The React context menu preserves its visual design while measuring actual menu s
 ## v0.95.26 Windows/Linux FTP command-path validation — development candidate
 
 The Rust FTP backend now validates pathname operands before issuing LIST, existence checks, rename, delete, directory creation, SITE CHMOD, and the low-level SIZE, RETR, STOR and APPE transfer commands. Blank paths and ASCII control bytes (including CR, LF, NUL, TAB and DEL) are rejected without executing the FTP operation; Unicode and ordinary spaces remain accepted. Unit tests exercise both cases. This guards FTP command framing only and does **not** establish server-side sandboxing, real-IIS support, exhaustive FTP protocol parity, or macOS native FTPS/SFTP support. New commit CI and network-interoperability acceptance are required before marking this candidate verified.
+
+
+## v0.95.27 Windows/Linux FTP recursive delete limits — development candidate
+
+Recursive directory deletion now builds a complete bounded inventory *before* issuing destructive FTP commands: maximum 25,000 entries, 64 directory levels, and 8 MiB cumulative entry-path bytes. The inventory fails closed for duplicate paths, malformed or ambiguous LIST entries and hidden-file enumeration failure, preserving the prior reverse-order delete for valid trees. These are resource/safety guards, not undo or transaction support. Representative valid and adversarial listings are covered by Rust unit tests; real Windows IIS/ProFTPD/Pure-FTPd behavior, cancellation on very large trees and native device acceptance remain outstanding. FileZilla feature parity is not claimed.

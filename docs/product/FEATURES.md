@@ -1,6 +1,11 @@
-> Ghost FTP **0.95.26** (development cycle), following published **v0.95.25**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.27** (development cycle), following published **v0.95.26**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## 0.95.27 development candidate — bounded FTP recursive deletion
+
+Windows/Linux FTP and FTPS directory deletion performs a complete preflight inventory before any DELE or RMD. The preflight now rejects duplicate names/paths, an incomplete hidden-file listing, unsupported LIST formats, nesting deeper than 64 directory levels, more than 25,000 entries, or cumulative listed target-path sizes beyond 8 MiB. Successful small-tree deletion retains the previous bottom-up order. These guards reduce server-induced runaway traversal and excessive allocation; they do not make remote recursive delete reversible or guarantee FileZilla parity.
+
 
 ## 0.95.26 development candidate — FTP command-path framing safety
 
@@ -20,9 +25,9 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 
 
-> Current development cycle: **0.95.26**; latest verified public release: **0.95.25**. Historical sections remain version-specific.
+> Current development cycle: **0.95.27**; latest verified public release: **0.95.26**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.26 development source. Previous canonical release: **0.95.25**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.27 development source. Previous canonical release: **0.95.26**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
