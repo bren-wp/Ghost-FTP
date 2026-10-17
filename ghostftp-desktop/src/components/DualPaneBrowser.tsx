@@ -16,13 +16,7 @@ export function DualPaneBrowser() {
   const profile = profiles.find((p) => p.id === activeProfileId) || null;
   const enqueueUploads = useTransfers((s) => s.enqueueUploads);
   const enqueueDownloads = useTransfers((s) => s.enqueueDownloads);
-  const activeCount = useTransfers((s) =>
-    Object.values(s.byId).filter((transfer) =>
-      transfer.status === "transferring" ||
-      transfer.status === "queued" ||
-      transfer.status === "paused"
-    ).length
-  );
+  const activeCount = useTransfers((s) => s.activeCount);
   const [reloadToken, setReloadToken] = useState(0);
   const previousActiveCount = useRef(0);
   const pickerInFlight = useRef(false);

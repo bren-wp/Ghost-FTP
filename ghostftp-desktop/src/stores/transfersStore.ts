@@ -45,6 +45,8 @@ interface TransfersState {
   /** True after the first backend transfer/queue snapshot has completed. */
   initialized: boolean;
   byId: Record<string, Transfer>;
+  /** Stable numeric activity count; progress updates do not rerender file panes. */
+  activeCount: number;
   /** Rolling rates derived from real backend progress byte deltas. */
   rateById: Record<string, TransferRateSample>;
   /** Waiting (queued) transfer ids in FIFO order — position = index + 1. */
@@ -207,6 +209,16 @@ async function runBatch(
   }
 }
 
+function isActiveTransfer(t: Transfer | undefined): boolean {
+  return t?.status === "transferring" ||
+    t?.status === "queued" ||
+    t?.status === "paused";
+}
+
+function countActiveTransfers(transfers: Record<string, Transfer>): number {
+  return Object.values(transfers).filter(isActiveTransfer).length;
+}
+
 function indexBy(transfers: Transfer[]): Record<string, Transfer> {
   return transfers.reduce<Record<string, Transfer>>((acc, t) => {
     acc[t.id] = t;
@@ -282,6 +294,7 @@ function rateFromEvent(
 export const useTransfers = create<TransfersState>((set, get) => ({
   initialized: false,
   byId: {},
+  activeCount: 0,
   rateById: {},
   queue: [],
   pausedAll: false,
@@ -298,6 +311,9 @@ export const useTransfers = create<TransfersState>((set, get) => ({
         // the sample instead of leaving stale speed visible.
         set((state) => ({
           byId: { ...state.byId, [t.id]: t },
+          activeCount: Math.max(0, state.activeCount +
+            Number(isActiveTransfer(t)) -
+            Number(isActiveTransfer(state.byId[t.id]))),
           rateById: {
             ...state.rateById,
             [t.id]: rateFromEvent(kind, t, state.rateById[t.id]),
@@ -357,14 +373,17 @@ export const useTransfers = create<TransfersState>((set, get) => ({
         transferRateBaselines.clear();
       }
 
+      const byId = transferChangedWhileLoading
+        ? { ...initialById, ...state.byId }
+        : initialById;
+
       return {
         initialized: true,
         // A live event observed after snapshot loading began is newer than the
         // snapshot. Preserve it while still importing transfers that existed
         // before listener registration completed.
-        byId: transferChangedWhileLoading
-          ? { ...initialById, ...state.byId }
-          : initialById,
+        byId,
+        activeCount: countActiveTransfers(byId),
         rateById: transferChangedWhileLoading ? state.rateById : {},
         queue: queueChangedWhileLoading ? state.queue : q.waiting,
         pausedAll: queueChangedWhileLoading ? state.pausedAll : q.pausedAll,
@@ -471,7 +490,7 @@ export const useTransfers = create<TransfersState>((set, get) => ({
       for (const id of [...transferRateBaselines.keys()]) {
         if (!next[id]) transferRateBaselines.delete(id);
       }
-      return { byId: next, rateById };
+      return { byId: next, activeCount: countActiveTransfers(next), rateById };
     }),
 
   clearCompleted: () =>
@@ -490,6 +509,6 @@ export const useTransfers = create<TransfersState>((set, get) => ({
       for (const id of [...transferRateBaselines.keys()]) {
         if (!next[id]) transferRateBaselines.delete(id);
       }
-      return { byId: next, rateById };
+      return { byId: next, activeCount: countActiveTransfers(next), rateById };
     }),
 }));

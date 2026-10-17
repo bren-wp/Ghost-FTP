@@ -6,15 +6,42 @@ import type { ConnectionProfile, SessionId } from "@/lib/types";
 import { useTerminals } from "./terminalsStore";
 import { redactSensitiveText } from "@/lib/redact";
 
+// A slow bridge IPC response must not restore a previously selected tab.
+// Serialize and coalesce focus updates so the final native bridge target
+// always matches the most recent user intent, even if an earlier call fails.
+let desiredBridgeSession: SessionId | null = null;
+let bridgeSyncActive = false;
+
 function syncBridgeActiveSession(sessionId: SessionId | null): void {
-  void ipc.bridgeSetActiveSession(sessionId).catch((error) => {
-    console.warn(
-      "Couldn't synchronize Agent Bridge active session",
-      redactSensitiveText(error, 240)
-    );
-  });
+  desiredBridgeSession = sessionId;
+  if (bridgeSyncActive) return;
+  bridgeSyncActive = true;
+  void (async () => {
+    try {
+      let target: SessionId | null;
+      do {
+        target = desiredBridgeSession;
+        try {
+          await ipc.bridgeSetActiveSession(target);
+        } catch (error) {
+          console.warn(
+            "Couldn't synchronize Agent Bridge active session",
+            redactSensitiveText(error, 240)
+          );
+        }
+      } while (target !== desiredBridgeSession);
+    } finally {
+      bridgeSyncActive = false;
+    }
+  })();
 }
 
+// Never let an older completed handshake replace the user's latest selected tab.
+let focusIntentSerial = 0;
+// Older profile reloads cannot overwrite a newer saved-site snapshot.
+let profileLoadSerial = 0;
+// Only the latest request for a live session can update its health indicator.
+const healthCheckSerial = new Map<SessionId, number>();
 const pendingConnections = new Map<string, Promise<void>>();
 
 function trackConnection(
@@ -95,7 +122,9 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
   error: null,
 
   loadProfiles: async () => {
+    const request = ++profileLoadSerial;
     const persisted = await ipc.listProfiles();
+    if (request !== profileLoadSerial) return;
     const state = get();
     const ephemeralIds = new Set(
       state.sessions.filter((session) => session.ephemeral).map((session) => session.profileId)
@@ -142,8 +171,9 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
     await get().loadProfiles();
   },
 
-  connect: (profileId) =>
-    trackConnection(`saved:${profileId}`, set, async () => {
+  connect: (profileId) => {
+    const intent = ++focusIntentSerial;
+    return trackConnection(`saved:${profileId}`, set, async () => {
       // Already connected to this profile? Just focus its tab.
       const existing = get().sessions.find((session) => session.profileId === profileId);
       if (existing) {
@@ -157,14 +187,14 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
         const sessionId = await ipc.connect(profileId);
         // A concurrent caller for the same profile reuses this exact promise,
         // so this is the only path that can append the resulting live session.
+        const shouldFocus = intent === focusIntentSerial;
         set((state) => ({
           sessions: state.sessions.some((session) => session.sessionId === sessionId)
             ? state.sessions
             : [...state.sessions, { sessionId, profileId, health: "unknown" }],
-          activeSessionId: sessionId,
-          activeProfileId: profileId,
+          ...(shouldFocus ? { activeSessionId: sessionId, activeProfileId: profileId } : {}),
         }));
-        syncBridgeActiveSession(sessionId);
+        if (shouldFocus) syncBridgeActiveSession(sessionId);
         void get().checkHealth(sessionId);
         toast.success(
           "Connected",
@@ -185,10 +215,19 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
         );
         throw error;
       }
-    }),
+    }).then(() => {
+      // Repeated requests share a handshake, but the last focus intent wins.
+      if (intent !== focusIntentSerial) return;
+      const session = get().sessions.find((item) => item.profileId === profileId);
+      if (session && get().activeSessionId !== session.sessionId) {
+        get().setActiveSession(session.sessionId);
+      }
+    });
+  },
 
-  connectTemporary: (profile) =>
-    trackConnection(`temporary:${profile.id}`, set, async () => {
+  connectTemporary: (profile) => {
+    const intent = ++focusIntentSerial;
+    return trackConnection(`temporary:${profile.id}`, set, async () => {
       const existing = get().sessions.find(
         (session) => session.profileId === profile.id
       );
@@ -211,6 +250,7 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
               ? { ...profile.auth, passphrase: undefined }
               : profile.auth,
         };
+        const shouldFocus = intent === focusIntentSerial;
         set((state) => ({
           profiles: state.profiles.some((item) => item.id === profile.id)
             ? state.profiles
@@ -221,10 +261,9 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
                 ...state.sessions,
                 { sessionId, profileId: profile.id, ephemeral: true, health: "unknown" },
               ],
-          activeSessionId: sessionId,
-          activeProfileId: profile.id,
+          ...(shouldFocus ? { activeSessionId: sessionId, activeProfileId: profile.id } : {}),
         }));
-        syncBridgeActiveSession(sessionId);
+        if (shouldFocus) syncBridgeActiveSession(sessionId);
         void get().checkHealth(sessionId);
         toast.success(
           "Connected",
@@ -235,7 +274,14 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
         toastError(error, `Couldn't connect to ${profile.name}`);
         throw error;
       }
-    }),
+    }).then(() => {
+      if (intent !== focusIntentSerial) return;
+      const session = get().sessions.find((item) => item.profileId === profile.id);
+      if (session && get().activeSessionId !== session.sessionId) {
+        get().setActiveSession(session.sessionId);
+      }
+    });
+  },
 
   checkHealth: async (sessionId) => {
     const sid = sessionId ?? get().activeSessionId;
@@ -247,6 +293,8 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
     if (!profile || !["ftp", "ftps", "sftp"].includes(profile.protocol)) {
       return false;
     }
+    const request = (healthCheckSerial.get(sid) ?? 0) + 1;
+    healthCheckSerial.set(sid, request);
 
     set((state) => ({
       sessions: state.sessions.map((session) =>
@@ -256,6 +304,7 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
 
     try {
       const result = await ipc.checkSessionHealth(sid);
+      if (healthCheckSerial.get(sid) !== request) return false;
       set((state) => ({
         sessions: state.sessions.map((session) =>
           session.sessionId === sid
@@ -265,6 +314,7 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
       }));
       return result.healthy;
     } catch (error) {
+      if (healthCheckSerial.get(sid) !== request) return false;
       set((state) => ({
         sessions: state.sessions.map((session) =>
           session.sessionId === sid ? { ...session, health: "unhealthy" } : session
@@ -279,7 +329,10 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
     const sid = sessionId ?? get().activeSessionId;
     if (!sid) return;
     const target = get().sessions.find((s) => s.sessionId === sid);
-    const profile = get().profiles.find((p) => p.id === target?.profileId);
+    if (!target) return;
+    if (get().activeSessionId === sid) ++focusIntentSerial;
+    healthCheckSerial.delete(sid);
+    const profile = get().profiles.find((p) => p.id === target.profileId);
     try {
       await ipc.disconnect(sid);
     } catch (error) {
@@ -312,6 +365,7 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
   setActiveSession: (sessionId) => {
     const target = get().sessions.find((s) => s.sessionId === sessionId);
     if (!target) return;
+    ++focusIntentSerial;
     set({ activeSessionId: sessionId, activeProfileId: target.profileId });
     // Keep the Agent Bridge aware of which connection the user is focused on.
     syncBridgeActiveSession(sessionId);
