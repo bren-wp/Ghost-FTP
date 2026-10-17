@@ -995,12 +995,26 @@ async fn sftp_password_roundtrip(
         .await
         .context("SFTP mkdir preserved")?;
     fs.create_dir(&trash).await.context("SFTP mkdir trash")?;
-    {
-        let cell = ssh.ensure_sftp().await?;
+    // OpenSSH requires CREATE before WRITE; keep the regression fixture
+    // independent of assumptions about SFTP server-specific write modes.
+    let cell = ssh.ensure_sftp().await?;
+    let mut sentinel_remote = {
         let sftp = cell.lock().await;
-        sftp.write(&sentinel, b"must stay intact")
+        sftp.create(&sentinel)
             .await
-            .context("SFTP write preserved sentinel")?;
+            .context("SFTP create preserved sentinel")?
+    };
+    sentinel_remote
+        .write_all(b"must stay intact")
+        .await
+        .context("SFTP write preserved sentinel")?;
+    sentinel_remote
+        .flush()
+        .await
+        .context("SFTP flush preserved sentinel")?;
+    drop(sentinel_remote);
+    {
+        let sftp = cell.lock().await;
         sftp.symlink("../preserved", &nested_link)
             .await
             .context("SFTP create nested directory symlink")?;
