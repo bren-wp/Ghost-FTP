@@ -16,6 +16,8 @@ use crate::session::Session;
 use anyhow::{Context, Result};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
+use sha2::{Digest, Sha256};
+use std::io::{Read, Write};
 use std::collections::HashMap;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
@@ -52,12 +54,82 @@ pub struct EditErrorEvent {
 }
 
 const MAX_BUILTIN_EDITOR_BYTES: usize = 2 * 1024 * 1024;
+const MAX_EDITOR_FINGERPRINT_BYTES: u64 = 8 * 1024 * 1024;
+
+/// Bounded content fingerprints detect rapid edits even on filesystems whose
+/// modification timestamps do not advance for same-size writes. Files larger
+/// than the limit retain the existing size+mtime fallback.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct EditorFingerprint {
+    modified: SystemTime,
+    size: u64,
+    digest: Option<[u8; 32]>,
+}
+
+fn editor_fingerprint(path: &std::path::Path) -> Result<EditorFingerprint> {
+    let meta = std::fs::symlink_metadata(path)
+        .with_context(|| format!("lstat editor copy {}", path.display()))?;
+    anyhow::ensure!(
+        meta.file_type().is_file(),
+        "editor refuses symbolic links and special files"
+    );
+    let digest = if meta.len() <= MAX_EDITOR_FINGERPRINT_BYTES {
+        let mut file = std::fs::File::open(path).context("read editor copy fingerprint")?;
+        let mut hasher = Sha256::new();
+        let mut buf = [0u8; 64 * 1024];
+        loop {
+            let count = file.read(&mut buf).context("hash editor copy")?;
+            if count == 0 {
+                break;
+            }
+            hasher.update(&buf[..count]);
+        }
+        Some(hasher.finalize().into())
+    } else {
+        None
+    };
+    Ok(EditorFingerprint {
+        modified: meta.modified().context("stat editor modification time")?,
+        size: meta.len(),
+        digest,
+    })
+}
+
+/// A failed local write must never truncate the only editable copy.
+/// Create a unique sibling, sync its bytes, then atomically replace the real
+/// file; a failed rename leaves the original untouched and discards staging.
+fn write_editor_copy_atomically(path: &std::path::Path, content: &[u8]) -> Result<()> {
+    let meta = std::fs::symlink_metadata(path).context("lstat local edit target")?;
+    anyhow::ensure!(meta.file_type().is_file(), "editor target is not a regular file");
+    let parent = path.parent().context("editor target has no directory")?;
+    let staged = parent.join(format!(".ghostftp-edit-{}.tmp", Uuid::new_v4()));
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    let result = (|| -> Result<()> {
+        let mut temp = options.open(&staged).context("create editor staging copy")?;
+        #[cfg(unix)]
+        std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o600))
+            .context("secure editor staging copy")?;
+        temp.write_all(content).context("write editor staging copy")?;
+        temp.sync_all().context("flush edited data to disk")?;
+        // Fail closed if the original became a symlink while staging.
+        let current = std::fs::symlink_metadata(path).context("recheck edited target")?;
+        anyhow::ensure!(current.file_type().is_file(), "editor target changed file type");
+        std::fs::rename(&staged, path).context("commit edited copy")?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&staged);
+    }
+    result
+}
 
 struct EditState {
     /// Held only to keep the watcher alive. Dropping it stops the watcher.
     _watcher: RecommendedWatcher,
     tempdir: PathBuf,
     local_path: PathBuf,
+    write_gate: Arc<Mutex<()>>,
 }
 
 pub struct EditManager {
@@ -112,12 +184,10 @@ impl EditManager {
             .await
             .with_context(|| format!("downloading {remote_path}"))?;
 
-        // Record the mtime so the first watcher event triggered by *us* writing
-        // the file doesn't immediately re-upload it.
-        let initial_mtime = std::fs::metadata(&local_path)
-            .ok()
-            .and_then(|m| m.modified().ok())
-            .unwrap_or(SystemTime::UNIX_EPOCH);
+        // A content-aware baseline prevents our initial download from being
+        // uploaded again, and catches equal-mtime edits from native editors.
+        let initial_fingerprint = editor_fingerprint(&local_path)
+            .context("fingerprint remote editor copy")?;
 
         // A bounded wake-up slot prevents file editors with very noisy
         // filesystem events from allocating unbounded notification memory.
@@ -163,7 +233,7 @@ impl EditManager {
         let edit_id_for_task = edit_id.clone();
         let app_for_task = app.clone();
         tokio::spawn(async move {
-            let mut last_mtime = initial_mtime;
+            let mut last_uploaded = initial_fingerprint;
             let debounce = Duration::from_millis(500);
 
             loop {
@@ -187,14 +257,17 @@ impl EditManager {
                     Err(_) => {} // idle retry/reconciliation
                 }
 
-                // Never auto-upload a replaced symlink or special node. A
-                // transient editor rename may hide the target momentarily.
-                let meta = match std::fs::symlink_metadata(&upload_local) {
-                    Ok(m) if m.file_type().is_file() => m,
-                    _ => continue,
+                // Never auto-upload symbolic links, special nodes or missing
+                // targets. A digest catches a same-size edit with unchanged
+                // timestamp; a failed remote upload retains the old baseline.
+                let fingerprint = match editor_fingerprint(&upload_local) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        tracing::warn!("editor fingerprint unavailable: {error:#}");
+                        continue;
+                    }
                 };
-                let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-                if mtime == last_mtime {
+                if fingerprint == last_uploaded {
                     continue;
                 }
 
@@ -209,7 +282,7 @@ impl EditManager {
                         // Only successful uploads acknowledge a local version.
                         // A failed remote write must stay dirty for the next
                         // periodic retry; never claim the save is complete.
-                        last_mtime = mtime;
+                        last_uploaded = fingerprint;
                         let _ = app_for_task.emit(
                             "editor://saved",
                             EditSavedEvent {
@@ -259,6 +332,7 @@ impl EditManager {
                 _watcher: watcher,
                 tempdir: base,
                 local_path,
+                write_gate: Arc::new(Mutex::new(())),
             },
         );
         Ok(started)
@@ -300,25 +374,18 @@ impl EditManager {
             content.len() <= MAX_BUILTIN_EDITOR_BYTES,
             "edited content exceeds the 2 MiB built-in editor limit"
         );
-        let path = self
-            .sessions
-            .lock()
+        let (path, gate) = {
+            let sessions = self.sessions.lock().await;
+            let session = sessions
+                .get(edit_id)
+                .context("editing session is no longer active")?;
+            (session.local_path.clone(), session.write_gate.clone())
+        };
+        let _guard = gate.lock().await;
+        tokio::task::spawn_blocking(move || write_editor_copy_atomically(&path, content.as_bytes()))
             .await
-            .get(edit_id)
-            .context("editing session is no longer active")?
-            .local_path
-            .clone();
-        let meta = tokio::fs::symlink_metadata(&path)
-            .await
-            .context("stat edit copy")?;
-        anyhow::ensure!(
-            meta.file_type().is_file(),
-            "edit copy is not a regular file"
-        );
-        tokio::fs::write(&path, content.as_bytes())
-            .await
-            .context("write edit copy")?;
-        Ok(())
+            .context("join atomic editor write")?
+    
     }
 
     pub async fn stop(&self, edit_id: &str) -> Result<()> {
@@ -862,4 +929,53 @@ pub(crate) async fn upload_from(
         }
     }
     Ok(size)
+}
+
+#[cfg(test)]
+mod builtin_editor_integrity_tests {
+    use super::*;
+
+    #[test]
+    fn same_timestamp_and_length_edit_changes_fingerprint() {
+        let dir = std::env::temp_dir().join(format!("ghostftp-fingerprint-{}", Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let file = dir.join("site.php");
+        std::fs::write(&file, b"hello").unwrap();
+        let first = editor_fingerprint(&file).unwrap();
+        std::fs::write(&file, b"world").unwrap();
+        std::fs::File::open(&file).unwrap().set_modified(first.modified).unwrap();
+        let second = editor_fingerprint(&file).unwrap();
+        assert_eq!(first.modified, second.modified);
+        assert_eq!(first.size, second.size);
+        assert_ne!(first.digest, second.digest);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn atomic_editor_save_replaces_content_without_stray_temp_files() {
+        let dir = std::env::temp_dir().join(format!("ghostftp-editor-atomic-{}", Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let target = dir.join("index.html");
+        std::fs::write(&target, b"previous").unwrap();
+        write_editor_copy_atomically(&target, b"new content").unwrap();
+        assert_eq!(std::fs::read(&target).unwrap(), b"new content");
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn editor_save_refuses_symbolic_link_target() {
+        use std::os::unix::fs::symlink;
+        let dir = std::env::temp_dir().join(format!("ghostftp-editor-symlink-{}", Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let secret = dir.join("secret");
+        std::fs::write(&secret, b"protected").unwrap();
+        let target = dir.join("edit.php");
+        symlink(&secret, &target).unwrap();
+        assert!(editor_fingerprint(&target).is_err());
+        assert!(write_editor_copy_atomically(&target, b"overwrite").is_err());
+        assert_eq!(std::fs::read(&secret).unwrap(), b"protected");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }
