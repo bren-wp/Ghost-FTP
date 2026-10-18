@@ -9,7 +9,7 @@ const { outputText, diagnostics } = ts.transpileModule(raw, {
   reportDiagnostics: true,
 });
 assert.deepEqual(diagnostics ?? [], []);
-const { countTransferStatuses, filterTransferView, recentTransferLog } = await import(
+const { countTransferStatuses, filterTransferView, firstFailedTransferId, recentTransferLog } = await import(
   "data:text/javascript;base64," + Buffer.from(outputText).toString("base64")
 );
 
@@ -63,6 +63,24 @@ test("selectors never mutate the queue; history is bounded and sorted as a copy"
   assert.deepEqual(recentTransferLog(transfers, 0, -1), []);
   assert.strictEqual(filterTransferView(transfers, opts())[0], transfers[0]);
   assert.deepEqual(transfers, original);
+});
+
+test("failed-transfer discovery selects real backend item without retry or synthetic state", () => {
+  assert.equal(firstFailedTransferId(transfers), "f");
+  assert.equal(firstFailedTransferId(transfers.filter(t => t.status !== "error")), null);
+  assert.equal(firstFailedTransferId([]), null);
+  const duplicateErrors = [make("first", "error"), make("second", "error")];
+  assert.equal(firstFailedTransferId(duplicateErrors), "first");
+});
+
+test("Failed status tile and tab clear stale filters and surface real error details", () => {
+  const source = readFileSync(new URL("../src/components/TransferCenterDialog.tsx", import.meta.url), "utf8");
+  assert.match(source, /const showFailedTransfers = \(\) => \{/);
+  assert.match(source, /setTab\("failed"\);\s*setQuery\(""\);/); 
+  assert.match(source, /setDirectionFilter\("all"\);\s*setTimeFilter\("all"\);/);
+  assert.match(source, /setSelectedId\(failureId\);\s*setDetailsOpen\(failureId !== null\);/);
+  assert.match(source, /onClick=\{showFailedTransfers\}/);
+  assert.match(source, /filter === "failed" \? showFailedTransfers\(\) : setTab\(filter\)/);
 });
 
 test("10k-entry synthetic history is stable and memory bounded", () => {
