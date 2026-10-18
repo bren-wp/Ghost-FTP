@@ -1,5 +1,7 @@
 # Android upload signing gate — Phase C / MOB-01
 
+**Development source:** v0.95.42 Preview, following immutable published v0.95.41. No new release has been created by this signing PR.
+
 **Scope:** Manual, release-owner-controlled AAB **upload-key** signing candidate only. This is **not** Play Console acceptance, installation/upgrade verification, or a change to existing APK/preview signing.
 
 ## Immutable identities
