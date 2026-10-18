@@ -155,10 +155,7 @@ fn write_private_file(path: &Path, data: &[u8]) -> Result<()> {
     // complete file before replacing an existing backup or staged restore.
     // Atomic rename replaces the *link itself*, never its referent, even if a
     // second process swaps the destination after the metadata check.
-    let temporary = parent.join(format!(
-        ".ghostftp-private-{}.tmp",
-        uuid::Uuid::new_v4()
-    ));
+    let temporary = parent.join(format!(".ghostftp-private-{}.tmp", uuid::Uuid::new_v4()));
     let _guard = RemoveOnDrop(temporary.clone());
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
@@ -170,11 +167,12 @@ fn write_private_file(path: &Path, data: &[u8]) -> Result<()> {
     #[cfg(unix)]
     file.set_permissions(std::fs::Permissions::from_mode(0o600))
         .context("secure temporary backup permissions")?;
-    file.write_all(data).context("write private temporary backup file")?;
-    file.sync_all().context("sync private temporary backup file")?;
+    file.write_all(data)
+        .context("write private temporary backup file")?;
+    file.sync_all()
+        .context("sync private temporary backup file")?;
     drop(file);
-    std::fs::rename(&temporary, path)
-        .context("atomically promote complete private backup file")?;
+    std::fs::rename(&temporary, path).context("atomically promote complete private backup file")?;
     Ok(())
 }
 
@@ -1125,10 +1123,8 @@ mod tests {
     #[test]
     fn private_writer_refuses_symlink_and_preserves_its_target() {
         use std::os::unix::fs::symlink;
-        let dir = std::env::temp_dir().join(format!(
-            "ghostftp-private-symlink-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-private-symlink-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let target = dir.join("important.txt");
         let backup = dir.join("export.ghostftpbak");
@@ -1146,10 +1142,8 @@ mod tests {
 
     #[test]
     fn private_writer_refuses_directory_without_leaking_temporary_file() {
-        let dir = std::env::temp_dir().join(format!(
-            "ghostftp-private-dir-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-private-dir-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         assert!(write_private_file(&dir, b"do not truncate directory").is_err());
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
@@ -1160,10 +1154,8 @@ mod tests {
     #[test]
     fn private_writer_atomically_replaces_existing_file_with_private_mode() {
         use std::os::unix::fs::PermissionsExt;
-        let dir = std::env::temp_dir().join(format!(
-            "ghostftp-private-mode-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-private-mode-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("profiles.json.restore");
         std::fs::write(&path, b"previous-valid-payload").unwrap();
