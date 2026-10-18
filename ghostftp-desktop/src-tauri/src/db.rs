@@ -162,10 +162,20 @@ impl Db {
     pub fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open(path)
             .with_context(|| format!("open ghostftp.db at {}", path.display()))?;
-        // WAL keeps readers from blocking the single writer — this is a desktop
-        // app with occasional background writes, not a hot OLTP path.
-        conn.pragma_update(None, "journal_mode", "WAL").ok();
-        conn.pragma_update(None, "foreign_keys", "ON").ok();
+        // WAL improves concurrent reads while the sync/transfer ledger is
+        // updated. Some network/readonly filesystems cannot enable WAL: log
+        // the fallback instead of silently swallowing an important error.
+        if let Err(error) = conn.pragma_update(None, "journal_mode", "WAL") {
+            tracing::warn!("SQLite WAL unavailable; using the filesystem-supported journal mode: {error}");
+        }
+        conn.pragma_update(None, "foreign_keys", "ON")
+            .context("enable SQLite foreign-key enforcement")?;
+        let foreign_keys: i64 = conn
+            .query_row("PRAGMA foreign_keys", [], |row| row.get(0))
+            .context("verify SQLite foreign-key enforcement")?;
+        anyhow::ensure!(foreign_keys == 1, "SQLite foreign-key protection is disabled");
+        conn.busy_timeout(std::time::Duration::from_secs(5))
+            .context("configure SQLite concurrent-access timeout")?;
         migrate(&conn).context("running ghostftp.db migrations")?;
         Ok(Self {
             conn: Mutex::new(conn),
@@ -956,6 +966,25 @@ mod tests {
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
         assert_eq!(version, 1);
+    }
+
+    #[test]
+    fn real_sqlite_db_enforces_foreign_keys_and_waits_for_concurrent_users() {
+        let dir = std::env::temp_dir().join(format!("ghostftp-sqlite-audit-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("ghostftp.db");
+        let db = Db::open(&path).unwrap();
+        {
+            let conn = db.conn.lock().unwrap();
+            let enabled: i64 = conn.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).unwrap();
+            let busy_ms: i64 = conn.query_row("PRAGMA busy_timeout", [], |r| r.get(0)).unwrap();
+            assert_eq!(enabled, 1);
+            assert!(busy_ms >= 5_000);
+        }
+        drop(db);
+        let reopened = Db::open(&path).unwrap();
+        drop(reopened);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

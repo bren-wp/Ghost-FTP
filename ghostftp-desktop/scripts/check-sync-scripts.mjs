@@ -19,6 +19,8 @@ assert.match(generateSyncScript({...pair,localRoot:"C:\\\\"},"cmd"), /"C:\\\\\\\
 const watcher=generateSyncScript(pair,"dotnet-watcher");
 assert.match(watcher,/FileSystemWatcher/);
 assert.match(watcher,/Wait-Event -Timeout 60/);
+assert.match(watcher,/event.SourceIdentifier.StartsWith\(\$prefix\)/);
+assert.match(watcher,/Get-Event \| Where-Object/);
 assert.match(watcher,/EventName \$name/);
 const quoted={...pair,remoteRoot:"/O'Reilly site"};
 assert.match(generateSyncScript(quoted,"powershell"),/O''Reilly site/);

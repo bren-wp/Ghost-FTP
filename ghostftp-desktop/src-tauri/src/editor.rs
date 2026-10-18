@@ -16,6 +16,8 @@ use crate::session::Session;
 use anyhow::{Context, Result};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
+use sha2::{Digest, Sha256};
+use std::io::Read;
 use std::collections::HashMap;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
@@ -25,6 +27,39 @@ use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex;
 use uuid::Uuid;
+
+/// Small code files get a content digest so equal-timestamp saves remain
+/// visible; larger files use size + mtime to avoid hashing gigabytes on a
+/// 10-second watcher recovery poll. Not a cryptographic identity assertion.
+const EDITOR_HASH_MAX_BYTES: u64 = 8 * 1024 * 1024;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct EditorFingerprint {
+    modified: SystemTime,
+    size: u64,
+    digest: Option<[u8; 32]>,
+}
+
+fn editor_fingerprint(path: &std::path::Path) -> Result<EditorFingerprint> {
+    let meta = std::fs::symlink_metadata(path)
+        .with_context(|| format!("lstat edited source {}", path.display()))?;
+    anyhow::ensure!(meta.file_type().is_file(), "editor refuses symbolic links and special files");
+    let modified = meta.modified().context("read edited source modification time")?;
+    let digest = if meta.len() <= EDITOR_HASH_MAX_BYTES {
+        let mut file = std::fs::File::open(path).context("open edited source for digest")?;
+        let mut hasher = Sha256::new();
+        let mut buffer = [0u8; 64 * 1024];
+        loop {
+            let count = file.read(&mut buffer).context("read edited source for digest")?;
+            if count == 0 { break; }
+            hasher.update(&buffer[..count]);
+        }
+        Some(hasher.finalize().into())
+    } else {
+        None
+    };
+    Ok(EditorFingerprint { modified, size: meta.len(), digest })
+}
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -108,12 +143,11 @@ impl EditManager {
             .await
             .with_context(|| format!("downloading {remote_path}"))?;
 
-        // Record the mtime so the first watcher event triggered by *us* writing
-        // the file doesn't immediately re-upload it.
-        let initial_mtime = std::fs::metadata(&local_path)
-            .ok()
-            .and_then(|m| m.modified().ok())
-            .unwrap_or(SystemTime::UNIX_EPOCH);
+        // Track a stable content fingerprint: IDEs and network filesystems
+        // sometimes produce same-size edits within one mtime resolution tick.
+        // For large files, bound hashing work and use size/mtime metadata.
+        let initial_fingerprint = editor_fingerprint(&local_path)
+            .context("fingerprint downloaded editor copy")?;
 
         // A bounded wake-up slot prevents file editors with very noisy
         // filesystem events from allocating unbounded notification memory.
@@ -159,7 +193,7 @@ impl EditManager {
         let edit_id_for_task = edit_id.clone();
         let app_for_task = app.clone();
         tokio::spawn(async move {
-            let mut last_mtime = initial_mtime;
+            let mut last_uploaded = initial_fingerprint;
             let debounce = Duration::from_millis(500);
 
             loop {
@@ -183,14 +217,17 @@ impl EditManager {
                     Err(_) => {} // idle retry/reconciliation
                 }
 
-                // Never auto-upload a replaced symlink or special node. A
-                // transient editor rename may hide the target momentarily.
-                let meta = match std::fs::symlink_metadata(&upload_local) {
-                    Ok(m) if m.file_type().is_file() => m,
-                    _ => continue,
+                // A damaged, transient or symlinked replacement is never a
+                // legitimate save. Keep last_uploaded unchanged so the next
+                // watcher event or fallback poll can retry safely.
+                let snapshot = match editor_fingerprint(&upload_local) {
+                    Ok(s) => s,
+                    Err(error) => {
+                        tracing::warn!("editor source fingerprint unavailable: {error:#}");
+                        continue;
+                    }
                 };
-                let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-                if mtime == last_mtime {
+                if snapshot == last_uploaded {
                     continue;
                 }
 
@@ -205,7 +242,7 @@ impl EditManager {
                         // Only successful uploads acknowledge a local version.
                         // A failed remote write must stay dirty for the next
                         // periodic retry; never claim the save is complete.
-                        last_mtime = mtime;
+                        last_uploaded = snapshot;
                         let _ = app_for_task.emit(
                             "editor://saved",
                             EditSavedEvent {
@@ -798,4 +835,40 @@ pub(crate) async fn upload_from(
         }
     }
     Ok(size)
+}
+
+#[cfg(test)]
+mod editor_fingerprint_tests {
+    use super::*;
+
+    #[test]
+    fn equal_timestamp_and_size_edits_are_detected_by_digest() {
+        let root = std::env::temp_dir().join(format!("ghostftp-editor-hash-{}", Uuid::new_v4()));
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("index.php");
+        std::fs::write(&path, b"hello").unwrap();
+        let old = editor_fingerprint(&path).unwrap();
+        std::fs::write(&path, b"world").unwrap();
+        std::fs::File::open(&path).unwrap().set_modified(old.modified).unwrap();
+        let new = editor_fingerprint(&path).unwrap();
+        assert_eq!(old.modified, new.modified);
+        assert_eq!(old.size, new.size);
+        assert_ne!(old.digest, new.digest);
+        assert_ne!(old, new);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn editor_fingerprint_never_follows_symlinks() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!("ghostftp-editor-link-{}", Uuid::new_v4()));
+        std::fs::create_dir(&root).unwrap();
+        let file = root.join("index.js");
+        std::fs::write(&file, b"secret").unwrap();
+        let link = root.join("index.php");
+        symlink(&file, &link).unwrap();
+        assert!(editor_fingerprint(&link).is_err());
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }
