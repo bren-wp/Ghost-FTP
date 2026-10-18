@@ -64,6 +64,11 @@ export function filterTransferView(
   });
 }
 
+/** Route users to the real failed backend item; never synthesize retry state. */
+export function firstFailedTransferId(transfers: readonly Transfer[]): string | null {
+  return transfers.find((transfer) => transfer.status === "error")?.id ?? null;
+}
+
 /** Return a sorted copy; never reorder the live queue while showing its log. */
 export function recentTransferLog(
   transfers: readonly Transfer[],
