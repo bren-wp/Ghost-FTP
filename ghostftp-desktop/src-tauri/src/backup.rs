@@ -517,6 +517,15 @@ fn promote_staged_database(dir: &Path) -> Result<()> {
         return Ok(());
     }
 
+    // The portable archive contains a checkpointed single-file snapshot.
+    // Promoting only its main file while leaving an uncheckpointed WAL beside
+    // it would silently lose data. Preserve it for manual recovery instead.
+    for suffix in ["-wal", "-shm"] {
+        if regular_file_if_present(&dir.join(format!("ghostftp.db.restore{suffix}")))? {
+            anyhow::bail!("staged SQLite restore has unexpected WAL/SHM sidecars");
+        }
+    }
+
     // A valid SQLite header is insufficient. Refuse corrupt or truncated
     // snapshots before moving any original database files.
     let candidate = rusqlite::Connection::open_with_flags(
@@ -1058,6 +1067,26 @@ mod tests {
         assert_eq!(
             Db::open(&kept[0]).unwrap().settings_get("theme").unwrap().as_deref(),
             Some("\"old\"")
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn staged_sqlite_wal_sidecar_blocks_unsafe_main_file_promotion() {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-restore-wal-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let live = dir.join("ghostftp.db");
+        std::fs::write(&live, b"original stay").unwrap();
+        std::fs::write(dir.join("ghostftp.db.restore"), b"staged").unwrap();
+        std::fs::write(dir.join("ghostftp.db.restore-wal"), b"uncheckpointed").unwrap();
+        assert!(apply_pending_restore(&dir).is_err());
+        assert_eq!(std::fs::read(&live).unwrap(), b"original stay");
+        assert_eq!(
+            std::fs::read(dir.join("ghostftp.db.restore-wal")).unwrap(),
+            b"uncheckpointed"
         );
         std::fs::remove_dir_all(dir).unwrap();
     }
