@@ -826,11 +826,17 @@ fn transfer_batch_complete(statuses: &[Option<TransferStatus>]) -> Result<bool> 
     let mut pending = false;
     for status in statuses {
         match status {
-            Some(TransferStatus::Done | TransferStatus::Skipped) => {}
+            Some(TransferStatus::Done) => {}
             Some(
                 TransferStatus::Queued | TransferStatus::Transferring | TransferStatus::Paused,
             ) => {
                 pending = true;
+            }
+            // A Skipped upload is not proof that the destination contains the
+            // source bytes. Do not commit the new source index until a future
+            // reconcile can verify the destination or the user resolves it.
+            Some(TransferStatus::Skipped) => {
+                anyhow::bail!("sync transfer was skipped without verification; source index was not advanced");
             }
             Some(TransferStatus::Error | TransferStatus::Canceled) | None => {
                 anyhow::bail!("sync has a failed, canceled or missing transfer; source index was not advanced");
@@ -1067,11 +1073,14 @@ mod tests {
     #[test]
     fn continuous_sync_does_not_advance_index_for_failed_or_missing_work() {
         assert!(transfer_batch_complete(&[]).unwrap());
+        assert!(transfer_batch_complete(&[Some(TransferStatus::Done)]).unwrap());
+        // Skip is terminal for a user action, but it does not validate the
+        // destination and must not be committed as confirmed source state.
         assert!(transfer_batch_complete(&[
             Some(TransferStatus::Done),
             Some(TransferStatus::Skipped)
         ])
-        .unwrap());
+        .is_err());
         assert!(!transfer_batch_complete(&[
             Some(TransferStatus::Done),
             Some(TransferStatus::Transferring)
