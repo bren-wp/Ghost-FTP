@@ -1,14 +1,14 @@
-> Ghost FTP **0.95.34** (release cycle), following published **v0.95.33**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.35** (release cycle), following published **v0.95.34**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Project Status & Recommended Next Work
 
-Current development source: **0.95.34** (macOS native transfer safety); previous published release: **0.95.33**. Historical versioned notes below remain unchanged.
+Current development source: **0.95.35** (macOS native transfer safety); previous published release: **0.95.34**. Historical versioned notes below remain unchanged.
 
-> Older 0.94.0/0.93.0 status notes remain historical. Current source is **0.95.34**, latest public release **0.95.33**.
+> Older 0.94.0/0.93.0 status notes remain historical. Current source is **0.95.35**, latest public release **0.95.34**.
 
 Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.30** release notes.
 
-Previous canonical release: **0.95.33**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.95.34**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 

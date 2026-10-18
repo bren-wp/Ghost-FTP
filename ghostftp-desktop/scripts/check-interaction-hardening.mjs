@@ -384,6 +384,17 @@ requireIncludes(
   "single-flight SSH host verification and explicit changed-key acknowledgement"
 );
 
+requireIncludes(
+  "packages/file-ui/src/components/FilePane.tsx",
+  ["sourceSessionId: sessionId", "Array.isArray(drag.entries)", "onDrop?.(drag.entries, drag.sourceSessionId)"],
+  "defensive file drop payload verification and source-session identity"
+);
+requireIncludes(
+  "src/components/DualPaneBrowser.tsx",
+  ["sourceSessionId !== LOCAL_SESSION", "sourceSessionId !== activeSessionId"],
+  "cross-pane transfers reject stale source sessions"
+);
+
 for (const componentFile of [
   "src/components/HostKeyModal.tsx",
   "src/components/AgentBridge.tsx",

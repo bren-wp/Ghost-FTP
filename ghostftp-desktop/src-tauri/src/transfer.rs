@@ -370,36 +370,83 @@ fn download_backup_path(final_path: &Path, id: &str) -> PathBuf {
     parent.join(format!(".ghostftp-download-{id}.backup"))
 }
 
+/// Never follow a final-component symbolic link when deciding whether a
+/// download target is occupied. Path::exists and fs::metadata both report
+/// a dangling symlink as absent, which can silently turn Skip/Rename into
+/// replacement of an unrelated filesystem entry.
 async fn local_path_exists_fail_closed(path: &Path) -> Result<bool> {
-    match tokio::fs::metadata(path).await {
+    match tokio::fs::symlink_metadata(path).await {
         Ok(_) => Ok(true),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
         Err(error) => {
-            Err(error).with_context(|| format!("stat local download target {}", path.display()))
+            Err(error).with_context(|| format!("lstat local download target {}", path.display()))
         }
     }
+}
+
+fn local_path_exists_sync_fail_closed(path: &Path) -> Result<bool> {
+    match std::fs::symlink_metadata(path) {
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => {
+            Err(error).with_context(|| format!("lstat local rename target {}", path.display()))
+        }
+    }
+}
+
+/// Use the same atomic no-replace Windows/Linux operation as local File Manager
+/// rename. A preexisting (or concurrently created) backup/target must never
+/// be overwritten by a staged download promotion.
+async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
+    let from = from.to_path_buf();
+    let to = to.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        let src = from.to_str().context("download path is not valid UTF-8")?;
+        let dest = to
+            .to_str()
+            .context("download destination is not valid UTF-8")?;
+        crate::remotefs::local::rename_local_noreplace(src, dest)
+    })
+    .await
+    .context("join local no-replace download promotion")?
 }
 
 async fn promote_staged_download(staging: &Path, final_path: &Path, id: &str) -> Result<()> {
     let backup = download_backup_path(final_path, id);
     let mut backup_created = false;
 
+    let staging_meta = tokio::fs::symlink_metadata(staging)
+        .await
+        .with_context(|| format!("lstat completed download staging {}", staging.display()))?;
+    anyhow::ensure!(
+        staging_meta.file_type().is_file(),
+        "download promotion refused: staging target is not a regular file"
+    );
+
     if local_path_exists_fail_closed(final_path).await? {
-        let _ = tokio::fs::remove_file(&backup).await;
-        tokio::fs::rename(final_path, &backup)
+        let target_meta = tokio::fs::symlink_metadata(final_path)
+            .await
+            .with_context(|| format!("lstat download target {}", final_path.display()))?;
+        anyhow::ensure!(
+            target_meta.file_type().is_file(),
+            "download overwrite refused: existing destination is not a regular file"
+        );
+        // A previous interrupted promotion may have left a backup. Never
+        // remove it blindly: preserve the only copy of a user's original.
+        move_local_noreplace(final_path, &backup)
             .await
             .with_context(|| {
                 format!(
-                    "preserve existing local download target {} before replacement",
+                    "preserve existing local download target {} without overwriting a backup",
                     final_path.display()
                 )
             })?;
         backup_created = true;
     }
 
-    if let Err(error) = tokio::fs::rename(staging, final_path).await {
+    if let Err(error) = move_local_noreplace(staging, final_path).await {
         if backup_created {
-            match tokio::fs::rename(&backup, final_path).await {
+            match move_local_noreplace(&backup, final_path).await {
                 Ok(()) => {
                     return Err(error).with_context(|| {
                         format!(
@@ -429,6 +476,34 @@ async fn promote_staged_download(staging: &Path, final_path: &Path, id: &str) ->
     Ok(())
 }
 
+const MAX_DIRECTORY_UPLOAD_ENTRIES: usize = 100_000;
+const MAX_DIRECTORY_UPLOAD_DEPTH: usize = 64;
+const MAX_DIRECTORY_UPLOAD_PATH_BYTES: usize = 16 * 1024 * 1024;
+
+fn validate_directory_upload_budget(entries: usize, depth: usize, bytes: usize) -> Result<()> {
+    anyhow::ensure!(
+        entries <= MAX_DIRECTORY_UPLOAD_ENTRIES,
+        "directory upload entry limit exceeded"
+    );
+    anyhow::ensure!(
+        depth <= MAX_DIRECTORY_UPLOAD_DEPTH,
+        "directory upload depth limit exceeded"
+    );
+    anyhow::ensure!(
+        bytes <= MAX_DIRECTORY_UPLOAD_PATH_BYTES,
+        "directory upload path byte limit exceeded"
+    );
+    Ok(())
+}
+
+fn safe_upload_name(name: &str) -> bool {
+    !name.is_empty()
+        && !matches!(name, "." | "..")
+        && !name
+            .chars()
+            .any(|ch| matches!(ch, '/' | '\\' | '\0' | '\r' | '\n'))
+}
+
 pub(crate) fn require_directory_upload_metadata(
     path: &Path,
     metadata: std::io::Result<std::fs::Metadata>,
@@ -446,7 +521,7 @@ const MAX_RENAME_CANDIDATES: usize = 999;
 /// Append _1, _2, … to the stem until a free local path is found. Never fall
 /// back to the colliding original path: Rename must not silently become Overwrite.
 fn resolve_local_rename(path: &Path) -> Result<PathBuf> {
-    if !path.exists() {
+    if !local_path_exists_sync_fail_closed(path)? {
         return Ok(path.to_path_buf());
     }
     let parent = path.parent().unwrap_or(Path::new("."));
@@ -460,7 +535,7 @@ fn resolve_local_rename(path: &Path) -> Result<PathBuf> {
         .unwrap_or_default();
     for i in 1..=MAX_RENAME_CANDIDATES {
         let candidate = parent.join(format!("{stem}_{i}{ext}"));
-        if !candidate.exists() {
+        if !local_path_exists_sync_fail_closed(&candidate)? {
             return Ok(candidate);
         }
     }
@@ -1194,7 +1269,7 @@ impl TransferManager {
         let (final_path, skip) = match policy {
             OverwritePolicy::Overwrite => (initial, false),
             OverwritePolicy::Skip => {
-                let exists = initial.exists();
+                let exists = local_path_exists_fail_closed(&initial).await?;
                 (initial, exists)
             }
             OverwritePolicy::Rename => (resolve_local_rename(&initial)?, false),
@@ -1429,23 +1504,32 @@ impl TransferManager {
         app: AppHandle,
     ) -> Result<String> {
         let local = PathBuf::from(&local_path);
-        let metadata = tokio::fs::metadata(&local)
+        // Native file pickers can return a symlink even when the UI has no
+        // symlink-transfer action. Never dereference an arbitrary link as an
+        // ordinary uploaded file (or follow a dangling/out-of-tree target).
+        let metadata = tokio::fs::symlink_metadata(&local)
             .await
-            .with_context(|| format!("stat {}", local.display()))?;
-        if !metadata.is_file() {
+            .with_context(|| format!("lstat upload source {}", local.display()))?;
+        if !metadata.file_type().is_file() {
             anyhow::bail!("upload source is not a regular file: {}", local.display());
         }
-        let file_name = basename(&local_path);
-        if file_name.is_empty() || matches!(file_name.as_str(), "." | "..") {
-            anyhow::bail!("upload path does not identify a file: {}", local.display());
-        }
+        // OS path components preserve Linux filenames that contain a literal
+        // backslash. Such names cannot safely map to a remote path, so reject
+        // them instead of silently uploading under a different basename.
+        let file_name = local
+            .file_name()
+            .and_then(|name| name.to_str())
+            .filter(|name| safe_upload_name(name))
+            .ok_or_else(|| {
+                anyhow::anyhow!("upload source has an unsafe filename: {}", local.display())
+            })?;
         let size = metadata.len();
 
         // Join with the separator the destination already uses, and don't add a
         // second one. A Windows agent target spelled `C:\srv\` used to produce
         // `C:\srv\/file` — Win32 tolerates it, but it shows up in every error
         // message and audit line, and the mixed form trips path comparisons.
-        let initial_remote = join_remote(&remote_dir, &file_name);
+        let initial_remote = join_remote(&remote_dir, file_name);
 
         let (final_remote, skip) = remote_resolve(&session, &initial_remote, policy).await?;
 
@@ -2284,54 +2368,81 @@ impl TransferManager {
         app: AppHandle,
     ) -> Result<Vec<String>> {
         let local_root_path = PathBuf::from(&local_root);
-        let metadata = tokio::fs::metadata(&local_root_path)
+        let metadata = tokio::fs::symlink_metadata(&local_root_path)
             .await
-            .with_context(|| format!("stat {}", local_root_path.display()))?;
-        if !metadata.is_dir() {
+            .with_context(|| format!("lstat {}", local_root_path.display()))?;
+        if !metadata.file_type().is_dir() {
             anyhow::bail!(
-                "directory upload source is not a directory: {}",
+                "directory upload source is not a real directory: {}",
                 local_root_path.display()
             );
         }
         let root_name = local_root_path
             .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .filter(|name| !name.is_empty() && !matches!(name.as_str(), "." | ".."))
-            .ok_or_else(|| anyhow::anyhow!("directory upload requires a named local directory"))?;
-        let remote_root = join_remote(&remote_dir, &root_name);
+            .and_then(|n| n.to_str())
+            .filter(|name| safe_upload_name(name))
+            .ok_or_else(|| {
+                anyhow::anyhow!("directory upload requires a safe UTF-8 directory name")
+            })?;
+        let remote_root = join_remote(&remote_dir, root_name);
 
         let fs = fs_for_session(&session);
 
-        // The selected upload root may already exist. Directory creation is
-        // therefore best-effort here; file creation below still surfaces a
-        // concrete permission/path error if the destination is unusable.
-        let _ = fs.create_dir(&remote_root).await;
-
-        let mut dirs_to_visit: Vec<PathBuf> = vec![local_root_path.clone()];
+        // Inventory the whole local source before making any server-side
+        // mutation. A symlink or unsupported entry must not create a remote
+        // folder containing only a misleading subset of the source tree.
+        let mut dirs_to_visit: Vec<(PathBuf, usize)> = vec![(local_root_path.clone(), 0)];
+        let mut entry_count = 0usize;
+        let mut total_path_bytes = 0usize;
         let mut files: Vec<(PathBuf, String)> = Vec::new();
         let mut subdirs: Vec<String> = Vec::new();
-        while let Some(d) = dirs_to_visit.pop() {
+        while let Some((d, depth)) = dirs_to_visit.pop() {
             let mut rd = tokio::fs::read_dir(&d)
                 .await
                 .with_context(|| format!("read_dir {}", d.display()))?;
             while let Some(entry) = rd.next_entry().await? {
                 let p = entry.path();
                 let meta = require_directory_upload_metadata(&p, entry.metadata().await)?;
-                let rel = p
+                let name = entry.file_name().into_string().map_err(|_| {
+                    anyhow::anyhow!("directory upload refuses filename not representable as UTF-8")
+                })?;
+                anyhow::ensure!(
+                    safe_upload_name(&name),
+                    "directory upload refused: unsafe entry name"
+                );
+                let relative = p
                     .strip_prefix(&local_root_path)
-                    .unwrap_or(&p)
-                    .to_string_lossy()
+                    .context("directory upload entry escaped its selected root")?;
+                let rel = relative
+                    .to_str()
+                    .context("directory upload refuses non-UTF-8 relative paths")?
                     .replace('\\', "/");
                 let remote_child = format!("{remote_root}/{rel}");
-                if meta.is_dir() {
+                entry_count = entry_count
+                    .checked_add(1)
+                    .context("directory upload entry count overflow")?;
+                total_path_bytes = total_path_bytes
+                    .checked_add(remote_child.len())
+                    .context("directory upload inventory size overflow")?;
+                validate_directory_upload_budget(entry_count, depth, total_path_bytes)?;
+                if meta.file_type().is_dir() {
+                    validate_directory_upload_budget(entry_count, depth + 1, total_path_bytes)?;
                     subdirs.push(remote_child);
-                    dirs_to_visit.push(p);
-                } else if meta.is_file() {
+                    dirs_to_visit.push((p, depth + 1));
+                } else if meta.file_type().is_file() {
                     files.push((p, remote_child));
+                } else {
+                    anyhow::bail!(
+                        "directory upload refused: symbolic link or special entry {}",
+                        p.display()
+                    );
                 }
             }
         }
 
+        // Only after all entries pass validation may anything be created on
+        // the remote destination. Existing directories may report an error.
+        let _ = fs.create_dir(&remote_root).await;
         subdirs.sort_by_key(|s| s.matches('/').count());
         for sd in subdirs {
             // Preserve compatibility with FTP/SFTP servers that report
@@ -4546,6 +4657,53 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn download_promotion_rejects_existing_directory_and_preserves_contents() {
+        let root = std::env::temp_dir().join(format!("ghostftp-dir-audit-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let final_path = root.join("occupied");
+        tokio::fs::create_dir(&final_path).await.unwrap();
+        tokio::fs::write(final_path.join("important.txt"), b"keep")
+            .await
+            .unwrap();
+        let staging = download_staging_path(&final_path, "dir-id");
+        tokio::fs::write(&staging, b"staged").await.unwrap();
+
+        let error = promote_staged_download(&staging, &final_path, "dir-id")
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("not a regular file"));
+        assert_eq!(
+            tokio::fs::read(final_path.join("important.txt"))
+                .await
+                .unwrap(),
+            b"keep"
+        );
+        assert_eq!(tokio::fs::read(&staging).await.unwrap(), b"staged");
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn staging_symlink_is_never_promoted_into_download_target() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!("ghostftp-stage-link-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let final_path = root.join("download.txt");
+        let protected = root.join("protected.txt");
+        tokio::fs::write(&protected, b"protected").await.unwrap();
+        let staging = download_staging_path(&final_path, "bad-stage");
+        symlink(&protected, &staging).unwrap();
+
+        let error = promote_staged_download(&staging, &final_path, "bad-stage")
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("not a regular file"));
+        assert_eq!(tokio::fs::read(&protected).await.unwrap(), b"protected");
+        assert!(!final_path.exists());
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[tokio::test]
     async fn staged_download_paths_are_sibling_scoped_and_transfer_specific() {
         let final_path = PathBuf::from("/tmp/downloads/report.bin");
         assert_eq!(
@@ -4556,6 +4714,93 @@ mod tests {
             download_backup_path(&final_path, "abc"),
             PathBuf::from("/tmp/downloads/.ghostftp-download-abc.backup")
         );
+    }
+
+    #[tokio::test]
+    async fn download_promotion_preserves_existing_backup_instead_of_deleting_it() {
+        let root = std::env::temp_dir().join(format!("ghostftp-backup-audit-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let final_path = root.join("file.bin");
+        let staging = download_staging_path(&final_path, "same-id");
+        let backup = download_backup_path(&final_path, "same-id");
+        tokio::fs::write(&final_path, b"original").await.unwrap();
+        tokio::fs::write(&staging, b"replacement").await.unwrap();
+        tokio::fs::write(&backup, b"preserved-backup")
+            .await
+            .unwrap();
+
+        let error = promote_staged_download(&staging, &final_path, "same-id")
+            .await
+            .unwrap_err();
+        assert!(format!("{error:#}").contains("without overwriting a backup"));
+        assert_eq!(tokio::fs::read(&final_path).await.unwrap(), b"original");
+        assert_eq!(tokio::fs::read(&backup).await.unwrap(), b"preserved-backup");
+        assert_eq!(tokio::fs::read(&staging).await.unwrap(), b"replacement");
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn dangling_symlinks_are_occupied_and_never_promoted_over() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!("ghostftp-link-audit-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let final_path = root.join("file.txt");
+        let missing = root.join("missing.txt");
+        symlink(&missing, &final_path).unwrap();
+        let staging = download_staging_path(&final_path, "link-id");
+        tokio::fs::write(&staging, b"new").await.unwrap();
+
+        assert!(local_path_exists_fail_closed(&final_path).await.unwrap());
+        assert_ne!(resolve_local_rename(&final_path).unwrap(), final_path);
+        let error = promote_staged_download(&staging, &final_path, "link-id")
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("not a regular file"));
+        assert!(tokio::fs::symlink_metadata(&final_path)
+            .await
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert!(!missing.exists());
+        assert_eq!(tokio::fs::read(&staging).await.unwrap(), b"new");
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn local_rename_skips_dangling_symlink_candidates() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!("ghostftp-rename-links-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let base = root.join("file.txt");
+        std::fs::write(&base, b"existing").unwrap();
+        symlink(root.join("missing"), root.join("file_1.txt")).unwrap();
+        assert_eq!(
+            resolve_local_rename(&base).unwrap(),
+            root.join("file_2.txt")
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn folder_upload_budget_and_name_guards_are_fail_closed() {
+        assert!(validate_directory_upload_budget(100_000, 64, 16 * 1024 * 1024).is_ok());
+        assert!(validate_directory_upload_budget(100_001, 0, 0).is_err());
+        assert!(validate_directory_upload_budget(1, 65, 0).is_err());
+        assert!(validate_directory_upload_budget(1, 0, 16 * 1024 * 1024 + 1).is_err());
+        for bad in [
+            "",
+            ".",
+            "..",
+            "bad\\name",
+            "bad/name",
+            "bad\rname",
+            "bad\nname",
+        ] {
+            assert!(!safe_upload_name(bad), "accepted invalid name: {bad:?}");
+        }
+        assert!(safe_upload_name("račun 2026.txt"));
     }
 
     // ---------- TokenBucket ----------

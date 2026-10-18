@@ -55,7 +55,7 @@ impl LocalFs {
 
 /// Never overwrite an existing local target during a rename. Both Windows
 /// and Linux use an atomic no-replace OS operation, including for symlinks.
-fn rename_local_noreplace(from: &str, to: &str) -> anyhow::Result<()> {
+pub(crate) fn rename_local_noreplace(from: &str, to: &str) -> anyhow::Result<()> {
     #[cfg(target_os = "linux")]
     {
         let source =

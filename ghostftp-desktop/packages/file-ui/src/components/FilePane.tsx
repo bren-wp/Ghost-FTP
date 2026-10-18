@@ -67,6 +67,7 @@ const DRAG_MIME = "application/x-ghostftp";
 
 interface DragPayload {
   paneId: string;
+  sourceSessionId: SessionId;
   entries: DirEntry[];
 }
 
@@ -79,7 +80,7 @@ interface Props {
   onTransfer?: (entries: DirEntry[]) => void;
   /** Optional toolbar Upload action (server view) — opens a native file picker. */
   onUpload?: (e: React.MouseEvent) => void;
-  onDrop?: (entries: DirEntry[]) => void;
+  onDrop?: (entries: DirEntry[], sourceSessionId: SessionId) => void;
   transferLabel?: string;
   /** Bump to force a re-listing of the current directory (e.g. after an upload). */
   reloadToken?: number;
@@ -587,6 +588,7 @@ export function FilePane({
   // --- Drag & drop ---
 
   const onRowDragStart = (e: React.DragEvent, entry: DirEntry) => {
+    if (!sessionId) { e.preventDefault(); return; }
     const dragSet = selected.has(entry.path)
       ? visible.filter((x) => selected.has(x.path))
       : [entry];
@@ -594,7 +596,7 @@ export function FilePane({
       setSelected(new Set([entry.path]));
       setAnchor(entry.path);
     }
-    const payload: DragPayload = { paneId, entries: dragSet };
+    const payload: DragPayload = { paneId, sourceSessionId: sessionId, entries: dragSet };
     e.dataTransfer.setData(DRAG_MIME, JSON.stringify(payload));
     e.dataTransfer.effectAllowed = "copy";
   };
@@ -625,15 +627,23 @@ export function FilePane({
     setIsDropTarget(false);
     const raw = e.dataTransfer.getData(DRAG_MIME);
     if (!raw) return;
-    let payload: DragPayload;
+    let payload: unknown;
     try {
       payload = JSON.parse(raw);
     } catch {
       return;
     }
-    if (payload.paneId === paneId) return;
-    if (!payload.entries.length) return;
-    onDrop?.(payload.entries);
+    if (!payload || typeof payload !== "object") return;
+    const drag = payload as Partial<DragPayload>;
+    if (typeof drag.paneId !== "string" ||
+        typeof drag.sourceSessionId !== "string" ||
+        !Array.isArray(drag.entries) || drag.entries.length === 0 ||
+        drag.entries.some((item) => !item || typeof item.path !== "string" ||
+          typeof item.name !== "string" ||
+          !["file", "directory", "symlink", "other"].includes(item.kind))) return;
+    if (drag.paneId === paneId) return;
+    if (drag.paneId === "local" && drag.sourceSessionId !== LOCAL_SESSION) return;
+    onDrop?.(drag.entries, drag.sourceSessionId);
   };
 
   // --- Context menu ---
