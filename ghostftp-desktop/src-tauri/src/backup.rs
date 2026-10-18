@@ -231,11 +231,125 @@ fn validate_archive(archive: &Archive) -> Result<()> {
     if archive.credentials.len() > MAX_CREDENTIALS {
         bail!("backup contains too many credential records");
     }
+    let mut seen = HashSet::new();
     for credential in &archive.credentials {
         if !credential_target_allowed(&credential.service, &credential.account) {
             bail!("backup contains an unsupported credential target");
         }
+        if !seen.insert((&credential.service, &credential.account)) {
+            bail!("backup contains duplicate credential targets");
+        }
     }
+    // Metadata must not re-introduce secrets from an older or crafted archive.
+    // Passwords and key passphrases belong exclusively in the encrypted
+    // credential collection and are restored through the OS keychain.
+    if let Some(ref json) = archive.profiles_json {
+        let profiles: Vec<crate::profiles::ConnectionProfile> =
+            serde_json::from_str(json).context("invalid profile metadata in backup")?;
+        for profile in profiles {
+            let plaintext = match profile.auth {
+                crate::profiles::AuthMethod::Password { password } => !password.is_empty(),
+                crate::profiles::AuthMethod::Key { passphrase, .. } => {
+                    passphrase.as_deref().is_some_and(|s| !s.is_empty())
+                }
+                _ => false,
+            };
+            if plaintext {
+                bail!("backup contains plaintext profile credentials");
+            }
+        }
+    }
+    Ok(())
+}
+
+impl Drop for Archive {
+    fn drop(&mut self) {
+        clear_archive_memory(self);
+    }
+}
+
+trait RestoreVault {
+    fn get(&mut self, service: &str, account: &str) -> Result<Option<String>>;
+    fn put(&mut self, service: &str, account: &str, secret: &str) -> Result<()>;
+    fn remove(&mut self, service: &str, account: &str) -> Result<()>;
+}
+
+struct OsVault;
+
+impl RestoreVault for OsVault {
+    fn get(&mut self, service: &str, account: &str) -> Result<Option<String>> {
+        let entry = keyring::Entry::new(service, account).context("open OS credential vault")?;
+        match entry.get_password() {
+            Ok(secret) => Ok(Some(secret)),
+            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(_) => bail!("OS credential vault is unavailable for reading"),
+        }
+    }
+
+    fn put(&mut self, service: &str, account: &str, secret: &str) -> Result<()> {
+        let entry = keyring::Entry::new(service, account).context("open OS credential vault")?;
+        entry
+            .set_password(secret)
+            .map_err(|_| anyhow!("OS credential vault refused a secret write"))
+    }
+
+    fn remove(&mut self, service: &str, account: &str) -> Result<()> {
+        let entry = keyring::Entry::new(service, account).context("open OS credential vault")?;
+        match entry.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(_) => bail!("OS credential vault refused rollback"),
+        }
+    }
+}
+
+struct PreviousSecret(Option<String>);
+
+impl Drop for PreviousSecret {
+    fn drop(&mut self) {
+        if let Some(secret) = self.0.as_mut() {
+            wipe_string(secret);
+        }
+    }
+}
+
+/// Read every existing value before the first write. Never announce a
+/// successful restore if the keychain is locked/unavailable or a write fails.
+/// Revert touched records to their pre-restore values on partial failure.
+fn restore_credentials_with_vault(
+    credentials: &[Cred],
+    vault: &mut impl RestoreVault,
+) -> Result<()> {
+    let mut previous = Vec::with_capacity(credentials.len());
+    for c in credentials {
+        previous.push(PreviousSecret(vault.get(&c.service, &c.account)?));
+    }
+
+    for (index, credential) in credentials.iter().enumerate() {
+        if vault
+            .put(&credential.service, &credential.account, &credential.secret)
+            .is_err()
+        {
+            let mut rollback_failed = false;
+            // Include the failing entry: some OS backends may have written
+            // successfully before reporting an error.
+            for restored in (0..=index).rev() {
+                let c = &credentials[restored];
+                let old = &previous[restored].0;
+                let result = match old {
+                    Some(secret) => vault.put(&c.service, &c.account, secret),
+                    None => vault.remove(&c.service, &c.account),
+                };
+                if result.is_err() {
+                    rollback_failed = true;
+                }
+            }
+            if rollback_failed {
+                bail!("OS vault restore failed and credential rollback was incomplete");
+            }
+            bail!("OS vault restore failed; original credentials were restored");
+        }
+    }
+
     Ok(())
 }
 
@@ -261,8 +375,9 @@ pub fn export(dir: &Path, db: &Db, password: &str, dest: &Path) -> Result<Backup
         bridge_json: read_opt("bridge.json"),
         foldersync_json: read_opt("foldersync.json"),
         ghostftp_db_b64: base64::engine::general_purpose::STANDARD.encode(&db_bytes),
-        credentials: collect_credentials(dir, db),
+        credentials: collect_credentials(dir, db, &mut OsVault)?,
     };
+    validate_archive(&archive)?;
     let summary = archive.summary();
 
     let mut plaintext = serde_json::to_vec(&archive).context("serialize archive")?;
@@ -317,25 +432,24 @@ pub fn import(dir: &Path, password: &str, src: &Path, defer: bool) -> Result<Bac
     let mut archive = decrypt(password, src)?;
     let summary = archive.summary();
 
-    // Stage the config files.
+    // Validate the DB payload before modifying credentials or staging anything.
+    let mut db_bytes = base64::engine::general_purpose::STANDARD
+        .decode(archive.ghostftp_db_b64.as_bytes())
+        .context("decode ghostftp.db snapshot")?;
+
+    // Restore through the OS vault only. If it is locked, unreadable or refuses
+    // a write, no .restore files are staged and no success is reported.
+    restore_credentials_with_vault(&archive.credentials, &mut OsVault)
+        .context("restore backup credentials")?;
+
+    // Stage configuration only after vault writes have been confirmed.
     stage_opt(dir, "profiles.json", archive.profiles_json.as_deref())?;
     stage_opt(dir, "bridge.json", archive.bridge_json.as_deref())?;
     stage_opt(dir, "foldersync.json", archive.foldersync_json.as_deref())?;
-
-    // Stage the DB snapshot.
-    let db_bytes = base64::engine::general_purpose::STANDARD
-        .decode(archive.ghostftp_db_b64.as_bytes())
-        .context("decode ghostftp.db snapshot")?;
-    write_private_file(&dir.join("ghostftp.db.restore"), &db_bytes).context("stage ghostftp.db")?;
-
-    // Credential restore is constrained to Ghost FTP-owned keychain services.
-    // A crafted backup must never write into another application's namespace.
-    for c in &mut archive.credentials {
-        if let Ok(entry) = keyring::Entry::new(&c.service, &c.account) {
-            let _ = entry.set_password(&c.secret);
-        }
-        wipe_string(&mut c.secret);
-    }
+    let staged = write_private_file(&dir.join("ghostftp.db.restore"), &db_bytes)
+        .context("stage ghostftp.db");
+    db_bytes.fill(0);
+    staged?;
 
     if !defer {
         apply_pending_restore(dir);
@@ -467,53 +581,58 @@ fn gunzip_bounded(data: &[u8]) -> Result<Vec<u8>> {
 /// Pull every keychain secret a restore needs: the app's own service keys (from
 /// the `ghostftp.db` manifest) plus each profile's OAuth tokens across the known
 /// cloud providers. Best-effort — a missing entry is simply skipped.
-fn collect_credentials(dir: &Path, db: &Db) -> Vec<Cred> {
+fn collect_credentials(dir: &Path, db: &Db, vault: &mut impl RestoreVault) -> Result<Vec<Cred>> {
     let mut seen: HashSet<(String, String)> = HashSet::new();
     let mut out: Vec<Cred> = Vec::new();
 
-    let take = |service: &str, account: &str, out: &mut Vec<Cred>, seen: &mut HashSet<_>| {
+    let mut take = |service: &str, account: &str, required: bool| -> Result<()> {
+        if !credential_target_allowed(service, account) {
+            bail!("backup credential inventory contains an invalid target");
+        }
         if !seen.insert((service.to_string(), account.to_string())) {
-            return;
+            return Ok(());
         }
-        if let Ok(entry) = keyring::Entry::new(service, account) {
-            if let Ok(secret) = entry.get_password() {
-                out.push(Cred {
-                    service: service.to_string(),
-                    account: account.to_string(),
-                    secret,
-                });
+        match vault.get(service, account)? {
+            Some(secret) => out.push(Cred {
+                service: service.to_string(),
+                account: account.to_string(),
+                secret,
+            }),
+            None if required => {
+                bail!("OS vault is missing a credential recorded in the backup manifest")
             }
+            None => {}
         }
+        Ok(())
     };
 
-    // App service keys recorded in the manifest.
-    if let Ok(list) = db.list_keychain() {
-        for (service, account) in list {
-            take(&service, &account, &mut out, &mut seen);
-        }
+    // A damaged/unreadable manifest is not proof that no credentials exist.
+    for (service, account) in db.list_keychain().context("read backup credential manifest")? {
+        take(&service, &account, true)?;
     }
 
-    // OAuth tokens are keyed by profile id under a per-provider service. Try each
-    // service for every profile — a non-cloud profile simply has no entry.
+    // OAuth tokens are optional for profiles without that provider. Absence is
+    // normal; a vault read failure is not and must abort the entire backup.
     let oauth_services = [
         crate::session::dropbox::DROPBOX_SERVICE,
         crate::session::onedrive::ONEDRIVE_SERVICE,
         crate::session::gdrive::GDRIVE_SERVICE,
         crate::session::boxdrive::BOX_SERVICE,
     ];
-    if let Ok(bytes) = std::fs::read(dir.join("profiles.json")) {
-        if let Ok(profiles) =
-            serde_json::from_slice::<Vec<crate::profiles::ConnectionProfile>>(&bytes)
-        {
-            for p in profiles {
-                for svc in oauth_services {
-                    take(svc, &p.id, &mut out, &mut seen);
+    match std::fs::read(dir.join("profiles.json")) {
+        Ok(bytes) => {
+            let profiles: Vec<crate::profiles::ConnectionProfile> =
+                serde_json::from_slice(&bytes).context("read valid backup profile metadata")?;
+            for profile in profiles {
+                for service in oauth_services {
+                    take(service, &profile.id, false)?;
                 }
             }
         }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e).context("read backup profile metadata"),
     }
-
-    out
+    Ok(out)
 }
 
 #[cfg(test)]
