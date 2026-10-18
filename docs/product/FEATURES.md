@@ -1,6 +1,13 @@
-> Ghost FTP **0.95.38** (development cycle), following published **v0.95.37**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.39** (development preview), following published **v0.95.38**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.39 WebDAV and HTTP listing fail-closed hardening — preview candidate
+
+- Reject malformed or truncated WebDAV multistatus XML, unexpected HTTP status, missing response hrefs and invalid listing bodies rather than treating partial inventories as complete.
+- Reject malformed nginx autoindex JSON instead of returning a falsely empty folder; valid empty arrays remain supported.
+- Targeted Rust regression tests cover failure handling. Full live WebDAV failure-injection and exact-head cross-platform release acceptance are still required before publication.
+
 
 ## v0.95.38 Transaction-safe SQLite folder sync and strict source inventories — development candidate
 
@@ -102,7 +109,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.38 development source. Previous canonical release: **0.95.37**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.39 development source. Previous canonical release: **0.95.38**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
