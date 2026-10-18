@@ -633,18 +633,19 @@ fn collect_credentials(dir: &Path, db: &Db, vault: &mut impl RestoreVault) -> Re
 
     // OAuth tokens are optional for profiles without that provider. Absence is
     // normal; a vault read failure is not and must abort the entire backup.
-    let oauth_services = [
-        crate::session::dropbox::DROPBOX_SERVICE,
-        crate::session::onedrive::ONEDRIVE_SERVICE,
-        crate::session::gdrive::GDRIVE_SERVICE,
-        crate::session::boxdrive::BOX_SERVICE,
-    ];
     match std::fs::read(dir.join("profiles.json")) {
         Ok(bytes) => {
             let profiles: Vec<crate::profiles::ConnectionProfile> =
                 serde_json::from_slice(&bytes).context("read valid backup profile metadata")?;
             for profile in profiles {
-                for service in oauth_services {
+                let service = match profile.protocol.as_str() {
+                    "dropbox" => Some(crate::session::dropbox::DROPBOX_SERVICE),
+                    "onedrive" => Some(crate::session::onedrive::ONEDRIVE_SERVICE),
+                    "gdrive" => Some(crate::session::gdrive::GDRIVE_SERVICE),
+                    "box" => Some(crate::session::boxdrive::BOX_SERVICE),
+                    _ => None,
+                };
+                if let Some(service) = service {
                     take(service, &profile.id, false)?;
                 }
             }
