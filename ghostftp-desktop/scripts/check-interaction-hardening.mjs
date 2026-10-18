@@ -586,7 +586,8 @@ requireIncludes(
     "disabled={scheduleMode === \"off\" || !selected}",
     "Export History…",
     "void exportTransferHistory();",
-    "const count = await exportHistory(path);",
+    "await runTransferHistoryExport(",
+    "(path) => exportHistory(path)",
   ],
   "serialized transfer-row, queue and scheduler button contracts"
 );
