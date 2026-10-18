@@ -12,7 +12,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.95.37 (development preview) · Latest published release: [v0.95.36](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.36)</sub>
+<sub>Ghost FTP 0.95.38 (development preview) · Latest published release: [v0.95.37](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.37)</sub>
 
 [**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases/latest) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -28,7 +28,7 @@ Move files, manage connections and keep important server work organized with an 
 </a>
 </p>
 
-<p align="center"><sub>Seven authentic Ghost FTP Windows 0.95.18 running-application screenshots (1290×852), captured in [native Windows WebView2 QA](https://github.com/bren-wp/Ghost-FTP/actions/runs/38642134579) from source commit <code>b26964ba476c534bd49bebf7fb73ce6011f15d92</code>. These are historical real-app captures, not 0.95.37 pixel-parity certification. Each PNG is SHA-256 pinned in [the capture manifest](docs/assets/screenshots/README-NATIVE-CAPTURE.json). No concept artwork or generated screenshots.</sub></p>
+<p align="center"><sub>Seven authentic Ghost FTP Windows 0.95.18 running-application screenshots (1290×852), captured in [native Windows WebView2 QA](https://github.com/bren-wp/Ghost-FTP/actions/runs/38642134579) from source commit <code>b26964ba476c534bd49bebf7fb73ce6011f15d92</code>. These are historical real-app captures, not 0.95.38 pixel-parity certification. Each PNG is SHA-256 pinned in [the capture manifest](docs/assets/screenshots/README-NATIVE-CAPTURE.json). No concept artwork or generated screenshots.</sub></p>
 
 <table>
 <tr>
@@ -78,6 +78,8 @@ For the current Windows/Linux audit scope, coverage and outstanding gaps, see [W
 Current source includes native OS-keyring credential protection (Windows native credential storage and Linux Secret Service), safety-checked continuous folder synchronization, editor upload retry protection, and safe PowerShell/CMD/.NET watcher script generation from additive sync pairs. [Security & sync audit](docs/audits/KEYCHAIN_LIVE_SYNC_0.95.36.md) records exact behavior and remaining work. Advanced built-in syntax highlighting and vendor-authenticated cloud E2E are not yet release-verified.
 
 Ghost FTP v0.95.37 adds a **built-in code editor** (PHP/JS/HTML/CSS highlighting, search, bracket completion and indentation) for small remote UTF-8 text files, plus SQLite-backed, transaction-safe continuous folder-sync configuration. Existing OS-protected secret storage remains separate from the SQLite database. [Migration and editor audit](docs/audits/SQLITE_EDITOR_0.95.37.md).
+
+The v0.95.38 development cycle hardens [SQLite-backed watched sync](docs/audits/SQLITE_SYNC_INTEGRITY_0.95.38.md) with atomic state commits and refuses partial directory scans before any Mirror deletion. SQLite is a **local transactional database, not encryption**; connection passwords stay in the native OS credential service. The project does not require a proprietary hosted backend for local profile and sync storage.
 
 ## Choose your platform
 

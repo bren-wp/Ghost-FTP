@@ -1,6 +1,15 @@
-> Ghost FTP **0.95.37** (development cycle), following published **v0.95.36**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.38** (development cycle), following published **v0.95.37**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.38 Transaction-safe SQLite folder sync and strict source inventories — development candidate
+
+- Mirror/additive sync refuses unreadable source or destination directory inventories instead of silently treating missing folders as empty.
+- SQLite sync index reads fail closed; source snapshots replace all rows for one pair in a single transaction, preserving other pairs on write failures.
+- Mirror deletion safety warnings cannot advance the last fully synchronized timestamp or replace the saved source history.
+- Rust regressions cover transaction rollback, size validation, cross-pair isolation and unreadable directory scans. Existing OS-backed password storage, live watcher, safe CMD/.NET scripts and PHP/JS/HTML/CSS editor remain unchanged.
+- Bulk-transfer benchmarks, 59-screen pixel parity and independent cloud provider production verification remain outstanding.
+
 
 ## v0.95.37 SQLite folder-sync migration and built-in source editor — preview
 
@@ -93,7 +102,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.37 development source. Previous canonical release: **0.95.36**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.38 development source. Previous canonical release: **0.95.37**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 

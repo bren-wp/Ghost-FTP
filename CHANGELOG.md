@@ -1,3 +1,12 @@
+## 0.95.38 — Atomic SQLite sync inventories and fail-closed folder scans (development preview) — 18 October 2026
+
+- Reject unreadable or partial directory scans when planning synchronization; a missing/unreadable source subdirectory can no longer be silently interpreted as files that should be removed from the server.
+- Refuse to plan from a fabricated empty SQLite sync history when the database is unavailable or corrupted.
+- Replace an entire source inventory for one pair in a single SQLite transaction, with prepared INSERT statements and rollback on write failure. Refuse entries larger than SQLite signed 64-bit integer limits.
+- Skip source index replacement and preserve prior last-synced timestamps when Mirror deletion guards withhold destructive work.
+- Add Rust regression coverage for strict scans, per-pair isolation, malformed inventory size and transactional rollback.
+- Retain existing Windows native OS credential storage, Linux Secret Service, live folder watching, CMD/.NET automation and built-in PHP/JS/HTML/CSS editor; they remain subject to independent native acceptance and throughput benchmarks.
+
 ## 0.95.37 — SQLite watched-sync settings and integrated remote source editor (development preview) — 18 October 2026
 
 - Store continuous folder-sync configuration transactionally in the existing local `ghostftp.db` (SQLite); migrate legacy `foldersync.json` once without deleting it, and refuse to silently discard malformed configs.
