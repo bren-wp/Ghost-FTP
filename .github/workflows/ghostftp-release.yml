@@ -69,6 +69,7 @@ jobs:
             exit 1
           fi
           node .github/scripts/sync-version.mjs --check
+          node .github/scripts/check-release-channel.mjs
           VERSION="$(node -p 'require("./version.json").version')"
           RELEASE_CHANNEL="$(node -p 'require("./version.json").channel || ""')"
           test -f "docs/releases/$VERSION.md"
@@ -118,7 +119,10 @@ jobs:
               fi
               echo "The exact-source v$VERSION release already exists; validating its artifacts again."
             else
-              LATEST_PUBLISHED_TAG="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')"
+              # GitHub /releases/latest skips prereleases. Our canonical
+              # published lineage includes Preview tags, so use all non-draft
+              # releases sorted by their actual publication time.
+              LATEST_PUBLISHED_TAG="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq 'map(select(.draft == false)) | sort_by(.published_at) | reverse | .[0].tag_name // empty')"
               if [ "$LATEST_PUBLISHED_TAG" != "v$PREVIOUS_PUBLISHED_VERSION" ]; then
                 echo "::error::Release lineage mismatch: expected latest public v$PREVIOUS_PUBLISHED_VERSION, found $LATEST_PUBLISHED_TAG." >&2
                 exit 1
