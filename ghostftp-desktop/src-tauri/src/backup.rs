@@ -380,10 +380,7 @@ fn export_with_vault(
 
     // WAL-safe DB snapshot into a temp file. The guard removes it on every
     // return path, including snapshot/read/encryption failures.
-    let tmp = dir.join(format!(
-        ".ghostftp-db-backup-{}.tmp",
-        uuid::Uuid::new_v4()
-    ));
+    let tmp = dir.join(format!(".ghostftp-db-backup-{}.tmp", uuid::Uuid::new_v4()));
     let _tmp_guard = RemoveOnDrop(tmp.clone());
     db.snapshot_to(&tmp).context("snapshot ghostftp.db")?;
     let mut db_bytes = std::fs::read(&tmp).context("read ghostftp.db snapshot")?;
