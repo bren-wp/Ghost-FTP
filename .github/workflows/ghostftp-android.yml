@@ -42,6 +42,18 @@ jobs:
         run: |
           bash android/scripts/check-android-contract.sh
           bash android/scripts/test-visual-instrumentation-output.sh
+      - name: Android upload signing fail-closed contract (no secrets in PR CI)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n android/scripts/sign-release-aab.sh
+          if env -u ANDROID_UPLOAD_KEYSTORE_B64 -u ANDROID_UPLOAD_STORE_PASSWORD \
+            -u ANDROID_UPLOAD_KEY_PASSWORD -u ANDROID_UPLOAD_KEY_ALIAS \
+            -u ANDROID_UPLOAD_CERT_SHA256 \
+            EXPECTED_SOURCE_SHA="$GITHUB_SHA" bash android/scripts/sign-release-aab.sh; then
+            echo "::error::Upload signing must reject incomplete credentials in untrusted CI."
+            exit 1
+          fi
       - name: Native Android lint and APK build
         shell: bash
         run: gradle -p android testDebugUnitTest lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview bundleRelease
