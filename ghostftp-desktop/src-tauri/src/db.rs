@@ -318,10 +318,15 @@ impl Db {
                FROM sync_state WHERE pair_id = ?1",
         )?;
         let rows = stmt.query_map([pair_id], |r| {
+            // Treat corrupt/legacy negative SQLite sizes as errors, never
+            // reinterpret them as impossibly large unsigned files.
+            let size: i64 = r.get(1)?;
+            let size = u64::try_from(size)
+                .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(1, size))?;
             Ok((
                 r.get::<_, String>(0)?,
                 SyncStateRow {
-                    size: r.get::<_, i64>(1)? as u64,
+                    size,
                     mtime: r.get(2)?,
                     remote_signal: r.get(3)?,
                     last_synced_ms: r.get(4)?,
@@ -346,6 +351,7 @@ impl Db {
         remote_signal: Option<&str>,
         last_synced_ms: i64,
     ) -> Result<()> {
+        let size = i64::try_from(size).context("sync source file size exceeds SQLite INTEGER")?;
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "INSERT INTO sync_state
@@ -360,7 +366,7 @@ impl Db {
             rusqlite::params![
                 pair_id,
                 rel_path,
-                size as i64,
+                size,
                 mtime,
                 remote_signal,
                 last_synced_ms
@@ -1016,6 +1022,21 @@ mod tests {
             db.load_sync_state("pair-b").unwrap()["untouched.js"].size,
             22
         );
+    }
+
+    #[test]
+    fn sqlite_sync_history_rejects_corrupt_negative_sizes_without_unsigned_wrap() {
+        let db = Db::open_in_memory().unwrap();
+        db.upsert_sync_state("pair", "a.js", 23, 11, None, 3).unwrap();
+        assert!(db.upsert_sync_state("pair", "b.js", u64::MAX, 11, None, 3).is_err());
+        {
+            let conn = db.conn.lock().unwrap();
+            conn.execute(
+                "UPDATE sync_state SET size = -1 WHERE pair_id = 'pair'",
+                [],
+            ).unwrap();
+        }
+        assert!(db.load_sync_state("pair").is_err());
     }
 
     #[test]
