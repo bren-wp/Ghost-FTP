@@ -1,8 +1,17 @@
-> Ghost FTP **0.95.36** (development cycle), following published **v0.95.35**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.37** (development cycle), following published **v0.95.36**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
 
-## v0.95.36 Security, live folder sync and script export — preview
+## v0.95.37 SQLite resilience and editor watcher correctness — development preview
+
+- Existing bundled SQLite supports local state without external backend dependencies, with enforced foreign-key configuration, five-second busy timeout and logged WAL fallback.
+- External-editor same-timestamp, same-length edits are detected using bounded SHA-256 content fingerprints for code files up to 8 MiB.
+- Generated .NET live-sync recipes isolate filesystem watcher events from other PowerShell automation.
+- Saved account credentials continue in native Windows/Linux OS keyrings, not in plaintext JSON or SQLite.
+- Built-in syntax completion and a fully integrated PHP/JS/HTML/CSS editor remain planned, not implied by this increment.
+
+
+## v0.95.37 Security, live folder sync and script export — preview
 
 - Enforce OS keyring credential storage at the profile JSON write boundary; never persist new plaintext passwords/passphrases.
 - Live watcher plus poll backup: source index is updated only when every transfer succeeds; internal partial files are never mirrored.
@@ -85,7 +94,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.36 development source. Previous canonical release: **0.95.35**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.37 development source. Previous canonical release: **0.95.36**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 

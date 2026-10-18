@@ -1,3 +1,11 @@
+## 0.95.37 — Local SQLite resilience, precise remote-editor saves and safer .NET watcher (development preview) — 18 October 2026
+
+- SQLite now verifies that foreign keys are enabled, applies a bounded five-second lock wait, and logs when the preferred WAL journaling mode cannot be enabled rather than silently ignoring the failure.
+- Improve the remote-edit watcher: for source files up to 8 MiB, compare SHA-256 content fingerprints as well as size and modification time, detecting same-size/same-timestamp editor saves that would previously be ignored.
+- Preserve the existing rejection of symlinks/special files and unsuccessful-upload retry behavior; add Linux and Windows regression tests for fingerprint correctness.
+- Keep generated PowerShell/.NET FileSystemWatcher scripts scoped to their own event identifiers, so unrelated session events do not trigger an upload cycle or get removed.
+- Keep native OS keyring passwords out of JSON and SQLite; preserve existing offline-first architecture without requiring an external application backend.
+
 ## 0.95.36 — Saved credential safety, reliable live sync and script automation (development preview) — 18 October 2026
 
 - Enforce fail-closed profile serialization at the storage layer: new plaintext passwords and private-key passphrases cannot reach `profiles.json`. Existing keyring use remains unchanged (Windows-native and Linux-native).
