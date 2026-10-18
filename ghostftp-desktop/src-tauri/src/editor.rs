@@ -51,10 +51,13 @@ pub struct EditErrorEvent {
     pub message: String,
 }
 
+const MAX_BUILTIN_EDITOR_BYTES: usize = 2 * 1024 * 1024;
+
 struct EditState {
     /// Held only to keep the watcher alive. Dropping it stops the watcher.
     _watcher: RecommendedWatcher,
     tempdir: PathBuf,
+    local_path: PathBuf,
 }
 
 pub struct EditManager {
@@ -74,6 +77,7 @@ impl EditManager {
         session_id: String,
         remote_path: String,
         editor: Option<String>,
+        builtin: bool,
         app: AppHandle,
     ) -> Result<EditStartedEvent> {
         let edit_id = Uuid::new_v4().to_string();
@@ -234,10 +238,12 @@ impl EditManager {
         // when set, else the OS default app. If launch fails, explicitly drop
         // the watcher and remove the downloaded temp copy; the edit was never
         // registered in `sessions`, so stop() cannot clean it up later.
-        if let Err(error) = spawn_editor(&local_path, editor.as_deref()) {
-            drop(watcher);
-            let _ = std::fs::remove_dir_all(&base);
-            return Err(error);
+        if !builtin {
+            if let Err(error) = spawn_editor(&local_path, editor.as_deref()) {
+                drop(watcher);
+                let _ = std::fs::remove_dir_all(&base);
+                return Err(error);
+            }
         }
 
         let started = EditStartedEvent {
@@ -252,9 +258,37 @@ impl EditManager {
             EditState {
                 _watcher: watcher,
                 tempdir: base,
+                local_path,
             },
         );
         Ok(started)
+    }
+
+    /// Only the current edit session's local temp copy may be read through IPC.
+    pub async fn read_text(&self, edit_id: &str) -> Result<String> {
+        let path = self.sessions.lock().await.get(edit_id)
+            .context("editing session is no longer active")?.local_path.clone();
+        let meta = tokio::fs::symlink_metadata(&path).await.context("stat edit copy")?;
+        anyhow::ensure!(meta.file_type().is_file(), "edit copy is not a regular file");
+        anyhow::ensure!(meta.len() <= MAX_BUILTIN_EDITOR_BYTES as u64,
+            "file is too large for the built-in editor");
+        let bytes = tokio::fs::read(&path).await.context("read edit copy")?;
+        anyhow::ensure!(bytes.len() <= MAX_BUILTIN_EDITOR_BYTES,
+            "file is too large for the built-in editor");
+        String::from_utf8(bytes).context("file is not UTF-8 text; use an external editor")
+    }
+
+    /// Local write only. The existing watcher publishes remote saved/error
+    /// events; never present successful IPC completion as remote-save success.
+    pub async fn write_text(&self, edit_id: &str, content: String) -> Result<()> {
+        anyhow::ensure!(content.len() <= MAX_BUILTIN_EDITOR_BYTES,
+            "edited content exceeds the 2 MiB built-in editor limit");
+        let path = self.sessions.lock().await.get(edit_id)
+            .context("editing session is no longer active")?.local_path.clone();
+        let meta = tokio::fs::symlink_metadata(&path).await.context("stat edit copy")?;
+        anyhow::ensure!(meta.file_type().is_file(), "edit copy is not a regular file");
+        tokio::fs::write(&path, content.as_bytes()).await.context("write edit copy")?;
+        Ok(())
     }
 
     pub async fn stop(&self, edit_id: &str) -> Result<()> {

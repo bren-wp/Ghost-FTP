@@ -404,10 +404,13 @@ export const ipc = {
   syncExecute: (sessionId: SessionId, plan: SyncPlan) =>
     invoke<string[]>("sync_execute", { sessionId, plan }),
 
-  startEdit: (sessionId: SessionId, remotePath: string, editor?: string) =>
-    invoke<EditStartedEvent>("start_edit", { sessionId, remotePath, editor }),
+  startEdit: (sessionId: SessionId, remotePath: string, editor?: string, builtin = false) =>
+    invoke<EditStartedEvent>("start_edit", { sessionId, remotePath, editor, builtin }),
 
   stopEdit: (editId: string) => invoke<void>("stop_edit", { editId }),
+  editorReadText: (editId: string) => invoke<string>("editor_read_text", { editId }),
+  editorWriteText: (editId: string, content: string) =>
+    invoke<void>("editor_write_text", { editId, content }),
 
   // Agent Bridge
   bridgeStart: () => invoke<BridgeStatus>("bridge_start"),

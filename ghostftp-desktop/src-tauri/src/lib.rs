@@ -485,6 +485,8 @@ pub fn run() {
             commands::sync_execute,
             commands::start_edit,
             commands::stop_edit,
+            commands::editor_read_text,
+            commands::editor_write_text,
             commands::list_directory,
             commands::capabilities,
             commands::read_file_preview,
