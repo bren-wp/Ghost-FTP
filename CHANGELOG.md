@@ -1,3 +1,11 @@
+## 0.95.41 — Bounded fail-closed HTTP autoindex inventories (development preview) — 18 October 2026
+
+- Stop accepting HTML login/error/partial pages as successful empty HTTP directory listings. Enforce recognizable complete directory-index markup.
+- Bound the HTTP response while receiving chunks before allocating/parsing the full listing. Reject oversized JSON/HTML source inventories and large aggregate filename sets.
+- Refuse duplicate names, malformed URL/Unicode names, nested traversal hrefs, invalid JSON entry types and truncated/multi-anchor HTML rows instead of silently omitting files.
+- Add negative tests for malformed/index-shaped HTML, duplicate records, oversized listings and invalid JSON names, preserving valid nginx and Apache listing fixtures.
+- Keep published v0.95.40 immutable and treat this as a preview PR candidate pending live HTTP compatibility and all six exact-SHA CI gates.
+
 ## 0.95.40 — OS vault backup/restore fail-closed security hardening (development preview) — 18 October 2026
 
 - Abort encrypted backup export when the OS credential vault is unreadable or a manifest credential is missing instead of silently creating an incomplete backup.

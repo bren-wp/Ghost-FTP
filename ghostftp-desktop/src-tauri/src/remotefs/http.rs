@@ -93,12 +93,29 @@ impl RemoteFs for HttpFs {
             .and_then(|v| v.to_str().ok())
             .map(|s| s.to_ascii_lowercase().contains("json"))
             .unwrap_or(false);
-        let body = resp.text().await.context("read listing body")?;
+        // Bound the network response before parsing. A partial inventory must not
+        // be returned as complete after an oversized/hostile directory page.
+        if resp
+            .content_length()
+            .is_some_and(|n| n > MAX_HTTP_LISTING_BYTES as u64)
+        {
+            anyhow::bail!("HTTP directory listing exceeds the response size limit");
+        }
+        let mut bytes = Vec::new();
+        let mut response = resp;
+        while let Some(chunk) = response.chunk().await.context("read listing body")? {
+            anyhow::ensure!(
+                chunk.len() <= MAX_HTTP_LISTING_BYTES.saturating_sub(bytes.len()),
+                "HTTP directory listing exceeds the response size limit"
+            );
+            bytes.extend_from_slice(&chunk);
+        }
+        let body = String::from_utf8(bytes).context("HTTP directory listing is not UTF-8")?;
 
         let entries = if is_json || body.trim_start().starts_with('[') {
             parse_nginx_json(&body, path)?
         } else {
-            parse_autoindex_html(&body, path)
+            parse_autoindex_html(&body, path)?
         };
         Ok(entries)
     }
@@ -150,23 +167,69 @@ fn clean_etag(raw: &str) -> String {
         .to_string()
 }
 
-/// Parse an nginx/Apache autoindex HTML page into entries. Deliberately simple
-/// and anchor-based (one entry per line, as both servers emit) so it survives the
-/// `<pre>` and `<table>` variants; sizes are best-effort (real size comes from
-/// Content-Length on download).
-fn parse_autoindex_html(body: &str, request_path: &str) -> Vec<DirEntry> {
+/// Require an identifiable nginx/Apache/Python autoindex page before using
+/// HTML as a directory inventory. Login and generic error pages are NOT empty
+/// directories; multi-anchor rows must not silently discard later entries.
+const MAX_HTTP_LISTING_BYTES: usize = 16 * 1024 * 1024;
+const MAX_HTTP_LISTING_ENTRIES: usize = 100_000;
+const MAX_HTTP_LISTING_NAME_BYTES: usize = 4 * 1024 * 1024;
+
+fn valid_leaf(name: &str) -> bool {
+    !name.is_empty()
+        && name != "."
+        && name != ".."
+        && !name
+            .chars()
+            .any(|ch| ch.is_control() || ch == '/' || ch == '\\')
+}
+
+fn parse_autoindex_html(body: &str, request_path: &str) -> Result<Vec<DirEntry>> {
+    anyhow::ensure!(
+        body.len() <= MAX_HTTP_LISTING_BYTES,
+        "HTTP autoindex exceeds the response size limit"
+    );
+    let lower = body.to_ascii_lowercase();
+    anyhow::ensure!(
+        (lower.contains("<title>index of")
+            || lower.contains("<h1>index of")
+            || lower.contains("directory listing for"))
+            && lower.contains("</html>"),
+        "unrecognized or truncated HTTP directory index"
+    );
     let mut out = Vec::new();
     let mut seen = HashSet::new();
+    let mut name_bytes = 0usize;
     for line in body.lines() {
-        if let Some((href, tail)) = first_href(line) {
-            if let Some(entry) = entry_from_href(&href, tail, request_path) {
-                if seen.insert(entry.path.clone()) {
-                    out.push(entry);
-                }
-            }
+        let href_count = line.match_indices("href=").count();
+        anyhow::ensure!(
+            href_count <= 1,
+            "HTTP directory index contains multiple links in one row"
+        );
+        if href_count == 0 {
+            continue;
+        }
+        let (href, tail) =
+            first_href(line).ok_or_else(|| anyhow!("malformed HTTP directory index link"))?;
+        if let Some(entry) = entry_from_href(&href, tail, request_path)? {
+            anyhow::ensure!(
+                out.len() < MAX_HTTP_LISTING_ENTRIES,
+                "HTTP directory index has too many entries"
+            );
+            name_bytes = name_bytes
+                .checked_add(entry.name.len())
+                .ok_or_else(|| anyhow!("HTTP directory filename budget overflow"))?;
+            anyhow::ensure!(
+                name_bytes <= MAX_HTTP_LISTING_NAME_BYTES,
+                "HTTP directory filename budget exceeded"
+            );
+            anyhow::ensure!(
+                seen.insert(entry.name.clone()),
+                "HTTP directory index contains duplicate filenames"
+            );
+            out.push(entry);
         }
     }
-    out
+    Ok(out)
 }
 
 /// Find the first quoted `href="…"` on a line, returning the href and the text
@@ -190,24 +253,30 @@ fn first_href(line: &str) -> Option<(String, &str)> {
     Some((href, tail))
 }
 
-fn entry_from_href(href: &str, tail: &str, request_path: &str) -> Option<DirEntry> {
-    // Drop query/fragment (Apache column-sort links become empty → skipped).
+fn entry_from_href(href: &str, tail: &str, request_path: &str) -> Result<Option<DirEntry>> {
+    // Apache sort links and parent navigation are not inventory entries.
     let href = href.split(['?', '#']).next().unwrap_or(href);
-    if href.is_empty() || href.contains("://") || href.starts_with('/') {
-        return None; // external, absolute, or nav link
+    if href.is_empty() || href == "../" || href == "./" || href.starts_with('/') {
+        return Ok(None);
     }
+    anyhow::ensure!(
+        !href.contains("://") && !href.contains('\\'),
+        "unsafe HTTP directory index href"
+    );
     let is_dir = href.ends_with('/');
     let trimmed = href.trim_end_matches('/');
-    let seg = trimmed.rsplit('/').next().unwrap_or(trimmed);
-    if seg.is_empty() || seg == "." || seg == ".." {
-        return None;
-    }
-    let name = percent_decode_str(seg).decode_utf8_lossy().into_owned();
-    if name.eq_ignore_ascii_case("parent directory") {
-        return None;
-    }
+    // Do not silently flatten nested or traversal hrefs into leaf entries.
+    anyhow::ensure!(
+        !trimmed.contains('/') && trimmed != "." && trimmed != "..",
+        "HTTP directory index has a non-leaf href"
+    );
+    let name = percent_decode_str(trimmed)
+        .decode_utf8()
+        .context("invalid encoded filename in HTTP directory index")?
+        .into_owned();
+    anyhow::ensure!(valid_leaf(&name), "unsafe HTTP directory index filename");
     let size = if is_dir { 0 } else { size_from_tail(tail) };
-    Some(DirEntry {
+    Ok(Some(DirEntry {
         name: name.clone(),
         path: child_path(request_path, &name),
         kind: if is_dir {
@@ -219,7 +288,7 @@ fn entry_from_href(href: &str, tail: &str, request_path: &str) -> Option<DirEntr
         modified: None,
         mode: None,
         etag: None,
-    })
+    }))
 }
 
 /// Best-effort size from the trailing column(s) of an autoindex row: the last
@@ -292,28 +361,51 @@ fn parse_nginx_json(body: &str, request_path: &str) -> Result<Vec<DirEntry>> {
     // Never convert a truncated response or an error document into an empty
     // inventory: mirror/sync planners must see an explicit listing failure.
     let items: Vec<JsonItem> = serde_json::from_str(body).context("invalid nginx JSON listing")?;
-    Ok(items
-        .into_iter()
-        .filter_map(|it| {
-            if it.name.is_empty() || it.name == "." || it.name == ".." {
-                return None;
-            }
-            let is_dir = it.typ.as_deref() == Some("directory");
-            Some(DirEntry {
-                path: child_path(request_path, &it.name),
-                name: it.name,
-                kind: if is_dir {
-                    FileKind::Directory
-                } else {
-                    FileKind::File
-                },
-                size: it.size.unwrap_or(0),
-                modified: it.mtime.as_deref().and_then(parse_http_date),
-                mode: None,
-                etag: None,
-            })
-        })
-        .collect())
+    anyhow::ensure!(
+        body.len() <= MAX_HTTP_LISTING_BYTES && items.len() <= MAX_HTTP_LISTING_ENTRIES,
+        "nginx JSON directory inventory exceeds limits"
+    );
+    let mut seen = HashSet::new();
+    let mut name_bytes = 0usize;
+    let mut out = Vec::with_capacity(items.len());
+    for it in items {
+        if it.name == "." || it.name == ".." {
+            continue;
+        }
+        anyhow::ensure!(valid_leaf(&it.name), "invalid nginx JSON listing filename");
+        name_bytes = name_bytes
+            .checked_add(it.name.len())
+            .ok_or_else(|| anyhow!("nginx JSON filename budget overflow"))?;
+        anyhow::ensure!(
+            name_bytes <= MAX_HTTP_LISTING_NAME_BYTES,
+            "nginx JSON filename budget exceeded"
+        );
+        anyhow::ensure!(
+            seen.insert(it.name.clone()),
+            "nginx JSON listing contains duplicate filenames"
+        );
+        anyhow::ensure!(
+            it.typ
+                .as_deref()
+                .is_none_or(|kind| kind == "file" || kind == "directory"),
+            "unknown nginx JSON listing entry type"
+        );
+        let is_dir = it.typ.as_deref() == Some("directory");
+        out.push(DirEntry {
+            path: child_path(request_path, &it.name),
+            name: it.name,
+            kind: if is_dir {
+                FileKind::Directory
+            } else {
+                FileKind::File
+            },
+            size: it.size.unwrap_or(0),
+            modified: it.mtime.as_deref().and_then(parse_http_date),
+            mode: None,
+            etag: None,
+        });
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -332,7 +424,7 @@ mod tests {
 
     #[test]
     fn parses_nginx_autoindex() {
-        let e = parse_autoindex_html(NGINX_HTML, "/pub");
+        let e = parse_autoindex_html(NGINX_HTML, "/pub").unwrap();
         assert_eq!(e.len(), 3, "got {e:?}");
 
         let dir = e.iter().find(|x| x.name == "images").unwrap();
@@ -361,7 +453,7 @@ mod tests {
 
     #[test]
     fn parses_apache_autoindex() {
-        let e = parse_autoindex_html(APACHE_HTML, "/files");
+        let e = parse_autoindex_html(APACHE_HTML, "/files").unwrap();
         // Sort link + Parent Directory dropped; docs + readme.md + big.iso remain.
         assert_eq!(e.len(), 3, "got {e:?}");
         assert!(e
@@ -398,6 +490,59 @@ mod tests {
         assert!(parse_nginx_json(r#"{"error":"login required"}"#, "/pub").is_err());
         // A legitimate empty array is still a valid complete listing.
         assert!(parse_nginx_json("[]", "/pub").unwrap().is_empty());
+    }
+
+    #[test]
+    fn http_html_requires_recognized_complete_autoindex() {
+        for bad in [
+            "",
+            "<html><body>Login required</body></html>",
+            "<html><title>Index of /</title><body><a href=\"file\">file</a>",
+            "<html><title>Index of /</title><body><a href=file>file</a></html>",
+            "<html><title>Index of /</title><body><a href=\"one\">one</a><a href=\"two\">two</a></html>",
+            "<html><title>Index of /</title><body><a href=\"%FF\">invalid</a></html>",
+            "<html><title>Index of /</title><body><a href=\"safe%2Fbad\">unsafe</a></html>",
+            "<html><title>Index of /</title><body><a href=\"sub/leaf\">unsafe</a></html>",
+        ] {
+            assert!(parse_autoindex_html(bad, "/").is_err(), "accepted: {bad}");
+        }
+        let empty = "<html><title>Index of /empty</title><body></body></html>";
+        assert!(parse_autoindex_html(empty, "/empty").unwrap().is_empty());
+    }
+
+    #[test]
+    fn http_html_duplicates_and_oversize_fail_closed() {
+        let duplicate = "<html><title>Index of /</title><body>\n<a href=\"file\">file</a>\n<a href=\"file\">file</a>\n</body></html>";
+        assert!(parse_autoindex_html(duplicate, "/").is_err());
+        let giant = format!(
+            "<html><title>Index of /</title><body>{}</body></html>",
+            "x".repeat(MAX_HTTP_LISTING_BYTES)
+        );
+        assert!(parse_autoindex_html(&giant, "/").is_err());
+    }
+
+    #[test]
+    fn nginx_json_rejects_bad_names_types_duplicates_and_budgets() {
+        for bad in [
+            r#"[{"name":"same"},{"name":"same"}]"#,
+            r#"[{"name":"../../etc"}]"#,
+            r#"[{"name":"foo/bar"}]"#,
+            r#"[{"name":"foo\\bar"}]"#,
+            r#"[{"name":""}]"#,
+            r#"[{"name":"wrong","type":"symlink"}]"#,
+            r#"[{"name":"bad\\nname"}]"#,
+        ] {
+            assert!(parse_nginx_json(bad, "/").is_err(), "accepted: {bad}");
+        }
+        let oversized = format!(
+            r#"[{{"name":"{}","type":"file"}}]"#,
+            "x".repeat(MAX_HTTP_LISTING_NAME_BYTES + 1)
+        );
+        assert!(parse_nginx_json(&oversized, "/").is_err());
+        assert_eq!(
+            parse_nginx_json(r#"[{"name":"žuto.txt","type":"file"}]"#, "/").unwrap()[0].name,
+            "žuto.txt"
+        );
     }
 
     #[test]
