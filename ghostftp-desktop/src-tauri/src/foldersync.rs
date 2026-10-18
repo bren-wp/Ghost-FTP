@@ -224,7 +224,9 @@ fn load_settings(db: &crate::db::Db, dir: &Path) -> Result<Settings> {
     options.write(true).create_new(true);
     #[cfg(unix)]
     options.mode(0o600);
-    let mut file = options.open(&marker).context("create sync migration marker")?;
+    let mut file = options
+        .open(&marker)
+        .context("create sync migration marker")?;
     file.write_all(b"Ghost FTP SQLite sync migrated\n")?;
     file.sync_all().context("persist sync migration marker")?;
     Ok(settings)
