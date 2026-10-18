@@ -57,6 +57,36 @@ jobs:
       - name: Native Android lint and APK build
         shell: bash
         run: gradle -p android testDebugUnitTest lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview bundleRelease
+      - name: Reject wrong source SHA and unpinned upload certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Use synthetic inputs only; real upload keys never enter PR CI.
+          # The source identity and certificate pin must both fail before
+          # any signing command can access a keystore.
+          if EXPECTED_SOURCE_SHA="0000000000000000000000000000000000000000" \
+            ANDROID_UPLOAD_KEYSTORE_B64="not-a-keystore" \
+            ANDROID_UPLOAD_STORE_PASSWORD="fake" \
+            ANDROID_UPLOAD_KEY_PASSWORD="fake" \
+            ANDROID_UPLOAD_KEY_ALIAS="fake" \
+            ANDROID_UPLOAD_CERT_SHA256="not-a-fingerprint" \
+            bash android/scripts/sign-release-aab.sh > "$RUNNER_TEMP/signing-wrong-source.txt" 2>&1; then
+            echo "::error::Wrong source SHA did not block Play signing."
+            exit 1
+          fi
+          grep -Fq 'checkout no longer matches selected source SHA' "$RUNNER_TEMP/signing-wrong-source.txt"
+          if EXPECTED_SOURCE_SHA="$GITHUB_SHA" \
+            ANDROID_UPLOAD_KEYSTORE_B64="not-a-keystore" \
+            ANDROID_UPLOAD_STORE_PASSWORD="fake" \
+            ANDROID_UPLOAD_KEY_PASSWORD="fake" \
+            ANDROID_UPLOAD_KEY_ALIAS="fake" \
+            ANDROID_UPLOAD_CERT_SHA256="not-a-fingerprint" \
+            bash android/scripts/sign-release-aab.sh > "$RUNNER_TEMP/signing-wrong-cert.txt" 2>&1; then
+            echo "::error::Unpinned upload certificate did not block Play signing."
+            exit 1
+          fi
+          grep -Fq 'invalid pinned certificate SHA-256' "$RUNNER_TEMP/signing-wrong-cert.txt"
+
       # SDK mirror/CDN corruption can surface as "Archive is not a ZIP
       # archive" before an AVD ever boots. Install the exact Android 16 ATD
       # image with bounded retries and verify files, *before* invoking the
