@@ -1,6 +1,6 @@
 <p align="center">
 
-> Current development source: **0.95.35**; latest verified published release: **0.95.34**. The desktop application remains on the shared Windows/Linux codebase.
+> Current development source: **0.95.36**; latest verified published release: **0.95.35**. The desktop application remains on the shared Windows/Linux codebase.
   <img src="branding/ghostftp-logo.svg" alt="Ghost FTP" width="520">
 </p>
 

@@ -12,7 +12,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.95.35 (development preview) · Latest published release: [v0.95.34](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.34)</sub>
+<sub>Ghost FTP 0.95.36 (development preview) · Latest published release: [v0.95.35](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.35)</sub>
 
 [**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases/latest) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -28,7 +28,7 @@ Move files, manage connections and keep important server work organized with an 
 </a>
 </p>
 
-<p align="center"><sub>Seven authentic Ghost FTP Windows 0.95.18 running-application screenshots (1290×852), captured in [native Windows WebView2 QA](https://github.com/bren-wp/Ghost-FTP/actions/runs/38642134579) from source commit <code>b26964ba476c534bd49bebf7fb73ce6011f15d92</code>. These are historical real-app captures, not 0.95.35 pixel-parity certification. Each PNG is SHA-256 pinned in [the capture manifest](docs/assets/screenshots/README-NATIVE-CAPTURE.json). No concept artwork or generated screenshots.</sub></p>
+<p align="center"><sub>Seven authentic Ghost FTP Windows 0.95.18 running-application screenshots (1290×852), captured in [native Windows WebView2 QA](https://github.com/bren-wp/Ghost-FTP/actions/runs/38642134579) from source commit <code>b26964ba476c534bd49bebf7fb73ce6011f15d92</code>. These are historical real-app captures, not 0.95.36 pixel-parity certification. Each PNG is SHA-256 pinned in [the capture manifest](docs/assets/screenshots/README-NATIVE-CAPTURE.json). No concept artwork or generated screenshots.</sub></p>
 
 <table>
 <tr>
@@ -74,6 +74,8 @@ Dark premium styling, clear navigation, accessible controls and responsive layou
 The current source hardens FTP/FTPS and SFTP directory inventories against oversized, malformed or ambiguous server listings. On Windows and Linux, staged downloads preserve existing backups and refuse symlink/special-node replacements; folder uploads fail closed on unsafe entries, and drag/drop rejects stale server sessions. SSH host-key changes require explicit verification, same-batch name collisions are guarded, and sensitive errors are redacted in file and transfer views. Ghost FTP does not claim atomic remote multi-file operations or blanket feature superiority without independently verified tests.
 
 For the current Windows/Linux audit scope, coverage and outstanding gaps, see [Windows & Linux audit v0.95.35](docs/audits/WINDOWS_LINUX_0.95.35.md). The source and CI checks cannot alone prove all 75 reference screens match pixel-for-pixel or that Ghost FTP exceeds FileZilla in every feature.
+
+Current source includes native OS-keyring credential protection (Windows native credential storage and Linux Secret Service), safety-checked continuous folder synchronization, editor upload retry protection, and safe PowerShell/CMD/.NET watcher script generation from additive sync pairs. [Security & sync audit](docs/audits/KEYCHAIN_LIVE_SYNC_0.95.36.md) records exact behavior and remaining work. Advanced built-in syntax highlighting and vendor-authenticated cloud E2E are not yet release-verified.
 
 ## Choose your platform
 
