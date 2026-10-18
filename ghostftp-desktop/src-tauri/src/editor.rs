@@ -17,8 +17,8 @@ use anyhow::{Context, Result};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::io::{Read, Write};
 use std::collections::HashMap;
+use std::io::{Read, Write};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
@@ -100,21 +100,30 @@ fn editor_fingerprint(path: &std::path::Path) -> Result<EditorFingerprint> {
 /// file; a failed rename leaves the original untouched and discards staging.
 fn write_editor_copy_atomically(path: &std::path::Path, content: &[u8]) -> Result<()> {
     let meta = std::fs::symlink_metadata(path).context("lstat local edit target")?;
-    anyhow::ensure!(meta.file_type().is_file(), "editor target is not a regular file");
+    anyhow::ensure!(
+        meta.file_type().is_file(),
+        "editor target is not a regular file"
+    );
     let parent = path.parent().context("editor target has no directory")?;
     let staged = parent.join(format!(".ghostftp-edit-{}.tmp", Uuid::new_v4()));
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create_new(true);
     let result = (|| -> Result<()> {
-        let mut temp = options.open(&staged).context("create editor staging copy")?;
+        let mut temp = options
+            .open(&staged)
+            .context("create editor staging copy")?;
         #[cfg(unix)]
         std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o600))
             .context("secure editor staging copy")?;
-        temp.write_all(content).context("write editor staging copy")?;
+        temp.write_all(content)
+            .context("write editor staging copy")?;
         temp.sync_all().context("flush edited data to disk")?;
         // Fail closed if the original became a symlink while staging.
         let current = std::fs::symlink_metadata(path).context("recheck edited target")?;
-        anyhow::ensure!(current.file_type().is_file(), "editor target changed file type");
+        anyhow::ensure!(
+            current.file_type().is_file(),
+            "editor target changed file type"
+        );
         std::fs::rename(&staged, path).context("commit edited copy")?;
         Ok(())
     })();
@@ -186,8 +195,8 @@ impl EditManager {
 
         // A content-aware baseline prevents our initial download from being
         // uploaded again, and catches equal-mtime edits from native editors.
-        let initial_fingerprint = editor_fingerprint(&local_path)
-            .context("fingerprint remote editor copy")?;
+        let initial_fingerprint =
+            editor_fingerprint(&local_path).context("fingerprint remote editor copy")?;
 
         // A bounded wake-up slot prevents file editors with very noisy
         // filesystem events from allocating unbounded notification memory.
@@ -385,7 +394,6 @@ impl EditManager {
         tokio::task::spawn_blocking(move || write_editor_copy_atomically(&path, content.as_bytes()))
             .await
             .context("join atomic editor write")?
-    
     }
 
     pub async fn stop(&self, edit_id: &str) -> Result<()> {
@@ -943,7 +951,10 @@ mod builtin_editor_integrity_tests {
         std::fs::write(&file, b"hello").unwrap();
         let first = editor_fingerprint(&file).unwrap();
         std::fs::write(&file, b"world").unwrap();
-        std::fs::File::open(&file).unwrap().set_modified(first.modified).unwrap();
+        std::fs::File::open(&file)
+            .unwrap()
+            .set_modified(first.modified)
+            .unwrap();
         let second = editor_fingerprint(&file).unwrap();
         assert_eq!(first.modified, second.modified);
         assert_eq!(first.size, second.size);
