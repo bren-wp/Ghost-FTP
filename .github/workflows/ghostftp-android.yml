@@ -64,6 +64,9 @@ jobs:
           # The local signing helper requires aapt on PATH even in its
           # negative-case test, as in the protected signing workflow.
           export PATH="$ANDROID_HOME/build-tools/35.0.0:$PATH"
+          # pull_request's GITHUB_SHA may refer to the synthetic merge commit,
+          # whereas checkout uses the actual PR head. Pin to checked-out HEAD.
+          SOURCE_SHA="$(git rev-parse HEAD)"
           # Use synthetic inputs only; real upload keys never enter PR CI.
           # The source identity and certificate pin must both fail before
           # any signing command can access a keystore.
@@ -78,7 +81,7 @@ jobs:
             exit 1
           fi
           grep -Fq 'checkout no longer matches selected source SHA' "$RUNNER_TEMP/signing-wrong-source.txt"
-          if EXPECTED_SOURCE_SHA="$GITHUB_SHA" \
+          if EXPECTED_SOURCE_SHA="$SOURCE_SHA" \
             ANDROID_UPLOAD_KEYSTORE_B64="not-a-keystore" \
             ANDROID_UPLOAD_STORE_PASSWORD="fake" \
             ANDROID_UPLOAD_KEY_PASSWORD="fake" \
