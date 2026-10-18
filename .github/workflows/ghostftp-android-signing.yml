@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: ghostftp-android-upload-signing
@@ -39,6 +40,24 @@ jobs:
           set -euo pipefail
           test "$EXPECTED_SOURCE_SHA" = "$(git rev-parse HEAD)"
           test "$EXPECTED_SOURCE_SHA" = "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          # A manual release signer must not accept an untested main commit.
+          # Query six independent workflow families against THIS exact SHA.
+          for workflow in \
+            ghostftp-quality.yml \
+            ghostftp-protocol-e2e.yml \
+            ghostftp-build.yml \
+            ghostftp-android.yml \
+            ghostftp-macos.yml \
+            validate-win-hardening.yml; do
+            state="$(gh run list --workflow "$workflow" --commit "$EXPECTED_SOURCE_SHA" --limit 1 \
+              --json status,conclusion \
+              --jq '.[0] | ((.status // "") + ":" + (.conclusion // ""))')"
+            if [ "$state" != "completed:success" ]; then
+              echo "::error::Refusing Play signing; required workflow $workflow did not pass on the exact SHA."
+              exit 1
+            fi
+          done
+          echo "All six CI workflow families passed on the selected main SHA."
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
