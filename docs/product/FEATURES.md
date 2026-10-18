@@ -1,6 +1,13 @@
-> Ghost FTP **0.95.39** (development preview), following published **v0.95.38**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.40** (development preview), following published **v0.95.39**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.40 Fail-closed encrypted backup and OS vault restore — security preview
+
+- Export refuses unreadable OS credential vault entries and a missing credential referenced by the keychain manifest; optional OAuth entries remain optional when absent.
+- Encrypted import validates profile metadata and restores credentials via OS vault before staging local state. OS vault write failures return errors, with best-effort reversal of any modified credentials.
+- Add fault-injection tests for locked vault, partial secret writes and existing profile preservation. No production signing or manual OS-vault acceptance has yet been established.
+
 
 ## v0.95.39 WebDAV and HTTP listing fail-closed hardening — preview candidate
 
@@ -109,7 +116,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.39 development source. Previous canonical release: **0.95.38**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.40 development source. Previous canonical release: **0.95.39**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
