@@ -411,6 +411,49 @@ async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
     .context("join local no-replace download promotion")?
 }
 
+/// The declared wire size is meaningful only for identity-encoded HTTP.
+fn declared_plain_http_length(headers: &reqwest::header::HeaderMap) -> Result<Option<u64>> {
+    use reqwest::header::{CONTENT_ENCODING, CONTENT_LENGTH};
+    if let Some(encoding) = headers.get(CONTENT_ENCODING) {
+        anyhow::ensure!(
+            encoding
+                .to_str()
+                .is_ok_and(|s| s.eq_ignore_ascii_case("identity")),
+            "HTTP transfer returned an encoded body whose source size cannot be verified"
+        );
+    }
+    headers
+        .get(CONTENT_LENGTH)
+        .map(|value| {
+            value
+                .to_str()
+                .context("invalid HTTP Content-Length header")?
+                .parse::<u64>()
+                .context("invalid HTTP Content-Length value")
+        })
+        .transpose()
+}
+
+/// A missing declared length remains unverified at the remote level; this
+/// guard only proves the local file persisted the bytes received.
+fn verify_plain_http_download_length(
+    expected: Option<u64>,
+    transferred: u64,
+    on_disk: u64,
+) -> Result<()> {
+    anyhow::ensure!(
+        on_disk == transferred,
+        "HTTP download staging length differs from received bytes"
+    );
+    if let Some(expected) = expected {
+        anyhow::ensure!(
+            transferred == expected,
+            "HTTP download length mismatch: incomplete or oversized payload"
+        );
+    }
+    Ok(())
+}
+
 async fn promote_staged_download(staging: &Path, final_path: &Path, id: &str) -> Result<()> {
     let backup = download_backup_path(final_path, id);
     let mut backup_created = false;
@@ -2918,6 +2961,7 @@ impl TransferManager {
         let url = session.url_for(remote_path, false);
         let resp = session
             .request(reqwest::Method::GET, url)
+            .header(reqwest::header::ACCEPT_ENCODING, "identity")
             .send()
             .await
             .with_context(|| format!("GET {remote_path}"))?;
@@ -2927,6 +2971,8 @@ impl TransferManager {
                 resp.status().as_u16()
             ));
         }
+
+        let expected_length = declared_plain_http_length(resp.headers())?;
 
         let mut file = tokio::fs::File::create(local_path)
             .await
@@ -2948,6 +2994,15 @@ impl TransferManager {
             }
         }
         file.flush().await?;
+        file.sync_all()
+            .await
+            .context("sync HTTP download staging to disk")?;
+        let on_disk = file
+            .metadata()
+            .await
+            .context("stat completed HTTP download staging")?
+            .len();
+        verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -3013,6 +3068,7 @@ impl TransferManager {
         let url = session.url_for(remote_path, false);
         let resp = session
             .request(reqwest::Method::GET, url)
+            .header(reqwest::header::ACCEPT_ENCODING, "identity")
             .send()
             .await
             .with_context(|| format!("GET {remote_path}"))?;
@@ -3022,6 +3078,8 @@ impl TransferManager {
                 resp.status().as_u16()
             ));
         }
+
+        let expected_length = declared_plain_http_length(resp.headers())?;
 
         let mut file = tokio::fs::File::create(local_path)
             .await
@@ -3043,6 +3101,15 @@ impl TransferManager {
             }
         }
         file.flush().await?;
+        file.sync_all()
+            .await
+            .context("sync HTTP download staging to disk")?;
+        let on_disk = file
+            .metadata()
+            .await
+            .context("stat completed HTTP download staging")?
+            .len();
+        verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -4592,6 +4659,34 @@ async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result:
         }
     }
     mgr.tasks.lock().await.remove(id);
+}
+
+#[cfg(test)]
+mod http_length_integrity_tests {
+    use super::*;
+    use reqwest::header::{HeaderMap, HeaderValue, CONTENT_ENCODING, CONTENT_LENGTH};
+
+    #[test]
+    fn truncated_and_extra_payloads_cannot_be_confirmed() {
+        assert!(verify_plain_http_download_length(Some(100), 99, 99).is_err());
+        assert!(verify_plain_http_download_length(Some(100), 101, 101).is_err());
+        assert!(verify_plain_http_download_length(Some(100), 100, 99).is_err());
+        assert!(verify_plain_http_download_length(Some(0), 0, 0).is_ok());
+        assert!(verify_plain_http_download_length(Some(100), 100, 100).is_ok());
+        assert!(verify_plain_http_download_length(None, 5, 5).is_ok());
+    }
+
+    #[test]
+    fn encoded_or_invalid_length_headers_are_not_trusted() {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_ENCODING, HeaderValue::from_static("gzip"));
+        assert!(declared_plain_http_length(&headers).is_err());
+        headers.insert(CONTENT_ENCODING, HeaderValue::from_static("identity"));
+        headers.insert(CONTENT_LENGTH, HeaderValue::from_static("invalid"));
+        assert!(declared_plain_http_length(&headers).is_err());
+        headers.insert(CONTENT_LENGTH, HeaderValue::from_static("100"));
+        assert_eq!(declared_plain_http_length(&headers).unwrap(), Some(100));
+    }
 }
 
 #[cfg(test)]
