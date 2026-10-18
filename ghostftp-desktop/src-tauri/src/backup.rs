@@ -482,29 +482,107 @@ fn import_with_vault(
     staged?;
 
     if !defer {
-        apply_pending_restore(dir);
+        apply_pending_restore(dir).context("apply restored configuration and SQLite snapshot")?;
     }
     Ok(summary)
 }
 
-/// Swap any staged restore files into place. Called once at startup, *before*
-/// anything opens `profiles.json` / `ghostftp.db`, so a restore applies atomically
-/// on the next launch. A no-op when there's nothing staged.
-pub fn apply_pending_restore(dir: &Path) {
-    for name in CONFIG_FILES {
-        let staged = dir.join(format!("{name}.restore"));
-        if staged.exists() {
-            let _ = std::fs::rename(&staged, dir.join(name));
+/// A missing restore file is ordinary; a symlink, directory, or unreadable
+/// path is NOT. Never interpret an inaccessible user file as an empty restore.
+fn regular_file_if_present(path: &Path) -> Result<bool> {
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) => {
+            anyhow::ensure!(metadata.file_type().is_file(), "restore path is not a regular file");
+            Ok(true)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error).context("inspect staged restore file"),
+    }
+}
+
+fn rollback_database_files(moved: &[(PathBuf, PathBuf)]) -> Result<()> {
+    for (original, recovery) in moved.iter().rev() {
+        std::fs::rename(recovery, original)
+            .context("restore original SQLite file after failed promotion")?;
+    }
+    Ok(())
+}
+
+/// Commit an already-staged SQLite snapshot only after validating it.
+/// Previous database, WAL and SHM files are kept in unique recovery siblings;
+/// they are NEVER removed before the new snapshot is in place.
+fn promote_staged_database(dir: &Path) -> Result<()> {
+    let staged = dir.join("ghostftp.db.restore");
+    if !regular_file_if_present(&staged)? {
+        return Ok(());
+    }
+
+    // A valid SQLite header is insufficient. Refuse corrupt or truncated
+    // snapshots before moving any original database files.
+    let candidate = rusqlite::Connection::open_with_flags(
+        &staged,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .context("open staged SQLite backup read-only")?;
+    let integrity: String = candidate
+        .query_row("PRAGMA quick_check", [], |row| row.get(0))
+        .context("validate staged SQLite backup integrity")?;
+    anyhow::ensure!(integrity == "ok", "staged SQLite backup failed integrity check");
+    drop(candidate);
+
+    let recovery_base = format!("ghostftp.db.before-restore-{}", uuid::Uuid::new_v4());
+    let mut to_move = Vec::new();
+    for suffix in ["", "-wal", "-shm"] {
+        let original = dir.join(format!("ghostftp.db{suffix}"));
+        if regular_file_if_present(&original)? {
+            let recovery = dir.join(format!("{recovery_base}{suffix}"));
+            anyhow::ensure!(
+                !regular_file_if_present(&recovery)?,
+                "database recovery destination already exists"
+            );
+            to_move.push((original, recovery));
         }
     }
-    let staged_db = dir.join("ghostftp.db.restore");
-    if staged_db.exists() {
-        // Drop the live DB and its WAL sidecars before swapping the snapshot in.
-        let _ = std::fs::remove_file(dir.join("ghostftp.db"));
-        let _ = std::fs::remove_file(dir.join("ghostftp.db-wal"));
-        let _ = std::fs::remove_file(dir.join("ghostftp.db-shm"));
-        let _ = std::fs::rename(&staged_db, dir.join("ghostftp.db"));
+
+    // Never process orphan WAL/SHM files as disposable leftovers: a damaged
+    // SQLite installation may still need those files for manual recovery.
+    if !to_move.is_empty()
+        && !to_move.iter().any(|(p, _)| p == &dir.join("ghostftp.db"))
+    {
+        anyhow::bail!("orphan SQLite WAL/SHM files require recovery before restoring");
     }
+
+    let mut moved = Vec::new();
+    for (original, recovery) in to_move {
+        if let Err(error) = std::fs::rename(&original, &recovery) {
+            rollback_database_files(&moved)
+                .context("could not roll back a partially staged database recovery")?;
+            return Err(error).context("preserve original SQLite file before restore");
+        }
+        moved.push((original, recovery));
+    }
+
+    if let Err(error) = std::fs::rename(&staged, dir.join("ghostftp.db")) {
+        rollback_database_files(&moved)
+            .context("failed restore promotion and could not roll back original database")?;
+        return Err(error).context("promote checked SQLite restore snapshot");
+    }
+    Ok(())
+}
+
+/// At startup, before opening SQLite, promote a pending database and then its
+/// configs. Never swallow filesystem errors: on failure startup must stop so
+/// the user's remaining original/recovery files are not silently replaced.
+pub fn apply_pending_restore(dir: &Path) -> Result<()> {
+    promote_staged_database(dir)?;
+    for name in CONFIG_FILES {
+        let staged = dir.join(format!("{name}.restore"));
+        if regular_file_if_present(&staged)? {
+            std::fs::rename(&staged, dir.join(name))
+                .with_context(|| format!("promote staged configuration {name}"))?;
+        }
+    }
+    Ok(())
 }
 
 fn stage_opt(dir: &Path, name: &str, content: Option<&str>) -> Result<()> {
@@ -922,6 +1000,83 @@ mod tests {
         };
 
         assert!(validate_archive(&archive).is_err());
+    }
+
+    #[test]
+    fn corrupt_staged_database_never_removes_live_database() {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-corrupt-restore-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let live = dir.join("ghostftp.db");
+        let stage = dir.join("ghostftp.db.restore");
+        {
+            let db = Db::open(&live).unwrap();
+            db.settings_set("theme", "\"original\"").unwrap();
+        }
+        let original = std::fs::read(&live).unwrap();
+        std::fs::write(&stage, b"truncated invalid SQLite").unwrap();
+        assert!(apply_pending_restore(&dir).is_err());
+        assert_eq!(std::fs::read(&live).unwrap(), original);
+        assert_eq!(std::fs::read(&stage).unwrap(), b"truncated invalid SQLite");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn sqlite_restore_retains_original_in_recoverable_sidecar() {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-restore-retain-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let live = dir.join("ghostftp.db");
+        let staged = dir.join("ghostftp.db.restore");
+        {
+            let old = Db::open(&live).unwrap();
+            old.settings_set("theme", "\"old\"").unwrap();
+        }
+        {
+            let replacement = Db::open(&staged).unwrap();
+            replacement.settings_set("theme", "\"new\"").unwrap();
+        }
+        apply_pending_restore(&dir).unwrap();
+        assert_eq!(
+            Db::open(&live).unwrap().settings_get("theme").unwrap().as_deref(),
+            Some("\"new\"")
+        );
+        let kept: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| {
+                path.file_name().unwrap().to_string_lossy().starts_with("ghostftp.db.before-restore-")
+                    && !path.to_string_lossy().ends_with("-wal")
+                    && !path.to_string_lossy().ends_with("-shm")
+            })
+            .collect();
+        assert_eq!(kept.len(), 1, "prior user SQLite database must be recoverable");
+        assert_eq!(
+            Db::open(&kept[0]).unwrap().settings_get("theme").unwrap().as_deref(),
+            Some("\"old\"")
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn staged_sqlite_symlink_is_rejected_before_changes() {
+        use std::os::unix::fs::symlink;
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-restore-symlink-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let live = dir.join("ghostftp.db");
+        std::fs::write(&live, b"original must survive").unwrap();
+        symlink(&live, dir.join("ghostftp.db.restore")).unwrap();
+        assert!(apply_pending_restore(&dir).is_err());
+        assert_eq!(std::fs::read(&live).unwrap(), b"original must survive");
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
