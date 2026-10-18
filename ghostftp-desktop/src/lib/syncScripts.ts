@@ -26,7 +26,9 @@ function cmdLiteral(value: string): string {
   if (/[%!^"<>&|]/.test(value)) {
     throw new Error("CMD cannot safely represent this path. Use PowerShell.");
   }
-  return '"' + value + '"';
+  // Windows argv parsing requires trailing backslashes to be doubled before
+  // the closing quote (C:\\ must remain a directory, not consume the quote).
+  return '"' + value.replace(/(\\+)$/, "$1$1") + '"';
 }
 export function generateSyncScript(pair: ScriptPair, format: SyncScriptFormat): string {
   if (pair.mode === "onDemand") {

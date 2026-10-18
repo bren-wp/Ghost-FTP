@@ -15,6 +15,7 @@ assert.ok(!ps.includes("SUPER_SECRET_TEST"));
 const cmd=generateSyncScript(pair,"cmd");
 assert.match(cmd,/setlocal DisableDelayedExpansion/);
 assert.match(cmd,/ghostftp-cli\.exe sync "C:\\Projects\\my app" "8d7b9e:\/public_html"/);
+assert.match(generateSyncScript({...pair,localRoot:"C:\\\\"},"cmd"), /"C:\\\\\\\\"/);
 const watcher=generateSyncScript(pair,"dotnet-watcher");
 assert.match(watcher,/FileSystemWatcher/);
 assert.match(watcher,/Wait-Event -Timeout 60/);

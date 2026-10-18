@@ -1049,7 +1049,7 @@ mod tests {
 
     #[test]
     fn continuous_sync_does_not_advance_index_for_failed_or_missing_work() {
-        assert_eq!(transfer_batch_complete(&[]).unwrap(), true);
+        assert!(transfer_batch_complete(&[]).unwrap());
         assert!(transfer_batch_complete(&[
             Some(TransferStatus::Done),
             Some(TransferStatus::Skipped)
