@@ -954,7 +954,11 @@ mod builtin_editor_integrity_tests {
         std::fs::write(&file, b"hello").unwrap();
         let first = editor_fingerprint(&file).unwrap();
         std::fs::write(&file, b"world").unwrap();
-        std::fs::File::open(&file)
+        // On Windows setting modification time requires FILE_WRITE_ATTRIBUTES.
+        // A read-only std::fs::File::open handle cannot perform this operation.
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(&file)
             .unwrap()
             .set_modified(first.modified)
             .unwrap();
