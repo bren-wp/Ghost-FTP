@@ -2,9 +2,10 @@
 set -euo pipefail
 
 SOURCE_SHA="${1:?source SHA is required}"
+node .github/scripts/check-release-channel.mjs
 VERSION="$(node -p 'require("./version.json").version')"
 TAG="v${VERSION}"
-RELEASE_NAME="Ghost FTP ${VERSION}"
+RELEASE_NAME="Ghost FTP ${VERSION} Preview"
 NOTES_FILE="docs/releases/${VERSION}.md"
 CHECKSUM_FILE="GhostFTP-v${VERSION}-SHA256SUMS.txt"
 
@@ -81,13 +82,20 @@ else
   git push origin "refs/tags/$TAG"
 fi
 
-ARGS=(--target "$SOURCE_SHA" --title "$RELEASE_NAME" --notes-file "$NOTES_FILE" --latest)
+# Preview source must never be presented as a GA/stable GitHub release.
+# --latest is deliberately absent: prereleases are excluded from GitHub's
+# stable /releases/latest endpoint.
+ARGS=(--target "$SOURCE_SHA" --title "$RELEASE_NAME" --notes-file "$NOTES_FILE" --prerelease)
 
 if gh release view "$TAG" >/dev/null 2>&1; then
   gh release edit "$TAG" "${ARGS[@]}"
 else
   gh release create "$TAG" "${ARGS[@]}"
 fi
+
+# Assert the public release retains the Preview classification even if a
+# previous (incomplete) run created it with different metadata.
+test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.prerelease')" = "true"
 
 gh release upload "$TAG" dist/* --clobber
 
