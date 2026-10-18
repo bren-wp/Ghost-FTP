@@ -121,6 +121,14 @@ const MIGRATIONS: &[&str] = &[
     ) WITHOUT ROWID;
     CREATE INDEX transfer_ledger_updated_idx
         ON transfer_ledger(updated_ms DESC);",
+    // v8 — authoritative config for continuous synchronization. The legacy
+    // foldersync.json is imported once and remains as a recovery snapshot.
+    // SQLite transactions ensure interrupted writes cannot lose a sync pair.
+    "CREATE TABLE folder_sync_config (
+        id         INTEGER PRIMARY KEY CHECK (id = 1),
+        payload    TEXT    NOT NULL,
+        updated_ms INTEGER NOT NULL
+    );",
 ];
 
 /// A persisted per-file sync record — what the source looked like the last time
@@ -180,6 +188,36 @@ impl Db {
         Ok(Self {
             conn: Mutex::new(conn),
         })
+    }
+
+    /// SQLite is the authoritative persisted configuration for watched
+    /// folder-sync pairs. A missing row means this installation has not yet
+    /// imported its older foldersync.json data.
+    pub fn folder_sync_config_get(&self) -> Result<Option<String>> {
+        let conn = self.conn.lock().unwrap();
+        match conn.query_row(
+            "SELECT payload FROM folder_sync_config WHERE id = 1", [],
+            |row| row.get(0),
+        ) {
+            Ok(value) => Ok(Some(value)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(error) => Err(error).context("read SQLite folder sync configuration"),
+        }
+    }
+
+    /// One transactional, replace-in-place configuration snapshot. Never
+    /// truncate a JSON file or write fallback plaintext credentials.
+    pub fn folder_sync_config_set(&self, payload: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO folder_sync_config (id, payload, updated_ms)
+             VALUES (1, ?1, ?2)
+             ON CONFLICT(id) DO UPDATE SET
+               payload = excluded.payload,
+               updated_ms = excluded.updated_ms",
+            rusqlite::params![payload, now_ms()],
+        ).context("commit SQLite folder sync configuration")?;
+        Ok(())
     }
 
     /// Load every remembered file for a pair, keyed by relative path.
@@ -665,6 +703,19 @@ fn migrate(conn: &Connection) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sqlite_folder_sync_config_round_trips_and_preserves_previous_value_on_error() {
+        let db = Db::open_in_memory().unwrap();
+        assert_eq!(db.folder_sync_config_get().unwrap(), None);
+        db.folder_sync_config_set(r#"{"pairs":[]}"#).unwrap();
+        assert_eq!(db.folder_sync_config_get().unwrap().as_deref(), Some(r#"{"pairs":[]}"#));
+        db.folder_sync_config_set(r#"{"pairs":[{"id":"a"}]}"#).unwrap();
+        assert_eq!(
+            db.folder_sync_config_get().unwrap().as_deref(),
+            Some(r#"{"pairs":[{"id":"a"}]}"#)
+        );
+    }
 
     #[test]
     fn migrates_and_round_trips_sync_state() {

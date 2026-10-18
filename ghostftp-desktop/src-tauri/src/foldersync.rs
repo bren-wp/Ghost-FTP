@@ -22,7 +22,7 @@
 //! `foldersync://changed` events so the UI can refresh.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -179,61 +179,47 @@ struct Running {
 }
 
 pub struct FolderSync {
-    settings_path: PathBuf,
+    db: Arc<crate::db::Db>,
     settings: Mutex<Settings>,
     running: Mutex<HashMap<String, Running>>,
 }
 
+/// Read the single SQLite source of truth, migrating the old JSON snapshot
+/// once. Keep the original file intact for disaster recovery and refuse to
+/// silently reset corrupt configuration to an empty (dangerous) sync list.
+fn load_settings(db: &crate::db::Db, dir: &Path) -> Result<Settings> {
+    if let Some(payload) = db.folder_sync_config_get()? {
+        return serde_json::from_str(&payload)
+            .context("SQLite folder sync configuration is corrupt; existing pairs preserved");
+    }
+    let legacy = dir.join("foldersync.json");
+    let settings: Settings = match std::fs::read(&legacy) {
+        Ok(bytes) => serde_json::from_slice(&bytes)
+            .with_context(|| format!("legacy folder sync configuration is corrupt: {}", legacy.display()))?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Settings::default(),
+        Err(error) => return Err(error).with_context(|| format!("read {}", legacy.display())),
+    };
+    let payload = serde_json::to_string(&settings)?;
+    db.folder_sync_config_set(&payload)?;
+    Ok(settings)
+}
+
 impl FolderSync {
-    pub fn load(app: &AppHandle) -> Result<Self> {
-        let dir = app
-            .path()
-            .app_data_dir()
-            .context("resolving app_data_dir")?;
-        std::fs::create_dir_all(&dir).ok();
-        let settings_path = dir.join("foldersync.json");
-        let settings: Settings = std::fs::read(&settings_path)
-            .ok()
-            .and_then(|b| serde_json::from_slice(&b).ok())
-            .unwrap_or_default();
+    pub fn load(app: &AppHandle, db: Arc<crate::db::Db>) -> Result<Self> {
+        let dir = app.path().app_data_dir().context("resolving app_data_dir")?;
+        std::fs::create_dir_all(&dir).with_context(|| format!("create {}", dir.display()))?;
+        let settings = load_settings(&db, &dir)?;
         Ok(Self {
-            settings_path,
+            db,
             settings: Mutex::new(settings),
             running: Mutex::new(HashMap::new()),
         })
     }
 
     fn persist_snapshot(&self, settings: &Settings) -> Result<()> {
-        let bytes = serde_json::to_vec_pretty(settings)?;
-        let parent = self
-            .settings_path
-            .parent()
-            .context("folder sync settings path has no parent")?;
-        std::fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
-        let tmp = self.settings_path.with_extension("json.tmp");
-        let backup = self.settings_path.with_extension("json.bak");
-        std::fs::write(&tmp, bytes).with_context(|| format!("write {}", tmp.display()))?;
-
-        // Windows does not reliably allow rename(tmp, existing_target). Move the
-        // previous settings aside first, then commit the new snapshot and restore
-        // the backup if that commit fails.
-        let had_previous = self.settings_path.exists();
-        if had_previous {
-            let _ = std::fs::remove_file(&backup);
-            std::fs::rename(&self.settings_path, &backup)
-                .with_context(|| format!("backup {}", self.settings_path.display()))?;
-        }
-        if let Err(error) = std::fs::rename(&tmp, &self.settings_path) {
-            let _ = std::fs::remove_file(&tmp);
-            if had_previous {
-                let _ = std::fs::rename(&backup, &self.settings_path);
-            }
-            return Err(error).with_context(|| format!("replace {}", self.settings_path.display()));
-        }
-        if had_previous {
-            let _ = std::fs::remove_file(&backup);
-        }
-        Ok(())
+        // All mutations are serialized by the pair-settings Mutex. The SQLite
+        // UPSERT is atomic; on failure the in-memory caller rolls back.
+        self.db.folder_sync_config_set(&serde_json::to_string(settings)?)
     }
 
     /// Bring up every pair the user left enabled.
@@ -1034,8 +1020,8 @@ fn glob_match(pattern: &str, text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_safety, glob_match, is_excluded, is_internal_transfer_temp, sweep_delta_temps,
-        transfer_batch_complete, SyncMode, SyncPair,
+        apply_safety, glob_match, is_excluded, is_internal_transfer_temp, load_settings,
+        sweep_delta_temps, transfer_batch_complete, SyncMode, SyncPair,
     };
     use crate::sync::{self, SyncDirection, SyncStrategy};
     use crate::transfer::TransferStatus;
@@ -1087,6 +1073,43 @@ mod tests {
         ] {
             assert!(!is_internal_transfer_temp(normal), "{normal}");
         }
+    }
+
+    #[test]
+    fn sqlite_import_preserves_legacy_json_and_refuses_malformed_configuration() {
+        let root = std::env::temp_dir()
+            .join(format!("ghostftp-sqlite-sync-test-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&root).unwrap();
+        let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
+        let legacy = root.join("foldersync.json");
+        let fixture = r#"{"pairs":[]}"#;
+        std::fs::write(&legacy, fixture).unwrap();
+        assert!(load_settings(&db, &root).unwrap().pairs.is_empty());
+        assert_eq!(std::fs::read_to_string(&legacy).unwrap(), fixture);
+        assert_eq!(db.folder_sync_config_get().unwrap().as_deref(), Some(fixture));
+
+        std::fs::write(&legacy, b"{ broken snapshot").unwrap();
+        // SQLite is authoritative after migration, so a stale or damaged
+        // legacy backup must never override it.
+        assert!(load_settings(&db, &root).is_ok());
+
+        db.folder_sync_config_set("{ invalid db").unwrap();
+        assert!(load_settings(&db, &root).is_err());
+        drop(db);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn malformed_legacy_sync_file_is_never_silently_replaced_with_empty_pairs() {
+        let root = std::env::temp_dir()
+            .join(format!("ghostftp-malformed-sync-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&root).unwrap();
+        std::fs::write(root.join("foldersync.json"), b"{ invalid").unwrap();
+        let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
+        assert!(load_settings(&db, &root).is_err());
+        assert!(db.folder_sync_config_get().unwrap().is_none());
+        drop(db);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

@@ -327,7 +327,7 @@ pub fn run() {
                 editors: Arc::new(editor::EditManager::new()),
                 bridge: Arc::new(bridge::BridgeState::load_or_create(&handle).unwrap_or_default()),
                 agent_host: Arc::new(agent_host::AgentHost::load(&handle)?),
-                foldersync: Arc::new(foldersync::FolderSync::load(&handle)?),
+                foldersync: Arc::new(foldersync::FolderSync::load(&handle, db.clone())?),
                 virtualfs: Arc::new(virtualfs::VirtualFs::load(&handle)?),
                 diskscan: Arc::new(diskscan::ScanManager::new()),
                 diff: Arc::new(diff::DiffManager::new()),
