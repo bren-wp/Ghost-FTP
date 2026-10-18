@@ -18,14 +18,19 @@ import {
 import { liveTransferRate, useTransfers } from "@/stores/transfersStore";
 import { useConnections } from "@/stores/connectionsStore";
 import type { Transfer } from "@/lib/types";
+import {
+  countTransferStatuses,
+  filterTransferView,
+  recentTransferLog,
+  type TransferStatusTab,
+  type TransferDirectionFilter,
+  type TransferTimeFilter,
+} from "@/lib/transferViewModel";
 import { useDialog } from "@/hooks/useDialog";
 import { messageOf, toastError } from "@/lib/errors";
 import { toast } from "@/stores/toastStore";
 import { useTransferSchedule } from "@/stores/transferScheduleStore";
 
-type FilterTab = "all" | "active" | "completed" | "failed";
-type DirectionFilter = "all" | "upload" | "download";
-type TimeFilter = "all" | "hour" | "day";
 type BandwidthSample = { upload: number; download: number };
 
 interface Props {
@@ -53,10 +58,10 @@ export function TransferCenterDialog({ onClose }: Props) {
   const activeProfile = profiles.find((profile) => profile.id === activeProfileId);
   const uploadTarget = activeProfile?.defaultRemotePath?.trim() || ".";
 
-  const [tab, setTab] = useState<FilterTab>("all");
+  const [tab, setTab] = useState<TransferStatusTab>("all");
   const [query, setQuery] = useState("");
-  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>("all");
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [directionFilter, setDirectionFilter] = useState<TransferDirectionFilter>("all");
+  const [timeFilter, setTimeFilter] = useState<TransferTimeFilter>("all");
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
@@ -151,44 +156,20 @@ export function TransferCenterDialog({ onClose }: Props) {
   };
 
   const transfers = useMemo(() => Object.values(byId), [byId]);
-  const completed = transfers.filter(
-    (transfer) => transfer.status === "done" || transfer.status === "skipped"
-  ).length;
-  const failed = transfers.filter((transfer) => transfer.status === "error").length;
-  const activeFilterCount = transfers.filter(
-    (transfer) =>
-      transfer.status === "transferring" ||
-      transfer.status === "queued" ||
-      transfer.status === "paused"
-  ).length;
-
-  const filtered = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    // One consistent time boundary per filter pass, even for large histories.
-    const now = Date.now() / 1000;
-    return transfers.filter((transfer) => {
-      const tabMatch =
-        tab === "all" ||
-        (tab === "active" &&
-          (transfer.status === "transferring" ||
-            transfer.status === "queued" ||
-            transfer.status === "paused")) ||
-        (tab === "completed" &&
-          (transfer.status === "done" || transfer.status === "skipped")) ||
-        (tab === "failed" && transfer.status === "error");
-      if (!tabMatch) return false;
-
-      if (directionFilter !== "all" && transfer.kind !== directionFilter) return false;
-
-      if (timeFilter === "hour" && transfer.startedAt < now - 3600) return false;
-      if (timeFilter === "day" && transfer.startedAt < now - 86400) return false;
-
-      if (!normalizedQuery) return true;
-      return `${transfer.source} ${transfer.destination} ${transfer.status}`
-        .toLowerCase()
-        .includes(normalizedQuery);
-    });
-  }, [transfers, tab, query, directionFilter, timeFilter]);
+  const { completed, failed, active: activeFilterCount } = useMemo(
+    () => countTransferStatuses(transfers),
+    [transfers]
+  );
+  const filtered = useMemo(
+    () => filterTransferView(transfers, {
+      tab,
+      query,
+      direction: directionFilter,
+      time: timeFilter,
+      nowSeconds: Date.now() / 1000,
+    }),
+    [transfers, tab, query, directionFilter, timeFilter]
+  );
 
   // Keep the selected transfer stable when filters/search change. Actions and
   // details must continue to refer to the real queue item, while the effect
@@ -202,11 +183,7 @@ export function TransferCenterDialog({ onClose }: Props) {
   }, [filtered, selectedId]);
 
   const logTransfers = useMemo(
-    () =>
-      transfers
-        .filter((transfer) => transfer.startedAt > logClearedAt)
-        .sort((a, b) => b.startedAt - a.startedAt)
-        .slice(0, 12),
+    () => recentTransferLog(transfers, logClearedAt),
     [transfers, logClearedAt]
   );
 
@@ -495,7 +472,7 @@ export function TransferCenterDialog({ onClose }: Props) {
             className="ghost-ref-input h-8 w-32"
             aria-label="Transfer direction filter"
             value={directionFilter}
-            onChange={(event) => setDirectionFilter(event.target.value as DirectionFilter)}
+            onChange={(event) => setDirectionFilter(event.target.value as TransferDirectionFilter)}
           >
             <option value="all">All Directions</option>
             <option value="upload">Uploads</option>
@@ -505,7 +482,7 @@ export function TransferCenterDialog({ onClose }: Props) {
             className="ghost-ref-input h-8 w-28"
             aria-label="Transfer time filter"
             value={timeFilter}
-            onChange={(event) => setTimeFilter(event.target.value as TimeFilter)}
+            onChange={(event) => setTimeFilter(event.target.value as TransferTimeFilter)}
           >
             <option value="all">Any Time</option>
             <option value="hour">Last Hour</option>

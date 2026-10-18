@@ -1,3 +1,10 @@
+## 0.95.44 — Transfer Center safe selector extraction (development preview) — 19 October 2026
+
+- Decouple Transfer Center status counts, tab/search/direction/time selectors and immutable recent-history projection from the 1,117-line React component into a pure reusable view-model.
+- Keep actual backend queue/IPC actions untouched; the extracted logic retains references to source transfers, preserves original row order and does not change confirmed transfer state.
+- Add negative/boundary Node tests for failed/retry selection, status counters, hour/day boundaries, immutability and 10,000 synthetic transfers. CI runs them in the desktop UI contract suite.
+- Advance shared source metadata to 0.95.44 Preview following immutable public v0.95.43; no production signing, UI study, external E2E or new release is claimed.
+
 ## 0.95.43 — Fail-closed release readiness and Preview classification (development preview) — 18 October 2026
 
 - Block any stable-channel release until independently verified Windows Authenticode, Android Play App Signing/upgrade and macOS Developer ID/notarization are wired into release gates.

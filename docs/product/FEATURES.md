@@ -1,6 +1,14 @@
-> Ghost FTP **0.95.43** (development preview), following published **v0.95.42**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.44** (development preview), following published **v0.95.43**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.44 Transfer Center selector modularization — development preview
+
+- Extract status counts, all/active/completed/failed filters, search, direction and hour/day windows and bounded transfer-log projection from the desktop Transfer Center into a pure TypeScript module.
+- Preserve real backend transfer IDs, status and queue order so pause, resume, retry, cancel and history actions still target their existing IPC implementation; no new completion inference or vault behavior.
+- Node regression checks cover positive/negative filters, timestamp boundaries, original transfer identity, history immutability and a synthetic 10,000-entry inventory.
+- **Not accepted yet:** actual user-study results, full site-based grouping, 10MB editor test, real server proxy/IPv6 E2E, production signing and the 75-screen installed UI matrix remain separate work.
+
 
 ## v0.95.43 Honest Preview release classification — development candidate
 
@@ -140,7 +148,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.43 development source. Previous canonical release: **0.95.42**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.44 development source. Previous canonical release: **0.95.43**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 

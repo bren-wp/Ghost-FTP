@@ -6,6 +6,7 @@ import { useEditor } from "@/stores/editorStore";
 import { useDialog } from "@/hooks/useDialog";
 import { messageOf } from "@/lib/errors";
 import { languageForFile, tokenizeCode, type TokenKind } from "@/lib/codeSyntax";
+import { replaceNextLiteral, replaceAllLiteral } from "@/lib/codeSearch";
 
 const MAX_HIGHLIGHT=120*1024;
 const MAX_EDIT_BYTES=2*1024*1024;
@@ -23,6 +24,8 @@ export function BuiltinCodeEditor(){
   const [loaded,setLoaded]=useState(false);
   const [error,setError]=useState<string|null>(null);
   const [query,setQuery]=useState("");
+  const [replacement,setReplacement]=useState("");
+  const [replaceNotice,setReplaceNotice]=useState<string|null>(null);
   const [pending,setPending]=useState<{content:string;at:number}|null>(null);
   const [writing,setWriting]=useState(false);
   const area=useRef<HTMLTextAreaElement>(null);
@@ -36,7 +39,7 @@ export function BuiltinCodeEditor(){
   useEffect(()=>{
     if(!id)return;
     let canceled=false;
-    setLoading(true);setLoaded(false);setError(null);setContent("");setSaved("");setPending(null);setQuery("");
+    setLoading(true);setLoaded(false);setError(null);setContent("");setSaved("");setPending(null);setQuery("");setReplacement("");setReplaceNotice(null);
     void ipc.editorReadText(id).then(text=>{
       if(!canceled){setContent(text);setSaved(text);setLoaded(true);}
     }).catch(err=>{if(!canceled)setError(messageOf(err));})
@@ -76,6 +79,22 @@ export function BuiltinCodeEditor(){
     if(pos<0)pos=reverse?hay.lastIndexOf(needle):hay.indexOf(needle);
     if(pos>=0){el.focus();el.setSelectionRange(pos,pos+query.length);}
   },[content,query]);
+
+  const replaceNext=useCallback(()=>{
+    const el=area.current;
+    if(!el||!loaded||!query||writing)return;
+    const result=replaceNextLiteral(content,query,replacement,el.selectionStart,el.selectionEnd);
+    if(!result.count){setReplaceNotice("No match found");return;}
+    setContent(result.content);setReplaceNotice("Replaced 1 match");
+    requestAnimationFrame(()=>{el.focus();el.setSelectionRange(result.cursor,result.cursor);});
+  },[content,loaded,query,replacement,writing]);
+
+  const replaceAll=useCallback(()=>{
+    if(!loaded||!query||writing)return;
+    const result=replaceAllLiteral(content,query,replacement);
+    if(result.count)setContent(result.content);
+    setReplaceNotice(result.count===0?"No match found":`Replaced ${result.count.toLocaleString()} match${result.count===1?"":"es"}`);
+  },[content,loaded,query,replacement,writing]);
 
   const keydown=useCallback((e:KeyboardEvent<HTMLTextAreaElement>)=>{
     if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){
@@ -129,9 +148,17 @@ export function BuiltinCodeEditor(){
             onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();find(e.shiftKey);}}}
             placeholder="Find (Ctrl+F)" aria-label="Find in code"
             className="min-w-[130px] max-w-sm flex-1 rounded border border-[#345475] bg-[#152b45] px-2 py-1 text-xs text-[#e6f4ff] focus:border-[#53baff]"/>
+          <input value={replacement} onChange={e=>setReplacement(e.target.value)}
+            placeholder="Replace with…" aria-label="Replacement text"
+            className="min-w-[120px] max-w-[200px] flex-1 rounded border border-[#345475] bg-[#152b45] px-2 py-1 text-xs text-[#e6f4ff] focus:border-[#53baff]"/>
+          <button type="button" onClick={replaceNext} disabled={!loaded||!query||writing}
+            aria-label="Replace next match" className="rounded border border-[#345475] px-2 py-1 text-xs text-[#b8d2e5] hover:bg-[#1c3b59] disabled:opacity-40">Replace next</button>
+          <button type="button" onClick={replaceAll} disabled={!loaded||!query||writing}
+            aria-label="Replace all matches" className="rounded border border-[#345475] px-2 py-1 text-xs text-[#b8d2e5] hover:bg-[#1c3b59] disabled:opacity-40">Replace all</button>
           <button type="button" onClick={()=>find(true)} aria-label="Find previous" className="rounded p-1 text-[#b8d2e5] hover:bg-[#1c3b59]"><ChevronUp size={16}/></button>
           <button type="button" onClick={()=>find(false)} aria-label="Find next" className="rounded p-1 text-[#b8d2e5] hover:bg-[#1c3b59]"><ChevronDown size={16}/></button>
           <span className="text-[11px] text-[#8da6c0]">Auto brackets · indentation · Ctrl+S</span>
+          {replaceNotice&&<span role="status" className="text-[11px] text-[#8ed7ff]">{replaceNotice}</span>}
         </div>
         {error&&<div role="alert" className="bg-red-950/30 px-4 py-2 text-xs text-red-300">{error}</div>}
         {active?.lastError&&<div role="alert" className="bg-amber-950/30 px-4 py-2 text-xs text-amber-200">Remote upload will retry: {active.lastError}</div>}
@@ -142,7 +169,7 @@ export function BuiltinCodeEditor(){
               {tokens.length ? tokens.map((token,i)=><span className={colors[token.kind]} key={i}>{token.text}</span>):content}{"\n"}
             </pre>
             <textarea ref={area} value={content} wrap="off" spellCheck={false} disabled={!loaded}
-              onChange={e=>setContent(e.target.value)} onKeyDown={keydown} onScroll={scroll}
+              onChange={e=>{setContent(e.target.value);setReplaceNotice(null);}} onKeyDown={keydown} onScroll={scroll}
               aria-label="Code text editor"
               className="absolute inset-0 h-full w-full resize-none overflow-auto whitespace-pre bg-transparent p-4 font-mono text-[13px] leading-[22px] text-transparent caret-[#f6fbff] outline-none selection:bg-[#41698b]/70"
               style={{tabSize:2}}/>
