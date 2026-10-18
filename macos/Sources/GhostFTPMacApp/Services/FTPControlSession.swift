@@ -97,7 +97,8 @@ enum FTPControlCodec {
     static let maximumControlReplyBytes = 256 * 1024
 
     static func appendControlChunk(_ data: Data, to buffer: inout Data) throws {
-        guard data.count <= maximumControlReplyBytes - buffer.count else {
+        guard buffer.count <= maximumControlReplyBytes,
+              data.count <= maximumControlReplyBytes - buffer.count else {
             throw FTPControlError.controlReplyTooLarge
         }
         buffer.append(data)
@@ -109,12 +110,16 @@ enum FTPControlCodec {
         }
         let bytes = [UInt8](buffer)
 
-        func nextLine(from offset: Int) -> (line: String, nextOffset: Int)? {
+        func nextLine(from offset: Int) throws -> (line: String, nextOffset: Int)? {
             guard offset < bytes.count else { return nil }
             var index = offset
             while index + 1 < bytes.count {
                 if bytes[index] == 13 && bytes[index + 1] == 10 {
-                    let line = String(decoding: bytes[offset..<index], as: UTF8.self)
+                    // Never silently replace malformed server bytes with U+FFFD.
+                    // A lossy reply can change the meaning of a remote path.
+                    guard let line = String(bytes: bytes[offset..<index], encoding: .utf8) else {
+                        throw FTPControlError.malformedReply
+                    }
                     return (line, index + 2)
                 }
                 index += 1
@@ -122,7 +127,7 @@ enum FTPControlCodec {
             return nil
         }
 
-        guard let first = nextLine(from: 0) else { return nil }
+        guard let first = try nextLine(from: 0) else { return nil }
         let prefix = Array(first.line.utf8.prefix(4))
         guard prefix.count >= 3,
               prefix[0...2].allSatisfy({ (48...57).contains($0) }) else {
@@ -149,7 +154,7 @@ enum FTPControlCodec {
         var offset = first.nextOffset
         let terminator = "\(code) "
 
-        while let item = nextLine(from: offset) {
+        while let item = try nextLine(from: offset) {
             lines.append(item.line)
             offset = item.nextOffset
             if item.line.hasPrefix(terminator) {
@@ -258,6 +263,7 @@ enum FTPControlCodec {
         maximumBytes: Int
     ) throws {
         guard maximumBytes > 0,
+              output.count <= maximumBytes,
               chunk.count <= maximumBytes - output.count else {
             throw FTPControlError.directoryListingTooLarge
         }
