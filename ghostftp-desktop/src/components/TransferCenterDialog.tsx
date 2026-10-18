@@ -21,6 +21,7 @@ import type { Transfer } from "@/lib/types";
 import {
   countTransferStatuses,
   filterTransferView,
+  firstFailedTransferId,
   recentTransferLog,
   type TransferStatusTab,
   type TransferDirectionFilter,
@@ -170,6 +171,19 @@ export function TransferCenterDialog({ onClose }: Props) {
     }),
     [transfers, tab, query, directionFilter, timeFilter]
   );
+
+  // A status tile represents the unfiltered backend total. Clear stale
+  // search/direction/time restrictions before navigating to real failures.
+  // Select and expose its actual backend error without triggering a retry.
+  const showFailedTransfers = () => {
+    setTab("failed");
+    setQuery("");
+    setDirectionFilter("all");
+    setTimeFilter("all");
+    const failureId = firstFailedTransferId(transfers);
+    setSelectedId(failureId);
+    setDetailsOpen(failureId !== null);
+  };
 
   // Keep the selected transfer stable when filters/search change. Actions and
   // details must continue to refer to the real queue item, while the effect
@@ -417,7 +431,7 @@ export function TransferCenterDialog({ onClose }: Props) {
               key={filter}
               type="button"
               className={`ghost-transfer-overview-card${tab === filter ? " is-selected" : ""}`}
-              onClick={() => setTab(filter)}
+              onClick={() => filter === "failed" ? showFailedTransfers() : setTab(filter)}
               aria-pressed={tab === filter}
               aria-label={`${title}: ${count}. Show ${filter === "all" ? "all" : filter} transfers`}
             >
@@ -450,7 +464,7 @@ export function TransferCenterDialog({ onClose }: Props) {
           />
           <Tab
             active={tab === "failed"}
-            onClick={() => setTab("failed")}
+            onClick={showFailedTransfers}
             label={`Failed (${failed})`}
             icon={<XCircle size={14} />}
           />
