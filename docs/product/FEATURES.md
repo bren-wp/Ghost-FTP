@@ -1,6 +1,16 @@
-> Ghost FTP **0.95.35** (development cycle), following published **v0.95.34**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.36** (development cycle), following published **v0.95.35**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.36 Security, live folder sync and script export — preview
+
+- Enforce OS keyring credential storage at the profile JSON write boundary; never persist new plaintext passwords/passphrases.
+- Live watcher plus poll backup: source index is updated only when every transfer succeeds; internal partial files are never mirrored.
+- External-editor saved-file watcher is bounded and retries failed uploads, with private temporary workspaces.
+- Sync & Backup can copy credential-free one-shot CMD and PowerShell sync scripts or a PowerShell/.NET live FileSystemWatcher script for safe additive push pairs. Mirror, exclusion mismatch and unsupported modes are explicitly refused.
+- S3-compatible (including B2), GCS and WebDAV adapters already exist; independently authenticated vendor E2E validation remains outstanding.
+- Built-in syntax highlighting, auto-bracket completion and in-editor find are not yet fully implemented.
+
 
 ## v0.95.35 Windows/Linux guarded transfers and drop safety — development candidate
 
@@ -10,7 +20,7 @@
 - Add regression tests and audit traceability. Pixel-perfect 75-screen fidelity and comprehensive FileZilla superiority remain unverified.
 
 
-## v0.95.34 FTP LIST and SSH host verification safety — development candidate
+## v0.95.35 FTP LIST and SSH host verification safety — development candidate
 
 - Bound FTP/FTPS directory inventories and reject server responses that exceed entry, raw-byte or filename-byte limits.
 - Inspect entire FTP LIST inventories before overwrite/existence decisions so malformed or duplicate rows fail closed.
@@ -75,7 +85,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.35 development source. Previous canonical release: **0.95.34**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.36 development source. Previous canonical release: **0.95.35**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 

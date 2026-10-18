@@ -246,6 +246,21 @@ impl ProfileStore {
         if let Some(reason) = &self.recovery_required {
             bail!("{reason}");
         }
+        // Defense in depth: no code path (CLI, import, reorder or future
+        // command) may accidentally persist plaintext credentials. Callers
+        // must migrate password/passphrase values into the OS keychain first.
+        for profile in profiles {
+            let unsafe_secret = match &profile.auth {
+                AuthMethod::Password { password } => !password.is_empty(),
+                AuthMethod::Key { passphrase, .. } => {
+                    passphrase.as_deref().is_some_and(|s| !s.is_empty())
+                }
+                _ => false,
+            };
+            if unsafe_secret {
+                bail!("refusing to write plaintext profile credentials; store secrets in the OS keychain first");
+            }
+        }
         let bytes = serde_json::to_vec_pretty(profiles)?;
         let parent = self.path.parent().context("profile path has no parent")?;
         // Never truncate a predictable temporary filename: a stale file or a
@@ -415,6 +430,43 @@ mod recovery_tests {
         store.reorder(&[]).await.unwrap();
         assert_eq!(std::fs::read(&legacy).unwrap(), b"keep-existing-staging");
         assert_eq!(std::fs::read(dir.join("profiles.json")).unwrap(), b"[]");
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn profile_store_never_serializes_plaintext_credentials() {
+        let dir = temp_profile_dir();
+        let store = ProfileStore::from_dir(&dir).unwrap();
+        let base = serde_json::json!({
+            "id":"id-1","name":"Example","protocol":"sftp","host":"example.invalid",
+            "port":22,"username":"user","auth":{"kind":"password","password":"SUPER_SECRET_TEST"}
+        });
+        let with_password: ConnectionProfile = serde_json::from_value(base.clone()).unwrap();
+        let error = store.upsert(with_password).await.unwrap_err();
+        assert!(error.to_string().contains("OS keychain"));
+        assert!(!dir.join("profiles.json").exists());
+        assert!(store.list().await.unwrap().is_empty());
+
+        let mut with_key = base;
+        with_key["auth"] = serde_json::json!({
+            "kind":"key","path":"/id_ed25519","passphrase":"NEVER_STORE_PASSPHRASE"
+        });
+        let with_key: ConnectionProfile = serde_json::from_value(with_key).unwrap();
+        assert!(store.upsert(with_key).await.is_err());
+        assert!(!dir.join("profiles.json").exists());
+
+        let mut safe = serde_json::json!({
+            "id":"id-1","name":"Example","protocol":"sftp","host":"example.invalid",
+            "port":22,"username":"user","auth":{"kind":"password","password":""}
+        });
+        store
+            .upsert(serde_json::from_value(safe.take()).unwrap())
+            .await
+            .unwrap();
+        let saved = std::fs::read_to_string(dir.join("profiles.json")).unwrap();
+        assert!(!saved.contains("SUPER_SECRET_TEST"));
+        assert!(!saved.contains("NEVER_STORE_PASSPHRASE"));
         drop(store);
         std::fs::remove_dir_all(dir).unwrap();
     }

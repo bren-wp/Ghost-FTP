@@ -17,6 +17,8 @@ use anyhow::{Context, Result};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::collections::HashMap;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -75,8 +77,24 @@ impl EditManager {
         app: AppHandle,
     ) -> Result<EditStartedEvent> {
         let edit_id = Uuid::new_v4().to_string();
-        let base = std::env::temp_dir().join("ghostftp-edits").join(&edit_id);
-        std::fs::create_dir_all(&base).context("create temp dir for edit")?;
+        let parent = std::env::temp_dir().join("ghostftp-edits");
+        std::fs::create_dir_all(&parent).context("create private editor directory")?;
+        let meta = std::fs::symlink_metadata(&parent).context("lstat editor directory")?;
+        anyhow::ensure!(
+            meta.file_type().is_dir(),
+            "editor directory is not a real directory"
+        );
+        // Editor temp copies may contain .env, configuration secrets or source
+        // code. The default Unix mkdir umask can allow other users to read
+        // them; ensure no group/other traversal before downloading any data.
+        #[cfg(unix)]
+        std::fs::set_permissions(&parent, std::fs::Permissions::from_mode(0o700))
+            .context("secure editor parent directory")?;
+        let base = parent.join(&edit_id);
+        std::fs::create_dir(&base).context("create unique editor workspace")?;
+        #[cfg(unix)]
+        std::fs::set_permissions(&base, std::fs::Permissions::from_mode(0o700))
+            .context("secure editor workspace")?;
 
         let name = remote_path
             .rsplit(['/', '\\'])
@@ -97,13 +115,32 @@ impl EditManager {
             .and_then(|m| m.modified().ok())
             .unwrap_or(SystemTime::UNIX_EPOCH);
 
-        // Channel from the sync notify thread → our async debounce task.
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        // A bounded wake-up slot prevents file editors with very noisy
+        // filesystem events from allocating unbounded notification memory.
+        // Filter sibling .swp/lock files on the notify thread and coalesce
+        // writes. A lost watcher event gets a periodic 10s reconciliation.
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
+        let target_file = local_path
+            .file_name()
+            .map(|s| s.to_owned())
+            .unwrap_or_default();
+        let watched_name = target_file.clone();
         let mut watcher: RecommendedWatcher = RecommendedWatcher::new(
-            move |res: notify::Result<Event>| {
-                if let Ok(event) = res {
-                    let _ = tx.send(event);
+            move |res: notify::Result<Event>| match res {
+                Ok(event)
+                    if is_write_event(&event)
+                        && event
+                            .paths
+                            .iter()
+                            .any(|p| p.file_name() == Some(&watched_name)) =>
+                {
+                    let _ = tx.try_send(());
                 }
+                Err(error) => {
+                    tracing::warn!("remote edit watcher error, scheduling rescan: {error}");
+                    let _ = tx.try_send(());
+                }
+                _ => {}
             },
             notify::Config::default(),
         )
@@ -121,54 +158,41 @@ impl EditManager {
         let upload_local = local_path.clone();
         let edit_id_for_task = edit_id.clone();
         let app_for_task = app.clone();
-        let target_file = local_path
-            .file_name()
-            .map(|s| s.to_owned())
-            .unwrap_or_default();
-
         tokio::spawn(async move {
             let mut last_mtime = initial_mtime;
             let debounce = Duration::from_millis(500);
 
             loop {
-                let event = match rx.recv().await {
-                    Some(e) => e,
-                    None => return, // watcher dropped
-                };
-
-                if !is_write_event(&event) {
-                    continue;
-                }
-                // Only react to events touching our specific file, in case
-                // the editor wrote sibling .swp / lockfiles.
-                if !event
-                    .paths
-                    .iter()
-                    .any(|p| p.file_name() == Some(&target_file))
-                {
-                    continue;
-                }
-
-                // Debounce: collect further events for `debounce` ms before
-                // acting. Editor saves can fan out into 3+ events in a row.
-                loop {
-                    match tokio::time::timeout(debounce, rx.recv()).await {
-                        Ok(Some(_)) => continue, // another event arrived — keep waiting
-                        Ok(None) => return,
-                        Err(_) => break, // debounce window expired
+                // Periodic catch-up also retries an upload after a transient
+                // server failure with no further editor save event.
+                match tokio::time::timeout(Duration::from_secs(10), rx.recv()).await {
+                    Ok(Some(())) => {
+                        let started = tokio::time::Instant::now();
+                        loop {
+                            if started.elapsed() >= Duration::from_secs(5) {
+                                break;
+                            }
+                            match tokio::time::timeout(debounce, rx.recv()).await {
+                                Ok(Some(())) => continue,
+                                Ok(None) => return,
+                                Err(_) => break,
+                            }
+                        }
                     }
+                    Ok(None) => return,
+                    Err(_) => {} // idle retry/reconciliation
                 }
 
-                // Skip if the mtime hasn't actually moved past last_mtime.
-                let meta = match std::fs::metadata(&upload_local) {
-                    Ok(m) => m,
-                    Err(_) => continue,
+                // Never auto-upload a replaced symlink or special node. A
+                // transient editor rename may hide the target momentarily.
+                let meta = match std::fs::symlink_metadata(&upload_local) {
+                    Ok(m) if m.file_type().is_file() => m,
+                    _ => continue,
                 };
                 let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-                if mtime <= last_mtime {
+                if mtime == last_mtime {
                     continue;
                 }
-                last_mtime = mtime;
 
                 match upload_from(
                     &upload_session,
@@ -178,6 +202,10 @@ impl EditManager {
                 .await
                 {
                     Ok(bytes) => {
+                        // Only successful uploads acknowledge a local version.
+                        // A failed remote write must stay dirty for the next
+                        // periodic retry; never claim the save is complete.
+                        last_mtime = mtime;
                         let _ = app_for_task.emit(
                             "editor://saved",
                             EditSavedEvent {
@@ -534,10 +562,14 @@ pub(crate) async fn upload_from(
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     let local = std::path::PathBuf::from(local_path);
-    let size = tokio::fs::metadata(&local)
+    let metadata = tokio::fs::symlink_metadata(&local)
         .await
-        .with_context(|| format!("stat {}", local.display()))?
-        .len();
+        .with_context(|| format!("lstat edited file {}", local.display()))?;
+    anyhow::ensure!(
+        metadata.file_type().is_file(),
+        "edited file is a symbolic link or special node; refusing automatic upload"
+    );
+    let size = metadata.len();
 
     match session {
         Session::Ssh(ssh) => {

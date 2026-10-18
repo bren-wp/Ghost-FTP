@@ -1,3 +1,12 @@
+## 0.95.36 — Saved credential safety, reliable live sync and script automation (development preview) — 18 October 2026
+
+- Enforce fail-closed profile serialization at the storage layer: new plaintext passwords and private-key passphrases cannot reach `profiles.json`. Existing keyring use remains unchanged (Windows-native and Linux-native).
+- Fix a continuous-sync integrity bug: any failed/canceled/missing/timed-out transfer stops the sync from claiming success or advancing its source index; a later poll can retry.
+- Ignore Ghost FTP's own incomplete download and delta staging files during continuous sync; notify watcher errors trigger an immediate rescan.
+- Harden remote edit temp directory permissions on Linux; reject symlink/special-node auto-uploads; coalesce editor events using bounded memory, with a 10-second failed-save retry backstop.
+- Add credential-free CMD, PowerShell and .NET FileSystemWatcher script generation in Sync & Backup; exclude-pattern, Mirror and on-demand pairs fail closed instead of silently changing semantics.
+- Cover sync success/failure, profile plaintext refusal, staging exclusion and script injection behavior in automated regressions.
+
 ## 0.95.35 — Windows/Linux transfer safety, crash-resistant backups, cross-pane UI and audit (development preview) — 18 October 2026
 
 - Use link-aware local destination and upload-source checks; refuse symlink/special-node transfers and unsafe Unix backslash basenames rather than silently following or renaming them.
