@@ -259,10 +259,7 @@ impl Db {
         let foreign: i64 = conn
             .pragma_query_value(None, "foreign_keys", |row| row.get(0))
             .context("verify SQLite foreign-key enforcement")?;
-        anyhow::ensure!(
-            foreign == 1,
-            "SQLite foreign-key protection is disabled"
-        );
+        anyhow::ensure!(foreign == 1, "SQLite foreign-key protection is disabled");
         conn.pragma_update(None, "secure_delete", "ON")
             .context("enable SQLite secure delete")?;
         migrate(&conn).context("running ghostftp.db migrations")?;
