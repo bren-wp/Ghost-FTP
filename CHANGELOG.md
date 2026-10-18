@@ -1,3 +1,11 @@
+## 0.95.42 — Protected Android upload signing and exact-source safeguards (development preview) — 18 October 2026
+
+- Prepare a manual, reviewer-protected Android Play upload-key signing workflow without adding secrets or keystore material to source control.
+- Refuse signing of stale source commits, missing/incomplete upload identity, unpinned certificate or any of six missing/failed exact-SHA CI workflow families.
+- Verify release application ID, version, non-debuggable flag and signed AAB certificate; emit a non-secret SHA-256 provenance record.
+- Add negative CI checks for wrong source SHA and invalid certificate pin, using dummy credentials only.
+- This is NOT a Google Play accepted AAB, a device upgrade proof or completion of macOS FTPS/SFTP secure transport; no release is opened by this PR.
+
 ## 0.95.41 — Bounded fail-closed HTTP autoindex inventories (development preview) — 18 October 2026
 
 - Stop accepting HTML login/error/partial pages as successful empty HTTP directory listings. Enforce recognizable complete directory-index markup.

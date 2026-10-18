@@ -1,6 +1,14 @@
-> Ghost FTP **0.95.41** (development preview), following published **v0.95.40**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.42** (development preview), following published **v0.95.41**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.42 Controlled Android upload-key signing — development preview
+
+- A manually initiated, protected-environment GitHub Actions workflow signs AAB upload candidates only with an explicitly supplied existing keystore, expected upload certificate SHA-256 and current main commit.
+- Mandatory six CI workflow families must each report success on the exact selected commit before signing. The produced AAB receives local signature/certificate verification and a SHA-256 artifact provenance record.
+- Normal Android CI still emits unsigned release artifacts and an independently installed preview. Negative PR tests cover missing secrets, wrong source SHA and invalid upload-certificate fingerprint.
+- A genuine signing key, Google Play Console acceptance, Play app-signing certificate verification and data-preserving upgrade tests are NOT established by these source changes. Secure macOS FTPS/SFTP are still unsupported.
+
 
 ## v0.95.41 Bounded HTTP directory inventory and duplicate rejection — security preview
 
@@ -124,7 +132,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.41 development source. Previous canonical release: **0.95.40**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.42 development source. Previous canonical release: **0.95.41**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
