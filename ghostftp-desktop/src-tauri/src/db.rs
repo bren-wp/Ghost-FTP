@@ -16,11 +16,11 @@
 //! across an `.await`, so callers stay `Send`.
 
 use std::collections::HashMap;
+#[cfg(unix)]
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::Path;
 use std::sync::Mutex;
 use std::time::Duration;
-#[cfg(unix)]
-use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
@@ -176,18 +176,27 @@ fn secure_local_database_files(path: &Path) -> Result<()> {
         let sidecar = std::path::PathBuf::from(format!("{}{suffix}", path.display()));
         match std::fs::symlink_metadata(&sidecar) {
             Ok(meta) => {
-                anyhow::ensure!(meta.file_type().is_file(), "SQLite sidecar is not a regular file");
+                anyhow::ensure!(
+                    meta.file_type().is_file(),
+                    "SQLite sidecar is not a regular file"
+                );
                 #[cfg(unix)]
                 std::fs::set_permissions(&sidecar, std::fs::Permissions::from_mode(0o600))
                     .with_context(|| format!("secure SQLite sidecar {}", sidecar.display()))?;
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(e).with_context(|| format!("inspect SQLite sidecar {}", sidecar.display())),
+            Err(e) => {
+                return Err(e)
+                    .with_context(|| format!("inspect SQLite sidecar {}", sidecar.display()))
+            }
         }
     }
     match std::fs::symlink_metadata(path) {
         Ok(meta) => {
-            anyhow::ensure!(meta.file_type().is_file(), "SQLite database is not a regular file");
+            anyhow::ensure!(
+                meta.file_type().is_file(),
+                "SQLite database is not a regular file"
+            );
             #[cfg(unix)]
             std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
                 .with_context(|| format!("secure SQLite database {}", path.display()))?;
@@ -204,16 +213,26 @@ fn secure_local_database_files(path: &Path) -> Result<()> {
                     file.sync_all().context("sync new SQLite database")?;
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-                    let meta = std::fs::symlink_metadata(path).context("inspect existing SQLite database")?;
-                    anyhow::ensure!(meta.file_type().is_file(), "SQLite database is not a regular file");
+                    let meta = std::fs::symlink_metadata(path)
+                        .context("inspect existing SQLite database")?;
+                    anyhow::ensure!(
+                        meta.file_type().is_file(),
+                        "SQLite database is not a regular file"
+                    );
                     #[cfg(unix)]
                     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
                         .context("secure concurrent SQLite database")?;
                 }
-                Err(e) => return Err(e).with_context(|| format!("create protected SQLite database {}", path.display())),
+                Err(e) => {
+                    return Err(e).with_context(|| {
+                        format!("create protected SQLite database {}", path.display())
+                    })
+                }
             }
         }
-        Err(e) => return Err(e).with_context(|| format!("inspect SQLite database {}", path.display())),
+        Err(e) => {
+            return Err(e).with_context(|| format!("inspect SQLite database {}", path.display()))
+        }
     }
     Ok(())
 }
@@ -228,9 +247,13 @@ impl Db {
             .context("configure SQLite write contention timeout")?;
         conn.pragma_update(None, "journal_mode", "WAL")
             .context("enable SQLite WAL")?;
-        let mode: String = conn.pragma_query_value(None, "journal_mode", |row| row.get(0))
+        let mode: String = conn
+            .pragma_query_value(None, "journal_mode", |row| row.get(0))
             .context("verify SQLite WAL mode")?;
-        anyhow::ensure!(mode.eq_ignore_ascii_case("wal"), "SQLite WAL mode is unavailable");
+        anyhow::ensure!(
+            mode.eq_ignore_ascii_case("wal"),
+            "SQLite WAL mode is unavailable"
+        );
         conn.pragma_update(None, "foreign_keys", "ON")
             .context("enable SQLite foreign keys")?;
         conn.pragma_update(None, "secure_delete", "ON")
@@ -801,20 +824,31 @@ mod tests {
         symlink(&path, &symlinked).unwrap();
         assert!(secure_local_database_files(&symlinked).is_err());
         let sidecar_db = dir.join("sidecar.db");
-        symlink(&path, std::path::PathBuf::from(format!("{}-wal", sidecar_db.display()))).unwrap();
+        symlink(
+            &path,
+            std::path::PathBuf::from(format!("{}-wal", sidecar_db.display())),
+        )
+        .unwrap();
         assert!(secure_local_database_files(&sidecar_db).is_err());
         std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
     fn sqlite_storage_enables_integrity_pragmas() {
-        let dir = std::env::temp_dir().join(format!("ghostftp-db-pragmas-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-db-pragmas-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir(&dir).unwrap();
         let db = Db::open(&dir.join("ghostftp.db")).unwrap();
         let conn = db.conn.lock().unwrap();
-        let secure: i64 = conn.query_row("PRAGMA secure_delete", [], |row| row.get(0)).unwrap();
-        let foreign: i64 = conn.query_row("PRAGMA foreign_keys", [], |row| row.get(0)).unwrap();
-        let mode: String = conn.query_row("PRAGMA journal_mode", [], |row| row.get(0)).unwrap();
+        let secure: i64 = conn
+            .query_row("PRAGMA secure_delete", [], |row| row.get(0))
+            .unwrap();
+        let foreign: i64 = conn
+            .query_row("PRAGMA foreign_keys", [], |row| row.get(0))
+            .unwrap();
+        let mode: String = conn
+            .query_row("PRAGMA journal_mode", [], |row| row.get(0))
+            .unwrap();
         assert_eq!(secure, 1);
         assert_eq!(foreign, 1);
         assert_eq!(mode, "wal");
