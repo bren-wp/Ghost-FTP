@@ -6,7 +6,7 @@ Ghost FTP's Windows/Linux UI is local-first Tauri + Rust + React; it does **not*
 
 ## Watched sync settings migration
 
-The new v8 SQLite migration adds one `folder_sync_config` record. On first app launch after upgrade, read the legacy `foldersync.json` only if the database has no record; parse, then write to SQLite in one transaction. Leave the JSON file untouched as a recovery snapshot. A corrupt legacy file or SQLite value is surfaced as an error instead of silently destroying settings or substituting an empty set. Future edits, enable/disable, and removes are transactionally persisted to SQLite before updating worker state.
+The new v8 SQLite migration adds one `folder_sync_config` record. On first app launch after upgrade, read the legacy `foldersync.json` only if the database has no record; parse, then write to SQLite in one transaction. Leave the JSON file untouched as a recovery snapshot. A private migration marker prevents stale Mirror-enabled JSON pairs from being silently resurrected after database recovery/quarantine. A corrupt legacy file or SQLite value is surfaced as an error instead of silently destroying settings or substituting an empty set. Future edits, enable/disable, and removes are transactionally persisted to SQLite before updating worker state.
 
 Test: migrate a real legacy file, modify stale JSON (SQLite remains authoritative), refuse corrupt DB config and refuse corrupt legacy files. Critical follow-up: app database recovery/quarantine routines need human review to ensure restoring only old legacy settings cannot silently re-enable retired sync pairs. No claim of total filesystem crash consistency or full database encryption.
 

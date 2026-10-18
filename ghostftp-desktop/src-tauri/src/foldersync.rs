@@ -192,6 +192,16 @@ fn load_settings(db: &crate::db::Db, dir: &Path) -> Result<Settings> {
         return serde_json::from_str(&payload)
             .context("SQLite folder sync configuration is corrupt; existing pairs preserved");
     }
+    // If a corrupt database was quarantined, importing the stale legacy
+    // snapshot could reactivate a previously removed destructive Mirror pair.
+    let marker = dir.join("foldersync.sqlite-migrated");
+    match std::fs::symlink_metadata(&marker) {
+        Ok(_) => anyhow::bail!(
+            "SQLite sync configuration is missing after a prior migration; restore ghostftp.db from backup"
+        ),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error).context("stat sync migration marker"),
+    }
     let legacy = dir.join("foldersync.json");
     let settings: Settings = match std::fs::read(&legacy) {
         Ok(bytes) => serde_json::from_slice(&bytes).with_context(|| {
@@ -205,6 +215,18 @@ fn load_settings(db: &crate::db::Db, dir: &Path) -> Result<Settings> {
     };
     let payload = serde_json::to_string(&settings)?;
     db.folder_sync_config_set(&payload)?;
+    // Marker has no secrets or user profile data. Never silently resurrect
+    // old JSON pairs following a future complete SQLite database loss.
+    use std::io::Write;
+    #[cfg(unix)]
+    use std::os::unix::fs::OpenOptionsExt;
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let mut file = options.open(&marker).context("create sync migration marker")?;
+    file.write_all(b"Ghost FTP SQLite sync migrated\n")?;
+    file.sync_all().context("persist sync migration marker")?;
     Ok(settings)
 }
 
@@ -1096,6 +1118,7 @@ mod tests {
         std::fs::write(&legacy, fixture).unwrap();
         assert!(load_settings(&db, &root).unwrap().pairs.is_empty());
         assert_eq!(std::fs::read_to_string(&legacy).unwrap(), fixture);
+        assert!(root.join("foldersync.sqlite-migrated").is_file());
         assert_eq!(
             db.folder_sync_config_get().unwrap().as_deref(),
             Some(fixture)
@@ -1109,6 +1132,10 @@ mod tests {
         db.folder_sync_config_set("{ invalid db").unwrap();
         assert!(load_settings(&db, &root).is_err());
         drop(db);
+        std::fs::remove_file(root.join("ghostftp.db")).unwrap();
+        let blank_db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
+        assert!(load_settings(&blank_db, &root).is_err());
+        drop(blank_db);
         std::fs::remove_dir_all(root).unwrap();
     }
 
