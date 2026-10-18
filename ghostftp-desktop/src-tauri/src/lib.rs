@@ -222,8 +222,8 @@ pub fn run() {
             // anything opens profiles.json / ghostftp.db, so a restore staged by a
             // previous run swaps in atomically on this launch.
             if let Ok(data_dir) = handle.path().app_data_dir() {
-                std::fs::create_dir_all(&data_dir).ok();
-                backup::apply_pending_restore(&data_dir);
+                std::fs::create_dir_all(&data_dir)?;
+                backup::apply_pending_restore(&data_dir)?;
             }
 
             let profile_store = Arc::new(profiles::ProfileStore::load_or_create(&handle)?);
