@@ -20,6 +20,7 @@ export function BuiltinCodeEditor(){
   const [content,setContent]=useState("");
   const [saved,setSaved]=useState("");
   const [loading,setLoading]=useState(false);
+  const [loaded,setLoaded]=useState(false);
   const [error,setError]=useState<string|null>(null);
   const [query,setQuery]=useState("");
   const [pending,setPending]=useState<{content:string;at:number}|null>(null);
@@ -35,9 +36,9 @@ export function BuiltinCodeEditor(){
   useEffect(()=>{
     if(!id)return;
     let canceled=false;
-    setLoading(true);setError(null);setContent("");setSaved("");setPending(null);setQuery("");
+    setLoading(true);setLoaded(false);setError(null);setContent("");setSaved("");setPending(null);setQuery("");
     void ipc.editorReadText(id).then(text=>{
-      if(!canceled){setContent(text);setSaved(text);}
+      if(!canceled){setContent(text);setSaved(text);setLoaded(true);}
     }).catch(err=>{if(!canceled)setError(messageOf(err));})
       .finally(()=>{if(!canceled)setLoading(false);});
     return ()=>{canceled=true;};
@@ -57,7 +58,7 @@ export function BuiltinCodeEditor(){
   useDialog(panel,{onClose:close});
 
   const save=useCallback(async()=>{
-    if(!id||writing||loading||!dirty)return;
+    if(!id||writing||loading||!loaded||!dirty)return;
     if(new TextEncoder().encode(content).length>MAX_EDIT_BYTES){setError("2 MiB maximum for built-in editing.");return;}
     setWriting(true);setError(null);
     try{
@@ -116,7 +117,7 @@ export function BuiltinCodeEditor(){
             <div className="truncate text-xs text-[#92abc5]">{active?.remotePath}</div>
           </div>
           <span className="rounded bg-[#1c3b59] px-2 py-1 font-mono text-xs text-[#8ed7ff]">{lang.toUpperCase()}</span>
-          <button type="button" onClick={()=>void save()} disabled={!dirty||writing||loading}
+          <button type="button" onClick={()=>void save()} disabled={!loaded||!dirty||writing||loading}
             className="flex items-center gap-1.5 rounded-md bg-[#237bbb] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#3290d5] disabled:opacity-40">
             {writing?<Loader2 size={14} className="animate-spin"/>:<Save size={14}/>} Save
           </button>
@@ -140,7 +141,7 @@ export function BuiltinCodeEditor(){
               className="pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre p-4 font-mono text-[13px] leading-[22px] text-[#dbeafe]">
               {tokens.length ? tokens.map((token,i)=><span className={colors[token.kind]} key={i}>{token.text}</span>):content}{"\n"}
             </pre>
-            <textarea ref={area} value={content} wrap="off" spellCheck={false}
+            <textarea ref={area} value={content} wrap="off" spellCheck={false} disabled={!loaded}
               onChange={e=>setContent(e.target.value)} onKeyDown={keydown} onScroll={scroll}
               aria-label="Code text editor"
               className="absolute inset-0 h-full w-full resize-none overflow-auto whitespace-pre bg-transparent p-4 font-mono text-[13px] leading-[22px] text-transparent caret-[#f6fbff] outline-none selection:bg-[#41698b]/70"
