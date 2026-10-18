@@ -47,7 +47,7 @@ The Android Cloud storage workspace transfers one object at a time using short-l
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
 - Active source version: **0.95.18**
-- Previous canonical release: **0.95.34**
+- Previous canonical release: **0.95.35**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`

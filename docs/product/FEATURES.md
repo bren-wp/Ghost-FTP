@@ -12,7 +12,7 @@
 - Built-in syntax highlighting, auto-bracket completion and in-editor find are not yet fully implemented.
 
 
-## v0.95.36 Windows/Linux guarded transfers and drop safety — development candidate
+## v0.95.35 Windows/Linux guarded transfers and drop safety — development candidate
 
 - Preserve existing local backup files; use no-replace file moves, refuse symlinks and special filesystem nodes when promoting downloads.
 - Inventory folder uploads first; reject unsupported entries, unsafe/non-UTF-8 names and oversized trees rather than silently omitting files.
@@ -85,7 +85,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.35 development source. Previous canonical release: **0.95.34**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.36 development source. Previous canonical release: **0.95.35**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
