@@ -627,7 +627,10 @@ fn collect_credentials(dir: &Path, db: &Db, vault: &mut impl RestoreVault) -> Re
     };
 
     // A damaged/unreadable manifest is not proof that no credentials exist.
-    for (service, account) in db.list_keychain().context("read backup credential manifest")? {
+    for (service, account) in db
+        .list_keychain()
+        .context("read backup credential manifest")?
+    {
         take(&service, &account, true)?;
     }
 
@@ -741,7 +744,10 @@ mod tests {
             if self.fail_read {
                 bail!("simulated locked OS vault");
             }
-            Ok(self.values.get(&(service.to_string(), account.to_string())).cloned())
+            Ok(self
+                .values
+                .get(&(service.to_string(), account.to_string()))
+                .cloned())
         }
 
         fn put(&mut self, service: &str, account: &str, secret: &str) -> Result<()> {
@@ -749,12 +755,16 @@ mod tests {
             if self.fail_write_at == Some(self.write_count) {
                 bail!("simulated OS vault write fault");
             }
-            self.values.insert((service.to_string(), account.to_string()), secret.to_string());
+            self.values.insert(
+                (service.to_string(), account.to_string()),
+                secret.to_string(),
+            );
             Ok(())
         }
 
         fn remove(&mut self, service: &str, account: &str) -> Result<()> {
-            self.values.remove(&(service.to_string(), account.to_string()));
+            self.values
+                .remove(&(service.to_string(), account.to_string()));
             Ok(())
         }
     }
@@ -786,14 +796,19 @@ mod tests {
             fail_write_at: Some(2),
             ..Default::default()
         };
-        vault.values.insert((service.clone(), "one".to_string()), "original".to_string());
+        vault
+            .values
+            .insert((service.clone(), "one".to_string()), "original".to_string());
         let credentials = vec![
             test_credential("one", "replacement"),
             test_credential("two", "new-secret"),
         ];
         assert!(restore_credentials_with_vault(&credentials, &mut vault).is_err());
         assert_eq!(
-            vault.values.get(&(service.clone(), "one".to_string())).map(String::as_str),
+            vault
+                .values
+                .get(&(service.clone(), "one".to_string()))
+                .map(String::as_str),
             Some("original")
         );
         assert!(!vault.values.contains_key(&(service, "two".to_string())));
@@ -816,8 +831,10 @@ mod tests {
     #[test]
     fn backup_export_aborts_on_missing_manifest_secret_or_locked_vault() {
         let db = Db::open_in_memory().unwrap();
-        db.record_keychain(crate::credentials::SERVICE, "account").unwrap();
-        let dir = std::env::temp_dir().join(format!("ghostftp-vault-read-{}", uuid::Uuid::new_v4()));
+        db.record_keychain(crate::credentials::SERVICE, "account")
+            .unwrap();
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-vault-read-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let mut missing = TestVault::default();
         assert!(collect_credentials(&dir, &db, &mut missing).is_err());
@@ -831,19 +848,25 @@ mod tests {
 
     #[test]
     fn failed_vault_import_does_not_stage_or_replace_profile_or_db() {
-        let src_dir = std::env::temp_dir().join(format!("ghostftp-vault-src-{}", uuid::Uuid::new_v4()));
-        let dst_dir = std::env::temp_dir().join(format!("ghostftp-vault-dst-{}", uuid::Uuid::new_v4()));
+        let src_dir =
+            std::env::temp_dir().join(format!("ghostftp-vault-src-{}", uuid::Uuid::new_v4()));
+        let dst_dir =
+            std::env::temp_dir().join(format!("ghostftp-vault-dst-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&src_dir).unwrap();
         std::fs::create_dir_all(&dst_dir).unwrap();
         write(&src_dir, "profiles.json", "[]");
         write(&dst_dir, "profiles.json", "old-original");
         let db = Db::open(&src_dir.join("ghostftp.db")).unwrap();
-        db.record_keychain(crate::credentials::SERVICE, "account").unwrap();
+        db.record_keychain(crate::credentials::SERVICE, "account")
+            .unwrap();
 
         let backup = src_dir.join("test.ghostftpbak");
         let mut source_vault = TestVault::default();
         source_vault.values.insert(
-            (crate::credentials::SERVICE.to_string(), "account".to_string()),
+            (
+                crate::credentials::SERVICE.to_string(),
+                "account".to_string(),
+            ),
             "from-backup".to_string(),
         );
         export_with_vault(&src_dir, &db, "correct horse", &backup, &mut source_vault).unwrap();
@@ -853,9 +876,20 @@ mod tests {
             ..Default::default()
         };
         assert!(import_with_vault(&dst_dir, "correct horse", &backup, false, &mut locked).is_err());
-        assert_eq!(std::fs::read_to_string(dst_dir.join("profiles.json")).unwrap(), "old-original");
-        for staged in ["profiles.json.restore", "bridge.json.restore", "foldersync.json.restore", "ghostftp.db.restore"] {
-            assert!(!dst_dir.join(staged).exists(), "unexpected staged restore: {staged}");
+        assert_eq!(
+            std::fs::read_to_string(dst_dir.join("profiles.json")).unwrap(),
+            "old-original"
+        );
+        for staged in [
+            "profiles.json.restore",
+            "bridge.json.restore",
+            "foldersync.json.restore",
+            "ghostftp.db.restore",
+        ] {
+            assert!(
+                !dst_dir.join(staged).exists(),
+                "unexpected staged restore: {staged}"
+            );
         }
         drop(db);
         let _ = std::fs::remove_dir_all(src_dir);
