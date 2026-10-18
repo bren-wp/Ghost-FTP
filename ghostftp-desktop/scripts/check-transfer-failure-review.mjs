@@ -14,6 +14,7 @@ const { mostRecentFailedTransferId } = await import(
 );
 const t = (id, status, startedAt) => Object.freeze({ id, status, startedAt });
 assert.equal(mostRecentFailedTransferId([]), null);
+assert.equal(mostRecentFailedTransferId([t("canceled", "canceled", 300)]), null);
 assert.equal(mostRecentFailedTransferId([t("ok", "done", 100), t("queued", "queued", 200)]), null);
 assert.equal(mostRecentFailedTransferId([t("older", "error", 10), t("new", "error", 40), t("running", "transferring", 90)]), "new");
 assert.equal(mostRecentFailedTransferId([t("first", "error", 10), t("second", "error", 10)]), "first");
@@ -27,6 +28,8 @@ assert.equal(frozen[0].startedAt, 11, "no native record mutation");
 const ui = readFileSync(new URL("../src/components/TransferCenterDialog.tsx", import.meta.url), "utf8");
 for (const required of [
   "onClick={reviewLatestFailure}",
+  'filter === "failed" ? reviewLatestFailure() : setTab(filter)',
+  "focusedFailureRowRef.current?.scrollIntoView",
   'setTab("failed");',
   'setDirectionFilter("all");',
   'setTimeFilter("all");',
