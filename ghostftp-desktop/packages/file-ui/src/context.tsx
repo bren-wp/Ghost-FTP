@@ -37,6 +37,8 @@ export interface FileSystemAdapter {
    * and the pane simply doesn't offer the "Edit…" action.
    */
   editFile?(sessionId: SessionId, path: string): Promise<void>;
+  /** Open an isolated UTF-8 editor inside the Ghost FTP window. */
+  editBuiltinFile?(sessionId: SessionId, path: string): Promise<void>;
   /**
    * Optional: fetch raw bytes for an image so the grid can show a real preview
    * instead of a generic icon. Return the file as a Blob, or null if a preview
