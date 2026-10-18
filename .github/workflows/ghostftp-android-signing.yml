@@ -1,0 +1,85 @@
+name: Ghost FTP Android upload signing (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: 'Exact full 40-character current main SHA to sign'
+        required: true
+        type: string
+      confirmation:
+        description: 'Enter SIGN_WITH_EXISTING_UPLOAD_IDENTITY'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-android-upload-signing
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    # Signing is intentionally NEVER invoked on a pull request or by release automation.
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirmation == 'SIGN_WITH_EXISTING_UPLOAD_IDENTITY' }}
+    runs-on: ubuntu-22.04
+    environment: android-signing
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Refuse stale or substituted source
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.source_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$EXPECTED_SOURCE_SHA" = "$(git rev-parse HEAD)"
+          test "$EXPECTED_SOURCE_SHA" = "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.11.1'
+      - name: Install pinned Android SDK
+        shell: bash
+        run: sdkmanager "platforms;android-35" "platforms;android-36" "build-tools;35.0.0"
+      - name: Build release AAB without a CI debug signing identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n android/scripts/sign-release-aab.sh
+          gradle -p android assembleRelease bundleRelease
+          test -s android/app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s android/app/build/outputs/bundle/release/app-release.aab
+      - name: Locally sign, pin identity and verify AAB
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.source_sha }}
+          ANDROID_UPLOAD_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+          ANDROID_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_UPLOAD_CERT_SHA256: ${{ vars.ANDROID_UPLOAD_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          export PATH="$ANDROID_HOME/build-tools/35.0.0:$PATH"
+          bash android/scripts/sign-release-aab.sh
+      - name: Publish signed artifact and non-secret SHA evidence (not a Play upload)
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-Android-Signed-Upload-AAB
+          path: |
+            dist/android/signed/*.aab
+            dist/android/signed/SHA256SUMS.txt
+            dist/android/signed/SIGNING-EVIDENCE.txt
+          if-no-files-found: error
+          retention-days: 7
