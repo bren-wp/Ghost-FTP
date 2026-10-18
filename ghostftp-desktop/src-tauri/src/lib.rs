@@ -177,36 +177,18 @@ fn open_external_url(url: String) -> Result<(), String> {
         .map_err(|error| format!("Could not open the default browser: {error}"))
 }
 
+/// Do not automatically quarantine/recreate a database on *any* open failure.
+/// Credential settings, queued transfers and sync indexes may be the only copy
+/// of the user's data. Disk-full, permission issues, symlink defenses and
+/// temporary SQLite lock contention are NOT evidence of irrecoverable corruption.
+/// Preserve the original DB/WAL/SHM untouched and ask for deliberate recovery.
 fn open_db_resilient(path: &std::path::Path) -> anyhow::Result<db::Db> {
-    match db::Db::open(path) {
-        Ok(db) => Ok(db),
-        Err(first) => {
-            // Preserve a broken SQLite store and its sidecars instead of panicking
-            // at startup. Ghost FTP can recreate indexes/settings; the quarantined
-            // files remain available for support or manual recovery.
-            let stamp = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
-            for suffix in ["", "-wal", "-shm"] {
-                let candidate = std::path::PathBuf::from(format!("{}{}", path.display(), suffix));
-                if candidate.exists() {
-                    let quarantine = std::path::PathBuf::from(format!(
-                        "{}.corrupt.{}{}",
-                        path.display(),
-                        stamp,
-                        suffix
-                    ));
-                    let _ = std::fs::rename(&candidate, quarantine);
-                }
-            }
-            db::Db::open(path).map_err(|second| {
-                anyhow::anyhow!(
-                    "ghostftp.db recovery failed after initial error: {first:#}; retry: {second:#}"
-                )
-            })
-        }
-    }
+    db::Db::open(path).map_err(|error| {
+        anyhow::anyhow!(
+            "Cannot open protected local SQLite database at {}: {error:#}.              No database files were reset or deleted; restore from a verified backup              after resolving the underlying filesystem issue.",
+            path.display()
+        )
+    })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

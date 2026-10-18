@@ -207,13 +207,11 @@ impl Db {
             .context("configure SQLite concurrent-write timeout")?;
         // Never silently downgrade to rollback journal: background sync and
         // transfer history need a consistent snapshot with concurrent readers.
-        let mode: String = conn.pragma_query_value(None, "journal_mode", |row| row.get(0))
-            .context("read SQLite journal mode")?;
-        if !mode.eq_ignore_ascii_case("wal") {
-            let actual: String = conn.pragma_query_value(None, "journal_mode = WAL", |row| row.get(0))
-                .context("enable SQLite WAL")?;
-            anyhow::ensure!(actual.eq_ignore_ascii_case("wal"), "SQLite WAL mode unavailable");
-        }
+        conn.pragma_update(None, "journal_mode", "WAL")
+            .context("enable SQLite WAL")?;
+        let actual: String = conn.pragma_query_value(None, "journal_mode", |row| row.get(0))
+            .context("verify SQLite WAL mode")?;
+        anyhow::ensure!(actual.eq_ignore_ascii_case("wal"), "SQLite WAL mode unavailable");
         conn.pragma_update(None, "foreign_keys", "ON")
             .context("enable SQLite foreign keys")?;
         conn.pragma_update(None, "secure_delete", "ON")
@@ -739,14 +737,19 @@ mod tests {
 
     #[test]
     fn sqlite_enables_private_deletion_and_foreign_key_constraints() {
-        let db = Db::open_in_memory().unwrap();
+        let dir = std::env::temp_dir().join(format!("ghostftp-sqlite-pragmas-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let db = Db::open(&dir.join("ghostftp.db")).unwrap();
         let conn = db.conn.lock().unwrap();
-        conn.pragma_update(None, "secure_delete", "ON").unwrap();
         let secure: i64 = conn.query_row("PRAGMA secure_delete", [], |r| r.get(0)).unwrap();
-        assert_eq!(secure, 1);
         let foreign: i64 = conn.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).unwrap();
-        // In-memory connection does not use Db::open's disk-security path.
-        assert!(foreign == 0 || foreign == 1);
+        let mode: String = conn.query_row("PRAGMA journal_mode", [], |r| r.get(0)).unwrap();
+        assert_eq!(secure, 1);
+        assert_eq!(foreign, 1);
+        assert_eq!(mode, "wal");
+        drop(conn);
+        drop(db);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

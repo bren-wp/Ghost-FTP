@@ -300,6 +300,9 @@ impl FolderSync {
 
     /// The enabled on-demand pairs, as the provider's lighter [`OnDemandPair`].
     async fn enabled_ondemand_pairs(&self) -> Vec<crate::virtualfs::OnDemandPair> {
+        if self.recovery_required.is_some() {
+            return Vec::new();
+        }
         self.settings
             .lock()
             .await
@@ -334,12 +337,13 @@ impl FolderSync {
                 Some(r) => (true, r.status.lock().await.clone()),
                 None => (false, RuntimeStatus::default()),
             };
+            let recovery = self.recovery_required.as_ref();
             out.push(PairView {
-                running: is_running,
-                state: rt.state,
+                running: is_running && recovery.is_none(),
+                state: if recovery.is_some() { PairState::Error } else { rt.state },
                 in_flight: rt.in_flight,
                 last_synced: rt.last_synced,
-                last_error: rt.last_error,
+                last_error: recovery.cloned().or(rt.last_error),
                 pair,
             });
         }
