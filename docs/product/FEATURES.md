@@ -4,6 +4,8 @@
 
 ## v0.95.42 Android upload signing metadata alignment — development preview
 
+- Consolidate desktop OAuth per-login PKCE state binding and token diagnostic redaction; an altered/missing or duplicate callback state must not authorize a login.
+
 - Retain the existing protected Play upload signing workflow merged in #189; do not duplicate it.
 - Advance canonical source and Android versionCode 954200, aligning Rust/Tauri/Go/frontend/installers after published v0.95.41.
 - Existing test/build CI remains unsigned for production Android while the isolated preview package stays independently signed. Play Console acceptance, actual keystore use and secure macOS FTPS/SFTP are not established.
