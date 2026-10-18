@@ -46,7 +46,7 @@ export function filterTransferView(
   transfers: readonly Transfer[],
   options: TransferViewFilters,
 ): Transfer[] {
-  const normalized = options.query.trim().toLocaleLowerCase();
+  const normalized = options.query.trim().toLowerCase();
   const windowSeconds = options.time === "hour" ? 3_600 : options.time === "day" ? 86_400 : null;
 
   return transfers.filter((transfer) => {
@@ -59,7 +59,7 @@ export function filterTransferView(
 
     if (!normalized) return true;
     return `${transfer.source} ${transfer.destination} ${transfer.status}`
-      .toLocaleLowerCase()
+      .toLowerCase()
       .includes(normalized);
   });
 }
