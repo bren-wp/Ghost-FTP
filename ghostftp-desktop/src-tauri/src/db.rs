@@ -16,8 +16,11 @@
 //! across an `.await`, so callers stay `Send`.
 
 use std::collections::HashMap;
+#[cfg(unix)]
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::Path;
 use std::sync::Mutex;
+use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
@@ -121,6 +124,14 @@ const MIGRATIONS: &[&str] = &[
     ) WITHOUT ROWID;
     CREATE INDEX transfer_ledger_updated_idx
         ON transfer_ledger(updated_ms DESC);",
+    // v8 — authoritative config for continuous synchronization. The legacy
+    // foldersync.json is imported once and remains as a recovery snapshot.
+    // SQLite transactions ensure interrupted writes cannot lose a sync pair.
+    "CREATE TABLE folder_sync_config (
+        id         INTEGER PRIMARY KEY CHECK (id = 1),
+        payload    TEXT    NOT NULL,
+        updated_ms INTEGER NOT NULL
+    );",
 ];
 
 /// A persisted per-file sync record — what the source looked like the last time
@@ -157,15 +168,100 @@ pub struct Db {
     conn: Mutex<Connection>,
 }
 
+/// SQLite is not encryption: keep secrets in the Windows/Linux keyring.
+/// Local SQLite data (including filenames, connection IDs and sync state)
+/// still needs private permissions. Reject symlinked database and sidecars.
+fn secure_local_database_files(path: &Path) -> Result<()> {
+    for suffix in ["-wal", "-shm"] {
+        let sidecar = std::path::PathBuf::from(format!("{}{suffix}", path.display()));
+        match std::fs::symlink_metadata(&sidecar) {
+            Ok(meta) => {
+                anyhow::ensure!(
+                    meta.file_type().is_file(),
+                    "SQLite sidecar is not a regular file"
+                );
+                #[cfg(unix)]
+                std::fs::set_permissions(&sidecar, std::fs::Permissions::from_mode(0o600))
+                    .with_context(|| format!("secure SQLite sidecar {}", sidecar.display()))?;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => {
+                return Err(e)
+                    .with_context(|| format!("inspect SQLite sidecar {}", sidecar.display()))
+            }
+        }
+    }
+    match std::fs::symlink_metadata(path) {
+        Ok(meta) => {
+            anyhow::ensure!(
+                meta.file_type().is_file(),
+                "SQLite database is not a regular file"
+            );
+            #[cfg(unix)]
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+                .with_context(|| format!("secure SQLite database {}", path.display()))?;
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            let mut options = std::fs::OpenOptions::new();
+            options.create_new(true).write(true);
+            #[cfg(unix)]
+            options.mode(0o600);
+            match options.open(path) {
+                Ok(mut file) => {
+                    use std::io::Write;
+                    file.flush().context("flush new SQLite database")?;
+                    file.sync_all().context("sync new SQLite database")?;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                    let meta = std::fs::symlink_metadata(path)
+                        .context("inspect existing SQLite database")?;
+                    anyhow::ensure!(
+                        meta.file_type().is_file(),
+                        "SQLite database is not a regular file"
+                    );
+                    #[cfg(unix)]
+                    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+                        .context("secure concurrent SQLite database")?;
+                }
+                Err(e) => {
+                    return Err(e).with_context(|| {
+                        format!("create protected SQLite database {}", path.display())
+                    })
+                }
+            }
+        }
+        Err(e) => {
+            return Err(e).with_context(|| format!("inspect SQLite database {}", path.display()))
+        }
+    }
+    Ok(())
+}
+
 impl Db {
     /// Open (creating if absent) `ghostftp.db` at `path` and run pending migrations.
     pub fn open(path: &Path) -> Result<Self> {
+        secure_local_database_files(path)?;
         let conn = Connection::open(path)
             .with_context(|| format!("open ghostftp.db at {}", path.display()))?;
-        // WAL keeps readers from blocking the single writer — this is a desktop
-        // app with occasional background writes, not a hot OLTP path.
-        conn.pragma_update(None, "journal_mode", "WAL").ok();
-        conn.pragma_update(None, "foreign_keys", "ON").ok();
+        conn.busy_timeout(Duration::from_secs(5))
+            .context("configure SQLite write contention timeout")?;
+        conn.pragma_update(None, "journal_mode", "WAL")
+            .context("enable SQLite WAL")?;
+        let mode: String = conn
+            .pragma_query_value(None, "journal_mode", |row| row.get(0))
+            .context("verify SQLite WAL mode")?;
+        anyhow::ensure!(
+            mode.eq_ignore_ascii_case("wal"),
+            "SQLite WAL mode is unavailable"
+        );
+        conn.pragma_update(None, "foreign_keys", "ON")
+            .context("enable SQLite foreign keys")?;
+        let foreign: i64 = conn
+            .pragma_query_value(None, "foreign_keys", |row| row.get(0))
+            .context("verify SQLite foreign-key enforcement")?;
+        anyhow::ensure!(foreign == 1, "SQLite foreign-key protection is disabled");
+        conn.pragma_update(None, "secure_delete", "ON")
+            .context("enable SQLite secure delete")?;
         migrate(&conn).context("running ghostftp.db migrations")?;
         Ok(Self {
             conn: Mutex::new(conn),
@@ -180,6 +276,38 @@ impl Db {
         Ok(Self {
             conn: Mutex::new(conn),
         })
+    }
+
+    /// SQLite is the authoritative persisted configuration for watched
+    /// folder-sync pairs. A missing row means this installation has not yet
+    /// imported its older foldersync.json data.
+    pub fn folder_sync_config_get(&self) -> Result<Option<String>> {
+        let conn = self.conn.lock().unwrap();
+        match conn.query_row(
+            "SELECT payload FROM folder_sync_config WHERE id = 1",
+            [],
+            |row| row.get(0),
+        ) {
+            Ok(value) => Ok(Some(value)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(error) => Err(error).context("read SQLite folder sync configuration"),
+        }
+    }
+
+    /// One transactional, replace-in-place configuration snapshot. Never
+    /// truncate a JSON file or write fallback plaintext credentials.
+    pub fn folder_sync_config_set(&self, payload: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO folder_sync_config (id, payload, updated_ms)
+             VALUES (1, ?1, ?2)
+             ON CONFLICT(id) DO UPDATE SET
+               payload = excluded.payload,
+               updated_ms = excluded.updated_ms",
+            rusqlite::params![payload, now_ms()],
+        )
+        .context("commit SQLite folder sync configuration")?;
+        Ok(())
     }
 
     /// Load every remembered file for a pair, keyed by relative path.
@@ -665,6 +793,77 @@ fn migrate(conn: &Connection) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sqlite_folder_sync_config_round_trips_and_preserves_previous_value_on_error() {
+        let db = Db::open_in_memory().unwrap();
+        assert_eq!(db.folder_sync_config_get().unwrap(), None);
+        db.folder_sync_config_set(r#"{"pairs":[]}"#).unwrap();
+        assert_eq!(
+            db.folder_sync_config_get().unwrap().as_deref(),
+            Some(r#"{"pairs":[]}"#)
+        );
+        db.folder_sync_config_set(r#"{"pairs":[{"id":"a"}]}"#)
+            .unwrap();
+        assert_eq!(
+            db.folder_sync_config_get().unwrap().as_deref(),
+            Some(r#"{"pairs":[{"id":"a"}]}"#)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn private_sqlite_database_rejects_symlinks_and_insecure_permissions() {
+        use std::os::unix::fs::symlink;
+        let dir = std::env::temp_dir().join(format!("ghostftp-secure-db-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("ghostftp.db");
+        {
+            let db = Db::open(&path).unwrap();
+            db.settings_set("theme", "\"dark\"").unwrap();
+        }
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+        let symlinked = dir.join("link.db");
+        symlink(&path, &symlinked).unwrap();
+        assert!(secure_local_database_files(&symlinked).is_err());
+        let sidecar_db = dir.join("sidecar.db");
+        symlink(
+            &path,
+            std::path::PathBuf::from(format!("{}-wal", sidecar_db.display())),
+        )
+        .unwrap();
+        assert!(secure_local_database_files(&sidecar_db).is_err());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn sqlite_storage_enables_integrity_pragmas() {
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-db-pragmas-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let db = Db::open(&dir.join("ghostftp.db")).unwrap();
+        let conn = db.conn.lock().unwrap();
+        let secure: i64 = conn
+            .query_row("PRAGMA secure_delete", [], |row| row.get(0))
+            .unwrap();
+        let foreign: i64 = conn
+            .query_row("PRAGMA foreign_keys", [], |row| row.get(0))
+            .unwrap();
+        let busy_ms: i64 = conn
+            .query_row("PRAGMA busy_timeout", [], |row| row.get(0))
+            .unwrap();
+        let mode: String = conn
+            .query_row("PRAGMA journal_mode", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(secure, 1);
+        assert_eq!(foreign, 1);
+        assert!(busy_ms >= 5_000);
+        assert_eq!(mode, "wal");
+        drop(conn);
+        drop(db);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn migrates_and_round_trips_sync_state() {

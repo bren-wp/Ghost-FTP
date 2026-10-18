@@ -44,6 +44,7 @@ import { ImportDialog } from "./components/ImportDialog";
 import { AboutDialog } from "./components/AboutDialog";
 import { useUpdater } from "./stores/updaterStore";
 import { WorkspaceErrorBoundary } from "./components/WorkspaceErrorBoundary";
+import { BuiltinCodeEditor } from "./components/BuiltinCodeEditor";
 import { resolveWorkspaceDialog } from "./lib/workspaces";
 import { messageOf, toastError } from "./lib/errors";
 
@@ -268,6 +269,7 @@ export default function App() {
       <SnippetsHost />
       <CommandPalette />
       <KeyboardShortcutsDialog />
+      <BuiltinCodeEditor />
     </div>
   );
 }

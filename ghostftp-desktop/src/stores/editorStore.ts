@@ -28,16 +28,19 @@ export interface ActiveEdit {
 
 interface EditorState {
   edits: Record<string, ActiveEdit>;
+  builtinEditId: string | null;
   /** Has the global listener been wired? */
   _listenersWired: boolean;
 
   startEditing: (sessionId: SessionId, remotePath: string) => Promise<void>;
+  startBuiltinEditing: (sessionId: SessionId, remotePath: string) => Promise<void>;
   stopEditing: (editId: string) => Promise<void>;
   ensureListeners: () => Promise<void>;
 }
 
 export const useEditor = create<EditorState>((set, get) => ({
   edits: {},
+  builtinEditId: null,
   _listenersWired: false,
 
   ensureListeners: async () => {
@@ -129,13 +132,43 @@ export const useEditor = create<EditorState>((set, get) => ({
     }));
   },
 
+  startBuiltinEditing: async (sessionId, remotePath) => {
+    if (get().builtinEditId) {
+      toast.info("Editor already open", "Finish or close the current editor first.");
+      return;
+    }
+    await get().ensureListeners();
+    let ev;
+    try {
+      ev = await ipc.startEdit(sessionId, remotePath, undefined, true);
+    } catch (error) {
+      toastError(error, "Couldn't open built-in editor");
+      throw error;
+    }
+    set((state) => ({
+      builtinEditId: ev.editId,
+      edits: {
+        ...state.edits,
+        [ev.editId]: {
+          editId: ev.editId,
+          sessionId: ev.sessionId,
+          remotePath: ev.remotePath,
+          localTempPath: ev.localTempPath,
+          lastSavedAt: 0,
+          lastBytes: null,
+          lastError: null,
+        },
+      },
+    }));
+  },
+
   stopEditing: async (editId) => {
     try {
       await ipc.stopEdit(editId);
       set((s) => {
         const next = { ...s.edits };
         delete next[editId];
-        return { edits: next };
+        return { edits: next, builtinEditId: s.builtinEditId === editId ? null : s.builtinEditId };
       });
     } catch (error) {
       toastError(error, "Couldn't stop editing session");

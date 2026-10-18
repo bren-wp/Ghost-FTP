@@ -695,6 +695,17 @@ export function FilePane({
           },
         });
       }
+      if (single.kind === "file" && isRemote && fs.editBuiltinFile) {
+        items.push({
+          label: "Edit code in Ghost FTP…",
+          icon: <Edit3 size={12} />,
+          onClick: () => {
+            fs.editBuiltinFile!(sessionId!, single.path).catch((e) =>
+              setError(errorText(e))
+            );
+          },
+        });
+      }
       // Server-side zip/tar of a folder: one command on the host, then download
       // the single archive — no per-file walk. Remote dirs only (needs a shell).
       if (

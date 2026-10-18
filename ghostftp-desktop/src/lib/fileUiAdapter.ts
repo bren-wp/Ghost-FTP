@@ -137,6 +137,8 @@ export const tauriFileSystem: FileSystemAdapter = {
   // save/error listeners and tracks the live-edit pill in the status bar.
   editFile: (sessionId, path) =>
     useEditor.getState().startEditing(sessionId, path),
+  editBuiltinFile: (sessionId, path) =>
+    useEditor.getState().startBuiltinEditing(sessionId, path),
 
   // Copy a file/folder next to the original. The Rust side resolves a free
   // name and does the copy server-side (cp over SSH) or on the local disk.
