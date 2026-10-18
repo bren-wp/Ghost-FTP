@@ -309,7 +309,6 @@ pub async fn exchange_code(
         .await
         .context("token exchange request")?;
     let status = resp.status();
-    let text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
         return Err(anyhow!(
             "token exchange failed with HTTP {}",
@@ -334,7 +333,6 @@ pub async fn refresh(config: &OAuthConfig, refresh_token: &str) -> Result<TokenS
         .await
         .context("token refresh request")?;
     let status = resp.status();
-    let text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
         return Err(anyhow!(
             "token refresh failed with HTTP {}",
@@ -507,6 +505,68 @@ mod tests {
         assert_eq!(q["scope"], "files.read files.write");
         assert_eq!(q["token_access_type"], "offline");
         assert_eq!(q["redirect_uri"], "http://localhost:53682/");
+    }
+
+    #[test]
+    fn oauth_callback_requires_exact_state_method_and_single_code() {
+        assert_eq!(
+            parse_oauth_callback("GET /?state=NONCE&code=valid HTTP/1.1", "NONCE"),
+            OAuthCallback::Authorized("valid".to_string())
+        );
+        for request in [
+            "GET /?code=attacker HTTP/1.1",
+            "GET /?state=wrong&code=attacker HTTP/1.1",
+            "GET /other?state=NONCE&code=attacker HTTP/1.1",
+            "POST /?state=NONCE&code=attacker HTTP/1.1",
+            "GET /?state=NONCE&state=NONCE&code=attacker HTTP/1.1",
+            "GET /?state=NONCE&code=one&code=two HTTP/1.1",
+            "GET /?state=NONCE&code=one&error=denied HTTP/1.1",
+            "GET /?state=NONCE&code= HTTP/1.1",
+            "GET /?state=NONCE&code=ok HTTP/1.0",
+        ] {
+            assert_eq!(
+                parse_oauth_callback(request, "NONCE"),
+                OAuthCallback::Ignore,
+                "accepted hostile OAuth callback: {request}"
+            );
+        }
+        assert_eq!(
+            parse_oauth_callback("GET /?state=NONCE&error=access_denied HTTP/1.1", "NONCE"),
+            OAuthCallback::Denied
+        );
+        assert_eq!(
+            parse_oauth_callback("GET /?state=wrong&error=access_denied HTTP/1.1", "NONCE"),
+            OAuthCallback::Ignore
+        );
+    }
+
+    #[test]
+    fn provider_extra_parameters_cannot_override_security_settings() {
+        let mut config = OAuthConfig {
+            client_id: "client".into(),
+            auth_url: "https://example.invalid/authorize".into(),
+            token_url: "https://example.invalid/token".into(),
+            scopes: vec![],
+            extra_auth_params: vec![("state".into(), "attacker".into())],
+        };
+        assert!(authorize_url(&config, "PKCE", "NONCE").is_err());
+        config.extra_auth_params = vec![("code_challenge".into(), "attacker".into())];
+        assert!(authorize_url(&config, "PKCE", "NONCE").is_err());
+        config.extra_auth_params.clear();
+        assert!(authorize_url(&config, "PKCE", "").is_err());
+    }
+
+    #[test]
+    fn oauth_token_debug_output_never_contains_bearer_credentials() {
+        let tokens = TokenSet {
+            access_token: "unique-sensitive-access-token".into(),
+            refresh_token: Some("unique-sensitive-refresh-token".into()),
+            expires_at: 123,
+        };
+        let debug = format!("{tokens:?}");
+        assert!(!debug.contains("unique-sensitive-access-token"));
+        assert!(!debug.contains("unique-sensitive-refresh-token"));
+        assert!(debug.contains("[REDACTED]"));
     }
 
     #[test]
