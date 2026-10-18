@@ -1527,7 +1527,16 @@ fn err<E: std::fmt::Display>(e: E) -> String {
 
 #[tauri::command]
 pub async fn foldersync_list(state: State<'_, AppState>) -> Result<Vec<PairView>, String> {
-    Ok(state.foldersync.views().await)
+    let views = state.foldersync.views().await;
+    // When an unreadable snapshot had no recoverable pairs, there is no row
+    // to carry last_error. Show an actionable error rather than an apparently
+    // healthy "No sync pairs" empty state.
+    if views.is_empty() {
+        if let Some(reason) = &state.foldersync.recovery_required {
+            return Err(reason.clone());
+        }
+    }
+    Ok(views)
 }
 
 #[tauri::command]

@@ -177,6 +177,22 @@ fn ensure_private_db_file(path: &Path) -> Result<()> {
             .with_context(|| format!("secure SQLite database {}", path.display()))?;
         Ok(())
     };
+    // WAL and shared-memory sidecars contain usernames, paths and transfer
+    // metadata too. Reject preexisting links/special files before SQLite
+    // touches them; keep existing recovery files intact on failure.
+    for suffix in ["-wal", "-shm"] {
+        let sidecar = std::path::PathBuf::from(format!("{}{suffix}", path.display()));
+        match std::fs::symlink_metadata(&sidecar) {
+            Ok(meta) => {
+                anyhow::ensure!(meta.file_type().is_file(), "SQLite sidecar must be a regular file");
+                #[cfg(unix)]
+                std::fs::set_permissions(&sidecar, std::fs::Permissions::from_mode(0o600))
+                    .with_context(|| format!("secure SQLite sidecar {}", sidecar.display()))?;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e).with_context(|| format!("lstat SQLite sidecar {}", sidecar.display())),
+        }
+    }
     match std::fs::symlink_metadata(path) {
         Ok(_) => check_existing(),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -732,6 +748,9 @@ mod tests {
         let other = dir.join("outside.db");
         symlink(&database, &other).unwrap();
         assert!(ensure_private_db_file(&other).is_err());
+        let another = dir.join("other.db");
+        symlink(&database, std::path::PathBuf::from(format!("{}-wal", another.display()))).unwrap();
+        assert!(ensure_private_db_file(&another).is_err(), "sidecar links must be rejected too");
         std::fs::remove_dir_all(dir).unwrap();
     }
 
