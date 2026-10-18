@@ -121,8 +121,12 @@ pub fn authorize_url(config: &OAuthConfig, challenge: &str, state: &str) -> Resu
             // Provider extras must not append duplicate security-critical keys.
             if matches!(
                 k.as_str(),
-                "client_id" | "response_type" | "redirect_uri" | "state"
-                    | "code_challenge" | "code_challenge_method"
+                "client_id"
+                    | "response_type"
+                    | "redirect_uri"
+                    | "state"
+                    | "code_challenge"
+                    | "code_challenge_method"
             ) {
                 return Err(anyhow!("provider overrides a reserved OAuth parameter"));
             }
@@ -145,7 +149,11 @@ pub async fn authorize_loopback(config: &OAuthConfig) -> Result<(TokenSet, serde
     let (verifier, challenge) = pkce_pair();
     // Two independent v4 UUIDs provide 244 random bits, bound to this one
     // authorization attempt. This is distinct from the PKCE code verifier.
-    let state = format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple());
+    let state = format!(
+        "{}{}",
+        uuid::Uuid::new_v4().simple(),
+        uuid::Uuid::new_v4().simple()
+    );
     let auth_url = authorize_url(config, &challenge, &state)?;
 
     // Bind the fixed loopback port *before* opening the browser so the redirect
@@ -315,7 +323,7 @@ pub async fn exchange_code(
             status.as_u16()
         ));
     }
-    serde_json::from_str(&text).context("parse token response")
+    resp.json().await.context("parse token response")
 }
 
 /// Refresh an access token from a refresh token. Providers usually return only a
@@ -339,7 +347,7 @@ pub async fn refresh(config: &OAuthConfig, refresh_token: &str) -> Result<TokenS
             status.as_u16()
         ));
     }
-    let raw: serde_json::Value = serde_json::from_str(&text).context("parse refresh response")?;
+    let raw: serde_json::Value = resp.json().await.context("parse refresh response")?;
     let mut set = token_set_from(&raw)?;
     // Carry forward the refresh token if the response omitted one.
     if set.refresh_token.is_none() {
