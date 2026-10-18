@@ -18,9 +18,30 @@ for (const text of [
   'count: activeFilterCount',
   'count: completed',
   'count: failed',
-  'onClick={() => setTab(filter)}',
   'aria-pressed={tab === filter}',
 ]) assert.ok(desktop.includes(text), `Missing genuine desktop transfer overview: ${text}`);
+
+// The overview must remain clickable, but the new Failed tile must not
+// leave stale keyword/direction/time filters hiding actual failed jobs.
+const legacyOverview = desktop.includes('onClick={() => setTab(filter)}');
+const safeFailureOverview = desktop.includes('filter === "failed" ? reviewLatestFailure() : setTab(filter)');
+assert.ok(
+  legacyOverview || safeFailureOverview,
+  "Live transfer overview has no working click-to-filter handler"
+);
+if (safeFailureOverview) {
+  for (const text of [
+    'onClick={reviewLatestFailure}',
+    'setQuery("");',
+    'setDirectionFilter("all");',
+    'setTimeFilter("all");',
+    'setTab("failed");',
+    'setSelectedId(id);',
+    'focusedFailureRowRef.current?.scrollIntoView',
+  ]) {
+    assert.ok(desktop.includes(text), `Failed overview lost safe navigation: ${text}`);
+  }
+}
 
 for (const text of [
   ".ghost-transfer-overview-card:focus-visible",
