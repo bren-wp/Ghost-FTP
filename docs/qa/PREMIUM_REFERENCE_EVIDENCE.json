@@ -1,0 +1,457 @@
+{
+  "schema_version": 1,
+  "reference": "docs/qa/PREMIUM_REFERENCE_75.json",
+  "note": "Real-runtime evidence only. Design PNGs, CI mock views and illustrative concepts are NOT accepted as capture proof.",
+  "screens": [
+    {
+      "id": "windows/brand",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/files",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/sites",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/new-connection",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/quick-connect",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/transfers",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/failed-transfers",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/transfer-schedule",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/sync",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/directory-diff",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/duplicates",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/disk-usage",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/settings",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/settings-transfer",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/settings-security",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/settings-appearance",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/terminal",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/command-palette",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/snippets",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/agent",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/import",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/host-key",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/overwrite",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/properties",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/permissions",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/shortcuts",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/help",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/updates",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/search",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "windows/delete-confirm",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/files",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/sites",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/new-connection",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/quick-connect",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/transfers",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/failed-transfers",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/transfer-schedule",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/sync",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/directory-diff",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/duplicates",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/disk-usage",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/settings",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/settings-transfer",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/settings-security",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/settings-appearance",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/terminal",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/command-palette",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/snippets",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/agent",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/import",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/host-key",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/overwrite",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/properties",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/permissions",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/shortcuts",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/help",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/updates",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/search",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "linux/delete-confirm",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/files",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/sites",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/connect",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/transfers",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/sync",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/settings",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/about",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/new-folder",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/rename",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/delete",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/upload",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/download",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/host-key",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/activity",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/disconnected",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    },
+    {
+      "id": "android/transfer-detail",
+      "status": "unverified",
+      "capture": null,
+      "review": null
+    }
+  ]
+}

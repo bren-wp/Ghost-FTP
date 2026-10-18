@@ -193,6 +193,13 @@ jobs:
           grep -Fq 'private func identityCard(version: String)' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
           grep -Fq 'FTPS and SFTP remain disabled' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
 
+      - name: Reject unsupported 75-screen acceptance claims and fake runtime screenshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test .github/scripts/check-runtime-75-evidence.test.mjs
+          node .github/scripts/check-runtime-75-evidence.mjs
+
       - name: Verify complete 75-screen premium design traceability
         shell: bash
         run: node .github/scripts/check-premium-75-screens.mjs

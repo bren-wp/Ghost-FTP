@@ -24,6 +24,19 @@ Windows adds the `brand` concept; the other 29 named Windows/Linux screens match
 - Success `#26DC8F` in archive README; the HTML concept uses `#41DFAB`. Before final pixel approval, resolve this source-level discrepancy explicitly. Do not invent an approved color.
 - Error `#FF7284`. Fonts: Inter/Segoe UI/Noto Sans/system fallback; do not commit redistributed font binaries.
 
+## Runtime capture evidence and false-PASS prevention
+
+The traceable [runtime evidence registry](PREMIUM_REFERENCE_EVIDENCE.json) contains exactly one record for each of the 75 concepts. All currently have `status: "unverified"`. They are **not** software screenshots and no successful comparison is implied.
+
+Quality CI runs `check-runtime-75-evidence.mjs` and its negative tests. Mark `pass` or `fail` **only** after capturing a genuine PNG under `docs/qa/runtime-captures/<platform>/` from an installed build, and recording:
+
+- the original application source commit SHA (40 hexadecimal characters), capture SHA-256 and exact reference viewport;
+- real PNG bytes at the stated dimensions (no symlinks, placeholders, concept art or path traversal);
+- human reviewer/timestamp, keyboard, screen-reader/accessibility and interaction verification;
+- an explicitly approved review for PASS or a documented discrepancy for FAIL.
+
+A passing registry validation with `75 unverified` proves **only** traceability and prevention of unsupported assertions. It does not demonstrate visual parity, UI functionality, screen-reader acceptance or runtime screenshot collection. DPI 125/150/200%, smaller window sizes and installed OS/device testing remain separate mandatory acceptance evidence.
+
 ## Acceptance plan (not yet completed)
 
 1. **Actual screenshots:** Capture real, freshly built, exact-SHA Windows, Linux and Android apps at matching viewports. Keep the capture output separate from design assets; never relabel a concept as a UI test result.
