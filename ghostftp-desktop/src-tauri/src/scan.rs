@@ -94,16 +94,30 @@ pub async fn walk_tree(fs: &dyn RemoteFs, root: &str) -> Result<ScanTree> {
     walk(fs, root, &ScanOptions::default(), |_| {}).await
 }
 
-/// Recursively list every file under `root`. Bounded-concurrency BFS: up to
-/// `opts.concurrency` `list_dir` calls are in flight at once. Unreadable
-/// directories are tolerated (skipped), symlinks are not followed — both
-/// preserving the behaviour of the walk this replaced. `on_progress` fires once
-/// per completed directory listing.
+/// Strict scan for synchronization. Never treat an unreadable source or
+/// destination subfolder as an empty folder — Mirror could interpret missing
+/// entries as deletion instructions and remove unrelated files.
+pub async fn walk_tree_strict(fs: &dyn RemoteFs, root: &str) -> Result<ScanTree> {
+    walk_impl(fs, root, &ScanOptions::default(), |_| {}, true).await
+}
+
+/// Bounded-concurrency scan for search/size display. This legacy mode skips
+/// unreadable directories; it must not be used for destructive synchronization.
 pub async fn walk<F: FnMut(ScanProgress)>(
     fs: &dyn RemoteFs,
     root: &str,
     opts: &ScanOptions,
+    on_progress: F,
+) -> Result<ScanTree> {
+    walk_impl(fs, root, opts, on_progress, false).await
+}
+
+async fn walk_impl<F: FnMut(ScanProgress)>(
+    fs: &dyn RemoteFs,
+    root: &str,
+    opts: &ScanOptions,
     mut on_progress: F,
+    strict: bool,
 ) -> Result<ScanTree> {
     let normalized_root = root.trim_end_matches('/').to_string();
     let limit = opts.concurrency.max(1);
@@ -124,36 +138,42 @@ pub async fn walk<F: FnMut(ScanProgress)>(
             match queue.pop_front() {
                 Some(dir) => inflight.push(async move {
                     let res = fs.list_dir(&dir).await;
-                    res
+                    (dir, res)
                 }),
                 None => break,
             }
         }
         // Empty queue *and* nothing in flight ⇒ the tree is fully walked.
-        let Some(res) = inflight.next().await else {
+        let Some((dir, res)) = inflight.next().await else {
             break;
         };
         dirs_scanned += 1;
-        if let Ok(entries) = res {
-            for entry in entries {
-                match entry.kind {
-                    FileKind::Directory => queue.push_back(entry.path.clone()),
-                    FileKind::File => {
-                        bytes_found += entry.size;
-                        let rel = relative_of(&normalized_root, &entry.path);
-                        tree.files.insert(
-                            rel,
-                            ScanEntry {
-                                absolute: entry.path.clone(),
-                                size: entry.size,
-                                modified: entry.modified.unwrap_or(0),
-                                etag: entry.etag.clone(),
-                            },
-                        );
+        match res {
+            Ok(entries) => {
+                for entry in entries {
+                    match entry.kind {
+                        FileKind::Directory => queue.push_back(entry.path.clone()),
+                        FileKind::File => {
+                            bytes_found += entry.size;
+                            let rel = relative_of(&normalized_root, &entry.path);
+                            tree.files.insert(
+                                rel,
+                                ScanEntry {
+                                    absolute: entry.path.clone(),
+                                    size: entry.size,
+                                    modified: entry.modified.unwrap_or(0),
+                                    etag: entry.etag.clone(),
+                                },
+                            );
+                        }
+                        _ => {} // skip symlinks/other — don't chase cycles
                     }
-                    _ => {} // skip symlinks/other — don't chase cycles
                 }
             }
+            Err(error) if strict => {
+                anyhow::bail!("sync scan refused unreadable directory {dir}: {error:#}");
+            }
+            Err(_) => {} // legacy display scan tolerates unreadable folders
         }
         on_progress(ScanProgress {
             dirs_scanned,
@@ -169,4 +189,22 @@ pub async fn walk<F: FnMut(ScanProgress)>(
 pub fn relative_of(root: &str, full: &str) -> String {
     let stripped = full.strip_prefix(root).unwrap_or(full);
     stripped.trim_start_matches(['/', '\\']).replace('\\', "/")
+}
+
+#[cfg(test)]
+mod strict_sync_scan_tests {
+    use super::*;
+    use crate::remotefs::local::LocalFs;
+
+    #[tokio::test]
+    async fn missing_source_folder_never_appears_empty_to_sync() {
+        let path =
+            std::env::temp_dir().join(format!("ghostftp-strict-scan-{}", uuid::Uuid::new_v4()));
+        let path = path.to_str().unwrap();
+        let fs = LocalFs;
+        let err = walk_tree_strict(&fs, path).await.unwrap_err();
+        assert!(err.to_string().contains("unreadable directory"));
+        // Retain permissive behavior ONLY for non-destructive display scans.
+        assert!(walk_tree(&fs, path).await.unwrap().files.is_empty());
+    }
 }

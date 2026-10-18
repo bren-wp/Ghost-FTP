@@ -589,9 +589,14 @@ async fn reconcile(
         // held some deletes back. Uploads still happened, so we report success
         // (Idle + last_synced) while surfacing the guard note in `last_error`.
         Ok(warning) => {
+            // A delete safety guard may deliberately leave work unfinished.
+            // Surface the warning and keep the last fully-synced timestamp.
+            let complete = warning.is_none();
             set_state(app, status, PairState::Idle, |s| {
                 s.in_flight = 0;
-                s.last_synced = Some(now_ms());
+                if complete {
+                    s.last_synced = Some(now_ms());
+                }
                 s.last_error = warning;
             })
             .await;
@@ -640,10 +645,13 @@ async fn reconcile_inner(
         SyncDirection::LocalToRemote => local_fs.capabilities().change_signal,
         SyncDirection::RemoteToLocal => remote_fs.capabilities().change_signal,
     };
-    let index = state.db.load_sync_state(&pair.id).unwrap_or_else(|e| {
-        tracing::warn!("folder sync '{}': reading sync_state: {e:#}", pair.name);
-        Default::default()
-    });
+    // Refuse to plan against an invented empty index when SQLite is locked,
+    // damaged, or inaccessible. Especially important in Mirror mode: a false
+    // empty history can convert a temporary I/O fault into destructive work.
+    let index = state
+        .db
+        .load_sync_state(&pair.id)
+        .with_context(|| format!("reading saved sync history for '{}'", pair.name))?;
 
     let (mut plan, source_tree) = crate::sync::plan_indexed(
         local_fs.as_ref(),
@@ -677,7 +685,9 @@ async fn reconcile_inner(
         // Nothing to transfer — but still snapshot the source so a first run
         // seeds the index (later same-size edits become detectable) and a delete
         // prunes its row.
-        snapshot_index(&state.db, &pair.id, &source_tree, &index);
+        if warning.is_none() {
+            snapshot_index(&state.db, &pair.id, &source_tree)?;
+        }
         return Ok(warning);
     }
 
@@ -692,33 +702,22 @@ async fn reconcile_inner(
     // Record what the source looks like now, so the next reconcile compares
     // against reality rather than re-uploading (resume) and catches in-place
     // edits the live size/mtime diff would miss.
-    snapshot_index(&state.db, &pair.id, &source_tree, &index);
+    if warning.is_none() {
+        snapshot_index(&state.db, &pair.id, &source_tree)?;
+    }
     Ok(warning)
 }
 
-/// Persist the current source tree into `sync_state`: upsert a row per file and
-/// prune rows for files that have disappeared from the source. Best-effort — a
-/// DB hiccup here only costs the optimization, never correctness (the live diff
-/// still runs every reconcile).
+/// Store one consistent per-pair snapshot, or leave the previous SQLite rows
+/// intact. No partial upsert/delete loops; a failed write must be visible to
+/// the caller and must not advance the last successful synchronization time.
 fn snapshot_index(
     db: &crate::db::Db,
     pair_id: &str,
     source_tree: &crate::scan::ScanTree,
-    before: &std::collections::HashMap<String, crate::db::SyncStateRow>,
-) {
-    let now = now_ms();
-    for (rel, e) in &source_tree.files {
-        if let Err(err) =
-            db.upsert_sync_state(pair_id, rel, e.size, e.modified, e.etag.as_deref(), now)
-        {
-            tracing::warn!("folder sync: sync_state upsert '{rel}': {err:#}");
-        }
-    }
-    for rel in before.keys() {
-        if !source_tree.files.contains_key(rel) {
-            let _ = db.delete_sync_state(pair_id, rel);
-        }
-    }
+) -> Result<()> {
+    db.replace_sync_state_snapshot(pair_id, &source_tree.files, now_ms())
+        .context("commit atomic sync history")
 }
 
 // Bound temporary-file cleanup work after crashes and watcher storms.

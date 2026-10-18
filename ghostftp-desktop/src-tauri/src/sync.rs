@@ -119,8 +119,11 @@ pub(crate) async fn plan_indexed(
     index: Option<&std::collections::HashMap<String, crate::db::SyncStateRow>>,
     source_signal: crate::remotefs::ChangeSignal,
 ) -> Result<(SyncPlan, crate::scan::ScanTree)> {
-    let local_tree = crate::scan::walk_tree(local_fs, local_root).await?;
-    let remote_tree = crate::scan::walk_tree(remote_fs, remote_root).await?;
+    // A partial directory scan is not authoritative enough to drive a sync
+    // plan. In Mirror mode, silently skipping an unreadable subdirectory
+    // would incorrectly schedule its destination files for deletion.
+    let local_tree = crate::scan::walk_tree_strict(local_fs, local_root).await?;
+    let remote_tree = crate::scan::walk_tree_strict(remote_fs, remote_root).await?;
 
     // Borrow both trees only for the diff, then move the source tree out to hand
     // back to the caller (moving while `source`/`dest` still borrow would fail).
