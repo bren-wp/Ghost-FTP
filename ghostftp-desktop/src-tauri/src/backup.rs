@@ -38,7 +38,6 @@
 //! path applies immediately (no running app to coordinate with).
 
 use std::collections::HashSet;
-#[cfg(unix)]
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 #[cfg(unix)]
@@ -136,36 +135,47 @@ impl Drop for RemoveOnDrop {
     }
 }
 
+/// Never stream an encrypted backup or restore payload directly into an
+/// existing destination. A failed write must preserve its last complete bytes;
+/// a symbolic link must never redirect writes into unrelated user files.
 fn write_private_file(path: &Path, data: &[u8]) -> Result<()> {
-    #[cfg(unix)]
-    {
-        let mut file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(path)
-            .with_context(|| format!("open private file {}", path.display()))?;
-        let mut permissions = file
-            .metadata()
-            .with_context(|| format!("read permissions for {}", path.display()))?
-            .permissions();
-        permissions.set_mode(0o600);
-        file.set_permissions(permissions)
-            .with_context(|| format!("set private permissions for {}", path.display()))?;
-        file.write_all(data)
-            .with_context(|| format!("write private file {}", path.display()))?;
-        file.sync_all()
-            .with_context(|| format!("sync private file {}", path.display()))?;
-        Ok(())
+    let parent = path.parent().context("private file path has no parent")?;
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) => {
+            anyhow::ensure!(
+                metadata.file_type().is_file(),
+                "refusing to overwrite a non-regular backup or restore target"
+            );
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error).context("inspect backup or restore target"),
     }
 
-    #[cfg(not(unix))]
-    {
-        std::fs::write(path, data)
-            .with_context(|| format!("write private file {}", path.display()))?;
-        Ok(())
-    }
+    // A private, unpredictable sibling temp ensures all platforms write a
+    // complete file before replacing an existing backup or staged restore.
+    // Atomic rename replaces the *link itself*, never its referent, even if a
+    // second process swaps the destination after the metadata check.
+    let temporary = parent.join(format!(
+        ".ghostftp-private-{}.tmp",
+        uuid::Uuid::new_v4()
+    ));
+    let _guard = RemoveOnDrop(temporary.clone());
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let mut file = options
+        .open(&temporary)
+        .context("create private temporary backup file")?;
+    #[cfg(unix)]
+    file.set_permissions(std::fs::Permissions::from_mode(0o600))
+        .context("secure temporary backup permissions")?;
+    file.write_all(data).context("write private temporary backup file")?;
+    file.sync_all().context("sync private temporary backup file")?;
+    drop(file);
+    std::fs::rename(&temporary, path)
+        .context("atomically promote complete private backup file")?;
+    Ok(())
 }
 
 fn credential_target_allowed(service: &str, account: &str) -> bool {
@@ -925,6 +935,63 @@ mod tests {
         write_private_file(&path, b"new").unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"new");
         let _ = std::fs::remove_file(path);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn private_writer_refuses_symlink_and_preserves_its_target() {
+        use std::os::unix::fs::symlink;
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-private-symlink-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("important.txt");
+        let backup = dir.join("export.ghostftpbak");
+        std::fs::write(&target, b"keep original").unwrap();
+        symlink(&target, &backup).unwrap();
+        assert!(write_private_file(&backup, b"must not follow").is_err());
+        assert_eq!(std::fs::read(&target).unwrap(), b"keep original");
+        assert!(std::fs::symlink_metadata(&backup)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 2);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn private_writer_refuses_directory_without_leaking_temporary_file() {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-private-dir-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(write_private_file(&dir, b"do not truncate directory").is_err());
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn private_writer_atomically_replaces_existing_file_with_private_mode() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-private-mode-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("profiles.json.restore");
+        std::fs::write(&path, b"previous-valid-payload").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        write_private_file(&path, b"new verified payload").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"new verified payload");
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
