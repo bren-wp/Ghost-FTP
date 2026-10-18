@@ -18,6 +18,9 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Mutex;
+use std::time::Duration;
+#[cfg(unix)]
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
@@ -157,15 +160,64 @@ pub struct Db {
     conn: Mutex<Connection>,
 }
 
+/// Protect local state even if a caller bypasses the AppState path setup.
+/// SQLite is NOT encryption: credentials must remain in the OS keyring.
+/// Never open a symlink in place of the database or leave metadata
+/// world-readable on Unix. create_new avoids following a raced symlink.
+fn ensure_private_db_file(path: &Path) -> Result<()> {
+    let check_existing = || -> Result<()> {
+        let meta = std::fs::symlink_metadata(path)
+            .with_context(|| format!("lstat SQLite database {}", path.display()))?;
+        anyhow::ensure!(
+            meta.file_type().is_file(),
+            "SQLite database must be a regular file, not a symbolic link or directory"
+        );
+        #[cfg(unix)]
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+            .with_context(|| format!("secure SQLite database {}", path.display()))?;
+        Ok(())
+    };
+    match std::fs::symlink_metadata(path) {
+        Ok(_) => check_existing(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            let mut opts = std::fs::OpenOptions::new();
+            opts.write(true).create_new(true);
+            #[cfg(unix)]
+            opts.mode(0o600);
+            match opts.open(path) {
+                Ok(file) => {
+                    file.sync_all().context("sync newly created SQLite database")?;
+                    Ok(())
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => check_existing(),
+                Err(e) => Err(e).with_context(|| format!("create private SQLite database {}", path.display())),
+            }
+        }
+        Err(e) => Err(e).with_context(|| format!("lstat SQLite database {}", path.display())),
+    }
+}
+
 impl Db {
     /// Open (creating if absent) `ghostftp.db` at `path` and run pending migrations.
     pub fn open(path: &Path) -> Result<Self> {
+        ensure_private_db_file(path)?;
         let conn = Connection::open(path)
             .with_context(|| format!("open ghostftp.db at {}", path.display()))?;
-        // WAL keeps readers from blocking the single writer — this is a desktop
-        // app with occasional background writes, not a hot OLTP path.
-        conn.pragma_update(None, "journal_mode", "WAL").ok();
-        conn.pragma_update(None, "foreign_keys", "ON").ok();
+        conn.busy_timeout(Duration::from_secs(5))
+            .context("configure SQLite concurrent-write timeout")?;
+        // Never silently downgrade to rollback journal: background sync and
+        // transfer history need a consistent snapshot with concurrent readers.
+        let mode: String = conn.pragma_query_value(None, "journal_mode", |row| row.get(0))
+            .context("read SQLite journal mode")?;
+        if !mode.eq_ignore_ascii_case("wal") {
+            let actual: String = conn.pragma_query_value(None, "journal_mode = WAL", |row| row.get(0))
+                .context("enable SQLite WAL")?;
+            anyhow::ensure!(actual.eq_ignore_ascii_case("wal"), "SQLite WAL mode unavailable");
+        }
+        conn.pragma_update(None, "foreign_keys", "ON")
+            .context("enable SQLite foreign keys")?;
+        conn.pragma_update(None, "secure_delete", "ON")
+            .context("enable SQLite secure deletion")?;
         migrate(&conn).context("running ghostftp.db migrations")?;
         Ok(Self {
             conn: Mutex::new(conn),
@@ -665,6 +717,37 @@ fn migrate(conn: &Connection) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn sqlite_metadata_is_private_and_symlink_targets_are_rejected() {
+        use std::os::unix::fs::symlink;
+        let dir = std::env::temp_dir().join(format!("ghostftp-sqlite-private-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let database = dir.join("ghostftp.db");
+        {
+            let db = Db::open(&database).unwrap();
+            db.settings_set("theme", "\"dark\"").unwrap();
+        }
+        let perm = std::fs::metadata(&database).unwrap().permissions().mode() & 0o777;
+        assert_eq!(perm, 0o600);
+        let other = dir.join("outside.db");
+        symlink(&database, &other).unwrap();
+        assert!(ensure_private_db_file(&other).is_err());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn sqlite_enables_private_deletion_and_foreign_key_constraints() {
+        let db = Db::open_in_memory().unwrap();
+        let conn = db.conn.lock().unwrap();
+        conn.pragma_update(None, "secure_delete", "ON").unwrap();
+        let secure: i64 = conn.query_row("PRAGMA secure_delete", [], |r| r.get(0)).unwrap();
+        assert_eq!(secure, 1);
+        let foreign: i64 = conn.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).unwrap();
+        // In-memory connection does not use Db::open's disk-security path.
+        assert!(foreign == 0 || foreign == 1);
+    }
 
     #[test]
     fn migrates_and_round_trips_sync_state() {

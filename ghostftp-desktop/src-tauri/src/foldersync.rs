@@ -181,7 +181,48 @@ struct Running {
 pub struct FolderSync {
     settings_path: PathBuf,
     settings: Mutex<Settings>,
+    // If the persisted source is missing/damaged while a backup is available,
+    // show the recovered pairs but never auto-start destructive mirror jobs
+    // or overwrite the only remaining recovery snapshot.
+    recovery_required: Option<String>,
     running: Mutex<HashMap<String, Running>>,
+}
+
+/// A damaged config must NEVER be treated as an intentionally empty list:
+/// that would erase saved pairs during the next preferences write. Read a
+/// separately preserved backup for display but mark storage read-only until
+/// the user restores it; do not automatically sync a recovered Mirror pair.
+fn read_settings_preserving_recovery(path: &Path) -> Result<(Settings, Option<String>)> {
+    let backup = path.with_extension("json.bak");
+    match std::fs::read(path) {
+        Ok(bytes) => match serde_json::from_slice::<Settings>(&bytes) {
+            Ok(settings) => Ok((settings, None)),
+            Err(error) => {
+                let recovered = std::fs::read(&backup).ok()
+                    .and_then(|bytes| serde_json::from_slice::<Settings>(&bytes).ok())
+                    .unwrap_or_default();
+                Ok((recovered, Some(format!(
+                    "folder sync settings are corrupt ({error}); synchronization and edits are suspended. Restore {} from a verified backup.",
+                    path.display()
+                ))))
+            }
+        },
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            match std::fs::read(&backup) {
+                Ok(bytes) => {
+                    let recovered = serde_json::from_slice::<Settings>(&bytes)
+                        .with_context(|| format!("read folder sync recovery {}", backup.display()))?;
+                    Ok((recovered, Some(format!(
+                        "folder sync primary is missing; recovery copy {} was loaded read-only. Restore the primary before enabling sync.",
+                        backup.display()
+                    ))))
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok((Settings::default(), None)),
+                Err(e) => Err(e).with_context(|| format!("read folder sync recovery {}", backup.display())),
+            }
+        }
+        Err(error) => Err(error).with_context(|| format!("read folder sync settings {}", path.display())),
+    }
 }
 
 impl FolderSync {
@@ -190,20 +231,24 @@ impl FolderSync {
             .path()
             .app_data_dir()
             .context("resolving app_data_dir")?;
-        std::fs::create_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).context("create folder-sync settings directory")?;
         let settings_path = dir.join("foldersync.json");
-        let settings: Settings = std::fs::read(&settings_path)
-            .ok()
-            .and_then(|b| serde_json::from_slice(&b).ok())
-            .unwrap_or_default();
+        let (settings, recovery_required) = read_settings_preserving_recovery(&settings_path)?;
+        if let Some(warning) = &recovery_required {
+            tracing::warn!("{warning}");
+        }
         Ok(Self {
             settings_path,
             settings: Mutex::new(settings),
+            recovery_required,
             running: Mutex::new(HashMap::new()),
         })
     }
 
     fn persist_snapshot(&self, settings: &Settings) -> Result<()> {
+        if let Some(reason) = &self.recovery_required {
+            anyhow::bail!("{reason}");
+        }
         let bytes = serde_json::to_vec_pretty(settings)?;
         let parent = self
             .settings_path
@@ -238,6 +283,10 @@ impl FolderSync {
 
     /// Bring up every pair the user left enabled.
     pub async fn auto_start_if_enabled(&self, app: AppHandle) {
+        if self.recovery_required.is_some() {
+            tracing::warn!("folder sync suspended until corrupted storage is restored");
+            return;
+        }
         let pairs = self.settings.lock().await.pairs.clone();
         for p in pairs.into_iter().filter(|p| p.enabled) {
             if let Err(e) = self.start_pair(&app, &p).await {
@@ -1034,7 +1083,7 @@ fn glob_match(pattern: &str, text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_safety, glob_match, is_excluded, is_internal_transfer_temp, sweep_delta_temps,
+        apply_safety, glob_match, is_excluded, is_internal_transfer_temp, read_settings_preserving_recovery, sweep_delta_temps,
         transfer_batch_complete, SyncMode, SyncPair,
     };
     use crate::sync::{self, SyncDirection, SyncStrategy};
@@ -1045,6 +1094,23 @@ mod tests {
     fn ex(rel: &str, pats: &[&str]) -> bool {
         let pats: Vec<String> = pats.iter().map(|s| s.to_string()).collect();
         is_excluded(rel, &pats)
+    }
+
+    #[test]
+    fn damaged_sync_configuration_is_read_only_not_silently_reset() {
+        let dir = std::env::temp_dir().join(format!("ghostftp-broken-sync-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("foldersync.json");
+        std::fs::write(&path, b"{not-valid-json").unwrap();
+        std::fs::write(path.with_extension("json.bak"), br#"{"pairs":[]}"#).unwrap();
+        let (pairs, recovery) = read_settings_preserving_recovery(&path).unwrap();
+        assert!(pairs.pairs.is_empty());
+        assert!(recovery.unwrap().contains("suspended"));
+        assert_eq!(std::fs::read(&path).unwrap(), b"{not-valid-json");
+        std::fs::remove_file(&path).unwrap();
+        let (_, recovery) = read_settings_preserving_recovery(&path).unwrap();
+        assert!(recovery.unwrap().contains("read-only"));
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
