@@ -7,6 +7,6 @@ object ReleaseInfo {
     const val VERSION_DISPLAY = "0.95.44"
     const val VERSION_BADGE = "0.95.44"
     const val BUILD = "2026.10.19.44"
-    const val RELEASE_DATE = "18 October 2026"
+    const val RELEASE_DATE = "19 October 2026"
     const val WEBSITE = "https://ghostftp.com"
 }
