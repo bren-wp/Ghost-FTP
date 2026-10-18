@@ -194,8 +194,12 @@ fn load_settings(db: &crate::db::Db, dir: &Path) -> Result<Settings> {
     }
     let legacy = dir.join("foldersync.json");
     let settings: Settings = match std::fs::read(&legacy) {
-        Ok(bytes) => serde_json::from_slice(&bytes)
-            .with_context(|| format!("legacy folder sync configuration is corrupt: {}", legacy.display()))?,
+        Ok(bytes) => serde_json::from_slice(&bytes).with_context(|| {
+            format!(
+                "legacy folder sync configuration is corrupt: {}",
+                legacy.display()
+            )
+        })?,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Settings::default(),
         Err(error) => return Err(error).with_context(|| format!("read {}", legacy.display())),
     };
@@ -206,7 +210,10 @@ fn load_settings(db: &crate::db::Db, dir: &Path) -> Result<Settings> {
 
 impl FolderSync {
     pub fn load(app: &AppHandle, db: Arc<crate::db::Db>) -> Result<Self> {
-        let dir = app.path().app_data_dir().context("resolving app_data_dir")?;
+        let dir = app
+            .path()
+            .app_data_dir()
+            .context("resolving app_data_dir")?;
         std::fs::create_dir_all(&dir).with_context(|| format!("create {}", dir.display()))?;
         let settings = load_settings(&db, &dir)?;
         Ok(Self {
@@ -219,7 +226,8 @@ impl FolderSync {
     fn persist_snapshot(&self, settings: &Settings) -> Result<()> {
         // All mutations are serialized by the pair-settings Mutex. The SQLite
         // UPSERT is atomic; on failure the in-memory caller rolls back.
-        self.db.folder_sync_config_set(&serde_json::to_string(settings)?)
+        self.db
+            .folder_sync_config_set(&serde_json::to_string(settings)?)
     }
 
     /// Bring up every pair the user left enabled.
@@ -1077,8 +1085,10 @@ mod tests {
 
     #[test]
     fn sqlite_import_preserves_legacy_json_and_refuses_malformed_configuration() {
-        let root = std::env::temp_dir()
-            .join(format!("ghostftp-sqlite-sync-test-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!(
+            "ghostftp-sqlite-sync-test-{}",
+            uuid::Uuid::new_v4()
+        ));
         std::fs::create_dir(&root).unwrap();
         let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
         let legacy = root.join("foldersync.json");
@@ -1086,7 +1096,10 @@ mod tests {
         std::fs::write(&legacy, fixture).unwrap();
         assert!(load_settings(&db, &root).unwrap().pairs.is_empty());
         assert_eq!(std::fs::read_to_string(&legacy).unwrap(), fixture);
-        assert_eq!(db.folder_sync_config_get().unwrap().as_deref(), Some(fixture));
+        assert_eq!(
+            db.folder_sync_config_get().unwrap().as_deref(),
+            Some(fixture)
+        );
 
         std::fs::write(&legacy, b"{ broken snapshot").unwrap();
         // SQLite is authoritative after migration, so a stale or damaged
@@ -1101,8 +1114,8 @@ mod tests {
 
     #[test]
     fn malformed_legacy_sync_file_is_never_silently_replaced_with_empty_pairs() {
-        let root = std::env::temp_dir()
-            .join(format!("ghostftp-malformed-sync-{}", uuid::Uuid::new_v4()));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-malformed-sync-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir(&root).unwrap();
         std::fs::write(root.join("foldersync.json"), b"{ invalid").unwrap();
         let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();

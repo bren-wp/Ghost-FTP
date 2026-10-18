@@ -266,28 +266,58 @@ impl EditManager {
 
     /// Only the current edit session's local temp copy may be read through IPC.
     pub async fn read_text(&self, edit_id: &str) -> Result<String> {
-        let path = self.sessions.lock().await.get(edit_id)
-            .context("editing session is no longer active")?.local_path.clone();
-        let meta = tokio::fs::symlink_metadata(&path).await.context("stat edit copy")?;
-        anyhow::ensure!(meta.file_type().is_file(), "edit copy is not a regular file");
-        anyhow::ensure!(meta.len() <= MAX_BUILTIN_EDITOR_BYTES as u64,
-            "file is too large for the built-in editor");
+        let path = self
+            .sessions
+            .lock()
+            .await
+            .get(edit_id)
+            .context("editing session is no longer active")?
+            .local_path
+            .clone();
+        let meta = tokio::fs::symlink_metadata(&path)
+            .await
+            .context("stat edit copy")?;
+        anyhow::ensure!(
+            meta.file_type().is_file(),
+            "edit copy is not a regular file"
+        );
+        anyhow::ensure!(
+            meta.len() <= MAX_BUILTIN_EDITOR_BYTES as u64,
+            "file is too large for the built-in editor"
+        );
         let bytes = tokio::fs::read(&path).await.context("read edit copy")?;
-        anyhow::ensure!(bytes.len() <= MAX_BUILTIN_EDITOR_BYTES,
-            "file is too large for the built-in editor");
+        anyhow::ensure!(
+            bytes.len() <= MAX_BUILTIN_EDITOR_BYTES,
+            "file is too large for the built-in editor"
+        );
         String::from_utf8(bytes).context("file is not UTF-8 text; use an external editor")
     }
 
     /// Local write only. The existing watcher publishes remote saved/error
     /// events; never present successful IPC completion as remote-save success.
     pub async fn write_text(&self, edit_id: &str, content: String) -> Result<()> {
-        anyhow::ensure!(content.len() <= MAX_BUILTIN_EDITOR_BYTES,
-            "edited content exceeds the 2 MiB built-in editor limit");
-        let path = self.sessions.lock().await.get(edit_id)
-            .context("editing session is no longer active")?.local_path.clone();
-        let meta = tokio::fs::symlink_metadata(&path).await.context("stat edit copy")?;
-        anyhow::ensure!(meta.file_type().is_file(), "edit copy is not a regular file");
-        tokio::fs::write(&path, content.as_bytes()).await.context("write edit copy")?;
+        anyhow::ensure!(
+            content.len() <= MAX_BUILTIN_EDITOR_BYTES,
+            "edited content exceeds the 2 MiB built-in editor limit"
+        );
+        let path = self
+            .sessions
+            .lock()
+            .await
+            .get(edit_id)
+            .context("editing session is no longer active")?
+            .local_path
+            .clone();
+        let meta = tokio::fs::symlink_metadata(&path)
+            .await
+            .context("stat edit copy")?;
+        anyhow::ensure!(
+            meta.file_type().is_file(),
+            "edit copy is not a regular file"
+        );
+        tokio::fs::write(&path, content.as_bytes())
+            .await
+            .context("write edit copy")?;
         Ok(())
     }
 

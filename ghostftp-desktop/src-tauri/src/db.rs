@@ -196,7 +196,8 @@ impl Db {
     pub fn folder_sync_config_get(&self) -> Result<Option<String>> {
         let conn = self.conn.lock().unwrap();
         match conn.query_row(
-            "SELECT payload FROM folder_sync_config WHERE id = 1", [],
+            "SELECT payload FROM folder_sync_config WHERE id = 1",
+            [],
             |row| row.get(0),
         ) {
             Ok(value) => Ok(Some(value)),
@@ -216,7 +217,8 @@ impl Db {
                payload = excluded.payload,
                updated_ms = excluded.updated_ms",
             rusqlite::params![payload, now_ms()],
-        ).context("commit SQLite folder sync configuration")?;
+        )
+        .context("commit SQLite folder sync configuration")?;
         Ok(())
     }
 
@@ -709,8 +711,12 @@ mod tests {
         let db = Db::open_in_memory().unwrap();
         assert_eq!(db.folder_sync_config_get().unwrap(), None);
         db.folder_sync_config_set(r#"{"pairs":[]}"#).unwrap();
-        assert_eq!(db.folder_sync_config_get().unwrap().as_deref(), Some(r#"{"pairs":[]}"#));
-        db.folder_sync_config_set(r#"{"pairs":[{"id":"a"}]}"#).unwrap();
+        assert_eq!(
+            db.folder_sync_config_get().unwrap().as_deref(),
+            Some(r#"{"pairs":[]}"#)
+        );
+        db.folder_sync_config_set(r#"{"pairs":[{"id":"a"}]}"#)
+            .unwrap();
         assert_eq!(
             db.folder_sync_config_get().unwrap().as_deref(),
             Some(r#"{"pairs":[{"id":"a"}]}"#)

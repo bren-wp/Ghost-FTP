@@ -2211,13 +2211,23 @@ pub async fn start_edit(
         .ok_or_else(|| format!("session {session_id} not found"))?;
     state
         .editors
-        .start(session, session_id, remote_path, editor, builtin.unwrap_or(false), app)
+        .start(
+            session,
+            session_id,
+            remote_path,
+            editor,
+            builtin.unwrap_or(false),
+            app,
+        )
         .await
         .map_err(err)
 }
 
 #[tauri::command]
-pub async fn editor_read_text(edit_id: String, state: State<'_, AppState>) -> Result<String, String> {
+pub async fn editor_read_text(
+    edit_id: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
     state.editors.read_text(&edit_id).await.map_err(err)
 }
 
@@ -2227,7 +2237,11 @@ pub async fn editor_write_text(
     content: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    state.editors.write_text(&edit_id, content).await.map_err(err)
+    state
+        .editors
+        .write_text(&edit_id, content)
+        .await
+        .map_err(err)
 }
 
 #[tauri::command]
