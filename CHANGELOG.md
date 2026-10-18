@@ -1,3 +1,10 @@
+## 0.95.43 — Fail-closed release readiness and Preview classification (development preview) — 18 October 2026
+
+- Block any stable-channel release until independently verified Windows Authenticode, Android Play App Signing/upgrade and macOS Developer ID/notarization are wired into release gates.
+- Classify future Preview GitHub releases as **prerelease**, not stable/latest. Use the latest public nondraft publication, including prereleases, for immutable release lineage.
+- Add negative release-channel regression tests to quality CI; retain all-or-nothing desktop updater signature policy.
+- Preserve approved brand/platform code and user data; 75-screen visual acceptance and signed physical installer lifecycle are still unverified. No release is created by this PR.
+
 ## 0.95.42 — Post-publication signing source alignment (development preview) — 18 October 2026
 
 - Harden the desktop OAuth PKCE login with a per-login CSRF `state`, strict callback validation, duplicate-parameter rejection and token diagnostic redaction.
