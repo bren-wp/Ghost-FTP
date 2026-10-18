@@ -416,7 +416,9 @@ fn declared_plain_http_length(headers: &reqwest::header::HeaderMap) -> Result<Op
     use reqwest::header::{CONTENT_ENCODING, CONTENT_LENGTH};
     if let Some(encoding) = headers.get(CONTENT_ENCODING) {
         anyhow::ensure!(
-            encoding.to_str().is_ok_and(|s| s.eq_ignore_ascii_case("identity")),
+            encoding
+                .to_str()
+                .is_ok_and(|s| s.eq_ignore_ascii_case("identity")),
             "HTTP transfer returned an encoded body whose source size cannot be verified"
         );
     }
@@ -2992,7 +2994,9 @@ impl TransferManager {
             }
         }
         file.flush().await?;
-        file.sync_all().await.context("sync HTTP download staging to disk")?;
+        file.sync_all()
+            .await
+            .context("sync HTTP download staging to disk")?;
         let on_disk = file
             .metadata()
             .await
@@ -3097,7 +3101,9 @@ impl TransferManager {
             }
         }
         file.flush().await?;
-        file.sync_all().await.context("sync HTTP download staging to disk")?;
+        file.sync_all()
+            .await
+            .context("sync HTTP download staging to disk")?;
         let on_disk = file
             .metadata()
             .await
