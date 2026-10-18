@@ -22,7 +22,10 @@
 //! `foldersync://changed` events so the UI can refresh.
 
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::{Path, PathBuf};
+#[cfg(unix)]
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -255,30 +258,73 @@ impl FolderSync {
             .parent()
             .context("folder sync settings path has no parent")?;
         std::fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
-        let tmp = self.settings_path.with_extension("json.tmp");
+        // Unique, exclusive private sibling staging avoids predictable
+        // symlinks and partial writes. Preserve at least one previous valid
+        // snapshot across a crash or Windows rename failure.
+        let tmp = parent.join(format!(".foldersync-{}.tmp", uuid::Uuid::new_v4()));
         let backup = self.settings_path.with_extension("json.bak");
-        std::fs::write(&tmp, bytes).with_context(|| format!("write {}", tmp.display()))?;
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        options.mode(0o600);
+        let mut file = options.open(&tmp)
+            .with_context(|| format!("create private folder-sync staging {}", tmp.display()))?;
+        let result = (|| -> Result<()> {
+            file.write_all(&bytes).context("write folder-sync staging")?;
+            file.sync_all().context("sync folder-sync staging")?;
+            drop(file);
 
-        // Windows does not reliably allow rename(tmp, existing_target). Move the
-        // previous settings aside first, then commit the new snapshot and restore
-        // the backup if that commit fails.
-        let had_previous = self.settings_path.exists();
-        if had_previous {
-            let _ = std::fs::remove_file(&backup);
-            std::fs::rename(&self.settings_path, &backup)
-                .with_context(|| format!("backup {}", self.settings_path.display()))?;
-        }
-        if let Err(error) = std::fs::rename(&tmp, &self.settings_path) {
-            let _ = std::fs::remove_file(&tmp);
-            if had_previous {
-                let _ = std::fs::rename(&backup, &self.settings_path);
+            // Reject a preexisting symlink or directory rather than following
+            // it or letting the filesystem treat it as a regular config file.
+            let previous_exists = match std::fs::symlink_metadata(&self.settings_path) {
+                Ok(meta) => {
+                    anyhow::ensure!(meta.file_type().is_file(), "folder sync settings must be a regular file");
+                    true
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
+                Err(e) => return Err(e).context("lstat folder sync settings"),
+            };
+            let old_backup = match std::fs::symlink_metadata(&backup) {
+                Ok(meta) => {
+                    anyhow::ensure!(meta.file_type().is_file(), "folder sync backup must be a regular file");
+                    true
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
+                Err(e) => return Err(e).context("lstat folder sync backup"),
+            };
+            let rollover = parent.join(format!(".foldersync-{}.rollback", uuid::Uuid::new_v4()));
+            let displaced = if previous_exists {
+                let destination = if old_backup { &rollover } else { &backup };
+                std::fs::rename(&self.settings_path, destination)
+                    .context("preserve the previous sync configuration")?;
+                Some(destination.clone())
+            } else {
+                None
+            };
+
+            if let Err(error) = std::fs::rename(&tmp, &self.settings_path) {
+                if let Some(saved) = displaced {
+                    let _ = std::fs::rename(saved, &self.settings_path);
+                }
+                return Err(error).context("commit folder sync settings");
             }
-            return Err(error).with_context(|| format!("replace {}", self.settings_path.display()));
-        }
-        if had_previous {
-            let _ = std::fs::remove_file(&backup);
-        }
-        Ok(())
+            #[cfg(unix)]
+            {
+                std::fs::set_permissions(&self.settings_path, std::fs::Permissions::from_mode(0o600))
+                    .context("restrict sync config permissions")?;
+                std::fs::File::open(parent)
+                    .and_then(|dir| dir.sync_all())
+                    .context("sync folder-sync settings directory")?;
+            }
+            // Keep the established .bak as a recovery point. An additional
+            // rollback is needed only while replacing a later snapshot.
+            if old_backup {
+                let _ = std::fs::remove_file(&rollover);
+            }
+            Ok(())
+        })();
+        let _ = std::fs::remove_file(&tmp);
+        result
     }
 
     /// Bring up every pair the user left enabled.
@@ -1098,6 +1144,30 @@ mod tests {
     fn ex(rel: &str, pats: &[&str]) -> bool {
         let pats: Vec<String> = pats.iter().map(|s| s.to_string()).collect();
         is_excluded(rel, &pats)
+    }
+
+    #[test]
+    fn sync_updates_preserve_an_existing_recovery_copy() {
+        let dir = std::env::temp_dir().join(format!("ghostftp-sync-rollback-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("foldersync.json");
+        let store = super::FolderSync {
+            settings_path: path.clone(),
+            settings: tokio::sync::Mutex::new(super::Settings::default()),
+            recovery_required: None,
+            running: tokio::sync::Mutex::new(std::collections::HashMap::new()),
+        };
+        let first = super::Settings::default();
+        store.persist_snapshot(&first).unwrap();
+        // The first existing version is retained when the second is saved.
+        store.persist_snapshot(&first).unwrap();
+        let previous = std::fs::read(path.with_extension("json.bak")).unwrap();
+        assert_eq!(previous, std::fs::read(&path).unwrap());
+        store.persist_snapshot(&first).unwrap();
+        assert_eq!(previous, std::fs::read(path.with_extension("json.bak")).unwrap());
+        #[cfg(unix)]
+        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
