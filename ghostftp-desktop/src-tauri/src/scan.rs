@@ -149,25 +149,27 @@ async fn walk_impl<F: FnMut(ScanProgress)>(
         };
         dirs_scanned += 1;
         match res {
-            Ok(entries) => for entry in entries {
-                match entry.kind {
-                    FileKind::Directory => queue.push_back(entry.path.clone()),
-                    FileKind::File => {
-                        bytes_found += entry.size;
-                        let rel = relative_of(&normalized_root, &entry.path);
-                        tree.files.insert(
-                            rel,
-                            ScanEntry {
-                                absolute: entry.path.clone(),
-                                size: entry.size,
-                                modified: entry.modified.unwrap_or(0),
-                                etag: entry.etag.clone(),
-                            },
-                        );
+            Ok(entries) => {
+                for entry in entries {
+                    match entry.kind {
+                        FileKind::Directory => queue.push_back(entry.path.clone()),
+                        FileKind::File => {
+                            bytes_found += entry.size;
+                            let rel = relative_of(&normalized_root, &entry.path);
+                            tree.files.insert(
+                                rel,
+                                ScanEntry {
+                                    absolute: entry.path.clone(),
+                                    size: entry.size,
+                                    modified: entry.modified.unwrap_or(0),
+                                    etag: entry.etag.clone(),
+                                },
+                            );
+                        }
+                        _ => {} // skip symlinks/other — don't chase cycles
                     }
-                    _ => {} // skip symlinks/other — don't chase cycles
                 }
-            },
+            }
             Err(error) if strict => {
                 anyhow::bail!("sync scan refused unreadable directory {dir}: {error:#}");
             }
@@ -190,9 +192,8 @@ mod strict_sync_scan_tests {
 
     #[tokio::test]
     async fn missing_source_folder_never_appears_empty_to_sync() {
-        let path = std::env::temp_dir().join(format!(
-            "ghostftp-strict-scan-{}", uuid::Uuid::new_v4()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("ghostftp-strict-scan-{}", uuid::Uuid::new_v4()));
         let path = path.to_str().unwrap();
         let fs = LocalFs;
         let err = walk_tree_strict(&fs, path).await.unwrap_err();

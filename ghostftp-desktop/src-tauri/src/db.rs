@@ -423,7 +423,8 @@ impl Db {
                     .with_context(|| format!("write atomic sync inventory entry {path}"))?;
             }
         }
-        tx.commit().context("commit atomic SQLite sync inventory snapshot")?;
+        tx.commit()
+            .context("commit atomic SQLite sync inventory snapshot")?;
         Ok(())
     }
 
@@ -969,20 +970,29 @@ mod tests {
                 etag: Some("etag-new".to_string()),
             },
         );
-        db.replace_sync_state_snapshot("pair-a", &files, 500).unwrap();
+        db.replace_sync_state_snapshot("pair-a", &files, 500)
+            .unwrap();
         let a = db.load_sync_state("pair-a").unwrap();
         assert_eq!(a.len(), 1);
         assert_eq!(a["src/app.php"].size, 41);
         assert_eq!(a["src/app.php"].last_synced_ms, 500);
         assert_eq!(a["src/app.php"].remote_signal.as_deref(), Some("etag-new"));
         assert!(!a.contains_key("obsolete.php"));
-        assert_eq!(db.load_sync_state("pair-b").unwrap()["untouched.js"].size, 22);
+        assert_eq!(
+            db.load_sync_state("pair-b").unwrap()["untouched.js"].size,
+            22
+        );
 
         // An unrepresentable source file size is rejected before the DELETE,
         // preserving the last known-good SQLite snapshot.
         files.get_mut("src/app.php").unwrap().size = u64::MAX;
-        assert!(db.replace_sync_state_snapshot("pair-a", &files, 600).is_err());
-        assert_eq!(db.load_sync_state("pair-a").unwrap()["src/app.php"].size, 41);
+        assert!(db
+            .replace_sync_state_snapshot("pair-a", &files, 600)
+            .is_err());
+        assert_eq!(
+            db.load_sync_state("pair-a").unwrap()["src/app.php"].size,
+            41
+        );
 
         // Simulate a SQL failure after the DELETE but before INSERT.
         // The transaction must roll back all changes.
@@ -995,9 +1005,17 @@ mod tests {
             )
             .unwrap();
         }
-        assert!(db.replace_sync_state_snapshot("pair-a", &files, 700).is_err());
-        assert_eq!(db.load_sync_state("pair-a").unwrap()["src/app.php"].size, 41);
-        assert_eq!(db.load_sync_state("pair-b").unwrap()["untouched.js"].size, 22);
+        assert!(db
+            .replace_sync_state_snapshot("pair-a", &files, 700)
+            .is_err());
+        assert_eq!(
+            db.load_sync_state("pair-a").unwrap()["src/app.php"].size,
+            41
+        );
+        assert_eq!(
+            db.load_sync_state("pair-b").unwrap()["untouched.js"].size,
+            22
+        );
     }
 
     #[test]
