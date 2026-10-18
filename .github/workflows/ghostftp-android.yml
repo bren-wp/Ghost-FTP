@@ -61,6 +61,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # The local signing helper requires aapt on PATH even in its
+          # negative-case test, as in the protected signing workflow.
+          export PATH="$ANDROID_HOME/build-tools/35.0.0:$PATH"
           # Use synthetic inputs only; real upload keys never enter PR CI.
           # The source identity and certificate pin must both fail before
           # any signing command can access a keystore.
