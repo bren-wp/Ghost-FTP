@@ -207,7 +207,9 @@ fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Result<V
             }
             Ok(Event::Empty(e)) => {
                 if open_elements == 0 {
-                    return Err(anyhow!("invalid WebDAV XML: no complete multistatus listing"));
+                    return Err(anyhow!(
+                        "invalid WebDAV XML: no complete multistatus listing"
+                    ));
                 }
                 let local = e.local_name();
                 if local.as_ref() == b"collection" && in_resourcetype {
@@ -216,7 +218,9 @@ fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Result<V
             }
             Ok(Event::Text(e)) => {
                 if capture.is_some() {
-                    let t = e.unescape().context("invalid escaped text in WebDAV listing")?;
+                    let t = e
+                        .unescape()
+                        .context("invalid escaped text in WebDAV listing")?;
                     buf.push_str(&t);
                 }
             }
@@ -447,7 +451,8 @@ mod tests {
 
     #[test]
     fn parses_nextcloud_listing() {
-        let entries = parse_multistatus(NEXTCLOUD, "/remote.php/dav/files/alice/", "/docs").unwrap();
+        let entries =
+            parse_multistatus(NEXTCLOUD, "/remote.php/dav/files/alice/", "/docs").unwrap();
         // Self-entry (docs/) dropped; a subdir + a file remain.
         assert_eq!(entries.len(), 2);
 
@@ -521,12 +526,14 @@ mod tests {
             "<multistatus xmlns='DAV:'><response><propstat/></response></multistatus>",
             "/dav/",
             "/"
-        ).is_err());
+        )
+        .is_err());
         assert!(parse_multistatus(
             "<multistatus xmlns='DAV:'><response><href>/dav/x</href></response>",
             "/dav/",
             "/"
-        ).is_err());
+        )
+        .is_err());
     }
 
     #[test]
