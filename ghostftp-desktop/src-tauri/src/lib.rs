@@ -183,7 +183,7 @@ fn open_external_url(url: String) -> Result<(), String> {
 fn open_db_resilient(path: &std::path::Path) -> anyhow::Result<db::Db> {
     db::Db::open(path).map_err(|error| {
         anyhow::anyhow!(
-            "Unable to open Ghost FTP's local SQLite database at {}: {error:#}.              Existing database and recovery files were not deleted. Resolve              the filesystem error or restore a verified backup.",
+            "Unable to open Ghost FTP's local SQLite database at {}: {error:#}. Existing database and recovery files were not deleted. Resolve the filesystem error or restore a verified backup.",
             path.display()
         )
     })

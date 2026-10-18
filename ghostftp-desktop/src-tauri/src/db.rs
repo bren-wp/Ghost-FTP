@@ -256,6 +256,13 @@ impl Db {
         );
         conn.pragma_update(None, "foreign_keys", "ON")
             .context("enable SQLite foreign keys")?;
+        let foreign: i64 = conn
+            .pragma_query_value(None, "foreign_keys", |row| row.get(0))
+            .context("verify SQLite foreign-key enforcement")?;
+        anyhow::ensure!(
+            foreign == 1,
+            "SQLite foreign-key protection is disabled"
+        );
         conn.pragma_update(None, "secure_delete", "ON")
             .context("enable SQLite secure delete")?;
         migrate(&conn).context("running ghostftp.db migrations")?;
@@ -846,11 +853,15 @@ mod tests {
         let foreign: i64 = conn
             .query_row("PRAGMA foreign_keys", [], |row| row.get(0))
             .unwrap();
+        let busy_ms: i64 = conn
+            .query_row("PRAGMA busy_timeout", [], |row| row.get(0))
+            .unwrap();
         let mode: String = conn
             .query_row("PRAGMA journal_mode", [], |row| row.get(0))
             .unwrap();
         assert_eq!(secure, 1);
         assert_eq!(foreign, 1);
+        assert!(busy_ms >= 5_000);
         assert_eq!(mode, "wal");
         drop(conn);
         drop(db);
