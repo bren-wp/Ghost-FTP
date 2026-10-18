@@ -30,6 +30,7 @@ import { useDialog } from "@/hooks/useDialog";
 import { messageOf, toastError } from "@/lib/errors";
 import { toast } from "@/stores/toastStore";
 import { useTransferSchedule } from "@/stores/transferScheduleStore";
+import { mostRecentFailedTransferId } from "@/lib/transferFailureNavigation";
 
 type BandwidthSample = { upload: number; download: number };
 
@@ -170,6 +171,20 @@ export function TransferCenterDialog({ onClose }: Props) {
     }),
     [transfers, tab, query, directionFilter, timeFilter]
   );
+
+
+  // Review the latest real backend failure in one action, regardless of
+  // previous text/direction/time filters. This never retries automatically.
+  const reviewLatestFailure = () => {
+    const id = mostRecentFailedTransferId(transfers);
+    if (!id) return;
+    setQuery("");
+    setDirectionFilter("all");
+    setTimeFilter("all");
+    setTab("failed");
+    setSelectedId(id);
+    setDetailsOpen(true);
+  };
 
   // Keep the selected transfer stable when filters/search change. Actions and
   // details must continue to refer to the real queue item, while the effect
@@ -450,11 +465,20 @@ export function TransferCenterDialog({ onClose }: Props) {
           />
           <Tab
             active={tab === "failed"}
-            onClick={() => setTab("failed")}
+            onClick={reviewLatestFailure}
             label={`Failed (${failed})`}
             icon={<XCircle size={14} />}
           />
           <div className="flex-1" />
+          <button
+            type="button"
+            className="ghost-mini-button"
+            disabled={failed === 0}
+            aria-label={`Review ${failed} failed transfers, newest first`}
+            onClick={reviewLatestFailure}
+          >
+            <XCircle size={14} aria-hidden="true" /> Review failures ({failed})
+          </button>
           <div className="relative">
             <Search
               size={13}
@@ -503,7 +527,7 @@ export function TransferCenterDialog({ onClose }: Props) {
             />
           ) : (
             <>
-              <div className="grid min-w-[920px] grid-cols-[36px_minmax(220px,1.4fr)_95px_90px_160px_90px_90px_100px_106px] border-b border-border px-2 py-2 text-[10px] uppercase tracking-wider text-text-dim">
+              <div className="sticky top-0 z-10 grid min-w-[920px] grid-cols-[36px_minmax(220px,1.4fr)_95px_90px_160px_90px_90px_100px_106px] border-b border-border bg-[#061a2d] px-2 py-2 text-[10px] uppercase tracking-wider text-text-dim">
                 <span>#</span>
                 <span>Name</span>
                 <span>Direction</span>
@@ -516,8 +540,8 @@ export function TransferCenterDialog({ onClose }: Props) {
               </div>
               <div className="min-w-[920px]">
                 {filtered.map((transfer, index) => (
-                  <TransferRow
-                    key={transfer.id}
+                  <div key={transfer.id}>
+                    <TransferRow
                     transfer={transfer}
                     rate={liveTransferRate(transfer, rateById[transfer.id])}
                     index={index + 1}
@@ -540,6 +564,37 @@ export function TransferCenterDialog({ onClose }: Props) {
                       () => retry(transfer.id)
                     )}
                   />
+                  {selected?.id === transfer.id && transfer.status === "error" && (
+                    <div
+                      className="flex flex-wrap items-center gap-3 border-b border-danger/30 bg-danger/5 px-4 py-3 text-[11px]"
+                      role="group"
+                      aria-label="Selected transfer failure details"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <strong className="text-danger">Why this transfer failed</strong>
+                        <p className="mt-1 break-words text-text-muted">
+                          {transfer.error ? messageOf(transfer.error) : "The backend did not provide an error reason."}
+                        </p>
+                        <p className="mt-1 text-text-dim">
+                          Check the connection, remote path and permissions before retrying.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="ghost-mini-button"
+                        disabled={backendActionBusy.has(`transfer:${transfer.id}`)}
+                        aria-busy={backendActionBusy.has(`transfer:${transfer.id}`)}
+                        onClick={() => void runBackendAction(
+                          `transfer:${transfer.id}`,
+                          "Couldn't retry transfer",
+                          () => retry(transfer.id)
+                        )}
+                      >
+                        <RotateCcw size={13} aria-hidden="true" /> Retry this transfer
+                      </button>
+                    </div>
+                  )}
+                  </div>
                 ))}
               </div>
             </>
