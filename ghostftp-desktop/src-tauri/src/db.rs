@@ -1027,14 +1027,15 @@ mod tests {
     #[test]
     fn sqlite_sync_history_rejects_corrupt_negative_sizes_without_unsigned_wrap() {
         let db = Db::open_in_memory().unwrap();
-        db.upsert_sync_state("pair", "a.js", 23, 11, None, 3).unwrap();
-        assert!(db.upsert_sync_state("pair", "b.js", u64::MAX, 11, None, 3).is_err());
+        db.upsert_sync_state("pair", "a.js", 23, 11, None, 3)
+            .unwrap();
+        assert!(db
+            .upsert_sync_state("pair", "b.js", u64::MAX, 11, None, 3)
+            .is_err());
         {
             let conn = db.conn.lock().unwrap();
-            conn.execute(
-                "UPDATE sync_state SET size = -1 WHERE pair_id = 'pair'",
-                [],
-            ).unwrap();
+            conn.execute("UPDATE sync_state SET size = -1 WHERE pair_id = 'pair'", [])
+                .unwrap();
         }
         assert!(db.load_sync_state("pair").is_err());
     }
