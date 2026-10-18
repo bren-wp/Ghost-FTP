@@ -68,6 +68,7 @@ export function TransferCenterDialog({ onClose }: Props) {
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const schedulerRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const focusedFailureRowRef = useRef<HTMLDivElement>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const scheduleMode = useTransferSchedule((state) => state.mode);
   const scheduleDate = useTransferSchedule((state) => state.date);
@@ -177,13 +178,12 @@ export function TransferCenterDialog({ onClose }: Props) {
   // previous text/direction/time filters. This never retries automatically.
   const reviewLatestFailure = () => {
     const id = mostRecentFailedTransferId(transfers);
-    if (!id) return;
     setQuery("");
     setDirectionFilter("all");
     setTimeFilter("all");
     setTab("failed");
     setSelectedId(id);
-    setDetailsOpen(true);
+    if (id) setDetailsOpen(true);
   };
 
   // Keep the selected transfer stable when filters/search change. Actions and
@@ -196,6 +196,13 @@ export function TransferCenterDialog({ onClose }: Props) {
       setSelectedId(null);
     }
   }, [filtered, selectedId]);
+
+  // Keep the selected failed native queue item visible in long histories.
+  useEffect(() => {
+    if (tab === "failed" && selectedId) {
+      focusedFailureRowRef.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [tab, selectedId]);
 
   const logTransfers = useMemo(
     () => recentTransferLog(transfers, logClearedAt),
@@ -432,7 +439,7 @@ export function TransferCenterDialog({ onClose }: Props) {
               key={filter}
               type="button"
               className={`ghost-transfer-overview-card${tab === filter ? " is-selected" : ""}`}
-              onClick={() => setTab(filter)}
+              onClick={() => filter === "failed" ? reviewLatestFailure() : setTab(filter)}
               aria-pressed={tab === filter}
               aria-label={`${title}: ${count}. Show ${filter === "all" ? "all" : filter} transfers`}
             >
@@ -540,7 +547,10 @@ export function TransferCenterDialog({ onClose }: Props) {
               </div>
               <div className="min-w-[920px]">
                 {filtered.map((transfer, index) => (
-                  <div key={transfer.id}>
+                  <div
+                    key={transfer.id}
+                    ref={selected?.id === transfer.id && transfer.status === "error" ? focusedFailureRowRef : undefined}
+                  >
                     <TransferRow
                     transfer={transfer}
                     rate={liveTransferRate(transfer, rateById[transfer.id])}
