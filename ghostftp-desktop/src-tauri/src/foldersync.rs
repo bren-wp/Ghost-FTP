@@ -836,7 +836,9 @@ fn transfer_batch_complete(statuses: &[Option<TransferStatus>]) -> Result<bool> 
             // source bytes. Do not commit the new source index until a future
             // reconcile can verify the destination or the user resolves it.
             Some(TransferStatus::Skipped) => {
-                anyhow::bail!("sync transfer was skipped without verification; source index was not advanced");
+                anyhow::bail!(
+                    "sync transfer was skipped without verification; source index was not advanced"
+                );
             }
             Some(TransferStatus::Error | TransferStatus::Canceled) | None => {
                 anyhow::bail!("sync has a failed, canceled or missing transfer; source index was not advanced");
