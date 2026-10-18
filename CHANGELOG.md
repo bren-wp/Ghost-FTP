@@ -1,3 +1,11 @@
+## 0.95.40 — OS vault backup/restore fail-closed security hardening (development preview) — 18 October 2026
+
+- Abort encrypted backup export when the OS credential vault is unreadable or a manifest credential is missing instead of silently creating an incomplete backup.
+- Reject legacy/plaintext profile auth values embedded in restored backup metadata; do not reintroduce secrets to profiles.json.
+- Verify and restore OS credential records before staging backup configuration and database snapshots; fail on locked vault or write errors, with best-effort rollback of partially changed vault entries.
+- Add fault-injection regression coverage for locked credential stores, partial restoration, invalid profile metadata and preservation of existing local profiles.
+- Retain the v0.95.39 published tag and existing encrypted archive format. Full crash-atomic restore across multiple files, live vault tests and production release acceptance remain outstanding.
+
 ## 0.95.39 — Fail-closed WebDAV/HTTP directory inventory (development preview) — 18 October 2026
 
 - Reject incomplete or malformed WebDAV XML and non-207 PROPFIND listings rather than returning partial or empty directory inventories that might enable unsafe synchronization.
