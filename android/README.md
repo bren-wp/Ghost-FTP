@@ -127,6 +127,14 @@ Canonical release naming:
 
 The preview signing identity is intentionally ephemeral. A persistent production upgrade identity requires a persistent signing key and is never silently simulated by the keyless CI workflow.
 
+## Protected production Play upload signing (MOB-01 candidate)
+
+The ordinary release CI still produces **unsigned** `com.ghostftp.android` APK/AAB. The independently installable `com.ghostftp.android.preview` remains isolated and uses only its preview/debug signing identity.
+
+An explicitly initiated GitHub Actions workflow, `Ghost FTP Android Play upload signing`, can produce an APK and Android App Bundle with a **pre-existing, externally approved upload key** after exact-main CI gates pass. It requires a reviewer-protected `play-upload-signing` GitHub environment, four secret inputs, and a pinned expected SHA-256 certificate fingerprint. Missing/partial keys, mismatched upload identity, stale main, unexpected package/version or missing CI gates abort instead of signing with a fallback key.
+
+**Not a production approval:** this source workflow is NOT a signed Play submission and cannot establish Google Play acceptance or an old-to-new app upgrade without the account owner's persistent key and Play Console access. See [Android Play signing identity and acceptance plan](../docs/qa/ANDROID_PLAY_SIGNING.md).
+
 ## Completion gate
 
 An Android release candidate is not accepted merely because it compiles. The exact release SHA must pass the Android production contract, lint/build, emulator click-through smoke and the repository-wide release gates before the canonical GitHub Release can be published.
