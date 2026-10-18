@@ -53,8 +53,7 @@ fn checked_delete_result(outcome: std::result::Result<(), keyring::Error>) -> Re
 }
 
 fn clear_secret_checked(purpose: &str) -> Result<()> {
-    let entry = keyring::Entry::new(SERVICE, purpose)
-        .context("open keychain entry for removal")?;
+    let entry = keyring::Entry::new(SERVICE, purpose).context("open keychain entry for removal")?;
     checked_delete_result(entry.delete_credential())
 }
 
