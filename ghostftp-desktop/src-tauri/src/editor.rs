@@ -17,9 +17,9 @@ use anyhow::{Context, Result};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::collections::HashMap;
-use std::path::PathBuf;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, Emitter};
@@ -80,7 +80,10 @@ impl EditManager {
         let parent = std::env::temp_dir().join("ghostftp-edits");
         std::fs::create_dir_all(&parent).context("create private editor directory")?;
         let meta = std::fs::symlink_metadata(&parent).context("lstat editor directory")?;
-        anyhow::ensure!(meta.file_type().is_dir(), "editor directory is not a real directory");
+        anyhow::ensure!(
+            meta.file_type().is_dir(),
+            "editor directory is not a real directory"
+        );
         // Editor temp copies may contain .env, configuration secrets or source
         // code. The default Unix mkdir umask can allow other users to read
         // them; ensure no group/other traversal before downloading any data.
@@ -124,8 +127,13 @@ impl EditManager {
         let watched_name = target_file.clone();
         let mut watcher: RecommendedWatcher = RecommendedWatcher::new(
             move |res: notify::Result<Event>| match res {
-                Ok(event) if is_write_event(&event)
-                    && event.paths.iter().any(|p| p.file_name() == Some(&watched_name)) => {
+                Ok(event)
+                    if is_write_event(&event)
+                        && event
+                            .paths
+                            .iter()
+                            .any(|p| p.file_name() == Some(&watched_name)) =>
+                {
                     let _ = tx.try_send(());
                 }
                 Err(error) => {
@@ -161,7 +169,9 @@ impl EditManager {
                     Ok(Some(())) => {
                         let started = tokio::time::Instant::now();
                         loop {
-                            if started.elapsed() >= Duration::from_secs(5) { break; }
+                            if started.elapsed() >= Duration::from_secs(5) {
+                                break;
+                            }
                             match tokio::time::timeout(debounce, rx.recv()).await {
                                 Ok(Some(())) => continue,
                                 Ok(None) => return,

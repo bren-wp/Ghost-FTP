@@ -460,7 +460,10 @@ mod recovery_tests {
             "id":"id-1","name":"Example","protocol":"sftp","host":"example.invalid",
             "port":22,"username":"user","auth":{"kind":"password","password":""}
         });
-        store.upsert(serde_json::from_value(safe.take()).unwrap()).await.unwrap();
+        store
+            .upsert(serde_json::from_value(safe.take()).unwrap())
+            .await
+            .unwrap();
         let saved = std::fs::read_to_string(dir.join("profiles.json")).unwrap();
         assert!(!saved.contains("SUPER_SECRET_TEST"));
         assert!(!saved.contains("NEVER_STORE_PASSPHRASE"));

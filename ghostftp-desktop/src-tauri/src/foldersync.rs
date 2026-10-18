@@ -810,7 +810,9 @@ fn transfer_batch_complete(statuses: &[Option<TransferStatus>]) -> Result<bool> 
     for status in statuses {
         match status {
             Some(TransferStatus::Done | TransferStatus::Skipped) => {}
-            Some(TransferStatus::Queued | TransferStatus::Transferring | TransferStatus::Paused) => {
+            Some(
+                TransferStatus::Queued | TransferStatus::Transferring | TransferStatus::Paused,
+            ) => {
                 pending = true;
             }
             Some(TransferStatus::Error | TransferStatus::Canceled) | None => {
@@ -1035,8 +1037,8 @@ mod tests {
         apply_safety, glob_match, is_excluded, is_internal_transfer_temp, sweep_delta_temps,
         transfer_batch_complete, SyncMode, SyncPair,
     };
-    use crate::transfer::TransferStatus;
     use crate::sync::{self, SyncDirection, SyncStrategy};
+    use crate::transfer::TransferStatus;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -1049,12 +1051,20 @@ mod tests {
     fn continuous_sync_does_not_advance_index_for_failed_or_missing_work() {
         assert_eq!(transfer_batch_complete(&[]).unwrap(), true);
         assert!(transfer_batch_complete(&[
-            Some(TransferStatus::Done), Some(TransferStatus::Skipped)
-        ]).unwrap());
+            Some(TransferStatus::Done),
+            Some(TransferStatus::Skipped)
+        ])
+        .unwrap());
         assert!(!transfer_batch_complete(&[
-            Some(TransferStatus::Done), Some(TransferStatus::Transferring)
-        ]).unwrap());
-        for bad in [Some(TransferStatus::Error), Some(TransferStatus::Canceled), None] {
+            Some(TransferStatus::Done),
+            Some(TransferStatus::Transferring)
+        ])
+        .unwrap());
+        for bad in [
+            Some(TransferStatus::Error),
+            Some(TransferStatus::Canceled),
+            None,
+        ] {
             assert!(transfer_batch_complete(&[Some(TransferStatus::Done), bad]).is_err());
         }
     }
@@ -1070,7 +1080,11 @@ mod tests {
         ] {
             assert!(is_internal_transfer_temp(name), "{name}");
         }
-        for normal in [".ghostftp-project.json", "code.php", "nested/.ghostftp-download-example.txt"] {
+        for normal in [
+            ".ghostftp-project.json",
+            "code.php",
+            "nested/.ghostftp-download-example.txt",
+        ] {
             assert!(!is_internal_transfer_temp(normal), "{normal}");
         }
     }
