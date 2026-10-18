@@ -31,6 +31,7 @@ import { messageOf, toastError } from "@/lib/errors";
 import { toast } from "@/stores/toastStore";
 import { useTransferSchedule } from "@/stores/transferScheduleStore";
 import { mostRecentFailedTransferId } from "@/lib/transferFailureNavigation";
+import { runTransferHistoryExport } from "@/lib/transferHistoryExport";
 
 type BandwidthSample = { upload: number; download: number };
 
@@ -139,22 +140,19 @@ export function TransferCenterDialog({ onClose }: Props) {
   };
 
   const exportTransferHistory = async () => {
-    const path = await save({
-      title: "Export transfer history",
-      defaultPath: "GhostFTP-transfer-history.csv",
-      filters: [{ name: "CSV", extensions: ["csv"] }],
-    });
-    if (!path) return;
-
-    try {
-      const count = await exportHistory(path);
-      toast.success(
+    await runTransferHistoryExport(
+      () => save({
+        title: "Export transfer history",
+        defaultPath: "GhostFTP-transfer-history.csv",
+        filters: [{ name: "CSV", extensions: ["csv"] }],
+      }),
+      (path) => exportHistory(path),
+      (count) => toast.success(
         "Transfer history exported",
         `${count} transfer${count === 1 ? "" : "s"} saved`,
-      );
-    } catch (error) {
-      toastError(error, "Couldn't export transfer history");
-    }
+      ),
+      (error) => toastError(error, "Couldn't export transfer history"),
+    );
   };
 
   const transfers = useMemo(() => Object.values(byId), [byId]);
