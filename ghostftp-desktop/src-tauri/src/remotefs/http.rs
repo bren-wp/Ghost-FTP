@@ -95,7 +95,10 @@ impl RemoteFs for HttpFs {
             .unwrap_or(false);
         // Bound the network response before parsing. A partial inventory must not
         // be returned as complete after an oversized/hostile directory page.
-        if resp.content_length().is_some_and(|n| n > MAX_HTTP_LISTING_BYTES as u64) {
+        if resp
+            .content_length()
+            .is_some_and(|n| n > MAX_HTTP_LISTING_BYTES as u64)
+        {
             anyhow::bail!("HTTP directory listing exceeds the response size limit");
         }
         let mut bytes = Vec::new();
@@ -175,7 +178,9 @@ fn valid_leaf(name: &str) -> bool {
     !name.is_empty()
         && name != "."
         && name != ".."
-        && !name.chars().any(|ch| ch.is_control() || ch == '/' || ch == '\\')
+        && !name
+            .chars()
+            .any(|ch| ch.is_control() || ch == '/' || ch == '\\')
 }
 
 fn parse_autoindex_html(body: &str, request_path: &str) -> Result<Vec<DirEntry>> {
@@ -203,8 +208,8 @@ fn parse_autoindex_html(body: &str, request_path: &str) -> Result<Vec<DirEntry>>
         if href_count == 0 {
             continue;
         }
-        let (href, tail) = first_href(line)
-            .ok_or_else(|| anyhow!("malformed HTTP directory index link"))?;
+        let (href, tail) =
+            first_href(line).ok_or_else(|| anyhow!("malformed HTTP directory index link"))?;
         if let Some(entry) = entry_from_href(&href, tail, request_path)? {
             anyhow::ensure!(
                 out.len() < MAX_HTTP_LISTING_ENTRIES,
@@ -380,7 +385,9 @@ fn parse_nginx_json(body: &str, request_path: &str) -> Result<Vec<DirEntry>> {
             "nginx JSON listing contains duplicate filenames"
         );
         anyhow::ensure!(
-            it.typ.as_deref().is_none_or(|kind| kind == "file" || kind == "directory"),
+            it.typ
+                .as_deref()
+                .is_none_or(|kind| kind == "file" || kind == "directory"),
             "unknown nginx JSON listing entry type"
         );
         let is_dir = it.typ.as_deref() == Some("directory");
@@ -533,9 +540,7 @@ mod tests {
         );
         assert!(parse_nginx_json(&oversized, "/").is_err());
         assert_eq!(
-            parse_nginx_json(r#"[{"name":"žuto.txt","type":"file"}]"#, "/")
-                .unwrap()[0]
-                .name,
+            parse_nginx_json(r#"[{"name":"žuto.txt","type":"file"}]"#, "/").unwrap()[0].name,
             "žuto.txt"
         );
     }
