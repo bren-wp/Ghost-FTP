@@ -185,6 +185,12 @@ async fn walk_impl<F: FnMut(ScanProgress)>(
     Ok(tree)
 }
 
+/// The path of `full` relative to `root`, POSIX-normalised. Shared with `sync.rs`.
+pub fn relative_of(root: &str, full: &str) -> String {
+    let stripped = full.strip_prefix(root).unwrap_or(full);
+    stripped.trim_start_matches(['/', '\\']).replace('\\', "/")
+}
+
 #[cfg(test)]
 mod strict_sync_scan_tests {
     use super::*;
@@ -201,10 +207,4 @@ mod strict_sync_scan_tests {
         // Retain permissive behavior ONLY for non-destructive display scans.
         assert!(walk_tree(&fs, path).await.unwrap().files.is_empty());
     }
-}
-
-/// The path of `full` relative to `root`, POSIX-normalised. Shared with `sync.rs`.
-pub fn relative_of(root: &str, full: &str) -> String {
-    let stripped = full.strip_prefix(root).unwrap_or(full);
-    stripped.trim_start_matches(['/', '\\']).replace('\\', "/")
 }
