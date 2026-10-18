@@ -96,7 +96,7 @@ impl RemoteFs for HttpFs {
         let body = resp.text().await.context("read listing body")?;
 
         let entries = if is_json || body.trim_start().starts_with('[') {
-            parse_nginx_json(&body, path)
+            parse_nginx_json(&body, path)?
         } else {
             parse_autoindex_html(&body, path)
         };
@@ -288,9 +288,11 @@ struct JsonItem {
 }
 
 /// Parse nginx's `autoindex_format json;` listing.
-fn parse_nginx_json(body: &str, request_path: &str) -> Vec<DirEntry> {
-    let items: Vec<JsonItem> = serde_json::from_str(body).unwrap_or_default();
-    items
+fn parse_nginx_json(body: &str, request_path: &str) -> Result<Vec<DirEntry>> {
+    // Never convert a truncated response or an error document into an empty
+    // inventory: mirror/sync planners must see an explicit listing failure.
+    let items: Vec<JsonItem> = serde_json::from_str(body).context("invalid nginx JSON listing")?;
+    Ok(items
         .into_iter()
         .filter_map(|it| {
             if it.name.is_empty() || it.name == "." || it.name == ".." {
@@ -311,7 +313,7 @@ fn parse_nginx_json(body: &str, request_path: &str) -> Vec<DirEntry> {
                 etag: None,
             })
         })
-        .collect()
+        .collect())
 }
 
 #[cfg(test)]
@@ -379,7 +381,7 @@ mod tests {
 
     #[test]
     fn parses_nginx_json() {
-        let e = parse_nginx_json(NGINX_JSON, "/pub");
+        let e = parse_nginx_json(NGINX_JSON, "/pub").unwrap();
         assert_eq!(e.len(), 2); // "." dropped
         let dir = e.iter().find(|x| x.name == "images").unwrap();
         assert_eq!(dir.kind, FileKind::Directory);
@@ -387,6 +389,15 @@ mod tests {
         let notes = e.iter().find(|x| x.name == "notes.txt").unwrap();
         assert_eq!(notes.size, 42);
         assert_eq!(notes.path, "/pub/notes.txt");
+    }
+
+    #[test]
+    fn invalid_nginx_json_is_not_an_empty_directory() {
+        assert!(parse_nginx_json("", "/pub").is_err());
+        assert!(parse_nginx_json(r#"[{"name":"file.txt"}"#, "/pub").is_err());
+        assert!(parse_nginx_json(r#"{"error":"login required"}"#, "/pub").is_err());
+        // A legitimate empty array is still a valid complete listing.
+        assert!(parse_nginx_json("[]", "/pub").unwrap().is_empty());
     }
 
     #[test]

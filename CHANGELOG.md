@@ -1,3 +1,9 @@
+## 0.95.39 — Fail-closed WebDAV/HTTP directory inventory (development preview) — 18 October 2026
+
+- Reject incomplete or malformed WebDAV XML and non-207 PROPFIND listings rather than returning partial or empty directory inventories that might enable unsafe synchronization.
+- Reject malformed nginx JSON autoindex responses rather than treating them as empty folders; preserve legitimate empty JSON arrays.
+- Add targeted regression coverage for truncated XML/JSON and update preview/release metadata without retargeting published v0.95.38.
+
 ## 0.95.38 — Atomic SQLite sync inventories and fail-closed folder scans (development preview) — 18 October 2026
 
 - Reject unreadable or partial directory scans when planning synchronization; a missing/unreadable source subdirectory can no longer be silently interpreted as files that should be removed from the server.

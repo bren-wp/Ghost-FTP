@@ -45,12 +45,13 @@ impl RemoteFs for WebdavFs {
         if status == reqwest::StatusCode::NOT_FOUND {
             return Err(anyhow!("{path}: not found"));
         }
-        if !(status.is_success() || status.as_u16() == 207) {
+        if status.as_u16() != 207 {
             return Err(anyhow!("PROPFIND {path} failed: HTTP {}", status.as_u16()));
         }
 
         let body = resp.text().await.context("read PROPFIND body")?;
-        Ok(parse_multistatus(&body, &self.session.base_path(), path))
+        parse_multistatus(&body, &self.session.base_path(), path)
+            .with_context(|| format!("invalid or incomplete PROPFIND listing for {path}"))
     }
 
     async fn rename(&self, from: &str, to: &str) -> Result<()> {
@@ -139,7 +140,7 @@ enum Field {
 /// `href` against the DAV root `base_path` and dropping the self-entry for
 /// `request_path`. Namespace-prefix agnostic (matches on local element names) so
 /// it handles Nextcloud (`d:`), Apache mod_dav (`D:`/`lp1:`), and bare servers.
-fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Vec<DirEntry> {
+fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Result<Vec<DirEntry>> {
     let request_norm = format!("/{}", request_path.trim_matches('/'));
     let request_norm = if request_norm == "/" {
         "/".to_string()
@@ -149,6 +150,9 @@ fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Vec<DirE
 
     let mut reader = Reader::from_str(xml);
     let mut out = Vec::new();
+    let mut open_elements = 0usize;
+    let mut saw_root = false;
+    let mut response_count = 0usize;
 
     // Per-response accumulators.
     let mut href: Option<String> = None;
@@ -164,6 +168,13 @@ fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Vec<DirE
     loop {
         match reader.read_event() {
             Ok(Event::Start(e)) => {
+                if open_elements == 0 {
+                    if saw_root || e.local_name().as_ref() != b"multistatus" {
+                        return Err(anyhow!("invalid WebDAV XML: expected one multistatus root"));
+                    }
+                    saw_root = true;
+                }
+                open_elements += 1;
                 let local = e.local_name();
                 match local.as_ref() {
                     b"response" => {
@@ -195,6 +206,11 @@ fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Vec<DirE
                 }
             }
             Ok(Event::Empty(e)) => {
+                if open_elements == 0 {
+                    return Err(anyhow!(
+                        "invalid WebDAV XML: no complete multistatus listing"
+                    ));
+                }
                 let local = e.local_name();
                 if local.as_ref() == b"collection" && in_resourcetype {
                     is_collection = true;
@@ -202,9 +218,10 @@ fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Vec<DirE
             }
             Ok(Event::Text(e)) => {
                 if capture.is_some() {
-                    if let Ok(t) = e.unescape() {
-                        buf.push_str(&t);
-                    }
+                    let t = e
+                        .unescape()
+                        .context("invalid escaped text in WebDAV listing")?;
+                    buf.push_str(&t);
                 }
             }
             Ok(Event::CData(e)) => {
@@ -242,6 +259,7 @@ fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Vec<DirE
                     }
                     b"resourcetype" => in_resourcetype = false,
                     b"response" => {
+                        response_count += 1;
                         if let Some(h) = href.take() {
                             if let Some((entry_path, name)) = href_to_path(&h, base_path) {
                                 if entry_path != request_norm {
@@ -260,18 +278,28 @@ fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Vec<DirE
                                     });
                                 }
                             }
+                        } else {
+                            return Err(anyhow!("invalid WebDAV response: missing href"));
                         }
                     }
                     _ => {}
                 }
+                open_elements = open_elements
+                    .checked_sub(1)
+                    .ok_or_else(|| anyhow!("invalid WebDAV XML: unexpected closing tag"))?;
             }
-            Ok(Event::Eof) => break,
-            Err(_) => break,
+            Ok(Event::Eof) => {
+                if !saw_root || open_elements != 0 || response_count == 0 {
+                    return Err(anyhow!("invalid or incomplete WebDAV multistatus listing"));
+                }
+                break;
+            }
+            Err(e) => return Err(anyhow!("invalid WebDAV XML: {e}")),
             _ => {}
         }
     }
 
-    out
+    Ok(out)
 }
 
 /// Turn a PROPFIND `href` into a Ghost FTP path (`/dir/file`) + display name relative
@@ -423,7 +451,8 @@ mod tests {
 
     #[test]
     fn parses_nextcloud_listing() {
-        let entries = parse_multistatus(NEXTCLOUD, "/remote.php/dav/files/alice/", "/docs");
+        let entries =
+            parse_multistatus(NEXTCLOUD, "/remote.php/dav/files/alice/", "/docs").unwrap();
         // Self-entry (docs/) dropped; a subdir + a file remain.
         assert_eq!(entries.len(), 2);
 
@@ -462,7 +491,7 @@ mod tests {
 
     #[test]
     fn parses_apache_listing_without_etags() {
-        let entries = parse_multistatus(APACHE, "/share/", "/");
+        let entries = parse_multistatus(APACHE, "/share/", "/").unwrap();
         assert_eq!(entries.len(), 1);
         let f = &entries[0];
         assert_eq!(f.name, "notes.txt");
@@ -478,10 +507,33 @@ mod tests {
 <response><href>https://dav.example.invalid/dav/photo.jpg</href>
 <propstat><prop><resourcetype/><getcontentlength>9</getcontentlength></prop>
 <status>HTTP/1.1 200 OK</status></propstat></response></multistatus>"#;
-        let entries = parse_multistatus(xml, "/dav/", "/");
+        let entries = parse_multistatus(xml, "/dav/", "/").unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].name, "photo.jpg");
         assert_eq!(entries[0].path, "/photo.jpg");
+    }
+
+    #[test]
+    fn rejects_partial_or_invalid_webdav_listing() {
+        // An interrupted response must not become a successful partial inventory:
+        // Mirror must never interpret the missing children as deletions.
+        let truncated = NEXTCLOUD.split("</d:multistatus>").next().unwrap();
+        assert!(parse_multistatus(truncated, "/remote.php/dav/files/alice/", "/docs").is_err());
+        assert!(parse_multistatus("<html>login required</html>", "/dav/", "/").is_err());
+        assert!(parse_multistatus("", "/dav/", "/").is_err());
+        assert!(parse_multistatus("<multistatus xmlns='DAV:'/>", "/dav/", "/").is_err());
+        assert!(parse_multistatus(
+            "<multistatus xmlns='DAV:'><response><propstat/></response></multistatus>",
+            "/dav/",
+            "/"
+        )
+        .is_err());
+        assert!(parse_multistatus(
+            "<multistatus xmlns='DAV:'><response><href>/dav/x</href></response>",
+            "/dav/",
+            "/"
+        )
+        .is_err());
     }
 
     #[test]
