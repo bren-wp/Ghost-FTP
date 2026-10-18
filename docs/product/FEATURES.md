@@ -1,6 +1,13 @@
-> Ghost FTP **0.95.42** (development preview), following published **v0.95.41**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.43** (development preview), following published **v0.95.42**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.43 Honest Preview release classification — development candidate
+
+- Refuse stable release publication while Authenticode, Play upload acceptance, notarization and upgrade/rollback proofs are absent. The source-to-GitHub-release mapping now marks future Preview builds as GitHub prereleases, never automatic stable latest.
+- Preserve the existing six exact-SHA CI gates, immutable tags and all-or-nothing signed desktop updater manifest enforcement. Negative regression tests check missing, unknown and falsely stable release channels.
+- **Not a production signing certification:** the 75 UI-reference real-screen audit and actual Windows/Linux/Android/macOS installation lifecycle remain unverified.
+
 
 ## v0.95.42 Android upload signing metadata alignment — development preview
 
@@ -133,7 +140,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.42 development source. Previous canonical release: **0.95.41**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.43 development source. Previous canonical release: **0.95.42**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
