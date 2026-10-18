@@ -1,6 +1,15 @@
-> Ghost FTP **0.95.41** (development preview), following published **v0.95.40**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.42** (development preview), following published **v0.95.41**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.42 Android upload signing metadata alignment — development preview
+
+- Consolidate desktop OAuth per-login PKCE state binding and token diagnostic redaction; an altered/missing or duplicate callback state must not authorize a login.
+
+- Retain the existing protected Play upload signing workflow merged in #189; do not duplicate it.
+- Advance canonical source and Android versionCode 954200, aligning Rust/Tauri/Go/frontend/installers after published v0.95.41.
+- Existing test/build CI remains unsigned for production Android while the isolated preview package stays independently signed. Play Console acceptance, actual keystore use and secure macOS FTPS/SFTP are not established.
+
 
 ## v0.95.41 Bounded HTTP directory inventory and duplicate rejection — security preview
 
@@ -124,7 +133,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.41 development source. Previous canonical release: **0.95.40**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.42 development source. Previous canonical release: **0.95.41**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 

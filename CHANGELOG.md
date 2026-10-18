@@ -1,3 +1,12 @@
+## 0.95.42 — Post-publication signing source alignment (development preview) — 18 October 2026
+
+- Harden the desktop OAuth PKCE login with a per-login CSRF `state`, strict callback validation, duplicate-parameter rejection and token diagnostic redaction.
+- Refuse provider authorization overrides of security-critical OAuth fields; negative tests cover missing/mismatching/duplicate state and callback errors.
+- Preserve the single, protected Android Play-upload signing workflow already merged via PR #189, including six-family exact-SHA verification and fail-closed key handling.
+- Align source/build version 0.95.42, Android versionCode 954200, Cargo and platform metadata after immutable v0.95.41 publication.
+- No production keystore was provided; Play AAB acceptance, previous-version upgrade and secure macOS FTPS/SFTP remain unverified.
+- This is a development Preview and does not open or modify any public release.
+
 ## 0.95.41 — Bounded fail-closed HTTP autoindex inventories (development preview) — 18 October 2026
 
 - Stop accepting HTML login/error/partial pages as successful empty HTTP directory listings. Enforce recognizable complete directory-index markup.

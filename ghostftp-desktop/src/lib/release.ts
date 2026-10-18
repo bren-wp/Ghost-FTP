@@ -1,8 +1,8 @@
 export const PRODUCT_NAME = "Ghost FTP";
-export const PRODUCT_VERSION = "0.95.41";
-export const PRODUCT_VERSION_DISPLAY = "0.95.41";
-export const PRODUCT_VERSION_BADGE = "0.95.41";
-export const PRODUCT_BUILD = "2026.10.18.41";
+export const PRODUCT_VERSION = "0.95.42";
+export const PRODUCT_VERSION_DISPLAY = "0.95.42";
+export const PRODUCT_VERSION_BADGE = "0.95.42";
+export const PRODUCT_BUILD = "2026.10.18.42";
 export const PRODUCT_RELEASE_DATE = "18 October 2026";
 export const PRODUCT_SITE = "https://ghostftp.com";
 // Verified published Ghost FTP website routes; the in-app updater remains separate.

@@ -36,12 +36,26 @@ pub struct OAuthConfig {
 
 /// Tokens returned by an exchange/refresh. `expires_at` is an absolute Unix
 /// timestamp (seconds); 0 means "unknown, treat as expired".
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct TokenSet {
     pub access_token: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<String>,
     pub expires_at: i64,
+}
+
+// Token strings must never be accidentally printed by debugging, panic or trace logs.
+impl std::fmt::Debug for TokenSet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenSet")
+            .field("access_token", &"[REDACTED]")
+            .field(
+                "refresh_token",
+                &self.refresh_token.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field("expires_at", &self.expires_at)
+            .finish()
+    }
 }
 
 #[derive(Deserialize)]
@@ -85,8 +99,12 @@ fn redirect_uri() -> String {
     format!("http://localhost:{REDIRECT_PORT}/")
 }
 
-/// Build the provider authorize URL for a given challenge.
-pub fn authorize_url(config: &OAuthConfig, challenge: &str) -> Result<Url> {
+/// Build the provider authorize URL for a given PKCE challenge and per-login
+/// CSRF state. Never start an authorization flow with an empty state.
+pub fn authorize_url(config: &OAuthConfig, challenge: &str, state: &str) -> Result<Url> {
+    if state.is_empty() {
+        return Err(anyhow!("OAuth state is required"));
+    }
     let mut url = Url::parse(&config.auth_url).context("parse auth_url")?;
     {
         let mut q = url.query_pairs_mut();
@@ -95,10 +113,23 @@ pub fn authorize_url(config: &OAuthConfig, challenge: &str) -> Result<Url> {
         q.append_pair("redirect_uri", &redirect_uri());
         q.append_pair("code_challenge", challenge);
         q.append_pair("code_challenge_method", "S256");
+        q.append_pair("state", state);
         if !config.scopes.is_empty() {
             q.append_pair("scope", &config.scopes.join(" "));
         }
         for (k, v) in &config.extra_auth_params {
+            // Provider extras must not append duplicate security-critical keys.
+            if matches!(
+                k.as_str(),
+                "client_id"
+                    | "response_type"
+                    | "redirect_uri"
+                    | "state"
+                    | "code_challenge"
+                    | "code_challenge_method"
+            ) {
+                return Err(anyhow!("provider overrides a reserved OAuth parameter"));
+            }
             q.append_pair(k, v);
         }
     }
@@ -116,7 +147,14 @@ pub async fn authorize_loopback(config: &OAuthConfig) -> Result<(TokenSet, serde
         ));
     }
     let (verifier, challenge) = pkce_pair();
-    let auth_url = authorize_url(config, &challenge)?;
+    // Two independent v4 UUIDs provide 244 random bits, bound to this one
+    // authorization attempt. This is distinct from the PKCE code verifier.
+    let state = format!(
+        "{}{}",
+        uuid::Uuid::new_v4().simple(),
+        uuid::Uuid::new_v4().simple()
+    );
+    let auth_url = authorize_url(config, &challenge, &state)?;
 
     // Bind the fixed loopback port *before* opening the browser so the redirect
     // can't race an unbound socket.
@@ -127,7 +165,7 @@ pub async fn authorize_loopback(config: &OAuthConfig) -> Result<(TokenSet, serde
     open_url(auth_url.as_str())?;
 
     // Wait (bounded) for the browser redirect and pull the ?code= out of it.
-    let code = tokio::time::timeout(Duration::from_secs(300), accept_code(&listener))
+    let code = tokio::time::timeout(Duration::from_secs(300), accept_code(&listener, &state))
         .await
         .map_err(|_| anyhow!("timed out waiting for the authorization redirect"))??;
 
@@ -136,54 +174,109 @@ pub async fn authorize_loopback(config: &OAuthConfig) -> Result<(TokenSet, serde
     Ok((tokens, tokens_raw))
 }
 
-/// Accept a single redirect request, answer with a friendly page, and return the
-/// `code` (or surface the `error`).
-async fn accept_code(listener: &tokio::net::TcpListener) -> Result<String> {
+/// Interpret only GET / callbacks with exactly one matching CSRF state.
+/// Unrelated local HTTP requests cannot complete or cancel a login attempt.
+#[derive(Debug, PartialEq, Eq)]
+enum OAuthCallback {
+    Ignore,
+    Authorized(String),
+    Denied,
+}
+
+fn parse_oauth_callback(request_line: &str, expected_state: &str) -> OAuthCallback {
+    let mut parts = request_line.split_whitespace();
+    if parts.next() != Some("GET") {
+        return OAuthCallback::Ignore;
+    }
+    let Some(target) = parts.next() else {
+        return OAuthCallback::Ignore;
+    };
+    if parts.next() != Some("HTTP/1.1") || parts.next().is_some() || !target.starts_with("/?") {
+        return OAuthCallback::Ignore;
+    }
+    let Ok(url) = Url::parse(&format!("http://localhost:{REDIRECT_PORT}{target}")) else {
+        return OAuthCallback::Ignore;
+    };
+    if url.path() != "/" || url.host_str() != Some("localhost") {
+        return OAuthCallback::Ignore;
+    }
+
+    let mut received_state: Option<String> = None;
+    let mut code: Option<String> = None;
+    let mut error: Option<String> = None;
+    for (key, value) in url.query_pairs() {
+        match key.as_ref() {
+            "state" => {
+                if received_state.replace(value.into_owned()).is_some() {
+                    return OAuthCallback::Ignore;
+                }
+            }
+            "code" => {
+                if code.replace(value.into_owned()).is_some() {
+                    return OAuthCallback::Ignore;
+                }
+            }
+            "error" => {
+                let previous_error = error.replace(value.into_owned());
+                if previous_error.is_some() {
+                    return OAuthCallback::Ignore;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if received_state.as_deref() != Some(expected_state) {
+        return OAuthCallback::Ignore;
+    }
+    match (code, error) {
+        (Some(code), None) if !code.is_empty() => OAuthCallback::Authorized(code),
+        (None, Some(error)) if !error.is_empty() => OAuthCallback::Denied,
+        _ => OAuthCallback::Ignore,
+    }
+}
+
+/// A wrong/missing state is ignored rather than reported as authentication
+/// success or failure. The real provider callback may still arrive afterward.
+async fn accept_code(listener: &tokio::net::TcpListener, expected_state: &str) -> Result<String> {
     loop {
         let (mut stream, _) = listener.accept().await.context("accept OAuth redirect")?;
         let mut buf = [0u8; 4096];
-        let n = stream.read(&mut buf).await.unwrap_or(0);
-        let req = String::from_utf8_lossy(&buf[..n]);
-        // First line: `GET /?code=... HTTP/1.1`
-        let path = req
+        let n = match tokio::time::timeout(Duration::from_secs(5), stream.read(&mut buf)).await {
+            Ok(Ok(n)) => n,
+            _ => continue, // a stalled or malformed local socket cannot lock up the flow
+        };
+        let Ok(request) = std::str::from_utf8(&buf[..n]) else {
+            continue;
+        };
+        let callback = request
             .lines()
             .next()
-            .and_then(|l| l.split_whitespace().nth(1))
-            .unwrap_or("/");
-        let parsed = Url::parse(&format!("http://localhost{path}")).ok();
-        let (code, error) = parsed
-            .as_ref()
-            .map(|u| {
-                let mut code = None;
-                let mut error = None;
-                for (k, v) in u.query_pairs() {
-                    match k.as_ref() {
-                        "code" => code = Some(v.into_owned()),
-                        "error" => error = Some(v.into_owned()),
-                        _ => {}
-                    }
-                }
-                (code, error)
-            })
-            .unwrap_or((None, None));
+            .map(|line| parse_oauth_callback(line, expected_state))
+            .unwrap_or(OAuthCallback::Ignore);
 
-        // Ignore stray hits (favicon, etc.) that carry neither code nor error.
-        if code.is_none() && error.is_none() {
-            let _ = respond(&mut stream, "Waiting for authorization…").await;
-            continue;
+        match callback {
+            OAuthCallback::Ignore => {
+                let _ = respond(&mut stream, "Authorization callback ignored.").await;
+            }
+            OAuthCallback::Denied => {
+                let _ = respond(
+                    &mut stream,
+                    "Authorization failed. You can close this window and return to Ghost FTP.",
+                )
+                .await;
+                // Never include untrusted provider error text in logs or UI.
+                return Err(anyhow!("authorization was denied by the provider"));
+            }
+            OAuthCallback::Authorized(code) => {
+                let _ = respond(
+                    &mut stream,
+                    "Ghost FTP is now connected. You can close this window.",
+                )
+                .await;
+                return Ok(code);
+            }
         }
-
-        let body = if error.is_some() {
-            "Authorization failed. You can close this window and return to Ghost FTP."
-        } else {
-            "Ghost FTP is now connected. You can close this window."
-        };
-        let _ = respond(&mut stream, body).await;
-
-        if let Some(e) = error {
-            return Err(anyhow!("authorization was denied: {e}"));
-        }
-        return code.ok_or_else(|| anyhow!("redirect carried no authorization code"));
     }
 }
 
@@ -225,14 +318,13 @@ pub async fn exchange_code(
         .await
         .context("token exchange request")?;
     let status = resp.status();
-    let text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
         return Err(anyhow!(
-            "token exchange failed ({}): {text}",
+            "token exchange failed with HTTP {}",
             status.as_u16()
         ));
     }
-    serde_json::from_str(&text).context("parse token response")
+    resp.json().await.context("parse token response")
 }
 
 /// Refresh an access token from a refresh token. Providers usually return only a
@@ -250,14 +342,13 @@ pub async fn refresh(config: &OAuthConfig, refresh_token: &str) -> Result<TokenS
         .await
         .context("token refresh request")?;
     let status = resp.status();
-    let text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
         return Err(anyhow!(
-            "token refresh failed ({}): {text}",
+            "token refresh failed with HTTP {}",
             status.as_u16()
         ));
     }
-    let raw: serde_json::Value = serde_json::from_str(&text).context("parse refresh response")?;
+    let raw: serde_json::Value = resp.json().await.context("parse refresh response")?;
     let mut set = token_set_from(&raw)?;
     // Carry forward the refresh token if the response omitted one.
     if set.refresh_token.is_none() {
@@ -413,15 +504,78 @@ mod tests {
             scopes: vec!["files.read".into(), "files.write".into()],
             extra_auth_params: vec![("token_access_type".into(), "offline".into())],
         };
-        let url = authorize_url(&cfg, "CHAL").unwrap();
+        let url = authorize_url(&cfg, "CHAL", "CSRF").unwrap();
         let q: std::collections::HashMap<_, _> = url.query_pairs().into_owned().collect();
         assert_eq!(q["client_id"], "abc123");
         assert_eq!(q["response_type"], "code");
         assert_eq!(q["code_challenge"], "CHAL");
         assert_eq!(q["code_challenge_method"], "S256");
+        assert_eq!(q["state"], "CSRF");
         assert_eq!(q["scope"], "files.read files.write");
         assert_eq!(q["token_access_type"], "offline");
         assert_eq!(q["redirect_uri"], "http://localhost:53682/");
+    }
+
+    #[test]
+    fn oauth_callback_requires_exact_state_method_and_single_code() {
+        assert_eq!(
+            parse_oauth_callback("GET /?state=NONCE&code=valid HTTP/1.1", "NONCE"),
+            OAuthCallback::Authorized("valid".to_string())
+        );
+        for request in [
+            "GET /?code=attacker HTTP/1.1",
+            "GET /?state=wrong&code=attacker HTTP/1.1",
+            "GET /other?state=NONCE&code=attacker HTTP/1.1",
+            "POST /?state=NONCE&code=attacker HTTP/1.1",
+            "GET /?state=NONCE&state=NONCE&code=attacker HTTP/1.1",
+            "GET /?state=NONCE&code=one&code=two HTTP/1.1",
+            "GET /?state=NONCE&code=one&error=denied HTTP/1.1",
+            "GET /?state=NONCE&code= HTTP/1.1",
+            "GET /?state=NONCE&code=ok HTTP/1.0",
+        ] {
+            assert_eq!(
+                parse_oauth_callback(request, "NONCE"),
+                OAuthCallback::Ignore,
+                "accepted hostile OAuth callback: {request}"
+            );
+        }
+        assert_eq!(
+            parse_oauth_callback("GET /?state=NONCE&error=access_denied HTTP/1.1", "NONCE"),
+            OAuthCallback::Denied
+        );
+        assert_eq!(
+            parse_oauth_callback("GET /?state=wrong&error=access_denied HTTP/1.1", "NONCE"),
+            OAuthCallback::Ignore
+        );
+    }
+
+    #[test]
+    fn provider_extra_parameters_cannot_override_security_settings() {
+        let mut config = OAuthConfig {
+            client_id: "client".into(),
+            auth_url: "https://example.invalid/authorize".into(),
+            token_url: "https://example.invalid/token".into(),
+            scopes: vec![],
+            extra_auth_params: vec![("state".into(), "attacker".into())],
+        };
+        assert!(authorize_url(&config, "PKCE", "NONCE").is_err());
+        config.extra_auth_params = vec![("code_challenge".into(), "attacker".into())];
+        assert!(authorize_url(&config, "PKCE", "NONCE").is_err());
+        config.extra_auth_params.clear();
+        assert!(authorize_url(&config, "PKCE", "").is_err());
+    }
+
+    #[test]
+    fn oauth_token_debug_output_never_contains_bearer_credentials() {
+        let tokens = TokenSet {
+            access_token: "unique-sensitive-access-token".into(),
+            refresh_token: Some("unique-sensitive-refresh-token".into()),
+            expires_at: 123,
+        };
+        let debug = format!("{tokens:?}");
+        assert!(!debug.contains("unique-sensitive-access-token"));
+        assert!(!debug.contains("unique-sensitive-refresh-token"));
+        assert!(debug.contains("[REDACTED]"));
     }
 
     #[test]
