@@ -379,6 +379,54 @@ impl Db {
         Ok(())
     }
 
+    /// Replace a pair's entire source snapshot transactionally. A crash,
+    /// SQLite I/O failure, or malformed source entry must never leave an
+    /// inventory half-updated (or delete a previous row from a failed scan).
+    /// Keep the other sync pairs completely untouched.
+    pub fn replace_sync_state_snapshot(
+        &self,
+        pair_id: &str,
+        files: &std::collections::BTreeMap<String, crate::scan::ScanEntry>,
+        last_synced_ms: i64,
+    ) -> Result<()> {
+        anyhow::ensure!(!pair_id.is_empty(), "sync pair id cannot be empty");
+        // Validate before the first destructive SQL statement. A corrupt
+        // source-size conversion must never wrap to a negative SQLite INTEGER.
+        for (path, entry) in files {
+            anyhow::ensure!(!path.is_empty(), "sync index contains an empty path");
+            i64::try_from(entry.size)
+                .with_context(|| format!("sync index file size exceeds SQLite INTEGER: {path}"))?;
+        }
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn
+            .transaction()
+            .context("begin atomic SQLite sync inventory snapshot")?;
+        tx.execute("DELETE FROM sync_state WHERE pair_id = ?1", [pair_id])
+            .context("replace old sync inventory")?;
+        {
+            let mut statement = tx.prepare_cached(
+                "INSERT INTO sync_state
+                     (pair_id, rel_path, size, mtime, remote_signal, last_synced_ms, state)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'synced')",
+            )?;
+            for (path, entry) in files {
+                let size = i64::try_from(entry.size)?;
+                statement
+                    .execute(rusqlite::params![
+                        pair_id,
+                        path,
+                        size,
+                        entry.modified,
+                        entry.etag.as_deref(),
+                        last_synced_ms
+                    ])
+                    .with_context(|| format!("write atomic sync inventory entry {path}"))?;
+            }
+        }
+        tx.commit().context("commit atomic SQLite sync inventory snapshot")?;
+        Ok(())
+    }
+
     /// Drop a pair's entire index (the pair was deleted).
     pub fn clear_pair(&self, pair_id: &str) -> Result<()> {
         let conn = self.conn.lock().unwrap();
@@ -900,6 +948,56 @@ mod tests {
         assert_eq!(db.load_sync_state("p2").unwrap().len(), 1);
         db.clear_pair("p2").unwrap();
         assert!(db.load_sync_state("p2").unwrap().is_empty());
+    }
+
+    #[test]
+    fn source_snapshot_replaces_one_pair_atomically() {
+        use crate::scan::ScanEntry;
+        use std::collections::BTreeMap;
+        let db = Db::open_in_memory().unwrap();
+        db.upsert_sync_state("pair-a", "obsolete.php", 15, 1, None, 100)
+            .unwrap();
+        db.upsert_sync_state("pair-b", "untouched.js", 22, 2, None, 200)
+            .unwrap();
+        let mut files = BTreeMap::new();
+        files.insert(
+            "src/app.php".to_string(),
+            ScanEntry {
+                absolute: "/work/src/app.php".to_string(),
+                size: 41,
+                modified: 303,
+                etag: Some("etag-new".to_string()),
+            },
+        );
+        db.replace_sync_state_snapshot("pair-a", &files, 500).unwrap();
+        let a = db.load_sync_state("pair-a").unwrap();
+        assert_eq!(a.len(), 1);
+        assert_eq!(a["src/app.php"].size, 41);
+        assert_eq!(a["src/app.php"].last_synced_ms, 500);
+        assert_eq!(a["src/app.php"].remote_signal.as_deref(), Some("etag-new"));
+        assert!(!a.contains_key("obsolete.php"));
+        assert_eq!(db.load_sync_state("pair-b").unwrap()["untouched.js"].size, 22);
+
+        // An unrepresentable source file size is rejected before the DELETE,
+        // preserving the last known-good SQLite snapshot.
+        files.get_mut("src/app.php").unwrap().size = u64::MAX;
+        assert!(db.replace_sync_state_snapshot("pair-a", &files, 600).is_err());
+        assert_eq!(db.load_sync_state("pair-a").unwrap()["src/app.php"].size, 41);
+
+        // Simulate a SQL failure after the DELETE but before INSERT.
+        // The transaction must roll back all changes.
+        files.get_mut("src/app.php").unwrap().size = 42;
+        {
+            let conn = db.conn.lock().unwrap();
+            conn.execute_batch(
+                "CREATE TRIGGER reject_sync_snapshot BEFORE INSERT ON sync_state
+                 BEGIN SELECT RAISE(FAIL, 'simulated SQLite write failure'); END;",
+            )
+            .unwrap();
+        }
+        assert!(db.replace_sync_state_snapshot("pair-a", &files, 700).is_err());
+        assert_eq!(db.load_sync_state("pair-a").unwrap()["src/app.php"].size, 41);
+        assert_eq!(db.load_sync_state("pair-b").unwrap()["untouched.js"].size, 22);
     }
 
     #[test]
