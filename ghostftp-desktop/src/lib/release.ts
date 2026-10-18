@@ -3,7 +3,7 @@ export const PRODUCT_VERSION = "0.95.44";
 export const PRODUCT_VERSION_DISPLAY = "0.95.44";
 export const PRODUCT_VERSION_BADGE = "0.95.44";
 export const PRODUCT_BUILD = "2026.10.19.44";
-export const PRODUCT_RELEASE_DATE = "18 October 2026";
+export const PRODUCT_RELEASE_DATE = "19 October 2026";
 export const PRODUCT_SITE = "https://ghostftp.com";
 // Verified published Ghost FTP website routes; the in-app updater remains separate.
 export const PRODUCT_SUPPORT_URL = `${PRODUCT_SITE}/hr/support`;
