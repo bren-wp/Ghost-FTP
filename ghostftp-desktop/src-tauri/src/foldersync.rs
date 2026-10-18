@@ -529,16 +529,24 @@ impl FolderSync {
     }
 }
 
-/// Build a recursive filesystem watcher that pings `trigger` on any change.
+/// Build a recursive filesystem watcher. Queue capacity is one: editor saves
+/// may emit thousands of rename/write events, but every burst needs one scan.
 fn make_watcher(root: &str, trigger: mpsc::Sender<()>) -> Result<notify::RecommendedWatcher> {
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
-        if let Ok(ev) = res {
-            use notify::EventKind;
-            if matches!(
-                ev.kind,
-                EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
-            ) {
-                // A full queue already holds a pending filesystem change.
+        match res {
+            Ok(ev) => {
+                use notify::EventKind;
+                if matches!(
+                    ev.kind,
+                    EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+                ) {
+                    let _ = trigger.try_send(());
+                }
+            }
+            Err(error) => {
+                // Lost/overflowed platform watcher events require a full
+                // rescan. Do not silently wait for the next minute-long poll.
+                tracing::warn!("folder sync watcher needs rescan: {error}");
                 let _ = trigger.try_send(());
             }
         }
@@ -659,7 +667,9 @@ async fn reconcile_inner(
         .await
         .context("executing sync")?;
 
-    wait_for_transfers(state, ids).await;
+    // Do not claim a pair was synchronized, or advance the persistent source
+    // index, when any queued transfer failed, was canceled or timed out.
+    wait_for_transfers(state, ids).await?;
 
     // Record what the source looks like now, so the next reconcile compares
     // against reality rather than re-uploading (resume) and catches in-place
@@ -792,26 +802,43 @@ async fn ensure_session(
     Ok(session)
 }
 
-/// Block until every queued transfer reaches a terminal state (or the cap).
-async fn wait_for_transfers(state: &AppState, ids: Vec<String>) {
+/// True only if every transfer actually completed (or was deliberately
+/// skipped under the active overwrite policy). A missing ledger record is NOT
+/// success: otherwise the indexed sync claims unchanged data was uploaded.
+fn transfer_batch_complete(statuses: &[Option<TransferStatus>]) -> Result<bool> {
+    let mut pending = false;
+    for status in statuses {
+        match status {
+            Some(TransferStatus::Done | TransferStatus::Skipped) => {}
+            Some(TransferStatus::Queued | TransferStatus::Transferring | TransferStatus::Paused) => {
+                pending = true;
+            }
+            Some(TransferStatus::Error | TransferStatus::Canceled) | None => {
+                anyhow::bail!("sync has a failed, canceled or missing transfer; source index was not advanced");
+            }
+        }
+    }
+    Ok(!pending)
+}
+
+/// Wait for all queued work to succeed. Timeout and missing rows are errors,
+/// not successful reconciliations; preserve old index so the next watcher or
+/// poll retries instead of silently losing changed files.
+async fn wait_for_transfers(state: &AppState, ids: Vec<String>) -> Result<()> {
     if ids.is_empty() {
-        return;
+        return Ok(());
     }
     let start = std::time::Instant::now();
     loop {
-        let mut remaining = 0u32;
+        let mut statuses = Vec::with_capacity(ids.len());
         for id in &ids {
-            if let Some(t) = state.transfers.snapshot(id).await {
-                match t.status {
-                    TransferStatus::Queued
-                    | TransferStatus::Transferring
-                    | TransferStatus::Paused => remaining += 1,
-                    _ => {}
-                }
-            }
+            statuses.push(state.transfers.snapshot(id).await.map(|t| t.status));
         }
-        if remaining == 0 || start.elapsed() > TRANSFER_WAIT_CAP {
-            return;
+        if transfer_batch_complete(&statuses)? {
+            return Ok(());
+        }
+        if start.elapsed() > TRANSFER_WAIT_CAP {
+            anyhow::bail!("sync transfer wait timed out; source index was not advanced");
         }
         tokio::time::sleep(Duration::from_millis(300)).await;
     }
@@ -845,13 +872,16 @@ async fn set_state(
 fn apply_safety(plan: &mut SyncPlan, pair: &SyncPair, source_available: bool) -> Option<String> {
     // Excludes: drop matching files from BOTH copies and deletes, so an excluded
     // path is neither uploaded nor (under Mirror) deleted on the far side.
-    if !pair.exclude.is_empty() {
-        plan.copies
-            .retain(|c| !is_excluded(&c.relative, &pair.exclude));
-        plan.deletes
-            .retain(|d| !is_excluded(&d.relative, &pair.exclude));
-        plan.total_bytes = plan.copies.iter().map(|c| c.size).sum();
-    }
+    // Internal partial downloads and delta reconstruction files must never
+    // be published to a live server or targeted for Mirror deletion. They
+    // can appear while a transfer writes into a watched local directory.
+    plan.copies.retain(|c| {
+        !is_internal_transfer_temp(&c.relative) && !is_excluded(&c.relative, &pair.exclude)
+    });
+    plan.deletes.retain(|d| {
+        !is_internal_transfer_temp(&d.relative) && !is_excluded(&d.relative, &pair.exclude)
+    });
+    plan.total_bytes = plan.copies.iter().map(|c| c.size).sum();
 
     if !matches!(pair.strategy, SyncStrategy::Mirror) || plan.deletes.is_empty() {
         return None;
@@ -875,6 +905,16 @@ fn apply_safety(plan: &mut SyncPlan, pair: &SyncPair, source_available: bool) ->
     }
 
     None
+}
+
+fn is_internal_transfer_temp(relative: &str) -> bool {
+    relative.split('/').any(|part| {
+        (part.starts_with(".ghostftp-download-")
+            && (part.ends_with(".part") || part.ends_with(".backup")))
+            || part.starts_with(".ghostftp-patch-")
+            || part.starts_with(".ghostftp-new-")
+            || (part.starts_with(".ghostftp-delta-") && part.ends_with(".tmp"))
+    })
 }
 
 // ---------- exclude patterns ----------
@@ -991,7 +1031,11 @@ fn glob_match(pattern: &str, text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_safety, glob_match, is_excluded, sweep_delta_temps, SyncMode, SyncPair};
+    use super::{
+        apply_safety, glob_match, is_excluded, is_internal_transfer_temp, sweep_delta_temps,
+        transfer_batch_complete, SyncMode, SyncPair,
+    };
+    use crate::transfer::TransferStatus;
     use crate::sync::{self, SyncDirection, SyncStrategy};
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU32, Ordering};
@@ -999,6 +1043,36 @@ mod tests {
     fn ex(rel: &str, pats: &[&str]) -> bool {
         let pats: Vec<String> = pats.iter().map(|s| s.to_string()).collect();
         is_excluded(rel, &pats)
+    }
+
+    #[test]
+    fn continuous_sync_does_not_advance_index_for_failed_or_missing_work() {
+        assert_eq!(transfer_batch_complete(&[]).unwrap(), true);
+        assert!(transfer_batch_complete(&[
+            Some(TransferStatus::Done), Some(TransferStatus::Skipped)
+        ]).unwrap());
+        assert!(!transfer_batch_complete(&[
+            Some(TransferStatus::Done), Some(TransferStatus::Transferring)
+        ]).unwrap());
+        for bad in [Some(TransferStatus::Error), Some(TransferStatus::Canceled), None] {
+            assert!(transfer_batch_complete(&[Some(TransferStatus::Done), bad]).is_err());
+        }
+    }
+
+    #[test]
+    fn continuous_sync_ignores_its_own_incomplete_transfer_files() {
+        for name in [
+            ".ghostftp-download-abc.part",
+            "nested/.ghostftp-download-abc.backup",
+            ".ghostftp-patch-123",
+            "nested/.ghostftp-new-abcdef",
+            "nested/.ghostftp-delta-random.tmp",
+        ] {
+            assert!(is_internal_transfer_temp(name), "{name}");
+        }
+        for normal in [".ghostftp-project.json", "code.php", "nested/.ghostftp-download-example.txt"] {
+            assert!(!is_internal_transfer_temp(normal), "{normal}");
+        }
     }
 
     #[test]

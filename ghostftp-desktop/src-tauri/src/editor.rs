@@ -18,6 +18,8 @@ use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, Emitter};
@@ -75,8 +77,21 @@ impl EditManager {
         app: AppHandle,
     ) -> Result<EditStartedEvent> {
         let edit_id = Uuid::new_v4().to_string();
-        let base = std::env::temp_dir().join("ghostftp-edits").join(&edit_id);
-        std::fs::create_dir_all(&base).context("create temp dir for edit")?;
+        let parent = std::env::temp_dir().join("ghostftp-edits");
+        std::fs::create_dir_all(&parent).context("create private editor directory")?;
+        let meta = std::fs::symlink_metadata(&parent).context("lstat editor directory")?;
+        anyhow::ensure!(meta.file_type().is_dir(), "editor directory is not a real directory");
+        // Editor temp copies may contain .env, configuration secrets or source
+        // code. The default Unix mkdir umask can allow other users to read
+        // them; ensure no group/other traversal before downloading any data.
+        #[cfg(unix)]
+        std::fs::set_permissions(&parent, std::fs::Permissions::from_mode(0o700))
+            .context("secure editor parent directory")?;
+        let base = parent.join(&edit_id);
+        std::fs::create_dir(&base).context("create unique editor workspace")?;
+        #[cfg(unix)]
+        std::fs::set_permissions(&base, std::fs::Permissions::from_mode(0o700))
+            .context("secure editor workspace")?;
 
         let name = remote_path
             .rsplit(['/', '\\'])
@@ -534,10 +549,14 @@ pub(crate) async fn upload_from(
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     let local = std::path::PathBuf::from(local_path);
-    let size = tokio::fs::metadata(&local)
+    let metadata = tokio::fs::symlink_metadata(&local)
         .await
-        .with_context(|| format!("stat {}", local.display()))?
-        .len();
+        .with_context(|| format!("lstat edited file {}", local.display()))?;
+    anyhow::ensure!(
+        metadata.file_type().is_file(),
+        "edited file is a symbolic link or special node; refusing automatic upload"
+    );
+    let size = metadata.len();
 
     match session {
         Session::Ssh(ssh) => {
