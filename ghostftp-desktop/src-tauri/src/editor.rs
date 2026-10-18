@@ -118,6 +118,9 @@ fn write_editor_copy_atomically(path: &std::path::Path, content: &[u8]) -> Resul
         temp.write_all(content)
             .context("write editor staging copy")?;
         temp.sync_all().context("flush edited data to disk")?;
+        // Windows may forbid a rename while the staging handle is open.
+        // Close the handle before attempting the atomic promotion.
+        drop(temp);
         // Fail closed if the original became a symlink while staging.
         let current = std::fs::symlink_metadata(path).context("recheck edited target")?;
         anyhow::ensure!(
