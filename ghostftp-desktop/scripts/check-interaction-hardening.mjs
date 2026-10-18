@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import "./check-transfer-failure-review.mjs";
+import "./check-transfer-history-export.mjs";
 
 const read = (path) => fs.readFileSync(path, "utf8");
 const failures = [];
