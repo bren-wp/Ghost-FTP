@@ -3,6 +3,21 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// CI builds stay unsigned unless all four private upload-key inputs are
+// explicitly provided by the restricted manual signing workflow. A partial
+// configuration must fail, never silently fall back to a debug certificate.
+val playSigningEnv = listOf(
+    "GHOSTFTP_PLAY_KEYSTORE_FILE",
+    "GHOSTFTP_PLAY_STORE_PASSWORD",
+    "GHOSTFTP_PLAY_KEY_ALIAS",
+    "GHOSTFTP_PLAY_KEY_PASSWORD"
+)
+val suppliedPlaySigning = playSigningEnv.count { !System.getenv(it).isNullOrBlank() }
+check(suppliedPlaySigning == 0 || suppliedPlaySigning == playSigningEnv.size) {
+    "Incomplete Ghost FTP Play signing configuration; refusing release signing."
+}
+val playSigningEnabled = suppliedPlaySigning == playSigningEnv.size
+
 android {
     namespace = "com.ghostftp.android"
     compileSdk = 36
@@ -16,8 +31,26 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (playSigningEnabled) {
+            create("playUpload") {
+                val signingFile = file(System.getenv("GHOSTFTP_PLAY_KEYSTORE_FILE"))
+                check(signingFile.isFile && signingFile.length() > 0L) {
+                    "Play upload keystore is missing or empty."
+                }
+                storeFile = signingFile
+                storePassword = System.getenv("GHOSTFTP_PLAY_STORE_PASSWORD")
+                keyAlias = System.getenv("GHOSTFTP_PLAY_KEY_ALIAS")
+                keyPassword = System.getenv("GHOSTFTP_PLAY_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (playSigningEnabled) {
+                signingConfig = signingConfigs.getByName("playUpload")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

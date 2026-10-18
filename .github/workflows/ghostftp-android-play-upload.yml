@@ -1,0 +1,167 @@
+name: Ghost FTP Android Play upload signing
+
+# Production upload key access is NEVER available to pull_request / push CI.
+# Configure a protected GitHub environment named play-upload-signing with
+# required reviewers, branch restriction to main and the listed secrets.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ghostftp-play-upload-signing
+  cancel-in-progress: false
+
+jobs:
+  sign-play-upload:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    environment: play-upload-signing
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Verify exact main source and all six workflow gates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          CURRENT_MAIN="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$CURRENT_MAIN" != "$GITHUB_SHA" ]; then
+            echo "::error::Source has changed since this signing run started; refuse stale signing."
+            exit 1
+          fi
+          node .github/scripts/sync-version.mjs --check
+          for workflow in ghostftp-quality.yml ghostftp-protocol-e2e.yml ghostftp-build.yml ghostftp-android.yml ghostftp-macos.yml validate-win-hardening.yml; do
+            state="$(gh run list --workflow "$workflow" --commit "$GITHUB_SHA" --limit 5 --json status,conclusion --jq '.[0] | ((.status // "") + ":" + (.conclusion // ""))')"
+            if [ "$state" != "completed:success" ]; then
+              echo "::error::Required $workflow gate is not successful on the exact main SHA."
+              exit 1
+            fi
+          done
+          echo "All six workflow families have an exact-source success result."
+
+      - name: Install minimal Android build SDK
+        shell: bash
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+
+      - name: Materialize protected upload key (never print or upload it)
+        env:
+          GHOSTFTP_UPLOAD_KEYSTORE_B64: ${{ secrets.GHOSTFTP_UPLOAD_KEYSTORE_B64 }}
+          GHOSTFTP_PLAY_STORE_PASSWORD: ${{ secrets.GHOSTFTP_PLAY_STORE_PASSWORD }}
+          GHOSTFTP_PLAY_KEY_PASSWORD: ${{ secrets.GHOSTFTP_PLAY_KEY_PASSWORD }}
+          GHOSTFTP_PLAY_KEY_ALIAS: ${{ secrets.GHOSTFTP_PLAY_KEY_ALIAS }}
+          EXPECTED_CERT_SHA256: ${{ vars.GHOSTFTP_PLAY_UPLOAD_CERT_SHA256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          for key in GHOSTFTP_UPLOAD_KEYSTORE_B64 GHOSTFTP_PLAY_STORE_PASSWORD GHOSTFTP_PLAY_KEY_PASSWORD GHOSTFTP_PLAY_KEY_ALIAS EXPECTED_CERT_SHA256; do
+            if [ -z "$(printenv "$key")" ]; then
+              echo "::error::A required protected signing secret or pinned upload certificate SHA-256 is absent."
+              exit 1
+            fi
+          done
+          KEYSTORE="$RUNNER_TEMP/ghostftp-upload-keystore.jks"
+          printf '%s' "$GHOSTFTP_UPLOAD_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+          test -s "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+          echo "GHOSTFTP_PLAY_KEYSTORE_FILE=$KEYSTORE" >> "$GITHUB_ENV"
+
+      - name: Build production-signed APK and AAB with protected identity
+        env:
+          GHOSTFTP_PLAY_STORE_PASSWORD: ${{ secrets.GHOSTFTP_PLAY_STORE_PASSWORD }}
+          GHOSTFTP_PLAY_KEY_PASSWORD: ${{ secrets.GHOSTFTP_PLAY_KEY_PASSWORD }}
+          GHOSTFTP_PLAY_KEY_ALIAS: ${{ secrets.GHOSTFTP_PLAY_KEY_ALIAS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Avoid command-line secrets, debug fallback or repository key stores.
+          gradle -p android --no-daemon assembleRelease bundleRelease
+
+      - name: Verify package, exact version, signed APK and pinned AAB certificate
+        env:
+          EXPECTED_CERT_SHA256: ${{ vars.GHOSTFTP_PLAY_UPLOAD_CERT_SHA256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          AAB="android/app/build/outputs/bundle/release/app-release.aab"
+          test -s "$APK"
+          test -s "$AAB"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -n1)"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n1)"
+          test -x "$APKSIGNER"
+          test -x "$AAPT"
+          "$APKSIGNER" verify --verbose --print-certs "$APK" > "$RUNNER_TEMP/ghostftp-apk-verification.txt"
+          APK_CERT="$(sed -nE 's/^Signer #1 certificate SHA-256 digest: ([[:xdigit:]]{64}).*$/\1/p' "$RUNNER_TEMP/ghostftp-apk-verification.txt" | head -n1 | tr '[:upper:]' '[:lower:]')"
+          EXPECTED="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          if ! [[ "$EXPECTED" =~ ^[0-9a-f]{64}$ && "$APK_CERT" == "$EXPECTED" ]]; then
+            echo "::error::APK signing identity does not match the pinned Play upload certificate."
+            exit 1
+          fi
+          BADGING="$("$AAPT" dump badging "$APK")"
+          VERSION="$(node -p 'require("./version.json").version')"
+          VERSION_CODE="$(node -p 'require("./version.json").androidVersionCode')"
+          grep -Fq "package: name='com.ghostftp.android' versionCode='$VERSION_CODE' versionName='$VERSION'" <<< "$BADGING"
+          if grep -Fq 'application-debuggable' <<< "$BADGING"; then
+            echo "::error::Play APK is debuggable."
+            exit 1
+          fi
+
+          # AAB uses JAR signing, not APK Signature Scheme; verify separately.
+          jarsigner -verify "$AAB" > "$RUNNER_TEMP/ghostftp-aab-verification.txt"
+          grep -Fq "jar verified." "$RUNNER_TEMP/ghostftp-aab-verification.txt"
+          keytool -printcert -jarfile "$AAB" > "$RUNNER_TEMP/ghostftp-aab-certificate.txt"
+          AAB_CERT="$(sed -nE 's/^[[:space:]]*SHA256:[[:space:]]*([A-Fa-f0-9:]+).*$/\1/p' "$RUNNER_TEMP/ghostftp-aab-certificate.txt" | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          if [ "$AAB_CERT" != "$EXPECTED" ]; then
+            echo "::error::AAB signing identity differs from the pinned Play upload certificate."
+            exit 1
+          fi
+          mkdir -p dist/android/play-upload
+          cp "$AAB" "dist/android/play-upload/GhostFTP-Android-v$VERSION-Play-Upload.aab"
+          (
+            cd dist/android/play-upload
+            sha256sum "GhostFTP-Android-v$VERSION-Play-Upload.aab" > SHA256SUMS.txt
+          )
+          printf 'source_sha=%s\npackage=%s\nversion=%s\nversion_code=%s\nupload_cert_sha256=%s\n' \
+            "$GITHUB_SHA" com.ghostftp.android "$VERSION" "$VERSION_CODE" "$EXPECTED" \
+            > dist/android/play-upload/PROVENANCE.txt
+
+      - name: Destroy temporary keystore
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/ghostftp-upload-keystore.jks" ]; then
+            shred -u "$RUNNER_TEMP/ghostftp-upload-keystore.jks" || rm -f "$RUNNER_TEMP/ghostftp-upload-keystore.jks"
+          fi
+
+      - name: Upload signed Play artifact for authorized manual console submission
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-Android-Play-Upload-SHA-${{ github.sha }}
+          path: dist/android/play-upload/*
+          retention-days: 1
+          if-no-files-found: error

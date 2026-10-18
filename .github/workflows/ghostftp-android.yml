@@ -45,6 +45,28 @@ jobs:
       - name: Native Android lint and APK build
         shell: bash
         run: gradle -p android testDebugUnitTest lintDebug lintRelease lintPreview assembleDebug assembleRelease assemblePreview bundleRelease
+      - name: Production signing fail-closed negative tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Normal PR CI has no protected upload key. Test both partial inputs
+          # and a complete-but-invalid keystore path without leaking secrets.
+          if GHOSTFTP_PLAY_KEY_ALIAS="test-only" gradle -p android --offline help > "$RUNNER_TEMP/ghostftp-incomplete-signing.txt" 2>&1; then
+            echo "::error::Partial signing inputs were incorrectly accepted."
+            exit 1
+          fi
+          grep -Fq 'Incomplete Ghost FTP Play signing configuration' "$RUNNER_TEMP/ghostftp-incomplete-signing.txt"
+          if GHOSTFTP_PLAY_KEYSTORE_FILE="$RUNNER_TEMP/not-a-real-keystore.jks" \
+             GHOSTFTP_PLAY_STORE_PASSWORD="test-only" \
+             GHOSTFTP_PLAY_KEY_PASSWORD="test-only" \
+             GHOSTFTP_PLAY_KEY_ALIAS="test-only" \
+             gradle -p android --offline help > "$RUNNER_TEMP/ghostftp-missing-keystore.txt" 2>&1; then
+            echo "::error::Missing Play keystore was incorrectly accepted."
+            exit 1
+          fi
+          grep -Fq 'Play upload keystore is missing or empty' "$RUNNER_TEMP/ghostftp-missing-keystore.txt"
+          echo "Production signing correctly fails closed on missing and incomplete keys."
+
       # SDK mirror/CDN corruption can surface as "Archive is not a ZIP
       # archive" before an AVD ever boots. Install the exact Android 16 ATD
       # image with bounded retries and verify files, *before* invoking the
