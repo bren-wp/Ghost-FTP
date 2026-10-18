@@ -513,7 +513,7 @@ mod tests {
     #[test]
     fn http_html_duplicates_and_oversize_fail_closed() {
         let duplicate = "<html><title>Index of /</title><body>\n<a href=\"file\">file</a>\n<a href=\"file\">file</a>\n</body></html>";
-        assert!(parse_autoindex_html(&duplicate, "/").is_err());
+        assert!(parse_autoindex_html(duplicate, "/").is_err());
         let giant = format!(
             "<html><title>Index of /</title><body>{}</body></html>",
             "x".repeat(MAX_HTTP_LISTING_BYTES)
