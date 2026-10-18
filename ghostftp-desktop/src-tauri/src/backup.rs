@@ -380,7 +380,10 @@ fn export_with_vault(
 
     // WAL-safe DB snapshot into a temp file. The guard removes it on every
     // return path, including snapshot/read/encryption failures.
-    let tmp = dir.join("ghostftp.db.backup.tmp");
+    let tmp = dir.join(format!(
+        ".ghostftp-db-backup-{}.tmp",
+        uuid::Uuid::new_v4()
+    ));
     let _tmp_guard = RemoveOnDrop(tmp.clone());
     db.snapshot_to(&tmp).context("snapshot ghostftp.db")?;
     let mut db_bytes = std::fs::read(&tmp).context("read ghostftp.db snapshot")?;
@@ -791,9 +794,26 @@ mod tests {
             std::env::temp_dir().join(format!("ghostftp_bak_{}.ghostftpbak", std::process::id()));
         let _ = std::fs::remove_file(&backup);
         let db = Db::open(&src_dir.join("ghostftp.db")).unwrap();
+        // Earlier versions used a predictable snapshot name. It might have
+        // been left behind by an interrupted run; no fresh export may erase it.
+        let legacy_temp = src_dir.join("ghostftp.db.backup.tmp");
+        std::fs::write(&legacy_temp, b"pre-existing file must survive").unwrap();
         let summary = export(&src_dir, &db, "correct horse", &backup).unwrap();
         assert_eq!(summary.profiles, 1);
-        assert!(!src_dir.join("ghostftp.db.backup.tmp").exists());
+        assert_eq!(
+            std::fs::read(&legacy_temp).unwrap(),
+            b"pre-existing file must survive"
+        );
+        assert!(
+            std::fs::read_dir(&src_dir)
+                .unwrap()
+                .all(|entry| !entry
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(".ghostftp-db-backup-")),
+            "no unique SQLite export snapshot may remain after success"
+        );
         assert!(summary.has_bridge && summary.has_sync);
         assert!(summary.db_bytes > 0);
         drop(db);
