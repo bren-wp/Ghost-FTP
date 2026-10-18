@@ -83,7 +83,7 @@ export function BuiltinCodeEditor(){
     if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="f"){
       e.preventDefault();e.stopPropagation();finder.current?.focus();return;
     }
-    if(e.ctrlKey||e.metaKey||e.altKey||e.isComposing)return;
+    if(e.ctrlKey||e.metaKey||e.altKey||e.nativeEvent.isComposing)return;
     const el=e.currentTarget,start=el.selectionStart,end=el.selectionEnd;
     const pairs:Record<string,string>={"(":")","[":"]","{":"}",'"':'"',"'":"'"};let insert:string|null=null,offset=0;
     if(e.key==="Tab"){insert="  ";offset=2;}
