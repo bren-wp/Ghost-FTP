@@ -169,9 +169,7 @@ async fn walk_impl<F: FnMut(ScanProgress)>(
                 }
             },
             Err(error) if strict => {
-                return Err(error).map_err(|e| {
-                    anyhow::anyhow!("sync scan refused unreadable directory {dir}: {e:#}")
-                });
+                anyhow::bail!("sync scan refused unreadable directory {dir}: {error:#}");
             }
             Err(_) => {} // legacy display scan tolerates unreadable folders
         }
