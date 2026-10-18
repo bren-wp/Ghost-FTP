@@ -1,6 +1,14 @@
-> Ghost FTP **0.95.36** (development cycle), following published **v0.95.35**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.37** (development cycle), following published **v0.95.36**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.37 SQLite folder-sync migration and built-in source editor — preview
+
+- Watched sync settings use the local SQLite database transactionally with guarded one-time import of previous JSON settings and explicit corrupt-data failure.
+- Remote file context menu opens a built-in text editor. PHP, JS, HTML and CSS syntax highlighting, Ctrl+F search, Ctrl+S save, indentation and closing brackets are available for UTF-8 files up to 2 MiB.
+- Editor IPC is edit-session scoped, and the background remote upload must confirm success separately from the local save.
+- Windows native keyring/DPAPI and Linux native secret storage remain authoritative for passwords: SQLite is not encrypted merely by being SQLite.
+
 
 ## v0.95.36 Security, live folder sync and script export — preview
 
@@ -85,7 +93,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.36 development source. Previous canonical release: **0.95.35**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.37 development source. Previous canonical release: **0.95.36**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 

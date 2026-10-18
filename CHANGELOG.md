@@ -1,3 +1,11 @@
+## 0.95.37 — SQLite watched-sync settings and integrated remote source editor (development preview) — 18 October 2026
+
+- Store continuous folder-sync configuration transactionally in the existing local `ghostftp.db` (SQLite); migrate legacy `foldersync.json` once without deleting it, and refuse to silently discard malformed configs.
+- Add an in-app remote UTF-8 source editor (context menu → Edit code in Ghost FTP), including PHP, JavaScript, HTML and CSS token highlighting, search, automatic bracket pairs, indentation and Ctrl+S.
+- Restrict editor file IPC to Rust-issued active edit session IDs, refuse binary/non-UTF-8 files and files over 2 MiB; remote save completion still requires a successful watcher upload event.
+- Keep saved passwords/key passphrases in the native OS credential store; SQLite is for configuration metadata, **not** an encryption replacement.
+- Add migration corruption and editor token-preservation regressions, with automated Windows/Linux build and protocol acceptance gates.
+
 ## 0.95.36 — Saved credential safety, reliable live sync and script automation (development preview) — 18 October 2026
 
 - Enforce fail-closed profile serialization at the storage layer: new plaintext passwords and private-key passphrases cannot reach `profiles.json`. Existing keyring use remains unchanged (Windows-native and Linux-native).
