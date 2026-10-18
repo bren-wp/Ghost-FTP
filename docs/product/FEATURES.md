@@ -1,6 +1,14 @@
-> Ghost FTP **0.95.40** (development preview), following published **v0.95.39**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.41** (development preview), following published **v0.95.40**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
+
+## v0.95.41 Bounded HTTP directory inventory and duplicate rejection — security preview
+
+- Limit HTTP autoindex response bytes before parsing, reject incomplete/unrecognized HTML index pages and malformed links.
+- Reject duplicate, path-escaping, malformed Unicode and oversized HTML/JSON listing entries rather than reporting a partial successful source tree.
+- Add regression tests including valid Apache/nginx directory listings, Unicode filenames, malicious JSON rows, oversize bodies and duplicate names.
+- Live Apache/nginx/IIS compatibility and all six final-SHA CI families remain acceptance gates; no complete FILE-03 certification is claimed.
+
 
 ## v0.95.40 Fail-closed encrypted backup and OS vault restore — security preview
 
@@ -116,7 +124,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.40 development source. Previous canonical release: **0.95.39**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.41 development source. Previous canonical release: **0.95.40**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
