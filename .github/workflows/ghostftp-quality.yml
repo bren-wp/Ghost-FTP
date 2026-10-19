@@ -307,6 +307,23 @@ jobs:
           grep -Fq 'GhostFTP-Windows-x64-Setup.msi' .github/workflows/ghostftp-build.yml
           grep -Fq 'GhostFTP-Windows-x64-Setup-v$VERSION.msi' .github/workflows/ghostftp-release.yml
 
+      - name: Repository-wide dead-code audit and regression matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tools/audits/full-dead-code-audit.test.mjs
+          node tools/audits/full-dead-code-audit.mjs
+          mkdir -p build/audit
+          node tools/audits/full-dead-code-audit.mjs --json > build/audit/full-dead-code.json
+
+      - name: Publish cross-platform dead-code audit evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-Full-Repository-Dead-Code-Audit
+          path: build/audit/full-dead-code.json
+          if-no-files-found: warn
+
       - name: Native frontend typecheck and production build
         working-directory: ghostftp-desktop
         shell: bash
