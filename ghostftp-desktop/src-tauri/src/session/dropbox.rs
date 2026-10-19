@@ -113,7 +113,10 @@ impl DropboxSession {
             if !status.is_success() {
                 return Err(dropbox_http_error(status));
             }
-            let text = resp.text().await.context("read Dropbox metadata response")?;
+            let text = resp
+                .text()
+                .await
+                .context("read Dropbox metadata response")?;
             // No-arg endpoints (get_current_account) can return an empty body.
             if text.trim().is_empty() {
                 return Ok(serde_json::Value::Null);
@@ -195,7 +198,10 @@ impl DropboxSession {
             }
             if status == reqwest::StatusCode::CONFLICT {
                 // Limit untrusted provider JSON to a small conflict envelope.
-                let text = resp.text().await.context("read Dropbox conflict response")?;
+                let text = resp
+                    .text()
+                    .await
+                    .context("read Dropbox conflict response")?;
                 if text.len() > 16 * 1024 {
                     return Err(anyhow!("Dropbox conflict response exceeded size limit"));
                 }
