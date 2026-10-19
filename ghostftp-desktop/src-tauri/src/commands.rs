@@ -659,10 +659,22 @@ pub struct CloudOAuthAvailability {
 #[tauri::command]
 pub fn cloud_oauth_availability() -> CloudOAuthAvailability {
     CloudOAuthAvailability {
-        dropbox: !crate::session::dropbox::dropbox_config().client_id.trim().is_empty(),
-        onedrive: !crate::session::onedrive::onedrive_config().client_id.trim().is_empty(),
-        gdrive: !crate::session::gdrive::gdrive_config().client_id.trim().is_empty(),
-        box_drive: !crate::session::boxdrive::box_config().client_id.trim().is_empty(),
+        dropbox: !crate::session::dropbox::dropbox_config()
+            .client_id
+            .trim()
+            .is_empty(),
+        onedrive: !crate::session::onedrive::onedrive_config()
+            .client_id
+            .trim()
+            .is_empty(),
+        gdrive: !crate::session::gdrive::gdrive_config()
+            .client_id
+            .trim()
+            .is_empty(),
+        box_drive: !crate::session::boxdrive::box_config()
+            .client_id
+            .trim()
+            .is_empty(),
     }
 }
 
@@ -685,7 +697,13 @@ pub async fn cloud_oauth_discard(
         _ => return Err("Unsupported cloud provider".into()),
     };
     // Never remove tokens for a saved account, even if the UI has stale state.
-    if state.profiles.get(&profile_id).await.map_err(err)?.is_some() {
+    if state
+        .profiles
+        .get(&profile_id)
+        .await
+        .map_err(err)?
+        .is_some()
+    {
         return Err("Cannot discard credentials of a saved cloud account".into());
     }
     crate::oauth::delete_tokens(service, &profile_id);
