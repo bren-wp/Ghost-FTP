@@ -1037,6 +1037,91 @@ mod tests {
     }
 
     #[test]
+    fn authentic_encrypted_backup_with_corrupt_sqlite_never_changes_vault() {
+        // GCM authentication can succeed while the archived SQLite bytes
+        // are corrupt. Base64-decoding them alone is insufficient.
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-corrupt-decrypted-db-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("profiles.json"), b"original user profiles").unwrap();
+        let original_db = dir.join("ghostftp.db");
+        std::fs::write(&original_db, b"original database untouched").unwrap();
+        let archive = Archive {
+            created_ms: 0,
+            profiles_json: Some("[]".to_string()),
+            bridge_json: None,
+            foldersync_json: None,
+            ghostftp_db_b64: base64::engine::general_purpose::STANDARD
+                .encode(b"not a SQLite database"),
+            credentials: vec![test_credential("account", "replacement credential")],
+        };
+        let plaintext = serde_json::to_vec(&archive).unwrap();
+        let zipped = gzip(&plaintext).unwrap();
+        let salt = [3u8; SALT_LEN];
+        let nonce = [5u8; NONCE_LEN];
+        let mut key = derive_key("correct horse", &salt).unwrap();
+        let header = build_header(&salt, &nonce);
+        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
+        let ciphertext = cipher
+            .encrypt(
+                Nonce::from_slice(&nonce),
+                Payload {
+                    msg: &zipped,
+                    aad: &header,
+                },
+            )
+            .unwrap();
+        key.fill(0);
+        let mut payload = header;
+        payload.extend_from_slice(&ciphertext);
+        let backup = dir.join("crafted.ghostftpbak");
+        std::fs::write(&backup, payload).unwrap();
+        let mut vault = TestVault::default();
+        vault.values.insert(
+            (crate::credentials::SERVICE.to_string(), "account".to_string()),
+            "existing credential".to_string(),
+        );
+        assert!(import_with_vault(&dir, "correct horse", &backup, true, &mut vault).is_err());
+        assert_eq!(vault.write_count, 0, "no keyring mutation before DB validation");
+        assert_eq!(
+            vault
+                .values
+                .get(&(crate::credentials::SERVICE.to_string(), "account".to_string()))
+                .map(String::as_str),
+            Some("existing credential")
+        );
+        assert_eq!(std::fs::read(dir.join("profiles.json")).unwrap(), b"original user profiles");
+        assert_eq!(std::fs::read(&original_db).unwrap(), b"original database untouched");
+        assert!(!dir.join("ghostftp.db.restore").exists());
+        assert!(!dir.join("profiles.json.restore").exists());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn sqlite_restore_preflight_accepts_valid_snapshot_and_cleans_up() {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-sqlite-validation-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let database = dir.join("ghostftp.db");
+        {
+            let db = Db::open(&database).unwrap();
+            db.settings_set("name", "\\"saved\\"").unwrap();
+        }
+        let bytes = std::fs::read(&database).unwrap();
+        validate_sqlite_restore_bytes(&dir, &bytes).unwrap();
+        assert_eq!(
+            std::fs::read_dir(&dir).unwrap().filter_map(Result::ok).count(),
+            1,
+            "verification must not leave plaintext SQLite copies"
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn failed_vault_import_does_not_stage_or_replace_profile_or_db() {
         let src_dir =
             std::env::temp_dir().join(format!("ghostftp-vault-src-{}", uuid::Uuid::new_v4()));
