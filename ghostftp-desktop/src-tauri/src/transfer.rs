@@ -4491,6 +4491,20 @@ fn is_transient(e: &anyhow::Error) -> bool {
     )
 }
 
+/// GET/HEAD downloads are safe to retry after bounded HTTP rate limits and
+/// gateway outages. Mutating cloud POST/PUT operations deliberately use the
+/// original narrower retry classifier: an ambiguous 5xx response might follow
+/// a successful create and replaying it could duplicate user files.
+fn is_transient_download(error: &anyhow::Error) -> bool {
+    if is_transient(error) {
+        return true;
+    }
+    let message = format!("{error:#}").to_ascii_lowercase();
+    ["http 408", "http 425", "http 429", "http 500", "http 502", "http 503", "http 504"]
+        .iter()
+        .any(|status| message.contains(status))
+}
+
 /// Re-enter the global FIFO after retry backoff without monopolizing a
 /// concurrency slot. Keeping retries in the same queue as fresh work prevents
 /// an offline endpoint from repeatedly jumping ahead of already-waiting sites.
@@ -4589,7 +4603,7 @@ async fn run_download_task(
                 }
                 continue;
             }
-            Err(e) if auto_retries < max_auto_retries && is_transient(&e) => {
+            Err(e) if auto_retries < max_auto_retries && is_transient_download(&e) => {
                 auto_retries += 1;
                 let delay = match auto_retries {
                     1 => 5,
@@ -5587,6 +5601,20 @@ mod tests {
             "Permission denied (os error 13)"
         )));
         assert!(!is_transient(&anyhow::anyhow!("No such file or directory")));
+    }
+
+    #[test]
+    fn rate_limited_downloads_retry_but_mutating_cloud_uploads_do_not_replay() {
+        for code in [408, 425, 429, 500, 502, 503, 504] {
+            let error = anyhow::anyhow!("download failed: HTTP {code}");
+            assert!(is_transient_download(&error), "{code}");
+            assert!(!is_transient(&error), "upload must not blindly replay {code}");
+        }
+        for code in [400, 401, 403, 404, 409, 412] {
+            let error = anyhow::anyhow!("download failed: HTTP {code}");
+            assert!(!is_transient_download(&error), "{code}");
+        }
+        assert!(is_transient_download(&anyhow::anyhow!("connection reset by peer")));
     }
 
     #[test]
