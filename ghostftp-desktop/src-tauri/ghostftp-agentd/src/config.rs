@@ -83,10 +83,23 @@ impl Config {
         if !path.exists() {
             return Ok(Self::default());
         }
+        let metadata = std::fs::symlink_metadata(path).context("inspect agent config")?;
+        anyhow::ensure!(metadata.file_type().is_file(), "agent config must be a regular file");
+        anyhow::ensure!(metadata.len() <= 1024 * 1024, "agent config exceeds safe maximum");
         let bytes = std::fs::read(path).with_context(|| format!("read config {path:?}"))?;
+        let legacy_missing_policy: bool = serde_json::from_slice::<serde_json::Value>(&bytes)
+            .ok().and_then(|value| value.as_object().map(|map| !map.contains_key("policy")))
+            .unwrap_or(false);
         let mut cfg: Self =
             serde_json::from_slice(&bytes).with_context(|| format!("parse config {path:?}"))?;
+        anyhow::ensure!(cfg.peers.len() <= 128, "agent has too many paired devices");
         let mut migrated = false;
+        if legacy_missing_policy && !cfg.peers.is_empty() {
+            // Older versions defaulted the daemon-wide policy to allow-all.
+            // Preserve the stored effective grants during a one-time migration.
+            cfg.policy = Policy { allow_exec: true, allow_write: true };
+            migrated = true;
+        }
         for peer in &mut cfg.peers {
             if peer.permissions.is_none() {
                 peer.permissions = Some(PeerPermissions {
@@ -131,6 +144,8 @@ impl Config {
             out.write_all(&bytes).context("write staged agent config")?;
             out.sync_all().context("sync staged agent config")?;
             std::fs::rename(&tmp, path).context("atomically replace agent config")?;
+            #[cfg(unix)]
+            std::fs::File::open(parent)?.sync_all().context("sync agent config directory")?;
             Ok(())
         })();
         if result.is_err() {
@@ -169,12 +184,14 @@ impl Config {
     /// Add or refresh a pinned peer (idempotent on the key).
     pub fn upsert_peer(&mut self, name: &str, public_key: &str) {
         let paired_at = now_millis();
+        let label: String = name.chars().filter(|c| !c.is_control()).take(80).collect();
+        let label = if label.trim().is_empty() { "paired controller".to_string() } else { label };
         if let Some(existing) = self.peers.iter_mut().find(|p| p.public_key == public_key) {
-            existing.name = name.to_string();
+            existing.name = label.clone();
             existing.paired_at = paired_at;
         } else {
             self.peers.push(Peer {
-                name: name.to_string(),
+                name: label,
                 public_key: public_key.to_string(),
                 paired_at,
                 permissions: Some(PeerPermissions::default()),
@@ -193,6 +210,12 @@ pub fn config_dir(override_dir: Option<PathBuf>) -> Result<PathBuf> {
             .join("ghostftp-agentd"),
     };
     std::fs::create_dir_all(&dir).with_context(|| format!("create config dir {dir:?}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{PermissionsExt};
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700))
+            .context("restrict agent config directory")?;
+    }
     Ok(dir)
 }
 
