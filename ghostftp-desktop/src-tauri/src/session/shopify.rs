@@ -183,7 +183,10 @@ impl ShopifySession {
         if !status.is_success() {
             return Err(shopify_http_error("request", status));
         }
-        let text = resp.text().await.context("read Shopify API JSON response")?;
+        let text = resp
+            .text()
+            .await
+            .context("read Shopify API JSON response")?;
         if text.trim().is_empty() {
             return Ok(Value::Null);
         }
@@ -368,9 +371,7 @@ pub async fn shopify_connect(profile: &ConnectionProfile) -> Result<ShopifySessi
                 "Shopify store not found (404). Check the store domain ({shop})."
             ))
         }
-        s if !s.is_success() => {
-            return Err(shopify_http_error("theme validation", s))
-        }
+        s if !s.is_success() => return Err(shopify_http_error("theme validation", s)),
         _ => {}
     }
     let text = resp.text().await.context("read Shopify theme listing")?;
