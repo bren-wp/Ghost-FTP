@@ -285,6 +285,7 @@ pub async fn agent_host_set_enabled(
     state: State<'_, AppState>,
 ) -> Result<HostStatus, String> {
     let host = &state.agent_host;
+    let old = host.settings.lock().await.clone();
     {
         let mut s = host.settings.lock().await;
         s.enabled = enabled;
@@ -300,6 +301,12 @@ pub async fn agent_host_set_enabled(
     }
     host.persist().await.map_err(err)?;
     if enabled {
+        let settings = host.settings.lock().await.clone();
+        if old.port != settings.port || old.bind_address != settings.bind_address {
+            // Binding changes must take effect immediately rather than leaving
+            // an old 0.0.0.0 listener running unnoticed.
+            host.stop().await;
+        }
         host.start(&app).await.map_err(err)?;
     } else {
         host.stop().await;
@@ -431,8 +438,8 @@ pub async fn agent_host_set_peer_permissions(
     host.status().await.map_err(err)
 }
 
-/// Remove a pinned controller. Its next connection attempt is refused; an
-/// already-open session lasts until it disconnects.
+/// Remove a controller's pin. All already-open sessions re-check this pin
+/// before their next command and terminate when it is revoked.
 #[tauri::command]
 pub async fn agent_host_revoke_peer(
     public_key: String,
@@ -444,8 +451,10 @@ pub async fn agent_host_revoke_peer(
     match &*running {
         Some(r) => {
             let mut cfg = r.daemon.config.lock().await;
-            cfg.peers.retain(|p| p.public_key != public_key);
-            cfg.save(&config_path(&dir)).map_err(err)?;
+            let mut updated = cfg.clone();
+            updated.peers.retain(|p| p.public_key != public_key);
+            updated.save(&config_path(&dir)).map_err(err)?;
+            *cfg = updated;
         }
         None => {
             let mut cfg = Config::load(&config_path(&dir)).map_err(err)?;
