@@ -666,6 +666,24 @@ pub fn cloud_oauth_availability() -> CloudOAuthAvailability {
     }
 }
 
+/// Clean up a newly authorized account if profile persistence subsequently
+/// fails. Provider names are strictly allowlisted to avoid arbitrary vault access.
+#[tauri::command]
+pub fn cloud_oauth_discard(profile_id: String, provider: String) -> Result<(), String> {
+    if uuid::Uuid::parse_str(&profile_id).is_err() {
+        return Err("Invalid temporary cloud profile ID".into());
+    }
+    let service = match provider.as_str() {
+        "gdrive" => crate::session::gdrive::GDRIVE_SERVICE,
+        "onedrive" => crate::session::onedrive::ONEDRIVE_SERVICE,
+        "dropbox" => crate::session::dropbox::DROPBOX_SERVICE,
+        "box" => crate::session::boxdrive::BOX_SERVICE,
+        _ => return Err("Unsupported cloud provider".into()),
+    };
+    crate::oauth::delete_tokens(service, &profile_id);
+    Ok(())
+}
+
 // ---------- Dropbox (OAuth cloud) ----------
 
 /// Result of a Dropbox authorization, shown to the user to confirm the account.
