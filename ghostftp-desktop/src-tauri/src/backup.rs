@@ -537,7 +537,12 @@ fn import_with_vault(
 
     // A pending restore belongs to a previous operation; never overwrite it
     // or silently delete its staging when the archive omits an optional file.
-    for name in ["profiles.json", "bridge.json", "foldersync.json", "ghostftp.db"] {
+    for name in [
+        "profiles.json",
+        "bridge.json",
+        "foldersync.json",
+        "ghostftp.db",
+    ] {
         match std::fs::symlink_metadata(dir.join(format!("{name}.restore"))) {
             Ok(_) => bail!("A staged restore already exists; complete recovery before importing another backup"),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -1056,13 +1061,19 @@ mod tests {
         ];
         let previous = restore_credentials_with_vault(&credentials, &mut vault).unwrap();
         assert_eq!(
-            vault.values.get(&(service.clone(), "existing".into())).map(String::as_str),
+            vault
+                .values
+                .get(&(service.clone(), "existing".into()))
+                .map(String::as_str),
             Some("RESTORED_PRIVATE_SENTINEL")
         );
         // Simulate a disk-full or denied-create error after the vault writes.
         rollback_restored_credentials(&credentials, &previous, &mut vault).unwrap();
         assert_eq!(
-            vault.values.get(&(service.clone(), "existing".into())).map(String::as_str),
+            vault
+                .values
+                .get(&(service.clone(), "existing".into()))
+                .map(String::as_str),
             Some("ORIGINAL_PRIVATE_SENTINEL")
         );
         assert!(!vault.values.contains_key(&(service, "new".to_string())));
@@ -1079,7 +1090,8 @@ mod tests {
         let previous = restore_credentials_with_vault(&credentials, &mut vault).unwrap();
         vault.fail_write_at = Some(vault.write_count + 1);
         let error = rollback_restored_credentials(&credentials, &previous, &mut vault)
-            .unwrap_err().to_string();
+            .unwrap_err()
+            .to_string();
         assert!(error.contains("rollback incomplete"));
         assert!(!error.contains("ORIGINAL_PRIVATE_SENTINEL"));
         assert!(!error.contains("NEW_PRIVATE_SENTINEL"));
