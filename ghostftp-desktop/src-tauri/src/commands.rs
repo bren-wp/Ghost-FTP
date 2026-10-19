@@ -657,8 +657,12 @@ pub struct DropboxAuthResult {
 /// and return the account label. Mirrors agent pairing: the editor persists the
 /// profile once this succeeds, so a cancelled flow leaves no saved connection.
 #[tauri::command]
-pub async fn dropbox_authorize(profile_id: String) -> Result<DropboxAuthResult, String> {
-    let config = crate::session::dropbox::dropbox_config();
+pub async fn dropbox_authorize(
+    profile_id: String,
+    client_id: Option<String>,
+) -> Result<DropboxAuthResult, String> {
+    let mut config = crate::session::dropbox::dropbox_config();
+    crate::oauth::use_client_id(&mut config, client_id.as_deref()).map_err(err)?;
     let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
         .await
         .map_err(err)?;
@@ -712,8 +716,12 @@ pub async fn dropbox_authorize(profile_id: String) -> Result<DropboxAuthResult, 
 /// Run the interactive OneDrive OAuth flow, store tokens in the keychain keyed by
 /// `profile_id`, and return the account label. Same shape as `dropbox_authorize`.
 #[tauri::command]
-pub async fn onedrive_authorize(profile_id: String) -> Result<DropboxAuthResult, String> {
-    let config = crate::session::onedrive::onedrive_config();
+pub async fn onedrive_authorize(
+    profile_id: String,
+    client_id: Option<String>,
+) -> Result<DropboxAuthResult, String> {
+    let mut config = crate::session::onedrive::onedrive_config();
+    crate::oauth::use_client_id(&mut config, client_id.as_deref()).map_err(err)?;
     let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
         .await
         .map_err(err)?;
@@ -830,8 +838,12 @@ pub async fn dynamics_authorize(
 
 /// Run the interactive Google Drive OAuth flow, store tokens, return the label.
 #[tauri::command]
-pub async fn gdrive_authorize(profile_id: String) -> Result<DropboxAuthResult, String> {
-    let config = crate::session::gdrive::gdrive_config();
+pub async fn gdrive_authorize(
+    profile_id: String,
+    client_id: Option<String>,
+) -> Result<DropboxAuthResult, String> {
+    let mut config = crate::session::gdrive::gdrive_config();
+    crate::oauth::use_client_id(&mut config, client_id.as_deref()).map_err(err)?;
     let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
         .await
         .map_err(err)?;
@@ -879,8 +891,12 @@ pub async fn gdrive_authorize(profile_id: String) -> Result<DropboxAuthResult, S
 
 /// Run the interactive Box OAuth flow, store tokens, return the label.
 #[tauri::command]
-pub async fn box_authorize(profile_id: String) -> Result<DropboxAuthResult, String> {
-    let config = crate::session::boxdrive::box_config();
+pub async fn box_authorize(
+    profile_id: String,
+    client_id: Option<String>,
+) -> Result<DropboxAuthResult, String> {
+    let mut config = crate::session::boxdrive::box_config();
+    crate::oauth::use_client_id(&mut config, client_id.as_deref()).map_err(err)?;
     let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
         .await
         .map_err(err)?;
