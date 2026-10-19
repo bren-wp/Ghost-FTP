@@ -1305,19 +1305,18 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch("CREATE TABLE preserved_user_data (value TEXT NOT NULL); INSERT INTO preserved_user_data VALUES ('keep');").unwrap();
         for unsupported in [-1, MIGRATIONS.len() as i64 + 1] {
-            conn.pragma_update(None, "user_version", unsupported).unwrap();
+            conn.pragma_update(None, "user_version", unsupported)
+                .unwrap();
             assert!(migrate(&conn).is_err());
-            let after: String = conn.query_row(
-                "SELECT value FROM preserved_user_data",
-                [],
-                |row| row.get(0),
-            ).unwrap();
+            let after: String = conn
+                .query_row("SELECT value FROM preserved_user_data", [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
             assert_eq!(after, "keep");
-            let version: i64 = conn.query_row(
-                "PRAGMA user_version",
-                [],
-                |row| row.get(0),
-            ).unwrap();
+            let version: i64 = conn
+                .query_row("PRAGMA user_version", [], |row| row.get(0))
+                .unwrap();
             assert_eq!(version, unsupported);
         }
     }
