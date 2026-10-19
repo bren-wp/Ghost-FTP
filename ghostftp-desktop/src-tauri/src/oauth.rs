@@ -58,7 +58,10 @@ impl std::fmt::Debug for TokenSet {
                 &self.refresh_token.as_ref().map(|_| "[REDACTED]"),
             )
             .field("expires_at", &self.expires_at)
-            .field("client_id", &self.client_id.as_ref().map(|_| "[configured]"))
+            .field(
+                "client_id",
+                &self.client_id.as_ref().map(|_| "[configured]"),
+            )
             .finish()
     }
 }
@@ -150,7 +153,9 @@ pub fn use_client_id(config: &mut OAuthConfig, candidate: Option<&str>) -> Resul
         anyhow::ensure!(
             !id.is_empty()
                 && id.len() <= 256
-                && id.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_' | b'.' | b'~')),
+                && id
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_' | b'.' | b'~')),
             "OAuth application ID has invalid characters or length"
         );
         config.client_id = id.to_string();
@@ -613,7 +618,6 @@ mod tests {
         assert!(debug.contains("[REDACTED]"));
     }
 
-
     #[test]
     fn user_supplied_client_id_is_validated_and_stored_without_changing_existing_tokens() {
         let mut config = OAuthConfig {
@@ -624,7 +628,13 @@ mod tests {
             extra_auth_params: vec![],
         };
         assert!(use_client_id(&mut config, None).is_err());
-        for invalid in ["", "https://example.com", "key with spaces", "a/b", "x?token=secret"] {
+        for invalid in [
+            "",
+            "https://example.com",
+            "key with spaces",
+            "a/b",
+            "x?token=secret",
+        ] {
             assert!(use_client_id(&mut config, Some(invalid)).is_err());
         }
         use_client_id(&mut config, Some(" app-123.apps.googleusercontent.com ")).unwrap();
@@ -634,8 +644,14 @@ mod tests {
         let old = r#"{"access_token":"AT","refresh_token":"RT","expires_at":123}"#;
         let old: TokenSet = serde_json::from_str(old).unwrap();
         assert_eq!(old.client_id, None);
-        let new = TokenSet { client_id: Some(config.client_id.clone()), ..old };
-        assert_eq!(serde_json::from_str::<TokenSet>(&serde_json::to_string(&new).unwrap()).unwrap(), new);
+        let new = TokenSet {
+            client_id: Some(config.client_id.clone()),
+            ..old
+        };
+        assert_eq!(
+            serde_json::from_str::<TokenSet>(&serde_json::to_string(&new).unwrap()).unwrap(),
+            new
+        );
     }
 
     #[test]
