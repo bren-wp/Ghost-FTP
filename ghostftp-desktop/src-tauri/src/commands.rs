@@ -643,6 +643,36 @@ pub async fn pair_agent(host: String, port: u16, code: String) -> Result<AgentPa
     })
 }
 
+// ---------- Read-only storage access probe for cloud setup ----------
+
+/// Object-store constructors do not contact the provider. An explicit
+/// read-only list is required before claiming that credentials work.
+#[tauri::command]
+pub async fn probe_cloud_storage(profile: ConnectionProfile) -> Result<(), String> {
+    let result = tokio::time::timeout(Duration::from_secs(40), async {
+        match profile.protocol.as_str() {
+            "s3" | "gcs" | "azure" => {
+                let session = crate::session::object::object_connect(&profile).await?;
+                let fs = crate::remotefs::object::ObjectFs::new(Arc::new(session));
+                fs.list_dir("/").await?;
+            }
+            "webdav" => {
+                crate::session::webdav::webdav_connect(&profile).await?;
+            }
+            _ => anyhow::bail!("Unsupported cloud storage probe"),
+        }
+        Ok::<(), anyhow::Error>(())
+    })
+    .await;
+    match result {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(_)) => Err(
+            "Cloud connection test failed. Check the HTTPS endpoint, access credentials, bucket and listing permissions.".into(),
+        ),
+        Err(_) => Err("Cloud connection test timed out after 40 seconds".into()),
+    }
+}
+
 // ---------- Cloud account connection (desktop-only OAuth) ----------
 
 /// Reports whether this build has a public OAuth client ID for each cloud
