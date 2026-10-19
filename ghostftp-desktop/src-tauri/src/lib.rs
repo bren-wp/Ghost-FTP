@@ -578,6 +578,8 @@ mod init_script_tests {
             "https://ghostftp.com/hr/privacy",
             "https://ghostftp.com/hr/terms",
             "https://github.com/bren-wp/Ghost-FTP",
+            "https://mega.nz/cmd",
+            "https://proton.me/blog/proton-drive-cli",
         ] {
             let parsed = url::Url::parse(allowed).unwrap();
             assert!(
@@ -588,6 +590,14 @@ mod init_script_tests {
 
         for blocked in [
             "http://github.com/bren-wp/Ghost-FTP",
+            "https://mega.nz/cmd?token=secret",
+            "https://mega.nz/cmd/../cmd",
+            "https://mega.nz/cmd#account",
+            "https://www.mega.nz/cmd",
+            "https://mega.nz.evil.example/cmd",
+            "https://proton.me/blog/proton-drive-cli?redirect=evil",
+            "https://proton.me/blog/proton-drive-cli/",
+            "https://login.proton.me/blog/proton-drive-cli",
             "https://ghostftp.com/support/",
             "https://ghostftp.com/hr/support/",
             "https://www.ghostftp.com/hr/support",
