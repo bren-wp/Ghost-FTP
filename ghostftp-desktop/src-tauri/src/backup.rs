@@ -568,23 +568,18 @@ fn rollback_database_files(moved: &[(PathBuf, PathBuf)]) -> Result<()> {
 /// Commit an already-staged SQLite snapshot only after validating it.
 /// Previous database, WAL and SHM files are kept in unique recovery siblings;
 /// they are NEVER removed before the new snapshot is in place.
-fn promote_staged_database(dir: &Path) -> Result<()> {
+/// Pure preflight of a staged SQLite image. No live database file is moved
+/// until this succeeds. Retain any user-provided invalid staging for recovery.
+fn validate_staged_database(dir: &Path) -> Result<bool> {
     let staged = dir.join("ghostftp.db.restore");
     if !regular_file_if_present(&staged)? {
-        return Ok(());
+        return Ok(false);
     }
-
-    // The portable archive contains a checkpointed single-file snapshot.
-    // Promoting only its main file while leaving an uncheckpointed WAL beside
-    // it would silently lose data. Preserve it for manual recovery instead.
     for suffix in ["-wal", "-shm"] {
         if regular_file_if_present(&dir.join(format!("ghostftp.db.restore{suffix}")))? {
             anyhow::bail!("staged SQLite restore has unexpected WAL/SHM sidecars");
         }
     }
-
-    // A valid SQLite header is insufficient. Refuse corrupt or truncated
-    // snapshots before moving any original database files.
     let candidate =
         rusqlite::Connection::open_with_flags(&staged, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
             .context("open staged SQLite backup read-only")?;
@@ -595,7 +590,48 @@ fn promote_staged_database(dir: &Path) -> Result<()> {
         integrity == "ok",
         "staged SQLite backup failed integrity check"
     );
-    drop(candidate);
+    Ok(true)
+}
+
+/// Complete the non-mutating checks before any restore file is promoted.
+/// A stale corrupt restore must not prevent a healthy installed app from
+/// opening, nor be mistaken for authorization to erase existing data.
+pub fn preflight_pending_restore(dir: &Path) -> Result<()> {
+    validate_staged_database(dir)?;
+    for name in CONFIG_FILES {
+        let staged = dir.join(format!("{name}.restore"));
+        if !regular_file_if_present(&staged)? {
+            continue;
+        }
+        let bytes = std::fs::read(&staged)
+            .with_context(|| format!("read staged backup config {name}"))?;
+        if *name == "profiles.json" {
+            let profiles: Vec<crate::profiles::ConnectionProfile> =
+                serde_json::from_slice(&bytes).context("invalid staged profile metadata")?;
+            for profile in profiles {
+                let unsafe_secret = match profile.auth {
+                    crate::profiles::AuthMethod::Password { password } => !password.is_empty(),
+                    crate::profiles::AuthMethod::Key { passphrase, .. } => {
+                        passphrase.as_deref().is_some_and(|value| !value.is_empty())
+                    }
+                    _ => false,
+                };
+                anyhow::ensure!(!unsafe_secret, "staged profiles contain unprotected credentials");
+            }
+        } else {
+            serde_json::from_slice::<serde_json::Value>(&bytes)
+                .with_context(|| format!("invalid staged configuration {name}"))?;
+        }
+    }
+    Ok(())
+}
+
+/// Promote only a valid staged SQLite snapshot, retaining all prior DB files.
+fn promote_staged_database(dir: &Path) -> Result<()> {
+    if !validate_staged_database(dir)? {
+        return Ok(());
+    }
+    let staged = dir.join("ghostftp.db.restore");
 
     let recovery_base = format!("ghostftp.db.before-restore-{}", uuid::Uuid::new_v4());
     let mut to_move = Vec::new();
@@ -639,6 +675,7 @@ fn promote_staged_database(dir: &Path) -> Result<()> {
 /// configs. Never swallow filesystem errors: on failure startup must stop so
 /// the user's remaining original/recovery files are not silently replaced.
 pub fn apply_pending_restore(dir: &Path) -> Result<()> {
+    preflight_pending_restore(dir)?;
     promote_staged_database(dir)?;
     for name in CONFIG_FILES {
         let staged = dir.join(format!("{name}.restore"));
@@ -1213,6 +1250,25 @@ mod tests {
         };
 
         assert!(validate_archive(&archive).is_err());
+    }
+
+    #[test]
+    fn preflight_rejects_invalid_staged_profile_without_touching_live_database() {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-preflight-config-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let live = dir.join("ghostftp.db");
+        std::fs::write(&live, b"original database").unwrap();
+        std::fs::write(dir.join("profiles.json.restore"), b"{invalid profile data").unwrap();
+        assert!(preflight_pending_restore(&dir).is_err());
+        assert_eq!(std::fs::read(&live).unwrap(), b"original database");
+        assert_eq!(
+            std::fs::read(dir.join("profiles.json.restore")).unwrap(),
+            b"{invalid profile data"
+        );
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
