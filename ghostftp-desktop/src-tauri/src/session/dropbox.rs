@@ -20,7 +20,12 @@ const DEFAULT_TOKEN_URL: &str = "https://api.dropboxapi.com/oauth2/token";
 /// `files.metadata.read`, `files.content.read`, and `files.content.write`
 /// scopes, then paste the App key here (or set `GHOSTFTP_DROPBOX_APP_KEY`). PKCE
 /// means no app secret is needed.
-const DROPBOX_APP_KEY: &str = "";
+// Public provider application ID injected during Windows/Linux compilation.
+// Runtime GHOSTFTP_* overrides still support local developer builds.
+const DROPBOX_APP_KEY: &str = match option_env!("GHOSTFTP_DROPBOX_APP_KEY") {
+    Some(id) => id,
+    None => "",
+};
 
 fn env_or(key: &str, default: &str) -> String {
     std::env::var(key)
