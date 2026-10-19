@@ -18,6 +18,7 @@ fn command(operation: &str, service: &str, account: &str) -> Command {
     let mut command = Command::new("secret-tool");
     command
         .arg(operation)
+        .arg("--") // Prevent untrusted profile ids from becoming CLI options.
         .args(["application", "ghostftp", "service", service, "account", account])
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -53,6 +54,7 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
     command
         .arg("store")
         .arg("--label=Ghost FTP")
+        .arg("--")
         .args(["application", "ghostftp", "service", service, "account", account])
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
