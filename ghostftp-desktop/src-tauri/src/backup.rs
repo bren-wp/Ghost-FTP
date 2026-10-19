@@ -802,13 +802,11 @@ mod tests {
             b"pre-existing file must survive"
         );
         assert!(
-            std::fs::read_dir(&src_dir)
+            std::fs::read_dir(&src_dir).unwrap().all(|entry| !entry
                 .unwrap()
-                .all(|entry| !entry
-                    .unwrap()
-                    .file_name()
-                    .to_string_lossy()
-                    .starts_with(".ghostftp-db-backup-")),
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".ghostftp-db-backup-")),
             "no unique SQLite export snapshot may remain after success"
         );
         assert!(summary.has_bridge && summary.has_sync);
