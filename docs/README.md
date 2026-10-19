@@ -2,10 +2,12 @@
 
 Ghost FTP documentation is organized around the current canonical product state, stable operational guidance and historical provenance.
 
+[Full repository dead-code audit](audits/FULL_REPOSITORY_DEAD_CODE_2026_10_19.md) — advisory candidates and CI verification.
+
 ## Current state
 
-- Active source/release cycle: **0.95.46 (in development, preview)**
-- Latest canonical release: **0.95.45**
+- Active source/release cycle: **0.95.47 (in development, preview)**
+- Latest canonical release: **0.95.46**
 - Live publication state: GitHub Releases is authoritative
 - Version source of truth: `/version.json`
 - Production desktop source: `/ghostftp-desktop`

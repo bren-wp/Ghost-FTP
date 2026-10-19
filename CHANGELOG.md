@@ -1,3 +1,10 @@
+## 0.95.47 — Repository-wide cross-platform source reachability and dead-code audit (development preview) — 19 October 2026
+
+- Add conservative advisory source inventory for Windows/Linux Rust/React, Android Kotlin and resource files, macOS Swift, Go runtime/installer and operational scripts, with JSON evidence in CI.
+- Add regression tests for symbol matching, false-positive candidate classification, OS entrypoint protection and symlink-safe scan traversal.
+- Preserve all installed-release/upgrade, credential, migration, signed-bundle, native platform and dynamic runtime entrypoints. No unproven dead-code removal or full-device coverage claim.
+- Continue Android Lint/R8, SwiftPM, Rust Clippy, TypeScript and Go regression gates; verify exact SHA before merge or release.
+
 ## 0.95.46 — Windows/Linux transfer reliability and bounded cloud uploads (development preview) — 19 October 2026
 
 - Remove stale asynchronous concurrency shrink races when changing transfer parallelism between 1/4/8/16/32 active slots.
