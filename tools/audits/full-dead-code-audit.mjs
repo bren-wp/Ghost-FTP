@@ -19,8 +19,11 @@ export function walk(directory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const next = path.join(directory, entry.name);
     if (entry.isSymbolicLink()) continue;
-    if (entry.isDirectory() && !ignoredDirs.has(entry.name)) result.push(...walk(next));
-    else if (entry.isFile()) result.push(next);
+    if (entry.isDirectory()) {
+      // docs/build is tracked documentation, unlike generated build outputs.
+      if (ignoredDirs.has(entry.name) && !(entry.name === "build" && path.basename(directory) === "docs")) continue;
+      result.push(...walk(next));
+    } else if (entry.isFile()) result.push(next);
   }
   return result;
 }
@@ -82,7 +85,7 @@ export function audit(directory = root) {
   const scripts = files.filter((p) => /\.(?:sh|mjs|py)$/.test(p) &&
     [".github/scripts/", "ghostftp-desktop/scripts/", "android/scripts/", "macos/scripts/", "updates/scripts/", "tools/"]
       .some((prefix) => p.startsWith(inside(prefix))));
-  const refs = files.filter((p) => /\.(?:md|mjs|js|json|yaml|yml|sh|py|kts)$/.test(p))
+  const refs = files.filter((p) => /\.(?:md|mjs|js|json|yaml|yml|sh|py|kts|rs|kt|swift|ts|tsx)$/.test(p))
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
   const possibleUnreferencedScripts = scripts.filter((file) => {
     const relative = posix(path.relative(directory, file));
@@ -101,7 +104,7 @@ export function audit(directory = root) {
   return {
     method: "Source-level conservative reference inventory; CANDIDATES are not proven dead code",
     counts: {
-      trackedWorkingTreeFiles: files.length,
+      workingTreeFiles: files.length,
       typescript: typescript.length,
       rust: rust.length,
       kotlin: kotlin.length,

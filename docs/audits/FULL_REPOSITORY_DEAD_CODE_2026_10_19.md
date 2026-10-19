@@ -21,7 +21,7 @@ The new `tools/audits/full-dead-code-audit.mjs` traverses source files without f
 
 ## Decisions
 
-1. **No unproven files removed:** no production source file has been proved dead across all relevant OS targets, CI/release, migrations, configured features and dynamic call sites. Removing by a single search or import-graph result would be unsafe.
+1. **No unproven production files removed:** production modules, credential/recovery paths and resources are untouched. Six disconnected legacy developer helpers were removed after their entrypoints and dependencies were checked; unreferenced runtime code is otherwise only advisory.
 2. **Source-only candidates are advisory:** a module without a textual cross-file type reference may still contain top-level functions, extension methods, OS callbacks or Swift/Kotlin reflection. Android resources may be retrieved dynamically and be needed by the launcher, translations or in-app tests.
 3. **Keep migration and security code:** SQLite forward-only migrations, profile JSON upgrades, Argon2id backup compatibility, Windows Credential Manager, Linux kernel-keyutils references pending verified Secret Service migration, SSH host keys, updater/signing and password redaction are not candidates for speculative removal.
 4. **Do not replace runtime acceptance with CI:** real cloud logins, massive transfers, >4 GiB SHA-256 verified tests, resource lifetime profiling and actual target-device UI parity remain separate QA requirements.
@@ -33,3 +33,10 @@ Before deleting a candidate, demonstrate its declaration and every production/te
 ## Remaining limitations
 
 The inventory cannot prove whole-program semantic reachability, dynamic reflection, OS callback use, symbol-level dead code in every Swift/Kotlin/Go package, false-positive-free resource cleanup, real system keyring acceptance, power-loss recovery or manual release tooling behavior. The CI-produced JSON is the review queue, not evidence for automatic deletion. No performance, storage or binary-size savings are claimed without reproducible measurements.
+
+## Proven legacy developer-only cleanup (not end-user code)
+
+- Removed five obsolete Puppeteer smoke runners: `verify-brand-icons.mjs`, `verify-notifications.mjs`, `verify-shortcuts.mjs`, `verify-terminal.mjs` and `verify-updater.mjs`. They all require `npm run dev:mock`, which is no longer defined by `ghostftp-desktop/package.json`. Repository search confirmed no active CI/package caller; existing TypeScript UI contracts and native tests remain.
+- Removed `process-icon.py`, the unreferenced older bitmap/lighthouse preprocessing helper. Current approved vector icon generation remains implemented in `gen-brand-icons.mjs` / `init-icons.mjs` and the authoritative assets are untouched.
+- Removed the Puppeteer-only development dependency and its exclusively unreferenced lockfile packages. This is a developer dependency cleanup; no production binary size or performance savings are asserted without measurement.
+- **Preserved** Linux `install-agentd.sh`, which the Rust CLI references, and one-off donation QR generation (a manual developer task). The audit now scans `.rs` and other language files when establishing script references. `docs/build` is not mistaken for a generated `build` directory.

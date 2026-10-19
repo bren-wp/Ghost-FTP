@@ -39,15 +39,23 @@ test("all platform roots are checked; no symlink recursion", () => {
     put("macos/Sources/App.swift", "@main\nstruct App {}");
     put("tools/ghostftp-installer/main.go", "package main\nfunc main() {}");
     put("tools/ghostftp-runtime/main.go", "package main\nfunc main() {}");
+    put("docs/build/STATUS.md", "build documentation is source");
+    put("android/app/build/generated.txt", "generated - ignore");
     const before = audit(root);
     assert.deepEqual(before.entrypointBlockers, []);
     assert.equal(before.counts.go, 2);
     const fake = path.join(root, "macos", "loop");
     fs.symlinkSync(root, fake, "dir");
-    assert.equal(walk(root).length, 7);
+    assert.equal(walk(root).length, 8);
     fs.rmSync(path.join(root, "macos/Sources/App.swift"));
     assert.deepEqual(audit(root).entrypointBlockers, ["macOS @main source missing"]);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("obsolete npm dev:mock automation must not return", () => {
+  const scriptsDir = path.resolve("ghostftp-desktop/scripts");
+  const old = walk(scriptsDir).filter((p) => /\.(?:mjs|js)$/.test(p) && /npm[^\n]*dev:mock/.test(fs.readFileSync(p, "utf8")));
+  assert.deepEqual(old, [], "deprecated unconfigured mock server scripts are not runnable QA");
 });
