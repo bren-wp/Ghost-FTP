@@ -5219,10 +5219,10 @@ mod tests {
         tokio::fs::create_dir_all(&root).await.unwrap();
         let path = root.join("sparse-large-file");
         let file = tokio::fs::File::create(&path).await.unwrap();
-        file.set_len(4u64 * 1024 * 1024 * 1024 + 1).await.unwrap();
+        file.set_len(MAX_BUFFERED_CLOUD_UPLOAD + 1).await.unwrap();
         drop(file);
         assert!(
-            read_cloud_upload_bounded(&path, 4u64 * 1024 * 1024 * 1024 + 1)
+            read_cloud_upload_bounded(&path, MAX_BUFFERED_CLOUD_UPLOAD + 1)
                 .await
                 .is_err()
         );
