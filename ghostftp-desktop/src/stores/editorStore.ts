@@ -5,6 +5,7 @@ import { toast } from "./toastStore";
 import { baseName, fmtSize } from "@/lib/format";
 import { messageOf, toastError } from "@/lib/errors";
 import type { SessionId } from "@/lib/types";
+import { createSingleFlightGate } from "@/lib/singleFlightGate";
 
 // Tracks active edit sessions so the UI can show a "Editing N files" pill
 // + per-file save notifications. The store also installs the global
@@ -12,6 +13,8 @@ import type { SessionId } from "@/lib/types";
 // Make the first listener registration a single-flight operation: overlapping
 // edits must never subscribe twice and duplicate notifications.
 let listenerSetup: Promise<void> | null = null;
+// Prevent overlapping native startEdit calls before builtinEditId is assigned.
+const builtinLaunchGate = createSingleFlightGate();
 
 export interface ActiveEdit {
   editId: string;
@@ -133,33 +136,39 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
 
   startBuiltinEditing: async (sessionId, remotePath) => {
-    if (get().builtinEditId) {
+    if (get().builtinEditId || !builtinLaunchGate.tryAcquire()) {
       toast.info("Editor already open", "Finish or close the current editor first.");
       return;
     }
-    await get().ensureListeners();
-    let ev;
     try {
-      ev = await ipc.startEdit(sessionId, remotePath, undefined, true);
-    } catch (error) {
-      toastError(error, "Couldn't open built-in editor");
-      throw error;
-    }
-    set((state) => ({
-      builtinEditId: ev.editId,
-      edits: {
-        ...state.edits,
-        [ev.editId]: {
-          editId: ev.editId,
-          sessionId: ev.sessionId,
-          remotePath: ev.remotePath,
-          localTempPath: ev.localTempPath,
-          lastSavedAt: 0,
-          lastBytes: null,
-          lastError: null,
+      await get().ensureListeners();
+      let ev;
+      try {
+        ev = await ipc.startEdit(sessionId, remotePath, undefined, true);
+      } catch (error) {
+        toastError(error, "Couldn't open built-in editor");
+        throw error;
+      }
+      set((state) => ({
+        builtinEditId: ev.editId,
+        edits: {
+          ...state.edits,
+          [ev.editId]: {
+            editId: ev.editId,
+            sessionId: ev.sessionId,
+            remotePath: ev.remotePath,
+            localTempPath: ev.localTempPath,
+            lastSavedAt: 0,
+            lastBytes: null,
+            lastError: null,
+          },
         },
-      },
-    }));
+      }));
+    } finally {
+      // Also unlock if listener registration or IPC failed; a failed attempt
+      // must not permanently disable the built-in editor for this session.
+      builtinLaunchGate.release();
+    }
   },
 
   stopEditing: async (editId) => {

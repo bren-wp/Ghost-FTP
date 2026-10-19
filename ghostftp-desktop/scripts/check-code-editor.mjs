@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import "./check-code-search.mjs";
+import "./check-editor-single-flight.mjs";
 import fs from "node:fs";
 import ts from "typescript";
 const raw=fs.readFileSync(new URL("../src/lib/codeSyntax.ts",import.meta.url),"utf8");

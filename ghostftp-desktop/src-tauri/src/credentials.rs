@@ -22,8 +22,7 @@ pub const SERVICE: &str = "com.ghostftp.credentials";
 /// Write (or overwrite) a secret for `purpose`. An empty value clears it.
 pub fn set_secret(purpose: &str, value: &str) -> Result<()> {
     if value.is_empty() {
-        delete_secret(purpose);
-        return Ok(());
+        return clear_secret_checked(purpose);
     }
     let entry = keyring::Entry::new(SERVICE, purpose).context("open keychain entry")?;
     entry
@@ -43,6 +42,21 @@ pub fn get_secret(purpose: &str) -> Result<Option<String>> {
     }
 }
 
+/// Empty values must *actually* clear the OS vault before the caller removes
+/// its SQLite manifest entry. Otherwise an unavailable/locked keyring could
+/// retain the old secret while the UI wrongly reports success.
+fn checked_delete_result(outcome: std::result::Result<(), keyring::Error>) -> Result<()> {
+    match outcome {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(_) => Err(anyhow!("OS credential store refused to remove the secret")),
+    }
+}
+
+fn clear_secret_checked(purpose: &str) -> Result<()> {
+    let entry = keyring::Entry::new(SERVICE, purpose).context("open keychain entry for removal")?;
+    checked_delete_result(entry.delete_credential())
+}
+
 /// Remove a secret (best-effort — a missing entry is not an error).
 pub fn delete_secret(purpose: &str) {
     if let Ok(entry) = keyring::Entry::new(SERVICE, purpose) {
@@ -59,6 +73,22 @@ pub fn has_secret(purpose: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clearing_missing_entry_is_idempotent_but_locked_vault_fails_closed() {
+        assert!(checked_delete_result(Ok(())).is_ok());
+        assert!(checked_delete_result(Err(keyring::Error::NoEntry)).is_ok());
+        let locked = keyring::Error::Invalid(
+            "delete".to_string(),
+            "simulated unavailable keyring".to_string(),
+        );
+        let error = checked_delete_result(Err(locked)).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "OS credential store refused to remove the secret"
+        );
+        assert!(!error.to_string().contains("simulated unavailable"));
+    }
 
     /// Round-trips a secret through the real OS keychain. `#[ignore]`d because it
     /// touches the credential store (unavailable on headless CI); run locally
