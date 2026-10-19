@@ -207,6 +207,18 @@ impl JobStore {
         matching.len()
     }
 
+    /// Machine-wide kill switch when the owner disables remote execution.
+    pub fn kill_all(&self) -> usize {
+        let keys: Vec<String> = {
+            let jobs = self.jobs.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            jobs.keys().cloned().collect()
+        };
+        for id in &keys {
+            let _ = self.kill(id);
+        }
+        keys.len()
+    }
+
     /// Reap finished jobs older than the TTL, and — if still over the ceiling —
     /// the oldest finished ones. Running jobs are always kept.
     fn prune(jobs: &mut HashMap<String, Job>) {
