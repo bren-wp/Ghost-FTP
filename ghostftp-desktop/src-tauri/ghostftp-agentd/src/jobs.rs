@@ -193,6 +193,20 @@ impl JobStore {
         true
     }
 
+    /// Terminate only detached processes started by a specific pinned peer.
+    /// Revocation may not kill unrelated controllers' jobs.
+    pub fn kill_namespace(&self, peer_key: &str) -> usize {
+        let prefix = format!("{peer_key}:");
+        let matching: Vec<String> = {
+            let jobs = self.jobs.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            jobs.keys().filter(|key| key.starts_with(&prefix)).cloned().collect()
+        };
+        for id in &matching {
+            let _ = self.kill(id);
+        }
+        matching.len()
+    }
+
     /// Reap finished jobs older than the TTL, and — if still over the ceiling —
     /// the oldest finished ones. Running jobs are always kept.
     fn prune(jobs: &mut HashMap<String, Job>) {
