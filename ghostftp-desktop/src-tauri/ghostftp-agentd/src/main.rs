@@ -4,7 +4,8 @@
 //!   ghostftp-agentd run       [--bind IP] [--port N] [--read-only] [--no-mdns]   serve paired controllers
 //!   ghostftp-agentd pair      [--bind IP] [--port N] [--window MIN] [--json]     serve + open a pairing window
 //!   ghostftp-agentd info                                             print this machine's identity + peers
-//!   ghostftp-agentd unpair    <fingerprint|all>                      remove a pinned controller
+//!   ghostftp-agentd unpair    <fingerprint|all>                      remove a pinned controller\n\\
+         \x20 ghostftp-agentd permit    <pin> <read|write|delete|terminal> <on|off>  update device policy
 //!   ghostftp-agentd install   [--port N] [--read-only]               run as a background service (autostart)
 //!   ghostftp-agentd uninstall                                        remove the background service
 //!
@@ -126,6 +127,7 @@ async fn main() -> Result<()> {
         "pair" => pair(args, dir, identity, config).await,
         "info" => info(dir, identity, config),
         "unpair" => unpair(dir, config, &args.positional),
+        "permit" => permit(dir, config, &args.positional),
         "install" => ghostftp_agentd::service::install(&service_run_args(&args)),
         "uninstall" => ghostftp_agentd::service::uninstall(),
         "help" => {
@@ -356,12 +358,46 @@ fn unpair(dir: PathBuf, mut config: Config, positional: &[String]) -> Result<()>
     Ok(())
 }
 
+/// Owner-only local CLI for a headless agent's per-device permissions.
+/// Example: ghostftp-agentd permit <fingerprint> terminal on
+/// Uses fingerprint/full static pin, never an untrusted display name.
+fn permit(dir: PathBuf, mut config: Config, positional: &[String]) -> Result<()> {
+    let (Some(target), Some(kind), Some(value)) =
+        (positional.first(), positional.get(1), positional.get(2)) else {
+        bail!("usage: ghostftp-agentd permit <fingerprint|public-key> <read|write|delete|terminal> <on|off>");
+    };
+    let enabled = match value.as_str() {
+        "on" => true,
+        "off" => false,
+        _ => bail!("permission value must be on or off"),
+    };
+    let Some(peer) = config.peers.iter_mut().find(|peer| {
+        peer.public_key == *target || ghostftp_agent_proto::identity::decode_public(&peer.public_key)
+            .map(|key| ghostftp_agent_proto::identity::fingerprint_of(&key) == *target)
+            .unwrap_or(false)
+    }) else {
+        bail!("unknown paired controller");
+    };
+    let mut permissions = peer.permissions.unwrap_or_default();
+    match kind.as_str() {
+        "read" => permissions.read = enabled,
+        "write" => permissions.write = enabled,
+        "delete" => permissions.delete = enabled,
+        "terminal" => permissions.terminal = enabled,
+        _ => bail!("unknown permission category"),
+    }
+    peer.permissions = Some(permissions);
+    config.save(&config_path(&dir))?;
+    println!("Controller permission saved. Restart the standalone daemon to load the change.");
+    Ok(())
+}
+
 fn print_help() {
     println!(
         "ghostftp-agentd {} — control this machine from Ghost FTP over an encrypted, paired link\n\n\
          USAGE:\n\
-         \x20 ghostftp-agentd run       [--port N] [--read-only] [--no-mdns]   serve paired controllers\n\
-         \x20 ghostftp-agentd pair      [--port N] [--window MIN] [--json]     serve + open a pairing window\n\
+         \x20 ghostftp-agentd run       [--bind IP] [--port N] [--read-only] [--no-mdns]   serve paired controllers\n\
+         \x20 ghostftp-agentd pair      [--bind IP] [--port N] [--window MIN] [--json]     serve + open a pairing window\n\
          \x20 ghostftp-agentd info                                             show identity + paired peers\n\
          \x20 ghostftp-agentd unpair    <fingerprint|all>                      remove a pinned controller\n\
          \x20 ghostftp-agentd install   [--port N] [--read-only]               run as a service (autostart)\n\
