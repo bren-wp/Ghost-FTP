@@ -305,27 +305,18 @@ struct OsVault;
 
 impl RestoreVault for OsVault {
     fn get(&mut self, service: &str, account: &str) -> Result<Option<String>> {
-        let entry = keyring::Entry::new(service, account).context("open OS credential vault")?;
-        match entry.get_password() {
-            Ok(secret) => Ok(Some(secret)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(_) => bail!("OS credential vault is unavailable for reading"),
-        }
+        crate::credentials::vault_get(service, account)
+            .map_err(|_| anyhow!("OS credential vault is unavailable for reading"))
     }
 
     fn put(&mut self, service: &str, account: &str, secret: &str) -> Result<()> {
-        let entry = keyring::Entry::new(service, account).context("open OS credential vault")?;
-        entry
-            .set_password(secret)
+        crate::credentials::vault_set(service, account, secret)
             .map_err(|_| anyhow!("OS credential vault refused a secret write"))
     }
 
     fn remove(&mut self, service: &str, account: &str) -> Result<()> {
-        let entry = keyring::Entry::new(service, account).context("open OS credential vault")?;
-        match entry.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(_) => bail!("OS credential vault refused rollback"),
-        }
+        crate::credentials::vault_delete(service, account)
+            .map_err(|_| anyhow!("OS credential vault refused rollback"))
     }
 }
 
