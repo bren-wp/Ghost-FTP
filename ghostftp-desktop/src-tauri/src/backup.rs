@@ -336,7 +336,7 @@ impl Drop for PreviousSecret {
 fn restore_credentials_with_vault(
     credentials: &[Cred],
     vault: &mut impl RestoreVault,
-) -> Result<()> {
+) -> Result<Vec<PreviousSecret>> {
     let mut previous = Vec::with_capacity(credentials.len());
     for c in credentials {
         previous.push(PreviousSecret(vault.get(&c.service, &c.account)?));
@@ -372,6 +372,29 @@ fn restore_credentials_with_vault(
 }
 
 // ---- Export ----
+
+/// Revert all values read before the restore. This is used both when a
+/// vault write fails and when staging the encrypted archive fails afterwards.
+fn rollback_restored_credentials(
+    credentials: &[Cred],
+    previous: &[PreviousSecret],
+    vault: &mut impl RestoreVault,
+) -> Result<()> {
+    let mut failed = false;
+    for (credential, prior) in credentials.iter().zip(previous).rev() {
+        let result = match &prior.0 {
+            Some(secret) => vault.put(&credential.service, &credential.account, secret),
+            None => vault.remove(&credential.service, &credential.account),
+        };
+        if result.is_err() {
+            failed = true;
+        }
+    }
+    if failed {
+        bail!("OS vault rollback incomplete; review credential recovery before retrying");
+    }
+    Ok(())
+}
 
 /// Build an encrypted backup of everything under `dir` (+ its keychain
 /// credentials) and write it to `dest`.
@@ -477,7 +500,7 @@ fn validate_sqlite_restore_bytes(dir: &Path, bytes: &[u8]) -> Result<()> {
         .query_row("PRAGMA quick_check", [], |row| row.get(0))
         .context("check SQLite backup consistency")?;
     anyhow::ensure!(integrity == "ok", "backup SQLite integrity check failed");
-    Ok(())
+    Ok(previous)
 }
 
 // ---- Import / restore ----
@@ -512,20 +535,46 @@ fn import_with_vault(
         return Err(error);
     }
 
-    // Restore through the OS vault only. If it is locked, unreadable or refuses
-    // a write, no .restore files are staged and no success is reported.
-    restore_credentials_with_vault(&archive.credentials, vault)
+    // A pending restore belongs to a previous operation; never overwrite it
+    // or silently delete its staging when the archive omits an optional file.
+    for name in ["profiles.json", "bridge.json", "foldersync.json", "ghostftp.db"] {
+        match std::fs::symlink_metadata(dir.join(format!("{name}.restore"))) {
+            Ok(_) => bail!("A staged restore already exists; complete recovery before importing another backup"),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error).context("inspect staged restore target"),
+        }
+    }
+
+    // Read prior secrets before the first mutation; on subsequent staging
+    // errors restore the original vault and remove only files staged by us.
+    let previous = restore_credentials_with_vault(&archive.credentials, vault)
         .context("restore backup credentials")?;
-
-    // Stage configuration only after vault writes have been confirmed.
-    stage_opt(dir, "profiles.json", archive.profiles_json.as_deref())?;
-    stage_opt(dir, "bridge.json", archive.bridge_json.as_deref())?;
-    stage_opt(dir, "foldersync.json", archive.foldersync_json.as_deref())?;
-    let staged = write_private_file(&dir.join("ghostftp.db.restore"), &db_bytes)
-        .context("stage ghostftp.db");
+    let mut staged_paths = Vec::new();
+    let stage_result = (|| -> Result<()> {
+        for (name, value) in [
+            ("profiles.json", archive.profiles_json.as_deref()),
+            ("bridge.json", archive.bridge_json.as_deref()),
+            ("foldersync.json", archive.foldersync_json.as_deref()),
+        ] {
+            if let Some(value) = value {
+                stage_opt(dir, name, Some(value))?;
+                staged_paths.push(dir.join(format!("{name}.restore")));
+            }
+        }
+        write_private_file(&dir.join("ghostftp.db.restore"), &db_bytes)
+            .context("stage ghostftp.db")?;
+        staged_paths.push(dir.join("ghostftp.db.restore"));
+        Ok(())
+    })();
     db_bytes.fill(0);
-    staged?;
-
+    if let Err(_) = stage_result {
+        let rollback = rollback_restored_credentials(&archive.credentials, &previous, vault);
+        for staged_path in staged_paths {
+            let _ = std::fs::remove_file(staged_path);
+        }
+        rollback.context("backup staging failed and OS vault rollback needs recovery")?;
+        bail!("Backup staging failed; prior credentials were restored");
+    }
     if !defer {
         apply_pending_restore(dir).context("apply restored configuration and SQLite snapshot")?;
     }
