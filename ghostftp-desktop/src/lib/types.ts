@@ -231,6 +231,7 @@ export interface AgentHostStatus {
   enabled: boolean;
   running: boolean;
   port: number;
+  bindAddress: string;
   hostname: string;
   os: string;
   fingerprint: string;
