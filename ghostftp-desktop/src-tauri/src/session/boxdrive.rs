@@ -94,7 +94,7 @@ impl BoxSession {
             if let Some(b) = body {
                 rb = rb.json(b);
             }
-            let resp = rb.send().await.context("Box API transport error")?;
+            let resp = rb.send().await.map_err(|_| anyhow!("Box API transport error"))?;
             if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
                 attempt += 1;
                 self.force_refresh().await?;
@@ -107,10 +107,10 @@ impl BoxSession {
     pub async fn rpc(&self, method: Method, url: &str, body: Option<&Value>) -> Result<Value> {
         let resp = self.send(method, url, body).await?;
         let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            return Err(anyhow!("Box API request failed (HTTP {})", status.as_u16()));
+            return Err(box_http_error("request", status));
         }
+        let text = resp.text().await.context("read Box API JSON response")?;
         if text.trim().is_empty() {
             return Ok(Value::Null);
         }
@@ -121,7 +121,6 @@ impl BoxSession {
         let resp = self.send(Method::GET, url, None).await?;
         if !resp.status().is_success() {
             let code = resp.status().as_u16();
-            let text = resp.text().await.unwrap_or_default();
             return Err(anyhow!("Box download failed (HTTP {code})"));
         }
         Ok(resp)
@@ -239,6 +238,12 @@ impl BoxSession {
     }
 }
 
+/// Never include response bodies, signed URLs or bearer tokens in diagnostics.
+/// HTTP status is sufficient for a user-actionable retry/auth error.
+fn box_http_error(operation: &str, status: reqwest::StatusCode) -> anyhow::Error {
+    anyhow!("Box API {operation} failed (HTTP {})", status.as_u16())
+}
+
 /// A Box folder uses offset pagination, and a hostile or broken provider must
 /// not keep a desktop session allocating indefinitely. Bound both page size
 /// and the total returned inventory, including inconsistent total_count values.
@@ -332,12 +337,8 @@ mod pagination_safety_tests {
 
     #[test]
     fn box_error_diagnostics_never_include_remote_body_or_bearer_url() {
-        let body = "access_token=PRIVATE_TOKEN";
-        let url = "https://example.com/file?token=PRIVATE_TOKEN";
-        let code = 403;
-        let message = format!("Box API request failed (HTTP {code})");
-        assert!(!message.contains(body));
-        assert!(!message.contains(url));
+        let message = box_http_error("request", reqwest::StatusCode::FORBIDDEN).to_string();
+        assert_eq!(message, "Box API request failed (HTTP 403)");
         assert!(!message.contains("PRIVATE_TOKEN"));
     }
 }
