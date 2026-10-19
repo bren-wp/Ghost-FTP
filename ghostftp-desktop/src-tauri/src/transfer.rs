@@ -5130,7 +5130,13 @@ mod tests {
         assert!(ensure_download_subdirectory(&root, &root.join("nested").join("subdir"))
             .await
             .is_err());
-        assert_eq!(tokio::fs::read_dir(&outside).await.unwrap().next_entry().await.unwrap(), None);
+        assert!(tokio::fs::read_dir(&outside)
+            .await
+            .unwrap()
+            .next_entry()
+            .await
+            .unwrap()
+            .is_none());
         tokio::fs::remove_dir_all(sandbox).await.unwrap();
     }
 
