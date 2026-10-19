@@ -538,6 +538,7 @@ original user data and staged restore were preserved for repair"
             commands::bridge_set_active_session,
             commands::bridge_register_mcp,
             commands::set_api_key,
+            commands::repair_keychain_manifest,
             commands::api_key_status,
             commands::settings_get_all,
             commands::settings_set,
