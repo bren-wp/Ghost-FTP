@@ -344,6 +344,17 @@ pub async fn delete_profile(id: String, state: State<'_, AppState>) -> Result<()
             }
             _ => {}
         }
+        let oauth_service = match p.protocol.as_str() {
+            "dropbox" => Some(crate::session::dropbox::DROPBOX_SERVICE),
+            "onedrive" => Some(crate::session::onedrive::ONEDRIVE_SERVICE),
+            "gdrive" => Some(crate::session::gdrive::GDRIVE_SERVICE),
+            "box" => Some(crate::session::boxdrive::BOX_SERVICE),
+            _ => None,
+        };
+        if let Some(service) = oauth_service {
+            // Only reachable after verified OAuth token deletion.
+            state.db.forget_keychain(service, &id).map_err(err)?;
+        }
         // Grant-imported profiles hold their private key in the OS keychain
         // under `grant-key:<profile-id>` — remove it with the profile.
         if let AuthMethod::KeyRef { key_ref } = &p.auth {
@@ -749,7 +760,8 @@ pub async fn cloud_oauth_discard(
         return Err("Cannot discard credentials of a saved cloud account".into());
     }
     crate::oauth::delete_tokens_checked(service, &profile_id)
-        .map_err(|_| "OS credential store refused to clear temporary OAuth tokens".to_string())
+        .map_err(|_| "OS credential store refused to clear temporary OAuth tokens".to_string())?;
+    state.db.forget_keychain(service, &profile_id).map_err(err)
 }
 
 // ---------- Dropbox (OAuth cloud) ----------
@@ -769,11 +781,18 @@ pub struct DropboxAuthResult {
 pub async fn dropbox_authorize(
     profile_id: String,
     client_id: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<DropboxAuthResult, String> {
     let mut config = crate::session::dropbox::dropbox_config();
     crate::oauth::use_client_id(&mut config, client_id.as_deref()).map_err(err)?;
     let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
         .await
+        .map_err(err)?;
+    // Track tokens before touching the OS vault. Even if profile saving
+    // later fails, recovery can find the orphaned service/account key.
+    state
+        .db
+        .record_keychain(crate::session::dropbox::DROPBOX_SERVICE, &profile_id)
         .map_err(err)?;
     crate::oauth::store_tokens(
         crate::session::dropbox::DROPBOX_SERVICE,
@@ -828,11 +847,18 @@ pub async fn dropbox_authorize(
 pub async fn onedrive_authorize(
     profile_id: String,
     client_id: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<DropboxAuthResult, String> {
     let mut config = crate::session::onedrive::onedrive_config();
     crate::oauth::use_client_id(&mut config, client_id.as_deref()).map_err(err)?;
     let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
         .await
+        .map_err(err)?;
+    // Track tokens before touching the OS vault. Even if profile saving
+    // later fails, recovery can find the orphaned service/account key.
+    state
+        .db
+        .record_keychain(crate::session::onedrive::ONEDRIVE_SERVICE, &profile_id)
         .map_err(err)?;
     crate::oauth::store_tokens(
         crate::session::onedrive::ONEDRIVE_SERVICE,
@@ -950,11 +976,18 @@ pub async fn dynamics_authorize(
 pub async fn gdrive_authorize(
     profile_id: String,
     client_id: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<DropboxAuthResult, String> {
     let mut config = crate::session::gdrive::gdrive_config();
     crate::oauth::use_client_id(&mut config, client_id.as_deref()).map_err(err)?;
     let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
         .await
+        .map_err(err)?;
+    // Track tokens before touching the OS vault. Even if profile saving
+    // later fails, recovery can find the orphaned service/account key.
+    state
+        .db
+        .record_keychain(crate::session::gdrive::GDRIVE_SERVICE, &profile_id)
         .map_err(err)?;
     crate::oauth::store_tokens(crate::session::gdrive::GDRIVE_SERVICE, &profile_id, &tokens)
         .map_err(err)?;
@@ -1003,11 +1036,18 @@ pub async fn gdrive_authorize(
 pub async fn box_authorize(
     profile_id: String,
     client_id: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<DropboxAuthResult, String> {
     let mut config = crate::session::boxdrive::box_config();
     crate::oauth::use_client_id(&mut config, client_id.as_deref()).map_err(err)?;
     let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
         .await
+        .map_err(err)?;
+    // Track tokens before touching the OS vault. Even if profile saving
+    // later fails, recovery can find the orphaned service/account key.
+    state
+        .db
+        .record_keychain(crate::session::boxdrive::BOX_SERVICE, &profile_id)
         .map_err(err)?;
     crate::oauth::store_tokens(crate::session::boxdrive::BOX_SERVICE, &profile_id, &tokens)
         .map_err(err)?;
