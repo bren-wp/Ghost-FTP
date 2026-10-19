@@ -64,7 +64,10 @@ impl BoxSession {
         self.token.force_refresh().await
     }
     pub fn clear_cache(&self) {
-        self.cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clear();
+        self.cache
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
     }
     pub fn cache_path(&self, ghostftp_path: &str, id: &str) {
         self.cache
@@ -94,7 +97,10 @@ impl BoxSession {
             if let Some(b) = body {
                 rb = rb.json(b);
             }
-            let resp = rb.send().await.map_err(|_| anyhow!("Box API transport error"))?;
+            let resp = rb
+                .send()
+                .await
+                .map_err(|_| anyhow!("Box API transport error"))?;
             if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
                 attempt += 1;
                 self.force_refresh().await?;
@@ -251,7 +257,10 @@ const BOX_PAGE_SIZE: usize = 1_000;
 const MAX_BOX_FOLDER_ITEMS: u64 = 100_000;
 
 fn checked_box_page(offset: u64, page_len: usize, total: u64) -> Result<u64> {
-    anyhow::ensure!(page_len <= BOX_PAGE_SIZE, "Box folder page exceeds requested size");
+    anyhow::ensure!(
+        page_len <= BOX_PAGE_SIZE,
+        "Box folder page exceeds requested size"
+    );
     let next = offset
         .checked_add(page_len as u64)
         .context("Box folder page offset overflow")?;
