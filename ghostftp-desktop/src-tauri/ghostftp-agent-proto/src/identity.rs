@@ -95,7 +95,9 @@ impl Identity {
             }
         }
         let result = (|| -> Result<()> {
-            let mut file = options.open(&staged).context("create private identity staging file")?;
+            let mut file = options
+                .open(&staged)
+                .context("create private identity staging file")?;
             file.write_all(&bytes).context("write staged identity")?;
             file.sync_all().context("sync staged identity")?;
             std::fs::rename(&staged, path).context("replace identity atomically")?;

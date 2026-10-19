@@ -157,9 +157,7 @@ impl PtyManager {
             return Err(anyhow!("terminal input exceeds size limit"));
         }
         let map = self.ptys.lock().await;
-        let h = map
-            .get(id)
-            .ok_or_else(|| anyhow!("terminal not found"))?;
+        let h = map.get(id).ok_or_else(|| anyhow!("terminal not found"))?;
         h.tx.send(PtyCommand::Input(data.into_bytes()))
             .await
             .map_err(|_| anyhow!("terminal closed"))
@@ -168,9 +166,7 @@ impl PtyManager {
     pub async fn resize(&self, id: &str, cols: u32, rows: u32) -> Result<()> {
         validate_pty_size(cols, rows)?;
         let map = self.ptys.lock().await;
-        let h = map
-            .get(id)
-            .ok_or_else(|| anyhow!("terminal not found"))?;
+        let h = map.get(id).ok_or_else(|| anyhow!("terminal not found"))?;
         h.tx.send(PtyCommand::Resize { cols, rows })
             .await
             .map_err(|_| anyhow!("terminal closed"))

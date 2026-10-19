@@ -397,7 +397,9 @@ pub async fn agent_host_set_policy(
             updated.save(&config_path(&dir)).map_err(err)?;
             *cfg = updated;
             drop(cfg);
-            if !allow_exec { r.daemon.cancel_all_jobs(); }
+            if !allow_exec {
+                r.daemon.cancel_all_jobs();
+            }
             r.daemon.invalidate_sessions();
         }
         None => {

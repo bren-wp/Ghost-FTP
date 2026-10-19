@@ -198,8 +198,14 @@ impl JobStore {
     pub fn kill_namespace(&self, peer_key: &str) -> usize {
         let prefix = format!("{peer_key}:");
         let matching: Vec<String> = {
-            let jobs = self.jobs.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-            jobs.keys().filter(|key| key.starts_with(&prefix)).cloned().collect()
+            let jobs = self
+                .jobs
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            jobs.keys()
+                .filter(|key| key.starts_with(&prefix))
+                .cloned()
+                .collect()
         };
         for id in &matching {
             let _ = self.kill(id);
@@ -210,7 +216,10 @@ impl JobStore {
     /// Machine-wide kill switch when the owner disables remote execution.
     pub fn kill_all(&self) -> usize {
         let keys: Vec<String> = {
-            let jobs = self.jobs.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let jobs = self
+                .jobs
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             jobs.keys().cloned().collect()
         };
         for id in &keys {
