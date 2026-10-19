@@ -572,7 +572,7 @@ fn import_with_vault(
         Ok(())
     })();
     db_bytes.fill(0);
-    if let Err(_) = stage_result {
+    if stage_result.is_err() {
         let rollback = rollback_restored_credentials(&archive.credentials, &previous, vault);
         for staged_path in staged_paths {
             let _ = std::fs::remove_file(staged_path);
