@@ -669,7 +669,11 @@ pub fn cloud_oauth_availability() -> CloudOAuthAvailability {
 /// Clean up a newly authorized account if profile persistence subsequently
 /// fails. Provider names are strictly allowlisted to avoid arbitrary vault access.
 #[tauri::command]
-pub fn cloud_oauth_discard(profile_id: String, provider: String) -> Result<(), String> {
+pub async fn cloud_oauth_discard(
+    profile_id: String,
+    provider: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     if uuid::Uuid::parse_str(&profile_id).is_err() {
         return Err("Invalid temporary cloud profile ID".into());
     }
@@ -680,6 +684,10 @@ pub fn cloud_oauth_discard(profile_id: String, provider: String) -> Result<(), S
         "box" => crate::session::boxdrive::BOX_SERVICE,
         _ => return Err("Unsupported cloud provider".into()),
     };
+    // Never remove tokens for a saved account, even if the UI has stale state.
+    if state.profiles.get(&profile_id).await.map_err(err)?.is_some() {
+        return Err("Cannot discard credentials of a saved cloud account".into());
+    }
     crate::oauth::delete_tokens(service, &profile_id);
     Ok(())
 }
