@@ -11,7 +11,7 @@ use std::future::Future;
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
@@ -70,6 +70,38 @@ pub struct QueueState {
     pub paused_all: bool,
     pub concurrency: usize,
     pub throttle_kbps: u64,
+}
+
+/// Reject source files that grew or shrank while a cloud transfer was
+/// streaming. A successful HTTP/multipart response is not proof that all
+/// bytes from the original file were actually uploaded.
+fn require_exact_upload_length(expected: u64, actual: u64) -> Result<()> {
+    anyhow::ensure!(
+        expected == actual,
+        "upload source changed during transfer (expected {expected} bytes, read {actual})"
+    );
+    Ok(())
+}
+
+/// Use only for providers that still require an in-memory request body.
+/// Prevent an unexpected multi-GiB file or a file growing after stat from
+/// crashing the desktop process. The 32 MiB bound is an explicit limitation,
+/// not a claim of large-file support from those provider APIs.
+const MAX_BUFFERED_CLOUD_UPLOAD: u64 = 32 * 1024 * 1024;
+
+async fn read_cloud_upload_bounded(path: &Path, expected: u64) -> Result<Vec<u8>> {
+    anyhow::ensure!(
+        expected <= MAX_BUFFERED_CLOUD_UPLOAD,
+        "This cloud adapter requires a resumable large-file upload for files above 32 MiB"
+    );
+    let file = tokio::fs::File::open(path)
+        .await
+        .with_context(|| format!("open {}", path.display()))?;
+    let mut input = file.take(expected + 1);
+    let mut data = Vec::with_capacity(expected as usize);
+    input.read_to_end(&mut data).await?;
+    require_exact_upload_length(expected, data.len() as u64)?;
+    Ok(data)
 }
 
 /// Global bandwidth cap shared by every active copy loop:
@@ -290,6 +322,34 @@ const DEFAULT_CONCURRENCY: usize = 3;
 /// The user can change this live from Preferences; manual Retry remains separate.
 const DEFAULT_MAX_AUTO_RETRIES: usize = 3;
 
+/// A transfer slot can retire one *in-use* permit on release when the user
+/// lowers the limit. Unlike a spawned acquire_many, this debt can be cancelled
+/// immediately when the limit is raised again, without stale shrink tasks.
+struct TransferSlot {
+    permit: Option<OwnedSemaphorePermit>,
+    state: Arc<StdMutex<ConcurrencyState>>,
+}
+
+#[derive(Default)]
+struct ConcurrencyState {
+    pending_shrink: usize,
+}
+
+impl Drop for TransferSlot {
+    fn drop(&mut self) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if state.pending_shrink > 0 {
+            state.pending_shrink -= 1;
+            if let Some(permit) = self.permit.take() {
+                permit.forget();
+            }
+        }
+    }
+}
+
 pub struct TransferManager {
     transfers: Mutex<HashMap<String, Transfer>>,
     tasks: Mutex<HashMap<String, JoinHandle<()>>>,
@@ -299,6 +359,7 @@ pub struct TransferManager {
     waiting: Mutex<VecDeque<String>>,
     semaphore: Arc<Semaphore>,
     concurrency: AtomicUsize,
+    concurrency_state: Arc<StdMutex<ConcurrencyState>>,
     /// Manager-level pause gate. Admission checks it; transfer checkpoints do too.
     pause_all: PauseGate,
     /// Per-transfer pause gates, created at enqueue time.
@@ -547,6 +608,105 @@ fn safe_upload_name(name: &str) -> bool {
             .any(|ch| matches!(ch, '/' | '\\' | '\0' | '\r' | '\n'))
 }
 
+// Treat every server listing as untrusted. A sibling name, parent segment
+// or drive/ADS separator must never escape the user-selected download root.
+fn checked_remote_download_relative(root: &str, child: &str) -> Result<PathBuf> {
+    anyhow::ensure!(
+        root.contains('\\') || !child.contains('\\'),
+        "ambiguous server path separators are unsupported"
+    );
+    let normalized_root = root.replace('\\', "/");
+    let normalized_child = child.replace('\\', "/");
+    let prefix = normalized_root.trim_end_matches('/');
+    anyhow::ensure!(!prefix.is_empty(), "download root is invalid");
+    let remainder = normalized_child
+        .strip_prefix(prefix)
+        .filter(|suffix| suffix.starts_with('/'))
+        .context("server returned a path outside the selected download directory")?;
+    let rel = remainder
+        .strip_prefix('/')
+        .context("invalid child path separator")?;
+    anyhow::ensure!(!rel.is_empty(), "server returned the root as a child file");
+    let mut relative = PathBuf::new();
+    for component in rel.split('/') {
+        anyhow::ensure!(
+            safe_upload_name(component)
+                && !component
+                    .chars()
+                    .any(|c| matches!(c, ':' | '*' | '?' | '"' | '<' | '>' | '|')),
+            "server returned an unsafe download filename"
+        );
+        relative.push(component);
+    }
+    Ok(relative)
+}
+
+/// Refuse pre-existing symlinked directory components while preparing a
+/// download tree. Never let create_dir_all follow a local link into files
+/// outside the destination chosen by the user.
+async fn ensure_download_subdirectory(root: &Path, dir: &Path) -> Result<()> {
+    let rel = dir
+        .strip_prefix(root)
+        .context("download directory escaped the selected root")?;
+    let meta = tokio::fs::symlink_metadata(root)
+        .await
+        .context("inspect download root")?;
+    anyhow::ensure!(
+        meta.file_type().is_dir(),
+        "download destination root must be a real directory"
+    );
+    let mut current = root.to_path_buf();
+    for part in rel.components() {
+        anyhow::ensure!(
+            matches!(part, std::path::Component::Normal(_)),
+            "download destination contains a non-normal path component"
+        );
+        current.push(part.as_os_str());
+        match tokio::fs::symlink_metadata(&current).await {
+            Ok(meta) => {
+                anyhow::ensure!(
+                    meta.file_type().is_dir(),
+                    "download destination component is not a real directory"
+                );
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                tokio::fs::create_dir(&current)
+                    .await
+                    .with_context(|| format!("create download directory {}", current.display()))?;
+            }
+            Err(e) => {
+                return Err(e)
+                    .with_context(|| format!("inspect download directory {}", current.display()));
+            }
+        }
+    }
+    Ok(())
+}
+
+const MAX_DIRECTORY_DOWNLOAD_ENTRIES: usize = 100_000;
+const MAX_DIRECTORY_DOWNLOAD_DEPTH: usize = 64;
+const MAX_DIRECTORY_DOWNLOAD_PATH_BYTES: usize = 16 * 1024 * 1024;
+
+fn validate_directory_download_budget(
+    entries: usize,
+    depth: usize,
+    path_bytes: usize,
+) -> Result<()> {
+    anyhow::ensure!(
+        entries <= MAX_DIRECTORY_DOWNLOAD_ENTRIES,
+        "directory download entry budget exceeded"
+    );
+    anyhow::ensure!(
+        depth <= MAX_DIRECTORY_DOWNLOAD_DEPTH,
+        "directory download depth budget exceeded"
+    );
+    anyhow::ensure!(
+        path_bytes <= MAX_DIRECTORY_DOWNLOAD_PATH_BYTES,
+        "directory download path budget exceeded"
+    );
+    Ok(())
+}
+
 pub(crate) fn require_directory_upload_metadata(
     path: &Path,
     metadata: std::io::Result<std::fs::Metadata>,
@@ -711,6 +871,7 @@ impl TransferManager {
             waiting: Mutex::new(VecDeque::new()),
             semaphore: Arc::new(Semaphore::new(DEFAULT_CONCURRENCY)),
             concurrency: AtomicUsize::new(DEFAULT_CONCURRENCY),
+            concurrency_state: Arc::new(StdMutex::new(ConcurrencyState::default())),
             pause_all: PauseGate::new(),
             pauses: Mutex::new(HashMap::new()),
             cancels: Mutex::new(HashMap::new()),
@@ -960,7 +1121,15 @@ impl TransferManager {
     /// gate open, take a concurrency permit, and pop it from the queue.
     /// Returns `None` if the id left the queue (canceled while waiting).
     /// The permit is returned so the caller holds it for the transfer's life.
-    async fn admit(&self, id: &str) -> Option<OwnedSemaphorePermit> {
+    async fn reserve_slot(&self) -> Option<TransferSlot> {
+        let permit = self.semaphore.clone().acquire_owned().await.ok()?;
+        Some(TransferSlot {
+            permit: Some(permit),
+            state: Arc::clone(&self.concurrency_state),
+        })
+    }
+
+    async fn admit(&self, id: &str) -> Option<TransferSlot> {
         let mut rx = self.queue_gen.subscribe();
         loop {
             {
@@ -977,7 +1146,7 @@ impl TransferManager {
                 }
             }
             // My turn: take a permit, then pop.
-            let permit = self.semaphore.clone().acquire_owned().await.ok()?;
+            let permit = self.reserve_slot().await?;
             let mut w = self.waiting.lock().await;
             if self.is_my_turn(&w, id).await {
                 if let Some(pos) = w.iter().position(|x| x == id) {
@@ -1220,21 +1389,26 @@ impl TransferManager {
         self.bucket.set_rate_kbps(kbps);
     }
 
-    /// Live-adjust the concurrency bound. Growing adds permits at once;
-    /// shrinking forgets permits as running transfers release them, so
-    /// in-flight transfers are never killed to satisfy the new bound.
+    /// Resize the global pool without leaving stale asynchronous shrink tasks.
+    /// Retire free permits immediately; occupied slots are retired on Drop.
+    /// A subsequent increase cancels outstanding retirement debt first.
     pub fn set_concurrency(&self, n: usize) {
         let n = n.clamp(1, 32);
+        let mut state = self
+            .concurrency_state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         let old = self.concurrency.swap(n, Ordering::Relaxed);
-        if n > old {
-            self.semaphore.add_permits(n - old);
-        } else if n < old {
-            let sem = Arc::clone(&self.semaphore);
-            tokio::spawn(async move {
-                if let Ok(p) = sem.acquire_many((old - n) as u32).await {
-                    p.forget();
-                }
-            });
+        if n < old {
+            let retired = self.semaphore.forget_permits(old - n);
+            state.pending_shrink += old - n - retired;
+        } else if n > old {
+            let increase = n - old;
+            let cancelled = increase.min(state.pending_shrink);
+            state.pending_shrink -= cancelled;
+            if increase > cancelled {
+                self.semaphore.add_permits(increase - cancelled);
+            }
         }
     }
 
@@ -2351,30 +2525,50 @@ impl TransferManager {
         tokio::fs::create_dir_all(&local_root)
             .await
             .with_context(|| format!("mkdir -p {}", local_root.display()))?;
+        ensure_download_subdirectory(&local_root, &local_root).await?;
 
         let fs = fs_for_session(&session);
 
-        let mut dirs_to_visit: Vec<String> = vec![remote_root.clone()];
+        let mut dirs_to_visit: Vec<(String, usize)> = vec![(remote_root.clone(), 0)];
+        let mut visited = HashSet::new();
         let mut files: Vec<(String, PathBuf)> = Vec::new();
+        let mut entry_count = 0usize;
+        let mut total_path_bytes = 0usize;
 
-        while let Some(d) = dirs_to_visit.pop() {
+        while let Some((d, depth)) = dirs_to_visit.pop() {
+            anyhow::ensure!(
+                visited.insert(d.clone()),
+                "server returned a cyclic or duplicated directory listing"
+            );
             let entries = fs
                 .list_dir(&d)
                 .await
                 .with_context(|| format!("read_dir {d}"))?;
             for entry in entries {
                 let remote_child = entry.path.clone();
-                let rel = remote_child
-                    .strip_prefix(&remote_root)
-                    .unwrap_or(&remote_child)
-                    .trim_start_matches('/');
+                let rel = checked_remote_download_relative(&remote_root, &remote_child)?;
                 let local_child = local_root.join(rel);
+                entry_count = entry_count
+                    .checked_add(1)
+                    .context("download entry count overflow")?;
+                total_path_bytes = total_path_bytes
+                    .checked_add(remote_child.len())
+                    .context("download inventory path length overflow")?;
+                validate_directory_download_budget(entry_count, depth, total_path_bytes)?;
                 match entry.kind {
                     crate::remotefs::FileKind::Directory => {
-                        tokio::fs::create_dir_all(&local_child).await.ok();
-                        dirs_to_visit.push(remote_child);
+                        validate_directory_download_budget(
+                            entry_count,
+                            depth + 1,
+                            total_path_bytes,
+                        )?;
+                        ensure_download_subdirectory(&local_root, &local_child).await?;
+                        dirs_to_visit.push((remote_child, depth + 1));
                     }
                     crate::remotefs::FileKind::File => {
+                        if let Some(parent) = local_child.parent() {
+                            ensure_download_subdirectory(&local_root, parent).await?;
+                        }
                         files.push((remote_child, local_child));
                     }
                     _ => {}
@@ -2880,7 +3074,8 @@ impl TransferManager {
         if size <= 16 * 1024 * 1024 {
             self.checkpoint(id, size).await?;
             let mut buf = Vec::with_capacity(size as usize);
-            file.read_to_end(&mut buf).await?;
+            (&mut file).take(size + 1).read_to_end(&mut buf).await?;
+            require_exact_upload_length(size, buf.len() as u64)?;
             session
                 .store
                 .put(&p, bytes::Bytes::from(buf).into())
@@ -2905,40 +3100,50 @@ impl TransferManager {
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
         let mut buf = vec![0u8; PART];
-        loop {
-            let mut filled = 0;
-            while filled < buf.len() {
-                let n = file.read(&mut buf[filled..]).await?;
-                if n == 0 {
-                    break;
+        let result: Result<()> = async {
+            while transferred < size {
+                let expected_part = ((size - transferred).min(PART as u64)) as usize;
+                let mut filled = 0;
+                while filled < expected_part {
+                    let n = file.read(&mut buf[filled..expected_part]).await?;
+                    if n == 0 {
+                        break;
+                    }
+                    filled += n;
                 }
-                filled += n;
+                // Never complete a shorter-than-advertised multipart object
+                // after an upload source was truncated or became unreadable.
+                require_exact_upload_length(expected_part as u64, filled as u64)?;
+                self.checkpoint(id, filled as u64).await?;
+                let chunk = bytes::Bytes::copy_from_slice(&buf[..filled]);
+                upload
+                    .put_part(chunk.into())
+                    .await
+                    .with_context(|| format!("s3 put_part {key}"))?;
+                transferred += filled as u64;
+                if last_emit.elapsed() > Duration::from_millis(100) {
+                    self.update(id, |t| t.transferred = transferred).await;
+                    if let Some(t) = self.get(id).await {
+                        let _ = app.emit("transfer://progress", &t);
+                    }
+                    last_emit = Instant::now();
+                }
             }
-            if filled == 0 {
-                break;
-            }
-            self.checkpoint(id, filled as u64).await?;
-            let chunk = bytes::Bytes::copy_from_slice(&buf[..filled]);
+            let on_disk = file.metadata().await?.len();
+            require_exact_upload_length(size, on_disk)?;
             upload
-                .put_part(chunk.into())
+                .complete()
                 .await
-                .with_context(|| format!("s3 put_part {key}"))?;
-            transferred += filled as u64;
-            if last_emit.elapsed() > Duration::from_millis(100) {
-                self.update(id, |t| t.transferred = transferred).await;
-                if let Some(t) = self.get(id).await {
-                    let _ = app.emit("transfer://progress", &t);
-                }
-                last_emit = Instant::now();
-            }
-            if filled < buf.len() {
-                break;
-            }
+                .with_context(|| format!("s3 complete multipart {key}"))?;
+            Ok(())
         }
-        upload
-            .complete()
-            .await
-            .with_context(|| format!("s3 complete multipart {key}"))?;
+        .await;
+        if let Err(error) = result {
+            // A failed or paused upload must not leave billable orphaned parts
+            // behind when the object-store service permits abort.
+            let _ = upload.abort().await;
+            return Err(error);
+        }
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -3272,10 +3477,11 @@ impl TransferManager {
             .await;
         let _ = app; // Shopify reports at completion, like the Dropbox path.
 
-        let data = tokio::fs::read(local_path)
+        let size = tokio::fs::metadata(local_path)
             .await
-            .with_context(|| format!("read {}", local_path.display()))?;
-        let size = data.len() as u64;
+            .with_context(|| format!("stat {}", local_path.display()))?
+            .len();
+        let data = read_cloud_upload_bounded(local_path, size).await?;
         self.checkpoint(id, size).await?;
         crate::remotefs::shopify::write_asset(&session, remote_path, &data).await?;
         self.update(id, |t| t.transferred = size).await;
@@ -3323,10 +3529,11 @@ impl TransferManager {
             .await;
         let _ = app; // HubSpot reports at completion, like the Shopify path.
 
-        let data = tokio::fs::read(local_path)
+        let size = tokio::fs::metadata(local_path)
             .await
-            .with_context(|| format!("read {}", local_path.display()))?;
-        let size = data.len() as u64;
+            .with_context(|| format!("stat {}", local_path.display()))?
+            .len();
+        let data = read_cloud_upload_bounded(local_path, size).await?;
         self.checkpoint(id, size).await?;
         crate::remotefs::hubspot::write_file(&session, remote_path, &data).await?;
         self.update(id, |t| t.transferred = size).await;
@@ -3373,10 +3580,11 @@ impl TransferManager {
             .await;
         let _ = app; // Dynamics reports at completion, like the HubSpot path.
 
-        let data = tokio::fs::read(local_path)
+        let size = tokio::fs::metadata(local_path)
             .await
-            .with_context(|| format!("read {}", local_path.display()))?;
-        let size = data.len() as u64;
+            .with_context(|| format!("stat {}", local_path.display()))?
+            .len();
+        let data = read_cloud_upload_bounded(local_path, size).await?;
         self.checkpoint(id, size).await?;
         crate::remotefs::dynamics::write_file(&session, remote_path, &data).await?;
         self.update(id, |t| t.transferred = size).await;
@@ -3535,17 +3743,18 @@ impl TransferManager {
         let mut offset: u64 = 0;
         let mut last_emit = Instant::now();
         while offset < size {
+            let expected_part = ((size - offset).min(CHUNK as u64)) as usize;
             let mut filled = 0;
-            while filled < buf.len() {
-                let n = file.read(&mut buf[filled..]).await?;
+            while filled < expected_part {
+                let n = file.read(&mut buf[filled..expected_part]).await?;
                 if n == 0 {
                     break;
                 }
                 filled += n;
             }
-            if filled == 0 {
-                break;
-            }
+            // Sending a short non-final Content-Range could silently produce
+            // an incomplete remote item after the local file was truncated.
+            require_exact_upload_length(expected_part as u64, filled as u64)?;
             self.checkpoint(id, filled as u64).await?;
             let start = offset;
             let end = offset + filled as u64 - 1;
@@ -3575,6 +3784,7 @@ impl TransferManager {
                 last_emit = Instant::now();
             }
         }
+        require_exact_upload_length(size, file.metadata().await?.len())?;
         Ok(())
     }
 
@@ -3648,9 +3858,7 @@ impl TransferManager {
         let name = basename(&norm).to_string();
         let parent_id = session.folder_id(&parent_of(&norm)).await?;
         let existing = session.find_child(&parent_id, &name).await?;
-        let bytes = tokio::fs::read(local_path)
-            .await
-            .with_context(|| format!("read {}", local_path.display()))?;
+        let bytes = read_cloud_upload_bounded(local_path, size).await?;
         let token = session.access_token().await?;
         self.checkpoint(id, size).await?;
 
@@ -3778,13 +3986,17 @@ impl TransferManager {
         let name = basename(&norm).to_string();
         let parent_id = session.folder_id(&parent_of(&norm)).await?;
         let existing = session.find_child(&parent_id, &name).await?;
-        let bytes = tokio::fs::read(local_path)
+        // Box multipart supports a streaming body. Do not allocate the entire
+        // local file (potentially >4 GiB) into process memory.
+        let input = tokio::fs::File::open(local_path)
             .await
-            .with_context(|| format!("read {}", local_path.display()))?;
+            .with_context(|| format!("open {}", local_path.display()))?;
+        let body = reqwest::Body::wrap_stream(tokio_util::io::ReaderStream::new(input));
         let token = session.access_token().await?;
         self.checkpoint(id, size).await?;
 
-        let file_part = reqwest::multipart::Part::bytes(bytes).file_name(name.clone());
+        let file_part =
+            reqwest::multipart::Part::stream_with_length(body, size).file_name(name.clone());
         let (url, form) = match existing {
             Some((file_id, false)) => (
                 format!("{}/files/{file_id}/content", session.upload_base),
@@ -4279,6 +4491,22 @@ fn is_transient(e: &anyhow::Error) -> bool {
     )
 }
 
+/// GET/HEAD downloads are safe to retry after bounded HTTP rate limits and
+/// gateway outages. Mutating cloud POST/PUT operations deliberately use the
+/// original narrower retry classifier: an ambiguous 5xx response might follow
+/// a successful create and replaying it could duplicate user files.
+fn is_transient_download(error: &anyhow::Error) -> bool {
+    if is_transient(error) {
+        return true;
+    }
+    let message = format!("{error:#}").to_ascii_lowercase();
+    [
+        "http 408", "http 425", "http 429", "http 500", "http 502", "http 503", "http 504",
+    ]
+    .iter()
+    .any(|status| message.contains(status))
+}
+
 /// Re-enter the global FIFO after retry backoff without monopolizing a
 /// concurrency slot. Keeping retries in the same queue as fresh work prevents
 /// an offline endpoint from repeatedly jumping ahead of already-waiting sites.
@@ -4290,7 +4518,7 @@ async fn readmit_after_retry_backoff(
     mgr: &Arc<TransferManager>,
     id: &str,
     app: &AppHandle,
-) -> Option<OwnedSemaphorePermit> {
+) -> Option<TransferSlot> {
     loop {
         match mgr.get(id).await.map(|t| t.status) {
             Some(TransferStatus::Transferring)
@@ -4377,7 +4605,7 @@ async fn run_download_task(
                 }
                 continue;
             }
-            Err(e) if auto_retries < max_auto_retries && is_transient(&e) => {
+            Err(e) if auto_retries < max_auto_retries && is_transient_download(&e) => {
                 auto_retries += 1;
                 let delay = match auto_retries {
                     1 => 5,
@@ -4898,6 +5126,123 @@ mod tests {
         assert!(safe_upload_name("račun 2026.txt"));
     }
 
+    #[test]
+    fn remote_directory_download_prevents_path_traversal_and_sibling_prefixes() {
+        let root = "/remote/home";
+        assert_eq!(
+            checked_remote_download_relative(root, "/remote/home/photos/day1.jpg").unwrap(),
+            PathBuf::from("photos").join("day1.jpg")
+        );
+        assert_eq!(
+            checked_remote_download_relative("C:\\srv\\root", "C:\\srv\\root\\album\\photo.png")
+                .unwrap(),
+            PathBuf::from("album").join("photo.png")
+        );
+        for bad in [
+            "/remote/home/../secrets",
+            "/remote/home/./photo.png",
+            "/remote/home//photo.png",
+            "/remote/home2/photo.png",
+            "/etc/passwd",
+            "/remote/home/a:b",
+            "/remote/home/dir\\..\\outside",
+            "/remote/home",
+        ] {
+            assert!(
+                checked_remote_download_relative(root, bad).is_err(),
+                "{bad}"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn directory_download_rejects_symlinked_local_parents() {
+        use std::os::unix::fs::symlink;
+        let sandbox =
+            std::env::temp_dir().join(format!("ghostftp-download-links-{}", Uuid::new_v4()));
+        let root = sandbox.join("download");
+        let outside = sandbox.join("other-user-files");
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        tokio::fs::create_dir_all(&outside).await.unwrap();
+        symlink(&outside, root.join("nested")).unwrap();
+        assert!(
+            ensure_download_subdirectory(&root, &root.join("nested").join("subdir"))
+                .await
+                .is_err()
+        );
+        assert!(tokio::fs::read_dir(&outside)
+            .await
+            .unwrap()
+            .next_entry()
+            .await
+            .unwrap()
+            .is_none());
+        tokio::fs::remove_dir_all(sandbox).await.unwrap();
+    }
+
+    #[test]
+    fn directory_download_10k_inventory_budget_is_bounded() {
+        let mut bytes = 0usize;
+        for i in 0..10_000 {
+            let name = format!("/remote/home/f{i:05}.dat");
+            bytes += name.len();
+            assert!(checked_remote_download_relative("/remote/home", &name).is_ok());
+            validate_directory_download_budget(i + 1, 1, bytes).unwrap();
+        }
+        assert!(
+            validate_directory_download_budget(MAX_DIRECTORY_DOWNLOAD_ENTRIES + 1, 1, bytes)
+                .is_err()
+        );
+        assert!(
+            validate_directory_download_budget(1, MAX_DIRECTORY_DOWNLOAD_DEPTH + 1, bytes).is_err()
+        );
+        assert!(
+            validate_directory_download_budget(1, 1, MAX_DIRECTORY_DOWNLOAD_PATH_BYTES + 1)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn cloud_source_length_guards_4gib_and_partial_parts_without_allocations() {
+        let huge = 4u64 * 1024 * 1024 * 1024 + 1024;
+        assert!(require_exact_upload_length(huge, huge).is_ok());
+        assert!(require_exact_upload_length(huge, huge - 1).is_err());
+        assert!(require_exact_upload_length(huge, huge + 1).is_err());
+        assert!(require_exact_upload_length(8 * 1024 * 1024, 4 * 1024 * 1024).is_err());
+        assert_eq!(MAX_BUFFERED_CLOUD_UPLOAD, 32 * 1024 * 1024);
+    }
+
+    #[tokio::test]
+    async fn in_memory_cloud_adapters_reject_huge_files_without_reading_them() {
+        let root = std::env::temp_dir().join(format!("ghostftp-bounded-cloud-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let path = root.join("sparse-large-file");
+        let file = tokio::fs::File::create(&path).await.unwrap();
+        file.set_len(MAX_BUFFERED_CLOUD_UPLOAD + 1).await.unwrap();
+        drop(file);
+        assert!(
+            read_cloud_upload_bounded(&path, MAX_BUFFERED_CLOUD_UPLOAD + 1)
+                .await
+                .is_err()
+        );
+        tokio::fs::remove_dir_all(&root).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn bounded_cloud_reader_rejects_changed_files_and_preserves_content() {
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-bounded-content-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let path = root.join("small.bin");
+        tokio::fs::write(&path, b"abcde").await.unwrap();
+        assert_eq!(read_cloud_upload_bounded(&path, 5).await.unwrap(), b"abcde");
+        assert!(read_cloud_upload_bounded(&path, 6).await.is_err());
+        assert!(read_cloud_upload_bounded(&path, 4).await.is_err());
+        assert_eq!(tokio::fs::read(&path).await.unwrap(), b"abcde");
+        tokio::fs::remove_dir_all(&root).await.unwrap();
+    }
+
     // ---------- TokenBucket ----------
 
     #[tokio::test(start_paused = true)]
@@ -5191,6 +5536,49 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn concurrency_resize_cancels_stale_shrink_debt() {
+        let mgr = TransferManager::new();
+        mgr.set_concurrency(4);
+        let a = mgr.reserve_slot().await.unwrap();
+        let b = mgr.reserve_slot().await.unwrap();
+        let c = mgr.reserve_slot().await.unwrap();
+        assert_eq!(mgr.semaphore.available_permits(), 1);
+
+        mgr.set_concurrency(1);
+        assert_eq!(mgr.semaphore.available_permits(), 0);
+        assert_eq!(mgr.concurrency_state.lock().unwrap().pending_shrink, 2);
+
+        // The old spawned acquire_many could wake AFTER this increase and
+        // consume new permits permanently, silently reducing throughput.
+        mgr.set_concurrency(4);
+        assert_eq!(mgr.concurrency_state.lock().unwrap().pending_shrink, 0);
+        assert_eq!(mgr.semaphore.available_permits(), 1);
+        drop(a);
+        drop(b);
+        drop(c);
+        assert_eq!(mgr.semaphore.available_permits(), 4);
+    }
+
+    #[tokio::test]
+    async fn concurrency_shrink_retires_running_slots_at_all_supported_limits() {
+        for limit in [1usize, 4, 8, 16, 32] {
+            let mgr = TransferManager::new();
+            mgr.set_concurrency(limit);
+            let mut slots = Vec::new();
+            for _ in 0..limit {
+                slots.push(mgr.reserve_slot().await.unwrap());
+            }
+            mgr.set_concurrency(1);
+            assert_eq!(mgr.semaphore.available_permits(), 0);
+            drop(slots);
+            assert_eq!(mgr.semaphore.available_permits(), 1, "limit {limit}");
+            assert_eq!(mgr.concurrency_state.lock().unwrap().pending_shrink, 0);
+            mgr.set_concurrency(limit);
+            assert_eq!(mgr.semaphore.available_permits(), limit);
+        }
+    }
+
     #[tokio::test(start_paused = true)]
     async fn concurrency_grows_and_shrinks() {
         let mgr = TransferManager::new();
@@ -5215,6 +5603,25 @@ mod tests {
             "Permission denied (os error 13)"
         )));
         assert!(!is_transient(&anyhow::anyhow!("No such file or directory")));
+    }
+
+    #[test]
+    fn rate_limited_downloads_retry_but_mutating_cloud_uploads_do_not_replay() {
+        for code in [408, 425, 429, 500, 502, 503, 504] {
+            let error = anyhow::anyhow!("download failed: HTTP {code}");
+            assert!(is_transient_download(&error), "{code}");
+            assert!(
+                !is_transient(&error),
+                "upload must not blindly replay {code}"
+            );
+        }
+        for code in [400, 401, 403, 404, 409, 412] {
+            let error = anyhow::anyhow!("download failed: HTTP {code}");
+            assert!(!is_transient_download(&error), "{code}");
+        }
+        assert!(is_transient_download(&anyhow::anyhow!(
+            "connection reset by peer"
+        )));
     }
 
     #[test]

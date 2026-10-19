@@ -1,3 +1,12 @@
+## 0.95.46 — Windows/Linux transfer reliability and bounded cloud uploads (development preview) — 19 October 2026
+
+- Remove stale asynchronous concurrency shrink races when changing transfer parallelism between 1/4/8/16/32 active slots.
+- Reject truncated S3-compatible multipart parts; abort multipart sessions on failure and verify exact source sizes instead of completing incomplete objects.
+- Stream Box uploads without buffering whole multi-GiB files; limit legacy Google Drive buffered uploads to 32 MiB until resumable large-file upload receives real account verification.
+- Verify OneDrive chunk-source lengths fail closed; retain existing TLS, SSH host-key and user-data security policy.
+- Regression coverage for source mutation, >4 GiB offset arithmetic, cloud buffering limits and dynamic concurrency; provider-account, throughput, CPU/RSS and GUI responsiveness results remain unverified.
+- Advance canonical preview source to 0.95.46 after the published immutable v0.95.45. No release or merge is claimed without exact final SHA CI success.
+
 ## 0.95.45 — Windows/Linux crash and encrypted-backup recovery hardening (development preview) — 19 October 2026
 
 - Restore the canonical release train after the immutable published `v0.95.44` tag: version 0.95.45 follows published 0.95.44 without moving or deleting tags.

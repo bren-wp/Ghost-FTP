@@ -26,6 +26,8 @@ use std::path::{Path, PathBuf};
 
 /// Default RSA modulus size when the caller doesn't specify one.
 const DEFAULT_RSA_BITS: usize = 4096;
+/// Bound CPU and memory consumption of untrusted IPC requests.
+const MAX_RSA_BITS: usize = 8192;
 
 /// Expand a leading `~` / `~/` (or `~\` on Windows) to the user's home dir.
 /// Anything else is returned unchanged. Used both to resolve a save path for a
@@ -119,18 +121,14 @@ pub fn generate(req: &GenerateKeyRequest) -> Result<GeneratedKey> {
     let priv_path = expand_tilde(&req.path);
     let pub_path = pub_path_for(&priv_path);
 
-    // Never clobber an existing key unless explicitly told to — losing a private
-    // key you can't regenerate is exactly the destructive surprise to avoid.
-    if !req.overwrite && (priv_path.exists() || pub_path.exists()) {
-        bail!(
-            "a key already exists at {} — pick a different name or enable overwrite",
-            priv_path.display()
-        );
-    }
     if let Some(parent) = priv_path.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("creating {}", parent.display()))?;
     }
+    // Check both names before touching either half of the pair. Unlike
+    // Path::exists(), symlink_metadata also detects dangling symlinks.
+    check_key_destination(&priv_path, req.overwrite)?;
+    check_key_destination(&pub_path, req.overwrite)?;
 
     // Public-key comment, ssh-keygen's `user@host` convention.
     let comment = req
@@ -150,8 +148,8 @@ pub fn generate(req: &GenerateKeyRequest) -> Result<GeneratedKey> {
         }
         KeyType::Rsa => {
             let bits = req.bits.unwrap_or(DEFAULT_RSA_BITS);
-            if bits < 2048 {
-                bail!("RSA key size must be at least 2048 bits");
+            if !(2048..=MAX_RSA_BITS).contains(&bits) {
+                bail!("RSA key size must be between 2048 and 8192 bits");
             }
             // PrivateKey::random pins RSA to 3072, so build the keypair
             // explicitly to honour the requested size.
@@ -185,9 +183,16 @@ pub fn generate(req: &GenerateKeyRequest) -> Result<GeneratedKey> {
             .map_err(|e| anyhow!("encoding private key: {e}"))?,
     };
 
-    write_private_key(&priv_path, pem.as_bytes())?;
-    std::fs::write(&pub_path, format!("{pub_line}\n"))
-        .with_context(|| format!("writing {}", pub_path.display()))?;
+    // Publish the public half first on explicit overwrite, preserving the
+    // original private key if the public-key destination rejects the update.
+    // The two names are not a filesystem transaction; report all failures.
+    if req.overwrite {
+        write_key_file(&pub_path, format!("{pub_line}\n").as_bytes(), true, false)?;
+        write_key_file(&priv_path, pem.as_bytes(), true, true)?;
+    } else {
+        write_key_file(&priv_path, pem.as_bytes(), false, true)?;
+        write_key_file(&pub_path, format!("{pub_line}\n").as_bytes(), false, false)?;
+    }
 
     Ok(GeneratedKey {
         path: priv_path.to_string_lossy().into_owned(),
@@ -234,17 +239,66 @@ pub fn public_key_for(path: &str, passphrase: Option<&str>) -> Result<GeneratedK
     })
 }
 
-/// Write the private key bytes, then tighten permissions to 0600 on Unix. On
-/// Windows perms are ACL-based and `load_secret_key` doesn't enforce them, so we
-/// leave inherited ACLs in place.
-fn write_private_key(path: &Path, pem: &[u8]) -> Result<()> {
-    std::fs::write(path, pem).with_context(|| format!("writing {}", path.display()))?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+/// Do not follow symlinks or replace directories/devices when generating keys.
+/// A separate check is needed even on overwrite: rename must replace a regular
+/// file entry, never a user-chosen link to a different destination.
+fn check_key_destination(path: &Path, overwrite: bool) -> Result<()> {
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) if !metadata.file_type().is_file() => {
+            bail!("refusing to replace a symlink or non-regular SSH key file")
+        }
+        Ok(_) if !overwrite => {
+            bail!(
+                "a key already exists at {} — pick a different name or enable overwrite",
+                path.display()
+            )
+        }
+        Ok(_) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error).with_context(|| format!("inspect {}", path.display())),
     }
-    Ok(())
+}
+
+/// Create new keys exclusively (no check-then-truncate race). For explicit
+/// overwrites, fully write and sync a private sibling before atomically
+/// replacing the target name: rename does not follow a final symlink.
+/// Unix private keys are 0600 from the first write, not chmodded afterward.
+fn write_key_file(path: &Path, bytes: &[u8], overwrite: bool, private: bool) -> Result<()> {
+    use std::io::Write;
+
+    check_key_destination(path, overwrite)?;
+    let staged = overwrite
+        .then(|| path.with_file_name(format!(".ghostftp-key-{}.tmp", uuid::Uuid::new_v4())));
+    let target = staged.as_deref().unwrap_or(path);
+    let result = (|| -> Result<()> {
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(if private { 0o600 } else { 0o644 });
+        }
+        #[cfg(not(unix))]
+        let _ = private;
+        let mut file = options
+            .open(target)
+            .with_context(|| format!("create SSH key file {}", target.display()))?;
+        file.write_all(bytes)
+            .with_context(|| format!("write SSH key file {}", target.display()))?;
+        file.sync_all()
+            .with_context(|| format!("sync SSH key file {}", target.display()))?;
+        drop(file);
+        if staged.is_some() {
+            check_key_destination(path, true)?;
+            std::fs::rename(target, path)
+                .with_context(|| format!("replace SSH key file {}", path.display()))?;
+        }
+        Ok(())
+    })();
+    if result.is_err() && staged.is_some() {
+        let _ = std::fs::remove_file(target);
+    }
+    result
 }
 
 /// `<name>` → `<name>.pub`, preserving any extension the private key path has.
@@ -281,12 +335,20 @@ fn fingerprint(pk: &PublicKey) -> String {
     format!("SHA256:{body}")
 }
 
+/// Treat dangling symlinks and inaccessible paths as occupied, not usable.
+fn path_entry_exists(path: &Path) -> bool {
+    match std::fs::symlink_metadata(path) {
+        Ok(_) => true,
+        Err(error) => error.kind() != std::io::ErrorKind::NotFound,
+    }
+}
+
 /// First of `<base>`, `<base>_2`, `<base>_3`, … whose private *and* `.pub` paths
 /// are both free.
 fn free_path(dir: &Path, base: &str) -> PathBuf {
     let mut candidate = dir.join(base);
     let mut n = 2;
-    while candidate.exists() || pub_path_for(&candidate).exists() {
+    while path_entry_exists(&candidate) || path_entry_exists(&pub_path_for(&candidate)) {
         candidate = dir.join(format!("{base}_{n}"));
         n += 1;
     }
@@ -316,6 +378,12 @@ mod tests {
         assert!(out.public_key.ends_with(" alice@box"));
         assert_eq!(out.key_type, "ssh-ed25519");
         assert!(out.fingerprint.starts_with("SHA256:"));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600, "private key must be private at creation");
+        }
 
         // The encrypted private key loads back with the passphrase (the exact
         // call the connect path makes). The derived public key carries no
@@ -354,6 +422,96 @@ mod tests {
         assert!(derived.public_key.starts_with("ssh-rsa "));
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn key_generation_rejects_symlinks_without_touching_their_targets() {
+        use std::os::unix::fs::symlink;
+
+        let dir = std::env::temp_dir().join(format!("ghostftp-keylinks-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let outside = dir.join("victim");
+        std::fs::write(&outside, b"DO_NOT_TOUCH").unwrap();
+        let private = dir.join("id_ed25519");
+        let public = pub_path_for(&private);
+        let request = |overwrite| GenerateKeyRequest {
+            key_type: KeyType::Ed25519,
+            bits: None,
+            passphrase: None,
+            path: private.to_string_lossy().into_owned(),
+            comment: None,
+            overwrite,
+        };
+
+        symlink(&outside, &private).unwrap();
+        assert!(generate(&request(false)).is_err());
+        assert!(generate(&request(true)).is_err());
+        assert_eq!(std::fs::read(&outside).unwrap(), b"DO_NOT_TOUCH");
+        assert!(std::fs::symlink_metadata(&private)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        std::fs::remove_file(&private).unwrap();
+
+        symlink(&outside, &public).unwrap();
+        assert!(generate(&request(true)).is_err());
+        assert!(!private.exists(), "public symlink must block private write");
+        assert_eq!(std::fs::read(&outside).unwrap(), b"DO_NOT_TOUCH");
+        std::fs::remove_file(&public).unwrap();
+
+        // A dangling link is still occupied, even though Path::exists is false.
+        symlink(dir.join("missing"), &private).unwrap();
+        assert!(generate(&request(false)).is_err());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn exclusive_key_generation_does_not_overwrite_existing_private_key() {
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-keyexclusive-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let private = dir.join("id_ed25519");
+        std::fs::write(&private, b"ORIGINAL_PRIVATE_KEY").unwrap();
+        let result = generate(&GenerateKeyRequest {
+            key_type: KeyType::Ed25519,
+            bits: None,
+            passphrase: None,
+            path: private.to_string_lossy().into_owned(),
+            comment: None,
+            overwrite: false,
+        });
+        assert!(result.is_err());
+        assert_eq!(std::fs::read(&private).unwrap(), b"ORIGINAL_PRIVATE_KEY");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn excessive_rsa_size_is_rejected_before_key_generation() {
+        let dir = std::env::temp_dir().join(format!("ghostftp-rsalimit-{}", uuid::Uuid::new_v4()));
+        let private = dir.join("id_rsa");
+        let result = generate(&GenerateKeyRequest {
+            key_type: KeyType::Rsa,
+            bits: Some(MAX_RSA_BITS + 1),
+            passphrase: None,
+            path: private.to_string_lossy().into_owned(),
+            comment: None,
+            overwrite: false,
+        });
+        assert!(result.is_err());
+        assert!(!private.exists(), "invalid request must never write a key");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn suggested_name_skips_dangling_symlink() {
+        use std::os::unix::fs::symlink;
+        let dir = std::env::temp_dir().join(format!("ghostftp-free-key-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        symlink(dir.join("gone"), dir.join("id_ed25519")).unwrap();
+        assert_eq!(free_path(&dir, "id_ed25519"), dir.join("id_ed25519_2"));
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

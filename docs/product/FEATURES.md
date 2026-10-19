@@ -1,8 +1,8 @@
-> Ghost FTP **0.95.44** (development preview), following published **v0.95.43**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.45** (development preview), following published **v0.95.43**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Implemented Features
 
-## v0.95.44 Transfer Center selector modularization — development preview
+## v0.95.45 Transfer Center selector modularization — development preview
 
 - Extract status counts, all/active/completed/failed filters, search, direction and hour/day windows and bounded transfer-log projection from the desktop Transfer Center into a pure TypeScript module.
 - Preserve real backend transfer IDs, status and queue order so pause, resume, retry, cancel and history actions still target their existing IPC implementation; no new completion inference or vault behavior.
@@ -148,7 +148,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.95.44 development source. Previous canonical release: **0.95.44**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.95.45 development source. Previous canonical release: **0.95.45**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
