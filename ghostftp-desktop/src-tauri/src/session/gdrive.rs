@@ -23,7 +23,12 @@ pub const FOLDER_MIME: &str = "application/vnd.google-apps.folder";
 /// add `http://localhost:53682/` as an authorized redirect, and paste the client
 /// id here or set `GHOSTFTP_GDRIVE_CLIENT_ID`. PKCE ⇒ no secret needed for a public
 /// desktop client.
-const GDRIVE_CLIENT_ID: &str = "";
+// Public provider application ID injected during Windows/Linux compilation.
+// Runtime GHOSTFTP_* overrides still support local developer builds.
+const GDRIVE_CLIENT_ID: &str = match option_env!("GHOSTFTP_GDRIVE_CLIENT_ID") {
+    Some(id) => id,
+    None => "",
+};
 
 fn env_or(key: &str, default: &str) -> String {
     std::env::var(key)
