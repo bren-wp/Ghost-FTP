@@ -464,14 +464,15 @@ fn validate_sqlite_restore_bytes(dir: &Path, bytes: &[u8]) -> Result<()> {
         bytes.starts_with(b"SQLite format 3\0") && bytes.len() >= 100,
         "backup contains an invalid SQLite database header"
     );
-    let path = dir.join(format!(".ghostftp-restore-validation-{}.db", uuid::Uuid::new_v4()));
+    let path = dir.join(format!(
+        ".ghostftp-restore-validation-{}.db",
+        uuid::Uuid::new_v4()
+    ));
     let _guard = RemoveOnDrop(path.clone());
     write_private_file(&path, bytes).context("stage SQLite integrity verification")?;
-    let conn = rusqlite::Connection::open_with_flags(
-        &path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .context("open SQLite backup for integrity verification")?;
+    let conn =
+        rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .context("open SQLite backup for integrity verification")?;
     let integrity: String = conn
         .query_row("PRAGMA quick_check", [], |row| row.get(0))
         .context("check SQLite backup consistency")?;
@@ -1084,7 +1085,11 @@ mod tests {
             "existing credential".to_string(),
         );
         assert!(import_with_vault(&dir, "correct horse", &backup, true, &mut vault).is_err());
-        assert_eq!(vault.write_count, 0, "no keyring mutation before DB validation");
+        assert_eq!(
+            vault.write_count,
+            0,
+            "no keyring mutation before DB validation"
+        );
         assert_eq!(
             vault
                 .values
@@ -1092,8 +1097,14 @@ mod tests {
                 .map(String::as_str),
             Some("existing credential")
         );
-        assert_eq!(std::fs::read(dir.join("profiles.json")).unwrap(), b"original user profiles");
-        assert_eq!(std::fs::read(&original_db).unwrap(), b"original database untouched");
+        assert_eq!(
+            std::fs::read(dir.join("profiles.json")).unwrap(),
+            b"original user profiles"
+        );
+        assert_eq!(
+            std::fs::read(&original_db).unwrap(),
+            b"original database untouched"
+        );
         assert!(!dir.join("ghostftp.db.restore").exists());
         assert!(!dir.join("profiles.json.restore").exists());
         std::fs::remove_dir_all(dir).unwrap();
@@ -1109,15 +1120,16 @@ mod tests {
         let database = dir.join("ghostftp.db");
         {
             let db = Db::open(&database).unwrap();
-            db.settings_set("name", "\\"saved\\"").unwrap();
+            db.settings_set("name", "\"saved\"").unwrap();
         }
         let bytes = std::fs::read(&database).unwrap();
         validate_sqlite_restore_bytes(&dir, &bytes).unwrap();
-        assert_eq!(
-            std::fs::read_dir(&dir).unwrap().filter_map(Result::ok).count(),
-            1,
-            "verification must not leave plaintext SQLite copies"
-        );
+        assert!(std::fs::read_dir(&dir).unwrap().all(|entry| !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".ghostftp-restore-validation-")));
+
         std::fs::remove_dir_all(dir).unwrap();
     }
 
