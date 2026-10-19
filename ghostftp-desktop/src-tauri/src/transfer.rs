@@ -623,13 +623,17 @@ fn checked_remote_download_relative(root: &str, child: &str) -> Result<PathBuf> 
         .strip_prefix(prefix)
         .filter(|suffix| suffix.starts_with('/'))
         .context("server returned a path outside the selected download directory")?;
-    let rel = remainder.strip_prefix('/').context("invalid child path separator")?;
+    let rel = remainder
+        .strip_prefix('/')
+        .context("invalid child path separator")?;
     anyhow::ensure!(!rel.is_empty(), "server returned the root as a child file");
     let mut relative = PathBuf::new();
     for component in rel.split('/') {
         anyhow::ensure!(
             safe_upload_name(component)
-                && !component.chars().any(|c| matches!(c, ':' | '*' | '?' | '"' | '<' | '>' | '|')),
+                && !component
+                    .chars()
+                    .any(|c| matches!(c, ':' | '*' | '?' | '"' | '<' | '>' | '|')),
             "server returned an unsafe download filename"
         );
         relative.push(component);
@@ -671,7 +675,8 @@ async fn ensure_download_subdirectory(root: &Path, dir: &Path) -> Result<()> {
                     .with_context(|| format!("create download directory {}", current.display()))?;
             }
             Err(e) => {
-                return Err(e).with_context(|| format!("inspect download directory {}", current.display()));
+                return Err(e)
+                    .with_context(|| format!("inspect download directory {}", current.display()));
             }
         }
     }
@@ -682,7 +687,11 @@ const MAX_DIRECTORY_DOWNLOAD_ENTRIES: usize = 100_000;
 const MAX_DIRECTORY_DOWNLOAD_DEPTH: usize = 64;
 const MAX_DIRECTORY_DOWNLOAD_PATH_BYTES: usize = 16 * 1024 * 1024;
 
-fn validate_directory_download_budget(entries: usize, depth: usize, path_bytes: usize) -> Result<()> {
+fn validate_directory_download_budget(
+    entries: usize,
+    depth: usize,
+    path_bytes: usize,
+) -> Result<()> {
     anyhow::ensure!(
         entries <= MAX_DIRECTORY_DOWNLOAD_ENTRIES,
         "directory download entry budget exceeded"
@@ -2539,14 +2548,20 @@ impl TransferManager {
                 let remote_child = entry.path.clone();
                 let rel = checked_remote_download_relative(&remote_root, &remote_child)?;
                 let local_child = local_root.join(rel);
-                entry_count = entry_count.checked_add(1).context("download entry count overflow")?;
+                entry_count = entry_count
+                    .checked_add(1)
+                    .context("download entry count overflow")?;
                 total_path_bytes = total_path_bytes
                     .checked_add(remote_child.len())
                     .context("download inventory path length overflow")?;
                 validate_directory_download_budget(entry_count, depth, total_path_bytes)?;
                 match entry.kind {
                     crate::remotefs::FileKind::Directory => {
-                        validate_directory_download_budget(entry_count, depth + 1, total_path_bytes)?;
+                        validate_directory_download_budget(
+                            entry_count,
+                            depth + 1,
+                            total_path_bytes,
+                        )?;
                         ensure_download_subdirectory(&local_root, &local_child).await?;
                         dirs_to_visit.push((remote_child, depth + 1));
                     }
@@ -5100,7 +5115,8 @@ mod tests {
             PathBuf::from("photos").join("day1.jpg")
         );
         assert_eq!(
-            checked_remote_download_relative("C:\\srv\\root", "C:\\srv\\root\\album\\photo.png").unwrap(),
+            checked_remote_download_relative("C:\\srv\\root", "C:\\srv\\root\\album\\photo.png")
+                .unwrap(),
             PathBuf::from("album").join("photo.png")
         );
         for bad in [
@@ -5113,7 +5129,10 @@ mod tests {
             "/remote/home/dir\\..\\outside",
             "/remote/home",
         ] {
-            assert!(checked_remote_download_relative(root, bad).is_err(), "{bad}");
+            assert!(
+                checked_remote_download_relative(root, bad).is_err(),
+                "{bad}"
+            );
         }
     }
 
@@ -5121,15 +5140,18 @@ mod tests {
     #[tokio::test]
     async fn directory_download_rejects_symlinked_local_parents() {
         use std::os::unix::fs::symlink;
-        let sandbox = std::env::temp_dir().join(format!("ghostftp-download-links-{}", Uuid::new_v4()));
+        let sandbox =
+            std::env::temp_dir().join(format!("ghostftp-download-links-{}", Uuid::new_v4()));
         let root = sandbox.join("download");
         let outside = sandbox.join("other-user-files");
         tokio::fs::create_dir_all(&root).await.unwrap();
         tokio::fs::create_dir_all(&outside).await.unwrap();
         symlink(&outside, root.join("nested")).unwrap();
-        assert!(ensure_download_subdirectory(&root, &root.join("nested").join("subdir"))
-            .await
-            .is_err());
+        assert!(
+            ensure_download_subdirectory(&root, &root.join("nested").join("subdir"))
+                .await
+                .is_err()
+        );
         assert!(tokio::fs::read_dir(&outside)
             .await
             .unwrap()
@@ -5149,9 +5171,17 @@ mod tests {
             assert!(checked_remote_download_relative("/remote/home", &name).is_ok());
             validate_directory_download_budget(i + 1, 1, bytes).unwrap();
         }
-        assert!(validate_directory_download_budget(MAX_DIRECTORY_DOWNLOAD_ENTRIES + 1, 1, bytes).is_err());
-        assert!(validate_directory_download_budget(1, MAX_DIRECTORY_DOWNLOAD_DEPTH + 1, bytes).is_err());
-        assert!(validate_directory_download_budget(1, 1, MAX_DIRECTORY_DOWNLOAD_PATH_BYTES + 1).is_err());
+        assert!(
+            validate_directory_download_budget(MAX_DIRECTORY_DOWNLOAD_ENTRIES + 1, 1, bytes)
+                .is_err()
+        );
+        assert!(
+            validate_directory_download_budget(1, MAX_DIRECTORY_DOWNLOAD_DEPTH + 1, bytes).is_err()
+        );
+        assert!(
+            validate_directory_download_budget(1, 1, MAX_DIRECTORY_DOWNLOAD_PATH_BYTES + 1)
+                .is_err()
+        );
     }
 
     #[test]
