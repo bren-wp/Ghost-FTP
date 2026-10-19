@@ -1,4 +1,8 @@
 use anyhow::{anyhow, Context, Result};
+use std::sync::Mutex;
+
+static VAULT_LOCK: Mutex<()> = Mutex::new(());
+
 
 #[cfg(target_os = "linux")]
 mod linux_secret_service;
@@ -22,6 +26,7 @@ fn legacy_delete(service: &str, account: &str) -> Result<()> {
 }
 
 pub fn vault_get(service: &str, account: &str) -> Result<Option<String>> {
+    let _guard = VAULT_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     #[cfg(target_os = "linux")]
     {
         let primary = linux_secret_service::lookup(service, account);
@@ -54,6 +59,7 @@ pub fn vault_get(service: &str, account: &str) -> Result<Option<String>> {
 /// New Linux writes are persistent-only and must verify their destination.
 /// No fallback to kernel keyutils: it loses data on reboot.
 pub fn vault_set(service: &str, account: &str, value: &str) -> Result<()> {
+    let _guard = VAULT_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     #[cfg(target_os = "linux")]
     {
         linux_secret_service::store(service, account, value)
@@ -68,6 +74,7 @@ pub fn vault_set(service: &str, account: &str, value: &str) -> Result<()> {
 }
 
 pub fn vault_delete(service: &str, account: &str) -> Result<()> {
+    let _guard = VAULT_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     #[cfg(target_os = "linux")]
     {
         // Preserve legacy keyutils if Secret Service is locked or refuses the
@@ -105,6 +112,24 @@ pub fn delete_secret_checked(purpose: &str) -> Result<()> {
     vault_delete(SERVICE, purpose)
 }
 
+/// Serial order is important: never forget an entry from SQLite unless the
+/// vault has conclusively deleted it. Fault-injection tests verify this.
+fn delete_then_forget<V, M>(vault_delete: V, forget_manifest: M) -> Result<()>
+where
+    V: FnOnce() -> Result<()>,
+    M: FnOnce() -> Result<()>,
+{
+    vault_delete()?;
+    forget_manifest()
+}
+
+pub fn delete_secret_recorded(purpose: &str, db: &crate::db::Db) -> Result<()> {
+    delete_then_forget(
+        || delete_secret_checked(purpose),
+        || db.forget_keychain(SERVICE, purpose),
+    )
+}
+
 pub fn secret_exists_checked(purpose: &str) -> Result<bool> {
     get_secret(purpose).map(|value| value.is_some())
 }
@@ -122,6 +147,26 @@ pub fn has_secret(purpose: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn injected_vault_failure_never_forgets_sqlite_manifest() {
+        use std::cell::Cell;
+        let forget_calls = Cell::new(0);
+        let bad = delete_then_forget(
+            || Err(anyhow!("simulated locked vault: PRIVATE_SENTINEL")),
+            || { forget_calls.set(forget_calls.get() + 1); Ok(()) },
+        );
+        assert!(bad.is_err());
+        assert_eq!(forget_calls.get(), 0);
+        let good = delete_then_forget(
+            || Ok(()),
+            || { forget_calls.set(forget_calls.get() + 1); Ok(()) },
+        );
+        assert!(good.is_ok());
+        assert_eq!(forget_calls.get(), 1);
+        let db_error = delete_then_forget(|| Ok(()), || Err(anyhow!("SQLite write failed")));
+        assert!(db_error.is_err());
+    }
 
     #[test]
     fn clearing_missing_entry_is_idempotent_but_locked_vault_fails_closed() {
