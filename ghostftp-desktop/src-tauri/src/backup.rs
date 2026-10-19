@@ -1043,6 +1043,49 @@ mod tests {
     }
 
     #[test]
+    fn staging_fault_can_restore_old_vault_values_and_remove_new_entries() {
+        let service = crate::credentials::SERVICE.to_string();
+        let mut vault = TestVault::default();
+        vault.values.insert(
+            (service.clone(), "existing".into()),
+            "ORIGINAL_PRIVATE_SENTINEL".into(),
+        );
+        let credentials = vec![
+            test_credential("existing", "RESTORED_PRIVATE_SENTINEL"),
+            test_credential("new", "NEW_PRIVATE_SENTINEL"),
+        ];
+        let previous = restore_credentials_with_vault(&credentials, &mut vault).unwrap();
+        assert_eq!(
+            vault.values.get(&(service.clone(), "existing".into())).map(String::as_str),
+            Some("RESTORED_PRIVATE_SENTINEL")
+        );
+        // Simulate a disk-full or denied-create error after the vault writes.
+        rollback_restored_credentials(&credentials, &previous, &mut vault).unwrap();
+        assert_eq!(
+            vault.values.get(&(service.clone(), "existing".into())).map(String::as_str),
+            Some("ORIGINAL_PRIVATE_SENTINEL")
+        );
+        assert!(!vault.values.contains_key(&(service, "new".to_string())));
+    }
+
+    #[test]
+    fn rollback_error_is_reported_without_exposing_sentinel_secrets() {
+        let mut vault = TestVault::default();
+        vault.values.insert(
+            (crate::credentials::SERVICE.into(), "existing".into()),
+            "ORIGINAL_PRIVATE_SENTINEL".into(),
+        );
+        let credentials = vec![test_credential("existing", "NEW_PRIVATE_SENTINEL")];
+        let previous = restore_credentials_with_vault(&credentials, &mut vault).unwrap();
+        vault.fail_write_at = Some(vault.write_count + 1);
+        let error = rollback_restored_credentials(&credentials, &previous, &mut vault)
+            .unwrap_err().to_string();
+        assert!(error.contains("rollback incomplete"));
+        assert!(!error.contains("ORIGINAL_PRIVATE_SENTINEL"));
+        assert!(!error.contains("NEW_PRIVATE_SENTINEL"));
+    }
+
+    #[test]
     fn partial_vault_restore_rolls_back_existing_and_new_values() {
         let service = crate::credentials::SERVICE.to_string();
         let mut vault = TestVault {
