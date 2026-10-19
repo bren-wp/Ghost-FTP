@@ -19,13 +19,23 @@ fn b64() -> base64::engine::general_purpose::GeneralPurpose {
 }
 
 /// A long-lived Noise static keypair, serialised as base64 in a small JSON file.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Identity {
     /// base64 of the 32-byte X25519 private key.
     private_key: String,
     /// base64 of the 32-byte X25519 public key.
     public_key: String,
+}
+
+// A static Noise key is a private identity secret. Never print it via Debug.
+impl std::fmt::Debug for Identity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Identity")
+            .field("private_key", &"[REDACTED]")
+            .field("public_key", &self.public_key)
+            .finish()
+    }
 }
 
 impl Identity {
@@ -71,32 +81,30 @@ impl Identity {
         }
         let bytes = serde_json::to_vec_pretty(self)?;
 
+        use std::io::Write as _;
+        let staged = path.with_extension(format!("identity.{}.tmp", std::process::id()));
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
         #[cfg(unix)]
         {
-            use std::io::Write as _;
             use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
-
-            let mut file = std::fs::OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .mode(0o600)
-                .open(path)
-                .with_context(|| format!("open identity {path:?}"))?;
-            file.set_permissions(std::fs::Permissions::from_mode(0o600))
-                .with_context(|| format!("restrict identity permissions {path:?}"))?;
-            file.write_all(&bytes)
-                .with_context(|| format!("write identity {path:?}"))?;
-            file.sync_all()
-                .with_context(|| format!("sync identity {path:?}"))?;
+            options.mode(0o600);
+            if let Some(parent) = path.parent() {
+                std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700))
+                    .context("restrict identity directory")?;
+            }
         }
-
-        #[cfg(not(unix))]
-        {
-            std::fs::write(path, &bytes).with_context(|| format!("write identity {path:?}"))?;
+        let result = (|| -> Result<()> {
+            let mut file = options.open(&staged).context("create private identity staging file")?;
+            file.write_all(&bytes).context("write staged identity")?;
+            file.sync_all().context("sync staged identity")?;
+            std::fs::rename(&staged, path).context("replace identity atomically")?;
+            Ok(())
+        })();
+        if result.is_err() {
+            let _ = std::fs::remove_file(&staged);
         }
-
-        Ok(())
+        result
     }
 
     fn decode_key(encoded: &str, label: &str) -> Result<Vec<u8>> {
@@ -158,6 +166,15 @@ pub fn decode_public(pin: &str) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn identity_debug_never_exposes_private_material() {
+        let id = Identity::generate().unwrap();
+        let secret = id.private_key.clone();
+        let message = format!("{id:?}");
+        assert!(message.contains("[REDACTED]"));
+        assert!(!message.contains(&secret));
+    }
 
     #[test]
     fn generate_is_32_bytes_and_stable_fingerprint() {
