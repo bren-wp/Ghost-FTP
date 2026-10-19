@@ -77,6 +77,16 @@
     "linux": {
       "appimage": {
         "bundleMediaFramework": false
+      },
+      "deb": {
+        "depends": [
+          "libsecret-tools"
+        ]
+      },
+      "rpm": {
+        "depends": [
+          "libsecret"
+        ]
       }
     }
   }
