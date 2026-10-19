@@ -301,16 +301,39 @@ mod tests {
     /// touches the credential store (unavailable on headless CI); run locally
     /// with `cargo test -p ghostftp -- --ignored credentials`.
     #[test]
-    #[ignore = "touches the OS keychain"]
+    #[ignore = "requires an unlocked real Windows Credential Manager or Linux Secret Service"]
     fn secret_roundtrip() {
-        let purpose = "ghostftp-credentials-test-key";
-        assert!(!has_secret(purpose));
-        set_secret(purpose, "sk-test-123").unwrap();
-        assert!(has_secret(purpose));
-        assert_eq!(get_secret(purpose).unwrap().as_deref(), Some("sk-test-123"));
-        // Empty value clears it.
-        set_secret(purpose, "").unwrap();
-        assert!(!has_secret(purpose));
-        assert!(get_secret(purpose).unwrap().is_none());
+        let purpose = format!("ghostftp-live-test-{}", uuid::Uuid::new_v4());
+        assert!(!secret_exists_checked(&purpose).unwrap());
+        set_secret(&purpose, "PRIVATE_SENTINEL_WIPE_ON_DELETE").unwrap();
+        assert!(secret_exists_checked(&purpose).unwrap());
+        assert_eq!(
+            get_secret(&purpose).unwrap().as_deref(),
+            Some("PRIVATE_SENTINEL_WIPE_ON_DELETE")
+        );
+        // Confirm read-after-write before deletion (actual storage provider).
+        delete_secret_checked(&purpose).unwrap();
+        assert!(!secret_exists_checked(&purpose).unwrap());
+    }
+
+    #[test]
+    #[ignore = "requires an unlocked real OS vault and tests same-process concurrency"]
+    fn live_vault_concurrent_writes_are_serialized() {
+        let purpose = format!("ghostftp-concurrency-{}", uuid::Uuid::new_v4());
+        let mut workers = Vec::new();
+        for index in 0..6 {
+            let key = purpose.clone();
+            workers.push(std::thread::spawn(move || {
+                set_secret(&key, &format!("UNIQUE_SENTINEL_{index}")).unwrap();
+                assert!(get_secret(&key).unwrap().is_some());
+            }));
+        }
+        for worker in workers {
+            worker.join().unwrap();
+        }
+        let final_value = get_secret(&purpose).unwrap().unwrap();
+        assert!(final_value.starts_with("UNIQUE_SENTINEL_"));
+        delete_secret_checked(&purpose).unwrap();
+        assert!(get_secret(&purpose).unwrap().is_none());
     }
 }
