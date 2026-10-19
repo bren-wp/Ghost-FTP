@@ -580,6 +580,11 @@ fn validate_staged_database(dir: &Path) -> Result<bool> {
             anyhow::bail!("staged SQLite restore has unexpected WAL/SHM sidecars");
         }
     }
+    // The read-only SQLite integrity check can itself create transient
+    // WAL/SHM sidecars for a WAL-mode snapshot. They were absent above, so
+    // guard and remove only the sidecars created during this validation.
+    let _wal_guard = RemoveOnDrop(dir.join("ghostftp.db.restore-wal"));
+    let _shm_guard = RemoveOnDrop(dir.join("ghostftp.db.restore-shm"));
     let candidate =
         rusqlite::Connection::open_with_flags(&staged, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
             .context("open staged SQLite backup read-only")?;
