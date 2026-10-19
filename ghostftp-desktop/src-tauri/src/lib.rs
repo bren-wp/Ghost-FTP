@@ -443,6 +443,7 @@ original user data and staged restore were preserved for repair"
             agent_host::agent_host_open_pairing,
             agent_host::agent_host_close_pairing,
             agent_host::agent_host_set_policy,
+            agent_host::agent_host_set_peer_permissions,
             agent_host::agent_host_revoke_peer,
             path_integration::path_status,
             path_integration::path_add,
