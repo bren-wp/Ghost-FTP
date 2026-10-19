@@ -27,6 +27,7 @@ import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
 import { duplicateSavedSiteIds, matchingSavedSites } from "@/lib/siteDuplicates";
 import { ConfirmModal } from "./ConfirmModal";
 import { CloudAccountConnect } from "./CloudAccountConnect";
+import { CloudStorageConnect } from "./CloudStorageConnect";
 import { ipc } from "@/lib/ipc";
 import { toast } from "@/stores/toastStore";
 import { toastError } from "@/lib/errors";
@@ -88,7 +89,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   const [addingMeta, setAddingMeta] = useState<"tag" | "folder" | null>(null);
   const [metaValue, setMetaValue] = useState("");
   const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
-  const [showCloudConnect, setShowCloudConnect] = useState(false);
+  const [cloudWizard, setCloudWizard] = useState<"oauth" | "storage" | null>(null);
 
   const closeIfIdle = () => {
     if (action) return;
@@ -398,7 +399,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
             type="button"
             className="ghost-mini-button"
             disabled={Boolean(action) || editing}
-            onClick={() => setShowCloudConnect(true)}
+            onClick={() => setCloudWizard("oauth")}
           >
             <Cloud size={15} /> Connect Cloud
           </button>
@@ -483,7 +484,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                   type="button"
                   className="ghost-mini-button"
                   disabled={Boolean(action) || editing}
-                  onClick={() => setShowCloudConnect(true)}
+                  onClick={() => setCloudWizard("oauth")}
                 >
                   <Cloud size={14} /> Connect Cloud
                 </button>
@@ -836,9 +837,17 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
 
       </div>
 
-      {showCloudConnect && (
+      {cloudWizard === "oauth" && (
         <CloudAccountConnect
-          onClose={() => setShowCloudConnect(false)}
+          onClose={() => setCloudWizard(null)}
+          onSaved={() => setView("cloud")}
+          onStorage={() => setCloudWizard("storage")}
+        />
+      )}
+      {cloudWizard === "storage" && (
+        <CloudStorageConnect
+          onClose={() => setCloudWizard(null)}
+          onBack={() => setCloudWizard("oauth")}
           onSaved={() => setView("cloud")}
         />
       )}
