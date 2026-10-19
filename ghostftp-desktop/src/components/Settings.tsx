@@ -488,7 +488,58 @@ function NetworkDiagnosticsCard() {
   );
 }
 
-function SecurityCard() { return <Card icon={<ShieldCheck size={20}/>} title="Security & Privacy" subtitle="Privacy and credential protections built into Ghost FTP."><StatusRow label="No tracking"/><StatusRow label="No analytics or telemetry"/><StatusRow label="Credentials stored with the operating system keychain"/></Card> }
+function SecurityCard() {
+  const [repairing, setRepairing] = useState(false);
+  const [result, setResult] = useState<{
+    checked: number;
+    verified: number;
+    missingRemoved: number;
+    orphanedRetained: number;
+  } | null>(null);
+
+  const repair = async () => {
+    if (repairing) return;
+    setRepairing(true);
+    setResult(null);
+    try {
+      const summary = await ipc.repairKeychainManifest();
+      setResult(summary);
+      toast.success("Credential inventory checked", "No saved secrets were deleted.");
+    } catch (error) {
+      toastError(error, "Credential inventory could not be checked");
+    } finally {
+      setRepairing(false);
+    }
+  };
+
+  return (
+    <Card icon={<ShieldCheck size={20} />} title="Security & Privacy"
+      subtitle="Privacy and credential protections built into Ghost FTP.">
+      <StatusRow label="No tracking"/>
+      <StatusRow label="No analytics or telemetry"/>
+      <StatusRow label="Credentials stored with the operating system keychain"/>
+      <div className="mt-4 space-y-2">
+        <p className="text-xs text-text-muted">
+          Check credential inventory after a failed vault operation or system recovery.
+          This reconciles only records confirmed absent; orphaned secrets remain protected
+          for manual recovery. An unavailable or locked vault stops the operation.
+        </p>
+        <button type="button" className="ghost-mini-button"
+          disabled={repairing} aria-busy={repairing}
+          onClick={() => void repair()}>
+          {repairing ? "Checking credential inventory…" : "Check and repair credential inventory"}
+        </button>
+        {result && (
+          <div role="status" className="rounded-lg border border-border p-3 text-xs text-text-muted">
+            <p>Checked: {result.checked} · Present: {result.verified}</p>
+            <p>Missing records repaired: {result.missingRemoved}</p>
+            <p>Existing secrets awaiting manual review: {result.orphanedRetained}</p>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
 
 function IntegrationsCard({
   mutation,
