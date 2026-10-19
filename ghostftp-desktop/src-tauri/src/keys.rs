@@ -265,9 +265,8 @@ fn write_key_file(path: &Path, bytes: &[u8], overwrite: bool, private: bool) -> 
     use std::io::Write;
 
     check_key_destination(path, overwrite)?;
-    let staged = overwrite.then(|| {
-        path.with_file_name(format!(".ghostftp-key-{}.tmp", uuid::Uuid::new_v4()))
-    });
+    let staged = overwrite
+        .then(|| path.with_file_name(format!(".ghostftp-key-{}.tmp", uuid::Uuid::new_v4())));
     let target = staged.as_deref().unwrap_or(path);
     let result = (|| -> Result<()> {
         let mut options = std::fs::OpenOptions::new();
@@ -439,7 +438,10 @@ mod tests {
         assert!(generate(&request(false)).is_err());
         assert!(generate(&request(true)).is_err());
         assert_eq!(std::fs::read(&outside).unwrap(), b"DO_NOT_TOUCH");
-        assert!(std::fs::symlink_metadata(&private).unwrap().file_type().is_symlink());
+        assert!(std::fs::symlink_metadata(&private)
+            .unwrap()
+            .file_type()
+            .is_symlink());
         std::fs::remove_file(&private).unwrap();
 
         symlink(&outside, &public).unwrap();
@@ -456,7 +458,8 @@ mod tests {
 
     #[test]
     fn exclusive_key_generation_does_not_overwrite_existing_private_key() {
-        let dir = std::env::temp_dir().join(format!("ghostftp-keyexclusive-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-keyexclusive-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir(&dir).unwrap();
         let private = dir.join("id_ed25519");
         std::fs::write(&private, b"ORIGINAL_PRIVATE_KEY").unwrap();
