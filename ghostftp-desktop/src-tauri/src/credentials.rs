@@ -157,7 +157,14 @@ pub struct ManifestRepairSummary {
 
 fn profile_owner<'a>(service: &str, account: &'a str) -> Option<&'a str> {
     if service == SERVICE {
-        for prefix in ["profile-password:", "profile-key-passphrase:", "grant-key:", "shopify-admin:"] {
+        for prefix in [
+            "profile-password:",
+            "profile-key-passphrase:",
+            "grant-key:",
+            "shopify:",
+            "hubspot:",
+            "dynamics:",
+        ] {
             if let Some(id) = account.strip_prefix(prefix) {
                 return Some(id);
             }
@@ -167,6 +174,7 @@ fn profile_owner<'a>(service: &str, account: &'a str) -> Option<&'a str> {
         crate::session::onedrive::ONEDRIVE_SERVICE,
         crate::session::gdrive::GDRIVE_SERVICE,
         crate::session::boxdrive::BOX_SERVICE,
+        crate::session::dynamics::DYNAMICS_TOKEN_SERVICE,
     ].contains(&service) {
         return Some(account);
     }
