@@ -144,10 +144,7 @@ impl AgentHost {
             None
         } else {
             tracing::warn!(%bind_ip, "REMOTE AGENT IS NETWORK-EXPOSED; restrict host firewall access");
-            match Advertisement::publish(port, &fingerprint, &info.os, false) {
-                Ok(ad) => Some(ad),
-                Err(_) => None,
-            }
+            Advertisement::publish(port, &fingerprint, &info.os, false).ok()
         };
 
         let serve_daemon = daemon.clone();
