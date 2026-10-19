@@ -404,3 +404,58 @@ fn log_op(peer: &str, summary: &str, resp: &Response) {
     };
     tracing::info!(peer = %peer, operation = %summary, status = outcome, "agent request");
 }
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+
+    #[test]
+    fn new_peers_cannot_write_delete_or_use_terminal() {
+        let grant = PeerPermissions::default();
+        assert!(permitted(&Request::Ping, grant));
+        assert!(permitted(&Request::ListDir { path: "/".into() }, grant));
+        assert!(!permitted(&Request::Delete { path: "/tmp/x".into(), recursive: false }, grant));
+        assert!(!permitted(&Request::CreateDir { path: "/tmp/x".into() }, grant));
+        assert!(!permitted(&Request::Exec {
+            command: "echo PRIVATE_SENTINEL".into(), timeout_ms: 1000, max_bytes: 10,
+        }, grant));
+        assert_eq!(
+            describe(&Request::Exec {
+                command: "echo PRIVATE_SENTINEL".into(), timeout_ms: 1000, max_bytes: 10,
+            }),
+            "exec"
+        );
+        assert_eq!(describe(&Request::ReadFile {
+            path: "/home/SECRET_SENTINEL".into(), max_bytes: 10,
+        }), "read");
+    }
+
+    #[test]
+    fn per_controller_job_namespaces_are_disjoint_even_when_job_ids_match() {
+        let a = namespace_job_request(Request::ExecPoll { job_id: "shared".into() }, "peerA");
+        let b = namespace_job_request(Request::ExecPoll { job_id: "shared".into() }, "peerB");
+        match (a, b) {
+            (Request::ExecPoll { job_id: x }, Request::ExecPoll { job_id: y }) => {
+                assert_ne!(x, y);
+                assert!(x.starts_with("peerA:"));
+                assert!(y.starts_with("peerB:"));
+            }
+            _ => panic!("unexpected request"),
+        }
+    }
+
+    #[tokio::test]
+    async fn six_attempts_per_pairing_window_then_fail_closed() {
+        let identity = Identity::generate().unwrap();
+        let path = std::env::temp_dir().join(format!("agent-limit-{}", std::process::id()));
+        let daemon = Daemon::new(identity, Config::default(), path);
+        daemon.open_pairing("123456".to_string(), Duration::from_secs(30)).await;
+        for _ in 0..MAX_PAIR_ATTEMPTS {
+            assert_eq!(daemon.authorize_pairing_attempt().await.unwrap(), "123456");
+        }
+        assert!(daemon.authorize_pairing_attempt().await.is_err());
+        assert!(daemon.pairing_code().await.is_none());
+        daemon.open_pairing("654321".into(), Duration::from_secs(30)).await;
+        assert_eq!(daemon.authorize_pairing_attempt().await.unwrap(), "654321");
+    }
+}
