@@ -23,7 +23,12 @@ pub const FOLDER_MIME: &str = "application/vnd.google-apps.folder";
 /// add `http://localhost:53682/` as an authorized redirect, and paste the client
 /// id here or set `GHOSTFTP_GDRIVE_CLIENT_ID`. PKCE ⇒ no secret needed for a public
 /// desktop client.
-const GDRIVE_CLIENT_ID: &str = "";
+// Public provider application ID injected during Windows/Linux compilation.
+// Runtime GHOSTFTP_* overrides still support local developer builds.
+const GDRIVE_CLIENT_ID: &str = match option_env!("GHOSTFTP_GDRIVE_CLIENT_ID") {
+    Some(id) => id,
+    None => "",
+};
 
 fn env_or(key: &str, default: &str) -> String {
     std::env::var(key)
@@ -105,7 +110,10 @@ impl GDriveSession {
             if let Some(b) = body {
                 rb = rb.json(b);
             }
-            let resp = rb.send().await.with_context(|| format!("drive {url}"))?;
+            let resp = rb
+                .send()
+                .await
+                .map_err(|_| anyhow!("Google Drive transport error"))?;
             if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
                 attempt += 1;
                 self.force_refresh().await?;
@@ -118,10 +126,13 @@ impl GDriveSession {
     pub async fn rpc(&self, method: Method, url: &str, body: Option<&Value>) -> Result<Value> {
         let resp = self.send(method, url, body).await?;
         let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            return Err(anyhow!("drive {url} failed ({}): {text}", status.as_u16()));
+            return Err(gdrive_http_error(status));
         }
+        let text = resp
+            .text()
+            .await
+            .context("read Google Drive metadata response")?;
         if text.trim().is_empty() {
             return Ok(Value::Null);
         }
@@ -132,8 +143,7 @@ impl GDriveSession {
         let resp = self.send(Method::GET, url, None).await?;
         if !resp.status().is_success() {
             let code = resp.status().as_u16();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(anyhow!("drive GET {url} failed ({code}): {text}"));
+            return Err(anyhow!("Google Drive download failed (HTTP {code})"));
         }
         Ok(resp)
     }
@@ -244,6 +254,11 @@ impl GDriveSession {
     }
 }
 
+/// Never expose a provider-supplied response body, bearer URL or token.
+fn gdrive_http_error(status: reqwest::StatusCode) -> anyhow::Error {
+    anyhow!("Google Drive request failed (HTTP {})", status.as_u16())
+}
+
 pub async fn gdrive_connect(profile: &ConnectionProfile) -> Result<GDriveSession> {
     let tokens = oauth::load_tokens(GDRIVE_SERVICE, &profile.id)?.ok_or_else(|| {
         anyhow!(
@@ -306,4 +321,16 @@ pub fn folder_mime_is(mime: &str) -> bool {
 fn urlencode(s: &str) -> String {
     use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
     utf8_percent_encode(s, NON_ALPHANUMERIC).to_string()
+}
+
+#[cfg(test)]
+mod security_diagnostics_tests {
+    use super::*;
+
+    #[test]
+    fn provider_error_contains_status_not_untrusted_payload() {
+        let error = gdrive_http_error(reqwest::StatusCode::FORBIDDEN).to_string();
+        assert_eq!(error, "Google Drive request failed (HTTP 403)");
+        assert!(!error.contains("access_token"));
+    }
 }

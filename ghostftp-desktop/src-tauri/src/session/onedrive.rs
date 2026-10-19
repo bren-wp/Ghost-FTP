@@ -19,7 +19,12 @@ const DEFAULT_TOKEN_URL: &str = "https://login.microsoftonline.com/common/oauth2
 /// delegated `Files.ReadWrite`, `offline_access`, and `User.Read` scopes. Paste
 /// the Application (client) id here or set `GHOSTFTP_ONEDRIVE_CLIENT_ID`. PKCE ⇒ no
 /// secret.
-const ONEDRIVE_CLIENT_ID: &str = "";
+// Public provider application ID injected during Windows/Linux compilation.
+// Runtime GHOSTFTP_* overrides still support local developer builds.
+const ONEDRIVE_CLIENT_ID: &str = match option_env!("GHOSTFTP_ONEDRIVE_CLIENT_ID") {
+    Some(id) => id,
+    None => "",
+};
 
 fn env_or(key: &str, default: &str) -> String {
     std::env::var(key)
@@ -86,7 +91,10 @@ impl OneDriveSession {
             if let Some(b) = body {
                 rb = rb.json(b);
             }
-            let resp = rb.send().await.with_context(|| format!("graph {path}"))?;
+            let resp = rb
+                .send()
+                .await
+                .map_err(|_| anyhow!("OneDrive transport error"))?;
             if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
                 attempt += 1;
                 self.force_refresh().await?;
@@ -100,10 +108,13 @@ impl OneDriveSession {
     pub async fn rpc(&self, method: Method, path: &str, body: Option<&Value>) -> Result<Value> {
         let resp = self.send(method, path, body).await?;
         let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            return Err(anyhow!("graph {path} failed ({}): {text}", status.as_u16()));
+            return Err(onedrive_http_error(status));
         }
+        let text = resp
+            .text()
+            .await
+            .context("read OneDrive metadata response")?;
         if text.trim().is_empty() {
             return Ok(Value::Null);
         }
@@ -116,8 +127,7 @@ impl OneDriveSession {
         let resp = self.send(Method::GET, path, None).await?;
         if !resp.status().is_success() {
             let code = resp.status().as_u16();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(anyhow!("graph GET {path} failed ({code}): {text}"));
+            return Err(anyhow!("OneDrive download failed (HTTP {code})"));
         }
         Ok(resp)
     }
@@ -149,10 +159,9 @@ impl OneDriveSession {
         if status == reqwest::StatusCode::NOT_FOUND {
             return Ok(false);
         }
-        let code = status.as_u16();
-        let text = resp.text().await.unwrap_or_default();
         Err(anyhow!(
-            "graph {item_ref} existence check failed ({code}): {text}"
+            "OneDrive existence check failed (HTTP {})",
+            status.as_u16()
         ))
     }
 
@@ -164,6 +173,10 @@ impl OneDriveSession {
             .and_then(|v| v.get("size").and_then(|s| s.as_u64()))
             .unwrap_or(0)
     }
+}
+
+fn onedrive_http_error(status: reqwest::StatusCode) -> anyhow::Error {
+    anyhow!("OneDrive API request failed (HTTP {})", status.as_u16())
 }
 
 pub async fn onedrive_connect(profile: &ConnectionProfile) -> Result<OneDriveSession> {
@@ -188,4 +201,16 @@ pub async fn onedrive_connect(profile: &ConnectionProfile) -> Result<OneDriveSes
         graph_base: env_or("GHOSTFTP_ONEDRIVE_GRAPH_BASE", DEFAULT_GRAPH_BASE),
         token: RefreshingToken::new(ONEDRIVE_SERVICE, &profile.id, onedrive_config(), tokens),
     })
+}
+
+#[cfg(test)]
+mod privacy_tests {
+    use super::*;
+
+    #[test]
+    fn provider_errors_never_echo_token_bearing_urls() {
+        let error = onedrive_http_error(reqwest::StatusCode::FORBIDDEN).to_string();
+        assert_eq!(error, "OneDrive API request failed (HTTP 403)");
+        assert!(!error.contains("access_token="));
+    }
 }

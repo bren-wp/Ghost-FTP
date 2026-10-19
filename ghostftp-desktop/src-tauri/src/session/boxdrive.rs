@@ -24,7 +24,12 @@ pub const ROOT_ID: &str = "0";
 /// redirect, enable "write all files" scope, and paste the Client ID here or set
 /// `GHOSTFTP_BOX_CLIENT_ID`. (Box also issues a client secret; PKCE is used so it's
 /// not embedded — leave it out of Ghost FTP.)
-const BOX_CLIENT_ID: &str = "";
+// Public provider application ID injected during Windows/Linux compilation.
+// Runtime GHOSTFTP_* overrides still support local developer builds.
+const BOX_CLIENT_ID: &str = match option_env!("GHOSTFTP_BOX_CLIENT_ID") {
+    Some(id) => id,
+    None => "",
+};
 
 fn env_or(key: &str, default: &str) -> String {
     std::env::var(key)
@@ -64,7 +69,10 @@ impl BoxSession {
         self.token.force_refresh().await
     }
     pub fn clear_cache(&self) {
-        self.cache.lock().unwrap().clear();
+        self.cache
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
     }
     pub fn cache_path(&self, ghostftp_path: &str, id: &str) {
         self.cache
@@ -94,7 +102,10 @@ impl BoxSession {
             if let Some(b) = body {
                 rb = rb.json(b);
             }
-            let resp = rb.send().await.with_context(|| format!("box {url}"))?;
+            let resp = rb
+                .send()
+                .await
+                .map_err(|_| anyhow!("Box API transport error"))?;
             if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
                 attempt += 1;
                 self.force_refresh().await?;
@@ -107,10 +118,10 @@ impl BoxSession {
     pub async fn rpc(&self, method: Method, url: &str, body: Option<&Value>) -> Result<Value> {
         let resp = self.send(method, url, body).await?;
         let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            return Err(anyhow!("box {url} failed ({}): {text}", status.as_u16()));
+            return Err(box_http_error("request", status));
         }
+        let text = resp.text().await.context("read Box API JSON response")?;
         if text.trim().is_empty() {
             return Ok(Value::Null);
         }
@@ -121,8 +132,7 @@ impl BoxSession {
         let resp = self.send(Method::GET, url, None).await?;
         if !resp.status().is_success() {
             let code = resp.status().as_u16();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(anyhow!("box GET {url} failed ({code}): {text}"));
+            return Err(anyhow!("Box download failed (HTTP {code})"));
         }
         Ok(resp)
     }
@@ -153,16 +163,15 @@ impl BoxSession {
             let entries = v
                 .get("entries")
                 .and_then(|e| e.as_array())
-                .cloned()
-                .unwrap_or_default();
-            let n = entries.len() as u64;
-            out.extend(entries);
+                .ok_or_else(|| anyhow!("Box folder listing has no valid entries array"))?;
             let total = v
                 .get("total_count")
                 .and_then(|t| t.as_u64())
-                .unwrap_or(out.len() as u64);
-            offset += n;
-            if n == 0 || offset >= total {
+                .unwrap_or(offset.saturating_add(entries.len() as u64));
+            let next_offset = checked_box_page(offset, entries.len(), total)?;
+            out.extend(entries.iter().cloned());
+            offset = next_offset;
+            if offset >= total {
                 break;
             }
         }
@@ -240,6 +249,37 @@ impl BoxSession {
     }
 }
 
+/// Never include response bodies, signed URLs or bearer tokens in diagnostics.
+/// HTTP status is sufficient for a user-actionable retry/auth error.
+fn box_http_error(operation: &str, status: reqwest::StatusCode) -> anyhow::Error {
+    anyhow!("Box API {operation} failed (HTTP {})", status.as_u16())
+}
+
+/// A Box folder uses offset pagination, and a hostile or broken provider must
+/// not keep a desktop session allocating indefinitely. Bound both page size
+/// and the total returned inventory, including inconsistent total_count values.
+const BOX_PAGE_SIZE: usize = 1_000;
+const MAX_BOX_FOLDER_ITEMS: u64 = 100_000;
+
+fn checked_box_page(offset: u64, page_len: usize, total: u64) -> Result<u64> {
+    anyhow::ensure!(
+        page_len <= BOX_PAGE_SIZE,
+        "Box folder page exceeds requested size"
+    );
+    let next = offset
+        .checked_add(page_len as u64)
+        .context("Box folder page offset overflow")?;
+    anyhow::ensure!(
+        next <= MAX_BOX_FOLDER_ITEMS && total <= MAX_BOX_FOLDER_ITEMS,
+        "Box folder exceeds the safe listing limit of 100,000 entries"
+    );
+    anyhow::ensure!(
+        next >= total || page_len > 0,
+        "Box folder listing ended before the declared total"
+    );
+    Ok(next)
+}
+
 pub async fn box_connect(profile: &ConnectionProfile) -> Result<BoxSession> {
     let tokens = oauth::load_tokens(BOX_SERVICE, &profile.id)?.ok_or_else(|| {
         anyhow!(
@@ -286,5 +326,33 @@ pub fn parent_of(ghostftp: &str) -> String {
     match t.rsplit_once('/') {
         Some((p, _)) => format!("/{p}"),
         None => "/".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod pagination_safety_tests {
+    use super::*;
+
+    #[test]
+    fn box_page_accepts_valid_boundary_and_empty_folder() {
+        assert_eq!(checked_box_page(0, 0, 0).unwrap(), 0);
+        assert_eq!(checked_box_page(0, 1000, 100_000).unwrap(), 1000);
+        assert_eq!(checked_box_page(99_000, 1000, 100_000).unwrap(), 100_000);
+    }
+
+    #[test]
+    fn box_page_rejects_unbounded_or_incomplete_provider_listing() {
+        assert!(checked_box_page(0, 1001, 1001).is_err());
+        assert!(checked_box_page(0, 1000, 100_001).is_err());
+        assert!(checked_box_page(99_999, 2, 100_000).is_err());
+        assert!(checked_box_page(u64::MAX, 1, u64::MAX).is_err());
+        assert!(checked_box_page(1000, 0, 2000).is_err());
+    }
+
+    #[test]
+    fn box_error_diagnostics_never_include_remote_body_or_bearer_url() {
+        let message = box_http_error("request", reqwest::StatusCode::FORBIDDEN).to_string();
+        assert_eq!(message, "Box API request failed (HTTP 403)");
+        assert!(!message.contains("PRIVATE_TOKEN"));
     }
 }

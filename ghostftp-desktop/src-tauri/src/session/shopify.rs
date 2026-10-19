@@ -119,13 +119,10 @@ impl ShopifySession {
             .await
             .context("shopify token exchange")?;
         let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            return Err(anyhow!(
-                "shopify token exchange failed ({}): {text}",
-                status.as_u16()
-            ));
+            return Err(shopify_http_error("token exchange", status));
         }
+        let text = resp.text().await.context("read Shopify token response")?;
         let v: Value = serde_json::from_str(&text).context("parse shopify token response")?;
         let token = v
             .get("access_token")
@@ -158,7 +155,9 @@ impl ShopifySession {
             format!("{}{path}", self.api_base)
         };
         let body = body.cloned();
-        send_retried(&self.throttle, &format!("shopify {path}"), move || {
+        // A caller-supplied path may contain a URL token; never echo it into
+        // diagnostics produced by retry/backoff.
+        send_retried(&self.throttle, "Shopify request", move || {
             let url = url.clone();
             let method = method.clone();
             let body = body.clone();
@@ -181,13 +180,13 @@ impl ShopifySession {
     pub async fn rpc(&self, method: Method, path: &str, body: Option<&Value>) -> Result<Value> {
         let resp = self.send(method, path, body).await?;
         let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            return Err(anyhow!(
-                "shopify {path} failed ({}): {text}",
-                status.as_u16()
-            ));
+            return Err(shopify_http_error("request", status));
         }
+        let text = resp
+            .text()
+            .await
+            .context("read Shopify API JSON response")?;
         if text.trim().is_empty() {
             return Ok(Value::Null);
         }
@@ -306,6 +305,12 @@ impl ShopifySession {
     }
 }
 
+/// Provider errors can echo authorization headers, signed URLs or a user's
+/// source file. Expose only the HTTP status and operation to the UI/logs.
+fn shopify_http_error(operation: &str, status: StatusCode) -> anyhow::Error {
+    anyhow!("Shopify {operation} failed (HTTP {})", status.as_u16())
+}
+
 /// Open a Shopify session from a profile whose credential is in the OS
 /// keychain (`shopify:{profile_id}`). Probes `GET /themes.json` so a bad token
 /// or wrong domain fails at connect, not on first browse.
@@ -350,10 +355,10 @@ pub async fn shopify_connect(profile: &ConnectionProfile) -> Result<ShopifySessi
         assets: StdMutex::new(HashMap::new()),
     };
 
-    // Connect-time validation with user-actionable errors.
+    // Validate status before reading the provider body: an invalid credential
+    // may provoke an untrusted error payload containing echoes of secrets.
     let resp = session.send(Method::GET, "/themes.json", None).await?;
     let status = resp.status();
-    let text = resp.text().await.unwrap_or_default();
     match status {
         StatusCode::UNAUTHORIZED => {
             return Err(anyhow!(
@@ -366,14 +371,10 @@ pub async fn shopify_connect(profile: &ConnectionProfile) -> Result<ShopifySessi
                 "Shopify store not found (404). Check the store domain ({shop})."
             ))
         }
-        s if !s.is_success() => {
-            return Err(anyhow!(
-                "shopify /themes.json failed ({}): {text}",
-                s.as_u16()
-            ))
-        }
+        s if !s.is_success() => return Err(shopify_http_error("theme validation", s)),
         _ => {}
     }
+    let text = resp.text().await.context("read Shopify theme listing")?;
     let v: Value = serde_json::from_str(&text).context("parse shopify /themes.json")?;
     let mut themes = Vec::new();
     if let Some(arr) = v.get("themes").and_then(|t| t.as_array()) {
@@ -436,4 +437,16 @@ pub fn parse_time(s: &str) -> Option<i64> {
 fn urlenc(s: &str) -> String {
     use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
     utf8_percent_encode(s, NON_ALPHANUMERIC).to_string()
+}
+
+#[cfg(test)]
+mod privacy_diagnostic_tests {
+    use super::*;
+
+    #[test]
+    fn failed_shopify_request_displays_only_http_status() {
+        let error = shopify_http_error("request", StatusCode::FORBIDDEN).to_string();
+        assert_eq!(error, "Shopify request failed (HTTP 403)");
+        assert!(!error.contains("shpat_"));
+    }
 }

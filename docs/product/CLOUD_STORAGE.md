@@ -9,6 +9,38 @@
 
 **Google Drive and Google Cloud Storage are distinct services.** Full Drive support on mobile/macOS requires separate OAuth 2.0 PKCE and secure refresh-token storage. A Drive share-page link is not a signed object URL and must not be silently treated as one.
 
+## Windows/Linux: connect a cloud account (0.95.48 Preview)
+
+In **Sites → Connect Cloud**, choose Google Drive, OneDrive, Dropbox or Box and click
+**Connect in browser**. The provider authenticates the user on its own web page.
+Ghost FTP does not request provider account passwords or OAuth client secrets.
+The app obtains short-lived access tokens via OAuth 2.0 authorization-code +
+PKCE S256 with a localhost callback and a randomly generated CSRF state.
+Tokens and the public application Client ID needed for refresh are kept in
+the operating-system keyring per saved account; older token records remain
+readable. The saved site contains only connection metadata.
+
+**An OAuth Client ID is required.** Production-quality one-click account
+connection needs Brendigo to register public native desktop OAuth applications
+with Google, Microsoft, Dropbox and Box and configure their public IDs in
+desktop builds. This Preview does not contain invented or borrowed provider
+IDs. Without a preconfigured ID, the wizard displays an Advanced public
+Client ID field. An authorized user can register their own public/desktop
+application and set its redirect URL to `http://localhost:53682/`. The app
+must never ask for or persist a provider client secret in a saved profile.
+If the browser flow is cancelled or times out, no connection is saved.
+
+Google Drive uses the Drive API and differs from Google Cloud Storage.
+**S3-compatible services, Backblaze B2, GCS, Azure Blob and WebDAV/Nextcloud**
+require endpoint/bucket/container/host details and their respective
+credential methods, not a Google Drive account login. Their existing
+desktop protocol adapters have not been replaced by this OAuth wizard.
+
+Manual device validation is still required for consent, refresh/relaunch,
+locked OS vaults, revocation and provider scopes. The Linux kernel-keyutils
+backend must not be called Secret Service until persistence migration is
+implemented and existing credentials are safely migrated.
+
 ## Invariants
 
 - Never log, persist or echo a signed URL or its query. It is a bearer credential and the UI masks it.

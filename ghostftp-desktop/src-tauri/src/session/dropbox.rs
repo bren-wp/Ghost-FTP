@@ -20,7 +20,12 @@ const DEFAULT_TOKEN_URL: &str = "https://api.dropboxapi.com/oauth2/token";
 /// `files.metadata.read`, `files.content.read`, and `files.content.write`
 /// scopes, then paste the App key here (or set `GHOSTFTP_DROPBOX_APP_KEY`). PKCE
 /// means no app secret is needed.
-const DROPBOX_APP_KEY: &str = "";
+// Public provider application ID injected during Windows/Linux compilation.
+// Runtime GHOSTFTP_* overrides still support local developer builds.
+const DROPBOX_APP_KEY: &str = match option_env!("GHOSTFTP_DROPBOX_APP_KEY") {
+    Some(id) => id,
+    None => "",
+};
 
 fn env_or(key: &str, default: &str) -> String {
     std::env::var(key)
@@ -69,7 +74,8 @@ impl DropboxSession {
             let rt = guard.refresh_token.clone().ok_or_else(|| {
                 anyhow!("no refresh token — re-authorize this Dropbox connection")
             })?;
-            let fresh = oauth::refresh(&self.config, &rt).await?;
+            let mut fresh = oauth::refresh(&self.config, &rt).await?;
+            fresh.client_id = guard.client_id.clone();
             *guard = fresh;
             oauth::store_tokens(DROPBOX_SERVICE, &self.profile.id, &guard)?;
         }
@@ -83,7 +89,8 @@ impl DropboxSession {
             .refresh_token
             .clone()
             .ok_or_else(|| anyhow!("no refresh token — re-authorize this Dropbox connection"))?;
-        let fresh = oauth::refresh(&self.config, &rt).await?;
+        let mut fresh = oauth::refresh(&self.config, &rt).await?;
+        fresh.client_id = guard.client_id.clone();
         *guard = fresh;
         oauth::store_tokens(DROPBOX_SERVICE, &self.profile.id, &guard)?;
         Ok(())
@@ -102,19 +109,19 @@ impl DropboxSession {
                 .json(&body)
                 .send()
                 .await
-                .with_context(|| format!("dropbox {endpoint}"))?;
+                .map_err(|_| anyhow!("Dropbox transport error"))?;
             if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
                 self.force_refresh().await?;
                 continue;
             }
             let status = resp.status();
-            let text = resp.text().await.unwrap_or_default();
             if !status.is_success() {
-                return Err(anyhow!(
-                    "dropbox {endpoint} failed ({}): {text}",
-                    status.as_u16()
-                ));
+                return Err(dropbox_http_error(status));
             }
+            let text = resp
+                .text()
+                .await
+                .context("read Dropbox metadata response")?;
             // No-arg endpoints (get_current_account) can return an empty body.
             if text.trim().is_empty() {
                 return Ok(serde_json::Value::Null);
@@ -138,15 +145,14 @@ impl DropboxSession {
                 .header("Dropbox-API-Arg", arg)
                 .send()
                 .await
-                .with_context(|| format!("dropbox {endpoint}"))?;
+                .map_err(|_| anyhow!("Dropbox transport error"))?;
             if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
                 self.force_refresh().await?;
                 continue;
             }
             if !resp.status().is_success() {
                 let code = resp.status().as_u16();
-                let text = resp.text().await.unwrap_or_default();
-                return Err(anyhow!("dropbox {endpoint} failed ({code}): {text}"));
+                return Err(anyhow!("Dropbox content download failed (HTTP {code})"));
             }
             return Ok(resp);
         }
@@ -186,17 +192,24 @@ impl DropboxSession {
                 .json(&serde_json::json!({ "path": dbx_path }))
                 .send()
                 .await
-                .with_context(|| format!("dropbox existence check {dbx_path}"))?;
+                .map_err(|_| anyhow!("Dropbox metadata transport error"))?;
             if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
                 self.force_refresh().await?;
                 continue;
             }
             let status = resp.status();
-            let text = resp.text().await.unwrap_or_default();
             if status.is_success() {
                 return Ok(true);
             }
             if status == reqwest::StatusCode::CONFLICT {
+                // Limit untrusted provider JSON to a small conflict envelope.
+                let text = resp
+                    .text()
+                    .await
+                    .context("read Dropbox conflict response")?;
+                if text.len() > 16 * 1024 {
+                    return Err(anyhow!("Dropbox conflict response exceeded size limit"));
+                }
                 if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
                     let tag = value
                         .get("error")
@@ -208,10 +221,7 @@ impl DropboxSession {
                     }
                 }
             }
-            return Err(anyhow!(
-                "dropbox {endpoint} existence check failed ({}): {text}",
-                status.as_u16()
-            ));
+            return Err(dropbox_http_error(status));
         }
         unreachable!("Dropbox existence loop always returns within 2 attempts")
     }
@@ -227,6 +237,10 @@ impl DropboxSession {
         .and_then(|v| v.get("size").and_then(|s| s.as_u64()))
         .unwrap_or(0)
     }
+}
+
+fn dropbox_http_error(status: reqwest::StatusCode) -> anyhow::Error {
+    anyhow!("Dropbox API request failed (HTTP {})", status.as_u16())
 }
 
 /// Open a Dropbox session from a profile whose tokens were stored at authorize
@@ -252,7 +266,25 @@ pub async fn dropbox_connect(profile: &ConnectionProfile) -> Result<DropboxSessi
         client,
         api_base: env_or("GHOSTFTP_DROPBOX_API_BASE", DEFAULT_API_BASE),
         content_base: env_or("GHOSTFTP_DROPBOX_CONTENT_BASE", DEFAULT_CONTENT_BASE),
-        config: dropbox_config(),
+        config: {
+            let mut config = dropbox_config();
+            if let Some(client_id) = tokens.client_id.as_deref() {
+                config.client_id = client_id.to_string();
+            }
+            config
+        },
         tokens: Mutex::new(tokens),
     })
+}
+
+#[cfg(test)]
+mod provider_privacy_tests {
+    use super::*;
+
+    #[test]
+    fn dropbox_errors_only_contain_http_status() {
+        let error = dropbox_http_error(reqwest::StatusCode::FORBIDDEN).to_string();
+        assert_eq!(error, "Dropbox API request failed (HTTP 403)");
+        assert!(!error.contains("authorization"));
+    }
 }

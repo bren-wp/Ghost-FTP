@@ -130,13 +130,17 @@ fn is_approved_external_url(parsed: &url::Url) -> bool {
         );
     // The source-code repository is explicitly distinguished from support.
     let approved_project_page = host == "github.com" && path == "/bren-wp/Ghost-FTP";
+    // Only these exact provider help pages. Do not permit generic provider
+    // URLs, user-submitted file links or token-bearing redirect queries.
+    let official_provider_docs = (host == "mega.nz" && path == "/cmd")
+        || (host == "proton.me" && path == "/blog/proton-drive-cli");
     parsed.scheme() == "https"
         && parsed.username().is_empty()
         && parsed.password().is_none()
         && parsed.port().is_none()
         && parsed.query().is_none()
         && parsed.fragment().is_none()
-        && (official_help_page || approved_project_page)
+        && (official_help_page || approved_project_page || official_provider_docs)
 }
 
 #[tauri::command]
@@ -426,6 +430,9 @@ original user data and staged restore were preserved for repair"
             commands::discover_agents,
             commands::agent_public_key,
             commands::pair_agent,
+            commands::probe_cloud_storage,
+            commands::cloud_oauth_availability,
+            commands::cloud_oauth_discard,
             commands::dropbox_authorize,
             commands::onedrive_authorize,
             commands::gdrive_authorize,
@@ -571,6 +578,8 @@ mod init_script_tests {
             "https://ghostftp.com/hr/privacy",
             "https://ghostftp.com/hr/terms",
             "https://github.com/bren-wp/Ghost-FTP",
+            "https://mega.nz/cmd",
+            "https://proton.me/blog/proton-drive-cli",
         ] {
             let parsed = url::Url::parse(allowed).unwrap();
             assert!(
@@ -581,6 +590,14 @@ mod init_script_tests {
 
         for blocked in [
             "http://github.com/bren-wp/Ghost-FTP",
+            "https://mega.nz/cmd?token=secret",
+            "https://mega.nz/cmd/../cmd",
+            "https://mega.nz/cmd#account",
+            "https://www.mega.nz/cmd",
+            "https://mega.nz.evil.example/cmd",
+            "https://proton.me/blog/proton-drive-cli?redirect=evil",
+            "https://proton.me/blog/proton-drive-cli/",
+            "https://login.proton.me/blog/proton-drive-cli",
             "https://ghostftp.com/support/",
             "https://ghostftp.com/hr/support/",
             "https://www.ghostftp.com/hr/support",

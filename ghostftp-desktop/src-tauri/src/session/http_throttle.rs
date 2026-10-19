@@ -39,6 +39,19 @@ impl HttpThrottle {
     }
 }
 
+/// Never feed an untrusted Retry-After value directly into
+/// Duration::from_secs_f64: NaN, infinities and overflow can panic or stall
+/// retries for years. The common backoff budget is bounded to one minute.
+fn retry_after_delay(header: Option<&reqwest::header::HeaderValue>) -> Duration {
+    let seconds = header
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<f64>().ok())
+        .filter(|value| value.is_finite())
+        .unwrap_or(2.0)
+        .clamp(0.1, 60.0);
+    Duration::from_secs_f64(seconds)
+}
+
 /// Send an HTTP request through `throttle`, honoring `Retry-After` on 429 and
 /// backing off on 5xx (up to 3 retries each). `build` must be re-runnable —
 /// each attempt re-invokes it for a fresh `RequestBuilder` (auth headers,
@@ -64,13 +77,8 @@ where
             .with_context(|| what.to_string())?;
         let status = resp.status();
         if status == StatusCode::TOO_MANY_REQUESTS && attempt < 3 {
-            let wait = resp
-                .headers()
-                .get("Retry-After")
-                .and_then(|v| v.to_str().ok())
-                .and_then(|s| s.parse::<f64>().ok())
-                .unwrap_or(2.0);
-            tokio::time::sleep(Duration::from_secs_f64(wait.max(0.1))).await;
+            let wait = retry_after_delay(resp.headers().get("Retry-After"));
+            tokio::time::sleep(wait).await;
             attempt += 1;
             continue;
         }
@@ -81,5 +89,36 @@ where
             continue;
         }
         return Ok(resp);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use reqwest::header::HeaderValue;
+
+    #[test]
+    fn server_retry_after_is_finite_and_bounded_without_panicking() {
+        assert_eq!(retry_after_delay(None), Duration::from_secs(2));
+        assert_eq!(
+            retry_after_delay(Some(&HeaderValue::from_static("0"))),
+            Duration::from_millis(100)
+        );
+        assert_eq!(
+            retry_after_delay(Some(&HeaderValue::from_static("infinity"))),
+            Duration::from_secs(2)
+        );
+        assert_eq!(
+            retry_after_delay(Some(&HeaderValue::from_static("NaN"))),
+            Duration::from_secs(2)
+        );
+        assert_eq!(
+            retry_after_delay(Some(&HeaderValue::from_static("1e300"))),
+            Duration::from_secs(60)
+        );
+        assert_eq!(
+            retry_after_delay(Some(&HeaderValue::from_static("-1000"))),
+            Duration::from_millis(100)
+        );
     }
 }

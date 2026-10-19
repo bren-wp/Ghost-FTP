@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Ghost FTP",
-  "version": "0.95.47",
+  "version": "0.95.48",
   "identifier": "com.ghostftp.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",

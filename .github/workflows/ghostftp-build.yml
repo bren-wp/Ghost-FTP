@@ -44,6 +44,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       HAS_TAURI_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+      # Public native OAuth application IDs. Configure in GitHub repository
+      # Variables after provider registration; never put client secrets here.
+      GHOSTFTP_GDRIVE_CLIENT_ID: ${{ vars.GHOSTFTP_GDRIVE_CLIENT_ID }}
+      GHOSTFTP_ONEDRIVE_CLIENT_ID: ${{ vars.GHOSTFTP_ONEDRIVE_CLIENT_ID }}
+      GHOSTFTP_DROPBOX_APP_KEY: ${{ vars.GHOSTFTP_DROPBOX_APP_KEY }}
+      GHOSTFTP_BOX_CLIENT_ID: ${{ vars.GHOSTFTP_BOX_CLIENT_ID }}
     steps:
       - uses: actions/checkout@v7
         with:

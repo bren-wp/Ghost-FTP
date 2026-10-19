@@ -42,6 +42,10 @@ pub struct TokenSet {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<String>,
     pub expires_at: i64,
+    /// Public OAuth application ID needed to refresh user-authorized tokens
+    /// after restart; absent for existing keychain entries (backward-compatible).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_id: Option<String>,
 }
 
 // Token strings must never be accidentally printed by debugging, panic or trace logs.
@@ -54,6 +58,10 @@ impl std::fmt::Debug for TokenSet {
                 &self.refresh_token.as_ref().map(|_| "[REDACTED]"),
             )
             .field("expires_at", &self.expires_at)
+            .field(
+                "client_id",
+                &self.client_id.as_ref().map(|_| "[configured]"),
+            )
             .finish()
     }
 }
@@ -136,6 +144,29 @@ pub fn authorize_url(config: &OAuthConfig, challenge: &str, state: &str) -> Resu
     Ok(url)
 }
 
+/// Allow a user-supplied public OAuth client ID when this build has no
+/// centrally registered ID. Reject URLs, tokens, whitespace and oversized
+/// input: the ID is not a secret and is stored with tokens in the OS vault.
+pub fn use_client_id(config: &mut OAuthConfig, candidate: Option<&str>) -> Result<()> {
+    if let Some(candidate) = candidate {
+        let id = candidate.trim();
+        anyhow::ensure!(
+            !id.is_empty()
+                && id.len() <= 256
+                && id
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_' | b'.' | b'~')),
+            "OAuth application ID has invalid characters or length"
+        );
+        config.client_id = id.to_string();
+    }
+    anyhow::ensure!(
+        !config.client_id.is_empty(),
+        "This provider needs a registered OAuth application ID. Enter its public Client ID in Advanced setup, or use a build with a preconfigured ID."
+    );
+    Ok(())
+}
+
 /// Run the full interactive flow: start the loopback listener, open the browser,
 /// wait for the redirect, and exchange the code. Returns the tokens plus the raw
 /// token-endpoint JSON (providers stash extras there, e.g. Dropbox `account_id`).
@@ -170,7 +201,10 @@ pub async fn authorize_loopback(config: &OAuthConfig) -> Result<(TokenSet, serde
         .map_err(|_| anyhow!("timed out waiting for the authorization redirect"))??;
 
     let tokens_raw = exchange_code(config, &code, &verifier).await?;
-    let tokens = token_set_from(&tokens_raw)?;
+    let mut tokens = token_set_from(&tokens_raw)?;
+    // Persist only the public client ID alongside OS-keychain tokens. The
+    // provider secret is never requested or sent over IPC.
+    tokens.client_id = Some(config.client_id.clone());
     Ok((tokens, tokens_raw))
 }
 
@@ -368,6 +402,7 @@ fn token_set_from(raw: &serde_json::Value) -> Result<TokenSet> {
         access_token: parsed.access_token,
         refresh_token: parsed.refresh_token,
         expires_at,
+        client_id: None,
     })
 }
 
@@ -437,7 +472,10 @@ pub struct RefreshingToken {
 }
 
 impl RefreshingToken {
-    pub fn new(service: &str, profile_id: &str, config: OAuthConfig, tokens: TokenSet) -> Self {
+    pub fn new(service: &str, profile_id: &str, mut config: OAuthConfig, tokens: TokenSet) -> Self {
+        if let Some(client_id) = tokens.client_id.as_deref() {
+            config.client_id = client_id.to_string();
+        }
         Self {
             service: service.to_string(),
             profile_id: profile_id.to_string(),
@@ -466,7 +504,8 @@ impl RefreshingToken {
             .refresh_token
             .clone()
             .ok_or_else(|| anyhow!("no refresh token — re-authorize this connection"))?;
-        let fresh = refresh(&self.config, &rt).await?;
+        let mut fresh = refresh(&self.config, &rt).await?;
+        fresh.client_id = guard.client_id.clone();
         *guard = fresh;
         store_tokens(&self.service, &self.profile_id, guard)?;
         Ok(())
@@ -571,11 +610,48 @@ mod tests {
             access_token: "unique-sensitive-access-token".into(),
             refresh_token: Some("unique-sensitive-refresh-token".into()),
             expires_at: 123,
+            client_id: Some("public-client-id".into()),
         };
         let debug = format!("{tokens:?}");
         assert!(!debug.contains("unique-sensitive-access-token"));
         assert!(!debug.contains("unique-sensitive-refresh-token"));
         assert!(debug.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn user_supplied_client_id_is_validated_and_stored_without_changing_existing_tokens() {
+        let mut config = OAuthConfig {
+            client_id: String::new(),
+            auth_url: "https://example.invalid/authorize".into(),
+            token_url: "https://example.invalid/token".into(),
+            scopes: vec![],
+            extra_auth_params: vec![],
+        };
+        assert!(use_client_id(&mut config, None).is_err());
+        for invalid in [
+            "",
+            "https://example.com",
+            "key with spaces",
+            "a/b",
+            "x?token=secret",
+        ] {
+            assert!(use_client_id(&mut config, Some(invalid)).is_err());
+        }
+        use_client_id(&mut config, Some(" app-123.apps.googleusercontent.com ")).unwrap();
+        assert_eq!(config.client_id, "app-123.apps.googleusercontent.com");
+
+        // Old OS-vault JSON must still deserialize after the optional field.
+        let old = r#"{"access_token":"AT","refresh_token":"RT","expires_at":123}"#;
+        let old: TokenSet = serde_json::from_str(old).unwrap();
+        assert_eq!(old.client_id, None);
+        let new = TokenSet {
+            client_id: Some(config.client_id.clone()),
+            ..old
+        };
+        assert_eq!(
+            serde_json::from_str::<TokenSet>(&serde_json::to_string(&new).unwrap()).unwrap(),
+            new
+        );
     }
 
     #[test]
@@ -606,6 +682,7 @@ mod tests {
             access_token: "AT".into(),
             refresh_token: Some("RT".into()),
             expires_at: 1_234_567_890,
+            client_id: Some("test-app".into()),
         };
         store_tokens(svc, id, &tokens).expect("store");
         let loaded = load_tokens(svc, id).expect("load").expect("present");

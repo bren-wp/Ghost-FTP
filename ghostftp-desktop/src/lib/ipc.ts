@@ -133,23 +133,36 @@ export const ipc = {
   pairAgent: (host: string, port: number, code: string) =>
     invoke<AgentPairResult>("pair_agent", { host, port, code }),
 
+  /** True network test for storage profiles, without saving credentials. */
+  probeCloudStorage: (profile: ConnectionProfile) =>
+    invoke<void>("probe_cloud_storage", { profile }),
+
+  /** Indicates whether this build already has public OAuth application IDs. */
+  cloudOAuthAvailability: () =>
+    invoke<{ gdrive: boolean; onedrive: boolean; dropbox: boolean; boxDrive: boolean }>("cloud_oauth_availability"),
+
+  /** Delete temporary OS keychain tokens only when the corresponding profile
+   *  failed to save; Rust refuses cleanup for persisted accounts. */
+  cloudOAuthDiscard: (profileId: string, provider: "gdrive" | "onedrive" | "dropbox" | "box") =>
+    invoke<void>("cloud_oauth_discard", { profileId, provider }),
+
   /** Run the interactive Dropbox OAuth flow for a profile (opens the browser,
    *  catches the loopback redirect, stores tokens in the OS keychain). Resolves
    *  with the authorized account label. The editor saves the profile on success. */
-  dropboxAuthorize: (profileId: string) =>
-    invoke<{ accountLabel: string }>("dropbox_authorize", { profileId }),
+  dropboxAuthorize: (profileId: string, clientId?: string) =>
+    invoke<{ accountLabel: string }>("dropbox_authorize", { profileId, clientId: clientId || null }),
 
   /** Run the interactive OneDrive OAuth flow for a profile (Microsoft Graph). */
-  onedriveAuthorize: (profileId: string) =>
-    invoke<{ accountLabel: string }>("onedrive_authorize", { profileId }),
+  onedriveAuthorize: (profileId: string, clientId?: string) =>
+    invoke<{ accountLabel: string }>("onedrive_authorize", { profileId, clientId: clientId || null }),
 
   /** Run the interactive Google Drive OAuth flow for a profile. */
-  gdriveAuthorize: (profileId: string) =>
-    invoke<{ accountLabel: string }>("gdrive_authorize", { profileId }),
+  gdriveAuthorize: (profileId: string, clientId?: string) =>
+    invoke<{ accountLabel: string }>("gdrive_authorize", { profileId, clientId: clientId || null }),
 
   /** Run the interactive Box OAuth flow for a profile. */
-  boxAuthorize: (profileId: string) =>
-    invoke<{ accountLabel: string }>("box_authorize", { profileId }),
+  boxAuthorize: (profileId: string, clientId?: string) =>
+    invoke<{ accountLabel: string }>("box_authorize", { profileId, clientId: clientId || null }),
 
   /** Run the interactive Dynamics 365 (delegated) OAuth flow for a profile —
    *  the OneDrive pattern with the org's `user_impersonation` scope. `host` is

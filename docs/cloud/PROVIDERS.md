@@ -24,6 +24,14 @@ This inventory describes **interfaces present in source**, not successful live a
 
 **Important:** A provider-specific signed URL is a short-lived bearer capability for **one object**, not an account connection, directory explorer, sync engine, bucket inventory, token vault or resumable queue. Mobile supported host families are deliberately restricted and must not be broadened to attacker-controlled domains for convenience.
 
+## Windows/Linux cloud connection wizard — 0.95.48 Preview
+
+In **Sites → Connect Cloud**, users choose browser-based account authorization (Google Drive, OneDrive, Dropbox, Box) or **S3 / other storage**. The latter provides guided credential-based forms for Amazon S3 (including custom HTTPS S3-compatible endpoints, e.g. Wasabi/MinIO), Backblaze B2 (automatically constructs `https://s3.<region>.backblazeb2.com`), Cloudflare R2, Google Cloud Storage (JSON service-account file picker), WebDAV and Nextcloud (constructs `/remote.php/dav/files/<username>/` when given the instance URL). No browser-OAuth behavior is falsely claimed for an S3 application key.
+
+**Test Connection** uses a read-only provider listing for object storage, or depth-0 WebDAV PROPFIND, before metadata is saved; users may save unverified credentials for restricted write-only keys, with a conspicuous warning. Passwords/keys passed during saving are kept out of plaintext profile JSON by the existing OS-keychain backend; GCS stores a reference to a user-controlled JSON key file, not its private contents.
+
+**MEGA and Proton Drive are not native adapters.** The wizard explains the limitation and can open official MEGAcmd and Proton Drive CLI instructions; no third-party login, encryption keys, FTP/WebDAV emulation, or remote operations are invented. The Proton Drive SDK presently says it is not ready for commercial/production third-party app use. Real installed Windows/Linux, account-specific E2E and vault-persistence acceptance are pending.
+
 ## Capability levels
 
 | Capability | Windows / Linux | macOS | Android |

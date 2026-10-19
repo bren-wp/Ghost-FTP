@@ -1,3 +1,13 @@
+## 0.95.48 — Windows/Linux cloud connection wizard and defensive HTTP integration (development preview) — 19 October 2026
+
+- Extend Sites → Connect Cloud with guided S3/S3-compatible, Backblaze B2, Cloudflare R2, Google Cloud Storage, WebDAV and Nextcloud credential forms, a GCS JSON file picker, automatic B2/Nextcloud endpoint assembly and read-only connection probes.
+- Show MEGA and Proton Drive as official external tooling only, clearly marking their natively unsupported state; Proton SDK is not ready for third-party commercial production use.
+- In Sites, connect a Google Drive, OneDrive, Dropbox or Box account using browser-based OAuth2 PKCE rather than providing account passwords to Ghost FTP.
+- Detect whether the application build includes public provider OAuth Client IDs; show safe manual public Client ID setup where required. Keep tokens and per-account IDs in the OS credential store for post-restart refresh, with backward-compatible token JSON.
+- Guard against failed profile-save keychain orphans, preserve existing saved accounts, and bound Box listing pagination.
+- Redact provider HTTP response bodies and sensitive URL paths from Box, Google Drive and Shopify diagnostics; preserve existing connections and user data.
+- Provider-console registrations, real cloud consent and restart/refresh tests remain unverified; this is a Preview and is not a claim of full end-to-end account acceptance.
+
 ## 0.95.47 — Repository-wide cross-platform source reachability and dead-code audit (development preview) — 19 October 2026
 
 - Add conservative advisory source inventory for Windows/Linux Rust/React, Android Kotlin and resource files, macOS Swift, Go runtime/installer and operational scripts, with JSON evidence in CI.

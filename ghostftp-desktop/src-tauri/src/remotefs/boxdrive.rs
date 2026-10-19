@@ -227,6 +227,7 @@ mod tests {
                 access_token: "STALE".into(),
                 refresh_token: Some("REFRESH1".into()),
                 expires_at: now + 99_999,
+                client_id: None,
             },
         )
         .expect("seed");
