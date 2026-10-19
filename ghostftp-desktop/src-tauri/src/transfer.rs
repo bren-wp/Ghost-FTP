@@ -72,6 +72,38 @@ pub struct QueueState {
     pub throttle_kbps: u64,
 }
 
+/// Reject source files that grew or shrank while a cloud transfer was
+/// streaming. A successful HTTP/multipart response is not proof that all
+/// bytes from the original file were actually uploaded.
+fn require_exact_upload_length(expected: u64, actual: u64) -> Result<()> {
+    anyhow::ensure!(
+        expected == actual,
+        "upload source changed during transfer (expected {expected} bytes, read {actual})"
+    );
+    Ok(())
+}
+
+/// Use only for providers that still require an in-memory request body.
+/// Prevent an unexpected multi-GiB file or a file growing after stat from
+/// crashing the desktop process. The 32 MiB bound is an explicit limitation,
+/// not a claim of large-file support from those provider APIs.
+const MAX_BUFFERED_CLOUD_UPLOAD: u64 = 32 * 1024 * 1024;
+
+async fn read_cloud_upload_bounded(path: &Path, expected: u64) -> Result<Vec<u8>> {
+    anyhow::ensure!(
+        expected <= MAX_BUFFERED_CLOUD_UPLOAD,
+        "This cloud adapter requires a resumable large-file upload for files above 32 MiB"
+    );
+    let file = tokio::fs::File::open(path)
+        .await
+        .with_context(|| format!("open {}", path.display()))?;
+    let mut input = file.take(expected + 1);
+    let mut data = Vec::with_capacity(expected as usize);
+    input.read_to_end(&mut data).await?;
+    require_exact_upload_length(expected, data.len() as u64)?;
+    Ok(data)
+}
+
 /// Global bandwidth cap shared by every active copy loop:
 /// a token bucket refilling at `rate` bytes/sec (0 = unlimited). Because all
 /// transfers draw from this one bucket, the cap is split across active
@@ -2920,7 +2952,8 @@ impl TransferManager {
         if size <= 16 * 1024 * 1024 {
             self.checkpoint(id, size).await?;
             let mut buf = Vec::with_capacity(size as usize);
-            file.read_to_end(&mut buf).await?;
+            file.by_ref().take(size + 1).read_to_end(&mut buf).await?;
+            require_exact_upload_length(size, buf.len() as u64)?;
             session
                 .store
                 .put(&p, bytes::Bytes::from(buf).into())
@@ -2945,40 +2978,50 @@ impl TransferManager {
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
         let mut buf = vec![0u8; PART];
-        loop {
-            let mut filled = 0;
-            while filled < buf.len() {
-                let n = file.read(&mut buf[filled..]).await?;
-                if n == 0 {
-                    break;
+        let result: Result<()> = async {
+            while transferred < size {
+                let expected_part = ((size - transferred).min(PART as u64)) as usize;
+                let mut filled = 0;
+                while filled < expected_part {
+                    let n = file.read(&mut buf[filled..expected_part]).await?;
+                    if n == 0 {
+                        break;
+                    }
+                    filled += n;
                 }
-                filled += n;
+                // Never complete a shorter-than-advertised multipart object
+                // after an upload source was truncated or became unreadable.
+                require_exact_upload_length(expected_part as u64, filled as u64)?;
+                self.checkpoint(id, filled as u64).await?;
+                let chunk = bytes::Bytes::copy_from_slice(&buf[..filled]);
+                upload
+                    .put_part(chunk.into())
+                    .await
+                    .with_context(|| format!("s3 put_part {key}"))?;
+                transferred += filled as u64;
+                if last_emit.elapsed() > Duration::from_millis(100) {
+                    self.update(id, |t| t.transferred = transferred).await;
+                    if let Some(t) = self.get(id).await {
+                        let _ = app.emit("transfer://progress", &t);
+                    }
+                    last_emit = Instant::now();
+                }
             }
-            if filled == 0 {
-                break;
-            }
-            self.checkpoint(id, filled as u64).await?;
-            let chunk = bytes::Bytes::copy_from_slice(&buf[..filled]);
+            let on_disk = file.metadata().await?.len();
+            require_exact_upload_length(size, on_disk)?;
             upload
-                .put_part(chunk.into())
+                .complete()
                 .await
-                .with_context(|| format!("s3 put_part {key}"))?;
-            transferred += filled as u64;
-            if last_emit.elapsed() > Duration::from_millis(100) {
-                self.update(id, |t| t.transferred = transferred).await;
-                if let Some(t) = self.get(id).await {
-                    let _ = app.emit("transfer://progress", &t);
-                }
-                last_emit = Instant::now();
-            }
-            if filled < buf.len() {
-                break;
-            }
+                .with_context(|| format!("s3 complete multipart {key}"))?;
+            Ok(())
         }
-        upload
-            .complete()
-            .await
-            .with_context(|| format!("s3 complete multipart {key}"))?;
+        .await;
+        if let Err(error) = result {
+            // A failed or paused upload must not leave billable orphaned parts
+            // behind when the object-store service permits abort.
+            let _ = upload.abort().await;
+            return Err(error);
+        }
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -3575,17 +3618,18 @@ impl TransferManager {
         let mut offset: u64 = 0;
         let mut last_emit = Instant::now();
         while offset < size {
+            let expected_part = ((size - offset).min(CHUNK as u64)) as usize;
             let mut filled = 0;
-            while filled < buf.len() {
-                let n = file.read(&mut buf[filled..]).await?;
+            while filled < expected_part {
+                let n = file.read(&mut buf[filled..expected_part]).await?;
                 if n == 0 {
                     break;
                 }
                 filled += n;
             }
-            if filled == 0 {
-                break;
-            }
+            // Sending a short non-final Content-Range could silently produce
+            // an incomplete remote item after the local file was truncated.
+            require_exact_upload_length(expected_part as u64, filled as u64)?;
             self.checkpoint(id, filled as u64).await?;
             let start = offset;
             let end = offset + filled as u64 - 1;
@@ -3615,6 +3659,7 @@ impl TransferManager {
                 last_emit = Instant::now();
             }
         }
+        require_exact_upload_length(size, file.metadata().await?.len())?;
         Ok(())
     }
 
@@ -3688,9 +3733,7 @@ impl TransferManager {
         let name = basename(&norm).to_string();
         let parent_id = session.folder_id(&parent_of(&norm)).await?;
         let existing = session.find_child(&parent_id, &name).await?;
-        let bytes = tokio::fs::read(local_path)
-            .await
-            .with_context(|| format!("read {}", local_path.display()))?;
+        let bytes = read_cloud_upload_bounded(local_path, size).await?;
         let token = session.access_token().await?;
         self.checkpoint(id, size).await?;
 
@@ -3818,13 +3861,17 @@ impl TransferManager {
         let name = basename(&norm).to_string();
         let parent_id = session.folder_id(&parent_of(&norm)).await?;
         let existing = session.find_child(&parent_id, &name).await?;
-        let bytes = tokio::fs::read(local_path)
+        // Box multipart supports a streaming body. Do not allocate the entire
+        // local file (potentially >4 GiB) into process memory.
+        let input = tokio::fs::File::open(local_path)
             .await
-            .with_context(|| format!("read {}", local_path.display()))?;
+            .with_context(|| format!("open {}", local_path.display()))?;
+        let body = reqwest::Body::wrap_stream(tokio_util::io::ReaderStream::new(input));
         let token = session.access_token().await?;
         self.checkpoint(id, size).await?;
 
-        let file_part = reqwest::multipart::Part::bytes(bytes).file_name(name.clone());
+        let file_part = reqwest::multipart::Part::stream_with_length(body, size)
+            .file_name(name.clone());
         let (url, form) = match existing {
             Some((file_id, false)) => (
                 format!("{}/files/{file_id}/content", session.upload_base),
@@ -4936,6 +4983,43 @@ mod tests {
             assert!(!safe_upload_name(bad), "accepted invalid name: {bad:?}");
         }
         assert!(safe_upload_name("račun 2026.txt"));
+    }
+
+    #[test]
+    fn cloud_source_length_guards_4gib_and_partial_parts_without_allocations() {
+        let huge = 4u64 * 1024 * 1024 * 1024 + 1024;
+        assert!(require_exact_upload_length(huge, huge).is_ok());
+        assert!(require_exact_upload_length(huge, huge - 1).is_err());
+        assert!(require_exact_upload_length(huge, huge + 1).is_err());
+        assert!(require_exact_upload_length(8 * 1024 * 1024, 4 * 1024 * 1024).is_err());
+        assert_eq!(MAX_BUFFERED_CLOUD_UPLOAD, 32 * 1024 * 1024);
+    }
+
+    #[tokio::test]
+    async fn in_memory_cloud_adapters_reject_huge_files_without_reading_them() {
+        let root = std::env::temp_dir().join(format!("ghostftp-bounded-cloud-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let path = root.join("sparse-large-file");
+        let file = tokio::fs::File::create(&path).await.unwrap();
+        file.set_len(4u64 * 1024 * 1024 * 1024 + 1).await.unwrap();
+        drop(file);
+        assert!(read_cloud_upload_bounded(&path, 4u64 * 1024 * 1024 * 1024 + 1)
+            .await
+            .is_err());
+        tokio::fs::remove_dir_all(&root).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn bounded_cloud_reader_rejects_changed_files_and_preserves_content() {
+        let root = std::env::temp_dir().join(format!("ghostftp-bounded-content-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let path = root.join("small.bin");
+        tokio::fs::write(&path, b"abcde").await.unwrap();
+        assert_eq!(read_cloud_upload_bounded(&path, 5).await.unwrap(), b"abcde");
+        assert!(read_cloud_upload_bounded(&path, 6).await.is_err());
+        assert!(read_cloud_upload_bounded(&path, 4).await.is_err());
+        assert_eq!(tokio::fs::read(&path).await.unwrap(), b"abcde");
+        tokio::fs::remove_dir_all(&root).await.unwrap();
     }
 
     // ---------- TokenBucket ----------
