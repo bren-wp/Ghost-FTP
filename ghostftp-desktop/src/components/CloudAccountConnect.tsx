@@ -23,7 +23,9 @@ function hasRegisteredApp(provider: CloudProvider, available: Availability | nul
 }
 
 /** Cloud account setup for Windows/Linux. Tokens never enter React state. */
-export function CloudAccountConnect({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+export function CloudAccountConnect({ onClose, onSaved, onStorage }: {
+  onClose: () => void; onSaved: () => void; onStorage: () => void;
+}) {
   const panelRef = useRef<HTMLElement>(null);
   const saveProfile = useConnections((state) => state.saveProfile);
   const [provider, setProvider] = useState<CloudProvider>("gdrive");
@@ -120,6 +122,11 @@ export function CloudAccountConnect({ onClose, onSaved }: { onClose: () => void;
           </button>
         </header>
         <fieldset disabled={busy} className="space-y-4">
+          <button type="button" className="ghost-mini-button w-full justify-center"
+            onClick={onStorage}>
+            <Cloud size={15} />
+            S3 · Backblaze B2 · GCS · WebDAV · Nextcloud · more
+          </button>
           <legend className="mb-2 text-sm font-semibold">Choose a service</legend>
           <div className="grid grid-cols-2 gap-2">
             {options.map((option) => (
