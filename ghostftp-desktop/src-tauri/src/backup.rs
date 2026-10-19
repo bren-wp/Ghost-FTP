@@ -1081,19 +1081,24 @@ mod tests {
         std::fs::write(&backup, payload).unwrap();
         let mut vault = TestVault::default();
         vault.values.insert(
-            (crate::credentials::SERVICE.to_string(), "account".to_string()),
+            (
+                crate::credentials::SERVICE.to_string(),
+                "account".to_string(),
+            ),
             "existing credential".to_string(),
         );
         assert!(import_with_vault(&dir, "correct horse", &backup, true, &mut vault).is_err());
         assert_eq!(
-            vault.write_count,
-            0,
+            vault.write_count, 0,
             "no keyring mutation before DB validation"
         );
         assert_eq!(
             vault
                 .values
-                .get(&(crate::credentials::SERVICE.to_string(), "account".to_string()))
+                .get(&(
+                    crate::credentials::SERVICE.to_string(),
+                    "account".to_string()
+                ))
                 .map(String::as_str),
             Some("existing credential")
         );
