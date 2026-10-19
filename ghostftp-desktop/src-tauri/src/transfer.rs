@@ -3477,10 +3477,11 @@ impl TransferManager {
             .await;
         let _ = app; // Shopify reports at completion, like the Dropbox path.
 
-        let data = tokio::fs::read(local_path)
+        let size = tokio::fs::metadata(local_path)
             .await
-            .with_context(|| format!("read {}", local_path.display()))?;
-        let size = data.len() as u64;
+            .with_context(|| format!("stat {}", local_path.display()))?
+            .len();
+        let data = read_cloud_upload_bounded(local_path, size).await?;
         self.checkpoint(id, size).await?;
         crate::remotefs::shopify::write_asset(&session, remote_path, &data).await?;
         self.update(id, |t| t.transferred = size).await;
@@ -3528,10 +3529,11 @@ impl TransferManager {
             .await;
         let _ = app; // HubSpot reports at completion, like the Shopify path.
 
-        let data = tokio::fs::read(local_path)
+        let size = tokio::fs::metadata(local_path)
             .await
-            .with_context(|| format!("read {}", local_path.display()))?;
-        let size = data.len() as u64;
+            .with_context(|| format!("stat {}", local_path.display()))?
+            .len();
+        let data = read_cloud_upload_bounded(local_path, size).await?;
         self.checkpoint(id, size).await?;
         crate::remotefs::hubspot::write_file(&session, remote_path, &data).await?;
         self.update(id, |t| t.transferred = size).await;
@@ -3578,10 +3580,11 @@ impl TransferManager {
             .await;
         let _ = app; // Dynamics reports at completion, like the HubSpot path.
 
-        let data = tokio::fs::read(local_path)
+        let size = tokio::fs::metadata(local_path)
             .await
-            .with_context(|| format!("read {}", local_path.display()))?;
-        let size = data.len() as u64;
+            .with_context(|| format!("stat {}", local_path.display()))?
+            .len();
+        let data = read_cloud_upload_bounded(local_path, size).await?;
         self.checkpoint(id, size).await?;
         crate::remotefs::dynamics::write_file(&session, remote_path, &data).await?;
         self.update(id, |t| t.transferred = size).await;
