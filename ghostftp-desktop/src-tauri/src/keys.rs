@@ -26,6 +26,8 @@ use std::path::{Path, PathBuf};
 
 /// Default RSA modulus size when the caller doesn't specify one.
 const DEFAULT_RSA_BITS: usize = 4096;
+/// Bound CPU and memory consumption of untrusted IPC requests.
+const MAX_RSA_BITS: usize = 8192;
 
 /// Expand a leading `~` / `~/` (or `~\` on Windows) to the user's home dir.
 /// Anything else is returned unchanged. Used both to resolve a save path for a
@@ -146,8 +148,8 @@ pub fn generate(req: &GenerateKeyRequest) -> Result<GeneratedKey> {
         }
         KeyType::Rsa => {
             let bits = req.bits.unwrap_or(DEFAULT_RSA_BITS);
-            if bits < 2048 {
-                bail!("RSA key size must be at least 2048 bits");
+            if !(2048..=MAX_RSA_BITS).contains(&bits) {
+                bail!("RSA key size must be between 2048 and 8192 bits");
             }
             // PrivateKey::random pins RSA to 3072, so build the keypair
             // explicitly to honour the requested size.
@@ -333,12 +335,20 @@ fn fingerprint(pk: &PublicKey) -> String {
     format!("SHA256:{body}")
 }
 
+/// Treat dangling symlinks and inaccessible paths as occupied, not usable.
+fn path_entry_exists(path: &Path) -> bool {
+    match std::fs::symlink_metadata(path) {
+        Ok(_) => true,
+        Err(error) => error.kind() != std::io::ErrorKind::NotFound,
+    }
+}
+
 /// First of `<base>`, `<base>_2`, `<base>_3`, … whose private *and* `.pub` paths
 /// are both free.
 fn free_path(dir: &Path, base: &str) -> PathBuf {
     let mut candidate = dir.join(base);
     let mut n = 2;
-    while candidate.exists() || pub_path_for(&candidate).exists() {
+    while path_entry_exists(&candidate) || path_entry_exists(&pub_path_for(&candidate)) {
         candidate = dir.join(format!("{base}_{n}"));
         n += 1;
     }
@@ -473,6 +483,34 @@ mod tests {
         });
         assert!(result.is_err());
         assert_eq!(std::fs::read(&private).unwrap(), b"ORIGINAL_PRIVATE_KEY");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn excessive_rsa_size_is_rejected_before_key_generation() {
+        let dir = std::env::temp_dir().join(format!("ghostftp-rsalimit-{}", uuid::Uuid::new_v4()));
+        let private = dir.join("id_rsa");
+        let result = generate(&GenerateKeyRequest {
+            key_type: KeyType::Rsa,
+            bits: Some(MAX_RSA_BITS + 1),
+            passphrase: None,
+            path: private.to_string_lossy().into_owned(),
+            comment: None,
+            overwrite: false,
+        });
+        assert!(result.is_err());
+        assert!(!private.exists(), "invalid request must never write a key");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn suggested_name_skips_dangling_symlink() {
+        use std::os::unix::fs::symlink;
+        let dir = std::env::temp_dir().join(format!("ghostftp-free-key-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        symlink(dir.join("gone"), dir.join("id_ed25519")).unwrap();
+        assert_eq!(free_path(&dir, "id_ed25519"), dir.join("id_ed25519_2"));
         std::fs::remove_dir_all(dir).unwrap();
     }
 
