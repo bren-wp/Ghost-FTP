@@ -456,6 +456,29 @@ pub fn inspect(password: &str, src: &Path) -> Result<BackupSummary> {
     Ok(decrypt(password, src)?.summary())
 }
 
+/// Verify a decrypted SQLite snapshot *before* changing any OS credentials.
+/// Base64 decoding is not evidence that a validly encrypted archive carries
+/// a usable SQLite database.
+fn validate_sqlite_restore_bytes(dir: &Path, bytes: &[u8]) -> Result<()> {
+    anyhow::ensure!(
+        bytes.starts_with(b"SQLite format 3\0") && bytes.len() >= 100,
+        "backup contains an invalid SQLite database header"
+    );
+    let path = dir.join(format!(".ghostftp-restore-validation-{}.db", uuid::Uuid::new_v4()));
+    let _guard = RemoveOnDrop(path.clone());
+    write_private_file(&path, bytes).context("stage SQLite integrity verification")?;
+    let conn = rusqlite::Connection::open_with_flags(
+        &path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .context("open SQLite backup for integrity verification")?;
+    let integrity: String = conn
+        .query_row("PRAGMA quick_check", [], |row| row.get(0))
+        .context("check SQLite backup consistency")?;
+    anyhow::ensure!(integrity == "ok", "backup SQLite integrity check failed");
+    Ok(())
+}
+
 // ---- Import / restore ----
 
 /// Decrypt `src` and restore it into `dir`. When `defer` is true (the GUI, whose
@@ -481,6 +504,12 @@ fn import_with_vault(
     let mut db_bytes = base64::engine::general_purpose::STANDARD
         .decode(archive.ghostftp_db_b64.as_bytes())
         .context("decode ghostftp.db snapshot")?;
+    // Validate the actual database contents, not merely Base64. A malformed
+    // snapshot must not alter the keyring or the user's existing local state.
+    if let Err(error) = validate_sqlite_restore_bytes(dir, &db_bytes) {
+        db_bytes.fill(0);
+        return Err(error);
+    }
 
     // Restore through the OS vault only. If it is locked, unreadable or refuses
     // a write, no .restore files are staged and no success is reported.
