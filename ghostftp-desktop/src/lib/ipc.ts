@@ -133,6 +133,10 @@ export const ipc = {
   pairAgent: (host: string, port: number, code: string) =>
     invoke<AgentPairResult>("pair_agent", { host, port, code }),
 
+  /** True network test for storage profiles, without saving credentials. */
+  probeCloudStorage: (profile: ConnectionProfile) =>
+    invoke<void>("probe_cloud_storage", { profile }),
+
   /** Indicates whether this build already has public OAuth application IDs. */
   cloudOAuthAvailability: () =>
     invoke<{ gdrive: boolean; onedrive: boolean; dropbox: boolean; boxDrive: boolean }>("cloud_oauth_availability"),
