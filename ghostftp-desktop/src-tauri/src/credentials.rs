@@ -144,9 +144,114 @@ pub fn has_secret(purpose: &str) -> bool {
     matches!(secret_exists_checked(purpose), Ok(true))
 }
 
+/// Non-destructive credential manifest reconciliation, never returning
+/// service names, account IDs or secrets through the Tauri IPC response.
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ManifestRepairSummary {
+    pub checked: usize,
+    pub verified: usize,
+    pub missing_removed: usize,
+    pub orphaned_retained: usize,
+}
+
+fn profile_owner<'a>(service: &str, account: &'a str) -> Option<&'a str> {
+    if service == SERVICE {
+        for prefix in ["profile-password:", "profile-key-passphrase:", "grant-key:", "shopify-admin:"] {
+            if let Some(id) = account.strip_prefix(prefix) {
+                return Some(id);
+            }
+        }
+    } else if [
+        crate::session::dropbox::DROPBOX_SERVICE,
+        crate::session::onedrive::ONEDRIVE_SERVICE,
+        crate::session::gdrive::GDRIVE_SERVICE,
+        crate::session::boxdrive::BOX_SERVICE,
+    ].contains(&service) {
+        return Some(account);
+    }
+    None
+}
+
+/// Two-phase: verify all vault entries first, then prune ONLY definitively
+/// missing ones. Locked vaults cannot result in destructive manifest cleanup.
+/// Orphans with actual secrets are deliberately retained for manual recovery.
+pub fn repair_manifest_with<F>(
+    db: &crate::db::Db,
+    saved_profiles: &std::collections::HashSet<String>,
+    mut read: F,
+) -> Result<ManifestRepairSummary>
+where
+    F: FnMut(&str, &str) -> Result<Option<String>>,
+{
+    let entries = db.list_keychain()?;
+    anyhow::ensure!(entries.len() <= 20_000, "Credential manifest exceeds audit limit");
+    let mut missing = Vec::new();
+    let mut verified = 0;
+    let mut orphans = 0;
+    for (service, account) in &entries {
+        match read(service, account)? {
+            Some(_) => {
+                verified += 1;
+                if profile_owner(service, account)
+                    .is_some_and(|id| !saved_profiles.contains(id))
+                {
+                    orphans += 1;
+                }
+            }
+            None => missing.push((service.clone(), account.clone())),
+        }
+    }
+    for (service, account) in &missing {
+        db.forget_keychain(service, account)?;
+    }
+    Ok(ManifestRepairSummary {
+        checked: entries.len(),
+        verified,
+        missing_removed: missing.len(),
+        orphaned_retained: orphans,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn orphan_audit_retains_existing_secrets_and_prunes_only_proven_absent() {
+        let db = crate::db::Db::open_in_memory().unwrap();
+        db.record_keychain(SERVICE, "profile-password:present").unwrap();
+        db.record_keychain(SERVICE, "profile-password:deleted").unwrap();
+        db.record_keychain(SERVICE, "profile-password:absent").unwrap();
+        let mut profiles = std::collections::HashSet::new();
+        profiles.insert("present".to_string());
+        let result = repair_manifest_with(&db, &profiles, |_svc, key| match key {
+            "profile-password:absent" => Ok(None),
+            _ => Ok(Some("PRIVATE_SENTINEL".to_string())),
+        }).unwrap();
+        assert_eq!(result.checked, 3);
+        assert_eq!(result.verified, 2);
+        assert_eq!(result.missing_removed, 1);
+        assert_eq!(result.orphaned_retained, 1);
+        assert_eq!(db.list_keychain().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn locked_vault_does_not_prune_any_manifest_record() {
+        let db = crate::db::Db::open_in_memory().unwrap();
+        db.record_keychain(SERVICE, "profile-password:missing").unwrap();
+        db.record_keychain(SERVICE, "profile-password:locked").unwrap();
+        let known = std::collections::HashSet::new();
+        let result = repair_manifest_with(&db, &known, |_svc, key| {
+            if key.ends_with(":locked") {
+                Err(anyhow!("simulated locked store"))
+            } else {
+                Ok(None)
+            }
+        });
+        assert!(result.is_err());
+        assert_eq!(db.list_keychain().unwrap().len(), 2);
+    }
 
     #[test]
     fn injected_vault_failure_never_forgets_sqlite_manifest() {
