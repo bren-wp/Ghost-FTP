@@ -391,9 +391,14 @@ pub async fn agent_host_set_policy(
     match &*running {
         Some(r) => {
             let mut cfg = r.daemon.config.lock().await;
-            cfg.policy.allow_exec = allow_exec;
-            cfg.policy.allow_write = allow_write;
-            cfg.save(&config_path(&dir)).map_err(err)?;
+            let mut updated = cfg.clone();
+            updated.policy.allow_exec = allow_exec;
+            updated.policy.allow_write = allow_write;
+            updated.save(&config_path(&dir)).map_err(err)?;
+            *cfg = updated;
+            drop(cfg);
+            if !allow_exec { r.daemon.cancel_all_jobs(); }
+            r.daemon.invalidate_sessions();
         }
         None => {
             let mut cfg = Config::load(&config_path(&dir)).map_err(err)?;
@@ -429,6 +434,11 @@ pub async fn agent_host_set_peer_permissions(
             }
             next.save(&path).map_err(err)?;
             *live = next;
+            drop(live);
+            if !permissions.terminal {
+                r.daemon.cancel_peer_jobs(&public_key);
+            }
+            r.daemon.invalidate_sessions();
         }
         None => {
             let mut next = Config::load(&path).map_err(err)?;
@@ -460,6 +470,9 @@ pub async fn agent_host_revoke_peer(
             updated.peers.retain(|p| p.public_key != public_key);
             updated.save(&config_path(&dir)).map_err(err)?;
             *cfg = updated;
+            drop(cfg);
+            r.daemon.cancel_peer_jobs(&public_key);
+            r.daemon.invalidate_sessions();
         }
         None => {
             let mut cfg = Config::load(&config_path(&dir)).map_err(err)?;
