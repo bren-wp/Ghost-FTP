@@ -57,17 +57,25 @@ fn clear_secret_checked(purpose: &str) -> Result<()> {
     checked_delete_result(entry.delete_credential())
 }
 
-/// Remove a secret (best-effort — a missing entry is not an error).
-pub fn delete_secret(purpose: &str) {
-    if let Ok(entry) = keyring::Entry::new(SERVICE, purpose) {
-        let _ = entry.delete_credential();
-    }
+/// Remove a secret, reporting vault failures without disclosing its data.
+/// Callers MUST retain the SQLite manifest until this succeeds.
+pub fn delete_secret_checked(purpose: &str) -> Result<()> {
+    clear_secret_checked(purpose)
 }
 
-/// Whether a secret exists for `purpose`. This is the only credential state the
-/// frontend gets to see — enough to render a Set/••••/Clear affordance.
+/// Keep an explicit fallible lookup; a locked OS vault is NOT an empty vault.
+pub fn secret_exists_checked(purpose: &str) -> Result<bool> {
+    get_secret(purpose).map(|value| value.is_some())
+}
+
+/// Legacy non-authoritative convenience wrapper. Never use this to claim a
+/// successful delete or credential absence to the frontend.
+pub fn delete_secret(purpose: &str) {
+    let _ = delete_secret_checked(purpose);
+}
+
 pub fn has_secret(purpose: &str) -> bool {
-    matches!(get_secret(purpose), Ok(Some(_)))
+    matches!(secret_exists_checked(purpose), Ok(true))
 }
 
 #[cfg(test)]
