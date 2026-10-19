@@ -130,13 +130,17 @@ fn is_approved_external_url(parsed: &url::Url) -> bool {
         );
     // The source-code repository is explicitly distinguished from support.
     let approved_project_page = host == "github.com" && path == "/bren-wp/Ghost-FTP";
+    // Only these exact provider help pages. Do not permit generic provider
+    // URLs, user-submitted file links or token-bearing redirect queries.
+    let official_provider_docs = (host == "mega.nz" && path == "/cmd")
+        || (host == "proton.me" && path == "/blog/proton-drive-cli");
     parsed.scheme() == "https"
         && parsed.username().is_empty()
         && parsed.password().is_none()
         && parsed.port().is_none()
         && parsed.query().is_none()
         && parsed.fragment().is_none()
-        && (official_help_page || approved_project_page)
+        && (official_help_page || approved_project_page || official_provider_docs)
 }
 
 #[tauri::command]
