@@ -543,7 +543,9 @@ mod security_tests {
         }
         assert!(daemon.authorize_pairing_attempt().await.is_err());
         assert!(daemon.pairing_code().await.is_none());
-        daemon.open_pairing("654321".into(), Duration::from_secs(30)).await;
+        daemon
+            .open_pairing("654321".into(), Duration::from_secs(30))
+            .await;
         assert_eq!(daemon.authorize_pairing_attempt().await.unwrap(), "654321");
     }
 }
