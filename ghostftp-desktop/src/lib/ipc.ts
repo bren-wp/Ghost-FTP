@@ -133,6 +133,15 @@ export const ipc = {
   pairAgent: (host: string, port: number, code: string) =>
     invoke<AgentPairResult>("pair_agent", { host, port, code }),
 
+  /** Indicates whether this build already has public OAuth application IDs. */
+  cloudOAuthAvailability: () =>
+    invoke<{ gdrive: boolean; onedrive: boolean; dropbox: boolean; boxDrive: boolean }>("cloud_oauth_availability"),
+
+  /** Delete temporary OS keychain tokens only when the corresponding profile
+   *  failed to save; Rust refuses cleanup for persisted accounts. */
+  cloudOAuthDiscard: (profileId: string, provider: "gdrive" | "onedrive" | "dropbox" | "box") =>
+    invoke<void>("cloud_oauth_discard", { profileId, provider }),
+
   /** Run the interactive Dropbox OAuth flow for a profile (opens the browser,
    *  catches the loopback redirect, stores tokens in the OS keychain). Resolves
    *  with the authorized account label. The editor saves the profile on success. */
