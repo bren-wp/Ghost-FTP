@@ -86,7 +86,10 @@ impl OneDriveSession {
             if let Some(b) = body {
                 rb = rb.json(b);
             }
-            let resp = rb.send().await.map_err(|_| anyhow!("OneDrive transport error"))?;
+            let resp = rb
+                .send()
+                .await
+                .map_err(|_| anyhow!("OneDrive transport error"))?;
             if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
                 attempt += 1;
                 self.force_refresh().await?;
@@ -103,7 +106,10 @@ impl OneDriveSession {
         if !status.is_success() {
             return Err(onedrive_http_error(status));
         }
-        let text = resp.text().await.context("read OneDrive metadata response")?;
+        let text = resp
+            .text()
+            .await
+            .context("read OneDrive metadata response")?;
         if text.trim().is_empty() {
             return Ok(Value::Null);
         }
@@ -148,7 +154,10 @@ impl OneDriveSession {
         if status == reqwest::StatusCode::NOT_FOUND {
             return Ok(false);
         }
-        Err(anyhow!("OneDrive existence check failed (HTTP {})", status.as_u16()))
+        Err(anyhow!(
+            "OneDrive existence check failed (HTTP {})",
+            status.as_u16()
+        ))
     }
 
     /// Size of the item at a Graph item-ref, or 0.
