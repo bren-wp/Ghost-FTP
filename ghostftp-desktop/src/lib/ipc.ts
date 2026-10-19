@@ -136,20 +136,20 @@ export const ipc = {
   /** Run the interactive Dropbox OAuth flow for a profile (opens the browser,
    *  catches the loopback redirect, stores tokens in the OS keychain). Resolves
    *  with the authorized account label. The editor saves the profile on success. */
-  dropboxAuthorize: (profileId: string) =>
-    invoke<{ accountLabel: string }>("dropbox_authorize", { profileId }),
+  dropboxAuthorize: (profileId: string, clientId?: string) =>
+    invoke<{ accountLabel: string }>("dropbox_authorize", { profileId, clientId: clientId || null }),
 
   /** Run the interactive OneDrive OAuth flow for a profile (Microsoft Graph). */
-  onedriveAuthorize: (profileId: string) =>
-    invoke<{ accountLabel: string }>("onedrive_authorize", { profileId }),
+  onedriveAuthorize: (profileId: string, clientId?: string) =>
+    invoke<{ accountLabel: string }>("onedrive_authorize", { profileId, clientId: clientId || null }),
 
   /** Run the interactive Google Drive OAuth flow for a profile. */
-  gdriveAuthorize: (profileId: string) =>
-    invoke<{ accountLabel: string }>("gdrive_authorize", { profileId }),
+  gdriveAuthorize: (profileId: string, clientId?: string) =>
+    invoke<{ accountLabel: string }>("gdrive_authorize", { profileId, clientId: clientId || null }),
 
   /** Run the interactive Box OAuth flow for a profile. */
-  boxAuthorize: (profileId: string) =>
-    invoke<{ accountLabel: string }>("box_authorize", { profileId }),
+  boxAuthorize: (profileId: string, clientId?: string) =>
+    invoke<{ accountLabel: string }>("box_authorize", { profileId, clientId: clientId || null }),
 
   /** Run the interactive Dynamics 365 (delegated) OAuth flow for a profile —
    *  the OneDrive pattern with the org's `user_impersonation` scope. `host` is
