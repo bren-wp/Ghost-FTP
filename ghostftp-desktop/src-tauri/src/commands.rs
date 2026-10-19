@@ -652,9 +652,13 @@ pub async fn probe_cloud_storage(profile: ConnectionProfile) -> Result<(), Strin
     let result = tokio::time::timeout(Duration::from_secs(40), async {
         match profile.protocol.as_str() {
             "s3" | "gcs" | "azure" => {
+                use futures::TryStreamExt;
                 let session = crate::session::object::object_connect(&profile).await?;
-                let fs = crate::remotefs::object::ObjectFs::new(Arc::new(session));
-                fs.list_dir("/").await?;
+                // Streaming the first object (or an empty first listing page)
+                // checks real bucket access without materializing every object
+                // in accounts containing millions of keys.
+                let mut listing = session.store.list(None);
+                let _ = listing.try_next().await?;
             }
             "webdav" => {
                 crate::session::webdav::webdav_connect(&profile).await?;
