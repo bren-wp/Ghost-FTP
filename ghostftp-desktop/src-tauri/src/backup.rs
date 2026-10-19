@@ -368,7 +368,7 @@ fn restore_credentials_with_vault(
         }
     }
 
-    Ok(())
+    Ok(previous)
 }
 
 // ---- Export ----
@@ -500,7 +500,7 @@ fn validate_sqlite_restore_bytes(dir: &Path, bytes: &[u8]) -> Result<()> {
         .query_row("PRAGMA quick_check", [], |row| row.get(0))
         .context("check SQLite backup consistency")?;
     anyhow::ensure!(integrity == "ok", "backup SQLite integrity check failed");
-    Ok(previous)
+    Ok(())
 }
 
 // ---- Import / restore ----
