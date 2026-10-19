@@ -426,6 +426,7 @@ original user data and staged restore were preserved for repair"
             commands::discover_agents,
             commands::agent_public_key,
             commands::pair_agent,
+            commands::probe_cloud_storage,
             commands::cloud_oauth_availability,
             commands::cloud_oauth_discard,
             commands::dropbox_authorize,
