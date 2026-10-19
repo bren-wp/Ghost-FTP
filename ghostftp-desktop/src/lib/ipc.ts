@@ -193,6 +193,9 @@ export const ipc = {
     invoke<AgentHostStatus>("agent_host_set_policy", { allowExec, allowWrite }),
 
   /** Un-pin a controller by its public key. */
+  agentHostSetPeerPermissions: (publicKey: string, permissions: import("@/lib/types").AgentPeerPermissions) =>
+    invoke<AgentHostStatus>("agent_host_set_peer_permissions", { publicKey, permissions }),
+
   agentHostRevokePeer: (publicKey: string) =>
     invoke<AgentHostStatus>("agent_host_revoke_peer", { publicKey }),
 
