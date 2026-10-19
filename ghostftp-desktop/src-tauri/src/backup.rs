@@ -176,6 +176,25 @@ fn write_private_file(path: &Path, data: &[u8]) -> Result<()> {
     Ok(())
 }
 
+/// Optional does not mean best effort: an unreadable or redirected file
+/// must abort the export rather than create a seemingly complete backup that
+/// silently omits the user's profiles, bridge or sync configuration.
+fn read_backup_config_if_present(dir: &Path, name: &str) -> Result<Option<String>> {
+    let path = dir.join(name);
+    let meta = match std::fs::symlink_metadata(&path) {
+        Ok(meta) => meta,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error).with_context(|| format!("inspect backup config {name}")),
+    };
+    anyhow::ensure!(
+        meta.file_type().is_file(),
+        "refusing non-regular or symlinked backup configuration {name}"
+    );
+    let content = std::fs::read_to_string(&path)
+        .with_context(|| format!("read backup config {name}"))?;
+    Ok(Some(content))
+}
+
 fn credential_target_allowed(service: &str, account: &str) -> bool {
     let allowed_services = [
         crate::credentials::SERVICE,
@@ -385,13 +404,11 @@ fn export_with_vault(
     db.snapshot_to(&tmp).context("snapshot ghostftp.db")?;
     let mut db_bytes = std::fs::read(&tmp).context("read ghostftp.db snapshot")?;
 
-    let read_opt = |name: &str| -> Option<String> { std::fs::read_to_string(dir.join(name)).ok() };
-
     let mut archive = Archive {
         created_ms: crate::db::now_ms(),
-        profiles_json: read_opt("profiles.json"),
-        bridge_json: read_opt("bridge.json"),
-        foldersync_json: read_opt("foldersync.json"),
+        profiles_json: read_backup_config_if_present(dir, "profiles.json")?,
+        bridge_json: read_backup_config_if_present(dir, "bridge.json")?,
+        foldersync_json: read_backup_config_if_present(dir, "foldersync.json")?,
         ghostftp_db_b64: base64::engine::general_purpose::STANDARD.encode(&db_bytes),
         credentials: collect_credentials(dir, db, vault)?,
     };
@@ -938,6 +955,31 @@ mod tests {
             credentials: Vec::new(),
         };
         assert!(validate_archive(&archive).is_err());
+    }
+
+    #[test]
+    fn unreadable_or_special_configuration_aborts_instead_of_silent_omission() {
+        let dir = std::env::temp_dir().join(format!("ghostftp-export-read-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(read_backup_config_if_present(&dir, "bridge.json").unwrap().is_none());
+        std::fs::create_dir(dir.join("bridge.json")).unwrap();
+        assert!(read_backup_config_if_present(&dir, "bridge.json").is_err());
+        assert!(dir.join("bridge.json").is_dir());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn backup_config_reader_refuses_symlink_to_external_file() {
+        use std::os::unix::fs::symlink;
+        let dir = std::env::temp_dir().join(format!("ghostftp-export-link-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("unrelated-secret");
+        std::fs::write(&target, b"never include unrelated secret").unwrap();
+        symlink(&target, dir.join("profiles.json")).unwrap();
+        assert!(read_backup_config_if_present(&dir, "profiles.json").is_err());
+        assert_eq!(std::fs::read(&target).unwrap(), b"never include unrelated secret");
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
