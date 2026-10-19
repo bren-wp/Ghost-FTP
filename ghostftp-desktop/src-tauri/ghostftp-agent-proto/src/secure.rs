@@ -131,7 +131,10 @@ where
     /// as its length requires.
     pub async fn send<T: Serialize>(&mut self, msg: &T) -> Result<()> {
         let plaintext = serde_json::to_vec(msg).context("serialize message")?;
-        anyhow::ensure!(plaintext.len() <= MAX_LOGICAL_MESSAGE, "agent message exceeds size limit");
+        anyhow::ensure!(
+            plaintext.len() <= MAX_LOGICAL_MESSAGE,
+            "agent message exceeds size limit"
+        );
         let mut segments = plaintext.chunks(MAX_SEGMENT).peekable();
         // An empty payload still needs one (final) segment.
         if plaintext.is_empty() {

@@ -10,10 +10,10 @@
 
 use anyhow::{bail, Context, Result};
 use ghostftp_agent_proto::identity::Identity;
-use ghostftp_agentd::{config_path, discovery::Advertisement, identity_path, ops, Config, Daemon};
 use ghostftp_agentd::config::PeerPermissions;
-use std::net::IpAddr;
+use ghostftp_agentd::{config_path, discovery::Advertisement, identity_path, ops, Config, Daemon};
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
@@ -113,7 +113,9 @@ impl AgentHost {
         }
         let settings = self.settings.lock().await.clone();
         let port = settings.port;
-        let bind_ip: IpAddr = settings.bind_address.parse()
+        let bind_ip: IpAddr = settings
+            .bind_address
+            .parse()
             .context("Remote Agent bind address must be a numeric IP address")?;
         let dir = Self::agent_dir()?;
         let identity = Identity::load_or_create(&identity_path(&dir))?;
@@ -290,11 +292,14 @@ pub async fn agent_host_set_enabled(
         let mut s = host.settings.lock().await;
         s.enabled = enabled;
         if let Some(p) = port {
-            if p == 0 { return Err("Remote Agent port must be non-zero".into()); }
+            if p == 0 {
+                return Err("Remote Agent port must be non-zero".into());
+            }
             s.port = p;
         }
         if let Some(address) = bind_address {
-            let ip: IpAddr = address.parse()
+            let ip: IpAddr = address
+                .parse()
                 .map_err(|_| "Bind address must be a numeric IP address".to_string())?;
             s.bind_address = ip.to_string();
         }

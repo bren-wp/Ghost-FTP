@@ -160,7 +160,9 @@ pub fn validate_issuer(issuer: &str) -> Result<String, GhostFTPError> {
         || url.query().is_some()
         || url.fragment().is_some()
     {
-        return Err(GhostFTPError::other("grant issuer cannot contain credentials, query or fragment"));
+        return Err(GhostFTPError::other(
+            "grant issuer cannot contain credentials, query or fragment",
+        ));
     }
     Ok(url.as_str().trim_end_matches('/').to_string())
 }
@@ -248,17 +250,26 @@ fn allowed_grant_address(ip: std::net::IpAddr, loopback_development: bool) -> bo
     match ip {
         IpAddr::V4(ip) => {
             let [a, b, ..] = ip.octets();
-            !(ip.is_private() || ip.is_loopback() || ip.is_link_local()
-                || ip.is_multicast() || ip.is_broadcast() || ip.is_unspecified()
-                || a == 0 || a >= 224 || (a == 100 && (64..=127).contains(&b))
+            !(ip.is_private()
+                || ip.is_loopback()
+                || ip.is_link_local()
+                || ip.is_multicast()
+                || ip.is_broadcast()
+                || ip.is_unspecified()
+                || a == 0
+                || a >= 224
+                || (a == 100 && (64..=127).contains(&b))
                 || (a == 198 && (b == 18 || b == 19)))
         }
         IpAddr::V6(ip) => {
             if let Some(mapped) = ip.to_ipv4() {
                 return allowed_grant_address(IpAddr::V4(mapped), false);
             }
-            !(ip.is_loopback() || ip.is_unspecified() || ip.is_multicast()
-                || ip.is_unique_local() || ip.is_unicast_link_local())
+            !(ip.is_loopback()
+                || ip.is_unspecified()
+                || ip.is_multicast()
+                || ip.is_unique_local()
+                || ip.is_unicast_link_local())
         }
     }
 }
@@ -266,17 +277,23 @@ fn allowed_grant_address(ip: std::net::IpAddr, loopback_development: bool) -> bo
 /// Resolve and pin the issuer destination BEFORE fetching any redemption token.
 /// Prevent DNS rebinding and block redirects containing a path bearer token.
 async fn http_client(issuer: &str) -> Result<reqwest::Client, GhostFTPError> {
-    let url = url::Url::parse(issuer)
-        .map_err(|_| GhostFTPError::other("invalid grant issuer"))?;
-    let host = url.host_str().ok_or_else(|| GhostFTPError::other("missing grant issuer host"))?;
-    let port = url.port_or_known_default().ok_or_else(|| GhostFTPError::other("unknown grant issuer port"))?;
-    let localhost_dev = url.scheme() == "http"
-        && (host == "localhost" || host == "127.0.0.1" || host == "[::1]");
+    let url = url::Url::parse(issuer).map_err(|_| GhostFTPError::other("invalid grant issuer"))?;
+    let host = url
+        .host_str()
+        .ok_or_else(|| GhostFTPError::other("missing grant issuer host"))?;
+    let port = url
+        .port_or_known_default()
+        .ok_or_else(|| GhostFTPError::other("unknown grant issuer port"))?;
+    let localhost_dev =
+        url.scheme() == "http" && (host == "localhost" || host == "127.0.0.1" || host == "[::1]");
     let mut addresses = tokio::net::lookup_host((host, port))
         .await
         .map_err(|_| GhostFTPError::new(ErrorKind::Network, "could not resolve grant issuer"))?;
-    let resolved = addresses.find(|address| allowed_grant_address(address.ip(), localhost_dev))
-        .ok_or_else(|| GhostFTPError::other("grant issuer resolves to a prohibited local or reserved address"))?;
+    let resolved = addresses
+        .find(|address| allowed_grant_address(address.ip(), localhost_dev))
+        .ok_or_else(|| {
+            GhostFTPError::other("grant issuer resolves to a prohibited local or reserved address")
+        })?;
     reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
         .redirect(reqwest::redirect::Policy::none())
@@ -316,7 +333,8 @@ pub async fn fetch_grant_manifest(
     validate_token(&token)?;
     let url = format!("{base}/.well-known/ghostftp-grant/{token}");
 
-    let resp = http_client(&base).await?
+    let resp = http_client(&base)
+        .await?
         .get(&url)
         .send()
         .await
@@ -359,7 +377,8 @@ pub async fn accept_grant(
 
     // Upload ONLY the public key. The private half never leaves the machine.
     let url = format!("{base}/.well-known/ghostftp-grant/{token}/key");
-    let resp = http_client(&base).await?
+    let resp = http_client(&base)
+        .await?
         .post(&url)
         .json(&serde_json::json!({ "public_key": public_key }))
         .send()

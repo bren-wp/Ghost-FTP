@@ -109,11 +109,20 @@ async fn pair_then_exec_and_transfer() {
     assert!(daemon.config.lock().await.is_paired(client_id.public_b64()));
     {
         let mut cfg = daemon.config.lock().await;
-        assert!(!cfg.peer_permissions(client_id.public_b64()).unwrap().terminal);
+        assert!(
+            !cfg.peer_permissions(client_id.public_b64())
+                .unwrap()
+                .terminal
+        );
         assert!(!cfg.peer_permissions(client_id.public_b64()).unwrap().write);
         assert!(cfg.set_peer_permissions(
             client_id.public_b64(),
-            PeerPermissions { read: true, write: true, delete: true, terminal: true },
+            PeerPermissions {
+                read: true,
+                write: true,
+                delete: true,
+                terminal: true
+            },
         ));
     }
 
@@ -436,7 +445,12 @@ async fn detached_job_start_poll_and_unknown() {
         .upsert_peer("test-controller", client_id.public_b64());
     assert!(daemon.config.lock().await.set_peer_permissions(
         client_id.public_b64(),
-        PeerPermissions { read: true, write: false, delete: false, terminal: true },
+        PeerPermissions {
+            read: true,
+            write: false,
+            delete: false,
+            terminal: true
+        },
     ));
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

@@ -229,7 +229,9 @@ pub async fn handle_paired(stream: TcpStream, daemon: Daemon) -> Result<()> {
 
     // First message must be a Hello with a compatible protocol version.
     let hello: Hello = tokio::time::timeout(HANDSHAKE_TIMEOUT, channel.recv())
-        .await.context("hello timeout")?.context("expected hello")?;
+        .await
+        .context("hello timeout")?
+        .context("expected hello")?;
     if hello.protocol_version != PROTOCOL_VERSION {
         let _ = channel
             .send(&Response::error(format!(
@@ -252,13 +254,21 @@ pub async fn handle_paired(stream: TcpStream, daemon: Daemon) -> Result<()> {
 fn permitted(req: &Request, grant: PeerPermissions) -> bool {
     match req {
         Request::Ping | Request::SystemInfo => true,
-        Request::ListDir { .. } | Request::Stat { .. } | Request::ReadFile { .. }
-        | Request::ReadChunk { .. } | Request::Signature { .. } => grant.read,
+        Request::ListDir { .. }
+        | Request::Stat { .. }
+        | Request::ReadFile { .. }
+        | Request::ReadChunk { .. }
+        | Request::Signature { .. } => grant.read,
         Request::Delete { .. } => grant.delete,
-        Request::WriteChunk { .. } | Request::DeltaAssemble { .. }
-        | Request::CreateDir { .. } | Request::Rename { .. } | Request::Chmod { .. } => grant.write,
-        Request::Exec { .. } | Request::ExecStart { .. }
-        | Request::ExecPoll { .. } | Request::ExecKill { .. } => grant.terminal,
+        Request::WriteChunk { .. }
+        | Request::DeltaAssemble { .. }
+        | Request::CreateDir { .. }
+        | Request::Rename { .. }
+        | Request::Chmod { .. } => grant.write,
+        Request::Exec { .. }
+        | Request::ExecStart { .. }
+        | Request::ExecPoll { .. }
+        | Request::ExecKill { .. } => grant.terminal,
     }
 }
 
@@ -267,16 +277,31 @@ fn namespace_job_request(req: Request, peer_key: &str) -> Request {
     // controller boundary. A peer cannot poll/kill another peer's output.
     let namespace = |job_id: String| format!("{peer_key}:{job_id}");
     match req {
-        Request::ExecStart { job_id, command, max_bytes } =>
-            Request::ExecStart { job_id: namespace(job_id), command, max_bytes },
-        Request::ExecPoll { job_id } => Request::ExecPoll { job_id: namespace(job_id) },
-        Request::ExecKill { job_id } => Request::ExecKill { job_id: namespace(job_id) },
+        Request::ExecStart {
+            job_id,
+            command,
+            max_bytes,
+        } => Request::ExecStart {
+            job_id: namespace(job_id),
+            command,
+            max_bytes,
+        },
+        Request::ExecPoll { job_id } => Request::ExecPoll {
+            job_id: namespace(job_id),
+        },
+        Request::ExecKill { job_id } => Request::ExecKill {
+            job_id: namespace(job_id),
+        },
         other => other,
     }
 }
 
-async fn request_loop<S>(channel: &mut SecureChannel<S>, daemon: &Daemon, peer_key: &str, peer_name: &str)
-where
+async fn request_loop<S>(
+    channel: &mut SecureChannel<S>,
+    daemon: &Daemon,
+    peer_key: &str,
+    peer_name: &str,
+) where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     loop {
@@ -294,7 +319,11 @@ where
         };
         let summary = describe(&req);
         if !permitted(&req, perms) {
-            let _ = channel.send(&Response::denied("remote operation not approved for this controller")).await;
+            let _ = channel
+                .send(&Response::denied(
+                    "remote operation not approved for this controller",
+                ))
+                .await;
             tracing::warn!(peer = %peer_name, "DENIED {summary}");
             continue;
         }
@@ -302,7 +331,8 @@ where
             Request::ExecStart { job_id, .. } => Some(job_id.clone()),
             _ => None,
         };
-        let mut resp = ops::handle(namespace_job_request(req, peer_key), policy, &daemon.jobs).await;
+        let mut resp =
+            ops::handle(namespace_job_request(req, peer_key), policy, &daemon.jobs).await;
         if let (Some(id), Response::ExecStarted { job_id }) = (external_id, &mut resp) {
             *job_id = id;
         }
@@ -335,7 +365,9 @@ pub async fn pair_handshake(
 
     let peer_key = channel.remote_static_b64();
     let hello: Hello = tokio::time::timeout(HANDSHAKE_TIMEOUT, channel.recv())
-        .await.context("pairing hello timeout")?.context("expected hello during pairing")?;
+        .await
+        .context("pairing hello timeout")?
+        .context("expected hello during pairing")?;
     if hello.protocol_version != PROTOCOL_VERSION {
         let _ = channel
             .send(&Response::error(format!(
@@ -414,26 +446,58 @@ mod security_tests {
         let grant = PeerPermissions::default();
         assert!(permitted(&Request::Ping, grant));
         assert!(permitted(&Request::ListDir { path: "/".into() }, grant));
-        assert!(!permitted(&Request::Delete { path: "/tmp/x".into(), recursive: false }, grant));
-        assert!(!permitted(&Request::CreateDir { path: "/tmp/x".into() }, grant));
-        assert!(!permitted(&Request::Exec {
-            command: "echo PRIVATE_SENTINEL".into(), timeout_ms: 1000, max_bytes: 10,
-        }, grant));
+        assert!(!permitted(
+            &Request::Delete {
+                path: "/tmp/x".into(),
+                recursive: false
+            },
+            grant
+        ));
+        assert!(!permitted(
+            &Request::CreateDir {
+                path: "/tmp/x".into()
+            },
+            grant
+        ));
+        assert!(!permitted(
+            &Request::Exec {
+                command: "echo PRIVATE_SENTINEL".into(),
+                timeout_ms: 1000,
+                max_bytes: 10,
+            },
+            grant
+        ));
         assert_eq!(
             describe(&Request::Exec {
-                command: "echo PRIVATE_SENTINEL".into(), timeout_ms: 1000, max_bytes: 10,
+                command: "echo PRIVATE_SENTINEL".into(),
+                timeout_ms: 1000,
+                max_bytes: 10,
             }),
             "exec"
         );
-        assert_eq!(describe(&Request::ReadFile {
-            path: "/home/SECRET_SENTINEL".into(), max_bytes: 10,
-        }), "read");
+        assert_eq!(
+            describe(&Request::ReadFile {
+                path: "/home/SECRET_SENTINEL".into(),
+                max_bytes: 10,
+            }),
+            "read"
+        );
     }
 
     #[test]
     fn per_controller_job_namespaces_are_disjoint_even_when_job_ids_match() {
-        let a = namespace_job_request(Request::ExecPoll { job_id: "shared".into() }, "peerA");
-        let b = namespace_job_request(Request::ExecPoll { job_id: "shared".into() }, "peerB");
+        let a = namespace_job_request(
+            Request::ExecPoll {
+                job_id: "shared".into(),
+            },
+            "peerA",
+        );
+        let b = namespace_job_request(
+            Request::ExecPoll {
+                job_id: "shared".into(),
+            },
+            "peerB",
+        );
         match (a, b) {
             (Request::ExecPoll { job_id: x }, Request::ExecPoll { job_id: y }) => {
                 assert_ne!(x, y);
@@ -449,7 +513,9 @@ mod security_tests {
         let identity = Identity::generate().unwrap();
         let path = std::env::temp_dir().join(format!("agent-limit-{}", std::process::id()));
         let daemon = Daemon::new(identity, Config::default(), path);
-        daemon.open_pairing("123456".to_string(), Duration::from_secs(30)).await;
+        daemon
+            .open_pairing("123456".to_string(), Duration::from_secs(30))
+            .await;
         for _ in 0..MAX_PAIR_ATTEMPTS {
             assert_eq!(daemon.authorize_pairing_attempt().await.unwrap(), "123456");
         }

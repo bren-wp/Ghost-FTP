@@ -45,7 +45,12 @@ pub struct PeerPermissions {
 }
 impl Default for PeerPermissions {
     fn default() -> Self {
-        Self { read: true, write: false, delete: false, terminal: false }
+        Self {
+            read: true,
+            write: false,
+            delete: false,
+            terminal: false,
+        }
     }
 }
 
@@ -96,14 +101,17 @@ impl Config {
         if migrated {
             // Do not lose legacy grants when a later administrator edits the
             // global policy; migration must be persisted or refuse startup.
-            cfg.save(path).context("persist legacy peer permission migration")?;
+            cfg.save(path)
+                .context("persist legacy peer permission migration")?;
         }
         Ok(cfg)
     }
 
     pub fn save(&self, path: &Path) -> Result<()> {
         use std::io::Write;
-        let parent = path.parent().context("agent config has no parent directory")?;
+        let parent = path
+            .parent()
+            .context("agent config has no parent directory")?;
         std::fs::create_dir_all(parent).context("create agent config directory")?;
         let bytes = serde_json::to_vec_pretty(self)?;
         // Use a private, same-directory temporary file and atomic rename;
@@ -117,7 +125,9 @@ impl Config {
             opts.mode(0o600);
         }
         let result = (|| -> Result<()> {
-            let mut out = opts.open(&tmp).context("create private agent config staging")?;
+            let mut out = opts
+                .open(&tmp)
+                .context("create private agent config staging")?;
             out.write_all(&bytes).context("write staged agent config")?;
             out.sync_all().context("sync staged agent config")?;
             std::fs::rename(&tmp, path).context("atomically replace agent config")?;
@@ -135,7 +145,9 @@ impl Config {
     }
 
     pub fn peer_permissions(&self, public_key: &str) -> Option<PeerPermissions> {
-        self.peers.iter().find(|p| p.public_key == public_key)
+        self.peers
+            .iter()
+            .find(|p| p.public_key == public_key)
             .map(|p| p.permissions.unwrap_or_default())
     }
 
@@ -217,11 +229,21 @@ mod security_tests {
 
     #[test]
     fn legacy_migration_preserves_previous_grants_and_is_idempotent() {
-        let path = std::env::temp_dir().join(format!("ghostftp-agent-security-{}.json", std::process::id()));
+        let path = std::env::temp_dir().join(format!(
+            "ghostftp-agent-security-{}.json",
+            std::process::id()
+        ));
         std::fs::write(&path, r#"{"policy":{"allowExec":true,"allowWrite":true},"peers":[{"name":"old","publicKey":"legacy","pairedAt":1}]}"#).unwrap();
         let migrated = Config::load(&path).unwrap();
-        assert_eq!(migrated.peer_permissions("legacy").unwrap(),
-            PeerPermissions { read: true, write: true, delete: true, terminal: true });
+        assert_eq!(
+            migrated.peer_permissions("legacy").unwrap(),
+            PeerPermissions {
+                read: true,
+                write: true,
+                delete: true,
+                terminal: true
+            }
+        );
         let again = Config::load(&path).unwrap();
         assert!(again.peers[0].permissions.is_some());
         std::fs::remove_file(path).unwrap();
