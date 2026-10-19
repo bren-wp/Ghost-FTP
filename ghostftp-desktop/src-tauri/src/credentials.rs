@@ -3,7 +3,6 @@ use std::sync::Mutex;
 
 static VAULT_LOCK: Mutex<()> = Mutex::new(());
 
-
 #[cfg(target_os = "linux")]
 mod linux_secret_service;
 
@@ -26,7 +25,9 @@ fn legacy_delete(service: &str, account: &str) -> Result<()> {
 }
 
 pub fn vault_get(service: &str, account: &str) -> Result<Option<String>> {
-    let _guard = VAULT_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = VAULT_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     #[cfg(target_os = "linux")]
     {
         let primary = linux_secret_service::lookup(service, account);
@@ -47,7 +48,9 @@ pub fn vault_get(service: &str, account: &str) -> Result<Option<String>> {
             (Err(_), Ok(Some(old))) => Ok(Some(old)),
             (Ok(None), Ok(None)) => Ok(None),
             // Never treat an unavailable vault as an empty vault.
-            _ => Err(anyhow!("Linux credential vault unavailable; unlock Secret Service")),
+            _ => Err(anyhow!(
+                "Linux credential vault unavailable; unlock Secret Service"
+            )),
         }
     }
     #[cfg(not(target_os = "linux"))]
@@ -59,7 +62,9 @@ pub fn vault_get(service: &str, account: &str) -> Result<Option<String>> {
 /// New Linux writes are persistent-only and must verify their destination.
 /// No fallback to kernel keyutils: it loses data on reboot.
 pub fn vault_set(service: &str, account: &str, value: &str) -> Result<()> {
-    let _guard = VAULT_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = VAULT_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     #[cfg(target_os = "linux")]
     {
         linux_secret_service::store(service, account, value)
@@ -74,7 +79,9 @@ pub fn vault_set(service: &str, account: &str, value: &str) -> Result<()> {
 }
 
 pub fn vault_delete(service: &str, account: &str) -> Result<()> {
-    let _guard = VAULT_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = VAULT_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     #[cfg(target_os = "linux")]
     {
         // Preserve legacy keyutils if Secret Service is locked or refuses the
@@ -175,7 +182,9 @@ fn profile_owner<'a>(service: &str, account: &'a str) -> Option<&'a str> {
         crate::session::gdrive::GDRIVE_SERVICE,
         crate::session::boxdrive::BOX_SERVICE,
         crate::session::dynamics::DYNAMICS_TOKEN_SERVICE,
-    ].contains(&service) {
+    ]
+    .contains(&service)
+    {
         return Some(account);
     }
     None
@@ -193,7 +202,10 @@ where
     F: FnMut(&str, &str) -> Result<Option<String>>,
 {
     let entries = db.list_keychain()?;
-    anyhow::ensure!(entries.len() <= 20_000, "Credential manifest exceeds audit limit");
+    anyhow::ensure!(
+        entries.len() <= 20_000,
+        "Credential manifest exceeds audit limit"
+    );
     let mut missing = Vec::new();
     let mut verified = 0;
     let mut orphans = 0;
@@ -201,9 +213,7 @@ where
         match read(service, account)? {
             Some(_) => {
                 verified += 1;
-                if profile_owner(service, account)
-                    .is_some_and(|id| !saved_profiles.contains(id))
-                {
+                if profile_owner(service, account).is_some_and(|id| !saved_profiles.contains(id)) {
                     orphans += 1;
                 }
             }
@@ -228,15 +238,19 @@ mod tests {
     #[test]
     fn orphan_audit_retains_existing_secrets_and_prunes_only_proven_absent() {
         let db = crate::db::Db::open_in_memory().unwrap();
-        db.record_keychain(SERVICE, "profile-password:present").unwrap();
-        db.record_keychain(SERVICE, "profile-password:deleted").unwrap();
-        db.record_keychain(SERVICE, "profile-password:absent").unwrap();
+        db.record_keychain(SERVICE, "profile-password:present")
+            .unwrap();
+        db.record_keychain(SERVICE, "profile-password:deleted")
+            .unwrap();
+        db.record_keychain(SERVICE, "profile-password:absent")
+            .unwrap();
         let mut profiles = std::collections::HashSet::new();
         profiles.insert("present".to_string());
         let result = repair_manifest_with(&db, &profiles, |_svc, key| match key {
             "profile-password:absent" => Ok(None),
             _ => Ok(Some("PRIVATE_SENTINEL".to_string())),
-        }).unwrap();
+        })
+        .unwrap();
         assert_eq!(result.checked, 3);
         assert_eq!(result.verified, 2);
         assert_eq!(result.missing_removed, 1);
@@ -247,8 +261,10 @@ mod tests {
     #[test]
     fn locked_vault_does_not_prune_any_manifest_record() {
         let db = crate::db::Db::open_in_memory().unwrap();
-        db.record_keychain(SERVICE, "profile-password:missing").unwrap();
-        db.record_keychain(SERVICE, "profile-password:locked").unwrap();
+        db.record_keychain(SERVICE, "profile-password:missing")
+            .unwrap();
+        db.record_keychain(SERVICE, "profile-password:locked")
+            .unwrap();
         let known = std::collections::HashSet::new();
         let result = repair_manifest_with(&db, &known, |_svc, key| {
             if key.ends_with(":locked") {
@@ -267,13 +283,19 @@ mod tests {
         let forget_calls = Cell::new(0);
         let bad = delete_then_forget(
             || Err(anyhow!("simulated locked vault: PRIVATE_SENTINEL")),
-            || { forget_calls.set(forget_calls.get() + 1); Ok(()) },
+            || {
+                forget_calls.set(forget_calls.get() + 1);
+                Ok(())
+            },
         );
         assert!(bad.is_err());
         assert_eq!(forget_calls.get(), 0);
         let good = delete_then_forget(
             || Ok(()),
-            || { forget_calls.set(forget_calls.get() + 1); Ok(()) },
+            || {
+                forget_calls.set(forget_calls.get() + 1);
+                Ok(())
+            },
         );
         assert!(good.is_ok());
         assert_eq!(forget_calls.get(), 1);
