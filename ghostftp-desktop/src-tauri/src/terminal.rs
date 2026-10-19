@@ -8,6 +8,16 @@ use tauri::{AppHandle, Emitter};
 use tokio::sync::{mpsc, Mutex};
 use uuid::Uuid;
 
+/// Defence-in-depth for Tauri IPC values, not just frontend widgets.
+const MAX_PTY_SESSIONS: usize = 32;
+const MAX_PTY_INPUT: usize = 128 * 1024;
+fn validate_pty_size(cols: u32, rows: u32) -> Result<()> {
+    if !(20..=500).contains(&cols) || !(5..=300).contains(&rows) {
+        return Err(anyhow!("terminal dimensions outside allowed bounds"));
+    }
+    Ok(())
+}
+
 enum PtyCommand {
     Input(Vec<u8>),
     Resize { cols: u32, rows: u32 },
@@ -50,6 +60,10 @@ impl PtyManager {
         rows: u32,
         app: AppHandle,
     ) -> Result<String> {
+        validate_pty_size(cols, rows)?;
+        if self.ptys.lock().await.len() >= MAX_PTY_SESSIONS {
+            return Err(anyhow!("too many active terminal sessions"));
+        }
         let id = Uuid::new_v4().to_string();
 
         let channel = {
@@ -139,20 +153,24 @@ impl PtyManager {
     }
 
     pub async fn write(&self, id: &str, data: String) -> Result<()> {
+        if data.len() > MAX_PTY_INPUT {
+            return Err(anyhow!("terminal input exceeds size limit"));
+        }
         let map = self.ptys.lock().await;
         let h = map
             .get(id)
-            .ok_or_else(|| anyhow!("terminal {id} not found"))?;
+            .ok_or_else(|| anyhow!("terminal not found"))?;
         h.tx.send(PtyCommand::Input(data.into_bytes()))
             .await
             .map_err(|_| anyhow!("terminal closed"))
     }
 
     pub async fn resize(&self, id: &str, cols: u32, rows: u32) -> Result<()> {
+        validate_pty_size(cols, rows)?;
         let map = self.ptys.lock().await;
         let h = map
             .get(id)
-            .ok_or_else(|| anyhow!("terminal {id} not found"))?;
+            .ok_or_else(|| anyhow!("terminal not found"))?;
         h.tx.send(PtyCommand::Resize { cols, rows })
             .await
             .map_err(|_| anyhow!("terminal closed"))
@@ -164,5 +182,17 @@ impl PtyManager {
             let _ = h.tx.send(PtyCommand::Close).await;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod ipc_security_tests {
+    use super::*;
+    #[test]
+    fn backend_rejects_adversarial_terminal_dimensions() {
+        assert!(validate_pty_size(80, 24).is_ok());
+        for (cols, rows) in [(0, 0), (1, 24), (65535, 1), (80, 1000)] {
+            assert!(validate_pty_size(cols, rows).is_err());
+        }
     }
 }
