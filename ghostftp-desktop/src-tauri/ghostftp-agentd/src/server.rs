@@ -358,7 +358,7 @@ async fn request_loop<S>(
         if let (Some(id), Response::ExecStarted { job_id }) = (external_id, &mut resp) {
             *job_id = id;
         }
-        log_op(peer_name, &summary, &resp);
+        log_op(peer_name, summary, &resp);
         if channel.send(&resp).await.is_err() {
             break;
         }
