@@ -469,6 +469,15 @@ fn validate_sqlite_restore_bytes(dir: &Path, bytes: &[u8]) -> Result<()> {
         uuid::Uuid::new_v4()
     ));
     let _guard = RemoveOnDrop(path.clone());
+    // SQLite may create transient WAL/SHM peers even for a read-only
+    // connection to a WAL-mode snapshot. None may be left behind containing
+    // private state after validation or a failed import.
+    let mut wal_path = path.as_os_str().to_os_string();
+    wal_path.push("-wal");
+    let _wal_guard = RemoveOnDrop(PathBuf::from(wal_path));
+    let mut shm_path = path.as_os_str().to_os_string();
+    shm_path.push("-shm");
+    let _shm_guard = RemoveOnDrop(PathBuf::from(shm_path));
     write_private_file(&path, bytes).context("stage SQLite integrity verification")?;
     let conn =
         rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
