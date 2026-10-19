@@ -643,6 +643,29 @@ pub async fn pair_agent(host: String, port: u16, code: String) -> Result<AgentPa
     })
 }
 
+// ---------- Cloud account connection (desktop-only OAuth) ----------
+
+/// Reports whether this build has a public OAuth client ID for each cloud
+/// service. A missing ID is a setup requirement, not a user password prompt.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CloudOAuthAvailability {
+    pub dropbox: bool,
+    pub onedrive: bool,
+    pub gdrive: bool,
+    pub box_drive: bool,
+}
+
+#[tauri::command]
+pub fn cloud_oauth_availability() -> CloudOAuthAvailability {
+    CloudOAuthAvailability {
+        dropbox: !crate::session::dropbox::dropbox_config().client_id.trim().is_empty(),
+        onedrive: !crate::session::onedrive::onedrive_config().client_id.trim().is_empty(),
+        gdrive: !crate::session::gdrive::gdrive_config().client_id.trim().is_empty(),
+        box_drive: !crate::session::boxdrive::box_config().client_id.trim().is_empty(),
+    }
+}
+
 // ---------- Dropbox (OAuth cloud) ----------
 
 /// Result of a Dropbox authorization, shown to the user to confirm the account.
