@@ -94,14 +94,8 @@ fn hydrate_profile_secrets(profile: &mut ConnectionProfile) -> Result<(), GhostF
 }
 
 fn delete_profile_secret(key: &str, state: &AppState) -> Result<(), String> {
-    crate::credentials::delete_secret_checked(key)
-        .map_err(|_| "OS credential store refused to delete a profile secret".to_string())?;
-    // Only after a confirmed vault delete can the backup manifest be cleared.
-    // If SQLite fails, the manifest deliberately remains for later repair.
-    state
-        .db
-        .forget_keychain(crate::credentials::SERVICE, key)
-        .map_err(|_| "Profile secret was deleted but its SQLite manifest entry needs repair".to_string())
+    crate::credentials::delete_secret_recorded(key, &state.db)
+        .map_err(|_| "Profile secret cleanup failed; check the OS vault and manifest".to_string())
 }
 
 // ---------- Profiles ----------
@@ -2611,13 +2605,8 @@ pub async fn set_api_key(
 ) -> Result<(), String> {
     let value = WipeOnDrop::new(value);
     if value.as_str().is_empty() {
-        crate::credentials::delete_secret_checked(&purpose)
-            .map_err(|_| "OS credential store refused API-key deletion".to_string())?;
-        // A failed database write leaves a conservative manifest record.
-        state
-            .db
-            .forget_keychain(crate::credentials::SERVICE, &purpose)
-            .map_err(err)?;
+        crate::credentials::delete_secret_recorded(&purpose, &state.db)
+            .map_err(|_| "API-key cleanup failed; check the OS vault and manifest".to_string())?;
     } else {
         // Manifest first: a database write failure must not create an
         // untracked OS secret, which an encrypted backup could silently miss.
