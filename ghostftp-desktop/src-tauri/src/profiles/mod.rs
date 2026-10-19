@@ -37,7 +37,9 @@ impl std::fmt::Debug for AuthMethod {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Password { .. } => formatter.write_str("Password { password: [REDACTED] }"),
-            Self::Key { .. } => formatter.write_str("Key { path: [REDACTED], passphrase: [REDACTED] }"),
+            Self::Key { .. } => {
+                formatter.write_str("Key { path: [REDACTED], passphrase: [REDACTED] }")
+            }
             Self::Agent => formatter.write_str("Agent"),
             Self::KeyRef { .. } => formatter.write_str("KeyRef { key_ref: [REDACTED] }"),
         }
@@ -470,7 +472,10 @@ mod recovery_tests {
                 "/private/keys/hidden_ed25519",
                 "PRIVATE_KEY_REFERENCE",
             ] {
-                assert!(!debug.contains(forbidden), "Debug emitted a secret or key reference");
+                assert!(
+                    !debug.contains(forbidden),
+                    "Debug emitted a secret or key reference"
+                );
             }
         }
         assert_eq!(format!("{:?}", AuthMethod::Agent), "Agent");
