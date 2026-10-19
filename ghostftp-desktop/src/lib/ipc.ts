@@ -177,8 +177,8 @@ export const ipc = {
   agentHostStatus: () => invoke<AgentHostStatus>("agent_host_status"),
 
   /** Turn the host on/off; optionally set the listen port. */
-  agentHostSetEnabled: (enabled: boolean, port?: number) =>
-    invoke<AgentHostStatus>("agent_host_set_enabled", { enabled, port }),
+  agentHostSetEnabled: (enabled: boolean, port?: number, bindAddress?: string) =>
+    invoke<AgentHostStatus>("agent_host_set_enabled", { enabled, port, bindAddress }),
 
   /** Open a pairing window and get the fresh 6-digit code to read aloud. */
   agentHostOpenPairing: () =>
