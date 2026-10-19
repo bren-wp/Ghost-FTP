@@ -87,6 +87,10 @@ impl Daemon {
         self.jobs.kill_namespace(peer_key)
     }
 
+    pub fn cancel_all_jobs(&self) -> usize {
+        self.jobs.kill_all()
+    }
+
     /// Replace the paired-notification hook (builder-style). The CLI prints a
     /// ✓ line; the embedding app emits an event + toast.
     pub fn with_on_paired(mut self, f: impl Fn(&str, &str) + Send + Sync + 'static) -> Self {
