@@ -19,7 +19,12 @@ const DEFAULT_TOKEN_URL: &str = "https://login.microsoftonline.com/common/oauth2
 /// delegated `Files.ReadWrite`, `offline_access`, and `User.Read` scopes. Paste
 /// the Application (client) id here or set `GHOSTFTP_ONEDRIVE_CLIENT_ID`. PKCE ⇒ no
 /// secret.
-const ONEDRIVE_CLIENT_ID: &str = "";
+// Public provider application ID injected during Windows/Linux compilation.
+// Runtime GHOSTFTP_* overrides still support local developer builds.
+const ONEDRIVE_CLIENT_ID: &str = match option_env!("GHOSTFTP_ONEDRIVE_CLIENT_ID") {
+    Some(id) => id,
+    None => "",
+};
 
 fn env_or(key: &str, default: &str) -> String {
     std::env::var(key)
