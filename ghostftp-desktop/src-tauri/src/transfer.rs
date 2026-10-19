@@ -611,6 +611,10 @@ fn safe_upload_name(name: &str) -> bool {
 // Treat every server listing as untrusted. A sibling name, parent segment
 // or drive/ADS separator must never escape the user-selected download root.
 fn checked_remote_download_relative(root: &str, child: &str) -> Result<PathBuf> {
+    anyhow::ensure!(
+        root.contains('\\') || !child.contains('\\'),
+        "ambiguous server path separators are unsupported"
+    );
     let normalized_root = root.replace('\\', "/");
     let normalized_child = child.replace('\\', "/");
     let prefix = normalized_root.trim_end_matches('/');
@@ -619,7 +623,7 @@ fn checked_remote_download_relative(root: &str, child: &str) -> Result<PathBuf> 
         .strip_prefix(prefix)
         .filter(|suffix| suffix.starts_with('/'))
         .context("server returned a path outside the selected download directory")?;
-    let rel = remainder.trim_start_matches('/');
+    let rel = remainder.strip_prefix('/').context("invalid child path separator")?;
     anyhow::ensure!(!rel.is_empty(), "server returned the root as a child file");
     let mut relative = PathBuf::new();
     for component in rel.split('/') {
@@ -631,6 +635,47 @@ fn checked_remote_download_relative(root: &str, child: &str) -> Result<PathBuf> 
         relative.push(component);
     }
     Ok(relative)
+}
+
+/// Refuse pre-existing symlinked directory components while preparing a
+/// download tree. Never let create_dir_all follow a local link into files
+/// outside the destination chosen by the user.
+async fn ensure_download_subdirectory(root: &Path, dir: &Path) -> Result<()> {
+    let rel = dir
+        .strip_prefix(root)
+        .context("download directory escaped the selected root")?;
+    let meta = tokio::fs::symlink_metadata(root)
+        .await
+        .context("inspect download root")?;
+    anyhow::ensure!(
+        meta.file_type().is_dir(),
+        "download destination root must be a real directory"
+    );
+    let mut current = root.to_path_buf();
+    for part in rel.components() {
+        anyhow::ensure!(
+            matches!(part, std::path::Component::Normal(_)),
+            "download destination contains a non-normal path component"
+        );
+        current.push(part.as_os_str());
+        match tokio::fs::symlink_metadata(&current).await {
+            Ok(meta) => {
+                anyhow::ensure!(
+                    meta.file_type().is_dir(),
+                    "download destination component is not a real directory"
+                );
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                tokio::fs::create_dir(&current)
+                    .await
+                    .with_context(|| format!("create download directory {}", current.display()))?;
+            }
+            Err(e) => {
+                return Err(e).with_context(|| format!("inspect download directory {}", current.display()));
+            }
+        }
+    }
+    Ok(())
 }
 
 const MAX_DIRECTORY_DOWNLOAD_ENTRIES: usize = 100_000;
@@ -2471,6 +2516,7 @@ impl TransferManager {
         tokio::fs::create_dir_all(&local_root)
             .await
             .with_context(|| format!("mkdir -p {}", local_root.display()))?;
+        ensure_download_subdirectory(&local_root, &local_root).await?;
 
         let fs = fs_for_session(&session);
 
@@ -2501,12 +2547,13 @@ impl TransferManager {
                 match entry.kind {
                     crate::remotefs::FileKind::Directory => {
                         validate_directory_download_budget(entry_count, depth + 1, total_path_bytes)?;
-                        tokio::fs::create_dir_all(&local_child)
-                            .await
-                            .with_context(|| format!("create download directory {}", local_child.display()))?;
+                        ensure_download_subdirectory(&local_root, &local_child).await?;
                         dirs_to_visit.push((remote_child, depth + 1));
                     }
                     crate::remotefs::FileKind::File => {
+                        if let Some(parent) = local_child.parent() {
+                            ensure_download_subdirectory(&local_root, parent).await?;
+                        }
                         files.push((remote_child, local_child));
                     }
                     _ => {}
@@ -5068,6 +5115,23 @@ mod tests {
         ] {
             assert!(checked_remote_download_relative(root, bad).is_err(), "{bad}");
         }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn directory_download_rejects_symlinked_local_parents() {
+        use std::os::unix::fs::symlink;
+        let sandbox = std::env::temp_dir().join(format!("ghostftp-download-links-{}", Uuid::new_v4()));
+        let root = sandbox.join("download");
+        let outside = sandbox.join("other-user-files");
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        tokio::fs::create_dir_all(&outside).await.unwrap();
+        symlink(&outside, root.join("nested")).unwrap();
+        assert!(ensure_download_subdirectory(&root, &root.join("nested").join("subdir"))
+            .await
+            .is_err());
+        assert_eq!(tokio::fs::read_dir(&outside).await.unwrap().next_entry().await.unwrap(), None);
+        tokio::fs::remove_dir_all(sandbox).await.unwrap();
     }
 
     #[test]
