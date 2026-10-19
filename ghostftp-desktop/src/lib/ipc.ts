@@ -450,6 +450,12 @@ export const ipc = {
   apiKeyStatus: (purpose: string) =>
     invoke<boolean>("api_key_status", { purpose }),
 
+  /** Non-destructive vault inventory reconciliation; counts only, no IDs or secrets. */
+  repairKeychainManifest: () =>
+    invoke<{ checked: number; verified: number; missingRemoved: number; orphanedRetained: number }>(
+      "repair_keychain_manifest"
+    ),
+
   // ---- Settings (Plan 12 Phase 2): ghostftp.db is the source of truth ----
   /** Every setting as `key -> raw JSON value`. */
   settingsGetAll: () =>
