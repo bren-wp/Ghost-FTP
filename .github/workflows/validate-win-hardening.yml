@@ -44,6 +44,9 @@ jobs:
       - name: UI contracts
         working-directory: ghostftp-desktop
         run: npm run check:ui
+      - name: Desktop source reachability and safe dead-code audit
+        working-directory: ghostftp-desktop
+        run: npm run check:dead
       - name: Windows helper process hardening
         shell: bash
         run: |
