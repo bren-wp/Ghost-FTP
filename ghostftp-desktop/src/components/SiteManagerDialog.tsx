@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import {
   Bookmark,
+  Cloud,
   ChevronDown,
   ChevronUp,
   CopyPlus,
@@ -25,6 +26,7 @@ import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
 import { duplicateSavedSiteIds, matchingSavedSites } from "@/lib/siteDuplicates";
 import { ConfirmModal } from "./ConfirmModal";
+import { CloudAccountConnect } from "./CloudAccountConnect";
 import { ipc } from "@/lib/ipc";
 import { toast } from "@/stores/toastStore";
 import { toastError } from "@/lib/errors";
@@ -86,6 +88,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   const [addingMeta, setAddingMeta] = useState<"tag" | "folder" | null>(null);
   const [metaValue, setMetaValue] = useState("");
   const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
+  const [showCloudConnect, setShowCloudConnect] = useState(false);
 
   const closeIfIdle = () => {
     if (action) return;
@@ -391,6 +394,14 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
             </div>
           </div>
           <div className="flex-1" />
+          <button
+            type="button"
+            className="ghost-mini-button"
+            disabled={Boolean(action) || editing}
+            onClick={() => setShowCloudConnect(true)}
+          >
+            <Cloud size={15} /> Connect Cloud
+          </button>
           {profiles.length > 0 && (
             <>
               <div className="relative">
@@ -467,6 +478,14 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                 onClick={() => openNewConnection()}
                 >
                   <Plus size={15} /> New Site
+                </button>
+                <button
+                  type="button"
+                  className="ghost-mini-button"
+                  disabled={Boolean(action) || editing}
+                  onClick={() => setShowCloudConnect(true)}
+                >
+                  <Cloud size={14} /> Connect Cloud
                 </button>
                 <button
                   type="button"
@@ -816,6 +835,13 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
         )}
 
       </div>
+
+      {showCloudConnect && (
+        <CloudAccountConnect
+          onClose={() => setShowCloudConnect(false)}
+          onSaved={() => setView("cloud")}
+        />
+      )}
 
       {confirmDelete && selected && (
         <ConfirmModal
