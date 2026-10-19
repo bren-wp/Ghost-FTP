@@ -24,7 +24,12 @@ pub const ROOT_ID: &str = "0";
 /// redirect, enable "write all files" scope, and paste the Client ID here or set
 /// `GHOSTFTP_BOX_CLIENT_ID`. (Box also issues a client secret; PKCE is used so it's
 /// not embedded — leave it out of Ghost FTP.)
-const BOX_CLIENT_ID: &str = "";
+// Public provider application ID injected during Windows/Linux compilation.
+// Runtime GHOSTFTP_* overrides still support local developer builds.
+const BOX_CLIENT_ID: &str = match option_env!("GHOSTFTP_BOX_CLIENT_ID") {
+    Some(id) => id,
+    None => "",
+};
 
 fn env_or(key: &str, default: &str) -> String {
     std::env::var(key)
