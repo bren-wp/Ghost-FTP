@@ -327,16 +327,25 @@ pub async fn delete_profile(id: String, state: State<'_, AppState>) -> Result<()
     // return a non-success status if vault cleanup is rejected.
     if let Some(p) = profile {
         match p.protocol.as_str() {
-            "dropbox" => crate::oauth::delete_tokens_checked(crate::session::dropbox::DROPBOX_SERVICE, &id)
-                .map_err(|_| "Dropbox vault token cleanup failed".to_string())?,
-            "onedrive" => {
-                crate::oauth::delete_tokens_checked(crate::session::onedrive::ONEDRIVE_SERVICE, &id)
-                    .map_err(|_| "OneDrive vault token cleanup failed".to_string())?;
+            "dropbox" => {
+                crate::oauth::delete_tokens_checked(crate::session::dropbox::DROPBOX_SERVICE, &id)
+                    .map_err(|_| "Dropbox vault token cleanup failed".to_string())?
             }
-            "gdrive" => crate::oauth::delete_tokens_checked(crate::session::gdrive::GDRIVE_SERVICE, &id)
-                .map_err(|_| "Google Drive vault token cleanup failed".to_string())?,
-            "box" => crate::oauth::delete_tokens_checked(crate::session::boxdrive::BOX_SERVICE, &id)
-                .map_err(|_| "Box vault token cleanup failed".to_string())?,
+            "onedrive" => {
+                crate::oauth::delete_tokens_checked(
+                    crate::session::onedrive::ONEDRIVE_SERVICE,
+                    &id,
+                )
+                .map_err(|_| "OneDrive vault token cleanup failed".to_string())?;
+            }
+            "gdrive" => {
+                crate::oauth::delete_tokens_checked(crate::session::gdrive::GDRIVE_SERVICE, &id)
+                    .map_err(|_| "Google Drive vault token cleanup failed".to_string())?
+            }
+            "box" => {
+                crate::oauth::delete_tokens_checked(crate::session::boxdrive::BOX_SERVICE, &id)
+                    .map_err(|_| "Box vault token cleanup failed".to_string())?
+            }
             "shopify" => {
                 // Keychain-stored Admin credential (never in profiles.json).
                 let key = crate::session::shopify::credential_key(&id);
@@ -2664,8 +2673,9 @@ pub async fn set_api_key(
 /// frontend gets — enough to render a Set/••••/Clear affordance.
 #[tauri::command]
 pub async fn api_key_status(purpose: String) -> Result<bool, String> {
-    crate::credentials::secret_exists_checked(&purpose)
-        .map_err(|_| "OS credential store is unavailable; cannot determine API-key status".to_string())
+    crate::credentials::secret_exists_checked(&purpose).map_err(|_| {
+        "OS credential store is unavailable; cannot determine API-key status".to_string()
+    })
 }
 
 /// Repairs definitively absent vault-manifest rows only after every
@@ -2683,12 +2693,11 @@ pub async fn repair_keychain_manifest(
         .into_iter()
         .map(|profile| profile.id)
         .collect();
-    crate::credentials::repair_manifest_with(
-        &state.db,
-        &saved,
-        crate::credentials::vault_get,
-    )
-    .map_err(|_| "Could not repair credential inventory: OS vault locked or database unavailable".to_string())
+    crate::credentials::repair_manifest_with(&state.db, &saved, crate::credentials::vault_get)
+        .map_err(|_| {
+            "Could not repair credential inventory: OS vault locked or database unavailable"
+                .to_string()
+        })
 }
 
 // ---------- Settings (Plan 12 Phase 2) ----------
