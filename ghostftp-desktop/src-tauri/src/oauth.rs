@@ -453,11 +453,20 @@ pub fn load_tokens(service: &str, profile_id: &str) -> Result<Option<TokenSet>> 
     }
 }
 
-/// Remove a profile's tokens (best-effort — a missing entry is not an error).
-pub fn delete_tokens(service: &str, profile_id: &str) {
-    if let Ok(entry) = keyring::Entry::new(service, profile_id) {
-        let _ = entry.delete_credential();
+/// Do not announce token revocation when an OS vault is locked. Retain the
+/// old entry if deletion fails; the caller must surface the failure.
+pub fn delete_tokens_checked(service: &str, profile_id: &str) -> Result<()> {
+    let entry = keyring::Entry::new(service, profile_id).context("open OAuth credential entry")?;
+    match entry.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(_) => Err(anyhow!("OS credential store refused OAuth token deletion")),
     }
+}
+
+/// Retained for existing call sites that cannot return Result. New security
+/// sensitive delete paths must use delete_tokens_checked instead.
+pub fn delete_tokens(service: &str, profile_id: &str) {
+    let _ = delete_tokens_checked(service, profile_id);
 }
 
 /// Shared token holder for the OAuth cloud backends: hands out a valid access
