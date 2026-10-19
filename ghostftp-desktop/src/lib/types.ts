@@ -217,6 +217,7 @@ export interface AgentHostPeer {
   publicKey: string;
   fingerprint: string;
   pairedAt: number;
+  permissions: AgentPeerPermissions;
 }
 
 /** The open pairing window, if any. */
