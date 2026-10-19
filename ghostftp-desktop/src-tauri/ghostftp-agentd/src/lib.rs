@@ -12,7 +12,7 @@ pub mod ops;
 pub mod server;
 pub mod service;
 
-pub use config::{config_dir, config_path, identity_path, Config, Policy};
+pub use config::{config_dir, config_path, identity_path, Config, PeerPermissions, Policy};
 pub use server::{handle_paired, pair_connection, pair_handshake, serve, Daemon, PairingWindow};
 
 /// The name this machine reports in `SystemInfo` and advertises over mDNS.
