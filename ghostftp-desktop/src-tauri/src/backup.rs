@@ -608,8 +608,8 @@ pub fn preflight_pending_restore(dir: &Path) -> Result<()> {
         if !regular_file_if_present(&staged)? {
             continue;
         }
-        let bytes = std::fs::read(&staged)
-            .with_context(|| format!("read staged backup config {name}"))?;
+        let bytes =
+            std::fs::read(&staged).with_context(|| format!("read staged backup config {name}"))?;
         if *name == "profiles.json" {
             let profiles: Vec<crate::profiles::ConnectionProfile> =
                 serde_json::from_slice(&bytes).context("invalid staged profile metadata")?;
@@ -621,7 +621,10 @@ pub fn preflight_pending_restore(dir: &Path) -> Result<()> {
                     }
                     _ => false,
                 };
-                anyhow::ensure!(!unsafe_secret, "staged profiles contain unprotected credentials");
+                anyhow::ensure!(
+                    !unsafe_secret,
+                    "staged profiles contain unprotected credentials"
+                );
             }
         } else {
             serde_json::from_slice::<serde_json::Value>(&bytes)
