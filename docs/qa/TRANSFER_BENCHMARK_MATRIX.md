@@ -15,7 +15,8 @@ python tools/benchmarks/desktop-transfer-workload.py verify --root /path/to/down
 
 * `--root` must not already exist. No files are removed or overwritten.
 * The >4 GiB sparse file is **optional**; hashing/copying/transferring it reads
-  real 4+ GiB and may incur cloud costs and substantial runtime.
+  real 4+ GiB and may incur cloud costs and substantial runtime. On Windows,
+  check free disk space first: filesystem sparse allocation is not guaranteed.
 * The prepared `manifest.json` records SHA-256 checksums. Verify each downloaded
   file against the original manifest, preserving names and bytes.
 * Repeat each protocol/direction with concurrency **1, 4, 8, 16, 32**, and
