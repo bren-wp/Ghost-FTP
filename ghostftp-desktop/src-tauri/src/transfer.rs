@@ -4500,9 +4500,11 @@ fn is_transient_download(error: &anyhow::Error) -> bool {
         return true;
     }
     let message = format!("{error:#}").to_ascii_lowercase();
-    ["http 408", "http 425", "http 429", "http 500", "http 502", "http 503", "http 504"]
-        .iter()
-        .any(|status| message.contains(status))
+    [
+        "http 408", "http 425", "http 429", "http 500", "http 502", "http 503", "http 504",
+    ]
+    .iter()
+    .any(|status| message.contains(status))
 }
 
 /// Re-enter the global FIFO after retry backoff without monopolizing a
@@ -5608,13 +5610,18 @@ mod tests {
         for code in [408, 425, 429, 500, 502, 503, 504] {
             let error = anyhow::anyhow!("download failed: HTTP {code}");
             assert!(is_transient_download(&error), "{code}");
-            assert!(!is_transient(&error), "upload must not blindly replay {code}");
+            assert!(
+                !is_transient(&error),
+                "upload must not blindly replay {code}"
+            );
         }
         for code in [400, 401, 403, 404, 409, 412] {
             let error = anyhow::anyhow!("download failed: HTTP {code}");
             assert!(!is_transient_download(&error), "{code}");
         }
-        assert!(is_transient_download(&anyhow::anyhow!("connection reset by peer")));
+        assert!(is_transient_download(&anyhow::anyhow!(
+            "connection reset by peer"
+        )));
     }
 
     #[test]
