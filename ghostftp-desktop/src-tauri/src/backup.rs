@@ -190,8 +190,8 @@ fn read_backup_config_if_present(dir: &Path, name: &str) -> Result<Option<String
         meta.file_type().is_file(),
         "refusing non-regular or symlinked backup configuration {name}"
     );
-    let content = std::fs::read_to_string(&path)
-        .with_context(|| format!("read backup config {name}"))?;
+    let content =
+        std::fs::read_to_string(&path).with_context(|| format!("read backup config {name}"))?;
     Ok(Some(content))
 }
 
@@ -959,9 +959,12 @@ mod tests {
 
     #[test]
     fn unreadable_or_special_configuration_aborts_instead_of_silent_omission() {
-        let dir = std::env::temp_dir().join(format!("ghostftp-export-read-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-export-read-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        assert!(read_backup_config_if_present(&dir, "bridge.json").unwrap().is_none());
+        assert!(read_backup_config_if_present(&dir, "bridge.json")
+            .unwrap()
+            .is_none());
         std::fs::create_dir(dir.join("bridge.json")).unwrap();
         assert!(read_backup_config_if_present(&dir, "bridge.json").is_err());
         assert!(dir.join("bridge.json").is_dir());
@@ -972,13 +975,17 @@ mod tests {
     #[test]
     fn backup_config_reader_refuses_symlink_to_external_file() {
         use std::os::unix::fs::symlink;
-        let dir = std::env::temp_dir().join(format!("ghostftp-export-link-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-export-link-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let target = dir.join("unrelated-secret");
         std::fs::write(&target, b"never include unrelated secret").unwrap();
         symlink(&target, dir.join("profiles.json")).unwrap();
         assert!(read_backup_config_if_present(&dir, "profiles.json").is_err());
-        assert_eq!(std::fs::read(&target).unwrap(), b"never include unrelated secret");
+        assert_eq!(
+            std::fs::read(&target).unwrap(),
+            b"never include unrelated secret"
+        );
         std::fs::remove_dir_all(dir).unwrap();
     }
 
