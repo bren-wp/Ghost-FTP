@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-const version = "0.95.48"
+const version = "0.95.49"
 const runtimeKind = "compatibility-fallback"
 
 //go:embed site/* site/assets/*
@@ -309,7 +309,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	server = &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { setSecurityHeaders(w); mux.ServeHTTP(w, r) }), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
+	server = &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        setSecurityHeaders(w)
+        if !allowLocalHost(w, r) {
+            return
+        }
+        mux.ServeHTTP(w, r)
+    }), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	url := "http://" + ln.Addr().String() + "/#main"
 	_ = url // local application URL
 	go func() {

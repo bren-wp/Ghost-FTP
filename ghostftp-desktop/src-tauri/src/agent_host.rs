@@ -10,8 +10,10 @@
 
 use anyhow::{bail, Context, Result};
 use ghostftp_agent_proto::identity::Identity;
+use ghostftp_agentd::config::PeerPermissions;
 use ghostftp_agentd::{config_path, discovery::Advertisement, identity_path, ops, Config, Daemon};
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
@@ -31,6 +33,7 @@ const PAIRING_WINDOW: Duration = Duration::from_secs(10 * 60);
 pub struct HostSettings {
     pub enabled: bool,
     pub port: u16,
+    pub bind_address: String,
 }
 
 impl Default for HostSettings {
@@ -38,6 +41,7 @@ impl Default for HostSettings {
         Self {
             enabled: false,
             port: 8722,
+            bind_address: "127.0.0.1".into(),
         }
     }
 }
@@ -107,20 +111,25 @@ impl AgentHost {
         if running.is_some() {
             return Ok(());
         }
-        let port = self.settings.lock().await.port;
+        let settings = self.settings.lock().await.clone();
+        let port = settings.port;
+        let bind_ip: IpAddr = settings
+            .bind_address
+            .parse()
+            .context("Remote Agent bind address must be a numeric IP address")?;
         let dir = Self::agent_dir()?;
         let identity = Identity::load_or_create(&identity_path(&dir))?;
         let config = Config::load(&config_path(&dir))?;
         let fingerprint = identity.fingerprint()?;
         let info = ops::system_info();
 
-        let listener = match TcpListener::bind(("0.0.0.0", port)).await {
+        let listener = match TcpListener::bind((bind_ip, port)).await {
             Ok(l) => l,
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => bail!(
                 "port {port} is already in use — is a headless ghostftp-agentd running on this \
                  machine? Stop it (or change the port) and try again."
             ),
-            Err(e) => return Err(e).with_context(|| format!("bind 0.0.0.0:{port}")),
+            Err(e) => return Err(e).with_context(|| format!("bind {bind_ip}:{port}")),
         };
 
         let event_app = app.clone();
@@ -131,12 +140,11 @@ impl AgentHost {
             );
         });
 
-        let advert = match Advertisement::publish(port, &fingerprint, &info.os, false) {
-            Ok(ad) => Some(ad),
-            Err(e) => {
-                tracing::warn!("agent host mDNS unavailable: {e:#} — reachable by IP only");
-                None
-            }
+        let advert = if bind_ip.is_loopback() {
+            None
+        } else {
+            tracing::warn!(%bind_ip, "REMOTE AGENT IS NETWORK-EXPOSED; restrict host firewall access");
+            Advertisement::publish(port, &fingerprint, &info.os, false).ok()
         };
 
         let serve_daemon = daemon.clone();
@@ -199,6 +207,7 @@ impl AgentHost {
             enabled: settings.enabled,
             running: is_running,
             port,
+            bind_address: settings.bind_address,
             hostname: info.hostname,
             os: info.os,
             fingerprint: identity.fingerprint()?,
@@ -214,6 +223,7 @@ impl AgentHost {
                         .map(|k| ghostftp_agent_proto::fingerprint_of(&k))
                         .unwrap_or_else(|_| "?".into()),
                     paired_at: p.paired_at,
+                    permissions: p.permissions.unwrap_or_default(),
                 })
                 .collect(),
             pairing,
@@ -235,6 +245,7 @@ pub struct PeerView {
     pub public_key: String,
     pub fingerprint: String,
     pub paired_at: i64,
+    pub permissions: PeerPermissions,
 }
 
 #[derive(Serialize)]
@@ -243,6 +254,7 @@ pub struct HostStatus {
     pub enabled: bool,
     pub running: bool,
     pub port: u16,
+    pub bind_address: String,
     pub hostname: String,
     pub os: String,
     pub fingerprint: String,
@@ -267,19 +279,36 @@ pub async fn agent_host_status(state: State<'_, AppState>) -> Result<HostStatus,
 pub async fn agent_host_set_enabled(
     enabled: bool,
     port: Option<u16>,
+    bind_address: Option<String>,
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<HostStatus, String> {
     let host = &state.agent_host;
+    let old = host.settings.lock().await.clone();
     {
         let mut s = host.settings.lock().await;
         s.enabled = enabled;
         if let Some(p) = port {
+            if p == 0 {
+                return Err("Remote Agent port must be non-zero".into());
+            }
             s.port = p;
+        }
+        if let Some(address) = bind_address {
+            let ip: IpAddr = address
+                .parse()
+                .map_err(|_| "Bind address must be a numeric IP address".to_string())?;
+            s.bind_address = ip.to_string();
         }
     }
     host.persist().await.map_err(err)?;
     if enabled {
+        let settings = host.settings.lock().await.clone();
+        if old.port != settings.port || old.bind_address != settings.bind_address {
+            // Binding changes must take effect immediately rather than leaving
+            // an old 0.0.0.0 listener running unnoticed.
+            host.stop().await;
+        }
         host.start(&app).await.map_err(err)?;
     } else {
         host.stop().await;
@@ -359,9 +388,16 @@ pub async fn agent_host_set_policy(
     match &*running {
         Some(r) => {
             let mut cfg = r.daemon.config.lock().await;
-            cfg.policy.allow_exec = allow_exec;
-            cfg.policy.allow_write = allow_write;
-            cfg.save(&config_path(&dir)).map_err(err)?;
+            let mut updated = cfg.clone();
+            updated.policy.allow_exec = allow_exec;
+            updated.policy.allow_write = allow_write;
+            updated.save(&config_path(&dir)).map_err(err)?;
+            *cfg = updated;
+            drop(cfg);
+            if !allow_exec {
+                r.daemon.cancel_all_jobs();
+            }
+            r.daemon.invalidate_sessions();
         }
         None => {
             let mut cfg = Config::load(&config_path(&dir)).map_err(err)?;
@@ -374,8 +410,50 @@ pub async fn agent_host_set_policy(
     host.status().await.map_err(err)
 }
 
-/// Remove a pinned controller. Its next connection attempt is refused; an
-/// already-open session lasts until it disconnects.
+/// Per-device owner approval; permissions take effect on the next remote
+/// request without disconnecting other pinned controllers.
+#[tauri::command]
+pub async fn agent_host_set_peer_permissions(
+    public_key: String,
+    permissions: PeerPermissions,
+    state: State<'_, AppState>,
+) -> Result<HostStatus, String> {
+    ghostftp_agent_proto::decode_public(&public_key)
+        .map_err(|_| "Invalid controller public key".to_string())?;
+    let host = &state.agent_host;
+    let dir = AgentHost::agent_dir().map_err(err)?;
+    let path = config_path(&dir);
+    let running = host.running.lock().await;
+    match &*running {
+        Some(r) => {
+            let mut live = r.daemon.config.lock().await;
+            let mut next = live.clone();
+            if !next.set_peer_permissions(&public_key, permissions) {
+                return Err("Remote controller is not paired".into());
+            }
+            next.save(&path).map_err(err)?;
+            *live = next;
+            drop(live);
+            if !permissions.terminal {
+                r.daemon.cancel_peer_jobs(&public_key);
+            }
+            r.daemon.invalidate_sessions();
+        }
+        None => {
+            let mut next = Config::load(&path).map_err(err)?;
+            if !next.set_peer_permissions(&public_key, permissions) {
+                return Err("Remote controller is not paired".into());
+            }
+            next.save(&path).map_err(err)?;
+        }
+    }
+    tracing::info!("owner changed one remote controller's permissions");
+    drop(running);
+    host.status().await.map_err(err)
+}
+
+/// Remove a controller's pin. All already-open sessions re-check this pin
+/// before their next command and terminate when it is revoked.
 #[tauri::command]
 pub async fn agent_host_revoke_peer(
     public_key: String,
@@ -387,8 +465,13 @@ pub async fn agent_host_revoke_peer(
     match &*running {
         Some(r) => {
             let mut cfg = r.daemon.config.lock().await;
-            cfg.peers.retain(|p| p.public_key != public_key);
-            cfg.save(&config_path(&dir)).map_err(err)?;
+            let mut updated = cfg.clone();
+            updated.peers.retain(|p| p.public_key != public_key);
+            updated.save(&config_path(&dir)).map_err(err)?;
+            *cfg = updated;
+            drop(cfg);
+            r.daemon.cancel_peer_jobs(&public_key);
+            r.daemon.invalidate_sessions();
         }
         None => {
             let mut cfg = Config::load(&config_path(&dir)).map_err(err)?;

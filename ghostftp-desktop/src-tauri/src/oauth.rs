@@ -433,31 +433,32 @@ fn open_url(url: &str) -> Result<()> {
 
 /// Persist a provider's tokens for a profile in the OS keychain.
 pub fn store_tokens(service: &str, profile_id: &str, tokens: &TokenSet) -> Result<()> {
-    let entry = keyring::Entry::new(service, profile_id).context("open keychain entry")?;
     let json = serde_json::to_string(tokens).context("serialize tokens")?;
-    entry
-        .set_password(&json)
-        .context("write tokens to keychain")?;
-    Ok(())
+    crate::credentials::vault_set(service, profile_id, &json)
+        .context("write tokens to OS credential store")
 }
 
 /// Load a profile's tokens, or `None` if it was never authorized.
 pub fn load_tokens(service: &str, profile_id: &str) -> Result<Option<TokenSet>> {
-    let entry = keyring::Entry::new(service, profile_id).context("open keychain entry")?;
-    match entry.get_password() {
-        Ok(json) => Ok(Some(
+    match crate::credentials::vault_get(service, profile_id)? {
+        Some(json) => Ok(Some(
             serde_json::from_str(&json).context("parse stored tokens")?,
         )),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(anyhow!("read tokens from keychain: {e}")),
+        None => Ok(None),
     }
 }
 
-/// Remove a profile's tokens (best-effort — a missing entry is not an error).
+/// Do not announce token revocation when an OS vault is locked. Retain the
+/// old entry if deletion fails; the caller must surface the failure.
+pub fn delete_tokens_checked(service: &str, profile_id: &str) -> Result<()> {
+    crate::credentials::vault_delete(service, profile_id)
+        .context("OS credential store refused OAuth token deletion")
+}
+
+/// Retained for existing call sites that cannot return Result. New security
+/// sensitive delete paths must use delete_tokens_checked instead.
 pub fn delete_tokens(service: &str, profile_id: &str) {
-    if let Ok(entry) = keyring::Entry::new(service, profile_id) {
-        let _ = entry.delete_credential();
-    }
+    let _ = delete_tokens_checked(service, profile_id);
 }
 
 /// Shared token holder for the OAuth cloud backends: hands out a valid access

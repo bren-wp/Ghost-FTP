@@ -305,27 +305,18 @@ struct OsVault;
 
 impl RestoreVault for OsVault {
     fn get(&mut self, service: &str, account: &str) -> Result<Option<String>> {
-        let entry = keyring::Entry::new(service, account).context("open OS credential vault")?;
-        match entry.get_password() {
-            Ok(secret) => Ok(Some(secret)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(_) => bail!("OS credential vault is unavailable for reading"),
-        }
+        crate::credentials::vault_get(service, account)
+            .map_err(|_| anyhow!("OS credential vault is unavailable for reading"))
     }
 
     fn put(&mut self, service: &str, account: &str, secret: &str) -> Result<()> {
-        let entry = keyring::Entry::new(service, account).context("open OS credential vault")?;
-        entry
-            .set_password(secret)
+        crate::credentials::vault_set(service, account, secret)
             .map_err(|_| anyhow!("OS credential vault refused a secret write"))
     }
 
     fn remove(&mut self, service: &str, account: &str) -> Result<()> {
-        let entry = keyring::Entry::new(service, account).context("open OS credential vault")?;
-        match entry.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(_) => bail!("OS credential vault refused rollback"),
-        }
+        crate::credentials::vault_delete(service, account)
+            .map_err(|_| anyhow!("OS credential vault refused rollback"))
     }
 }
 
@@ -345,7 +336,7 @@ impl Drop for PreviousSecret {
 fn restore_credentials_with_vault(
     credentials: &[Cred],
     vault: &mut impl RestoreVault,
-) -> Result<()> {
+) -> Result<Vec<PreviousSecret>> {
     let mut previous = Vec::with_capacity(credentials.len());
     for c in credentials {
         previous.push(PreviousSecret(vault.get(&c.service, &c.account)?));
@@ -377,10 +368,33 @@ fn restore_credentials_with_vault(
         }
     }
 
-    Ok(())
+    Ok(previous)
 }
 
 // ---- Export ----
+
+/// Revert all values read before the restore. This is used both when a
+/// vault write fails and when staging the encrypted archive fails afterwards.
+fn rollback_restored_credentials(
+    credentials: &[Cred],
+    previous: &[PreviousSecret],
+    vault: &mut impl RestoreVault,
+) -> Result<()> {
+    let mut failed = false;
+    for (credential, prior) in credentials.iter().zip(previous).rev() {
+        let result = match &prior.0 {
+            Some(secret) => vault.put(&credential.service, &credential.account, secret),
+            None => vault.remove(&credential.service, &credential.account),
+        };
+        if result.is_err() {
+            failed = true;
+        }
+    }
+    if failed {
+        bail!("OS vault rollback incomplete; review credential recovery before retrying");
+    }
+    Ok(())
+}
 
 /// Build an encrypted backup of everything under `dir` (+ its keychain
 /// credentials) and write it to `dest`.
@@ -521,20 +535,51 @@ fn import_with_vault(
         return Err(error);
     }
 
-    // Restore through the OS vault only. If it is locked, unreadable or refuses
-    // a write, no .restore files are staged and no success is reported.
-    restore_credentials_with_vault(&archive.credentials, vault)
+    // A pending restore belongs to a previous operation; never overwrite it
+    // or silently delete its staging when the archive omits an optional file.
+    for name in [
+        "profiles.json",
+        "bridge.json",
+        "foldersync.json",
+        "ghostftp.db",
+    ] {
+        match std::fs::symlink_metadata(dir.join(format!("{name}.restore"))) {
+            Ok(_) => bail!("A staged restore already exists; complete recovery before importing another backup"),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error).context("inspect staged restore target"),
+        }
+    }
+
+    // Read prior secrets before the first mutation; on subsequent staging
+    // errors restore the original vault and remove only files staged by us.
+    let previous = restore_credentials_with_vault(&archive.credentials, vault)
         .context("restore backup credentials")?;
-
-    // Stage configuration only after vault writes have been confirmed.
-    stage_opt(dir, "profiles.json", archive.profiles_json.as_deref())?;
-    stage_opt(dir, "bridge.json", archive.bridge_json.as_deref())?;
-    stage_opt(dir, "foldersync.json", archive.foldersync_json.as_deref())?;
-    let staged = write_private_file(&dir.join("ghostftp.db.restore"), &db_bytes)
-        .context("stage ghostftp.db");
+    let mut staged_paths = Vec::new();
+    let stage_result = (|| -> Result<()> {
+        for (name, value) in [
+            ("profiles.json", archive.profiles_json.as_deref()),
+            ("bridge.json", archive.bridge_json.as_deref()),
+            ("foldersync.json", archive.foldersync_json.as_deref()),
+        ] {
+            if let Some(value) = value {
+                stage_opt(dir, name, Some(value))?;
+                staged_paths.push(dir.join(format!("{name}.restore")));
+            }
+        }
+        write_private_file(&dir.join("ghostftp.db.restore"), &db_bytes)
+            .context("stage ghostftp.db")?;
+        staged_paths.push(dir.join("ghostftp.db.restore"));
+        Ok(())
+    })();
     db_bytes.fill(0);
-    staged?;
-
+    if stage_result.is_err() {
+        let rollback = rollback_restored_credentials(&archive.credentials, &previous, vault);
+        for staged_path in staged_paths {
+            let _ = std::fs::remove_file(staged_path);
+        }
+        rollback.context("backup staging failed and OS vault rollback needs recovery")?;
+        bail!("Backup staging failed; prior credentials were restored");
+    }
     if !defer {
         apply_pending_restore(dir).context("apply restored configuration and SQLite snapshot")?;
     }
@@ -1000,6 +1045,56 @@ mod tests {
         assert!(restore_credentials_with_vault(&credentials, &mut vault).is_err());
         assert_eq!(vault.write_count, 0);
         assert!(vault.values.is_empty());
+    }
+
+    #[test]
+    fn staging_fault_can_restore_old_vault_values_and_remove_new_entries() {
+        let service = crate::credentials::SERVICE.to_string();
+        let mut vault = TestVault::default();
+        vault.values.insert(
+            (service.clone(), "existing".into()),
+            "ORIGINAL_PRIVATE_SENTINEL".into(),
+        );
+        let credentials = vec![
+            test_credential("existing", "RESTORED_PRIVATE_SENTINEL"),
+            test_credential("new", "NEW_PRIVATE_SENTINEL"),
+        ];
+        let previous = restore_credentials_with_vault(&credentials, &mut vault).unwrap();
+        assert_eq!(
+            vault
+                .values
+                .get(&(service.clone(), "existing".into()))
+                .map(String::as_str),
+            Some("RESTORED_PRIVATE_SENTINEL")
+        );
+        // Simulate a disk-full or denied-create error after the vault writes.
+        rollback_restored_credentials(&credentials, &previous, &mut vault).unwrap();
+        assert_eq!(
+            vault
+                .values
+                .get(&(service.clone(), "existing".into()))
+                .map(String::as_str),
+            Some("ORIGINAL_PRIVATE_SENTINEL")
+        );
+        assert!(!vault.values.contains_key(&(service, "new".to_string())));
+    }
+
+    #[test]
+    fn rollback_error_is_reported_without_exposing_sentinel_secrets() {
+        let mut vault = TestVault::default();
+        vault.values.insert(
+            (crate::credentials::SERVICE.into(), "existing".into()),
+            "ORIGINAL_PRIVATE_SENTINEL".into(),
+        );
+        let credentials = vec![test_credential("existing", "NEW_PRIVATE_SENTINEL")];
+        let previous = restore_credentials_with_vault(&credentials, &mut vault).unwrap();
+        vault.fail_write_at = Some(vault.write_count + 1);
+        let error = rollback_restored_credentials(&credentials, &previous, &mut vault)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("rollback incomplete"));
+        assert!(!error.contains("ORIGINAL_PRIVATE_SENTINEL"));
+        assert!(!error.contains("NEW_PRIVATE_SENTINEL"));
     }
 
     #[test]

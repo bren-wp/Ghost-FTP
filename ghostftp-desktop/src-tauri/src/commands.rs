@@ -41,22 +41,26 @@ fn protect_profile_secrets(
     match &mut profile.auth {
         AuthMethod::Password { password } if !password.is_empty() => {
             let key = profile_password_key(&profile_id);
-            crate::credentials::set_secret(&key, password).map_err(err)?;
+            // Record before writing. If the OS vault writes then reports an
+            // error, the manifest must still know about that possible secret.
             state
                 .db
                 .record_keychain(crate::credentials::SERVICE, &key)
                 .map_err(err)?;
+            crate::credentials::set_secret(&key, password)
+                .map_err(|_| "OS credential store rejected the profile password".to_string())?;
             password.clear();
             changed = true;
         }
         AuthMethod::Key { passphrase, .. } => {
             if let Some(value) = passphrase.as_ref().filter(|value| !value.is_empty()) {
                 let key = profile_key_passphrase_key(&profile_id);
-                crate::credentials::set_secret(&key, value).map_err(err)?;
                 state
                     .db
                     .record_keychain(crate::credentials::SERVICE, &key)
                     .map_err(err)?;
+                crate::credentials::set_secret(&key, value)
+                    .map_err(|_| "OS credential store rejected the key passphrase".to_string())?;
                 *passphrase = None;
                 changed = true;
             }
@@ -89,9 +93,9 @@ fn hydrate_profile_secrets(profile: &mut ConnectionProfile) -> Result<(), GhostF
     Ok(())
 }
 
-fn delete_profile_secret(key: &str, state: &AppState) {
-    crate::credentials::delete_secret(key);
-    let _ = state.db.forget_keychain(crate::credentials::SERVICE, key);
+fn delete_profile_secret(key: &str, state: &AppState) -> Result<(), String> {
+    crate::credentials::delete_secret_recorded(key, &state.db)
+        .map_err(|_| "Profile secret cleanup failed; check the OS vault and manifest".to_string())
 }
 
 // ---------- Profiles ----------
@@ -228,17 +232,17 @@ pub async fn save_profile(
     state.profiles.upsert(profile.clone()).await.map_err(err)?;
     match &profile.auth {
         AuthMethod::Password { .. } => {
-            delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state)
+            delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state)?;
         }
         AuthMethod::Key { .. } => {
-            delete_profile_secret(&profile_password_key(&profile.id), &state);
+            delete_profile_secret(&profile_password_key(&profile.id), &state)?;
             if clear_key_passphrase_after_save {
-                delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
+                delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state)?;
             }
         }
         AuthMethod::Agent | AuthMethod::KeyRef { .. } => {
-            delete_profile_secret(&profile_password_key(&profile.id), &state);
-            delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
+            delete_profile_secret(&profile_password_key(&profile.id), &state)?;
+            delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state)?;
         }
     }
     Ok(())
@@ -302,8 +306,11 @@ pub async fn duplicate_profile(
     if let Err(error) = state.profiles.upsert(profile.clone()).await {
         // The duplicate id is new, so any secrets written above belong only to
         // this failed copy and can be removed without touching the source.
-        delete_profile_secret(&profile_password_key(&profile.id), &state);
-        delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
+        let cleanup_password = delete_profile_secret(&profile_password_key(&profile.id), &state);
+        let cleanup_key = delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
+        if cleanup_password.is_err() || cleanup_key.is_err() {
+            return Err("Could not save copied profile, and vault cleanup needs recovery".into());
+        }
         return Err(err(error));
     }
     Ok(profile)
@@ -316,34 +323,55 @@ pub async fn delete_profile(id: String, state: State<'_, AppState>) -> Result<()
     let profile = state.profiles.get(&id).await.map_err(err)?;
     state.profiles.delete(&id).await.map_err(err)?;
 
-    // Metadata is gone; credentials can now be cleaned up best-effort.
+    // Metadata is gone; keep unresolved credential records in the manifest and
+    // return a non-success status if vault cleanup is rejected.
     if let Some(p) = profile {
         match p.protocol.as_str() {
-            "dropbox" => crate::oauth::delete_tokens(crate::session::dropbox::DROPBOX_SERVICE, &id),
-            "onedrive" => {
-                crate::oauth::delete_tokens(crate::session::onedrive::ONEDRIVE_SERVICE, &id)
+            "dropbox" => {
+                crate::oauth::delete_tokens_checked(crate::session::dropbox::DROPBOX_SERVICE, &id)
+                    .map_err(|_| "Dropbox vault token cleanup failed".to_string())?
             }
-            "gdrive" => crate::oauth::delete_tokens(crate::session::gdrive::GDRIVE_SERVICE, &id),
-            "box" => crate::oauth::delete_tokens(crate::session::boxdrive::BOX_SERVICE, &id),
+            "onedrive" => {
+                crate::oauth::delete_tokens_checked(
+                    crate::session::onedrive::ONEDRIVE_SERVICE,
+                    &id,
+                )
+                .map_err(|_| "OneDrive vault token cleanup failed".to_string())?;
+            }
+            "gdrive" => {
+                crate::oauth::delete_tokens_checked(crate::session::gdrive::GDRIVE_SERVICE, &id)
+                    .map_err(|_| "Google Drive vault token cleanup failed".to_string())?
+            }
+            "box" => {
+                crate::oauth::delete_tokens_checked(crate::session::boxdrive::BOX_SERVICE, &id)
+                    .map_err(|_| "Box vault token cleanup failed".to_string())?
+            }
             "shopify" => {
                 // Keychain-stored Admin credential (never in profiles.json).
                 let key = crate::session::shopify::credential_key(&id);
-                crate::credentials::delete_secret(&key);
-                let _ = state.db.forget_keychain(crate::credentials::SERVICE, &key);
+                delete_profile_secret(&key, &state)?;
             }
             _ => {}
+        }
+        let oauth_service = match p.protocol.as_str() {
+            "dropbox" => Some(crate::session::dropbox::DROPBOX_SERVICE),
+            "onedrive" => Some(crate::session::onedrive::ONEDRIVE_SERVICE),
+            "gdrive" => Some(crate::session::gdrive::GDRIVE_SERVICE),
+            "box" => Some(crate::session::boxdrive::BOX_SERVICE),
+            _ => None,
+        };
+        if let Some(service) = oauth_service {
+            // Only reachable after verified OAuth token deletion.
+            state.db.forget_keychain(service, &id).map_err(err)?;
         }
         // Grant-imported profiles hold their private key in the OS keychain
         // under `grant-key:<profile-id>` — remove it with the profile.
         if let AuthMethod::KeyRef { key_ref } = &p.auth {
-            crate::credentials::delete_secret(key_ref);
-            let _ = state
-                .db
-                .forget_keychain(crate::credentials::SERVICE, key_ref);
+            delete_profile_secret(key_ref, &state)?;
         }
     }
-    delete_profile_secret(&profile_password_key(&id), &state);
-    delete_profile_secret(&profile_key_passphrase_key(&id), &state);
+    delete_profile_secret(&profile_password_key(&id), &state)?;
+    delete_profile_secret(&profile_key_passphrase_key(&id), &state)?;
     Ok(())
 }
 
@@ -740,8 +768,9 @@ pub async fn cloud_oauth_discard(
     {
         return Err("Cannot discard credentials of a saved cloud account".into());
     }
-    crate::oauth::delete_tokens(service, &profile_id);
-    Ok(())
+    crate::oauth::delete_tokens_checked(service, &profile_id)
+        .map_err(|_| "OS credential store refused to clear temporary OAuth tokens".to_string())?;
+    state.db.forget_keychain(service, &profile_id).map_err(err)
 }
 
 // ---------- Dropbox (OAuth cloud) ----------
@@ -761,11 +790,18 @@ pub struct DropboxAuthResult {
 pub async fn dropbox_authorize(
     profile_id: String,
     client_id: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<DropboxAuthResult, String> {
     let mut config = crate::session::dropbox::dropbox_config();
     crate::oauth::use_client_id(&mut config, client_id.as_deref()).map_err(err)?;
     let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
         .await
+        .map_err(err)?;
+    // Track tokens before touching the OS vault. Even if profile saving
+    // later fails, recovery can find the orphaned service/account key.
+    state
+        .db
+        .record_keychain(crate::session::dropbox::DROPBOX_SERVICE, &profile_id)
         .map_err(err)?;
     crate::oauth::store_tokens(
         crate::session::dropbox::DROPBOX_SERVICE,
@@ -820,11 +856,18 @@ pub async fn dropbox_authorize(
 pub async fn onedrive_authorize(
     profile_id: String,
     client_id: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<DropboxAuthResult, String> {
     let mut config = crate::session::onedrive::onedrive_config();
     crate::oauth::use_client_id(&mut config, client_id.as_deref()).map_err(err)?;
     let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
         .await
+        .map_err(err)?;
+    // Track tokens before touching the OS vault. Even if profile saving
+    // later fails, recovery can find the orphaned service/account key.
+    state
+        .db
+        .record_keychain(crate::session::onedrive::ONEDRIVE_SERVICE, &profile_id)
         .map_err(err)?;
     crate::oauth::store_tokens(
         crate::session::onedrive::ONEDRIVE_SERVICE,
@@ -942,11 +985,18 @@ pub async fn dynamics_authorize(
 pub async fn gdrive_authorize(
     profile_id: String,
     client_id: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<DropboxAuthResult, String> {
     let mut config = crate::session::gdrive::gdrive_config();
     crate::oauth::use_client_id(&mut config, client_id.as_deref()).map_err(err)?;
     let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
         .await
+        .map_err(err)?;
+    // Track tokens before touching the OS vault. Even if profile saving
+    // later fails, recovery can find the orphaned service/account key.
+    state
+        .db
+        .record_keychain(crate::session::gdrive::GDRIVE_SERVICE, &profile_id)
         .map_err(err)?;
     crate::oauth::store_tokens(crate::session::gdrive::GDRIVE_SERVICE, &profile_id, &tokens)
         .map_err(err)?;
@@ -995,11 +1045,18 @@ pub async fn gdrive_authorize(
 pub async fn box_authorize(
     profile_id: String,
     client_id: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<DropboxAuthResult, String> {
     let mut config = crate::session::boxdrive::box_config();
     crate::oauth::use_client_id(&mut config, client_id.as_deref()).map_err(err)?;
     let (tokens, _raw) = crate::oauth::authorize_loopback(&config)
         .await
+        .map_err(err)?;
+    // Track tokens before touching the OS vault. Even if profile saving
+    // later fails, recovery can find the orphaned service/account key.
+    state
+        .db
+        .record_keychain(crate::session::boxdrive::BOX_SERVICE, &profile_id)
         .map_err(err)?;
     crate::oauth::store_tokens(crate::session::boxdrive::BOX_SERVICE, &profile_id, &tokens)
         .map_err(err)?;
@@ -2596,17 +2653,18 @@ pub async fn set_api_key(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let value = WipeOnDrop::new(value);
-    crate::credentials::set_secret(&purpose, value.as_str()).map_err(err)?;
     if value.as_str().is_empty() {
-        state
-            .db
-            .forget_keychain(crate::credentials::SERVICE, &purpose)
-            .map_err(err)?;
+        crate::credentials::delete_secret_recorded(&purpose, &state.db)
+            .map_err(|_| "API-key cleanup failed; check the OS vault and manifest".to_string())?;
     } else {
+        // Manifest first: a database write failure must not create an
+        // untracked OS secret, which an encrypted backup could silently miss.
         state
             .db
             .record_keychain(crate::credentials::SERVICE, &purpose)
             .map_err(err)?;
+        crate::credentials::set_secret(&purpose, value.as_str())
+            .map_err(|_| "OS credential store refused the API-key write".to_string())?;
     }
     Ok(())
 }
@@ -2615,7 +2673,31 @@ pub async fn set_api_key(
 /// frontend gets — enough to render a Set/••••/Clear affordance.
 #[tauri::command]
 pub async fn api_key_status(purpose: String) -> Result<bool, String> {
-    Ok(crate::credentials::has_secret(&purpose))
+    crate::credentials::secret_exists_checked(&purpose).map_err(|_| {
+        "OS credential store is unavailable; cannot determine API-key status".to_string()
+    })
+}
+
+/// Repairs definitively absent vault-manifest rows only after every
+/// registered entry was successfully read. Real orphan secrets are preserved
+/// for explicit recovery rather than silently destroyed.
+#[tauri::command]
+pub async fn repair_keychain_manifest(
+    state: State<'_, AppState>,
+) -> Result<crate::credentials::ManifestRepairSummary, String> {
+    let saved: std::collections::HashSet<String> = state
+        .profiles
+        .list()
+        .await
+        .map_err(err)?
+        .into_iter()
+        .map(|profile| profile.id)
+        .collect();
+    crate::credentials::repair_manifest_with(&state.db, &saved, crate::credentials::vault_get)
+        .map_err(|_| {
+            "Could not repair credential inventory: OS vault locked or database unavailable"
+                .to_string()
+        })
 }
 
 // ---------- Settings (Plan 12 Phase 2) ----------

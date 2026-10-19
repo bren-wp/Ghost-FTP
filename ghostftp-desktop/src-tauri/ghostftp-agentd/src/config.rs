@@ -13,7 +13,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 /// What a paired controller is permitted to do. Reads (list/stat/read/info) are
 /// always allowed; these two gate the side-effecting classes.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Policy {
     /// Allow `Exec` (running shell commands). The headline capability.
@@ -22,14 +22,23 @@ pub struct Policy {
     pub allow_write: bool,
 }
 
-impl Default for Policy {
+/// Least-privilege grants for one pinned controller. These privileges are
+/// independent from the daemon-wide emergency restrictions in Policy.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct PeerPermissions {
+    pub read: bool,
+    pub write: bool,
+    pub delete: bool,
+    pub terminal: bool,
+}
+impl Default for PeerPermissions {
     fn default() -> Self {
-        // Pairing (code + pin) is the consent gate, so a freshly-paired daemon is
-        // useful out of the box. Lock it down with `--read-only` or by editing
-        // the config; a read-only daemon still browses + reads + reports.
         Self {
-            allow_exec: true,
-            allow_write: true,
+            read: true,
+            write: false,
+            delete: false,
+            terminal: false,
         }
     }
 }
@@ -44,6 +53,10 @@ pub struct Peer {
     pub public_key: String,
     /// Unix millis when this peer was paired.
     pub paired_at: i64,
+    /// None only on legacy on-disk peers. Load migrates their effective
+    /// permissions once; new peers always receive explicit read-only grants.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permissions: Option<PeerPermissions>,
 }
 
 /// On-disk daemon config (`agentd.json`).
@@ -59,27 +72,107 @@ impl Config {
         if !path.exists() {
             return Ok(Self::default());
         }
+        let metadata = std::fs::symlink_metadata(path).context("inspect agent config")?;
+        anyhow::ensure!(
+            metadata.file_type().is_file(),
+            "agent config must be a regular file"
+        );
+        anyhow::ensure!(
+            metadata.len() <= 1024 * 1024,
+            "agent config exceeds safe maximum"
+        );
         let bytes = std::fs::read(path).with_context(|| format!("read config {path:?}"))?;
-        serde_json::from_slice(&bytes).with_context(|| format!("parse config {path:?}"))
+        let legacy_missing_policy: bool = serde_json::from_slice::<serde_json::Value>(&bytes)
+            .ok()
+            .and_then(|value| value.as_object().map(|map| !map.contains_key("policy")))
+            .unwrap_or(false);
+        let mut cfg: Self =
+            serde_json::from_slice(&bytes).with_context(|| format!("parse config {path:?}"))?;
+        anyhow::ensure!(cfg.peers.len() <= 128, "agent has too many paired devices");
+        let mut migrated = false;
+        if legacy_missing_policy && !cfg.peers.is_empty() {
+            // Older versions defaulted the daemon-wide policy to allow-all.
+            // Preserve the stored effective grants during a one-time migration.
+            cfg.policy = Policy {
+                allow_exec: true,
+                allow_write: true,
+            };
+            migrated = true;
+        }
+        for peer in &mut cfg.peers {
+            if peer.permissions.is_none() {
+                peer.permissions = Some(PeerPermissions {
+                    read: true,
+                    write: cfg.policy.allow_write,
+                    delete: cfg.policy.allow_write,
+                    terminal: cfg.policy.allow_exec,
+                });
+                migrated = true;
+            }
+        }
+        if migrated {
+            // Do not lose legacy grants when a later administrator edits the
+            // global policy; migration must be persisted or refuse startup.
+            cfg.save(path)
+                .context("persist legacy peer permission migration")?;
+        }
+        Ok(cfg)
     }
 
     pub fn save(&self, path: &Path) -> Result<()> {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).ok();
-        }
+        use std::io::Write;
+        let parent = path
+            .parent()
+            .context("agent config has no parent directory")?;
+        std::fs::create_dir_all(parent).context("create agent config directory")?;
         let bytes = serde_json::to_vec_pretty(self)?;
-        std::fs::write(path, &bytes).with_context(|| format!("write config {path:?}"))?;
+        // Use a private, same-directory temporary file and atomic rename;
+        // never truncate the only copy of pins or permissions on a crash.
+        let tmp = path.with_extension(format!("json.{}.tmp", std::process::id()));
+        let mut opts = std::fs::OpenOptions::new();
+        opts.write(true).create_new(true);
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+            use std::os::unix::fs::OpenOptionsExt;
+            opts.mode(0o600);
         }
-        Ok(())
+        let result = (|| -> Result<()> {
+            let mut out = opts
+                .open(&tmp)
+                .context("create private agent config staging")?;
+            out.write_all(&bytes).context("write staged agent config")?;
+            out.sync_all().context("sync staged agent config")?;
+            std::fs::rename(&tmp, path).context("atomically replace agent config")?;
+            #[cfg(unix)]
+            std::fs::File::open(parent)?
+                .sync_all()
+                .context("sync agent config directory")?;
+            Ok(())
+        })();
+        if result.is_err() {
+            let _ = std::fs::remove_file(&tmp);
+        }
+        result
     }
 
     /// True if `public_key` (base64) belongs to a pinned peer.
     pub fn is_paired(&self, public_key: &str) -> bool {
         self.peers.iter().any(|p| p.public_key == public_key)
+    }
+
+    pub fn peer_permissions(&self, public_key: &str) -> Option<PeerPermissions> {
+        self.peers
+            .iter()
+            .find(|p| p.public_key == public_key)
+            .map(|p| p.permissions.unwrap_or_default())
+    }
+
+    pub fn set_peer_permissions(&mut self, public_key: &str, permissions: PeerPermissions) -> bool {
+        if let Some(peer) = self.peers.iter_mut().find(|p| p.public_key == public_key) {
+            peer.permissions = Some(permissions);
+            return true;
+        }
+        false
     }
 
     pub fn peer_name(&self, public_key: &str) -> Option<&str> {
@@ -92,14 +185,21 @@ impl Config {
     /// Add or refresh a pinned peer (idempotent on the key).
     pub fn upsert_peer(&mut self, name: &str, public_key: &str) {
         let paired_at = now_millis();
+        let label: String = name.chars().filter(|c| !c.is_control()).take(80).collect();
+        let label = if label.trim().is_empty() {
+            "paired controller".to_string()
+        } else {
+            label
+        };
         if let Some(existing) = self.peers.iter_mut().find(|p| p.public_key == public_key) {
-            existing.name = name.to_string();
+            existing.name = label.clone();
             existing.paired_at = paired_at;
         } else {
             self.peers.push(Peer {
-                name: name.to_string(),
+                name: label,
                 public_key: public_key.to_string(),
                 paired_at,
+                permissions: Some(PeerPermissions::default()),
             });
         }
     }
@@ -115,6 +215,12 @@ pub fn config_dir(override_dir: Option<PathBuf>) -> Result<PathBuf> {
             .join("ghostftp-agentd"),
     };
     std::fs::create_dir_all(&dir).with_context(|| format!("create config dir {dir:?}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700))
+            .context("restrict agent config directory")?;
+    }
     Ok(dir)
 }
 
@@ -131,4 +237,43 @@ pub fn now_millis() -> i64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+
+    #[test]
+    fn new_pairing_defaults_to_read_only_even_with_legacy_global_access() {
+        let mut cfg = Config::default();
+        assert!(!cfg.policy.allow_exec && !cfg.policy.allow_write);
+        cfg.policy.allow_exec = true;
+        cfg.policy.allow_write = true;
+        cfg.upsert_peer("controller", "public-A");
+        let grants = cfg.peer_permissions("public-A").unwrap();
+        assert!(grants.read);
+        assert!(!grants.write && !grants.delete && !grants.terminal);
+    }
+
+    #[test]
+    fn legacy_migration_preserves_previous_grants_and_is_idempotent() {
+        let path = std::env::temp_dir().join(format!(
+            "ghostftp-agent-security-{}.json",
+            std::process::id()
+        ));
+        std::fs::write(&path, r#"{"policy":{"allowExec":true,"allowWrite":true},"peers":[{"name":"old","publicKey":"legacy","pairedAt":1}]}"#).unwrap();
+        let migrated = Config::load(&path).unwrap();
+        assert_eq!(
+            migrated.peer_permissions("legacy").unwrap(),
+            PeerPermissions {
+                read: true,
+                write: true,
+                delete: true,
+                terminal: true
+            }
+        );
+        let again = Config::load(&path).unwrap();
+        assert!(again.peers[0].permissions.is_some());
+        std::fs::remove_file(path).unwrap();
+    }
 }

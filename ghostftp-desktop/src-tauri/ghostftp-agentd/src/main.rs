@@ -1,10 +1,11 @@
 //! `ghostftp-agentd` CLI.
 //!
 //! Usage:
-//!   ghostftp-agentd run       [--port N] [--read-only] [--no-mdns]   serve paired controllers
-//!   ghostftp-agentd pair      [--port N] [--window MIN] [--json]     serve + open a pairing window
+//!   ghostftp-agentd run       [--bind IP] [--port N] [--read-only] [--no-mdns]   serve paired controllers
+//!   ghostftp-agentd pair      [--bind IP] [--port N] [--window MIN] [--json]     serve + open a pairing window
 //!   ghostftp-agentd info                                             print this machine's identity + peers
 //!   ghostftp-agentd unpair    <fingerprint|all>                      remove a pinned controller
+//!   ghostftp-agentd permit    <pin> <read|write|delete|terminal> <on|off>  update device policy
 //!   ghostftp-agentd install   [--port N] [--read-only]               run as a background service (autostart)
 //!   ghostftp-agentd uninstall                                        remove the background service
 //!
@@ -24,6 +25,7 @@ use ghostftp_agentd::{
     discovery::Advertisement,
     ops, server, Config, Daemon,
 };
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -35,6 +37,7 @@ const DEFAULT_WINDOW_MIN: u64 = 15;
 struct Args {
     command: String,
     port: u16,
+    bind_ip: String,
     config_dir: Option<PathBuf>,
     read_only: bool,
     no_mdns: bool,
@@ -47,6 +50,7 @@ fn parse_args() -> Args {
     let mut a = Args {
         command: String::new(),
         port: DEFAULT_PORT,
+        bind_ip: "127.0.0.1".into(),
         config_dir: None,
         read_only: false,
         no_mdns: false,
@@ -60,6 +64,11 @@ fn parse_args() -> Args {
             "--port" => {
                 if let Some(v) = it.next() {
                     a.port = v.parse().unwrap_or(DEFAULT_PORT);
+                }
+            }
+            "--bind" => {
+                if let Some(ip) = it.next() {
+                    a.bind_ip = ip;
                 }
             }
             "--config-dir" => a.config_dir = it.next().map(PathBuf::from),
@@ -118,6 +127,7 @@ async fn main() -> Result<()> {
         "pair" => pair(args, dir, identity, config).await,
         "info" => info(dir, identity, config),
         "unpair" => unpair(dir, config, &args.positional),
+        "permit" => permit(dir, config, &args.positional),
         "install" => ghostftp_agentd::service::install(&service_run_args(&args)),
         "uninstall" => ghostftp_agentd::service::uninstall(),
         "help" => {
@@ -145,6 +155,10 @@ fn service_run_args(args: &Args) -> Vec<String> {
         extra.push("--port".into());
         extra.push(args.port.to_string());
     }
+    if args.bind_ip != "127.0.0.1" {
+        extra.push("--bind".into());
+        extra.push(args.bind_ip.clone());
+    }
     if args.read_only {
         extra.push("--read-only".into());
     }
@@ -156,14 +170,17 @@ fn service_run_args(args: &Args) -> Vec<String> {
 
 /// Bind the daemon's TCP port, turning the classic AddrInUse into advice
 /// instead of a raw OS error.
-async fn bind_port(port: u16) -> Result<TcpListener> {
-    match TcpListener::bind(("0.0.0.0", port)).await {
+async fn bind_port(port: u16, bind: &str) -> Result<TcpListener> {
+    let ip: IpAddr = bind
+        .parse()
+        .context("Invalid --bind address (use numeric IPv4 or IPv6)")?;
+    match TcpListener::bind((ip, port)).await {
         Ok(l) => Ok(l),
         Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => bail!(
             "port {port} is already in use — most likely another ghostftp-agentd is running.\n  \
              Stop it first, or pass --port <N> to use a different port."
         ),
-        Err(e) => Err(e).with_context(|| format!("bind 0.0.0.0:{port}")),
+        Err(e) => Err(e).with_context(|| format!("bind {ip}:{port}")),
     }
 }
 
@@ -173,7 +190,7 @@ async fn run(args: Args, dir: PathBuf, identity: Identity, config: Config) -> Re
     let peers = config.peers.len();
     let daemon = Daemon::new(identity, config, dir);
 
-    let listener = bind_port(args.port).await?;
+    let listener = bind_port(args.port, &args.bind_ip).await?;
     let port = listener.local_addr()?.port();
 
     println!(
@@ -183,13 +200,16 @@ async fn run(args: Args, dir: PathBuf, identity: Identity, config: Config) -> Re
         info.os
     );
     println!("  identity : {fingerprint}");
-    println!("  listening: 0.0.0.0:{port}");
+    println!("  listening: {}:{port}", args.bind_ip);
+    if args.bind_ip != "127.0.0.1" && args.bind_ip != "::1" {
+        eprintln!("WARNING: Remote Agent is reachable from a network. Restrict Windows/Linux firewall rules.");
+    }
     println!("  peers    : {peers} paired");
     if peers == 0 {
         println!("\n  No controllers paired yet. Run `ghostftp-agentd pair` to add one.");
     }
 
-    let _ad = if args.no_mdns {
+    let _ad = if args.no_mdns || args.bind_ip == "127.0.0.1" || args.bind_ip == "::1" {
         None
     } else {
         match Advertisement::publish(port, &fingerprint, &info.os, false) {
@@ -232,7 +252,7 @@ async fn pair(args: Args, dir: PathBuf, identity: Identity, config: Config) -> R
     });
     daemon.open_pairing(code.clone(), window).await;
 
-    let listener = bind_port(args.port).await?;
+    let listener = bind_port(args.port, &args.bind_ip).await?;
     let port = listener.local_addr()?.port();
 
     if json {
@@ -263,11 +283,13 @@ async fn pair(args: Args, dir: PathBuf, identity: Identity, config: Config) -> R
         );
     }
 
-    let ad = Arc::new(Mutex::new(if args.no_mdns {
-        None
-    } else {
-        Advertisement::publish(port, &fingerprint, &info.os, true).ok()
-    }));
+    let ad = Arc::new(Mutex::new(
+        if args.no_mdns || args.bind_ip == "127.0.0.1" || args.bind_ip == "::1" {
+            None
+        } else {
+            Advertisement::publish(port, &fingerprint, &info.os, true).ok()
+        },
+    ));
 
     // When the window lapses, say so and drop the advertised pairable flag —
     // serving continues untouched. (Expired windows are also refused lazily,
@@ -340,14 +362,51 @@ fn unpair(dir: PathBuf, mut config: Config, positional: &[String]) -> Result<()>
     Ok(())
 }
 
+/// Owner-only local CLI for a headless agent's per-device permissions.
+/// Example: ghostftp-agentd permit <fingerprint> terminal on
+/// Uses fingerprint/full static pin, never an untrusted display name.
+fn permit(dir: PathBuf, mut config: Config, positional: &[String]) -> Result<()> {
+    let (Some(target), Some(kind), Some(value)) =
+        (positional.first(), positional.get(1), positional.get(2))
+    else {
+        bail!("usage: ghostftp-agentd permit <fingerprint|public-key> <read|write|delete|terminal> <on|off>");
+    };
+    let enabled = match value.as_str() {
+        "on" => true,
+        "off" => false,
+        _ => bail!("permission value must be on or off"),
+    };
+    let Some(peer) = config.peers.iter_mut().find(|peer| {
+        peer.public_key == *target
+            || ghostftp_agent_proto::identity::decode_public(&peer.public_key)
+                .map(|key| ghostftp_agent_proto::identity::fingerprint_of(&key) == *target)
+                .unwrap_or(false)
+    }) else {
+        bail!("unknown paired controller");
+    };
+    let mut permissions = peer.permissions.unwrap_or_default();
+    match kind.as_str() {
+        "read" => permissions.read = enabled,
+        "write" => permissions.write = enabled,
+        "delete" => permissions.delete = enabled,
+        "terminal" => permissions.terminal = enabled,
+        _ => bail!("unknown permission category"),
+    }
+    peer.permissions = Some(permissions);
+    config.save(&config_path(&dir))?;
+    println!("Controller permission saved. Restart the standalone daemon to load the change.");
+    Ok(())
+}
+
 fn print_help() {
     println!(
         "ghostftp-agentd {} — control this machine from Ghost FTP over an encrypted, paired link\n\n\
          USAGE:\n\
-         \x20 ghostftp-agentd run       [--port N] [--read-only] [--no-mdns]   serve paired controllers\n\
-         \x20 ghostftp-agentd pair      [--port N] [--window MIN] [--json]     serve + open a pairing window\n\
+         \x20 ghostftp-agentd run       [--bind IP] [--port N] [--read-only] [--no-mdns]   serve paired controllers\n\
+         \x20 ghostftp-agentd pair      [--bind IP] [--port N] [--window MIN] [--json]     serve + open a pairing window\n\
          \x20 ghostftp-agentd info                                             show identity + paired peers\n\
          \x20 ghostftp-agentd unpair    <fingerprint|all>                      remove a pinned controller\n\
+         \x20 ghostftp-agentd permit    <pin> <read|write|delete|terminal> <on|off>  update device policy\n\
          \x20 ghostftp-agentd install   [--port N] [--read-only]               run as a service (autostart)\n\
          \x20 ghostftp-agentd uninstall                                        remove the service\n\n\
          `pair` keeps serving already-paired controllers while the window is open\n\

@@ -155,6 +155,15 @@ pub fn validate_issuer(issuer: &str) -> Result<String, GhostFTPError> {
     if url.host().is_none() {
         return Err(GhostFTPError::other("grant issuer URL has no host"));
     }
+    if !url.username().is_empty()
+        || url.password().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        return Err(GhostFTPError::other(
+            "grant issuer cannot contain credentials, query or fragment",
+        ));
+    }
     Ok(url.as_str().trim_end_matches('/').to_string())
 }
 
@@ -233,11 +242,64 @@ fn validate_host(host: &str) -> Result<(), GhostFTPError> {
 
 // ---------- HTTP ----------
 
-fn http_client() -> Result<reqwest::Client, GhostFTPError> {
+fn allowed_grant_address(ip: std::net::IpAddr, loopback_development: bool) -> bool {
+    use std::net::IpAddr;
+    if loopback_development && ip.is_loopback() {
+        return true;
+    }
+    match ip {
+        IpAddr::V4(ip) => {
+            let [a, b, ..] = ip.octets();
+            !(ip.is_private()
+                || ip.is_loopback()
+                || ip.is_link_local()
+                || ip.is_multicast()
+                || ip.is_broadcast()
+                || ip.is_unspecified()
+                || a == 0
+                || a >= 224
+                || (a == 100 && (64..=127).contains(&b))
+                || (a == 198 && (b == 18 || b == 19)))
+        }
+        IpAddr::V6(ip) => {
+            if let Some(mapped) = ip.to_ipv4() {
+                return allowed_grant_address(IpAddr::V4(mapped), false);
+            }
+            !(ip.is_loopback()
+                || ip.is_unspecified()
+                || ip.is_multicast()
+                || ip.is_unique_local()
+                || ip.is_unicast_link_local())
+        }
+    }
+}
+
+/// Resolve and pin the issuer destination BEFORE fetching any redemption token.
+/// Prevent DNS rebinding and block redirects containing a path bearer token.
+async fn http_client(issuer: &str) -> Result<reqwest::Client, GhostFTPError> {
+    let url = url::Url::parse(issuer).map_err(|_| GhostFTPError::other("invalid grant issuer"))?;
+    let host = url
+        .host_str()
+        .ok_or_else(|| GhostFTPError::other("missing grant issuer host"))?;
+    let port = url
+        .port_or_known_default()
+        .ok_or_else(|| GhostFTPError::other("unknown grant issuer port"))?;
+    let localhost_dev =
+        url.scheme() == "http" && (host == "localhost" || host == "127.0.0.1" || host == "[::1]");
+    let mut addresses = tokio::net::lookup_host((host, port))
+        .await
+        .map_err(|_| GhostFTPError::new(ErrorKind::Network, "could not resolve grant issuer"))?;
+    let resolved = addresses
+        .find(|address| allowed_grant_address(address.ip(), localhost_dev))
+        .ok_or_else(|| {
+            GhostFTPError::other("grant issuer resolves to a prohibited local or reserved address")
+        })?;
     reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
+        .redirect(reqwest::redirect::Policy::none())
+        .resolve(host, resolved)
         .build()
-        .map_err(|e| GhostFTPError::other(format!("build HTTP client: {e}")))
+        .map_err(|_| GhostFTPError::other("could not build grant HTTP client"))
 }
 
 fn http_err(context: &str, e: reqwest::Error) -> GhostFTPError {
@@ -248,20 +310,14 @@ fn http_err(context: &str, e: reqwest::Error) -> GhostFTPError {
     } else {
         ErrorKind::Other
     };
-    GhostFTPError::new(kind, format!("{context}: {e}"))
+    GhostFTPError::new(kind, format!("{context}: network request failed"))
 }
 
 /// Extract the optional `{ "error": "…" }` body from an error response.
 async fn error_body(resp: reqwest::Response) -> String {
-    #[derive(Deserialize)]
-    struct ErrBody {
-        error: Option<String>,
-    }
-    resp.json::<ErrBody>()
-        .await
-        .ok()
-        .and_then(|b| b.error)
-        .unwrap_or_default()
+    // External error text can echo the bearer grant token. Never return it.
+    let _ = resp;
+    String::new()
 }
 
 // ---------- Commands ----------
@@ -277,7 +333,8 @@ pub async fn fetch_grant_manifest(
     validate_token(&token)?;
     let url = format!("{base}/.well-known/ghostftp-grant/{token}");
 
-    let resp = http_client()?
+    let resp = http_client(&base)
+        .await?
         .get(&url)
         .send()
         .await
@@ -320,7 +377,8 @@ pub async fn accept_grant(
 
     // Upload ONLY the public key. The private half never leaves the machine.
     let url = format!("{base}/.well-known/ghostftp-grant/{token}/key");
-    let resp = http_client()?
+    let resp = http_client(&base)
+        .await?
         .post(&url)
         .json(&serde_json::json!({ "public_key": public_key }))
         .send()
@@ -406,11 +464,14 @@ async fn import_connection(
 ) -> Result<ConnectionProfile, String> {
     let id = Uuid::new_v4().to_string();
     let key_ref = format!("{GRANT_KEY_PREFIX}{id}");
-    crate::credentials::set_secret(&key_ref, pem).map_err(|e| e.to_string())?;
+    // Record the grant key before touching the OS vault: a partial backend
+    // write failure must remain discoverable by encrypted backup/recovery.
     state
         .db
         .record_keychain(crate::credentials::SERVICE, &key_ref)
         .map_err(|e| e.to_string())?;
+    crate::credentials::set_secret(&key_ref, pem)
+        .map_err(|_| "OS credential vault refused the grant private key".to_string())?;
 
     let profile = ConnectionProfile {
         id,
@@ -445,10 +506,9 @@ async fn import_connection(
         reconnect_attempts: None,
     };
     if let Err(e) = state.profiles.upsert(profile.clone()).await {
-        crate::credentials::delete_secret(&key_ref);
-        let _ = state
-            .db
-            .forget_keychain(crate::credentials::SERVICE, &key_ref);
+        if crate::credentials::delete_secret_recorded(&key_ref, &state.db).is_err() {
+            return Err("Grant profile save failed and vault cleanup needs recovery".into());
+        }
         return Err(e.to_string());
     }
     Ok(profile)

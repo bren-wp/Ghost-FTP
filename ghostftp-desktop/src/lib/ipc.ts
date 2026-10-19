@@ -177,8 +177,8 @@ export const ipc = {
   agentHostStatus: () => invoke<AgentHostStatus>("agent_host_status"),
 
   /** Turn the host on/off; optionally set the listen port. */
-  agentHostSetEnabled: (enabled: boolean, port?: number) =>
-    invoke<AgentHostStatus>("agent_host_set_enabled", { enabled, port }),
+  agentHostSetEnabled: (enabled: boolean, port?: number, bindAddress?: string) =>
+    invoke<AgentHostStatus>("agent_host_set_enabled", { enabled, port, bindAddress }),
 
   /** Open a pairing window and get the fresh 6-digit code to read aloud. */
   agentHostOpenPairing: () =>
@@ -193,6 +193,9 @@ export const ipc = {
     invoke<AgentHostStatus>("agent_host_set_policy", { allowExec, allowWrite }),
 
   /** Un-pin a controller by its public key. */
+  agentHostSetPeerPermissions: (publicKey: string, permissions: import("@/lib/types").AgentPeerPermissions) =>
+    invoke<AgentHostStatus>("agent_host_set_peer_permissions", { publicKey, permissions }),
+
   agentHostRevokePeer: (publicKey: string) =>
     invoke<AgentHostStatus>("agent_host_revoke_peer", { publicKey }),
 
@@ -449,6 +452,12 @@ export const ipc = {
   /** Whether a credential exists for `purpose` (for the Set/••••/Clear UI). */
   apiKeyStatus: (purpose: string) =>
     invoke<boolean>("api_key_status", { purpose }),
+
+  /** Non-destructive vault inventory reconciliation; counts only, no IDs or secrets. */
+  repairKeychainManifest: () =>
+    invoke<{ checked: number; verified: number; missingRemoved: number; orphanedRetained: number }>(
+      "repair_keychain_manifest"
+    ),
 
   // ---- Settings (Plan 12 Phase 2): ghostftp.db is the source of truth ----
   /** Every setting as `key -> raw JSON value`. */

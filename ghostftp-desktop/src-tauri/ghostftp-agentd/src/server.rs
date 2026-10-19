@@ -10,7 +10,7 @@
 //!     while a [pairing window](Daemon::open_pairing) is open; each controller
 //!     that proves the code gets pinned, persisted, and served immediately.
 
-use crate::config::{config_path, Config};
+use crate::config::{config_path, Config, PeerPermissions};
 use crate::jobs::JobStore;
 use crate::ops;
 use anyhow::{Context, Result};
@@ -24,7 +24,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Notify, Semaphore};
 
 /// First-frame length of a paired `Noise_XX` handshake.
 const XX_FIRST_FRAME: u32 = 32;
@@ -32,6 +32,10 @@ const XX_FIRST_FRAME: u32 = 32;
 const XXPSK3_FIRST_FRAME: u32 = 48;
 /// How long `dispatch` waits for a first frame before dropping a silent peer.
 const SNIFF_TIMEOUT: Duration = Duration::from_secs(10);
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(15);
+const IDLE_TIMEOUT: Duration = Duration::from_secs(120);
+const MAX_CLIENT_CONNECTIONS: usize = 32;
+const MAX_PAIR_ATTEMPTS: u8 = 6;
 
 type PairedHook = Arc<dyn Fn(&str, &str) + Send + Sync>;
 
@@ -40,6 +44,7 @@ type PairedHook = Arc<dyn Fn(&str, &str) + Send + Sync>;
 pub struct PairingWindow {
     pub code: String,
     pub expires_at: Instant,
+    pub attempts: u8,
 }
 
 /// Shared daemon state handed to each connection.
@@ -54,6 +59,7 @@ pub struct Daemon {
     /// Detached background jobs (Plan 10 Phase 4), shared across every
     /// connection so a job started on one channel is pollable after a re-dial.
     jobs: Arc<JobStore>,
+    auth_changes: Arc<Notify>,
     /// Invoked the moment a controller is pinned: `(name, public_key_b64)`.
     on_paired: PairedHook,
 }
@@ -66,8 +72,23 @@ impl Daemon {
             config_dir,
             pairing: Arc::new(Mutex::new(None)),
             jobs: Arc::new(JobStore::new()),
+            auth_changes: Arc::new(Notify::new()),
             on_paired: Arc::new(|_, _| {}),
         }
+    }
+
+    /// Abort active channels when a local owner changes permissions or revokes
+    /// a paired controller. Other devices may reconnect with their own grants.
+    pub fn invalidate_sessions(&self) {
+        self.auth_changes.notify_waiters();
+    }
+
+    pub fn cancel_peer_jobs(&self, peer_key: &str) -> usize {
+        self.jobs.kill_namespace(peer_key)
+    }
+
+    pub fn cancel_all_jobs(&self) -> usize {
+        self.jobs.kill_all()
     }
 
     /// Replace the paired-notification hook (builder-style). The CLI prints a
@@ -82,6 +103,7 @@ impl Daemon {
         *self.pairing.lock().await = Some(PairingWindow {
             code,
             expires_at: Instant::now() + ttl,
+            attempts: 0,
         });
     }
 
@@ -103,6 +125,19 @@ impl Daemon {
         }
     }
 
+    async fn authorize_pairing_attempt(&self) -> Result<String> {
+        let mut slot = self.pairing.lock().await;
+        let Some(window) = slot.as_mut() else {
+            anyhow::bail!("pairing unavailable");
+        };
+        if Instant::now() >= window.expires_at || window.attempts >= MAX_PAIR_ATTEMPTS {
+            *slot = None;
+            anyhow::bail!("pairing unavailable or attempt limit reached");
+        }
+        window.attempts += 1;
+        Ok(window.code.clone())
+    }
+
     /// Time left on the open pairing window, for countdown UIs.
     pub async fn pairing_remaining(&self) -> Option<Duration> {
         let slot = self.pairing.lock().await;
@@ -115,12 +150,20 @@ impl Daemon {
 /// Serve until the listener errors or the process exits: paired connections
 /// always; pairing handshakes whenever a pairing window is open.
 pub async fn serve(listener: TcpListener, daemon: Daemon) -> Result<()> {
+    let capacity = Arc::new(Semaphore::new(MAX_CLIENT_CONNECTIONS));
     loop {
         let (stream, peer) = listener.accept().await.context("accept")?;
+        let Ok(permit) = capacity.clone().try_acquire_owned() else {
+            tracing::warn!(%peer, "remote agent connection limit reached");
+            drop(stream);
+            continue;
+        };
         let daemon = daemon.clone();
         tokio::spawn(async move {
-            if let Err(e) = dispatch(stream, daemon).await {
-                tracing::info!(%peer, "connection closed: {e:#}");
+            let _permit = permit;
+            if dispatch(stream, daemon).await.is_err() {
+                // Don't echo handshake frames, keys, user paths or commands.
+                tracing::debug!(%peer, "remote agent session ended");
             }
         });
     }
@@ -134,14 +177,10 @@ async fn dispatch(stream: TcpStream, daemon: Daemon) -> Result<()> {
         .context("timed out waiting for a handshake")??;
     match first {
         XXPSK3_FIRST_FRAME => {
-            let Some(code) = daemon.pairing_code().await else {
-                // No window open: drop it. The PSK couldn't match anyway; a
-                // fabricated failure would only leak timing about the window.
-                anyhow::bail!("pairing attempt refused — no pairing window is open");
-            };
+            let code = daemon.authorize_pairing_attempt().await?;
             let (mut channel, name, key) = pair_handshake(stream, &daemon, &code).await?;
             (daemon.on_paired)(&name, &key);
-            request_loop(&mut channel, &daemon, &name).await;
+            request_loop(&mut channel, &daemon, &key, &name).await;
             Ok(())
         }
         XX_FIRST_FRAME => handle_paired(stream, daemon).await,
@@ -171,15 +210,19 @@ pub async fn handle_paired(stream: TcpStream, daemon: Daemon) -> Result<()> {
     let sk = daemon.identity.private_bytes()?;
     // We don't know *which* pinned peer is dialing until the handshake reveals
     // their static key, so accept any well-formed XX handshake, then authorise.
-    let mut channel = SecureChannel::establish(
-        stream,
-        Role::Responder,
-        &sk,
-        Auth::Paired {
-            expect_remote: None,
-        },
+    let mut channel = tokio::time::timeout(
+        HANDSHAKE_TIMEOUT,
+        SecureChannel::establish(
+            stream,
+            Role::Responder,
+            &sk,
+            Auth::Paired {
+                expect_remote: None,
+            },
+        ),
     )
     .await
+    .context("paired handshake timeout")?
     .context("paired handshake")?;
 
     let peer_key = channel.remote_static_b64();
@@ -193,7 +236,7 @@ pub async fn handle_paired(stream: TcpStream, daemon: Daemon) -> Result<()> {
                     "this controller is not paired with the daemon — run `ghostftp-agentd pair`",
                 ))
                 .await;
-            anyhow::bail!("rejected unpinned peer {peer_key}");
+            anyhow::bail!("rejected unpinned peer");
         }
         cfg.peer_name(&peer_key)
             .unwrap_or("paired peer")
@@ -201,7 +244,10 @@ pub async fn handle_paired(stream: TcpStream, daemon: Daemon) -> Result<()> {
     };
 
     // First message must be a Hello with a compatible protocol version.
-    let hello: Hello = channel.recv().await.context("expected hello")?;
+    let hello: Hello = tokio::time::timeout(HANDSHAKE_TIMEOUT, channel.recv())
+        .await
+        .context("hello timeout")?
+        .context("expected hello")?;
     if hello.protocol_version != PROTOCOL_VERSION {
         let _ = channel
             .send(&Response::error(format!(
@@ -213,25 +259,106 @@ pub async fn handle_paired(stream: TcpStream, daemon: Daemon) -> Result<()> {
     }
     tracing::info!(peer = %peer_name, client = %hello.client_name, "controller connected");
 
-    request_loop(&mut channel, &daemon, &peer_name).await;
+    request_loop(&mut channel, &daemon, &peer_key, &peer_name).await;
     Ok(())
 }
 
 /// Answer a peer's requests under the daemon's live policy until it hangs up.
 /// Shared by the paired path and the post-pairing tail of a pairing connection.
-async fn request_loop<S>(channel: &mut SecureChannel<S>, daemon: &Daemon, peer_name: &str)
-where
+/// Enforce per-controller privileges on EVERY request. This includes requests
+/// from an already-established Noise session after its pin is revoked.
+fn permitted(req: &Request, grant: PeerPermissions) -> bool {
+    match req {
+        Request::Ping => true,
+        Request::SystemInfo => grant.read,
+        Request::ListDir { .. }
+        | Request::Stat { .. }
+        | Request::ReadFile { .. }
+        | Request::ReadChunk { .. }
+        | Request::Signature { .. } => grant.read,
+        Request::Delete { .. } => grant.delete,
+        Request::WriteChunk { .. }
+        | Request::DeltaAssemble { .. }
+        | Request::CreateDir { .. }
+        | Request::Rename { .. }
+        | Request::Chmod { .. } => grant.write,
+        Request::Exec { .. }
+        | Request::ExecStart { .. }
+        | Request::ExecPoll { .. }
+        | Request::ExecKill { .. } => grant.terminal,
+    }
+}
+
+fn namespace_job_request(req: Request, peer_key: &str) -> Request {
+    // The native JobStore is daemon-wide, but job IDs must never cross a
+    // controller boundary. A peer cannot poll/kill another peer's output.
+    let namespace = |job_id: String| format!("{peer_key}:{job_id}");
+    match req {
+        Request::ExecStart {
+            job_id,
+            command,
+            max_bytes,
+        } => Request::ExecStart {
+            job_id: namespace(job_id),
+            command,
+            max_bytes,
+        },
+        Request::ExecPoll { job_id } => Request::ExecPoll {
+            job_id: namespace(job_id),
+        },
+        Request::ExecKill { job_id } => Request::ExecKill {
+            job_id: namespace(job_id),
+        },
+        other => other,
+    }
+}
+
+async fn request_loop<S>(
+    channel: &mut SecureChannel<S>,
+    daemon: &Daemon,
+    peer_key: &str,
+    peer_name: &str,
+) where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     loop {
-        let req: Request = match channel.recv().await {
-            Ok(r) => r,
-            Err(_) => break, // peer hung up
+        let req: Request = tokio::select! {
+            incoming = tokio::time::timeout(IDLE_TIMEOUT, channel.recv()) => match incoming {
+                Ok(Ok(r)) => r,
+                _ => break,
+            },
+            _ = daemon.auth_changes.notified() => break,
         };
-        let policy = daemon.config.lock().await.policy;
+        let (policy, permissions) = {
+            let cfg = daemon.config.lock().await;
+            (cfg.policy, cfg.peer_permissions(peer_key))
+        };
+        let Some(perms) = permissions else {
+            tracing::warn!(peer = %peer_name, "revoked remote agent controller disconnected");
+            break;
+        };
         let summary = describe(&req);
-        let resp = ops::handle(req, policy, &daemon.jobs).await;
-        log_op(peer_name, &summary, &resp);
+        if !permitted(&req, perms) {
+            let _ = channel
+                .send(&Response::denied(
+                    "remote operation not approved for this controller",
+                ))
+                .await;
+            tracing::warn!(peer = %peer_name, "DENIED {summary}");
+            continue;
+        }
+        let external_id = match &req {
+            Request::ExecStart { job_id, .. } => Some(job_id.clone()),
+            _ => None,
+        };
+        let mut resp = tokio::select! {
+            result = ops::handle(namespace_job_request(req, peer_key), policy, &daemon.jobs) => result,
+            _ = daemon.auth_changes.notified() => break,
+        };
+        if let (Some(id), Response::ExecStarted { job_id }) = (external_id, &mut resp) {
+            *job_id = id;
+        }
+        log_op(peer_name, summary, &resp);
         if channel.send(&resp).await.is_err() {
             break;
         }
@@ -250,14 +377,18 @@ pub async fn pair_handshake(
 ) -> Result<(SecureChannel<TcpStream>, String, String)> {
     let sk = daemon.identity.private_bytes()?;
     let psk = pairing::psk_from_code(code);
-    let mut channel = SecureChannel::establish(stream, Role::Responder, &sk, Auth::Pairing { psk })
-        .await
-        .context("pairing handshake (wrong code?)")?;
+    let mut channel = tokio::time::timeout(
+        HANDSHAKE_TIMEOUT,
+        SecureChannel::establish(stream, Role::Responder, &sk, Auth::Pairing { psk }),
+    )
+    .await
+    .context("pairing handshake timeout")?
+    .context("pairing handshake rejected")?;
 
     let peer_key = channel.remote_static_b64();
-    let hello: Hello = channel
-        .recv()
+    let hello: Hello = tokio::time::timeout(HANDSHAKE_TIMEOUT, channel.recv())
         .await
+        .context("pairing hello timeout")?
         .context("expected hello during pairing")?;
     if hello.protocol_version != PROTOCOL_VERSION {
         let _ = channel
@@ -292,54 +423,129 @@ pub async fn pair_connection(
     code: &str,
 ) -> Result<(String, String)> {
     let (mut channel, name, key) = pair_handshake(stream, &daemon, code).await?;
-    request_loop(&mut channel, &daemon, &name).await;
+    request_loop(&mut channel, &daemon, &key, &name).await;
     Ok((name, key))
 }
 
 /// One-line human summary of a request for the audit log (never includes file
 /// bodies or command output).
-fn describe(req: &Request) -> String {
+fn describe(req: &Request) -> &'static str {
+    // Paths and remote shell commands may contain passwords or bearer tokens.
     match req {
-        Request::Ping => "ping".into(),
-        Request::SystemInfo => "system-info".into(),
-        Request::ListDir { path } => format!("list {path}"),
-        Request::Stat { path } => format!("stat {path}"),
-        Request::ReadFile { path, .. } => format!("read {path}"),
-        Request::ReadChunk { path, offset, .. } => format!("read-chunk {path}@{offset}"),
-        Request::WriteChunk { path, offset, .. } => format!("write-chunk {path}@{offset}"),
-        Request::Signature { path } => format!("signature {path}"),
-        Request::DeltaAssemble { dest, recipe, .. } => {
-            format!("delta-assemble {dest} ({} ops)", recipe.len())
-        }
-        Request::Delete { path, .. } => format!("delete {path}"),
-        Request::CreateDir { path } => format!("mkdir {path}"),
-        Request::Rename { from, to } => format!("rename {from} -> {to}"),
-        Request::Chmod { path, mode } => format!("chmod {path} {mode:o}"),
-        Request::Exec { command, .. } => format!("exec: {command}"),
-        Request::ExecStart {
-            job_id, command, ..
-        } => format!("exec-start {job_id}: {command}"),
-        Request::ExecPoll { job_id } => format!("exec-poll {job_id}"),
-        Request::ExecKill { job_id } => format!("exec-kill {job_id}"),
+        Request::Ping => "ping",
+        Request::SystemInfo => "system-info",
+        Request::ListDir { .. } => "list",
+        Request::Stat { .. } => "stat",
+        Request::ReadFile { .. } | Request::ReadChunk { .. } => "read",
+        Request::WriteChunk { .. } | Request::DeltaAssemble { .. } => "write",
+        Request::Signature { .. } => "signature",
+        Request::Delete { .. } => "delete",
+        Request::CreateDir { .. } => "mkdir",
+        Request::Rename { .. } => "rename",
+        Request::Chmod { .. } => "chmod",
+        Request::Exec { .. } => "exec",
+        Request::ExecStart { .. } => "exec-start",
+        Request::ExecPoll { .. } => "exec-poll",
+        Request::ExecKill { .. } => "exec-kill",
     }
 }
 
 fn log_op(peer: &str, summary: &str, resp: &Response) {
-    match resp {
-        Response::Error {
-            message,
-            denied: true,
-            ..
-        } => {
-            tracing::warn!(%peer, "DENIED {summary} — {message}")
+    let outcome = match resp {
+        Response::Error { denied: true, .. } => "denied",
+        Response::Error { denied: false, .. } => "failed",
+        _ => "completed",
+    };
+    tracing::info!(peer = %peer, operation = %summary, status = outcome, "agent request");
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+
+    #[test]
+    fn new_peers_cannot_write_delete_or_use_terminal() {
+        let grant = PeerPermissions::default();
+        assert!(permitted(&Request::Ping, grant));
+        assert!(permitted(&Request::ListDir { path: "/".into() }, grant));
+        assert!(!permitted(
+            &Request::Delete {
+                path: "/tmp/x".into(),
+                recursive: false
+            },
+            grant
+        ));
+        assert!(!permitted(
+            &Request::CreateDir {
+                path: "/tmp/x".into()
+            },
+            grant
+        ));
+        assert!(!permitted(
+            &Request::Exec {
+                command: "echo PRIVATE_SENTINEL".into(),
+                timeout_ms: 1000,
+                max_bytes: 10,
+            },
+            grant
+        ));
+        assert_eq!(
+            describe(&Request::Exec {
+                command: "echo PRIVATE_SENTINEL".into(),
+                timeout_ms: 1000,
+                max_bytes: 10,
+            }),
+            "exec"
+        );
+        assert_eq!(
+            describe(&Request::ReadFile {
+                path: "/home/SECRET_SENTINEL".into(),
+                max_bytes: 10,
+            }),
+            "read"
+        );
+    }
+
+    #[test]
+    fn per_controller_job_namespaces_are_disjoint_even_when_job_ids_match() {
+        let a = namespace_job_request(
+            Request::ExecPoll {
+                job_id: "shared".into(),
+            },
+            "peerA",
+        );
+        let b = namespace_job_request(
+            Request::ExecPoll {
+                job_id: "shared".into(),
+            },
+            "peerB",
+        );
+        match (a, b) {
+            (Request::ExecPoll { job_id: x }, Request::ExecPoll { job_id: y }) => {
+                assert_ne!(x, y);
+                assert!(x.starts_with("peerA:"));
+                assert!(y.starts_with("peerB:"));
+            }
+            _ => panic!("unexpected request"),
         }
-        Response::Error {
-            message,
-            denied: false,
-            ..
-        } => {
-            tracing::warn!(%peer, "FAILED {summary} — {message}")
+    }
+
+    #[tokio::test]
+    async fn six_attempts_per_pairing_window_then_fail_closed() {
+        let identity = Identity::generate().unwrap();
+        let path = std::env::temp_dir().join(format!("agent-limit-{}", std::process::id()));
+        let daemon = Daemon::new(identity, Config::default(), path);
+        daemon
+            .open_pairing("123456".to_string(), Duration::from_secs(30))
+            .await;
+        for _ in 0..MAX_PAIR_ATTEMPTS {
+            assert_eq!(daemon.authorize_pairing_attempt().await.unwrap(), "123456");
         }
-        _ => tracing::info!(%peer, "{summary}"),
+        assert!(daemon.authorize_pairing_attempt().await.is_err());
+        assert!(daemon.pairing_code().await.is_none());
+        daemon
+            .open_pairing("654321".into(), Duration::from_secs(30))
+            .await;
+        assert_eq!(daemon.authorize_pairing_attempt().await.unwrap(), "654321");
     }
 }

@@ -28,6 +28,8 @@ const PAIRED_PATTERN: &str = "Noise_XX_25519_ChaChaPoly_SHA256";
 /// A Noise transport message is capped at 65535 bytes (ciphertext incl. the
 /// 16-byte tag). Leave room for the tag and our 1-byte continuation flag.
 const MAX_SEGMENT: usize = 65535 - 16 - 1;
+/// Bound both directions before materializing potentially hostile JSON.
+const MAX_LOGICAL_MESSAGE: usize = 16 * 1024 * 1024;
 
 /// Which end of the handshake this peer is. The controller (Ghost FTP) initiates; the
 /// daemon responds.
@@ -129,6 +131,10 @@ where
     /// as its length requires.
     pub async fn send<T: Serialize>(&mut self, msg: &T) -> Result<()> {
         let plaintext = serde_json::to_vec(msg).context("serialize message")?;
+        anyhow::ensure!(
+            plaintext.len() <= MAX_LOGICAL_MESSAGE,
+            "agent message exceeds size limit"
+        );
         let mut segments = plaintext.chunks(MAX_SEGMENT).peekable();
         // An empty payload still needs one (final) segment.
         if plaintext.is_empty() {
@@ -168,13 +174,17 @@ where
             if n == 0 {
                 bail!("decrypted segment missing continuation flag");
             }
+            if buf[0] > 1 {
+                bail!("invalid encrypted continuation flag");
+            }
             let last = buf[0] == 0;
-            payload.extend_from_slice(&buf[1..n]);
+            let segment = &buf[1..n];
+            if segment.len() > MAX_LOGICAL_MESSAGE.saturating_sub(payload.len()) {
+                bail!("reassembled agent message exceeded size limit");
+            }
+            payload.extend_from_slice(segment);
             if last {
                 break;
-            }
-            if payload.len() > crate::frame::MAX_FRAME * 256 {
-                bail!("reassembled message exceeded sanity cap");
             }
         }
         serde_json::from_slice(&payload).context("deserialize message")

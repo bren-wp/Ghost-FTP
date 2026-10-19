@@ -7,7 +7,7 @@ use ghostftp_agent_proto::{
     msg::{Hello, Request, Response, PROTOCOL_VERSION},
     Auth, Role, SecureChannel,
 };
-use ghostftp_agentd::{Config, Daemon};
+use ghostftp_agentd::{Config, Daemon, PeerPermissions};
 use tokio::net::{TcpListener, TcpStream};
 
 /// Build a daemon with its own identity and temp config dir.
@@ -48,7 +48,10 @@ async fn connect_paired(
 #[tokio::test]
 async fn pair_then_exec_and_transfer() {
     // Daemon starts with no peers; client pairs first.
-    let (daemon, server_id, _dir) = make_daemon(Config::default());
+    let mut config = Config::default();
+    config.policy.allow_exec = true;
+    config.policy.allow_write = true;
+    let (daemon, server_id, _dir) = make_daemon(config);
     let server_pub = server_id.public_bytes().unwrap();
     let client_id = Identity::generate().unwrap();
 
@@ -104,6 +107,24 @@ async fn pair_then_exec_and_transfer() {
 
     // The daemon persisted the pin.
     assert!(daemon.config.lock().await.is_paired(client_id.public_b64()));
+    {
+        let mut cfg = daemon.config.lock().await;
+        assert!(
+            !cfg.peer_permissions(client_id.public_b64())
+                .unwrap()
+                .terminal
+        );
+        assert!(!cfg.peer_permissions(client_id.public_b64()).unwrap().write);
+        assert!(cfg.set_peer_permissions(
+            client_id.public_b64(),
+            PeerPermissions {
+                read: true,
+                write: true,
+                delete: true,
+                terminal: true
+            },
+        ));
+    }
 
     // --- normal serving ---
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -412,7 +433,9 @@ async fn pairing_window_expires() {
 /// wire path a paired phone drives.
 #[tokio::test]
 async fn detached_job_start_poll_and_unknown() {
-    let (daemon, server_id, _dir) = make_daemon(Config::default());
+    let mut config = Config::default();
+    config.policy.allow_exec = true;
+    let (daemon, server_id, _dir) = make_daemon(config);
     let server_pub = server_id.public_bytes().unwrap();
     let client_id = Identity::generate().unwrap();
     daemon
@@ -420,6 +443,15 @@ async fn detached_job_start_poll_and_unknown() {
         .lock()
         .await
         .upsert_peer("test-controller", client_id.public_b64());
+    assert!(daemon.config.lock().await.set_peer_permissions(
+        client_id.public_b64(),
+        PeerPermissions {
+            read: true,
+            write: false,
+            delete: false,
+            terminal: true
+        },
+    ));
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();

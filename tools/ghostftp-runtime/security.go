@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -35,6 +36,31 @@ func setSecurityHeaders(w http.ResponseWriter) {
 	w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
 	w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+}
+
+// A browser DNS-rebinding attack must not be able to re-host the loopback
+// session endpoint under an attacker-controlled hostname. Apply to every
+// route, including the unauthenticated one-time /api/session token bootstrap.
+func allowLocalHost(w http.ResponseWriter, r *http.Request) bool {
+    hostname, port, err := net.SplitHostPort(r.Host)
+    if err != nil || port == "" {
+        http.Error(w, "invalid local host", http.StatusForbidden)
+        return false
+    }
+    if hostname != "127.0.0.1" && hostname != "localhost" && hostname != "::1" {
+        http.Error(w, "non-loopback host rejected", http.StatusForbidden)
+        return false
+    }
+    origin := strings.TrimSpace(r.Header.Get("Origin"))
+    if origin != "" && origin != "http://"+r.Host {
+        http.Error(w, "cross-origin local request rejected", http.StatusForbidden)
+        return false
+    }
+    if site := strings.ToLower(r.Header.Get("Sec-Fetch-Site")); site == "cross-site" {
+        http.Error(w, "cross-site request rejected", http.StatusForbidden)
+        return false
+    }
+    return true
 }
 
 func authorizeMutation(w http.ResponseWriter, r *http.Request) bool {

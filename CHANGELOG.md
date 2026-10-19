@@ -1,3 +1,11 @@
+## 0.95.49 — Windows/Linux credential vault migration and recovery (unreleased security preview) — 19 October 2026
+
+- Preserve published v0.95.48 and Windows Credential Manager service/account identifiers; reject silent partial vault deletes and fail-closed API-key status when the vault is locked.
+- Gradual Linux keyutils → D-Bus Secret Service migration using private stdin and verified read-back; do not delete a previous secret before verification. New writes require available persistent Secret Service.
+- Shared vault API for profile passwords, cloud OAuth tokens and encrypted backup/restore; manifest-first secret records and checked cleanup, with fault-injection regression cases.
+- Preserve existing backup version-1 Argon2id/AES-256-GCM format and migration compatibility; improve staged restore validation and keychain rollback behavior.
+- Live Windows and Linux secret vault/locked wallet, concurrent processes, crash injection and recovery acceptance remain REQUIRED before merge/release.
+
 ## 0.95.48 — Windows/Linux cloud connection wizard and defensive HTTP integration (development preview) — 19 October 2026
 
 - Extend Sites → Connect Cloud with guided S3/S3-compatible, Backblaze B2, Cloudflare R2, Google Cloud Storage, WebDAV and Nextcloud credential forms, a GCS JSON file picker, automatic B2/Nextcloud endpoint assembly and read-only connection probes.

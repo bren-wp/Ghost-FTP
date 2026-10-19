@@ -205,11 +205,19 @@ export interface AgentPairResult {
 // ---- Remote control: this machine hosted as a Ghost FTP Agent (mirrors agent_host.rs) ----
 
 /** A controller pinned to THIS machine. */
+export interface AgentPeerPermissions {
+  read: boolean;
+  write: boolean;
+  delete: boolean;
+  terminal: boolean;
+}
+
 export interface AgentHostPeer {
   name: string;
   publicKey: string;
   fingerprint: string;
   pairedAt: number;
+  permissions: AgentPeerPermissions;
 }
 
 /** The open pairing window, if any. */
@@ -223,6 +231,7 @@ export interface AgentHostStatus {
   enabled: boolean;
   running: boolean;
   port: number;
+  bindAddress: string;
   hostname: string;
   os: string;
   fingerprint: string;
