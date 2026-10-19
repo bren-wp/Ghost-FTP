@@ -13,24 +13,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 /// What a paired controller is permitted to do. Reads (list/stat/read/info) are
 /// always allowed; these two gate the side-effecting classes.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Policy {
     /// Allow `Exec` (running shell commands). The headline capability.
     pub allow_exec: bool,
     /// Allow writes: `WriteChunk`, `Delete`, `CreateDir`, `Rename`, `Chmod`.
     pub allow_write: bool,
-}
-
-impl Default for Policy {
-    fn default() -> Self {
-        // A new installation is read-only until the owner explicitly grants
-        // dangerous operations. Legacy persisted policy booleans are retained.
-        Self {
-            allow_exec: false,
-            allow_write: false,
-        }
-    }
 }
 
 /// Least-privilege grants for one pinned controller. These privileges are
