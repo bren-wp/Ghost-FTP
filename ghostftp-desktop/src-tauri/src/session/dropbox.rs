@@ -69,7 +69,8 @@ impl DropboxSession {
             let rt = guard.refresh_token.clone().ok_or_else(|| {
                 anyhow!("no refresh token — re-authorize this Dropbox connection")
             })?;
-            let fresh = oauth::refresh(&self.config, &rt).await?;
+            let mut fresh = oauth::refresh(&self.config, &rt).await?;
+            fresh.client_id = guard.client_id.clone();
             *guard = fresh;
             oauth::store_tokens(DROPBOX_SERVICE, &self.profile.id, &guard)?;
         }
@@ -83,7 +84,8 @@ impl DropboxSession {
             .refresh_token
             .clone()
             .ok_or_else(|| anyhow!("no refresh token — re-authorize this Dropbox connection"))?;
-        let fresh = oauth::refresh(&self.config, &rt).await?;
+        let mut fresh = oauth::refresh(&self.config, &rt).await?;
+        fresh.client_id = guard.client_id.clone();
         *guard = fresh;
         oauth::store_tokens(DROPBOX_SERVICE, &self.profile.id, &guard)?;
         Ok(())
@@ -252,7 +254,13 @@ pub async fn dropbox_connect(profile: &ConnectionProfile) -> Result<DropboxSessi
         client,
         api_base: env_or("GHOSTFTP_DROPBOX_API_BASE", DEFAULT_API_BASE),
         content_base: env_or("GHOSTFTP_DROPBOX_CONTENT_BASE", DEFAULT_CONTENT_BASE),
-        config: dropbox_config(),
+        config: {
+            let mut config = dropbox_config();
+            if let Some(client_id) = tokens.client_id.as_deref() {
+                config.client_id = client_id.to_string();
+            }
+            config
+        },
         tokens: Mutex::new(tokens),
     })
 }
