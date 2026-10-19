@@ -4,8 +4,8 @@
 //!   ghostftp-agentd run       [--bind IP] [--port N] [--read-only] [--no-mdns]   serve paired controllers
 //!   ghostftp-agentd pair      [--bind IP] [--port N] [--window MIN] [--json]     serve + open a pairing window
 //!   ghostftp-agentd info                                             print this machine's identity + peers
-//!   ghostftp-agentd unpair    <fingerprint|all>                      remove a pinned controller\n\\
-         \x20 ghostftp-agentd permit    <pin> <read|write|delete|terminal> <on|off>  update device policy
+//!   ghostftp-agentd unpair    <fingerprint|all>                      remove a pinned controller
+//!   ghostftp-agentd permit    <pin> <read|write|delete|terminal> <on|off>  update device policy
 //!   ghostftp-agentd install   [--port N] [--read-only]               run as a background service (autostart)
 //!   ghostftp-agentd uninstall                                        remove the background service
 //!
@@ -400,6 +400,7 @@ fn print_help() {
          \x20 ghostftp-agentd pair      [--bind IP] [--port N] [--window MIN] [--json]     serve + open a pairing window\n\
          \x20 ghostftp-agentd info                                             show identity + paired peers\n\
          \x20 ghostftp-agentd unpair    <fingerprint|all>                      remove a pinned controller\n\
+         \x20 ghostftp-agentd permit    <pin> <read|write|delete|terminal> <on|off>  update device policy\n\
          \x20 ghostftp-agentd install   [--port N] [--read-only]               run as a service (autostart)\n\
          \x20 ghostftp-agentd uninstall                                        remove the service\n\n\
          `pair` keeps serving already-paired controllers while the window is open\n\
