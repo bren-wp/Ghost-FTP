@@ -205,6 +205,13 @@ export interface AgentPairResult {
 // ---- Remote control: this machine hosted as a Ghost FTP Agent (mirrors agent_host.rs) ----
 
 /** A controller pinned to THIS machine. */
+export interface AgentPeerPermissions {
+  read: boolean;
+  write: boolean;
+  delete: boolean;
+  terminal: boolean;
+}
+
 export interface AgentHostPeer {
   name: string;
   publicKey: string;
