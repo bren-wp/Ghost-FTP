@@ -105,7 +105,10 @@ impl GDriveSession {
             if let Some(b) = body {
                 rb = rb.json(b);
             }
-            let resp = rb.send().await.map_err(|_| anyhow!("Google Drive transport error"))?;
+            let resp = rb
+                .send()
+                .await
+                .map_err(|_| anyhow!("Google Drive transport error"))?;
             if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
                 attempt += 1;
                 self.force_refresh().await?;
@@ -121,7 +124,10 @@ impl GDriveSession {
         if !status.is_success() {
             return Err(gdrive_http_error(status));
         }
-        let text = resp.text().await.context("read Google Drive metadata response")?;
+        let text = resp
+            .text()
+            .await
+            .context("read Google Drive metadata response")?;
         if text.trim().is_empty() {
             return Ok(Value::Null);
         }
