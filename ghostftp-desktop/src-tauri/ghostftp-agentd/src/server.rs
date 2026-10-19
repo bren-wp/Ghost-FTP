@@ -24,7 +24,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{Mutex, Semaphore};
+use tokio::sync::{Mutex, Notify, Semaphore};
 
 /// First-frame length of a paired `Noise_XX` handshake.
 const XX_FIRST_FRAME: u32 = 32;
@@ -59,6 +59,7 @@ pub struct Daemon {
     /// Detached background jobs (Plan 10 Phase 4), shared across every
     /// connection so a job started on one channel is pollable after a re-dial.
     jobs: Arc<JobStore>,
+    auth_changes: Arc<Notify>,
     /// Invoked the moment a controller is pinned: `(name, public_key_b64)`.
     on_paired: PairedHook,
 }
@@ -71,8 +72,19 @@ impl Daemon {
             config_dir,
             pairing: Arc::new(Mutex::new(None)),
             jobs: Arc::new(JobStore::new()),
+            auth_changes: Arc::new(Notify::new()),
             on_paired: Arc::new(|_, _| {}),
         }
+    }
+
+    /// Abort active channels when a local owner changes permissions or revokes
+    /// a paired controller. Other devices may reconnect with their own grants.
+    pub fn invalidate_sessions(&self) {
+        self.auth_changes.notify_waiters();
+    }
+
+    pub fn cancel_peer_jobs(&self, peer_key: &str) -> usize {
+        self.jobs.kill_namespace(peer_key)
     }
 
     /// Replace the paired-notification hook (builder-style). The CLI prints a
@@ -253,7 +265,8 @@ pub async fn handle_paired(stream: TcpStream, daemon: Daemon) -> Result<()> {
 /// from an already-established Noise session after its pin is revoked.
 fn permitted(req: &Request, grant: PeerPermissions) -> bool {
     match req {
-        Request::Ping | Request::SystemInfo => true,
+        Request::Ping => true,
+        Request::SystemInfo => grant.read,
         Request::ListDir { .. }
         | Request::Stat { .. }
         | Request::ReadFile { .. }
@@ -305,9 +318,12 @@ async fn request_loop<S>(
     S: AsyncRead + AsyncWrite + Unpin,
 {
     loop {
-        let req: Request = match tokio::time::timeout(IDLE_TIMEOUT, channel.recv()).await {
-            Ok(Ok(r)) => r,
-            _ => break,
+        let req: Request = tokio::select! {
+            incoming = tokio::time::timeout(IDLE_TIMEOUT, channel.recv()) => match incoming {
+                Ok(Ok(r)) => r,
+                _ => break,
+            },
+            _ = daemon.auth_changes.notified() => break,
         };
         let (policy, permissions) = {
             let cfg = daemon.config.lock().await;
@@ -331,8 +347,10 @@ async fn request_loop<S>(
             Request::ExecStart { job_id, .. } => Some(job_id.clone()),
             _ => None,
         };
-        let mut resp =
-            ops::handle(namespace_job_request(req, peer_key), policy, &daemon.jobs).await;
+        let mut resp = tokio::select! {
+            result = ops::handle(namespace_job_request(req, peer_key), policy, &daemon.jobs) => result,
+            _ = daemon.auth_changes.notified() => break,
+        };
         if let (Some(id), Response::ExecStarted { job_id }) = (external_id, &mut resp) {
             *job_id = id;
         }
