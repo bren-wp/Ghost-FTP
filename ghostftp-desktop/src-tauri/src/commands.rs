@@ -2668,6 +2668,29 @@ pub async fn api_key_status(purpose: String) -> Result<bool, String> {
         .map_err(|_| "OS credential store is unavailable; cannot determine API-key status".to_string())
 }
 
+/// Repairs definitively absent vault-manifest rows only after every
+/// registered entry was successfully read. Real orphan secrets are preserved
+/// for explicit recovery rather than silently destroyed.
+#[tauri::command]
+pub async fn repair_keychain_manifest(
+    state: State<'_, AppState>,
+) -> Result<crate::credentials::ManifestRepairSummary, String> {
+    let saved: std::collections::HashSet<String> = state
+        .profiles
+        .list()
+        .await
+        .map_err(err)?
+        .into_iter()
+        .map(|profile| profile.id)
+        .collect();
+    crate::credentials::repair_manifest_with(
+        &state.db,
+        &saved,
+        crate::credentials::vault_get,
+    )
+    .map_err(|_| "Could not repair credential inventory: OS vault locked or database unavailable".to_string())
+}
+
 // ---------- Settings (Plan 12 Phase 2) ----------
 
 /// Every persisted setting as `key -> raw JSON value`. The frontend store seeds
