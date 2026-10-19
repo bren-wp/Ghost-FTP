@@ -1,50 +1,99 @@
-//! Service-credential storage in the OS keychain (Plan 12 Phase 1).
-//!
-//! The rule is strict: **credentials never cross the IPC boundary as values**.
-//! The frontend can *write* a secret (one-way `set`) and *ask whether one
-//! exists* (`has`), but never *read* it back. Rust fetches the value from the
-//! keychain at the moment of use.
-//!
-//! This mirrors the OAuth-token path in `oauth.rs` — same `keyring` crate, same
-//! native backends — but for non-profile service keys. Everything lives under
-//! one service name, keyed by *purpose*.
-//!
-//! Because Windows DPAPI and Linux Keychain can't *enumerate* entries, every
-//! write is also recorded in a small `ghostftp.db` manifest (`db::record_keychain`)
-//! so the encrypted backup (Phase 4) knows which entries to pull.
-
 use anyhow::{anyhow, Context, Result};
 
-/// The single keychain service that holds Ghost FTP's own service credentials.
-/// Reverse-DNS so it's unambiguous in Credential Manager / Keychain Access.
+#[cfg(target_os = "linux")]
+mod linux_secret_service;
+
+/// These identifiers have shipped in existing Windows Credential Manager
+/// entries and Linux keyutils entries. NEVER change them during migration.
 pub const SERVICE: &str = "com.ghostftp.credentials";
 
-/// Write (or overwrite) a secret for `purpose`. An empty value clears it.
+fn legacy_get(service: &str, account: &str) -> Result<Option<String>> {
+    let entry = keyring::Entry::new(service, account).context("open OS credential entry")?;
+    match entry.get_password() {
+        Ok(secret) => Ok(Some(secret)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(_) => Err(anyhow!("OS credential vault could not read secret")),
+    }
+}
+
+fn legacy_delete(service: &str, account: &str) -> Result<()> {
+    let entry = keyring::Entry::new(service, account).context("open OS credential entry")?;
+    checked_delete_result(entry.delete_credential())
+}
+
+pub fn vault_get(service: &str, account: &str) -> Result<Option<String>> {
+    #[cfg(target_os = "linux")]
+    {
+        let primary = linux_secret_service::lookup(service, account);
+        if let Ok(Some(secret)) = &primary {
+            return Ok(Some(secret.clone()));
+        }
+        // Existing profiles and OAuth tokens use Linux kernel keyutils.
+        // Never silently discard them when Secret Service is not yet ready.
+        let legacy = legacy_get(service, account);
+        match (primary, legacy) {
+            (Ok(None), Ok(Some(old))) => {
+                // Idempotent migration, with read-back validation inside store.
+                // A locked Secret Service must not make an otherwise usable
+                // legacy credential unavailable during gradual deployment.
+                let _ = linux_secret_service::store(service, account, &old);
+                Ok(Some(old))
+            }
+            (Err(_), Ok(Some(old))) => Ok(Some(old)),
+            (Ok(None), Ok(None)) => Ok(None),
+            // Never treat an unavailable vault as an empty vault.
+            _ => Err(anyhow!("Linux credential vault unavailable; unlock Secret Service")),
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        legacy_get(service, account)
+    }
+}
+
+/// New Linux writes are persistent-only and must verify their destination.
+/// No fallback to kernel keyutils: it loses data on reboot.
+pub fn vault_set(service: &str, account: &str, value: &str) -> Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+        linux_secret_service::store(service, account, value)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let entry = keyring::Entry::new(service, account).context("open OS credential entry")?;
+        entry
+            .set_password(value)
+            .map_err(|_| anyhow!("OS credential store refused secret write"))
+    }
+}
+
+pub fn vault_delete(service: &str, account: &str) -> Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+        // Preserve legacy keyutils if Secret Service is locked or refuses the
+        // deletion. Once verified, clear the old value as well; a stale old
+        // token must not reappear on the next credential lookup.
+        linux_secret_service::remove(service, account)?;
+        legacy_delete(service, account)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        legacy_delete(service, account)
+    }
+}
+
+/// A service credential is *never* copied into profile JSON or the settings DB.
 pub fn set_secret(purpose: &str, value: &str) -> Result<()> {
     if value.is_empty() {
-        return clear_secret_checked(purpose);
+        return vault_delete(SERVICE, purpose);
     }
-    let entry = keyring::Entry::new(SERVICE, purpose).context("open keychain entry")?;
-    entry
-        .set_password(value)
-        .context("write secret to keychain")?;
-    Ok(())
+    vault_set(SERVICE, purpose, value)
 }
 
-/// Read a secret for `purpose`, or `None` if it was never set. Rust-only — this
-/// is deliberately never exposed as a Tauri command.
 pub fn get_secret(purpose: &str) -> Result<Option<String>> {
-    let entry = keyring::Entry::new(SERVICE, purpose).context("open keychain entry")?;
-    match entry.get_password() {
-        Ok(v) => Ok(Some(v)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(anyhow!("read secret from keychain: {e}")),
-    }
+    vault_get(SERVICE, purpose)
 }
 
-/// Empty values must *actually* clear the OS vault before the caller removes
-/// its SQLite manifest entry. Otherwise an unavailable/locked keyring could
-/// retain the old secret while the UI wrongly reports success.
 fn checked_delete_result(outcome: std::result::Result<(), keyring::Error>) -> Result<()> {
     match outcome {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
@@ -52,24 +101,16 @@ fn checked_delete_result(outcome: std::result::Result<(), keyring::Error>) -> Re
     }
 }
 
-fn clear_secret_checked(purpose: &str) -> Result<()> {
-    let entry = keyring::Entry::new(SERVICE, purpose).context("open keychain entry for removal")?;
-    checked_delete_result(entry.delete_credential())
-}
-
-/// Remove a secret, reporting vault failures without disclosing its data.
-/// Callers MUST retain the SQLite manifest until this succeeds.
 pub fn delete_secret_checked(purpose: &str) -> Result<()> {
-    clear_secret_checked(purpose)
+    vault_delete(SERVICE, purpose)
 }
 
-/// Keep an explicit fallible lookup; a locked OS vault is NOT an empty vault.
 pub fn secret_exists_checked(purpose: &str) -> Result<bool> {
     get_secret(purpose).map(|value| value.is_some())
 }
 
-/// Legacy non-authoritative convenience wrapper. Never use this to claim a
-/// successful delete or credential absence to the frontend.
+/// Legacy compatibility API; new security-sensitive callers use the checked
+/// variant so that unavailable vaults are never reported as successful.
 pub fn delete_secret(purpose: &str) {
     let _ = delete_secret_checked(purpose);
 }
