@@ -337,7 +337,10 @@ struct ConcurrencyState {
 
 impl Drop for TransferSlot {
     fn drop(&mut self) {
-        let mut state = self.state.lock().unwrap_or_else(|poison| poison.into_inner());
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         if state.pending_shrink > 0 {
             state.pending_shrink -= 1;
             if let Some(permit) = self.permit.take() {
@@ -3870,8 +3873,8 @@ impl TransferManager {
         let token = session.access_token().await?;
         self.checkpoint(id, size).await?;
 
-        let file_part = reqwest::multipart::Part::stream_with_length(body, size)
-            .file_name(name.clone());
+        let file_part =
+            reqwest::multipart::Part::stream_with_length(body, size).file_name(name.clone());
         let (url, form) = match existing {
             Some((file_id, false)) => (
                 format!("{}/files/{file_id}/content", session.upload_base),
@@ -5003,15 +5006,18 @@ mod tests {
         let file = tokio::fs::File::create(&path).await.unwrap();
         file.set_len(4u64 * 1024 * 1024 * 1024 + 1).await.unwrap();
         drop(file);
-        assert!(read_cloud_upload_bounded(&path, 4u64 * 1024 * 1024 * 1024 + 1)
-            .await
-            .is_err());
+        assert!(
+            read_cloud_upload_bounded(&path, 4u64 * 1024 * 1024 * 1024 + 1)
+                .await
+                .is_err()
+        );
         tokio::fs::remove_dir_all(&root).await.unwrap();
     }
 
     #[tokio::test]
     async fn bounded_cloud_reader_rejects_changed_files_and_preserves_content() {
-        let root = std::env::temp_dir().join(format!("ghostftp-bounded-content-{}", Uuid::new_v4()));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-bounded-content-{}", Uuid::new_v4()));
         tokio::fs::create_dir_all(&root).await.unwrap();
         let path = root.join("small.bin");
         tokio::fs::write(&path, b"abcde").await.unwrap();
