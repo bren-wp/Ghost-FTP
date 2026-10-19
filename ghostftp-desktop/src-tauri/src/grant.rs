@@ -406,11 +406,14 @@ async fn import_connection(
 ) -> Result<ConnectionProfile, String> {
     let id = Uuid::new_v4().to_string();
     let key_ref = format!("{GRANT_KEY_PREFIX}{id}");
-    crate::credentials::set_secret(&key_ref, pem).map_err(|e| e.to_string())?;
+    // Record the grant key before touching the OS vault: a partial backend
+    // write failure must remain discoverable by encrypted backup/recovery.
     state
         .db
         .record_keychain(crate::credentials::SERVICE, &key_ref)
         .map_err(|e| e.to_string())?;
+    crate::credentials::set_secret(&key_ref, pem)
+        .map_err(|_| "OS credential vault refused the grant private key".to_string())?;
 
     let profile = ConnectionProfile {
         id,
@@ -445,10 +448,9 @@ async fn import_connection(
         reconnect_attempts: None,
     };
     if let Err(e) = state.profiles.upsert(profile.clone()).await {
-        crate::credentials::delete_secret(&key_ref);
-        let _ = state
-            .db
-            .forget_keychain(crate::credentials::SERVICE, &key_ref);
+        if crate::credentials::delete_secret_recorded(&key_ref, &state.db).is_err() {
+            return Err("Grant profile save failed and vault cleanup needs recovery".into());
+        }
         return Err(e.to_string());
     }
     Ok(profile)
