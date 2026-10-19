@@ -11,7 +11,7 @@ use std::future::Future;
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
@@ -290,6 +290,31 @@ const DEFAULT_CONCURRENCY: usize = 3;
 /// The user can change this live from Preferences; manual Retry remains separate.
 const DEFAULT_MAX_AUTO_RETRIES: usize = 3;
 
+/// A transfer slot can retire one *in-use* permit on release when the user
+/// lowers the limit. Unlike a spawned acquire_many, this debt can be cancelled
+/// immediately when the limit is raised again, without stale shrink tasks.
+struct TransferSlot {
+    permit: Option<OwnedSemaphorePermit>,
+    state: Arc<StdMutex<ConcurrencyState>>,
+}
+
+#[derive(Default)]
+struct ConcurrencyState {
+    pending_shrink: usize,
+}
+
+impl Drop for TransferSlot {
+    fn drop(&mut self) {
+        let mut state = self.state.lock().unwrap_or_else(|poison| poison.into_inner());
+        if state.pending_shrink > 0 {
+            state.pending_shrink -= 1;
+            if let Some(permit) = self.permit.take() {
+                permit.forget();
+            }
+        }
+    }
+}
+
 pub struct TransferManager {
     transfers: Mutex<HashMap<String, Transfer>>,
     tasks: Mutex<HashMap<String, JoinHandle<()>>>,
@@ -299,6 +324,7 @@ pub struct TransferManager {
     waiting: Mutex<VecDeque<String>>,
     semaphore: Arc<Semaphore>,
     concurrency: AtomicUsize,
+    concurrency_state: Arc<StdMutex<ConcurrencyState>>,
     /// Manager-level pause gate. Admission checks it; transfer checkpoints do too.
     pause_all: PauseGate,
     /// Per-transfer pause gates, created at enqueue time.
@@ -711,6 +737,7 @@ impl TransferManager {
             waiting: Mutex::new(VecDeque::new()),
             semaphore: Arc::new(Semaphore::new(DEFAULT_CONCURRENCY)),
             concurrency: AtomicUsize::new(DEFAULT_CONCURRENCY),
+            concurrency_state: Arc::new(StdMutex::new(ConcurrencyState::default())),
             pause_all: PauseGate::new(),
             pauses: Mutex::new(HashMap::new()),
             cancels: Mutex::new(HashMap::new()),
@@ -960,7 +987,15 @@ impl TransferManager {
     /// gate open, take a concurrency permit, and pop it from the queue.
     /// Returns `None` if the id left the queue (canceled while waiting).
     /// The permit is returned so the caller holds it for the transfer's life.
-    async fn admit(&self, id: &str) -> Option<OwnedSemaphorePermit> {
+    async fn reserve_slot(&self) -> Option<TransferSlot> {
+        let permit = self.semaphore.clone().acquire_owned().await.ok()?;
+        Some(TransferSlot {
+            permit: Some(permit),
+            state: Arc::clone(&self.concurrency_state),
+        })
+    }
+
+    async fn admit(&self, id: &str) -> Option<TransferSlot> {
         let mut rx = self.queue_gen.subscribe();
         loop {
             {
@@ -977,7 +1012,7 @@ impl TransferManager {
                 }
             }
             // My turn: take a permit, then pop.
-            let permit = self.semaphore.clone().acquire_owned().await.ok()?;
+            let permit = self.reserve_slot().await?;
             let mut w = self.waiting.lock().await;
             if self.is_my_turn(&w, id).await {
                 if let Some(pos) = w.iter().position(|x| x == id) {
@@ -1220,21 +1255,26 @@ impl TransferManager {
         self.bucket.set_rate_kbps(kbps);
     }
 
-    /// Live-adjust the concurrency bound. Growing adds permits at once;
-    /// shrinking forgets permits as running transfers release them, so
-    /// in-flight transfers are never killed to satisfy the new bound.
+    /// Resize the global pool without leaving stale asynchronous shrink tasks.
+    /// Retire free permits immediately; occupied slots are retired on Drop.
+    /// A subsequent increase cancels outstanding retirement debt first.
     pub fn set_concurrency(&self, n: usize) {
         let n = n.clamp(1, 32);
+        let mut state = self
+            .concurrency_state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         let old = self.concurrency.swap(n, Ordering::Relaxed);
-        if n > old {
-            self.semaphore.add_permits(n - old);
-        } else if n < old {
-            let sem = Arc::clone(&self.semaphore);
-            tokio::spawn(async move {
-                if let Ok(p) = sem.acquire_many((old - n) as u32).await {
-                    p.forget();
-                }
-            });
+        if n < old {
+            let retired = self.semaphore.forget_permits(old - n);
+            state.pending_shrink += old - n - retired;
+        } else if n > old {
+            let increase = n - old;
+            let cancelled = increase.min(state.pending_shrink);
+            state.pending_shrink -= cancelled;
+            if increase > cancelled {
+                self.semaphore.add_permits(increase - cancelled);
+            }
         }
     }
 
@@ -4290,7 +4330,7 @@ async fn readmit_after_retry_backoff(
     mgr: &Arc<TransferManager>,
     id: &str,
     app: &AppHandle,
-) -> Option<OwnedSemaphorePermit> {
+) -> Option<TransferSlot> {
     loop {
         match mgr.get(id).await.map(|t| t.status) {
             Some(TransferStatus::Transferring)
@@ -5188,6 +5228,49 @@ mod tests {
         {
             let w = mgr.waiting.lock().await;
             assert!(!mgr.is_my_turn(&w, "b").await);
+        }
+    }
+
+    #[tokio::test]
+    async fn concurrency_resize_cancels_stale_shrink_debt() {
+        let mgr = TransferManager::new();
+        mgr.set_concurrency(4);
+        let a = mgr.reserve_slot().await.unwrap();
+        let b = mgr.reserve_slot().await.unwrap();
+        let c = mgr.reserve_slot().await.unwrap();
+        assert_eq!(mgr.semaphore.available_permits(), 1);
+
+        mgr.set_concurrency(1);
+        assert_eq!(mgr.semaphore.available_permits(), 0);
+        assert_eq!(mgr.concurrency_state.lock().unwrap().pending_shrink, 2);
+
+        // The old spawned acquire_many could wake AFTER this increase and
+        // consume new permits permanently, silently reducing throughput.
+        mgr.set_concurrency(4);
+        assert_eq!(mgr.concurrency_state.lock().unwrap().pending_shrink, 0);
+        assert_eq!(mgr.semaphore.available_permits(), 1);
+        drop(a);
+        drop(b);
+        drop(c);
+        assert_eq!(mgr.semaphore.available_permits(), 4);
+    }
+
+    #[tokio::test]
+    async fn concurrency_shrink_retires_running_slots_at_all_supported_limits() {
+        for limit in [1usize, 4, 8, 16, 32] {
+            let mgr = TransferManager::new();
+            mgr.set_concurrency(limit);
+            let mut slots = Vec::new();
+            for _ in 0..limit {
+                slots.push(mgr.reserve_slot().await.unwrap());
+            }
+            mgr.set_concurrency(1);
+            assert_eq!(mgr.semaphore.available_permits(), 0);
+            drop(slots);
+            assert_eq!(mgr.semaphore.available_permits(), 1, "limit {limit}");
+            assert_eq!(mgr.concurrency_state.lock().unwrap().pending_shrink, 0);
+            mgr.set_concurrency(limit);
+            assert_eq!(mgr.semaphore.available_permits(), limit);
         }
     }
 
