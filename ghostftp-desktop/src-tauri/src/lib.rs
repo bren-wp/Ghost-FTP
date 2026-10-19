@@ -221,9 +221,26 @@ pub fn run() {
             // Apply a pending encrypted-backup restore (Plan 12 Phase 4) before
             // anything opens profiles.json / ghostftp.db, so a restore staged by a
             // previous run swaps in atomically on this launch.
-            if let Ok(data_dir) = handle.path().app_data_dir() {
-                std::fs::create_dir_all(&data_dir).ok();
-                backup::apply_pending_restore(&data_dir);
+            let data_dir = handle.path().app_data_dir()?;
+            std::fs::create_dir_all(&data_dir)?;
+            match backup::preflight_pending_restore(&data_dir) {
+                Ok(()) => backup::apply_pending_restore(&data_dir)?,
+                Err(error) => {
+                    // A corrupt staged backup must not make a previously working
+                    // installation disappear on startup. Preflight has not moved
+                    // any files, so it is safe to keep using the existing DB.
+                    // No prior DB means we cannot establish a recoverable state.
+                    let original = data_dir.join("ghostftp.db");
+                    let safe_original = std::fs::symlink_metadata(&original)
+                        .is_ok_and(|meta| meta.file_type().is_file());
+                    if !safe_original {
+                        return Err(error.into());
+                    }
+                    tracing::warn!(
+                        "Pending encrypted-backup restore rejected before any file mutation; \
+original user data and staged restore were preserved for repair"
+                    );
+                }
             }
 
             let profile_store = Arc::new(profiles::ProfileStore::load_or_create(&handle)?);

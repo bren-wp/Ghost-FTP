@@ -839,6 +839,11 @@ fn apply_migration(conn: &Connection, target_version: i64, sql: &str) -> Result<
 /// always be retried safely on the next open.
 fn migrate(conn: &Connection) -> Result<()> {
     let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+    anyhow::ensure!(version >= 0, "SQLite user_version is invalid");
+    anyhow::ensure!(
+        version <= MIGRATIONS.len() as i64,
+        "SQLite schema is newer than this Ghost FTP build; refusing a downgrade"
+    );
     for (i, sql) in MIGRATIONS.iter().enumerate().skip(version as usize) {
         apply_migration(conn, (i + 1) as i64, sql)?;
     }
@@ -1293,6 +1298,27 @@ mod tests {
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
         assert_eq!(version, 1);
+    }
+
+    #[test]
+    fn migrate_rejects_newer_and_negative_schema_without_modifying_user_data() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE preserved_user_data (value TEXT NOT NULL); INSERT INTO preserved_user_data VALUES ('keep');").unwrap();
+        for unsupported in [-1, MIGRATIONS.len() as i64 + 1] {
+            conn.pragma_update(None, "user_version", unsupported)
+                .unwrap();
+            assert!(migrate(&conn).is_err());
+            let after: String = conn
+                .query_row("SELECT value FROM preserved_user_data", [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert_eq!(after, "keep");
+            let version: i64 = conn
+                .query_row("PRAGMA user_version", [], |row| row.get(0))
+                .unwrap();
+            assert_eq!(version, unsupported);
+        }
     }
 
     #[test]

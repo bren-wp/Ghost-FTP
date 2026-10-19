@@ -38,7 +38,6 @@
 //! path applies immediately (no running app to coordinate with).
 
 use std::collections::HashSet;
-#[cfg(unix)]
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 #[cfg(unix)]
@@ -136,36 +135,64 @@ impl Drop for RemoveOnDrop {
     }
 }
 
+/// Never stream an encrypted backup or restore payload directly into an
+/// existing destination. A failed write must preserve its last complete bytes;
+/// a symbolic link must never redirect writes into unrelated user files.
 fn write_private_file(path: &Path, data: &[u8]) -> Result<()> {
-    #[cfg(unix)]
-    {
-        let mut file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(path)
-            .with_context(|| format!("open private file {}", path.display()))?;
-        let mut permissions = file
-            .metadata()
-            .with_context(|| format!("read permissions for {}", path.display()))?
-            .permissions();
-        permissions.set_mode(0o600);
-        file.set_permissions(permissions)
-            .with_context(|| format!("set private permissions for {}", path.display()))?;
-        file.write_all(data)
-            .with_context(|| format!("write private file {}", path.display()))?;
-        file.sync_all()
-            .with_context(|| format!("sync private file {}", path.display()))?;
-        Ok(())
+    let parent = path.parent().context("private file path has no parent")?;
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) => {
+            anyhow::ensure!(
+                metadata.file_type().is_file(),
+                "refusing to overwrite a non-regular backup or restore target"
+            );
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error).context("inspect backup or restore target"),
     }
 
-    #[cfg(not(unix))]
-    {
-        std::fs::write(path, data)
-            .with_context(|| format!("write private file {}", path.display()))?;
-        Ok(())
-    }
+    // A private, unpredictable sibling temp ensures all platforms write a
+    // complete file before replacing an existing backup or staged restore.
+    // Atomic rename replaces the *link itself*, never its referent, even if a
+    // second process swaps the destination after the metadata check.
+    let temporary = parent.join(format!(".ghostftp-private-{}.tmp", uuid::Uuid::new_v4()));
+    let _guard = RemoveOnDrop(temporary.clone());
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let mut file = options
+        .open(&temporary)
+        .context("create private temporary backup file")?;
+    #[cfg(unix)]
+    file.set_permissions(std::fs::Permissions::from_mode(0o600))
+        .context("secure temporary backup permissions")?;
+    file.write_all(data)
+        .context("write private temporary backup file")?;
+    file.sync_all()
+        .context("sync private temporary backup file")?;
+    drop(file);
+    std::fs::rename(&temporary, path).context("atomically promote complete private backup file")?;
+    Ok(())
+}
+
+/// Optional does not mean best effort: an unreadable or redirected file
+/// must abort the export rather than create a seemingly complete backup that
+/// silently omits the user's profiles, bridge or sync configuration.
+fn read_backup_config_if_present(dir: &Path, name: &str) -> Result<Option<String>> {
+    let path = dir.join(name);
+    let meta = match std::fs::symlink_metadata(&path) {
+        Ok(meta) => meta,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error).with_context(|| format!("inspect backup config {name}")),
+    };
+    anyhow::ensure!(
+        meta.file_type().is_file(),
+        "refusing non-regular or symlinked backup configuration {name}"
+    );
+    let content =
+        std::fs::read_to_string(&path).with_context(|| format!("read backup config {name}"))?;
+    Ok(Some(content))
 }
 
 fn credential_target_allowed(service: &str, account: &str) -> bool {
@@ -372,18 +399,16 @@ fn export_with_vault(
 
     // WAL-safe DB snapshot into a temp file. The guard removes it on every
     // return path, including snapshot/read/encryption failures.
-    let tmp = dir.join("ghostftp.db.backup.tmp");
+    let tmp = dir.join(format!(".ghostftp-db-backup-{}.tmp", uuid::Uuid::new_v4()));
     let _tmp_guard = RemoveOnDrop(tmp.clone());
     db.snapshot_to(&tmp).context("snapshot ghostftp.db")?;
     let mut db_bytes = std::fs::read(&tmp).context("read ghostftp.db snapshot")?;
 
-    let read_opt = |name: &str| -> Option<String> { std::fs::read_to_string(dir.join(name)).ok() };
-
     let mut archive = Archive {
         created_ms: crate::db::now_ms(),
-        profiles_json: read_opt("profiles.json"),
-        bridge_json: read_opt("bridge.json"),
-        foldersync_json: read_opt("foldersync.json"),
+        profiles_json: read_backup_config_if_present(dir, "profiles.json")?,
+        bridge_json: read_backup_config_if_present(dir, "bridge.json")?,
+        foldersync_json: read_backup_config_if_present(dir, "foldersync.json")?,
         ghostftp_db_b64: base64::engine::general_purpose::STANDARD.encode(&db_bytes),
         credentials: collect_credentials(dir, db, vault)?,
     };
@@ -431,6 +456,39 @@ pub fn inspect(password: &str, src: &Path) -> Result<BackupSummary> {
     Ok(decrypt(password, src)?.summary())
 }
 
+/// Verify a decrypted SQLite snapshot *before* changing any OS credentials.
+/// Base64 decoding is not evidence that a validly encrypted archive carries
+/// a usable SQLite database.
+fn validate_sqlite_restore_bytes(dir: &Path, bytes: &[u8]) -> Result<()> {
+    anyhow::ensure!(
+        bytes.starts_with(b"SQLite format 3\0") && bytes.len() >= 100,
+        "backup contains an invalid SQLite database header"
+    );
+    let path = dir.join(format!(
+        ".ghostftp-restore-validation-{}.db",
+        uuid::Uuid::new_v4()
+    ));
+    let _guard = RemoveOnDrop(path.clone());
+    // SQLite may create transient WAL/SHM peers even for a read-only
+    // connection to a WAL-mode snapshot. None may be left behind containing
+    // private state after validation or a failed import.
+    let mut wal_path = path.as_os_str().to_os_string();
+    wal_path.push("-wal");
+    let _wal_guard = RemoveOnDrop(PathBuf::from(wal_path));
+    let mut shm_path = path.as_os_str().to_os_string();
+    shm_path.push("-shm");
+    let _shm_guard = RemoveOnDrop(PathBuf::from(shm_path));
+    write_private_file(&path, bytes).context("stage SQLite integrity verification")?;
+    let conn =
+        rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .context("open SQLite backup for integrity verification")?;
+    let integrity: String = conn
+        .query_row("PRAGMA quick_check", [], |row| row.get(0))
+        .context("check SQLite backup consistency")?;
+    anyhow::ensure!(integrity == "ok", "backup SQLite integrity check failed");
+    Ok(())
+}
+
 // ---- Import / restore ----
 
 /// Decrypt `src` and restore it into `dir`. When `defer` is true (the GUI, whose
@@ -456,6 +514,12 @@ fn import_with_vault(
     let mut db_bytes = base64::engine::general_purpose::STANDARD
         .decode(archive.ghostftp_db_b64.as_bytes())
         .context("decode ghostftp.db snapshot")?;
+    // Validate the actual database contents, not merely Base64. A malformed
+    // snapshot must not alter the keyring or the user's existing local state.
+    if let Err(error) = validate_sqlite_restore_bytes(dir, &db_bytes) {
+        db_bytes.fill(0);
+        return Err(error);
+    }
 
     // Restore through the OS vault only. If it is locked, unreadable or refuses
     // a write, no .restore files are staged and no success is reported.
@@ -472,29 +536,163 @@ fn import_with_vault(
     staged?;
 
     if !defer {
-        apply_pending_restore(dir);
+        apply_pending_restore(dir).context("apply restored configuration and SQLite snapshot")?;
     }
     Ok(summary)
 }
 
-/// Swap any staged restore files into place. Called once at startup, *before*
-/// anything opens `profiles.json` / `ghostftp.db`, so a restore applies atomically
-/// on the next launch. A no-op when there's nothing staged.
-pub fn apply_pending_restore(dir: &Path) {
-    for name in CONFIG_FILES {
-        let staged = dir.join(format!("{name}.restore"));
-        if staged.exists() {
-            let _ = std::fs::rename(&staged, dir.join(name));
+/// A missing restore file is ordinary; a symlink, directory, or unreadable
+/// path is NOT. Never interpret an inaccessible user file as an empty restore.
+fn regular_file_if_present(path: &Path) -> Result<bool> {
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) => {
+            anyhow::ensure!(
+                metadata.file_type().is_file(),
+                "restore path is not a regular file"
+            );
+            Ok(true)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error).context("inspect staged restore file"),
+    }
+}
+
+fn rollback_database_files(moved: &[(PathBuf, PathBuf)]) -> Result<()> {
+    for (original, recovery) in moved.iter().rev() {
+        std::fs::rename(recovery, original)
+            .context("restore original SQLite file after failed promotion")?;
+    }
+    Ok(())
+}
+
+/// Commit an already-staged SQLite snapshot only after validating it.
+/// Previous database, WAL and SHM files are kept in unique recovery siblings;
+/// they are NEVER removed before the new snapshot is in place.
+/// Pure preflight of a staged SQLite image. No live database file is moved
+/// until this succeeds. Retain any user-provided invalid staging for recovery.
+fn validate_staged_database(dir: &Path) -> Result<bool> {
+    let staged = dir.join("ghostftp.db.restore");
+    if !regular_file_if_present(&staged)? {
+        return Ok(false);
+    }
+    for suffix in ["-wal", "-shm"] {
+        if regular_file_if_present(&dir.join(format!("ghostftp.db.restore{suffix}")))? {
+            anyhow::bail!("staged SQLite restore has unexpected WAL/SHM sidecars");
         }
     }
-    let staged_db = dir.join("ghostftp.db.restore");
-    if staged_db.exists() {
-        // Drop the live DB and its WAL sidecars before swapping the snapshot in.
-        let _ = std::fs::remove_file(dir.join("ghostftp.db"));
-        let _ = std::fs::remove_file(dir.join("ghostftp.db-wal"));
-        let _ = std::fs::remove_file(dir.join("ghostftp.db-shm"));
-        let _ = std::fs::rename(&staged_db, dir.join("ghostftp.db"));
+    // The read-only SQLite integrity check can itself create transient
+    // WAL/SHM sidecars for a WAL-mode snapshot. They were absent above, so
+    // guard and remove only the sidecars created during this validation.
+    let _wal_guard = RemoveOnDrop(dir.join("ghostftp.db.restore-wal"));
+    let _shm_guard = RemoveOnDrop(dir.join("ghostftp.db.restore-shm"));
+    let candidate =
+        rusqlite::Connection::open_with_flags(&staged, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .context("open staged SQLite backup read-only")?;
+    let integrity: String = candidate
+        .query_row("PRAGMA quick_check", [], |row| row.get(0))
+        .context("validate staged SQLite backup integrity")?;
+    anyhow::ensure!(
+        integrity == "ok",
+        "staged SQLite backup failed integrity check"
+    );
+    Ok(true)
+}
+
+/// Complete the non-mutating checks before any restore file is promoted.
+/// A stale corrupt restore must not prevent a healthy installed app from
+/// opening, nor be mistaken for authorization to erase existing data.
+pub fn preflight_pending_restore(dir: &Path) -> Result<()> {
+    validate_staged_database(dir)?;
+    for name in CONFIG_FILES {
+        let staged = dir.join(format!("{name}.restore"));
+        if !regular_file_if_present(&staged)? {
+            continue;
+        }
+        let bytes =
+            std::fs::read(&staged).with_context(|| format!("read staged backup config {name}"))?;
+        if *name == "profiles.json" {
+            let profiles: Vec<crate::profiles::ConnectionProfile> =
+                serde_json::from_slice(&bytes).context("invalid staged profile metadata")?;
+            for profile in profiles {
+                let unsafe_secret = match profile.auth {
+                    crate::profiles::AuthMethod::Password { password } => !password.is_empty(),
+                    crate::profiles::AuthMethod::Key { passphrase, .. } => {
+                        passphrase.as_deref().is_some_and(|value| !value.is_empty())
+                    }
+                    _ => false,
+                };
+                anyhow::ensure!(
+                    !unsafe_secret,
+                    "staged profiles contain unprotected credentials"
+                );
+            }
+        } else {
+            serde_json::from_slice::<serde_json::Value>(&bytes)
+                .with_context(|| format!("invalid staged configuration {name}"))?;
+        }
     }
+    Ok(())
+}
+
+/// Promote only a valid staged SQLite snapshot, retaining all prior DB files.
+fn promote_staged_database(dir: &Path) -> Result<()> {
+    if !validate_staged_database(dir)? {
+        return Ok(());
+    }
+    let staged = dir.join("ghostftp.db.restore");
+
+    let recovery_base = format!("ghostftp.db.before-restore-{}", uuid::Uuid::new_v4());
+    let mut to_move = Vec::new();
+    for suffix in ["", "-wal", "-shm"] {
+        let original = dir.join(format!("ghostftp.db{suffix}"));
+        if regular_file_if_present(&original)? {
+            let recovery = dir.join(format!("{recovery_base}{suffix}"));
+            anyhow::ensure!(
+                !regular_file_if_present(&recovery)?,
+                "database recovery destination already exists"
+            );
+            to_move.push((original, recovery));
+        }
+    }
+
+    // Never process orphan WAL/SHM files as disposable leftovers: a damaged
+    // SQLite installation may still need those files for manual recovery.
+    if !to_move.is_empty() && !to_move.iter().any(|(p, _)| p == &dir.join("ghostftp.db")) {
+        anyhow::bail!("orphan SQLite WAL/SHM files require recovery before restoring");
+    }
+
+    let mut moved = Vec::new();
+    for (original, recovery) in to_move {
+        if let Err(error) = std::fs::rename(&original, &recovery) {
+            rollback_database_files(&moved)
+                .context("could not roll back a partially staged database recovery")?;
+            return Err(error).context("preserve original SQLite file before restore");
+        }
+        moved.push((original, recovery));
+    }
+
+    if let Err(error) = std::fs::rename(&staged, dir.join("ghostftp.db")) {
+        rollback_database_files(&moved)
+            .context("failed restore promotion and could not roll back original database")?;
+        return Err(error).context("promote checked SQLite restore snapshot");
+    }
+    Ok(())
+}
+
+/// At startup, before opening SQLite, promote a pending database and then its
+/// configs. Never swallow filesystem errors: on failure startup must stop so
+/// the user's remaining original/recovery files are not silently replaced.
+pub fn apply_pending_restore(dir: &Path) -> Result<()> {
+    preflight_pending_restore(dir)?;
+    promote_staged_database(dir)?;
+    for name in CONFIG_FILES {
+        let staged = dir.join(format!("{name}.restore"));
+        if regular_file_if_present(&staged)? {
+            std::fs::rename(&staged, dir.join(name))
+                .with_context(|| format!("promote staged configuration {name}"))?;
+        }
+    }
+    Ok(())
 }
 
 fn stage_opt(dir: &Path, name: &str, content: Option<&str>) -> Result<()> {
@@ -694,9 +892,24 @@ mod tests {
             std::env::temp_dir().join(format!("ghostftp_bak_{}.ghostftpbak", std::process::id()));
         let _ = std::fs::remove_file(&backup);
         let db = Db::open(&src_dir.join("ghostftp.db")).unwrap();
+        // Earlier versions used a predictable snapshot name. It might have
+        // been left behind by an interrupted run; no fresh export may erase it.
+        let legacy_temp = src_dir.join("ghostftp.db.backup.tmp");
+        std::fs::write(&legacy_temp, b"pre-existing file must survive").unwrap();
         let summary = export(&src_dir, &db, "correct horse", &backup).unwrap();
         assert_eq!(summary.profiles, 1);
-        assert!(!src_dir.join("ghostftp.db.backup.tmp").exists());
+        assert_eq!(
+            std::fs::read(&legacy_temp).unwrap(),
+            b"pre-existing file must survive"
+        );
+        assert!(
+            std::fs::read_dir(&src_dir).unwrap().all(|entry| !entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".ghostftp-db-backup-")),
+            "no unique SQLite export snapshot may remain after success"
+        );
         assert!(summary.has_bridge && summary.has_sync);
         assert!(summary.db_bytes > 0);
         drop(db);
@@ -829,6 +1042,38 @@ mod tests {
     }
 
     #[test]
+    fn unreadable_or_special_configuration_aborts_instead_of_silent_omission() {
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-export-read-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(read_backup_config_if_present(&dir, "bridge.json")
+            .unwrap()
+            .is_none());
+        std::fs::create_dir(dir.join("bridge.json")).unwrap();
+        assert!(read_backup_config_if_present(&dir, "bridge.json").is_err());
+        assert!(dir.join("bridge.json").is_dir());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn backup_config_reader_refuses_symlink_to_external_file() {
+        use std::os::unix::fs::symlink;
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-export-link-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("unrelated-secret");
+        std::fs::write(&target, b"never include unrelated secret").unwrap();
+        symlink(&target, dir.join("profiles.json")).unwrap();
+        assert!(read_backup_config_if_present(&dir, "profiles.json").is_err());
+        assert_eq!(
+            std::fs::read(&target).unwrap(),
+            b"never include unrelated secret"
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn backup_export_aborts_on_missing_manifest_secret_or_locked_vault() {
         let db = Db::open_in_memory().unwrap();
         db.record_keychain(crate::credentials::SERVICE, "account")
@@ -844,6 +1089,107 @@ mod tests {
         };
         assert!(collect_credentials(&dir, &db, &mut locked).is_err());
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn authentic_encrypted_backup_with_corrupt_sqlite_never_changes_vault() {
+        // GCM authentication can succeed while the archived SQLite bytes
+        // are corrupt. Base64-decoding them alone is insufficient.
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-corrupt-decrypted-db-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("profiles.json"), b"original user profiles").unwrap();
+        let original_db = dir.join("ghostftp.db");
+        std::fs::write(&original_db, b"original database untouched").unwrap();
+        let archive = Archive {
+            created_ms: 0,
+            profiles_json: Some("[]".to_string()),
+            bridge_json: None,
+            foldersync_json: None,
+            ghostftp_db_b64: base64::engine::general_purpose::STANDARD
+                .encode(b"not a SQLite database"),
+            credentials: vec![test_credential("account", "replacement credential")],
+        };
+        let plaintext = serde_json::to_vec(&archive).unwrap();
+        let zipped = gzip(&plaintext).unwrap();
+        let salt = [3u8; SALT_LEN];
+        let nonce = [5u8; NONCE_LEN];
+        let mut key = derive_key("correct horse", &salt).unwrap();
+        let header = build_header(&salt, &nonce);
+        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
+        let ciphertext = cipher
+            .encrypt(
+                Nonce::from_slice(&nonce),
+                Payload {
+                    msg: &zipped,
+                    aad: &header,
+                },
+            )
+            .unwrap();
+        key.fill(0);
+        let mut payload = header;
+        payload.extend_from_slice(&ciphertext);
+        let backup = dir.join("crafted.ghostftpbak");
+        std::fs::write(&backup, payload).unwrap();
+        let mut vault = TestVault::default();
+        vault.values.insert(
+            (
+                crate::credentials::SERVICE.to_string(),
+                "account".to_string(),
+            ),
+            "existing credential".to_string(),
+        );
+        assert!(import_with_vault(&dir, "correct horse", &backup, true, &mut vault).is_err());
+        assert_eq!(
+            vault.write_count, 0,
+            "no keyring mutation before DB validation"
+        );
+        assert_eq!(
+            vault
+                .values
+                .get(&(
+                    crate::credentials::SERVICE.to_string(),
+                    "account".to_string()
+                ))
+                .map(String::as_str),
+            Some("existing credential")
+        );
+        assert_eq!(
+            std::fs::read(dir.join("profiles.json")).unwrap(),
+            b"original user profiles"
+        );
+        assert_eq!(
+            std::fs::read(&original_db).unwrap(),
+            b"original database untouched"
+        );
+        assert!(!dir.join("ghostftp.db.restore").exists());
+        assert!(!dir.join("profiles.json.restore").exists());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn sqlite_restore_preflight_accepts_valid_snapshot_and_cleans_up() {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-sqlite-validation-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let database = dir.join("ghostftp.db");
+        {
+            let db = Db::open(&database).unwrap();
+            db.settings_set("name", "\"saved\"").unwrap();
+        }
+        let bytes = std::fs::read(&database).unwrap();
+        validate_sqlite_restore_bytes(&dir, &bytes).unwrap();
+        assert!(std::fs::read_dir(&dir).unwrap().all(|entry| !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".ghostftp-restore-validation-")));
+
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
@@ -915,6 +1261,129 @@ mod tests {
     }
 
     #[test]
+    fn preflight_rejects_invalid_staged_profile_without_touching_live_database() {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-preflight-config-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let live = dir.join("ghostftp.db");
+        std::fs::write(&live, b"original database").unwrap();
+        std::fs::write(dir.join("profiles.json.restore"), b"{invalid profile data").unwrap();
+        assert!(preflight_pending_restore(&dir).is_err());
+        assert_eq!(std::fs::read(&live).unwrap(), b"original database");
+        assert_eq!(
+            std::fs::read(dir.join("profiles.json.restore")).unwrap(),
+            b"{invalid profile data"
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn corrupt_staged_database_never_removes_live_database() {
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-corrupt-restore-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let live = dir.join("ghostftp.db");
+        let stage = dir.join("ghostftp.db.restore");
+        {
+            let db = Db::open(&live).unwrap();
+            db.settings_set("theme", "\"original\"").unwrap();
+        }
+        let original = std::fs::read(&live).unwrap();
+        std::fs::write(&stage, b"truncated invalid SQLite").unwrap();
+        assert!(apply_pending_restore(&dir).is_err());
+        assert_eq!(std::fs::read(&live).unwrap(), original);
+        assert_eq!(std::fs::read(&stage).unwrap(), b"truncated invalid SQLite");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn sqlite_restore_retains_original_in_recoverable_sidecar() {
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-restore-retain-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let live = dir.join("ghostftp.db");
+        let staged = dir.join("ghostftp.db.restore");
+        {
+            let old = Db::open(&live).unwrap();
+            old.settings_set("theme", "\"old\"").unwrap();
+        }
+        {
+            let replacement = Db::open(&staged).unwrap();
+            replacement.settings_set("theme", "\"new\"").unwrap();
+        }
+        apply_pending_restore(&dir).unwrap();
+        assert_eq!(
+            Db::open(&live)
+                .unwrap()
+                .settings_get("theme")
+                .unwrap()
+                .as_deref(),
+            Some("\"new\"")
+        );
+        let kept: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("ghostftp.db.before-restore-")
+                    && !path.to_string_lossy().ends_with("-wal")
+                    && !path.to_string_lossy().ends_with("-shm")
+            })
+            .collect();
+        assert_eq!(
+            kept.len(),
+            1,
+            "prior user SQLite database must be recoverable"
+        );
+        assert_eq!(
+            Db::open(&kept[0])
+                .unwrap()
+                .settings_get("theme")
+                .unwrap()
+                .as_deref(),
+            Some("\"old\"")
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn staged_sqlite_wal_sidecar_blocks_unsafe_main_file_promotion() {
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-restore-wal-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let live = dir.join("ghostftp.db");
+        std::fs::write(&live, b"original stay").unwrap();
+        std::fs::write(dir.join("ghostftp.db.restore"), b"staged").unwrap();
+        std::fs::write(dir.join("ghostftp.db.restore-wal"), b"uncheckpointed").unwrap();
+        assert!(apply_pending_restore(&dir).is_err());
+        assert_eq!(std::fs::read(&live).unwrap(), b"original stay");
+        assert_eq!(
+            std::fs::read(dir.join("ghostftp.db.restore-wal")).unwrap(),
+            b"uncheckpointed"
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn staged_sqlite_symlink_is_rejected_before_changes() {
+        use std::os::unix::fs::symlink;
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-restore-symlink-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let live = dir.join("ghostftp.db");
+        std::fs::write(&live, b"original must survive").unwrap();
+        symlink(&live, dir.join("ghostftp.db.restore")).unwrap();
+        assert!(apply_pending_restore(&dir).is_err());
+        assert_eq!(std::fs::read(&live).unwrap(), b"original must survive");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn private_file_writer_replaces_existing_content() {
         let path = std::env::temp_dir().join(format!(
             "ghostftp-private-write-{}-{}.tmp",
@@ -925,6 +1394,57 @@ mod tests {
         write_private_file(&path, b"new").unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"new");
         let _ = std::fs::remove_file(path);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn private_writer_refuses_symlink_and_preserves_its_target() {
+        use std::os::unix::fs::symlink;
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-private-symlink-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("important.txt");
+        let backup = dir.join("export.ghostftpbak");
+        std::fs::write(&target, b"keep original").unwrap();
+        symlink(&target, &backup).unwrap();
+        assert!(write_private_file(&backup, b"must not follow").is_err());
+        assert_eq!(std::fs::read(&target).unwrap(), b"keep original");
+        assert!(std::fs::symlink_metadata(&backup)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 2);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn private_writer_refuses_directory_without_leaking_temporary_file() {
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-private-dir-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(write_private_file(&dir, b"do not truncate directory").is_err());
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn private_writer_atomically_replaces_existing_file_with_private_mode() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-private-mode-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("profiles.json.restore");
+        std::fs::write(&path, b"previous-valid-payload").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        write_private_file(&path, b"new verified payload").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"new verified payload");
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

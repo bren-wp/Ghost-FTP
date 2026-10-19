@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum AuthMethod {
     Password {
@@ -27,6 +27,23 @@ pub enum AuthMethod {
     KeyRef {
         key_ref: String,
     },
+}
+
+// A ConnectionProfile is often included in structured error contexts.
+// Never allow deriving Debug to print passwords, SSH key passphrases, or
+// references to sensitive key material during diagnostics or panic reporting.
+// Serde compatibility for historical migrations remains unchanged.
+impl std::fmt::Debug for AuthMethod {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Password { .. } => formatter.write_str("Password { password: [REDACTED] }"),
+            Self::Key { .. } => {
+                formatter.write_str("Key { path: [REDACTED], passphrase: [REDACTED] }")
+            }
+            Self::Agent => formatter.write_str("Agent"),
+            Self::KeyRef { .. } => formatter.write_str("KeyRef { key_ref: [REDACTED] }"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -432,6 +449,41 @@ mod recovery_tests {
         assert_eq!(std::fs::read(dir.join("profiles.json")).unwrap(), b"[]");
         drop(store);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn auth_debug_and_profile_debug_never_expose_in_memory_secrets() {
+        let password = AuthMethod::Password {
+            password: "PRIVATE_PASSWORD_SENTINEL".to_string(),
+        };
+        let key = AuthMethod::Key {
+            path: "/private/keys/hidden_ed25519".to_string(),
+            passphrase: Some("PRIVATE_PASSPHRASE_SENTINEL".to_string()),
+        };
+        let key_ref = AuthMethod::KeyRef {
+            key_ref: "grant-key:PRIVATE_KEY_REFERENCE".to_string(),
+        };
+        for method in [&password, &key, &key_ref] {
+            let debug = format!("{method:?}");
+            assert!(debug.contains("[REDACTED]"));
+            for forbidden in [
+                "PRIVATE_PASSWORD_SENTINEL",
+                "PRIVATE_PASSPHRASE_SENTINEL",
+                "/private/keys/hidden_ed25519",
+                "PRIVATE_KEY_REFERENCE",
+            ] {
+                assert!(
+                    !debug.contains(forbidden),
+                    "Debug emitted a secret or key reference"
+                );
+            }
+        }
+        assert_eq!(format!("{:?}", AuthMethod::Agent), "Agent");
+        // The legacy serde representation must still deserialize; this is a
+        // diagnostic fix, not a destructive profile schema migration.
+        let legacy = r#"{"kind":"password","password":"PRIVATE_PASSWORD_SENTINEL"}"#;
+        let restored: AuthMethod = serde_json::from_str(legacy).unwrap();
+        assert!(!format!("{restored:?}").contains("PRIVATE_PASSWORD_SENTINEL"));
     }
 
     #[tokio::test]

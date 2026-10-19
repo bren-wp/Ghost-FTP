@@ -1,3 +1,11 @@
+## 0.95.45 — Windows/Linux crash and encrypted-backup recovery hardening (development preview) — 19 October 2026
+
+- Restore the canonical release train after the immutable published `v0.95.44` tag: version 0.95.45 follows published 0.95.44 without moving or deleting tags.
+- Hardening on Windows/Linux desktop: atomic private backup writes; SQLite integrity validation before OS credential mutation; fail-closed staged restore and recovery of original database/WAL/SHM.
+- Protect authentication information in Rust debug output, prevent duplicate editor IPC launches, and stop keyring-clear failures from being reported as success.
+- Preserve existing profiles, migrations and Brendigo branding. Shared Android version metadata is synchronized for repository CI; Android and macOS feature implementations are unchanged.
+- **Development preview only.** Claims of crash resolution or release readiness require real user-machine verification and all six CI workflows on a single exact final commit.
+
 ## 0.95.44 — Transfer Center safe selector extraction (development preview) — 19 October 2026
 
 - Decouple Transfer Center status counts, tab/search/direction/time selectors and immutable recent-history projection from the 1,117-line React component into a pure reusable view-model.
