@@ -105,7 +105,7 @@ impl GDriveSession {
             if let Some(b) = body {
                 rb = rb.json(b);
             }
-            let resp = rb.send().await.with_context(|| format!("drive {url}"))?;
+            let resp = rb.send().await.map_err(|_| anyhow!("Google Drive transport error"))?;
             if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
                 attempt += 1;
                 self.force_refresh().await?;
@@ -118,10 +118,10 @@ impl GDriveSession {
     pub async fn rpc(&self, method: Method, url: &str, body: Option<&Value>) -> Result<Value> {
         let resp = self.send(method, url, body).await?;
         let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            return Err(anyhow!("drive {url} failed ({}): {text}", status.as_u16()));
+            return Err(gdrive_http_error(status));
         }
+        let text = resp.text().await.context("read Google Drive metadata response")?;
         if text.trim().is_empty() {
             return Ok(Value::Null);
         }
@@ -132,8 +132,7 @@ impl GDriveSession {
         let resp = self.send(Method::GET, url, None).await?;
         if !resp.status().is_success() {
             let code = resp.status().as_u16();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(anyhow!("drive GET {url} failed ({code}): {text}"));
+            return Err(anyhow!("Google Drive download failed (HTTP {code})"));
         }
         Ok(resp)
     }
@@ -244,6 +243,11 @@ impl GDriveSession {
     }
 }
 
+/// Never expose a provider-supplied response body, bearer URL or token.
+fn gdrive_http_error(status: reqwest::StatusCode) -> anyhow::Error {
+    anyhow!("Google Drive request failed (HTTP {})", status.as_u16())
+}
+
 pub async fn gdrive_connect(profile: &ConnectionProfile) -> Result<GDriveSession> {
     let tokens = oauth::load_tokens(GDRIVE_SERVICE, &profile.id)?.ok_or_else(|| {
         anyhow!(
@@ -306,4 +310,16 @@ pub fn folder_mime_is(mime: &str) -> bool {
 fn urlencode(s: &str) -> String {
     use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
     utf8_percent_encode(s, NON_ALPHANUMERIC).to_string()
+}
+
+#[cfg(test)]
+mod security_diagnostics_tests {
+    use super::*;
+
+    #[test]
+    fn provider_error_contains_status_not_untrusted_payload() {
+        let error = gdrive_http_error(reqwest::StatusCode::FORBIDDEN).to_string();
+        assert_eq!(error, "Google Drive request failed (HTTP 403)");
+        assert!(!error.contains("access_token"));
+    }
 }
