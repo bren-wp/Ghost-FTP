@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Cloud, ExternalLink, LockKeyhole, X } from "lucide-react";
 import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { ipc } from "@/lib/ipc";
 import { useConnections } from "@/stores/connectionsStore";
 import { toast } from "@/stores/toastStore";
 import { toastError } from "@/lib/errors";
+import { useDialog } from "@/hooks/useDialog";
 
 type CloudProvider = "gdrive" | "onedrive" | "dropbox" | "box";
 type Availability = { gdrive: boolean; onedrive: boolean; dropbox: boolean; boxDrive: boolean };
@@ -23,6 +24,7 @@ function hasRegisteredApp(provider: CloudProvider, available: Availability | nul
 
 /** Cloud account setup for Windows/Linux. Tokens never enter React state. */
 export function CloudAccountConnect({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const panelRef = useRef<HTMLElement>(null);
   const saveProfile = useConnections((state) => state.saveProfile);
   const [provider, setProvider] = useState<CloudProvider>("gdrive");
   const [available, setAvailable] = useState<Availability | null>(null);
@@ -32,6 +34,7 @@ export function CloudAccountConnect({ onClose, onSaved }: { onClose: () => void;
   const [busy, setBusy] = useState(false);
   const selected = options.find((option) => option.protocol === provider)!;
   const configured = hasRegisteredApp(provider, available);
+  useDialog(panelRef, { onClose: () => { if (!busy) onClose(); } });
 
   useEffect(() => {
     let live = true;
@@ -100,6 +103,7 @@ export function CloudAccountConnect({ onClose, onSaved }: { onClose: () => void;
   return (
     <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/70 px-3 py-5" role="presentation">
       <section
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Connect cloud account"
