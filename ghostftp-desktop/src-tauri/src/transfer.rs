@@ -2952,7 +2952,7 @@ impl TransferManager {
         if size <= 16 * 1024 * 1024 {
             self.checkpoint(id, size).await?;
             let mut buf = Vec::with_capacity(size as usize);
-            file.by_ref().take(size + 1).read_to_end(&mut buf).await?;
+            (&mut file).take(size + 1).read_to_end(&mut buf).await?;
             require_exact_upload_length(size, buf.len() as u64)?;
             session
                 .store
