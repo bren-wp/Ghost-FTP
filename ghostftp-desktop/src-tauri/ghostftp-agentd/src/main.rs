@@ -70,7 +70,7 @@ fn parse_args() -> Args {
                 if let Some(ip) = it.next() {
                     a.bind_ip = ip;
                 }
-            },
+            }
             "--config-dir" => a.config_dir = it.next().map(PathBuf::from),
             "--read-only" => a.read_only = true,
             "--no-mdns" => a.no_mdns = true,
@@ -171,7 +171,9 @@ fn service_run_args(args: &Args) -> Vec<String> {
 /// Bind the daemon's TCP port, turning the classic AddrInUse into advice
 /// instead of a raw OS error.
 async fn bind_port(port: u16, bind: &str) -> Result<TcpListener> {
-    let ip: IpAddr = bind.parse().context("Invalid --bind address (use numeric IPv4 or IPv6)")?;
+    let ip: IpAddr = bind
+        .parse()
+        .context("Invalid --bind address (use numeric IPv4 or IPv6)")?;
     match TcpListener::bind((ip, port)).await {
         Ok(l) => Ok(l),
         Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => bail!(
@@ -281,11 +283,13 @@ async fn pair(args: Args, dir: PathBuf, identity: Identity, config: Config) -> R
         );
     }
 
-    let ad = Arc::new(Mutex::new(if args.no_mdns || args.bind_ip == "127.0.0.1" || args.bind_ip == "::1" {
-        None
-    } else {
-        Advertisement::publish(port, &fingerprint, &info.os, true).ok()
-    }));
+    let ad = Arc::new(Mutex::new(
+        if args.no_mdns || args.bind_ip == "127.0.0.1" || args.bind_ip == "::1" {
+            None
+        } else {
+            Advertisement::publish(port, &fingerprint, &info.os, true).ok()
+        },
+    ));
 
     // When the window lapses, say so and drop the advertised pairable flag —
     // serving continues untouched. (Expired windows are also refused lazily,
@@ -363,7 +367,8 @@ fn unpair(dir: PathBuf, mut config: Config, positional: &[String]) -> Result<()>
 /// Uses fingerprint/full static pin, never an untrusted display name.
 fn permit(dir: PathBuf, mut config: Config, positional: &[String]) -> Result<()> {
     let (Some(target), Some(kind), Some(value)) =
-        (positional.first(), positional.get(1), positional.get(2)) else {
+        (positional.first(), positional.get(1), positional.get(2))
+    else {
         bail!("usage: ghostftp-agentd permit <fingerprint|public-key> <read|write|delete|terminal> <on|off>");
     };
     let enabled = match value.as_str() {
@@ -372,9 +377,10 @@ fn permit(dir: PathBuf, mut config: Config, positional: &[String]) -> Result<()>
         _ => bail!("permission value must be on or off"),
     };
     let Some(peer) = config.peers.iter_mut().find(|peer| {
-        peer.public_key == *target || ghostftp_agent_proto::identity::decode_public(&peer.public_key)
-            .map(|key| ghostftp_agent_proto::identity::fingerprint_of(&key) == *target)
-            .unwrap_or(false)
+        peer.public_key == *target
+            || ghostftp_agent_proto::identity::decode_public(&peer.public_key)
+                .map(|key| ghostftp_agent_proto::identity::fingerprint_of(&key) == *target)
+                .unwrap_or(false)
     }) else {
         bail!("unknown paired controller");
     };
