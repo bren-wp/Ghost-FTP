@@ -21,7 +21,14 @@ fn command(operation: &str, service: &str, account: &str) -> Command {
     command
         .arg(operation)
         .arg("--") // Prevent untrusted profile ids from becoming CLI options.
-        .args(["application", "ghostftp", "service", service, "account", account])
+        .args([
+            "application",
+            "ghostftp",
+            "service",
+            service,
+            "account",
+            account,
+        ])
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -34,7 +41,9 @@ pub fn lookup(service: &str, account: &str) -> Result<Option<String>> {
         .map_err(|_| anyhow!("Linux Secret Service client not installed or unavailable"))?;
     if output.status.success() {
         if output.stdout.len() > MAX_SECRET_BYTES {
-            return Err(anyhow!("Linux Secret Service credential exceeds maximum length"));
+            return Err(anyhow!(
+                "Linux Secret Service credential exceeds maximum length"
+            ));
         }
         return String::from_utf8(output.stdout)
             .map(Some)
@@ -45,7 +54,9 @@ pub fn lookup(service: &str, account: &str) -> Result<Option<String>> {
     if output.status.code() == Some(1) && output.stderr.is_empty() {
         return Ok(None);
     }
-    Err(anyhow!("Linux Secret Service lookup failed or vault is locked"))
+    Err(anyhow!(
+        "Linux Secret Service lookup failed or vault is locked"
+    ))
 }
 
 pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
@@ -57,13 +68,20 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
         .arg("store")
         .arg("--label=Ghost FTP")
         .arg("--")
-        .args(["application", "ghostftp", "service", service, "account", account])
+        .args([
+            "application",
+            "ghostftp",
+            "service",
+            service,
+            "account",
+            account,
+        ])
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    let mut child = command
-        .spawn()
-        .map_err(|_| anyhow!("Linux Secret Service client is unavailable; install libsecret-tools"))?;
+    let mut child = command.spawn().map_err(|_| {
+        anyhow!("Linux Secret Service client is unavailable; install libsecret-tools")
+    })?;
     let written = child
         .stdin
         .take()
@@ -79,7 +97,9 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
         .map_err(|_| anyhow!("Linux Secret Service write interrupted"))?
         .success()
     {
-        return Err(anyhow!("Linux Secret Service refused to save the credential"));
+        return Err(anyhow!(
+            "Linux Secret Service refused to save the credential"
+        ));
     }
     match lookup(service, account)? {
         Some(saved) if saved == secret => Ok(()),
@@ -95,7 +115,9 @@ pub fn remove(service: &str, account: &str) -> Result<()> {
         return Err(anyhow!("Linux Secret Service refused credential deletion"));
     }
     if lookup(service, account)?.is_some() {
-        return Err(anyhow!("Linux Secret Service credential still exists after deletion"));
+        return Err(anyhow!(
+            "Linux Secret Service credential still exists after deletion"
+        ));
     }
     Ok(())
 }
