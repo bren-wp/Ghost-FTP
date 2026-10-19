@@ -242,7 +242,7 @@ pub async fn save_profile(
         }
         AuthMethod::Agent | AuthMethod::KeyRef { .. } => {
             delete_profile_secret(&profile_password_key(&profile.id), &state)?;
-            delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state);
+            delete_profile_secret(&profile_key_passphrase_key(&profile.id), &state)?;
         }
     }
     Ok(())
