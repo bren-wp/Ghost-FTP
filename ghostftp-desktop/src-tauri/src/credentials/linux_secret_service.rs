@@ -12,7 +12,9 @@ use anyhow::{anyhow, Result};
 use std::io::Write;
 use std::process::{Command, Stdio};
 
-const MAX_SECRET_BYTES: usize = 4 * 1024 * 1024;
+// GNOME libsecret's secret-tool currently reads at most 8192 bytes from a
+// piped password; reject larger values instead of truncating private material.
+const MAX_SECRET_BYTES: usize = 8191;
 
 fn command(operation: &str, service: &str, account: &str) -> Command {
     let mut command = Command::new("secret-tool");
@@ -105,5 +107,6 @@ mod tests {
     fn invalid_secret_inputs_are_rejected_before_launching_any_process() {
         assert!(store("service", "account", "").is_err());
         assert!(store("service", "account", &"x".repeat(MAX_SECRET_BYTES + 1)).is_err());
+        assert!(store("service", "account", &"x".repeat(MAX_SECRET_BYTES + 200)).is_err());
     }
 }
