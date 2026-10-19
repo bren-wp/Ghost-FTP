@@ -21,7 +21,7 @@ import {
 } from "@/stores/settingsStore";
 import { APP_LANGUAGE_OPTIONS, getLocale, setLocale, type AppLocale } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
-import type { ConnectionProfile, FtpNetworkDiagnostic } from "@/lib/types";
+import type { AgentHostStatus, AgentPeerPermissions, ConnectionProfile, FtpNetworkDiagnostic } from "@/lib/types";
 import { useDialog } from "@/hooks/useDialog";
 import { requestDesktopNotificationPermission } from "@/lib/notifications";
 import { SyncSettings } from "./SyncSettings";
@@ -594,7 +594,119 @@ function AppearancePanel(){return <div className="mx-auto w-full max-w-4xl"><App
 function LanguagePanel({ locale, setLocale }: { locale: AppLocale; setLocale: (value: AppLocale) => void }){return <div className="mx-auto w-full max-w-4xl"><LanguageCard locale={locale} setLocale={setLocale}/></div>}
 function TransfersPanel(){return <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-4"><PerformanceCard/><TransfersCard/></div>}
 function ConnectionPanel({ mutation, runMutation }: { mutation: SettingsAsyncMutation | null; runMutation: RunSettingsAsyncMutation }){return <div className="mx-auto w-full max-w-4xl space-y-4"><ConnectionCard mutation={mutation} runMutation={runMutation}/><NetworkDiagnosticsCard/></div>}
-function SecurityPanel(){return <div className="mx-auto w-full max-w-4xl"><SecurityCard/></div>}
+function RemoteAgentSecurityCard() {
+  const [host, setHost] = useState<AgentHostStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [exposeNetwork, setExposeNetwork] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let live = true;
+    void ipc.agentHostStatus()
+      .then((status) => {
+        if (live) {
+          setHost(status);
+          setExposeNetwork(status.bindAddress !== "127.0.0.1" && status.bindAddress !== "::1");
+        }
+      })
+      .catch(() => { if (live) setError("Unable to read Remote Agent configuration"); });
+    return () => { live = false; };
+  }, []);
+  const mutate = async (work: () => Promise<AgentHostStatus>) => {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      setHost(await work());
+    } catch (e) {
+      setError(messageOf(e));
+      toastError(e, "Remote Agent security action failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const setPermission = (publicKey: string, original: AgentPeerPermissions, key: keyof AgentPeerPermissions, value: boolean) => {
+    void mutate(() => ipc.agentHostSetPeerPermissions(publicKey, { ...original, [key]: value }));
+  };
+  return (
+    <Card icon={<ShieldCheck size={20}/>} title="Remote Agent · Device access"
+      subtitle="Every controller has separate read, write, delete and terminal permissions.">
+      {error && <p role="alert" className="mb-3 text-xs text-warning">{error}</p>}
+      {!host ? <p className="text-xs text-text-muted">Loading Remote Agent permissions…</p> : (
+        <div className="space-y-4 text-xs">
+          <p className="text-text-muted">
+            New paired devices start with read-only access. Writing, deletion and the terminal
+            remain off until you approve them separately for each controller.
+          </p>
+          <label className="flex items-center justify-between gap-3">
+            <span>Enable Remote Agent</span>
+            <input type="checkbox" disabled={busy} checked={host.enabled}
+              onChange={(event) => void mutate(() => ipc.agentHostSetEnabled(
+                event.target.checked, host.port, exposeNetwork ? "0.0.0.0" : "127.0.0.1"
+              ))}/>
+          </label>
+          <label className="flex items-start justify-between gap-3">
+            <span>
+              <strong className="block">Allow access from local network</strong>
+              <span className="text-text-muted">Exposes the agent listener to other computers. Verify your OS firewall before enabling.</span>
+            </span>
+            <input type="checkbox" disabled={busy} checked={exposeNetwork}
+              onChange={(event) => {
+                const next = event.target.checked;
+                setExposeNetwork(next);
+                if (host.enabled) {
+                  void mutate(() => ipc.agentHostSetEnabled(true, host.port, next ? "0.0.0.0" : "127.0.0.1"));
+                }
+              }}/>
+          </label>
+          {exposeNetwork && <p role="alert" className="rounded border border-warning/40 p-2 text-warning">
+            Network exposure enabled. Other hosts can reach port {host.port}. Use Windows Firewall or Linux firewall rules to limit trusted networks.
+          </p>}
+          <div className="space-y-3">
+            <strong className="block">Paired controllers ({host.peers.length})</strong>
+            {host.peers.map((peer) => (
+              <div key={peer.publicKey} className="rounded-lg border border-border p-3">
+                <p className="font-semibold">{peer.name}</p>
+                <p className="mt-1 break-all text-text-muted">Fingerprint: {peer.fingerprint}</p>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {(["read", "write", "delete", "terminal"] as const).map((key) => (
+                    <label key={key} className="flex items-center gap-2">
+                      <input type="checkbox" disabled={busy} checked={peer.permissions[key]}
+                        onChange={(event) => setPermission(peer.publicKey, peer.permissions, key, event.target.checked)}/>
+                      <span className="capitalize">{key}</span>
+                    </label>
+                  ))}
+                </div>
+                <button type="button" disabled={busy} className="ghost-mini-button mt-3"
+                  onClick={() => void mutate(() => ipc.agentHostRevokePeer(peer.publicKey))}>
+                  Revoke device access
+                </button>
+              </div>
+            ))}
+            {!host.peers.length && <p className="text-text-muted">No paired remote controllers.</p>}
+          </div>
+          <p className="text-text-muted">
+            Machine-wide emergency limits: terminal {host.allowExec ? "allowed" : "disabled"},
+            file modifications {host.allowWrite ? "allowed" : "disabled"}. Device permissions cannot override these limits.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" disabled={busy} checked={host.allowExec}
+                onChange={(e) => void mutate(() => ipc.agentHostSetPolicy(e.target.checked, host.allowWrite))}/>
+              Machine-wide terminal
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" disabled={busy} checked={host.allowWrite}
+                onChange={(e) => void mutate(() => ipc.agentHostSetPolicy(host.allowExec, e.target.checked))}/>
+              Machine-wide file modifications
+            </label>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function SecurityPanel(){return <div className="mx-auto w-full max-w-4xl space-y-4"><SecurityCard/><RemoteAgentSecurityCard/></div>}
 function ShortcutsCard(){return <Card icon={<Keyboard size={20}/>} title="Keyboard Shortcuts" subtitle="Core Ghost FTP shortcuts."><div className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-[12px]"><span>New connection</span><kbd>Ctrl + N</kbd><span>Settings</span><kbd>Ctrl + ,</kbd><span>Open Transfers</span><kbd>Ctrl + T</kbd><span>Command palette</span><kbd>Ctrl + K</kbd></div></Card>}
 function AdvancedPanel({ mutation, runMutation }: { mutation: SettingsAsyncMutation | null; runMutation: RunSettingsAsyncMutation }){return <div className="mx-auto grid w-full max-w-5xl gap-4 xl:grid-cols-2"><IntegrationsCard mutation={mutation} runMutation={runMutation}/><ShortcutsCard/><div className="xl:col-span-2"><TerminalCard/></div></div>}
 
