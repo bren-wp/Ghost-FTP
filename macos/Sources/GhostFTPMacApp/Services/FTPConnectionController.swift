@@ -52,7 +52,12 @@ final class FTPConnectionController: ObservableObject {
     }
 
     func connect(profile: ConnectionProfile, password: String) {
+        // Changing sessions mid-transfer can interleave STOR/RETR commands
+        // with a second login on the same actor; require explicit cancellation.
+        guard !isTransferring, !isListing else { return }
         operation?.cancel()
+        entries = []
+        transferState = .idle
         state = .connecting
 
         operation = Task { [weak self] in
@@ -77,7 +82,7 @@ final class FTPConnectionController: ObservableObject {
     }
 
     func changeDirectory(to path: String) {
-        guard isConnected else { return }
+        guard isConnected, !isTransferring, !isListing else { return }
 
         operation?.cancel()
         operation = Task { [weak self] in
@@ -96,7 +101,7 @@ final class FTPConnectionController: ObservableObject {
     }
 
     func refreshWorkingDirectory() {
-        guard isConnected else { return }
+        guard isConnected, !isTransferring, !isListing else { return }
 
         operation?.cancel()
         operation = Task { [weak self] in
@@ -115,7 +120,7 @@ final class FTPConnectionController: ObservableObject {
 
 
     func refreshDirectory() {
-        guard isConnected else { return }
+        guard isConnected, !isTransferring, !isListing else { return }
 
         operation?.cancel()
         operation = Task { [weak self] in
@@ -172,6 +177,11 @@ final class FTPConnectionController: ObservableObject {
                 history.fail(transferID)
                 activeTransferID = nil
                 transferState = .failed(error.localizedDescription)
+                // A local unsafe-file rejection happens BEFORE any network
+                // mutation and must not falsely mark the FTP session dead.
+                if case FTPControlError.unsafeLocalUploadSource = error {
+                    return
+                }
                 state = .failed(error.localizedDescription)
             }
         }
@@ -271,7 +281,7 @@ final class FTPConnectionController: ObservableObject {
     }
 
     func verifyConnection() {
-        guard isConnected else { return }
+        guard isConnected, !isTransferring, !isListing else { return }
 
         operation?.cancel()
         operation = Task { [weak self] in
