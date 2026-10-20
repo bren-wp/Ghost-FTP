@@ -833,6 +833,12 @@ actor FTPControlSession {
                 accepted: [226, 250],
                 description: "226 or 250 upload complete"
             )
+            // A file may be replaced or truncated while waiting for the FTP
+            // server's completion reply. Never report a verified upload in
+            // that case even when the remote endpoint returned 226.
+            try PrivateUploadSource.verifyUnchanged(
+                handle, original: original, transmitted: transmitted
+            )
             dataConnection.cancel()
         } catch {
             dataConnection.cancel()

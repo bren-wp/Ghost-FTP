@@ -12,7 +12,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.95.52 (unreleased development source) · [v0.95.51](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.51) is temporarily incomplete pending verified recovery. Previous complete packages: [v0.95.50](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.50).</sub>
+<sub>Ghost FTP 0.95.52 (unreleased Preview development source) · Previous release tag: [v0.95.51](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.51). Check that the release page contains verified packages before downloading; unsigned Android and macOS Preview packages are not production-certified.</sub>
 
 [**View published Ghost FTP packages**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -90,7 +90,7 @@ The v0.95.38 development cycle hardens [SQLite-backed watched sync](docs/audits/
 | **🤖 Android** | Installable Preview APK; separate unsigned APK/AAB for release signing | FTP, explicit FTPS, SFTP |
 | **🍎 macOS** | Preview ZIP | FTP; FTPS/SFTP not yet available in the macOS client |
 
-**[Get the latest Ghost FTP release →](https://github.com/bren-wp/Ghost-FTP/releases/latest)**
+**[View all Ghost FTP releases, including the latest Preview →](https://github.com/bren-wp/Ghost-FTP/releases)**
 
 Android's unsigned release packages are intended for your authorized signing process; the installable Preview uses a separate preview identity. The macOS Preview is not a Developer ID-signed, notarized App Store distribution. Availability in Google Play and Apple's distribution channels is subject to platform-specific signing, testing and review.
 
