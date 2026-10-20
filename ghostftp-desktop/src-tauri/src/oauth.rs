@@ -115,18 +115,20 @@ pub fn authorize_url(config: &OAuthConfig, challenge: &str, state: &str) -> Resu
     }
     // The browser and PKCE token exchange must never downgrade to a public
     // HTTP origin. Loopback HTTP remains supported for isolated mock tests.
-    let mut url = crate::session::http_throttle::trusted_bearer_url(
-        &config.auth_url,
-        &config.auth_url,
-    )?;
+    let mut url =
+        crate::session::http_throttle::trusted_bearer_url(&config.auth_url, &config.auth_url)?;
     // Do not permit endpoint URLs to pre-seed conflicting security-critical
     // OAuth parameters ahead of the values generated for this login attempt.
     for (name, _) in url.query_pairs() {
         anyhow::ensure!(
             !matches!(
                 name.as_ref(),
-                "client_id" | "response_type" | "redirect_uri" | "state"
-                    | "code_challenge" | "code_challenge_method"
+                "client_id"
+                    | "response_type"
+                    | "redirect_uri"
+                    | "state"
+                    | "code_challenge"
+                    | "code_challenge_method"
             ),
             "OAuth authorization URL has a conflicting reserved parameter"
         );
@@ -355,10 +357,8 @@ pub async fn exchange_code(
     code: &str,
     verifier: &str,
 ) -> Result<serde_json::Value> {
-    let target = crate::session::http_throttle::trusted_bearer_url(
-        &config.token_url,
-        &config.token_url,
-    )?;
+    let target =
+        crate::session::http_throttle::trusted_bearer_url(&config.token_url, &config.token_url)?;
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(10))
@@ -392,10 +392,8 @@ pub async fn exchange_code(
 /// Refresh an access token from a refresh token. Providers usually return only a
 /// new access token, so the caller keeps the existing refresh token.
 pub async fn refresh(config: &OAuthConfig, refresh_token: &str) -> Result<TokenSet> {
-    let target = crate::session::http_throttle::trusted_bearer_url(
-        &config.token_url,
-        &config.token_url,
-    )?;
+    let target =
+        crate::session::http_throttle::trusted_bearer_url(&config.token_url, &config.token_url)?;
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(10))
