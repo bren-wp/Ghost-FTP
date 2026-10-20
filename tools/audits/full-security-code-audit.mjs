@@ -60,6 +60,8 @@ const REQUIRED = [
   [".github/scripts/publish-release.sh", ["--data-binary", "uploads.github.com", "sha256sum", "draft:false,prerelease:true"]],
   [".github/workflows/ghostftp-release.yml", ["workflow_run:", "SOURCE_SHA", "wait_for_gate", "ghostftp-android.yml"]],
   [".github/scripts/check-release-governance.test.mjs", ["released editions and tags must never be automatically pruned"]],
+  [".github/scripts/enforce-preview-release-metadata.sh", ["0.99.0", "0.95.53", "make_latest", "enforce_preview", "sha256:"]],
+  [".github/workflows/ghostftp-preview-metadata.yml", ["workflow_run:", "Ghost FTP release", "contents: write"]],
   ["android/app/src/main/java/com/ghostftp/android/CloudNetworkSafety.kt", [".dns(PublicCloudDns())", ".proxy(Proxy.NO_PROXY)", ".followRedirects(false)"]]
 ];
 export function audit(root = ROOT) {
