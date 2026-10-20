@@ -304,25 +304,78 @@ impl ProfileStore {
                 .with_context(|| format!("syncing {}", tmp.display()))?;
         }
 
-        if self.path.exists() {
-            let _ = std::fs::remove_file(&backup);
-            std::fs::rename(&self.path, &backup)
-                .with_context(|| format!("backing up {}", self.path.display()))?;
-        }
-        if let Err(err) = std::fs::rename(&tmp, &self.path) {
-            // Best-effort rollback to the previous known-good store.
-            if backup.exists() && !self.path.exists() {
-                let _ = std::fs::rename(&backup, &self.path);
+        // Preserve the *existing* backup until the new primary has been
+        // durably staged and promoted. Moving .bak away before the primary is
+        // ready previously destroyed the last recovery copy on a failed save.
+        let previous = parent.join(format!(
+            ".profiles.json.{}.previous",
+            uuid::Uuid::new_v4()
+        ));
+        let retired = parent.join(format!(
+            ".profiles.json.{}.retired-backup",
+            uuid::Uuid::new_v4()
+        ));
+        let primary_exists = match std::fs::symlink_metadata(&self.path) {
+            Ok(meta) => {
+                anyhow::ensure!(
+                    meta.file_type().is_file(),
+                    "refusing to replace a non-regular profile store"
+                );
+                true
             }
-            return Err(err).with_context(|| format!("committing {}", self.path.display()));
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+            Err(error) => return Err(error).context("inspect current profile store"),
+        };
+        let backup_exists = match std::fs::symlink_metadata(&backup) {
+            Ok(meta) => {
+                anyhow::ensure!(
+                    meta.file_type().is_file(),
+                    "refusing to replace a non-regular profile backup"
+                );
+                true
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+            Err(error) => return Err(error).context("inspect profile backup"),
+        };
+        if primary_exists {
+            std::fs::rename(&self.path, &previous)
+                .context("preserve previous profile store without touching backup")?;
+        }
+        if let Err(error) = std::fs::rename(&tmp, &self.path) {
+            if primary_exists {
+                std::fs::rename(&previous, &self.path)
+                    .context("profile promotion failed; previous store requires manual recovery")?;
+            }
+            return Err(error).context("promote complete profile store");
+        }
+        // A successfully promoted current store is now available. Keep the
+        // immediate predecessor in .previous until .bak is safely installed.
+        if primary_exists {
+            if backup_exists {
+                std::fs::rename(&backup, &retired)
+                    .context("preserve older profile backup during rotation")?;
+            }
+            if let Err(error) = std::fs::rename(&previous, &backup) {
+                if backup_exists {
+                    let _ = std::fs::rename(&retired, &backup);
+                }
+                return Err(error).context("promote prior profile store to backup; recovery snapshot retained");
+            }
+            if backup_exists {
+                let _ = std::fs::remove_file(&retired);
+            }
         }
         #[cfg(unix)]
         {
             std::fs::set_permissions(&self.path, std::fs::Permissions::from_mode(0o600))
                 .with_context(|| format!("securing {}", self.path.display()))?;
             if backup.exists() {
-                let _ = std::fs::set_permissions(&backup, std::fs::Permissions::from_mode(0o600));
+                std::fs::set_permissions(&backup, std::fs::Permissions::from_mode(0o600))
+                    .context("securing previous profile backup")?;
             }
+            std::fs::File::open(parent)
+                .and_then(|dir| dir.sync_all())
+                .context("sync profile directory metadata")?;
         }
         Ok(())
     }
@@ -378,6 +431,24 @@ mod recovery_tests {
             .map(|entry| entry.expect("directory entry").path())
             .filter(|path| path.to_string_lossy().contains(".ghostftp-corrupt-"))
             .collect()
+    }
+
+    #[tokio::test]
+    async fn profile_save_preserves_backup_when_backup_target_is_unsafe() {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-profile-backup-guard-{}", uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        let original = dir.join("profiles.json");
+        std::fs::write(&original, b"[]").unwrap();
+        let backup = dir.join("profiles.json.bak");
+        std::fs::create_dir(&backup).unwrap();
+        std::fs::write(backup.join("user-file"), b"PRESERVE").unwrap();
+        let store = ProfileStore::from_dir(&dir).unwrap();
+        assert!(store.delete("nonexistent").await.is_err());
+        assert_eq!(std::fs::read(&original).unwrap(), b"[]");
+        assert_eq!(std::fs::read(backup.join("user-file")).unwrap(), b"PRESERVE");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[tokio::test]
