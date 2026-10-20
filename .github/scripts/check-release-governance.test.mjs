@@ -78,3 +78,15 @@ test("owner-authorized latest-ten cleanup fails closed on unsigned-release metad
   assert.ok(prune.includes('test "$asset_count" -ge 20'));
   assert.ok(prune.includes('gh release delete "$tag" --yes --cleanup-tag'));
 });
+
+test("unpublished Vite 0.95.53 repair is restricted to one failed original SHA and requires patched lockfile", () => {
+  const quality=read(".github/workflows/ghostftp-quality.yml");
+  const pkg=JSON.parse(read("ghostftp-desktop/package.json"));
+  const lock=JSON.parse(read("ghostftp-desktop/package-lock.json"));
+  assert.equal(pkg.devDependencies.vite,"8.3.4");
+  assert.equal(lock.packages["node_modules/vite"].version,"8.3.4");
+  assert.ok(quality.includes('dd98f79b525759c4d77f6894d7d5603074fd053c'));
+  assert.ok(quality.includes('git ls-remote --exit-code --tags origin "refs/tags/v0.95.53"'));
+  assert.ok(quality.includes('if [ "$TAG_CHECK" -ne 2 ]; then'));
+  assert.ok(quality.includes('previous public release stays 0.95.52'));
+});

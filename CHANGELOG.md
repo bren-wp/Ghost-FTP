@@ -1,5 +1,7 @@
 ## 0.95.53 — Audited security, integrity and latest-ten release retention (UNRELEASED Preview) — 20 October 2026
 
+- **Security hotfix (unpublished source recovery):** upgrade Vite build dependency from vulnerable 8.3.1 to patched 8.3.4 and regenerate the npm lockfile from the registry, keeping npm high/critical audit checks active. The first 0.95.53 main merge had no public tag or release after its quality gate failed; the corrected exact-SHA source is a narrowly bounded recovery, not a new stable release or an overwrite.
+
 - Audit cross-platform source and release workflows for dangerous TLS/SSH bypass patterns, credentials, unsafe file replacement, recovery lineage, stale code, version drift and installer metadata. Static checks are not a substitute for penetration tests.
 - README Windows screenshots updated to seven actual v0.95.52 running-application captures from exact release workflow SHA and SHA-256 manifest, rather than older v0.95.51 or v0.95.18 pixels.
 - Verify original v0.95.51 release inventory and original tag before correcting misclassified Preview metadata; label retained unsigned/ad-hoc Preview releases accurately.
