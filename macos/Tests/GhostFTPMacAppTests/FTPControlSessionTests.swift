@@ -20,6 +20,25 @@ final class FTPControlSessionTests: XCTestCase {
         )
     }
 
+    func testFTPSAndSFTPCannotDowngradeIntoPlaintextFTPWithoutAuthenticatedTransports() async throws {
+        let session = FTPControlSession()
+        for protocolKind in [ConnectionProtocol.ftps, .sftp] {
+            let profile = ConnectionProfile(
+                name: "Secure transport cannot silently downgrade",
+                protocolKind: protocolKind,
+                host: "127.0.0.1",
+                port: 21,
+                username: "test"
+            )
+            do {
+                _ = try await session.connect(profile: profile, password: "never-send-to-FTP")
+                XCTFail("No unsupported secure profile may fall through to plaintext FTP")
+            } catch FTPControlError.unsupportedProtocol {
+                // Expected until real TLS/SSH identity verification is wired.
+            }
+        }
+    }
+
     func testMacUploadRejectsSymlinksAndDoesNotReadTheirTarget() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
