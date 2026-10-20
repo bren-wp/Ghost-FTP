@@ -646,6 +646,25 @@ final class FTPControlSessionTests: XCTestCase {
         try await session.downloadFile(remoteName: remoteName, to: preserved)
         XCTAssertEqual(try Data(contentsOf: preserved), content)
 
+        // Cross real 64 KiB streaming boundaries with nonrepeating bytes.
+        // This exercises the remote SIZE preflight, full binary RETR, local
+        // exclusive staging and post-STOR remote size verification together.
+        let bulkName = "binary-roundtrip-\(UUID().uuidString).bin"
+        let bulkSource = directory.appendingPathComponent("bulk-source.bin")
+        let bulkDestination = directory.appendingPathComponent("bulk-downloaded.bin")
+        let bulk = Data((0..<1_048_593).map { offset in
+            UInt8(truncatingIfNeeded: (offset * 73) ^ (offset >> 4))
+        })
+        try bulk.write(to: bulkSource)
+        try await session.uploadFile(
+            from: bulkSource, remoteName: bulkName, timeoutSeconds: 30
+        )
+        try await session.downloadFile(
+            remoteName: bulkName, to: bulkDestination, timeoutSeconds: 30
+        )
+        XCTAssertEqual(try Data(contentsOf: bulkDestination), bulk)
+        try await session.deleteFile(named: bulkName)
+
         // A second download to the same destination must not silently
         // destroy edits made locally after the original transfer.
         try Data("local edits must survive".utf8).write(to: destination)
