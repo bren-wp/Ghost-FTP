@@ -138,6 +138,24 @@ const isVerified09551Capture = (manifest, file, digest) =>
   verified09551WindowsCaptures.get(file) === digest &&
   manifest.images?.[file] === digest;
 
+// Genuine Ghost FTP v0.95.52 real Windows QA screenshots. This release is
+// the latest published version at the time of the 0.95.53 development PR.
+const verified09552WindowsCaptures = new Map([
+  ["docs/assets/screenshots/ghostftp-native-files.png", "98bb6986291ae4f032f1f37ee06a8d503b1031d974cd33e2f01a7e72b3c6a210"],
+  ["docs/assets/screenshots/ghostftp-native-new-connection.png", "60e398206ad1b901a832139cc450591d972312baacf39c79751313f9bac563bf"],
+  ["docs/assets/screenshots/ghostftp-native-sites.png", "9f99f623caa15b18a8a326614ad7df8b4d727bc60ce57cc82f65bf2584ea8e5b"],
+  ["docs/assets/screenshots/ghostftp-native-transfers.png", "c172359036bbf2eeba6cdebea2e69f2e34c71b23b84d186d61d84645a9deec9d"],
+  ["docs/assets/screenshots/ghostftp-native-settings.png", "c81c86324929cfa5aa96da006e4b06b0e9c9644033fabc3119e33df46487e584"],
+  ["docs/assets/screenshots/ghostftp-native-file-properties.png", "e21a02d7a513d66df28182a2555d254e28d5dab371a28a1c020e7b03254a8af4"],
+  ["docs/assets/screenshots/ghostftp-native-about.png", "996812685bcccca68f2fb7f264aef02d91afbae5cc772530886db76ce9f30fa8"],
+]);
+const isVerified09552Capture = (manifest, file, digest) =>
+  manifest?.version === "0.95.52" &&
+  manifest?.capture_source_sha === "b2b90a029a7217aa269c42f293e0d322531c8387" &&
+  manifest?.github_actions_run_id === "39493900331" &&
+  manifest.images?.[file] === digest &&
+  verified09552WindowsCaptures.get(file) === digest;
+
 const manifestPath = path.join(screenshotDir, "README-NATIVE-CAPTURE.json");
 const captureManifest = fs.existsSync(manifestPath)
   ? JSON.parse(fs.readFileSync(manifestPath, "utf8"))
@@ -206,7 +224,8 @@ for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.lo
     // The verified newest native QA image may intentionally differ from the
     // previous release's embedded historical screenshot. Its exact runner
     // artifact SHA256 and source commit are pinned above.
-    if (isVerified09551Capture(captureManifest, relative, actualHash)) {
+    if (isVerified09551Capture(captureManifest, relative, actualHash) ||
+        isVerified09552Capture(captureManifest, relative, actualHash)) {
       continue;
     }
     // An old but genuine capture is acceptable for unchanged release images,
