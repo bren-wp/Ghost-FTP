@@ -31,6 +31,10 @@ test("every passing main native build can automatically trigger a release", () =
   assert.ok(workflow.includes('wait_for_gate "ghostftp-android.yml"'));
   assert.ok(workflow.includes('wait_for_gate "validate-win-hardening.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-macos.yml"'));
+  assert.ok(workflow.includes("RECOVERY_STATE"));
+  assert.ok(workflow.includes("false:true:21"));
+  assert.ok(workflow.includes("Refusing v0.95.52 while v0.95.51"));
+
 });
 
 test("every merge must advance the canonical version before auto-publication", () => {
