@@ -182,14 +182,17 @@ fn write_private_file(path: &Path, data: &[u8]) -> Result<()> {
 /// create_new, then the verified staging file is promoted. Recovery copies are
 /// intentionally retained rather than silently discarding the last good copy.
 fn write_verified_export(path: &Path, bytes: &[u8], password: &str) -> Result<()> {
-    let parent = path.parent().context("backup export destination has no parent")?;
+    let parent = path
+        .parent()
+        .context("backup export destination has no parent")?;
     let staged = parent.join(format!(
         ".ghostftp-verified-export-{}.tmp",
         uuid::Uuid::new_v4()
     ));
     let _staged_guard = RemoveOnDrop(staged.clone());
     write_private_file(&staged, bytes).context("persist encrypted backup candidate")?;
-    let verified = decrypt(password, &staged).context("verify encrypted backup candidate from disk")?;
+    let verified =
+        decrypt(password, &staged).context("verify encrypted backup candidate from disk")?;
     drop(verified);
 
     match std::fs::symlink_metadata(path) {
@@ -210,7 +213,9 @@ fn write_verified_export(path: &Path, bytes: &[u8], password: &str) -> Result<()
             read_options.read(true);
             #[cfg(unix)]
             read_options.custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC);
-            let mut old = read_options.open(path).context("open previous encrypted backup")?;
+            let mut old = read_options
+                .open(path)
+                .context("open previous encrypted backup")?;
             let source_meta = old.metadata().context("inspect opened previous backup")?;
             anyhow::ensure!(
                 source_meta.is_file() && source_meta.len() <= MAX_BACKUP_FILE_BYTES,
@@ -220,9 +225,12 @@ fn write_verified_export(path: &Path, bytes: &[u8], password: &str) -> Result<()
             options.write(true).create_new(true);
             #[cfg(unix)]
             options.mode(0o600);
-            let mut saved = options.open(&recovery).context("create private backup recovery copy")?;
+            let mut saved = options
+                .open(&recovery)
+                .context("create private backup recovery copy")?;
             #[cfg(unix)]
-            saved.set_permissions(std::fs::Permissions::from_mode(0o600))
+            saved
+                .set_permissions(std::fs::Permissions::from_mode(0o600))
                 .context("restrict recovery copy permissions")?;
             let copied = std::io::copy(&mut old, &mut saved)
                 .context("copy previous backup before replacement")?;
@@ -230,16 +238,17 @@ fn write_verified_export(path: &Path, bytes: &[u8], password: &str) -> Result<()
                 copied == source_meta.len(),
                 "previous backup changed during recovery copy; replacement refused"
             );
-            saved.sync_all().context("sync previous backup recovery copy")?;
+            saved
+                .sync_all()
+                .context("sync previous backup recovery copy")?;
             drop(saved);
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => return Err(error).context("inspect existing encrypted backup"),
     }
 
-    std::fs::rename(&staged, path).context(
-        "promote verified encrypted backup (previous recovery copy is retained)"
-    )?;
+    std::fs::rename(&staged, path)
+        .context("promote verified encrypted backup (previous recovery copy is retained)")?;
     #[cfg(unix)]
     std::fs::File::open(parent)
         .and_then(|directory| directory.sync_all())
@@ -1108,9 +1117,8 @@ mod tests {
 
     #[test]
     fn successive_verified_exports_preserve_previous_encrypted_backup() {
-        let dir = std::env::temp_dir().join(format!(
-            "ghostftp-export-recovery-{}", uuid::Uuid::new_v4()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-export-recovery-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir(&dir).unwrap();
         let db = Db::open(&dir.join("ghostftp.db")).unwrap();
         db.settings_set("theme", "\"before\"").unwrap();
@@ -1128,7 +1136,9 @@ mod tests {
             .unwrap()
             .map(|entry| entry.unwrap().path())
             .filter(|path| {
-                path.file_name().unwrap().to_string_lossy()
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
                     .starts_with(".ghostftp-previous-export-")
             })
             .collect();
