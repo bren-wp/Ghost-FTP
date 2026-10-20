@@ -103,7 +103,7 @@ impl GDriveSession {
             let token = self.token.access_token().await?;
             let mut rb = self
                 .client
-                .request(method.clone(), &full)
+                .request(method.clone(), full.as_str())
                 .bearer_auth(&token);
             if let Some(b) = body {
                 rb = rb.json(b);
