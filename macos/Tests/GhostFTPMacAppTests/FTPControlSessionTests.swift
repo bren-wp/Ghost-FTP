@@ -337,6 +337,27 @@ final class FTPControlSessionTests: XCTestCase {
         }
     }
 
+    func testFTPDownloadSizeRequiresExactRFC3659ASCIIReply() throws {
+        XCTAssertEqual(try FTPControlCodec.expectedDownloadSize(
+            from: FTPReply(code: 213, lines: ["213 0"])
+        ), 0)
+        XCTAssertEqual(try FTPControlCodec.expectedDownloadSize(
+            from: FTPReply(code: 213, lines: ["213 18446744073709551615"])
+        ), UInt64.max)
+        for invalid in [
+            FTPReply(code: 550, lines: ["550 Permission denied"]),
+            FTPReply(code: 213, lines: ["213 -1"]),
+            FTPReply(code: 213, lines: ["213 +2"]),
+            FTPReply(code: 213, lines: ["213 123 trailing"]),
+            FTPReply(code: 213, lines: ["213 "]),
+            FTPReply(code: 213, lines: ["213 18446744073709551616"]),
+            FTPReply(code: 213, lines: ["213 12", "213 34"]),
+            FTPReply(code: 213, lines: ["213 １２３"]),
+        ] {
+            XCTAssertThrowsError(try FTPControlCodec.expectedDownloadSize(from: invalid))
+        }
+    }
+
     func testExtendedPassivePortParsesEPSVReply() throws {
         let reply = FTPReply(
             code: 229,
