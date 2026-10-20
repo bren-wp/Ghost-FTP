@@ -307,7 +307,7 @@ jobs:
           done
 
           if [ "$present" -eq 0 ]; then
-            echo "No signed updater bundle present; manual package release remains valid."
+            echo "No signed updater bundle present; automatically verified Preview package release remains valid."
             exit 0
           fi
 

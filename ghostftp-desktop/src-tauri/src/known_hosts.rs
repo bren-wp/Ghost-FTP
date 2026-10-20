@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 #[cfg(unix)]
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 /// Path to `~/.ssh/known_hosts`. We use OpenSSH's standard location even on
@@ -136,6 +136,46 @@ pub fn append(host: &str, port: u16, key: &PublicKey) -> Result<()> {
     Ok(())
 }
 
+// Refuse symlink and Unix hardlink aliases before mutating the host trust store.
+// A metadata snapshot is also used to detect file replacement between reads.
+fn inspect_known_hosts_for_replace(path: &Path) -> Result<std::fs::Metadata> {
+    let metadata = std::fs::symlink_metadata(path)
+        .with_context(|| format!("inspect SSH known_hosts {}", path.display()))?;
+    anyhow::ensure!(
+        metadata.file_type().is_file(),
+        "SSH known_hosts replacement requires a regular non-symlink file"
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        anyhow::ensure!(
+            metadata.nlink() == 1,
+            "SSH known_hosts replacement refuses multiply linked files"
+        );
+    }
+    Ok(metadata)
+}
+
+fn ensure_unchanged_known_hosts(
+    expected: &std::fs::Metadata,
+    actual: &std::fs::Metadata,
+) -> Result<()> {
+    anyhow::ensure!(
+        expected.len() == actual.len()
+            && expected.modified().ok() == actual.modified().ok(),
+        "SSH known_hosts changed during replacement; retry the connection"
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        anyhow::ensure!(
+            expected.dev() == actual.dev() && expected.ino() == actual.ino(),
+            "SSH known_hosts identity changed during replacement; retry the connection"
+        );
+    }
+    Ok(())
+}
+
 /// Replace every existing entry that matches `host:port` with the newly
 /// trusted key. The rewrite uses a sibling temporary file and a rollback
 /// backup so Windows and Unix both recover the original file if the final
@@ -144,10 +184,27 @@ pub fn append(host: &str, port: u16, key: &PublicKey) -> Result<()> {
 pub fn replace(host: &str, port: u16, key: &PublicKey) -> Result<()> {
     validate_host_key_target(host, port)?;
     let path = known_hosts_path().context("could not resolve ~/.ssh/known_hosts")?;
-    let metadata_before = std::fs::metadata(&path)
-        .with_context(|| format!("reading metadata for {}", path.display()))?;
-    let contents =
-        std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+    let metadata_preflight = inspect_known_hosts_for_replace(&path)?;
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC);
+    }
+    let mut source = options
+        .open(&path)
+        .with_context(|| format!("opening SSH known_hosts {}", path.display()))?;
+    let metadata_before = source.metadata().context("inspect opened SSH known_hosts")?;
+    anyhow::ensure!(
+        metadata_before.file_type().is_file(),
+        "SSH known_hosts source is not a regular file"
+    );
+    ensure_unchanged_known_hosts(&metadata_preflight, &metadata_before)?;
+    let mut contents = String::new();
+    source
+        .read_to_string(&mut contents)
+        .context("reading SSH known_hosts safely")?;
     let recorded_keys = russh::keys::known_hosts::known_host_keys_path(host, port, &path)
         .with_context(|| format!("reading host keys from {}", path.display()))?;
 
@@ -159,13 +216,10 @@ pub fn replace(host: &str, port: u16, key: &PublicKey) -> Result<()> {
 
     // Avoid overwriting a file that another OpenSSH-compatible client changed
     // while Ghost FTP was preparing the replacement.
-    let metadata_after = std::fs::metadata(&path)
-        .with_context(|| format!("rechecking metadata for {}", path.display()))?;
-    if metadata_before.len() != metadata_after.len()
-        || metadata_before.modified().ok() != metadata_after.modified().ok()
-    {
-        anyhow::bail!("known_hosts changed while replacing {host}:{port}; retry the connection");
-    }
+    ensure_unchanged_known_hosts(
+        &metadata_before,
+        &inspect_known_hosts_for_replace(&path)?,
+    )?;
 
     let host_field = if port == 22 {
         host.to_string()
@@ -180,7 +234,7 @@ pub fn replace(host: &str, port: u16, key: &PublicKey) -> Result<()> {
     let rewritten = rewrite_matching_lines(&contents, &matching_lines, &replacement)
         .context("matching known_hosts entry disappeared during replacement")?;
 
-    replace_file_with_rollback(&path, rewritten.as_bytes(), metadata_before.permissions())
+    replace_file_with_rollback(&path, rewritten.as_bytes(), &metadata_before)
 }
 
 fn rewrite_matching_lines(
@@ -209,8 +263,9 @@ fn rewrite_matching_lines(
 fn replace_file_with_rollback(
     path: &Path,
     contents: &[u8],
-    permissions: std::fs::Permissions,
+    expected: &std::fs::Metadata,
 ) -> Result<()> {
+    ensure_unchanged_known_hosts(expected, &inspect_known_hosts_for_replace(path)?)?;
     let parent = path.parent().context("known_hosts path has no parent")?;
     let file_name = path
         .file_name()
@@ -240,7 +295,10 @@ fn replace_file_with_rollback(
     if let Err(error) = (|| -> Result<()> {
         temp.write_all(contents)?;
         temp.sync_all()?;
-        std::fs::set_permissions(&temp_path, permissions)?;
+        temp.set_permissions(expected.permissions())?;
+        // Narrow the path-swap window before moving the original trust file.
+        // Parent directory permissions still define our OS-level trust boundary.
+        ensure_unchanged_known_hosts(expected, &inspect_known_hosts_for_replace(path)?)?;
         std::fs::rename(path, &backup_path).with_context(|| {
             format!(
                 "moving {} to rollback backup {}",
@@ -367,6 +425,73 @@ mod tests {
         symlink(&target, &link).unwrap();
         assert!(open_known_hosts_for_append(&link).is_err());
         assert_eq!(std::fs::read(&target).unwrap(), b"DO NOT TOUCH");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn replacement_refuses_symlink_without_modifying_target() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!(
+            "ghostftp-known-hosts-replace-link-{}", uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let original = root.join("original");
+        let alias = root.join("known_hosts");
+        std::fs::write(&original, b"TRUSTED ORIGINAL").unwrap();
+        symlink(&original, &alias).unwrap();
+        let expected = std::fs::metadata(&original).unwrap();
+        assert!(inspect_known_hosts_for_replace(&alias).is_err());
+        assert!(replace_file_with_rollback(&alias, b"BAD", &expected).is_err());
+        assert_eq!(std::fs::read(&original).unwrap(), b"TRUSTED ORIGINAL");
+        assert!(std::fs::symlink_metadata(&alias).unwrap().file_type().is_symlink());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn replacement_refuses_hardlinks_without_modifying_target() {
+        let root = std::env::temp_dir().join(format!(
+            "ghostftp-known-hosts-replace-hardlink-{}", uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let original = root.join("known_hosts");
+        let alias = root.join("linked");
+        std::fs::write(&original, b"ORIGINAL").unwrap();
+        std::fs::hard_link(&original, &alias).unwrap();
+        let expected = std::fs::metadata(&original).unwrap();
+        assert!(inspect_known_hosts_for_replace(&original).is_err());
+        assert!(replace_file_with_rollback(&original, b"BAD", &expected).is_err());
+        assert_eq!(std::fs::read(&alias).unwrap(), b"ORIGINAL");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn replacement_refuses_changed_file_without_losing_trust_records() {
+        let root = std::env::temp_dir().join(format!(
+            "ghostftp-known-hosts-replace-change-{}", uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("known_hosts");
+        std::fs::write(&path, b"FIRST").unwrap();
+        let expected = inspect_known_hosts_for_replace(&path).unwrap();
+        std::fs::write(&path, b"SECOND AND LONGER").unwrap();
+        assert!(replace_file_with_rollback(&path, b"BAD", &expected).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"SECOND AND LONGER");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn replacement_keeps_normal_file_working() {
+        let root = std::env::temp_dir().join(format!(
+            "ghostftp-known-hosts-replace-valid-{}", uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("known_hosts");
+        std::fs::write(&path, b"ORIGINAL").unwrap();
+        let expected = inspect_known_hosts_for_replace(&path).unwrap();
+        replace_file_with_rollback(&path, b"VALID REPLACEMENT", &expected).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"VALID REPLACEMENT");
         std::fs::remove_dir_all(root).unwrap();
     }
 
