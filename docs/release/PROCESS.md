@@ -14,7 +14,7 @@ Every releasable source version **must use an explicit `preview` or `stable` cha
 2. Make meaningful product/code/documentation changes.
 3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
 4. Keep `previousVersion` pointing to the preceding merged source (currently `0.95.50`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.95.50`). Never call an unpublished merge a canonical release.
-5. Open a PR.
+5. Open a PR only after the preceding `main` version has been publicly released; the PR must set `previousVersion` and `previousPublishedVersion` to the base version. This prevents overlapping merges from skipping an edition.
 6. Require exact-head success for:
    - Ghost FTP quality
    - Ghost FTP protocol E2E

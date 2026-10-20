@@ -55,6 +55,13 @@ jobs:
               BASE_VERSION="0.14.0"
             fi
             CURRENT_VERSION="$(node -p 'require("./version.json").version')"
+            PREVIOUS_SOURCE_VERSION="$(node -p 'require("./version.json").previousVersion || ""')"
+            PREVIOUS_PUBLISHED_VERSION="$(node -p 'require("./version.json").previousPublishedVersion || ""')"
+            if [ "$PREVIOUS_SOURCE_VERSION" != "$BASE_VERSION" ] ||
+               [ "$PREVIOUS_PUBLISHED_VERSION" != "$BASE_VERSION" ]; then
+              echo "::error::The previous main version v$BASE_VERSION must have a published release before the next PR can merge. Ensure previousVersion and previousPublishedVersion equal the base version; wait for its verified automatic release."
+              exit 1
+            fi
             if [ "$CURRENT_VERSION" = "$BASE_VERSION" ]; then
               echo "::error::Every merged change requires a new version. Increment version.json, synchronize all platform metadata and add release notes before merging."
               exit 1

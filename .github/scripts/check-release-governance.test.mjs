@@ -36,6 +36,9 @@ test("every passing main native build can automatically trigger a release", () =
 test("every merge must advance the canonical version before auto-publication", () => {
   const quality = read(".github/workflows/ghostftp-quality.yml");
   assert.ok(quality.includes('BASE_VERSION'));
+  assert.ok(quality.includes('PREVIOUS_SOURCE_VERSION'));
+  assert.ok(quality.includes('PREVIOUS_PUBLISHED_VERSION'));
+  assert.ok(quality.includes('The previous main version'));
   assert.ok(quality.includes('Every merged change requires a new version'));
   assert.ok(quality.includes('--check-next "$BASE_VERSION"'));
   assert.ok(read("docs/release/PROCESS.md").includes("new version"));
