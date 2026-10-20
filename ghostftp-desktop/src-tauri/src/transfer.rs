@@ -613,16 +613,20 @@ fn safe_upload_name(name: &str) -> bool {
 /// Apply the same conservative policy on Linux for portable downloads.
 fn safe_local_download_leaf(name: &str) -> bool {
     if !safe_upload_name(name)
-        || name.ends_with('.') || name.ends_with(' ')
-        || name.chars().any(|ch| {
-            ch.is_control() || matches!(ch, ':' | '*' | '?' | '"' | '<' | '>' | '|')
-        })
+        || name.ends_with('.')
+        || name.ends_with(' ')
+        || name
+            .chars()
+            .any(|ch| ch.is_control() || matches!(ch, ':' | '*' | '?' | '"' | '<' | '>' | '|'))
     {
         return false;
     }
     let stem = name.split('.').next().unwrap_or("");
     let upper = stem.to_ascii_uppercase();
-    if matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$") {
+    if matches!(
+        upper.as_str(),
+        "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
+    ) {
         return false;
     }
     let mut chars = upper.chars();
@@ -630,9 +634,10 @@ fn safe_local_download_leaf(name: &str) -> bool {
     let suffix = chars.collect::<String>();
     if matches!(prefix.as_str(), "COM" | "LPT")
         && suffix.chars().count() == 1
-        && suffix.chars().next().is_some_and(|digit| {
-            matches!(digit, '1'..='9' | '¹' | '²' | '³')
-        })
+        && suffix
+            .chars()
+            .next()
+            .is_some_and(|digit| matches!(digit, '1'..='9' | '¹' | '²' | '³'))
     {
         return false;
     }
@@ -5795,19 +5800,44 @@ mod tests {
     #[test]
     fn adversarial_remote_filenames_cannot_create_windows_devices_or_ads() {
         for name in [
-            "CON", "con.txt", "NUL.log", "LPT1", "COM9.txt", "COM¹.txt",
-            "CONIN$", "report.txt:payload", "example.", "example ",
-            "sub/path", "folder\\file", "file\nnext", "file\u{0001}suffix",
-            "photo?.jpg", "invoice|2026.pdf",
+            "CON",
+            "con.txt",
+            "NUL.log",
+            "LPT1",
+            "COM9.txt",
+            "COM¹.txt",
+            "CONIN$",
+            "report.txt:payload",
+            "example.",
+            "example ",
+            "sub/path",
+            "folder\\file",
+            "file\nnext",
+            "file\u{0001}suffix",
+            "photo?.jpg",
+            "invoice|2026.pdf",
         ] {
-            assert!(!safe_local_download_leaf(name), "unsafe filename accepted: {name:?}");
             assert!(
-                checked_remote_download_relative("/downloads", &format!("/downloads/{name}")).is_err(),
+                !safe_local_download_leaf(name),
+                "unsafe filename accepted: {name:?}"
+            );
+            assert!(
+                checked_remote_download_relative("/downloads", &format!("/downloads/{name}"))
+                    .is_err(),
                 "unsafe recursive download accepted: {name:?}"
             );
         }
-        for name in ["report.txt", "račun 2026.pdf", ".env", "COM10.txt", "convention.md"] {
-            assert!(safe_local_download_leaf(name), "valid filename rejected: {name:?}");
+        for name in [
+            "report.txt",
+            "račun 2026.pdf",
+            ".env",
+            "COM10.txt",
+            "convention.md",
+        ] {
+            assert!(
+                safe_local_download_leaf(name),
+                "valid filename rejected: {name:?}"
+            );
         }
     }
 
