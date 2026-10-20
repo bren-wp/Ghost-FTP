@@ -1,0 +1,36 @@
+name: Retain latest ten Ghost FTP releases
+
+# A completed, verified main release (not a failed build) starts owner-requested
+# historical release/tag cleanup. Do not touch any public assets if the new
+# release or the earlier v0.95.51 recovery is incomplete.
+on:
+  workflow_run:
+    workflows: ["Ghost FTP release"]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: ghostftp-release-retention
+  cancel-in-progress: false
+
+jobs:
+  retain-latest-ten:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.repository == 'bren-wp/Ghost-FTP' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Keep exactly ten verified releases and delete older matching tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GHOSTFTP_RELEASE_RETENTION_CONFIRM: KEEP_10
+        shell: bash
+        run: bash .github/scripts/prune-release-history-keep10.sh

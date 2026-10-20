@@ -31,6 +31,10 @@ test("every passing main native build can automatically trigger a release", () =
   assert.ok(workflow.includes('wait_for_gate "ghostftp-android.yml"'));
   assert.ok(workflow.includes('wait_for_gate "validate-win-hardening.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-macos.yml"'));
+  assert.ok(workflow.includes("RECOVERY_STATE"));
+  assert.ok(workflow.includes("false:true:21"));
+  assert.ok(workflow.includes("Refusing v0.95.52 while v0.95.51"));
+
 });
 
 test("every merge must advance the canonical version before auto-publication", () => {
@@ -43,14 +47,17 @@ test("every merge must advance the canonical version before auto-publication", (
   assert.ok(quality.includes('--check-next "$BASE_VERSION"'));
   assert.ok(read("docs/release/PROCESS.md").includes("new version"));
 });
-test("public release occurs only after complete uploaded asset verification", () => {
+test("public release follows draft-ID upload, inventory and remote SHA256 verification", () => {
   const script = read(".github/scripts/publish-release.sh");
-  const draft = script.indexOf("gh release create");
-  const upload = script.indexOf('gh release upload "$TAG"');
+  const create = script.indexOf('gh api --method POST "repos/$GITHUB_REPOSITORY/releases"');
+  const upload = script.indexOf("https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets");
   const verify = script.indexOf('test "$REMOTE_COUNT" = "$LOCAL_COUNT"');
-  const publish = script.indexOf('gh release edit "$TAG" --draft=false --prerelease');
-  assert.ok(draft >= 0 && draft < upload && upload < verify && verify < publish);
-  assert.ok(script.includes("--prerelease --draft"));
+  const publish = script.indexOf('gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID"');
+  assert.ok(create >= 0 && create < upload && upload < verify && verify < publish);
+  assert.ok(script.includes("draft:true,prerelease:true"));
+  assert.ok(script.includes("draft:false,prerelease:true"));
   assert.ok(script.includes("Published $TAG already exists; refusing to overwrite"));
-  assert.ok(script.includes("'.prerelease'"));
+  assert.ok(script.includes("Remote SHA256 mismatch"));
+  assert.ok(!script.includes('gh release upload "$TAG"'));
+  assert.ok(!script.includes('releases/tags/$TAG'));
 });

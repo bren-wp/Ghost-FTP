@@ -119,6 +119,27 @@ jobs:
           wait_for_gate "validate-win-hardening.yml" "Windows hardening"
           wait_for_gate "ghostftp-macos.yml" "macOS preview"
 
+          # The known empty v0.95.51 public release must be repaired from
+          # its exact-source CI artifacts before a successor can publish.
+          # Do not approve a version sequence containing an empty prior edition.
+          if [ "$VERSION" = "0.95.52" ]; then
+            RECOVERED=false
+            for attempt in $(seq 1 90); do
+              RECOVERY_STATE="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v0.95.51" \
+                --jq '(.draft|tostring)+":"+(.prerelease|tostring)+":"+(.assets|length|tostring)' 2>/dev/null || true)"
+              if [ "$RECOVERY_STATE" = "false:true:21" ]; then
+                RECOVERED=true
+                break
+              fi
+              echo "::notice::Waiting for verified v0.95.51 recovery ($attempt/90): $RECOVERY_STATE"
+              sleep 30
+            done
+            test "$RECOVERED" = true || {
+              echo "::error::Refusing v0.95.52 while v0.95.51 is empty, unsigned-as-final or in repair."
+              exit 1
+            }
+          fi
+
           # A merged source version is not necessarily a published release.
           # Verify the actual latest canonical public release instead of waiting
           # for a tag which does not exist (0.30.11/0.30.12 were not published).

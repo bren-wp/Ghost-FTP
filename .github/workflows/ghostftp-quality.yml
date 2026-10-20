@@ -133,7 +133,17 @@ jobs:
           test -n "$CAPTURE_VERSION"
           CAPTURE_TAG="v$CAPTURE_VERSION"
           if [ "$CAPTURE_TAG" != "$LATEST_TAG" ]; then
-            git fetch --force origin "refs/tags/$CAPTURE_TAG:refs/tags/$CAPTURE_TAG" --depth=1
+            if git ls-remote --exit-code origin "refs/tags/$CAPTURE_TAG" >/dev/null 2>&1; then
+              git fetch --force origin "refs/tags/$CAPTURE_TAG:refs/tags/$CAPTURE_TAG" --depth=1
+            else
+              # After owner-authorized last-ten release retention the immutable
+              # CI source commit remains the provenance anchor for verified
+              # native v0.95.51 screenshots, even if its release tag ages out.
+              test "$CAPTURE_VERSION" = "0.95.51"
+              CAPTURE_SHA="$(node -p 'require("./docs/assets/screenshots/README-NATIVE-CAPTURE.json").capture_source_sha')"
+              test "$CAPTURE_SHA" = "1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f"
+              git fetch origin "$CAPTURE_SHA" --depth=1
+            fi
           fi
           GHOSTFTP_LATEST_RELEASE_TAG="$LATEST_TAG" node .github/scripts/check-release-images.mjs
 

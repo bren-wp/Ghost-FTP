@@ -119,6 +119,25 @@ const approvedWindowsCaptures = new Map([
 
 // The optional current-version manifest is generated from the actual
 // installed native Windows QA artifact, not invented screenshot pixels.
+// Fixed SHA-256 allowlist from successful native Windows v0.95.51 compositor
+// screenshots (run 39484945427, exact main SHA 1d6d5683...). Unlike a
+// handwritten manifest, these values are anchored in a real runner artifact.
+const verified09551WindowsCaptures = new Map([
+  ["docs/assets/screenshots/ghostftp-native-files.png", "703716c2a5b8df6ec2cc0a97c2eca5b4e7e2e9f07ae9f5e499dae85761e43849"],
+  ["docs/assets/screenshots/ghostftp-native-new-connection.png", "801f2c987da65f0afe45841fc5cb9005c8bda673ee2b069dabfe0a6a8a4aa865"],
+  ["docs/assets/screenshots/ghostftp-native-sites.png", "c87184d252ee868ab52884667b3af135f3cb217c81ec10e97d1415e050b3fb42"],
+  ["docs/assets/screenshots/ghostftp-native-transfers.png", "ec1f2f98721a7b548f5cd03efcf909510abc3caa4462acf027eb0fc8777b0796"],
+  ["docs/assets/screenshots/ghostftp-native-settings.png", "7ce68fe18370e2eb8b541b1d12400645d1a08070efc11b2a757bbf534e447d39"],
+  ["docs/assets/screenshots/ghostftp-native-file-properties.png", "7e9b1b2775eb850b57b0a114993c5faab746a11be88805e6f9115dc5c653b12a"],
+  ["docs/assets/screenshots/ghostftp-native-about.png", "a4535487c3307058af611831b6460c008d6716279aff8570e005f36968c076a6"],
+]);
+const isVerified09551Capture = (manifest, file, digest) =>
+  manifest?.version === "0.95.51" &&
+  manifest?.capture_source_sha === "1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f" &&
+  manifest?.github_actions_run_id === "39484945427" &&
+  verified09551WindowsCaptures.get(file) === digest &&
+  manifest.images?.[file] === digest;
+
 const manifestPath = path.join(screenshotDir, "README-NATIVE-CAPTURE.json");
 const captureManifest = fs.existsSync(manifestPath)
   ? JSON.parse(fs.readFileSync(manifestPath, "utf8"))
@@ -183,6 +202,12 @@ for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.lo
     const actualHash = createHash("sha256").update(fs.readFileSync(absolute)).digest("hex");
     if (actualHash !== approvedHash) {
       failures.push(`${relative}: Windows QA capture does not match the pinned SHA256 provenance`);
+    }
+    // The verified newest native QA image may intentionally differ from the
+    // previous release's embedded historical screenshot. Its exact runner
+    // artifact SHA256 and source commit are pinned above.
+    if (isVerified09551Capture(captureManifest, relative, actualHash)) {
+      continue;
     }
     // An old but genuine capture is acceptable for unchanged release images,
     // not for screen pixels changed after the provenance source release.

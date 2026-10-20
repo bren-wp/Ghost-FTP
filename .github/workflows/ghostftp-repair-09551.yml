@@ -1,0 +1,33 @@
+name: Repair v0.95.51 incomplete release (one-time)
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: ghostftp-one-time-release-09551
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.repository == 'bren-wp/Ghost-FTP' && github.event.before == '1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: 1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f
+          path: legacy
+          fetch-depth: 1
+      - name: Recover original artifacts without retagging
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node -p 'require("./version.json").version')" = "0.95.52"
+          bash .github/scripts/repair-release-09551.sh

@@ -20,6 +20,8 @@ enum FTPControlError: LocalizedError {
     case localFileFailure(String)
     case destinationAlreadyExists
     case unsafeLocalDestination
+    case unsafeLocalUploadSource
+    case uploadSourceChanged
 
     var errorDescription: String? {
         switch self {
@@ -57,6 +59,10 @@ enum FTPControlError: LocalizedError {
             return "A file already exists at the download destination. Choose another name or confirm replacement."
         case .unsafeLocalDestination:
             return "The download destination is not a regular file. Ghost FTP will not replace links or folders."
+        case .unsafeLocalUploadSource:
+            return "Upload source is not a regular file, or it changed while being opened."
+        case .uploadSourceChanged:
+            return "The selected local file changed while uploading. The transfer cannot be marked successful."
         }
     }
 
@@ -515,6 +521,57 @@ enum PrivateDownloadStaging {
     }
 }
 
+// Never open an upload through a symlink or special filesystem node. Match
+// the opened file descriptor to the original lstat result to close the swap
+// window. Recheck size and modification identity before confirming success.
+enum PrivateUploadSource {
+    static func openRegularFile(at url: URL) throws -> (handle: FileHandle, snapshot: stat) {
+        var pathInfo = stat()
+        let pathResult = url.withUnsafeFileSystemRepresentation { path -> Int32 in
+            guard let path else { return -1 }
+            return Darwin.lstat(path, &pathInfo)
+        }
+        guard pathResult == 0, (pathInfo.st_mode & mode_t(S_IFMT)) == mode_t(S_IFREG) else {
+            throw FTPControlError.unsafeLocalUploadSource
+        }
+        let fd = url.withUnsafeFileSystemRepresentation { path -> Int32 in
+            guard let path else { return -1 }
+            return Darwin.open(path, O_RDONLY | O_NOFOLLOW)
+        }
+        guard fd >= 0 else { throw FTPControlError.unsafeLocalUploadSource }
+        var opened = stat()
+        guard Darwin.fstat(fd, &opened) == 0,
+              (opened.st_mode & mode_t(S_IFMT)) == mode_t(S_IFREG),
+              opened.st_dev == pathInfo.st_dev,
+              opened.st_ino == pathInfo.st_ino,
+              opened.st_size >= 0 else {
+            _ = Darwin.close(fd)
+            throw FTPControlError.unsafeLocalUploadSource
+        }
+        return (FileHandle(fileDescriptor: fd, closeOnDealloc: true), opened)
+    }
+
+    static func verifyUnchanged(
+        _ handle: FileHandle,
+        original: stat,
+        transmitted: UInt64
+    ) throws {
+        var current = stat()
+        guard Darwin.fstat(handle.fileDescriptor, &current) == 0,
+              current.st_dev == original.st_dev,
+              current.st_ino == original.st_ino,
+              current.st_size == original.st_size,
+              current.st_mtimespec.tv_sec == original.st_mtimespec.tv_sec,
+              current.st_mtimespec.tv_nsec == original.st_mtimespec.tv_nsec,
+              current.st_ctimespec.tv_sec == original.st_ctimespec.tv_sec,
+              current.st_ctimespec.tv_nsec == original.st_ctimespec.tv_nsec,
+              original.st_size >= 0,
+              transmitted == UInt64(original.st_size) else {
+            throw FTPControlError.uploadSourceChanged
+        }
+    }
+}
+
 private final class OneShotGate: @unchecked Sendable {
     private let lock = NSLock()
     private var claimed = false
@@ -730,12 +787,7 @@ actor FTPControlSession {
     ) async throws {
         try FTPControlCodec.validateRemoteFileName(remoteName)
 
-        let handle: FileHandle
-        do {
-            handle = try FileHandle(forReadingFrom: localURL)
-        } catch {
-            throw FTPControlError.localFileFailure(error.localizedDescription)
-        }
+        let (handle, original) = try PrivateUploadSource.openRegularFile(at: localURL)
         defer { try? handle.close() }
 
         let dataConnection = try await openPassiveDataConnection(timeoutSeconds: timeoutSeconds)
@@ -751,17 +803,24 @@ actor FTPControlSession {
                 description: "125 or 150 upload start"
             )
 
+            var transmitted: UInt64 = 0
             while true {
                 try Task.checkCancellation()
                 guard let chunk = try handle.read(upToCount: 64 * 1024), !chunk.isEmpty else {
                     break
+                }
+                let (next, overflow) = transmitted.addingReportingOverflow(UInt64(chunk.count))
+                guard !overflow, next <= UInt64(original.st_size) else {
+                    throw FTPControlError.uploadSourceChanged
                 }
                 try await sendData(
                     chunk,
                     through: dataConnection,
                     timeoutSeconds: timeoutSeconds
                 )
+                transmitted = next
             }
+            try PrivateUploadSource.verifyUnchanged(handle, original: original, transmitted: transmitted)
 
             try await finishSending(
                 dataConnection,
@@ -773,6 +832,12 @@ actor FTPControlSession {
                 completion,
                 accepted: [226, 250],
                 description: "226 or 250 upload complete"
+            )
+            // A file may be replaced or truncated while waiting for the FTP
+            // server's completion reply. Never report a verified upload in
+            // that case even when the remote endpoint returned 226.
+            try PrivateUploadSource.verifyUnchanged(
+                handle, original: original, transmitted: transmitted
             )
             dataConnection.cancel()
         } catch {
