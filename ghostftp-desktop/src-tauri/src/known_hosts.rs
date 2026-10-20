@@ -86,11 +86,17 @@ fn open_known_hosts_for_append(path: &Path) -> Result<std::fs::File> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600).custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC);
+        options
+            .mode(0o600)
+            .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC);
     }
-    let file = options.open(path).context("open known_hosts without following links")?;
+    let file = options
+        .open(path)
+        .context("open known_hosts without following links")?;
     anyhow::ensure!(
-        file.metadata().context("inspect opened known_hosts")?.is_file(),
+        file.metadata()
+            .context("inspect opened known_hosts")?
+            .is_file(),
         "known_hosts is not a regular file"
     );
     Ok(file)
@@ -124,7 +130,8 @@ pub fn append(host: &str, port: u16, key: &PublicKey) -> Result<()> {
     );
 
     let mut file = open_known_hosts_for_append(&path)?;
-    file.write_all(line.as_bytes()).context("append trusted SSH host key")?;
+    file.write_all(line.as_bytes())
+        .context("append trusted SSH host key")?;
     file.sync_all().context("sync SSH known_hosts update")?;
     Ok(())
 }
@@ -350,7 +357,8 @@ mod tests {
     fn known_hosts_append_rejects_symlink_without_modifying_target() {
         use std::os::unix::fs::symlink;
         let root = std::env::temp_dir().join(format!(
-            "ghostftp-known-hosts-test-{}", uuid::Uuid::new_v4()
+            "ghostftp-known-hosts-test-{}",
+            uuid::Uuid::new_v4()
         ));
         std::fs::create_dir(&root).unwrap();
         let target = root.join("unrelated-secret");
