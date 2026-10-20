@@ -16,8 +16,21 @@ test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$LATEST_TAG" --jq '.object
 # Refuse deletion until the previously broken release is repaired and Preview.
 REPAIRED="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v0.95.51")"
 test "$(jq -r '.draft' <<< "$REPAIRED")" = false
-test "$(jq -r '.prerelease' <<< "$REPAIRED")" = true
 test "$(jq -r '.assets | length' <<< "$REPAIRED")" -eq 21
+test "$(jq -r '.tag_name' <<< "$REPAIRED")" = "v0.95.51"
+test "$(jq -r '.target_commitish' <<< "$REPAIRED")" = "1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f"
+test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v0.95.51" --jq '.object.sha')" = "1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f"
+test "$(jq -r '[.assets[] | select(.name == "GhostFTP-v0.95.51-SHA256SUMS.txt" and (.digest|startswith("sha256:")))] | length' <<< "$REPAIRED")" -eq 1
+
+# The one-shot recovery correctly restored all 21 original source-pinned files
+# but GitHub subsequently reset the old release's prerelease flag to false.
+# Only the metadata may be corrected: never overwrite original asset bytes.
+if [ "$(jq -r '.prerelease' <<< "$REPAIRED")" != true ]; then
+  echo "::warning::Repairing legacy v0.95.51 preview classification only."
+  jq -n '{prerelease:true}' |
+    gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/418806377" --input - >/dev/null
+fi
+test "$(gh api "repos/$GITHUB_REPOSITORY/releases/418806377" --jq '.prerelease')" = true
 # A protected screenshot manifest must cite actual native Windows QA, not a
 # historical tag whose removal would break README or source build checks.
 test "$(node -p 'require("./docs/assets/screenshots/README-NATIVE-CAPTURE.json").version')" = "0.95.51"
@@ -44,6 +57,16 @@ while IFS= read -r item; do
   test "$(jq -r --arg expected "GhostFTP-v$version-SHA256SUMS.txt" \
      '[.assets[].name | select(. == $expected)] | length' <<< "$item")" -eq 1
   test -n "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')"
+  # All retained packages contain unsigned Android payloads and unsigned or
+  # ad-hoc-signed desktop previews. Never present them as production stable.
+  if [ "$(jq -r '.prerelease' <<< "$item")" != true ]; then
+    id="$(jq -r '.id' <<< "$item")"
+    test "$id" -gt 0
+    echo "Correcting Preview metadata for legacy retained $tag."
+    jq -n '{prerelease:true}' |
+      gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$id" --input - >/dev/null
+    test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$id" --jq '.prerelease')" = true
+  fi
 done < <(jq -c '.[]' <<< "$KEEP")
 
 echo "Verified complete public releases. Retaining: $(jq -r '[.[].tag_name] | join(", ")' <<< "$KEEP")"
