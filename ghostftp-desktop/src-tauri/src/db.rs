@@ -907,7 +907,8 @@ mod tests {
     #[test]
     fn snapshot_never_deletes_existing_backup_or_symlink() {
         let dir = std::env::temp_dir().join(format!(
-            "ghostftp-snapshot-preserve-{}", uuid::Uuid::new_v4()
+            "ghostftp-snapshot-preserve-{}",
+            uuid::Uuid::new_v4()
         ));
         std::fs::create_dir(&dir).unwrap();
         let db = Db::open(&dir.join("live.db")).unwrap();
@@ -925,17 +926,22 @@ mod tests {
             symlink(&existing, &link).unwrap();
             assert!(db.snapshot_to(&link).is_err());
             assert_eq!(std::fs::read(&existing).unwrap(), b"PREVIOUS_VALID_BACKUP");
-            assert!(std::fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+            assert!(std::fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink());
         }
 
         let fresh = dir.join("fresh.db");
         db.snapshot_to(&fresh).unwrap();
         let snapshot = rusqlite::Connection::open(&fresh).unwrap();
-        let saved: String = snapshot.query_row(
-            "SELECT value FROM settings WHERE key = 'snapshot_test'",
-            [],
-            |row| row.get(0),
-        ).unwrap();
+        let saved: String = snapshot
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'snapshot_test'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(saved, "\"kept\"");
         drop(snapshot);
         drop(db);
