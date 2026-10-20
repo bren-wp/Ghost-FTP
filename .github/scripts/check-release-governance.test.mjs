@@ -61,3 +61,20 @@ test("public release follows draft-ID upload, inventory and remote SHA256 verifi
   assert.ok(!script.includes('gh release upload "$TAG"'));
   assert.ok(!script.includes('releases/tags/$TAG'));
 });
+
+test("owner-authorized latest-ten cleanup fails closed on unsigned-release metadata and preserves ten tags", () => {
+  const workflow = read(".github/workflows/ghostftp-release-retention.yml");
+  const prune = read(".github/scripts/prune-release-history-keep10.sh");
+  assert.ok(workflow.includes('workflows: ["Ghost FTP release"]'));
+  assert.ok(workflow.includes("github.event.workflow_run.conclusion == 'success'"));
+  assert.ok(prune.includes('GHOSTFTP_RELEASE_RETENTION_CONFIRM'));
+  assert.ok(prune.includes('CURRENT_MAIN_SHA'));
+  assert.ok(prune.includes('test "$(jq -r \'.assets | length\' <<< "$LATEST")" -ge 21'));
+  assert.ok(prune.includes('sort_by(.tag_name | ltrimstr("v") | split(".") | map(tonumber))'));
+  assert.ok(prune.includes("'.prerelease'"));
+  assert.ok(prune.includes("418806377"));
+  assert.ok(prune.includes('.[0:10]'));
+  assert.ok(prune.includes('.[10:]'));
+  assert.ok(prune.includes('test "$asset_count" -ge 20'));
+  assert.ok(prune.includes('gh release delete "$tag" --yes --cleanup-tag'));
+});
