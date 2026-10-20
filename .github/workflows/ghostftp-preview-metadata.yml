@@ -1,0 +1,35 @@
+name: Enforce immutable Ghost FTP Preview release metadata
+# Correct post-publication Preview classification only; no deletion anywhere.
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ["Ghost FTP release"]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: ghostftp-preview-release-metadata
+  cancel-in-progress: false
+
+jobs:
+  metadata:
+    if: ${{ github.repository == 'bren-wp/Ghost-FTP' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository)) }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Verify and correct Preview classification without modifying release assets or tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GHOSTFTP_METADATA_EVENT: ${{ github.event_name == 'workflow_run' && 'successful-release' || 'push' }}
+          GHOSTFTP_PUBLISHED_SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: bash .github/scripts/enforce-preview-release-metadata.sh
