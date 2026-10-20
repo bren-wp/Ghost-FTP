@@ -111,7 +111,10 @@ impl RemoteFs for OneDriveFs {
         let mut next = children_ref(path);
         let mut visited = std::collections::HashSet::new();
         loop {
-            anyhow::ensure!(visited.len() < 1_000, "OneDrive pagination exceeded 1000 pages");
+            anyhow::ensure!(
+                visited.len() < 1_000,
+                "OneDrive pagination exceeded 1000 pages"
+            );
             anyhow::ensure!(
                 visited.insert(next.clone()),
                 "OneDrive pagination repeated a previous nextLink"
