@@ -25,7 +25,7 @@ export function validateVersionTrain(previous, next) {
   if (previous === "0.30.21") {
     valid = next === "0.90.0";
   } else if (previous === "0.95.53") {
-    valid = next === "0.99.0" || patchFix || minorFeature;
+    valid = next === "0.99.0";
   } else if (major === 0 && minor >= 90 && minor < 99) {
     valid = patchFix || minorFeature;
   } else if (major === 0 && minor === 99) {
