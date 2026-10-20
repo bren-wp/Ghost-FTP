@@ -16,7 +16,7 @@
 1. **Source consistency:** root `version.json` and platform package versions agree; never rewrite published tags.
 2. **Six CI workflows, exact PR SHA:** quality; protocol E2E; native Windows/Linux build; Android; macOS; Windows hardening. Each must conclude success for the *same* latest head commit, not an earlier PR commit.
 3. **Merge:** only after all six PR gates succeed and independent code/security review. Confirm the merged `main` SHA and rerun equivalent gates on that SHA.
-4. **Release:** require manually dispatched `ghostftp-release.yml` Preview promotion after gating. Verify SHA-256, sizes, source SHA provenance and actual presence of NSIS EXE, MSI, Linux AppImage/DEB/RPM, Android unsigned APK, Android unsigned AAB, Android installable preview APK and labeled macOS Preview where the pipeline supports it.
+4. **Release:** require automatically triggered `ghostftp-release.yml` Preview promotion after exact-SHA gates. Verify SHA-256, sizes, source SHA provenance and actual presence of NSIS EXE, MSI, Linux AppImage/DEB/RPM, Android unsigned APK, Android unsigned AAB, Android installable preview APK and labeled macOS Preview where the pipeline supports it.
 5. **Signing distinction:** a CI-preview Android signing identity does **not** represent persistent production signing. Unsigned APK/AAB cannot be represented as ordinary production-installable packages. macOS Preview is not a notarized end-user product.
 6. **Transfer integrity:** test interrupted upload/download, cancellation, conflict, empty/large/Unicode objects, TLS error, expired link and safe staging on real servers/providers.
 7. **Privacy review:** token/credential/signed URL data flow audited, no secret-containing exception paths, no unrequested diagnostics/telemetry.
@@ -37,4 +37,4 @@ Use the PR [#125](https://github.com/bren-wp/Ghost-FTP/pull/125), the six workfl
 ## 20 October 2026 governance finding
 
 - Public v0.95.50 has draft=false, prerelease=false despite unsigned Android production APK/AAB, an installable Android Preview APK and a macOS Preview archive. No stable certification follows.
-- Version 0.95.51 is a release-governance change only. Android Play signing and upgrade validation, macOS FTPS/SFTP and notarization, Windows production signing and full device QA remain blocked.
+- Version 0.95.51 is an automatic gated Preview release-governance change only. Android Play signing and upgrade validation, macOS FTPS/SFTP and notarization, Windows production signing and full device QA remain blocked.

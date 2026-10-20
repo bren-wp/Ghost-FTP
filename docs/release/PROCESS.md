@@ -24,7 +24,7 @@ Every releasable source version **must use an explicit `preview` or `stable` cha
    - Ghost FTP macOS (development Preview gate)
 7. Read and fix concrete workflow logs if any gate fails.
 8. Merge only the tested source.
-9. On current main, after independent acceptance and exact-SHA CI, manually dispatch **Ghost FTP release** with publish_preview enabled. Builds do not automatically publish.
+9. After a merge to `main`, the successful **Ghost FTP native build** automatically triggers **Ghost FTP release**, provided every exact-SHA gate passes. No manual dispatch is required.
 10. The release job waits for the remaining exact-SHA gates and requires the actual latest public release to match `previousPublishedVersion` pointing to the latest verified public GitHub Release (`0.95.50`). Never call an unpublished merge a canonical release.
 11. Package normalized Windows/Linux/Android/source/documentation/native-QA assets and SHA-256 checksums from the verified source SHA.
 12. Publish `v<version>` at that exact source SHA and verify uploaded asset digests/count.
@@ -71,7 +71,7 @@ When in-app updater signing is enabled, publication requires all four updater as
 
 The release workflow and final publication script fail closed if this optional updater set is partial or inconsistent. The manifest is validated for the exact version, and the copy packaged inside Update-Service must match the separately published manifest byte-for-byte.
 
-If no updater signatures are present, manually approved Preview releases may publish labeled development packages, checksums and QA evidence. In that mode no updater manifest or Update-Service bundle is emitted.
+If no updater signatures are present, automatically triggered Preview releases may publish labeled development packages, checksums and QA evidence after the exact-SHA gates. In that mode no updater manifest or Update-Service bundle is emitted.
 
 ### Source/documentation
 
@@ -107,10 +107,11 @@ Do not label an artifact FINAL until evidence exists for required installer life
 
 Blocked gates are BLOCKED, not PASS.
 
-## Explicit Preview promotion (0.95.51 onward)
+## Automatic Preview promotion (0.95.51 onward)
 
-1. Review current main SHA, all six exact-SHA CI gates and independently required installer/device QA.
-2. Manually run GitHub Actions > Ghost FTP release on main with publish_preview enabled.
-3. Artifacts are staged in a draft release. Upload, SHA-256, remote digest, asset inventory and source SHA must be verified before prerelease publication.
-4. Failed promotion remains a draft; public release assets and version tags must not be overwritten.
-5. Stable promotion remains blocked until production signing, notarization and full target-platform QA are demonstrated.
+1. Every merged change requires a **new version** in `version.json`, synchronized desktop/Android/macOS/Go metadata and matching release notes. CI rejects unchanged versions on PRs.
+2. Merging the tested PR to `main` runs all platform CI workflows. A successful native build automatically starts release promotion (not PR or fork builds).
+3. Release promotion checks that the triggering build matches the latest native build and current `main` SHA, then waits for the five remaining exact-SHA gates.
+4. Assets are staged in a draft release. Upload, SHA-256, remote digests, asset inventory and source SHA must all verify before publication as **Preview prerelease**.
+5. Failed promotion stays unpublished; public release assets and existing tags cannot be overwritten. A failed check must be fixed with a new tested version.
+6. Stable promotion remains disabled until mandatory signing, notarization and full target-platform QA are proven.

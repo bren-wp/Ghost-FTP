@@ -44,23 +44,26 @@ for (const rel of [
   }
 }
 
-// Publishing is explicit and limited to the currently checked main SHA.
+// Publishing is automatic ONLY from a successful main push native build.
 const releaseWorkflow = fs.readFileSync(
   path.join(workflowDir, "ghostftp-release.yml"), "utf8"
 );
-if (!releaseWorkflow.includes("  workflow_dispatch:") ||
-    releaseWorkflow.includes("  workflow_run:") ||
-    !releaseWorkflow.includes("inputs.publish_preview == true")) {
-  failures.push("Release must require manually approved Preview dispatch");
+if (!releaseWorkflow.includes("  workflow_run:") ||
+    !releaseWorkflow.includes('workflows: ["Ghost FTP native build"]') ||
+    releaseWorkflow.includes("  workflow_dispatch:") ||
+    !releaseWorkflow.includes("github.event.workflow_run.event == 'push'")) {
+  failures.push("Automatic release trigger must require completed native builds on main pushes");
 }
-if (!releaseWorkflow.includes("  group: ghostftp-release-${{ github.ref }}") ||
+if (!releaseWorkflow.includes("  group: ghostftp-release-${{ github.event.workflow_run.head_branch }}") ||
     !/^  cancel-in-progress: false$/m.test(releaseWorkflow)) {
-  failures.push("Concurrent release promotions must not cancel one another");
+  failures.push("PR events must not cancel active main release promotions");
 }
-if (!releaseWorkflow.includes("github.ref == 'refs/heads/main'") ||
+if (!releaseWorkflow.includes("github.event.workflow_run.head_branch == 'main'") ||
+    !releaseWorkflow.includes("github.event.workflow_run.head_repository.full_name == github.repository") ||
     !releaseWorkflow.includes("CURRENT_MAIN_SHA") ||
+    !releaseWorkflow.includes("TRIGGER_RUN_ID") ||
     !releaseWorkflow.includes("ghostftp-build.yml")) {
-  failures.push("Manual promotion must require current main and verified native build");
+  failures.push("Auto-promotion must authenticate origin, current main SHA and successful exact-SHA native build");
 }
 
 const viteConfig = fs.readFileSync(

@@ -162,15 +162,15 @@ for (const obsolete of [
 
 requireIncludes(
   ".github/workflows/ghostftp-release.yml",
-  'workflow_dispatch:',
-  "manual release promotion trigger",
+  'workflows: ["Ghost FTP native build"]',
+  "automatic native build release trigger",
 );
 requireIncludes(
   ".github/workflows/ghostftp-release.yml",
   "gh run list --workflow ghostftp-build.yml",
   "newest exact-SHA native-build selector",
 );
-requireIncludes(".github/workflows/ghostftp-release.yml", "publish_preview:", "explicit manual release authorization");
+requireIncludes(".github/workflows/ghostftp-release.yml", "github.event.workflow_run.head_branch == 'main'", "release main branch restriction");
 
 
 /*

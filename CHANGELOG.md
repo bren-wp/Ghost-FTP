@@ -1,6 +1,6 @@
-## 0.95.51 — Manual Preview promotion and integrity (UNRELEASED Preview) — 20 October 2026
+## 0.95.51 — Automatic gated Preview promotion and integrity (UNRELEASED Preview) — 20 October 2026
 
-- Require explicit workflow dispatch on current main SHA and successful exact-SHA checks; development builds no longer auto-publish.
+- Automatically publish a new Preview prerelease after each versioned merge to main only when all exact-SHA CI gates pass; reject PRs without version bumps.
 - Stage GitHub Releases as drafts and verify upload SHA-256, all remote digests, asset inventory and source SHA before public Preview status.
 - Preserve public releases and published tags. Document the v0.95.50 metadata mismatch with Preview/unsigned assets.
 - Stable release remains blocked by platform signing, notarization and real-device acceptance.

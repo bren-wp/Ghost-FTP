@@ -54,6 +54,11 @@ jobs:
             else
               BASE_VERSION="0.14.0"
             fi
+            CURRENT_VERSION="$(node -p 'require("./version.json").version')"
+            if [ "$CURRENT_VERSION" = "$BASE_VERSION" ]; then
+              echo "::error::Every merged change requires a new version. Increment version.json, synchronize all platform metadata and add release notes before merging."
+              exit 1
+            fi
             node .github/scripts/sync-version.mjs --check-next "$BASE_VERSION"
           fi
 
