@@ -35,7 +35,10 @@ impl RemoteFs for GDriveFs {
         let mut page_token: Option<String> = None;
         let mut visited = std::collections::HashSet::new();
         loop {
-            anyhow::ensure!(visited.len() < 1_000, "Google Drive pagination exceeded 1000 pages");
+            anyhow::ensure!(
+                visited.len() < 1_000,
+                "Google Drive pagination exceeded 1000 pages"
+            );
             if let Some(token) = &page_token {
                 anyhow::ensure!(
                     visited.insert(token.clone()),
