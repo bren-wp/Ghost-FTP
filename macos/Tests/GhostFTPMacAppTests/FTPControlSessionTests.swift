@@ -337,6 +337,46 @@ final class FTPControlSessionTests: XCTestCase {
         }
     }
 
+    func testFTPDownloadSizeRequiresExactRFC3659ASCIIReply() throws {
+        XCTAssertEqual(try FTPControlCodec.expectedDownloadSize(
+            from: FTPReply(code: 213, lines: ["213 0"])
+        ), 0)
+        XCTAssertEqual(try FTPControlCodec.expectedDownloadSize(
+            from: FTPReply(code: 213, lines: ["213 18446744073709551615"])
+        ), UInt64.max)
+        for invalid in [
+            FTPReply(code: 550, lines: ["550 Permission denied"]),
+            FTPReply(code: 213, lines: ["213 -1"]),
+            FTPReply(code: 213, lines: ["213 +2"]),
+            FTPReply(code: 213, lines: ["213 123 trailing"]),
+            FTPReply(code: 213, lines: ["213 "]),
+            FTPReply(code: 213, lines: ["213 18446744073709551616"]),
+            FTPReply(code: 213, lines: ["213 12", "213 34"]),
+            FTPReply(code: 213, lines: ["213 １２３"]),
+        ] {
+            XCTAssertThrowsError(try FTPControlCodec.expectedDownloadSize(from: invalid))
+        }
+    }
+
+    func testFTPServerMustConfirmExactPostUploadByteCount() throws {
+        XCTAssertNoThrow(try FTPControlCodec.verifyUploadSize(
+            reply: FTPReply(code: 213, lines: ["213 8192"]),
+            transmitted: 8192
+        ))
+        XCTAssertThrowsError(try FTPControlCodec.verifyUploadSize(
+            reply: FTPReply(code: 213, lines: ["213 8191"]),
+            transmitted: 8192
+        ))
+        XCTAssertThrowsError(try FTPControlCodec.verifyUploadSize(
+            reply: FTPReply(code: 213, lines: ["213 8193"]),
+            transmitted: 8192
+        ))
+        XCTAssertThrowsError(try FTPControlCodec.verifyUploadSize(
+            reply: FTPReply(code: 550, lines: ["550 not available"]),
+            transmitted: 8192
+        ))
+    }
+
     func testExtendedPassivePortParsesEPSVReply() throws {
         let reply = FTPReply(
             code: 229,
@@ -605,6 +645,25 @@ final class FTPControlSessionTests: XCTestCase {
         let preserved = directory.appendingPathComponent("remote-preserved.txt")
         try await session.downloadFile(remoteName: remoteName, to: preserved)
         XCTAssertEqual(try Data(contentsOf: preserved), content)
+
+        // Cross real 64 KiB streaming boundaries with nonrepeating bytes.
+        // This exercises the remote SIZE preflight, full binary RETR, local
+        // exclusive staging and post-STOR remote size verification together.
+        let bulkName = "binary-roundtrip-\(UUID().uuidString).bin"
+        let bulkSource = directory.appendingPathComponent("bulk-source.bin")
+        let bulkDestination = directory.appendingPathComponent("bulk-downloaded.bin")
+        let bulk = Data((0..<1_048_593).map { offset in
+            UInt8(truncatingIfNeeded: (offset * 73) ^ (offset >> 4))
+        })
+        try bulk.write(to: bulkSource)
+        try await session.uploadFile(
+            from: bulkSource, remoteName: bulkName, timeoutSeconds: 30
+        )
+        try await session.downloadFile(
+            remoteName: bulkName, to: bulkDestination, timeoutSeconds: 30
+        )
+        XCTAssertEqual(try Data(contentsOf: bulkDestination), bulk)
+        try await session.deleteFile(named: bulkName)
 
         // A second download to the same destination must not silently
         // destroy edits made locally after the original transfer.

@@ -12,7 +12,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.95.53 (unreleased Preview development source) · Previous release: [v0.95.52](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.52). Check that the release page contains verified packages before downloading; unsigned Android and macOS Preview packages are not production-certified.</sub>
+<sub>Ghost FTP 0.99.0 (in-development Preview) · Latest published: [v0.95.53](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.53). Check that the release page contains verified packages before downloading; unsigned Android and macOS Preview packages are not production-certified.</sub>
 
 [**View published Ghost FTP packages**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -28,7 +28,7 @@ Move files, manage connections and keep important server work organized with an 
 </a>
 </p>
 
-<p align="center"><sub>Seven authentic Windows Ghost FTP <strong>0.95.52</strong> WebView2 screenshots (1290×852), captured in <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/39493900331">successful native Windows QA run 39493900331</a> from source SHA <code>b2b90a029a7217aa269c42f293e0d322531c8387</code>. Every original PNG is pinned by SHA-256 in <a href="docs/assets/screenshots/README-NATIVE-CAPTURE.json">the capture manifest</a>. Real running application pixels, not generated marketing images.</sub></p>
+<p align="center"><sub>Seven authentic Ghost FTP Windows <strong>0.95.53</strong> WebView2 screenshots (1290×852), recorded in <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/39506868388">successful native CI run 39506868388</a> from source SHA <code>27a3f8413f168e4cb8cc31cf6d7b7c85c353f5af</code>. Original SHA-256 hashes and provenance appear in <a href="docs/assets/screenshots/README-NATIVE-CAPTURE.json">the capture manifest</a>. Actual running-application screenshots, not mockups.</sub></p>
 
 <table>
 <tr>

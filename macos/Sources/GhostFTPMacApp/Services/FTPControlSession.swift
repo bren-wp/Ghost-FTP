@@ -23,6 +23,9 @@ enum FTPControlError: LocalizedError {
     case unsafeLocalUploadSource
     case uploadSourceChanged
     case remoteFileAlreadyExists
+    case remoteSizeUnavailable
+    case remoteDownloadSizeMismatch
+    case remoteUploadSizeMismatch
 
     var errorDescription: String? {
         switch self {
@@ -66,6 +69,12 @@ enum FTPControlError: LocalizedError {
             return "The selected local file changed while uploading. The transfer cannot be marked successful."
         case .remoteFileAlreadyExists:
             return "A matching file or folder already exists on the server. Ghost FTP will not overwrite it without a dedicated confirmation."
+        case .remoteSizeUnavailable:
+            return "The FTP server did not provide a trustworthy file size. Ghost FTP will not save an unverified download."
+        case .remoteDownloadSizeMismatch:
+            return "The FTP download was incomplete or exceeded the declared server size. The original local file was preserved."
+        case .remoteUploadSizeMismatch:
+            return "The FTP server did not confirm all uploaded bytes. The remote file may be incomplete; check it before retrying."
         }
     }
 
@@ -256,6 +265,32 @@ enum FTPControlCodec {
     ) throws -> String {
         try validateRemoteFileName(finalName)
         return ".\(finalName).ghostftp-\(identifier.uuidString).part"
+    }
+
+    /// RFC 3659 SIZE returns exactly one ASCII decimal number after "213 ".
+    /// Reject ambiguous text, negative values, Unicode digits and UInt64
+    /// overflow before ever creating a local download/staging file.
+    static func expectedDownloadSize(from reply: FTPReply) throws -> UInt64 {
+        guard reply.code == 213,
+              reply.lines.count == 1,
+              let line = reply.lines.first,
+              line.hasPrefix("213 ") else {
+            throw FTPControlError.remoteSizeUnavailable
+        }
+        let raw = String(line.dropFirst(4))
+        guard !raw.isEmpty,
+              raw.utf8.allSatisfy({ $0 >= 48 && $0 <= 57 }),
+              let size = UInt64(raw) else {
+            throw FTPControlError.remoteSizeUnavailable
+        }
+        return size
+    }
+
+    static func verifyUploadSize(reply: FTPReply, transmitted: UInt64) throws {
+        let remoteSize = try expectedDownloadSize(from: reply)
+        guard remoteSize == transmitted else {
+            throw FTPControlError.remoteUploadSizeMismatch
+        }
     }
 
     static func extendedPassivePort(from reply: FTPReply) throws -> UInt16 {
@@ -721,6 +756,11 @@ actor FTPControlSession {
     ) async throws {
         try FTPControlCodec.validateRemoteFileName(remoteName)
 
+        // A completed FTP 226 reply alone cannot prove the local content is
+        // complete. In TYPE I mode, require an RFC 3659 SIZE reply and the
+        // exact number of bytes before publishing any staged download.
+        let sizeReply = try await command("SIZE \(remoteName)", timeoutSeconds: timeoutSeconds)
+        let expectedSize = try FTPControlCodec.expectedDownloadSize(from: sizeReply)
         let dataConnection = try await openPassiveDataConnection(timeoutSeconds: timeoutSeconds)
         let directoryURL = localURL.deletingLastPathComponent()
         let temporaryURL = directoryURL.appendingPathComponent(
@@ -748,6 +788,7 @@ actor FTPControlSession {
                 description: "125 or 150 download start"
             )
 
+            var received: UInt64 = 0
             while true {
                 try Task.checkCancellation()
                 let (chunk, complete) = try await receiveDataChunk(
@@ -755,11 +796,19 @@ actor FTPControlSession {
                     timeoutSeconds: timeoutSeconds
                 )
                 if !chunk.isEmpty {
+                    let (next, overflow) = received.addingReportingOverflow(UInt64(chunk.count))
+                    guard !overflow, next <= expectedSize else {
+                        throw FTPControlError.remoteDownloadSizeMismatch
+                    }
                     try handle.write(contentsOf: chunk)
+                    received = next
                 }
                 if complete {
                     break
                 }
+            }
+            guard received == expectedSize else {
+                throw FTPControlError.remoteDownloadSizeMismatch
             }
 
             try handle.synchronize()
@@ -861,6 +910,15 @@ actor FTPControlSession {
             // that case even when the remote endpoint returned 226.
             try PrivateUploadSource.verifyUnchanged(
                 handle, original: original, transmitted: transmitted
+            )
+            // Completion code 226 is not a content-integrity proof. Recheck
+            // the remote byte count after STOR and never announce success
+            // for a truncated or unexpectedly expanded upload.
+            let remoteSizeReply = try await command(
+                "SIZE \(remoteName)", timeoutSeconds: timeoutSeconds
+            )
+            try FTPControlCodec.verifyUploadSize(
+                reply: remoteSizeReply, transmitted: transmitted
             )
             dataConnection.cancel()
         } catch {

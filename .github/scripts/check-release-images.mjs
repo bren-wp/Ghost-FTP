@@ -156,6 +156,23 @@ const isVerified09552Capture = (manifest, file, digest) =>
   manifest.images?.[file] === digest &&
   verified09552WindowsCaptures.get(file) === digest;
 
+// Exact real v0.95.53 Windows CI pixels; pinned by source and SHA-256.
+const verified09553WindowsCaptures = new Map([
+  ["docs/assets/screenshots/ghostftp-native-files.png", "c1076ed20fc8533276202088f34ccce375c6217328808ac7a429bf6a3ac8d9f9"],
+  ["docs/assets/screenshots/ghostftp-native-new-connection.png", "ba61c9a03f1a4b7d230dffd067637fa9b025dc3873950a92b91a151b0cf69c12"],
+  ["docs/assets/screenshots/ghostftp-native-sites.png", "addc825f5b0968e2c7f2042427f570b2fe2b494b39a252f62ec9e30d9a81bf70"],
+  ["docs/assets/screenshots/ghostftp-native-transfers.png", "621471e8e189faddd1c1758d21aadbde983b67e4a00a618906b45cfc1b143d61"],
+  ["docs/assets/screenshots/ghostftp-native-settings.png", "be8ab24c514340f2d7e0c0bd326a073c2834d85868dcadb0682550cfcc861f9c"],
+  ["docs/assets/screenshots/ghostftp-native-file-properties.png", "06d88f062936c01b61f673053eaead2559c6c63964c6f043b16a23abe275e698"],
+  ["docs/assets/screenshots/ghostftp-native-about.png", "6d146ba37699dcdb913de4716db56fce44725a675b798bacd033a930c522050a"],
+]);
+const isVerified09553Capture = (manifest, file, digest) =>
+  manifest?.version === "0.95.53" &&
+  manifest?.capture_source_sha === "27a3f8413f168e4cb8cc31cf6d7b7c85c353f5af" &&
+  manifest?.github_actions_run_id === "39506868388" &&
+  manifest.images?.[file] === digest &&
+  verified09553WindowsCaptures.get(file) === digest;
+
 const manifestPath = path.join(screenshotDir, "README-NATIVE-CAPTURE.json");
 const captureManifest = fs.existsSync(manifestPath)
   ? JSON.parse(fs.readFileSync(manifestPath, "utf8"))
@@ -225,7 +242,8 @@ for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.lo
     // previous release's embedded historical screenshot. Its exact runner
     // artifact SHA256 and source commit are pinned above.
     if (isVerified09551Capture(captureManifest, relative, actualHash) ||
-        isVerified09552Capture(captureManifest, relative, actualHash)) {
+        isVerified09552Capture(captureManifest, relative, actualHash) ||
+        isVerified09553Capture(captureManifest, relative, actualHash)) {
       continue;
     }
     // An old but genuine capture is acceptable for unchanged release images,

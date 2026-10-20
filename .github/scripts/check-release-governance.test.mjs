@@ -62,31 +62,23 @@ test("public release follows draft-ID upload, inventory and remote SHA256 verifi
   assert.ok(!script.includes('releases/tags/$TAG'));
 });
 
-test("owner-authorized latest-ten cleanup fails closed on unsigned-release metadata and preserves ten tags", () => {
-  const workflow = read(".github/workflows/ghostftp-release-retention.yml");
-  const prune = read(".github/scripts/prune-release-history-keep10.sh");
-  assert.ok(workflow.includes('workflows: ["Ghost FTP release"]'));
-  assert.ok(workflow.includes("github.event.workflow_run.conclusion == 'success'"));
-  assert.ok(prune.includes('GHOSTFTP_RELEASE_RETENTION_CONFIRM'));
-  assert.ok(prune.includes('CURRENT_MAIN_SHA'));
-  assert.ok(prune.includes('test "$(jq -r \'.assets | length\' <<< "$LATEST")" -ge 21'));
-  assert.ok(prune.includes('sort_by(.tag_name | ltrimstr("v") | split(".") | map(tonumber))'));
-  assert.ok(prune.includes("'.prerelease'"));
-  assert.ok(prune.includes("418806377"));
-  assert.ok(prune.includes('.[0:10]'));
-  assert.ok(prune.includes('.[10:]'));
-  assert.ok(prune.includes('test "$asset_count" -ge 20'));
-  assert.ok(prune.includes('gh release delete "$tag" --yes --cleanup-tag'));
+test("released editions and tags must never be automatically pruned", () => {
+  assert.equal(fs.existsSync(path.join(root, ".github/workflows/ghostftp-release-retention.yml")), false);
+  assert.equal(fs.existsSync(path.join(root, ".github/scripts/prune-release-history-keep10.sh")), false);
+  for (const file of fs.readdirSync(path.join(root, ".github/workflows"))) {
+    if (!/\.ya?ml$/.test(file)) continue;
+    const body = read(".github/workflows/" + file);
+    assert.ok(!body.includes("gh release delete"), file + " must preserve releases");
+    assert.ok(!body.includes("--cleanup-tag"), file + " must preserve tags");
+  }
 });
 
-test("unpublished Vite 0.95.53 repair is restricted to one failed original SHA and requires patched lockfile", () => {
-  const quality=read(".github/workflows/ghostftp-quality.yml");
-  const pkg=JSON.parse(read("ghostftp-desktop/package.json"));
-  const lock=JSON.parse(read("ghostftp-desktop/package-lock.json"));
-  assert.equal(pkg.devDependencies.vite,"8.3.4");
-  assert.equal(lock.packages["node_modules/vite"].version,"8.3.4");
-  assert.ok(quality.includes('dd98f79b525759c4d77f6894d7d5603074fd053c'));
-  assert.ok(quality.includes('git ls-remote --exit-code --tags origin "refs/tags/v0.95.53"'));
-  assert.ok(quality.includes('if [ "$TAG_CHECK" -ne 2 ]; then'));
-  assert.ok(quality.includes('prior public release stays 0.95.52'));
+test("Vite stays patched without a time-limited version-reuse exception", () => {
+  const quality = read(".github/workflows/ghostftp-quality.yml");
+  const pkg = JSON.parse(read("ghostftp-desktop/package.json"));
+  const lock = JSON.parse(read("ghostftp-desktop/package-lock.json"));
+  assert.equal(pkg.devDependencies.vite, "8.3.4");
+  assert.equal(lock.packages["node_modules/vite"].version, "8.3.4");
+  assert.ok(!quality.includes("Recovering previously unpublished 0.95.53"));
+  assert.ok(quality.includes("Every merged change requires a new version"));
 });

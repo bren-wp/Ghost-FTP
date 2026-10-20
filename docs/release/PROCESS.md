@@ -13,7 +13,7 @@ Every releasable source version **must use an explicit `preview` or `stable` cha
 1. Start from current `main`.
 2. Make meaningful product/code/documentation changes.
 3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
-4. Keep `previousVersion` pointing to the preceding merged source (currently `0.95.52`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.95.52`). Never call an unpublished merge a canonical release.
+4. Keep `previousVersion` pointing to the preceding merged source (currently `0.95.53`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.95.53`). Never call an unpublished merge a canonical release.
 5. Open a PR only after the preceding `main` version has been publicly released; the PR must set `previousVersion` and `previousPublishedVersion` to the base version. This prevents overlapping merges from skipping an edition.
 6. Require exact-head success for:
    - Ghost FTP quality
@@ -25,10 +25,11 @@ Every releasable source version **must use an explicit `preview` or `stable` cha
 7. Read and fix concrete workflow logs if any gate fails.
 8. Merge only the tested source.
 9. After any merge to `main` (including Android-only, macOS-only or documentation changes), the native build runs without path filtering; if successful, it automatically triggers **Ghost FTP release**, provided every exact-SHA gate passes. No manual dispatch is required.
-10. The release job waits for the remaining exact-SHA gates and requires the actual latest public release to match `previousPublishedVersion` pointing to the latest verified public GitHub Release (`0.95.52`). Never call an unpublished merge a canonical release.
+10. The release job waits for the remaining exact-SHA gates and requires the actual latest public release to match `previousPublishedVersion` pointing to the latest verified public GitHub Release (`0.95.53`). Never call an unpublished merge a canonical release.
 11. Package normalized Windows/Linux/Android/source/documentation/native-QA assets and SHA-256 checksums from the verified source SHA.
 12. Publish `v<version>` at that exact source SHA and verify uploaded asset digests/count.
 13. Never retarget an existing version tag to different source.
+14. Every published release and tag is retained indefinitely unless the owner gives a new, explicit deletion instruction. Automatic release/tag pruning is prohibited.
 
 ## Canonical asset names
 
@@ -83,10 +84,14 @@ If no updater signatures are present, automatically triggered Preview releases m
 - `GhostFTP-v<version>-Documentation.zip`
 - `GhostFTP-v<version>-SHA256SUMS.txt`
 
+## Permanent release and tag preservation
+
+The previous one-time latest-ten cleanup has ended. **No scheduled or post-release job may delete GitHub Releases or tags.** New editions are added alongside all retained historical editions. The train is `0.99.0`, `0.99.1`, …, `0.99.20`, then `1.0.0` subject to production signing and QA acceptance.
+
 ## Current release cycle
 
-- Active source/release cycle: **0.95.53**
-- Previous canonical release: **0.95.52**
+- Active source/release cycle: **0.99.0**
+- Previous canonical release: **0.95.53**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Release integrity

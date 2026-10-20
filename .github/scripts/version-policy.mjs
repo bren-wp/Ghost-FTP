@@ -10,8 +10,9 @@ function parts(value) {
 
 /**
  * 0.30.21 -> 0.90.0: one authorized migration to the new train.
- * 0.90..0.99: next .minor.0 for features, next patch for fixes.
- * 0.99.x -> 1.0.0: production-stable launch, subject to release gates.
+ * 0.95.53 -> 0.99.0: explicitly authorized jump to the final Preview series.
+ * 0.99.0 -> 0.99.1 -> ... -> 0.99.20 -> 1.0.0.
+ * 1.0.0: production-stable only after separately verified release gates.
  * 1.x: next minor for features, next patch for fixes.
  */
 export function validateVersionTrain(previous, next) {
@@ -23,9 +24,13 @@ export function validateVersionTrain(previous, next) {
   let valid = false;
   if (previous === "0.30.21") {
     valid = next === "0.90.0";
-  } else if (major === 0 && minor >= 90 && minor <= 99) {
-    valid = patchFix || (minor < 99 && minorFeature) ||
-      (minor === 99 && nextMajor === 1 && nextMinor === 0 && nextPatch === 0);
+  } else if (previous === "0.95.53") {
+    valid = next === "0.99.0";
+  } else if (major === 0 && minor >= 90 && minor < 99) {
+    valid = patchFix || minorFeature;
+  } else if (major === 0 && minor === 99) {
+    valid = (patch < 20 && patchFix) ||
+      (patch === 20 && nextMajor === 1 && nextMinor === 0 && nextPatch === 0);
   } else if (major >= 1) {
     valid = patchFix || minorFeature;
   }
@@ -33,8 +38,8 @@ export function validateVersionTrain(previous, next) {
   if (!valid) {
     throw new Error(
       `Invalid Ghost FTP release train ${previous} -> ${next}; ` +
-      "use the next patch for fixes, the next minor.0 for features, " +
-      "or 0.99.x -> 1.0.0 after production acceptance.",
+      "use the explicitly authorized 0.95.53 -> 0.99.0 migration, " +
+      "then patch sequentially through 0.99.20 before 1.0.0 and production acceptance.",
     );
   }
 }
