@@ -27,11 +27,17 @@ fn append_bounded_xml(bytes: &mut Vec<u8>, chunk: &[u8]) -> Result<()> {
 
 async fn read_bounded_multistatus(mut response: reqwest::Response) -> Result<String> {
     anyhow::ensure!(
-        response.content_length().is_none_or(|len| len <= MAX_WEBDAV_LISTING_BYTES as u64),
+        response
+            .content_length()
+            .is_none_or(|len| len <= MAX_WEBDAV_LISTING_BYTES as u64),
         "WebDAV PROPFIND declared response size exceeds the limit"
     );
     let mut bytes = Vec::new();
-    while let Some(chunk) = response.chunk().await.context("stream WebDAV PROPFIND response")? {
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .context("stream WebDAV PROPFIND response")?
+    {
         append_bounded_xml(&mut bytes, &chunk)?;
     }
     String::from_utf8(bytes).context("WebDAV PROPFIND response is not valid UTF-8")
@@ -77,7 +83,9 @@ impl RemoteFs for WebdavFs {
             return Err(anyhow!("PROPFIND {path} failed: HTTP {}", status.as_u16()));
         }
 
-        let body = read_bounded_multistatus(resp).await.context("read bounded PROPFIND body")?;
+        let body = read_bounded_multistatus(resp)
+            .await
+            .context("read bounded PROPFIND body")?;
         parse_multistatus(&body, &self.session.base_path(), path)
             .with_context(|| format!("invalid or incomplete PROPFIND listing for {path}"))
     }
@@ -371,12 +379,17 @@ fn href_to_path(href: &str, base_path: &str) -> Option<(String, String)> {
     for segment in path_part.split('/') {
         let decoded = percent_decode_str(segment).decode_utf8().ok()?;
         if matches!(decoded.as_ref(), "." | "..")
-            || decoded.chars().any(|ch| ch.is_control() || ch == '/' || ch == '\\')
+            || decoded
+                .chars()
+                .any(|ch| ch.is_control() || ch == '/' || ch == '\\')
         {
             return None;
         }
     }
-    let decoded_href = percent_decode_str(path_part).decode_utf8().ok()?.into_owned();
+    let decoded_href = percent_decode_str(path_part)
+        .decode_utf8()
+        .ok()?
+        .into_owned();
     let decoded_base = percent_decode_str(base_path)
         .decode_utf8_lossy()
         .into_owned();
