@@ -113,7 +113,24 @@ pub fn authorize_url(config: &OAuthConfig, challenge: &str, state: &str) -> Resu
     if state.is_empty() {
         return Err(anyhow!("OAuth state is required"));
     }
-    let mut url = Url::parse(&config.auth_url).context("parse auth_url")?;
+    // The browser and PKCE token exchange must never downgrade to a public
+    // HTTP origin. Loopback HTTP remains supported for isolated mock tests.
+    let mut url = crate::session::http_throttle::trusted_bearer_url(
+        &config.auth_url,
+        &config.auth_url,
+    )?;
+    // Do not permit endpoint URLs to pre-seed conflicting security-critical
+    // OAuth parameters ahead of the values generated for this login attempt.
+    for (name, _) in url.query_pairs() {
+        anyhow::ensure!(
+            !matches!(
+                name.as_ref(),
+                "client_id" | "response_type" | "redirect_uri" | "state"
+                    | "code_challenge" | "code_challenge_method"
+            ),
+            "OAuth authorization URL has a conflicting reserved parameter"
+        );
+    }
     {
         let mut q = url.query_pairs_mut();
         q.append_pair("client_id", &config.client_id);
@@ -338,9 +355,18 @@ pub async fn exchange_code(
     code: &str,
     verifier: &str,
 ) -> Result<serde_json::Value> {
-    let client = reqwest::Client::new();
+    let target = crate::session::http_throttle::trusted_bearer_url(
+        &config.token_url,
+        &config.token_url,
+    )?;
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(30))
+        .build()
+        .context("initialize OAuth token client")?;
     let resp = client
-        .post(&config.token_url)
+        .post(target)
         .form(&[
             ("grant_type", "authorization_code"),
             ("code", code),
@@ -358,15 +384,26 @@ pub async fn exchange_code(
             status.as_u16()
         ));
     }
-    resp.json().await.context("parse token response")
+    crate::session::http_throttle::bounded_cloud_json(resp)
+        .await
+        .context("parse bounded token response")
 }
 
 /// Refresh an access token from a refresh token. Providers usually return only a
 /// new access token, so the caller keeps the existing refresh token.
 pub async fn refresh(config: &OAuthConfig, refresh_token: &str) -> Result<TokenSet> {
-    let client = reqwest::Client::new();
+    let target = crate::session::http_throttle::trusted_bearer_url(
+        &config.token_url,
+        &config.token_url,
+    )?;
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(30))
+        .build()
+        .context("initialize OAuth token client")?;
     let resp = client
-        .post(&config.token_url)
+        .post(target)
         .form(&[
             ("grant_type", "refresh_token"),
             ("refresh_token", refresh_token),
@@ -382,7 +419,9 @@ pub async fn refresh(config: &OAuthConfig, refresh_token: &str) -> Result<TokenS
             status.as_u16()
         ));
     }
-    let raw: serde_json::Value = resp.json().await.context("parse refresh response")?;
+    let raw = crate::session::http_throttle::bounded_cloud_json(resp)
+        .await
+        .context("parse bounded token refresh response")?;
     let mut set = token_set_from(&raw)?;
     // Carry forward the refresh token if the response omitted one.
     if set.refresh_token.is_none() {
@@ -516,6 +555,22 @@ impl RefreshingToken {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn oauth_authorization_refuses_preseeded_state_and_insecure_endpoints() {
+        let mut config = OAuthConfig {
+            client_id: "public-client".into(),
+            auth_url: "https://login.example.test/oauth/authorize?state=forged".into(),
+            token_url: "https://login.example.test/oauth/token".into(),
+            scopes: vec![],
+            extra_auth_params: vec![],
+        };
+        assert!(authorize_url(&config, "challenge", "genuine").is_err());
+        config.auth_url = "http://login.example.test/oauth/authorize".into();
+        assert!(authorize_url(&config, "challenge", "genuine").is_err());
+        config.auth_url = "https://login.example.test/oauth/authorize".into();
+        assert!(authorize_url(&config, "challenge", "genuine").is_ok());
+    }
 
     #[test]
     fn pkce_challenge_is_s256_base64url() {
