@@ -1,4 +1,4 @@
-> Security development preview: Ghost FTP 0.95.50. Published predecessor: v0.95.49. No release or merge performed in this branch.
+> Security development preview: Ghost FTP 0.95.51. Published predecessor: v0.95.50. No release or merge performed in this branch.
 
 > Ghost FTP **0.95.45** (development preview), following published **v0.95.43**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 

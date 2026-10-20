@@ -1,8 +1,8 @@
-> Current shared source cycle: **0.95.50** (preview). Published predecessor: **v0.95.49**. Historic Android parity findings below remain unmodified.
+> Current shared source cycle: **0.95.51** (preview). Published predecessor: **v0.95.50**. Historic Android parity findings below remain unmodified.
 
 > Android 16-screen reference candidate v0.95.23: **preview only**. Real Bookmarks, contextual Settings/Advanced, Add/Edit tabs, native About and stored-profile loading are implemented in source. Pixel-perfect 16/16 acceptance and real-device screenshot comparison are not yet established. Latest published baseline: v0.95.22.
 
-> Ghost FTP **0.95.50** (release cycle), following published **v0.95.49**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.51** (release cycle), following published **v0.95.50**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 
 ### 0.95.23 Android layout parity increment — source only, exact-device acceptance pending

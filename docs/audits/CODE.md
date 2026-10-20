@@ -1,12 +1,12 @@
-> Ghost FTP **0.95.50** (release cycle), following published **v0.95.49**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.51** (release cycle), following published **v0.95.50**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP Code Audit — 0.93.0
 
-Current comprehensive 0.95.49 source inventory: [Windows/Linux, Android, macOS and tools dead-code audit](FULL_REPOSITORY_DEAD_CODE_2026_10_19.md). Static candidates are not automatically removable.
+Current comprehensive 0.95.50 source inventory: [Windows/Linux, Android, macOS and tools dead-code audit](FULL_REPOSITORY_DEAD_CODE_2026_10_19.md). Static candidates are not automatically removable.
 
-> Current development: **0.95.50** (premium QA and cloud hardening), following published **0.95.49**. Historical sections are retained unchanged.
+> Current development: **0.95.51** (premium QA and cloud hardening), following published **0.95.50**. Historical sections are retained unchanged.
 
-> Current development source: **0.95.50**; latest verified published release: **0.95.49**. Historical findings below retain their original version labels.
+> Current development source: **0.95.51**; latest verified published release: **0.95.50**. Historical findings below retain their original version labels.
 
 ## Scope
 

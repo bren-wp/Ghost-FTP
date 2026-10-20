@@ -1,46 +1,55 @@
 name: Ghost FTP release
 
+# Manual promotion prevents automatic public release on each development commit.
 on:
-  workflow_run:
-    workflows: ["Ghost FTP native build"]
-    types: [completed]
+  workflow_dispatch:
+    inputs:
+      publish_preview:
+        description: "Authorize a Preview release after exact-SHA CI and QA"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
   actions: read
 
-# workflow_run fires for PR branch builds too. A skipped PR release trigger
-# must never cancel an active verified main release awaiting Android/device CI.
-# Serialize releases per triggering branch and let in-progress publication finish.
+# A second manual promotion must not interrupt an active publication.
 concurrency:
-  group: ghostftp-release-${{ github.event.workflow_run.head_branch }}
+  group: ghostftp-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   select-trigger:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    if: ${{ github.ref == 'refs/heads/main' && inputs.publish_preview == true }}
     runs-on: ubuntu-22.04
     outputs:
       should_publish: ${{ steps.latest.outputs.should_publish }}
+      native_run_id: ${{ steps.latest.outputs.native_run_id }}
     steps:
       - id: latest
-        name: Accept only the newest native-build run for this source SHA
+        name: Verify current main and newest exact-SHA native build
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
-          TRIGGER_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
+          CURRENT_MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$CURRENT_MAIN_SHA" != "$SOURCE_SHA" ]; then
+            echo "::error::Only the current main SHA may be promoted." >&2
+            exit 1
+          fi
           LATEST_ID="$(gh run list --workflow ghostftp-build.yml --commit "$SOURCE_SHA" --limit 20 --json databaseId,createdAt --jq 'sort_by(.createdAt) | reverse | .[0].databaseId // ""')"
           test -n "$LATEST_ID"
-          if [ "$LATEST_ID" = "$TRIGGER_RUN_ID" ]; then
-            echo "should_publish=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping stale trigger $TRIGGER_RUN_ID; latest run is $LATEST_ID"
+          LATEST_STATE="$(gh run view "$LATEST_ID" --json status,conclusion --jq '(.status // "") + ":" + (.conclusion // "")')"
+          if [ "$LATEST_STATE" != "completed:success" ]; then
+            echo "::error::Newest native build is not successful: $LATEST_STATE" >&2
+            exit 1
           fi
+          echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          echo "native_run_id=$LATEST_ID" >> "$GITHUB_OUTPUT"
 
   publish:
     needs: select-trigger
@@ -49,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v7
@@ -59,7 +68,7 @@ jobs:
       - name: Validate source and wait for release gates
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_SHA: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -153,7 +162,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh run download "${{ github.event.workflow_run.id }}" -D dist/native
+          gh run download "${{ needs.select-trigger.outputs.native_run_id }}" -D dist/native
           find dist/native -type f -print
 
       - name: Download verified Android APK/AAB artifacts

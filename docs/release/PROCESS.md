@@ -13,7 +13,7 @@ Every releasable source version **must use an explicit `preview` or `stable` cha
 1. Start from current `main`.
 2. Make meaningful product/code/documentation changes.
 3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
-4. Keep `previousVersion` pointing to the preceding merged source (currently `0.95.49`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.95.49`). Never call an unpublished merge a canonical release.
+4. Keep `previousVersion` pointing to the preceding merged source (currently `0.95.50`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.95.50`). Never call an unpublished merge a canonical release.
 5. Open a PR.
 6. Require exact-head success for:
    - Ghost FTP quality
@@ -24,8 +24,8 @@ Every releasable source version **must use an explicit `preview` or `stable` cha
    - Ghost FTP macOS (development Preview gate)
 7. Read and fix concrete workflow logs if any gate fails.
 8. Merge only the tested source.
-9. On `main`, the successful **Ghost FTP native build** triggers the canonical **Ghost FTP release** workflow.
-10. The release job waits for the remaining exact-SHA gates and requires the actual latest public release to match `previousPublishedVersion` pointing to the latest verified public GitHub Release (`0.95.49`). Never call an unpublished merge a canonical release.
+9. On current main, after independent acceptance and exact-SHA CI, manually dispatch **Ghost FTP release** with publish_preview enabled. Builds do not automatically publish.
+10. The release job waits for the remaining exact-SHA gates and requires the actual latest public release to match `previousPublishedVersion` pointing to the latest verified public GitHub Release (`0.95.50`). Never call an unpublished merge a canonical release.
 11. Package normalized Windows/Linux/Android/source/documentation/native-QA assets and SHA-256 checksums from the verified source SHA.
 12. Publish `v<version>` at that exact source SHA and verify uploaded asset digests/count.
 13. Never retarget an existing version tag to different source.
@@ -71,7 +71,7 @@ When in-app updater signing is enabled, publication requires all four updater as
 
 The release workflow and final publication script fail closed if this optional updater set is partial or inconsistent. The manifest is validated for the exact version, and the copy packaged inside Update-Service must match the separately published manifest byte-for-byte.
 
-If no updater signatures are present, the stable GitHub release may still publish the normal verified application packages, checksums and QA evidence. In that mode no updater manifest or Update-Service bundle is emitted.
+If no updater signatures are present, manually approved Preview releases may publish labeled development packages, checksums and QA evidence. In that mode no updater manifest or Update-Service bundle is emitted.
 
 ### Source/documentation
 
@@ -85,8 +85,8 @@ If no updater signatures are present, the stable GitHub release may still publis
 
 ## Current release cycle
 
-- Active source/release cycle: **0.95.50**
-- Previous canonical release: **0.95.49**
+- Active source/release cycle: **0.95.51**
+- Previous canonical release: **0.95.50**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Release integrity
@@ -106,3 +106,11 @@ If no updater signatures are present, the stable GitHub release may still publis
 Do not label an artifact FINAL until evidence exists for required installer lifecycle, target-OS visual acceptance, security failure paths, update/signing verification and accessibility acceptance.
 
 Blocked gates are BLOCKED, not PASS.
+
+## Explicit Preview promotion (0.95.51 onward)
+
+1. Review current main SHA, all six exact-SHA CI gates and independently required installer/device QA.
+2. Manually run GitHub Actions > Ghost FTP release on main with publish_preview enabled.
+3. Artifacts are staged in a draft release. Upload, SHA-256, remote digest, asset inventory and source SHA must be verified before prerelease publication.
+4. Failed promotion remains a draft; public release assets and version tags must not be overwritten.
+5. Stable promotion remains blocked until production signing, notarization and full target-platform QA are demonstrated.

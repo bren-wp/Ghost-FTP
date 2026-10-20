@@ -44,21 +44,23 @@ for (const rel of [
   }
 }
 
-// workflow_run emits PR native-build completion events as well as main.
-// The trigger job skips PR events, but concurrency is evaluated *before*
-// that job runs; a shared cancel-in-progress group used to terminate a
-// genuine main release while waiting for exact-SHA Android tests.
+// Publishing is explicit and limited to the currently checked main SHA.
 const releaseWorkflow = fs.readFileSync(
   path.join(workflowDir, "ghostftp-release.yml"), "utf8"
 );
-if (!releaseWorkflow.includes("  group: ghostftp-release-${{ github.event.workflow_run.head_branch }}")) {
-  failures.push("Release concurrency must be isolated by triggering head_branch");
+if (!releaseWorkflow.includes("  workflow_dispatch:") ||
+    releaseWorkflow.includes("  workflow_run:") ||
+    !releaseWorkflow.includes("inputs.publish_preview == true")) {
+  failures.push("Release must require manually approved Preview dispatch");
 }
-if (!/^  cancel-in-progress: false$/m.test(releaseWorkflow)) {
-  failures.push("Unrelated workflow_run completion must never cancel an active release");
+if (!releaseWorkflow.includes("  group: ghostftp-release-${{ github.ref }}") ||
+    !/^  cancel-in-progress: false$/m.test(releaseWorkflow)) {
+  failures.push("Concurrent release promotions must not cancel one another");
 }
-if (!releaseWorkflow.includes("github.event.workflow_run.head_branch == 'main'")) {
-  failures.push("Release must continue to accept only successful main builds");
+if (!releaseWorkflow.includes("github.ref == 'refs/heads/main'") ||
+    !releaseWorkflow.includes("CURRENT_MAIN_SHA") ||
+    !releaseWorkflow.includes("ghostftp-build.yml")) {
+  failures.push("Manual promotion must require current main and verified native build");
 }
 
 const viteConfig = fs.readFileSync(
