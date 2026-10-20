@@ -574,6 +574,19 @@ final class FTPControlSessionTests: XCTestCase {
         try await session.downloadFile(remoteName: remoteName, to: destination)
         XCTAssertEqual(try Data(contentsOf: destination), content)
 
+        // Exercise the real server path: a repeated upload must not silently
+        // overwrite an existing remote file even if its local contents change.
+        try Data("ATTEMPTED UNCONFIRMED OVERWRITE".utf8).write(to: source)
+        do {
+            try await session.uploadFile(from: source, remoteName: remoteName)
+            XCTFail("Expected existing remote file to reject unconfirmed STOR")
+        } catch FTPControlError.remoteFileAlreadyExists {
+            try await session.noop()
+        }
+        let preserved = directory.appendingPathComponent("remote-preserved.txt")
+        try await session.downloadFile(remoteName: remoteName, to: preserved)
+        XCTAssertEqual(try Data(contentsOf: preserved), content)
+
         // A second download to the same destination must not silently
         // destroy edits made locally after the original transfer.
         try Data("local edits must survive".utf8).write(to: destination)
