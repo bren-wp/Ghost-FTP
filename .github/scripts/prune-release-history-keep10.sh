@@ -13,29 +13,39 @@ test "$(jq -r '.draft' <<< "$LATEST")" = false
 test "$(jq -r '.prerelease' <<< "$LATEST")" = true
 test "$(jq -r '.assets | length' <<< "$LATEST")" -ge 21
 test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$LATEST_TAG" --jq '.object.sha')" = "$CURRENT_MAIN_SHA"
-# Refuse deletion until the previously broken release is repaired and Preview.
-REPAIRED="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v0.95.51")"
-test "$(jq -r '.draft' <<< "$REPAIRED")" = false
-test "$(jq -r '.assets | length' <<< "$REPAIRED")" -eq 21
-test "$(jq -r '.tag_name' <<< "$REPAIRED")" = "v0.95.51"
-test "$(jq -r '.target_commitish' <<< "$REPAIRED")" = "1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f"
-test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v0.95.51" --jq '.object.sha')" = "1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f"
-test "$(jq -r '[.assets[] | select(.name == "GhostFTP-v0.95.51-SHA256SUMS.txt" and (.digest|startswith("sha256:")))] | length' <<< "$REPAIRED")" -eq 1
-
-# The one-shot recovery correctly restored all 21 original source-pinned files
-# but GitHub subsequently reset the old release's prerelease flag to false.
-# Only the metadata may be corrected: never overwrite original asset bytes.
-if [ "$(jq -r '.prerelease' <<< "$REPAIRED")" != true ]; then
-  echo "::warning::Repairing legacy v0.95.51 preview classification only."
-  jq -n '{prerelease:true}' |
-    gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/418806377" --input - >/dev/null
+# On the first post-recovery release fix the legacy Preview classification
+# before deleting any history. Future releases must not depend on a tag that
+# will itself legitimately age out of the newest ten after enough versions.
+if [ "$VERSION" = "0.95.53" ]; then
+  REPAIRED="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v0.95.51")"
+  test "$(jq -r '.draft' <<< "$REPAIRED")" = false
+  test "$(jq -r '.assets | length' <<< "$REPAIRED")" -eq 21
+  test "$(jq -r '.tag_name' <<< "$REPAIRED")" = "v0.95.51"
+  test "$(jq -r '.target_commitish' <<< "$REPAIRED")" = "1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f"
+  test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v0.95.51" --jq '.object.sha')" = "1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f"
+  test "$(jq -r '[.assets[] | select(.name == "GhostFTP-v0.95.51-SHA256SUMS.txt" and (.digest|startswith("sha256:")))] | length' <<< "$REPAIRED")" -eq 1
+  if [ "$(jq -r '.prerelease' <<< "$REPAIRED")" != true ]; then
+    echo "::warning::Correcting verified v0.95.51 Preview classification; no asset bytes are changed."
+    jq -n '{prerelease:true}' |
+      gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/418806377" --input - >/dev/null
+  fi
+  test "$(gh api "repos/$GITHUB_REPOSITORY/releases/418806377" --jq '.prerelease')" = true
 fi
-test "$(gh api "repos/$GITHUB_REPOSITORY/releases/418806377" --jq '.prerelease')" = true
 # A protected screenshot manifest must cite actual native Windows QA, not a
 # historical tag whose removal would break README or source build checks.
-test "$(node -p 'require("./docs/assets/screenshots/README-NATIVE-CAPTURE.json").version')" = "0.95.51"
-test "$(node -p 'require("./docs/assets/screenshots/README-NATIVE-CAPTURE.json").capture_source_sha')" = "1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f"
-test "$(node -p 'require("./docs/assets/screenshots/README-NATIVE-CAPTURE.json").github_actions_run_id')" = "39484945427"
+CAPTURE_VERSION="$(node -p 'require("./docs/assets/screenshots/README-NATIVE-CAPTURE.json").version')"
+CAPTURE_SHA="$(node -p 'require("./docs/assets/screenshots/README-NATIVE-CAPTURE.json").capture_source_sha')"
+CAPTURE_RUN_ID="$(node -p 'require("./docs/assets/screenshots/README-NATIVE-CAPTURE.json").github_actions_run_id')"
+[[ "$CAPTURE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+[[ "$CAPTURE_SHA" =~ ^[a-f0-9]{40}$ ]]
+[[ "$CAPTURE_RUN_ID" =~ ^[0-9]+$ ]]
+if [ "$CAPTURE_VERSION" = "0.95.51" ]; then
+  test "$CAPTURE_SHA" = "1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f"
+  test "$CAPTURE_RUN_ID" = "39484945427"
+fi
+# Confirm the claimed native QA run's source identity, not an invented caption.
+test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CAPTURE_RUN_ID" --jq '.head_sha')" = "$CAPTURE_SHA"
+test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CAPTURE_RUN_ID" --jq '.conclusion')" = success
 GHOSTFTP_LATEST_RELEASE_TAG="$LATEST_TAG" node .github/scripts/check-release-images.mjs
 
 # Pagination must cover ALL historical releases, not the first 100.
