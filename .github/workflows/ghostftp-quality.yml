@@ -346,6 +346,22 @@ jobs:
           path: build/audit/full-dead-code.json
           if-no-files-found: warn
 
+      - name: Whole-repository security code audit and regression matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tools/audits/full-security-code-audit.test.mjs
+          mkdir -p build/audit
+          node tools/audits/full-security-code-audit.mjs > build/audit/full-security-code.json
+
+      - name: Publish cross-platform security code evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-Full-Repository-Security-Code-Audit
+          path: build/audit/full-security-code.json
+          if-no-files-found: warn
+
       - name: Native frontend typecheck and production build
         working-directory: ghostftp-desktop
         shell: bash

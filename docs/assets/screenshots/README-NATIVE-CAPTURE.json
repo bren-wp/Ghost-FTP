@@ -1,16 +1,16 @@
 {
-  "version": "0.95.51",
+  "version": "0.95.52",
   "platform": "Windows",
-  "capture_source_sha": "1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f",
-  "github_actions_run_id": "39484945427",
+  "capture_source_sha": "b2b90a029a7217aa269c42f293e0d322531c8387",
+  "github_actions_run_id": "39493900331",
   "provenance": "Ghost FTP native build, real Windows WebView2 compositor QA, 1290x852",
   "images": {
-    "docs/assets/screenshots/ghostftp-native-files.png": "703716c2a5b8df6ec2cc0a97c2eca5b4e7e2e9f07ae9f5e499dae85761e43849",
-    "docs/assets/screenshots/ghostftp-native-new-connection.png": "801f2c987da65f0afe45841fc5cb9005c8bda673ee2b069dabfe0a6a8a4aa865",
-    "docs/assets/screenshots/ghostftp-native-sites.png": "c87184d252ee868ab52884667b3af135f3cb217c81ec10e97d1415e050b3fb42",
-    "docs/assets/screenshots/ghostftp-native-transfers.png": "ec1f2f98721a7b548f5cd03efcf909510abc3caa4462acf027eb0fc8777b0796",
-    "docs/assets/screenshots/ghostftp-native-settings.png": "7ce68fe18370e2eb8b541b1d12400645d1a08070efc11b2a757bbf534e447d39",
-    "docs/assets/screenshots/ghostftp-native-file-properties.png": "7e9b1b2775eb850b57b0a114993c5faab746a11be88805e6f9115dc5c653b12a",
-    "docs/assets/screenshots/ghostftp-native-about.png": "a4535487c3307058af611831b6460c008d6716279aff8570e005f36968c076a6"
+    "docs/assets/screenshots/ghostftp-native-files.png": "98bb6986291ae4f032f1f37ee06a8d503b1031d974cd33e2f01a7e72b3c6a210",
+    "docs/assets/screenshots/ghostftp-native-new-connection.png": "60e398206ad1b901a832139cc450591d972312baacf39c79751313f9bac563bf",
+    "docs/assets/screenshots/ghostftp-native-sites.png": "9f99f623caa15b18a8a326614ad7df8b4d727bc60ce57cc82f65bf2584ea8e5b",
+    "docs/assets/screenshots/ghostftp-native-transfers.png": "c172359036bbf2eeba6cdebea2e69f2e34c71b23b84d186d61d84645a9deec9d",
+    "docs/assets/screenshots/ghostftp-native-settings.png": "c81c86324929cfa5aa96da006e4b06b0e9c9644033fabc3119e33df46487e584",
+    "docs/assets/screenshots/ghostftp-native-file-properties.png": "e21a02d7a513d66df28182a2555d254e28d5dab371a28a1c020e7b03254a8af4",
+    "docs/assets/screenshots/ghostftp-native-about.png": "996812685bcccca68f2fb7f264aef02d91afbae5cc772530886db76ce9f30fa8"
   }
 }

@@ -3,6 +3,42 @@ import XCTest
 
 final class FTPControlSessionTests: XCTestCase {
 
+    func testFTPRefusesRemoteUploadOverwriteAndAmbiguousUnicodeCollisions() throws {
+        let remoteEntries = [
+            FTPDirectoryEntry(name: "REPORT.txt", isDirectory: false, size: 10, modified: nil),
+            FTPDirectoryEntry(name: "Račun.pdf", isDirectory: false, size: 10, modified: nil),
+            FTPDirectoryEntry(name: "Documents", isDirectory: true, size: nil, modified: nil),
+        ]
+        for name in ["report.txt", "Račun.pdf", "Račun.pdf", "documents"] {
+            XCTAssertThrowsError(
+                try FTPControlCodec.validateUploadDestination(name, within: remoteEntries),
+                "Refusing to overwrite remote item: \(name)"
+            )
+        }
+        XCTAssertNoThrow(
+            try FTPControlCodec.validateUploadDestination("completely-new.txt", within: remoteEntries)
+        )
+    }
+
+    func testFTPSAndSFTPCannotDowngradeIntoPlaintextFTPWithoutAuthenticatedTransports() async throws {
+        let session = FTPControlSession()
+        for protocolKind in [ConnectionProtocol.ftps, .sftp] {
+            let profile = ConnectionProfile(
+                name: "Secure transport cannot silently downgrade",
+                protocolKind: protocolKind,
+                host: "127.0.0.1",
+                port: 21,
+                username: "test"
+            )
+            do {
+                _ = try await session.connect(profile: profile, password: "never-send-to-FTP")
+                XCTFail("No unsupported secure profile may fall through to plaintext FTP")
+            } catch FTPControlError.unsupportedProtocol {
+                // Expected until real TLS/SSH identity verification is wired.
+            }
+        }
+    }
+
     func testMacUploadRejectsSymlinksAndDoesNotReadTheirTarget() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -556,6 +592,19 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertTrue(afterUpload.contains(where: { $0.name == remoteName }))
         try await session.downloadFile(remoteName: remoteName, to: destination)
         XCTAssertEqual(try Data(contentsOf: destination), content)
+
+        // Exercise the real server path: a repeated upload must not silently
+        // overwrite an existing remote file even if its local contents change.
+        try Data("ATTEMPTED UNCONFIRMED OVERWRITE".utf8).write(to: source)
+        do {
+            try await session.uploadFile(from: source, remoteName: remoteName)
+            XCTFail("Expected existing remote file to reject unconfirmed STOR")
+        } catch FTPControlError.remoteFileAlreadyExists {
+            try await session.noop()
+        }
+        let preserved = directory.appendingPathComponent("remote-preserved.txt")
+        try await session.downloadFile(remoteName: remoteName, to: preserved)
+        XCTAssertEqual(try Data(contentsOf: preserved), content)
 
         // A second download to the same destination must not silently
         // destroy edits made locally after the original transfer.

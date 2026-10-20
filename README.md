@@ -12,7 +12,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.95.52 (unreleased Preview development source) · Previous release tag: [v0.95.51](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.51). Check that the release page contains verified packages before downloading; unsigned Android and macOS Preview packages are not production-certified.</sub>
+<sub>Ghost FTP 0.95.53 (unreleased Preview development source) · Previous release: [v0.95.52](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.52). Check that the release page contains verified packages before downloading; unsigned Android and macOS Preview packages are not production-certified.</sub>
 
 [**View published Ghost FTP packages**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -28,7 +28,7 @@ Move files, manage connections and keep important server work organized with an 
 </a>
 </p>
 
-<p align="center"><sub>Seven authentic Ghost FTP Windows 0.95.51 native WebView2 screenshots (1290×852), captured in <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/39484945427">successful Windows QA run 39484945427</a> from source SHA <code>1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f</code>. Original screenshots are SHA-256 pinned in <a href="docs/assets/screenshots/README-NATIVE-CAPTURE.json">the capture manifest</a>. These are actual running application pixels, not generated UI mockups.</sub></p>
+<p align="center"><sub>Seven authentic Windows Ghost FTP <strong>0.95.52</strong> WebView2 screenshots (1290×852), captured in <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/39493900331">successful native Windows QA run 39493900331</a> from source SHA <code>b2b90a029a7217aa269c42f293e0d322531c8387</code>. Every original PNG is pinned by SHA-256 in <a href="docs/assets/screenshots/README-NATIVE-CAPTURE.json">the capture manifest</a>. Real running application pixels, not generated marketing images.</sub></p>
 
 <table>
 <tr>

@@ -1,3 +1,11 @@
+## 0.95.53 — Audited security, integrity and latest-ten release retention (UNRELEASED Preview) — 20 October 2026
+
+- Audit cross-platform source and release workflows for dangerous TLS/SSH bypass patterns, credentials, unsafe file replacement, recovery lineage, stale code, version drift and installer metadata. Static checks are not a substitute for penetration tests.
+- README Windows screenshots updated to seven actual v0.95.52 running-application captures from exact release workflow SHA and SHA-256 manifest, rather than older v0.95.51 or v0.95.18 pixels.
+- Verify original v0.95.51 release inventory and original tag before correcting misclassified Preview metadata; label retained unsigned/ad-hoc Preview releases accurately.
+- Re-execute owner-authorized deletion of historical GitHub releases and matching tags only after the new release is fully published, with safeguards for ten retained editions and screenshot provenance.
+- Strengthen macOS native FTP filesystem/data consistency and cancellation safety; native FTPS/SFTP remains a separately gated implementation until actual certified handshake and live E2E are complete.
+
 ## 0.95.52 — Recovery, original QA screenshots and data integrity (UNRELEASED Preview) — 20 October 2026
 
 - Correct fail-closed draft release staging by immutable release ID, not a draft tag lookup that can return HTTP 404.

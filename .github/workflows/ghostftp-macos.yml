@@ -134,6 +134,32 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$APP"
           test -s dist/macos/GhostFTP-macOS-SHA256SUMS.txt
 
+      - name: Fresh macOS archive extraction and installed-bundle integrity smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p 'require("./version.json").version')"
+          PACKAGE="dist/macos/GhostFTP-macOS-v$VERSION-Preview.zip"
+          test -s "$PACKAGE"
+          (cd dist/macos && shasum -a 256 -c GhostFTP-macOS-SHA256SUMS.txt)
+          INSTALL_ROOT="$RUNNER_TEMP/GhostFTP-Installation-Smoke"
+          rm -rf "$INSTALL_ROOT"
+          mkdir -p "$INSTALL_ROOT/Applications"
+          # Extract the published ZIP into an isolated Applications tree, not
+          # into the source/package staging directory used during build.
+          ditto -x -k "$PACKAGE" "$INSTALL_ROOT/Applications"
+          INSTALLED="$INSTALL_ROOT/Applications/Ghost FTP.app"
+          test -x "$INSTALLED/Contents/MacOS/GhostFTP"
+          test -s "$INSTALLED/Contents/Resources/GhostFTP.icns"
+          plutil -lint "$INSTALLED/Contents/Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INSTALLED/Contents/Info.plist")" = "com.brendigo.ghostftp.macos"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INSTALLED/Contents/Info.plist")" = "$VERSION"
+          codesign --verify --deep --strict --verbose=2 "$INSTALLED"
+          cmp "dist/macos/Ghost FTP.app/Contents/MacOS/GhostFTP" "$INSTALLED/Contents/MacOS/GhostFTP"
+          echo "macOS ZIP extraction, signature, version, binary identity and app bundle installation verified."
+          # Mac GitHub runners may not provide an authenticated GUI session.
+          # This step does not claim an installed GUI launch or notarization.
+
       - name: Upload macOS preview artifact
         uses: actions/upload-artifact@v7
         with:
