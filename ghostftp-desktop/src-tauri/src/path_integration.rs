@@ -20,6 +20,8 @@
 //! else in the user's environment.
 
 use serde::Serialize;
+#[cfg(unix)]
+use std::path::Path;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager, State};
 
