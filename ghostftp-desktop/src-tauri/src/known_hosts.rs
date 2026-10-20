@@ -161,8 +161,7 @@ fn ensure_unchanged_known_hosts(
     actual: &std::fs::Metadata,
 ) -> Result<()> {
     anyhow::ensure!(
-        expected.len() == actual.len()
-            && expected.modified().ok() == actual.modified().ok(),
+        expected.len() == actual.len() && expected.modified().ok() == actual.modified().ok(),
         "SSH known_hosts changed during replacement; retry the connection"
     );
     #[cfg(unix)]
@@ -195,7 +194,9 @@ pub fn replace(host: &str, port: u16, key: &PublicKey) -> Result<()> {
     let mut source = options
         .open(&path)
         .with_context(|| format!("opening SSH known_hosts {}", path.display()))?;
-    let metadata_before = source.metadata().context("inspect opened SSH known_hosts")?;
+    let metadata_before = source
+        .metadata()
+        .context("inspect opened SSH known_hosts")?;
     anyhow::ensure!(
         metadata_before.file_type().is_file(),
         "SSH known_hosts source is not a regular file"
@@ -205,6 +206,8 @@ pub fn replace(host: &str, port: u16, key: &PublicKey) -> Result<()> {
     source
         .read_to_string(&mut contents)
         .context("reading SSH known_hosts safely")?;
+    // Close the input handle before any Windows rename of this trust file.
+    drop(source);
     let recorded_keys = russh::keys::known_hosts::known_host_keys_path(host, port, &path)
         .with_context(|| format!("reading host keys from {}", path.display()))?;
 
@@ -216,10 +219,7 @@ pub fn replace(host: &str, port: u16, key: &PublicKey) -> Result<()> {
 
     // Avoid overwriting a file that another OpenSSH-compatible client changed
     // while Ghost FTP was preparing the replacement.
-    ensure_unchanged_known_hosts(
-        &metadata_before,
-        &inspect_known_hosts_for_replace(&path)?,
-    )?;
+    ensure_unchanged_known_hosts(&metadata_before, &inspect_known_hosts_for_replace(&path)?)?;
 
     let host_field = if port == 22 {
         host.to_string()
@@ -433,7 +433,8 @@ mod tests {
     fn replacement_refuses_symlink_without_modifying_target() {
         use std::os::unix::fs::symlink;
         let root = std::env::temp_dir().join(format!(
-            "ghostftp-known-hosts-replace-link-{}", uuid::Uuid::new_v4()
+            "ghostftp-known-hosts-replace-link-{}",
+            uuid::Uuid::new_v4()
         ));
         std::fs::create_dir(&root).unwrap();
         let original = root.join("original");
@@ -444,7 +445,10 @@ mod tests {
         assert!(inspect_known_hosts_for_replace(&alias).is_err());
         assert!(replace_file_with_rollback(&alias, b"BAD", &expected).is_err());
         assert_eq!(std::fs::read(&original).unwrap(), b"TRUSTED ORIGINAL");
-        assert!(std::fs::symlink_metadata(&alias).unwrap().file_type().is_symlink());
+        assert!(std::fs::symlink_metadata(&alias)
+            .unwrap()
+            .file_type()
+            .is_symlink());
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -452,7 +456,8 @@ mod tests {
     #[test]
     fn replacement_refuses_hardlinks_without_modifying_target() {
         let root = std::env::temp_dir().join(format!(
-            "ghostftp-known-hosts-replace-hardlink-{}", uuid::Uuid::new_v4()
+            "ghostftp-known-hosts-replace-hardlink-{}",
+            uuid::Uuid::new_v4()
         ));
         std::fs::create_dir(&root).unwrap();
         let original = root.join("known_hosts");
@@ -469,7 +474,8 @@ mod tests {
     #[test]
     fn replacement_refuses_changed_file_without_losing_trust_records() {
         let root = std::env::temp_dir().join(format!(
-            "ghostftp-known-hosts-replace-change-{}", uuid::Uuid::new_v4()
+            "ghostftp-known-hosts-replace-change-{}",
+            uuid::Uuid::new_v4()
         ));
         std::fs::create_dir(&root).unwrap();
         let path = root.join("known_hosts");
@@ -484,7 +490,8 @@ mod tests {
     #[test]
     fn replacement_keeps_normal_file_working() {
         let root = std::env::temp_dir().join(format!(
-            "ghostftp-known-hosts-replace-valid-{}", uuid::Uuid::new_v4()
+            "ghostftp-known-hosts-replace-valid-{}",
+            uuid::Uuid::new_v4()
         ));
         std::fs::create_dir(&root).unwrap();
         let path = root.join("known_hosts");
