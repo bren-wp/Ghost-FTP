@@ -118,16 +118,7 @@ impl DropboxSession {
             if !status.is_success() {
                 return Err(dropbox_http_error(status));
             }
-            let text = resp
-                .text()
-                .await
-                .context("read Dropbox metadata response")?;
-            // No-arg endpoints (get_current_account) can return an empty body.
-            if text.trim().is_empty() {
-                return Ok(serde_json::Value::Null);
-            }
-            return serde_json::from_str(&text)
-                .with_context(|| format!("parse dropbox {endpoint} response"));
+            return crate::session::http_throttle::bounded_cloud_json(resp).await;
         }
         unreachable!("rpc loop always returns within 2 attempts")
     }
