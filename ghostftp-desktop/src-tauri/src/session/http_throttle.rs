@@ -98,8 +98,8 @@ where
 /// require HTTPS and cannot silently downgrade.
 pub fn trusted_bearer_url(base: &str, target: &str) -> Result<reqwest::Url> {
     use anyhow::anyhow;
-    let endpoint = reqwest::Url::parse(base)
-        .map_err(|_| anyhow!("invalid provider API base URL"))?;
+    let endpoint =
+        reqwest::Url::parse(base).map_err(|_| anyhow!("invalid provider API base URL"))?;
     let trusted_loopback = endpoint.scheme() == "http"
         && matches!(endpoint.host_str(), Some("127.0.0.1" | "localhost" | "::1"));
     anyhow::ensure!(
@@ -107,7 +107,8 @@ pub fn trusted_bearer_url(base: &str, target: &str) -> Result<reqwest::Url> {
         "provider API base must use HTTPS"
     );
     anyhow::ensure!(
-        endpoint.username().is_empty() && endpoint.password().is_none()
+        endpoint.username().is_empty()
+            && endpoint.password().is_none()
             && endpoint.fragment().is_none(),
         "provider API base contains forbidden credentials or fragment"
     );
@@ -115,8 +116,7 @@ pub fn trusted_bearer_url(base: &str, target: &str) -> Result<reqwest::Url> {
         reqwest::Url::parse(&format!("{base}{target}"))
             .map_err(|_| anyhow!("invalid relative provider request path"))?
     } else {
-        reqwest::Url::parse(target)
-            .map_err(|_| anyhow!("invalid absolute provider request URL"))?
+        reqwest::Url::parse(target).map_err(|_| anyhow!("invalid absolute provider request URL"))?
     };
     anyhow::ensure!(
         url.origin() == endpoint.origin()
@@ -134,11 +134,17 @@ const MAX_CLOUD_METADATA_BYTES: usize = 16 * 1024 * 1024;
 /// bytes or signed URLs are included in failure diagnostics.
 pub async fn bounded_cloud_json(mut response: reqwest::Response) -> Result<serde_json::Value> {
     anyhow::ensure!(
-        response.content_length().is_none_or(|size| size <= MAX_CLOUD_METADATA_BYTES as u64),
+        response
+            .content_length()
+            .is_none_or(|size| size <= MAX_CLOUD_METADATA_BYTES as u64),
         "cloud metadata response exceeds size limit"
     );
     let mut bytes = Vec::new();
-    while let Some(chunk) = response.chunk().await.context("stream cloud metadata response")? {
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .context("stream cloud metadata response")?
+    {
         anyhow::ensure!(
             chunk.len() <= MAX_CLOUD_METADATA_BYTES.saturating_sub(bytes.len()),
             "cloud metadata response exceeds size limit"
@@ -177,7 +183,9 @@ mod tests {
             assert!(trusted_bearer_url(base, bad).is_err(), "{bad}");
         }
         assert!(trusted_bearer_url("http://127.0.0.1:9911/api", "/items").is_ok());
-        assert!(trusted_bearer_url("http://127.0.0.1:9911/api", "http://127.0.0.1:9912/api").is_err());
+        assert!(
+            trusted_bearer_url("http://127.0.0.1:9911/api", "http://127.0.0.1:9912/api").is_err()
+        );
         assert!(trusted_bearer_url("http://remote.example/api", "/items").is_err());
     }
 
