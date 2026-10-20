@@ -613,7 +613,7 @@ fn safe_upload_name(name: &str) -> bool {
 /// Apply the same conservative policy on Linux for portable downloads.
 fn safe_local_download_leaf(name: &str) -> bool {
     if !safe_upload_name(name)
-        || name.ends_with(['.', ' '])
+        || name.ends_with('.') || name.ends_with(' ')
         || name.chars().any(|ch| {
             ch.is_control() || matches!(ch, ':' | '*' | '?' | '"' | '<' | '>' | '|')
         })
