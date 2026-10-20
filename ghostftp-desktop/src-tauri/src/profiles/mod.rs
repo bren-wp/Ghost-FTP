@@ -307,10 +307,7 @@ impl ProfileStore {
         // Preserve the *existing* backup until the new primary has been
         // durably staged and promoted. Moving .bak away before the primary is
         // ready previously destroyed the last recovery copy on a failed save.
-        let previous = parent.join(format!(
-            ".profiles.json.{}.previous",
-            uuid::Uuid::new_v4()
-        ));
+        let previous = parent.join(format!(".profiles.json.{}.previous", uuid::Uuid::new_v4()));
         let retired = parent.join(format!(
             ".profiles.json.{}.retired-backup",
             uuid::Uuid::new_v4()
@@ -359,7 +356,8 @@ impl ProfileStore {
                 if backup_exists {
                     let _ = std::fs::rename(&retired, &backup);
                 }
-                return Err(error).context("promote prior profile store to backup; recovery snapshot retained");
+                return Err(error)
+                    .context("promote prior profile store to backup; recovery snapshot retained");
             }
             if backup_exists {
                 let _ = std::fs::remove_file(&retired);
@@ -436,7 +434,8 @@ mod recovery_tests {
     #[tokio::test]
     async fn profile_save_preserves_backup_when_backup_target_is_unsafe() {
         let dir = std::env::temp_dir().join(format!(
-            "ghostftp-profile-backup-guard-{}", uuid::Uuid::new_v4()
+            "ghostftp-profile-backup-guard-{}",
+            uuid::Uuid::new_v4()
         ));
         std::fs::create_dir(&dir).unwrap();
         let original = dir.join("profiles.json");
@@ -447,7 +446,10 @@ mod recovery_tests {
         let store = ProfileStore::from_dir(&dir).unwrap();
         assert!(store.delete("nonexistent").await.is_err());
         assert_eq!(std::fs::read(&original).unwrap(), b"[]");
-        assert_eq!(std::fs::read(backup.join("user-file")).unwrap(), b"PRESERVE");
+        assert_eq!(
+            std::fs::read(backup.join("user-file")).unwrap(),
+            b"PRESERVE"
+        );
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
