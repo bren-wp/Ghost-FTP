@@ -28,7 +28,7 @@ Move files, manage connections and keep important server work organized with an 
 </a>
 </p>
 
-<p align="center"><sub>Seven authentic Ghost FTP Windows 0.95.18 running-application screenshots (1290×852), captured in [native Windows WebView2 QA](https://github.com/bren-wp/Ghost-FTP/actions/runs/38642134579) from source commit <code>b26964ba476c534bd49bebf7fb73ce6011f15d92</code>. These are historical real-app captures, not 0.95.38 pixel-parity certification. Each PNG is SHA-256 pinned in [the capture manifest](docs/assets/screenshots/README-NATIVE-CAPTURE.json). No concept artwork or generated screenshots.</sub></p>
+<p align="center"><sub>Seven authentic Ghost FTP Windows 0.95.51 native WebView2 screenshots (1290×852), captured in <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/39484945427">successful Windows QA run 39484945427</a> from source SHA <code>1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f</code>. Original screenshots are SHA-256 pinned in <a href="docs/assets/screenshots/README-NATIVE-CAPTURE.json">the capture manifest</a>. These are actual running application pixels, not generated UI mockups.</sub></p>
 
 <table>
 <tr>
