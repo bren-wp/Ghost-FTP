@@ -33,7 +33,7 @@ export function trackedSourceFiles(root) {
 export const dangerousPatterns = [
   { id: "tls-certificate-bypass", pattern: /\bdanger_accept_invalid_certs\s*\(\s*true\s*\)|\bInsecureSkipVerify\s*:\s*true\b|\bsetAllowsAnyHTTPSCertificate\s*\(\s*true\s*\)/i },
   { id: "ssh-host-key-bypass", pattern: /\bStrictHostKeyChecking\s*=\s*no\b|setHostKeyVerifier\s*\(\s*\{\s*true\s*\}\s*\)/i },
-  { id: "unsafe-curl-tls", pattern: /(?:^|\s)curl\s+[^\n]*(?:\s-k\b|\s--insecure\b)/i },
+  { id: "unsafe-curl-tls", pattern: /\bcurl\b[^\n]*(?:\s-k\b|\s--insecure\b)/i },
   { id: "password-logging", pattern: /(?:console\.log|println!|print|Log\.[diwe]|NSLog)\s*\(\s*(?:password|secret|accessToken|privateKey)(?:\b|[)\s,])/i },
 ];
 export function isRuntimeCode(file) {
@@ -60,7 +60,7 @@ const REQUIRED = [
   [".github/scripts/publish-release.sh", ["--data-binary", "uploads.github.com", "sha256sum", "draft:false,prerelease:true"]],
   [".github/workflows/ghostftp-release.yml", ["workflow_run:", "SOURCE_SHA", "wait_for_gate", "ghostftp-android.yml"]],
   [".github/scripts/prune-release-history-keep10.sh", ["KEEP_10", "jq -r '.prerelease'", "--cleanup-tag"]],
-  ["android/app/src/main/java/com/ghostftp/android/CloudNetworkSafety.kt", ["https"]]
+  ["android/app/src/main/java/com/ghostftp/android/CloudNetworkSafety.kt", [".dns(PublicCloudDns())", ".proxy(Proxy.NO_PROXY)", ".followRedirects(false)"]]
 ];
 export function audit(root = ROOT) {
   const sourceFiles = trackedSourceFiles(root);
