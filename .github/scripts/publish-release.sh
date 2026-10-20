@@ -121,7 +121,12 @@ for file in dist/*; do
     exit 1
   }
   # Upload raw octets by immutable release ID, NOT through a draft tag lookup.
-  gh api --method POST -H "Content-Type: application/octet-stream" --input "$file" \
+  curl --fail --silent --show-error --location --connect-timeout 30 --max-time 900 \
+    --request POST \
+    --header "Accept: application/vnd.github+json" \
+    --header "Authorization: Bearer $GH_TOKEN" \
+    --header "Content-Type: application/octet-stream" \
+    --data-binary "@$file" \
     "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$NAME" >/dev/null
 done
 

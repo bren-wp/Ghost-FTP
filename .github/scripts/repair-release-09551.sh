@@ -66,7 +66,12 @@ jq -n --arg name "Ghost FTP 0.95.51 Preview" --rawfile notes "docs/releases/$VER
 test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq '.draft')" = true
 for file in dist/*; do
   NAME="$(basename "$file")"
-  gh api --method POST -H "Content-Type: application/octet-stream" --input "$file" \
+  curl --fail --silent --show-error --location --connect-timeout 30 --max-time 900 \
+    --request POST \
+    --header "Accept: application/vnd.github+json" \
+    --header "Authorization: Bearer $GH_TOKEN" \
+    --header "Content-Type: application/octet-stream" \
+    --data-binary "@$file" \
     "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$NAME" >/dev/null
 done
 REMOTE="$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?per_page=100")"
