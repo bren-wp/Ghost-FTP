@@ -1,12 +1,12 @@
-> Ghost FTP **0.95.52** (release cycle), following the published v0.95.51 entry (currently awaiting artifact recovery). Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.53** (release cycle), following the published v0.95.51 entry (currently awaiting artifact recovery). Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP Security Audit — 0.93.0
 
-> Current development: **0.95.52** (premium QA and cloud hardening), following the published 0.95.51 entry (awaiting asset recovery). Historical sections are retained unchanged.
+> Current development: **0.95.53** (premium QA and cloud hardening), following the published 0.95.51 entry (awaiting asset recovery). Historical sections are retained unchanged.
 
-> Current development source: **0.95.52**; latest verified published release: **0.95.51**. Historical findings below retain their original version labels.
+> Current development source: **0.95.53**; latest verified published release: **0.95.52**. Historical findings below retain their original version labels.
 
-Previous canonical release: **0.95.51**.
+Previous canonical release: **0.95.52**.
 
 0.93.0 cloud scope: custom S3/Azure desktop endpoints require HTTPS and forbid embedded credentials, query and fragments. Mobile/macOS signed-object transfers use ephemeral bearer URLs, OS TLS trust, no redirects, bounded file sizes and no stored signed links. This is targeted source hardening; penetration testing and complete provider/account parity are not claimed.
 
