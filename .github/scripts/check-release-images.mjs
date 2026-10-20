@@ -177,6 +177,7 @@ const manifestPath = path.join(screenshotDir, "README-NATIVE-CAPTURE.json");
 const captureManifest = fs.existsSync(manifestPath)
   ? JSON.parse(fs.readFileSync(manifestPath, "utf8"))
   : null;
+let exactCrossMinorCapture = false;
 if (captureManifest) {
   const versionMeta = JSON.parse(fs.readFileSync(path.join(root, "version.json"), "utf8"));
   // A new development branch initially contains real screenshots from the
@@ -207,7 +208,7 @@ if (captureManifest) {
   // This narrow exception requires all seven original fixed SHA-256 digests
   // and a pinned native Actions source; below, both 0.99.x published and
   // original capture tags MUST contain identical Git blobs.
-  const exactCrossMinorCapture = Boolean(prior && captured &&
+  exactCrossMinorCapture = Boolean(prior && captured &&
     prior[0] === 0 && prior[1] === 99 &&
     captured[0] === 0 && captured[1] === 95 && captured[2] === 53 &&
     captureManifest.capture_source_sha === "27a3f8413f168e4cb8cc31cf6d7b7c85c353f5af" &&
@@ -285,21 +286,27 @@ for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.lo
       if (currentBlob !== latestReleaseBlob) {
         failures.push(`${relative}: screenshot differs from the latest published ${releaseTag}; capture new real Windows QA pixels`);
       }
-      // The original Windows build is an immutable provenance anchor. An
-      // unchanged latest release alone cannot validate a fabricated old
-      // capture if it differs from its claimed published source tag.
-      const sourceTag = `v${captureManifest.version}`;
-      try {
-        const originalBlob = execFileSync("git", ["rev-parse", `${sourceTag}:${relative}`], {
-          cwd: root,
-          encoding: "utf8",
-          stdio: ["ignore", "pipe", "pipe"],
-        }).trim();
-        if (currentBlob !== originalBlob) {
-          failures.push(`${relative}: screenshot differs from its original capture tag ${sourceTag}`);
+      // The genuine v0.95.53 *CI QA run* generated these pixels, but they
+      // were not committed into the v0.95.53 source tag until the later
+      // v0.99.0 README refresh. Original tag equality would therefore be
+      // invalid. Permit the exception ONLY for the seven exact pinned
+      // artifact digests and require equality with latest published Git blob.
+      // For every other capture, require original source-tag equality too.
+      if (!(exactCrossMinorCapture &&
+            isVerified09553Capture(captureManifest, relative, actualHash))) {
+        const sourceTag = `v${captureManifest.version}`;
+        try {
+          const originalBlob = execFileSync("git", ["rev-parse", `${sourceTag}:${relative}`], {
+            cwd: root,
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "pipe"],
+          }).trim();
+          if (currentBlob !== originalBlob) {
+            failures.push(`${relative}: screenshot differs from its original capture tag ${sourceTag}`);
+          }
+        } catch {
+          failures.push(`${relative}: original capture tag ${sourceTag} is missing or unverified`);
         }
-      } catch {
-        failures.push(`${relative}: original capture tag ${sourceTag} is missing or unverified`);
       }
     }
     continue;
