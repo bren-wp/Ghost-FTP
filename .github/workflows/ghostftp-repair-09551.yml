@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   recover:
-    if: github.repository == 'bren-wp/Ghost-FTP'
+    if: github.repository == 'bren-wp/Ghost-FTP' && github.event.before == '1d6d5683c0fc4dee8e4b9c6de1750599db33fc4f'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
