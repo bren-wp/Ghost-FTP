@@ -105,3 +105,11 @@ test("all Preview releases remain immutable and cannot be classified stable", ()
     if (filename !== "publisher") assert.ok(!source.includes("releases/assets/$ASSET_ID"), filename);
   }
 });
+
+test("canonical latest release is determined by numeric immutable version, never PATCHable publish date", () => {
+  for (const name of ["ghostftp-quality.yml", "ghostftp-release.yml"]) {
+    const yaml = read(".github/workflows/" + name);
+    assert.ok(yaml.includes('sort_by(.tag_name | ltrimstr("v") | split(".") | map(tonumber))'),name);
+    assert.ok(!yaml.includes('sort_by(.published_at)'),name);
+  }
+});
