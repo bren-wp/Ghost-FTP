@@ -95,11 +95,12 @@ impl GDriveSession {
         url: &str,
         body: Option<&Value>,
     ) -> Result<reqwest::Response> {
-        let full = if url.starts_with("http") {
-            url.to_string()
-        } else {
-            format!("{}{url}", self.api_base)
-        };
+        // Next-page URLs and upload links may be absolute: authenticate
+        // only requests on the configured Drive API origin.
+        let full = crate::session::http_throttle::trusted_bearer_url(
+            &self.api_base,
+            url,
+        )?;
         let mut attempt = 0;
         loop {
             let token = self.token.access_token().await?;
@@ -129,14 +130,7 @@ impl GDriveSession {
         if !status.is_success() {
             return Err(gdrive_http_error(status));
         }
-        let text = resp
-            .text()
-            .await
-            .context("read Google Drive metadata response")?;
-        if text.trim().is_empty() {
-            return Ok(Value::Null);
-        }
-        serde_json::from_str(&text).with_context(|| format!("parse drive {url} response"))
+        crate::session::http_throttle::bounded_cloud_json(resp).await
     }
 
     pub async fn get_stream(&self, url: &str) -> Result<reqwest::Response> {
