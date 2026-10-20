@@ -28,7 +28,7 @@ for(const [capture,destination,view] of names){
 }
 fs.writeFileSync("docs/assets/screenshots/README-NATIVE-CAPTURE.json",JSON.stringify({
  version:"0.95.53",platform:"Windows",capture_source_sha:sha,
- github_actions_run_id:run,provenance:"Ghost FTP native build, genuine Windows WebView2 compositor QA, 1290x852",
+ github_actions_run_id:run,provenance:"Ghost FTP native build, real Windows WebView2 compositor QA, 1290x852",
  images
 },null,2)+"\n");
 const readme=fs.readFileSync("README.md","utf8");
