@@ -77,10 +77,7 @@ impl OneDriveSession {
     ) -> Result<reqwest::Response> {
         // A Graph nextLink is untrusted server input. Never forward a bearer
         // credential across origins, even when pagination returns a full URL.
-        let url = crate::session::http_throttle::trusted_bearer_url(
-            &self.graph_base,
-            path,
-        )?;
+        let url = crate::session::http_throttle::trusted_bearer_url(&self.graph_base, path)?;
         let mut attempt = 0;
         loop {
             let token = self.token.access_token().await?;
