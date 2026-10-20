@@ -586,23 +586,36 @@ mod platform {
         use std::os::unix::fs::OpenOptionsExt;
         let existing_permissions = match std::fs::symlink_metadata(path) {
             Ok(meta) if meta.file_type().is_file() => Some(meta.permissions()),
-            Ok(_) => return Err(format!("refusing to overwrite non-regular shell profile {}", path.display())),
+            Ok(_) => {
+                return Err(format!(
+                    "refusing to overwrite non-regular shell profile {}",
+                    path.display()
+                ))
+            }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
             Err(error) => return Err(format!("inspect {}: {error}", path.display())),
         };
-        let parent = path.parent().ok_or_else(|| "shell profile has no parent".to_owned())?;
+        let parent = path
+            .parent()
+            .ok_or_else(|| "shell profile has no parent".to_owned())?;
         let tmp = parent.join(format!(".ghostftp-profile-{}.tmp", uuid::Uuid::new_v4()));
         let outcome = (|| -> Result<(), String> {
             let mut staged = std::fs::OpenOptions::new()
-                .write(true).create_new(true).mode(0o600).open(&tmp)
+                .write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(&tmp)
                 .map_err(|error| format!("create temporary profile {}: {error}", tmp.display()))?;
             if let Some(permissions) = existing_permissions {
-                staged.set_permissions(permissions)
+                staged
+                    .set_permissions(permissions)
                     .map_err(|error| format!("retain profile permissions: {error}"))?;
             }
-            staged.write_all(content.as_bytes())
+            staged
+                .write_all(content.as_bytes())
                 .map_err(|error| format!("write temporary shell profile: {error}"))?;
-            staged.sync_all()
+            staged
+                .sync_all()
                 .map_err(|error| format!("sync temporary shell profile: {error}"))?;
             drop(staged);
             // Do not overwrite a profile swapped to a symlink during staging.
@@ -670,9 +683,8 @@ mod platform {
         remove_managed_cli_link(&link)?;
         if let Some(profile) = shell_profile() {
             let existing = read_profile(&profile)?;
-            let next = super::remove_marker_block(
-                &existing, super::PROFILE_BEGIN, super::PROFILE_END
-            );
+            let next =
+                super::remove_marker_block(&existing, super::PROFILE_BEGIN, super::PROFILE_END);
             if next != existing {
                 write_profile(&profile, &next)?;
             }
@@ -739,9 +751,8 @@ mod tests {
     #[test]
     fn linux_path_integrator_never_deletes_user_cli_file_or_foreign_link() {
         use std::os::unix::fs::symlink;
-        let dir = std::env::temp_dir().join(format!(
-            "ghostftp-path-guard-{}", uuid::Uuid::new_v4()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-path-guard-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir(&dir).unwrap();
         let link = dir.join("ghostftp-cli");
         std::fs::write(&link, b"USER OWNED BINARY").unwrap();
@@ -751,7 +762,10 @@ mod tests {
         std::fs::remove_file(&link).unwrap();
         symlink("unrelated-program", &link).unwrap();
         assert!(platform::remove_managed_cli_link(&link).is_err());
-        assert!(std::fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+        assert!(std::fs::symlink_metadata(&link)
+            .unwrap()
+            .file_type()
+            .is_symlink());
 
         std::fs::remove_file(&link).unwrap();
         symlink("/opt/ghostftp/ghostftp-cli", &link).unwrap();
@@ -764,7 +778,11 @@ mod tests {
     fn truncated_marker_block_never_truncates_user_shell_profile() {
         let profile = "export EDITOR=vim\n# >>> ghostftp-cli PATH >>>\nexport CUSTOM=important\n";
         assert_eq!(
-            remove_marker_block(profile, "# >>> ghostftp-cli PATH >>>", "# <<< ghostftp-cli PATH <<<"),
+            remove_marker_block(
+                profile,
+                "# >>> ghostftp-cli PATH >>>",
+                "# <<< ghostftp-cli PATH <<<"
+            ),
             profile
         );
     }
