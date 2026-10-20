@@ -12,7 +12,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.0 (in-development Preview) · Latest published: [v0.95.53](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.53). Check that the release page contains verified packages before downloading; unsigned Android and macOS Preview packages are not production-certified.</sub>
+<sub>Ghost FTP 0.99.1 (in-development Preview) · Latest published: [v0.99.0](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.0). Check that the release page contains verified packages before downloading; unsigned Android and macOS Preview packages are not production-certified.</sub>
 
 [**View published Ghost FTP packages**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
