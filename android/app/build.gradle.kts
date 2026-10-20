@@ -26,8 +26,8 @@ android {
         applicationId = "com.ghostftp.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 955200
-        versionName = "0.95.52"
+        versionCode = 955300
+        versionName = "0.95.53"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
