@@ -109,11 +109,21 @@ impl RemoteFs for OneDriveFs {
     async fn list_dir(&self, path: &str) -> Result<Vec<DirEntry>> {
         let mut out = Vec::new();
         let mut next = children_ref(path);
+        let mut visited = std::collections::HashSet::new();
         loop {
+            anyhow::ensure!(visited.len() < 1_000, "OneDrive pagination exceeded 1000 pages");
+            anyhow::ensure!(
+                visited.insert(next.clone()),
+                "OneDrive pagination repeated a previous nextLink"
+            );
             let page = self.session.rpc(Method::GET, &next, None).await?;
             if let Some(items) = page.get("value").and_then(|v| v.as_array()) {
                 for item in items {
                     if let Some(e) = entry_from_json(item, path) {
+                        anyhow::ensure!(
+                            out.len() < 100_000,
+                            "OneDrive directory inventory exceeded 100000 entries"
+                        );
                         out.push(e);
                     }
                 }
