@@ -13,5 +13,7 @@ Four *already completed and one-time* GitHub migration assets were removed after
 
 Deletion is limited to these retired maintenance entrypoints; no end-user module, database migration, OS credential backend, release digest code or platform feature was removed.
 
+Two additional temporary screenshot-import files were removed after the v0.95.52 verified ZIP importer succeeded (run 39499908379): `.github/scripts/import-verified-windows-09552.mjs` and `.github/workflows/ghostftp-readme-09552-refresh.yml`. Current PNGs and their manifest remain committed; removing retired import automation does not affect users.
+
 ## Future review
 Review all React imports, Rust feature/cfg variants, Kotlin Manifest/Compose/resources, SwiftUI reflection and `@main`, Go OS build tags, Tauri command registration, SQLite migrations and native backups before any further deletion. Preserve historical credentials and signed-update lineage. Measure app bundle size and runtime memory before claiming any speedup or battery saving.
