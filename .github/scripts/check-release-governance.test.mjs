@@ -20,6 +20,12 @@ test("every passing main native build can automatically trigger a release", () =
   assert.ok(workflow.includes("LATEST_ID"));
   assert.ok(workflow.includes("TRIGGER_RUN_ID"));
   assert.ok(workflow.includes("needs.select-trigger.outputs.native_run_id"));
+  // Android-only, macOS-only and documentation changes must also create a native
+  // build; a path-filtered build would never trigger workflow_run publication.
+  const native = read(".github/workflows/ghostftp-build.yml");
+  const pushBlock = native.split("  push:")[1].split("  pull_request:")[0];
+  assert.ok(pushBlock.includes("branches: [main]"));
+  assert.ok(!pushBlock.includes("paths:"));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-quality.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-protocol-e2e.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-android.yml"'));

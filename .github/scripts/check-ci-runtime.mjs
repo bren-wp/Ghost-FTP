@@ -66,6 +66,15 @@ if (!releaseWorkflow.includes("github.event.workflow_run.head_branch == 'main'")
   failures.push("Auto-promotion must authenticate origin, current main SHA and successful exact-SHA native build");
 }
 
+const nativeWorkflow = fs.readFileSync(
+  path.join(workflowDir, "ghostftp-build.yml"), "utf8"
+);
+const nativePushSection = nativeWorkflow.split("  push:")[1]?.split("  pull_request:")[0] ?? "";
+if (!nativePushSection.includes("branches: [main]") ||
+    nativePushSection.includes("paths:")) {
+  failures.push("Automatic release requires the native build to run after every main change, not only selected source paths");
+}
+
 const viteConfig = fs.readFileSync(
   path.join(root, "ghostftp-desktop", "vite.config.ts"),
   "utf8"
