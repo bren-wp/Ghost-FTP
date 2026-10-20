@@ -49,8 +49,10 @@ test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CAPTURE_RUN_ID" --jq '.co
 GHOSTFTP_LATEST_RELEASE_TAG="$LATEST_TAG" node .github/scripts/check-release-images.mjs
 
 # Pagination must cover ALL historical releases, not the first 100.
+# Sort by canonical numeric SemVer, never mutable publication timestamps:
+# correcting old Preview metadata can change its update/publication ordering.
 ALL="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate --slurp |
-  jq -c '[.[][] | select(.draft == false)] | sort_by(.published_at) | reverse')"
+  jq -c '[.[][] | select(.draft == false)] | sort_by(.tag_name | ltrimstr("v") | split(".") | map(tonumber)) | reverse')"
 TOTAL="$(jq 'length' <<< "$ALL")"
 test "$TOTAL" -ge 10
 test "$TOTAL" -le 1000
