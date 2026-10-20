@@ -1,10 +1,18 @@
-## 0.95.50 — Windows/Linux filesystem and protocol security fixes (UNRELEASED Preview) — 20 October 2026
+## 0.95.51 — Automatic gated Preview promotion and integrity (UNRELEASED Preview) — 20 October 2026
+
+- Automatically publish a new Preview prerelease after each versioned merge to main, including Android-only/macOS-only/documentation changes, only when all exact-SHA CI gates pass. Reject PRs without version bumps or when the preceding main version has not been published.
+- Harden SSH `known_hosts` trust-record replacement to reject symlink/hardlink aliases and stale inode snapshots; preserve existing records on failure.
+- Stage GitHub Releases as drafts and verify upload SHA-256, all remote digests, asset inventory and source SHA before public Preview status.
+- Preserve public releases and published tags. Document the v0.95.50 metadata mismatch with Preview/unsigned assets.
+- Stable release remains blocked by platform signing, notarization and real-device acceptance.
+
+## 0.95.50 — Windows/Linux filesystem and protocol security fixes (published with Preview-grade assets) — 20 October 2026
 
 - Correct SQLite snapshot preservation, encrypted backup verification and recovery copies, Linux PATH and SSH known_hosts no-follow safeguards.
 - Guard Mirror sync roots and downloads from symlink/root confusion, Windows device filenames and traversal.
 - Bound WebDAV XML and cloud JSON responses, restrict OAuth bearer requests to trusted origins, prevent cyclic Drive/OneDrive pagination.
 - Expand isolated FTP/FTPS/SFTP and Windows filesystem regression checks; final protocol security, restart/recovery, vendor cloud accounts and branch-protection acceptance remain unverified.
-- Keep all historical tags, published v0.95.49 and user data intact. This security preview is **not published**, and restore is not globally atomic.
+- Keep all historical tags, published v0.95.49 and user data intact. This release contains **Preview-grade artifacts**, and restore is not globally atomic.
 
 ## 0.95.49 — Windows/Linux credential vault migration and recovery (unreleased security preview) — 19 October 2026
 

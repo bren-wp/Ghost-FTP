@@ -44,21 +44,35 @@ for (const rel of [
   }
 }
 
-// workflow_run emits PR native-build completion events as well as main.
-// The trigger job skips PR events, but concurrency is evaluated *before*
-// that job runs; a shared cancel-in-progress group used to terminate a
-// genuine main release while waiting for exact-SHA Android tests.
+// Publishing is automatic ONLY from a successful main push native build.
 const releaseWorkflow = fs.readFileSync(
   path.join(workflowDir, "ghostftp-release.yml"), "utf8"
 );
-if (!releaseWorkflow.includes("  group: ghostftp-release-${{ github.event.workflow_run.head_branch }}")) {
-  failures.push("Release concurrency must be isolated by triggering head_branch");
+if (!releaseWorkflow.includes("  workflow_run:") ||
+    !releaseWorkflow.includes('workflows: ["Ghost FTP native build"]') ||
+    releaseWorkflow.includes("  workflow_dispatch:") ||
+    !releaseWorkflow.includes("github.event.workflow_run.event == 'push'")) {
+  failures.push("Automatic release trigger must require completed native builds on main pushes");
 }
-if (!/^  cancel-in-progress: false$/m.test(releaseWorkflow)) {
-  failures.push("Unrelated workflow_run completion must never cancel an active release");
+if (!releaseWorkflow.includes("  group: ghostftp-release-${{ github.event.workflow_run.head_branch }}") ||
+    !/^  cancel-in-progress: false$/m.test(releaseWorkflow)) {
+  failures.push("PR events must not cancel active main release promotions");
 }
-if (!releaseWorkflow.includes("github.event.workflow_run.head_branch == 'main'")) {
-  failures.push("Release must continue to accept only successful main builds");
+if (!releaseWorkflow.includes("github.event.workflow_run.head_branch == 'main'") ||
+    !releaseWorkflow.includes("github.event.workflow_run.head_repository.full_name == github.repository") ||
+    !releaseWorkflow.includes("CURRENT_MAIN_SHA") ||
+    !releaseWorkflow.includes("TRIGGER_RUN_ID") ||
+    !releaseWorkflow.includes("ghostftp-build.yml")) {
+  failures.push("Auto-promotion must authenticate origin, current main SHA and successful exact-SHA native build");
+}
+
+const nativeWorkflow = fs.readFileSync(
+  path.join(workflowDir, "ghostftp-build.yml"), "utf8"
+);
+const nativePushSection = nativeWorkflow.split("  push:")[1]?.split("  pull_request:")[0] ?? "";
+if (!nativePushSection.includes("branches: [main]") ||
+    nativePushSection.includes("paths:")) {
+  failures.push("Automatic release requires the native build to run after every main change, not only selected source paths");
 }
 
 const viteConfig = fs.readFileSync(

@@ -82,19 +82,19 @@ else
   git push origin "refs/tags/$TAG"
 fi
 
-# Preview source must never be presented as a GA/stable GitHub release.
-# --latest is deliberately absent: prereleases are excluded from GitHub's
-# stable /releases/latest endpoint.
-ARGS=(--target "$SOURCE_SHA" --title "$RELEASE_NAME" --notes-file "$NOTES_FILE" --prerelease)
-
+# Stage assets in a DRAFT; a failed upload must never be publicly listed.
+# Existing PUBLIC releases must remain immutable (including their asset digests).
 if gh release view "$TAG" >/dev/null 2>&1; then
-  gh release edit "$TAG" "${ARGS[@]}"
+  DRAFT_STATE="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.draft')"
+  if [ "$DRAFT_STATE" != "true" ]; then
+    echo "Published $TAG already exists; refusing to overwrite public assets or metadata." >&2
+    exit 1
+  fi
+  gh release edit "$TAG" --title "$RELEASE_NAME" --notes-file "$NOTES_FILE" --prerelease --draft
 else
-  gh release create "$TAG" "${ARGS[@]}"
+  gh release create "$TAG" --target "$SOURCE_SHA" --title "$RELEASE_NAME" --notes-file "$NOTES_FILE" --prerelease --draft
 fi
-
-# Assert the public release retains the Preview classification even if a
-# previous (incomplete) run created it with different metadata.
+test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.draft')" = "true"
 test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.prerelease')" = "true"
 
 gh release upload "$TAG" dist/* --clobber
@@ -120,3 +120,9 @@ LOCAL_COUNT="$(find dist -maxdepth 1 -type f | wc -l | tr -d ' ')"
 REMOTE_COUNT="$(gh api "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID/assets" --paginate --jq 'length')"
 test "$REMOTE_COUNT" = "$LOCAL_COUNT"
 test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/$TAG" --jq '.object.sha')" = "$SOURCE_SHA"
+
+# Publish only after every remote digest, asset count, and source SHA passes.
+test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.draft')" = "true"
+gh release edit "$TAG" --draft=false --prerelease
+test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.draft')" = "false"
+test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.prerelease')" = "true"
