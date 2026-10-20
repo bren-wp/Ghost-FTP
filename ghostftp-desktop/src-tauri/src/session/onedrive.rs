@@ -83,7 +83,7 @@ impl OneDriveSession {
             let token = self.token.access_token().await?;
             let mut rb = self
                 .client
-                .request(method.clone(), &url)
+                .request(method.clone(), url.as_str())
                 .bearer_auth(&token);
             if let Some(b) = body {
                 rb = rb.json(b);
