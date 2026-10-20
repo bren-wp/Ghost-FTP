@@ -179,7 +179,8 @@ final class FTPConnectionController: ObservableObject {
                 transferState = .failed(error.localizedDescription)
                 // A local unsafe-file rejection happens BEFORE any network
                 // mutation and must not falsely mark the FTP session dead.
-                if case FTPControlError.unsafeLocalUploadSource = error {
+                if let ftpError = error as? FTPControlError,
+                   case .unsafeLocalUploadSource = ftpError {
                     return
                 }
                 state = .failed(error.localizedDescription)
