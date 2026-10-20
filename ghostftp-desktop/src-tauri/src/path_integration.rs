@@ -542,7 +542,7 @@ mod platform {
 
     /// Only unlink the symlink we manage. Previously an existing regular
     /// ~/.local/bin/ghostftp-cli was deleted on install/uninstall.
-    fn remove_managed_cli_link(link: &Path) -> Result<(), String> {
+    pub(super) fn remove_managed_cli_link(link: &Path) -> Result<(), String> {
         let metadata = match std::fs::symlink_metadata(link) {
             Ok(meta) => meta,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
@@ -583,7 +583,7 @@ mod platform {
 
     fn write_profile(path: &Path, content: &str) -> Result<(), String> {
         use std::io::Write;
-        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+        use std::os::unix::fs::OpenOptionsExt;
         let existing_permissions = match std::fs::symlink_metadata(path) {
             Ok(meta) if meta.file_type().is_file() => Some(meta.permissions()),
             Ok(_) => return Err(format!("refusing to overwrite non-regular shell profile {}", path.display())),
