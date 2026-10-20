@@ -332,8 +332,12 @@ impl FolderSync {
         );
         let canonical = std::fs::canonicalize(path).context("resolve mirror local root")?;
         anyhow::ensure!(
-            canonical.parent().is_some() &&
-                canonical.components().filter(|part| matches!(part, std::path::Component::Normal(_))).count() > 0,
+            canonical.parent().is_some()
+                && canonical
+                    .components()
+                    .filter(|part| matches!(part, std::path::Component::Normal(_)))
+                    .count()
+                    > 0,
             "mirror sync refuses a filesystem or drive root"
         );
         Ok(())
@@ -1272,9 +1276,8 @@ mod tests {
     fn mirror_sync_rejects_local_symlink_and_filesystem_root_alias() {
         use super::FolderSync;
         use std::os::unix::fs::symlink;
-        let dir = std::env::temp_dir().join(format!(
-            "ghostftp-mirror-root-{}", uuid::Uuid::new_v4()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-mirror-root-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir(&dir).unwrap();
         let mut candidate = pair(&[], 100);
         candidate.profile_id = "test-profile".into();
@@ -1289,8 +1292,10 @@ mod tests {
         candidate.local_root = dir.join("missing").to_string_lossy().into_owned();
         assert!(FolderSync::validate_pair(&candidate).is_ok());
         assert!(FolderSync::validate_mirror_local_root(
-            std::path::Path::new(&candidate.local_root), true
-        ).is_err());
+            std::path::Path::new(&candidate.local_root),
+            true
+        )
+        .is_err());
         candidate.local_root = dir.to_string_lossy().into_owned();
         assert!(FolderSync::validate_pair(&candidate).is_ok());
         assert!(FolderSync::validate_mirror_local_root(&dir, true).is_ok());
