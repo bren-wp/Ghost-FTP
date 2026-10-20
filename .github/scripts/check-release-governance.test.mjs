@@ -88,5 +88,5 @@ test("unpublished Vite 0.95.53 repair is restricted to one failed original SHA a
   assert.ok(quality.includes('dd98f79b525759c4d77f6894d7d5603074fd053c'));
   assert.ok(quality.includes('git ls-remote --exit-code --tags origin "refs/tags/v0.95.53"'));
   assert.ok(quality.includes('if [ "$TAG_CHECK" -ne 2 ]; then'));
-  assert.ok(quality.includes('previous public release stays 0.95.52'));
+  assert.ok(quality.includes('prior public release stays 0.95.52'));
 });
