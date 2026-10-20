@@ -202,7 +202,20 @@ if (captureManifest) {
     prior[0] === captured[0] &&
     prior[1] === captured[1] &&
     prior[2] >= captured[2]);
-  if (!(acceptableVersions.includes(captureManifest.version) || unchangedPublishedCapture) ||
+  // v0.95.53 contains the last *genuine* native screenshot set. The
+  // owner-authorized jump to 0.99.0 does not fabricate new screenshot pixels.
+  // This narrow exception requires all seven original fixed SHA-256 digests
+  // and a pinned native Actions source; below, both 0.99.x published and
+  // original capture tags MUST contain identical Git blobs.
+  const exactCrossMinorCapture = Boolean(prior && captured &&
+    prior[0] === 0 && prior[1] === 99 &&
+    captured[0] === 0 && captured[1] === 95 && captured[2] === 53 &&
+    captureManifest.capture_source_sha === "27a3f8413f168e4cb8cc31cf6d7b7c85c353f5af" &&
+    captureManifest.github_actions_run_id === "39506868388" &&
+    verified09553WindowsCaptures.size === 7 &&
+    Object.entries(captureManifest.images ?? {}).length === 7 &&
+    [...verified09553WindowsCaptures].every(([file, digest]) => captureManifest.images[file] === digest));
+  if (!(acceptableVersions.includes(captureManifest.version) || unchangedPublishedCapture || exactCrossMinorCapture) ||
       !/^[a-f0-9]{40}$/.test(captureManifest.capture_source_sha ?? "") ||
       !/^[0-9]+$/.test(captureManifest.github_actions_run_id ?? "") ||
       captureManifest.platform !== "Windows" ||
@@ -243,7 +256,10 @@ for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.lo
     // artifact SHA256 and source commit are pinned above.
     if (isVerified09551Capture(captureManifest, relative, actualHash) ||
         isVerified09552Capture(captureManifest, relative, actualHash) ||
-        isVerified09553Capture(captureManifest, relative, actualHash)) {
+        // Matching an older authenticated image does not bypass a required
+        // original-tag/latest-published-tag comparison across a minor jump.
+        (isVerified09553Capture(captureManifest, relative, actualHash) &&
+         captureManifest.version === JSON.parse(fs.readFileSync(path.join(root, "version.json"), "utf8")).previousPublishedVersion)) {
       continue;
     }
     // An old but genuine capture is acceptable for unchanged release images,
