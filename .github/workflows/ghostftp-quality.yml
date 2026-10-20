@@ -57,14 +57,37 @@ jobs:
             CURRENT_VERSION="$(node -p 'require("./version.json").version')"
             PREVIOUS_SOURCE_VERSION="$(node -p 'require("./version.json").previousVersion || ""')"
             PREVIOUS_PUBLISHED_VERSION="$(node -p 'require("./version.json").previousPublishedVersion || ""')"
-            if [ "$PREVIOUS_SOURCE_VERSION" != "$BASE_VERSION" ] ||
-               [ "$PREVIOUS_PUBLISHED_VERSION" != "$BASE_VERSION" ]; then
-              echo "::error::The previous main version v$BASE_VERSION must have a published release before the next PR can merge. Ensure previousVersion and previousPublishedVersion equal the base version; wait for its verified automatic release."
-              exit 1
-            fi
             if [ "$CURRENT_VERSION" = "$BASE_VERSION" ]; then
-              echo "::error::Every merged change requires a new version. Increment version.json, synchronize all platform metadata and add release notes before merging."
-              exit 1
+              # Narrow recovery for a source version which was merged but NEVER
+              # published because npm subsequently flagged a vulnerable Vite
+              # dependency. The existing version has no tag and no release:
+              # republish once from the fully corrected, newly merged SHA.
+              # This is NOT a general version reuse exception.
+              BASE_SHA="$(git rev-parse FETCH_HEAD)"
+              if [ "$CURRENT_VERSION" != "0.95.53" ] ||
+                 [ "$BASE_SHA" != "dd98f79b525759c4d77f6894d7d5603074fd053c" ] ||
+                 [ "$PREVIOUS_SOURCE_VERSION" != "0.95.52" ] ||
+                 [ "$PREVIOUS_PUBLISHED_VERSION" != "0.95.52" ] ||
+                 [ "$(node -p 'require("./ghostftp-desktop/package.json").devDependencies.vite')" != "8.3.4" ] ||
+                 [ "$(node -p 'require("./ghostftp-desktop/package-lock.json").packages["node_modules/vite"].version')" != "8.3.4" ]; then
+                echo "::error::Every merged change requires a new version. Unpublished v0.95.53 recovery preflight was not satisfied."
+                exit 1
+              fi
+              set +e
+              git ls-remote --exit-code --tags origin "refs/tags/v0.95.53" >/dev/null 2>&1
+              TAG_CHECK=$?
+              set -e
+              if [ "$TAG_CHECK" -ne 2 ]; then
+                echo "::error::Refusing unpublished recovery: v0.95.53 tag already exists or tag lookup failed."
+                exit 1
+              fi
+              echo "::notice::Recovering previously unpublished 0.95.53 with patched Vite; prior public release stays 0.95.52."
+            else
+              if [ "$PREVIOUS_SOURCE_VERSION" != "$BASE_VERSION" ] ||
+                 [ "$PREVIOUS_PUBLISHED_VERSION" != "$BASE_VERSION" ]; then
+                echo "::error::The previous main version v$BASE_VERSION must have a published release before the next PR can merge. Ensure previousVersion and previousPublishedVersion equal the base version; wait for its verified automatic release."
+                exit 1
+              fi
             fi
             node .github/scripts/sync-version.mjs --check-next "$BASE_VERSION"
           fi
