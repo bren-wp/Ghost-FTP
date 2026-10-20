@@ -47,7 +47,13 @@ fs.writeFileSync("docs/assets/screenshots/README-NATIVE-CAPTURE.json",
   }, null, 2) + "\n");
 const original = fs.readFileSync("README.md","utf8");
 const oldCaption = /<p align="center"><sub>Seven authentic Ghost FTP Windows 0\.95\.18 running-application screenshots[\s\S]*?No concept artwork or generated screenshots\.<\/sub><\/p>/;
-if (!oldCaption.test(original)) throw new Error("Old README screenshot caption not found");
+if (!oldCaption.test(original)) {
+  if (!original.includes("Seven authentic Ghost FTP Windows 0.95.51 native WebView2 screenshots")) {
+    throw new Error("README contains neither approved historical caption nor verified latest capture caption");
+  }
+  console.log("README already contains authenticated v0.95.51 caption; PNG checksums verified.");
+  process.exit(0);
+}
 const replacement = '<p align="center"><sub>Seven authentic Ghost FTP Windows 0.95.51 native WebView2 screenshots (1290×852), captured in <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/'+runId+'">successful Windows QA run '+runId+'</a> from source SHA <code>'+sourceSHA+'</code>. Original screenshots are SHA-256 pinned in <a href="docs/assets/screenshots/README-NATIVE-CAPTURE.json">the capture manifest</a>. These are actual running application pixels, not generated UI mockups.</sub></p>';
 fs.writeFileSync("README.md", original.replace(oldCaption,replacement));
 console.log("Imported seven real verified native Windows QA captures from run " + runId);
