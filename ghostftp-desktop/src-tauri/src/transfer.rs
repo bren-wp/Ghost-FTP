@@ -5810,7 +5810,6 @@ mod tests {
             "report.txt:payload",
             "example.",
             "example ",
-            "sub/path",
             "folder\\file",
             "file\nnext",
             "file\u{0001}suffix",
@@ -5827,6 +5826,13 @@ mod tests {
                 "unsafe recursive download accepted: {name:?}"
             );
         }
+        // A slash separates legitimate nested directory components in a
+        // recursive download. It is not an unsafe filename component.
+        assert!(!safe_local_download_leaf("sub/path"));
+        assert_eq!(
+            checked_remote_download_relative("/downloads", "/downloads/sub/path").unwrap(),
+            PathBuf::from("sub").join("path")
+        );
         for name in [
             "report.txt",
             "račun 2026.pdf",
