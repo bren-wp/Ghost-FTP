@@ -1,12 +1,12 @@
-> Ghost FTP **0.95.52** (release cycle), following published **v0.95.51**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.95.53** (release cycle), following published **v0.95.52**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Recommended Next Work
 
-> Current development: **0.95.52** (premium UI and cloud security), following published **0.95.51**. Historical sections are retained unchanged.
+> Current development: **0.95.53** (premium UI and cloud security), following published **0.95.52**. Historical sections are retained unchanged.
 
-> Earlier 0.94.0/0.93.0 sections remain historical. Current source is **0.95.52** and latest public release **0.95.51**.
+> Earlier 0.94.0/0.93.0 sections remain historical. Current source is **0.95.53** and latest public release **0.95.52**.
 
-This prioritized improvement backlog covers Ghost FTP **0.95.52**. Previous canonical release: **0.95.51**. Items here are recommendations, not claims of completed functionality.
+This prioritized improvement backlog covers Ghost FTP **0.95.53**. Previous canonical release: **0.95.52**. Items here are recommendations, not claims of completed functionality.
 
 ## Release blockers before FINAL
 
