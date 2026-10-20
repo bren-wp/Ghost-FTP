@@ -70,6 +70,32 @@ pub fn check(host: &str, port: u16, key: &PublicKey) -> Result<HostKeyStatus> {
     })
 }
 
+/// A link at known_hosts could redirect a trust decision into an unrelated
+/// user file. On Unix, O_NOFOLLOW closes the final-component check/open race.
+fn open_known_hosts_for_append(path: &Path) -> Result<std::fs::File> {
+    match std::fs::symlink_metadata(path) {
+        Ok(meta) => anyhow::ensure!(
+            meta.file_type().is_file(),
+            "known_hosts is not a regular file"
+        ),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error).context("inspect known_hosts before append"),
+    }
+    let mut options = OpenOptions::new();
+    options.create(true).append(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600).custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC);
+    }
+    let file = options.open(path).context("open known_hosts without following links")?;
+    anyhow::ensure!(
+        file.metadata().context("inspect opened known_hosts")?.is_file(),
+        "known_hosts is not a regular file"
+    );
+    Ok(file)
+}
+
 /// Append a host entry. Writes `host[:port] <type> <base64>` in OpenSSH's
 /// non-standard-port form (`[host]:port`). Creates `~/.ssh` with `0700` on
 /// unix if needed.
@@ -97,17 +123,9 @@ pub fn append(host: &str, port: u16, key: &PublicKey) -> Result<()> {
         key.public_key_base64()
     );
 
-    let mut options = OpenOptions::new();
-    options.create(true).append(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    let mut file = options
-        .open(&path)
-        .with_context(|| format!("opening {} for append", path.display()))?;
-    file.write_all(line.as_bytes())?;
+    let mut file = open_known_hosts_for_append(&path)?;
+    file.write_all(line.as_bytes()).context("append trusted SSH host key")?;
+    file.sync_all().context("sync SSH known_hosts update")?;
     Ok(())
 }
 
@@ -325,6 +343,23 @@ mod tests {
             rewrite_matching_lines(contents, &matching, replacement).expect("matching lines");
 
         assert_eq!(rewritten, "alpha ssh-ed25519 new\nother ssh-rsa keep\n");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn known_hosts_append_rejects_symlink_without_modifying_target() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!(
+            "ghostftp-known-hosts-test-{}", uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let target = root.join("unrelated-secret");
+        std::fs::write(&target, b"DO NOT TOUCH").unwrap();
+        let link = root.join("known_hosts");
+        symlink(&target, &link).unwrap();
+        assert!(open_known_hosts_for_append(&link).is_err());
+        assert_eq!(std::fs::read(&target).unwrap(), b"DO NOT TOUCH");
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
