@@ -1,3 +1,11 @@
+## 0.99.0 — New Preview development train (21 October 2026; unreleased until CI passes)
+
+- Permanently stop GitHub Release and tag deletion; remove the previous automatic latest-ten retention workflow and prune script and add regression tests forbidding their return.
+- Align Windows, Linux, Android, macOS, updater, CLI, Cargo.lock, version metadata and release notes on the first 0.99.0 Preview source.
+- Require precisely the sequence 0.99.0 → 0.99.1 → … → 0.99.20 → 1.0.0, with production acceptance as a separate gate for stable.
+- Continue native macOS secure-protocol engineering, installation extraction/provenance tests, data-integrity hardening, security and full dead-code audits; do not claim macOS FTPS/SFTP as complete without live verified identity and transfer tests.
+- Continue shipping immutable versioned installers and SHA-256 checksums automatically after all six exact-SHA quality gates succeed.
+
 ## 0.95.53 — Audited security, integrity and latest-ten release retention (UNRELEASED Preview) — 20 October 2026
 
 - **Security hotfix (unpublished source recovery):** upgrade Vite build dependency from vulnerable 8.3.1 to patched 8.3.4 and regenerate the npm lockfile from the registry, keeping npm high/critical audit checks active. The first 0.95.53 main merge had no public tag or release after its quality gate failed; the corrected exact-SHA source is a narrowly bounded recovery, not a new stable release or an overwrite.
