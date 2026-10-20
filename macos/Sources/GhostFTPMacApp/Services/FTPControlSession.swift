@@ -22,6 +22,7 @@ enum FTPControlError: LocalizedError {
     case unsafeLocalDestination
     case unsafeLocalUploadSource
     case uploadSourceChanged
+    case remoteFileAlreadyExists
 
     var errorDescription: String? {
         switch self {
@@ -63,6 +64,8 @@ enum FTPControlError: LocalizedError {
             return "Upload source is not a regular file, or it changed while being opened."
         case .uploadSourceChanged:
             return "The selected local file changed while uploading. The transfer cannot be marked successful."
+        case .remoteFileAlreadyExists:
+            return "A matching file or folder already exists on the server. Ghost FTP will not overwrite it without a dedicated confirmation."
         }
     }
 
@@ -222,6 +225,22 @@ enum FTPControlCodec {
         }
     }
 
+
+    // FTP has no universally supported atomic create-if-absent operation.
+    // Refuse obvious conflicts (including case and Unicode-normalization
+    // aliases) before STOR rather than silently overwriting server data.
+    static func validateUploadDestination(
+        _ remoteName: String, within entries: [FTPDirectoryEntry]
+    ) throws {
+        try validateRemoteFileName(remoteName)
+        let normalized = remoteName.precomposedStringWithCanonicalMapping
+        if entries.contains(where: {
+            $0.name.precomposedStringWithCanonicalMapping
+                .caseInsensitiveCompare(normalized) == .orderedSame
+        }) {
+            throw FTPControlError.remoteFileAlreadyExists
+        }
+    }
 
     static func transferCommand(_ verb: String, remoteName: String) throws -> String {
         guard verb == "RETR" || verb == "STOR" else {
@@ -790,6 +809,10 @@ actor FTPControlSession {
         let (handle, original) = try PrivateUploadSource.openRegularFile(at: localURL)
         defer { try? handle.close() }
 
+        // Validate a complete server inventory before any mutating STOR.
+        // Failed listings never mean "empty": fail closed instead.
+        let remoteEntries = try await listDirectory(timeoutSeconds: timeoutSeconds)
+        try FTPControlCodec.validateUploadDestination(remoteName, within: remoteEntries)
         let dataConnection = try await openPassiveDataConnection(timeoutSeconds: timeoutSeconds)
 
         do {

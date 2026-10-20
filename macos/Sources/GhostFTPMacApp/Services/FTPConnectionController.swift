@@ -144,7 +144,7 @@ final class FTPConnectionController: ObservableObject {
     }
 
     func uploadFile(from localURL: URL) {
-        guard isConnected, !isTransferring else { return }
+        guard isConnected, !isTransferring, !isListing else { return }
         let remoteName = localURL.lastPathComponent
         guard !remoteName.isEmpty else { return }
 
@@ -179,9 +179,14 @@ final class FTPConnectionController: ObservableObject {
                 transferState = .failed(error.localizedDescription)
                 // A local unsafe-file rejection happens BEFORE any network
                 // mutation and must not falsely mark the FTP session dead.
-                if let ftpError = error as? FTPControlError,
-                   case .unsafeLocalUploadSource = ftpError {
-                    return
+                if let ftpError = error as? FTPControlError {
+                    switch ftpError {
+                    case .unsafeLocalUploadSource, .remoteFileAlreadyExists:
+                        // These are pre-flight rejections, not session failures.
+                        return
+                    default:
+                        break
+                    }
                 }
                 state = .failed(error.localizedDescription)
             }

@@ -3,6 +3,23 @@ import XCTest
 
 final class FTPControlSessionTests: XCTestCase {
 
+    func testFTPRefusesRemoteUploadOverwriteAndAmbiguousUnicodeCollisions() throws {
+        let remoteEntries = [
+            FTPDirectoryEntry(name: "REPORT.txt", isDirectory: false, size: 10, modified: nil),
+            FTPDirectoryEntry(name: "Račun.pdf", isDirectory: false, size: 10, modified: nil),
+            FTPDirectoryEntry(name: "Documents", isDirectory: true, size: nil, modified: nil),
+        ]
+        for name in ["report.txt", "Račun.pdf", "Račun.pdf", "documents"] {
+            XCTAssertThrowsError(
+                try FTPControlCodec.validateUploadDestination(name, within: remoteEntries),
+                "Refusing to overwrite remote item: \(name)"
+            )
+        }
+        XCTAssertNoThrow(
+            try FTPControlCodec.validateUploadDestination("completely-new.txt", within: remoteEntries)
+        )
+    }
+
     func testMacUploadRejectsSymlinksAndDoesNotReadTheirTarget() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
