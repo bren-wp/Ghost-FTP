@@ -1,3 +1,11 @@
+## 0.95.52 — Recovery, original QA screenshots and data integrity (UNRELEASED Preview) — 20 October 2026
+
+- Correct fail-closed draft release staging by immutable release ID, not a draft tag lookup that can return HTTP 404.
+- Recover the incomplete public v0.95.51 as a verified Preview, preserving its exact source tag.
+- Restore genuine Windows QA screenshot provenance and prepare controlled ten-release retention after verifying all required dependencies.
+- Improve macOS FTP upload source consistency checks; FTPS and SFTP are still not supported in native macOS and cannot be claimed complete.
+- Preserve existing profiles, database migration paths, credentials and public Brendigo branding.
+
 ## 0.95.51 — Automatic gated Preview promotion and integrity (UNRELEASED Preview) — 20 October 2026
 
 - Automatically publish a new Preview prerelease after each versioned merge to main, including Android-only/macOS-only/documentation changes, only when all exact-SHA CI gates pass. Reject PRs without version bumps or when the preceding main version has not been published.
