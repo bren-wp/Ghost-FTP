@@ -97,10 +97,7 @@ impl GDriveSession {
     ) -> Result<reqwest::Response> {
         // Next-page URLs and upload links may be absolute: authenticate
         // only requests on the configured Drive API origin.
-        let full = crate::session::http_throttle::trusted_bearer_url(
-            &self.api_base,
-            url,
-        )?;
+        let full = crate::session::http_throttle::trusted_bearer_url(&self.api_base, url)?;
         let mut attempt = 0;
         loop {
             let token = self.token.access_token().await?;
