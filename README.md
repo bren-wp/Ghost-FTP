@@ -12,7 +12,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.95.51 (unreleased development source) · Latest published: [v0.95.50](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.50) — Preview/unsigned artifacts; not production-certified.</sub>
+<sub>Ghost FTP 0.95.52 (unreleased development source) · [v0.95.51](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.51) is temporarily incomplete pending verified recovery. Previous complete packages: [v0.95.50](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.95.50).</sub>
 
 [**View published Ghost FTP packages**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
