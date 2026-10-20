@@ -25,6 +25,7 @@ enum FTPControlError: LocalizedError {
     case remoteFileAlreadyExists
     case remoteSizeUnavailable
     case remoteDownloadSizeMismatch
+    case remoteUploadSizeMismatch
 
     var errorDescription: String? {
         switch self {
@@ -72,6 +73,8 @@ enum FTPControlError: LocalizedError {
             return "The FTP server did not provide a trustworthy file size. Ghost FTP will not save an unverified download."
         case .remoteDownloadSizeMismatch:
             return "The FTP download was incomplete or exceeded the declared server size. The original local file was preserved."
+        case .remoteUploadSizeMismatch:
+            return "The FTP server did not confirm all uploaded bytes. The remote file may be incomplete; check it before retrying."
         }
     }
 
@@ -281,6 +284,13 @@ enum FTPControlCodec {
             throw FTPControlError.remoteSizeUnavailable
         }
         return size
+    }
+
+    static func verifyUploadSize(reply: FTPReply, transmitted: UInt64) throws {
+        let remoteSize = try expectedDownloadSize(from: reply)
+        guard remoteSize == transmitted else {
+            throw FTPControlError.remoteUploadSizeMismatch
+        }
     }
 
     static func extendedPassivePort(from reply: FTPReply) throws -> UInt16 {
@@ -900,6 +910,15 @@ actor FTPControlSession {
             // that case even when the remote endpoint returned 226.
             try PrivateUploadSource.verifyUnchanged(
                 handle, original: original, transmitted: transmitted
+            )
+            // Completion code 226 is not a content-integrity proof. Recheck
+            // the remote byte count after STOR and never announce success
+            // for a truncated or unexpectedly expanded upload.
+            let remoteSizeReply = try await command(
+                "SIZE \(remoteName)", timeoutSeconds: timeoutSeconds
+            )
+            try FTPControlCodec.verifyUploadSize(
+                reply: remoteSizeReply, transmitted: transmitted
             )
             dataConnection.cancel()
         } catch {

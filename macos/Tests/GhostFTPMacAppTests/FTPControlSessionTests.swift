@@ -358,6 +358,25 @@ final class FTPControlSessionTests: XCTestCase {
         }
     }
 
+    func testFTPServerMustConfirmExactPostUploadByteCount() throws {
+        XCTAssertNoThrow(try FTPControlCodec.verifyUploadSize(
+            reply: FTPReply(code: 213, lines: ["213 8192"]),
+            transmitted: 8192
+        ))
+        XCTAssertThrowsError(try FTPControlCodec.verifyUploadSize(
+            reply: FTPReply(code: 213, lines: ["213 8191"]),
+            transmitted: 8192
+        ))
+        XCTAssertThrowsError(try FTPControlCodec.verifyUploadSize(
+            reply: FTPReply(code: 213, lines: ["213 8193"]),
+            transmitted: 8192
+        ))
+        XCTAssertThrowsError(try FTPControlCodec.verifyUploadSize(
+            reply: FTPReply(code: 550, lines: ["550 not available"]),
+            transmitted: 8192
+        ))
+    }
+
     func testExtendedPassivePortParsesEPSVReply() throws {
         let reply = FTPReply(
             code: 229,

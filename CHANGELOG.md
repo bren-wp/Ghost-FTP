@@ -3,6 +3,8 @@
 - Permanently stop GitHub Release and tag deletion; remove the previous automatic latest-ten retention workflow and prune script and add regression tests forbidding their return.
 - Align Windows, Linux, Android, macOS, updater, CLI, Cargo.lock, version metadata and release notes on the first 0.99.0 Preview source.
 - Require precisely the sequence 0.99.0 → 0.99.1 → … → 0.99.20 → 1.0.0, with production acceptance as a separate gate for stable.
+- Harden macOS FTP transfer integrity with strict RFC3659 SIZE parsing, exact received-byte staging before local publication, and post-STOR remote byte verification before reporting upload success.
+- Refresh all seven genuine README Windows screenshots from the latest published v0.95.53 CI run and pin their original SHA-256 digests; remove completed one-time import tooling.
 - Continue native macOS secure-protocol engineering, installation extraction/provenance tests, data-integrity hardening, security and full dead-code audits; do not claim macOS FTPS/SFTP as complete without live verified identity and transfer tests.
 - Continue shipping immutable versioned installers and SHA-256 checksums automatically after all six exact-SHA quality gates succeed.
 
