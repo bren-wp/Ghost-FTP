@@ -33,7 +33,15 @@ impl RemoteFs for GDriveFs {
         let q = format!("'{}' in parents and trashed = false", folder_id);
         let mut out = Vec::new();
         let mut page_token: Option<String> = None;
+        let mut visited = std::collections::HashSet::new();
         loop {
+            anyhow::ensure!(visited.len() < 1_000, "Google Drive pagination exceeded 1000 pages");
+            if let Some(token) = &page_token {
+                anyhow::ensure!(
+                    visited.insert(token.clone()),
+                    "Google Drive pagination repeated a previous page token"
+                );
+            }
             let mut url = format!(
                 "/files?q={}&fields=nextPageToken,files(id,name,mimeType,size,modifiedTime,md5Checksum)&pageSize=200",
                 urlenc(&q)
@@ -50,6 +58,10 @@ impl RemoteFs for GDriveFs {
                         if is_dir {
                             self.session.cache_path(&entry.path, &id);
                         }
+                        anyhow::ensure!(
+                            out.len() < 100_000,
+                            "Google Drive directory inventory exceeded 100000 entries"
+                        );
                         out.push(entry);
                     }
                 }
