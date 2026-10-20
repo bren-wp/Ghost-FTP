@@ -81,48 +81,75 @@ else
   git tag "$TAG" "$SOURCE_SHA"
   git push origin "refs/tags/$TAG"
 fi
+test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.sha')" = "$SOURCE_SHA"
 
-# Stage assets in a DRAFT; a failed upload must never be publicly listed.
-# Existing PUBLIC releases must remain immutable (including their asset digests).
-if gh release view "$TAG" >/dev/null 2>&1; then
-  DRAFT_STATE="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.draft')"
+# GitHub drafts may have temporary 'untagged-*' URLs and return HTTP 404
+# for GET /releases/tags/TAG. Pin the ID from the REST creation response.
+EXISTING_RELEASE="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" |
+  jq -c --arg tag "$TAG" '[.[] | select(.tag_name == $tag)] | if length > 1 then error("duplicate release tag") else .[0] // empty end')"
+if [ -n "$EXISTING_RELEASE" ]; then
+  RELEASE_ID="$(jq -r '.id' <<< "$EXISTING_RELEASE")"
+  DRAFT_STATE="$(jq -r '.draft' <<< "$EXISTING_RELEASE")"
   if [ "$DRAFT_STATE" != "true" ]; then
     echo "Published $TAG already exists; refusing to overwrite public assets or metadata." >&2
     exit 1
   fi
-  gh release edit "$TAG" --title "$RELEASE_NAME" --notes-file "$NOTES_FILE" --prerelease --draft
 else
-  gh release create "$TAG" --target "$SOURCE_SHA" --title "$RELEASE_NAME" --notes-file "$NOTES_FILE" --prerelease --draft
+  RELEASE_JSON="$(jq -n --arg tag "$TAG" --arg sha "$SOURCE_SHA" \
+    --arg name "$RELEASE_NAME" --rawfile notes "$NOTES_FILE" \
+    '{tag_name:$tag,target_commitish:$sha,name:$name,body:$notes,draft:true,prerelease:true}')"
+  RELEASE_ID="$(printf '%s' "$RELEASE_JSON" |
+    gh api --method POST "repos/$GITHUB_REPOSITORY/releases" --input - --jq '.id')"
 fi
-test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.draft')" = "true"
-test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.prerelease')" = "true"
 
-gh release upload "$TAG" dist/* --clobber
+test "$RELEASE_ID" -gt 0
+RELEASE_INFO="$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID")"
+test "$(jq -r '.draft' <<< "$RELEASE_INFO")" = "true"
+test "$(jq -r '.prerelease' <<< "$RELEASE_INFO")" = "true"
+test "$(jq -r '.tag_name' <<< "$RELEASE_INFO")" = "$TAG"
 
-RELEASE_ID="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.id')"
+# A rerun may resume a failed draft. Reset ONLY an unpublished inventory.
+for ASSET_ID in $(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?per_page=100" --jq '.[].id'); do
+  gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID"
+done
+
+for file in dist/*; do
+  test -f "$file" && test -s "$file"
+  NAME="$(basename "$file")"
+  [[ "$NAME" =~ ^[A-Za-z0-9._-]+$ ]] || {
+    echo "Unexpected release asset name: $NAME" >&2
+    exit 1
+  }
+  # Upload raw octets by immutable release ID, NOT through a draft tag lookup.
+  gh api --method POST -H "Content-Type: application/octet-stream" --input "$file" \
+    "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$NAME" >/dev/null
+done
+
+EXPECTED_FILE_LIST="$(mktemp)"
+REMOTE_ASSET_LIST="$(mktemp)"
+trap 'rm -f "$EXPECTED_FILE_LIST" "$REMOTE_ASSET_LIST"' EXIT
+find dist -maxdepth 1 -type f -printf '%f\n' | sort > "$EXPECTED_FILE_LIST"
+gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?per_page=100" |
+  jq -r '.[].name' | sort > "$REMOTE_ASSET_LIST"
+diff -u "$EXPECTED_FILE_LIST" "$REMOTE_ASSET_LIST"
+LOCAL_COUNT="$(wc -l < "$EXPECTED_FILE_LIST" | tr -d ' ')"
+REMOTE_COUNT="$(wc -l < "$REMOTE_ASSET_LIST" | tr -d ' ')"
+test "$REMOTE_COUNT" = "$LOCAL_COUNT"
 for file in dist/*; do
   NAME="$(basename "$file")"
   LOCAL_SHA="$(sha256sum "$file" | awk '{print $1}')"
-  REMOTE_DIGEST="$(
-    gh api "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID/assets" --paginate       --jq ".[] | select(.name == \"$NAME\") | .digest" | tail -n1
-  )"
-  test "$REMOTE_DIGEST" = "sha256:$LOCAL_SHA"
+  REMOTE_DIGEST="$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?per_page=100" |
+    jq -r --arg name "$NAME" '[.[] | select(.name == $name) | .digest] | if length != 1 then error("asset count mismatch") else .[0] end')"
+  test "$REMOTE_DIGEST" = "sha256:$LOCAL_SHA" || {
+    echo "Remote SHA256 mismatch for $NAME; leaving $TAG unpublished." >&2
+    exit 1
+  }
 done
 
-find dist -maxdepth 1 -type f -printf '%f\n' | sort > "$RUNNER_TEMP/expected-assets.txt"
-for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
-  if ! grep -Fxq "$asset" "$RUNNER_TEMP/expected-assets.txt"; then
-    gh release delete-asset "$TAG" "$asset" -y
-  fi
-done
-
-LOCAL_COUNT="$(find dist -maxdepth 1 -type f | wc -l | tr -d ' ')"
-REMOTE_COUNT="$(gh api "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID/assets" --paginate --jq 'length')"
-test "$REMOTE_COUNT" = "$LOCAL_COUNT"
-test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/$TAG" --jq '.object.sha')" = "$SOURCE_SHA"
-
-# Publish only after every remote digest, asset count, and source SHA passes.
-test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.draft')" = "true"
-gh release edit "$TAG" --draft=false --prerelease
-test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.draft')" = "false"
-test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" --jq '.prerelease')" = "true"
+test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.sha')" = "$SOURCE_SHA"
+test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq '.draft')" = "true"
+jq -n '{draft:false,prerelease:true}' |
+  gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --input - >/dev/null
+test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq '.draft')" = "false"
+test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq '.prerelease')" = "true"
+echo "Verified $TAG Preview publication: $REMOTE_COUNT SHA-256-checked assets from $SOURCE_SHA."
