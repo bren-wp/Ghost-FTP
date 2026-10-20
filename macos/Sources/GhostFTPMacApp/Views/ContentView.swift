@@ -348,7 +348,7 @@ private struct ConnectionEditor: View {
                             Button("Change directory") {
                                 ftpSession.changeDirectory(to: remoteDirectory)
                             }
-                            .disabled(remoteDirectory.isEmpty)
+                            .disabled(remoteDirectory.isEmpty || ftpSession.isTransferring || ftpSession.isListing)
 
                             Button {
                                 ftpSession.refreshWorkingDirectory()
@@ -363,7 +363,7 @@ private struct ConnectionEditor: View {
                             } label: {
                                 Label("Check session with NOOP", systemImage: "checkmark.shield")
                             }
-                            .disabled(ftpSession.isTransferring)
+                            .disabled(ftpSession.isTransferring || ftpSession.isListing)
 
                             Button {
                                 ftpSession.refreshDirectory()
@@ -383,7 +383,7 @@ private struct ConnectionEditor: View {
                             } label: {
                                 Label("Upload file", systemImage: "arrow.up.doc")
                             }
-                            .disabled(ftpSession.isTransferring)
+                            .disabled(ftpSession.isTransferring || ftpSession.isListing)
                         }
 
                         HStack {
@@ -404,6 +404,12 @@ private struct ConnectionEditor: View {
                         }
 
                         transferStatus
+                        if ftpSession.isTransferring || ftpSession.isListing {
+                            Text("File actions are temporarily unavailable while a transfer or directory listing is in progress.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .accessibilityAddTraits(.updatesFrequently)
+                        }
 
                         if ftpSession.entries.isEmpty && !ftpSession.isListing {
                             Text("The current directory is empty or the FTP server returned no listable entries.")
@@ -444,7 +450,7 @@ private struct ConnectionEditor: View {
                                         }
                                         .buttonStyle(.borderless)
                                         .help("Download \(entry.name)")
-                                        .disabled(ftpSession.isTransferring)
+                                        .disabled(ftpSession.isTransferring || ftpSession.isListing)
                                     }
                                     Button {
                                         pendingRemoteDelete = entry
