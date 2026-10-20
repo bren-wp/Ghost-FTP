@@ -17,7 +17,7 @@ jobs:
   real-protocol-roundtrip:
     name: Real FTP / FTPS / SFTP roundtrip
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
         with:
@@ -349,6 +349,15 @@ jobs:
           test -s Cargo.lock
           cargo metadata --locked --format-version 1 >/dev/null
 
+      # A passing isolated-server roundtrip is not enough if local backups,
+      # mirror safety, SQLite snapshots or profile recovery regress.
+      - name: Run desktop filesystem and credential regression unit tests
+        working-directory: ghostftp-desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test -p ghostftp --lib --locked
+
       - name: Run real protocol E2E
         working-directory: ghostftp-desktop/src-tauri
         shell: bash
@@ -381,3 +390,46 @@ jobs:
           except Exception as exc:
               print("protocol runtime version probe failed:", exc)
           PY
+
+  windows-file-integrity:
+    name: Windows filesystem security regressions
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ghostftp-desktop/src-tauri -> target
+      - name: Prepare desktop frontendDist for native tests
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force ghostftp-desktop/dist | Out-Null
+          Set-Content ghostftp-desktop/dist/index.html '<!doctype html><html><body></body></html>'
+      - name: Run Windows desktop filesystem regression tests
+        working-directory: ghostftp-desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test -p ghostftp --lib --locked
+
+  desktop-security-gate:
+    name: Desktop security gate
+    needs: [real-protocol-roundtrip, windows-file-integrity]
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    steps:
+      - name: Fail closed unless real protocol E2E and Windows tests pass
+        shell: bash
+        env:
+          PROTOCOL_RESULT: ${{ needs.real-protocol-roundtrip.result }}
+          WINDOWS_RESULT: ${{ needs.windows-file-integrity.result }}
+        run: |
+          set -euo pipefail
+          test "$PROTOCOL_RESULT" = success
+          test "$WINDOWS_RESULT" = success

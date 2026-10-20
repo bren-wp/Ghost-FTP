@@ -9,6 +9,40 @@ use quick_xml::Reader;
 use reqwest::Method;
 use std::sync::Arc;
 
+// A malicious DAV endpoint must not allocate unbounded XML or yield an
+// incomplete inventory that Mirror later treats as authoritative.
+const MAX_WEBDAV_LISTING_BYTES: usize = 16 * 1024 * 1024;
+const MAX_WEBDAV_RESPONSES: usize = 100_000;
+const MAX_WEBDAV_XML_DEPTH: usize = 128;
+const MAX_WEBDAV_FIELD_BYTES: usize = 64 * 1024;
+
+fn append_bounded_xml(bytes: &mut Vec<u8>, chunk: &[u8]) -> Result<()> {
+    anyhow::ensure!(
+        chunk.len() <= MAX_WEBDAV_LISTING_BYTES.saturating_sub(bytes.len()),
+        "WebDAV PROPFIND listing exceeds the permitted response size"
+    );
+    bytes.extend_from_slice(chunk);
+    Ok(())
+}
+
+async fn read_bounded_multistatus(mut response: reqwest::Response) -> Result<String> {
+    anyhow::ensure!(
+        response
+            .content_length()
+            .is_none_or(|len| len <= MAX_WEBDAV_LISTING_BYTES as u64),
+        "WebDAV PROPFIND declared response size exceeds the limit"
+    );
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .context("stream WebDAV PROPFIND response")?
+    {
+        append_bounded_xml(&mut bytes, &chunk)?;
+    }
+    String::from_utf8(bytes).context("WebDAV PROPFIND response is not valid UTF-8")
+}
+
 /// RemoteFs over WebDAV (Nextcloud, ownCloud, Hetzner Storage Box, and the
 /// generic long tail). Real directories, rename via `MOVE`, no chmod. Change
 /// detection leans on the per-resource ETag (`getetag`); servers that omit it
@@ -49,7 +83,9 @@ impl RemoteFs for WebdavFs {
             return Err(anyhow!("PROPFIND {path} failed: HTTP {}", status.as_u16()));
         }
 
-        let body = resp.text().await.context("read PROPFIND body")?;
+        let body = read_bounded_multistatus(resp)
+            .await
+            .context("read bounded PROPFIND body")?;
         parse_multistatus(&body, &self.session.base_path(), path)
             .with_context(|| format!("invalid or incomplete PROPFIND listing for {path}"))
     }
@@ -141,6 +177,10 @@ enum Field {
 /// `request_path`. Namespace-prefix agnostic (matches on local element names) so
 /// it handles Nextcloud (`d:`), Apache mod_dav (`D:`/`lp1:`), and bare servers.
 fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Result<Vec<DirEntry>> {
+    anyhow::ensure!(
+        xml.len() <= MAX_WEBDAV_LISTING_BYTES,
+        "WebDAV XML listing exceeds the permitted size"
+    );
     let request_norm = format!("/{}", request_path.trim_matches('/'));
     let request_norm = if request_norm == "/" {
         "/".to_string()
@@ -175,6 +215,10 @@ fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Result<V
                     saw_root = true;
                 }
                 open_elements += 1;
+                anyhow::ensure!(
+                    open_elements <= MAX_WEBDAV_XML_DEPTH,
+                    "WebDAV XML exceeds the maximum nesting depth"
+                );
                 let local = e.local_name();
                 match local.as_ref() {
                     b"response" => {
@@ -221,11 +265,19 @@ fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Result<V
                     let t = e
                         .unescape()
                         .context("invalid escaped text in WebDAV listing")?;
+                    anyhow::ensure!(
+                        t.len() <= MAX_WEBDAV_FIELD_BYTES.saturating_sub(buf.len()),
+                        "WebDAV XML field exceeds the maximum length"
+                    );
                     buf.push_str(&t);
                 }
             }
             Ok(Event::CData(e)) => {
                 if capture.is_some() {
+                    anyhow::ensure!(
+                        e.len() <= MAX_WEBDAV_FIELD_BYTES.saturating_sub(buf.len()),
+                        "WebDAV XML CDATA field exceeds the maximum length"
+                    );
                     buf.push_str(&String::from_utf8_lossy(&e));
                 }
             }
@@ -260,6 +312,10 @@ fn parse_multistatus(xml: &str, base_path: &str, request_path: &str) -> Result<V
                     b"resourcetype" => in_resourcetype = false,
                     b"response" => {
                         response_count += 1;
+                        anyhow::ensure!(
+                            response_count <= MAX_WEBDAV_RESPONSES,
+                            "WebDAV response count limit exceeded"
+                        );
                         if let Some(h) = href.take() {
                             if let Some((entry_path, name)) = href_to_path(&h, base_path) {
                                 if entry_path != request_norm {
@@ -317,8 +373,22 @@ fn href_to_path(href: &str, base_path: &str) -> Option<(String, String)> {
         href
     };
 
+    // Validate raw percent-encoded segments *before* concatenating them.
+    // Encoded path separators, traversal, NUL and non-UTF8 names must not
+    // become ambiguous remote filesystem paths.
+    for segment in path_part.split('/') {
+        let decoded = percent_decode_str(segment).decode_utf8().ok()?;
+        if matches!(decoded.as_ref(), "." | "..")
+            || decoded
+                .chars()
+                .any(|ch| ch.is_control() || ch == '/' || ch == '\\')
+        {
+            return None;
+        }
+    }
     let decoded_href = percent_decode_str(path_part)
-        .decode_utf8_lossy()
+        .decode_utf8()
+        .ok()?
         .into_owned();
     let decoded_base = percent_decode_str(base_path)
         .decode_utf8_lossy()
@@ -330,7 +400,7 @@ fn href_to_path(href: &str, base_path: &str) -> Option<(String, String)> {
     let rel = if hp == bp {
         "" // the collection itself
     } else {
-        hp.strip_prefix(bp)?.trim_start_matches('/')
+        hp.strip_prefix(bp)?.strip_prefix('/')?
     };
 
     let entry_path = if rel.is_empty() {
@@ -534,6 +604,45 @@ mod tests {
             "/"
         )
         .is_err());
+    }
+
+    #[test]
+    fn webdav_listing_rejects_unbounded_responses_and_nesting() {
+        let mut body = vec![0u8; MAX_WEBDAV_LISTING_BYTES];
+        assert!(append_bounded_xml(&mut body, b"x").is_err());
+        assert_eq!(body.len(), MAX_WEBDAV_LISTING_BYTES);
+
+        let deeply_nested = format!(
+            "<multistatus>{}<response><href>/dav/x</href></response>{}</multistatus>",
+            "<inner>".repeat(MAX_WEBDAV_XML_DEPTH),
+            "</inner>".repeat(MAX_WEBDAV_XML_DEPTH)
+        );
+        assert!(parse_multistatus(&deeply_nested, "/dav/", "/").is_err());
+
+        let huge_field = "a".repeat(MAX_WEBDAV_FIELD_BYTES + 1);
+        let oversized = format!(
+            "<multistatus><response><href>/dav/{huge_field}</href></response></multistatus>"
+        );
+        assert!(parse_multistatus(&oversized, "/dav/", "/").is_err());
+    }
+
+    #[test]
+    fn webdav_href_rejects_encoded_traversal_and_ambiguous_prefixes() {
+        for bad in [
+            "/dav/%2e%2e/escape.txt",
+            "/dav/../escape.txt",
+            "/dav/%2fetc/passwd",
+            "/dav/%5cserver",
+            "/dav/%00zero",
+            "/davextra/pretend.txt",
+            "/dav/malformed%FF.txt",
+        ] {
+            assert!(href_to_path(bad, "/dav/").is_none(), "{bad}");
+        }
+        assert_eq!(
+            href_to_path("/dav/report%20final.pdf", "/dav/"),
+            Some(("/report final.pdf".into(), "report final.pdf".into()))
+        );
     }
 
     #[test]

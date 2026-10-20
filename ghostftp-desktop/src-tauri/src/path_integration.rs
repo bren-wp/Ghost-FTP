@@ -20,6 +20,8 @@
 //! else in the user's environment.
 
 use serde::Serialize;
+#[cfg(unix)]
+use std::path::Path;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager, State};
 
@@ -452,6 +454,25 @@ fn insert_marker_block(content: &str, begin: &str, end: &str, body: &str) -> Str
 /// untouched. If markers are absent, returns the content unchanged.
 #[cfg(any(unix, test))]
 fn remove_marker_block(content: &str, begin: &str, end: &str) -> String {
+    // A truncated marker block must never erase the remainder of .bashrc,
+    // .zshrc or .profile during an uninstall or an idempotent re-install.
+    let mut open = false;
+    for line in content.lines() {
+        if line.trim() == begin {
+            if open {
+                return content.to_owned();
+            }
+            open = true;
+        } else if line.trim() == end {
+            if !open {
+                return content.to_owned();
+            }
+            open = false;
+        }
+    }
+    if open {
+        return content.to_owned();
+    }
     let mut out: Vec<&str> = Vec::new();
     let mut skipping = false;
     for line in content.lines() {
@@ -521,10 +542,105 @@ mod platform {
             .any(|e| super::normalize_entry(e) == super::normalize_entry(&lb.to_string_lossy()))
     }
 
+    /// Only unlink the symlink we manage. Previously an existing regular
+    /// ~/.local/bin/ghostftp-cli was deleted on install/uninstall.
+    pub(super) fn remove_managed_cli_link(link: &Path) -> Result<(), String> {
+        let metadata = match std::fs::symlink_metadata(link) {
+            Ok(meta) => meta,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => return Err(format!("inspect {}: {error}", link.display())),
+        };
+        if !metadata.file_type().is_symlink() {
+            return Err(format!(
+                "refusing to remove non-symlink CLI entry {}",
+                link.display()
+            ));
+        }
+        let target = std::fs::read_link(link)
+            .map_err(|error| format!("read symlink {}: {error}", link.display()))?;
+        if target.file_name() != Some(std::ffi::OsStr::new("ghostftp-cli")) {
+            return Err(format!(
+                "refusing to remove an unrecognized CLI symlink {}",
+                link.display()
+            ));
+        }
+        std::fs::remove_file(link)
+            .map_err(|error| format!("remove managed CLI symlink {}: {error}", link.display()))
+    }
+
+    /// Do not overwrite a symlinked shell profile or truncate it on write
+    /// failure. Stage a complete sibling before replacing the profile.
+    fn read_profile(path: &Path) -> Result<String, String> {
+        match std::fs::symlink_metadata(path) {
+            Ok(meta) if meta.file_type().is_file() => std::fs::read_to_string(path)
+                .map_err(|error| format!("read {}: {error}", path.display())),
+            Ok(_) => Err(format!(
+                "refusing to follow non-regular shell profile {}",
+                path.display()
+            )),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
+            Err(error) => Err(format!("inspect {}: {error}", path.display())),
+        }
+    }
+
+    fn write_profile(path: &Path, content: &str) -> Result<(), String> {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let existing_permissions = match std::fs::symlink_metadata(path) {
+            Ok(meta) if meta.file_type().is_file() => Some(meta.permissions()),
+            Ok(_) => {
+                return Err(format!(
+                    "refusing to overwrite non-regular shell profile {}",
+                    path.display()
+                ))
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => return Err(format!("inspect {}: {error}", path.display())),
+        };
+        let parent = path
+            .parent()
+            .ok_or_else(|| "shell profile has no parent".to_owned())?;
+        let tmp = parent.join(format!(".ghostftp-profile-{}.tmp", uuid::Uuid::new_v4()));
+        let outcome = (|| -> Result<(), String> {
+            let mut staged = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(&tmp)
+                .map_err(|error| format!("create temporary profile {}: {error}", tmp.display()))?;
+            if let Some(permissions) = existing_permissions {
+                staged
+                    .set_permissions(permissions)
+                    .map_err(|error| format!("retain profile permissions: {error}"))?;
+            }
+            staged
+                .write_all(content.as_bytes())
+                .map_err(|error| format!("write temporary shell profile: {error}"))?;
+            staged
+                .sync_all()
+                .map_err(|error| format!("sync temporary shell profile: {error}"))?;
+            drop(staged);
+            // Do not overwrite a profile swapped to a symlink during staging.
+            match std::fs::symlink_metadata(path) {
+                Ok(meta) if meta.file_type().is_file() => {}
+                Ok(_) => return Err("shell profile changed to a non-regular file".into()),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(format!("recheck shell profile: {error}")),
+            }
+            std::fs::rename(&tmp, path)
+                .map_err(|error| format!("atomically replace {}: {error}", path.display()))
+        })();
+        if outcome.is_err() {
+            let _ = std::fs::remove_file(&tmp);
+        }
+        outcome
+    }
+
     pub(super) fn is_managed(_bin_dir: &std::path::Path) -> bool {
         symlink_path()
-            .map(|p| p.symlink_metadata().is_ok())
-            .unwrap_or(false)
+            .ok()
+            .and_then(|p| std::fs::symlink_metadata(p).ok())
+            .is_some_and(|meta| meta.file_type().is_symlink())
     }
 
     pub(super) fn add(app: &AppHandle, _db: &crate::db::Db) -> Result<PathStatus, String> {
@@ -533,15 +649,15 @@ mod platform {
         let bin = local_bin()?;
         std::fs::create_dir_all(&bin).map_err(|e| format!("create {}: {e}", bin.display()))?;
         let link = symlink_path()?;
-        // Replace any stale symlink so re-adding is idempotent.
-        let _ = std::fs::remove_file(&link);
+        // Refuse to delete a regular file or a symlink not clearly ours.
+        remove_managed_cli_link(&link)?;
         std::os::unix::fs::symlink(&target, &link)
             .map_err(|e| format!("symlink {}: {e}", link.display()))?;
 
         let mut detail = format!("Linked ghostftp-cli into {}.", bin.display());
         if !local_bin_on_path() {
             if let Some(profile) = shell_profile() {
-                let existing = std::fs::read_to_string(&profile).unwrap_or_default();
+                let existing = read_profile(&profile)?;
                 let body = format!("export PATH=\"{}:$PATH\"", bin.display());
                 let next = super::insert_marker_block(
                     &existing,
@@ -549,8 +665,7 @@ mod platform {
                     super::PROFILE_END,
                     &body,
                 );
-                std::fs::write(&profile, next)
-                    .map_err(|e| format!("write {}: {e}", profile.display()))?;
+                write_profile(&profile, &next)?;
                 detail = format!(
                     "Linked ghostftp-cli into {} and added it to {}. Open a new terminal \
                      (or `source` your profile) to pick it up.",
@@ -566,17 +681,14 @@ mod platform {
     }
 
     pub(super) fn remove(app: &AppHandle, _db: &crate::db::Db) -> Result<PathStatus, String> {
-        if let Ok(link) = symlink_path() {
-            let _ = std::fs::remove_file(&link);
-        }
+        let link = symlink_path()?;
+        remove_managed_cli_link(&link)?;
         if let Some(profile) = shell_profile() {
-            if let Ok(existing) = std::fs::read_to_string(&profile) {
-                let next =
-                    super::remove_marker_block(&existing, super::PROFILE_BEGIN, super::PROFILE_END);
-                if next != existing {
-                    std::fs::write(&profile, next)
-                        .map_err(|e| format!("write {}: {e}", profile.display()))?;
-                }
+            let existing = read_profile(&profile)?;
+            let next =
+                super::remove_marker_block(&existing, super::PROFILE_BEGIN, super::PROFILE_END);
+            if next != existing {
+                write_profile(&profile, &next)?;
             }
         }
         let mut status = super::compute_status(app)?;
@@ -636,6 +748,46 @@ pub async fn path_remove(app: AppHandle, state: State<'_, AppState>) -> Result<P
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn linux_path_integrator_never_deletes_user_cli_file_or_foreign_link() {
+        use std::os::unix::fs::symlink;
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-path-guard-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let link = dir.join("ghostftp-cli");
+        std::fs::write(&link, b"USER OWNED BINARY").unwrap();
+        assert!(platform::remove_managed_cli_link(&link).is_err());
+        assert_eq!(std::fs::read(&link).unwrap(), b"USER OWNED BINARY");
+
+        std::fs::remove_file(&link).unwrap();
+        symlink("unrelated-program", &link).unwrap();
+        assert!(platform::remove_managed_cli_link(&link).is_err());
+        assert!(std::fs::symlink_metadata(&link)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+
+        std::fs::remove_file(&link).unwrap();
+        symlink("/opt/ghostftp/ghostftp-cli", &link).unwrap();
+        platform::remove_managed_cli_link(&link).unwrap();
+        assert!(!link.exists());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn truncated_marker_block_never_truncates_user_shell_profile() {
+        let profile = "export EDITOR=vim\n# >>> ghostftp-cli PATH >>>\nexport CUSTOM=important\n";
+        assert_eq!(
+            remove_marker_block(
+                profile,
+                "# >>> ghostftp-cli PATH >>>",
+                "# <<< ghostftp-cli PATH <<<"
+            ),
+            profile
+        );
+    }
 
     #[test]
     fn cli_path_lookup_does_not_require_a_shell_process() {

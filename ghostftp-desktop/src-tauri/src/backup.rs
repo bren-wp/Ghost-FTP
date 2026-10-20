@@ -176,6 +176,86 @@ fn write_private_file(path: &Path, data: &[u8]) -> Result<()> {
     Ok(())
 }
 
+/// Keep the last successful encrypted export recoverable before replacing it.
+/// An export is first persisted and read back through authenticated decryption;
+/// the prior on-disk backup is copied to a new private recovery file using
+/// create_new, then the verified staging file is promoted. Recovery copies are
+/// intentionally retained rather than silently discarding the last good copy.
+fn write_verified_export(path: &Path, bytes: &[u8], password: &str) -> Result<()> {
+    let parent = path
+        .parent()
+        .context("backup export destination has no parent")?;
+    let staged = parent.join(format!(
+        ".ghostftp-verified-export-{}.tmp",
+        uuid::Uuid::new_v4()
+    ));
+    let _staged_guard = RemoveOnDrop(staged.clone());
+    write_private_file(&staged, bytes).context("persist encrypted backup candidate")?;
+    let verified =
+        decrypt(password, &staged).context("verify encrypted backup candidate from disk")?;
+    drop(verified);
+
+    match std::fs::symlink_metadata(path) {
+        Ok(meta) => {
+            anyhow::ensure!(
+                meta.file_type().is_file(),
+                "refusing to replace non-regular encrypted backup destination"
+            );
+            anyhow::ensure!(
+                meta.len() <= MAX_BACKUP_FILE_BYTES,
+                "existing backup is too large to preserve safely"
+            );
+            let recovery = parent.join(format!(
+                ".ghostftp-previous-export-{}.ghostftpbak",
+                uuid::Uuid::new_v4()
+            ));
+            let mut read_options = OpenOptions::new();
+            read_options.read(true);
+            #[cfg(unix)]
+            read_options.custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC);
+            let mut old = read_options
+                .open(path)
+                .context("open previous encrypted backup")?;
+            let source_meta = old.metadata().context("inspect opened previous backup")?;
+            anyhow::ensure!(
+                source_meta.is_file() && source_meta.len() <= MAX_BACKUP_FILE_BYTES,
+                "previous encrypted backup changed or is not a regular file"
+            );
+            let mut options = OpenOptions::new();
+            options.write(true).create_new(true);
+            #[cfg(unix)]
+            options.mode(0o600);
+            let mut saved = options
+                .open(&recovery)
+                .context("create private backup recovery copy")?;
+            #[cfg(unix)]
+            saved
+                .set_permissions(std::fs::Permissions::from_mode(0o600))
+                .context("restrict recovery copy permissions")?;
+            let copied = std::io::copy(&mut old, &mut saved)
+                .context("copy previous backup before replacement")?;
+            anyhow::ensure!(
+                copied == source_meta.len(),
+                "previous backup changed during recovery copy; replacement refused"
+            );
+            saved
+                .sync_all()
+                .context("sync previous backup recovery copy")?;
+            drop(saved);
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error).context("inspect existing encrypted backup"),
+    }
+
+    std::fs::rename(&staged, path)
+        .context("promote verified encrypted backup (previous recovery copy is retained)")?;
+    #[cfg(unix)]
+    std::fs::File::open(parent)
+        .and_then(|directory| directory.sync_all())
+        .context("sync encrypted backup directory metadata")?;
+    Ok(())
+}
+
 /// Optional does not mean best effort: an unreadable or redirected file
 /// must abort the export rather than create a seemingly complete backup that
 /// silently omits the user's profiles, bridge or sync configuration.
@@ -458,8 +538,8 @@ fn export_with_vault(
 
     let mut out = header;
     out.extend_from_slice(&ciphertext);
-    write_private_file(dest, &out)
-        .with_context(|| format!("write backup to {}", dest.display()))?;
+    write_verified_export(dest, &out, password)
+        .with_context(|| format!("write verified backup to {}", dest.display()))?;
 
     Ok(summary)
 }
@@ -1033,6 +1113,40 @@ mod tests {
             account: account.to_string(),
             secret: secret.to_string(),
         }
+    }
+
+    #[test]
+    fn successive_verified_exports_preserve_previous_encrypted_backup() {
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-export-recovery-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let db = Db::open(&dir.join("ghostftp.db")).unwrap();
+        db.settings_set("theme", "\"before\"").unwrap();
+        let dest = dir.join("backup.ghostftpbak");
+        let mut vault = TestVault::default();
+        export_with_vault(&dir, &db, "old backup password", &dest, &mut vault).unwrap();
+        let first = std::fs::read(&dest).unwrap();
+
+        db.settings_set("theme", "\"after\"").unwrap();
+        export_with_vault(&dir, &db, "new backup password", &dest, &mut vault).unwrap();
+        assert_ne!(std::fs::read(&dest).unwrap(), first);
+        assert!(inspect("new backup password", &dest).is_ok());
+
+        let recoveries: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with(".ghostftp-previous-export-")
+            })
+            .collect();
+        assert_eq!(recoveries.len(), 1);
+        assert_eq!(std::fs::read(&recoveries[0]).unwrap(), first);
+        assert!(inspect("old backup password", &recoveries[0]).is_ok());
+        drop(db);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

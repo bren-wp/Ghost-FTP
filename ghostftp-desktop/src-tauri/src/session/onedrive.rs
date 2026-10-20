@@ -75,18 +75,15 @@ impl OneDriveSession {
         path: &str,
         body: Option<&Value>,
     ) -> Result<reqwest::Response> {
-        // A `@odata.nextLink` is already absolute; item paths are relative.
-        let url = if path.starts_with("http") {
-            path.to_string()
-        } else {
-            format!("{}{path}", self.graph_base)
-        };
+        // A Graph nextLink is untrusted server input. Never forward a bearer
+        // credential across origins, even when pagination returns a full URL.
+        let url = crate::session::http_throttle::trusted_bearer_url(&self.graph_base, path)?;
         let mut attempt = 0;
         loop {
             let token = self.token.access_token().await?;
             let mut rb = self
                 .client
-                .request(method.clone(), &url)
+                .request(method.clone(), url.as_str())
                 .bearer_auth(&token);
             if let Some(b) = body {
                 rb = rb.json(b);
@@ -111,14 +108,7 @@ impl OneDriveSession {
         if !status.is_success() {
             return Err(onedrive_http_error(status));
         }
-        let text = resp
-            .text()
-            .await
-            .context("read OneDrive metadata response")?;
-        if text.trim().is_empty() {
-            return Ok(Value::Null);
-        }
-        serde_json::from_str(&text).with_context(|| format!("parse graph {path} response"))
+        crate::session::http_throttle::bounded_cloud_json(resp).await
     }
 
     /// A streaming GET (download), erroring on non-2xx. `path` may be a Graph

@@ -696,7 +696,14 @@ impl Db {
     /// copy, so the snapshot reflects all committed data even while the live DB
     /// is open in WAL mode. `dest` must not already exist.
     pub fn snapshot_to(&self, dest: &std::path::Path) -> Result<()> {
-        let _ = std::fs::remove_file(dest);
+        // VACUUM INTO requires a fresh destination. Never delete a prior
+        // snapshot (or a user's unrelated file) to make room: a failed VACUUM
+        // must not destroy the last verified backup.
+        match std::fs::symlink_metadata(dest) {
+            Ok(_) => anyhow::bail!("SQLite snapshot destination already exists"),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error).context("inspect SQLite snapshot destination"),
+        }
         let escaped = dest.to_string_lossy().replace('\'', "''");
         let conn = self.conn.lock().unwrap();
         conn.execute_batch(&format!("VACUUM INTO '{escaped}'"))
@@ -894,6 +901,50 @@ mod tests {
         )
         .unwrap();
         assert!(secure_local_database_files(&sidecar_db).is_err());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn snapshot_never_deletes_existing_backup_or_symlink() {
+        let dir = std::env::temp_dir().join(format!(
+            "ghostftp-snapshot-preserve-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        let db = Db::open(&dir.join("live.db")).unwrap();
+        db.settings_set("snapshot_test", "\"kept\"").unwrap();
+
+        let existing = dir.join("existing.db");
+        std::fs::write(&existing, b"PREVIOUS_VALID_BACKUP").unwrap();
+        assert!(db.snapshot_to(&existing).is_err());
+        assert_eq!(std::fs::read(&existing).unwrap(), b"PREVIOUS_VALID_BACKUP");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            let link = dir.join("snapshot-link.db");
+            symlink(&existing, &link).unwrap();
+            assert!(db.snapshot_to(&link).is_err());
+            assert_eq!(std::fs::read(&existing).unwrap(), b"PREVIOUS_VALID_BACKUP");
+            assert!(std::fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink());
+        }
+
+        let fresh = dir.join("fresh.db");
+        db.snapshot_to(&fresh).unwrap();
+        let snapshot = rusqlite::Connection::open(&fresh).unwrap();
+        let saved: String = snapshot
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'snapshot_test'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(saved, "\"kept\"");
+        drop(snapshot);
+        drop(db);
         std::fs::remove_dir_all(dir).unwrap();
     }
 

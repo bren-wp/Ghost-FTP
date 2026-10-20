@@ -87,17 +87,15 @@ impl BoxSession {
         url: &str,
         body: Option<&Value>,
     ) -> Result<reqwest::Response> {
-        let full = if url.starts_with("http") {
-            url.to_string()
-        } else {
-            format!("{}{url}", self.api_base)
-        };
+        // Provider pagination links are untrusted: do not attach an OAuth
+        // bearer token to cross-origin, credentialed or downgraded URLs.
+        let full = crate::session::http_throttle::trusted_bearer_url(&self.api_base, url)?;
         let mut attempt = 0;
         loop {
             let token = self.token.access_token().await?;
             let mut rb = self
                 .client
-                .request(method.clone(), &full)
+                .request(method.clone(), full.as_str())
                 .bearer_auth(&token);
             if let Some(b) = body {
                 rb = rb.json(b);
@@ -121,11 +119,7 @@ impl BoxSession {
         if !status.is_success() {
             return Err(box_http_error("request", status));
         }
-        let text = resp.text().await.context("read Box API JSON response")?;
-        if text.trim().is_empty() {
-            return Ok(Value::Null);
-        }
-        serde_json::from_str(&text).with_context(|| format!("parse box {url} response"))
+        crate::session::http_throttle::bounded_cloud_json(resp).await
     }
 
     pub async fn get_stream(&self, url: &str) -> Result<reqwest::Response> {

@@ -92,10 +92,102 @@ where
     }
 }
 
+/// Resolve an API path or provider pagination URL without ever attaching a
+/// bearer token to an attacker-controlled destination. Provider test fixtures
+/// may use an explicitly configured loopback HTTP base; production endpoints
+/// require HTTPS and cannot silently downgrade.
+pub fn trusted_bearer_url(base: &str, target: &str) -> Result<reqwest::Url> {
+    use anyhow::anyhow;
+    let endpoint =
+        reqwest::Url::parse(base).map_err(|_| anyhow!("invalid provider API base URL"))?;
+    let trusted_loopback = endpoint.scheme() == "http"
+        && matches!(endpoint.host_str(), Some("127.0.0.1" | "localhost" | "::1"));
+    anyhow::ensure!(
+        endpoint.scheme() == "https" || trusted_loopback,
+        "provider API base must use HTTPS"
+    );
+    anyhow::ensure!(
+        endpoint.username().is_empty()
+            && endpoint.password().is_none()
+            && endpoint.fragment().is_none(),
+        "provider API base contains forbidden credentials or fragment"
+    );
+    let url = if target.starts_with('/') && !target.starts_with("//") {
+        reqwest::Url::parse(&format!("{base}{target}"))
+            .map_err(|_| anyhow!("invalid relative provider request path"))?
+    } else {
+        reqwest::Url::parse(target).map_err(|_| anyhow!("invalid absolute provider request URL"))?
+    };
+    anyhow::ensure!(
+        url.origin() == endpoint.origin()
+            && url.username().is_empty()
+            && url.password().is_none()
+            && url.fragment().is_none(),
+        "provider response attempted an untrusted cross-origin or credentialed URL"
+    );
+    Ok(url)
+}
+
+const MAX_CLOUD_METADATA_BYTES: usize = 16 * 1024 * 1024;
+
+/// A bounded JSON reader shared by cloud API adapters. No provider response
+/// bytes or signed URLs are included in failure diagnostics.
+pub async fn bounded_cloud_json(mut response: reqwest::Response) -> Result<serde_json::Value> {
+    anyhow::ensure!(
+        response
+            .content_length()
+            .is_none_or(|size| size <= MAX_CLOUD_METADATA_BYTES as u64),
+        "cloud metadata response exceeds size limit"
+    );
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .context("stream cloud metadata response")?
+    {
+        anyhow::ensure!(
+            chunk.len() <= MAX_CLOUD_METADATA_BYTES.saturating_sub(bytes.len()),
+            "cloud metadata response exceeds size limit"
+        );
+        bytes.extend_from_slice(&chunk);
+    }
+    if bytes.iter().all(u8::is_ascii_whitespace) {
+        return Ok(serde_json::Value::Null);
+    }
+    serde_json::from_slice(&bytes).context("invalid cloud metadata JSON")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use reqwest::header::HeaderValue;
+
+    #[test]
+    fn cloud_bearer_urls_never_leave_configured_origin_or_downgrade() {
+        let base = "https://graph.microsoft.com/v1.0";
+        for good in [
+            "/me/drive",
+            "https://graph.microsoft.com/v1.0/me/drive?skiptoken=abc",
+        ] {
+            assert!(trusted_bearer_url(base, good).is_ok(), "{good}");
+        }
+        for bad in [
+            "http://graph.microsoft.com/v1.0",
+            "https://graph.microsoft.com.evil.test/v1.0",
+            "https://evil.test/token",
+            "https://user:password@graph.microsoft.com/v1.0",
+            "https://graph.microsoft.com/v1.0#fragment",
+            "//evil.test/path",
+            "ftp://graph.microsoft.com/v1.0",
+        ] {
+            assert!(trusted_bearer_url(base, bad).is_err(), "{bad}");
+        }
+        assert!(trusted_bearer_url("http://127.0.0.1:9911/api", "/items").is_ok());
+        assert!(
+            trusted_bearer_url("http://127.0.0.1:9911/api", "http://127.0.0.1:9912/api").is_err()
+        );
+        assert!(trusted_bearer_url("http://remote.example/api", "/items").is_err());
+    }
 
     #[test]
     fn server_retry_after_is_finite_and_bounded_without_panicking() {

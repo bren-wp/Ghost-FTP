@@ -1,3 +1,11 @@
+## 0.95.50 — Windows/Linux filesystem and protocol security fixes (UNRELEASED Preview) — 20 October 2026
+
+- Correct SQLite snapshot preservation, encrypted backup verification and recovery copies, Linux PATH and SSH known_hosts no-follow safeguards.
+- Guard Mirror sync roots and downloads from symlink/root confusion, Windows device filenames and traversal.
+- Bound WebDAV XML and cloud JSON responses, restrict OAuth bearer requests to trusted origins, prevent cyclic Drive/OneDrive pagination.
+- Expand isolated FTP/FTPS/SFTP and Windows filesystem regression checks; final protocol security, restart/recovery, vendor cloud accounts and branch-protection acceptance remain unverified.
+- Keep all historical tags, published v0.95.49 and user data intact. This security preview is **not published**, and restore is not globally atomic.
+
 ## 0.95.49 — Windows/Linux credential vault migration and recovery (unreleased security preview) — 19 October 2026
 
 - Preserve published v0.95.48 and Windows Credential Manager service/account identifiers; reject silent partial vault deletes and fail-closed API-key status when the vault is locked.

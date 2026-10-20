@@ -315,6 +315,34 @@ impl FolderSync {
         out
     }
 
+    /// A mirror root must never resolve to a drive/filesystem root or a
+    /// symbolic link. A missing directory can be configured for later, but
+    /// it cannot be used for a destructive reconcile.
+    fn validate_mirror_local_root(path: &Path, require_existing: bool) -> Result<()> {
+        let metadata = match std::fs::symlink_metadata(path) {
+            Ok(meta) => meta,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound && !require_existing => {
+                return Ok(());
+            }
+            Err(error) => return Err(error).context("inspect mirror local root"),
+        };
+        anyhow::ensure!(
+            metadata.is_dir() && !metadata.file_type().is_symlink(),
+            "mirror sync requires a real local directory, not a symlink or file"
+        );
+        let canonical = std::fs::canonicalize(path).context("resolve mirror local root")?;
+        anyhow::ensure!(
+            canonical.parent().is_some()
+                && canonical
+                    .components()
+                    .filter(|part| matches!(part, std::path::Component::Normal(_)))
+                    .count()
+                    > 0,
+            "mirror sync refuses a filesystem or drive root"
+        );
+        Ok(())
+    }
+
     fn validate_pair(pair: &SyncPair) -> Result<()> {
         if pair.name.trim().is_empty() {
             anyhow::bail!("sync pair name must not be empty");
@@ -352,6 +380,7 @@ impl FolderSync {
             {
                 anyhow::bail!("mirror sync refuses a local filesystem root or parent traversal");
             }
+            Self::validate_mirror_local_root(local, false)?;
         }
         Ok(())
     }
@@ -624,6 +653,13 @@ async fn reconcile_inner(
     pair: &SyncPair,
     session_id: &mut Option<String>,
 ) -> Result<Option<String>> {
+    // Recheck at execution time: a previously configured directory can turn
+    // into a symlink or vanish before the next polling/watch reconcile.
+    // Never plan Mirror deletions against a redirected or missing local root.
+    if matches!(pair.strategy, SyncStrategy::Mirror) {
+        FolderSync::validate_pair(pair)?;
+        FolderSync::validate_mirror_local_root(Path::new(&pair.local_root), true)?;
+    }
     // Delta-sync temp hygiene (Plan 23 Phase 3): a crash mid-delta can strand
     // `.ghostftp-patch-*` / `.ghostftp-new-*` / `.ghostftp-delta-*.tmp` files next to the
     // synced files. Best-effort sweep of day-old ones, once per reconcile,
@@ -1233,6 +1269,37 @@ mod tests {
             .to_string_lossy()
             .into_owned();
         assert!(FolderSync::validate_pair(&candidate).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn mirror_sync_rejects_local_symlink_and_filesystem_root_alias() {
+        use super::FolderSync;
+        use std::os::unix::fs::symlink;
+        let dir =
+            std::env::temp_dir().join(format!("ghostftp-mirror-root-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let mut candidate = pair(&[], 100);
+        candidate.profile_id = "test-profile".into();
+        candidate.remote_root = "/safe-folder".into();
+        candidate.strategy = SyncStrategy::Mirror;
+        let root_link = dir.join("root-link");
+        symlink("/", &root_link).unwrap();
+        candidate.local_root = root_link.to_string_lossy().into_owned();
+        assert!(FolderSync::validate_pair(&candidate).is_err());
+        candidate.local_root = "/".into();
+        assert!(FolderSync::validate_pair(&candidate).is_err());
+        candidate.local_root = dir.join("missing").to_string_lossy().into_owned();
+        assert!(FolderSync::validate_pair(&candidate).is_ok());
+        assert!(FolderSync::validate_mirror_local_root(
+            std::path::Path::new(&candidate.local_root),
+            true
+        )
+        .is_err());
+        candidate.local_root = dir.to_string_lossy().into_owned();
+        assert!(FolderSync::validate_pair(&candidate).is_ok());
+        assert!(FolderSync::validate_mirror_local_root(&dir, true).is_ok());
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
