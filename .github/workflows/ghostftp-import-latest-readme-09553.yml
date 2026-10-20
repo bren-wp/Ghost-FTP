@@ -30,6 +30,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/ghostftp-windows-qa"
           gh run download 39506868388 --name GhostFTP-Windows-x64-Preview-QA -D "$RUNNER_TEMP/ghostftp-windows-qa"
           node .github/scripts/import-latest-windows-09553.mjs "$RUNNER_TEMP/ghostftp-windows-qa"
+          git fetch --force origin refs/tags/v0.95.53:refs/tags/v0.95.53 --depth=1
           GHOSTFTP_LATEST_RELEASE_TAG=v0.95.53 node .github/scripts/check-release-images.mjs
       - name: Commit exact captured screenshots and digest verifier
         run: |
