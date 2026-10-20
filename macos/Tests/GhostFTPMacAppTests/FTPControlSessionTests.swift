@@ -2,6 +2,33 @@ import XCTest
 @testable import GhostFTPMacApp
 
 final class FTPControlSessionTests: XCTestCase {
+
+    func testMacUploadRejectsSymlinksAndDoesNotReadTheirTarget() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("confidential.bin")
+        let link = directory.appendingPathComponent("link.bin")
+        try Data("secret".utf8).write(to: source)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: source)
+        XCTAssertThrowsError(try PrivateUploadSource.openRegularFile(at: link))
+        XCTAssertEqual(try Data(contentsOf: source), Data("secret".utf8))
+    }
+
+    func testMacUploadRefusesChangedSourceAndIncompleteTransfer() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("large-file.bin")
+        try Data(repeating: 0x61, count: 8192).write(to: source)
+        let (handle, original) = try PrivateUploadSource.openRegularFile(at: source)
+        defer { try? handle.close() }
+        XCTAssertThrowsError(try PrivateUploadSource.verifyUnchanged(handle, original: original, transmitted: 4096))
+        XCTAssertNoThrow(try PrivateUploadSource.verifyUnchanged(handle, original: original, transmitted: 8192))
+        try Data(repeating: 0x62, count: 16384).write(to: source)
+        XCTAssertThrowsError(try PrivateUploadSource.verifyUnchanged(handle, original: original, transmitted: 8192))
+    }
+
     func testSingleReplyIsParsedAndConsumed() throws {
         var buffer = Data("220 Service ready\r\n".utf8)
 
