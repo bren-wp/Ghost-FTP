@@ -19,7 +19,7 @@ The build must fail closed when an Apple Keychain backend is missing, `Cargo.loc
 
 - Fresh install and launch on macOS 13+; Finder/Dock icon, keyboard shortcuts, native dialogs, local file permissions, dragging, resizing and minimum viewport.
 - Saved and ephemeral FTP, explicit FTPS (valid trusted certificate; revoked, expired, mismatched and untrusted rejection), and SFTP (unknown/changed/revoked SSH host key, key/password auth) with **no plaintext fallback**.
-- Remote listing, rename, move, delete, upload, download, retry, cancel, resume, remote-edit conflict and synchronization; compare SHA-256 on binary, Unicode, sparse, >4 GiB and interrupted transfers against original files.
+- Remote listing, rename (including the atomic macOS `RENAME_EXCL` no-overwrite guarantee), move, delete, upload, download, retry, cancel, resume, remote-edit conflict and synchronization; compare SHA-256 on binary, Unicode, sparse, >4 GiB and interrupted transfers against original files.
 - Apple Keychain create, edit, delete, locked-vault refusal, no plaintext persistence or sensitive logging. Test restarts, app updates and multiple accounts.
 - Real installer upgrade of the **same shared bundle ID** must preserve profiles, encrypted credentials, SQLite WAL and transfer history; legacy SwiftUI profile import requires explicit opt-in and independently tested migration, not silent merging.
 - Performance, battery/CPU idle activity, VoiceOver, reduced motion, high-DPI, dark/light themes, macOS 13/14/15/16, Intel and Apple Silicon hardware.
