@@ -4,6 +4,8 @@ Ghost FTP documentation is organized around the current canonical product state,
 
 [Full repository dead-code audit](audits/FULL_REPOSITORY_DEAD_CODE_2026_10_19.md) — advisory candidates and CI verification.
 
+[macOS shared desktop parity and migration acceptance](qa/MACOS_SHARED_PARITY.md) — separate Tauri app, security/Keychain, target-device requirements and preservation of the SwiftUI Preview.
+
 ## Current state
 
 - Active source/release cycle: **0.99.4 (in development, preview)**
