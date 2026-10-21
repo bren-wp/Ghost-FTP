@@ -233,13 +233,18 @@ jobs:
           set -euo pipefail
           RUN_ID="$(gh run list --workflow "ghostftp-macos-shared-desktop.yml" --commit "$SOURCE_SHA" --limit 10 --json databaseId,status,conclusion --jq 'map(select(.status == "completed" and .conclusion == "success")) | .[0].databaseId // ""')"
           test -n "$RUN_ID"
-          mkdir -p dist/macos-shared
-          gh run download "$RUN_ID" --name GhostFTP-macOS-Shared-Desktop-Preview -D dist/macos-shared
-          test -s "dist/macos-shared/GhostFTP-macOS-Shared-v$VERSION-Preview.zip"
-          test -s "dist/macos-shared/GhostFTP-macOS-Shared-SHA256SUMS.txt"
-          (cd dist/macos-shared && sha256sum -c GhostFTP-macOS-Shared-SHA256SUMS.txt)
-          unzip -tqq "dist/macos-shared/GhostFTP-macOS-Shared-v$VERSION-Preview.zip"
-          echo "Verified separately labeled shared Windows/Linux parity app for macOS."
+          for ARCH in arm64 x86_64; do
+            DEST="dist/macos-shared/$ARCH"
+            mkdir -p "$DEST"
+            gh run download "$RUN_ID" --name "GhostFTP-macOS-Shared-$ARCH-Preview" -D "$DEST"
+            ARCHIVE="GhostFTP-macOS-Shared-$ARCH-v$VERSION-Preview.zip"
+            MANIFEST="GhostFTP-macOS-Shared-$ARCH-SHA256SUMS.txt"
+            test -s "$DEST/$ARCHIVE"
+            test -s "$DEST/$MANIFEST"
+            (cd "$DEST" && sha256sum -c "$MANIFEST")
+            unzip -tqq "$DEST/$ARCHIVE"
+          done
+          echo "Verified both Apple Silicon and Intel native macOS shared desktop packages."
 
       - name: Normalize release artifacts
         shell: bash
@@ -258,13 +263,15 @@ jobs:
           ANDROID_PREVIEW_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
           ANDROID_UNSIGNED_AAB="$(find dist/android -type f -iname '*Release-Unsigned.aab.unsigned' | head -n1 || true)"
           MACOS_PREVIEW="$(find dist/macos -type f -name "GhostFTP-macOS-v$VERSION-Preview.zip" | head -n1 || true)"
-          MACOS_SHARED="dist/macos-shared/GhostFTP-macOS-Shared-v$VERSION-Preview.zip"
+          MACOS_SHARED_ARM="dist/macos-shared/arm64/GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"
+          MACOS_SHARED_INTEL="dist/macos-shared/x86_64/GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"
           test -n "$ANDROID_UNSIGNED_APK"; test -n "$ANDROID_PREVIEW_APK"; test -n "$ANDROID_UNSIGNED_AAB"; test -s "$ANDROID_UNSIGNED_AAB"
           test -n "$MACOS_PREVIEW"; test -s "$MACOS_PREVIEW"
-          test -s "$MACOS_SHARED"
+          test -s "$MACOS_SHARED_ARM"
+          test -s "$MACOS_SHARED_INTEL"
           if [ -n "$WIN_SETUP_SIG" ] || [ -n "$APPIMAGE_SIG" ]; then
             test -n "$WIN_SETUP_SIG"
             test -n "$APPIMAGE_SIG"
@@ -291,7 +298,8 @@ jobs:
           cp "$ANDROID_UNSIGNED_AAB" "dist/GhostFTP-Android-v$VERSION.aab.unsigned"
           cp "$ANDROID_PREVIEW_APK" "dist/GhostFTP-Android-v$VERSION-Installable-Preview.apk"
           cp "$MACOS_PREVIEW" "dist/GhostFTP-macOS-v$VERSION-Preview.zip"
-          cp "$MACOS_SHARED" "dist/GhostFTP-macOS-Shared-v$VERSION-Preview.zip"
+          cp "$MACOS_SHARED_ARM" "dist/GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"
+          cp "$MACOS_SHARED_INTEL" "dist/GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"
 
           QA_DIR="$(find dist/native -type d -name 'GhostFTP-Windows-x64-Preview-QA' | head -n1 || true)"
           test -n "$QA_DIR"
