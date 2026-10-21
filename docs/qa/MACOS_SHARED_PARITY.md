@@ -2,13 +2,13 @@
 
 ## Architecture
 
-The native macOS shared-desktop candidate under `ghostftp-desktop/` uses the **same React/TypeScript UI and Rust/Tauri protocol engines** as Windows and Linux. FTP, explicit FTPS, SFTP, host-key verification, sites, remote browsing, transfers, sync, search, editor and terminal are shared code, not separate mock screens.
+The two native architecture-specific Ghost FTP Desktop.app macOS candidates under `ghostftp-desktop/` uses the **same React/TypeScript UI and Rust/Tauri protocol engines** as Windows and Linux. FTP, explicit FTPS, SFTP, host-key verification, sites, remote browsing, transfers, sync, search, editor and terminal are shared code, not separate mock screens.
 
 The independent legacy `macos/` SwiftUI application remains a distinct FTP-only Preview until migration is proven safe. **Do not** rename its bundle or replace its release bytes with the new candidate. The shared app uses bundle ID `com.ghostftp.desktop`; the legacy app uses `com.brendigo.ghostftp.macos`. Their keychain/service identifiers and data locations must not be silently conflated.
 
 ## Automated build gates
 
-1. `ghostftp-macos-shared-desktop.yml`: macOS-15 native runner, central version and `Cargo.lock` exact graph, production frontend, native icon generation, Rust security tests, native `.app` compilation, ad-hoc signature and bundle identity, version validation, ZIP SHA-256 and extracted executable byte identity.
+1. `ghostftp-macos-shared-desktop.yml`: macOS-15 ARM64 plus macOS-15-intel x86_64 runners, central version and `Cargo.lock` exact graph, production frontend, native icon generation, Rust security tests, native `.app` compilation, ad-hoc signature and bundle identity, version validation, ZIP SHA-256 and extracted executable byte identity.
 2. `ghostftp-macos.yml`: legacy SwiftUI XCTest and live FTP server integration, package extraction and signature.
 3. `ghostftp-protocol-e2e.yml`: real FTP/explicit FTPS/SFTP server roundtrips and Windows filesystem regressions on the shared Rust engine.
 4. Existing Windows, Linux, Android, quality, security and dead-code CI gates on the **same exact source commit**.
