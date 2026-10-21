@@ -1,3 +1,9 @@
+## 0.99.3 — macOS remote-name collision handling and Preview metadata repair (Preview development; 21 October 2026)
+
+- Fail closed when FTP MLSD or Unix LIST inventories contain case/Unicode-normalization aliases: use the same stable remote identity as macOS upload-overwrite preflight, rather than exposing ambiguous file actions. Add targeted Swift regressions for both formats and distinct accented names.
+- Reconcile the incorrectly stable-classified v0.99.1 GitHub Release to Preview **only after** verifying its immutable SHA and all original artifacts. Preserve its tag, binary bytes and 21 existing assets.
+- Retain existing full security/dead-code and exact-source six-gate QA workflow. Native macOS FTPS/SFTP, production signing/notarization and real-device acceptance remain open.
+
 ## 0.99.2 — Public Releases discoverability and platform integrity (Preview development; 21 October 2026)
 
 - Guarantee the newest verified Preview release appears on the permanent [Releases](https://github.com/bren-wp/Ghost-FTP/releases) page, with the matching immutable tag/source SHA, all required Windows/Linux/Android/macOS packages and GitHub-hosted SHA-256 digests.
@@ -6,7 +12,7 @@
 - Synchronize the canonical 0.99.2 Preview version, Android code, Rust/Cargo.lock, Go, desktop, updater and operational documentation.
 - Maintain full dead-code/security auditing and platform QA gates. macOS native FTPS/SFTP, production signing/notarization and physical device acceptance remain open work.
 
-## 0.99.1 — Preview release metadata resilience and macOS interaction hardening (21 October 2026; UNRELEASED)
+## 0.99.1 — Preview release metadata resilience and macOS interaction hardening (published 21 October 2026; metadata repair pending)
 
 - Repair the GitHub Preview classification regression: verify public release tag source SHA, all 21 stored artifact digests, required unsigned Android and macOS preview packages, then correct release **metadata only**. Existing v0.95.53 and v0.99.0 asset bytes/tags are never deleted or modified.
 - Enforce `make_latest=false` for Preview publishing and add a safe post-release reconciliation workflow with exact-source regression checks.
@@ -14,7 +20,7 @@
 - Disable macOS FTP actions while a listing or file transfer is active and explain the temporary state in the UI rather than presenting inoperative buttons.
 - Preserve verified native macOS FTP integration, byte-count/overwriting safeguards, installation tests and security/dead-code audit checks. **Secure macOS FTPS/SFTP remains an open production blocker.**
 
-## 0.99.0 — New Preview development train (21 October 2026; unreleased until CI passes)
+## 0.99.0 — New Preview development train (published 21 October 2026)
 
 - Permanently stop GitHub Release and tag deletion; remove the previous automatic latest-ten retention workflow and prune script and add regression tests forbidding their return.
 - Align Windows, Linux, Android, macOS, updater, CLI, Cargo.lock, version metadata and release notes on the first 0.99.0 Preview source.
