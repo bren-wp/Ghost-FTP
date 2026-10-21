@@ -30,6 +30,7 @@ test("README links to all public Previews, never stable-only /releases/latest",(
   const readme=read("README.md");
   assert.ok(readme.includes("[**Releases**](https://github.com/bren-wp/Ghost-FTP/releases)"));
   assert.ok(!readme.includes("releases/latest"));
-  assert.ok(readme.includes("0.99.2"));
-  assert.ok(readme.includes("0.99.1"));
+  const version = JSON.parse(read("version.json"));
+  assert.ok(readme.includes(`Ghost FTP ${version.version} (development Preview)`));
+  assert.ok(readme.includes(`Previous verified edition: v${version.previousPublishedVersion}.`));
 });
