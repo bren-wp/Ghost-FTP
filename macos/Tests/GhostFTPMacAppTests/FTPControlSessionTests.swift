@@ -262,6 +262,21 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertThrowsError(try FTPControlCodec.parseMLSD(payload))
     }
 
+    func testMLSDRejectsCaseAndUnicodeNormalizationAliases() throws {
+        for pair in [
+            ["Report.txt", "report.TXT"],
+            ["Račun.pdf", "Rac\u{030C}un.pdf"],
+        ] {
+            let rows = pair.map { "type=file;size=3; \($0)" }
+            let payload = Data(rows.joined(separator: "\r\n").appending("\r\n").utf8)
+            XCTAssertThrowsError(try FTPControlCodec.parseMLSD(payload), "Alias: \(pair)")
+        }
+        let unambiguous = Data(
+            "type=file;size=3; Resume.txt\r\ntype=file;size=3; Résumé.txt\r\n".utf8
+        )
+        XCTAssertEqual(try FTPControlCodec.parseMLSD(unambiguous).count, 2)
+    }
+
     func testMLSDAllowsOrdinaryUnicodeAndSpacesWithStrictFacts() throws {
         let listing = Data(
             "type=file;size=4;modify=20261014203000; Račun 2026.txt\r\n".utf8
@@ -270,6 +285,18 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertEqual(entries.count, 1)
         XCTAssertEqual(entries.first?.name, "Račun 2026.txt")
         XCTAssertEqual(entries.first?.size, 4)
+    }
+
+    func testUnixLISTRejectsCaseAndUnicodeNormalizationAliases() throws {
+        for pair in [
+            ["Report.txt", "report.TXT"],
+            ["Račun.pdf", "Rac\u{030C}un.pdf"],
+        ] {
+            let listing = Data(pair.map {
+                "-rw-r--r-- 1 user group 3 Oct 14 10:30 \($0)"
+            }.joined(separator: "\r\n").appending("\r\n").utf8)
+            XCTAssertThrowsError(try FTPControlCodec.parseUnixLIST(listing), "Alias: \(pair)")
+        }
     }
 
     func testUnixLISTFallbackParsesCompleteValidInventory() throws {
