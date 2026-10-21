@@ -1,12 +1,12 @@
-> Ghost FTP **0.99.0** (release cycle), following the published v0.95.51 entry (currently awaiting artifact recovery). Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.99.1** (release cycle), following the published v0.95.51 entry (currently awaiting artifact recovery). Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP Code Audit — 0.93.0
 
 Current comprehensive 0.95.50 source inventory: [Windows/Linux, Android, macOS and tools dead-code audit](FULL_REPOSITORY_DEAD_CODE_2026_10_19.md). Static candidates are not automatically removable.
 
-> Current development: **0.99.0** (premium QA and cloud hardening), following the published 0.95.51 entry (awaiting asset recovery). Historical sections are retained unchanged.
+> Current development: **0.99.1** (premium QA and cloud hardening), following the published 0.95.51 entry (awaiting asset recovery). Historical sections are retained unchanged.
 
-> Current development source: **0.99.0**; latest verified published release: **0.95.53**. Historical findings below retain their original version labels.
+> Current development source: **0.99.1**; latest verified published release: **0.99.0**. Historical findings below retain their original version labels.
 
 ## Scope
 
@@ -23,7 +23,7 @@ Current comprehensive 0.95.50 source inventory: [Windows/Linux, Android, macOS a
 
 0.91.0 incremental review: the saved-sites identity-matching code reads protocol, normalized host, port and username without accessing auth secrets or modifying persisted profile data. The feature is Windows/Linux-only; cross-platform UI acceptance and a new full dead-code audit are not claimed.
 
-Historical 0.93.0 findings here covered the Ghost FTP source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.95.53**.
+Historical 0.93.0 findings here covered the Ghost FTP source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.99.0**.
 
 These findings build on the previously reviewed 0.30.15 code-audit baseline; the 0.30.16 changes are limited to live premium color surfaces and their CI contract. A complete new dead-code audit has not been claimed.
 

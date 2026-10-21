@@ -82,3 +82,34 @@ test("Vite stays patched without a time-limited version-reuse exception", () => 
   assert.ok(!quality.includes("Recovering previously unpublished 0.95.53"));
   assert.ok(quality.includes("Every merged change requires a new version"));
 });
+
+test("all Preview releases remain immutable and cannot be classified stable", () => {
+  const publishing=read(".github/scripts/publish-release.sh");
+  const repair=read(".github/scripts/enforce-preview-release-metadata.sh");
+  const workflow=read(".github/workflows/ghostftp-preview-metadata.yml");
+  assert.ok(publishing.includes('make_latest:"false"'));
+  assert.ok(publishing.includes("draft:false,prerelease:true"));
+  assert.ok(repair.includes('make_latest:"false"'));
+  assert.ok(repair.includes('test "$(jq -r \'.assets | length\' <<< "$release")" -ge 21'));
+  assert.ok(repair.includes("sha256:[a-f0-9]{64}"));
+  assert.ok(repair.includes("0.99.0"));
+  assert.ok(repair.includes("0.95.53"));
+  assert.ok(repair.includes("GHOSTFTP_PUBLISHED_SOURCE_SHA"));
+  assert.ok(workflow.includes('workflows: ["Ghost FTP release"]'));
+  assert.ok(workflow.includes("github.event.workflow_run.conclusion == 'success'"));
+  assert.ok(workflow.includes("branches: [main]"));
+  for (const [filename, source] of [["publisher", publishing], ["metadata corrector",repair],["metadata workflow",workflow]]) {
+    assert.ok(!source.includes("--cleanup-tag"), filename);
+    assert.ok(!source.includes("gh release delete"), filename);
+    assert.ok(!source.includes("git push origin :refs/tags/"), filename);
+    if (filename !== "publisher") assert.ok(!source.includes("releases/assets/$ASSET_ID"), filename);
+  }
+});
+
+test("canonical latest release is determined by numeric immutable version, never PATCHable publish date", () => {
+  for (const name of ["ghostftp-quality.yml", "ghostftp-release.yml"]) {
+    const yaml = read(".github/workflows/" + name);
+    assert.ok(yaml.includes('sort_by(.tag_name | ltrimstr("v") | split(".") | map(tonumber))'),name);
+    assert.ok(!yaml.includes('sort_by(.published_at)'),name);
+  }
+});

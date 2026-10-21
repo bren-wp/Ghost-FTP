@@ -153,7 +153,9 @@ done
 
 test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.sha')" = "$SOURCE_SHA"
 test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq '.draft')" = "true"
-jq -n '{draft:false,prerelease:true}' |
+# make_latest=false prevents GitHub's latest-release promotion from
+# misclassifying unsigned/ad-hoc signed developer packages as stable.
+jq -n --arg name "$RELEASE_NAME" '{draft:false,prerelease:true,make_latest:"false",name:$name}' |
   gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --input - >/dev/null
 test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq '.draft')" = "false"
 test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq '.prerelease')" = "true"

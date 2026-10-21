@@ -1,3 +1,11 @@
+## 0.99.1 — Preview release metadata resilience and macOS interaction hardening (21 October 2026; UNRELEASED)
+
+- Repair the GitHub Preview classification regression: verify public release tag source SHA, all 21 stored artifact digests, required unsigned Android and macOS preview packages, then correct release **metadata only**. Existing v0.95.53 and v0.99.0 asset bytes/tags are never deleted or modified.
+- Enforce `make_latest=false` for Preview publishing and add a safe post-release reconciliation workflow with exact-source regression checks.
+- Complete release metadata alignment for Android, Windows, Linux, macOS, CLI, updates, docs and Cargo.lock. Retain existing package identifiers, credentials and user data migration lineage.
+- Disable macOS FTP actions while a listing or file transfer is active and explain the temporary state in the UI rather than presenting inoperative buttons.
+- Preserve verified native macOS FTP integration, byte-count/overwriting safeguards, installation tests and security/dead-code audit checks. **Secure macOS FTPS/SFTP remains an open production blocker.**
+
 ## 0.99.0 — New Preview development train (21 October 2026; unreleased until CI passes)
 
 - Permanently stop GitHub Release and tag deletion; remove the previous automatic latest-ten retention workflow and prune script and add regression tests forbidding their return.
