@@ -46,6 +46,7 @@ for name in \
   "GhostFTP-Android-v$VERSION.aab.unsigned" \
   "GhostFTP-Android-v$VERSION-Installable-Preview.apk" \
   "GhostFTP-macOS-v$VERSION-Preview.zip" \
+  "GhostFTP-macOS-Shared-v$VERSION-Preview.zip" \
   "GhostFTP-v$VERSION-SHA256SUMS.txt"; do
   test "$(jq -r --arg name "$name" '[.assets[] | select(.name == $name)] | length' <<< "$RELEASE")" -eq 1 || {
     echo "::error::Missing required artifact from public Releases: $name" >&2
