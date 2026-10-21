@@ -32,4 +32,10 @@ jobs:
           GHOSTFTP_METADATA_EVENT: ${{ github.event_name == 'workflow_run' && 'successful-release' || 'push' }}
           GHOSTFTP_PUBLISHED_SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
-        run: bash .github/scripts/enforce-preview-release-metadata.sh
+        run: |
+          set -euo pipefail
+          bash .github/scripts/enforce-preview-release-metadata.sh
+          if [ "$GHOSTFTP_METADATA_EVENT" = "successful-release" ]; then
+            VERSION="$(node -p 'require("./version.json").version')"
+            bash .github/scripts/check-release-index.sh "$VERSION" "$GHOSTFTP_PUBLISHED_SOURCE_SHA"
+          fi

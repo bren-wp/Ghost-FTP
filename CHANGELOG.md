@@ -1,3 +1,11 @@
+## 0.99.2 — Public Releases discoverability and platform integrity (Preview development; 21 October 2026)
+
+- Guarantee the newest verified Preview release appears on the permanent [Releases](https://github.com/bren-wp/Ghost-FTP/releases) page, with the matching immutable tag/source SHA, all required Windows/Linux/Android/macOS packages and GitHub-hosted SHA-256 digests.
+- Add a post-publication first-page and complete-inventory check. GitHub's stable-only `/releases/latest` is deliberately not used for prerelease discovery.
+- Replace the stale version-specific README download link with a permanent **Releases** link. Keep previously published editions and all matching tags intact.
+- Synchronize the canonical 0.99.2 Preview version, Android code, Rust/Cargo.lock, Go, desktop, updater and operational documentation.
+- Maintain full dead-code/security auditing and platform QA gates. macOS native FTPS/SFTP, production signing/notarization and physical device acceptance remain open work.
+
 ## 0.99.1 — Preview release metadata resilience and macOS interaction hardening (21 October 2026; UNRELEASED)
 
 - Repair the GitHub Preview classification regression: verify public release tag source SHA, all 21 stored artifact digests, required unsigned Android and macOS preview packages, then correct release **metadata only**. Existing v0.95.53 and v0.99.0 asset bytes/tags are never deleted or modified.

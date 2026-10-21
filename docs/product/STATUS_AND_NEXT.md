@@ -1,14 +1,14 @@
-> Ghost FTP **0.99.1** (release cycle), following published **v0.99.0**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
+> Ghost FTP **0.99.2** (release cycle), following published **v0.99.1**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 # Ghost FTP — Project Status & Recommended Next Work
 
-Current development source: **0.99.1** (SQLite transactional synchronization safety); previous published release: **0.99.0**. Historical versioned notes below remain unchanged.
+Current development source: **0.99.2** (SQLite transactional synchronization safety); previous published release: **0.99.1**. Historical versioned notes below remain unchanged.
 
-> Older 0.94.0/0.93.0 status notes remain historical. Current source is **0.99.1**, latest public release **0.95.52**.
+> Older 0.94.0/0.93.0 status notes remain historical. Current source is **0.99.2**, latest public release **0.95.52**.
 
 Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.30** release notes.
 
-Previous canonical release: **0.99.0**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.99.1**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
