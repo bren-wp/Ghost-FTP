@@ -94,6 +94,7 @@ test("all Preview releases remain immutable and cannot be classified stable", ()
   assert.ok(repair.includes("sha256:[a-f0-9]{64}"));
   assert.ok(repair.includes("0.99.0"));
   assert.ok(repair.includes("0.95.53"));
+  assert.ok(repair.includes('enforce_preview "0.99.1" "eb2e1899f0bb953b731e7b41e0109ba4decb324a"'));
   assert.ok(repair.includes("GHOSTFTP_PUBLISHED_SOURCE_SHA"));
   assert.ok(workflow.includes('workflows: ["Ghost FTP release"]'));
   assert.ok(workflow.includes("github.event.workflow_run.conclusion == 'success'"));
