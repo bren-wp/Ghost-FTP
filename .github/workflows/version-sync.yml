@@ -44,6 +44,15 @@ jobs:
         shell: bash
         run: bash .github/scripts/refresh-cargo-lock.sh
 
+      - name: Verify native macOS credential vault stays in the locked graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq '"apple-native"' ghostftp-desktop/src-tauri/Cargo.toml
+          grep -Fq '"security-framework 2.11.1"' ghostftp-desktop/src-tauri/Cargo.lock
+          grep -Fq '"security-framework 3.7.0"' ghostftp-desktop/src-tauri/Cargo.lock
+          echo "Native Apple Keychain and existing TLS security framework lock graph preserved."
+
       - name: Diagnose Cargo feature-graph drift without publishing changes
         if: failure()
         shell: bash
