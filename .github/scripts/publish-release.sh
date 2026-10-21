@@ -29,6 +29,8 @@ REQUIRED_CORE_FILES=(
   "GhostFTP-Android-v${VERSION}.aab.unsigned"
   "GhostFTP-Android-v${VERSION}-Installable-Preview.apk"
   "GhostFTP-macOS-v${VERSION}-Preview.zip"
+  "GhostFTP-macOS-Shared-arm64-v${VERSION}-Preview.zip"
+  "GhostFTP-macOS-Shared-x86_64-v${VERSION}-Preview.zip"
   "GhostFTP-v${VERSION}-Source.zip"
   "GhostFTP-v${VERSION}-Desktop-Source.zip"
   "GhostFTP-v${VERSION}-Android-Source.zip"
