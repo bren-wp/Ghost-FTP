@@ -13,7 +13,7 @@ Every releasable source version **must use an explicit `preview` or `stable` cha
 1. Start from current `main`.
 2. Make meaningful product/code/documentation changes.
 3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
-4. Keep `previousVersion` pointing to the preceding merged source (currently `0.99.0`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.99.0`). Never call an unpublished merge a canonical release.
+4. Keep `previousVersion` pointing to the preceding merged source (currently `0.99.1`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.99.1`). Never call an unpublished merge a canonical release.
 5. Open a PR only after the preceding `main` version has been publicly released; the PR must set `previousVersion` and `previousPublishedVersion` to the base version. This prevents overlapping merges from skipping an edition.
 6. Require exact-head success for:
    - Ghost FTP quality
@@ -25,7 +25,7 @@ Every releasable source version **must use an explicit `preview` or `stable` cha
 7. Read and fix concrete workflow logs if any gate fails.
 8. Merge only the tested source.
 9. After any merge to `main` (including Android-only, macOS-only or documentation changes), the native build runs without path filtering; if successful, it automatically triggers **Ghost FTP release**, provided every exact-SHA gate passes. No manual dispatch is required.
-10. The release job waits for the remaining exact-SHA gates and requires the actual latest public release to match `previousPublishedVersion` pointing to the latest verified public GitHub Release (`0.99.0`). Never call an unpublished merge a canonical release.
+10. The release job waits for the remaining exact-SHA gates and requires the actual latest public release to match `previousPublishedVersion` pointing to the latest verified public GitHub Release (`0.99.1`). Never call an unpublished merge a canonical release.
 11. Package normalized Windows/Linux/Android/source/documentation/native-QA assets and SHA-256 checksums from the verified source SHA.
 12. Publish `v<version>` at that exact source SHA and verify uploaded asset digests/count.
 13. Never retarget an existing version tag to different source.
@@ -90,9 +90,13 @@ The previous one-time latest-ten cleanup has ended. **No scheduled or post-relea
 
 ## Current release cycle
 
-- Active source/release cycle: **0.99.1**
-- Previous canonical release: **0.99.0**
+- Active source/release cycle: **0.99.2**
+- Previous canonical release: **0.99.1**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
+
+## Newest edition is always visible under Releases
+
+The permanent public download entry point is [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases), including the newest Preview. Never link to `/releases/latest` for prerelease discovery: GitHub excludes Preview from that endpoint. Following every successful publication, the metadata job checks the new tag against the entire public release inventory (numeric SemVer), confirms it appears on the first Releases page, verifies the source commit SHA, all platform artifacts and every hosted SHA-256 digest. Incomplete or missing publication causes a failing verification job; previous releases and tags are retained.
 
 ## Preview-only metadata integrity
 
