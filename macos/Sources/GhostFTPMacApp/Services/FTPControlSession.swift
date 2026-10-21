@@ -235,6 +235,16 @@ enum FTPControlCodec {
     }
 
 
+    // Use one conservative identity rule for both listing validation and
+    // upload preflight. Some FTP servers are case-insensitive or normalize
+    // Unicode; ambiguous names must not drive destructive file actions.
+    static func remoteNameIdentity(_ value: String) -> String {
+        value.precomposedStringWithCanonicalMapping.folding(
+            options: [.caseInsensitive],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
+    }
+
     // FTP has no universally supported atomic create-if-absent operation.
     // Refuse obvious conflicts (including case and Unicode-normalization
     // aliases) before STOR rather than silently overwriting server data.
@@ -242,11 +252,8 @@ enum FTPControlCodec {
         _ remoteName: String, within entries: [FTPDirectoryEntry]
     ) throws {
         try validateRemoteFileName(remoteName)
-        let normalized = remoteName.precomposedStringWithCanonicalMapping
-        if entries.contains(where: {
-            $0.name.precomposedStringWithCanonicalMapping
-                .caseInsensitiveCompare(normalized) == .orderedSame
-        }) {
+        let identity = remoteNameIdentity(remoteName)
+        if entries.contains(where: { remoteNameIdentity($0.name) == identity }) {
             throw FTPControlError.remoteFileAlreadyExists
         }
     }
@@ -385,7 +392,9 @@ enum FTPControlCodec {
                 continue
             }
             try validateRemoteFileName(name)
-            guard seen.insert(name).inserted else {
+            guard seen.insert(remoteNameIdentity(name)).inserted else {
+                // Do not expose case/normalization aliases as distinct
+                // files: a server may resolve both paths to one object.
                 throw FTPControlError.invalidDirectoryListing
             }
             entries.append(
@@ -471,9 +480,9 @@ enum FTPControlCodec {
                 throw FTPControlError.invalidDirectoryListing
             }
             try validateRemoteFileName(name)
-            guard seenNames.insert(name).inserted else {
-                // Duplicate identities would collide in SwiftUI lists and
-                // make file-level actions select an ambiguous remote object.
+            guard seenNames.insert(remoteNameIdentity(name)).inserted else {
+                // Duplicate/aliased identities can select the wrong file on
+                // case-insensitive or Unicode-normalizing remote servers.
                 throw FTPControlError.invalidDirectoryListing
             }
             let size: UInt64?

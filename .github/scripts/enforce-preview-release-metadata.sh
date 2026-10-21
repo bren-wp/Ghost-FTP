@@ -50,6 +50,9 @@ enforce_preview() {
 # Two immutable released developer previews were incorrectly marked stable.
 enforce_preview "0.95.53" "27a3f8413f168e4cb8cc31cf6d7b7c85c353f5af"
 enforce_preview "0.99.0" "900d76e6e3273058270a48affe2664f968910a1b"
+# v0.99.1 was published with 21 verified artifacts but incorrectly marked stable.
+# The exact immutable tag and target commit must match before PATCHing metadata.
+enforce_preview "0.99.1" "eb2e1899f0bb953b731e7b41e0109ba4decb324a"
 
 if [ "$MODE" = successful-release ]; then
   SOURCE_SHA="$GHOSTFTP_PUBLISHED_SOURCE_SHA"
