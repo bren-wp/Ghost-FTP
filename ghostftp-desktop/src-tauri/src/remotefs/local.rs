@@ -107,13 +107,12 @@ pub(crate) fn rename_local_noreplace(from: &str, to: &str) -> anyhow::Result<()>
         // Darwin renamex_np(RENAME_EXCL) is atomic: no TOCTOU window between
         // testing the destination and moving the source, even for symlinks.
         // Never use std::fs::rename on macOS: it silently replaces targets.
-        let source = std::ffi::CString::new(from.as_bytes())
-            .context("rename source contains NUL")?;
-        let destination = std::ffi::CString::new(to.as_bytes())
-            .context("rename destination contains NUL")?;
-        let status = unsafe {
-            libc::renamex_np(source.as_ptr(), destination.as_ptr(), libc::RENAME_EXCL)
-        };
+        let source =
+            std::ffi::CString::new(from.as_bytes()).context("rename source contains NUL")?;
+        let destination =
+            std::ffi::CString::new(to.as_bytes()).context("rename destination contains NUL")?;
+        let status =
+            unsafe { libc::renamex_np(source.as_ptr(), destination.as_ptr(), libc::RENAME_EXCL) };
         if status != 0 {
             return Err(std::io::Error::last_os_error())
                 .with_context(|| format!("exclusive macOS rename {from} -> {to}"));
@@ -408,13 +407,18 @@ mod tests {
         std::fs::write(source.join("source-data"), b"source").unwrap();
         std::fs::write(destination.join("target-data"), b"target").unwrap();
 
-        assert!(rename_local_noreplace(
-            source.to_str().unwrap(),
-            destination.to_str().unwrap()
-        )
-        .is_err());
-        assert_eq!(std::fs::read(source.join("source-data")).unwrap(), b"source");
-        assert_eq!(std::fs::read(destination.join("target-data")).unwrap(), b"target");
+        assert!(
+            rename_local_noreplace(source.to_str().unwrap(), destination.to_str().unwrap())
+                .is_err()
+        );
+        assert_eq!(
+            std::fs::read(source.join("source-data")).unwrap(),
+            b"source"
+        );
+        assert_eq!(
+            std::fs::read(destination.join("target-data")).unwrap(),
+            b"target"
+        );
     }
 
     #[cfg(unix)]
