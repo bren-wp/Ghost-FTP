@@ -1,12 +1,12 @@
 <p align="center">
 
-> Current development source: **0.99.3**; latest verified published release: **0.99.2**. The desktop application remains on the shared Windows/Linux codebase.
+> Current development source: **0.99.4**; latest verified published release: **0.99.3**. The desktop application remains on the shared Windows/Linux codebase.
   <img src="branding/ghostftp-logo.svg" alt="Ghost FTP" width="520">
 </p>
 
 <h1 align="center">Ghost FTP Desktop</h1>
 <p align="center"><strong>More Than Transfer. Total Control.</strong></p>
-<p align="center">Production desktop application for Windows and Linux.</p>
+<p align="center">Shared desktop application for Windows and Linux; native macOS Rust/Tauri Preview is in acceptance.</p>
 
 <p align="center">
   <a href="../README.md">Product README</a> ·
@@ -22,7 +22,7 @@ This directory contains the authoritative **Ghost FTP desktop application**.
 
 The release line opens as a real desktop window. It does not launch the production GUI through a localhost browser wrapper, and it must not expose a visible `127.0.0.1` address/origin bar.
 
-Current development line: **0.99.3**. Previous canonical release: **0.99.2**.
+Current development line: **0.99.4**. Previous canonical release: **0.99.3**.
 
 ## Platform deliverables
 

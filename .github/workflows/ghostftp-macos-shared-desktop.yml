@@ -1,0 +1,149 @@
+name: Ghost FTP shared macOS desktop
+
+# Build the same React/Tauri/Rust FTP+FTPS+SFTP engine as Windows/Linux.
+# Distinct from the legacy SwiftUI Preview until macOS runtime acceptance.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-shared-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Require expected native macOS architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "${{ matrix.arch }}"
+          echo "Building Ghost FTP Desktop for ${{ matrix.arch }} on $(sw_vers -productVersion)"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ghostftp-desktop/src-tauri
+
+      - name: Verify central version and immutable dependency graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          node .github/scripts/sync-version.mjs --check
+          node .github/scripts/check-release-channel.mjs
+          cd ghostftp-desktop/src-tauri
+          cargo metadata --locked --format-version 1 > /dev/null
+
+      - name: Build frontend for macOS native WebKit
+        working-directory: ghostftp-desktop
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          npm run build
+
+      - name: Create real branded macOS icon from repository SVG
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rsvg-convert >/dev/null 2>&1; then
+            brew install librsvg
+          fi
+          ICONSET="$RUNNER_TEMP/GhostFTP.iconset"
+          mkdir -p "$ICONSET"
+          rsvg-convert --width=1024 --height=1024 assets/branding/ghostftp-app-icon.svg \
+            --output="$RUNNER_TEMP/GhostFTP-icon-master.png"
+          for size in 16 32 128 256 512; do
+            sips --resampleHeightWidth "$size" "$size" "$RUNNER_TEMP/GhostFTP-icon-master.png" \
+              --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+            double=$((size * 2))
+            sips --resampleHeightWidth "$double" "$double" "$RUNNER_TEMP/GhostFTP-icon-master.png" \
+              --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+          done
+          iconutil --convert icns "$ICONSET" \
+            --output=ghostftp-desktop/src-tauri/icons/icon.icns
+          # tauri::generate_context!() embeds icons/icon.png during Rust tests
+          # as well as when bundling; the .icns file alone is insufficient.
+          cp "$RUNNER_TEMP/GhostFTP-icon-master.png" \
+            ghostftp-desktop/src-tauri/icons/icon.png
+          test -s ghostftp-desktop/src-tauri/icons/icon.icns
+          test -s ghostftp-desktop/src-tauri/icons/icon.png
+
+      - name: Compile and run shared FTP FTPS SFTP security tests on macOS
+        working-directory: ghostftp-desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test -p ghostftp --lib --locked
+
+      - name: Compile and bundle the real shared macOS desktop
+        working-directory: ghostftp-desktop
+        shell: bash
+        env:
+          CARGO_INCREMENTAL: '0'
+        run: |
+          set -euo pipefail
+          npm run tauri -- build --bundles app \
+            --config src-tauri/tauri.macos.conf.json
+
+      - name: Ad-hoc sign and verify macOS shared Preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="ghostftp-desktop/src-tauri/target/release/bundle/macos/Ghost FTP Desktop.app"
+          VERSION="$(node -p 'require("./version.json").version')"
+          test -d "$APP"
+          test -x "$APP/Contents/MacOS/ghostftp"
+          plutil -lint "$APP/Contents/Info.plist"
+          test "$( /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist" )" = "com.ghostftp.desktop"
+          test "$( /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist" )" = "$VERSION"
+          find "$APP/Contents/Resources" -iname '*.icns' -size +0c | grep -q icns
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          mkdir -p dist/macos-shared
+          ARCHIVE="dist/macos-shared/GhostFTP-macOS-Shared-${{ matrix.arch }}-v${VERSION}-Preview.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$ARCHIVE"
+          (cd dist/macos-shared && shasum -a 256 "GhostFTP-macOS-Shared-${{ matrix.arch }}-v${VERSION}-Preview.zip" \
+            > "GhostFTP-macOS-Shared-${{ matrix.arch }}-SHA256SUMS.txt")
+          (cd dist/macos-shared && shasum -a 256 -c "GhostFTP-macOS-Shared-${{ matrix.arch }}-SHA256SUMS.txt")
+          mkdir -p "$RUNNER_TEMP/GhostFTP-Shared-Install"
+          ditto -x -k "$ARCHIVE" "$RUNNER_TEMP/GhostFTP-Shared-Install"
+          EXTRACTED="$RUNNER_TEMP/GhostFTP-Shared-Install/Ghost FTP Desktop.app"
+          codesign --verify --deep --strict --verbose=2 "$EXTRACTED"
+          cmp "$APP/Contents/MacOS/ghostftp" "$EXTRACTED/Contents/MacOS/ghostftp"
+          # This checks package integrity. GUI launch, persistent Keychain
+          # prompts and upgrades must still be validated on a real macOS device.
+
+      - name: Upload macOS shared desktop Preview for acceptance
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-macOS-Shared-${{ matrix.arch }}-Preview
+          path: |
+            dist/macos-shared/GhostFTP-macOS-Shared-${{ matrix.arch }}-v*-Preview.zip
+            dist/macos-shared/GhostFTP-macOS-Shared-${{ matrix.arch }}-SHA256SUMS.txt
+          if-no-files-found: error

@@ -1,6 +1,6 @@
 [package]
 name = "ghostftp"
-version = "0.99.3"
+version = "0.99.4"
 edition = "2021"
 description = "Ghost FTP — secure modern FTP, FTPS, SFTP and SSH file transfer client."
 authors = ["Brendigo LTD", "Brendigo, obrt za programiranje"]
@@ -122,10 +122,11 @@ image = { version = "0.25", default-features = false, features = [
 # uploads it back on every save.
 notify = "6"
 
-# OS keychain for OAuth tokens (Dropbox et al., Plan 5 Phase 5). Native backends
-# only (Windows Credential Manager / Linux keyutils) so there's
-# no dbus/secret-service build dependency.
-keyring = { version = "3", features = ["windows-native", "linux-native"] }
+# Real platform credential vaults: Windows Credential Manager, macOS
+# Keychain and Linux keyutils (with our persistent Secret Service migration).
+# Never use a mock or plaintext fallback on macOS. Apple support is
+# compile-target gated by keyring and does not alter Windows/Linux storage.
+keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native"] }
 
 # Encrypted backup/restore container (Plan 12 Phase 4): an Argon2id-derived key
 # over a user password, AES-256-GCM over a gzipped archive of profiles + ghostftp.db
@@ -142,8 +143,9 @@ rand = "0.8"
 # `virtualfs` feature is on — so the default build never compiles the native
 # provider. Using the wrapper instead of hand-rolled `windows`-crate FFI keeps
 # the unsafe surface tiny for code that can only be verified manually in Explorer.
-[target.'cfg(target_os = "linux")'.dependencies]
-# Atomic renameat2(RENAME_NOREPLACE) and descriptor-based O_NOFOLLOW/fchmod.
+[target.'cfg(unix)'.dependencies]
+# POSIX no-follow and close-on-exec flags protect known_hosts and backup
+# files on both macOS and Linux. Linux-only renameat2 is separately cfg-gated.
 libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]

@@ -102,17 +102,29 @@ pub(crate) fn rename_local_noreplace(from: &str, to: &str) -> anyhow::Result<()>
         Ok(())
     }
 
-    #[cfg(not(any(target_os = "linux", windows)))]
+    #[cfg(target_os = "macos")]
     {
-        // Only Windows/Linux guarantee atomic no-replace. Other platforms
-        // refuse known collisions but cannot eliminate a preflight race.
-        match std::fs::symlink_metadata(to) {
-            Ok(_) => anyhow::bail!("local rename target already exists"),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error).context("stat local rename target"),
+        // Darwin renamex_np(RENAME_EXCL) is atomic: no TOCTOU window between
+        // testing the destination and moving the source, even for symlinks.
+        // Never use std::fs::rename on macOS: it silently replaces targets.
+        let source =
+            std::ffi::CString::new(from.as_bytes()).context("rename source contains NUL")?;
+        let destination =
+            std::ffi::CString::new(to.as_bytes()).context("rename destination contains NUL")?;
+        let status =
+            unsafe { libc::renamex_np(source.as_ptr(), destination.as_ptr(), libc::RENAME_EXCL) };
+        if status != 0 {
+            return Err(std::io::Error::last_os_error())
+                .with_context(|| format!("exclusive macOS rename {from} -> {to}"));
         }
-        std::fs::rename(from, to).with_context(|| format!("rename {from} -> {to}"))?;
         Ok(())
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+    {
+        // No supported atomic create-if-absent rename contract. Fail closed
+        // instead of a racy metadata-preflight followed by an overwriting move.
+        anyhow::bail!("atomic no-overwrite rename is unsupported on this platform")
     }
 }
 
@@ -384,6 +396,31 @@ mod tests {
         assert_eq!(std::fs::read(&available).unwrap(), b"source preserved");
     }
 
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_exclusive_rename_refuses_existing_directory_without_mutating_either() {
+        let fixture = TestDirectory::new();
+        let source = fixture.0.join("source-dir");
+        let destination = fixture.0.join("existing-dir");
+        std::fs::create_dir(&source).unwrap();
+        std::fs::create_dir(&destination).unwrap();
+        std::fs::write(source.join("source-data"), b"source").unwrap();
+        std::fs::write(destination.join("target-data"), b"target").unwrap();
+
+        assert!(
+            rename_local_noreplace(source.to_str().unwrap(), destination.to_str().unwrap())
+                .is_err()
+        );
+        assert_eq!(
+            std::fs::read(source.join("source-data")).unwrap(),
+            b"source"
+        );
+        assert_eq!(
+            std::fs::read(destination.join("target-data")).unwrap(),
+            b"target"
+        );
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn rename_never_overwrites_a_dangling_symlink() {
@@ -493,7 +530,25 @@ mod tests {
 
         let fixture = TestDirectory::new();
         let opaque_name = OsString::from_vec(vec![b'f', 0xff, b'o']);
-        std::fs::write(fixture.0.join(opaque_name), b"keep original bytes").unwrap();
+        let opaque_path = fixture.0.join(opaque_name);
+        let create_result = std::fs::write(&opaque_path, b"keep original bytes");
+
+        // macOS filesystems reject malformed UTF-8 names with EILSEQ before
+        // LocalFs ever sees an entry. Rejecting that name is already the safe
+        // result; do not treat the host filesystem's refusal as a test failure.
+        // Linux filesystems may accept these bytes, so the stricter LocalFs
+        // listing rejection below must still run on Linux.
+        #[cfg(target_os = "macos")]
+        if let Err(error) = &create_result {
+            assert_eq!(
+                error.raw_os_error(),
+                Some(libc::EILSEQ),
+                "macOS must fail closed for malformed local filenames: {error}"
+            );
+            assert!(!opaque_path.exists());
+            return;
+        }
+        create_result.expect("create the malformed filename for the LocalFs validation");
 
         // Returning a replacement-character string here would lose filename
         // identity and permit ambiguous rename/delete from the UI.

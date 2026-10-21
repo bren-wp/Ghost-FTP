@@ -1,5 +1,12 @@
 # Ghost FTP for macOS
 
+## Desktop-equivalent macOS Preview in development (0.99.4)
+
+The new shared macOS candidate is built from `ghostftp-desktop/` using **the same React/TypeScript interface and Rust/Tauri FTP, explicit FTPS, SFTP, saved-site and transfer engine** as Windows/Linux. The dedicated `.github/workflows/ghostftp-macos-shared-desktop.yml` runs on macOS, tests the common Rust library, builds a branded native app and verifies ZIP extraction and its ad-hoc development signature.
+
+**This `macos/` directory remains the separate legacy SwiftUI Preview** with real plain FTP but no native FTPS/SFTP implementation. Existing legacy profiles and Keychain items must not be moved or overwritten implicitly. The shared Tauri app has a different bundle identity and app-data location. Development-only signing does not confer notarization or production trust; physically installed UI, transfers, Keychain prompts and upgrades remain independently gated in [macOS shared parity acceptance](../docs/qa/MACOS_SHARED_PARITY.md).
+
+
 The `macos/` directory is the dedicated SwiftUI macOS client.
 
 The first development phase establishes a real macOS application target, profile validation, non-secret profile persistence, optional password storage in macOS Keychain, transport-security messaging and TCP endpoint reachability checks. The endpoint check is intentionally not presented as a successful FTP/FTPS/SFTP login.

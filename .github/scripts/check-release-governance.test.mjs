@@ -31,6 +31,21 @@ test("every passing main native build can automatically trigger a release", () =
   assert.ok(workflow.includes('wait_for_gate "ghostftp-android.yml"'));
   assert.ok(workflow.includes('wait_for_gate "validate-win-hardening.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-macos.yml"'));
+  assert.ok(workflow.includes('wait_for_gate "ghostftp-macos-shared-desktop.yml"'));
+  assert.ok(workflow.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"));
+  assert.ok(workflow.includes("GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"));
+  const macOSShared = read(".github/workflows/ghostftp-macos-shared-desktop.yml");
+  assert.ok(macOSShared.includes("cargo test -p ghostftp --lib --locked"));
+  assert.ok(macOSShared.includes("npm run tauri -- build --bundles app"));
+  assert.ok(macOSShared.includes("codesign --verify --deep --strict"));
+  // The original SwiftUI macOS app is Ghost FTP.app. Never publish a new
+  // candidate that silently occupies the same Finder installation path.
+  const sharedConfig = JSON.parse(read("ghostftp-desktop/src-tauri/tauri.macos.conf.json"));
+  assert.equal(sharedConfig.productName, "Ghost FTP Desktop");
+  assert.ok(macOSShared.includes("Ghost FTP Desktop.app"));
+  assert.ok(!macOSShared.includes('APP="ghostftp-desktop/src-tauri/target/release/bundle/macos/Ghost FTP.app"'));
+  assert.ok(!macOSShared.includes("security import"));
+  assert.ok(!macOSShared.includes("gh release delete"));
   assert.ok(workflow.includes("RECOVERY_STATE"));
   assert.ok(workflow.includes("false:true:21"));
   assert.ok(workflow.includes("Refusing v0.95.52 while v0.95.51"));
