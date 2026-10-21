@@ -18,11 +18,26 @@ concurrency:
 
 jobs:
   native-desktop:
-    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Require expected native macOS architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "${{ matrix.arch }}"
+          echo "Building Ghost FTP Desktop for ${{ matrix.arch }} on $(sw_vers -productVersion)"
 
       - uses: actions/setup-node@v7
         with:
@@ -111,11 +126,11 @@ jobs:
           codesign --force --deep --sign - "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
           mkdir -p dist/macos-shared
-          ARCHIVE="dist/macos-shared/GhostFTP-macOS-Shared-v${VERSION}-Preview.zip"
+          ARCHIVE="dist/macos-shared/GhostFTP-macOS-Shared-${{ matrix.arch }}-v${VERSION}-Preview.zip"
           ditto -c -k --sequesterRsrc --keepParent "$APP" "$ARCHIVE"
-          (cd dist/macos-shared && shasum -a 256 "GhostFTP-macOS-Shared-v${VERSION}-Preview.zip" \
-            > GhostFTP-macOS-Shared-SHA256SUMS.txt)
-          (cd dist/macos-shared && shasum -a 256 -c GhostFTP-macOS-Shared-SHA256SUMS.txt)
+          (cd dist/macos-shared && shasum -a 256 "GhostFTP-macOS-Shared-${{ matrix.arch }}-v${VERSION}-Preview.zip" \
+            > "GhostFTP-macOS-Shared-${{ matrix.arch }}-SHA256SUMS.txt")
+          (cd dist/macos-shared && shasum -a 256 -c "GhostFTP-macOS-Shared-${{ matrix.arch }}-SHA256SUMS.txt")
           mkdir -p "$RUNNER_TEMP/GhostFTP-Shared-Install"
           ditto -x -k "$ARCHIVE" "$RUNNER_TEMP/GhostFTP-Shared-Install"
           EXTRACTED="$RUNNER_TEMP/GhostFTP-Shared-Install/Ghost FTP Desktop.app"
@@ -127,8 +142,8 @@ jobs:
       - name: Upload macOS shared desktop Preview for acceptance
         uses: actions/upload-artifact@v7
         with:
-          name: GhostFTP-macOS-Shared-Desktop-Preview
+          name: GhostFTP-macOS-Shared-${{ matrix.arch }}-Preview
           path: |
-            dist/macos-shared/GhostFTP-macOS-Shared-v*-Preview.zip
-            dist/macos-shared/GhostFTP-macOS-Shared-SHA256SUMS.txt
+            dist/macos-shared/GhostFTP-macOS-Shared-${{ matrix.arch }}-v*-Preview.zip
+            dist/macos-shared/GhostFTP-macOS-Shared-${{ matrix.arch }}-SHA256SUMS.txt
           if-no-files-found: error
