@@ -397,6 +397,26 @@ mod tests {
         assert_eq!(std::fs::read(&available).unwrap(), b"source preserved");
     }
 
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_exclusive_rename_refuses_existing_directory_without_mutating_either() {
+        let fixture = TestDirectory::new();
+        let source = fixture.0.join("source-dir");
+        let destination = fixture.0.join("existing-dir");
+        std::fs::create_dir(&source).unwrap();
+        std::fs::create_dir(&destination).unwrap();
+        std::fs::write(source.join("source-data"), b"source").unwrap();
+        std::fs::write(destination.join("target-data"), b"target").unwrap();
+
+        assert!(rename_local_noreplace(
+            source.to_str().unwrap(),
+            destination.to_str().unwrap()
+        )
+        .is_err());
+        assert_eq!(std::fs::read(source.join("source-data")).unwrap(), b"source");
+        assert_eq!(std::fs::read(destination.join("target-data")).unwrap(), b"target");
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn rename_never_overwrites_a_dangling_symlink() {
