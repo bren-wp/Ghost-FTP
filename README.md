@@ -88,7 +88,8 @@ The v0.95.38 development cycle hardens [SQLite-backed watched sync](docs/audits/
 | **🪟 Windows x64** | Portable EXE, Setup EXE, MSI | FTP, explicit FTPS, SFTP |
 | **🐧 Linux x86-64** | AppImage, DEB, RPM, standalone binary | FTP, explicit FTPS, SFTP |
 | **🤖 Android** | Installable Preview APK; separate unsigned APK/AAB for release signing | FTP, explicit FTPS, SFTP |
-| **🍎 macOS** | Preview ZIP | FTP; FTPS/SFTP not yet available in the macOS client |
+| **🍎 macOS — Shared Desktop candidate (0.99.4)** | Separate Preview ZIP after exact-source CI passes | Shared Rust FTP, explicit FTPS and SFTP; real-machine acceptance pending |
+| **🍎 macOS — legacy SwiftUI** | Existing Preview ZIP | FTP only; FTPS/SFTP intentionally unavailable |
 
 **[View all Ghost FTP releases, including the latest Preview →](https://github.com/bren-wp/Ghost-FTP/releases)**
 
@@ -96,7 +97,7 @@ Android's unsigned release packages are intended for your authorized signing pro
 
 ## Cloud storage, without confusion
 
-Windows and Linux offer additional cloud and remote-storage integrations, including supported S3-compatible and WebDAV services and account-based connectors. Android and macOS support direct object uploads/downloads with short-lived provider-signed HTTPS links. **A signed object link is not an account-browser login** to Google Drive, OneDrive, Dropbox or Box on those platforms.
+Windows and Linux offer cloud and remote-storage integrations, including S3-compatible and WebDAV services and supported account-based connectors. The new shared macOS desktop candidate reuses these integrations; the legacy SwiftUI macOS app and Android also support direct object transfers via short-lived provider-signed HTTPS links. **A signed object link is not an account-browser login** to Google Drive, OneDrive, Dropbox or Box on those platforms.
 
 [Cloud storage information](docs/product/CLOUD_STORAGE.md) · [Privacy policy](https://ghostftp.com/hr/privacy)
 
