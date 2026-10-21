@@ -44,6 +44,17 @@ jobs:
         shell: bash
         run: bash .github/scripts/refresh-cargo-lock.sh
 
+      - name: Diagnose Cargo feature-graph drift without publishing changes
+        if: failure()
+        shell: bash
+        run: |
+          set -uo pipefail
+          cd ghostftp-desktop/src-tauri
+          echo "::notice::Diagnostic only: compute Cargo.lock changes without --locked; no publishing or dependency-version upgrades authorized."
+          cargo metadata --format-version 1 > /dev/null || true
+          git diff -- Cargo.lock | head -n 180 || true
+          git status --short Cargo.lock || true
+
       - name: Commit synchronized metadata
         run: |
           set -euo pipefail
