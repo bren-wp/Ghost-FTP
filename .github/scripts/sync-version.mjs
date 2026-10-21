@@ -68,6 +68,33 @@ for (const rel of [
 ]) {
   apply(rel, replaceRequired(read(rel), /^version = "[^"]+"$/m, `version = "${version}"`, rel));
 }
+// Changing the four local workspace package versions must never trigger a
+// registry-wide re-resolution: update ONLY their Cargo.lock version records.
+// Preserve every third-party version, checksum and dependency edge unchanged.
+// cargo metadata --locked subsequently validates the resulting lock graph.
+{
+  const rel = "ghostftp-desktop/src-tauri/Cargo.lock";
+  const workspacePackages = new Set([
+    "ghostftp", "ghostftp-cli", "ghostftp-agent-proto", "ghostftp-agentd",
+  ]);
+  let found = 0;
+  const lock = read(rel).replace(
+    /^(\[\[package\]\]\r?\nname = "([^"]+)"\r?\nversion = ")([^"]+)(")/gm,
+    (original, prefix, name, lockedVersion, suffix) => {
+      if (!workspacePackages.has(name)) return original;
+      if (lockedVersion !== version && lockedVersion !== previousVersion) {
+        throw new Error(`${rel}: unexpected locked version ${lockedVersion} for ${name}`);
+      }
+      found += 1;
+      return prefix + version + suffix;
+    },
+  );
+  if (found !== workspacePackages.size) {
+    throw new Error(`${rel}: expected four local workspace package records, found ${found}`);
+  }
+  apply(rel, lock);
+}
+
 updateJson("ghostftp-desktop/src-tauri/tauri.conf.json", (j) => { j.version = version; });
 
 {
