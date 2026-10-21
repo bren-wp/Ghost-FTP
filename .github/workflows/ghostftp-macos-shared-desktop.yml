@@ -100,7 +100,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APP="ghostftp-desktop/src-tauri/target/release/bundle/macos/Ghost FTP.app"
+          APP="ghostftp-desktop/src-tauri/target/release/bundle/macos/Ghost FTP Desktop.app"
           VERSION="$(node -p 'require("./version.json").version')"
           test -d "$APP"
           test -x "$APP/Contents/MacOS/ghostftp"
@@ -118,7 +118,7 @@ jobs:
           (cd dist/macos-shared && shasum -a 256 -c GhostFTP-macOS-Shared-SHA256SUMS.txt)
           mkdir -p "$RUNNER_TEMP/GhostFTP-Shared-Install"
           ditto -x -k "$ARCHIVE" "$RUNNER_TEMP/GhostFTP-Shared-Install"
-          EXTRACTED="$RUNNER_TEMP/GhostFTP-Shared-Install/Ghost FTP.app"
+          EXTRACTED="$RUNNER_TEMP/GhostFTP-Shared-Install/Ghost FTP Desktop.app"
           codesign --verify --deep --strict --verbose=2 "$EXTRACTED"
           cmp "$APP/Contents/MacOS/ghostftp" "$EXTRACTED/Contents/MacOS/ghostftp"
           # This checks package integrity. GUI launch, persistent Keychain
