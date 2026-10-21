@@ -73,6 +73,20 @@ test("released editions and tags must never be automatically pruned", () => {
   }
 });
 
+test("version synchronization updates only local Cargo workspace package records", () => {
+  const script = read(".github/scripts/sync-version.mjs");
+  const verifier = read(".github/scripts/refresh-cargo-lock.sh");
+  for (const name of ["ghostftp", "ghostftp-cli", "ghostftp-agent-proto", "ghostftp-agentd"]) {
+    assert.ok(script.includes(`"${name}"`));
+  }
+  assert.ok(script.includes('const rel = "ghostftp-desktop/src-tauri/Cargo.lock"'));
+  assert.ok(script.includes("lockedVersion !== version && lockedVersion !== previousVersion"));
+  assert.ok(script.includes("found !== workspacePackages.size"));
+  assert.ok(script.includes("apply(rel, lock)"));
+  assert.ok(verifier.includes("cargo metadata --locked"));
+  assert.ok(!verifier.includes("cargo update"));
+});
+
 test("Vite stays patched without a time-limited version-reuse exception", () => {
   const quality = read(".github/workflows/ghostftp-quality.yml");
   const pkg = JSON.parse(read("ghostftp-desktop/package.json"));
