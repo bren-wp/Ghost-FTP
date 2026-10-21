@@ -72,7 +72,12 @@ jobs:
           done
           iconutil --convert icns "$ICONSET" \
             --output=ghostftp-desktop/src-tauri/icons/icon.icns
+          # tauri::generate_context!() embeds icons/icon.png during Rust tests
+          # as well as when bundling; the .icns file alone is insufficient.
+          cp "$RUNNER_TEMP/GhostFTP-icon-master.png" \
+            ghostftp-desktop/src-tauri/icons/icon.png
           test -s ghostftp-desktop/src-tauri/icons/icon.icns
+          test -s ghostftp-desktop/src-tauri/icons/icon.png
 
       - name: Compile and run shared FTP FTPS SFTP security tests on macOS
         working-directory: ghostftp-desktop/src-tauri
