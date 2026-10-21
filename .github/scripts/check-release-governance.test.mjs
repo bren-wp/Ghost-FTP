@@ -37,6 +37,12 @@ test("every passing main native build can automatically trigger a release", () =
   assert.ok(macOSShared.includes("cargo test -p ghostftp --lib --locked"));
   assert.ok(macOSShared.includes("npm run tauri -- build --bundles app"));
   assert.ok(macOSShared.includes("codesign --verify --deep --strict"));
+  // The original SwiftUI macOS app is Ghost FTP.app. Never publish a new
+  // candidate that silently occupies the same Finder installation path.
+  const sharedConfig = JSON.parse(read("ghostftp-desktop/src-tauri/tauri.macos.conf.json"));
+  assert.equal(sharedConfig.productName, "Ghost FTP Desktop");
+  assert.ok(macOSShared.includes("Ghost FTP Desktop.app"));
+  assert.ok(!macOSShared.includes('APP="ghostftp-desktop/src-tauri/target/release/bundle/macos/Ghost FTP.app"'));
   assert.ok(!macOSShared.includes("security import"));
   assert.ok(!macOSShared.includes("gh release delete"));
   assert.ok(workflow.includes("RECOVERY_STATE"));
