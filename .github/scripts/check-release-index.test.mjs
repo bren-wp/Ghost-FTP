@@ -19,6 +19,7 @@ test("post-publication verifies newest Preview is visible on public Releases ind
   assert.ok(verify.includes("sha256:[a-f0-9]{64}"));
   assert.ok(verify.includes("GhostFTP-Android-v$VERSION.aab.unsigned"));
   assert.ok(verify.includes("GhostFTP-macOS-v$VERSION-Preview.zip"));
+  assert.ok(verify.includes("GhostFTP-macOS-Shared-v$VERSION-Preview.zip"));
   assert.ok(workflow.includes("bash .github/scripts/check-release-index.sh"));
   assert.ok(workflow.includes("GHOSTFTP_PUBLISHED_SOURCE_SHA"));
   for(const text of ["gh release delete","--cleanup-tag","git push origin :refs/tags/"]){
