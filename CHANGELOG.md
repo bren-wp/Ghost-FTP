@@ -1,3 +1,10 @@
+## 0.99.4 — Shared Rust/Tauri macOS desktop with Apple Keychain and secure-protocol parity (development Preview; 21 October 2026)
+
+- Add a separate, runnable macOS shared desktop candidate built from the same React/Tauri/Rust application as Windows/Linux; no longer limit macOS security-protocol work to the FTP-only SwiftUI implementation.
+- Enable the native Apple Keychain backend for the existing credentials vault, including the preserved stable service identity.
+- Add locked macOS Rust security tests, frontend compile, a branded native .app build, ad-hoc signing, ZIP extraction and integrity verification. Publish separately as a macOS Shared Preview only when macOS shared CI and all existing release gates pass.
+- Keep the original SwiftUI macOS Preview and its saved profiles intact. Distinct bundle identifiers and real-machine GUI/Keychain/upgrade testing remain acceptance blockers; do not claim notarization or stable readiness.
+
 ## 0.99.3 — macOS remote-name collision handling and Preview metadata repair (Preview development; 21 October 2026)
 
 - Fail closed when FTP MLSD or Unix LIST inventories contain case/Unicode-normalization aliases: use the same stable remote identity as macOS upload-overwrite preflight, rather than exposing ambiguous file actions. Add targeted Swift regressions for both formats and distinct accented names.
