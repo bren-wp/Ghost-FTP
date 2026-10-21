@@ -1,4 +1,5 @@
 {
+  "productName": "Ghost FTP Desktop",
   "bundle": {
     "targets": [
       "app"
