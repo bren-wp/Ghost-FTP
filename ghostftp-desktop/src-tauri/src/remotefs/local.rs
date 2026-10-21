@@ -530,7 +530,25 @@ mod tests {
 
         let fixture = TestDirectory::new();
         let opaque_name = OsString::from_vec(vec![b'f', 0xff, b'o']);
-        std::fs::write(fixture.0.join(opaque_name), b"keep original bytes").unwrap();
+        let opaque_path = fixture.0.join(opaque_name);
+        let create_result = std::fs::write(&opaque_path, b"keep original bytes");
+
+        // macOS filesystems reject malformed UTF-8 names with EILSEQ before
+        // LocalFs ever sees an entry. Rejecting that name is already the safe
+        // result; do not treat the host filesystem's refusal as a test failure.
+        // Linux filesystems may accept these bytes, so the stricter LocalFs
+        // listing rejection below must still run on Linux.
+        #[cfg(target_os = "macos")]
+        if let Err(error) = &create_result {
+            assert_eq!(
+                error.raw_os_error(),
+                Some(libc::EILSEQ),
+                "macOS must fail closed for malformed local filenames: {error}"
+            );
+            assert!(!opaque_path.exists());
+            return;
+        }
+        create_result.expect("create the malformed filename for the LocalFs validation");
 
         // Returning a replacement-character string here would lose filename
         // identity and permit ambiguous rename/delete from the UI.
