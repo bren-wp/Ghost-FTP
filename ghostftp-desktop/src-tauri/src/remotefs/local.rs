@@ -102,17 +102,30 @@ pub(crate) fn rename_local_noreplace(from: &str, to: &str) -> anyhow::Result<()>
         Ok(())
     }
 
-    #[cfg(not(any(target_os = "linux", windows)))]
+    #[cfg(target_os = "macos")]
     {
-        // Only Windows/Linux guarantee atomic no-replace. Other platforms
-        // refuse known collisions but cannot eliminate a preflight race.
-        match std::fs::symlink_metadata(to) {
-            Ok(_) => anyhow::bail!("local rename target already exists"),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error).context("stat local rename target"),
+        // Darwin renamex_np(RENAME_EXCL) is atomic: no TOCTOU window between
+        // testing the destination and moving the source, even for symlinks.
+        // Never use std::fs::rename on macOS: it silently replaces targets.
+        let source = std::ffi::CString::new(from.as_bytes())
+            .context("rename source contains NUL")?;
+        let destination = std::ffi::CString::new(to.as_bytes())
+            .context("rename destination contains NUL")?;
+        let status = unsafe {
+            libc::renamex_np(source.as_ptr(), destination.as_ptr(), libc::RENAME_EXCL)
+        };
+        if status != 0 {
+            return Err(std::io::Error::last_os_error())
+                .with_context(|| format!("exclusive macOS rename {from} -> {to}"));
         }
-        std::fs::rename(from, to).with_context(|| format!("rename {from} -> {to}"))?;
         Ok(())
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+    {
+        // No supported atomic create-if-absent rename contract. Fail closed
+        // instead of a racy metadata-preflight followed by an overwriting move.
+        anyhow::bail!("atomic no-overwrite rename is unsupported on this platform")
     }
 }
 
