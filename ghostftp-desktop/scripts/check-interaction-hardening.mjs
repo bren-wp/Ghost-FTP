@@ -215,13 +215,16 @@ requireIncludes(
   [
     "fn rename_local_noreplace(",
     "libc::RENAME_NOREPLACE",
+    "libc::renamex_np(",
+    "libc::RENAME_EXCL",
+    "macos_exclusive_rename_refuses_existing_directory_without_mutating_either",
     "FileSystem::MoveFileW",
     "libc::O_NOFOLLOW",
     "file.set_permissions(",
     "rename_never_replaces_an_existing_file",
     "rename_never_overwrites_a_dangling_symlink",
   ],
-  "atomic local destination preservation and Linux descriptor-only chmod"
+  "atomic local destination preservation across Windows/Linux/macOS and Linux descriptor-only chmod"
 );
 
 requireIncludes(
