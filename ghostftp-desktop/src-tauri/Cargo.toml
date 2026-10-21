@@ -143,8 +143,9 @@ rand = "0.8"
 # `virtualfs` feature is on — so the default build never compiles the native
 # provider. Using the wrapper instead of hand-rolled `windows`-crate FFI keeps
 # the unsafe surface tiny for code that can only be verified manually in Explorer.
-[target.'cfg(target_os = "linux")'.dependencies]
-# Atomic renameat2(RENAME_NOREPLACE) and descriptor-based O_NOFOLLOW/fchmod.
+[target.'cfg(unix)'.dependencies]
+# POSIX no-follow and close-on-exec flags protect known_hosts and backup
+# files on both macOS and Linux. Linux-only renameat2 is separately cfg-gated.
 libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
