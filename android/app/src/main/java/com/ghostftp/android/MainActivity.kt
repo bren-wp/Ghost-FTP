@@ -4083,7 +4083,7 @@ class MainActivity : Activity() {
                                     if (!selectedRemoteBatchPaths.add(target)) {
                                         selectedRemoteBatchPaths.remove(target)
                                     }
-                                    this@apply.background = PremiumReferenceStyle.surface(
+                                    view.background = PremiumReferenceStyle.surface(
                                         this@MainActivity,
                                         if (target in selectedRemoteBatchPaths)
                                             PremiumReferenceStyle.selected
@@ -4390,7 +4390,7 @@ class MainActivity : Activity() {
         }
         if (selectedRemoteBatchPaths.size > RemoteBatchRenamePlanner.MAX_FILES) {
             showMessage("Batch Rename",
-                "Select no more than \${RemoteBatchRenamePlanner.MAX_FILES} files.")
+                "Select no more than ${RemoteBatchRenamePlanner.MAX_FILES} files.")
             return
         }
         if (operationInFlight || activeProfile != profile) return
@@ -4438,7 +4438,7 @@ class MainActivity : Activity() {
         }
         confirmDestructiveRemoteAction(
             title = "Rename $count remote files?",
-            message = preview + if (count > 2) "\n…and \${count - 2} more." else "",
+            message = preview + if (count > 2) "\n…and ${count - 2} more." else "",
             confirmLabel = "Rename"
         ) {
             if (profile != activeProfile) {
