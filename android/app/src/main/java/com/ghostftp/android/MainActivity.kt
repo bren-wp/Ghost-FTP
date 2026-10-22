@@ -1265,7 +1265,7 @@ class MainActivity : Activity() {
                 setOnClickListener { showSiteEditor(site) }
             }
             // Reference screen #3 uses protocol-colored server tiles, not
-            // the same purple placeholder glyph for every saved site.
+            // the same purple symbol for every saved site.
             item.addView(PremiumReferenceStyle.serverIcon(this, site.protocol),
                 LinearLayout.LayoutParams(dp(40), dp(40)))
             item.addView(gap(10))
