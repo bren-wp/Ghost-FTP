@@ -1370,7 +1370,7 @@ class MainActivity : Activity() {
                     PremiumReferenceStyle.panel, 10)
                 isClickable = true
                 isFocusable = true
-                contentDescription = "Edit saved site " + site.name
+                contentDescription = "Open saved site " + site.name
                 setOnClickListener { showConnectPreview(site) }
             }
             // Reference screen #3 uses protocol-colored server tiles, not
@@ -1461,7 +1461,11 @@ class MainActivity : Activity() {
             // before connecting: profiles can be removed in the meantime.
             if (SavedSiteProfiles.read(this@MainActivity).none {
                     it.name.equals(site.name, ignoreCase = true) &&
-                        it.host == site.host && it.protocol == site.protocol
+                        it.host == site.host && it.protocol == site.protocol &&
+                        it.port == site.port && it.username == site.username &&
+                        it.remotePath == site.remotePath &&
+                        it.fingerprint == site.fingerprint &&
+                        it.keepAliveSeconds == site.keepAliveSeconds
                 }) {
                 showMessage("Site changed", "Reopen the saved site before connecting.")
                 return@action
