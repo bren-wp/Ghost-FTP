@@ -23,7 +23,7 @@ internal object RemoteBatchRenamePlanner {
         }) { "Pattern must be a safe filename without directory separators." }
         val groups = Regex("#+").findAll(template).toList()
         require(groups.size == 1 && groups.single().value.length in 1..6) {
-            "Pattern needs one group of 1–6 # number placeholders."
+            "Pattern must contain exactly one group of 1–6 number markers (#)."
         }
         val digits = groups.single().value.length
         val canon = HashSet<String>()
