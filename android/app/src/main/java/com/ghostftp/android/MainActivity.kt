@@ -405,9 +405,10 @@ class MainActivity : Activity() {
         // slide-over drawer; a persistent rail is reserved for tablets.
         val compactNavigation = usesOverlayNavigation()
         navigationOpen = !compactNavigation
-        val railWidth = when {
-            compactNavigation -> dp(if (resources.configuration.screenWidthDp < 400) 260 else 280)
-            else -> dp(184)
+        val railWidth = if (compactNavigation) {
+            dp(AndroidResponsiveLayout.drawerWidthDp(resources.configuration.screenWidthDp))
+        } else {
+            dp(184)
         }
         navigationRail = buildNavigationRail().apply {
             visibility = if (navigationOpen) View.VISIBLE else View.GONE
@@ -425,7 +426,7 @@ class MainActivity : Activity() {
             setBackgroundColor(Brand.background)
             isFillViewport = true
         }
-        val outerPadding = if (resources.configuration.screenWidthDp < 600) dp(10) else dp(14)
+        val outerPadding = if (compactNavigation) dp(10) else dp(14)
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(outerPadding, dp(14), outerPadding, dp(22))
@@ -434,7 +435,7 @@ class MainActivity : Activity() {
         // competing title/toolbar above the premium phone workspace.
         val legacyHeader = buildHeader()
         legacyHeader.visibility =
-            if (resources.configuration.screenWidthDp < 600) View.GONE else View.VISIBLE
+            if (compactNavigation) View.GONE else View.VISIBLE
         content.addView(legacyHeader)
         sessionStatusCard = buildStatusCard().apply {
             contentDescription = "Session status panel"
@@ -452,7 +453,7 @@ class MainActivity : Activity() {
         // The 16 approved phone references have no persistent "Private
         // session" marketing footer; it consumed viewport space on EVERY
         // Android page. Keep provenance footer on roomy tablets only.
-        if (resources.configuration.screenWidthDp >= 600) {
+        if (!compactNavigation) {
             content.addView(space(10))
             content.addView(buildFooter())
         }
@@ -518,9 +519,10 @@ class MainActivity : Activity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Brand.background)
-            if (resources.configuration.screenWidthDp < 600) {
+            if (compactNavigation) {
                 addView(buildPremiumPhoneChrome(), LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(52)
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(if (resources.configuration.fontScale >= 1.3f) 60 else 52)
                 ))
             }
             addView(root, LinearLayout.LayoutParams(
@@ -702,7 +704,8 @@ class MainActivity : Activity() {
                     workspaceNavItem(workspace),
                     LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
-                        dp(if (resources.configuration.screenWidthDp >= 600) 52 else 48)
+                        dp(AndroidResponsiveLayout.navigationItemHeightDp(
+                            resources.configuration.fontScale, !usesOverlayNavigation()))
                     )
                 )
                 addView(space(3))
@@ -737,7 +740,7 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ))
             addView(space(10))
-            if (!iconRail && resources.configuration.screenWidthDp >= 600)
+            if (!iconRail && !usesOverlayNavigation())
                 addView(TextView(this@MainActivity).apply {
                 text = getString(R.string.label_private_session)
                 setTextColor(Brand.muted)
@@ -793,7 +796,7 @@ class MainActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         titleRow.addView(badge(ReleaseInfo.VERSION_BADGE))
-        if (resources.configuration.screenWidthDp !in 360..599) addView(titleRow)
+        if (!usesOverlayNavigation()) addView(titleRow)
 
         workspaceTitle = TextView(this@MainActivity).apply {
             text = workspaceLabel(activeWorkspace)
@@ -1367,7 +1370,7 @@ class MainActivity : Activity() {
         }.apply {
             contentDescription = "Add Site"
         }, LinearLayout.LayoutParams(dp(44), dp(42)))
-        if (resources.configuration.screenWidthDp >= 600) addView(heading)
+        if (!usesOverlayNavigation()) addView(heading)
         sitesSearch = input("Search saved sites…", InputType.TYPE_CLASS_TEXT).apply {
             contentDescription = "Search sites"
             addTextChangedListener(object : android.text.TextWatcher {
@@ -1697,9 +1700,9 @@ class MainActivity : Activity() {
                 // Reference #6 keeps both file panes tall, even if disconnected
                 // or the actual local app-owned directory is empty.
                 if (resources.configuration.screenWidthDp < 600) {
-                    minimumHeight = dp(
-                        (resources.configuration.screenHeightDp - 164).coerceIn(300, 850)
-                    )
+                    minimumHeight = dp(AndroidResponsiveLayout.filePaneMinHeightDp(
+                        resources.configuration.screenHeightDp
+                    ))
                 }
                 background = PremiumReferenceStyle.surface(this@MainActivity)
                 val header = TextView(this@MainActivity).apply {
@@ -1731,6 +1734,26 @@ class MainActivity : Activity() {
         twoPane.addView(filesLocalPane,
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
                 .apply { marginStart = dp(4) })
+        if (!usesOverlayNavigation()) {
+            // Tablet split-screen may leave less width than an ordinary phone.
+            // Provide a real pane switch rather than clipping two file tables.
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                for ((label, mode) in listOf(
+                    "Remote" to FilesViewMode.REMOTE,
+                    "Local" to FilesViewMode.LOCAL,
+                    "Dual" to FilesViewMode.DUAL
+                )) {
+                    addView(PremiumReferenceStyle.action(this@MainActivity, label) {
+                        filesViewMode = mode
+                        updateFilesViewMode()
+                    }, LinearLayout.LayoutParams(0, dp(46), 1f).apply {
+                        marginEnd = dp(5)
+                    })
+                }
+            })
+            addView(space(8))
+        }
         updateFilesViewMode()
         addView(twoPane)
         refreshLocalPane()
@@ -1743,14 +1766,18 @@ class MainActivity : Activity() {
      */
     private fun updateFilesViewMode() {
         if (!::filesRemotePane.isInitialized || !::filesLocalPane.isInitialized) return
+        val canFitDual = AndroidResponsiveLayout.canShowDualFilePanes(
+            availableFileContentWidthDp())
+        val effectiveMode = if (!canFitDual && filesViewMode == FilesViewMode.DUAL)
+            FilesViewMode.REMOTE else filesViewMode
         filesRemotePane.visibility =
-            if (filesViewMode == FilesViewMode.LOCAL) View.GONE else View.VISIBLE
+            if (effectiveMode == FilesViewMode.LOCAL) View.GONE else View.VISIBLE
         filesLocalPane.visibility =
-            if (filesViewMode == FilesViewMode.REMOTE) View.GONE else View.VISIBLE
+            if (effectiveMode == FilesViewMode.REMOTE) View.GONE else View.VISIBLE
         if (::phoneFilesViewButton.isInitialized) {
             phoneFilesViewButton.contentDescription =
                 "Choose Files view · " + when (filesViewMode) {
-                    FilesViewMode.DUAL -> "Dual pane"
+                    FilesViewMode.DUAL -> if (canFitDual) "Dual pane" else "Remote · narrow screen"
                     FilesViewMode.REMOTE -> "Remote"
                     FilesViewMode.LOCAL -> "Local"
                 }
@@ -1759,7 +1786,8 @@ class MainActivity : Activity() {
 
     private fun openFilesViewChooser() {
         android.widget.PopupMenu(this, phoneFilesViewButton).apply {
-            menu.add(0, 1, 0, "Dual pane")
+            menu.add(0, 1, 0, "Dual pane").isEnabled =
+                AndroidResponsiveLayout.canShowDualFilePanes(availableFileContentWidthDp())
             menu.add(0, 2, 1, "Remote only")
             menu.add(0, 3, 2, "Local only")
             setOnMenuItemClickListener { item ->
@@ -2827,7 +2855,7 @@ class MainActivity : Activity() {
             promptSaveCurrentBookmark()
         }.apply { contentDescription = getString(R.string.bookmarks_add) },
             LinearLayout.LayoutParams(dp(44), dp(42)))
-        if (resources.configuration.screenWidthDp >= 600) addView(titleRow)
+        if (!usesOverlayNavigation()) addView(titleRow)
         bookmarksRows = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -3324,7 +3352,16 @@ class MainActivity : Activity() {
     }
 
     private fun usesOverlayNavigation(): Boolean =
-        resources.configuration.screenWidthDp < 600
+        AndroidResponsiveLayout.usesPhoneNavigation(
+            resources.configuration.smallestScreenWidthDp
+        )
+
+    /** Width left after tablet navigation rail and workspace gutters. */
+    private fun availableFileContentWidthDp(): Int {
+        val rail = if (usesOverlayNavigation()) 0 else 184
+        val gutter = if (usesOverlayNavigation()) 20 else 28
+        return (resources.configuration.screenWidthDp - rail - gutter).coerceAtLeast(0)
+    }
 
     private fun setNavigationOpen(open: Boolean, announce: Boolean = true) {
         val compactNavigation = usesOverlayNavigation()
