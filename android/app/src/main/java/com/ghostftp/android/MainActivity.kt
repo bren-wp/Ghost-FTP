@@ -97,6 +97,12 @@ class MainActivity : Activity() {
     private var editorOriginalText = ""
     private var editorRemotePath = ""
     private var editorConnection: ConnectionProfile? = null
+    private val selectedRemoteBatchPaths = linkedSetOf<String>()
+    private var batchMode = false
+    private lateinit var batchSection: View
+    private lateinit var batchPatternInput: EditText
+    private lateinit var batchStartInput: EditText
+    private lateinit var batchPreviewRows: LinearLayout
     private var pendingSavedEditorText: String? = null
     private var pendingSavedEditorPath: String? = null
     private lateinit var searchSection: View
@@ -376,6 +382,7 @@ class MainActivity : Activity() {
         bookmarksSection = buildBookmarksCard()
         searchSection = buildSearchCard().apply { visibility = View.GONE }
         editorSection = buildRemoteTextEditorCard().apply { visibility = View.GONE }
+        batchSection = buildBatchRenameCard().apply { visibility = View.GONE }
         settingsSection = buildSettingsCard()
         aboutSection = buildAboutCard()
 
@@ -389,6 +396,7 @@ class MainActivity : Activity() {
             addView(bookmarksSection)
             addView(searchSection)
             addView(editorSection)
+            addView(batchSection)
             addView(settingsSection)
             addView(aboutSection)
         }
@@ -534,6 +542,8 @@ class MainActivity : Activity() {
         phoneMenuButton = secondaryButton("☰") {
             if (editorMode) {
                 closeRemoteEditor()
+            } else if (batchMode) {
+                closeBatchRename()
             } else if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
                 showSitesOverview()
             } else {
@@ -574,6 +584,7 @@ class MainActivity : Activity() {
         }
         phoneQuickButton.setOnClickListener {
             when {
+                batchMode -> previewBatchRename()
                 editorMode -> showRemoteEditorMoreMenu()
                 activeWorkspace == Workspace.SITES && !siteEditorVisible -> showSiteEditor(null)
                 activeWorkspace == Workspace.BOOKMARKS -> promptSaveCurrentBookmark()
@@ -605,7 +616,10 @@ class MainActivity : Activity() {
     private fun updatePhoneChromeActions() {
         if (!::phoneQuickButton.isInitialized) return
         if (::phoneMenuButton.isInitialized) {
-            if (editorMode) {
+            if (batchMode) {
+                phoneMenuButton.text = "‹"
+                phoneMenuButton.contentDescription = "Close Batch Rename"
+            } else if (editorMode) {
                 phoneMenuButton.text = "‹"
                 phoneMenuButton.contentDescription = "Close Text Editor"
             } else if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
@@ -620,12 +634,17 @@ class MainActivity : Activity() {
         }
         if (::phoneFilesViewButton.isInitialized) {
             phoneFilesViewButton.visibility =
-                if (activeWorkspace == Workspace.FILES && !searchMode && !editorMode)
+                if (activeWorkspace == Workspace.FILES && !searchMode &&
+                    !editorMode && !batchMode)
                     View.VISIBLE else View.GONE
         }
         val sitesOverview = activeWorkspace == Workspace.SITES && !siteEditorVisible
         val bookmarks = activeWorkspace == Workspace.BOOKMARKS
         when {
+            batchMode -> {
+                phoneQuickButton.text = "✓"
+                phoneQuickButton.contentDescription = "Preview batch rename"
+            }
             editorMode -> {
                 phoneQuickButton.text = "⋯"
                 phoneQuickButton.contentDescription = "Text Editor options"
@@ -3181,11 +3200,15 @@ class MainActivity : Activity() {
         activeWorkspace = workspace
         searchMode = false
         if (::searchSection.isInitialized) searchSection.visibility = View.GONE
+        if (batchMode && workspace != Workspace.FILES) {
+            closeBatchRename()
+        }
         if (editorMode && workspace != Workspace.FILES) {
             confirmCloseRemoteEditor { setWorkspace(workspace) }
             return
         }
         if (::editorSection.isInitialized && editorMode) editorSection.visibility = View.VISIBLE
+        if (::batchSection.isInitialized && batchMode) batchSection.visibility = View.VISIBLE
         if (::workspaceFeedbackPanel.isInitialized) {
             workspaceFeedbackPanel.visibility = View.GONE
         }
@@ -3212,6 +3235,10 @@ class MainActivity : Activity() {
         if (editorMode && workspace == Workspace.FILES) {
             filesSection.visibility = View.GONE
             editorSection.visibility = View.VISIBLE
+        }
+        if (batchMode && workspace == Workspace.FILES) {
+            filesSection.visibility = View.GONE
+            batchSection.visibility = View.VISIBLE
         }
         workspaceNavButtons.forEach { (key, view) ->
             styleWorkspaceNavItem(view, selected = key == workspace)
@@ -3242,7 +3269,8 @@ class MainActivity : Activity() {
         }
         if (::fileActionToolbar.isInitialized) {
             fileActionToolbar.visibility =
-                if (workspace == Workspace.FILES && !editorMode) View.VISIBLE else View.GONE
+                if (workspace == Workspace.FILES && !editorMode && !batchMode)
+                    View.VISIBLE else View.GONE
         }
         if (::sessionStatusCard.isInitialized) {
             sessionStatusCard.visibility =
@@ -3282,6 +3310,7 @@ class MainActivity : Activity() {
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
         when {
+            batchMode -> closeBatchRename()
             editorMode -> closeRemoteEditor()
             usesOverlayNavigation() && navigationOpen -> setNavigationOpen(false)
             searchMode -> closeSearch()
@@ -4041,9 +4070,28 @@ class MainActivity : Activity() {
                     android.widget.PopupMenu(this@MainActivity, view).apply {
                         menu.add(0, 1, 0, "Edit text")
                         menu.add(0, 2, 1, "File operations")
+                        menu.add(0, 3, 2,
+                            if (target in selectedRemoteBatchPaths)
+                                "Remove from batch" else "Select for batch")
+                        menu.add(0, 4, 3,
+                            "Batch rename (${selectedRemoteBatchPaths.size} selected)")
                         setOnMenuItemClickListener { choice ->
-                            if (choice.itemId == 1) openRemoteTextEditor(item)
-                            else setWorkspace(Workspace.TRANSFERS)
+                            when (choice.itemId) {
+                                1 -> openRemoteTextEditor(item)
+                                2 -> setWorkspace(Workspace.TRANSFERS)
+                                3 -> {
+                                    if (!selectedRemoteBatchPaths.add(target)) {
+                                        selectedRemoteBatchPaths.remove(target)
+                                    }
+                                    this@apply.background = PremiumReferenceStyle.surface(
+                                        this@MainActivity,
+                                        if (target in selectedRemoteBatchPaths)
+                                            PremiumReferenceStyle.selected
+                                        else PremiumReferenceStyle.panel
+                                    )
+                                }
+                                4 -> openBatchRename()
+                            }
                             true
                         }
                     }.show()
@@ -4280,6 +4328,164 @@ class MainActivity : Activity() {
         if (::phoneChromeTitle.isInitialized) {
             phoneChromeTitle.text = workspaceLabel(activeWorkspace)
         }
+        updatePhoneChromeActions()
+    }
+
+    /** Reference #14: actual filenames and explicit preflight, never mock rows. */
+    private fun buildBatchRenameCard(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(12), dp(14), dp(12), dp(14))
+        background = PremiumReferenceStyle.surface(this@MainActivity)
+        addView(PremiumReferenceStyle.caption(this@MainActivity,
+            "Rename selected remote files", 15f).apply {
+            typeface = Typeface.DEFAULT_BOLD
+        })
+        addView(space(11))
+        addView(PremiumReferenceStyle.caption(this@MainActivity, "Pattern", 12f, true))
+        batchPatternInput = input("file_##", InputType.TYPE_CLASS_TEXT).apply {
+            setText("file_##")
+            contentDescription = "Batch rename pattern"
+        }
+        addView(batchPatternInput, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(46)))
+        addView(space(9))
+        addView(PremiumReferenceStyle.caption(this@MainActivity,
+            "Start number", 12f, true))
+        batchStartInput = input("1", InputType.TYPE_CLASS_NUMBER).apply {
+            setText("1")
+            contentDescription = "Batch rename first number"
+        }
+        addView(batchStartInput, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(46)))
+        addView(space(12))
+        addView(PremiumReferenceStyle.action(this@MainActivity,
+            "Preview exact filenames") { previewBatchRename() })
+        addView(space(12))
+        batchPreviewRows = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            contentDescription = "Real remote batch rename preview"
+        }
+        addView(batchPreviewRows)
+        addView(space(14))
+        addView(PremiumReferenceStyle.action(this@MainActivity, "Apply", true) {
+            applyBatchRename()
+        }, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(45)))
+        addView(space(8))
+        addView(PremiumReferenceStyle.action(this@MainActivity, "Cancel") {
+            closeBatchRename()
+        })
+    }
+
+    private fun openBatchRename() {
+        val profile = activeProfile ?: return
+        val available = lastRemoteInventory
+            .filter { it.isFile && it.remotePath != null }
+            .mapNotNull { it.remotePath }.toSet()
+        selectedRemoteBatchPaths.retainAll(available)
+        if (selectedRemoteBatchPaths.isEmpty()) {
+            showMessage("Batch Rename",
+                "Long-press real remote files and choose Select for batch.")
+            return
+        }
+        if (selectedRemoteBatchPaths.size > RemoteBatchRenamePlanner.MAX_FILES) {
+            showMessage("Batch Rename",
+                "Select no more than \${RemoteBatchRenamePlanner.MAX_FILES} files.")
+            return
+        }
+        if (operationInFlight || activeProfile != profile) return
+        setWorkspace(Workspace.FILES, announce = false)
+        batchMode = true
+        filesSection.visibility = View.GONE
+        batchSection.visibility = View.VISIBLE
+        fileActionToolbar.visibility = View.GONE
+        phoneChromeTitle.text = "Rename Files"
+        updatePhoneChromeActions()
+        previewBatchRename()
+        contentScroll.post { contentScroll.scrollTo(0, workspaceContainer.top) }
+    }
+
+    private fun plannedBatchRename(): List<RemoteBatchRename>? {
+        return runCatching {
+            val number = batchStartInput.text.toString().toIntOrNull()
+                ?: throw IllegalArgumentException("Enter a valid start number.")
+            RemoteBatchRenamePlanner.plan(selectedRemoteBatchPaths.toList(),
+                batchPatternInput.text.toString().trim(), number)
+        }.getOrElse { error ->
+            showMessage("Rename Files", error.message ?: "Invalid batch filename pattern.")
+            null
+        }
+    }
+
+    private fun previewBatchRename() {
+        if (!batchMode) return
+        batchPreviewRows.removeAllViews()
+        val plan = plannedBatchRename() ?: return
+        for (entry in plan) {
+            batchPreviewRows.addView(row(
+                entry.from.substringAfterLast('/'),
+                "→ " + entry.to.substringAfterLast('/')))
+        }
+    }
+
+    private fun applyBatchRename() {
+        if (!batchMode || operationInFlight) return
+        val profile = activeProfile ?: return
+        val plan = plannedBatchRename() ?: return
+        val count = plan.size
+        val preview = plan.take(2).joinToString("\n") {
+            it.from.substringAfterLast('/') + " → " + it.to.substringAfterLast('/')
+        }
+        confirmDestructiveRemoteAction(
+            title = "Rename $count remote files?",
+            message = preview + if (count > 2) "\n…and \${count - 2} more." else "",
+            confirmLabel = "Rename"
+        ) {
+            if (profile != activeProfile) {
+                showMessage("Batch Rename", "Connection changed; no files renamed.")
+                return@confirmDestructiveRemoteAction
+            }
+            closeBatchRename()
+            runTransfer(
+                title = "Batch Rename",
+                detail = "Renaming $count selected server files",
+                refreshAfter = true
+            ) { cancellation ->
+                val inventory = controller.listRemote(profile, cancellation)
+                val actualFiles = inventory.rows.filter { it.isFile }
+                    .mapNotNull { it.remotePath }.toSet()
+                if (plan.any { it.from !in actualFiles || it.to in actualFiles }) {
+                    throw java.io.IOException("Server listing changed or a filename already exists; no files renamed.")
+                }
+                var completed = 0
+                try {
+                    for (mapping in plan) {
+                        cancellation.throwIfCanceled()
+                        controller.renameRemote(profile, mapping.from, mapping.to, cancellation)
+                        completed++
+                    }
+                } catch (error: Throwable) {
+                    throw java.io.IOException(
+                        "Batch rename stopped after $completed of $count files; inspect the server listing before retrying.",
+                        error
+                    )
+                }
+                TransferResult("Batch rename complete",
+                    "Renamed $count remote files.", plan.last().to)
+            }
+            selectedRemoteBatchPaths.clear()
+        }
+    }
+
+    private fun closeBatchRename() {
+        if (!batchMode) return
+        batchMode = false
+        batchSection.visibility = View.GONE
+        filesSection.visibility = View.VISIBLE
+        if (::fileActionToolbar.isInitialized && activeWorkspace == Workspace.FILES) {
+            fileActionToolbar.visibility = View.VISIBLE
+        }
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = workspaceLabel(activeWorkspace)
         updatePhoneChromeActions()
     }
 
