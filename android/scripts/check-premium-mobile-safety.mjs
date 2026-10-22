@@ -13,8 +13,14 @@ for (const text of [
   "foreground = android.graphics.drawable.RippleDrawable(",
 ]) assert.ok(source.includes(text), "Android mobile filesystem/UI guard missing: "+text);
 
-assert.ok(!source.includes("setCompoundDrawables(null, icon, null, null)"),
-  "Tablet and phone navigation icons must stay on the leading edge");
+const navStart = source.indexOf("private fun workspaceNavItem(");
+const navEnd = source.indexOf("private fun styleWorkspaceNavItem(", navStart);
+assert.ok(navStart >= 0 && navEnd > navStart, "Real native Android navigation block required");
+const navigation = source.slice(navStart, navEnd);
+assert.ok(navigation.includes("setCompoundDrawables(icon, null, null, null)"),
+  "Navigation icons must appear on the leading edge");
+assert.ok(!navigation.includes("setCompoundDrawables(null, icon, null, null)"),
+  "Tablet navigation cannot place icons on the trailing edge");
 assert.ok(source.includes("!chosen.path.startsWith(base.path + File.separator)"),
   "Local upload must stay inside app-owned storage");
 assert.ok(style.includes("val purple = Color.rgb(101, 75, 255)"),
