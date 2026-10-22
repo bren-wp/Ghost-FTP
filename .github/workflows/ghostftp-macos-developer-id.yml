@@ -29,13 +29,6 @@ jobs:
           - { runner: macos-15-intel, arch: x86_64 }
     env:
       VERSION: ${{ inputs.version }}
-      APPLE_SIGNING_IDENTITY: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_IDENTITY }}
-      APPLE_TEAM_ID: ${{ secrets.GHOSTFTP_MACOS_TEAM_ID }}
-      P12_BASE64: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_P12_BASE64 }}
-      P12_PASSWORD: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_P12_PASSWORD }}
-      NOTARY_P8_BASE64: ${{ secrets.GHOSTFTP_MACOS_NOTARY_P8_BASE64 }}
-      NOTARY_KEY_ID: ${{ secrets.GHOSTFTP_MACOS_NOTARY_KEY_ID }}
-      NOTARY_ISSUER_ID: ${{ secrets.GHOSTFTP_MACOS_NOTARY_ISSUER_ID }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -51,6 +44,14 @@ jobs:
           workspaces: ghostftp-desktop/src-tauri
 
       - name: Verify immutable source, architecture and required Apple identity
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.GHOSTFTP_MACOS_TEAM_ID }}
+          P12_BASE64: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          NOTARY_P8_BASE64: ${{ secrets.GHOSTFTP_MACOS_NOTARY_P8_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.GHOSTFTP_MACOS_NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.GHOSTFTP_MACOS_NOTARY_ISSUER_ID }}
         shell: bash
         run: |
           set -euo pipefail
@@ -73,6 +74,11 @@ jobs:
           echo "GHOSTFTP_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Import certificate into an isolated ephemeral keychain
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_IDENTITY }}
+          P12_BASE64: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          NOTARY_P8_BASE64: ${{ secrets.GHOSTFTP_MACOS_NOTARY_P8_BASE64 }}
         shell: bash
         run: |
           set -euo pipefail
@@ -95,6 +101,8 @@ jobs:
           echo "GHOSTFTP_NOTARY_KEY_PATH=$P8" >> "$GITHUB_ENV"
 
       - name: Build and test real native Ghost FTP macOS client
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_IDENTITY }}
         shell: bash
         run: |
           set -euo pipefail
@@ -125,6 +133,8 @@ jobs:
           npm run tauri -- build --bundles app --config src-tauri/tauri.macos.conf.json
 
       - name: Verify Developer ID and hardened runtime
+        env:
+          APPLE_TEAM_ID: ${{ secrets.GHOSTFTP_MACOS_TEAM_ID }}
         shell: bash
         run: |
           set -euo pipefail
@@ -140,6 +150,9 @@ jobs:
           echo "GHOSTFTP_APP=$APP" >> "$GITHUB_ENV"
 
       - name: Apple notarize signed exact-source archive and staple ticket
+        env:
+          NOTARY_KEY_ID: ${{ secrets.GHOSTFTP_MACOS_NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.GHOSTFTP_MACOS_NOTARY_ISSUER_ID }}
         shell: bash
         run: |
           set -euo pipefail
