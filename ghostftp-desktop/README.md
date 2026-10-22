@@ -22,7 +22,7 @@ This directory contains the authoritative **Ghost FTP desktop application**.
 
 The release line opens as a real desktop window. It does not launch the production GUI through a localhost browser wrapper, and it must not expose a visible `127.0.0.1` address/origin bar.
 
-Current development line: **0.99.4**. Previous canonical release: **0.99.3**.
+Current development line: **0.99.5**. Previous canonical release: **0.99.4**.
 
 ## Platform deliverables
 
