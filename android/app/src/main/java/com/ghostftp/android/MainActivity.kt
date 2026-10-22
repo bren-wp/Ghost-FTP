@@ -97,6 +97,8 @@ class MainActivity : Activity() {
     private var editorOriginalText = ""
     private var editorRemotePath = ""
     private var editorConnection: ConnectionProfile? = null
+    private var pendingSavedEditorText: String? = null
+    private var pendingSavedEditorPath: String? = null
     private lateinit var searchSection: View
     private lateinit var searchResults: LinearLayout
     private lateinit var searchQueryInput: EditText
@@ -255,6 +257,8 @@ class MainActivity : Activity() {
         activeCancellation?.cancel()
         activeCancellation = null
         pendingConfirmation = null
+        pendingSavedEditorText = null
+        pendingSavedEditorPath = null
         selectedUploadUri = null
         activeProfile = null
         if (::passwordInput.isInitialized) passwordInput.text.clear()
@@ -3849,6 +3853,15 @@ class MainActivity : Activity() {
     private fun showTransferResult(result: TransferResult, refreshAfter: Boolean) {
         if (!uiReady()) return
         lastCompletedTransferPath = result.remotePath
+        if (pendingSavedEditorPath == result.remotePath) {
+            val textSnapshot = pendingSavedEditorText
+            if (editorMode && editorRemotePath == result.remotePath &&
+                textSnapshot != null) {
+                editorOriginalText = textSnapshot
+            }
+            pendingSavedEditorText = null
+            pendingSavedEditorPath = null
+        }
         sessionCompletedOperations++
         updateSessionOperationOverview()
         statusTitle.text = result.title
@@ -3861,6 +3874,8 @@ class MainActivity : Activity() {
 
     private fun showTransferFailure(error: Throwable) {
         if (!uiReady()) return
+        pendingSavedEditorText = null
+        pendingSavedEditorPath = null
         val canceled = error is OperationCanceledException
         if (canceled) sessionCancelledOperations++ else sessionFailedOperations++
         updateSessionOperationOverview()
@@ -4187,6 +4202,8 @@ class MainActivity : Activity() {
                 showMessage("Text Editor", "The connection changed. Changes were not uploaded.")
                 return@confirmUploadTarget
             }
+            pendingSavedEditorText = newText
+            pendingSavedEditorPath = path
             runTransfer(
                 title = "Save remote text",
                 detail = "Uploading edited UTF-8 content to " + path,
