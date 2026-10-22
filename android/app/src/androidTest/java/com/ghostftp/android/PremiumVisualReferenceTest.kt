@@ -266,9 +266,9 @@ class PremiumVisualReferenceTest {
                 assertNotNull("Sync control should be visible", sync)
                 assertNotNull("Destructive mirror control should be visible", mirror)
                 assertTrue("Sync may not promise an unimplemented transfer engine",
-                    sync?.isEnabled == false && sync.isChecked == false)
+                    sync?.isEnabled == false && sync?.isChecked == false)
                 assertTrue("Mirror may not delete files without a verified engine",
-                    mirror?.isEnabled == false && mirror.isChecked == false)
+                    mirror?.isEnabled == false && mirror?.isChecked == false)
                 assertTrue("Disconnected comparison should fail closed",
                     compare.performClick())
             }
