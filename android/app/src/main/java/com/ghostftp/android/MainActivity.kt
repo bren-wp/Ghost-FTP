@@ -82,6 +82,12 @@ class MainActivity : Activity() {
     private var sessionFailedOperations = 0
     private var sessionCancelledOperations = 0
     private lateinit var syncBackupStatus: TextView
+    private lateinit var syncLocalFolderText: TextView
+    private lateinit var syncRemoteFolderText: TextView
+    private lateinit var syncComparisonText: TextView
+    private lateinit var syncCompareButton: Button
+    private var compareLocalRemoteEnabled = true
+    private var remoteInventoryLoaded = false
     private lateinit var cloudSection: View
     private lateinit var cloudTransferOptionsPanel: View
     private lateinit var bookmarksSection: View
@@ -195,6 +201,7 @@ class MainActivity : Activity() {
         setContentView(content)
         if (Build.VERSION.SDK_INT >= 35) content.requestApplyInsets()
         showIdleState()
+        updateSyncFolderLabels()
         displayPendingCloudRecovery()
         if (savedInstanceState != null) restoreUiState(savedInstanceState)
         installProtocolSelectionBehavior(seedDefaultPort = savedInstanceState == null)
@@ -1984,12 +1991,77 @@ class MainActivity : Activity() {
     }
 
     private fun buildSyncBackupCard(): View = panel().apply {
-        addView(sectionTitle(workspaceLabel(Workspace.SYNC)))
-        addView(
-            sectionDescription(
-                "Back up and restore non-secret connection settings through Android documents. Passwords are never included."
-            )
-        )
+        // Reference frame #12: a real side-by-side directory comparison,
+        // restricted to one verified remote listing and the app-owned local
+        // Downloads sandbox. Never imply a recursive mirror was performed.
+        syncLocalFolderText = PremiumReferenceStyle.caption(this@MainActivity,
+            "", 12f, true)
+        syncRemoteFolderText = PremiumReferenceStyle.caption(this@MainActivity,
+            "", 12f, true)
+        val localCard = PremiumReferenceStyle.panelColumn(this@MainActivity).apply {
+            addView(PremiumReferenceStyle.caption(this@MainActivity,
+                "📁  Local", 14f).apply { typeface = Typeface.DEFAULT_BOLD })
+            addView(syncLocalFolderText)
+        }
+        val remoteCard = PremiumReferenceStyle.panelColumn(this@MainActivity).apply {
+            addView(PremiumReferenceStyle.caption(this@MainActivity,
+                "▣  Remote", 14f).apply { typeface = Typeface.DEFAULT_BOLD })
+            addView(syncRemoteFolderText)
+        }
+        addView(localCard)
+        addView(space(9))
+        addView(PremiumReferenceStyle.caption(this@MainActivity, "⇄", 23f).apply {
+            gravity = Gravity.CENTER
+            setTextColor(PremiumReferenceStyle.purpleLight)
+            contentDescription = "Compare local and remote directories"
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)))
+        addView(remoteCard)
+        addView(space(14))
+        addView(android.widget.Switch(this@MainActivity).apply {
+            text = "Compare directories"
+            textSize = 14f
+            setTextColor(Brand.text)
+            isChecked = true
+            contentDescription = "Compare directories"
+            setOnCheckedChangeListener { _, enabled ->
+                compareLocalRemoteEnabled = enabled
+                syncCompareButton.isEnabled = enabled
+            }
+        })
+        addView(android.widget.Switch(this@MainActivity).apply {
+            text = "Synchronize"
+            textSize = 14f
+            setTextColor(Brand.textSoft)
+            isEnabled = false
+            isChecked = false
+            contentDescription = "Automatic synchronization requires verified conflict handling"
+        })
+        addView(android.widget.Switch(this@MainActivity).apply {
+            text = "Mirror (delete extra files)"
+            textSize = 14f
+            setTextColor(Brand.textSoft)
+            isEnabled = false
+            isChecked = false
+            contentDescription = "Destructive mirror is unavailable"
+        })
+        addView(space(9))
+        syncCompareButton = primaryButton("Compare") { compareCurrentDirectories() }.apply {
+            contentDescription = "Compare current local and remote directories"
+        }
+        addView(syncCompareButton,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)))
+        addView(space(10))
+        syncComparisonText = PremiumReferenceStyle.caption(this@MainActivity,
+            "Connect, refresh Files and compare current folder names. No files are changed.",
+            12f, true).apply {
+            setLineSpacing(0f, 1.15f)
+        }
+        addView(syncComparisonText)
+        addView(space(22))
+        addView(sectionTitle("Connection settings backup"))
+        addView(sectionDescription(
+            "Export or restore non-secret connection settings. Passwords are never included."
+        ))
 
         syncBackupStatus = TextView(this@MainActivity).apply {
             text = "No settings backup has been created or restored in this session."
@@ -2021,6 +2093,59 @@ class MainActivity : Activity() {
             buttonParams(weight = 1f)
         )
         addView(actions)
+    }
+
+    private fun updateSyncFolderLabels() {
+        if (!::syncLocalFolderText.isInitialized) return
+        val base = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir
+        syncLocalFolderText.text = "App Downloads · " + (localBrowseDirectory ?: base).name
+        syncRemoteFolderText.text =
+            activeProfile?.remotePath ?: "Connect to a remote site"
+    }
+
+    private fun compareCurrentDirectories() {
+        if (!compareLocalRemoteEnabled || !::syncComparisonText.isInitialized) return
+        val profile = activeProfile
+        if (profile == null || !remoteInventoryLoaded) {
+            syncComparisonText.text =
+                "Connect and refresh the remote Files pane before comparing."
+            return
+        }
+        if (remotePathInput.text.toString().trim().ifEmpty { "/" } != profile.remotePath) {
+            syncComparisonText.text =
+                "The remote path changed. Refresh Files before comparing to avoid stale results."
+            return
+        }
+        val base = (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+            ?: filesDir).canonicalFile
+        val current = runCatching { (localBrowseDirectory ?: base).canonicalFile }
+            .getOrNull()
+        if (current == null || !current.isDirectory ||
+            (current.path != base.path &&
+                !current.path.startsWith(base.path + File.separator))) {
+            syncComparisonText.text = "The selected local folder is not accessible."
+            return
+        }
+        val local = current.listFiles()
+            ?.filter { file ->
+                runCatching {
+                    !file.isHidden && file.canonicalFile.path.startsWith(
+                        base.path + File.separator)
+                }.getOrDefault(false)
+            }?.take(150).orEmpty().associate { it.name to it.isDirectory }
+        val remote = lastRemoteInventory
+            .filter { it.remotePath != null && (it.isDirectory || it.isFile) }
+            .take(150).associate { it.name to it.isDirectory }
+        val onlyLocal = local.keys - remote.keys
+        val onlyRemote = remote.keys - local.keys
+        val differentTypes = local.keys.intersect(remote.keys)
+            .count { local[it] != remote[it] }
+        syncComparisonText.text =
+            "Current folders: " + local.size + " local / " + remote.size + " remote. " +
+            onlyLocal.size + " only local, " + onlyRemote.size + " only remote, " +
+            differentTypes + " type conflicts. " +
+            "This is a read-only snapshot comparison; nothing was synchronized or deleted."
+        syncComparisonText.contentDescription = syncComparisonText.text
     }
 
     private fun cloudLinkField(hintText: String): EditText = EditText(this).apply {
@@ -2834,6 +2959,9 @@ class MainActivity : Activity() {
                 }
             }
         }
+        if (workspace == Workspace.SYNC) {
+            updateSyncFolderLabels()
+        }
         if (workspace == Workspace.BOOKMARKS && ::bookmarksRows.isInitialized) {
             refreshBookmarks()
         }
@@ -3038,6 +3166,8 @@ class MainActivity : Activity() {
         statusTitle.text = result.title
         statusDetail.text = result.detail
         lastRemoteInventory = result.rows.filter { it.remotePath != null }
+        remoteInventoryLoaded = true
+        updateSyncFolderLabels()
         if (::remoteDirectoryLabel.isInitialized) {
             remoteDirectoryLabel.text = profile.remotePath
         }
@@ -3055,6 +3185,7 @@ class MainActivity : Activity() {
 
     private fun showConnectionError(error: Throwable, profile: ConnectionProfile) {
         if (!uiReady()) return
+        remoteInventoryLoaded = false
         statusTitle.text = getString(R.string.status_connection_unavailable)
         val rawDetail = error.message ?: getString(R.string.status_connection_unavailable_detail)
         val safeDetail = redactSensitiveErrorText(rawDetail, listOf(profile.password))
@@ -3121,6 +3252,8 @@ class MainActivity : Activity() {
         statusTitle.text = getString(R.string.status_ready)
         statusDetail.text = getString(R.string.status_no_active_session)
         lastRemoteInventory = emptyList()
+        remoteInventoryLoaded = false
+        updateSyncFolderLabels()
         remoteRows.removeAllViews()
         remoteRows.addView(row(getString(R.string.workspace_files), getString(R.string.state_connect_to_load_files)))
         activityRows.removeAllViews()
