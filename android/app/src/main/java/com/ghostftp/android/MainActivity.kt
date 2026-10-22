@@ -1813,8 +1813,12 @@ class MainActivity : Activity() {
         showMessage("Local file selected", "Tap Upload to send this file to the connected server.")
     }
 
-    private fun compactBrowserRow(name: String, directory: Boolean, onClick: () -> Unit): View =
-        LinearLayout(this).apply {
+    private fun compactBrowserRow(
+        name: String,
+        directory: Boolean,
+        onClick: () -> Unit,
+        detail: String? = null
+    ): View = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = dp(43)
@@ -1829,6 +1833,15 @@ class MainActivity : Activity() {
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
             }, LinearLayout.LayoutParams(0, dp(40), 1f))
+            if (!detail.isNullOrBlank() && !directory) {
+                addView(PremiumReferenceStyle.caption(this@MainActivity,
+                    detail, 10f, true).apply {
+                    gravity = Gravity.CENTER_VERTICAL or Gravity.END
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                    setPadding(dp(3), 0, dp(4), 0)
+                }, LinearLayout.LayoutParams(dp(68), dp(40)))
+            }
             isClickable = true
             isFocusable = true
             foreground = android.graphics.drawable.RippleDrawable(
@@ -3962,14 +3975,16 @@ class MainActivity : Activity() {
         if (target == null || (!item.isDirectory && !item.isFile)) {
             return row(item.name, item.detail)
         }
-        return compactBrowserRow(item.name, item.isDirectory) {
+        val cleanName = item.name.removePrefix("[DIR] ").removePrefix("[FILE] ")
+        val sizeLabel = if (item.isFile) item.detail.substringAfter("File · ", "") else null
+        return compactBrowserRow(cleanName, item.isDirectory, {
             if (item.isDirectory) {
                 remotePathInput.setText(target)
                 openConnection()
             } else {
                 selectRemoteEntry(item)
             }
-        }.apply {
+        }, detail = sizeLabel).apply {
             setOnLongClickListener { view ->
                 if (item.isDirectory) {
                     selectRemoteEntry(item)
