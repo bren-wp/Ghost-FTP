@@ -659,7 +659,7 @@ class MainActivity : Activity() {
 
             addView(space(16))
             // Reference #2: only actual authenticated sessions may appear
-            // in the Active Connection tile. Never show example.com/fake data.
+            // in the Active Connection tile. Never substitute invented host data.
             navConnectionCard = PremiumReferenceStyle.panelColumn(this@MainActivity, 10).apply {
                 visibility = View.GONE
                 contentDescription = "Active Connection"
