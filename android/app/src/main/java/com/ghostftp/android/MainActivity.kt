@@ -3207,6 +3207,12 @@ class MainActivity : Activity() {
         targets.forEach { (key, view) ->
             view.visibility = if (key == workspace) View.VISIBLE else View.GONE
         }
+        // The Files workspace is still the navigation parent of the full
+        // editor; never show both panels concurrently after navigation.
+        if (editorMode && workspace == Workspace.FILES) {
+            filesSection.visibility = View.GONE
+            editorSection.visibility = View.VISIBLE
+        }
         workspaceNavButtons.forEach { (key, view) ->
             styleWorkspaceNavItem(view, selected = key == workspace)
         }
@@ -4219,7 +4225,9 @@ class MainActivity : Activity() {
 
     private fun showRemoteEditorMoreMenu() {
         if (!editorMode) return
-        android.widget.PopupMenu(this, phoneQuickButton).apply {
+        val anchor = if (::phoneQuickButton.isInitialized) phoneQuickButton
+            else editorContentInput
+        android.widget.PopupMenu(this, anchor).apply {
             menu.add(0, 1, 0, "Revert unsaved edits")
             menu.add(0, 2, 1, "Close editor")
             setOnMenuItemClickListener { item ->
