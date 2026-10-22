@@ -3122,11 +3122,17 @@ class MainActivity : Activity() {
             listOf(Triple("Cloud Storage", R.drawable.ic_premium_nav_cloud, 7),
                 Triple("About", R.drawable.ic_premium_nav_about, 8))
         )
+        val verticalSettings = resources.configuration.screenWidthDp < 360 ||
+            (resources.configuration.fontScale >= 1.3f &&
+                resources.configuration.screenWidthDp < 480)
         grid.forEach { line ->
             addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.HORIZONTAL
+                orientation = if (verticalSettings)
+                    LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
                 line.forEachIndexed { index, item ->
-                    if (index != 0) addView(gap(8))
+                    if (index != 0) {
+                        if (verticalSettings) addView(space(6)) else addView(gap(8))
+                    }
                     addView(settingsCategory(item.first, item.second) {
                         when (item.third) {
                             1 -> showDetails(item.first, "Dark premium appearance is enabled.")
@@ -3151,7 +3157,12 @@ class MainActivity : Activity() {
                             7 -> setWorkspace(Workspace.CLOUD)
                             8 -> setWorkspace(Workspace.ABOUT)
                         }
-                    }, LinearLayout.LayoutParams(0, dp(47), 1f))
+                    }, if (verticalSettings) {
+                        LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, dp(52))
+                    } else {
+                        LinearLayout.LayoutParams(0, dp(47), 1f)
+                    })
                 }
             }, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
