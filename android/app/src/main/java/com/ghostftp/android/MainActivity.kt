@@ -2126,16 +2126,28 @@ class MainActivity : Activity() {
             syncComparisonText.text = "The selected local folder is not accessible."
             return
         }
-        val local = current.listFiles()
-            ?.filter { file ->
+        val localEntries = current.listFiles()
+        if (localEntries == null) {
+            syncComparisonText.text = "Local files could not be read; no comparison was made."
+            return
+        }
+        val serverEntries = lastRemoteInventory.filter {
+            it.remotePath != null && (it.isDirectory || it.isFile)
+        }
+        if (localEntries.size > 150 || serverEntries.size > 150) {
+            syncComparisonText.text =
+                "This directory exceeds the 150-entry safe comparison limit. " +
+                "Narrow the folder or use a desktop tool. Nothing was changed."
+            return
+        }
+        val local = localEntries
+            .filter { file ->
                 runCatching {
                     !file.isHidden && file.canonicalFile.path.startsWith(
                         base.path + File.separator)
                 }.getOrDefault(false)
             }?.take(150).orEmpty().associate { it.name to it.isDirectory }
-        val remote = lastRemoteInventory
-            .filter { it.remotePath != null && (it.isDirectory || it.isFile) }
-            .take(150).associate { it.name to it.isDirectory }
+        val remote = serverEntries.associate { it.name to it.isDirectory }
         val onlyLocal = local.keys - remote.keys
         val onlyRemote = remote.keys - local.keys
         val differentTypes = local.keys.intersect(remote.keys)
