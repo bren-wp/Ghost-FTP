@@ -319,7 +319,7 @@ for spec in \
     "$PACKAGE_ID.test/androidx.test.runner.AndroidJUnitRunner" 2>&1)"
   RESPONSIVE_EXIT=$?
   set -e
-  printf '%s\\n' "$RESPONSIVE_RESULT" > "$VISUAL_DIR/${label}.log"
+  printf '%s\n' "$RESPONSIVE_RESULT" > "$VISUAL_DIR/${label}.log"
   if ! bash android/scripts/check-visual-instrumentation-output.sh \
     "$VISUAL_DIR/${label}.log" "$RESPONSIVE_EXIT"; then
     echo "Responsive Android view validation failed for $geometry at ${font_scale}x system font scale." >&2
@@ -334,7 +334,7 @@ import pathlib, struct, sys
 file = pathlib.Path(sys.argv[1])
 requested_width, requested_height = map(int, sys.argv[2].split("x"))
 header = file.read_bytes()[:24]
-if len(header) < 24 or header[:8] != b"\\x89PNG\\r\\n\\x1a\\n" or header[12:16] != b"IHDR":
+if len(header) < 24 or header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
     raise SystemExit("Not an Android PNG: " + str(file))
 width, height = struct.unpack(">II", header[16:24])
 if (width, height) not in ((requested_width, height), (requested_height, height)):
