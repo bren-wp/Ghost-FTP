@@ -75,6 +75,10 @@ jobs:
       - name: Enforce macOS Developer ID distribution safeguards
         shell: bash
         run: node .github/scripts/check-macos-production-gate.mjs
+      - name: Verify unsigned macOS installable DMG and release contract
+        shell: bash
+        run: node .github/scripts/check-macos-installable-artifacts.mjs
+
       - name: Reject vulnerable Tauri IPC and updater dependency versions
         shell: bash
         run: node .github/scripts/check-tauri-security-dependencies.mjs
