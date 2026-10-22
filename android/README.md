@@ -156,3 +156,10 @@ Android cloud transfers now use a direct-only OkHttp client whose DNS selection 
 The CI Android emulator uses the approved **480×960** pixel viewport at 160dpi. In addition to normal APK/AAB builds, unit tests and click-through instrumentation, `PremiumVisualReferenceTest.kt` verifies the 64dp navigation rail and 58dp full-width brand bar using real layout bounds. A debug-only instrumentation pass captures seven genuine empty application workspaces into the separate `GhostFTP-Android-Premium-Visual-QA-480x960` artifact, with SHA-256 hashes. **Production `FLAG_SECURE` remains enabled**; ordinary screenshots of the application are deliberately restricted to protect user secrets. No fabricated files, server connections or transfer states are introduced for screenshots.
 
 This is evidence for visual review, not certification that 16 Android reference screens or all platforms are 1:1. Compare the captures manually with `screens/android/` and log legitimate empty-state deviations; Cloud has no approved reference screen in the user archive.
+
+## Android 16-screen premium design reference
+
+The native Android layout is based on the 16-screen user-approved `Ghost FTP Android UI maketa.png`. Current work includes source-implemented premium Site protocol tiles, a real active-session navigation tile, a dual/remote/local Files viewport selector with vector toolbar icons, an in-flight transfer indicator without invented percentages, a bounded read-only Sync/Compare screen and safe selection of app-owned files for upload.
+
+**Not yet full 1:1:** the original reference has a standalone Connect details screen, a full remote text editor, and a batch-rename UI that are not completely implemented. The backend currently supports one guarded operation, not a fabricated multi-transfer queue or automatic destructive mirroring. See [per-screen acceptance matrix](../docs/qa/ANDROID_16_SCREEN_PARITY.md). Do not state Play production readiness or pixel-perfect parity without real screenshots and protected production signing.
+
