@@ -1737,16 +1737,26 @@ class MainActivity : Activity() {
     // a fake listing of system Download/Pictures/DCIM folders.
     private fun refreshLocalPane() {
         if (!::localRows.isInitialized) return
-        val base = (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir)
-            .canonicalFile
-        val current = (localBrowseDirectory ?: base).canonicalFile
-        val inside = current.path == base.path ||
-            current.path.startsWith(base.path + File.separator)
-        if (!inside || !current.isDirectory) localBrowseDirectory = base
-        else localBrowseDirectory = current
+        // A revoked/unmounted external-storage volume or transient I/O error
+        // must not crash the entire Files workspace on the UI thread.
+        val base = runCatching {
+            (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir).canonicalFile
+        }.getOrElse {
+            filesDir.canonicalFile
+        }
+        val current = runCatching { (localBrowseDirectory ?: base).canonicalFile }
+            .getOrNull()
+        val inside = current != null && (current.path == base.path ||
+            current.path.startsWith(base.path + File.separator))
+        localBrowseDirectory = if (inside && current?.isDirectory == true) current else base
         val directory = localBrowseDirectory ?: base
         localDirectoryLabel.text = "Local · " + directory.name
         localRows.removeAllViews()
+        if (!directory.canRead()) {
+            localRows.addView(PremiumReferenceStyle.caption(this,
+                "Local storage is temporarily unavailable", 12f, true))
+            return
+        }
         if (directory != base) {
             localRows.addView(compactBrowserRow("..", true) {
                 localBrowseDirectory = directory.parentFile
@@ -1780,10 +1790,12 @@ class MainActivity : Activity() {
      * guarded upload action. Never grant file:// URIs to another process.
      */
     private fun selectLocalUploadFile(file: File) {
-        val base = (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            ?: filesDir).canonicalFile
+        val base = runCatching {
+            (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir).canonicalFile
+        }.getOrNull()
         val chosen = runCatching { file.canonicalFile }.getOrNull()
-        if (chosen == null || !chosen.path.startsWith(base.path + File.separator) ||
+        if (base == null || chosen == null ||
+            !chosen.path.startsWith(base.path + File.separator) ||
             !chosen.isFile || !chosen.canRead()) {
             showMessage("Local file unavailable",
                 "Ghost FTP cannot read this file inside its private Downloads folder.")
