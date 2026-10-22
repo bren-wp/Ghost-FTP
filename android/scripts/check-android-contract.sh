@@ -330,7 +330,11 @@ require_text "download folder fallback" "$MAIN_ACTIVITY" 'File(filesDir, "downlo
 
 require_text "download operation" "$CONNECTION_MODEL" 'fun downloadRemote'
 require_text "cooperative Android cancellation" "$CONNECTION_MODEL" 'class OperationCancellation'
-require_text "cancellable transfer copy loop" "$CONNECTION_MODEL" 'private fun copyCancelable'
+# The transfer copy helper is internal for JVM regression tests verifying
+# the 512 KiB remote editor limit; cancellation and bounded output remain required.
+require_text "cancellable transfer copy loop" "$CONNECTION_MODEL" 'fun copyCancelable'
+require_text "remote editor bounded copy" "$CONNECTION_MODEL" 'maxBytes - total'
+require_text "bounded stream rejection" "$CONNECTION_MODEL" 'Remote file exceeds the permitted editor size.'
 require_text "FTP streaming download" "$CONNECTION_MODEL" 'retrieveFileStream(remoteFilePath)'
 require_text "FTP staged streaming upload" "$CONNECTION_MODEL" 'client.storeFileStream(temporaryPath)'
 require_absent "direct FTP target overwrite" "$CONNECTION_MODEL" 'storeFileStream(remoteFilePath)'
