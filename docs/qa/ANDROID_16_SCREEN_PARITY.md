@@ -10,7 +10,7 @@ Reference: user-provided **Ghost FTP Android UI maketa.png** (2026-10-16), a 16-
 | 2 | Sidebar / Navigation | `MainActivity.buildNavigationRail`, real active-session card | Improved; real session required for connected-state capture |
 | 3 | Sites List | `buildSitesOverview/refreshSiteRows`, FTP/FTPS/SFTP color-coded server tile | Improved; real saved sites required for populated-state screenshot |
 | 4 | Add / Edit Site | `buildConnectionCard`, General/Advanced/Sync route, credential-safe edit | Partial; form geometry and focus need live pixel QA |
-| 5 | Connect Screen | `buildConnectionCard` and `openConnection` | Partial; no standalone reference-style server details page |
+| 5 | Connect Screen | `buildConnectPreview/showConnectPreview` show real saved-site host, port and username; session-only password; existing `openConnection` | Implemented; visual and real-network acceptance pending |
 | 6 | File Manager (Dual Pane) | `buildFilesCard`, real remote and app-owned local files, selectable dual/remote/local mode, vector actions | Improved; actual public Downloads are unavailable without SAF grants |
 | 7 | Transfer Queue | `buildTransfersCard`, session operation queue/history and real busy indicator | Partial; native backend does not own a persisted parallel queue |
 | 8 | Transfer Details | `openTransferDetails`, verified current operation/cancellation | Partial; no fabricated progress/ETA/throughput |
