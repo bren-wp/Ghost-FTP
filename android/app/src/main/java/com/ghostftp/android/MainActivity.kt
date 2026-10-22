@@ -205,6 +205,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         // Process death skips a transfer worker's finally block. Clear only
         // our app-private cloud staging files before new work can begin.
         CloudStageCleanup.purgeOnProcessStart(cacheDir)
@@ -214,7 +215,12 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= 35) {
             content.setOnApplyWindowInsetsListener { view, insets ->
                 val bars = insets.getInsets(WindowInsets.Type.systemBars())
-                view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                // Android 15+ enforces edge-to-edge. Follow the on-screen
+                // keyboard as well as navigation bars: never bury Save or
+                // destructive confirmations behind the IME.
+                val ime = insets.getInsets(WindowInsets.Type.ime())
+                view.setPadding(bars.left, bars.top, bars.right,
+                    maxOf(bars.bottom, ime.bottom))
                 insets
             }
         }
@@ -815,6 +821,8 @@ class MainActivity : Activity() {
             setPadding(dp(5), dp(4), dp(5), dp(4))
             setBackgroundColor(PremiumReferenceStyle.raised)
             contentDescription = "File actions"
+            val compactLabels = AndroidResponsiveLayout.compactFileActions(
+                resources.configuration.screenWidthDp, resources.configuration.fontScale)
             val actions = listOf(
                 trackRemoteAction(toolbarButton(getString(R.string.action_upload)) {
                     uploadOrPickFile()
@@ -843,7 +851,14 @@ class MainActivity : Activity() {
             )
             actions.forEach { item ->
                 item.setAllCaps(false)
-                item.textSize = 10f
+                item.textSize = if (compactLabels) 9f else 10f
+                // Five full-width actions must not force clipped labels on
+                // 320–360 dp phones or when Display size/Text size is larger.
+                if (compactLabels && item.contentDescription ==
+                    getString(R.string.action_new_folder)) {
+                    item.text = "Folder"
+                }
+                item.maxLines = 2
                 item.gravity = Gravity.CENTER
                 item.background = PremiumReferenceStyle.surface(this@MainActivity,
                     PremiumReferenceStyle.raised, 5, PremiumReferenceStyle.raised)
@@ -852,7 +867,7 @@ class MainActivity : Activity() {
             }
             val more = toolbarButton("More") { }.apply {
                 setAllCaps(false)
-                textSize = 10f
+                textSize = if (compactLabels) 9f else 10f
                 gravity = Gravity.CENTER
                 contentDescription = "More file actions"
                 background = PremiumReferenceStyle.surface(this@MainActivity,
@@ -1747,6 +1762,14 @@ class MainActivity : Activity() {
                     addView(PremiumReferenceStyle.action(this@MainActivity, label) {
                         filesViewMode = mode
                         updateFilesViewMode()
+                    }.apply {
+                        if (mode == FilesViewMode.DUAL &&
+                            !AndroidResponsiveLayout.canShowDualFilePanes(
+                                availableFileContentWidthDp())) {
+                            isEnabled = false
+                            alpha = 0.5f
+                            contentDescription = "Dual files unavailable at this window width"
+                        }
                     }, LinearLayout.LayoutParams(0, dp(46), 1f).apply {
                         marginEnd = dp(5)
                     })
