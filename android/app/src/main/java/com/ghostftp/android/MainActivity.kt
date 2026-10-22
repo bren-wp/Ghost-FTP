@@ -1222,6 +1222,24 @@ class MainActivity : Activity() {
             when {
                 view in oldFieldLabels -> Unit
                 view in compactFields -> {
+                    if (view === passwordInput) {
+                        val method = LinearLayout(this@MainActivity).apply {
+                            orientation = LinearLayout.HORIZONTAL
+                            gravity = Gravity.CENTER_VERTICAL
+                        }
+                        method.addView(PremiumReferenceStyle.caption(this@MainActivity,
+                            "Authentication", 12f, true),
+                            LinearLayout.LayoutParams(dp(100), dp(43)))
+                        method.addView(PremiumReferenceStyle.caption(this@MainActivity,
+                            "Password", 13f).apply {
+                            setPadding(dp(12), 0, dp(12), 0)
+                            background = PremiumReferenceStyle.surface(this@MainActivity,
+                                PremiumReferenceStyle.raised, 8)
+                            contentDescription = "Password authentication"
+                        }, LinearLayout.LayoutParams(0, dp(42), 1f))
+                        general.addView(method)
+                        general.addView(space(5))
+                    }
                     val row = LinearLayout(this@MainActivity).apply {
                         orientation = LinearLayout.HORIZONTAL
                         gravity = Gravity.CENTER_VERTICAL
@@ -1231,6 +1249,23 @@ class MainActivity : Activity() {
                         compactFields.getValue(view), 12f, true),
                         LinearLayout.LayoutParams(dp(100), dp(43)))
                     row.addView(view, LinearLayout.LayoutParams(0, dp(42), 1f))
+                    if (view === passwordInput) {
+                        row.addView(PremiumReferenceStyle.caption(this@MainActivity,
+                            "◉", 18f).apply {
+                            gravity = Gravity.CENTER
+                            contentDescription = "Show or hide password"
+                            isFocusable = true
+                            isClickable = true
+                            setOnClickListener {
+                                val hidden = passwordInput.transformationMethod is
+                                    android.text.method.PasswordTransformationMethod
+                                passwordInput.transformationMethod = if (hidden)
+                                    android.text.method.HideReturnsTransformationMethod.getInstance()
+                                else android.text.method.PasswordTransformationMethod.getInstance()
+                                passwordInput.setSelection(passwordInput.text.length)
+                            }
+                        }, LinearLayout.LayoutParams(dp(42), dp(42)))
+                    }
                     general.addView(row)
                     general.addView(space(5))
                 }
@@ -1387,6 +1422,9 @@ class MainActivity : Activity() {
         siteFeedback.visibility = View.GONE
         siteEditorPanel.visibility = View.VISIBLE
         sitesOverviewPanel.visibility = View.GONE
+        if (::phoneChromeTitle.isInitialized) {
+            phoneChromeTitle.text = if (site == null) "Add Site" else "Edit Site"
+        }
         if (site == null) {
             siteNameInput.text.clear()
             hostInput.text.clear()
@@ -3020,8 +3058,10 @@ class MainActivity : Activity() {
         }
         if (::workspaceTitle.isInitialized) workspaceTitle.text = workspaceLabel(workspace)
         if (::phoneChromeTitle.isInitialized) {
-            phoneChromeTitle.text = if (workspace == Workspace.SITES && siteEditorVisible)
-                "Add / Edit Site" else workspaceLabel(workspace)
+            phoneChromeTitle.text =
+                if (workspace == Workspace.SITES && siteEditorVisible) {
+                    if (savedSitesSpinner.selectedItemPosition > 0) "Edit Site" else "Add Site"
+                } else workspaceLabel(workspace)
         }
         updatePhoneChromeActions()
         // Do not show stale success/status messages when switching workspaces.
