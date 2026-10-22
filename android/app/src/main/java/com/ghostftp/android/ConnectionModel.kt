@@ -545,6 +545,10 @@ class ConnectionController {
         cancellation: OperationCancellation
     ): TransferResult = withFtpClient(profile, secure, cancellation) { client ->
         cancellation.throwIfCanceled()
+        if (ftpRemoteTargetExists(client, destinationPath)) {
+            throw IOException("Rename target already exists; refusing to overwrite remote data.")
+        }
+        cancellation.throwIfCanceled()
         require(client.rename(sourcePath, destinationPath)) {
             "Rename failed from $sourcePath to $destinationPath."
         }
@@ -657,6 +661,10 @@ class ConnectionController {
         destinationPath: String,
         cancellation: OperationCancellation
     ): TransferResult = withSftpChannel(profile, cancellation) { channel ->
+        cancellation.throwIfCanceled()
+        if (sftpRemoteTargetExists(channel, destinationPath)) {
+            throw IOException("Rename target already exists; refusing to overwrite remote data.")
+        }
         cancellation.throwIfCanceled()
         channel.rename(sourcePath, destinationPath)
         TransferResult(
