@@ -238,9 +238,14 @@ jobs:
             mkdir -p "$DEST"
             gh run download "$RUN_ID" --name "GhostFTP-macOS-Shared-$ARCH-Preview" -D "$DEST"
             ARCHIVE="GhostFTP-macOS-Shared-$ARCH-v$VERSION-Preview.zip"
+            DMG="GhostFTP-macOS-Shared-$ARCH-v$VERSION-Installable-Preview.dmg"
             MANIFEST="GhostFTP-macOS-Shared-$ARCH-SHA256SUMS.txt"
             test -s "$DEST/$ARCHIVE"
+            test -s "$DEST/$DMG"
             test -s "$DEST/$MANIFEST"
+            grep -Fq " $ARCHIVE" "$DEST/$MANIFEST"
+            grep -Fq " $DMG" "$DEST/$MANIFEST"
+            test "$(wc -l < "$DEST/$MANIFEST" | tr -d ' ')" = "2"
             (cd "$DEST" && sha256sum -c "$MANIFEST")
             unzip -tqq "$DEST/$ARCHIVE"
           done
@@ -265,6 +270,8 @@ jobs:
           MACOS_PREVIEW="$(find dist/macos -type f -name "GhostFTP-macOS-v$VERSION-Preview.zip" | head -n1 || true)"
           MACOS_SHARED_ARM="dist/macos-shared/arm64/GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"
           MACOS_SHARED_INTEL="dist/macos-shared/x86_64/GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"
+          MACOS_DMG_ARM="dist/macos-shared/arm64/GhostFTP-macOS-Shared-arm64-v$VERSION-Installable-Preview.dmg"
+          MACOS_DMG_INTEL="dist/macos-shared/x86_64/GhostFTP-macOS-Shared-x86_64-v$VERSION-Installable-Preview.dmg"
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"
@@ -272,6 +279,8 @@ jobs:
           test -n "$MACOS_PREVIEW"; test -s "$MACOS_PREVIEW"
           test -s "$MACOS_SHARED_ARM"
           test -s "$MACOS_SHARED_INTEL"
+          test -s "$MACOS_DMG_ARM"
+          test -s "$MACOS_DMG_INTEL"
           if [ -n "$WIN_SETUP_SIG" ] || [ -n "$APPIMAGE_SIG" ]; then
             test -n "$WIN_SETUP_SIG"
             test -n "$APPIMAGE_SIG"
@@ -300,6 +309,8 @@ jobs:
           cp "$MACOS_PREVIEW" "dist/GhostFTP-macOS-v$VERSION-Preview.zip"
           cp "$MACOS_SHARED_ARM" "dist/GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"
           cp "$MACOS_SHARED_INTEL" "dist/GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"
+          cp "$MACOS_DMG_ARM" "dist/GhostFTP-macOS-Shared-arm64-v$VERSION-Installable-Preview.dmg"
+          cp "$MACOS_DMG_INTEL" "dist/GhostFTP-macOS-Shared-x86_64-v$VERSION-Installable-Preview.dmg"
 
           QA_DIR="$(find dist/native -type d -name 'GhostFTP-Windows-x64-Preview-QA' | head -n1 || true)"
           test -n "$QA_DIR"
