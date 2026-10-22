@@ -161,6 +161,12 @@ class MainActivity : Activity() {
     private lateinit var sitesSection: View
     private lateinit var sitesOverviewPanel: View
     private lateinit var siteEditorPanel: View
+    private lateinit var connectPreviewPanel: View
+    private lateinit var connectPreviewTitle: TextView
+    private lateinit var connectPreviewSubtitle: TextView
+    private lateinit var connectPreviewFacts: LinearLayout
+    private lateinit var connectPreviewPassword: EditText
+    private var connectPreviewSite: SavedSiteDefinition? = null
     private lateinit var siteFeedback: TextView
     private lateinit var sitesListRows: LinearLayout
     private lateinit var sitesSearch: EditText
@@ -343,13 +349,16 @@ class MainActivity : Activity() {
 
     private fun buildContent(): View {
         siteEditorPanel = buildConnectionCard()
+        connectPreviewPanel = buildConnectPreview()
         sitesOverviewPanel = buildSitesOverview()
         sitesSection = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(sitesOverviewPanel)
             addView(siteEditorPanel)
+            addView(connectPreviewPanel)
         }
         siteEditorPanel.visibility = View.GONE
+        connectPreviewPanel.visibility = View.GONE
         filesSection = buildFilesCard()
         transfersSection = buildTransfersCard()
         syncSection = buildSyncBackupCard()
@@ -1362,7 +1371,7 @@ class MainActivity : Activity() {
                 isClickable = true
                 isFocusable = true
                 contentDescription = "Edit saved site " + site.name
-                setOnClickListener { showSiteEditor(site) }
+                setOnClickListener { showConnectPreview(site) }
             }
             // Reference screen #3 uses protocol-colored server tiles, not
             // the same purple symbol for every saved site.
@@ -1387,16 +1396,7 @@ class MainActivity : Activity() {
                     setOnMenuItemClickListener { menuItem ->
                         when (menuItem.itemId) {
                             1 -> showSiteEditor(site)
-                            2 -> {
-                                // Passwords are intentionally never saved. The
-                                // Connect route must load the real profile and
-                                // direct focus to credential entry, not silently
-                                // treat Connect as an Edit action.
-                                showSiteEditor(site)
-                                siteFeedback.text = "Enter your session password, then tap Connect."
-                                siteFeedback.visibility = View.VISIBLE
-                                passwordInput.requestFocus()
-                            }
+                            2 -> showConnectPreview(site)
                             3 -> requestInlineConfirmation("Remove saved site?",
                                 "Remove " + site.name + " from this device?", "Remove") {
                                 if (SavedSiteProfiles.remove(this@MainActivity, site.name)) {
@@ -1417,7 +1417,103 @@ class MainActivity : Activity() {
         }
     }
 
+    /**
+     * Reference frame #5: a real saved-profile overview rather than the
+     * full Edit Site form. The password is intentionally never persisted.
+     * The existing ConnectionController owns actual FTP/FTPS/SFTP behavior.
+     */
+    private fun buildConnectPreview(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(10), dp(20), dp(10), dp(18))
+        background = PremiumReferenceStyle.surface(this@MainActivity)
+        contentDescription = "Connect to saved site"
+
+        connectPreviewTitle = PremiumReferenceStyle.caption(this@MainActivity,
+            "", 19f).apply { typeface = Typeface.DEFAULT_BOLD }
+        connectPreviewSubtitle = PremiumReferenceStyle.caption(this@MainActivity,
+            "", 12f, true)
+        addView(PremiumReferenceStyle.caption(this@MainActivity,
+            "▣", 34f).apply {
+            gravity = Gravity.CENTER
+            setTextColor(PremiumReferenceStyle.purpleLight)
+            background = PremiumReferenceStyle.surface(this@MainActivity,
+                PremiumReferenceStyle.selected, 12)
+        }, LinearLayout.LayoutParams(dp(64), dp(64)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        addView(space(12))
+        addView(connectPreviewTitle.apply { gravity = Gravity.CENTER })
+        addView(connectPreviewSubtitle.apply { gravity = Gravity.CENTER })
+        addView(space(16))
+        connectPreviewFacts = PremiumReferenceStyle.panelColumn(this@MainActivity)
+        addView(connectPreviewFacts)
+        addView(space(12))
+        connectPreviewPassword = input("Password for this session",
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD).apply {
+            isSaveEnabled = false
+            contentDescription = "Session password"
+        }
+        addView(connectPreviewPassword,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(45)))
+        addView(space(12))
+        addView(PremiumReferenceStyle.action(this@MainActivity, "Connect", true) {
+            val site = connectPreviewSite ?: return@action
+            if (operationInFlight) return@action
+            // Saved profile metadata is loaded by showSiteEditor. Recheck it
+            // before connecting: profiles can be removed in the meantime.
+            if (SavedSiteProfiles.read(this@MainActivity).none {
+                    it.name.equals(site.name, ignoreCase = true) &&
+                        it.host == site.host && it.protocol == site.protocol
+                }) {
+                showMessage("Site changed", "Reopen the saved site before connecting.")
+                return@action
+            }
+            passwordInput.setText(connectPreviewPassword.text.toString())
+            connectPreviewPassword.text.clear()
+            openConnection()
+        }.apply { contentDescription = "Connect to selected site" },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(47)))
+        addView(space(10))
+        addView(PremiumReferenceStyle.action(this@MainActivity, "Edit site") {
+            val site = connectPreviewSite ?: return@action
+            showSiteEditor(site)
+        }.apply { contentDescription = "Edit this saved site" })
+        addView(space(7))
+        addView(PremiumReferenceStyle.action(this@MainActivity, "Back to Sites") {
+            showSitesOverview()
+        }.apply { contentDescription = "Back to Sites" })
+    }
+
+    private fun showConnectPreview(site: SavedSiteDefinition) {
+        showSiteEditor(site)
+        connectPreviewSite = site
+        connectPreviewTitle.text = site.name
+        connectPreviewSubtitle.text = site.protocol.label + " · " + site.host
+        connectPreviewFacts.removeAllViews()
+        for ((label, value) in listOf(
+            "Host" to site.host,
+            "Port" to site.port.toString(),
+            "Username" to site.username,
+            "Authentication" to "Password"
+        )) {
+            connectPreviewFacts.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(5), 0, dp(5))
+                addView(PremiumReferenceStyle.caption(this@MainActivity,
+                    label, 12f, true), LinearLayout.LayoutParams(0, dp(28), 0.45f))
+                addView(PremiumReferenceStyle.caption(this@MainActivity,
+                    value, 12f), LinearLayout.LayoutParams(0, dp(28), 0.55f))
+            })
+        }
+        connectPreviewPassword.text.clear()
+        siteEditorPanel.visibility = View.GONE
+        sitesOverviewPanel.visibility = View.GONE
+        connectPreviewPanel.visibility = View.VISIBLE
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = "Connect"
+        contentScroll.post { contentScroll.scrollTo(0, 0) }
+    }
+
     private fun showSiteEditor(site: SavedSiteDefinition?) {
+        connectPreviewSite = null
+        if (::connectPreviewPanel.isInitialized) connectPreviewPanel.visibility = View.GONE
         siteEditorVisible = true
         siteFeedback.visibility = View.GONE
         siteEditorPanel.visibility = View.VISIBLE
@@ -1452,6 +1548,9 @@ class MainActivity : Activity() {
     }
 
     private fun showSitesOverview() {
+        connectPreviewSite = null
+        if (::connectPreviewPassword.isInitialized) connectPreviewPassword.text.clear()
+        if (::connectPreviewPanel.isInitialized) connectPreviewPanel.visibility = View.GONE
         siteEditorVisible = false
         siteEditorPanel.visibility = View.GONE
         sitesOverviewPanel.visibility = View.VISIBLE
@@ -3054,12 +3153,18 @@ class MainActivity : Activity() {
         if (workspace != Workspace.SITES && siteEditorVisible) {
             siteEditorVisible = false
             siteEditorPanel.visibility = View.GONE
+            if (::connectPreviewPanel.isInitialized) connectPreviewPanel.visibility = View.GONE
+            connectPreviewSite = null
+            if (::connectPreviewPassword.isInitialized) connectPreviewPassword.text.clear()
             sitesOverviewPanel.visibility = View.VISIBLE
         }
         if (::workspaceTitle.isInitialized) workspaceTitle.text = workspaceLabel(workspace)
         if (::phoneChromeTitle.isInitialized) {
             phoneChromeTitle.text =
-                if (workspace == Workspace.SITES && siteEditorVisible) {
+                if (workspace == Workspace.SITES &&
+                    ::connectPreviewPanel.isInitialized &&
+                    connectPreviewPanel.visibility == View.VISIBLE) "Connect"
+                else if (workspace == Workspace.SITES && siteEditorVisible) {
                     if (savedSitesSpinner.selectedItemPosition > 0) "Edit Site" else "Add Site"
                 } else workspaceLabel(workspace)
         }
