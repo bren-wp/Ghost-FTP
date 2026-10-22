@@ -267,7 +267,7 @@ jobs:
           grep -Fq '"windows": ["main"]' ghostftp-desktop/src-tauri/capabilities/default.json
           grep -Fq '.inner_size(1290.0, 852.0)' ghostftp-desktop/src-tauri/src/lib.rs
           grep -Fq '.min_inner_size(480.0, 600.0)' ghostftp-desktop/src-tauri/src/lib.rs
-          grep -Fq '.decorations(false)' ghostftp-desktop/src-tauri/src/lib.rs
+          grep -Fq '.decorations(cfg!(target_os = "macos"))' ghostftp-desktop/src-tauri/src/lib.rs
           ! grep -RniE 'http://127\\.0\\.0\\.1|browser shell' \
             ghostftp-desktop/src ghostftp-desktop/src-tauri/src tools/ghostftp-runtime tools/ghostftp-installer \
             --exclude-dir=target
