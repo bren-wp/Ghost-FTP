@@ -47,7 +47,7 @@ The Android Cloud storage workspace transfers one object at a time using short-l
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
 - Active source version: **0.95.18**
-- Previous canonical release: **0.99.3**
+- Previous canonical release: **0.99.4**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`
@@ -155,3 +155,6 @@ It must:
 For publication, the canonical Ghost FTP release workflow requires both Android artifacts from the exact source SHA: the intentionally unsigned production `com.ghostftp.android` build and the non-debuggable installable preview used for emulator install/reinstall/launch proof. No private Android signing secrets are part of the release pipeline.
 
 Stable/FINAL mobile status additionally requires device-level install/upgrade/storage/protocol acceptance. Android itself still requires a signature for any APK that is installed on a device, so the unsigned production artifact is distributed as build evidence rather than falsely labeled installable.
+
+
+**Trenutačna razvojna verzija:** 0.99.5 (Preview). Potvrđeni rezultati testova, a ne samo broj verzije, određuju spremnost izdanja.

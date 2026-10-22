@@ -90,8 +90,8 @@ The previous one-time latest-ten cleanup has ended. **No scheduled or post-relea
 
 ## Current release cycle
 
-- Active source/release cycle: **0.99.4**
-- Previous canonical release: **0.99.3**
+- Active source/release cycle: **0.99.5**
+- Previous canonical release: **0.99.4**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Newest edition is always visible under Releases

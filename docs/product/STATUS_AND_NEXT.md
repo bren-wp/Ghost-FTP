@@ -8,7 +8,7 @@ Current development source: **0.99.4** (SQLite transactional synchronization saf
 
 Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.30** release notes.
 
-Previous canonical release: **0.99.3**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.99.4**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
@@ -158,3 +158,6 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 - Linux desktop integration acceptance.
 - SBOM/provenance, secret scanning and reproducible-build verification.
 - Optional managed package repositories when distribution policy requires them.
+
+
+**Trenutačna razvojna verzija:** 0.99.5 (Preview). Potvrđeni rezultati testova, a ne samo broj verzije, određuju spremnost izdanja.
