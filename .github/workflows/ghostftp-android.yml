@@ -37,6 +37,9 @@ jobs:
         run: |
           sdkmanager "platforms;android-35" "platforms;android-36" "build-tools;35.0.0"
 
+      - name: Android private storage and premium navigation regression
+        shell: bash
+        run: node android/scripts/check-premium-mobile-safety.mjs
       - name: Android production and visual instrumentation result contracts
         shell: bash
         run: |
