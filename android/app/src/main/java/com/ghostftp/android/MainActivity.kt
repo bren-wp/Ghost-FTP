@@ -1839,8 +1839,8 @@ class MainActivity : Activity() {
     private fun compactBrowserRow(
         name: String,
         directory: Boolean,
-        onClick: () -> Unit,
-        detail: String? = null
+        detail: String? = null,
+        onClick: () -> Unit
     ): View = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -4024,14 +4024,14 @@ class MainActivity : Activity() {
         }
         val cleanName = item.name.removePrefix("[DIR] ").removePrefix("[FILE] ")
         val sizeLabel = if (item.isFile) item.detail.substringAfter("File · ", "") else null
-        return compactBrowserRow(cleanName, item.isDirectory, {
+        return compactBrowserRow(cleanName, item.isDirectory, sizeLabel) {
             if (item.isDirectory) {
                 remotePathInput.setText(target)
                 openConnection()
             } else {
                 selectRemoteEntry(item)
             }
-        }, detail = sizeLabel).apply {
+        }.apply {
             setOnLongClickListener { view ->
                 if (item.isDirectory) {
                     selectRemoteEntry(item)
