@@ -4018,7 +4018,8 @@ class MainActivity : Activity() {
             val staging = File(cacheDir,
                 "remote-text-" + java.util.UUID.randomUUID().toString() + ".tmp")
             val result = try {
-                controller.downloadRemote(profile, path, staging, cancellation)
+                controller.downloadRemote(profile, path, staging, cancellation,
+                    maxBytes = MAX_REMOTE_TEXT_BYTES)
                 cancellation.throwIfCanceled()
                 if (staging.length() > MAX_REMOTE_TEXT_BYTES) {
                     throw java.io.IOException("Text editor supports files up to 512 KiB.")
