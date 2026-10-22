@@ -113,7 +113,7 @@ internal object PremiumReferenceStyle {
     fun serverIcon(context: Context, protocol: ConnectionProtocol): TextView {
         val tint = when (protocol) {
             ConnectionProtocol.SFTP -> Color.rgb(51, 166, 255)
-            ConnectionProtocol.FTPS -> Color.rgb(239, 84, 170)
+            ConnectionProtocol.EXPLICIT_FTPS -> Color.rgb(239, 84, 170)
             ConnectionProtocol.FTP -> Color.rgb(255, 139, 78)
         }
         return caption(context, "▦", 25f).apply {
