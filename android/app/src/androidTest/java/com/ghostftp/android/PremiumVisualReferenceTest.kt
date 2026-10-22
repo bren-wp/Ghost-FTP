@@ -228,6 +228,81 @@ class PremiumVisualReferenceTest {
         }
     }
 
+    @Test
+    fun syncReferenceUsesActualFoldersAndBlocksUnimplementedDestructiveMirror() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                val open = findView(root) {
+                    it.contentDescription?.toString() == activity.getString(R.string.nav_open)
+                }
+                assertTrue("Sync test needs real navigation", open?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val target = activity.getString(R.string.workspace_open,
+                    activity.getString(R.string.workspace_sync))
+                val sync = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == target
+                }
+                assertTrue("Native Sync workspace must be reachable", sync?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val root = activity.window.decorView
+                val compare = findView(root) {
+                    it.contentDescription?.toString() ==
+                        "Compare current local and remote directories"
+                }
+                val sync = findView(root) {
+                    it is android.widget.Switch && it.text.toString() == "Synchronize"
+                } as? android.widget.Switch
+                val mirror = findView(root) {
+                    it is android.widget.Switch &&
+                        it.text.toString() == "Mirror (delete extra files)"
+                } as? android.widget.Switch
+                assertNotNull("Reference #12 requires a real Compare action", compare)
+                assertTrue("Compare must be usable", compare!!.isEnabled)
+                assertNotNull("Sync control should be visible", sync)
+                assertNotNull("Destructive mirror control should be visible", mirror)
+                assertTrue("Sync may not promise an unimplemented transfer engine",
+                    sync?.isEnabled == false && sync.isChecked == false)
+                assertTrue("Mirror may not delete files without a verified engine",
+                    mirror?.isEnabled == false && mirror.isChecked == false)
+                assertTrue("Disconnected comparison should fail closed",
+                    compare.performClick())
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val message = findView(activity.window.decorView) {
+                    it is TextView &&
+                        it.text.toString().contains("Connect and refresh the remote Files pane")
+                }
+                assertNotNull("No remote listing must not become a fake empty comparison", message)
+            }
+        }
+    }
+
+    @Test
+    fun protocolTilesUseActualProtocolSpecificReferenceColours() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val icons = ConnectionProtocol.entries.map {
+                    PremiumReferenceStyle.serverIcon(activity, it)
+                }
+                assertEquals(3, icons.size)
+                for ((index, protocol) in ConnectionProtocol.entries.withIndex()) {
+                    assertEquals("Protocol accessibility label must not be invented",
+                        protocol.label + " server", icons[index].contentDescription)
+                    assertNotNull("Protocol tile must have its own background",
+                        icons[index].background)
+                }
+                assertTrue("FTP, FTPS, SFTP must be distinguishable by protocol tint",
+                    icons.map { it.currentTextColor }.distinct().size == 3)
+            }
+        }
+    }
+
     private fun captureIdleReference(
         activity: android.app.Activity, directory: File, filename: String
     ) {
