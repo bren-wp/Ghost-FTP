@@ -25,6 +25,7 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
@@ -130,6 +131,10 @@ class MainActivity : Activity() {
     private lateinit var workspaceFeedbackDetail: TextView
     private lateinit var settingsFeedback: TextView
     private lateinit var navigationRail: View
+    private lateinit var navConnectionCard: LinearLayout
+    private lateinit var navConnectionHost: TextView
+    private lateinit var navConnectionState: TextView
+    private lateinit var liveTransferIndicator: ProgressBar
     private lateinit var navigationScrim: View
     private lateinit var navigationToggleButton: Button
     private var navigationOpen = false
@@ -625,8 +630,37 @@ class MainActivity : Activity() {
                 addView(space(3))
             }
 
-            addView(space(12))
-            if (!iconRail) addView(TextView(this@MainActivity).apply {
+            addView(space(16))
+            // Reference #2: only actual authenticated sessions may appear
+            // in the Active Connection tile. Never show example.com/fake data.
+            navConnectionCard = PremiumReferenceStyle.panelColumn(this@MainActivity, 10).apply {
+                visibility = View.GONE
+                contentDescription = "Active Connection"
+                addView(PremiumReferenceStyle.caption(this@MainActivity,
+                    "Active Connection", 12f, true).apply {
+                    typeface = Typeface.DEFAULT_BOLD
+                })
+                addView(space(5))
+                navConnectionHost = PremiumReferenceStyle.caption(this@MainActivity,
+                    "", 13f).apply {
+                    typeface = Typeface.DEFAULT_BOLD
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                }
+                addView(navConnectionHost)
+                navConnectionState = PremiumReferenceStyle.caption(this@MainActivity,
+                    "", 11f, true).apply {
+                    setTextColor(PremiumReferenceStyle.green)
+                    maxLines = 1
+                }
+                addView(navConnectionState)
+            }
+            addView(navConnectionCard, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+            addView(space(10))
+            if (!iconRail && resources.configuration.screenWidthDp >= 600)
+                addView(TextView(this@MainActivity).apply {
                 text = getString(R.string.label_private_session)
                 setTextColor(Brand.muted)
                 textSize = 10f
@@ -641,6 +675,18 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
         )
+    }
+
+    private fun updateNavConnectionCard() {
+        if (!::navConnectionCard.isInitialized) return
+        val session = activeProfile
+        navConnectionCard.visibility = if (session == null) View.GONE else View.VISIBLE
+        if (session != null) {
+            navConnectionHost.text = session.host
+            navConnectionState.text = session.protocol.label + " · Connected"
+            navConnectionCard.contentDescription =
+                "Active Connection: " + session.host + ", " + session.protocol.label
+        }
     }
 
     private fun buildHeader(): View = panel(strong = true).apply {
@@ -1179,12 +1225,10 @@ class MainActivity : Activity() {
                 contentDescription = "Edit saved site " + site.name
                 setOnClickListener { showSiteEditor(site) }
             }
-            item.addView(PremiumReferenceStyle.caption(this, "▣", 22f).apply {
-                setTextColor(PremiumReferenceStyle.purpleLight)
-                gravity = Gravity.CENTER
-                background = PremiumReferenceStyle.surface(this@MainActivity,
-                    PremiumReferenceStyle.selected, 8)
-            }, LinearLayout.LayoutParams(dp(40), dp(40)))
+            // Reference screen #3 uses protocol-colored server tiles, not
+            // the same purple placeholder glyph for every saved site.
+            item.addView(PremiumReferenceStyle.serverIcon(this, site.protocol),
+                LinearLayout.LayoutParams(dp(40), dp(40)))
             item.addView(gap(10))
             val details = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -1203,7 +1247,17 @@ class MainActivity : Activity() {
                     menu.add(0, 3, 2, "Remove")
                     setOnMenuItemClickListener { menuItem ->
                         when (menuItem.itemId) {
-                            1, 2 -> showSiteEditor(site)
+                            1 -> showSiteEditor(site)
+                            2 -> {
+                                // Passwords are intentionally never saved. The
+                                // Connect route must load the real profile and
+                                // direct focus to credential entry, not silently
+                                // treat Connect as an Edit action.
+                                showSiteEditor(site)
+                                siteFeedback.text = "Enter your session password, then tap Connect."
+                                siteFeedback.visibility = View.VISIBLE
+                                passwordInput.requestFocus()
+                            }
                             3 -> requestInlineConfirmation("Remove saved site?",
                                 "Remove " + site.name + " from this device?", "Remove") {
                                 if (SavedSiteProfiles.remove(this@MainActivity, site.name)) {
@@ -1758,6 +1812,20 @@ class MainActivity : Activity() {
         // Reference #8: a real transfer-details route, never invented progress
         // bars, speed, ETA or synthetic queue jobs. This Android engine runs a
         // single cancellable operation and preserves its actual status/path.
+        // A real in-flight transfer has indeterminate activity feedback.
+        // No fake percentage, speed, elapsed time or multi-job queue is shown.
+        liveTransferIndicator = ProgressBar(this@MainActivity, null,
+            android.R.attr.progressBarStyleHorizontal).apply {
+            isIndeterminate = true
+            indeterminateTintList = android.content.res.ColorStateList.valueOf(
+                PremiumReferenceStyle.purpleLight)
+            visibility = if (operationInFlight) View.VISIBLE else View.GONE
+            contentDescription = "Active transfer in progress"
+        }
+        queuePanel.addView(liveTransferIndicator,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(4)))
+        queuePanel.addView(space(8))
+
         transferOverviewText.isClickable = true
         transferOverviewText.isFocusable = true
         transferOverviewText.contentDescription = "View transfer details"
@@ -2990,6 +3058,10 @@ class MainActivity : Activity() {
         remoteActionButtons.forEach { it.isEnabled = !busy && hasActiveSession }
         busySensitiveLocalButtons.forEach { it.isEnabled = !busy }
         sessionDisconnectButtons.forEach { it.isEnabled = hasActiveSession }
+        updateNavConnectionCard()
+        if (::liveTransferIndicator.isInitialized) {
+            liveTransferIndicator.visibility = if (operationInFlight) View.VISIBLE else View.GONE
+        }
     }
 
     private fun uploadOrPickFile() {

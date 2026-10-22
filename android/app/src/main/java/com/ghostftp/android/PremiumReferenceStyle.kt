@@ -109,6 +109,27 @@ internal object PremiumReferenceStyle {
             setOnClickListener { onClick() }
         }
 
+    /** Protocol-colored server tile from Android reference frame #3. */
+    fun serverIcon(context: Context, protocol: ConnectionProtocol): TextView {
+        val tint = when (protocol) {
+            ConnectionProtocol.SFTP -> Color.rgb(51, 166, 255)
+            ConnectionProtocol.FTPS -> Color.rgb(239, 84, 170)
+            ConnectionProtocol.FTP -> Color.rgb(255, 139, 78)
+        }
+        return caption(context, "▦", 25f).apply {
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(tint)
+            background = GradientDrawable().apply {
+                setColor(Color.argb(42, Color.red(tint), Color.green(tint), Color.blue(tint)))
+                cornerRadius = dp(context, 9).toFloat()
+                setStroke(dp(context, 1), Color.argb(110,
+                    Color.red(tint), Color.green(tint), Color.blue(tint)))
+            }
+            contentDescription = protocol.label + " server"
+        }
+    }
+
     fun spacer(context: Context, height: Int): View = View(context).apply {
         layoutParams = LinearLayout.LayoutParams(1, dp(context, height))
     }
