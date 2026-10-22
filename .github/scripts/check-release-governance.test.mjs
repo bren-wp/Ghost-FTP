@@ -34,6 +34,8 @@ test("every passing main native build can automatically trigger a release", () =
   assert.ok(workflow.includes('wait_for_gate "ghostftp-macos-shared-desktop.yml"'));
   assert.ok(workflow.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"));
   assert.ok(workflow.includes("GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"));
+  assert.ok(workflow.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Installable-Preview.dmg"));
+  assert.ok(workflow.includes("GhostFTP-macOS-Shared-x86_64-v$VERSION-Installable-Preview.dmg"));
   const macOSShared = read(".github/workflows/ghostftp-macos-shared-desktop.yml");
   assert.ok(macOSShared.includes("cargo test -p ghostftp --lib --locked"));
   assert.ok(macOSShared.includes("npm run tauri -- build --bundles app"));

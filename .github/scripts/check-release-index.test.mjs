@@ -21,6 +21,8 @@ test("post-publication verifies newest Preview is visible on public Releases ind
   assert.ok(verify.includes("GhostFTP-macOS-v$VERSION-Preview.zip"));
   assert.ok(verify.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"));
   assert.ok(verify.includes("GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"));
+  assert.ok(verify.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Installable-Preview.dmg"));
+  assert.ok(verify.includes("GhostFTP-macOS-Shared-x86_64-v$VERSION-Installable-Preview.dmg"));
   assert.ok(workflow.includes("bash .github/scripts/check-release-index.sh"));
   assert.ok(workflow.includes("GHOSTFTP_PUBLISHED_SOURCE_SHA"));
   for(const text of ["gh release delete","--cleanup-tag","git push origin :refs/tags/"]){
