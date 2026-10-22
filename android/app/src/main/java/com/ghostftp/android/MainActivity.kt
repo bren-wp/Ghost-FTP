@@ -4228,7 +4228,7 @@ class MainActivity : Activity() {
         filesSection.visibility = View.GONE
         editorSection.visibility = View.VISIBLE
         fileActionToolbar.visibility = View.GONE
-        phoneChromeTitle.text = "Text Editor"
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = "Text Editor"
         updatePhoneChromeActions()
         contentScroll.post { contentScroll.scrollTo(0, workspaceContainer.top) }
     }
@@ -4399,7 +4399,7 @@ class MainActivity : Activity() {
         filesSection.visibility = View.GONE
         batchSection.visibility = View.VISIBLE
         fileActionToolbar.visibility = View.GONE
-        phoneChromeTitle.text = "Rename Files"
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = "Rename Files"
         updatePhoneChromeActions()
         previewBatchRename()
         contentScroll.post { contentScroll.scrollTo(0, workspaceContainer.top) }
