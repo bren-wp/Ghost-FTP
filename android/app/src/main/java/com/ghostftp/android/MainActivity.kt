@@ -1571,11 +1571,35 @@ class MainActivity : Activity() {
                     localBrowseDirectory = file
                     refreshLocalPane()
                 } else {
-                    android.widget.Toast.makeText(this@MainActivity,
-                        file.name + " · use Upload to choose a document", android.widget.Toast.LENGTH_SHORT).show()
+                    selectLocalUploadFile(file)
                 }
             })
         }
+    }
+
+    /** Clicking a real app-owned local file selects it for the existing
+     * guarded upload action. Never grant file:// URIs to another process.
+     */
+    private fun selectLocalUploadFile(file: File) {
+        val base = (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+            ?: filesDir).canonicalFile
+        val chosen = runCatching { file.canonicalFile }.getOrNull()
+        if (chosen == null || !chosen.path.startsWith(base.path + File.separator) ||
+            !chosen.isFile || !chosen.canRead()) {
+            showMessage("Local file unavailable",
+                "Ghost FTP cannot read this file inside its private Downloads folder.")
+            return
+        }
+        selectedUploadUri = Uri.fromFile(chosen)
+        selectedUploadDisplayName = chosen.name
+        uploadSelectionText.text = getString(
+            R.string.state_selected_local_file, selectedUploadDisplayName)
+        uploadRemoteNameInput.setText(chosen.name)
+        transferStateText.text = getString(
+            R.string.state_upload_file_selected, selectedUploadDisplayName)
+        appendActivity(getString(R.string.action_upload),
+            getString(R.string.activity_upload_selected_detail, selectedUploadDisplayName))
+        showMessage("Local file selected", "Tap Upload to send this file to the connected server.")
     }
 
     private fun compactBrowserRow(name: String, directory: Boolean, onClick: () -> Unit): View =
