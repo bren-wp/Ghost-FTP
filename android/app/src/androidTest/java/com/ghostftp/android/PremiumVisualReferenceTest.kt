@@ -229,6 +229,73 @@ class PremiumVisualReferenceTest {
     }
 
     @Test
+    fun savedSiteConnectScreenShowsRealMetadataAndRequestsSessionPassword() {
+        val context = instrumentation.targetContext
+        val name = "Visual Connect QA " + System.nanoTime()
+        val profile = ConnectionProfile(
+            protocol = ConnectionProtocol.SFTP,
+            host = "sftp.invalid",
+            port = 2222,
+            username = "visual-qa",
+            password = "not-persisted",
+            hostKeyFingerprint = "",
+            remotePath = "/",
+            keepAliveSeconds = 15
+        )
+        assertTrue("Cannot create isolated QA profile", SavedSiteProfiles.save(context, name, profile))
+        try {
+            ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+                scenario.onActivity { activity ->
+                    val open = findView(activity.window.decorView) {
+                        it.contentDescription?.toString() == activity.getString(R.string.nav_open)
+                    }
+                    assertTrue(open?.performClick() == true)
+                }
+                instrumentation.waitForIdleSync()
+                scenario.onActivity { activity ->
+                    val target = activity.getString(R.string.workspace_open,
+                        activity.getString(R.string.workspace_sites))
+                    val sites = findView(activity.window.decorView) {
+                        it.contentDescription?.toString() == target
+                    }
+                    assertTrue("Saved-site list must be reachable", sites?.performClick() == true)
+                }
+                instrumentation.waitForIdleSync()
+                scenario.onActivity { activity ->
+                    val item = findView(activity.window.decorView) {
+                        it.contentDescription?.toString() == "Open saved site " + name
+                    }
+                    assertNotNull("Reference #5 needs a dedicated saved-site Connect route", item)
+                    assertTrue(item!!.performClick())
+                }
+                instrumentation.waitForIdleSync()
+                scenario.onActivity { activity ->
+                    val root = activity.window.decorView
+                    val panel = findView(root) {
+                        it.contentDescription?.toString() == "Connect to saved site"
+                    }
+                    assertTrue("Connect card should be visible", panel?.isShown == true)
+                    val password = findView(root) {
+                        it is EditText && it.contentDescription?.toString() == "Session password"
+                    } as? EditText
+                    assertNotNull("Session password field is required", password)
+                    assertTrue("Saved sites must not expose stored passwords", password?.text.isNullOrEmpty())
+                    val button = findView(root) {
+                        it.contentDescription?.toString() == "Connect to selected site"
+                    }
+                    assertTrue("Actual connection action must be available", button?.isShown == true)
+                    val title = findView(root) {
+                        it is TextView && it.text.toString() == name && it.isShown
+                    }
+                    assertNotNull("Only the selected real saved-site name can be shown", title)
+                }
+            }
+        } finally {
+            assertTrue("Isolated QA site was not removed", SavedSiteProfiles.remove(context, name))
+        }
+    }
+
+    @Test
     fun syncReferenceUsesActualFoldersAndBlocksUnimplementedDestructiveMirror() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
