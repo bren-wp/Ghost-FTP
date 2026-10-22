@@ -240,8 +240,10 @@ class ConnectionController {
         profile: ConnectionProfile,
         remoteFilePath: String,
         outputFile: File,
-        cancellation: OperationCancellation = OperationCancellation()
+        cancellation: OperationCancellation = OperationCancellation(),
+        maxBytes: Long? = null
     ): TransferResult {
+        require(maxBytes == null || maxBytes >= 0L) { "Invalid maximum download size." }
         cancellation.throwIfCanceled()
         val normalized = normalizedProfile(profile)
         val target = normalizeRemoteTarget(remoteFilePath)
@@ -252,9 +254,9 @@ class ConnectionController {
         runCatching { if (temporaryFile.exists()) temporaryFile.delete() }
         return try {
             val result = when (normalized.protocol) {
-                ConnectionProtocol.FTP -> downloadFtp(normalized, secure = false, remoteFilePath = target, outputFile = temporaryFile, cancellation = cancellation)
-                ConnectionProtocol.EXPLICIT_FTPS -> downloadFtp(normalized, secure = true, remoteFilePath = target, outputFile = temporaryFile, cancellation = cancellation)
-                ConnectionProtocol.SFTP -> downloadSftp(normalized, remoteFilePath = target, outputFile = temporaryFile, cancellation = cancellation)
+                ConnectionProtocol.FTP -> downloadFtp(normalized, secure = false, remoteFilePath = target, outputFile = temporaryFile, cancellation = cancellation, maxBytes = maxBytes)
+                ConnectionProtocol.EXPLICIT_FTPS -> downloadFtp(normalized, secure = true, remoteFilePath = target, outputFile = temporaryFile, cancellation = cancellation, maxBytes = maxBytes)
+                ConnectionProtocol.SFTP -> downloadSftp(normalized, remoteFilePath = target, outputFile = temporaryFile, cancellation = cancellation, maxBytes = maxBytes)
             }
             cancellation.throwIfCanceled()
             commitLocalReplacement(temporaryFile, outputFile)
@@ -422,7 +424,8 @@ class ConnectionController {
         secure: Boolean,
         remoteFilePath: String,
         outputFile: File,
-        cancellation: OperationCancellation
+        cancellation: OperationCancellation,
+        maxBytes: Long? = null
     ): TransferResult = withFtpClient(profile, secure, cancellation) { client ->
         cancellation.throwIfCanceled()
         val remote = client.retrieveFileStream(remoteFilePath)
@@ -430,7 +433,7 @@ class ConnectionController {
         try {
             remote.use { source ->
                 outputFile.outputStream().use { output ->
-                    copyCancelable(source, output, cancellation)
+                    copyCancelable(source, output, cancellation, maxBytes)
                 }
             }
             cancellation.throwIfCanceled()
@@ -573,12 +576,13 @@ class ConnectionController {
         profile: ConnectionProfile,
         remoteFilePath: String,
         outputFile: File,
-        cancellation: OperationCancellation
+        cancellation: OperationCancellation,
+        maxBytes: Long? = null
     ): TransferResult = withSftpChannel(profile, cancellation) { channel ->
         cancellation.throwIfCanceled()
         channel.get(remoteFilePath).use { source ->
             outputFile.outputStream().use { output ->
-                copyCancelable(source, output, cancellation)
+                copyCancelable(source, output, cancellation, maxBytes)
             }
         }
         TransferResult(
@@ -859,11 +863,13 @@ class ConnectionController {
         )
     }
 
-    private fun copyCancelable(
+    internal fun copyCancelable(
         input: InputStream,
         output: OutputStream,
-        cancellation: OperationCancellation
+        cancellation: OperationCancellation,
+        maxBytes: Long? = null
     ): Long {
+        require(maxBytes == null || maxBytes >= 0L) { "Invalid maximum download size." }
         val buffer = ByteArray(64 * 1024)
         var total = 0L
         while (true) {
@@ -871,6 +877,9 @@ class ConnectionController {
             val read = input.read(buffer)
             if (read < 0) break
             if (read == 0) continue
+            if (maxBytes != null && read.toLong() > maxBytes - total) {
+                throw IOException("Remote file exceeds the permitted editor size.")
+            }
             output.write(buffer, 0, read)
             total += read
         }
