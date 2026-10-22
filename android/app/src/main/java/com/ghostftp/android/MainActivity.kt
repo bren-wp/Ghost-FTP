@@ -3970,12 +3970,148 @@ class MainActivity : Activity() {
                 selectRemoteEntry(item)
             }
         }.apply {
-            setOnLongClickListener {
-                selectRemoteEntry(item)
-                setWorkspace(Workspace.TRANSFERS)
+            setOnLongClickListener { view ->
+                if (item.isDirectory) {
+                    selectRemoteEntry(item)
+                    setWorkspace(Workspace.TRANSFERS)
+                } else {
+                    selectRemoteEntry(item)
+                    android.widget.PopupMenu(this@MainActivity, view).apply {
+                        menu.add(0, 1, 0, "Edit text")
+                        menu.add(0, 2, 1, "File operations")
+                        setOnMenuItemClickListener { choice ->
+                            if (choice.itemId == 1) openRemoteTextEditor(item)
+                            else setWorkspace(Workspace.TRANSFERS)
+                            true
+                        }
+                    }.show()
+                }
                 true
             }
         }
+    }
+
+    /**
+     * The real remote text editor used by reference screen #13. Credentials
+     * remain memory-only; data is read on a worker and the staging copy is
+     * removed before an editable surface is shown. Saving delegates to the
+     * existing atomic/staged remote uploader and explicit overwrite consent.
+     */
+    private fun openRemoteTextEditor(item: RemoteRow) {
+        val profile = activeProfile ?: run {
+            showMessage("Text Editor", "Connect to a site before editing remote files.")
+            return
+        }
+        val path = item.remotePath?.takeIf { item.isFile && it.startsWith('/') } ?: return
+        if (operationInFlight) {
+            showMessage("Text Editor", "Finish or cancel the active transfer first.")
+            return
+        }
+        val generation = ++operationGeneration
+        val cancellation = OperationCancellation()
+        activeCancellation = cancellation
+        operationInFlight = true
+        setBusy(true)
+        statusTitle.text = "Opening remote text"
+        statusDetail.text = path
+        thread(name = "ghostftp-remote-editor-download") {
+            val staging = File(cacheDir,
+                "remote-text-" + java.util.UUID.randomUUID().toString() + ".tmp")
+            val result = try {
+                controller.downloadRemote(profile, path, staging, cancellation)
+                cancellation.throwIfCanceled()
+                if (staging.length() > MAX_REMOTE_TEXT_BYTES) {
+                    throw java.io.IOException("Text editor supports files up to 512 KiB.")
+                }
+                val bytes = staging.readBytes()
+                if (bytes.any { it == 0.toByte() }) {
+                    throw java.io.IOException("Binary files cannot be opened in the text editor.")
+                }
+                val strictDecoder = Charsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                Result.success(strictDecoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString())
+            } catch (error: Throwable) {
+                Result.failure<String>(error)
+            } finally {
+                runCatching { staging.delete() }
+            }
+            safeUi {
+                if (generation != operationGeneration) return@safeUi
+                activeCancellation = null
+                operationInFlight = false
+                setBusy(false)
+                result.fold(
+                    onSuccess = { text -> showRemoteTextEditorDialog(profile, path, text) },
+                    onFailure = { error -> showTransferFailure(error) }
+                )
+            }
+        }
+    }
+
+    private fun showRemoteTextEditorDialog(
+        profile: ConnectionProfile,
+        path: String,
+        original: String
+    ) {
+        if (closingOrDestroyed() || activeProfile != profile) return
+        val editor = EditText(this).apply {
+            setText(original)
+            textSize = 13f
+            typeface = Typeface.MONOSPACE
+            setTextColor(PremiumReferenceStyle.text)
+            setHintTextColor(PremiumReferenceStyle.secondary)
+            setBackgroundColor(PremiumReferenceStyle.panel)
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            gravity = Gravity.TOP or Gravity.START
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            minLines = 12
+            maxLines = 30
+            contentDescription = "Remote text editor " + path.substringAfterLast('/')
+        }
+        val scroll = ScrollView(this).apply {
+            addView(editor, ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Text Editor · " + path.substringAfterLast('/'))
+            .setView(scroll)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Save", null)
+            .create()
+        dialog.setOnShowListener {
+            val save = dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)
+            save.setOnClickListener {
+                val content = editor.text.toString()
+                val bytes = content.toByteArray(Charsets.UTF_8)
+                if (bytes.size > MAX_REMOTE_TEXT_BYTES) {
+                    editor.error = "Maximum text size is 512 KiB."
+                    return@setOnClickListener
+                }
+                if (activeProfile != profile) {
+                    showMessage("Text Editor", "The connection changed. Reopen the remote file.")
+                    dialog.dismiss()
+                    return@setOnClickListener
+                }
+                if (content == original) {
+                    dialog.dismiss()
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                confirmUploadTarget(path, path.substringAfterLast('/')) {
+                    runTransfer(
+                        title = "Save remote text",
+                        detail = "Saving " + path,
+                        refreshAfter = true
+                    ) { cancellation ->
+                        controller.uploadRemote(profile,
+                            java.io.ByteArrayInputStream(bytes), path, cancellation)
+                    }
+                }
+            }
+        }
+        dialog.show()
     }
 
     private fun selectRemoteEntry(item: RemoteRow) {
@@ -4326,6 +4462,7 @@ class MainActivity : Activity() {
         const val PICK_CLOUD_UPLOAD_REQUEST = 22094
         const val CREATE_CLOUD_DOWNLOAD_REQUEST = 22095
         const val MAX_ACTIVITY_ROWS = 8
+        const val MAX_REMOTE_TEXT_BYTES = 512L * 1024L
 
         const val STATE_PROTOCOL = "ghostftp.protocol"
         const val STATE_HOST = "ghostftp.host"
