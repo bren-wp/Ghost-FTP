@@ -93,6 +93,7 @@ class MainActivity : Activity() {
     private lateinit var bookmarksSection: View
     private lateinit var editorSection: View
     private lateinit var editorContentInput: EditText
+    private lateinit var editorActionToolbar: View
     private var editorMode = false
     private var editorOriginalText = ""
     private var editorRemotePath = ""
@@ -388,6 +389,7 @@ class MainActivity : Activity() {
         bookmarksSection = buildBookmarksCard()
         searchSection = buildSearchCard().apply { visibility = View.GONE }
         editorSection = buildRemoteTextEditorCard().apply { visibility = View.GONE }
+        editorActionToolbar = buildRemoteEditorToolbar().apply { visibility = View.GONE }
         batchSection = buildBatchRenameCard().apply { visibility = View.GONE }
         settingsSection = buildSettingsCard()
         aboutSection = buildAboutCard()
@@ -535,6 +537,10 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
             ))
             addView(fileActionToolbar, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+            addView(editorActionToolbar, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ))
@@ -3334,6 +3340,10 @@ class MainActivity : Activity() {
                 if (workspace == Workspace.FILES && !editorMode && !batchMode)
                     View.VISIBLE else View.GONE
         }
+        if (::editorActionToolbar.isInitialized) {
+            editorActionToolbar.visibility =
+                if (workspace == Workspace.FILES && editorMode) View.VISIBLE else View.GONE
+        }
         if (::sessionStatusCard.isInitialized) {
             sessionStatusCard.visibility =
                 if (activeProfile != null && (workspace == Workspace.FILES || workspace == Workspace.SITES))
@@ -4261,26 +4271,52 @@ class MainActivity : Activity() {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         ))
-        addView(space(11))
-        addView(LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            fun action(label: String, execute: () -> Unit) {
-                addView(PremiumReferenceStyle.action(this@MainActivity,label,
-                    primary = label == "Save") { execute() },
-                    LinearLayout.LayoutParams(0, dp(44), 1f).apply {
+        addView(space(8))
+    }
+
+    /**
+     * The approved editor has a persistent lower action strip, including on
+     * short devices and while scrolling long UTF-8 files. At >=1.3x font size,
+     * two rows prevent icons and labels from overlapping.
+     */
+    private fun buildRemoteEditorToolbar(): View = LinearLayout(this).apply {
+        val small = AndroidResponsiveLayout.compactFileActions(
+            resources.configuration.screenWidthDp, resources.configuration.fontScale)
+        orientation = if (small) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        setPadding(dp(8), dp(5), dp(8), dp(5))
+        setBackgroundColor(PremiumReferenceStyle.raised)
+        val entries = listOf<Pair<String, () -> Unit>>(
+            "Save" to { saveRemoteEditor() },
+            "Upload" to { saveRemoteEditor() },
+            "UTF-8" to { showMessage("Text Encoding",
+                "The editor uses strict UTF-8. Other encodings are not auto-converted.") },
+            "More" to { showRemoteEditorMoreMenu() }
+        )
+        if (small) {
+            for (start in listOf(0, 2)) {
+                val line = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                }
+                for ((label, action) in entries.subList(start, start + 2)) {
+                    line.addView(PremiumReferenceStyle.action(this@MainActivity, label,
+                        primary = label == "Save") { action() },
+                        LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+                            marginEnd = dp(5)
+                        })
+                }
+                addView(line, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(52)))
+            }
+        } else {
+            for ((label, action) in entries) {
+                addView(PremiumReferenceStyle.action(this@MainActivity, label,
+                    primary = label == "Save") { action() },
+                    LinearLayout.LayoutParams(0, dp(51), 1f).apply {
                         marginEnd = dp(4)
                     })
             }
-            action("Save") { saveRemoteEditor() }
-            action("Upload") { saveRemoteEditor() }
-            action("UTF-8") {
-                showMessage("Text Encoding",
-                    "Ghost FTP uses strict UTF-8 for this remote text editor. Other encodings are not auto-converted.")
-            }
-            action("More") { showRemoteEditorMoreMenu() }
-        }, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
     }
 
     private fun showRemoteTextEditorDialog(
@@ -4299,6 +4335,7 @@ class MainActivity : Activity() {
         filesSection.visibility = View.GONE
         editorSection.visibility = View.VISIBLE
         fileActionToolbar.visibility = View.GONE
+        editorActionToolbar.visibility = View.VISIBLE
         if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = "Text Editor"
         updatePhoneChromeActions()
         contentScroll.post { contentScroll.scrollTo(0, workspaceContainer.top) }
@@ -4392,6 +4429,7 @@ class MainActivity : Activity() {
         editorConnection = null
         if (::editorContentInput.isInitialized) editorContentInput.text.clear()
         if (::editorSection.isInitialized) editorSection.visibility = View.GONE
+        if (::editorActionToolbar.isInitialized) editorActionToolbar.visibility = View.GONE
         if (::filesSection.isInitialized) filesSection.visibility = View.VISIBLE
         if (::fileActionToolbar.isInitialized && activeWorkspace == Workspace.FILES) {
             fileActionToolbar.visibility = View.VISIBLE
