@@ -3,6 +3,7 @@
 - Fix macOS shortcut dispatch so Control+K, Control+R and Control+Shift+D no longer masquerade as Command shortcuts and intercept shell/SSH terminal commands.
 - Keep Windows/Linux Control shortcuts intact and distinguish the Windows/Super key; add executable cross-platform regression tests to the UI quality gate.
 - Retain separate shared macOS ARM64/Intel Tauri Preview builds and the existing SwiftUI Preview. Physical Mac GUI/Keychain tests, Developer ID/notarization and migration acceptance remain open.
+- Implement native macOS traffic-light window chrome and isolated, fail-closed Developer ID/notarization candidate pipeline; actual Apple credentials and physical Intel/Apple Silicon acceptance remain mandatory.
 
 ## 0.99.4 — Shared Rust/Tauri macOS desktop with Apple Keychain and secure-protocol parity (development Preview; 21 October 2026)
 
