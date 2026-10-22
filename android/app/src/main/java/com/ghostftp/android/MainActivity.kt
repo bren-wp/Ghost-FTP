@@ -1196,13 +1196,71 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(0, dp(39), 1f))
         addView(tabs)
         addView(space(12))
+        // Frame #4 uses a compact field matrix: aligned captions on the left,
+        // actual native controls on the right. Retain original EditTexts and
+        // Spinner instances so connection validation and state restoration
+        // remain identical to the tested implementation.
+        val compactFields: Map<View, String> = linkedMapOf(
+            siteNameInput to "Name",
+            protocolSpinner to "Protocol",
+            hostInput to "Host",
+            portInput to "Port",
+            usernameInput to "Username",
+            passwordInput to "Password"
+        )
+        val oldFieldLabels = compactFields.keys.mapNotNull { field ->
+            val index = original.indexOf(field)
+            original.getOrNull(index - 1)?.takeIf { it is TextView }
+        }.toSet()
+        val originalSave = original.firstOrNull {
+            it is Button && it.text.toString() == "Save new connection profile"
+        } as? Button
+        val originalUpdate = original.firstOrNull {
+            it is Button && it.text.toString() == "Update selected profile"
+        } as? Button
         original.forEach { view ->
-            (if (view in generalViews) general else advanced).addView(view)
+            when {
+                view in oldFieldLabels -> Unit
+                view in compactFields -> {
+                    val row = LinearLayout(this@MainActivity).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        minimumHeight = dp(52)
+                    }
+                    row.addView(PremiumReferenceStyle.caption(this@MainActivity,
+                        compactFields.getValue(view), 12f, true),
+                        LinearLayout.LayoutParams(dp(100), dp(43)))
+                    row.addView(view, LinearLayout.LayoutParams(0, dp(42), 1f))
+                    general.addView(row)
+                    general.addView(space(5))
+                }
+                view === originalSave -> advanced.addView(view)
+                view in generalViews -> general.addView(view)
+                else -> advanced.addView(view)
+            }
         }
-        general.addView(space(8))
-        general.addView(secondaryButton(getString(R.string.action_cancel)) {
+        general.addView(space(12))
+        val footer = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        footer.addView(PremiumReferenceStyle.action(this@MainActivity, "Cancel") {
             showSitesOverview()
-        }.apply { contentDescription = "Cancel site editing" })
+        }.apply { contentDescription = "Cancel site editing" },
+            LinearLayout.LayoutParams(0, dp(46), 1f))
+        footer.addView(gap(8))
+        footer.addView(PremiumReferenceStyle.action(this@MainActivity, "Save", true) {
+            // Invoke the already validated metadata-only save/update handlers.
+            // This UI wrapper must never persist passwords or bypass conflict
+            // checks implemented by those original guarded actions.
+            if (savedSitesSpinner.selectedItemPosition > 0) {
+                originalUpdate?.performClick()
+            } else {
+                originalSave?.performClick()
+            }
+        }.apply { contentDescription = "Save site" },
+            LinearLayout.LayoutParams(0, dp(46), 1f))
+        general.addView(footer)
         addView(general)
         addView(advanced)
     }
