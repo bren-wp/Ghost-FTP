@@ -158,6 +158,7 @@ jobs:
           mkdir -p "$ROOT"
           ditto "$APP" "$ROOT/Ghost FTP Desktop.app"
           ln -s /Applications "$ROOT/Applications"
+          cp docs/guides/MACOS_INSTALLATION.md "$ROOT/INSTALLATION.md"
           hdiutil create -volname "Ghost FTP Desktop" -srcfolder "$ROOT" \
             -format UDZO -ov "$DMG"
           test -s "$DMG"
@@ -168,6 +169,7 @@ jobs:
           trap cleanup EXIT
           hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT" "$DMG"
           test -L "$MOUNT/Applications"
+          test -s "$MOUNT/INSTALLATION.md"
           test "$(readlink "$MOUNT/Applications")" = "/Applications"
           test -x "$MOUNT/Ghost FTP Desktop.app/Contents/MacOS/ghostftp"
           codesign --verify --deep --strict --verbose=2 "$MOUNT/Ghost FTP Desktop.app"
