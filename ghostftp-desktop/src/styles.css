@@ -5913,3 +5913,13 @@ input.ghost-pane-address:focus-visible {
   .ghost-transfer-overview { padding-block: 7px; }
   .ghost-transfer-overview-card { gap: 4px; padding-block: 8px; }
 }
+
+/* macOS native traffic lights belong to AppKit, not custom webview buttons.
+   Reserve their top-left hit area even at the smallest supported viewport. */
+.ghost-app-header.ghost-macos-native-titlebar .ghost-title-row {
+  padding-left: 88px !important;
+  min-height: 51px;
+}
+.ghost-app-header.ghost-macos-native-titlebar .ghost-window-title-spacer {
+  min-width: 0;
+}
