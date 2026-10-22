@@ -37,6 +37,8 @@ import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
 class MainActivity : Activity() {
+    private enum class FilesViewMode { DUAL, REMOTE, LOCAL }
+
     private enum class Workspace(val labelRes: Int) {
         FILES(R.string.workspace_files),
         SITES(R.string.workspace_sites),
@@ -123,6 +125,10 @@ class MainActivity : Activity() {
     private lateinit var phoneChromeTitle: TextView
     private lateinit var phoneMenuButton: Button
     private lateinit var phoneQuickButton: Button
+    private lateinit var phoneFilesViewButton: Button
+    private lateinit var filesRemotePane: View
+    private lateinit var filesLocalPane: View
+    private var filesViewMode = FilesViewMode.DUAL
     // Reference workspaces must not inherit Files-only actions or status cards.
     private lateinit var fileActionToolbar: View
     private lateinit var sessionStatusCard: View
@@ -210,6 +216,7 @@ class MainActivity : Activity() {
         outState.putString(STATE_UPLOAD_DISPLAY_NAME, selectedUploadDisplayName)
         outState.putString(STATE_LAST_COMPLETED_PATH, lastCompletedTransferPath)
         outState.putString(STATE_WORKSPACE, activeWorkspace.name)
+        outState.putString(STATE_FILES_VIEW_MODE, filesViewMode.name)
         outState.putBoolean(STATE_SITE_EDITOR_OPEN, siteEditorVisible)
         outState.putBoolean(STATE_NAVIGATION_OPEN, navigationOpen)
         // Intentionally never persist passwordInput or activeProfile: a recreated
@@ -520,6 +527,15 @@ class MainActivity : Activity() {
         addView(phoneChromeTitle, LinearLayout.LayoutParams(
             0, ViewGroup.LayoutParams.MATCH_PARENT, 1f
         ))
+        // Reference frame #6 has a distinct Files pane-mode control next
+        // to Search. This is an actual action, not a decorative grid icon.
+        phoneFilesViewButton = secondaryButton("▦") { openFilesViewChooser() }.apply {
+            contentDescription = "Choose Files view · Dual pane"
+            textSize = 21f
+            minWidth = 0
+            minimumWidth = 0
+        }
+        addView(phoneFilesViewButton, LinearLayout.LayoutParams(dp(40), dp(42)))
         phoneQuickButton = secondaryButton("⋯") { }.apply {
             contentDescription = "Quick navigation"
             textSize = 22f
@@ -567,6 +583,10 @@ class MainActivity : Activity() {
                     if (navigationOpen) getString(R.string.nav_close)
                     else getString(R.string.nav_open)
             }
+        }
+        if (::phoneFilesViewButton.isInitialized) {
+            phoneFilesViewButton.visibility =
+                if (activeWorkspace == Workspace.FILES && !searchMode) View.VISIBLE else View.GONE
         }
         val sitesOverview = activeWorkspace == Workspace.SITES && !siteEditorVisible
         val bookmarks = activeWorkspace == Workspace.BOOKMARKS
@@ -735,29 +755,48 @@ class MainActivity : Activity() {
             setBackgroundColor(PremiumReferenceStyle.raised)
             contentDescription = "File actions"
             val actions = listOf(
-                trackRemoteAction(toolbarButton("⇧\n" + getString(R.string.action_upload)) {
+                trackRemoteAction(toolbarButton(getString(R.string.action_upload)) {
                     uploadOrPickFile()
-                }.apply { contentDescription = getString(R.string.action_upload) }),
-                trackRemoteAction(toolbarButton("⇩\n" + getString(R.string.action_download)) {
+                }.apply {
+                    contentDescription = getString(R.string.action_upload)
+                    setPremiumActionIcon(R.drawable.ic_premium_action_upload)
+                }),
+                trackRemoteAction(toolbarButton(getString(R.string.action_download)) {
                     downloadRemoteFile()
-                }.apply { contentDescription = getString(R.string.action_download) }),
-                trackRemoteAction(toolbarButton("▱\n" + getString(R.string.action_new_folder)) {
+                }.apply {
+                    contentDescription = getString(R.string.action_download)
+                    setPremiumActionIcon(R.drawable.ic_premium_action_download)
+                }),
+                trackRemoteAction(toolbarButton(getString(R.string.action_new_folder)) {
                     promptNewRemoteFolder()
-                }.apply { contentDescription = getString(R.string.action_new_folder) }),
-                trackRemoteAction(toolbarButton("⌫\n" + getString(R.string.action_delete)) {
+                }.apply {
+                    contentDescription = getString(R.string.action_new_folder)
+                    setPremiumActionIcon(R.drawable.ic_premium_action_folder_add)
+                }),
+                trackRemoteAction(toolbarButton(getString(R.string.action_delete)) {
                     deleteRemoteFile()
-                }.apply { contentDescription = getString(R.string.action_delete) })
+                }.apply {
+                    contentDescription = getString(R.string.action_delete)
+                    setPremiumActionIcon(R.drawable.ic_premium_action_trash)
+                })
             )
             actions.forEach { item ->
                 item.setAllCaps(false)
-                item.textSize = 11f
+                item.textSize = 10f
+                item.gravity = Gravity.CENTER
+                item.background = PremiumReferenceStyle.surface(this@MainActivity,
+                    PremiumReferenceStyle.raised, 5, PremiumReferenceStyle.raised)
                 item.setPadding(dp(2), dp(3), dp(2), dp(3))
                 addView(item, LinearLayout.LayoutParams(0, dp(51), 1f))
             }
-            val more = toolbarButton("⋯\nMore") { }.apply {
+            val more = toolbarButton("More") { }.apply {
                 setAllCaps(false)
-                textSize = 11f
+                textSize = 10f
+                gravity = Gravity.CENTER
                 contentDescription = "More file actions"
+                background = PremiumReferenceStyle.surface(this@MainActivity,
+                    PremiumReferenceStyle.raised, 5, PremiumReferenceStyle.raised)
+                setPremiumActionIcon(R.drawable.ic_premium_action_more)
             }
             more.setOnClickListener {
                 android.widget.PopupMenu(this@MainActivity, more).apply {
@@ -1436,14 +1475,55 @@ class MainActivity : Activity() {
                 if (isRemote) remoteRows = entries else localRows = entries
                 addView(entries)
             }
-        twoPane.addView(pane("Remote /", true),
+        filesRemotePane = pane("Remote /", true)
+        filesLocalPane = pane("Local", false)
+        twoPane.addView(filesRemotePane,
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
                 .apply { marginEnd = dp(4) })
-        twoPane.addView(pane("Local", false),
+        twoPane.addView(filesLocalPane,
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
                 .apply { marginStart = dp(4) })
+        updateFilesViewMode()
         addView(twoPane)
         refreshLocalPane()
+    }
+
+    /**
+     * Frame #6: preserve the real dual-pane file browser by default, but let
+     * users switch to an unclipped full-width pane on narrow Android phones.
+     * No fake system storage folders are exposed beyond SAF permission.
+     */
+    private fun updateFilesViewMode() {
+        if (!::filesRemotePane.isInitialized || !::filesLocalPane.isInitialized) return
+        filesRemotePane.visibility =
+            if (filesViewMode == FilesViewMode.LOCAL) View.GONE else View.VISIBLE
+        filesLocalPane.visibility =
+            if (filesViewMode == FilesViewMode.REMOTE) View.GONE else View.VISIBLE
+        if (::phoneFilesViewButton.isInitialized) {
+            phoneFilesViewButton.contentDescription =
+                "Choose Files view · " + when (filesViewMode) {
+                    FilesViewMode.DUAL -> "Dual pane"
+                    FilesViewMode.REMOTE -> "Remote"
+                    FilesViewMode.LOCAL -> "Local"
+                }
+        }
+    }
+
+    private fun openFilesViewChooser() {
+        android.widget.PopupMenu(this, phoneFilesViewButton).apply {
+            menu.add(0, 1, 0, "Dual pane")
+            menu.add(0, 2, 1, "Remote only")
+            menu.add(0, 3, 2, "Local only")
+            setOnMenuItemClickListener { item ->
+                filesViewMode = when (item.itemId) {
+                    2 -> FilesViewMode.REMOTE
+                    3 -> FilesViewMode.LOCAL
+                    else -> FilesViewMode.DUAL
+                }
+                updateFilesViewMode()
+                true
+            }
+        }.show()
     }
 
     // Android SAF does not grant arbitrary /storage/emulated/0 traversal.
@@ -3375,6 +3455,10 @@ class MainActivity : Activity() {
     }
 
     private fun restoreUiState(state: Bundle) {
+        filesViewMode = runCatching {
+            FilesViewMode.valueOf(state.getString(STATE_FILES_VIEW_MODE) ?: "DUAL")
+        }.getOrDefault(FilesViewMode.DUAL)
+        updateFilesViewMode()
         protocolSpinner.setSelection(state.getInt(STATE_PROTOCOL, 0))
         hostInput.setText(state.getString(STATE_HOST).orEmpty())
         portInput.setText(state.getString(STATE_PORT).orEmpty())
@@ -3771,6 +3855,14 @@ class MainActivity : Activity() {
         setOnClickListener { onClick() }
     }
 
+    private fun Button.setPremiumActionIcon(resource: Int) {
+        val icon = getDrawable(resource)?.mutate() ?: return
+        icon.setTint(Brand.text)
+        icon.setBounds(0, 0, dp(19), dp(19))
+        setCompoundDrawables(null, icon, null, null)
+        compoundDrawablePadding = dp(4)
+    }
+
     private fun toolbarButton(value: String, destructive: Boolean = false, onClick: () -> Unit): Button = Button(this).apply {
         filterTouchesWhenObscured = true
         text = value
@@ -3861,6 +3953,7 @@ class MainActivity : Activity() {
         const val STATE_UPLOAD_DISPLAY_NAME = "ghostftp.uploadDisplayName"
         const val STATE_LAST_COMPLETED_PATH = "ghostftp.lastCompletedPath"
         const val STATE_WORKSPACE = "ghostftp.workspace"
+        const val STATE_FILES_VIEW_MODE = "ghostftp.filesViewMode"
         const val STATE_SITE_EDITOR_OPEN = "ghostftp.siteEditorOpen"
         const val STATE_NAVIGATION_OPEN = "ghostftp.navigationOpen"
 
