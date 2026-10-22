@@ -1831,6 +1831,9 @@ class MainActivity : Activity() {
             }, LinearLayout.LayoutParams(0, dp(40), 1f))
             isClickable = true
             isFocusable = true
+            foreground = android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(
+                    Color.argb(68, 131, 96, 255)), null, null)
             contentDescription = (if (directory) "Open folder " else "File ") + name
             setOnClickListener { onClick() }
         }
@@ -4172,8 +4175,8 @@ class MainActivity : Activity() {
 
     private fun workspaceNavItem(workspace: Workspace): TextView {
         val label = workspaceLabel(workspace)
-        val iconRail = false
-        // Keep the localized full label available even on the compact icon rail.
+        // Preserve the localized full label and the same leading icon
+        // regardless of viewport width.
         val displayLabel = label
         val iconResource = when (workspace) {
             Workspace.FILES -> R.drawable.ic_premium_nav_files
@@ -4196,11 +4199,9 @@ class MainActivity : Activity() {
             compoundDrawablePadding = dp(14)
             val icon = getDrawable(iconResource)?.mutate()
             icon?.setBounds(0, 0, dp(20), dp(20))
-            if (resources.configuration.screenWidthDp < 600) {
-                setCompoundDrawables(icon, null, null, null)
-            } else {
-                setCompoundDrawables(null, icon, null, null)
-            }
+            // Navigation icons remain on the leading edge on phones and
+            // tablets; the old trailing icon made tablet navigation diverge.
+            setCompoundDrawables(icon, null, null, null)
             setPadding(dp(14), dp(4), dp(8), dp(4))
             isClickable = true
             isFocusable = true
