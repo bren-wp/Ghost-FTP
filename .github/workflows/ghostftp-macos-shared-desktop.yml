@@ -128,6 +128,7 @@ jobs:
           mkdir -p dist/macos-shared
           ARCHIVE="dist/macos-shared/GhostFTP-macOS-Shared-${{ matrix.arch }}-v${VERSION}-Preview.zip"
           ditto -c -k --sequesterRsrc --keepParent "$APP" "$ARCHIVE"
+          # A single manifest covers ZIP and DMG after the DMG step below.
           (cd dist/macos-shared && shasum -a 256 "GhostFTP-macOS-Shared-${{ matrix.arch }}-v${VERSION}-Preview.zip" \
             > "GhostFTP-macOS-Shared-${{ matrix.arch }}-SHA256SUMS.txt")
           (cd dist/macos-shared && shasum -a 256 -c "GhostFTP-macOS-Shared-${{ matrix.arch }}-SHA256SUMS.txt")
@@ -139,11 +140,61 @@ jobs:
           # This checks package integrity. GUI launch, persistent Keychain
           # prompts and upgrades must still be validated on a real macOS device.
 
+
+      - name: Build no-Developer-ID installable DMG (with Applications link)
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="ghostftp-desktop/src-tauri/target/release/bundle/macos/Ghost FTP Desktop.app"
+          VERSION="$(node -p 'require("./version.json").version')"
+          ROOT="$RUNNER_TEMP/GhostFTP-macOS-DMG-${{ matrix.arch }}"
+          DMG="dist/macos-shared/GhostFTP-macOS-Shared-${{ matrix.arch }}-v$VERSION-Installable-Preview.dmg"
+          test -x "$APP/Contents/MacOS/ghostftp"
+          # The application uses a free ad-hoc code signature (not Developer ID).
+          # The DMG deliberately has no Apple Developer signature or notarization.
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign --display --verbose=4 "$APP" 2>&1 | grep -F 'Signature=adhoc'
+          lipo -archs "$APP/Contents/MacOS/ghostftp" | tr ' ' '\n' | grep -Fx '${{ matrix.arch }}'
+          mkdir -p "$ROOT"
+          ditto "$APP" "$ROOT/Ghost FTP Desktop.app"
+          ln -s /Applications "$ROOT/Applications"
+          cp docs/guides/MACOS_INSTALLATION.md "$ROOT/INSTALLATION.md"
+          hdiutil create -volname "Ghost FTP Desktop" -srcfolder "$ROOT" \
+            -format UDZO -ov "$DMG"
+          test -s "$DMG"
+          hdiutil verify "$DMG"
+          MOUNT="$RUNNER_TEMP/GhostFTP-Shared-Mounted-${{ matrix.arch }}"
+          mkdir -p "$MOUNT"
+          cleanup() { hdiutil detach "$MOUNT" -quiet >/dev/null 2>&1 || :; }
+          trap cleanup EXIT
+          hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT" "$DMG"
+          test -L "$MOUNT/Applications"
+          test -s "$MOUNT/INSTALLATION.md"
+          test "$(readlink "$MOUNT/Applications")" = "/Applications"
+          test -x "$MOUNT/Ghost FTP Desktop.app/Contents/MacOS/ghostftp"
+          codesign --verify --deep --strict --verbose=2 "$MOUNT/Ghost FTP Desktop.app"
+          cmp "$APP/Contents/MacOS/ghostftp" \
+            "$MOUNT/Ghost FTP Desktop.app/Contents/MacOS/ghostftp"
+          cleanup
+          trap - EXIT
+
+      - name: Verify SHA-256 manifest for ZIP and installable DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p 'require("./version.json").version')"
+          cd dist/macos-shared
+          shasum -a 256 "GhostFTP-macOS-Shared-${{ matrix.arch }}-v${VERSION}-Preview.zip" \
+            "GhostFTP-macOS-Shared-${{ matrix.arch }}-v${VERSION}-Installable-Preview.dmg" \
+            > "GhostFTP-macOS-Shared-${{ matrix.arch }}-SHA256SUMS.txt"
+          shasum -a 256 -c "GhostFTP-macOS-Shared-${{ matrix.arch }}-SHA256SUMS.txt"
+
       - name: Upload macOS shared desktop Preview for acceptance
         uses: actions/upload-artifact@v7
         with:
           name: GhostFTP-macOS-Shared-${{ matrix.arch }}-Preview
           path: |
             dist/macos-shared/GhostFTP-macOS-Shared-${{ matrix.arch }}-v*-Preview.zip
+            dist/macos-shared/GhostFTP-macOS-Shared-${{ matrix.arch }}-v*-Installable-Preview.dmg
             dist/macos-shared/GhostFTP-macOS-Shared-${{ matrix.arch }}-SHA256SUMS.txt
           if-no-files-found: error

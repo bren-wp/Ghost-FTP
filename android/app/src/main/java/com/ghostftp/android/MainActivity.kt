@@ -25,6 +25,7 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
@@ -36,6 +37,8 @@ import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
 class MainActivity : Activity() {
+    private enum class FilesViewMode { DUAL, REMOTE, LOCAL }
+
     private enum class Workspace(val labelRes: Int) {
         FILES(R.string.workspace_files),
         SITES(R.string.workspace_sites),
@@ -79,6 +82,12 @@ class MainActivity : Activity() {
     private var sessionFailedOperations = 0
     private var sessionCancelledOperations = 0
     private lateinit var syncBackupStatus: TextView
+    private lateinit var syncLocalFolderText: TextView
+    private lateinit var syncRemoteFolderText: TextView
+    private lateinit var syncComparisonText: TextView
+    private lateinit var syncCompareButton: Button
+    private var compareLocalRemoteEnabled = true
+    private var remoteInventoryLoaded = false
     private lateinit var cloudSection: View
     private lateinit var cloudTransferOptionsPanel: View
     private lateinit var bookmarksSection: View
@@ -122,6 +131,10 @@ class MainActivity : Activity() {
     private lateinit var phoneChromeTitle: TextView
     private lateinit var phoneMenuButton: Button
     private lateinit var phoneQuickButton: Button
+    private lateinit var phoneFilesViewButton: Button
+    private lateinit var filesRemotePane: View
+    private lateinit var filesLocalPane: View
+    private var filesViewMode = FilesViewMode.DUAL
     // Reference workspaces must not inherit Files-only actions or status cards.
     private lateinit var fileActionToolbar: View
     private lateinit var sessionStatusCard: View
@@ -130,6 +143,10 @@ class MainActivity : Activity() {
     private lateinit var workspaceFeedbackDetail: TextView
     private lateinit var settingsFeedback: TextView
     private lateinit var navigationRail: View
+    private lateinit var navConnectionCard: LinearLayout
+    private lateinit var navConnectionHost: TextView
+    private lateinit var navConnectionState: TextView
+    private lateinit var liveTransferIndicator: ProgressBar
     private lateinit var navigationScrim: View
     private lateinit var navigationToggleButton: Button
     private var navigationOpen = false
@@ -144,6 +161,12 @@ class MainActivity : Activity() {
     private lateinit var sitesSection: View
     private lateinit var sitesOverviewPanel: View
     private lateinit var siteEditorPanel: View
+    private lateinit var connectPreviewPanel: View
+    private lateinit var connectPreviewTitle: TextView
+    private lateinit var connectPreviewSubtitle: TextView
+    private lateinit var connectPreviewFacts: LinearLayout
+    private lateinit var connectPreviewPassword: EditText
+    private var connectPreviewSite: SavedSiteDefinition? = null
     private lateinit var siteFeedback: TextView
     private lateinit var sitesListRows: LinearLayout
     private lateinit var sitesSearch: EditText
@@ -184,6 +207,7 @@ class MainActivity : Activity() {
         setContentView(content)
         if (Build.VERSION.SDK_INT >= 35) content.requestApplyInsets()
         showIdleState()
+        updateSyncFolderLabels()
         displayPendingCloudRecovery()
         if (savedInstanceState != null) restoreUiState(savedInstanceState)
         installProtocolSelectionBehavior(seedDefaultPort = savedInstanceState == null)
@@ -205,6 +229,7 @@ class MainActivity : Activity() {
         outState.putString(STATE_UPLOAD_DISPLAY_NAME, selectedUploadDisplayName)
         outState.putString(STATE_LAST_COMPLETED_PATH, lastCompletedTransferPath)
         outState.putString(STATE_WORKSPACE, activeWorkspace.name)
+        outState.putString(STATE_FILES_VIEW_MODE, filesViewMode.name)
         outState.putBoolean(STATE_SITE_EDITOR_OPEN, siteEditorVisible)
         outState.putBoolean(STATE_NAVIGATION_OPEN, navigationOpen)
         // Intentionally never persist passwordInput or activeProfile: a recreated
@@ -324,13 +349,16 @@ class MainActivity : Activity() {
 
     private fun buildContent(): View {
         siteEditorPanel = buildConnectionCard()
+        connectPreviewPanel = buildConnectPreview()
         sitesOverviewPanel = buildSitesOverview()
         sitesSection = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(sitesOverviewPanel)
             addView(siteEditorPanel)
+            addView(connectPreviewPanel)
         }
         siteEditorPanel.visibility = View.GONE
+        connectPreviewPanel.visibility = View.GONE
         filesSection = buildFilesCard()
         transfersSection = buildTransfersCard()
         syncSection = buildSyncBackupCard()
@@ -515,6 +543,15 @@ class MainActivity : Activity() {
         addView(phoneChromeTitle, LinearLayout.LayoutParams(
             0, ViewGroup.LayoutParams.MATCH_PARENT, 1f
         ))
+        // Reference frame #6 has a distinct Files pane-mode control next
+        // to Search. This is an actual action, not a decorative grid icon.
+        phoneFilesViewButton = secondaryButton("▦") { openFilesViewChooser() }.apply {
+            contentDescription = "Choose Files view · Dual pane"
+            textSize = 21f
+            minWidth = 0
+            minimumWidth = 0
+        }
+        addView(phoneFilesViewButton, LinearLayout.LayoutParams(dp(40), dp(42)))
         phoneQuickButton = secondaryButton("⋯") { }.apply {
             contentDescription = "Quick navigation"
             textSize = 22f
@@ -562,6 +599,10 @@ class MainActivity : Activity() {
                     if (navigationOpen) getString(R.string.nav_close)
                     else getString(R.string.nav_open)
             }
+        }
+        if (::phoneFilesViewButton.isInitialized) {
+            phoneFilesViewButton.visibility =
+                if (activeWorkspace == Workspace.FILES && !searchMode) View.VISIBLE else View.GONE
         }
         val sitesOverview = activeWorkspace == Workspace.SITES && !siteEditorVisible
         val bookmarks = activeWorkspace == Workspace.BOOKMARKS
@@ -625,8 +666,37 @@ class MainActivity : Activity() {
                 addView(space(3))
             }
 
-            addView(space(12))
-            if (!iconRail) addView(TextView(this@MainActivity).apply {
+            addView(space(16))
+            // Reference #2: only actual authenticated sessions may appear
+            // in the Active Connection tile. Never substitute invented host data.
+            navConnectionCard = PremiumReferenceStyle.panelColumn(this@MainActivity, 10).apply {
+                visibility = View.GONE
+                contentDescription = "Active Connection"
+                addView(PremiumReferenceStyle.caption(this@MainActivity,
+                    "Active Connection", 12f, true).apply {
+                    typeface = Typeface.DEFAULT_BOLD
+                })
+                addView(space(5))
+                navConnectionHost = PremiumReferenceStyle.caption(this@MainActivity,
+                    "", 13f).apply {
+                    typeface = Typeface.DEFAULT_BOLD
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                }
+                addView(navConnectionHost)
+                navConnectionState = PremiumReferenceStyle.caption(this@MainActivity,
+                    "", 11f, true).apply {
+                    setTextColor(PremiumReferenceStyle.green)
+                    maxLines = 1
+                }
+                addView(navConnectionState)
+            }
+            addView(navConnectionCard, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+            addView(space(10))
+            if (!iconRail && resources.configuration.screenWidthDp >= 600)
+                addView(TextView(this@MainActivity).apply {
                 text = getString(R.string.label_private_session)
                 setTextColor(Brand.muted)
                 textSize = 10f
@@ -641,6 +711,18 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
         )
+    }
+
+    private fun updateNavConnectionCard() {
+        if (!::navConnectionCard.isInitialized) return
+        val session = activeProfile
+        navConnectionCard.visibility = if (session == null) View.GONE else View.VISIBLE
+        if (session != null) {
+            navConnectionHost.text = session.host
+            navConnectionState.text = session.protocol.label + " · Connected"
+            navConnectionCard.contentDescription =
+                "Active Connection: " + session.host + ", " + session.protocol.label
+        }
     }
 
     private fun buildHeader(): View = panel(strong = true).apply {
@@ -689,29 +771,48 @@ class MainActivity : Activity() {
             setBackgroundColor(PremiumReferenceStyle.raised)
             contentDescription = "File actions"
             val actions = listOf(
-                trackRemoteAction(toolbarButton("⇧\n" + getString(R.string.action_upload)) {
+                trackRemoteAction(toolbarButton(getString(R.string.action_upload)) {
                     uploadOrPickFile()
-                }.apply { contentDescription = getString(R.string.action_upload) }),
-                trackRemoteAction(toolbarButton("⇩\n" + getString(R.string.action_download)) {
+                }.apply {
+                    contentDescription = getString(R.string.action_upload)
+                    setPremiumActionIcon(R.drawable.ic_premium_action_upload)
+                }),
+                trackRemoteAction(toolbarButton(getString(R.string.action_download)) {
                     downloadRemoteFile()
-                }.apply { contentDescription = getString(R.string.action_download) }),
-                trackRemoteAction(toolbarButton("▱\n" + getString(R.string.action_new_folder)) {
+                }.apply {
+                    contentDescription = getString(R.string.action_download)
+                    setPremiumActionIcon(R.drawable.ic_premium_action_download)
+                }),
+                trackRemoteAction(toolbarButton(getString(R.string.action_new_folder)) {
                     promptNewRemoteFolder()
-                }.apply { contentDescription = getString(R.string.action_new_folder) }),
-                trackRemoteAction(toolbarButton("⌫\n" + getString(R.string.action_delete)) {
+                }.apply {
+                    contentDescription = getString(R.string.action_new_folder)
+                    setPremiumActionIcon(R.drawable.ic_premium_action_folder_add)
+                }),
+                trackRemoteAction(toolbarButton(getString(R.string.action_delete)) {
                     deleteRemoteFile()
-                }.apply { contentDescription = getString(R.string.action_delete) })
+                }.apply {
+                    contentDescription = getString(R.string.action_delete)
+                    setPremiumActionIcon(R.drawable.ic_premium_action_trash)
+                })
             )
             actions.forEach { item ->
                 item.setAllCaps(false)
-                item.textSize = 11f
+                item.textSize = 10f
+                item.gravity = Gravity.CENTER
+                item.background = PremiumReferenceStyle.surface(this@MainActivity,
+                    PremiumReferenceStyle.raised, 5, PremiumReferenceStyle.raised)
                 item.setPadding(dp(2), dp(3), dp(2), dp(3))
                 addView(item, LinearLayout.LayoutParams(0, dp(51), 1f))
             }
-            val more = toolbarButton("⋯\nMore") { }.apply {
+            val more = toolbarButton("More") { }.apply {
                 setAllCaps(false)
-                textSize = 11f
+                textSize = 10f
+                gravity = Gravity.CENTER
                 contentDescription = "More file actions"
+                background = PremiumReferenceStyle.surface(this@MainActivity,
+                    PremiumReferenceStyle.raised, 5, PremiumReferenceStyle.raised)
+                setPremiumActionIcon(R.drawable.ic_premium_action_more)
             }
             more.setOnClickListener {
                 android.widget.PopupMenu(this@MainActivity, more).apply {
@@ -1104,13 +1205,106 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(0, dp(39), 1f))
         addView(tabs)
         addView(space(12))
+        // Frame #4 uses a compact field matrix: aligned captions on the left,
+        // actual native controls on the right. Retain original EditTexts and
+        // Spinner instances so connection validation and state restoration
+        // remain identical to the tested implementation.
+        val compactFields: Map<View, String> = linkedMapOf(
+            siteNameInput to "Name",
+            protocolSpinner to "Protocol",
+            hostInput to "Host",
+            portInput to "Port",
+            usernameInput to "Username",
+            passwordInput to "Password"
+        )
+        val oldFieldLabels = compactFields.keys.mapNotNull { field ->
+            val index = original.indexOf(field)
+            original.getOrNull(index - 1)?.takeIf { it is TextView }
+        }.toSet()
+        val originalSave = original.firstOrNull {
+            it is Button && it.text.toString() == "Save new connection profile"
+        } as? Button
+        val originalUpdate = original.firstOrNull {
+            it is Button && it.text.toString() == "Update selected profile"
+        } as? Button
         original.forEach { view ->
-            (if (view in generalViews) general else advanced).addView(view)
+            when {
+                view in oldFieldLabels -> Unit
+                view in compactFields -> {
+                    if (view === passwordInput) {
+                        val method = LinearLayout(this@MainActivity).apply {
+                            orientation = LinearLayout.HORIZONTAL
+                            gravity = Gravity.CENTER_VERTICAL
+                        }
+                        method.addView(PremiumReferenceStyle.caption(this@MainActivity,
+                            "Authentication", 12f, true),
+                            LinearLayout.LayoutParams(dp(100), dp(43)))
+                        method.addView(PremiumReferenceStyle.caption(this@MainActivity,
+                            "Password", 13f).apply {
+                            setPadding(dp(12), 0, dp(12), 0)
+                            background = PremiumReferenceStyle.surface(this@MainActivity,
+                                PremiumReferenceStyle.raised, 8)
+                            contentDescription = "Password authentication"
+                        }, LinearLayout.LayoutParams(0, dp(42), 1f))
+                        general.addView(method)
+                        general.addView(space(5))
+                    }
+                    val row = LinearLayout(this@MainActivity).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        minimumHeight = dp(52)
+                    }
+                    row.addView(PremiumReferenceStyle.caption(this@MainActivity,
+                        compactFields.getValue(view), 12f, true),
+                        LinearLayout.LayoutParams(dp(100), dp(43)))
+                    row.addView(view, LinearLayout.LayoutParams(0, dp(42), 1f))
+                    if (view === passwordInput) {
+                        row.addView(PremiumReferenceStyle.caption(this@MainActivity,
+                            "◉", 18f).apply {
+                            gravity = Gravity.CENTER
+                            contentDescription = "Show or hide password"
+                            isFocusable = true
+                            isClickable = true
+                            setOnClickListener {
+                                val hidden = passwordInput.transformationMethod is
+                                    android.text.method.PasswordTransformationMethod
+                                passwordInput.transformationMethod = if (hidden)
+                                    android.text.method.HideReturnsTransformationMethod.getInstance()
+                                else android.text.method.PasswordTransformationMethod.getInstance()
+                                passwordInput.setSelection(passwordInput.text.length)
+                            }
+                        }, LinearLayout.LayoutParams(dp(42), dp(42)))
+                    }
+                    general.addView(row)
+                    general.addView(space(5))
+                }
+                view === originalSave -> advanced.addView(view)
+                view in generalViews -> general.addView(view)
+                else -> advanced.addView(view)
+            }
         }
-        general.addView(space(8))
-        general.addView(secondaryButton(getString(R.string.action_cancel)) {
+        general.addView(space(12))
+        val footer = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        footer.addView(PremiumReferenceStyle.action(this@MainActivity, "Cancel") {
             showSitesOverview()
-        }.apply { contentDescription = "Cancel site editing" })
+        }.apply { contentDescription = "Cancel site editing" },
+            LinearLayout.LayoutParams(0, dp(46), 1f))
+        footer.addView(gap(8))
+        footer.addView(PremiumReferenceStyle.action(this@MainActivity, "Save", true) {
+            // Invoke the already validated metadata-only save/update handlers.
+            // This UI wrapper must never persist passwords or bypass conflict
+            // checks implemented by those original guarded actions.
+            if (savedSitesSpinner.selectedItemPosition > 0) {
+                originalUpdate?.performClick()
+            } else {
+                originalSave?.performClick()
+            }
+        }.apply { contentDescription = "Save site" },
+            LinearLayout.LayoutParams(0, dp(46), 1f))
+        general.addView(footer)
         addView(general)
         addView(advanced)
     }
@@ -1176,15 +1370,13 @@ class MainActivity : Activity() {
                     PremiumReferenceStyle.panel, 10)
                 isClickable = true
                 isFocusable = true
-                contentDescription = "Edit saved site " + site.name
-                setOnClickListener { showSiteEditor(site) }
+                contentDescription = "Open saved site " + site.name
+                setOnClickListener { showConnectPreview(site) }
             }
-            item.addView(PremiumReferenceStyle.caption(this, "▣", 22f).apply {
-                setTextColor(PremiumReferenceStyle.purpleLight)
-                gravity = Gravity.CENTER
-                background = PremiumReferenceStyle.surface(this@MainActivity,
-                    PremiumReferenceStyle.selected, 8)
-            }, LinearLayout.LayoutParams(dp(40), dp(40)))
+            // Reference screen #3 uses protocol-colored server tiles, not
+            // the same purple symbol for every saved site.
+            item.addView(PremiumReferenceStyle.serverIcon(this, site.protocol),
+                LinearLayout.LayoutParams(dp(40), dp(40)))
             item.addView(gap(10))
             val details = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -1203,7 +1395,8 @@ class MainActivity : Activity() {
                     menu.add(0, 3, 2, "Remove")
                     setOnMenuItemClickListener { menuItem ->
                         when (menuItem.itemId) {
-                            1, 2 -> showSiteEditor(site)
+                            1 -> showSiteEditor(site)
+                            2 -> showConnectPreview(site)
                             3 -> requestInlineConfirmation("Remove saved site?",
                                 "Remove " + site.name + " from this device?", "Remove") {
                                 if (SavedSiteProfiles.remove(this@MainActivity, site.name)) {
@@ -1224,11 +1417,114 @@ class MainActivity : Activity() {
         }
     }
 
+    /**
+     * Reference frame #5: a real saved-profile overview rather than the
+     * full Edit Site form. The password is intentionally never persisted.
+     * The existing ConnectionController owns actual FTP/FTPS/SFTP behavior.
+     */
+    private fun buildConnectPreview(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(10), dp(20), dp(10), dp(18))
+        background = PremiumReferenceStyle.surface(this@MainActivity)
+        contentDescription = "Connect to saved site"
+
+        connectPreviewTitle = PremiumReferenceStyle.caption(this@MainActivity,
+            "", 19f).apply { typeface = Typeface.DEFAULT_BOLD }
+        connectPreviewSubtitle = PremiumReferenceStyle.caption(this@MainActivity,
+            "", 12f, true)
+        addView(PremiumReferenceStyle.caption(this@MainActivity,
+            "▣", 34f).apply {
+            gravity = Gravity.CENTER
+            setTextColor(PremiumReferenceStyle.purpleLight)
+            background = PremiumReferenceStyle.surface(this@MainActivity,
+                PremiumReferenceStyle.selected, 12)
+        }, LinearLayout.LayoutParams(dp(64), dp(64)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        addView(space(12))
+        addView(connectPreviewTitle.apply { gravity = Gravity.CENTER })
+        addView(connectPreviewSubtitle.apply { gravity = Gravity.CENTER })
+        addView(space(16))
+        connectPreviewFacts = PremiumReferenceStyle.panelColumn(this@MainActivity)
+        addView(connectPreviewFacts)
+        addView(space(12))
+        connectPreviewPassword = input("Password for this session",
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD).apply {
+            isSaveEnabled = false
+            contentDescription = "Session password"
+        }
+        addView(connectPreviewPassword,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(45)))
+        addView(space(12))
+        addView(PremiumReferenceStyle.action(this@MainActivity, "Connect", true) {
+            val site = connectPreviewSite ?: return@action
+            if (operationInFlight) return@action
+            // Saved profile metadata is loaded by showSiteEditor. Recheck it
+            // before connecting: profiles can be removed in the meantime.
+            if (SavedSiteProfiles.read(this@MainActivity).none {
+                    it.name.equals(site.name, ignoreCase = true) &&
+                        it.host == site.host && it.protocol == site.protocol &&
+                        it.port == site.port && it.username == site.username &&
+                        it.remotePath == site.remotePath &&
+                        it.fingerprint == site.fingerprint &&
+                        it.keepAliveSeconds == site.keepAliveSeconds
+                }) {
+                showMessage("Site changed", "Reopen the saved site before connecting.")
+                return@action
+            }
+            passwordInput.setText(connectPreviewPassword.text.toString())
+            connectPreviewPassword.text.clear()
+            openConnection()
+        }.apply { contentDescription = "Connect to selected site" },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(47)))
+        addView(space(10))
+        addView(PremiumReferenceStyle.action(this@MainActivity, "Edit site") {
+            val site = connectPreviewSite ?: return@action
+            showSiteEditor(site)
+        }.apply { contentDescription = "Edit this saved site" })
+        addView(space(7))
+        addView(PremiumReferenceStyle.action(this@MainActivity, "Back to Sites") {
+            showSitesOverview()
+        }.apply { contentDescription = "Back to Sites" })
+    }
+
+    private fun showConnectPreview(site: SavedSiteDefinition) {
+        showSiteEditor(site)
+        connectPreviewSite = site
+        connectPreviewTitle.text = site.name
+        connectPreviewSubtitle.text = site.protocol.label + " · " + site.host
+        connectPreviewFacts.removeAllViews()
+        for ((label, value) in listOf(
+            "Host" to site.host,
+            "Port" to site.port.toString(),
+            "Username" to site.username,
+            "Authentication" to "Password"
+        )) {
+            connectPreviewFacts.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(5), 0, dp(5))
+                addView(PremiumReferenceStyle.caption(this@MainActivity,
+                    label, 12f, true), LinearLayout.LayoutParams(0, dp(28), 0.45f))
+                addView(PremiumReferenceStyle.caption(this@MainActivity,
+                    value, 12f), LinearLayout.LayoutParams(0, dp(28), 0.55f))
+            })
+        }
+        connectPreviewPassword.text.clear()
+        siteEditorPanel.visibility = View.GONE
+        sitesOverviewPanel.visibility = View.GONE
+        connectPreviewPanel.visibility = View.VISIBLE
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = "Connect"
+        contentScroll.post { contentScroll.scrollTo(0, 0) }
+    }
+
     private fun showSiteEditor(site: SavedSiteDefinition?) {
+        connectPreviewSite = null
+        if (::connectPreviewPanel.isInitialized) connectPreviewPanel.visibility = View.GONE
         siteEditorVisible = true
         siteFeedback.visibility = View.GONE
         siteEditorPanel.visibility = View.VISIBLE
         sitesOverviewPanel.visibility = View.GONE
+        if (::phoneChromeTitle.isInitialized) {
+            phoneChromeTitle.text = if (site == null) "Add Site" else "Edit Site"
+        }
         if (site == null) {
             siteNameInput.text.clear()
             hostInput.text.clear()
@@ -1256,6 +1552,9 @@ class MainActivity : Activity() {
     }
 
     private fun showSitesOverview() {
+        connectPreviewSite = null
+        if (::connectPreviewPassword.isInitialized) connectPreviewPassword.text.clear()
+        if (::connectPreviewPanel.isInitialized) connectPreviewPanel.visibility = View.GONE
         siteEditorVisible = false
         siteEditorPanel.visibility = View.GONE
         sitesOverviewPanel.visibility = View.VISIBLE
@@ -1382,14 +1681,55 @@ class MainActivity : Activity() {
                 if (isRemote) remoteRows = entries else localRows = entries
                 addView(entries)
             }
-        twoPane.addView(pane("Remote /", true),
+        filesRemotePane = pane("Remote /", true)
+        filesLocalPane = pane("Local", false)
+        twoPane.addView(filesRemotePane,
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
                 .apply { marginEnd = dp(4) })
-        twoPane.addView(pane("Local", false),
+        twoPane.addView(filesLocalPane,
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
                 .apply { marginStart = dp(4) })
+        updateFilesViewMode()
         addView(twoPane)
         refreshLocalPane()
+    }
+
+    /**
+     * Frame #6: preserve the real dual-pane file browser by default, but let
+     * users switch to an unclipped full-width pane on narrow Android phones.
+     * No fake system storage folders are exposed beyond SAF permission.
+     */
+    private fun updateFilesViewMode() {
+        if (!::filesRemotePane.isInitialized || !::filesLocalPane.isInitialized) return
+        filesRemotePane.visibility =
+            if (filesViewMode == FilesViewMode.LOCAL) View.GONE else View.VISIBLE
+        filesLocalPane.visibility =
+            if (filesViewMode == FilesViewMode.REMOTE) View.GONE else View.VISIBLE
+        if (::phoneFilesViewButton.isInitialized) {
+            phoneFilesViewButton.contentDescription =
+                "Choose Files view · " + when (filesViewMode) {
+                    FilesViewMode.DUAL -> "Dual pane"
+                    FilesViewMode.REMOTE -> "Remote"
+                    FilesViewMode.LOCAL -> "Local"
+                }
+        }
+    }
+
+    private fun openFilesViewChooser() {
+        android.widget.PopupMenu(this, phoneFilesViewButton).apply {
+            menu.add(0, 1, 0, "Dual pane")
+            menu.add(0, 2, 1, "Remote only")
+            menu.add(0, 3, 2, "Local only")
+            setOnMenuItemClickListener { item ->
+                filesViewMode = when (item.itemId) {
+                    2 -> FilesViewMode.REMOTE
+                    3 -> FilesViewMode.LOCAL
+                    else -> FilesViewMode.DUAL
+                }
+                updateFilesViewMode()
+                true
+            }
+        }.show()
     }
 
     // Android SAF does not grant arbitrary /storage/emulated/0 traversal.
@@ -1430,11 +1770,35 @@ class MainActivity : Activity() {
                     localBrowseDirectory = file
                     refreshLocalPane()
                 } else {
-                    android.widget.Toast.makeText(this@MainActivity,
-                        file.name + " · use Upload to choose a document", android.widget.Toast.LENGTH_SHORT).show()
+                    selectLocalUploadFile(file)
                 }
             })
         }
+    }
+
+    /** Clicking a real app-owned local file selects it for the existing
+     * guarded upload action. Never grant file:// URIs to another process.
+     */
+    private fun selectLocalUploadFile(file: File) {
+        val base = (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+            ?: filesDir).canonicalFile
+        val chosen = runCatching { file.canonicalFile }.getOrNull()
+        if (chosen == null || !chosen.path.startsWith(base.path + File.separator) ||
+            !chosen.isFile || !chosen.canRead()) {
+            showMessage("Local file unavailable",
+                "Ghost FTP cannot read this file inside its private Downloads folder.")
+            return
+        }
+        selectedUploadUri = Uri.fromFile(chosen)
+        selectedUploadDisplayName = chosen.name
+        uploadSelectionText.text = getString(
+            R.string.state_selected_local_file, selectedUploadDisplayName)
+        uploadRemoteNameInput.setText(chosen.name)
+        transferStateText.text = getString(
+            R.string.state_upload_file_selected, selectedUploadDisplayName)
+        appendActivity(getString(R.string.action_upload),
+            getString(R.string.activity_upload_selected_detail, selectedUploadDisplayName))
+        showMessage("Local file selected", "Tap Upload to send this file to the connected server.")
     }
 
     private fun compactBrowserRow(name: String, directory: Boolean, onClick: () -> Unit): View =
@@ -1758,6 +2122,20 @@ class MainActivity : Activity() {
         // Reference #8: a real transfer-details route, never invented progress
         // bars, speed, ETA or synthetic queue jobs. This Android engine runs a
         // single cancellable operation and preserves its actual status/path.
+        // A real in-flight transfer has indeterminate activity feedback.
+        // No fake percentage, speed, elapsed time or multi-job queue is shown.
+        liveTransferIndicator = ProgressBar(this@MainActivity, null,
+            android.R.attr.progressBarStyleHorizontal).apply {
+            isIndeterminate = true
+            indeterminateTintList = android.content.res.ColorStateList.valueOf(
+                PremiumReferenceStyle.purpleLight)
+            visibility = if (operationInFlight) View.VISIBLE else View.GONE
+            contentDescription = "Active transfer in progress"
+        }
+        queuePanel.addView(liveTransferIndicator,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(4)))
+        queuePanel.addView(space(8))
+
         transferOverviewText.isClickable = true
         transferOverviewText.isFocusable = true
         transferOverviewText.contentDescription = "View transfer details"
@@ -1836,12 +2214,77 @@ class MainActivity : Activity() {
     }
 
     private fun buildSyncBackupCard(): View = panel().apply {
-        addView(sectionTitle(workspaceLabel(Workspace.SYNC)))
-        addView(
-            sectionDescription(
-                "Back up and restore non-secret connection settings through Android documents. Passwords are never included."
-            )
-        )
+        // Reference frame #12: a real side-by-side directory comparison,
+        // restricted to one verified remote listing and the app-owned local
+        // Downloads sandbox. Never imply a recursive mirror was performed.
+        syncLocalFolderText = PremiumReferenceStyle.caption(this@MainActivity,
+            "", 12f, true)
+        syncRemoteFolderText = PremiumReferenceStyle.caption(this@MainActivity,
+            "", 12f, true)
+        val localCard = PremiumReferenceStyle.panelColumn(this@MainActivity).apply {
+            addView(PremiumReferenceStyle.caption(this@MainActivity,
+                "📁  Local", 14f).apply { typeface = Typeface.DEFAULT_BOLD })
+            addView(syncLocalFolderText)
+        }
+        val remoteCard = PremiumReferenceStyle.panelColumn(this@MainActivity).apply {
+            addView(PremiumReferenceStyle.caption(this@MainActivity,
+                "▣  Remote", 14f).apply { typeface = Typeface.DEFAULT_BOLD })
+            addView(syncRemoteFolderText)
+        }
+        addView(localCard)
+        addView(space(9))
+        addView(PremiumReferenceStyle.caption(this@MainActivity, "⇄", 23f).apply {
+            gravity = Gravity.CENTER
+            setTextColor(PremiumReferenceStyle.purpleLight)
+            contentDescription = "Compare local and remote directories"
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)))
+        addView(remoteCard)
+        addView(space(14))
+        addView(android.widget.Switch(this@MainActivity).apply {
+            text = "Compare directories"
+            textSize = 14f
+            setTextColor(Brand.text)
+            isChecked = true
+            contentDescription = "Compare directories"
+            setOnCheckedChangeListener { _, enabled ->
+                compareLocalRemoteEnabled = enabled
+                syncCompareButton.isEnabled = enabled
+            }
+        })
+        addView(android.widget.Switch(this@MainActivity).apply {
+            text = "Synchronize"
+            textSize = 14f
+            setTextColor(Brand.textSoft)
+            isEnabled = false
+            isChecked = false
+            contentDescription = "Automatic synchronization requires verified conflict handling"
+        })
+        addView(android.widget.Switch(this@MainActivity).apply {
+            text = "Mirror (delete extra files)"
+            textSize = 14f
+            setTextColor(Brand.textSoft)
+            isEnabled = false
+            isChecked = false
+            contentDescription = "Destructive mirror is unavailable"
+        })
+        addView(space(9))
+        syncCompareButton = primaryButton("Compare") { compareCurrentDirectories() }.apply {
+            contentDescription = "Compare current local and remote directories"
+        }
+        addView(syncCompareButton,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)))
+        addView(space(10))
+        syncComparisonText = PremiumReferenceStyle.caption(this@MainActivity,
+            "Connect, refresh Files and compare current folder names. No files are changed.",
+            12f, true).apply {
+            setLineSpacing(0f, 1.15f)
+        }
+        addView(syncComparisonText)
+        addView(space(22))
+        addView(sectionTitle("Connection settings backup"))
+        addView(sectionDescription(
+            "Export or restore non-secret connection settings. Passwords are never included."
+        ))
 
         syncBackupStatus = TextView(this@MainActivity).apply {
             text = "No settings backup has been created or restored in this session."
@@ -1873,6 +2316,71 @@ class MainActivity : Activity() {
             buttonParams(weight = 1f)
         )
         addView(actions)
+    }
+
+    private fun updateSyncFolderLabels() {
+        if (!::syncLocalFolderText.isInitialized) return
+        val base = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir
+        syncLocalFolderText.text = "App Downloads · " + (localBrowseDirectory ?: base).name
+        syncRemoteFolderText.text =
+            activeProfile?.remotePath ?: "Connect to a remote site"
+    }
+
+    private fun compareCurrentDirectories() {
+        if (!compareLocalRemoteEnabled || !::syncComparisonText.isInitialized) return
+        val profile = activeProfile
+        if (profile == null || !remoteInventoryLoaded) {
+            syncComparisonText.text =
+                "Connect and refresh the remote Files pane before comparing."
+            return
+        }
+        if (remotePathInput.text.toString().trim().ifEmpty { "/" } != profile.remotePath) {
+            syncComparisonText.text =
+                "The remote path changed. Refresh Files before comparing to avoid stale results."
+            return
+        }
+        val base = (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+            ?: filesDir).canonicalFile
+        val current = runCatching { (localBrowseDirectory ?: base).canonicalFile }
+            .getOrNull()
+        if (current == null || !current.isDirectory ||
+            (current.path != base.path &&
+                !current.path.startsWith(base.path + File.separator))) {
+            syncComparisonText.text = "The selected local folder is not accessible."
+            return
+        }
+        val localEntries = current.listFiles()
+        if (localEntries == null) {
+            syncComparisonText.text = "Local files could not be read; no comparison was made."
+            return
+        }
+        val serverEntries = lastRemoteInventory.filter {
+            it.remotePath != null && (it.isDirectory || it.isFile)
+        }
+        if (localEntries.size > 150 || serverEntries.size > 150) {
+            syncComparisonText.text =
+                "This directory exceeds the 150-entry safe comparison limit. " +
+                "Narrow the folder or use a desktop tool. Nothing was changed."
+            return
+        }
+        val local = localEntries
+            .filter { file ->
+                runCatching {
+                    !file.isHidden && file.canonicalFile.path.startsWith(
+                        base.path + File.separator)
+                }.getOrDefault(false)
+            }?.take(150).orEmpty().associate { it.name to it.isDirectory }
+        val remote = serverEntries.associate { it.name to it.isDirectory }
+        val onlyLocal = local.keys - remote.keys
+        val onlyRemote = remote.keys - local.keys
+        val differentTypes = local.keys.intersect(remote.keys)
+            .count { local[it] != remote[it] }
+        syncComparisonText.text =
+            "Current folders: " + local.size + " local / " + remote.size + " remote. " +
+            onlyLocal.size + " only local, " + onlyRemote.size + " only remote, " +
+            differentTypes + " type conflicts. " +
+            "This is a read-only snapshot comparison; nothing was synchronized or deleted."
+        syncComparisonText.contentDescription = syncComparisonText.text
     }
 
     private fun cloudLinkField(hintText: String): EditText = EditText(this).apply {
@@ -2649,12 +3157,20 @@ class MainActivity : Activity() {
         if (workspace != Workspace.SITES && siteEditorVisible) {
             siteEditorVisible = false
             siteEditorPanel.visibility = View.GONE
+            if (::connectPreviewPanel.isInitialized) connectPreviewPanel.visibility = View.GONE
+            connectPreviewSite = null
+            if (::connectPreviewPassword.isInitialized) connectPreviewPassword.text.clear()
             sitesOverviewPanel.visibility = View.VISIBLE
         }
         if (::workspaceTitle.isInitialized) workspaceTitle.text = workspaceLabel(workspace)
         if (::phoneChromeTitle.isInitialized) {
-            phoneChromeTitle.text = if (workspace == Workspace.SITES && siteEditorVisible)
-                "Add / Edit Site" else workspaceLabel(workspace)
+            phoneChromeTitle.text =
+                if (workspace == Workspace.SITES &&
+                    ::connectPreviewPanel.isInitialized &&
+                    connectPreviewPanel.visibility == View.VISIBLE) "Connect"
+                else if (workspace == Workspace.SITES && siteEditorVisible) {
+                    if (savedSitesSpinner.selectedItemPosition > 0) "Edit Site" else "Add Site"
+                } else workspaceLabel(workspace)
         }
         updatePhoneChromeActions()
         // Do not show stale success/status messages when switching workspaces.
@@ -2685,6 +3201,9 @@ class MainActivity : Activity() {
                     workspaceContainer.announceForAccessibility(getString(R.string.workspace_announce, workspaceLabel(workspace)))
                 }
             }
+        }
+        if (workspace == Workspace.SYNC) {
+            updateSyncFolderLabels()
         }
         if (workspace == Workspace.BOOKMARKS && ::bookmarksRows.isInitialized) {
             refreshBookmarks()
@@ -2890,6 +3409,8 @@ class MainActivity : Activity() {
         statusTitle.text = result.title
         statusDetail.text = result.detail
         lastRemoteInventory = result.rows.filter { it.remotePath != null }
+        remoteInventoryLoaded = true
+        updateSyncFolderLabels()
         if (::remoteDirectoryLabel.isInitialized) {
             remoteDirectoryLabel.text = profile.remotePath
         }
@@ -2907,6 +3428,7 @@ class MainActivity : Activity() {
 
     private fun showConnectionError(error: Throwable, profile: ConnectionProfile) {
         if (!uiReady()) return
+        remoteInventoryLoaded = false
         statusTitle.text = getString(R.string.status_connection_unavailable)
         val rawDetail = error.message ?: getString(R.string.status_connection_unavailable_detail)
         val safeDetail = redactSensitiveErrorText(rawDetail, listOf(profile.password))
@@ -2973,6 +3495,8 @@ class MainActivity : Activity() {
         statusTitle.text = getString(R.string.status_ready)
         statusDetail.text = getString(R.string.status_no_active_session)
         lastRemoteInventory = emptyList()
+        remoteInventoryLoaded = false
+        updateSyncFolderLabels()
         remoteRows.removeAllViews()
         remoteRows.addView(row(getString(R.string.workspace_files), getString(R.string.state_connect_to_load_files)))
         activityRows.removeAllViews()
@@ -2990,6 +3514,10 @@ class MainActivity : Activity() {
         remoteActionButtons.forEach { it.isEnabled = !busy && hasActiveSession }
         busySensitiveLocalButtons.forEach { it.isEnabled = !busy }
         sessionDisconnectButtons.forEach { it.isEnabled = hasActiveSession }
+        updateNavConnectionCard()
+        if (::liveTransferIndicator.isInitialized) {
+            liveTransferIndicator.visibility = if (operationInFlight) View.VISIBLE else View.GONE
+        }
     }
 
     private fun uploadOrPickFile() {
@@ -3303,6 +3831,10 @@ class MainActivity : Activity() {
     }
 
     private fun restoreUiState(state: Bundle) {
+        filesViewMode = runCatching {
+            FilesViewMode.valueOf(state.getString(STATE_FILES_VIEW_MODE) ?: "DUAL")
+        }.getOrDefault(FilesViewMode.DUAL)
+        updateFilesViewMode()
         protocolSpinner.setSelection(state.getInt(STATE_PROTOCOL, 0))
         hostInput.setText(state.getString(STATE_HOST).orEmpty())
         portInput.setText(state.getString(STATE_PORT).orEmpty())
@@ -3699,6 +4231,14 @@ class MainActivity : Activity() {
         setOnClickListener { onClick() }
     }
 
+    private fun Button.setPremiumActionIcon(resource: Int) {
+        val icon = getDrawable(resource)?.mutate() ?: return
+        icon.setTint(Brand.text)
+        icon.setBounds(0, 0, dp(19), dp(19))
+        setCompoundDrawables(null, icon, null, null)
+        compoundDrawablePadding = dp(4)
+    }
+
     private fun toolbarButton(value: String, destructive: Boolean = false, onClick: () -> Unit): Button = Button(this).apply {
         filterTouchesWhenObscured = true
         text = value
@@ -3789,6 +4329,7 @@ class MainActivity : Activity() {
         const val STATE_UPLOAD_DISPLAY_NAME = "ghostftp.uploadDisplayName"
         const val STATE_LAST_COMPLETED_PATH = "ghostftp.lastCompletedPath"
         const val STATE_WORKSPACE = "ghostftp.workspace"
+        const val STATE_FILES_VIEW_MODE = "ghostftp.filesViewMode"
         const val STATE_SITE_EDITOR_OPEN = "ghostftp.siteEditorOpen"
         const val STATE_NAVIGATION_OPEN = "ghostftp.navigationOpen"
 

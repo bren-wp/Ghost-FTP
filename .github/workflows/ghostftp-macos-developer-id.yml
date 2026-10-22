@@ -1,0 +1,212 @@
+name: Ghost FTP macOS Developer ID candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Existing immutable release version (for example 0.99.5)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-macos-production-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  notarize:
+    name: Developer ID notarization (${{ matrix.arch }})
+    environment: macos-production-signing
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-15, arch: arm64 }
+          - { runner: macos-15-intel, arch: x86_64 }
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ format('refs/tags/v{0}', inputs.version) }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ghostftp-desktop/src-tauri
+
+      - name: Verify immutable source, architecture and required Apple identity
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.GHOSTFTP_MACOS_TEAM_ID }}
+          P12_BASE64: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          NOTARY_P8_BASE64: ${{ secrets.GHOSTFTP_MACOS_NOTARY_P8_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.GHOSTFTP_MACOS_NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.GHOSTFTP_MACOS_NOTARY_ISSUER_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          test "$(uname -m)" = "${{ matrix.arch }}"
+          test "$(node -p 'require("./version.json").version')" = "$VERSION"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/v${VERSION}^{commit}")"
+          test -f "docs/releases/${VERSION}.md"
+          node .github/scripts/sync-version.mjs --check
+          node .github/scripts/check-release-channel.mjs
+          for var in APPLE_SIGNING_IDENTITY APPLE_TEAM_ID P12_BASE64 P12_PASSWORD NOTARY_P8_BASE64 NOTARY_KEY_ID NOTARY_ISSUER_ID; do
+            if [ -z "${!var:-}" ]; then
+              echo "::error::Production signing credential $var missing. Developer ID is required."
+              exit 1
+            fi
+          done
+          [[ "$APPLE_SIGNING_IDENTITY" == "Developer ID Application:"* ]]
+          [[ "$APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]
+          xcrun notarytool --help >/dev/null
+          echo "GHOSTFTP_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Import certificate into an isolated ephemeral keychain
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_IDENTITY }}
+          P12_BASE64: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          NOTARY_P8_BASE64: ${{ secrets.GHOSTFTP_MACOS_NOTARY_P8_BASE64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          KEYCHAIN="$RUNNER_TEMP/ghostftp-dev-id.keychain-db"
+          PASSWORD="$(uuidgen)-$(uuidgen)"
+          P12="$RUNNER_TEMP/dev-id.p12"
+          P8="$RUNNER_TEMP/notary.p8"
+          printf '%s' "$P12_BASE64" | base64 -D > "$P12"
+          printf '%s' "$NOTARY_P8_BASE64" | base64 -D > "$P8"
+          test -s "$P12" && test -s "$P8"
+          security create-keychain -p "$PASSWORD" "$KEYCHAIN"
+          security unlock-keychain -p "$PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security import "$P12" -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN"
+          security find-identity -v -p codesigning "$KEYCHAIN" | grep -F "$APPLE_SIGNING_IDENTITY"
+          echo "GHOSTFTP_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          echo "GHOSTFTP_NOTARY_KEY_PATH=$P8" >> "$GITHUB_ENV"
+
+      - name: Build and test real native Ghost FTP macOS client
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.GHOSTFTP_MACOS_DEVELOPER_ID_IDENTITY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ghostftp-desktop
+          npm ci
+          npm run check
+          npm run check:ui
+          npm run build
+          cd src-tauri
+          cargo metadata --locked --format-version 1 >/dev/null
+          cargo test -p ghostftp --lib --locked
+          cd ../..
+          if ! command -v rsvg-convert >/dev/null 2>&1; then brew install librsvg; fi
+          ICONSET="$RUNNER_TEMP/GhostFTP.iconset"
+          mkdir -p "$ICONSET"
+          rsvg-convert --width=1024 --height=1024 assets/branding/ghostftp-app-icon.svg \
+            --output="$RUNNER_TEMP/icon.png"
+          for size in 16 32 128 256 512; do
+            sips --resampleHeightWidth "$size" "$size" "$RUNNER_TEMP/icon.png" \
+              --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+            double=$((size * 2))
+            sips --resampleHeightWidth "$double" "$double" "$RUNNER_TEMP/icon.png" \
+              --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+          done
+          iconutil --convert icns "$ICONSET" --output ghostftp-desktop/src-tauri/icons/icon.icns
+          cp "$RUNNER_TEMP/icon.png" ghostftp-desktop/src-tauri/icons/icon.png
+          cd ghostftp-desktop
+          npm run tauri -- build --bundles app --config src-tauri/tauri.macos.conf.json
+
+      - name: Verify Developer ID and hardened runtime
+        env:
+          APPLE_TEAM_ID: ${{ secrets.GHOSTFTP_MACOS_TEAM_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="ghostftp-desktop/src-tauri/target/release/bundle/macos/Ghost FTP Desktop.app"
+          test -x "$APP/Contents/MacOS/ghostftp"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" = "com.ghostftp.desktop"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" = "$VERSION"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign --display --verbose=4 "$APP" 2> "$RUNNER_TEMP/signature.txt"
+          grep -F 'Authority=Developer ID Application:' "$RUNNER_TEMP/signature.txt"
+          grep -F "TeamIdentifier=$APPLE_TEAM_ID" "$RUNNER_TEMP/signature.txt"
+          grep -E 'flags=.*runtime' "$RUNNER_TEMP/signature.txt"
+          echo "GHOSTFTP_APP=$APP" >> "$GITHUB_ENV"
+
+      - name: Apple notarize signed exact-source archive and staple ticket
+        env:
+          NOTARY_KEY_ID: ${{ secrets.GHOSTFTP_MACOS_NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.GHOSTFTP_MACOS_NOTARY_ISSUER_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/macos-production
+          SUBMISSION="$RUNNER_TEMP/ghostftp-for-notary.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$GHOSTFTP_APP" "$SUBMISSION"
+          xcrun notarytool submit "$SUBMISSION" \
+            --key "$GHOSTFTP_NOTARY_KEY_PATH" --key-id "$NOTARY_KEY_ID" \
+            --issuer "$NOTARY_ISSUER_ID" --wait --output-format json \
+            > "dist/macos-production/notarization-${{ matrix.arch }}.json"
+          node -e '
+            const d=require("./dist/macos-production/notarization-${{ matrix.arch }}.json");
+            if(d.status!=="Accepted" || !d.id) { console.error("Notarization rejected:",d.status); process.exit(1) }
+            console.log("Accepted notarization:",d.id);
+          '
+          xcrun stapler staple "$GHOSTFTP_APP"
+          xcrun stapler validate "$GHOSTFTP_APP"
+          codesign --verify --deep --strict --verbose=2 "$GHOSTFTP_APP"
+          spctl --assess --type execute --verbose=4 "$GHOSTFTP_APP"
+
+      - name: Package verified notarized candidate with independent SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="dist/macos-production/GhostFTP-macOS-${{ matrix.arch }}-v${VERSION}-DeveloperID-Notarized-Candidate.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$GHOSTFTP_APP" "$ARCHIVE"
+          shasum -a 256 "$ARCHIVE" > "$ARCHIVE.sha256"
+          shasum -a 256 -c "$ARCHIVE.sha256"
+          EXTRACT="$RUNNER_TEMP/GhostFTP-Extract"
+          mkdir -p "$EXTRACT"
+          ditto -x -k "$ARCHIVE" "$EXTRACT"
+          APP="$EXTRACT/Ghost FTP Desktop.app"
+          cmp "$GHOSTFTP_APP/Contents/MacOS/ghostftp" "$APP/Contents/MacOS/ghostftp"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          xcrun stapler validate "$APP"
+          spctl --assess --type execute --verbose=4 "$APP"
+          node -e '
+            const fs=require("node:fs");
+            const data={version:process.env.VERSION,sourceSha:process.env.GHOSTFTP_SOURCE_SHA,
+              arch:"${{ matrix.arch }}",bundleId:"com.ghostftp.desktop",
+              notarized:true,physicalMacAcceptance:"NOT VERIFIED",publicProductionRelease:false};
+            fs.writeFileSync("dist/macos-production/production-candidate-${{ matrix.arch }}.json",JSON.stringify(data,null,2)+"\n");
+          '
+      - uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-DeveloperID-Notarized-${{ matrix.arch }}-Candidate
+          path: dist/macos-production/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove temporary developer keys
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -n "${GHOSTFTP_KEYCHAIN:-}" ]; then security delete-keychain "$GHOSTFTP_KEYCHAIN" >/dev/null 2>&1; fi
+          rm -f "$RUNNER_TEMP/dev-id.p12" "$RUNNER_TEMP/notary.p8" "$RUNNER_TEMP/signature.txt"

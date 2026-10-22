@@ -65,3 +65,8 @@ The authoritative source directories are:
 - Android: `android/`
 
 Support/compatibility tooling under `tools/` must not be confused with the production desktop packages described above.
+
+
+## macOS Desktop — installer without Developer ID
+
+Download the **Apple Silicon (arm64)** or **Intel (x86_64)** DMG Preview from [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases), open it, and drag `Ghost FTP Desktop.app` into `Applications`. It has no paid Apple Developer signature or notarization, so the first launch can require `System Settings → Privacy & Security → Open Anyway`. Do not disable Gatekeeper globally. [Instructions in Croatian and English](MACOS_INSTALLATION.md).

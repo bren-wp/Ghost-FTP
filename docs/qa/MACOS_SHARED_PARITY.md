@@ -30,3 +30,13 @@ The build must fail closed when an Apple Keychain backend is missing, `Cargo.loc
 A successful CI run proves only the tested build/protocol and package properties. It does **not** prove target-device installation, App Store acceptance, notarization, no bugs, native UI pixel parity, complete Windows feature parity or preservation of unrelated legacy SwiftUI user data.
 
 Never delete existing published releases, immutable tags, passwords, profiles, migrations or test evidence to make CI pass.
+
+## Native macOS window and signed distribution path (0.99.5)
+
+The shared Rust/Tauri macOS window uses an AppKit-native decorated overlay titlebar, preserving the standard red/yellow/green window controls; React reserves the traffic-light area and avoids duplicate custom buttons. Windows/Linux retain existing custom window controls. Automated macOS build and code review do not prove target-device window interaction.
+
+The separate manually triggered `.github/workflows/ghostftp-macos-developer-id.yml` signs with a real Developer ID Application identity, requests Apple notarization with `notarytool`, staples the accepted ticket, validates Gatekeeper and publishes **candidate artifacts only** to GitHub Actions. The owner must configure secrets and execute the physical-device matrix in `docs/qa/MACOS_PRODUCTION_RELEASE.md` before any stable release may be claimed. Existing ad-hoc Preview packages do not become certified retroactively.
+
+## Installable non-Developer-ID DMG for both architectures (0.99.5)
+
+Both `arm64` and `x86_64` shared macOS applications are delivered inside unsigned/unnotarized `.dmg` images with a clickable `Applications` shortcut. The embedded executable is signed locally using free ad-hoc signing (`codesign -s -`), not Apple Developer ID signing. The build test mounts each DMG, checks the /Applications symlink, confirms the app and its binary match, verifies the ad-hoc signature and emits a two-entry ZIP+DMG checksum manifest. Canonical release publication requires both files and both checksums. Human-readable instructions are embedded as `INSTALLATION.md` and published at `docs/guides/MACOS_INSTALLATION.md`; they use per-app **Open Anyway**, never global Gatekeeper bypass. These proofs do not establish real-Mac first-launch or Keychain acceptance.

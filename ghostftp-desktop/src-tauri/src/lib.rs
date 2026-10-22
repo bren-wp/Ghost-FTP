@@ -276,12 +276,22 @@ original user data and staged restore were preserved for repair"
                         // starting maximized or fullscreen.
                         .prevent_overflow_with_margin(tauri::LogicalSize::new(32.0, 32.0))
                         .center()
-                        .decorations(false)
+                        // macOS keeps its native traffic-light window controls.
+                        // Windows/Linux retain the existing branded chrome.
+                        .decorations(cfg!(target_os = "macos"))
                         .resizable(true)
                         .maximized(false)
                         .fullscreen(false)
                         .shadow(true)
                         .initialization_script(&init_script);
+
+                // Keep macOS's native close/minimize/zoom and full-screen
+                // semantics, with title content beneath the system overlay.
+                // No application-defined traffic-light lookalikes on macOS.
+                #[cfg(target_os = "macos")]
+                let window_builder = window_builder
+                    .title_bar_style(tauri::TitleBarStyle::Overlay)
+                    .hidden_title(true);
 
                 #[cfg(windows)]
                 let mut window_builder = window_builder;

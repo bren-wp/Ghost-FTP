@@ -6,7 +6,7 @@
 
 > Current development source: **0.99.4**; latest verified published release: **0.99.3**. Historical findings below retain their original version labels.
 
-Previous canonical release: **0.99.3**.
+Previous canonical release: **0.99.4**.
 
 0.93.0 cloud scope: custom S3/Azure desktop endpoints require HTTPS and forbid embedded credentials, query and fragments. Mobile/macOS signed-object transfers use ephemeral bearer URLs, OS TLS trust, no redirects, bounded file sizes and no stored signed links. This is targeted source hardening; penetration testing and complete provider/account parity are not claimed.
 
@@ -104,3 +104,6 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 - Signed update metadata is separately untrusted: the updater now requires `requireSignedVersion: true` (GHSA-j38x-g3m3-95fr) so the announced release version must match the version embedded in the artifact's signed trusted comment. Tauri CLI / bundler upgraded to locked 2.12.2 to produce that signed version metadata. Existing updater artifacts signed with an older CLI may be incompatible with this stricter policy; don't bypass validation to use them.
 - Version/security-floor validation is a CI gate. Package/signature integrity, server-side signed update manifest provenance and recovery from network MITM still need independent verification. Successful build alone is not complete updater penetration testing.
 
+
+
+**Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.

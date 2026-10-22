@@ -1,6 +1,7 @@
-// Canonical keyboard-combo representation shared by the shortcut hook, the
-// command registry, the title-bar menus and the cheat-sheet. "mod" = Ctrl on
-// Windows/Linux and Ctrl on Linux so one registry is cross-platform.
+// Canonical keyboard-combo representation shared by all shortcut surfaces.
+// "mod" = Command on macOS, Control on Windows/Linux. Distinguish macOS
+// Control (used by SSH terminals) from Command, and Windows/Super from Ctrl.
+// Combining secondary modifiers must not accidentally trigger primary commands.
 
 const isMac =
   typeof navigator !== "undefined" &&
@@ -11,7 +12,13 @@ export const MOD_LABEL = isMac ? "⌘" : "Ctrl";
 // Build the canonical combo for a keydown event, e.g. "mod+shift+t".
 export function keyCombo(e: KeyboardEvent): string {
   const parts: string[] = [];
-  if (e.ctrlKey || e.metaKey) parts.push("mod");
+  if (isMac) {
+    if (e.metaKey) parts.push("mod");
+    if (e.ctrlKey) parts.push("ctrl");
+  } else {
+    if (e.ctrlKey) parts.push("mod");
+    if (e.metaKey) parts.push("meta");
+  }
   if (e.altKey) parts.push("alt");
   if (e.shiftKey) parts.push("shift");
   let k = e.key.toLowerCase();

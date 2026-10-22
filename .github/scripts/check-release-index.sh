@@ -48,6 +48,8 @@ for name in \
   "GhostFTP-macOS-v$VERSION-Preview.zip" \
   "GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip" \
   "GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip" \
+  "GhostFTP-macOS-Shared-arm64-v$VERSION-Installable-Preview.dmg" \
+  "GhostFTP-macOS-Shared-x86_64-v$VERSION-Installable-Preview.dmg" \
   "GhostFTP-v$VERSION-SHA256SUMS.txt"; do
   test "$(jq -r --arg name "$name" '[.assets[] | select(.name == $name)] | length' <<< "$RELEASE")" -eq 1 || {
     echo "::error::Missing required artifact from public Releases: $name" >&2

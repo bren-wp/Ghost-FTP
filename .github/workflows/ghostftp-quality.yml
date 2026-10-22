@@ -72,6 +72,13 @@ jobs:
       - name: Documentation and release alignment
         shell: bash
         run: node .github/scripts/check-docs-alignment.mjs
+      - name: Enforce macOS Developer ID distribution safeguards
+        shell: bash
+        run: node .github/scripts/check-macos-production-gate.mjs
+      - name: Verify unsigned macOS installable DMG and release contract
+        shell: bash
+        run: node .github/scripts/check-macos-installable-artifacts.mjs
+
       - name: Reject vulnerable Tauri IPC and updater dependency versions
         shell: bash
         run: node .github/scripts/check-tauri-security-dependencies.mjs
@@ -264,7 +271,7 @@ jobs:
           grep -Fq '"windows": ["main"]' ghostftp-desktop/src-tauri/capabilities/default.json
           grep -Fq '.inner_size(1290.0, 852.0)' ghostftp-desktop/src-tauri/src/lib.rs
           grep -Fq '.min_inner_size(480.0, 600.0)' ghostftp-desktop/src-tauri/src/lib.rs
-          grep -Fq '.decorations(false)' ghostftp-desktop/src-tauri/src/lib.rs
+          grep -Fq '.decorations(cfg!(target_os = "macos"))' ghostftp-desktop/src-tauri/src/lib.rs
           ! grep -RniE 'http://127\\.0\\.0\\.1|browser shell' \
             ghostftp-desktop/src ghostftp-desktop/src-tauri/src tools/ghostftp-runtime tools/ghostftp-installer \
             --exclude-dir=target
