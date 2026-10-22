@@ -91,6 +91,12 @@ class MainActivity : Activity() {
     private lateinit var cloudSection: View
     private lateinit var cloudTransferOptionsPanel: View
     private lateinit var bookmarksSection: View
+    private lateinit var editorSection: View
+    private lateinit var editorContentInput: EditText
+    private var editorMode = false
+    private var editorOriginalText = ""
+    private var editorRemotePath = ""
+    private var editorConnection: ConnectionProfile? = null
     private lateinit var searchSection: View
     private lateinit var searchResults: LinearLayout
     private lateinit var searchQueryInput: EditText
@@ -365,6 +371,7 @@ class MainActivity : Activity() {
         cloudSection = buildCloudCard()
         bookmarksSection = buildBookmarksCard()
         searchSection = buildSearchCard().apply { visibility = View.GONE }
+        editorSection = buildRemoteTextEditorCard().apply { visibility = View.GONE }
         settingsSection = buildSettingsCard()
         aboutSection = buildAboutCard()
 
@@ -377,6 +384,7 @@ class MainActivity : Activity() {
             addView(cloudSection)
             addView(bookmarksSection)
             addView(searchSection)
+            addView(editorSection)
             addView(settingsSection)
             addView(aboutSection)
         }
@@ -520,7 +528,9 @@ class MainActivity : Activity() {
         setBackgroundColor(Brand.background)
 
         phoneMenuButton = secondaryButton("☰") {
-            if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
+            if (editorMode) {
+                closeRemoteEditor()
+            } else if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
                 showSitesOverview()
             } else {
                 setNavigationOpen(!navigationOpen)
@@ -560,6 +570,7 @@ class MainActivity : Activity() {
         }
         phoneQuickButton.setOnClickListener {
             when {
+                editorMode -> showRemoteEditorMoreMenu()
                 activeWorkspace == Workspace.SITES && !siteEditorVisible -> showSiteEditor(null)
                 activeWorkspace == Workspace.BOOKMARKS -> promptSaveCurrentBookmark()
                 activeWorkspace == Workspace.FILES && !searchMode -> openSearch()
@@ -590,7 +601,10 @@ class MainActivity : Activity() {
     private fun updatePhoneChromeActions() {
         if (!::phoneQuickButton.isInitialized) return
         if (::phoneMenuButton.isInitialized) {
-            if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
+            if (editorMode) {
+                phoneMenuButton.text = "‹"
+                phoneMenuButton.contentDescription = "Close Text Editor"
+            } else if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
                 phoneMenuButton.text = "‹"
                 phoneMenuButton.contentDescription = "Back to Sites"
             } else if (phoneMenuButton.contentDescription == "Back to Sites") {
@@ -602,11 +616,16 @@ class MainActivity : Activity() {
         }
         if (::phoneFilesViewButton.isInitialized) {
             phoneFilesViewButton.visibility =
-                if (activeWorkspace == Workspace.FILES && !searchMode) View.VISIBLE else View.GONE
+                if (activeWorkspace == Workspace.FILES && !searchMode && !editorMode)
+                    View.VISIBLE else View.GONE
         }
         val sitesOverview = activeWorkspace == Workspace.SITES && !siteEditorVisible
         val bookmarks = activeWorkspace == Workspace.BOOKMARKS
         when {
+            editorMode -> {
+                phoneQuickButton.text = "⋯"
+                phoneQuickButton.contentDescription = "Text Editor options"
+            }
             searchMode -> {
                 phoneQuickButton.text = "×"
                 phoneQuickButton.contentDescription = "Close Search"
@@ -3158,6 +3177,11 @@ class MainActivity : Activity() {
         activeWorkspace = workspace
         searchMode = false
         if (::searchSection.isInitialized) searchSection.visibility = View.GONE
+        if (editorMode && workspace != Workspace.FILES) {
+            confirmCloseRemoteEditor { setWorkspace(workspace) }
+            return
+        }
+        if (::editorSection.isInitialized && editorMode) editorSection.visibility = View.VISIBLE
         if (::workspaceFeedbackPanel.isInitialized) {
             workspaceFeedbackPanel.visibility = View.GONE
         }
@@ -3207,7 +3231,8 @@ class MainActivity : Activity() {
             siteFeedback.visibility = View.GONE
         }
         if (::fileActionToolbar.isInitialized) {
-            fileActionToolbar.visibility = if (workspace == Workspace.FILES) View.VISIBLE else View.GONE
+            fileActionToolbar.visibility =
+                if (workspace == Workspace.FILES && !editorMode) View.VISIBLE else View.GONE
         }
         if (::sessionStatusCard.isInitialized) {
             sessionStatusCard.visibility =
@@ -3247,6 +3272,7 @@ class MainActivity : Activity() {
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
         when {
+            editorMode -> closeRemoteEditor()
             usesOverlayNavigation() && navigationOpen -> setNavigationOpen(false)
             searchMode -> closeSearch()
             activeWorkspace == Workspace.TRANSFERS &&
@@ -4065,69 +4091,171 @@ class MainActivity : Activity() {
         }
     }
 
+
+    /** Real full-workspace remote text editor, matching reference screen #13.
+     * No popup dialogs, fake preview files or synthetic SSH content.
+     */
+    private fun buildRemoteTextEditorCard(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        background = PremiumReferenceStyle.surface(this@MainActivity)
+        setPadding(dp(9), dp(10), dp(9), dp(12))
+        addView(PremiumReferenceStyle.caption(this@MainActivity,
+            "UTF-8 Remote Text Editor", 12f, true))
+        addView(space(8))
+        editorContentInput = EditText(this@MainActivity).apply {
+            textSize = 13f
+            typeface = Typeface.MONOSPACE
+            setTextColor(PremiumReferenceStyle.text)
+            setHintTextColor(PremiumReferenceStyle.secondary)
+            background = PremiumReferenceStyle.surface(this@MainActivity,
+                PremiumReferenceStyle.panel)
+            setPadding(dp(11), dp(13), dp(11), dp(13))
+            gravity = Gravity.TOP or Gravity.START
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            minLines = 18
+            isSingleLine = false
+            contentDescription = "Editable remote UTF-8 document"
+        }
+        addView(editorContentInput, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+        addView(space(11))
+        addView(LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            fun action(label: String, execute: () -> Unit) {
+                addView(PremiumReferenceStyle.action(this@MainActivity,label,
+                    primary = label == "Save") { execute() },
+                    LinearLayout.LayoutParams(0, dp(44), 1f).apply {
+                        marginEnd = dp(4)
+                    })
+            }
+            action("Save") { saveRemoteEditor() }
+            action("Upload") { saveRemoteEditor() }
+            action("UTF-8") {
+                showMessage("Text Encoding",
+                    "Ghost FTP uses strict UTF-8 for this remote text editor. Other encodings are not auto-converted.")
+            }
+            action("More") { showRemoteEditorMoreMenu() }
+        }, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+    }
+
     private fun showRemoteTextEditorDialog(
         profile: ConnectionProfile,
         path: String,
         original: String
     ) {
         if (closingOrDestroyed() || activeProfile != profile) return
-        val editor = EditText(this).apply {
-            setText(original)
-            textSize = 13f
-            typeface = Typeface.MONOSPACE
-            setTextColor(PremiumReferenceStyle.text)
-            setHintTextColor(PremiumReferenceStyle.secondary)
-            setBackgroundColor(PremiumReferenceStyle.panel)
-            setPadding(dp(12), dp(12), dp(12), dp(12))
-            gravity = Gravity.TOP or Gravity.START
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or
-                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-            minLines = 12
-            maxLines = 30
-            contentDescription = "Remote text editor " + path.substringAfterLast('/')
+        setWorkspace(Workspace.FILES, announce = false)
+        editorMode = true
+        editorConnection = profile
+        editorRemotePath = path
+        editorOriginalText = original
+        editorContentInput.setText(original)
+        editorContentInput.setSelection(0)
+        filesSection.visibility = View.GONE
+        editorSection.visibility = View.VISIBLE
+        fileActionToolbar.visibility = View.GONE
+        phoneChromeTitle.text = "Text Editor"
+        updatePhoneChromeActions()
+        contentScroll.post { contentScroll.scrollTo(0, workspaceContainer.top) }
+    }
+
+    private fun saveRemoteEditor() {
+        val profile = editorConnection ?: return
+        if (activeProfile != profile) {
+            showMessage("Text Editor", "The connection has changed. Reopen the remote file.")
+            return
         }
-        val scroll = ScrollView(this).apply {
-            addView(editor, ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        if (operationInFlight) return
+        val path = editorRemotePath
+        val newText = editorContentInput.text.toString()
+        val bytes = newText.toByteArray(Charsets.UTF_8)
+        if (bytes.size > MAX_REMOTE_TEXT_BYTES) {
+            editorContentInput.error = "Maximum editor size is 512 KiB."
+            return
         }
-        val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle("Text Editor · " + path.substringAfterLast('/'))
-            .setView(scroll)
-            .setNegativeButton("Cancel", null)
-            .setPositiveButton("Save", null)
-            .create()
-        dialog.setOnShowListener {
-            val save = dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)
-            save.setOnClickListener {
-                val content = editor.text.toString()
-                val bytes = content.toByteArray(Charsets.UTF_8)
-                if (bytes.size > MAX_REMOTE_TEXT_BYTES) {
-                    editor.error = "Maximum text size is 512 KiB."
-                    return@setOnClickListener
-                }
-                if (activeProfile != profile) {
-                    showMessage("Text Editor", "The connection changed. Reopen the remote file.")
-                    dialog.dismiss()
-                    return@setOnClickListener
-                }
-                if (content == original) {
-                    dialog.dismiss()
-                    return@setOnClickListener
-                }
-                dialog.dismiss()
-                confirmUploadTarget(path, path.substringAfterLast('/')) {
-                    runTransfer(
-                        title = "Save remote text",
-                        detail = "Saving " + path,
-                        refreshAfter = true
-                    ) { cancellation ->
-                        controller.uploadRemote(profile,
-                            java.io.ByteArrayInputStream(bytes), path, cancellation)
-                    }
-                }
+        if (newText == editorOriginalText) {
+            showMessage("Text Editor", "No changes to save.")
+            return
+        }
+        confirmUploadTarget(path, path.substringAfterLast('/')) {
+            if (activeProfile != profile) {
+                showMessage("Text Editor", "The connection changed. Changes were not uploaded.")
+                return@confirmUploadTarget
             }
+            runTransfer(
+                title = "Save remote text",
+                detail = "Uploading edited UTF-8 content to " + path,
+                refreshAfter = true
+            ) { cancellation ->
+                controller.uploadRemote(profile,
+                    java.io.ByteArrayInputStream(bytes), path, cancellation)
+            }
+            // Retain the edited content until the operation is complete.
+            // Never claim a save completed before the server confirms success.
         }
-        dialog.show()
+    }
+
+    private fun showRemoteEditorMoreMenu() {
+        if (!editorMode) return
+        android.widget.PopupMenu(this, phoneQuickButton).apply {
+            menu.add(0, 1, 0, "Revert unsaved edits")
+            menu.add(0, 2, 1, "Close editor")
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    1 -> requestInlineConfirmation(
+                        "Revert changes",
+                        "Discard the changes in this editor and restore the downloaded text?",
+                        "Revert"
+                    ) {
+                        editorContentInput.setText(editorOriginalText)
+                    }
+                    2 -> closeRemoteEditor()
+                }
+                true
+            }
+        }.show()
+    }
+
+    private fun closeRemoteEditor() {
+        if (!editorMode) return
+        if (editorContentInput.text.toString() != editorOriginalText) {
+            confirmCloseRemoteEditor { setWorkspace(Workspace.FILES, announce = false) }
+        } else {
+            discardRemoteEditor()
+        }
+    }
+
+    private fun confirmCloseRemoteEditor(onClosed: () -> Unit) {
+        requestInlineConfirmation(
+            "Discard unsaved text?",
+            "Unsaved changes to " + editorRemotePath.substringAfterLast('/') + " will be lost.",
+            "Discard"
+        ) {
+            discardRemoteEditor()
+            onClosed()
+        }
+    }
+
+    private fun discardRemoteEditor() {
+        editorMode = false
+        editorRemotePath = ""
+        editorOriginalText = ""
+        editorConnection = null
+        if (::editorContentInput.isInitialized) editorContentInput.text.clear()
+        if (::editorSection.isInitialized) editorSection.visibility = View.GONE
+        if (::filesSection.isInitialized) filesSection.visibility = View.VISIBLE
+        if (::fileActionToolbar.isInitialized && activeWorkspace == Workspace.FILES) {
+            fileActionToolbar.visibility = View.VISIBLE
+        }
+        if (::phoneChromeTitle.isInitialized) {
+            phoneChromeTitle.text = workspaceLabel(activeWorkspace)
+        }
+        updatePhoneChromeActions()
     }
 
     private fun selectRemoteEntry(item: RemoteRow) {
