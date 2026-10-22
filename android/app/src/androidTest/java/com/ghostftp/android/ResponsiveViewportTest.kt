@@ -69,10 +69,11 @@ class ResponsiveViewportTest {
                         assertNotNull("Files actions are required", toolbar)
                         assertTrue("Files actions are clipped/off-screen",
                             toolbar!!.isShown && toolbar.width > 0 && toolbar.height >= 48)
+                        val actionBar = toolbar as ViewGroup
                         assertEquals("Five live actions expected",
-                            5, (toolbar as ViewGroup).childCount)
-                        for (i in 0 until toolbar.childCount) {
-                            val action = toolbar.getChildAt(i)
+                            5, actionBar.childCount)
+                        for (i in 0 until actionBar.childCount) {
+                            val action = actionBar.getChildAt(i)
                             val visible = Rect()
                             assertTrue("File action $i clipped from narrow viewport",
                                 action.getGlobalVisibleRect(visible) &&
