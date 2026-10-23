@@ -9,17 +9,17 @@ Reference: user-provided **Ghost FTP Android UI maketa.png** (2026-10-16), a 16-
 | 1 | Splash Screen | `SplashActivity.kt`, branded vector | Implemented; pixel comparison pending |
 | 2 | Sidebar / Navigation | `MainActivity.buildNavigationRail`, real active-session card | Improved; real session required for connected-state capture |
 | 3 | Sites List | `buildSitesOverview/refreshSiteRows`, FTP/FTPS/SFTP color-coded server tile | Improved; real saved sites required for populated-state screenshot |
-| 4 | Add / Edit Site | `buildConnectionCard`, General/Advanced/Sync route, credential-safe edit | Partial; form geometry and focus need live pixel QA |
+| 4 | Add / Edit Site | `buildConnectionCard`, General Cancel/Save, Advanced Quick Connect, Sync navigation, credential-safe edit | Partial; responsive field widths and focus need live pixel QA |
 | 5 | Connect Screen | `buildConnectPreview/showConnectPreview` show real saved-site host, port and username; session-only password; existing `openConnection` | Implemented; visual and real-network acceptance pending |
-| 6 | File Manager (Dual Pane) | `buildFilesCard`, real remote and app-owned local files, selectable dual/remote/local mode, vector actions | Improved; actual public Downloads are unavailable without SAF grants |
+| 6 | File Manager (Dual Pane) | `buildFilesCard`, real remote/app-owned local files, wide dual-pane and adaptive narrow single-pane, vector actions | Responsive candidate; arbitrary public folders still require SAF grants |
 | 7 | Transfer Queue | `buildTransfersCard`, session operation queue/history and real busy indicator | Partial; native backend does not own a persisted parallel queue |
 | 8 | Transfer Details | `openTransferDetails`, verified current operation/cancellation | Partial; no fabricated progress/ETA/throughput |
-| 9 | Cloud Storage | `buildCloudCard`, provider cards and signed HTTPS object operations | Partial; Google Drive/Dropbox/OneDrive/iCloud account OAuth not implemented |
+| 9 | Cloud Storage | `buildCloudCard`, native provider vector icons and signed HTTPS object operations | Partial; Google Drive/Dropbox/OneDrive/iCloud account OAuth not implemented |
 | 10 | Bookmarks | `buildBookmarksCard`, actual user saved remote bookmarks | Implemented; populated-data comparison pending |
 | 11 | Remote File Search | `buildSearchCard`, bounded live folder or app-owned local search | Partial; no imaginary remote subtree indexing |
 | 12 | Sync / Compare | `buildSyncBackupCard` plus `compareCurrentDirectories`, local/remote folders and fail-closed read-only comparison | Improved; automatic synchronization and destructive mirror intentionally disabled |
-| 13 | Remote File Editor | No equivalent writable text-editor screen | Missing |
-| 14 | Batch Operations | Existing single-object rename; no safe batch-rename preview/apply engine | Missing |
+| 13 | Remote File Editor | `buildRemoteTextEditorCard`/fixed footer and `ConnectionController` strict UTF-8 streaming <=512 KiB, guarded staged upload | Functional candidate; syntax highlighting/multiple encodings not implemented, device QA pending |
+| 14 | Batch Operations | `buildBatchRenameCard`, `RemoteBatchRenamePlanner` with real preview and bounded sequential collision-safe rename | Functional rename candidate; attributes/time and transactional rollback are not implemented |
 | 15 | Settings | `buildSettingsCard`, premium category grid and real links/actions | Implemented; pixel comparison pending |
 | 16 | About | `buildAboutCard`, real version/product data and link cards | Implemented; pixel comparison pending |
 
@@ -34,3 +34,9 @@ Reference: user-provided **Ghost FTP Android UI maketa.png** (2026-10-16), a 16-
 5. Address missing editor/batch functionality only with explicit safeguards: bounded downloads, optimistic conflict check, staging and rollback; previews, collision checks, atomic or fail-closed batch rename, no recursive delete without confirmation. Until validated, do not display enabled actions that imply these operations work.
 
 The user-requested UI remains the target. Completion and publication depend on **per-screen reviewed live screenshots**, functional safety acceptance, and all exact-commit GitHub Actions jobs succeeding.
+
+## Expanded Ghost FTP 0.99.6 viewport QA
+
+Instrumented real-view captures cover **320×640**, **360×800**, **393×852 at 1.4× font scale**, **480×960** (reference), **720×1280** (tablet) and **960×540** (landscape). All eight primary workspaces must remain navigable with no 40dp-or-smaller visible Files actions and no clipped navigation affordances. The authoritative rendered PNG hashes are stored as `RESPONSIVE-SHA256SUMS.txt` beside the CI artifact.
+
+All sixteen concept screens remain **not formally 1:1 certified** until every comparable real-state screenshot is visually inspected against the user artwork and any mismatch is fixed. Real login, current file listings, transfer progress and cloud accounts cannot be substituted with fictional mock data.
