@@ -85,6 +85,7 @@ test("dead code audit tracks language-specific symbol reports without deleting a
       ["android/app/src/main/java/org/Main.kt", "class Demo { private fun unusedHelper() {} }"],
       ["macos/Sources/App.swift", "@main\nstruct App { }\nprivate func unusedSwift() {}"],
       ["ghostftp-desktop/src-tauri/src/lib.rs", "fn unusedRust() {}"],
+      ["ghostftp-desktop/src-tauri/tests/protocol_e2e.rs", "#[test]\\nfn realIntegrationTest() {}"],
       ["ghostftp-desktop/src/main.tsx", "function unusedUi() {}"],
       ["tools/ghostftp-installer/main.go", "package main\nfunc main() {}\nfunc unusedInstaller() {}"],
       ["tools/ghostftp-runtime/main.go", "package main\nfunc main() {}"],
@@ -98,6 +99,9 @@ test("dead code audit tracks language-specific symbol reports without deleting a
     const report = audit(root);
     assert.deepEqual(report.entrypointBlockers, []);
     assert.ok("desktopRust" in report.advisoryPrivateSymbols);
+    assert.ok(report.advisoryPrivateSymbols.desktopRust.some(x => x.name === "unusedRust"));
+    assert.ok(!report.advisoryPrivateSymbols.desktopRust.some(x => x.name === "realIntegrationTest"),
+      "Rust integration test harness entrypoints are not dead production functions");
     assert.ok("desktopTypeScript" in report.advisoryPrivateSymbols);
     assert.ok("installerRuntimeGo" in report.advisoryPrivateSymbols);
   } finally {

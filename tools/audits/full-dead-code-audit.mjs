@@ -125,7 +125,13 @@ export function audit(directory = root) {
   const goTests = go.filter((p) => p.endsWith("_test.go"))
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
   const rust = files.filter((p) => p.startsWith(inside("ghostftp-desktop/src-tauri/")) && p.endsWith(".rs"));
-  const rustSources = rust.map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
+  // Rust integration tests are binaries with harness-registered #[test]
+  // entrypoints, never production functions. Include them as references,
+  // but never report their own test functions as unused application code.
+  const rustTests = rust.filter((p) => /\/(?:tests|test)\//.test(posix(p)))
+    .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
+  const rustSources = rust.filter((p) => !/\/(?:tests|test)\//.test(posix(p)))
+    .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
   const typescript = files.filter((p) => p.startsWith(inside("ghostftp-desktop/")) && /\.(?:ts|tsx)$/.test(p));
   const tsSources = typescript.filter((p) => !/\.(?:test|spec)\.(?:ts|tsx)$/.test(p))
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
@@ -173,7 +179,7 @@ export function audit(directory = root) {
     advisoryPrivateSymbols: {
       androidKotlin: privateSymbolCandidates(kotlin, "kotlin", kotlinTests),
       macosSwift: privateSymbolCandidates(swift, "swift", swiftTests),
-      desktopRust: privateSymbolCandidates(rustSources, "rust"),
+      desktopRust: privateSymbolCandidates(rustSources, "rust", rustTests),
       desktopTypeScript: privateSymbolCandidates(tsSources, "typescript", tsTests),
       installerRuntimeGo: privateSymbolCandidates(goSources, "go", goTests),
     },
