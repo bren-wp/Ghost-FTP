@@ -1,6 +1,7 @@
 package com.ghostftp.android
 
 import android.view.View
+import android.view.ViewGroup
 import android.widget.EditText
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -54,15 +55,26 @@ class EditorDraftNavigationTest {
                 assertEquals("User must see discard confirmation",
                     View.VISIBLE, confirmation.visibility)
 
-                // The genuine Cancel action clears only the pending confirmation.
-                val dismiss = MainActivity::class.java.getDeclaredMethod(
-                    "clearInlineConfirmation"
-                ).apply { isAccessible = true }
-                dismiss.invoke(activity)
+                // Tap the REAL Cancel control, not a mocked callback.
+                val cancel = findByDescription(
+                    confirmation, activity.getString(R.string.action_cancel))
+                assertTrue("Discard panel must have a functional Cancel control",
+                    cancel != null && cancel.performClick())
+                assertEquals(View.GONE, confirmation.visibility)
                 assertEquals(initialWorkspace, workspaceField.get(activity))
                 assertEquals("unsaved-qa-text", editor.text.toString())
                 assertTrue(getField("editorMode").getBoolean(activity))
             }
         }
+    }
+    private fun findByDescription(view: View, description: String): View? {
+        if (view.contentDescription?.toString() == description) return view
+        if (view is ViewGroup) {
+            for (index in 0 until view.childCount) {
+                val found = findByDescription(view.getChildAt(index), description)
+                if (found != null) return found
+            }
+        }
+        return null
     }
 }
