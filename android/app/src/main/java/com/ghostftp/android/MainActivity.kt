@@ -2595,10 +2595,10 @@ class MainActivity : Activity() {
         val savedContent = (0 until childCount).map { getChildAt(it) }
         removeAllViews()
         val providers = listOf(
-            "Google Drive" to "G",
-            "Dropbox" to "D",
-            "OneDrive" to "O",
-            "iCloud" to "i"
+            "Google Drive" to R.drawable.ic_premium_cloud_drive,
+            "Dropbox" to R.drawable.ic_premium_cloud_dropbox,
+            "OneDrive" to R.drawable.ic_premium_cloud_onedrive,
+            "iCloud" to R.drawable.ic_premium_cloud_icloud
         )
         val advanced = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
@@ -2608,7 +2608,7 @@ class MainActivity : Activity() {
         val feedback = PremiumReferenceStyle.caption(this@MainActivity, "", 12f, true).apply {
             visibility = View.GONE
         }
-        providers.forEach { (provider, monogram) ->
+        providers.forEach { (provider, vectorIcon) ->
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -2616,10 +2616,13 @@ class MainActivity : Activity() {
                 minimumHeight = dp(57)
                 background = PremiumReferenceStyle.surface(this@MainActivity,
                     PremiumReferenceStyle.raised, 9)
-                addView(PremiumReferenceStyle.caption(this@MainActivity, monogram, 22f).apply {
-                    gravity = Gravity.CENTER
-                    setTextColor(PremiumReferenceStyle.purpleLight)
-                    typeface = Typeface.DEFAULT_BOLD
+                // Native vector artwork keeps the design crisp at every
+                // Android screen density and user display scaling.
+                addView(ImageView(this@MainActivity).apply {
+                    setImageResource(vectorIcon)
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    contentDescription = provider + " icon"
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 }, LinearLayout.LayoutParams(dp(36), dp(37)))
                 addView(LinearLayout(this@MainActivity).apply {
                     orientation = LinearLayout.VERTICAL
