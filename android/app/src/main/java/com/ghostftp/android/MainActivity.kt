@@ -1213,7 +1213,7 @@ class MainActivity : Activity() {
         // SSH host-key identity is connection-critical. Unlike keep-alive,
         // it must be visible in the General tab when SFTP is selected.
         // Hiding it in Advanced made an unverified server appear safe to use.
-        val generalViews = mutableSetOf<View>(siteFeedback, sftpFingerprintGroup)
+        val generalViews = mutableSetOf<View>(sftpFingerprintGroup)
         for (field in listOf<View>(
             siteNameInput, protocolSpinner, hostInput, portInput,
             usernameInput, passwordInput
@@ -1269,6 +1269,11 @@ class MainActivity : Activity() {
         tabs.addView(tab("Sync", false) { setWorkspace(Workspace.SYNC) },
             LinearLayout.LayoutParams(0, dp(39), 1f))
         addView(tabs)
+        addView(space(8))
+        // Keep the real connection-validation notice visible on BOTH the
+        // General and Advanced site tabs. It previously lived inside General
+        // only, so Advanced-tab connection failures were silently hidden.
+        addView(siteFeedback)
         addView(space(12))
         // Frame #4 uses a compact field matrix: aligned captions on the left,
         // actual native controls on the right. Retain original EditTexts and
@@ -1294,6 +1299,7 @@ class MainActivity : Activity() {
         } as? Button
         original.forEach { view ->
             when {
+                view === siteFeedback -> Unit // Shared above the tab panels.
                 view in oldFieldLabels -> Unit
                 view in compactFields -> {
                     if (view === passwordInput) {
