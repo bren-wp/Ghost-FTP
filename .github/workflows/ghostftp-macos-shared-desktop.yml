@@ -159,8 +159,24 @@ jobs:
           ditto "$APP" "$ROOT/Ghost FTP Desktop.app"
           ln -s /Applications "$ROOT/Applications"
           cp docs/guides/MACOS_INSTALLATION.md "$ROOT/INSTALLATION.md"
-          hdiutil create -volname "Ghost FTP Desktop" -srcfolder "$ROOT" \
-            -format UDZO -ov "$DMG"
+          # Fresh arm64 GitHub runners occasionally report "Resource busy"
+          # while creating the new disk image. Retry ONLY this transient hdiutil
+          # condition, never suppressing other packaging or signing errors.
+          CREATE_LOG="$RUNNER_TEMP/GhostFTP-DMG-create-${{ matrix.arch }}.log"
+          for attempt in 1 2 3; do
+            if hdiutil create -volname "Ghost FTP Desktop" -srcfolder "$ROOT" \
+              -format UDZO -ov "$DMG" > "$CREATE_LOG" 2>&1; then
+              cat "$CREATE_LOG"
+              break
+            fi
+            cat "$CREATE_LOG" >&2
+            if [ "$attempt" -eq 3 ] || ! grep -Fq "Resource busy" "$CREATE_LOG"; then
+              echo "::error::macOS DMG generation failed (attempt $attempt)." >&2
+              exit 1
+            fi
+            rm -f "$DMG"
+            sleep "$((attempt * 3))"
+          done
           test -s "$DMG"
           hdiutil verify "$DMG"
           MOUNT="$RUNNER_TEMP/GhostFTP-Shared-Mounted-${{ matrix.arch }}"

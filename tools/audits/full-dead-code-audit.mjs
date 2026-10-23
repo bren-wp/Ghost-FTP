@@ -54,6 +54,46 @@ export function candidateModules(entries, language, external = []) {
   });
 }
 
+/**
+ * Symbol-level advisory scan for ALL maintained native/source languages.
+ * A sole textual mention of a private function is a review candidate, NOT
+ * a proof of unreachability: reflection, callbacks, build tags, macros and
+ * selectors are deliberate blind spots. Preserve platform entrypoints.
+ */
+export function privateSymbolCandidates(entries, language, external = []) {
+  const patterns = {
+    kotlin: /^\s*(?:private|internal)\s+(?:suspend\s+)?fun\s+([A-Za-z_]\w*)\s*\(/gm,
+    swift: /^\s*(?:private|fileprivate)\s+(?:static\s+|class\s+)?func\s+([A-Za-z_]\w*)\s*\(/gm,
+    rust: /^\s*(?:(?:pub\((?:crate|super|self)\)\s+)?)(?:async\s+)?fn\s+([A-Za-z_]\w*)\s*\(/gm,
+    typescript: /^\s*(?!export\b)(?:async\s+)?function\s+([A-Za-z_]\w*)\s*\(/gm,
+    go: /^func\s+([a-z_]\w*)\s*\(/gm,
+  };
+  const pattern = patterns[language];
+  if (!pattern) throw new Error("Unknown symbol audit language: " + language);
+  const referents = [...entries, ...external].map(([, code]) => code).join("\n");
+  const reserved = new Set(["init", "main", "body", "onCreate", "onDestroy", "onStart",
+    "onStop", "onResume", "onPause", "onSaveInstanceState", "onActivityResult"]);
+  return entries.flatMap(([file, source]) => [...source.matchAll(pattern)]
+    .filter((m) => !reserved.has(m[1]))
+    // Most Rust modules put #[cfg(test)] mod tests at file end; those
+    // functions are test entrypoints, not production-orphan candidates.
+    // This conservative exclusion may hide functions after the test module,
+    // therefore all reported symbols remain advisory only.
+    .filter((m) => language !== "rust" ||
+      (!source.slice(0, m.index).includes("#[cfg(test)]") &&
+       !/#\[(?:tokio::)?test\]\s*$/.test(source.slice(Math.max(0, m.index - 140), m.index))))
+    .filter((m) => {
+      const name = m[1];
+      const occurrences = referents.match(new RegExp("\\b" + name + "\\b", "g")) || [];
+      return occurrences.length === 1;
+    }).map((m) => ({
+      file,
+      name: m[1],
+      line: source.slice(0, m.index).split("\n").length,
+      reason: "Single textual mention of nonpublic function across source and tests; callback/reflection/macro/build-tag references must be inspected before removal",
+    })));
+}
+
 export function resourceCandidates(resources, sources) {
   const references = sources.map(([, text]) => text).join("\n");
   return resources.filter((file) => {
@@ -80,8 +120,23 @@ export function audit(directory = root) {
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
   const resources = androidResources.filter((p) => /\/(?:drawable|mipmap[^/]*|xml)\//.test(posix(p)) && /\.(?:xml|png|webp|jpg|jpeg)$/i.test(p));
   const go = files.filter((p) => /\/tools\/ghostftp-(?:installer|runtime)\/.*\.go$/.test(posix(p)));
+  const goSources = go.filter((p) => !p.endsWith("_test.go"))
+    .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
+  const goTests = go.filter((p) => p.endsWith("_test.go"))
+    .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
   const rust = files.filter((p) => p.startsWith(inside("ghostftp-desktop/src-tauri/")) && p.endsWith(".rs"));
+  // Rust integration tests are binaries with harness-registered #[test]
+  // entrypoints, never production functions. Include them as references,
+  // but never report their own test functions as unused application code.
+  const rustTests = rust.filter((p) => /\/(?:tests|test)\//.test(posix(p)))
+    .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
+  const rustSources = rust.filter((p) => !/\/(?:tests|test)\//.test(posix(p)))
+    .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
   const typescript = files.filter((p) => p.startsWith(inside("ghostftp-desktop/")) && /\.(?:ts|tsx)$/.test(p));
+  const tsSources = typescript.filter((p) => !/\.(?:test|spec)\.(?:ts|tsx)$/.test(p))
+    .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
+  const tsTests = typescript.filter((p) => /\.(?:test|spec)\.(?:ts|tsx)$/.test(p))
+    .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
   const scripts = files.filter((p) => /\.(?:sh|mjs|py)$/.test(p) &&
     [".github/scripts/", "ghostftp-desktop/scripts/", "android/scripts/", "macos/scripts/", "updates/scripts/", "tools/"]
       .some((prefix) => p.startsWith(inside(prefix))));
@@ -121,6 +176,13 @@ export function audit(directory = root) {
       androidResources: resourceCandidates(resources, [...kotlin, ...kotlinTests, ...xmlReferences, ["AndroidManifest.xml", manifest]]).map(relative).sort(),
       operationalScripts: possibleUnreferencedScripts,
     },
+    advisoryPrivateSymbols: {
+      androidKotlin: privateSymbolCandidates(kotlin, "kotlin", kotlinTests),
+      macosSwift: privateSymbolCandidates(swift, "swift", swiftTests),
+      desktopRust: privateSymbolCandidates(rustSources, "rust", rustTests),
+      desktopTypeScript: privateSymbolCandidates(tsSources, "typescript", tsTests),
+      installerRuntimeGo: privateSymbolCandidates(goSources, "go", goTests),
+    },
     entrypointBlockers: blockers,
     requiredFollowUp: [
       "TS/Rust graph: npm run check:dead, cargo check/test/clippy on all targets and features",
@@ -141,6 +203,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log("Candidate counts (Kotlin/Swift/resources/scripts): " +
       Object.values(result.candidateFiles).map((items) => items.length).join("/"));
     console.log("Advisory candidates MUST NOT be removed solely from this report.");
+    console.log("Unreferenced nonpublic function candidates by platform: " +
+      Object.entries(result.advisoryPrivateSymbols).map(([name, items]) =>
+        name + "=" + items.length).join(", "));
     if (result.entrypointBlockers.length) console.error(result.entrypointBlockers.join("\n"));
   }
   if (result.entrypointBlockers.length) process.exitCode = 1;

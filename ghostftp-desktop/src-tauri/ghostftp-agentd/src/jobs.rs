@@ -325,10 +325,12 @@ mod tests {
         let cmd = "echo hello-detached";
         store.start("job-1", cmd, small_cap()).unwrap();
 
-        // Poll until it finishes, but give Windows CI enough time for a cold
-        // PowerShell startup. The timeout still guarantees that a real hang
-        // fails deterministically instead of leaving the test unbounded.
-        let s = tokio::time::timeout(Duration::from_secs(20), async {
+        // Windows PowerShell cold start can contend with the concurrently
+        // running Rust workspace tests on hosted CI machines. Keep a hard
+        // deadline, but allow a realistic startup margin without weakening the
+        // eventual exit status or output assertions. Linux/macOS stay fast.
+        let startup_budget = if cfg!(windows) { 60 } else { 20 };
+        let s = tokio::time::timeout(Duration::from_secs(startup_budget), async {
             loop {
                 let status = store.poll("job-1").expect("job exists");
                 if !status.running {
@@ -338,7 +340,7 @@ mod tests {
             }
         })
         .await
-        .expect("job finished within 20 seconds");
+        .expect("detached job must finish within the platform-specific startup budget");
         assert_eq!(s.exit_code, Some(0));
         assert!(
             s.stdout.contains("hello-detached"),

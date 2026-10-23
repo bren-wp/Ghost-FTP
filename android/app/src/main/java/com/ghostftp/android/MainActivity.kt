@@ -1839,14 +1839,20 @@ class MainActivity : Activity() {
     // Android SAF does not grant arbitrary /storage/emulated/0 traversal.
     // The local pane is a REAL, bounded app-owned downloads directory, never
     // a fake listing of system Download/Pictures/DCIM folders.
+    private var localBrowseRequestGeneration = 0
+
     private fun refreshLocalPane() {
-        if (!::localRows.isInitialized) return
-        // A revoked/unmounted external-storage volume or transient I/O error
-        // must not crash the entire Files workspace on the UI thread.
+        if (!::localRows.isInitialized || closingOrDestroyed()) return
+        // Invalidate every prior listing before any early return.
+        val generation = ++localBrowseRequestGeneration
         val base = runCatching {
             (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir).canonicalFile
-        }.getOrElse {
-            filesDir.canonicalFile
+        }.recoverCatching { filesDir.canonicalFile }.getOrNull()
+        localRows.removeAllViews()
+        if (base == null) {
+            localRows.addView(PremiumReferenceStyle.caption(this,
+                "Local storage is temporarily unavailable", 12f, true))
+            return
         }
         val current = runCatching { (localBrowseDirectory ?: base).canonicalFile }
             .getOrNull()
@@ -1855,7 +1861,6 @@ class MainActivity : Activity() {
         localBrowseDirectory = if (inside && current?.isDirectory == true) current else base
         val directory = localBrowseDirectory ?: base
         localDirectoryLabel.text = "Local · " + directory.name
-        localRows.removeAllViews()
         if (!directory.canRead()) {
             localRows.addView(PremiumReferenceStyle.caption(this,
                 "Local storage is temporarily unavailable", 12f, true))
@@ -1867,26 +1872,51 @@ class MainActivity : Activity() {
                 refreshLocalPane()
             })
         }
-        val entries = directory.listFiles()
-            ?.filter {
-                runCatching {
-                    val path = it.canonicalFile.path
-                    path.startsWith(base.path + File.separator) && !it.isHidden
-                }.getOrDefault(false)
-            }?.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase(Locale.ROOT) }))
-            ?.take(150).orEmpty()
-        if (entries.isEmpty()) {
-            localRows.addView(PremiumReferenceStyle.caption(this, "No local files", 11f, true))
-        }
-        entries.forEach { file ->
-            localRows.addView(compactBrowserRow(file.name, file.isDirectory) {
-                if (file.isDirectory) {
-                    localBrowseDirectory = file
-                    refreshLocalPane()
-                } else {
-                    selectLocalUploadFile(file)
+        localRows.addView(PremiumReferenceStyle.caption(this,
+            "Reading local files…", 11f, true))
+        // DirectoryStream bounds memory as well as the number of entries
+        // visited. Keep directory I/O off the UI thread on slow/unmounted
+        // storage; stale callbacks must not replace a newer directory view.
+        thread(start = true, isDaemon = true, name = "GhostFTP-LocalBrowser") {
+            val result = LocalBrowserListingReader.list(base, directory)
+            // An initial scan may finish before status views are initialized.
+            // Only localRows readiness and lifecycle validity are necessary.
+            runOnUiThread {
+                if (closingOrDestroyed() || !::localRows.isInitialized) return@runOnUiThread
+                if (generation != localBrowseRequestGeneration) return@runOnUiThread
+                if (localBrowseDirectory?.path != directory.path) return@runOnUiThread
+                localRows.removeAllViews()
+                if (directory != base) {
+                    localRows.addView(compactBrowserRow("..", true) {
+                        localBrowseDirectory = directory.parentFile
+                        refreshLocalPane()
+                    })
                 }
-            })
+                if (result.unavailable) {
+                    localRows.addView(PremiumReferenceStyle.caption(this,
+                        "Local storage is temporarily unavailable", 12f, true))
+                    return@runOnUiThread
+                }
+                if (result.files.isEmpty()) {
+                    localRows.addView(PremiumReferenceStyle.caption(this,
+                        "No local files", 11f, true))
+                }
+                result.files.forEach { file ->
+                    localRows.addView(compactBrowserRow(file.name, file.isDirectory) {
+                        if (file.isDirectory) {
+                            localBrowseDirectory = file
+                            refreshLocalPane()
+                        } else {
+                            selectLocalUploadFile(file)
+                        }
+                    })
+                }
+                if (result.truncated) {
+                    localRows.addView(PremiumReferenceStyle.caption(this,
+                        "Showing a bounded list. Open a subfolder or use the system file picker for other files.",
+                        11f, true))
+                }
+            }
         }
     }
 
@@ -2923,9 +2953,15 @@ class MainActivity : Activity() {
                 contentDescription = "Open bookmark " + bookmark.title
                 setOnClickListener { openRemoteBookmark(bookmark) }
             }
-            val folder = PremiumReferenceStyle.caption(this, "▣", 21f).apply {
-                gravity = Gravity.CENTER
-                setTextColor(PremiumReferenceStyle.yellow)
+            // Reference #10 shows an actual yellow folder illustration,
+            // not a font-dependent monochrome glyph. The drawable scales
+            // cleanly with system density and has no duplicate screen-reader
+            // announcement (the tile itself names the bookmark).
+            val folder = ImageView(this).apply {
+                setImageResource(R.drawable.ic_premium_file_folder)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setPadding(dp(3), dp(6), dp(3), dp(6))
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }
             tile.addView(folder, LinearLayout.LayoutParams(dp(36), dp(42)))
             val description = LinearLayout(this).apply {
@@ -3273,16 +3309,24 @@ class MainActivity : Activity() {
         }
 
     private fun setWorkspace(workspace: Workspace, announce: Boolean = true) {
-        activeWorkspace = workspace
-        searchMode = false
-        if (::searchSection.isInitialized) searchSection.visibility = View.GONE
+        // Prompt BEFORE changing active workspace or hiding any input. Otherwise
+        // cancelling the discard confirmation leaves an editor on-screen with
+        // the wrong navigation selection, and can lose a draft on the next tap.
+        if (editorMode && workspace != Workspace.FILES) {
+            if (EditorNavigationGuard.needsDiscardConfirmation(
+                    editorMode, editorContentInput.text.toString() != editorOriginalText,
+                    workspace == Workspace.FILES)) {
+                confirmCloseRemoteEditor { setWorkspace(workspace, announce) }
+                return
+            }
+            discardRemoteEditor()
+        }
         if (batchMode && workspace != Workspace.FILES) {
             closeBatchRename()
         }
-        if (editorMode && workspace != Workspace.FILES) {
-            confirmCloseRemoteEditor { setWorkspace(workspace) }
-            return
-        }
+        activeWorkspace = workspace
+        searchMode = false
+        if (::searchSection.isInitialized) searchSection.visibility = View.GONE
         if (::editorSection.isInitialized && editorMode) editorSection.visibility = View.VISIBLE
         if (::batchSection.isInitialized && batchMode) batchSection.visibility = View.VISIBLE
         if (::workspaceFeedbackPanel.isInitialized) {
@@ -3330,7 +3374,9 @@ class MainActivity : Activity() {
         if (::workspaceTitle.isInitialized) workspaceTitle.text = workspaceLabel(workspace)
         if (::phoneChromeTitle.isInitialized) {
             phoneChromeTitle.text =
-                if (workspace == Workspace.SITES &&
+                if (workspace == Workspace.FILES && editorMode) "Text Editor"
+                else if (workspace == Workspace.FILES && batchMode) "Rename Files"
+                else if (workspace == Workspace.SITES &&
                     ::connectPreviewPanel.isInitialized &&
                     connectPreviewPanel.visibility == View.VISIBLE) "Connect"
                 else if (workspace == Workspace.SITES && siteEditorVisible) {
