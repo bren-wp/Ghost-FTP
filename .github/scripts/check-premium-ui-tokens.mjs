@@ -9,6 +9,7 @@ const tokens = JSON.parse(read("docs/branding/premium-ui-tokens.json"));
 const screenContract = JSON.parse(read("docs/qa/premium-75-screen-contract.json"));
 const css = read("ghostftp-desktop/src/styles.css");
 const android = read("android/app/src/main/java/com/ghostftp/android/MainActivity.kt");
+const responsive = read("android/app/src/main/java/com/ghostftp/android/AndroidResponsiveLayout.kt");
 const mac = read("macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
 const macCloud = read("macos/Sources/GhostFTPMacApp/Views/CloudWorkspace.swift");
 const errors = [];
@@ -53,7 +54,14 @@ if (tokens.android?.accent !== "#654BFF") errors.push("Android mobile-only refer
 requireSource(mac, "static let slate = Color(red: 19/255, green: 45/255, blue: 82/255)", "macOS active surface differs from slate token");
 requireSource(css, "width: 214px !important", "214px desktop sidebar reference not enforced");
 requireSource(css, "min-height: 43px", "43px desktop navigation reference not enforced");
-requireSource(android, "compactNavigation -> dp(if (resources.configuration.screenWidthDp < 400) 260 else 280)", "reference 280dp phone drawer not implemented");
+// A fixed 280dp drawer clips screens as narrow as 240–320dp; keep the
+// approved maximum, but enforce the real bounded responsive implementation.
+requireSource(android, "AndroidResponsiveLayout.drawerWidthDp(resources.configuration.screenWidthDp)",
+  "reference mobile drawer must use the width-safe policy");
+requireSource(responsive, "(widthDp - 56).coerceIn(192, 280)",
+  "drawer must leave room to dismiss on narrow phones and cap at 280dp");
+requireSource(responsive, ".coerceAtMost(widthDp.coerceAtLeast(1))",
+  "drawer must never extend beyond device width");
 requireSource(android, "private fun buildPremiumPhoneChrome(): View", "full-width reference identity bar absent on Android");
 requireSource(android, "ViewGroup.LayoutParams.MATCH_PARENT, dp(52)", "52dp mobile reference top chrome geometry missing");
 requireSource(android, "resources.configuration.screenWidthDp < 600", "full-width phone/overlay breakpoint missing");

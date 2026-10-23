@@ -201,6 +201,8 @@ require_text "scrollable left workspace navigation" "$MAIN_ACTIVITY" 'private fu
 require_text "left rail accessibility remains child-focused" "$MAIN_ACTIVITY" 'importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO'
 require_text "left workspace rail fill viewport" "$MAIN_ACTIVITY" 'isFillViewport = true'
 require_text "responsive phone drawer leaves room for closing" "$MAIN_ACTIVITY" 'AndroidResponsiveLayout.drawerWidthDp(resources.configuration.screenWidthDp)'
+require_text "site connection validation visible across editor tabs" "$MAIN_ACTIVITY" 'view === siteFeedback -> Unit // Shared above the tab panels.'
+require_text "actual connection notice in shared editor header" "$MAIN_ACTIVITY" 'addView(siteFeedback)'
 require_text "reference full-width phone chrome" "$MAIN_ACTIVITY" 'private fun buildPremiumPhoneChrome(): View'
 require_text "phone navigation survives landscape rotation" "$MAIN_ACTIVITY" 'AndroidResponsiveLayout.usesPhoneNavigation('
 require_text "phone navigation uses smallest width" "$MAIN_ACTIVITY" 'resources.configuration.smallestScreenWidthDp'
