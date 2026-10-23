@@ -2953,9 +2953,15 @@ class MainActivity : Activity() {
                 contentDescription = "Open bookmark " + bookmark.title
                 setOnClickListener { openRemoteBookmark(bookmark) }
             }
-            val folder = PremiumReferenceStyle.caption(this, "▣", 21f).apply {
-                gravity = Gravity.CENTER
-                setTextColor(PremiumReferenceStyle.yellow)
+            // Reference #10 shows an actual yellow folder illustration,
+            // not a font-dependent monochrome glyph. The drawable scales
+            // cleanly with system density and has no duplicate screen-reader
+            // announcement (the tile itself names the bookmark).
+            val folder = ImageView(this).apply {
+                setImageResource(R.drawable.ic_premium_file_folder)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setPadding(dp(3), dp(6), dp(3), dp(6))
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }
             tile.addView(folder, LinearLayout.LayoutParams(dp(36), dp(42)))
             val description = LinearLayout(this).apply {
