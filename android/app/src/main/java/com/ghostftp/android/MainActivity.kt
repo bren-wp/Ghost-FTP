@@ -1224,10 +1224,9 @@ class MainActivity : Activity() {
                 generalViews.add(original[index - 1])
             }
         }
-        original.filterTo(generalViews) { view ->
-            view is ViewGroup && (0 until view.childCount)
-                .any { index -> view.getChildAt(index) === connectButton }
-        }
+        // Reference Add/Edit Site (screen #4) only has the General form
+        // and Cancel/Save footer. Keep real Quick Connect, Disconnect and
+        // Refresh actions in Advanced instead of crowding this screen.
         original.filterTo(generalViews) { view ->
             view is Button && view.text.toString() == "Save new connection profile"
         }
