@@ -9,3 +9,7 @@
 **Concrete defect fixed:** Android's private local file browser previously called `listFiles()` and sorted all entries synchronously. Storage failures or large folders can block UI or throw. New bounded DirectoryStream worker, canonical path isolation and stale callback generation prevent that class of failure.
 
 **Remaining work:** Independently inspect every symbol finding and test physical target devices before deletion. This static audit does not certify all 16 Android screenshots, user-data migration, large-transfer integrity or absence of all runtime crashes.
+
+## Identified unused helper
+
+`tools/ghostftp-runtime/main.go: decodeURLPath` appeared only at its declaration across inspected Go source and tests, with no route/selector references. It was removed together with its otherwise-unused `net/url` import. This remains subject to `go test`, `go vet`, and Windows/Linux target compilation. The extended Rust inventory initially marked 447 nonpublic symbols, mostly `#[cfg(test)]` functions. Such test-only entrypoints are explicitly excluded from candidate counts in the updated scan; no Rust application functionality was removed.

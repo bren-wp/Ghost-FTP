@@ -12,7 +12,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -620,9 +619,3 @@ func errString(err error) string {
 	return err.Error()
 }
 
-func decodeURLPath(v string) string {
-	if x, err := url.QueryUnescape(v); err == nil {
-		return x
-	}
-	return v
-}

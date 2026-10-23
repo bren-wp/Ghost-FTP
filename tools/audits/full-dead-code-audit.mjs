@@ -75,6 +75,13 @@ export function privateSymbolCandidates(entries, language, external = []) {
     "onStop", "onResume", "onPause", "onSaveInstanceState", "onActivityResult"]);
   return entries.flatMap(([file, source]) => [...source.matchAll(pattern)]
     .filter((m) => !reserved.has(m[1]))
+    // Most Rust modules put #[cfg(test)] mod tests at file end; those
+    // functions are test entrypoints, not production-orphan candidates.
+    // This conservative exclusion may hide functions after the test module,
+    // therefore all reported symbols remain advisory only.
+    .filter((m) => language !== "rust" ||
+      (!source.slice(0, m.index).includes("#[cfg(test)]") &&
+       !/#\\[(?:tokio::)?test\\]\\s*$/.test(source.slice(Math.max(0, m.index - 140), m.index))))
     .filter((m) => {
       const name = m[1];
       const occurrences = referents.match(new RegExp("\\b" + name + "\\b", "g")) || [];

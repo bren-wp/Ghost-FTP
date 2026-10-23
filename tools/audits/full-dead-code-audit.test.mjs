@@ -104,3 +104,15 @@ test("dead code audit tracks language-specific symbol reports without deleting a
     fs.rmSync(root, {recursive:true, force:true});
   }
 });
+
+test("Rust private function inventory excludes cfg(test) and test attribute entrypoints", () => {
+  const rust = `fn productionOrphan() {}
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn exercisedOnlyByHarness() {}
+    fn testHelper() {}
+}`;
+  assert.deepEqual(privateSymbolCandidates([["src/lib.rs", rust]], "rust")
+    .map(x => x.name), ["productionOrphan"]);
+});
