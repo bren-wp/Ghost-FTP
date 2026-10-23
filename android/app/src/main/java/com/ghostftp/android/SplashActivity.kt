@@ -41,7 +41,16 @@ class SplashActivity : Activity() {
         window.statusBarColor = PremiumReferenceStyle.canvas
         window.navigationBarColor = PremiumReferenceStyle.canvas
         val frame = FrameLayout(this).apply {
-            setBackgroundColor(PremiumReferenceStyle.canvas)
+            // Render the dark midnight gradient from the user's 16-screen
+            // reference as native Android UI, not as a screenshot background.
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(
+                    Color.rgb(4, 11, 21),
+                    PremiumReferenceStyle.canvas,
+                    Color.rgb(12, 19, 37)
+                )
+            )
         }
         val identity = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -101,7 +110,7 @@ class SplashActivity : Activity() {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(6)
             ))
             addView(TextView(this@SplashActivity).apply {
-                text = "Opening Ghost FTP…"
+                text = "Initializing…"
                 setTextColor(PremiumReferenceStyle.secondary)
                 textSize = 12f
                 gravity = Gravity.CENTER

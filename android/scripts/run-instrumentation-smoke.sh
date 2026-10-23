@@ -19,6 +19,10 @@ collect_diagnostics() {
 
 on_exit() {
   local status=$?
+  if [ "${RESPONSIVE_LAYOUT_ACTIVE:-0}" = "1" ]; then
+    adb shell wm size 480x960 >/dev/null 2>&1 || true
+    adb shell settings put system font_scale 1.0 >/dev/null 2>&1 || true
+  fi
   if [ "$status" -ne 0 ]; then
     collect_diagnostics
   fi
@@ -287,7 +291,68 @@ No reference concept screenshots, fake cloud connections, passwords, or
 simulated transfers are inserted. These are visual-comparison INPUTS and do
 not certify 1:1 parity with the 16 reference PNGs.
 Production FLAG_SECURE and private credentials remain protected.
+The separate RESPONSIVE-SHA256SUMS.txt tracks live view-tree renders at
+320x640, 360x800, 393x852 (large font), 480x960, 720x1280 and 960x540.
+They are QA evidence only, not a claim of pixel-perfect golden-image parity.
 VISUAL_EVIDENCE
+
+# Responsive test runs after the canonical 480x960 capture to preserve
+# the original reference artifacts. Each viewport gets eight LIVE idle
+# Android workspace screenshots, never mocked accounts or transfer metrics.
+RESPONSIVE_LAYOUT_ACTIVE=1
+for spec in \
+  "320x640:1.0" \
+  "360x800:1.0" \
+  "393x852:1.4" \
+  "480x960:1.0" \
+  "720x1280:1.0" \
+  "960x540:1.0"; do
+  geometry="${spec%%:*}"
+  font_scale="${spec##*:}"
+  label="responsive-${geometry}-font${font_scale}"
+  adb shell wm size "$geometry"
+  adb shell settings put system font_scale "$font_scale"
+  sleep 1
+  set +e
+  RESPONSIVE_RESULT="$(adb shell am instrument -w \
+    -e class 'com.ghostftp.android.ResponsiveViewportTest#realEightWorkspacesRemainNavigableAcrossPhoneSizes' \
+    "$PACKAGE_ID.test/androidx.test.runner.AndroidJUnitRunner" 2>&1)"
+  RESPONSIVE_EXIT=$?
+  set -e
+  printf '%s\n' "$RESPONSIVE_RESULT" > "$VISUAL_DIR/${label}.log"
+  if ! bash android/scripts/check-visual-instrumentation-output.sh \
+    "$VISUAL_DIR/${label}.log" "$RESPONSIVE_EXIT"; then
+    echo "Responsive Android view validation failed for $geometry at ${font_scale}x system font scale." >&2
+    tail -n 100 "$VISUAL_DIR/${label}.log" >&2
+    exit 1
+  fi
+  for screen in files sites transfers sync cloud bookmarks settings about; do
+    artifact="${label}-${screen}.png"
+    adb exec-out run-as "$PACKAGE_ID" cat "files/premium-responsive/${screen}.png" > "$VISUAL_DIR/$artifact"
+    python3 - "$VISUAL_DIR/$artifact" "$geometry" <<'PYTHON_RESIZE'
+import pathlib, struct, sys
+file = pathlib.Path(sys.argv[1])
+requested_width, requested_height = map(int, sys.argv[2].split("x"))
+header = file.read_bytes()[:24]
+if len(header) < 24 or header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+    raise SystemExit("Not an Android PNG: " + str(file))
+width, height = struct.unpack(">II", header[16:24])
+if (width, height) not in ((requested_width, height), (requested_height, height)):
+    raise SystemExit(f"Unexpected Android viewport width: {width} for {file.name}")
+if height > max(requested_height, requested_width) or height < 240 or file.stat().st_size < 3000:
+    raise SystemExit(f"Empty or dimensionally incorrect Android capture: {file.name} {width}x{height}")
+print(f"Verified responsive Android viewport: {file.name} ({width}x{height})")
+PYTHON_RESIZE
+  done
+done
+adb shell wm size 480x960
+adb shell settings put system font_scale 1.0
+RESPONSIVE_LAYOUT_ACTIVE=0
+(
+  cd "$VISUAL_DIR"
+  for image in responsive-*.png; do shasum -a 256 "$image"; done
+) > "$VISUAL_DIR/RESPONSIVE-SHA256SUMS.txt"
+test -s "$VISUAL_DIR/RESPONSIVE-SHA256SUMS.txt"
 
 AAPT="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n1)"
 test -x "$AAPT"

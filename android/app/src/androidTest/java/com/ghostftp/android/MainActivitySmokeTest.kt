@@ -607,6 +607,9 @@ class MainActivitySmokeTest {
     @Test
     fun connectionValidationAndIdleRecoveryWorkClickByClick() {
         openWorkspace(R.string.workspace_sites)
+        // General follows the approved Add Site reference: only Cancel/Save.
+        // Quick Connect is still available through the Advanced tab.
+        clickByDescription("Site editor Advanced tab")
         clickByDescription(appString(R.string.action_connect))
         assertTextPresent(appString(R.string.msg_host_required_detail))
 

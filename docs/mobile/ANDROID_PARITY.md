@@ -1,5 +1,7 @@
 > Current shared source cycle: **0.99.4** (preview). Published predecessor: **v0.99.3**. Historic Android parity findings below remain unmodified.
 
+> **Development cycle:** Ghost FTP 0.99.6 Preview. Previous verified public release: v0.99.5. Android responsive reference acceptance is pending.
+
 > Android 16-screen reference candidate v0.95.23: **preview only**. Real Bookmarks, contextual Settings/Advanced, Add/Edit tabs, native About and stored-profile loading are implemented in source. Pixel-perfect 16/16 acceptance and real-device screenshot comparison are not yet established. Latest published baseline: v0.95.22.
 
 > Ghost FTP **0.99.4** (release cycle), following published **v0.99.3**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
@@ -47,7 +49,7 @@ The Android Cloud storage workspace transfers one object at a time using short-l
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
 - Active source version: **0.95.18**
-- Previous canonical release: **0.99.4**
+- Previous canonical release: **0.99.5**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`
@@ -158,3 +160,7 @@ Stable/FINAL mobile status additionally requires device-level install/upgrade/st
 
 
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Potvrđeni rezultati testova, a ne samo broj verzije, određuju spremnost izdanja.
+
+## Ghost FTP 0.99.6 responsive phone acceptance (in progress)
+
+Native Kotlin layouts now adapt Files to a single pane under 420 dp of usable content width and keep dual-pane on wider phones and tablets. Six emulator viewports, font scale 1.4 and landscape route checks are in `ResponsiveViewportTest.kt`. The 16 source UI mockup screens are **not** declared pixel-identical. Signed cloud-provider account browsing and persisted multi-transfer queue remain independent feature gaps. See `docs/qa/ANDROID_RESPONSIVE_0.99.6.md` for the acceptance matrix.

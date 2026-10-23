@@ -6,8 +6,8 @@ Native Android application for Ghost FTP.
 
 - Product: Ghost FTP
 - Brand: Brendigo
-- Active source/release cycle: 0.95.0
-- Previous canonical release: 0.94.0
+- Active source/release cycle: 0.99.6
+- Previous canonical release: 0.99.5
 - Version source of truth: ../version.json
 - Release identity is rendered from `ReleaseInfo.kt`; this document does not carry an independent version badge.
 
@@ -151,15 +151,15 @@ Signed cloud links with empty, duplicated or provider-mismatched signature field
 
 Android cloud transfers now use a direct-only OkHttp client whose DNS selection rejects any resolved private, reserved or metadata-route address before connecting. Redirects and automatic retries are disabled; default TLS hostname/certificate validation remains enabled. The cloud UI provides Cancel cloud transfer, which cancels the active HTTP call. The app attempts to remove a newly created SAF document when download fails; if deletion is unsupported, the user sees a clear incomplete-destination warning. These source changes require exact-SHA CI, emulator/device verification and live signed provider URLs before production acceptance.
 
-## 0.95.0 Protected premium visual QA
+## 0.99.6 Android responsive and real-view visual QA
 
-The CI Android emulator uses the approved **480×960** pixel viewport at 160dpi. In addition to normal APK/AAB builds, unit tests and click-through instrumentation, `PremiumVisualReferenceTest.kt` verifies the 64dp navigation rail and 58dp full-width brand bar using real layout bounds. A debug-only instrumentation pass captures seven genuine empty application workspaces into the separate `GhostFTP-Android-Premium-Visual-QA-480x960` artifact, with SHA-256 hashes. **Production `FLAG_SECURE` remains enabled**; ordinary screenshots of the application are deliberately restricted to protect user secrets. No fabricated files, server connections or transfer states are introduced for screenshots.
+The main reference remains the user's two original 16-screen Android UI sheets. The Android 16 emulator captures **13 genuine idle UI/screens at 480×960**, and the new `ResponsiveViewportTest.kt` runs all eight workspaces at **320×640, 360×800, 393×852 with 1.4× system text size, 480×960, 720×1280 and 960×540 landscape**. Each image is drawn from the debug process's real View hierarchy into private QA storage, with PNG checks and SHA-256 manifests. No server metadata, file names, credentials, provider connections or transfer percentages are fabricated. **FLAG_SECURE remains enabled in production and test builds.**
 
-This is evidence for visual review, not certification that 16 Android reference screens or all platforms are 1:1. Compare the captures manually with `screens/android/` and log legitimate empty-state deviations; Cloud has no approved reference screen in the user archive.
+Native `AndroidResponsiveLayout.kt` selects phone navigation by smallest device width (so rotation does not turn a phone into a tablet) and selects Files dual-pane only where the real content area is wide enough. A compact phone gets a readable single pane and a mode selector. Tablets get a Remote/Local/Dual selector when the window is split. On-screen keyboard insets, Settings one-column fallback, a five-action Files footer, and fixed bottom Text Editor controls address small devices and large fonts. This is repeatable responsive QA, **not proof of 1:1 screenshot matching**.
 
 ## Android 16-screen premium design reference
 
 The native Android layout is based on the 16-screen user-approved `Ghost FTP Android UI maketa.png`. Current work includes source-implemented premium Site protocol tiles, a real active-session navigation tile, a dual/remote/local Files viewport selector with vector toolbar icons, an in-flight transfer indicator without invented percentages, a bounded read-only Sync/Compare screen and safe selection of app-owned files for upload.
 
-**Not yet full 1:1:** the separate Connect details screen is now implemented in code, but a full remote text editor and a batch-rename UI remain incomplete; per-screen pixel acceptance is also pending. The backend currently supports one guarded operation, not a fabricated multi-transfer queue or automatic destructive mirroring. See [per-screen acceptance matrix](../docs/qa/ANDROID_16_SCREEN_PARITY.md). Do not state Play production readiness or pixel-perfect parity without real screenshots and protected production signing.
+**Not yet full 1:1:** a bounded UTF-8 remote text editor with server-confirmed save and a safe numbered batch rename screen are now implemented, but advanced editor operations, batch attributes/time, persistent multi-transfer queue and provider-based cloud OAuth remain incomplete; per-screen pixel acceptance is also pending. The backend currently supports one guarded operation, not a fabricated multi-transfer queue or automatic destructive mirroring. See [per-screen acceptance matrix](../docs/qa/ANDROID_16_SCREEN_PARITY.md) and [responsive viewport QA](../docs/qa/ANDROID_RESPONSIVE_0.99.6.md). Do not state Play production readiness or pixel-perfect parity without real screenshots and protected production signing.
 

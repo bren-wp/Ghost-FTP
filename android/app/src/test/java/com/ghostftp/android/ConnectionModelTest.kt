@@ -14,6 +14,50 @@ class ConnectionModelTest {
     private val controller = ConnectionController()
 
     @Test
+    fun boundedRemoteEditorCopyRejectsOverLimitWithoutWritingExtraBytes() {
+        val source = ByteArray(524_289) { 65 }
+        val sink = java.io.ByteArrayOutputStream()
+        assertThrows(IOException::class.java) {
+            controller.copyCancelable(
+                java.io.ByteArrayInputStream(source), sink,
+                OperationCancellation(), maxBytes = 524_288
+            )
+        }
+        assertTrue("No bytes beyond the editor limit may be written.",
+            sink.size() <= 524_288)
+    }
+
+    @Test
+    fun boundedRemoteEditorCopyAcceptsExactLimitAndRejectsNegativeLimits() {
+        val data = "hello".toByteArray(Charsets.UTF_8)
+        val sink = java.io.ByteArrayOutputStream()
+        assertEquals(5L, controller.copyCancelable(
+            java.io.ByteArrayInputStream(data), sink,
+            OperationCancellation(), maxBytes = 5
+        ))
+        assertEquals("hello", sink.toString("UTF-8"))
+        assertThrows(IllegalArgumentException::class.java) {
+            controller.copyCancelable(
+                java.io.ByteArrayInputStream(data), java.io.ByteArrayOutputStream(),
+                OperationCancellation(), maxBytes = -1L
+            )
+        }
+    }
+
+    @Test
+    fun boundedCopyHonorsCancellationBeforeWritingData() {
+        val canceled = OperationCancellation().apply { cancel() }
+        val output = java.io.ByteArrayOutputStream()
+        assertThrows(OperationCanceledException::class.java) {
+            controller.copyCancelable(
+                java.io.ByteArrayInputStream(byteArrayOf(1, 2, 3)), output,
+                canceled, maxBytes = 512 * 1024L
+            )
+        }
+        assertEquals(0, output.size())
+    }
+
+    @Test
     fun protocolIndexUsesSafeFallback() {
         assertEquals(ConnectionProtocol.FTP, ConnectionProtocol.fromIndex(-1))
         assertEquals(ConnectionProtocol.FTP, ConnectionProtocol.fromIndex(99))

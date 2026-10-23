@@ -91,6 +91,21 @@ class MainActivity : Activity() {
     private lateinit var cloudSection: View
     private lateinit var cloudTransferOptionsPanel: View
     private lateinit var bookmarksSection: View
+    private lateinit var editorSection: View
+    private lateinit var editorContentInput: EditText
+    private lateinit var editorActionToolbar: View
+    private var editorMode = false
+    private var editorOriginalText = ""
+    private var editorRemotePath = ""
+    private var editorConnection: ConnectionProfile? = null
+    private val selectedRemoteBatchPaths = linkedSetOf<String>()
+    private var batchMode = false
+    private lateinit var batchSection: View
+    private lateinit var batchPatternInput: EditText
+    private lateinit var batchStartInput: EditText
+    private lateinit var batchPreviewRows: LinearLayout
+    private var pendingSavedEditorText: String? = null
+    private var pendingSavedEditorPath: String? = null
     private lateinit var searchSection: View
     private lateinit var searchResults: LinearLayout
     private lateinit var searchQueryInput: EditText
@@ -191,6 +206,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         // Process death skips a transfer worker's finally block. Clear only
         // our app-private cloud staging files before new work can begin.
         CloudStageCleanup.purgeOnProcessStart(cacheDir)
@@ -200,7 +216,12 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= 35) {
             content.setOnApplyWindowInsetsListener { view, insets ->
                 val bars = insets.getInsets(WindowInsets.Type.systemBars())
-                view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                // Android 15+ enforces edge-to-edge. Follow the on-screen
+                // keyboard as well as navigation bars: never bury Save or
+                // destructive confirmations behind the IME.
+                val ime = insets.getInsets(WindowInsets.Type.ime())
+                view.setPadding(bars.left, bars.top, bars.right,
+                    maxOf(bars.bottom, ime.bottom))
                 insets
             }
         }
@@ -249,6 +270,8 @@ class MainActivity : Activity() {
         activeCancellation?.cancel()
         activeCancellation = null
         pendingConfirmation = null
+        pendingSavedEditorText = null
+        pendingSavedEditorPath = null
         selectedUploadUri = null
         activeProfile = null
         if (::passwordInput.isInitialized) passwordInput.text.clear()
@@ -365,6 +388,9 @@ class MainActivity : Activity() {
         cloudSection = buildCloudCard()
         bookmarksSection = buildBookmarksCard()
         searchSection = buildSearchCard().apply { visibility = View.GONE }
+        editorSection = buildRemoteTextEditorCard().apply { visibility = View.GONE }
+        editorActionToolbar = buildRemoteEditorToolbar().apply { visibility = View.GONE }
+        batchSection = buildBatchRenameCard().apply { visibility = View.GONE }
         settingsSection = buildSettingsCard()
         aboutSection = buildAboutCard()
 
@@ -377,6 +403,8 @@ class MainActivity : Activity() {
             addView(cloudSection)
             addView(bookmarksSection)
             addView(searchSection)
+            addView(editorSection)
+            addView(batchSection)
             addView(settingsSection)
             addView(aboutSection)
         }
@@ -385,9 +413,10 @@ class MainActivity : Activity() {
         // slide-over drawer; a persistent rail is reserved for tablets.
         val compactNavigation = usesOverlayNavigation()
         navigationOpen = !compactNavigation
-        val railWidth = when {
-            compactNavigation -> dp(if (resources.configuration.screenWidthDp < 400) 260 else 280)
-            else -> dp(184)
+        val railWidth = if (compactNavigation) {
+            dp(AndroidResponsiveLayout.drawerWidthDp(resources.configuration.screenWidthDp))
+        } else {
+            dp(184)
         }
         navigationRail = buildNavigationRail().apply {
             visibility = if (navigationOpen) View.VISIBLE else View.GONE
@@ -405,7 +434,7 @@ class MainActivity : Activity() {
             setBackgroundColor(Brand.background)
             isFillViewport = true
         }
-        val outerPadding = if (resources.configuration.screenWidthDp < 600) dp(10) else dp(14)
+        val outerPadding = if (compactNavigation) dp(10) else dp(14)
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(outerPadding, dp(14), outerPadding, dp(22))
@@ -414,7 +443,7 @@ class MainActivity : Activity() {
         // competing title/toolbar above the premium phone workspace.
         val legacyHeader = buildHeader()
         legacyHeader.visibility =
-            if (resources.configuration.screenWidthDp < 600) View.GONE else View.VISIBLE
+            if (compactNavigation) View.GONE else View.VISIBLE
         content.addView(legacyHeader)
         sessionStatusCard = buildStatusCard().apply {
             contentDescription = "Session status panel"
@@ -432,7 +461,7 @@ class MainActivity : Activity() {
         // The 16 approved phone references have no persistent "Private
         // session" marketing footer; it consumed viewport space on EVERY
         // Android page. Keep provenance footer on roomy tablets only.
-        if (resources.configuration.screenWidthDp >= 600) {
+        if (!compactNavigation) {
             content.addView(space(10))
             content.addView(buildFooter())
         }
@@ -498,15 +527,20 @@ class MainActivity : Activity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Brand.background)
-            if (resources.configuration.screenWidthDp < 600) {
+            if (compactNavigation) {
                 addView(buildPremiumPhoneChrome(), LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(52)
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(if (resources.configuration.fontScale >= 1.3f) 60 else 52)
                 ))
             }
             addView(root, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
             ))
             addView(fileActionToolbar, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+            addView(editorActionToolbar, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ))
@@ -520,7 +554,11 @@ class MainActivity : Activity() {
         setBackgroundColor(Brand.background)
 
         phoneMenuButton = secondaryButton("☰") {
-            if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
+            if (editorMode) {
+                closeRemoteEditor()
+            } else if (batchMode) {
+                closeBatchRename()
+            } else if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
                 showSitesOverview()
             } else {
                 setNavigationOpen(!navigationOpen)
@@ -560,6 +598,8 @@ class MainActivity : Activity() {
         }
         phoneQuickButton.setOnClickListener {
             when {
+                batchMode -> previewBatchRename()
+                editorMode -> showRemoteEditorMoreMenu()
                 activeWorkspace == Workspace.SITES && !siteEditorVisible -> showSiteEditor(null)
                 activeWorkspace == Workspace.BOOKMARKS -> promptSaveCurrentBookmark()
                 activeWorkspace == Workspace.FILES && !searchMode -> openSearch()
@@ -590,7 +630,13 @@ class MainActivity : Activity() {
     private fun updatePhoneChromeActions() {
         if (!::phoneQuickButton.isInitialized) return
         if (::phoneMenuButton.isInitialized) {
-            if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
+            if (batchMode) {
+                phoneMenuButton.text = "‹"
+                phoneMenuButton.contentDescription = "Close Batch Rename"
+            } else if (editorMode) {
+                phoneMenuButton.text = "‹"
+                phoneMenuButton.contentDescription = "Close Text Editor"
+            } else if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
                 phoneMenuButton.text = "‹"
                 phoneMenuButton.contentDescription = "Back to Sites"
             } else if (phoneMenuButton.contentDescription == "Back to Sites") {
@@ -602,11 +648,21 @@ class MainActivity : Activity() {
         }
         if (::phoneFilesViewButton.isInitialized) {
             phoneFilesViewButton.visibility =
-                if (activeWorkspace == Workspace.FILES && !searchMode) View.VISIBLE else View.GONE
+                if (activeWorkspace == Workspace.FILES && !searchMode &&
+                    !editorMode && !batchMode)
+                    View.VISIBLE else View.GONE
         }
         val sitesOverview = activeWorkspace == Workspace.SITES && !siteEditorVisible
         val bookmarks = activeWorkspace == Workspace.BOOKMARKS
         when {
+            batchMode -> {
+                phoneQuickButton.text = "✓"
+                phoneQuickButton.contentDescription = "Preview batch rename"
+            }
+            editorMode -> {
+                phoneQuickButton.text = "⋯"
+                phoneQuickButton.contentDescription = "Text Editor options"
+            }
             searchMode -> {
                 phoneQuickButton.text = "×"
                 phoneQuickButton.contentDescription = "Close Search"
@@ -660,7 +716,8 @@ class MainActivity : Activity() {
                     workspaceNavItem(workspace),
                     LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
-                        dp(if (resources.configuration.screenWidthDp >= 600) 52 else 48)
+                        dp(AndroidResponsiveLayout.navigationItemHeightDp(
+                            resources.configuration.fontScale, !usesOverlayNavigation()))
                     )
                 )
                 addView(space(3))
@@ -695,7 +752,7 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ))
             addView(space(10))
-            if (!iconRail && resources.configuration.screenWidthDp >= 600)
+            if (!iconRail && !usesOverlayNavigation())
                 addView(TextView(this@MainActivity).apply {
                 text = getString(R.string.label_private_session)
                 setTextColor(Brand.muted)
@@ -751,7 +808,7 @@ class MainActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         titleRow.addView(badge(ReleaseInfo.VERSION_BADGE))
-        if (resources.configuration.screenWidthDp !in 360..599) addView(titleRow)
+        if (!usesOverlayNavigation()) addView(titleRow)
 
         workspaceTitle = TextView(this@MainActivity).apply {
             text = workspaceLabel(activeWorkspace)
@@ -770,6 +827,8 @@ class MainActivity : Activity() {
             setPadding(dp(5), dp(4), dp(5), dp(4))
             setBackgroundColor(PremiumReferenceStyle.raised)
             contentDescription = "File actions"
+            val compactLabels = AndroidResponsiveLayout.compactFileActions(
+                resources.configuration.screenWidthDp, resources.configuration.fontScale)
             val actions = listOf(
                 trackRemoteAction(toolbarButton(getString(R.string.action_upload)) {
                     uploadOrPickFile()
@@ -798,7 +857,14 @@ class MainActivity : Activity() {
             )
             actions.forEach { item ->
                 item.setAllCaps(false)
-                item.textSize = 10f
+                item.textSize = if (compactLabels) 9f else 10f
+                // Five full-width actions must not force clipped labels on
+                // 320–360 dp phones or when Display size/Text size is larger.
+                if (compactLabels && item.contentDescription ==
+                    getString(R.string.action_new_folder)) {
+                    item.text = "Folder"
+                }
+                item.maxLines = 2
                 item.gravity = Gravity.CENTER
                 item.background = PremiumReferenceStyle.surface(this@MainActivity,
                     PremiumReferenceStyle.raised, 5, PremiumReferenceStyle.raised)
@@ -807,7 +873,7 @@ class MainActivity : Activity() {
             }
             val more = toolbarButton("More") { }.apply {
                 setAllCaps(false)
-                textSize = 10f
+                textSize = if (compactLabels) 9f else 10f
                 gravity = Gravity.CENTER
                 contentDescription = "More file actions"
                 background = PremiumReferenceStyle.surface(this@MainActivity,
@@ -1147,7 +1213,7 @@ class MainActivity : Activity() {
         // SSH host-key identity is connection-critical. Unlike keep-alive,
         // it must be visible in the General tab when SFTP is selected.
         // Hiding it in Advanced made an unverified server appear safe to use.
-        val generalViews = mutableSetOf<View>(siteFeedback, sftpFingerprintGroup)
+        val generalViews = mutableSetOf<View>(sftpFingerprintGroup)
         for (field in listOf<View>(
             siteNameInput, protocolSpinner, hostInput, portInput,
             usernameInput, passwordInput
@@ -1158,10 +1224,9 @@ class MainActivity : Activity() {
                 generalViews.add(original[index - 1])
             }
         }
-        original.filterTo(generalViews) { view ->
-            view is ViewGroup && (0 until view.childCount)
-                .any { index -> view.getChildAt(index) === connectButton }
-        }
+        // Reference Add/Edit Site (screen #4) only has the General form
+        // and Cancel/Save footer. Keep real Quick Connect, Disconnect and
+        // Refresh actions in Advanced instead of crowding this screen.
         original.filterTo(generalViews) { view ->
             view is Button && view.text.toString() == "Save new connection profile"
         }
@@ -1204,6 +1269,11 @@ class MainActivity : Activity() {
         tabs.addView(tab("Sync", false) { setWorkspace(Workspace.SYNC) },
             LinearLayout.LayoutParams(0, dp(39), 1f))
         addView(tabs)
+        addView(space(8))
+        // Keep the real connection-validation notice visible on BOTH the
+        // General and Advanced site tabs. It previously lived inside General
+        // only, so Advanced-tab connection failures were silently hidden.
+        addView(siteFeedback)
         addView(space(12))
         // Frame #4 uses a compact field matrix: aligned captions on the left,
         // actual native controls on the right. Retain original EditTexts and
@@ -1229,6 +1299,7 @@ class MainActivity : Activity() {
         } as? Button
         original.forEach { view ->
             when {
+                view === siteFeedback -> Unit // Shared above the tab panels.
                 view in oldFieldLabels -> Unit
                 view in compactFields -> {
                     if (view === passwordInput) {
@@ -1325,7 +1396,7 @@ class MainActivity : Activity() {
         }.apply {
             contentDescription = "Add Site"
         }, LinearLayout.LayoutParams(dp(44), dp(42)))
-        if (resources.configuration.screenWidthDp >= 600) addView(heading)
+        if (!usesOverlayNavigation()) addView(heading)
         sitesSearch = input("Search saved sites…", InputType.TYPE_CLASS_TEXT).apply {
             contentDescription = "Search sites"
             addTextChangedListener(object : android.text.TextWatcher {
@@ -1655,9 +1726,9 @@ class MainActivity : Activity() {
                 // Reference #6 keeps both file panes tall, even if disconnected
                 // or the actual local app-owned directory is empty.
                 if (resources.configuration.screenWidthDp < 600) {
-                    minimumHeight = dp(
-                        (resources.configuration.screenHeightDp - 164).coerceIn(300, 850)
-                    )
+                    minimumHeight = dp(AndroidResponsiveLayout.filePaneMinHeightDp(
+                        resources.configuration.screenHeightDp
+                    ))
                 }
                 background = PremiumReferenceStyle.surface(this@MainActivity)
                 val header = TextView(this@MainActivity).apply {
@@ -1689,6 +1760,34 @@ class MainActivity : Activity() {
         twoPane.addView(filesLocalPane,
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
                 .apply { marginStart = dp(4) })
+        if (!usesOverlayNavigation()) {
+            // Tablet split-screen may leave less width than an ordinary phone.
+            // Provide a real pane switch rather than clipping two file tables.
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                for ((label, mode) in listOf(
+                    "Remote" to FilesViewMode.REMOTE,
+                    "Local" to FilesViewMode.LOCAL,
+                    "Dual" to FilesViewMode.DUAL
+                )) {
+                    addView(PremiumReferenceStyle.action(this@MainActivity, label) {
+                        filesViewMode = mode
+                        updateFilesViewMode()
+                    }.apply {
+                        if (mode == FilesViewMode.DUAL &&
+                            !AndroidResponsiveLayout.canShowDualFilePanes(
+                                availableFileContentWidthDp())) {
+                            isEnabled = false
+                            alpha = 0.5f
+                            contentDescription = "Dual files unavailable at this window width"
+                        }
+                    }, LinearLayout.LayoutParams(0, dp(46), 1f).apply {
+                        marginEnd = dp(5)
+                    })
+                }
+            })
+            addView(space(8))
+        }
         updateFilesViewMode()
         addView(twoPane)
         refreshLocalPane()
@@ -1701,14 +1800,18 @@ class MainActivity : Activity() {
      */
     private fun updateFilesViewMode() {
         if (!::filesRemotePane.isInitialized || !::filesLocalPane.isInitialized) return
+        val canFitDual = AndroidResponsiveLayout.canShowDualFilePanes(
+            availableFileContentWidthDp())
+        val effectiveMode = if (!canFitDual && filesViewMode == FilesViewMode.DUAL)
+            FilesViewMode.REMOTE else filesViewMode
         filesRemotePane.visibility =
-            if (filesViewMode == FilesViewMode.LOCAL) View.GONE else View.VISIBLE
+            if (effectiveMode == FilesViewMode.LOCAL) View.GONE else View.VISIBLE
         filesLocalPane.visibility =
-            if (filesViewMode == FilesViewMode.REMOTE) View.GONE else View.VISIBLE
+            if (effectiveMode == FilesViewMode.REMOTE) View.GONE else View.VISIBLE
         if (::phoneFilesViewButton.isInitialized) {
             phoneFilesViewButton.contentDescription =
                 "Choose Files view · " + when (filesViewMode) {
-                    FilesViewMode.DUAL -> "Dual pane"
+                    FilesViewMode.DUAL -> if (canFitDual) "Dual pane" else "Remote · narrow screen"
                     FilesViewMode.REMOTE -> "Remote"
                     FilesViewMode.LOCAL -> "Local"
                 }
@@ -1717,7 +1820,8 @@ class MainActivity : Activity() {
 
     private fun openFilesViewChooser() {
         android.widget.PopupMenu(this, phoneFilesViewButton).apply {
-            menu.add(0, 1, 0, "Dual pane")
+            menu.add(0, 1, 0, "Dual pane").isEnabled =
+                AndroidResponsiveLayout.canShowDualFilePanes(availableFileContentWidthDp())
             menu.add(0, 2, 1, "Remote only")
             menu.add(0, 3, 2, "Local only")
             setOnMenuItemClickListener { item ->
@@ -1737,16 +1841,26 @@ class MainActivity : Activity() {
     // a fake listing of system Download/Pictures/DCIM folders.
     private fun refreshLocalPane() {
         if (!::localRows.isInitialized) return
-        val base = (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir)
-            .canonicalFile
-        val current = (localBrowseDirectory ?: base).canonicalFile
-        val inside = current.path == base.path ||
-            current.path.startsWith(base.path + File.separator)
-        if (!inside || !current.isDirectory) localBrowseDirectory = base
-        else localBrowseDirectory = current
+        // A revoked/unmounted external-storage volume or transient I/O error
+        // must not crash the entire Files workspace on the UI thread.
+        val base = runCatching {
+            (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir).canonicalFile
+        }.getOrElse {
+            filesDir.canonicalFile
+        }
+        val current = runCatching { (localBrowseDirectory ?: base).canonicalFile }
+            .getOrNull()
+        val inside = current != null && (current.path == base.path ||
+            current.path.startsWith(base.path + File.separator))
+        localBrowseDirectory = if (inside && current?.isDirectory == true) current else base
         val directory = localBrowseDirectory ?: base
         localDirectoryLabel.text = "Local · " + directory.name
         localRows.removeAllViews()
+        if (!directory.canRead()) {
+            localRows.addView(PremiumReferenceStyle.caption(this,
+                "Local storage is temporarily unavailable", 12f, true))
+            return
+        }
         if (directory != base) {
             localRows.addView(compactBrowserRow("..", true) {
                 localBrowseDirectory = directory.parentFile
@@ -1780,10 +1894,12 @@ class MainActivity : Activity() {
      * guarded upload action. Never grant file:// URIs to another process.
      */
     private fun selectLocalUploadFile(file: File) {
-        val base = (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            ?: filesDir).canonicalFile
+        val base = runCatching {
+            (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir).canonicalFile
+        }.getOrNull()
         val chosen = runCatching { file.canonicalFile }.getOrNull()
-        if (chosen == null || !chosen.path.startsWith(base.path + File.separator) ||
+        if (base == null || chosen == null ||
+            !chosen.path.startsWith(base.path + File.separator) ||
             !chosen.isFile || !chosen.canRead()) {
             showMessage("Local file unavailable",
                 "Ghost FTP cannot read this file inside its private Downloads folder.")
@@ -1801,8 +1917,12 @@ class MainActivity : Activity() {
         showMessage("Local file selected", "Tap Upload to send this file to the connected server.")
     }
 
-    private fun compactBrowserRow(name: String, directory: Boolean, onClick: () -> Unit): View =
-        LinearLayout(this).apply {
+    private fun compactBrowserRow(
+        name: String,
+        directory: Boolean,
+        detail: String? = null,
+        onClick: () -> Unit
+    ): View = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = dp(43)
@@ -1817,8 +1937,20 @@ class MainActivity : Activity() {
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
             }, LinearLayout.LayoutParams(0, dp(40), 1f))
+            if (!detail.isNullOrBlank() && !directory) {
+                addView(PremiumReferenceStyle.caption(this@MainActivity,
+                    detail, 10f, true).apply {
+                    gravity = Gravity.CENTER_VERTICAL or Gravity.END
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                    setPadding(dp(3), 0, dp(4), 0)
+                }, LinearLayout.LayoutParams(dp(68), dp(40)))
+            }
             isClickable = true
             isFocusable = true
+            foreground = android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(
+                    Color.argb(68, 131, 96, 255)), null, null)
             contentDescription = (if (directory) "Open folder " else "File ") + name
             setOnClickListener { onClick() }
         }
@@ -2468,10 +2600,10 @@ class MainActivity : Activity() {
         val savedContent = (0 until childCount).map { getChildAt(it) }
         removeAllViews()
         val providers = listOf(
-            "Google Drive" to "G",
-            "Dropbox" to "D",
-            "OneDrive" to "O",
-            "iCloud" to "i"
+            "Google Drive" to R.drawable.ic_premium_cloud_drive,
+            "Dropbox" to R.drawable.ic_premium_cloud_dropbox,
+            "OneDrive" to R.drawable.ic_premium_cloud_onedrive,
+            "iCloud" to R.drawable.ic_premium_cloud_icloud
         )
         val advanced = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
@@ -2481,7 +2613,7 @@ class MainActivity : Activity() {
         val feedback = PremiumReferenceStyle.caption(this@MainActivity, "", 12f, true).apply {
             visibility = View.GONE
         }
-        providers.forEach { (provider, monogram) ->
+        providers.forEach { (provider, vectorIcon) ->
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -2489,10 +2621,13 @@ class MainActivity : Activity() {
                 minimumHeight = dp(57)
                 background = PremiumReferenceStyle.surface(this@MainActivity,
                     PremiumReferenceStyle.raised, 9)
-                addView(PremiumReferenceStyle.caption(this@MainActivity, monogram, 22f).apply {
-                    gravity = Gravity.CENTER
-                    setTextColor(PremiumReferenceStyle.purpleLight)
-                    typeface = Typeface.DEFAULT_BOLD
+                // Native vector artwork keeps the design crisp at every
+                // Android screen density and user display scaling.
+                addView(ImageView(this@MainActivity).apply {
+                    setImageResource(vectorIcon)
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    contentDescription = provider + " icon"
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 }, LinearLayout.LayoutParams(dp(36), dp(37)))
                 addView(LinearLayout(this@MainActivity).apply {
                     orientation = LinearLayout.VERTICAL
@@ -2757,7 +2892,7 @@ class MainActivity : Activity() {
             promptSaveCurrentBookmark()
         }.apply { contentDescription = getString(R.string.bookmarks_add) },
             LinearLayout.LayoutParams(dp(44), dp(42)))
-        if (resources.configuration.screenWidthDp >= 600) addView(titleRow)
+        if (!usesOverlayNavigation()) addView(titleRow)
         bookmarksRows = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -3001,11 +3136,17 @@ class MainActivity : Activity() {
             listOf(Triple("Cloud Storage", R.drawable.ic_premium_nav_cloud, 7),
                 Triple("About", R.drawable.ic_premium_nav_about, 8))
         )
+        val verticalSettings = resources.configuration.screenWidthDp < 360 ||
+            (resources.configuration.fontScale >= 1.3f &&
+                resources.configuration.screenWidthDp < 480)
         grid.forEach { line ->
             addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.HORIZONTAL
+                orientation = if (verticalSettings)
+                    LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
                 line.forEachIndexed { index, item ->
-                    if (index != 0) addView(gap(8))
+                    if (index != 0) {
+                        if (verticalSettings) addView(space(6)) else addView(gap(8))
+                    }
                     addView(settingsCategory(item.first, item.second) {
                         when (item.third) {
                             1 -> showDetails(item.first, "Dark premium appearance is enabled.")
@@ -3030,7 +3171,12 @@ class MainActivity : Activity() {
                             7 -> setWorkspace(Workspace.CLOUD)
                             8 -> setWorkspace(Workspace.ABOUT)
                         }
-                    }, LinearLayout.LayoutParams(0, dp(47), 1f))
+                    }, if (verticalSettings) {
+                        LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, dp(52))
+                    } else {
+                        LinearLayout.LayoutParams(0, dp(47), 1f)
+                    })
                 }
             }, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
@@ -3130,6 +3276,15 @@ class MainActivity : Activity() {
         activeWorkspace = workspace
         searchMode = false
         if (::searchSection.isInitialized) searchSection.visibility = View.GONE
+        if (batchMode && workspace != Workspace.FILES) {
+            closeBatchRename()
+        }
+        if (editorMode && workspace != Workspace.FILES) {
+            confirmCloseRemoteEditor { setWorkspace(workspace) }
+            return
+        }
+        if (::editorSection.isInitialized && editorMode) editorSection.visibility = View.VISIBLE
+        if (::batchSection.isInitialized && batchMode) batchSection.visibility = View.VISIBLE
         if (::workspaceFeedbackPanel.isInitialized) {
             workspaceFeedbackPanel.visibility = View.GONE
         }
@@ -3150,6 +3305,16 @@ class MainActivity : Activity() {
         )
         targets.forEach { (key, view) ->
             view.visibility = if (key == workspace) View.VISIBLE else View.GONE
+        }
+        // The Files workspace is still the navigation parent of the full
+        // editor; never show both panels concurrently after navigation.
+        if (editorMode && workspace == Workspace.FILES) {
+            filesSection.visibility = View.GONE
+            editorSection.visibility = View.VISIBLE
+        }
+        if (batchMode && workspace == Workspace.FILES) {
+            filesSection.visibility = View.GONE
+            batchSection.visibility = View.VISIBLE
         }
         workspaceNavButtons.forEach { (key, view) ->
             styleWorkspaceNavItem(view, selected = key == workspace)
@@ -3179,7 +3344,13 @@ class MainActivity : Activity() {
             siteFeedback.visibility = View.GONE
         }
         if (::fileActionToolbar.isInitialized) {
-            fileActionToolbar.visibility = if (workspace == Workspace.FILES) View.VISIBLE else View.GONE
+            fileActionToolbar.visibility =
+                if (workspace == Workspace.FILES && !editorMode && !batchMode)
+                    View.VISIBLE else View.GONE
+        }
+        if (::editorActionToolbar.isInitialized) {
+            editorActionToolbar.visibility =
+                if (workspace == Workspace.FILES && editorMode) View.VISIBLE else View.GONE
         }
         if (::sessionStatusCard.isInitialized) {
             sessionStatusCard.visibility =
@@ -3219,6 +3390,8 @@ class MainActivity : Activity() {
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
         when {
+            batchMode -> closeBatchRename()
+            editorMode -> closeRemoteEditor()
             usesOverlayNavigation() && navigationOpen -> setNavigationOpen(false)
             searchMode -> closeSearch()
             activeWorkspace == Workspace.TRANSFERS &&
@@ -3231,7 +3404,16 @@ class MainActivity : Activity() {
     }
 
     private fun usesOverlayNavigation(): Boolean =
-        resources.configuration.screenWidthDp < 600
+        AndroidResponsiveLayout.usesPhoneNavigation(
+            resources.configuration.smallestScreenWidthDp
+        )
+
+    /** Width left after tablet navigation rail and workspace gutters. */
+    private fun availableFileContentWidthDp(): Int {
+        val rail = if (usesOverlayNavigation()) 0 else 184
+        val gutter = if (usesOverlayNavigation()) 20 else 28
+        return (resources.configuration.screenWidthDp - rail - gutter).coerceAtLeast(0)
+    }
 
     private fun setNavigationOpen(open: Boolean, announce: Boolean = true) {
         val compactNavigation = usesOverlayNavigation()
@@ -3795,6 +3977,15 @@ class MainActivity : Activity() {
     private fun showTransferResult(result: TransferResult, refreshAfter: Boolean) {
         if (!uiReady()) return
         lastCompletedTransferPath = result.remotePath
+        if (pendingSavedEditorPath == result.remotePath) {
+            val textSnapshot = pendingSavedEditorText
+            if (editorMode && editorRemotePath == result.remotePath &&
+                textSnapshot != null) {
+                editorOriginalText = textSnapshot
+            }
+            pendingSavedEditorText = null
+            pendingSavedEditorPath = null
+        }
         sessionCompletedOperations++
         updateSessionOperationOverview()
         statusTitle.text = result.title
@@ -3807,6 +3998,8 @@ class MainActivity : Activity() {
 
     private fun showTransferFailure(error: Throwable) {
         if (!uiReady()) return
+        pendingSavedEditorText = null
+        pendingSavedEditorPath = null
         val canceled = error is OperationCanceledException
         if (canceled) sessionCancelledOperations++ else sessionFailedOperations++
         updateSessionOperationOverview()
@@ -3947,7 +4140,9 @@ class MainActivity : Activity() {
         if (target == null || (!item.isDirectory && !item.isFile)) {
             return row(item.name, item.detail)
         }
-        return compactBrowserRow(item.name, item.isDirectory) {
+        val cleanName = item.name.removePrefix("[DIR] ").removePrefix("[FILE] ")
+        val sizeLabel = if (item.isFile) item.detail.substringAfter("File · ", "") else null
+        return compactBrowserRow(cleanName, item.isDirectory, sizeLabel) {
             if (item.isDirectory) {
                 remotePathInput.setText(target)
                 openConnection()
@@ -3955,12 +4150,462 @@ class MainActivity : Activity() {
                 selectRemoteEntry(item)
             }
         }.apply {
-            setOnLongClickListener {
-                selectRemoteEntry(item)
-                setWorkspace(Workspace.TRANSFERS)
+            setOnLongClickListener { view ->
+                if (item.isDirectory) {
+                    selectRemoteEntry(item)
+                    setWorkspace(Workspace.TRANSFERS)
+                } else {
+                    selectRemoteEntry(item)
+                    android.widget.PopupMenu(this@MainActivity, view).apply {
+                        menu.add(0, 1, 0, "Edit text")
+                        menu.add(0, 2, 1, "File operations")
+                        menu.add(0, 3, 2,
+                            if (target in selectedRemoteBatchPaths)
+                                "Remove from batch" else "Select for batch")
+                        menu.add(0, 4, 3,
+                            "Batch rename (${selectedRemoteBatchPaths.size} selected)")
+                        setOnMenuItemClickListener { choice ->
+                            when (choice.itemId) {
+                                1 -> openRemoteTextEditor(item)
+                                2 -> setWorkspace(Workspace.TRANSFERS)
+                                3 -> {
+                                    if (!selectedRemoteBatchPaths.add(target)) {
+                                        selectedRemoteBatchPaths.remove(target)
+                                    }
+                                    view.background = PremiumReferenceStyle.surface(
+                                        this@MainActivity,
+                                        if (target in selectedRemoteBatchPaths)
+                                            PremiumReferenceStyle.selected
+                                        else PremiumReferenceStyle.panel
+                                    )
+                                }
+                                4 -> openBatchRename()
+                            }
+                            true
+                        }
+                    }.show()
+                }
                 true
             }
         }
+    }
+
+    /**
+     * The real remote text editor used by reference screen #13. Credentials
+     * remain memory-only; data is read on a worker and the staging copy is
+     * removed before an editable surface is shown. Saving delegates to the
+     * existing atomic/staged remote uploader and explicit overwrite consent.
+     */
+    private fun openRemoteTextEditor(item: RemoteRow) {
+        val profile = activeProfile ?: run {
+            showMessage("Text Editor", "Connect to a site before editing remote files.")
+            return
+        }
+        val path = item.remotePath?.takeIf { item.isFile && it.startsWith('/') } ?: return
+        if (operationInFlight) {
+            showMessage("Text Editor", "Finish or cancel the active transfer first.")
+            return
+        }
+        val generation = ++operationGeneration
+        val cancellation = OperationCancellation()
+        activeCancellation = cancellation
+        operationInFlight = true
+        setBusy(true)
+        statusTitle.text = "Opening remote text"
+        statusDetail.text = path
+        thread(name = "ghostftp-remote-editor-download") {
+            val staging = File(cacheDir,
+                "remote-text-" + java.util.UUID.randomUUID().toString() + ".tmp")
+            val result = try {
+                controller.downloadRemote(profile, path, staging, cancellation,
+                    maxBytes = MAX_REMOTE_TEXT_BYTES)
+                cancellation.throwIfCanceled()
+                if (staging.length() > MAX_REMOTE_TEXT_BYTES) {
+                    throw java.io.IOException("Text editor supports files up to 512 KiB.")
+                }
+                val bytes = staging.readBytes()
+                if (bytes.any { it == 0.toByte() }) {
+                    throw java.io.IOException("Binary files cannot be opened in the text editor.")
+                }
+                val strictDecoder = Charsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                Result.success(strictDecoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString())
+            } catch (error: Throwable) {
+                Result.failure<String>(error)
+            } finally {
+                runCatching { staging.delete() }
+            }
+            safeUi {
+                if (generation != operationGeneration) return@safeUi
+                activeCancellation = null
+                operationInFlight = false
+                setBusy(false)
+                result.fold(
+                    onSuccess = { text -> showRemoteTextEditorDialog(profile, path, text) },
+                    onFailure = { error -> showTransferFailure(error) }
+                )
+            }
+        }
+    }
+
+
+    /** Real full-workspace remote text editor, matching reference screen #13.
+     * No popup dialogs, fake preview files or synthetic SSH content.
+     */
+    private fun buildRemoteTextEditorCard(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        background = PremiumReferenceStyle.surface(this@MainActivity)
+        setPadding(dp(9), dp(10), dp(9), dp(12))
+        addView(PremiumReferenceStyle.caption(this@MainActivity,
+            "UTF-8 Remote Text Editor", 12f, true))
+        addView(space(8))
+        editorContentInput = EditText(this@MainActivity).apply {
+            textSize = 13f
+            typeface = Typeface.MONOSPACE
+            setTextColor(PremiumReferenceStyle.text)
+            setHintTextColor(PremiumReferenceStyle.secondary)
+            background = PremiumReferenceStyle.surface(this@MainActivity,
+                PremiumReferenceStyle.panel)
+            setPadding(dp(11), dp(13), dp(11), dp(13))
+            gravity = Gravity.TOP or Gravity.START
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            minLines = 18
+            isSingleLine = false
+            contentDescription = "Editable remote UTF-8 document"
+        }
+        addView(editorContentInput, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+        addView(space(8))
+    }
+
+    /**
+     * The approved editor has a persistent lower action strip, including on
+     * short devices and while scrolling long UTF-8 files. At >=1.3x font size,
+     * two rows prevent icons and labels from overlapping.
+     */
+    private fun buildRemoteEditorToolbar(): View = LinearLayout(this).apply {
+        val small = AndroidResponsiveLayout.compactFileActions(
+            resources.configuration.screenWidthDp, resources.configuration.fontScale)
+        orientation = if (small) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        setPadding(dp(8), dp(5), dp(8), dp(5))
+        setBackgroundColor(PremiumReferenceStyle.raised)
+        val entries = listOf<Pair<String, () -> Unit>>(
+            "Save" to { saveRemoteEditor() },
+            "Upload" to { saveRemoteEditor() },
+            "UTF-8" to { showMessage("Text Encoding",
+                "The editor uses strict UTF-8. Other encodings are not auto-converted.") },
+            "More" to { showRemoteEditorMoreMenu() }
+        )
+        if (small) {
+            for (start in listOf(0, 2)) {
+                val line = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                }
+                for ((label, action) in entries.subList(start, start + 2)) {
+                    line.addView(PremiumReferenceStyle.action(this@MainActivity, label,
+                        primary = label == "Save") { action() },
+                        LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+                            marginEnd = dp(5)
+                        })
+                }
+                addView(line, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(52)))
+            }
+        } else {
+            for ((label, action) in entries) {
+                addView(PremiumReferenceStyle.action(this@MainActivity, label,
+                    primary = label == "Save") { action() },
+                    LinearLayout.LayoutParams(0, dp(51), 1f).apply {
+                        marginEnd = dp(4)
+                    })
+            }
+        }
+    }
+
+    private fun showRemoteTextEditorDialog(
+        profile: ConnectionProfile,
+        path: String,
+        original: String
+    ) {
+        if (closingOrDestroyed() || activeProfile != profile) return
+        setWorkspace(Workspace.FILES, announce = false)
+        editorMode = true
+        editorConnection = profile
+        editorRemotePath = path
+        editorOriginalText = original
+        editorContentInput.setText(original)
+        editorContentInput.setSelection(0)
+        filesSection.visibility = View.GONE
+        editorSection.visibility = View.VISIBLE
+        fileActionToolbar.visibility = View.GONE
+        editorActionToolbar.visibility = View.VISIBLE
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = "Text Editor"
+        updatePhoneChromeActions()
+        contentScroll.post { contentScroll.scrollTo(0, workspaceContainer.top) }
+    }
+
+    private fun saveRemoteEditor() {
+        val profile = editorConnection ?: return
+        if (activeProfile != profile) {
+            showMessage("Text Editor", "The connection has changed. Reopen the remote file.")
+            return
+        }
+        if (operationInFlight) return
+        val path = editorRemotePath
+        val newText = editorContentInput.text.toString()
+        val bytes = newText.toByteArray(Charsets.UTF_8)
+        if (bytes.size > MAX_REMOTE_TEXT_BYTES) {
+            editorContentInput.error = "Maximum editor size is 512 KiB."
+            return
+        }
+        if (newText == editorOriginalText) {
+            showMessage("Text Editor", "No changes to save.")
+            return
+        }
+        confirmUploadTarget(path, path.substringAfterLast('/')) {
+            if (activeProfile != profile) {
+                showMessage("Text Editor", "The connection changed. Changes were not uploaded.")
+                return@confirmUploadTarget
+            }
+            pendingSavedEditorText = newText
+            pendingSavedEditorPath = path
+            runTransfer(
+                title = "Save remote text",
+                detail = "Uploading edited UTF-8 content to " + path,
+                refreshAfter = true
+            ) { cancellation ->
+                controller.uploadRemote(profile,
+                    java.io.ByteArrayInputStream(bytes), path, cancellation)
+            }
+            // Retain the edited content until the operation is complete.
+            // Never claim a save completed before the server confirms success.
+        }
+    }
+
+    private fun showRemoteEditorMoreMenu() {
+        if (!editorMode) return
+        val anchor = if (::phoneQuickButton.isInitialized) phoneQuickButton
+            else editorContentInput
+        android.widget.PopupMenu(this, anchor).apply {
+            menu.add(0, 1, 0, "Revert unsaved edits")
+            menu.add(0, 2, 1, "Close editor")
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    1 -> requestInlineConfirmation(
+                        "Revert changes",
+                        "Discard the changes in this editor and restore the downloaded text?",
+                        "Revert"
+                    ) {
+                        editorContentInput.setText(editorOriginalText)
+                    }
+                    2 -> closeRemoteEditor()
+                }
+                true
+            }
+        }.show()
+    }
+
+    private fun closeRemoteEditor() {
+        if (!editorMode) return
+        if (editorContentInput.text.toString() != editorOriginalText) {
+            confirmCloseRemoteEditor { setWorkspace(Workspace.FILES, announce = false) }
+        } else {
+            discardRemoteEditor()
+        }
+    }
+
+    private fun confirmCloseRemoteEditor(onClosed: () -> Unit) {
+        requestInlineConfirmation(
+            "Discard unsaved text?",
+            "Unsaved changes to " + editorRemotePath.substringAfterLast('/') + " will be lost.",
+            "Discard"
+        ) {
+            discardRemoteEditor()
+            onClosed()
+        }
+    }
+
+    private fun discardRemoteEditor() {
+        editorMode = false
+        editorRemotePath = ""
+        editorOriginalText = ""
+        editorConnection = null
+        if (::editorContentInput.isInitialized) editorContentInput.text.clear()
+        if (::editorSection.isInitialized) editorSection.visibility = View.GONE
+        if (::editorActionToolbar.isInitialized) editorActionToolbar.visibility = View.GONE
+        if (::filesSection.isInitialized) filesSection.visibility = View.VISIBLE
+        if (::fileActionToolbar.isInitialized && activeWorkspace == Workspace.FILES) {
+            fileActionToolbar.visibility = View.VISIBLE
+        }
+        if (::phoneChromeTitle.isInitialized) {
+            phoneChromeTitle.text = workspaceLabel(activeWorkspace)
+        }
+        updatePhoneChromeActions()
+    }
+
+    /** Reference #14: actual filenames and explicit preflight, never mock rows. */
+    private fun buildBatchRenameCard(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(12), dp(14), dp(12), dp(14))
+        background = PremiumReferenceStyle.surface(this@MainActivity)
+        addView(PremiumReferenceStyle.caption(this@MainActivity,
+            "Rename selected remote files", 15f).apply {
+            typeface = Typeface.DEFAULT_BOLD
+        })
+        addView(space(11))
+        addView(PremiumReferenceStyle.caption(this@MainActivity, "Pattern", 12f, true))
+        batchPatternInput = input("file_##", InputType.TYPE_CLASS_TEXT).apply {
+            // Keep the inactive editor empty. Only the user's explicit
+            // Batch Rename action fills the default filename pattern.
+            contentDescription = "Batch rename pattern"
+        }
+        addView(batchPatternInput, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(46)))
+        addView(space(9))
+        addView(PremiumReferenceStyle.caption(this@MainActivity,
+            "Start number", 12f, true))
+        batchStartInput = input("1", InputType.TYPE_CLASS_NUMBER).apply {
+            contentDescription = "Batch rename first number"
+        }
+        addView(batchStartInput, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(46)))
+        addView(space(12))
+        addView(PremiumReferenceStyle.action(this@MainActivity,
+            "Preview exact filenames") { previewBatchRename() })
+        addView(space(12))
+        batchPreviewRows = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            contentDescription = "Real remote batch rename preview"
+        }
+        addView(batchPreviewRows)
+        addView(space(14))
+        addView(PremiumReferenceStyle.action(this@MainActivity, "Apply", true) {
+            applyBatchRename()
+        }, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(45)))
+        addView(space(8))
+        addView(PremiumReferenceStyle.action(this@MainActivity, "Cancel") {
+            closeBatchRename()
+        })
+    }
+
+    private fun openBatchRename() {
+        val profile = activeProfile ?: return
+        val available = lastRemoteInventory
+            .filter { it.isFile && it.remotePath != null }
+            .mapNotNull { it.remotePath }.toSet()
+        selectedRemoteBatchPaths.retainAll(available)
+        if (selectedRemoteBatchPaths.isEmpty()) {
+            showMessage("Batch Rename",
+                "Long-press real remote files and choose Select for batch.")
+            return
+        }
+        if (selectedRemoteBatchPaths.size > RemoteBatchRenamePlanner.MAX_FILES) {
+            showMessage("Batch Rename",
+                "Select no more than ${RemoteBatchRenamePlanner.MAX_FILES} files.")
+            return
+        }
+        if (operationInFlight || activeProfile != profile) return
+        setWorkspace(Workspace.FILES, announce = false)
+        batchMode = true
+        if (batchPatternInput.text.isNullOrBlank()) batchPatternInput.setText("file_##")
+        if (batchStartInput.text.isNullOrBlank()) batchStartInput.setText("1")
+        filesSection.visibility = View.GONE
+        batchSection.visibility = View.VISIBLE
+        fileActionToolbar.visibility = View.GONE
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = "Rename Files"
+        updatePhoneChromeActions()
+        previewBatchRename()
+        contentScroll.post { contentScroll.scrollTo(0, workspaceContainer.top) }
+    }
+
+    private fun plannedBatchRename(): List<RemoteBatchRename>? {
+        return runCatching {
+            val number = batchStartInput.text.toString().toIntOrNull()
+                ?: throw IllegalArgumentException("Enter a valid start number.")
+            RemoteBatchRenamePlanner.plan(selectedRemoteBatchPaths.toList(),
+                batchPatternInput.text.toString().trim(), number)
+        }.getOrElse { error ->
+            showMessage("Rename Files", error.message ?: "Invalid batch filename pattern.")
+            null
+        }
+    }
+
+    private fun previewBatchRename() {
+        if (!batchMode) return
+        batchPreviewRows.removeAllViews()
+        val plan = plannedBatchRename() ?: return
+        for (entry in plan) {
+            batchPreviewRows.addView(row(
+                entry.from.substringAfterLast('/'),
+                "→ " + entry.to.substringAfterLast('/')))
+        }
+    }
+
+    private fun applyBatchRename() {
+        if (!batchMode || operationInFlight) return
+        val profile = activeProfile ?: return
+        val plan = plannedBatchRename() ?: return
+        val count = plan.size
+        val preview = plan.take(2).joinToString("\n") {
+            it.from.substringAfterLast('/') + " → " + it.to.substringAfterLast('/')
+        }
+        confirmDestructiveRemoteAction(
+            title = "Rename $count remote files?",
+            message = preview + if (count > 2) "\n…and ${count - 2} more." else "",
+            confirmLabel = "Rename"
+        ) {
+            if (profile != activeProfile) {
+                showMessage("Batch Rename", "Connection changed; no files renamed.")
+                return@confirmDestructiveRemoteAction
+            }
+            closeBatchRename()
+            runTransfer(
+                title = "Batch Rename",
+                detail = "Renaming $count selected server files",
+                refreshAfter = true
+            ) { cancellation ->
+                val inventory = controller.listRemote(profile, cancellation)
+                val actualFiles = inventory.rows.filter { it.isFile }
+                    .mapNotNull { it.remotePath }.toSet()
+                if (plan.any { it.from !in actualFiles || it.to in actualFiles }) {
+                    throw java.io.IOException("Server listing changed or a filename already exists; no files renamed.")
+                }
+                var completed = 0
+                try {
+                    for (mapping in plan) {
+                        cancellation.throwIfCanceled()
+                        controller.renameRemote(profile, mapping.from, mapping.to, cancellation)
+                        completed++
+                    }
+                } catch (error: Throwable) {
+                    throw java.io.IOException(
+                        "Batch rename stopped after $completed of $count files; inspect the server listing before retrying.",
+                        error
+                    )
+                }
+                TransferResult("Batch rename complete",
+                    "Renamed $count remote files.", plan.last().to)
+            }
+            selectedRemoteBatchPaths.clear()
+        }
+    }
+
+    private fun closeBatchRename() {
+        if (!batchMode) return
+        batchMode = false
+        batchSection.visibility = View.GONE
+        filesSection.visibility = View.VISIBLE
+        if (::fileActionToolbar.isInitialized && activeWorkspace == Workspace.FILES) {
+            fileActionToolbar.visibility = View.VISIBLE
+        }
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = workspaceLabel(activeWorkspace)
+        updatePhoneChromeActions()
     }
 
     private fun selectRemoteEntry(item: RemoteRow) {
@@ -4160,8 +4805,8 @@ class MainActivity : Activity() {
 
     private fun workspaceNavItem(workspace: Workspace): TextView {
         val label = workspaceLabel(workspace)
-        val iconRail = false
-        // Keep the localized full label available even on the compact icon rail.
+        // Preserve the localized full label and the same leading icon
+        // regardless of viewport width.
         val displayLabel = label
         val iconResource = when (workspace) {
             Workspace.FILES -> R.drawable.ic_premium_nav_files
@@ -4184,11 +4829,9 @@ class MainActivity : Activity() {
             compoundDrawablePadding = dp(14)
             val icon = getDrawable(iconResource)?.mutate()
             icon?.setBounds(0, 0, dp(20), dp(20))
-            if (resources.configuration.screenWidthDp < 600) {
-                setCompoundDrawables(icon, null, null, null)
-            } else {
-                setCompoundDrawables(null, icon, null, null)
-            }
+            // Navigation icons remain on the leading edge on phones and
+            // tablets; the old trailing icon made tablet navigation diverge.
+            setCompoundDrawables(icon, null, null, null)
             setPadding(dp(14), dp(4), dp(8), dp(4))
             isClickable = true
             isFocusable = true
@@ -4313,6 +4956,7 @@ class MainActivity : Activity() {
         const val PICK_CLOUD_UPLOAD_REQUEST = 22094
         const val CREATE_CLOUD_DOWNLOAD_REQUEST = 22095
         const val MAX_ACTIVITY_ROWS = 8
+        const val MAX_REMOTE_TEXT_BYTES = 512L * 1024L
 
         const val STATE_PROTOCOL = "ghostftp.protocol"
         const val STATE_HOST = "ghostftp.host"

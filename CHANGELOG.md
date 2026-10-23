@@ -1,3 +1,11 @@
+## 0.99.6 — Android native UI responsiveness and reference alignment (development Preview; 23 October 2026)
+
+- Adaptive Android phone/tablet layouts from 320 dp to landscape and split-screen: mobile navigation by smallest width, single/dual Files pane by actual content width, large-font Settings columns, touch-safe actions, Android 15+ IME insets and sticky native editor toolbar.
+- Align Add Site General tab more closely with the sixteen-screen reference while keeping credential-safe Quick Connect under Advanced. Render real cloud-provider vectors rather than monograms.
+- Add full native UTF-8 remote text editor (bounded 512 KiB reads, verified upload and failure recovery) and safe batch rename preview/confirmation with collision prevention; preserve real file data and private app-local storage boundaries.
+- Expand source/unit and Android emulator screenshot QA to 320x640, 360x800, 393x852 at 1.4x text size, 480x960, 720x1280, 960x540 landscape. Captures are real idle UI, not golden-image parity proof.
+- Continue to classify this as Preview: real-device reference comparisons, multi-transfer queue, cloud account OAuth and Play production certification are not complete.
+
 ## 0.99.5 — macOS Command/Control shortcut isolation (Preview development; 22 October 2026)
 
 - Fix macOS shortcut dispatch so Control+K, Control+R and Control+Shift+D no longer masquerade as Command shortcuts and intercept shell/SSH terminal commands.
