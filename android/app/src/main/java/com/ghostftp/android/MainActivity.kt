@@ -3309,16 +3309,24 @@ class MainActivity : Activity() {
         }
 
     private fun setWorkspace(workspace: Workspace, announce: Boolean = true) {
-        activeWorkspace = workspace
-        searchMode = false
-        if (::searchSection.isInitialized) searchSection.visibility = View.GONE
+        // Prompt BEFORE changing active workspace or hiding any input. Otherwise
+        // cancelling the discard confirmation leaves an editor on-screen with
+        // the wrong navigation selection, and can lose a draft on the next tap.
+        if (editorMode && workspace != Workspace.FILES) {
+            if (EditorNavigationGuard.needsDiscardConfirmation(
+                    editorMode, editorContentInput.text.toString() != editorOriginalText,
+                    workspace == Workspace.FILES)) {
+                confirmCloseRemoteEditor { setWorkspace(workspace, announce) }
+                return
+            }
+            discardRemoteEditor()
+        }
         if (batchMode && workspace != Workspace.FILES) {
             closeBatchRename()
         }
-        if (editorMode && workspace != Workspace.FILES) {
-            confirmCloseRemoteEditor { setWorkspace(workspace) }
-            return
-        }
+        activeWorkspace = workspace
+        searchMode = false
+        if (::searchSection.isInitialized) searchSection.visibility = View.GONE
         if (::editorSection.isInitialized && editorMode) editorSection.visibility = View.VISIBLE
         if (::batchSection.isInitialized && batchMode) batchSection.visibility = View.VISIBLE
         if (::workspaceFeedbackPanel.isInitialized) {
