@@ -81,7 +81,7 @@ export function privateSymbolCandidates(entries, language, external = []) {
     // therefore all reported symbols remain advisory only.
     .filter((m) => language !== "rust" ||
       (!source.slice(0, m.index).includes("#[cfg(test)]") &&
-       !/#\\[(?:tokio::)?test\\]\\s*$/.test(source.slice(Math.max(0, m.index - 140), m.index))))
+       !/#\[(?:tokio::)?test\]\s*$/.test(source.slice(Math.max(0, m.index - 140), m.index))))
     .filter((m) => {
       const name = m[1];
       const occurrences = referents.match(new RegExp("\\b" + name + "\\b", "g")) || [];
