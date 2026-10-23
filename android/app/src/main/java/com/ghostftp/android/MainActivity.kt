@@ -4455,7 +4455,8 @@ class MainActivity : Activity() {
         addView(space(11))
         addView(PremiumReferenceStyle.caption(this@MainActivity, "Pattern", 12f, true))
         batchPatternInput = input("file_##", InputType.TYPE_CLASS_TEXT).apply {
-            setText("file_##")
+            // Keep the inactive editor empty. Only the user's explicit
+            // Batch Rename action fills the default filename pattern.
             contentDescription = "Batch rename pattern"
         }
         addView(batchPatternInput, LinearLayout.LayoutParams(
@@ -4464,7 +4465,6 @@ class MainActivity : Activity() {
         addView(PremiumReferenceStyle.caption(this@MainActivity,
             "Start number", 12f, true))
         batchStartInput = input("1", InputType.TYPE_CLASS_NUMBER).apply {
-            setText("1")
             contentDescription = "Batch rename first number"
         }
         addView(batchStartInput, LinearLayout.LayoutParams(
@@ -4508,6 +4508,8 @@ class MainActivity : Activity() {
         if (operationInFlight || activeProfile != profile) return
         setWorkspace(Workspace.FILES, announce = false)
         batchMode = true
+        if (batchPatternInput.text.isNullOrBlank()) batchPatternInput.setText("file_##")
+        if (batchStartInput.text.isNullOrBlank()) batchStartInput.setText("1")
         filesSection.visibility = View.GONE
         batchSection.visibility = View.VISIBLE
         fileActionToolbar.visibility = View.GONE
