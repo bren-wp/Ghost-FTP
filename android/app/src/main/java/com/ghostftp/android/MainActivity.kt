@@ -1839,14 +1839,18 @@ class MainActivity : Activity() {
     // Android SAF does not grant arbitrary /storage/emulated/0 traversal.
     // The local pane is a REAL, bounded app-owned downloads directory, never
     // a fake listing of system Download/Pictures/DCIM folders.
+    private var localBrowseRequestGeneration = 0
+
     private fun refreshLocalPane() {
-        if (!::localRows.isInitialized) return
-        // A revoked/unmounted external-storage volume or transient I/O error
-        // must not crash the entire Files workspace on the UI thread.
+        if (!::localRows.isInitialized || closingOrDestroyed()) return
         val base = runCatching {
             (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir).canonicalFile
-        }.getOrElse {
-            filesDir.canonicalFile
+        }.recoverCatching { filesDir.canonicalFile }.getOrNull()
+        localRows.removeAllViews()
+        if (base == null) {
+            localRows.addView(PremiumReferenceStyle.caption(this,
+                "Local storage is temporarily unavailable", 12f, true))
+            return
         }
         val current = runCatching { (localBrowseDirectory ?: base).canonicalFile }
             .getOrNull()
@@ -1855,7 +1859,6 @@ class MainActivity : Activity() {
         localBrowseDirectory = if (inside && current?.isDirectory == true) current else base
         val directory = localBrowseDirectory ?: base
         localDirectoryLabel.text = "Local · " + directory.name
-        localRows.removeAllViews()
         if (!directory.canRead()) {
             localRows.addView(PremiumReferenceStyle.caption(this,
                 "Local storage is temporarily unavailable", 12f, true))
@@ -1867,26 +1870,49 @@ class MainActivity : Activity() {
                 refreshLocalPane()
             })
         }
-        val entries = directory.listFiles()
-            ?.filter {
-                runCatching {
-                    val path = it.canonicalFile.path
-                    path.startsWith(base.path + File.separator) && !it.isHidden
-                }.getOrDefault(false)
-            }?.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase(Locale.ROOT) }))
-            ?.take(150).orEmpty()
-        if (entries.isEmpty()) {
-            localRows.addView(PremiumReferenceStyle.caption(this, "No local files", 11f, true))
-        }
-        entries.forEach { file ->
-            localRows.addView(compactBrowserRow(file.name, file.isDirectory) {
-                if (file.isDirectory) {
-                    localBrowseDirectory = file
-                    refreshLocalPane()
-                } else {
-                    selectLocalUploadFile(file)
+        val generation = ++localBrowseRequestGeneration
+        localRows.addView(PremiumReferenceStyle.caption(this,
+            "Reading local files…", 11f, true))
+        // DirectoryStream bounds memory as well as the number of entries
+        // visited. Keep directory I/O off the UI thread on slow/unmounted
+        // storage; stale callbacks must not replace a newer directory view.
+        thread(start = true, isDaemon = true, name = "GhostFTP-LocalBrowser") {
+            val result = LocalBrowserListingReader.list(base, directory)
+            safeUi {
+                if (generation != localBrowseRequestGeneration) return@safeUi
+                if (localBrowseDirectory?.path != directory.path) return@safeUi
+                localRows.removeAllViews()
+                if (directory != base) {
+                    localRows.addView(compactBrowserRow("..", true) {
+                        localBrowseDirectory = directory.parentFile
+                        refreshLocalPane()
+                    })
                 }
-            })
+                if (result.unavailable) {
+                    localRows.addView(PremiumReferenceStyle.caption(this,
+                        "Local storage is temporarily unavailable", 12f, true))
+                    return@safeUi
+                }
+                if (result.files.isEmpty()) {
+                    localRows.addView(PremiumReferenceStyle.caption(this,
+                        "No local files", 11f, true))
+                }
+                result.files.forEach { file ->
+                    localRows.addView(compactBrowserRow(file.name, file.isDirectory) {
+                        if (file.isDirectory) {
+                            localBrowseDirectory = file
+                            refreshLocalPane()
+                        } else {
+                            selectLocalUploadFile(file)
+                        }
+                    })
+                }
+                if (result.truncated) {
+                    localRows.addView(PremiumReferenceStyle.caption(this,
+                        "Showing a bounded list. Open a subfolder or use the system file picker for other files.",
+                        11f, true))
+                }
+            }
         }
     }
 
