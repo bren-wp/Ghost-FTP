@@ -1,3 +1,10 @@
+## 0.99.7 — Android local Files crash prevention and cross-platform dead-code audit (development Preview; 23 October 2026)
+
+- Replace unbounded synchronous Android local directory enumeration with a symlink-safe, bounded worker and stale-result cancellation; surface honest error and truncation messages.
+- Add local-filesystem JVM regressions for large directories, path escapes, symbolic links and unavailable storage.
+- Extend repository dead-code audit to review nonpublic Kotlin, Swift, Rust, TypeScript and Go symbols in addition to modules, Android resources, script references and entrypoints; preserve unproven runtime dependencies.
+- Maintain the user's 16 Android reference screen acceptance as incomplete until physical-device and screenshot comparison tests prove parity.
+
 ## 0.99.6 — Android native UI responsiveness and reference alignment (development Preview; 23 October 2026)
 
 - Adaptive Android phone/tablet layouts from 320 dp to landscape and split-screen: mobile navigation by smallest width, single/dual Files pane by actual content width, large-font Settings columns, touch-safe actions, Android 15+ IME insets and sticky native editor toolbar.
