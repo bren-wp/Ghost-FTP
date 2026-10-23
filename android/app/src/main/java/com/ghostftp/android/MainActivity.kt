@@ -1843,6 +1843,8 @@ class MainActivity : Activity() {
 
     private fun refreshLocalPane() {
         if (!::localRows.isInitialized || closingOrDestroyed()) return
+        // Invalidate every prior listing before any early return.
+        val generation = ++localBrowseRequestGeneration
         val base = runCatching {
             (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir).canonicalFile
         }.recoverCatching { filesDir.canonicalFile }.getOrNull()
@@ -1870,7 +1872,6 @@ class MainActivity : Activity() {
                 refreshLocalPane()
             })
         }
-        val generation = ++localBrowseRequestGeneration
         localRows.addView(PremiumReferenceStyle.caption(this,
             "Reading local files…", 11f, true))
         // DirectoryStream bounds memory as well as the number of entries
@@ -1878,9 +1879,12 @@ class MainActivity : Activity() {
         // storage; stale callbacks must not replace a newer directory view.
         thread(start = true, isDaemon = true, name = "GhostFTP-LocalBrowser") {
             val result = LocalBrowserListingReader.list(base, directory)
-            safeUi {
-                if (generation != localBrowseRequestGeneration) return@safeUi
-                if (localBrowseDirectory?.path != directory.path) return@safeUi
+            // An initial scan may finish before status views are initialized.
+            // Only localRows readiness and lifecycle validity are necessary.
+            runOnUiThread {
+                if (closingOrDestroyed() || !::localRows.isInitialized) return@runOnUiThread
+                if (generation != localBrowseRequestGeneration) return@runOnUiThread
+                if (localBrowseDirectory?.path != directory.path) return@runOnUiThread
                 localRows.removeAllViews()
                 if (directory != base) {
                     localRows.addView(compactBrowserRow("..", true) {
@@ -1891,7 +1895,7 @@ class MainActivity : Activity() {
                 if (result.unavailable) {
                     localRows.addView(PremiumReferenceStyle.caption(this,
                         "Local storage is temporarily unavailable", 12f, true))
-                    return@safeUi
+                    return@runOnUiThread
                 }
                 if (result.files.isEmpty()) {
                     localRows.addView(PremiumReferenceStyle.caption(this,
