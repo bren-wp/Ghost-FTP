@@ -3374,7 +3374,9 @@ class MainActivity : Activity() {
         if (::workspaceTitle.isInitialized) workspaceTitle.text = workspaceLabel(workspace)
         if (::phoneChromeTitle.isInitialized) {
             phoneChromeTitle.text =
-                if (workspace == Workspace.SITES &&
+                if (workspace == Workspace.FILES && editorMode) "Text Editor"
+                else if (workspace == Workspace.FILES && batchMode) "Rename Files"
+                else if (workspace == Workspace.SITES &&
                     ::connectPreviewPanel.isInitialized &&
                     connectPreviewPanel.visibility == View.VISIBLE) "Connect"
                 else if (workspace == Workspace.SITES && siteEditorVisible) {
