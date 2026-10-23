@@ -49,7 +49,7 @@ The Android Cloud storage workspace transfers one object at a time using short-l
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
 - Active source version: **0.95.18**
-- Previous canonical release: **0.99.5**
+- Previous canonical release: **0.99.6**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`
@@ -164,3 +164,6 @@ Stable/FINAL mobile status additionally requires device-level install/upgrade/st
 ## Ghost FTP 0.99.6 responsive phone acceptance (in progress)
 
 Native Kotlin layouts now adapt Files to a single pane under 420 dp of usable content width and keep dual-pane on wider phones and tablets. Six emulator viewports, font scale 1.4 and landscape route checks are in `ResponsiveViewportTest.kt`. The 16 source UI mockup screens are **not** declared pixel-identical. Signed cloud-provider account browsing and persisted multi-transfer queue remain independent feature gaps. See `docs/qa/ANDROID_RESPONSIVE_0.99.6.md` for the acceptance matrix.
+
+
+Current development line: 0.99.7. Previous canonical release: 0.99.6. See `docs/releases/0.99.7.md` for the latest Android stability and code-audit work.
