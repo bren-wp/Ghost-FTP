@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Navigation rapide</string>
+    <string name="ui_back_to_sites">Retour aux emplacements</string>
+    <string name="ui_add_site">Ajouter un emplacement</string>
+    <string name="ui_close_search">Fermer la recherche</string>
+    <string name="ui_close_text_editor">Fermer l’éditeur de texte</string>
+    <string name="ui_close_batch_rename">Fermer le renommage par lot</string>
+    <string name="ui_session_status_panel">Panneau d’état de session</string>
+    <string name="ui_saved_connection_profiles">Profils de connexion enregistrés</string>
+    <string name="ui_transfer_options">Options de transfert</string>
+    <string name="ui_compare_directories">Comparer les répertoires</string>
+    <string name="ui_search_file_name">Rechercher un nom de fichier</string>
+    <string name="ui_match_case">Respecter la casse</string>
+    <string name="ui_search_subdirectories">Rechercher dans les sous-dossiers</string>
+    <string name="ui_run_file_search">Lancer la recherche de fichiers</string>
+    <string name="ui_actual_search_results">Résultats de recherche</string>
+</resources>

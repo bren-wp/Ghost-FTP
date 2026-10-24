@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Hızlı gezinme</string>
+    <string name="ui_back_to_sites">Konumlara geri dön</string>
+    <string name="ui_add_site">Konum ekle</string>
+    <string name="ui_close_search">Aramayı kapat</string>
+    <string name="ui_close_text_editor">Metin düzenleyiciyi kapat</string>
+    <string name="ui_close_batch_rename">Toplu yeniden adlandırmayı kapat</string>
+    <string name="ui_session_status_panel">Oturum durumu paneli</string>
+    <string name="ui_saved_connection_profiles">Kayıtlı bağlantı profilleri</string>
+    <string name="ui_transfer_options">Aktarım seçenekleri</string>
+    <string name="ui_compare_directories">Dizinleri karşılaştır</string>
+    <string name="ui_search_file_name">Dosya adı ara</string>
+    <string name="ui_match_case">Büyük/küçük harfe duyarlı</string>
+    <string name="ui_search_subdirectories">Alt dizinlerde ara</string>
+    <string name="ui_run_file_search">Dosya aramasını başlat</string>
+    <string name="ui_actual_search_results">Arama sonuçları</string>
+</resources>

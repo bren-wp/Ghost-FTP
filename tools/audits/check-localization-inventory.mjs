@@ -29,7 +29,7 @@ const counts = {
   macos_localized_view_keys: referenced.length,
   macos_missing_locale_keys: missing.length,
 };
-if (counts.android_inline_ui_literals > 144 || counts.macos_inline_view_literals > 0 ||
+if (counts.android_inline_ui_literals > 123 || counts.macos_inline_view_literals > 0 ||
     counts.macos_missing_locale_keys > 67) {
   console.error("Localization regression:", JSON.stringify(counts));
   console.error("Missing macOS keys:", JSON.stringify(missing));

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Szybka nawigacja</string>
+    <string name="ui_back_to_sites">Wróć do lokalizacji</string>
+    <string name="ui_add_site">Dodaj lokalizację</string>
+    <string name="ui_close_search">Zamknij wyszukiwanie</string>
+    <string name="ui_close_text_editor">Zamknij edytor tekstu</string>
+    <string name="ui_close_batch_rename">Zamknij zmianę nazw zbiorczą</string>
+    <string name="ui_session_status_panel">Panel stanu sesji</string>
+    <string name="ui_saved_connection_profiles">Zapisane profile połączeń</string>
+    <string name="ui_transfer_options">Opcje przesyłania</string>
+    <string name="ui_compare_directories">Porównaj katalogi</string>
+    <string name="ui_search_file_name">Wyszukaj nazwę pliku</string>
+    <string name="ui_match_case">Rozróżniaj wielkość liter</string>
+    <string name="ui_search_subdirectories">Przeszukaj podkatalogi</string>
+    <string name="ui_run_file_search">Uruchom wyszukiwanie plików</string>
+    <string name="ui_actual_search_results">Wyniki wyszukiwania</string>
+</resources>
