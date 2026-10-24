@@ -55,6 +55,48 @@ export function candidateModules(entries, language, external = []) {
 }
 
 /**
+ * Find the actual lexical brace span of Rust #[cfg(test)] mod blocks.
+ * The old implementation suppressed every subsequent production function
+ * after the first test module, including functions declared OUTSIDE it.
+ * This matcher is conservative: it excludes obvious test modules, never
+ * deletes code, and returns advisory symbols for compiler verification.
+ */
+export function rustTestModuleRanges(source) {
+  const ranges = [];
+  const headers = /#\[\s*cfg\s*\(\s*test\s*\)\s*\]\s*(?:#\[[^\]]+\]\s*)*mod\s+\w+\s*\{/g;
+  for (const header of source.matchAll(headers)) {
+    const start = source.indexOf("{", header.index);
+    if (start < 0) continue;
+    let depth = 0;
+    let finish = source.length;
+    let mode = "code";
+    for (let index = start; index < source.length; index++) {
+      const ch = source[index], next = source[index + 1];
+      if (mode === "line") { if (ch === "\n") mode = "code"; continue; }
+      if (mode === "block") {
+        if (ch === "*" && next === "/") { mode = "code"; index++; }
+        continue;
+      }
+      if (mode === "string") {
+        if (ch === "\\") { index++; continue; }
+        if (ch === '"') mode = "code";
+        continue;
+      }
+      if (ch === "/" && next === "/") { mode = "line"; index++; continue; }
+      if (ch === "/" && next === "*") { mode = "block"; index++; continue; }
+      if (ch === '"') { mode = "string"; continue; }
+      if (ch === "{") depth++;
+      else if (ch === "}" && --depth === 0) {
+        finish = index + 1;
+        break;
+      }
+    }
+    ranges.push([header.index, finish]);
+  }
+  return ranges;
+}
+
+/**
  * Symbol-level advisory scan for ALL maintained native/source languages.
  * A sole textual mention of a private function is a review candidate, NOT
  * a proof of unreachability: reflection, callbacks, build tags, macros and
@@ -71,17 +113,21 @@ export function privateSymbolCandidates(entries, language, external = []) {
   const pattern = patterns[language];
   if (!pattern) throw new Error("Unknown symbol audit language: " + language);
   const referents = [...entries, ...external].map(([, code]) => code).join("\n");
+  const testRanges = language === "rust"
+    ? new Map(entries.map(([file, source]) => [file, rustTestModuleRanges(source)]))
+    : new Map();
   const reserved = new Set(["init", "main", "body", "onCreate", "onDestroy", "onStart",
     "onStop", "onResume", "onPause", "onSaveInstanceState", "onActivityResult"]);
   return entries.flatMap(([file, source]) => [...source.matchAll(pattern)]
     .filter((m) => !reserved.has(m[1]))
-    // Most Rust modules put #[cfg(test)] mod tests at file end; those
-    // functions are test entrypoints, not production-orphan candidates.
-    // This conservative exclusion may hide functions after the test module,
-    // therefore all reported symbols remain advisory only.
+    // Exclude only Rust functions INSIDE a cfg(test) module or with an
+    // immediately adjacent test attribute. Do not suppress later production
+    // functions in the same Rust source file.
     .filter((m) => language !== "rust" ||
-      (!source.slice(0, m.index).includes("#[cfg(test)]") &&
-       !/#\[(?:tokio::)?test\]\s*$/.test(source.slice(Math.max(0, m.index - 140), m.index))))
+      (!(testRanges.get(file) || []).some(([start, end]) =>
+        m.index >= start && m.index < end) &&
+       !/#\[\s*(?:cfg\(test\)|(?:tokio::)?test)\s*\]\s*$/.test(
+         source.slice(Math.max(0, m.index - 160), m.index))))
     .filter((m) => {
       const name = m[1];
       const occurrences = referents.match(new RegExp("\\b" + name + "\\b", "g")) || [];
