@@ -7,14 +7,14 @@ const iconsDir = path.join(desktopRoot, "src-tauri", "icons");
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const requiredIcons = [
-  { name: "32x32.png", type: "png" },
-  { name: "128x128.png", type: "png" },
-  { name: "128x128@2x.png", type: "png" },
-  { name: "source.png", type: "png" },
+  { name: "32x32.png", type: "png", width: 32 },
+  { name: "128x128.png", type: "png", width: 128 },
+  { name: "128x128@2x.png", type: "png", width: 256 },
+  { name: "source.png", type: "png", minWidth: 128 },
   { name: "icon.ico", type: "ico" },
 ];
 
-function requireProductionIcon({ name, type }) {
+function requireProductionIcon({ name, type, width, minWidth }) {
   const file = path.join(iconsDir, name);
   if (!existsSync(file)) {
     throw new Error(
@@ -30,6 +30,22 @@ function requireProductionIcon({ name, type }) {
     ) {
       throw new Error(`Invalid production PNG icon: ${name}`);
     }
+    // Reject header-only, truncated and incorrectly sized branded PNGs.
+    if (bytes.length < 45 || bytes.readUInt32BE(8) !== 13 ||
+        bytes.toString("ascii", 12, 16) !== "IHDR") {
+      throw new Error("Malformed Ghost FTP PNG header: " + name);
+    }
+    const actualWidth = bytes.readUInt32BE(16);
+    const actualHeight = bytes.readUInt32BE(20);
+    if (actualWidth === 0 || actualHeight !== actualWidth ||
+        (width != null && actualWidth !== width) ||
+        (minWidth != null && (actualWidth < minWidth || actualWidth > 4096))) {
+      throw new Error("Unexpected Ghost FTP icon geometry: " +
+        name + " (" + actualWidth + "x" + actualHeight + ")");
+    }
+    if (!bytes.includes(Buffer.from("IEND", "ascii"), 32)) {
+      throw new Error("Truncated Ghost FTP PNG icon: " + name);
+    }
     return;
   }
 
@@ -41,6 +57,19 @@ function requireProductionIcon({ name, type }) {
     bytes[3] !== 0x00
   ) {
     throw new Error(`Invalid production ICO icon: ${name}`);
+  }
+  const count = bytes.readUInt16LE(4);
+  if (count < 1 || count > 64 || bytes.length < 6 + count * 16) {
+    throw new Error("Malformed Ghost FTP ICO directory: " + name);
+  }
+  for (let index = 0; index < count; index += 1) {
+    const offset = 6 + 16 * index;
+    const size = bytes.readUInt32LE(offset + 8);
+    const location = bytes.readUInt32LE(offset + 12);
+    if (size < 8 || location < 6 + count * 16 ||
+        location + size > bytes.length) {
+      throw new Error("Truncated Ghost FTP ICO image: " + name);
+    }
   }
 }
 

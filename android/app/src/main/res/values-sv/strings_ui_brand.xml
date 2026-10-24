@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_header_back">Tillbaka</string>
+    <string name="ui_header_add">Lägg till</string>
+    <string name="ui_splash_tagline">Säkert. Kraftfullt. Överallt.</string>
+    <string name="ui_splash_opening">Öppnar Ghost FTP</string>
+    <string name="ui_splash_initializing">Startar…</string>
+    <string name="ui_protocol_server">%1$s-server</string>
+</resources>

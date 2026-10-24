@@ -51,3 +51,43 @@ for (const key of accessibilityExpected) {
   if (!activity.includes(`getString(R.string.${key})`)) throw Error(`Android accessibility text not migrated: ${key}`);
 }
 console.log(`Android accessibility UI parity OK: ${accessibilityExpected.length} × ${locales.length} locales`);
+
+// Splash, touch-target and protocol accessibility copy must be localized in
+// every advertised language; require exact key order and placeholder parity.
+const brandKeys = [
+  "ui_header_back", "ui_header_add", "ui_splash_tagline",
+  "ui_splash_opening", "ui_splash_initializing", "ui_protocol_server"
+];
+const brandPath = (locale) => path.join(root,
+  locale === "en" ? "values" : `values-${locale}`, "strings_ui_brand.xml");
+for (const locale of locales) {
+  const xml = fs.readFileSync(brandPath(locale), "utf8");
+  const entries = [...xml.matchAll(/<string name="([^"]+)">([^<]*)<\/string>/g)];
+  if (entries.length !== brandKeys.length ||
+      entries.some((entry, index) => entry[1] !== brandKeys[index] || !entry[2].trim())) {
+    throw Error(`Ghost FTP branding/controls localization mismatch in ${locale}`);
+  }
+  if (entries.some(x => /TODO|FIXME/.test(x[2]))) {
+    throw Error(`Incomplete branded native UI localization in ${locale}`);
+  }
+  for (const [index, entry] of entries.entries()) {
+    const placeholders = [...entry[2].matchAll(/%\d+\$[sd]/g)].map(x => x[0]);
+    const expectedParams = brandKeys[index] === "ui_protocol_server" ? ["%1$s"] : [];
+    if (JSON.stringify(placeholders) !== JSON.stringify(expectedParams)) {
+      throw Error(`Unsafe translation format placeholders: ${locale}/${brandKeys[index]}`);
+    }
+  }
+}
+const nativeStyle = fs.readFileSync(path.resolve(import.meta.dirname,
+  "..", "app", "src", "main", "java", "com", "ghostftp", "android",
+  "PremiumReferenceStyle.kt"), "utf8");
+const nativeSplash = fs.readFileSync(path.resolve(import.meta.dirname,
+  "..", "app", "src", "main", "java", "com", "ghostftp", "android",
+  "SplashActivity.kt"), "utf8");
+for (const key of brandKeys) {
+  const file = key.startsWith("ui_splash_") ? nativeSplash : nativeStyle;
+  if (!file.includes(`R.string.${key}`)) {
+    throw Error(`Branded native UI still has an untranslated label: ${key}`);
+  }
+}
+console.log(`Native Ghost FTP brand/splash accessibility parity OK: ${brandKeys.length} × ${locales.length} locales`);

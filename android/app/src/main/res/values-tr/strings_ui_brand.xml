@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_header_back">Geri</string>
+    <string name="ui_header_add">Ekle</string>
+    <string name="ui_splash_tagline">Güvenli. Güçlü. Her yerde.</string>
+    <string name="ui_splash_opening">Ghost FTP açılıyor</string>
+    <string name="ui_splash_initializing">Başlatılıyor…</string>
+    <string name="ui_protocol_server">%1$s sunucusu</string>
+</resources>

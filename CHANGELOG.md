@@ -1,3 +1,11 @@
+## 0.99.11 — visual brand consistency, accessibility and installer icon integrity (development Preview; 25 October 2026)
+- Unify the Android launcher's adaptive foreground, system splash and in-app Ghost symbol with the reviewed violet Android logo geometry; align the adaptive backdrop with the approved midnight palette without replacing the desktop's distinct cyan branding.
+- Increase native Android header Back/Add and standard action touch surfaces to a minimum of 48 dp, preserving keyboard/screen-reader action semantics and the approved 52 dp header reference.
+- Localize six splash, navigation, status and protocol accessibility labels in all 24 advertised languages, validate placeholders and resource parity, and exercise the accessible touch targets in Android emulator tests.
+- Require actual PNG image headers, expected square icon dimensions and bounded ICO directory entries before desktop installer packaging to catch invalid or corrupted branded assets.
+- Add shared platform source-contract checks for screen geometry, icon silhouettes, palette tokens and accessibility semantics in Android/quality CI. Preserve all 75 desktop/mobile design entries as unverified until genuine installed captures and screen-by-screen pixel comparisons are completed.
+- Preserve secure transport behavior and stored user data; native macOS identity-verified FTPS/SFTP remains blocked by issue #223 until real end-to-end acceptance. This is a development Preview, not full device parity or production signing certification.
+
 ## 0.99.10 — Android 24-language accessibility and localization improvements (development Preview; 24 October 2026)
 - Translate 15 additional native Android accessibility and workflow strings across all 24 supported languages in dedicated XML resources, including saved sites, navigation, search, transfer controls and screen-reader descriptions.
 - Replace another 21 hard-coded Kotlin UI references with Android resource lookups, reducing the measured Activity inline-text debt from 144 to 123 occurrences without changing sensitive protocol strings or saved connection data.

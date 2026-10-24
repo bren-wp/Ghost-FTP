@@ -58,10 +58,10 @@ class SplashActivity : Activity() {
             addView(ImageView(this@SplashActivity).apply {
                 setImageResource(R.drawable.ic_ghost_premium_splash)
                 scaleType = ImageView.ScaleType.FIT_CENTER
-                contentDescription = "Ghost FTP"
+                contentDescription = getString(R.string.app_name)
             }, LinearLayout.LayoutParams(dp(142), dp(142)))
             addView(TextView(this@SplashActivity).apply {
-                val name = SpannableString("Ghost FTP")
+                val name = SpannableString(getString(R.string.app_name))
                 name.setSpan(
                     ForegroundColorSpan(PremiumReferenceStyle.purpleLight),
                     6, name.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -76,7 +76,7 @@ class SplashActivity : Activity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT, dp(49)
             ))
             addView(TextView(this@SplashActivity).apply {
-                text = "Secure. Powerful. Everywhere."
+                text = getString(R.string.ui_splash_tagline)
                 setTextColor(PremiumReferenceStyle.secondary)
                 textSize = 14f
                 gravity = Gravity.CENTER
@@ -105,12 +105,12 @@ class SplashActivity : Activity() {
                 progressBackgroundTintList = android.content.res.ColorStateList.valueOf(
                     PremiumReferenceStyle.raised
                 )
-                contentDescription = "Opening Ghost FTP"
+                contentDescription = getString(R.string.ui_splash_opening)
             }, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(6)
             ))
             addView(TextView(this@SplashActivity).apply {
-                text = "Initializing…"
+                text = getString(R.string.ui_splash_initializing)
                 setTextColor(PremiumReferenceStyle.secondary)
                 textSize = 12f
                 gravity = Gravity.CENTER
