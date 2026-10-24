@@ -65,11 +65,11 @@ internal object PremiumReferenceStyle {
             if (onBack != null) {
                 addView(caption(context, "‹", 30f).apply {
                     gravity = Gravity.CENTER
-                    contentDescription = "Back"
+                    contentDescription = context.getString(R.string.ui_header_back)
                     isClickable = true
                     isFocusable = true
                     setOnClickListener { onBack() }
-                }, LinearLayout.LayoutParams(dp(context, 40), dp(context, 48)))
+                }, LinearLayout.LayoutParams(dp(context, 48), dp(context, 48)))
             }
             addView(caption(context, title, 18f).apply {
                 typeface = Typeface.DEFAULT_BOLD
@@ -79,12 +79,12 @@ internal object PremiumReferenceStyle {
                 addView(caption(context, trailing, 24f).apply {
                     setTextColor(purpleLight)
                     gravity = Gravity.CENTER
-                    contentDescription = "Add"
+                    contentDescription = context.getString(R.string.ui_header_add)
                     background = surface(context, selected, 8, border)
                     isFocusable = true
                     isClickable = true
                     setOnClickListener { onTrailing() }
-                }, LinearLayout.LayoutParams(dp(context, 36), dp(context, 36)))
+                }, LinearLayout.LayoutParams(dp(context, 48), dp(context, 48)))
             }
         }
 
@@ -101,7 +101,7 @@ internal object PremiumReferenceStyle {
         caption(context, label, 13f).apply {
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            minimumHeight = dp(context, 42)
+            minimumHeight = dp(context, 48)
             background = if (primary) actionBackground(context) else surface(context, raised, 8)
             contentDescription = label
             isFocusable = true
@@ -126,7 +126,7 @@ internal object PremiumReferenceStyle {
                 setStroke(dp(context, 1), Color.argb(110,
                     Color.red(tint), Color.green(tint), Color.blue(tint)))
             }
-            contentDescription = protocol.label + " server"
+            contentDescription = context.getString(R.string.ui_protocol_server, protocol.label)
         }
     }
 
