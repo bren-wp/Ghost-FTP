@@ -78,6 +78,14 @@ class ResponsiveViewportTest {
                             assertTrue("File action $i clipped from narrow viewport",
                                 action.getGlobalVisibleRect(visible) &&
                                     visible.width() >= 40 && visible.height() >= 40)
+                            val label = action as? TextView ?: continue
+                            val textLayout = label.layout ?: continue
+                            if (textLayout.lineCount > 0) {
+                                val bottom = label.compoundPaddingTop +
+                                    textLayout.getLineBottom(textLayout.lineCount - 1)
+                                assertTrue("File action $i has clipped text baseline",
+                                    bottom <= label.height - label.paddingBottom + 1)
+                            }
                         }
                     }
                     val bitmap = Bitmap.createBitmap(
