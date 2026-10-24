@@ -40,7 +40,7 @@ class RemoteBatchRenamePlannerTest {
         }
         assertThrows(IllegalArgumentException::class.java) {
             RemoteBatchRenamePlanner.plan(
-                listOf("/dir/caf\\u00e9_01.txt", "/dir/z.txt"), "cafe\\u0301_##", 1)
+                listOf("/dir/caf\u00e9_01.txt", "/dir/z.txt"), "cafe\u0301_##", 1)
         }
     }
 
