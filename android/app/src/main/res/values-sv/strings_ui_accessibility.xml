@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Snabbnavigering</string>
+    <string name="ui_back_to_sites">Tillbaka till platser</string>
+    <string name="ui_add_site">Lägg till plats</string>
+    <string name="ui_close_search">Stäng sökning</string>
+    <string name="ui_close_text_editor">Stäng textredigeraren</string>
+    <string name="ui_close_batch_rename">Stäng massomdöpning</string>
+    <string name="ui_session_status_panel">Panel för sessionsstatus</string>
+    <string name="ui_saved_connection_profiles">Sparade anslutningsprofiler</string>
+    <string name="ui_transfer_options">Överföringsalternativ</string>
+    <string name="ui_compare_directories">Jämför kataloger</string>
+    <string name="ui_search_file_name">Sök efter filnamn</string>
+    <string name="ui_match_case">Skiftlägeskänslig</string>
+    <string name="ui_search_subdirectories">Sök i undermappar</string>
+    <string name="ui_run_file_search">Starta filsökning</string>
+    <string name="ui_actual_search_results">Sökresultat</string>
+</resources>

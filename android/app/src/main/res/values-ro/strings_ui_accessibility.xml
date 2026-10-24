@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Navigare rapidă</string>
+    <string name="ui_back_to_sites">Înapoi la locații</string>
+    <string name="ui_add_site">Adaugă locație</string>
+    <string name="ui_close_search">Închide căutarea</string>
+    <string name="ui_close_text_editor">Închide editorul de text</string>
+    <string name="ui_close_batch_rename">Închide redenumirea în lot</string>
+    <string name="ui_session_status_panel">Panoul de stare a sesiunii</string>
+    <string name="ui_saved_connection_profiles">Profiluri de conexiune salvate</string>
+    <string name="ui_transfer_options">Opțiuni de transfer</string>
+    <string name="ui_compare_directories">Compară directoarele</string>
+    <string name="ui_search_file_name">Caută numele fișierului</string>
+    <string name="ui_match_case">Distinge literele mari de cele mici</string>
+    <string name="ui_search_subdirectories">Caută în subdirectoare</string>
+    <string name="ui_run_file_search">Pornește căutarea fișierelor</string>
+    <string name="ui_actual_search_results">Rezultatele căutării</string>
+</resources>

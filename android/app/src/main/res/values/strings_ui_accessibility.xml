@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Quick navigation</string>
+    <string name="ui_back_to_sites">Back to Sites</string>
+    <string name="ui_add_site">Add Site</string>
+    <string name="ui_close_search">Close Search</string>
+    <string name="ui_close_text_editor">Close Text Editor</string>
+    <string name="ui_close_batch_rename">Close Batch Rename</string>
+    <string name="ui_session_status_panel">Session status panel</string>
+    <string name="ui_saved_connection_profiles">Saved connection profiles</string>
+    <string name="ui_transfer_options">Transfer options</string>
+    <string name="ui_compare_directories">Compare directories</string>
+    <string name="ui_search_file_name">Search file name</string>
+    <string name="ui_match_case">Match case</string>
+    <string name="ui_search_subdirectories">Search subdirectories</string>
+    <string name="ui_run_file_search">Run file search</string>
+    <string name="ui_actual_search_results">Actual search results</string>
+</resources>

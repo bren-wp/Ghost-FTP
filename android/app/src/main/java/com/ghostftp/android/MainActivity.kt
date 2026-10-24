@@ -446,7 +446,7 @@ class MainActivity : Activity() {
             if (compactNavigation) View.GONE else View.VISIBLE
         content.addView(legacyHeader)
         sessionStatusCard = buildStatusCard().apply {
-            contentDescription = "Session status panel"
+            contentDescription = getString(R.string.ui_session_status_panel)
         }
         content.addView(sessionStatusCard)
         // Status can be hidden in the approved phone reference when no
@@ -591,7 +591,7 @@ class MainActivity : Activity() {
         }
         addView(phoneFilesViewButton, LinearLayout.LayoutParams(dp(40), dp(42)))
         phoneQuickButton = secondaryButton("⋯") { }.apply {
-            contentDescription = "Quick navigation"
+            contentDescription = getString(R.string.ui_quick_navigation)
             textSize = 22f
             minWidth = 0
             minimumWidth = 0
@@ -632,13 +632,13 @@ class MainActivity : Activity() {
         if (::phoneMenuButton.isInitialized) {
             if (batchMode) {
                 phoneMenuButton.text = "‹"
-                phoneMenuButton.contentDescription = "Close Batch Rename"
+                phoneMenuButton.contentDescription = getString(R.string.ui_close_batch_rename)
             } else if (editorMode) {
                 phoneMenuButton.text = "‹"
-                phoneMenuButton.contentDescription = "Close Text Editor"
+                phoneMenuButton.contentDescription = getString(R.string.ui_close_text_editor)
             } else if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
                 phoneMenuButton.text = "‹"
-                phoneMenuButton.contentDescription = "Back to Sites"
+                phoneMenuButton.contentDescription = getString(R.string.ui_back_to_sites)
             } else if (phoneMenuButton.contentDescription == "Back to Sites") {
                 phoneMenuButton.text = if (navigationOpen) "←" else "☰"
                 phoneMenuButton.contentDescription =
@@ -665,7 +665,7 @@ class MainActivity : Activity() {
             }
             searchMode -> {
                 phoneQuickButton.text = "×"
-                phoneQuickButton.contentDescription = "Close Search"
+                phoneQuickButton.contentDescription = getString(R.string.ui_close_search)
             }
             activeWorkspace == Workspace.FILES -> {
                 phoneQuickButton.text = "⌕"
@@ -673,7 +673,7 @@ class MainActivity : Activity() {
             }
             sitesOverview -> {
                 phoneQuickButton.text = "+"
-                phoneQuickButton.contentDescription = "Add Site"
+                phoneQuickButton.contentDescription = getString(R.string.ui_add_site)
             }
             bookmarks -> {
                 phoneQuickButton.text = "+"
@@ -681,7 +681,7 @@ class MainActivity : Activity() {
             }
             else -> {
                 phoneQuickButton.text = "⋯"
-                phoneQuickButton.contentDescription = "Quick navigation"
+                phoneQuickButton.contentDescription = getString(R.string.ui_quick_navigation)
             }
         }
     }
@@ -1048,9 +1048,9 @@ class MainActivity : Activity() {
         addView(siteFeedback)
 
         val savedProfiles = SavedSiteProfiles.read(this@MainActivity)
-        addView(formLabel("Saved connection profiles"))
+        addView(formLabel(getString(R.string.ui_saved_connection_profiles)))
         savedSitesSpinner = Spinner(this@MainActivity).apply {
-            contentDescription = "Saved connection profiles"
+            contentDescription = getString(R.string.ui_saved_connection_profiles)
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_item,
                 listOf("Select saved profile") + savedProfiles.map { it.name }
             ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
@@ -1402,7 +1402,7 @@ class MainActivity : Activity() {
         heading.addView(PremiumReferenceStyle.action(this@MainActivity, "+", true) {
             showSiteEditor(null)
         }.apply {
-            contentDescription = "Add Site"
+            contentDescription = getString(R.string.ui_add_site)
         }, LinearLayout.LayoutParams(dp(44), dp(42)))
         if (!usesOverlayNavigation()) addView(heading)
         sitesSearch = input("Search saved sites…", InputType.TYPE_CLASS_TEXT).apply {
@@ -1562,7 +1562,7 @@ class MainActivity : Activity() {
         addView(space(7))
         addView(PremiumReferenceStyle.action(this@MainActivity, "Back to Sites") {
             showSitesOverview()
-        }.apply { contentDescription = "Back to Sites" })
+        }.apply { contentDescription = getString(R.string.ui_back_to_sites) })
     }
 
     private fun showConnectPreview(site: SavedSiteDefinition) {
@@ -2021,7 +2021,7 @@ class MainActivity : Activity() {
         addView(space(11))
         addView(PremiumReferenceStyle.caption(this@MainActivity, "File name", 12f, true))
         searchQueryInput = input("*.php", InputType.TYPE_CLASS_TEXT).apply {
-            contentDescription = "Search file name"
+            contentDescription = getString(R.string.ui_search_file_name)
         }
         addView(searchQueryInput, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, dp(46)))
@@ -2029,7 +2029,7 @@ class MainActivity : Activity() {
         addView(PremiumReferenceStyle.caption(this@MainActivity,
             "Supports * and ? filename wildcards", 11f, true))
         val match = android.widget.Switch(this@MainActivity).apply {
-            text = "Match case"
+            text = getString(R.string.ui_match_case)
             textSize = 13f
             setTextColor(Brand.text)
             isChecked = false
@@ -2037,7 +2037,7 @@ class MainActivity : Activity() {
         }
         addView(match)
         val recurse = android.widget.Switch(this@MainActivity).apply {
-            text = "Search subdirectories"
+            text = getString(R.string.ui_search_subdirectories)
             textSize = 13f
             setTextColor(Brand.text)
             setOnCheckedChangeListener { _, value -> searchRecursive = value }
@@ -2050,13 +2050,13 @@ class MainActivity : Activity() {
         addView(PremiumReferenceStyle.action(this@MainActivity, "Search", true) {
             runScopedSearch()
         }.apply {
-            contentDescription = "Run file search"
+            contentDescription = getString(R.string.ui_run_file_search)
         }, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, dp(45)))
         addView(space(11))
         searchResults = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
-            contentDescription = "Actual search results"
+            contentDescription = getString(R.string.ui_actual_search_results)
         }
         addView(searchResults)
     }
@@ -2282,11 +2282,11 @@ class MainActivity : Activity() {
         addView(queuePanel)
         addView(historyPanel)
         addView(space(8))
-        addView(secondaryButton("Transfer options") {
+        addView(secondaryButton(getString(R.string.ui_transfer_options)) {
             setTab(true)
             optionsPanel.visibility =
                 if (optionsPanel.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-        }.apply { contentDescription = "Transfer options" })
+        }.apply { contentDescription = getString(R.string.ui_transfer_options) })
         addView(optionsPanel)
 
         // Reference #8: a real transfer-details route, never invented progress
@@ -2411,11 +2411,11 @@ class MainActivity : Activity() {
         addView(remoteCard)
         addView(space(14))
         addView(android.widget.Switch(this@MainActivity).apply {
-            text = "Compare directories"
+            text = getString(R.string.ui_compare_directories)
             textSize = 14f
             setTextColor(Brand.text)
             isChecked = true
-            contentDescription = "Compare directories"
+            contentDescription = getString(R.string.ui_compare_directories)
             setOnCheckedChangeListener { _, enabled ->
                 compareLocalRemoteEnabled = enabled
                 syncCompareButton.isEnabled = enabled

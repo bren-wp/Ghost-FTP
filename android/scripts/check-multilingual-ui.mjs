@@ -27,3 +27,27 @@ for (const key of expected) {
   }
 }
 console.log(`Android UI localization parity OK: ${expected.length} additional messages × ${locales.length} locales`);
+
+// Accessibility copy is a separate resource catalog; every advertised
+// locale must ship exactly the same 15 keys and nonempty translations.
+const accessibilityPath = (locale) => path.join(root, locale === "en" ? "values" : `values-${locale}`, "strings_ui_accessibility.xml");
+const accessibilitySource = fs.readFileSync(accessibilityPath("en"), "utf8");
+const accessibilityExpected = extract(accessibilitySource);
+if (accessibilityExpected.length !== 15 || new Set(accessibilityExpected).size !== 15) {
+  throw Error("Incorrect Android accessibility translation catalog");
+}
+for (const locale of locales) {
+  const xml = fs.readFileSync(accessibilityPath(locale), "utf8");
+  const entries = [...xml.matchAll(/<string name="([^"]+)">([^<]*)<\\/string>/g)];
+  const keys = entries.map(x => x[1]);
+  if (keys.length !== accessibilityExpected.length || keys.some((x, i) => x !== accessibilityExpected[i])) {
+    throw Error(`Android accessibility key parity mismatch for ${locale}`);
+  }
+  if (entries.some(x => !x[2].trim() || x[2].includes("TODO") || x[2].includes("FIXME"))) {
+    throw Error(`Missing or unfinished Android accessibility translation: ${locale}`);
+  }
+}
+for (const key of accessibilityExpected) {
+  if (!activity.includes(`getString(R.string.${key})`)) throw Error(`Android accessibility text not migrated: ${key}`);
+}
+console.log(`Android accessibility UI parity OK: ${accessibilityExpected.length} × ${locales.length} locales`);

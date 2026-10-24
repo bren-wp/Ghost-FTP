@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Γρήγορη πλοήγηση</string>
+    <string name="ui_back_to_sites">Πίσω στις τοποθεσίες</string>
+    <string name="ui_add_site">Προσθήκη τοποθεσίας</string>
+    <string name="ui_close_search">Κλείσιμο αναζήτησης</string>
+    <string name="ui_close_text_editor">Κλείσιμο επεξεργαστή κειμένου</string>
+    <string name="ui_close_batch_rename">Κλείσιμο μαζικής μετονομασίας</string>
+    <string name="ui_session_status_panel">Πίνακας κατάστασης συνεδρίας</string>
+    <string name="ui_saved_connection_profiles">Αποθηκευμένα προφίλ σύνδεσης</string>
+    <string name="ui_transfer_options">Επιλογές μεταφοράς</string>
+    <string name="ui_compare_directories">Σύγκριση καταλόγων</string>
+    <string name="ui_search_file_name">Αναζήτηση ονόματος αρχείου</string>
+    <string name="ui_match_case">Διάκριση πεζών και κεφαλαίων</string>
+    <string name="ui_search_subdirectories">Αναζήτηση σε υποκαταλόγους</string>
+    <string name="ui_run_file_search">Έναρξη αναζήτησης αρχείων</string>
+    <string name="ui_actual_search_results">Αποτελέσματα αναζήτησης</string>
+</resources>

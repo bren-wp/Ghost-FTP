@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Hitra navigacija</string>
+    <string name="ui_back_to_sites">Nazaj na lokacije</string>
+    <string name="ui_add_site">Dodaj lokacijo</string>
+    <string name="ui_close_search">Zapri iskanje</string>
+    <string name="ui_close_text_editor">Zapri urejevalnik besedila</string>
+    <string name="ui_close_batch_rename">Zapri množično preimenovanje</string>
+    <string name="ui_session_status_panel">Plošča stanja seje</string>
+    <string name="ui_saved_connection_profiles">Shranjeni profili povezav</string>
+    <string name="ui_transfer_options">Možnosti prenosa</string>
+    <string name="ui_compare_directories">Primerjaj imenike</string>
+    <string name="ui_search_file_name">Išči po imenu datoteke</string>
+    <string name="ui_match_case">Razlikuj velike in male črke</string>
+    <string name="ui_search_subdirectories">Preišči podimenike</string>
+    <string name="ui_run_file_search">Zaženi iskanje datotek</string>
+    <string name="ui_actual_search_results">Rezultati iskanja</string>
+</resources>

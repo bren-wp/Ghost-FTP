@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Rýchla navigácia</string>
+    <string name="ui_back_to_sites">Späť na lokality</string>
+    <string name="ui_add_site">Pridať lokalitu</string>
+    <string name="ui_close_search">Zavrieť vyhľadávanie</string>
+    <string name="ui_close_text_editor">Zavrieť textový editor</string>
+    <string name="ui_close_batch_rename">Zavrieť hromadné premenovanie</string>
+    <string name="ui_session_status_panel">Panel stavu relácie</string>
+    <string name="ui_saved_connection_profiles">Uložené profily pripojenia</string>
+    <string name="ui_transfer_options">Možnosti prenosu</string>
+    <string name="ui_compare_directories">Porovnať adresáre</string>
+    <string name="ui_search_file_name">Hľadať názov súboru</string>
+    <string name="ui_match_case">Rozlišovať veľké a malé písmená</string>
+    <string name="ui_search_subdirectories">Prehľadať podadresáre</string>
+    <string name="ui_run_file_search">Spustiť vyhľadávanie súborov</string>
+    <string name="ui_actual_search_results">Výsledky vyhľadávania</string>
+</resources>

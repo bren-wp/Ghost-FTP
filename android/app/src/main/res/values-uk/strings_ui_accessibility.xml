@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Швидка навігація</string>
+    <string name="ui_back_to_sites">Назад до розташувань</string>
+    <string name="ui_add_site">Додати розташування</string>
+    <string name="ui_close_search">Закрити пошук</string>
+    <string name="ui_close_text_editor">Закрити текстовий редактор</string>
+    <string name="ui_close_batch_rename">Закрити пакетне перейменування</string>
+    <string name="ui_session_status_panel">Панель стану сеансу</string>
+    <string name="ui_saved_connection_profiles">Збережені профілі підключення</string>
+    <string name="ui_transfer_options">Параметри передавання</string>
+    <string name="ui_compare_directories">Порівняти каталоги</string>
+    <string name="ui_search_file_name">Пошук за назвою файлу</string>
+    <string name="ui_match_case">Враховувати регістр</string>
+    <string name="ui_search_subdirectories">Шукати в підкаталогах</string>
+    <string name="ui_run_file_search">Почати пошук файлів</string>
+    <string name="ui_actual_search_results">Результати пошуку</string>
+</resources>
