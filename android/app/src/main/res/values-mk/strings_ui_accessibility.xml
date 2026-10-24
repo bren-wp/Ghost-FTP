@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Брза навигација</string>
+    <string name="ui_back_to_sites">Назад кон локации</string>
+    <string name="ui_add_site">Додај локација</string>
+    <string name="ui_close_search">Затвори пребарување</string>
+    <string name="ui_close_text_editor">Затвори уредувач на текст</string>
+    <string name="ui_close_batch_rename">Затвори групно преименување</string>
+    <string name="ui_session_status_panel">Панел за статус на сесијата</string>
+    <string name="ui_saved_connection_profiles">Зачувани профили за поврзување</string>
+    <string name="ui_transfer_options">Опции за пренос</string>
+    <string name="ui_compare_directories">Спореди директориуми</string>
+    <string name="ui_search_file_name">Пребарај име на датотека</string>
+    <string name="ui_match_case">Разликувај големи и мали букви</string>
+    <string name="ui_search_subdirectories">Пребарај поддиректориуми</string>
+    <string name="ui_run_file_search">Започни пребарување датотеки</string>
+    <string name="ui_actual_search_results">Резултати од пребарувањето</string>
+</resources>

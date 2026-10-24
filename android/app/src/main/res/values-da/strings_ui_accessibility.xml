@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Hurtig navigation</string>
+    <string name="ui_back_to_sites">Tilbage til steder</string>
+    <string name="ui_add_site">Tilføj sted</string>
+    <string name="ui_close_search">Luk søgning</string>
+    <string name="ui_close_text_editor">Luk teksteditor</string>
+    <string name="ui_close_batch_rename">Luk masseomdøbning</string>
+    <string name="ui_session_status_panel">Panel for sessionsstatus</string>
+    <string name="ui_saved_connection_profiles">Gemte forbindelsesprofiler</string>
+    <string name="ui_transfer_options">Overførselsindstillinger</string>
+    <string name="ui_compare_directories">Sammenlign mapper</string>
+    <string name="ui_search_file_name">Søg efter filnavn</string>
+    <string name="ui_match_case">Forskel på store og små bogstaver</string>
+    <string name="ui_search_subdirectories">Søg i undermapper</string>
+    <string name="ui_run_file_search">Start filsøgning</string>
+    <string name="ui_actual_search_results">Søgeresultater</string>
+</resources>

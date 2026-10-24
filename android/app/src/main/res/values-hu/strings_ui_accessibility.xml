@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Gyors navigáció</string>
+    <string name="ui_back_to_sites">Vissza a helyekhez</string>
+    <string name="ui_add_site">Hely hozzáadása</string>
+    <string name="ui_close_search">Keresés bezárása</string>
+    <string name="ui_close_text_editor">Szövegszerkesztő bezárása</string>
+    <string name="ui_close_batch_rename">Tömeges átnevezés bezárása</string>
+    <string name="ui_session_status_panel">Munkamenet állapota</string>
+    <string name="ui_saved_connection_profiles">Mentett kapcsolati profilok</string>
+    <string name="ui_transfer_options">Átviteli beállítások</string>
+    <string name="ui_compare_directories">Könyvtárak összehasonlítása</string>
+    <string name="ui_search_file_name">Keresés fájlnév alapján</string>
+    <string name="ui_match_case">Kis- és nagybetűk megkülönböztetése</string>
+    <string name="ui_search_subdirectories">Alkönyvtárak keresése</string>
+    <string name="ui_run_file_search">Fájlkeresés indítása</string>
+    <string name="ui_actual_search_results">Keresési eredmények</string>
+</resources>

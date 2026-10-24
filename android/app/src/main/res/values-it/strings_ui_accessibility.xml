@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_quick_navigation">Navigazione rapida</string>
+    <string name="ui_back_to_sites">Torna alle posizioni</string>
+    <string name="ui_add_site">Aggiungi posizione</string>
+    <string name="ui_close_search">Chiudi ricerca</string>
+    <string name="ui_close_text_editor">Chiudi editor di testo</string>
+    <string name="ui_close_batch_rename">Chiudi rinomina in blocco</string>
+    <string name="ui_session_status_panel">Pannello stato sessione</string>
+    <string name="ui_saved_connection_profiles">Profili di connessione salvati</string>
+    <string name="ui_transfer_options">Opzioni di trasferimento</string>
+    <string name="ui_compare_directories">Confronta directory</string>
+    <string name="ui_search_file_name">Cerca nome file</string>
+    <string name="ui_match_case">Distingui maiuscole e minuscole</string>
+    <string name="ui_search_subdirectories">Cerca nelle sottocartelle</string>
+    <string name="ui_run_file_search">Avvia ricerca file</string>
+    <string name="ui_actual_search_results">Risultati di ricerca</string>
+</resources>

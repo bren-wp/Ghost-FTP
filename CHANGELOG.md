@@ -1,3 +1,9 @@
+## 0.99.10 — Android 24-language accessibility and localization improvements (development Preview; 24 October 2026)
+- Translate 15 additional native Android accessibility and workflow strings across all 24 supported languages in dedicated XML resources, including saved sites, navigation, search, transfer controls and screen-reader descriptions.
+- Replace another 21 hard-coded Kotlin UI references with Android resource lookups, reducing the measured Activity inline-text debt from 144 to 123 occurrences without changing sensitive protocol strings or saved connection data.
+- Extend Android localization regression checks to enforce the same new keys across all 24 locales and prevent absent/empty text; tighten the code-inventory budget to block regressions.
+- Preserve all validated 0.99.9 Windows PATH, FTP/FTPS/SFTP and cross-platform security fixes. Native macOS secure protocol issue #223 remains open; Android device-by-device UI and translation QA are not falsely certified complete.
+
 ## 0.99.9 — Android batch-rename collision hardening (development Preview; 24 October 2026)
 - Start full 24-language native localization: macOS gets a shared 269-key multilingual runtime catalog and localized SwiftUI controls; Android gets 10 newly translated UI labels across 24 languages, resource-based source references and CI parity guards.
 - Document unresolved native dynamic text and untranslated copy without claiming fully translated release readiness. Secure FTPS/SFTP issue #223 remains a production blocker for native macOS.
