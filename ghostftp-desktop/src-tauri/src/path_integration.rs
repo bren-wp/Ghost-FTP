@@ -214,7 +214,7 @@ mod platform {
         let value = String::from_utf16(&units[..units.len() - 1]).map_err(|_| {
             "HKCU\\Environment\\Path contains invalid UTF-16; no changes made".to_string()
         })?;
-        Ok((value, rv.vtype))
+        Ok((value, rv.vtype.clone()))
     }
 
     /// Only an actually missing Path can be treated as empty. Reject
