@@ -26,6 +26,14 @@ internal object RemoteBatchRenamePlanner {
             "Pattern must contain exactly one group of 1–6 number markers (#)."
         }
         val digits = groups.single().value.length
+        // '#' is an explicit fixed-width number field. Refuse a batch when
+        // its last number would exceed that width rather than silently
+        // producing a longer, surprising filename mid-operation.
+        val finalOrdinal = start.toLong() + paths.size - 1
+        val maxOrdinal = (1..digits).fold(1L) { total, _ -> total * 10L } - 1
+        require(finalOrdinal <= maxOrdinal) {
+            "The batch numbering exceeds the # field width; add more # markers."
+        }
         val canon = HashSet<String>()
         val proposals = paths.sorted().mapIndexed { offset, from ->
             require(from.startsWith('/') && from != "/" && !from.contains('\u0000')) {
@@ -54,8 +62,16 @@ internal object RemoteBatchRenamePlanner {
         }
         // Avoid dependency/order cycles; protect even servers where RNFR/RNTO
         // accepts renaming over a just-renamed source from this same batch.
-        val sources = paths.toSet()
-        require(proposals.none { it.to in sources }) {
+        // On case-insensitive or Unicode-normalizing FTP/SFTP volumes, a
+        // destination may overwrite another selected source even though the
+        // raw Unicode codepoints or filename case differ. Reject conservatively.
+        val sourceNames = paths.map {
+            Normalizer.normalize(it, Normalizer.Form.NFC).lowercase(Locale.ROOT)
+        }.toSet()
+        require(proposals.none {
+            Normalizer.normalize(it.to, Normalizer.Form.NFC)
+                .lowercase(Locale.ROOT) in sourceNames
+        }) {
             "Destination overlaps a selected source; choose another pattern."
         }
         return proposals
