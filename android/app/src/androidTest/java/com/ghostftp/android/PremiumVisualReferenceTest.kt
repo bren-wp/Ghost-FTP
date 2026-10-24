@@ -107,7 +107,7 @@ class PremiumVisualReferenceTest {
             instrumentation.waitForIdleSync()
             scenario.onActivity { activity ->
                 val add = findView(activity.window.decorView) {
-                    it.contentDescription?.toString() == "Add Site" && it.isShown
+                    it.contentDescription?.toString() == activity.getString(R.string.ui_add_site) && it.isShown
                 }
                 assertNotNull("Real contextual + Add Site button required", add)
                 assertTrue(add!!.performClick())
@@ -145,7 +145,7 @@ class PremiumVisualReferenceTest {
             instrumentation.waitForIdleSync()
             scenario.onActivity { activity ->
                 val button = findView(activity.window.decorView) {
-                    it.contentDescription?.toString() == "Search files" && it.isShown
+                    it.contentDescription?.toString() == activity.getString(R.string.ui_search_files) && it.isShown
                 }
                 assertNotNull("Real Files search action missing", button)
                 assertTrue(button!!.performClick())
@@ -153,12 +153,12 @@ class PremiumVisualReferenceTest {
             instrumentation.waitForIdleSync()
             scenario.onActivity { activity ->
                 val query = findView(activity.window.decorView) {
-                    it.contentDescription?.toString() == "Search file name" && it.isShown
+                    it.contentDescription?.toString() == activity.getString(R.string.ui_search_file_name) && it.isShown
                 }
                 assertNotNull("Real editable Search form missing", query)
                 captureIdleReference(activity, output, "search")
                 val close = findView(activity.window.decorView) {
-                    it.contentDescription?.toString() == "Close Search" && it.isShown
+                    it.contentDescription?.toString() == activity.getString(R.string.ui_close_search) && it.isShown
                 }
                 assertTrue("Search must close back to Files", close?.performClick() == true)
             }
@@ -360,12 +360,39 @@ class PremiumVisualReferenceTest {
                 assertEquals(3, icons.size)
                 for ((index, protocol) in ConnectionProtocol.entries.withIndex()) {
                     assertEquals("Protocol accessibility label must not be invented",
-                        protocol.label + " server", icons[index].contentDescription)
+                        activity.getString(R.string.ui_protocol_server, protocol.label), icons[index].contentDescription)
                     assertNotNull("Protocol tile must have its own background",
                         icons[index].background)
                 }
                 assertTrue("FTP, FTPS, SFTP must be distinguishable by protocol tint",
                     icons.map { it.currentTextColor }.distinct().size == 3)
+            }
+        }
+    }
+
+    @Test
+    fun nativeTouchTargetsAndAccessibleBrandLabelsRespect48Dp() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val minTouch = PremiumReferenceStyle.dp(activity, 48)
+                val header = PremiumReferenceStyle.sectionHeader(
+                    activity, activity.getString(R.string.workspace_files),
+                    onBack = {}, trailing = "+", onTrailing = {}
+                )
+                val back = header.getChildAt(0)
+                val add = header.getChildAt(2)
+                assertTrue("Back must have a 48dp tap target",
+                    back.layoutParams.width >= minTouch && back.layoutParams.height >= minTouch)
+                assertTrue("Add must have a 48dp tap target",
+                    add.layoutParams.width >= minTouch && add.layoutParams.height >= minTouch)
+                assertEquals(activity.getString(R.string.ui_header_back), back.contentDescription)
+                assertEquals(activity.getString(R.string.ui_header_add), add.contentDescription)
+                val action = PremiumReferenceStyle.action(activity,
+                    activity.getString(R.string.action_refresh), onClick = {})
+                assertTrue("Reference action must have a minimum 48dp touch height",
+                    action.minimumHeight >= minTouch)
+                assertTrue("Brand label must remain real app identity",
+                    activity.getString(R.string.app_name) == "Ghost FTP")
             }
         }
     }
@@ -445,8 +472,8 @@ class PremiumVisualReferenceTest {
             instrumentation.waitForIdleSync()
             scenario.onActivity { activity ->
                 val root = activity.window.decorView
-                val fileActions = findView(root) { it.contentDescription == "File actions" }
-                val session = findView(root) { it.contentDescription == "Session status panel" }
+                val fileActions = findView(root) { it.contentDescription == activity.getString(R.string.ui_file_actions) }
+                val session = findView(root) { it.contentDescription == activity.getString(R.string.ui_session_status_panel) }
                 assertNotNull("Files action toolbar must exist.", fileActions)
                 assertNotNull("Session status panel must exist.", session)
                 assertEquals(View.VISIBLE, fileActions!!.visibility)
