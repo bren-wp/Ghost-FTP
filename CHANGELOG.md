@@ -1,4 +1,6 @@
 ## 0.99.9 — Android batch-rename collision hardening (development Preview; 24 October 2026)
+- Start full 24-language native localization: macOS gets a shared 269-key multilingual runtime catalog and localized SwiftUI controls; Android gets 10 newly translated UI labels across 24 languages, resource-based source references and CI parity guards.
+- Document unresolved native dynamic text and untranslated copy without claiming fully translated release readiness. Secure FTPS/SFTP issue #223 remains a production blocker for native macOS.
 - Windows CLI PATH integration now fails closed on corrupt or non-string HKCU registry values to avoid overwriting user PATH content, with scratch-key regression tests.
 - Linux/macOS CLI PATH integration avoids replacing an existing managed link with a symlink to itself, with Unix regression tests.
 - Native macOS host validation rejects malformed IPv6 addresses before attempting a connection, with XCTest coverage.
