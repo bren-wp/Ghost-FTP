@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_saved_profiles">Зачувани профили</string>
+    <string name="ui_search_files">Пребарај датотеки</string>
+    <string name="ui_search_sites">Пребарај локации</string>
+    <string name="ui_text_editor">Уредувач на текст</string>
+    <string name="ui_batch_rename">Групно преименување</string>
+    <string name="ui_transfer_details">Детали за пренос</string>
+    <string name="ui_backup_settings">Резервна копија на поставки</string>
+    <string name="ui_restore_settings">Врати поставки</string>
+    <string name="ui_file_actions">Дејства со датотеки</string>
+    <string name="ui_more">Повеќе</string>
+</resources>

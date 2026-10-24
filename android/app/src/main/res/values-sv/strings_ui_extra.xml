@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_saved_profiles">Sparade profiler</string>
+    <string name="ui_search_files">Sök filer</string>
+    <string name="ui_search_sites">Sök platser</string>
+    <string name="ui_text_editor">Textredigerare</string>
+    <string name="ui_batch_rename">Massomdöpning</string>
+    <string name="ui_transfer_details">Överföringsdetaljer</string>
+    <string name="ui_backup_settings">Säkerhetskopiera inställningar</string>
+    <string name="ui_restore_settings">Återställ inställningar</string>
+    <string name="ui_file_actions">Filåtgärder</string>
+    <string name="ui_more">Mer</string>
+</resources>

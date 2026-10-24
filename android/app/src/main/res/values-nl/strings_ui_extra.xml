@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_saved_profiles">Opgeslagen profielen</string>
+    <string name="ui_search_files">Bestanden zoeken</string>
+    <string name="ui_search_sites">Locaties zoeken</string>
+    <string name="ui_text_editor">Teksteditor</string>
+    <string name="ui_batch_rename">Meerdere bestanden hernoemen</string>
+    <string name="ui_transfer_details">Overdrachtsdetails</string>
+    <string name="ui_backup_settings">Instellingen back-uppen</string>
+    <string name="ui_restore_settings">Instellingen herstellen</string>
+    <string name="ui_file_actions">Bestandsacties</string>
+    <string name="ui_more">Meer</string>
+</resources>

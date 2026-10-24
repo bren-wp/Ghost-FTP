@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_saved_profiles">Shranjeni profili</string>
+    <string name="ui_search_files">Iskanje datotek</string>
+    <string name="ui_search_sites">Iskanje mest</string>
+    <string name="ui_text_editor">Urejevalnik besedila</string>
+    <string name="ui_batch_rename">Paketno preimenovanje</string>
+    <string name="ui_transfer_details">Podrobnosti prenosa</string>
+    <string name="ui_backup_settings">Varnostno kopiraj nastavitve</string>
+    <string name="ui_restore_settings">Obnovi nastavitve</string>
+    <string name="ui_file_actions">Dejanja z datotekami</string>
+    <string name="ui_more">Več</string>
+</resources>

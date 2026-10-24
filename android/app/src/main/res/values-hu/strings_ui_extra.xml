@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_saved_profiles">Mentett profilok</string>
+    <string name="ui_search_files">Fájlok keresése</string>
+    <string name="ui_search_sites">Helyek keresése</string>
+    <string name="ui_text_editor">Szövegszerkesztő</string>
+    <string name="ui_batch_rename">Csoportos átnevezés</string>
+    <string name="ui_transfer_details">Átvitel részletei</string>
+    <string name="ui_backup_settings">Beállítások biztonsági mentése</string>
+    <string name="ui_restore_settings">Beállítások visszaállítása</string>
+    <string name="ui_file_actions">Fájlműveletek</string>
+    <string name="ui_more">Továbbiak</string>
+</resources>

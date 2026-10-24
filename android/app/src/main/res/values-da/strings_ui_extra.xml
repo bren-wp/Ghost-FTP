@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_saved_profiles">Gemte profiler</string>
+    <string name="ui_search_files">Søg i filer</string>
+    <string name="ui_search_sites">Søg efter websteder</string>
+    <string name="ui_text_editor">Teksteditor</string>
+    <string name="ui_batch_rename">Masseomdøbning</string>
+    <string name="ui_transfer_details">Overførselsdetaljer</string>
+    <string name="ui_backup_settings">Sikkerhedskopiér indstillinger</string>
+    <string name="ui_restore_settings">Gendan indstillinger</string>
+    <string name="ui_file_actions">Filhandlinger</string>
+    <string name="ui_more">Mere</string>
+</resources>

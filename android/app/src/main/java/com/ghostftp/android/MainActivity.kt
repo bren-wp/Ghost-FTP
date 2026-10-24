@@ -669,7 +669,7 @@ class MainActivity : Activity() {
             }
             activeWorkspace == Workspace.FILES -> {
                 phoneQuickButton.text = "⌕"
-                phoneQuickButton.contentDescription = "Search files"
+                phoneQuickButton.contentDescription = getString(R.string.ui_search_files)
             }
             sitesOverview -> {
                 phoneQuickButton.text = "+"
@@ -826,7 +826,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(5), dp(4), dp(5), dp(4))
             setBackgroundColor(PremiumReferenceStyle.raised)
-            contentDescription = "File actions"
+            contentDescription = getString(R.string.ui_file_actions)
             val compactLabels = AndroidResponsiveLayout.compactFileActions(
                 resources.configuration.screenWidthDp, resources.configuration.fontScale)
             val actions = listOf(
@@ -871,7 +871,7 @@ class MainActivity : Activity() {
                 item.setPadding(dp(2), dp(3), dp(2), dp(3))
                 addView(item, LinearLayout.LayoutParams(0, dp(51), 1f))
             }
-            val more = toolbarButton("More") { }.apply {
+            val more = toolbarButton(getString(R.string.ui_more)) { }.apply {
                 setAllCaps(false)
                 textSize = if (compactLabels) 9f else 10f
                 gravity = Gravity.CENTER
@@ -1060,7 +1060,7 @@ class MainActivity : Activity() {
             val selected = savedSitesSpinner.selectedItemPosition - 1
             val entry = SavedSiteProfiles.read(this@MainActivity).getOrNull(selected)
             if (entry == null) {
-                showMessage("Saved profiles", "Select a saved profile first.")
+                showMessage(getString(R.string.ui_saved_profiles), "Select a saved profile first.")
             } else {
                 selectConnectionProtocolAndPort(entry.protocol, entry.port)
                 hostInput.setText(entry.host)
@@ -1179,7 +1179,7 @@ class MainActivity : Activity() {
             val selected = savedSitesSpinner.selectedItemPosition - 1
             val original = SavedSiteProfiles.read(this@MainActivity).getOrNull(selected)
             if (original == null) {
-                showMessage("Saved profiles", "Select the profile to update first.")
+                showMessage(getString(R.string.ui_saved_profiles), "Select the profile to update first.")
             } else {
                 val profile = readProfile() ?: return@secondaryButton
                 val name = siteNameInput.text.toString().trim()
@@ -1197,7 +1197,7 @@ class MainActivity : Activity() {
             val selected = savedSitesSpinner.selectedItemPosition - 1
             val entry = SavedSiteProfiles.read(this@MainActivity).getOrNull(selected)
             if (entry == null) {
-                showMessage("Saved profiles", "Select the profile to remove first.")
+                showMessage(getString(R.string.ui_saved_profiles), "Select the profile to remove first.")
             } else {
                 requestInlineConfirmation(
                     "Remove saved profile?",
@@ -1406,7 +1406,7 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(dp(44), dp(42)))
         if (!usesOverlayNavigation()) addView(heading)
         sitesSearch = input("Search saved sites…", InputType.TYPE_CLASS_TEXT).apply {
-            contentDescription = "Search sites"
+            contentDescription = getString(R.string.ui_search_sites)
             addTextChangedListener(object : android.text.TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -2322,7 +2322,7 @@ class MainActivity : Activity() {
             visibility = View.GONE
             setPadding(dp(3), dp(4), dp(3), dp(8))
             addView(PremiumReferenceStyle.caption(this@MainActivity,
-                "Transfer Details", 19f).apply {
+                getString(R.string.ui_transfer_details), 19f).apply {
                 typeface = Typeface.DEFAULT_BOLD
             })
             addView(space(13))
@@ -2372,7 +2372,7 @@ class MainActivity : Activity() {
             }) + "\n" + transferStateText.text.toString()
         transferQueueSurface.visibility = View.GONE
         transferDetailsSurface.visibility = View.VISIBLE
-        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = "Transfer Details"
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = getString(R.string.ui_transfer_details)
         contentScroll.post { contentScroll.scrollTo(0, workspaceContainer.top) }
     }
 
@@ -2470,8 +2470,8 @@ class MainActivity : Activity() {
         }
         actions.addView(
             trackBusySensitiveLocalAction(
-                secondaryButton("Back up settings") { createConnectionSettingsBackup() }.apply {
-                    contentDescription = "Back up settings"
+                secondaryButton(getString(R.string.ui_backup_settings)) { createConnectionSettingsBackup() }.apply {
+                    contentDescription = getString(R.string.ui_backup_settings)
                 }
             ),
             buttonParams(weight = 1f)
@@ -2479,8 +2479,8 @@ class MainActivity : Activity() {
         actions.addView(gap(8))
         actions.addView(
             trackBusySensitiveLocalAction(
-                secondaryButton("Restore settings") { chooseConnectionSettingsBackup() }.apply {
-                    contentDescription = "Restore settings"
+                secondaryButton(getString(R.string.ui_restore_settings)) { chooseConnectionSettingsBackup() }.apply {
+                    contentDescription = getString(R.string.ui_restore_settings)
                 }
             ),
             buttonParams(weight = 1f)
@@ -3388,7 +3388,7 @@ class MainActivity : Activity() {
         if (::workspaceTitle.isInitialized) workspaceTitle.text = workspaceLabel(workspace)
         if (::phoneChromeTitle.isInitialized) {
             phoneChromeTitle.text =
-                if (workspace == Workspace.FILES && editorMode) "Text Editor"
+                if (workspace == Workspace.FILES && editorMode) getString(R.string.ui_text_editor)
                 else if (workspace == Workspace.FILES && batchMode) "Rename Files"
                 else if (workspace == Workspace.SITES &&
                     ::connectPreviewPanel.isInitialized &&
@@ -4258,12 +4258,12 @@ class MainActivity : Activity() {
      */
     private fun openRemoteTextEditor(item: RemoteRow) {
         val profile = activeProfile ?: run {
-            showMessage("Text Editor", "Connect to a site before editing remote files.")
+            showMessage(getString(R.string.ui_text_editor), "Connect to a site before editing remote files.")
             return
         }
         val path = item.remotePath?.takeIf { item.isFile && it.startsWith('/') } ?: return
         if (operationInFlight) {
-            showMessage("Text Editor", "Finish or cancel the active transfer first.")
+            showMessage(getString(R.string.ui_text_editor), "Finish or cancel the active transfer first.")
             return
         }
         val generation = ++operationGeneration
@@ -4358,7 +4358,7 @@ class MainActivity : Activity() {
             "Upload" to { saveRemoteEditor() },
             "UTF-8" to { showMessage("Text Encoding",
                 "The editor uses strict UTF-8. Other encodings are not auto-converted.") },
-            "More" to { showRemoteEditorMoreMenu() }
+            getString(R.string.ui_more) to { showRemoteEditorMoreMenu() }
         )
         if (small) {
             for (start in listOf(0, 2)) {
@@ -4404,7 +4404,7 @@ class MainActivity : Activity() {
         editorSection.visibility = View.VISIBLE
         fileActionToolbar.visibility = View.GONE
         editorActionToolbar.visibility = View.VISIBLE
-        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = "Text Editor"
+        if (::phoneChromeTitle.isInitialized) phoneChromeTitle.text = getString(R.string.ui_text_editor)
         updatePhoneChromeActions()
         contentScroll.post { contentScroll.scrollTo(0, workspaceContainer.top) }
     }
@@ -4412,7 +4412,7 @@ class MainActivity : Activity() {
     private fun saveRemoteEditor() {
         val profile = editorConnection ?: return
         if (activeProfile != profile) {
-            showMessage("Text Editor", "The connection has changed. Reopen the remote file.")
+            showMessage(getString(R.string.ui_text_editor), "The connection has changed. Reopen the remote file.")
             return
         }
         if (operationInFlight) return
@@ -4424,12 +4424,12 @@ class MainActivity : Activity() {
             return
         }
         if (newText == editorOriginalText) {
-            showMessage("Text Editor", "No changes to save.")
+            showMessage(getString(R.string.ui_text_editor), "No changes to save.")
             return
         }
         confirmUploadTarget(path, path.substringAfterLast('/')) {
             if (activeProfile != profile) {
-                showMessage("Text Editor", "The connection changed. Changes were not uploaded.")
+                showMessage(getString(R.string.ui_text_editor), "The connection changed. Changes were not uploaded.")
                 return@confirmUploadTarget
             }
             pendingSavedEditorText = newText
@@ -4561,12 +4561,12 @@ class MainActivity : Activity() {
             .mapNotNull { it.remotePath }.toSet()
         selectedRemoteBatchPaths.retainAll(available)
         if (selectedRemoteBatchPaths.isEmpty()) {
-            showMessage("Batch Rename",
+            showMessage(getString(R.string.ui_batch_rename),
                 "Long-press real remote files and choose Select for batch.")
             return
         }
         if (selectedRemoteBatchPaths.size > RemoteBatchRenamePlanner.MAX_FILES) {
-            showMessage("Batch Rename",
+            showMessage(getString(R.string.ui_batch_rename),
                 "Select no more than ${RemoteBatchRenamePlanner.MAX_FILES} files.")
             return
         }
@@ -4621,12 +4621,12 @@ class MainActivity : Activity() {
             confirmLabel = "Rename"
         ) {
             if (profile != activeProfile) {
-                showMessage("Batch Rename", "Connection changed; no files renamed.")
+                showMessage(getString(R.string.ui_batch_rename), "Connection changed; no files renamed.")
                 return@confirmDestructiveRemoteAction
             }
             closeBatchRename()
             runTransfer(
-                title = "Batch Rename",
+                title = getString(R.string.ui_batch_rename),
                 detail = "Renaming $count selected server files",
                 refreshAfter = true
             ) { cancellation ->
