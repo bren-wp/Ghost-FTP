@@ -8,7 +8,7 @@
 
 > Current development source: **0.99.4**; latest verified published release: **0.99.3**. Historical findings below retain their original version labels.
 
-This index retains historical 0.93.0 findings. Previous canonical release: **0.99.9**.
+This index retains historical 0.93.0 findings. Previous canonical release: **0.99.10**.
 
 - [Code audit](CODE.md)
 - [Security audit](SECURITY.md)
@@ -27,4 +27,4 @@ Implemented behavior, source inspection, automated CI and target-OS acceptance a
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.10. Previous canonical release: 0.99.9. See `docs/releases/0.99.9.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.11. Previous canonical release: 0.99.10. See `docs/releases/0.99.10.md` for the latest published Android hardening and localization work.
