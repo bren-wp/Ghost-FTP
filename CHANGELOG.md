@@ -1,3 +1,9 @@
+## 0.99.9 — Android batch-rename collision hardening (development Preview; 24 October 2026)
+- Prevent remote batch renames from overwriting existing files or directories when the server ignores filename case or normalizes Unicode. Fresh-listing preflight now includes every remote object.
+- Reject duplicate/equivalent source selections and malformed relative/traversal-like path components before starting destructive operations.
+- Cover case-folded, NFC/NFD, directory and malformed-source regressions in Kotlin unit tests.
+- Preserve Ghost FTP identities and earlier public releases. Android 16-screen pixel acceptance, physical-device crash validation and production signing remain open.
+
 ## 0.99.8 — Android UI clipping, batch safety and all-platform dead-code scanner (development Preview; 24 October 2026)
 
 - Fix clipped More action caption on live Android 480x960 Files screen with multi-viewport text-bound tests; replace the tiny white About glyph with the shared purple native Ghost vector.
