@@ -39,7 +39,9 @@ jobs:
 
       - name: Enforce Android 24-language UI resource parity
         shell: bash
-        run: node android/scripts/check-multilingual-ui.mjs
+        run: |
+          node android/scripts/check-multilingual-ui.mjs
+          node tools/audits/check-cross-platform-branding.mjs
 
       - name: Android private storage and premium navigation regression
         shell: bash
