@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const android = read("android/app/src/main/java/com/ghostftp/android/MainActivity.kt");
-const uiLiteral = /\\b(?:text\\s*=|contentDescription\\s*=|showMessage\\(|formLabel\\(|sectionTitle\\(|sectionDescription\\(|toolbarButton\\(|primaryButton\\(|secondaryButton\\()\\s*"((?:[^"\\\\]|\\\\.)*)"/g;
+const uiLiteral = /\b(?:text\s*=|contentDescription\s*=|showMessage\(|formLabel\(|sectionTitle\(|sectionDescription\(|toolbarButton\(|primaryButton\(|secondaryButton\()\s*"((?:[^"\\]|\\.)*)"/g;
 const remainingAndroid = [...android.matchAll(uiLiteral)]
   .map((match) => match[1]).filter((value) => /[a-z]/i.test(value) && !value.includes("$"));
 const views = [
@@ -17,10 +17,10 @@ const views = [
   "macos/Sources/GhostFTPMacApp/Views/CloudWorkspace.swift",
 ];
 const native = views.map(read).join("\n");
-const macDirect = [...native.matchAll(/\\b(?:Text|Label|Button|Section|TextField|SecureField|Toggle|Picker)\\(\\s*"((?:[^"\\\\]|\\\\.)*)"/g)]
+const macDirect = [...native.matchAll(/\b(?:Text|Label|Button|Section|TextField|SecureField|Toggle|Picker)\(\s*"((?:[^"\\]|\\.)*)"/g)]
   .filter((match) => !match[1].includes("\\(") && /[a-z]/i.test(match[1]));
 const catalog = JSON.parse(read("macos/Sources/GhostFTPMacApp/Resources/ghostftp-translations.json"));
-const referenced = [...new Set([...native.matchAll(/L10n\\.text\\("((?:[^"\\\\]|\\\\.)*)"\\)/g)].map(x=>x[1]))];
+const referenced = [...new Set([...native.matchAll(/L10n\.text\("((?:[^"\\]|\\.)*)"\)/g)].map(x=>x[1]))];
 const nonEnglish = catalog.languages.filter(x => x !== "en");
 const missing = referenced.filter(key => nonEnglish.some(lang => !catalog.strings[lang]?.[key]));
 const counts = {
