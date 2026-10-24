@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Пребарување на локалните датотеки на апликацијата…</string>
+    <string name="ui_local_search_unavailable">Локалните датотеки моментално не се достапни.</string>
+    <string name="ui_local_search_completed">Резултати од локалното пребарување: %1$d</string>
+    <string name="ui_local_search_limited">Прикажани се првите %1$d резултати; стеснете го пребарувањето.</string>
+</resources>

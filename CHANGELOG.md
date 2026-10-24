@@ -1,3 +1,10 @@
+## 0.99.12 — Android responsive local search and locale-safe navigation (development Preview; 25 October 2026)
+- Correct the Android top Back/Menu control after leaving Site editing by deriving its icon and accessible label from current UI state instead of comparing an English string; this prevents non-English menu regressions.
+- Replace blocking main-thread local file enumeration with an asynchronous, bounded DirectoryStream search, with symlink and off-root exclusion, recursion/entry/result caps and cancellation when the user navigates or changes search options.
+- Restore responsive selection styling for the Remote/Local search tabs and use 48dp accessible search buttons; show honest progress/unavailable/truncated results from verified app-owned storage.
+- Translate four new Android local-search UI messages across 24 languages (96 messages) with placeholder verification, plus new JVM and emulator regression coverage.
+- Preserve Ghost FTP v0.99.11 visual/icon and security improvements. Actual screen-by-screen 1:1 acceptance remains pending; native macOS verified FTPS/SFTP issue #223 is still open.
+
 ## 0.99.11 — visual brand consistency, accessibility and installer icon integrity (development Preview; 25 October 2026)
 - Unify the Android launcher's adaptive foreground, system splash and in-app Ghost symbol with the reviewed violet Android logo geometry; align the adaptive backdrop with the approved midnight palette without replacing the desktop's distinct cyan branding.
 - Increase native Android header Back/Add and standard action touch surfaces to a minimum of 48 dp, preserving keyboard/screen-reader action semantics and the approved 52 dp header reference.

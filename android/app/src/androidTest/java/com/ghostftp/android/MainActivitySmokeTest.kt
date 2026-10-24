@@ -51,6 +51,35 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun toolbarRestoresCorrectLocalizedMenuActionAfterEditingSite() {
+        scenario.onActivity { activity ->
+            val field = MainActivity::class.java.getDeclaredField("phoneMenuButton").apply {
+                isAccessible = true
+            }
+            val button = field.get(activity) as android.widget.Button
+            val openField = MainActivity::class.java.getDeclaredField("navigationOpen").apply {
+                isAccessible = true
+            }
+            val navigationOpen = openField.getBoolean(activity)
+            val refresh = MainActivity::class.java.getDeclaredMethod(
+                "updatePhoneChromeActions").apply { isAccessible = true }
+
+            // Reproduce the former failure without depending on the emulator
+            // installation locale: the old implementation reset the toolbar
+            // only when its spoken label was the hard-coded English phrase.
+            button.contentDescription = "Natrag na lokacije"
+            button.text = "‹"
+            refresh.invoke(activity)
+
+            val expected = activity.getString(
+                if (navigationOpen) R.string.nav_close else R.string.nav_open)
+            assertEquals("The toolbar must derive navigation from UI state, not English",
+                expected, button.contentDescription.toString())
+            assertEquals(if (navigationOpen) "←" else "☰", button.text.toString())
+        }
+    }
+
+    @Test
     fun primaryWorkspaceAndToolbarRender() {
         // Mobile reference #6 uses the active page title rather than
         // a duplicated Ghost FTP banner above every workspace.

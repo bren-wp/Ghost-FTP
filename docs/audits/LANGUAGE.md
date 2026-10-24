@@ -1,4 +1,4 @@
-# Ghost FTP language status — 0.99.11 Preview
+# Ghost FTP language status — 0.99.12 Preview
 
 The active source currently defines 24 advertised language codes:
 `en, hr, cs, sk, hu, ro, bg, el, tr, uk, da, sv, no, de, fr, es, it, pt, nl, pl, sl, sr, bs, mk`.
@@ -26,3 +26,7 @@ The CI inventory counts **123** direct Android Activity UI literals, **0** direc
 ## 0.99.11 native brand text increment
 
 Six additional Android splash, header and protocol accessibility resources are translated across 24 languages in `strings_ui_brand.xml`. The corresponding Kotlin code now uses Android resource lookups, and CI verifies key parity, required placeholder arguments and the absence of empty or unfinished entries. This does not resolve other hard-coded Activity, macOS view or dynamic error strings, and does not establish a completed linguistic review.
+
+## 0.99.12 local search localization
+
+Four additional native search progress/result/error messages are localized across all 24 advertised Android languages in `strings_ui_search.xml`. All format placeholders are verified. Locale-sensitive toolbar navigation now uses the current UI state rather than comparing an English string. Existing untranslated Android/macOS user interface strings remain tracked as open debt.

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Recherche dans les fichiers locaux de Ghost FTP…</string>
+    <string name="ui_local_search_unavailable">Les fichiers locaux sont temporairement indisponibles.</string>
+    <string name="ui_local_search_completed">Résultats locaux : %1$d</string>
+    <string name="ui_local_search_limited">Affichage des %1$d premiers résultats ; affinez la recherche.</string>
+</resources>

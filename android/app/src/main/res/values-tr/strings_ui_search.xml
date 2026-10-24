@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Uygulamanın yerel dosyaları aranıyor…</string>
+    <string name="ui_local_search_unavailable">Yerel dosyalar geçici olarak kullanılamıyor.</string>
+    <string name="ui_local_search_completed">Yerel arama sonuçları: %1$d</string>
+    <string name="ui_local_search_limited">İlk %1$d sonuç gösteriliyor; aramayı daraltın.</string>
+</resources>

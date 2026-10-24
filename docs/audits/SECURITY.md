@@ -8,7 +8,7 @@
 
 > Current development source: **0.99.4**; latest verified published release: **0.99.3**. Historical findings below retain their original version labels.
 
-Previous canonical release: **0.99.10**.
+Previous canonical release: **0.99.11**.
 
 0.93.0 cloud scope: custom S3/Azure desktop endpoints require HTTPS and forbid embedded credentials, query and fragments. Mobile/macOS signed-object transfers use ephemeral bearer URLs, OS TLS trust, no redirects, bounded file sizes and no stored signed links. This is targeted source hardening; penetration testing and complete provider/account parity are not claimed.
 
@@ -111,4 +111,4 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.11. Previous canonical release: 0.99.10. See `docs/releases/0.99.10.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.12. Previous canonical release: 0.99.11. See `docs/releases/0.99.11.md` for the latest published Android hardening and localization work.

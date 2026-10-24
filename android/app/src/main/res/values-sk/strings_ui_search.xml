@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Vyhľadávanie miestnych súborov aplikácie…</string>
+    <string name="ui_local_search_unavailable">Miestne súbory sú dočasne nedostupné.</string>
+    <string name="ui_local_search_completed">Výsledky miestneho hľadania: %1$d</string>
+    <string name="ui_local_search_limited">Zobrazených prvých %1$d výsledkov; spresnite hľadanie.</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Az alkalmazás helyi fájljainak keresése…</string>
+    <string name="ui_local_search_unavailable">A helyi fájlok átmenetileg nem érhetők el.</string>
+    <string name="ui_local_search_completed">Helyi keresési találatok: %1$d</string>
+    <string name="ui_local_search_limited">Az első %1$d találat látható; szűkítse a keresést.</string>
+</resources>

@@ -91,3 +91,37 @@ for (const key of brandKeys) {
   }
 }
 console.log(`Native Ghost FTP brand/splash accessibility parity OK: ${brandKeys.length} × ${locales.length} locales`);
+
+// Local file search progress, completion and fail-closed states must remain
+// translated in every advertised locale, with safe integer placeholders.
+const searchKeys = [
+  "ui_local_search_progress", "ui_local_search_unavailable",
+  "ui_local_search_completed", "ui_local_search_limited"
+];
+for (const locale of locales) {
+  const folder = locale === "en" ? "values" : `values-${locale}`;
+  const xml = fs.readFileSync(path.join(root, folder, "strings_ui_search.xml"), "utf8");
+  const items = [...xml.matchAll(/<string name="([^"]+)">([^<]*)<\/string>/g)];
+  if (items.length !== searchKeys.length || items.some((item, i) =>
+      item[1] !== searchKeys[i] || !item[2].trim() || /TODO|FIXME/.test(item[2]))) {
+    throw Error(`Incomplete local file search translation for ${locale}`);
+  }
+  for (let i = 0; i < items.length; i++) {
+    const placeholders = [...items[i][2].matchAll(/%\d+\$[sd]/g)].map(x=>x[0]);
+    const expected = i < 2 ? [] : ["%1$d"];
+    if (JSON.stringify(placeholders) !== JSON.stringify(expected)) {
+      throw Error(`Invalid local search placeholder at ${locale}/${searchKeys[i]}`);
+    }
+  }
+}
+for (const key of searchKeys) {
+  if (!activity.includes(`R.string.${key}`)) {
+    throw Error(`Android local search did not reference translated resource ${key}`);
+  }
+}
+if (!activity.includes("LocalScopedSearch.find(") ||
+    activity.includes("val entries = directory.listFiles()?.sortedBy") ||
+    activity.includes('phoneMenuButton.contentDescription == "Back to Sites"')) {
+  throw Error("Android local search main-thread IO or locale-sensitive toolbar regression");
+}
+console.log(`Android local search: ${searchKeys.length} messages × ${locales.length} locales`);
