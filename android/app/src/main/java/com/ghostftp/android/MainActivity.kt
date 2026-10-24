@@ -4633,7 +4633,11 @@ class MainActivity : Activity() {
                 val inventory = controller.listRemote(profile, cancellation)
                 val actualFiles = inventory.rows.filter { it.isFile }
                     .mapNotNull { it.remotePath }.toSet()
-                if (plan.any { it.from !in actualFiles || it.to in actualFiles }) {
+                // Include folders as occupied destinations and conservatively
+                // reject case/Unicode aliases before the first rename.
+                val occupiedPaths = inventory.rows.mapNotNull { it.remotePath }
+                if (plan.any { it.from !in actualFiles } ||
+                    RemoteBatchRenamePlanner.hasExistingDestinationCollision(plan, occupiedPaths)) {
                     throw java.io.IOException("Server listing changed or a filename already exists; no files renamed.")
                 }
                 var completed = 0
