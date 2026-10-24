@@ -107,8 +107,10 @@ export function privateSymbolCandidates(entries, language, external = []) {
     kotlin: /^\s*(?:private|internal)\s+(?:suspend\s+)?fun\s+([A-Za-z_]\w*)\s*\(/gm,
     swift: /^\s*(?:private|fileprivate)\s+(?:static\s+|class\s+)?func\s+([A-Za-z_]\w*)\s*\(/gm,
     rust: /^\s*(?:(?:pub\((?:crate|super|self)\)\s+)?)(?:async\s+)?fn\s+([A-Za-z_]\w*)\s*\(/gm,
-    typescript: /^\s*(?!export\b)(?:async\s+)?function\s+([A-Za-z_]\w*)\s*\(/gm,
-    go: /^func\s+([a-z_]\w*)\s*\(/gm,
+    // Include unexported arrow callbacks as advisory symbols, in addition
+    // to ordinary local functions. Dynamic UI consumers still need review.
+    typescript: /^\s*(?:(?!export\b)(?:async\s+)?function\s+([A-Za-z_]\w*)\s*\|(?:const|let)\s+([A-Za-z_]\w*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_]\w*)\s*=>)/gm,
+    go: /^func\s+(?:\([^)]*\)\s*)?([a-z_]\w*)\s*\(/gm,
   };
   const pattern = patterns[language];
   if (!pattern) throw new Error("Unknown symbol audit language: " + language);
@@ -119,7 +121,7 @@ export function privateSymbolCandidates(entries, language, external = []) {
   const reserved = new Set(["init", "main", "body", "onCreate", "onDestroy", "onStart",
     "onStop", "onResume", "onPause", "onSaveInstanceState", "onActivityResult"]);
   return entries.flatMap(([file, source]) => [...source.matchAll(pattern)]
-    .filter((m) => !reserved.has(m[1]))
+    .filter((m) => !reserved.has(m[1] || m[2]))
     // Exclude only Rust functions INSIDE a cfg(test) module or with an
     // immediately adjacent test attribute. Do not suppress later production
     // functions in the same Rust source file.
@@ -129,12 +131,12 @@ export function privateSymbolCandidates(entries, language, external = []) {
        !/#\[\s*(?:cfg\(test\)|(?:tokio::)?test)\s*\]\s*$/.test(
          source.slice(Math.max(0, m.index - 160), m.index))))
     .filter((m) => {
-      const name = m[1];
+      const name = m[1] || m[2];
       const occurrences = referents.match(new RegExp("\\b" + name + "\\b", "g")) || [];
       return occurrences.length === 1;
     }).map((m) => ({
       file,
-      name: m[1],
+      name: m[1] || m[2],
       line: source.slice(0, m.index).split("\n").length,
       reason: "Single textual mention of nonpublic function across source and tests; callback/reflection/macro/build-tag references must be inspected before removal",
     })));
