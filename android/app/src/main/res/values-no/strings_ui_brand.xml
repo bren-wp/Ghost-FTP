@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_header_back">Tilbake</string>
+    <string name="ui_header_add">Legg til</string>
+    <string name="ui_splash_tagline">Sikkert. Kraftig. Overalt.</string>
+    <string name="ui_splash_opening">Åpner Ghost FTP</string>
+    <string name="ui_splash_initializing">Starter…</string>
+    <string name="ui_protocol_server">%1$s-server</string>
+</resources>

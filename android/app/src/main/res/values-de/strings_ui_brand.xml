@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_header_back">Zurück</string>
+    <string name="ui_header_add">Hinzufügen</string>
+    <string name="ui_splash_tagline">Sicher. Leistungsstark. Überall.</string>
+    <string name="ui_splash_opening">Ghost FTP wird geöffnet</string>
+    <string name="ui_splash_initializing">Initialisierung…</string>
+    <string name="ui_protocol_server">%1$s-Server</string>
+</resources>

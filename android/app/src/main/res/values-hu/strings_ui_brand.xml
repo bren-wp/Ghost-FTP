@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_header_back">Vissza</string>
+    <string name="ui_header_add">Hozzáadás</string>
+    <string name="ui_splash_tagline">Biztonságos. Hatékony. Mindenhol.</string>
+    <string name="ui_splash_opening">A Ghost FTP megnyitása</string>
+    <string name="ui_splash_initializing">Indítás…</string>
+    <string name="ui_protocol_server">%1$s-kiszolgáló</string>
+</resources>

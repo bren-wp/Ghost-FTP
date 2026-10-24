@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_header_back">Πίσω</string>
+    <string name="ui_header_add">Προσθήκη</string>
+    <string name="ui_splash_tagline">Ασφαλές. Ισχυρό. Παντού.</string>
+    <string name="ui_splash_opening">Άνοιγμα του Ghost FTP</string>
+    <string name="ui_splash_initializing">Αρχικοποίηση…</string>
+    <string name="ui_protocol_server">Διακομιστής %1$s</string>
+</resources>

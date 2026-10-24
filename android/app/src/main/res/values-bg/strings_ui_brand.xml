@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_header_back">Назад</string>
+    <string name="ui_header_add">Добавяне</string>
+    <string name="ui_splash_tagline">Сигурно. Мощно. Навсякъде.</string>
+    <string name="ui_splash_opening">Отваряне на Ghost FTP</string>
+    <string name="ui_splash_initializing">Инициализиране…</string>
+    <string name="ui_protocol_server">Сървър %1$s</string>
+</resources>
