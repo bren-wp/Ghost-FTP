@@ -2012,15 +2012,22 @@ class MainActivity : Activity() {
         val remoteButton = PremiumReferenceStyle.action(this@MainActivity,
             "Remote", true) {
             searchRemote = true
+            localSearchGeneration++
+            if (::searchResults.isInitialized) searchResults.removeAllViews()
+            updateSearchScopeButtons(scope)
             searchFeedback.text = "Search currently listed remote folder"
         }
         val localButton = PremiumReferenceStyle.action(this@MainActivity,
             "Local") {
             searchRemote = false
+            localSearchGeneration++
+            if (::searchResults.isInitialized) searchResults.removeAllViews()
+            updateSearchScopeButtons(scope)
             searchFeedback.text = "Search app-owned Downloads"
         }
-        scope.addView(remoteButton, LinearLayout.LayoutParams(0, dp(39), 1f))
-        scope.addView(localButton, LinearLayout.LayoutParams(0, dp(39), 1f))
+        scope.addView(remoteButton, LinearLayout.LayoutParams(0, dp(48), 1f))
+        scope.addView(localButton, LinearLayout.LayoutParams(0, dp(48), 1f))
+        updateSearchScopeButtons(scope)
         addView(PremiumReferenceStyle.caption(this@MainActivity, "Location", 12f, true))
         addView(scope)
         addView(space(11))
@@ -2038,14 +2045,22 @@ class MainActivity : Activity() {
             textSize = 13f
             setTextColor(Brand.text)
             isChecked = false
-            setOnCheckedChangeListener { _, value -> searchMatchCase = value }
+            setOnCheckedChangeListener { _, value ->
+                searchMatchCase = value
+                localSearchGeneration++
+                if (::searchResults.isInitialized) searchResults.removeAllViews()
+            }
         }
         addView(match)
         val recurse = android.widget.Switch(this@MainActivity).apply {
             text = getString(R.string.ui_search_subdirectories)
             textSize = 13f
             setTextColor(Brand.text)
-            setOnCheckedChangeListener { _, value -> searchRecursive = value }
+            setOnCheckedChangeListener { _, value ->
+                searchRecursive = value
+                localSearchGeneration++
+                if (::searchResults.isInitialized) searchResults.removeAllViews()
+            }
         }
         addView(recurse)
         searchFeedback = PremiumReferenceStyle.caption(this@MainActivity,
@@ -2057,13 +2072,25 @@ class MainActivity : Activity() {
         }.apply {
             contentDescription = getString(R.string.ui_run_file_search)
         }, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(45)))
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(48)))
         addView(space(11))
         searchResults = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
             contentDescription = getString(R.string.ui_actual_search_results)
         }
         addView(searchResults)
+    }
+
+    /** Selected local/remote scope must be visible, not a static purple tab. */
+    private fun updateSearchScopeButtons(scope: LinearLayout) {
+        for (index in 0 until scope.childCount) {
+            val button = scope.getChildAt(index) as? TextView ?: continue
+            val selected = if (index == 0) searchRemote else !searchRemote
+            button.background = if (selected) PremiumReferenceStyle.actionBackground(this)
+                else PremiumReferenceStyle.surface(this, PremiumReferenceStyle.raised, 8)
+            button.setTextColor(PremiumReferenceStyle.text)
+            button.isSelected = selected
+        }
     }
 
     private fun openSearch() {
