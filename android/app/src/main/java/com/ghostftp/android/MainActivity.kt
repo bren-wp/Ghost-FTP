@@ -114,6 +114,7 @@ class MainActivity : Activity() {
     private var searchRemote = true
     private var searchMatchCase = false
     private var searchRecursive = false
+    @Volatile private var localSearchGeneration = 0
     private var lastRemoteInventory: List<RemoteRow> = emptyList()
     private lateinit var bookmarksRows: LinearLayout
     private lateinit var cloudUploadInput: EditText
@@ -259,6 +260,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        localSearchGeneration++
         activityClosing = true
         cloudCancellation?.cancel()
         cloudCancellation = null
@@ -639,7 +641,10 @@ class MainActivity : Activity() {
             } else if (activeWorkspace == Workspace.SITES && siteEditorVisible) {
                 phoneMenuButton.text = "‹"
                 phoneMenuButton.contentDescription = getString(R.string.ui_back_to_sites)
-            } else if (phoneMenuButton.contentDescription == "Back to Sites") {
+            } else {
+                // Always derive the Back/Menu action from the actual workspace.
+                // Comparing a TalkBack label with hard-coded English left the
+                // Back arrow stranded after editing on Croatian/other locales.
                 phoneMenuButton.text = if (navigationOpen) "←" else "☰"
                 phoneMenuButton.contentDescription =
                     if (navigationOpen) getString(R.string.nav_close)
@@ -2074,6 +2079,7 @@ class MainActivity : Activity() {
     }
 
     private fun closeSearch() {
+        localSearchGeneration++
         searchMode = false
         searchSection.visibility = View.GONE
         filesSection.visibility = View.VISIBLE
@@ -2082,6 +2088,9 @@ class MainActivity : Activity() {
 
     private fun runScopedSearch() {
         if (!::searchResults.isInitialized) return
+        // A newer request invalidates every outstanding local scan, even if
+        // this request targets a remote listing or fails validation.
+        val generation = ++localSearchGeneration
         searchResults.removeAllViews()
         val namePattern = searchQueryInput.text.toString().trim()
         if (namePattern.isBlank() || namePattern.length > 80) {
@@ -2128,40 +2137,49 @@ class MainActivity : Activity() {
             searchFeedback.text = matches.size.toString() +
                 " matches in the current remote listing"
         } else {
-            val base = (getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-                ?: filesDir).canonicalFile
-            val queue = java.util.ArrayDeque<Pair<File, Int>>()
-            queue.add(base to 0)
-            var scanned = 0
-            var matches = 0
-            while (queue.isNotEmpty() && scanned < 1000 && matches < 150) {
-                val (directory, depth) = queue.removeFirst()
-                val entries = directory.listFiles()?.sortedBy { it.name } ?: emptyList()
-                for (entry in entries) {
-                    scanned += 1
-                    if (scanned > 1000) break
-                    val canonical = runCatching { entry.canonicalFile }.getOrNull()
-                        ?: continue
-                    if (!canonical.path.startsWith(base.path + File.separator)) continue
-                    if (entry.isDirectory && searchRecursive && depth < 4) {
-                        queue.add(entry to depth + 1)
+            // DirectoryStream enumeration on the UI thread could freeze the app
+            // for a large or slow private Downloads folder. Capture only the
+            // immutable inputs, then render if this is still the active search.
+            val base = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir
+            val recursive = searchRecursive
+            searchFeedback.text = getString(R.string.ui_local_search_progress)
+            thread(start = true, isDaemon = true, name = "GhostFTP-LocalSearch") {
+                val result = LocalScopedSearch.find(base, pattern, recursive) {
+                    generation != localSearchGeneration
+                }
+                runOnUiThread {
+                    if (closingOrDestroyed() || generation != localSearchGeneration ||
+                        !searchMode || searchRemote || activeWorkspace != Workspace.FILES) {
+                        return@runOnUiThread
                     }
-                    if (pattern.matches(entry.name)) {
-                        matches += 1
-                        searchResults.addView(compactBrowserRow(entry.name,
-                            entry.isDirectory) {
-                            if (entry.isDirectory) {
-                                localBrowseDirectory = entry
-                                refreshLocalPane()
+                    searchResults.removeAllViews()
+                    when {
+                        result.cancelled -> return@runOnUiThread
+                        result.unavailable ->
+                            searchFeedback.text = getString(R.string.ui_local_search_unavailable)
+                        else -> {
+                            result.matches.forEach { entry ->
+                                searchResults.addView(compactBrowserRow(
+                                    entry.name, entry.isDirectory
+                                ) {
+                                    if (entry.isDirectory) {
+                                        localBrowseDirectory = entry
+                                        refreshLocalPane()
+                                    } else {
+                                        selectLocalUploadFile(entry)
+                                    }
+                                    closeSearch()
+                                })
                             }
-                            closeSearch()
-                        })
-                        if (matches >= 150) break
+                            searchFeedback.text = getString(
+                                if (result.truncated) R.string.ui_local_search_limited
+                                else R.string.ui_local_search_completed,
+                                result.matches.size
+                            )
+                        }
                     }
                 }
             }
-            searchFeedback.text = matches.toString() +
-                " results from app-owned local storage"
         }
     }
 
@@ -3323,6 +3341,8 @@ class MainActivity : Activity() {
         }
 
     private fun setWorkspace(workspace: Workspace, announce: Boolean = true) {
+        // Invalidate outstanding local I/O before any workspace transition.
+        localSearchGeneration++
         // Prompt BEFORE changing active workspace or hiding any input. Otherwise
         // cancelling the discard confirmation leaves an editor on-screen with
         // the wrong navigation selection, and can lose a draft on the next tap.
