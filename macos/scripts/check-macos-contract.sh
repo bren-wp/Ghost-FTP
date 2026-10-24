@@ -142,10 +142,28 @@ PY
 
 audit_private_swift_symbols
 
-if grep -RniE '(TODO|FIXME|placeholder|demo)' macos/Sources macos/Tests; then
+# Natural-language translations may legitimately contain words like
+# Spanish "todo". Audit Swift source, not the localization dictionary data.
+if grep -RniE --include='*.swift' '(TODO|FIXME|placeholder|demo)' macos/Sources macos/Tests; then
   echo "macOS source contains development markers." >&2
   exit 1
 fi
+
+python3 - <<'PY'
+import json
+from pathlib import Path
+catalog = Path("macos/Sources/GhostFTPMacApp/Resources/ghostftp-translations.json")
+obj = json.loads(catalog.read_text(encoding="utf-8"))
+languages = obj["languages"]
+assert len(languages) == 24 and len(set(languages)) == 24
+assert languages[0] == "en" and "sq" not in languages
+for lang in languages[1:]:
+    mapping = obj["strings"][lang]
+    assert len(mapping) >= 269, (lang, len(mapping))
+    for key in ("Files", "Sites", "Cloud storage", "Sync & Backup", "Help & About", "Connect", "Settings"):
+        assert isinstance(mapping.get(key), str) and mapping[key].strip(), (lang, key)
+print("macOS native 24-language shared translation catalog verified")
+PY
 
 if grep -Fqi 'password' macos/Sources/GhostFTPMacApp/Models/ConnectionProfile.swift; then
   echo "ConnectionProfile must never persist a password field." >&2
