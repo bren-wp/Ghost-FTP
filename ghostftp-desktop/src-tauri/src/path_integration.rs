@@ -205,19 +205,24 @@ mod platform {
                 // winreg's generic string decoder may silently accept an odd
                 // byte count or truncate damaged UTF-16. Never rewrite an
                 // unreadable registry PATH: validate exact bytes first.
-                if rv.bytes.len() < 2 || rv.bytes.len() % 2 != 0 ||
-                    !rv.bytes.ends_with(&[0, 0])
-                {
-                    return Err("HKCU\\Environment\\Path has malformed UTF-16; no changes made".into());
+                if rv.bytes.len() < 2 || rv.bytes.len() % 2 != 0 || !rv.bytes.ends_with(&[0, 0]) {
+                    return Err(
+                        "HKCU\\Environment\\Path has malformed UTF-16; no changes made".into(),
+                    );
                 }
-                let units: Vec<u16> = rv.bytes.chunks_exact(2)
+                let units: Vec<u16> = rv
+                    .bytes
+                    .chunks_exact(2)
                     .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
                     .collect();
                 if units[..units.len() - 1].contains(&0) {
-                    return Err("HKCU\\Environment\\Path contains embedded NUL; no changes made".into());
+                    return Err(
+                        "HKCU\\Environment\\Path contains embedded NUL; no changes made".into(),
+                    );
                 }
-                let value = String::from_utf16(&units[..units.len() - 1])
-                    .map_err(|_| "HKCU\\Environment\\Path contains invalid UTF-16; no changes made".to_string())?;
+                let value = String::from_utf16(&units[..units.len() - 1]).map_err(|_| {
+                    "HKCU\\Environment\\Path contains invalid UTF-16; no changes made".to_string()
+                })?;
                 Ok((value, rv.vtype))
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
