@@ -109,7 +109,7 @@ export function privateSymbolCandidates(entries, language, external = []) {
     rust: /^\s*(?:(?:pub\((?:crate|super|self)\)\s+)?)(?:async\s+)?fn\s+([A-Za-z_]\w*)\s*\(/gm,
     // Include unexported arrow callbacks as advisory symbols, in addition
     // to ordinary local functions. Dynamic UI consumers still need review.
-    typescript: /^\s*(?:(?!export\b)(?:async\s+)?function\s+([A-Za-z_]\w*)\s*\|(?:const|let)\s+([A-Za-z_]\w*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_]\w*)\s*=>)/gm,
+    typescript: /^\s*(?:(?!export\b)(?:async\s+)?function\s+([A-Za-z_]\w*)\s*\(|(?:const|let)\s+([A-Za-z_]\w*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_]\w*)\s*=>)/gm,
     go: /^func\s+(?:\([^)]*\)\s*)?([a-z_]\w*)\s*\(/gm,
   };
   const pattern = patterns[language];
