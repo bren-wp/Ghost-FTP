@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   walk, declaredTypes, identifierUsedOutside, candidateModules,
-  resourceCandidates, audit, privateSymbolCandidates,
+  resourceCandidates, audit, privateSymbolCandidates, rustTestModuleRanges,
 } from "./full-dead-code-audit.mjs";
 
 test("Kotlin and Swift declaration parsing is intentionally conservative", () => {
@@ -119,4 +119,55 @@ mod tests {
 }`;
   assert.deepEqual(privateSymbolCandidates([["src/lib.rs", rust]], "rust")
     .map(x => x.name), ["productionOrphan"]);
+});
+
+test("Rust test-only scope ends at matching closing brace, not end of file", () => {
+  const rust = `fn productionBefore() {}
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn testCase() { let json = "{not-a-module-brace}"; }
+  fn fixtureInsideTest() {}
+  // a brace in a comment must not count: }
+  mod child { fn nestedTestOnly() {} }
+}
+fn productionAfter() {}
+#[cfg(test)]
+fn testOnlyOutsideModule() {}
+fn productionLast() {}`;
+  const names = privateSymbolCandidates([["src/lib.rs", rust]], "rust")
+    .map((x) => x.name);
+  assert.deepEqual(names, ["productionBefore", "productionAfter", "productionLast"]);
+  assert.equal(rustTestModuleRanges(rust).length, 1);
+});
+
+test("Rust adjacent #[cfg(test)] and #[tokio::test] exclude only attributed functions", () => {
+  const rust = `fn prod1() {}
+#[cfg(test)]
+fn setupForTests() {}
+fn prod2() {}
+#[tokio::test]
+async fn asyncTest() {}
+fn prod3() {}`;
+  assert.deepEqual(privateSymbolCandidates([["src/lib.rs", rust]], "rust")
+    .map((x) => x.name), ["prod1", "prod2", "prod3"]);
+});
+
+test("Cross-platform inventory includes unexported TypeScript arrows and Go receiver methods", () => {
+  const ts = [
+    ["desktop/src/feature.ts", "const unusedArrow = (value) => value;\nconst usedArrow = () => 1;\nusedArrow();"],
+  ];
+  assert.deepEqual(privateSymbolCandidates(ts, "typescript").map(x => x.name),
+    ["unusedArrow"]);
+  const go = [
+    ["tools/ghostftp-runtime/runtime.go", "package main\nfunc (r *Runtime) unusedWorker() {}\nfunc (r *Runtime) usedWorker() {}"],
+    ["tools/ghostftp-runtime/main.go", "func initRuntime(r *Runtime) { r.usedWorker() }"],
+  ];
+  assert.ok(privateSymbolCandidates(go, "go")
+    .some(x => x.name === "unusedWorker"));
+  assert.ok(!privateSymbolCandidates(go, "go")
+    .some(x => x.name === "usedWorker"));
+  assert.deepEqual(privateSymbolCandidates([
+    ["src/exported.ts", "export const keep = () => 123;\nexport function other() {}"]
+  ], "typescript"), []);
 });

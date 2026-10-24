@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Rect
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -62,6 +63,14 @@ class ResponsiveViewportTest {
                     val root = activity.window.decorView
                     assertTrue("The app content must be laid out on $name",
                         root.width >= 240 && root.height >= 240)
+                    if (name == "about") {
+                        val officialBrand = find(root) {
+                            it is ImageView &&
+                                it.contentDescription?.toString() == "Ghost FTP branded mark"
+                        }
+                        assertTrue("Native About must show the approved scalable purple mark",
+                            officialBrand?.isShown == true && officialBrand.width >= 60)
+                    }
                     val toolbar = find(root) {
                         it.contentDescription?.toString() == "File actions"
                     }
@@ -78,6 +87,14 @@ class ResponsiveViewportTest {
                             assertTrue("File action $i clipped from narrow viewport",
                                 action.getGlobalVisibleRect(visible) &&
                                     visible.width() >= 40 && visible.height() >= 40)
+                            val label = action as? TextView ?: continue
+                            val textLayout = label.layout ?: continue
+                            if (textLayout.lineCount > 0) {
+                                val bottom = label.compoundPaddingTop +
+                                    textLayout.getLineBottom(textLayout.lineCount - 1)
+                                assertTrue("File action $i has clipped text baseline",
+                                    bottom <= label.height - label.paddingBottom + 1)
+                            }
                         }
                     }
                     val bitmap = Bitmap.createBitmap(

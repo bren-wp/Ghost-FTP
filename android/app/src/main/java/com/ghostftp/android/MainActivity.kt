@@ -875,6 +875,14 @@ class MainActivity : Activity() {
                 setAllCaps(false)
                 textSize = if (compactLabels) 9f else 10f
                 gravity = Gravity.CENTER
+                maxLines = 2
+                minHeight = 0
+                minimumHeight = 0
+                // The More action previously retained the platform Button's
+                // larger default padding, which pushed its label below the
+                // 480x960 screenshot and clipped the last text baseline.
+                // Apply exactly the same insets as the four real file actions.
+                setPadding(dp(2), dp(3), dp(2), dp(3))
                 contentDescription = "More file actions"
                 background = PremiumReferenceStyle.surface(this@MainActivity,
                     PremiumReferenceStyle.raised, 5, PremiumReferenceStyle.raised)
@@ -3240,8 +3248,14 @@ class MainActivity : Activity() {
         addView(LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            addView(GhostMarkView(this@MainActivity),
-                LinearLayout.LayoutParams(dp(52), dp(52)))
+            // The reference About screen shows the large glowing purple
+            // Ghost mark, not the tiny white legacy mark inside a blue tile.
+            // Reuse the actual scalable Splash vector on every screen density.
+            addView(ImageView(this@MainActivity).apply {
+                setImageResource(R.drawable.ic_ghost_premium_splash)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                contentDescription = "Ghost FTP branded mark"
+            }, LinearLayout.LayoutParams(dp(72), dp(72)))
             addView(PremiumReferenceStyle.caption(this@MainActivity, "Ghost FTP", 15f).apply {
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER

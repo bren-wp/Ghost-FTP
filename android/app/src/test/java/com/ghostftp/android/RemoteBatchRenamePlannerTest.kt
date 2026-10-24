@@ -22,6 +22,28 @@ class RemoteBatchRenamePlannerTest {
             RemoteBatchRenamePlanner.plan(listOf("/safe/a.txt","/safe/b.txt"), "file_#", 1_000_000)
         }
     }
+    @Test fun rejectsNumberFieldOverflowBeforeAnyRemoteOperation() {
+        assertThrows(IllegalArgumentException::class.java) {
+            RemoteBatchRenamePlanner.plan(listOf("/dir/a.txt", "/dir/b.txt"), "file_##", 99)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            RemoteBatchRenamePlanner.plan(listOf("/dir/a.txt"), "file_##", 100)
+        }
+        assertEquals("/dir/file_099.txt",
+            RemoteBatchRenamePlanner.plan(listOf("/dir/a.txt"), "file_###", 99).single().to)
+    }
+
+    @Test fun rejectsCaseInsensitiveAndUnicodeNormalizingSourceCollisions() {
+        assertThrows(IllegalArgumentException::class.java) {
+            RemoteBatchRenamePlanner.plan(
+                listOf("/dir/FILE_01.TXT", "/dir/z.txt"), "file_##", 1)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            RemoteBatchRenamePlanner.plan(
+                listOf("/dir/caf\u00e9_01.txt", "/dir/z.txt"), "cafe\u0301_##", 1)
+        }
+    }
+
     @Test fun rejectsOverlappingSourceDestinationAndOversizedBatch() {
         assertThrows(IllegalArgumentException::class.java) {
             RemoteBatchRenamePlanner.plan(listOf("/dir/file_01.txt", "/dir/a.txt"), "file_##", 1)
