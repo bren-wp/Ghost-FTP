@@ -60,6 +60,12 @@ enum ConnectionValidator {
             } else {
                 throw ConnectionValidationError.invalidHost
             }
+            // Darwin inet_pton accepts scoped IPv6 suffixes such as %en0.
+            // Reject them here: interface scopes are not portable saved
+            // connection identities and must not bypass strict host parsing.
+            guard !literal.contains("%") else {
+                throw ConnectionValidationError.invalidHost
+            }
             var address = in6_addr()
             let valid = literal.withCString { value in
                 inet_pton(AF_INET6, value, &address) == 1
