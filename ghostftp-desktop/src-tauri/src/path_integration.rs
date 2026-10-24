@@ -360,7 +360,10 @@ mod platform {
                 vtype: RegType::REG_EXPAND_SZ,
             };
             key.set_raw_value("Path", &malformed).unwrap();
-            assert!(read_path(&key).is_err(), "malformed UTF-16 must fail closed");
+            assert!(
+                read_path(&key).is_err(),
+                "malformed UTF-16 must fail closed"
+            );
             assert_eq!(key.get_raw_value("Path").unwrap().bytes, malformed.bytes);
             key.delete_value("Path").unwrap();
             let (missing, kind) = read_path(&key).unwrap();
@@ -813,8 +816,8 @@ mod tests {
     #[test]
     fn path_integrator_never_links_managed_cli_to_itself() {
         use std::os::unix::fs::symlink;
-        let root = std::env::temp_dir()
-            .join(format!("ghostftp-cli-relink-{}", uuid::Uuid::new_v4()));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-cli-relink-{}", uuid::Uuid::new_v4()));
         let bin = root.join("app").join("bin");
         let user_bin = root.join(".local").join("bin");
         std::fs::create_dir_all(&bin).unwrap();
