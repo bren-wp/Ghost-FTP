@@ -461,6 +461,16 @@ class PremiumVisualReferenceTest {
                 val chrome = quick!!.parent as? View
                 assertNotNull("Full-width top brand bar missing.", chrome)
                 assertEquals("52dp top bar must match approved phone geometry.", (52 * density + .5f).toInt(), chrome!!.height)
+                // The actually rendered controls, not just their style helper,
+                // need at least 48dp touch targets within the 52dp toolbar.
+                val topBar = chrome as ViewGroup
+                val minTarget = (48 * density + .5f).toInt()
+                for (index in listOf(0, 3, 4)) {
+                    val control = topBar.getChildAt(index)
+                    assertTrue("Undersized phone chrome target at index " + index,
+                        control.layoutParams.width >= minTarget &&
+                        control.layoutParams.height >= minTarget)
+                }
                 assertEquals("Brand bar must cover viewport.", decorWidth(activity), chrome.width)
             }
         }

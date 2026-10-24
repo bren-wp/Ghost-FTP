@@ -550,7 +550,7 @@ class MainActivity : Activity() {
     private fun buildPremiumPhoneChrome(): View = LinearLayout(this).apply {
         gravity = Gravity.CENTER_VERTICAL
         orientation = LinearLayout.HORIZONTAL
-        setPadding(dp(8), dp(4), dp(10), dp(4))
+        setPadding(dp(8), dp(2), dp(10), dp(2))
         setBackgroundColor(Brand.background)
 
         phoneMenuButton = secondaryButton("☰") {
@@ -569,7 +569,7 @@ class MainActivity : Activity() {
             minWidth = 0
             minimumWidth = 0
         }
-        addView(phoneMenuButton, LinearLayout.LayoutParams(dp(44), dp(44)))
+        addView(phoneMenuButton, LinearLayout.LayoutParams(dp(48), dp(48)))
         addView(gap(8))
         phoneChromeTitle = TextView(this@MainActivity).apply {
             text = workspaceLabel(activeWorkspace)
@@ -589,7 +589,7 @@ class MainActivity : Activity() {
             minWidth = 0
             minimumWidth = 0
         }
-        addView(phoneFilesViewButton, LinearLayout.LayoutParams(dp(40), dp(42)))
+        addView(phoneFilesViewButton, LinearLayout.LayoutParams(dp(48), dp(48)))
         phoneQuickButton = secondaryButton("⋯") { }.apply {
             contentDescription = getString(R.string.ui_quick_navigation)
             textSize = 22f
@@ -607,7 +607,7 @@ class MainActivity : Activity() {
                 else -> showPhoneQuickMenu()
             }
         }
-        addView(phoneQuickButton, LinearLayout.LayoutParams(dp(46), dp(42)))
+        addView(phoneQuickButton, LinearLayout.LayoutParams(dp(48), dp(48)))
         updatePhoneChromeActions()
     }
 
@@ -3089,7 +3089,7 @@ class MainActivity : Activity() {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         setPadding(dp(8), 0, dp(8), 0)
-        minimumHeight = dp(45)
+        minimumHeight = dp(48)
         background = PremiumReferenceStyle.surface(this@MainActivity)
         addView(ImageView(this@MainActivity).apply {
             setImageResource(iconResource)
@@ -4921,6 +4921,7 @@ class MainActivity : Activity() {
 
     private fun primaryButton(value: String, onClick: () -> Unit): Button = Button(this).apply {
         filterTouchesWhenObscured = true
+        minimumHeight = dp(48)
         text = value
         setTextColor(Brand.background)
         textSize = 14f
@@ -4931,6 +4932,7 @@ class MainActivity : Activity() {
 
     private fun secondaryButton(value: String, onClick: () -> Unit): Button = Button(this).apply {
         filterTouchesWhenObscured = true
+        minimumHeight = dp(48)
         text = value
         setTextColor(Brand.text)
         textSize = 14f
@@ -4948,6 +4950,7 @@ class MainActivity : Activity() {
 
     private fun toolbarButton(value: String, destructive: Boolean = false, onClick: () -> Unit): Button = Button(this).apply {
         filterTouchesWhenObscured = true
+        minimumHeight = dp(48)
         text = value
         contentDescription = value
         setTextColor(if (destructive) Brand.danger else Brand.text)
@@ -4988,7 +4991,7 @@ class MainActivity : Activity() {
 
     private fun buttonParams(weight: Float): LinearLayout.LayoutParams = LinearLayout.LayoutParams(
         0,
-        dp(46),
+        dp(48),
         weight
     )
 

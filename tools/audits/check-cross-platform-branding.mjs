@@ -61,6 +61,17 @@ if (tokens.android.referenceWidthPx !== 480 ||
   throw Error("Android reference geometry differs from user's 16-screen design manifest");
 }
 for (const required of [
+  "setPadding(dp(8), dp(2), dp(10), dp(2))",
+  "addView(phoneMenuButton, LinearLayout.LayoutParams(dp(48), dp(48)))",
+  "addView(phoneFilesViewButton, LinearLayout.LayoutParams(dp(48), dp(48)))",
+  "addView(phoneQuickButton, LinearLayout.LayoutParams(dp(48), dp(48)))",
+  "minimumHeight = dp(48)"
+]) {
+  if (!main.includes(required)) {
+    throw Error("Real Android phone touch target regression: " + required);
+  }
+}
+for (const required of [
   "minimumHeight = dp(context, 48)",
   "LinearLayout.LayoutParams(dp(context, 48), dp(context, 48))",
   "contentDescription = context.getString(R.string.ui_header_back)",
