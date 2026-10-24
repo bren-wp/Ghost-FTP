@@ -201,9 +201,7 @@ mod platform {
             ));
         }
         if rv.bytes.len() < 2 || rv.bytes.len() % 2 != 0 || !rv.bytes.ends_with(&[0, 0]) {
-            return Err(
-                "HKCU\\Environment\\Path has malformed UTF-16; no changes made".into(),
-            );
+            return Err("HKCU\\Environment\\Path has malformed UTF-16; no changes made".into());
         }
         let units: Vec<u16> = rv
             .bytes
@@ -211,9 +209,7 @@ mod platform {
             .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
             .collect();
         if units[..units.len() - 1].contains(&0) {
-            return Err(
-                "HKCU\\Environment\\Path contains embedded NUL; no changes made".into(),
-            );
+            return Err("HKCU\\Environment\\Path contains embedded NUL; no changes made".into());
         }
         let value = String::from_utf16(&units[..units.len() - 1]).map_err(|_| {
             "HKCU\\Environment\\Path contains invalid UTF-16; no changes made".to_string()
@@ -405,10 +401,7 @@ mod platform {
                 // an assumption that malformed write bytes survive unchanged.
                 key.set_raw_value("Path", &value).unwrap();
                 let stored = key.get_raw_value("Path").unwrap();
-                assert_eq!(
-                    read_path(&key).is_ok(),
-                    decode_path_value(&stored).is_ok()
-                );
+                assert_eq!(read_path(&key).is_ok(), decode_path_value(&stored).is_ok());
                 // Even when raw input was normalized, reading must not
                 // change any bytes or attempt to repair user data.
                 assert_eq!(key.get_raw_value("Path").unwrap().bytes, stored.bytes);
