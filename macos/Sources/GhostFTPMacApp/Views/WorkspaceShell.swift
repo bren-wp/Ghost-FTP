@@ -43,13 +43,13 @@ private enum MacWorkspace: String, CaseIterable, Identifiable, Hashable {
 
     var symbol: String {
         switch self {
-        case .files: return L10n.text("folder")
-        case .sites: return L10n.text("server.rack")
-        case .transfers: return L10n.text("arrow.up.arrow.down")
-        case .cloud: return L10n.text("externaldrive.fill.badge.icloud")
-        case .sync: return L10n.text("arrow.triangle.2.circlepath")
-        case .settings: return L10n.text("gearshape")
-        case .about: return L10n.text("questionmark.circle")
+        case .files: return "folder"
+        case .sites: return "server.rack"
+        case .transfers: return "arrow.up.arrow.down"
+        case .cloud: return "externaldrive.fill.badge.icloud"
+        case .sync: return "arrow.triangle.2.circlepath"
+        case .settings: return "gearshape"
+        case .about: return "questionmark.circle"
         }
     }
 }
