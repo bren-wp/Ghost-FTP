@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_saved_profiles">Збережені профілі</string>
+    <string name="ui_search_files">Пошук файлів</string>
+    <string name="ui_search_sites">Пошук сайтів</string>
+    <string name="ui_text_editor">Текстовий редактор</string>
+    <string name="ui_batch_rename">Пакетне перейменування</string>
+    <string name="ui_transfer_details">Деталі передавання</string>
+    <string name="ui_backup_settings">Резервна копія налаштувань</string>
+    <string name="ui_restore_settings">Відновити налаштування</string>
+    <string name="ui_file_actions">Дії з файлами</string>
+    <string name="ui_more">Більше</string>
+</resources>

@@ -179,7 +179,6 @@ fn compute_status(app: &AppHandle) -> Result<PathStatus, String> {
 mod platform {
     use super::*;
     use winreg::enums::*;
-    use winreg::types::FromRegValue;
     use winreg::{RegKey, RegValue};
 
     /// Open HKCU\Environment for read+write (created if somehow absent).
@@ -191,16 +190,47 @@ mod platform {
         Ok(env)
     }
 
-    /// Read the per-user `Path` as `(value, type)`. A missing value reads as an
-    /// empty `REG_EXPAND_SZ` (the type Windows uses for Path), so a first write
-    /// creates it with the right, `%VAR%`-expanding type.
-    fn read_path(env: &RegKey) -> (String, RegType) {
+    /// Read the per-user `Path` as `(value, type)`. Only an actually
+    /// missing value may be treated as empty. A malformed or non-string
+    /// registry entry must never be silently replaced with an empty string.
+    fn read_path(env: &RegKey) -> Result<(String, RegType), String> {
         match env.get_raw_value("Path") {
             Ok(rv) => {
-                let s = String::from_reg_value(&rv).unwrap_or_default();
-                (s, rv.vtype)
+                if rv.vtype != RegType::REG_SZ && rv.vtype != RegType::REG_EXPAND_SZ {
+                    return Err(format!(
+                        "HKCU\\Environment\\Path has unexpected registry type {:?}; no changes made",
+                        rv.vtype
+                    ));
+                }
+                // winreg's generic string decoder may silently accept an odd
+                // byte count or truncate damaged UTF-16. Never rewrite an
+                // unreadable registry PATH: validate exact bytes first.
+                if rv.bytes.len() < 2 || rv.bytes.len() % 2 != 0 || !rv.bytes.ends_with(&[0, 0]) {
+                    return Err(
+                        "HKCU\\Environment\\Path has malformed UTF-16; no changes made".into(),
+                    );
+                }
+                let units: Vec<u16> = rv
+                    .bytes
+                    .chunks_exact(2)
+                    .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+                    .collect();
+                if units[..units.len() - 1].contains(&0) {
+                    return Err(
+                        "HKCU\\Environment\\Path contains embedded NUL; no changes made".into(),
+                    );
+                }
+                let value = String::from_utf16(&units[..units.len() - 1]).map_err(|_| {
+                    "HKCU\\Environment\\Path contains invalid UTF-16; no changes made".to_string()
+                })?;
+                Ok((value, rv.vtype))
             }
-            Err(_) => (String::new(), RegType::REG_EXPAND_SZ),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Ok((String::new(), RegType::REG_EXPAND_SZ))
+            }
+            Err(error) => Err(format!(
+                "read HKCU\\Environment\\Path failed: {error}; no changes made"
+            )),
         }
     }
 
@@ -233,7 +263,9 @@ mod platform {
             Ok(e) => e,
             Err(_) => return false,
         };
-        let (value, _) = read_path(&env);
+        let Ok((value, _)) = read_path(&env) else {
+            return false;
+        };
         super::contains_dir(&value, &bin_dir.to_string_lossy())
     }
 
@@ -244,7 +276,7 @@ mod platform {
         let bin_str = bin_dir.to_string_lossy().to_string();
 
         let env = open_env()?;
-        let (current, vtype) = read_path(&env);
+        let (current, vtype) = read_path(&env)?;
 
         // Snapshot the true prior value ONCE, before we ever touch it, so a later
         // remove can restore it faithfully.
@@ -280,7 +312,7 @@ mod platform {
         let bin_str = bin_dir.to_string_lossy().to_string();
 
         let env = open_env()?;
-        let (current, vtype) = read_path(&env);
+        let (current, vtype) = read_path(&env)?;
         if super::contains_dir(&current, &bin_str) {
             // Surgically drop only our entry from the CURRENT value (preserving
             // any changes the user made elsewhere and the value's type), rather
@@ -327,6 +359,53 @@ mod platform {
         /// unexpanded through our encode/decode + add/remove, and that removal is
         /// byte-identical. Safe and self-cleaning.
         #[test]
+        fn malformed_or_nonstring_registry_path_is_preserved() {
+            let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+            let sub = "Software\\Ghost FTP\\PathIntegrationInvalidTypeTest";
+            let _ = hkcu.delete_subkey_all(sub);
+            let (key, _) = hkcu.create_subkey(sub).unwrap();
+            let binary = RegValue {
+                bytes: vec![0x41, 0x00, 0x42, 0x00],
+                vtype: RegType::REG_BINARY,
+            };
+            key.set_raw_value("Path", &binary).unwrap();
+            assert!(read_path(&key).is_err(), "binary data must fail closed");
+            assert_eq!(key.get_raw_value("Path").unwrap().bytes, binary.bytes);
+            key.delete_value("Path").unwrap();
+            let malformed = RegValue {
+                bytes: vec![0x41],
+                vtype: RegType::REG_EXPAND_SZ,
+            };
+            key.set_raw_value("Path", &malformed).unwrap();
+            assert!(
+                read_path(&key).is_err(),
+                "malformed UTF-16 must fail closed"
+            );
+            assert_eq!(key.get_raw_value("Path").unwrap().bytes, malformed.bytes);
+            key.delete_value("Path").unwrap();
+            // Valid REG_EXPAND_SZ type alone does not make an unpaired
+            // surrogate or embedded NUL safe to decode and rewrite.
+            for bytes in [
+                vec![0, 0xd8, 0, 0],
+                vec![0x41, 0, 0, 0, 0x42, 0, 0, 0],
+                vec![0x41, 0],
+            ] {
+                let value = RegValue {
+                    bytes: bytes.clone(),
+                    vtype: RegType::REG_EXPAND_SZ,
+                };
+                key.set_raw_value("Path", &value).unwrap();
+                assert!(read_path(&key).is_err());
+                assert_eq!(key.get_raw_value("Path").unwrap().bytes, bytes);
+                key.delete_value("Path").unwrap();
+            }
+            let (missing, kind) = read_path(&key).unwrap();
+            assert!(missing.is_empty());
+            assert_eq!(kind, RegType::REG_EXPAND_SZ);
+            hkcu.delete_subkey_all(sub).unwrap();
+        }
+
+        #[test]
         fn scratch_key_preserves_type_and_round_trips() {
             let hkcu = RegKey::predef(HKEY_CURRENT_USER);
             let sub = "Software\\Ghost FTP\\PathIntegrationTest";
@@ -339,7 +418,7 @@ mod platform {
                 .unwrap();
 
             // Read it back through our decoder: value + type must survive.
-            let (read, vtype) = read_path(&key);
+            let (read, vtype) = read_path(&key).unwrap();
             assert_eq!(read, original);
             assert_eq!(
                 vtype,
@@ -352,7 +431,7 @@ mod platform {
             let added = super::super::add_dir(&read, bin);
             key.set_raw_value("Path", &make_value(&added, vtype))
                 .unwrap();
-            let (after_add, vtype2) = read_path(&key);
+            let (after_add, vtype2) = read_path(&key).unwrap();
             assert_eq!(after_add, format!("{original};{bin}"));
             assert_eq!(vtype2, RegType::REG_EXPAND_SZ, "type preserved after add");
             assert!(after_add.contains("%JAVA_HOME%"), "%VARS% stay unexpanded");
@@ -364,7 +443,7 @@ mod platform {
             let removed = super::super::remove_dir(&after_add, bin);
             key.set_raw_value("Path", &make_value(&removed, vtype2))
                 .unwrap();
-            let (after_remove, vtype3) = read_path(&key);
+            let (after_remove, vtype3) = read_path(&key).unwrap();
             assert_eq!(after_remove, original, "remove is byte-identical");
             assert_eq!(vtype3, RegType::REG_EXPAND_SZ);
 
@@ -382,7 +461,7 @@ mod platform {
         fn real_environment_add_remove() {
             let marker = r"C:\__ghostftp_path_integration_test__";
             let env = open_env().unwrap();
-            let (before, vtype_before) = read_path(&env);
+            let (before, vtype_before) = read_path(&env).unwrap();
             assert!(
                 !super::super::contains_dir(&before, marker),
                 "marker unexpectedly already present — aborting to protect PATH"
@@ -393,7 +472,7 @@ mod platform {
             env.set_raw_value("Path", &make_value(&added, vtype_before.clone()))
                 .unwrap();
             broadcast_environment_change();
-            let (after_add, vtype_add) = read_path(&env);
+            let (after_add, vtype_add) = read_path(&env).unwrap();
             eprintln!("after add: {after_add}");
             assert!(super::super::contains_dir(&after_add, marker));
             assert_eq!(
@@ -410,7 +489,7 @@ mod platform {
             env.set_raw_value("Path", &make_value(&removed, vtype_add))
                 .unwrap();
             broadcast_environment_change();
-            let (after_remove, _) = read_path(&env);
+            let (after_remove, _) = read_path(&env).unwrap();
             eprintln!("after remove: {after_remove}");
             assert_eq!(
                 after_remove, before,
@@ -508,13 +587,30 @@ mod platform {
         Ok(local_bin()?.join("ghostftp-cli"))
     }
 
-    /// The `ghostftp-cli` we should link to: a copy on PATH first, else the app-owned
-    /// `bin/ghostftp-cli` that `install_missing` writes.
+    /// Prefer the application-owned binary. A PATH lookup can find the very
+    /// ~/.local/bin/ghostftp-cli symlink about to be replaced, which otherwise
+    /// creates a self-referencing link and breaks the CLI after re-adding PATH.
+    pub(super) fn choose_link_target(
+        owned_binary: &Path,
+        managed_link: &Path,
+        from_path: Option<PathBuf>,
+    ) -> Option<PathBuf> {
+        let points_to_managed_link = |candidate: &Path| {
+            candidate == managed_link
+                || (candidate.file_name() == managed_link.file_name()
+                    && candidate.parent().and_then(|p| p.canonicalize().ok())
+                        == managed_link.parent().and_then(|p| p.canonicalize().ok()))
+        };
+        if owned_binary.is_file() && !points_to_managed_link(owned_binary) {
+            return Some(owned_binary.to_path_buf());
+        }
+        from_path.filter(|candidate| candidate.is_file() && !points_to_managed_link(candidate))
+    }
+
     fn link_target(app: &AppHandle) -> Option<PathBuf> {
-        which_ghostftp_cli().or_else(|| {
-            let p = app_bin_dir(app).ok()?.join("ghostftp-cli");
-            p.is_file().then_some(p)
-        })
+        let owned = app_bin_dir(app).ok()?.join("ghostftp-cli");
+        let managed = symlink_path().ok()?;
+        choose_link_target(&owned, &managed, which_ghostftp_cli())
     }
 
     /// Detect the user's shell profile to append the PATH export to.
@@ -748,6 +844,31 @@ pub async fn path_remove(app: AppHandle, state: State<'_, AppState>) -> Result<P
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn path_integrator_never_links_managed_cli_to_itself() {
+        use std::os::unix::fs::symlink;
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-cli-relink-{}", uuid::Uuid::new_v4()));
+        let bin = root.join("app").join("bin");
+        let user_bin = root.join(".local").join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::create_dir_all(&user_bin).unwrap();
+        let bundled = bin.join("ghostftp-cli");
+        let managed = user_bin.join("ghostftp-cli");
+        std::fs::write(&bundled, b"owned cli").unwrap();
+        symlink(&bundled, &managed).unwrap();
+
+        let selected = platform::choose_link_target(&bundled, &managed, Some(managed.clone()));
+        assert_eq!(selected, Some(bundled.clone()));
+        assert_ne!(selected.as_deref(), Some(managed.as_path()));
+
+        std::fs::remove_file(&bundled).unwrap();
+        assert!(platform::choose_link_target(&bundled, &managed, Some(managed.clone())).is_none());
+        std::fs::remove_file(&managed).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[cfg(unix)]
     #[test]

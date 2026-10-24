@@ -17,7 +17,7 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 ## Required new version train (owner decision 21 October 2026)
 
 - Latest verified public edition before development 0.99.4: **0.99.3** (Preview, 21 artifacts on GitHub Releases).
-- Authorized history: 0.95.53 → 0.99.0 → 0.99.1 → 0.99.2 → 0.99.3. **Current next edition: 0.99.4**.
+- Authorized history: 0.95.53 → 0.99.0 → 0.99.1 → 0.99.2 → 0.99.3. **Next edition in this sequence: 0.99.9**.
 - Subsequent editions must advance consecutively: **0.99.4** through **0.99.20**. No skipped or repeated version number, no 0.99.21.
 - After **0.99.20**, the next allowed version is **1.0.0**. Production signing, notarization, device installation and security acceptance must pass independently before changing the channel from Preview to stable.
 - Previously published editions and all existing Git tags are permanent. **Never delete a release or tag during normal builds and releases.**
@@ -25,9 +25,9 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
 ## Current cycle
 
-- Active source/release cycle: **0.99.8**
-- Previous canonical release: **0.99.7**
-- Previous source version: **0.99.3** (verified published Preview with all 21 artifacts).
+- Active source/release cycle: **0.99.9**
+- Previous canonical release: **0.99.8**
+- Previous source version: **0.99.8** (verified prior published release).
 - Historical versions **0.30.11** and **0.30.12** had merged-but-unpublished source transitions; their provenance remains in the release history.
 - Live publication state: GitHub Releases is authoritative.
 

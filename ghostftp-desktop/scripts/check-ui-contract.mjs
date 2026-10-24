@@ -434,7 +434,7 @@ for (const required of [
   "case sync",
   "case settings",
   "case about",
-  'case .sync: return "Sync & Backup"',
+  'case .sync: return L10n.text("Sync & Backup")',
 ]) {
   if (!macShell.includes(required)) failures.push(`macOS workspace parity missing: ${required}`);
 }

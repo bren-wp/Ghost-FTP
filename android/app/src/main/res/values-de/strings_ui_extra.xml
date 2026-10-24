@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_saved_profiles">Gespeicherte Profile</string>
+    <string name="ui_search_files">Dateien suchen</string>
+    <string name="ui_search_sites">Server suchen</string>
+    <string name="ui_text_editor">Texteditor</string>
+    <string name="ui_batch_rename">Stapelumbenennung</string>
+    <string name="ui_transfer_details">Übertragungsdetails</string>
+    <string name="ui_backup_settings">Einstellungen sichern</string>
+    <string name="ui_restore_settings">Einstellungen wiederherstellen</string>
+    <string name="ui_file_actions">Dateiaktionen</string>
+    <string name="ui_more">Mehr</string>
+</resources>

@@ -1,3 +1,14 @@
+## 0.99.9 — Android batch-rename collision hardening (development Preview; 24 October 2026)
+- Start full 24-language native localization: macOS gets a shared 269-key multilingual runtime catalog and localized SwiftUI controls; Android gets 10 newly translated UI labels across 24 languages, resource-based source references and CI parity guards.
+- Document unresolved native dynamic text and untranslated copy without claiming fully translated release readiness. Secure FTPS/SFTP issue #223 remains a production blocker for native macOS.
+- Windows CLI PATH integration now fails closed on corrupt or non-string HKCU registry values to avoid overwriting user PATH content, with scratch-key regression tests.
+- Linux/macOS CLI PATH integration avoids replacing an existing managed link with a symlink to itself, with Unix regression tests.
+- Native macOS host validation rejects malformed IPv6 addresses before attempting a connection, with XCTest coverage.
+- Prevent remote batch renames from overwriting existing files or directories when the server ignores filename case or normalizes Unicode. Fresh-listing preflight now includes every remote object.
+- Reject duplicate/equivalent source selections and malformed relative/traversal-like path components before starting destructive operations.
+- Cover case-folded, NFC/NFD, directory and malformed-source regressions in Kotlin unit tests.
+- Preserve Ghost FTP identities and earlier public releases. Android 16-screen pixel acceptance, physical-device crash validation and production signing remain open.
+
 ## 0.99.8 — Android UI clipping, batch safety and all-platform dead-code scanner (development Preview; 24 October 2026)
 
 - Fix clipped More action caption on live Android 480x960 Files screen with multi-viewport text-bound tests; replace the tiny white About glyph with the shared purple native Ghost vector.

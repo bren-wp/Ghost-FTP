@@ -58,7 +58,7 @@ for (const [label, condition] of [
   ["Android 12-14 navy splash", androidSplash31.includes("android:windowSplashScreenAnimatedIcon")],
   ["Android 15 navy splash", androidSplash35.includes("android:windowSplashScreenAnimatedIcon")],
   ["responsive macOS window", macShell.includes(".frame(minWidth: 840, minHeight: 560)")],
-  ["macOS premium brand tagline", macShell.includes('Text("TOTAL CONTROL")')],
+  ["macOS premium brand tagline", macShell.includes('Text(L10n.text("TOTAL CONTROL"))')],
 ]) {
   if (!condition) errors.push(`missing real platform brand contract: ${label}`);
 }

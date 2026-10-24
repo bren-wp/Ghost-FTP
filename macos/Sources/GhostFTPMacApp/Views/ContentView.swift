@@ -56,34 +56,34 @@ private struct MacQuickConnect: View {
 
     var body: some View {
         Form {
-            Section("Quick Connect · temporary FTP session") {
-                TextField("Host", text: $host)
-                TextField("Username", text: $username)
-                SecureField("Password", text: $password)
+            Section(L10n.text("Quick Connect · temporary FTP session")) {
+                TextField(L10n.text("Host"), text: $host)
+                TextField(L10n.text("Username"), text: $username)
+                SecureField(L10n.text("Password"), text: $password)
                     .privacySensitive()
-                TextField("Port", text: $port)
-                Text("Connect uses the entered credentials directly and never creates a saved site. FTP traffic is unencrypted; macOS FTPS/SFTP session engines are not yet available.")
+                TextField(L10n.text("Port"), text: $port)
+                Text(L10n.text("Connect uses the entered credentials directly and never creates a saved site. FTP traffic is unencrypted; macOS FTPS/SFTP session engines are not yet available."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
 
                 HStack {
                     if session.isConnected {
-                        Button("Disconnect") { session.disconnect() }
+                        Button(L10n.text("Disconnect")) { session.disconnect() }
                     } else {
                         Button {
                             connectNow()
                         } label: {
                             if session.state == .connecting {
                                 ProgressView().controlSize(.small)
-                                Text("Connecting…")
+                                Text(L10n.text("Connecting…"))
                             } else {
-                                Label("Connect", systemImage: "bolt.horizontal.circle")
+                                Label(L10n.text("Connect"), systemImage: "bolt.horizontal.circle")
                             }
                         }
                         .disabled(session.state == .connecting)
                         .keyboardShortcut(.return, modifiers: [])
                     }
-                    Button("Saved sites") { onOpenSites() }
+                    Button(L10n.text("Saved sites")) { onOpenSites() }
                 }
             }
             if let validationMessage {
@@ -93,7 +93,7 @@ private struct MacQuickConnect: View {
             case .idle:
                 EmptyView()
             case .connecting:
-                Text("Authenticating with the FTP server…")
+                Text(L10n.text("Authenticating with the FTP server…"))
             case .connected(let path):
                 Label("Connected · \(path)", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
@@ -101,10 +101,10 @@ private struct MacQuickConnect: View {
                 Text(message).foregroundStyle(.red)
             }
             if session.isConnected {
-                Section("Remote files") {
-                    Button("Refresh listing") { session.refreshDirectory() }
+                Section(L10n.text("Remote files")) {
+                    Button(L10n.text("Refresh listing")) { session.refreshDirectory() }
                     if session.entries.isEmpty && !session.isListing {
-                        Text("The server returned no entries.")
+                        Text(L10n.text("The server returned no entries."))
                     }
                     ForEach(session.entries) { item in
                         Label(item.name, systemImage: item.isDirectory ? "folder" : "doc")
@@ -181,10 +181,10 @@ private struct ConnectionEditor: View {
 
     var body: some View {
         Form {
-            Section("Connection") {
-                TextField("Site name", text: $draft.name)
+            Section(L10n.text("Connection")) {
+                TextField(L10n.text("Site name"), text: $draft.name)
 
-                Picker("Protocol", selection: $draft.protocolKind) {
+                Picker(L10n.text("Protocol"), selection: $draft.protocolKind) {
                     ForEach(ConnectionProtocol.allCases) { item in
                         Text(item.title).tag(item)
                     }
@@ -196,13 +196,12 @@ private struct ConnectionEditor: View {
                     remoteDirectory = ""
                 }
 
-                TextField("Server", text: $draft.host)
+                TextField(L10n.text("Server"), text: $draft.host)
 
                 HStack {
-                    Text("Port")
+                    Text(L10n.text("Port"))
                     Spacer()
-                    TextField(
-                        "Port",
+                    TextField(L10n.text("Port"),
                         value: $draft.port,
                         format: .number.grouping(.never)
                     )
@@ -210,11 +209,11 @@ private struct ConnectionEditor: View {
                     .multilineTextAlignment(.trailing)
                 }
 
-                TextField("Username", text: $draft.username)
+                TextField(L10n.text("Username"), text: $draft.username)
 
-                SecureField("Password", text: $password)
+                SecureField(L10n.text("Password"), text: $password)
 
-                Toggle("Remember password in macOS Keychain", isOn: $rememberPassword)
+                Toggle(L10n.text("Remember password in macOS Keychain"), isOn: $rememberPassword)
             }
 
             // Advisory only: never merge or remove another saved profile.
@@ -224,20 +223,20 @@ private struct ConnectionEditor: View {
                 in: savedProfiles
             )
             if !matchingSites.isEmpty {
-                Section("Saved site inventory") {
+                Section(L10n.text("Saved site inventory")) {
                     Label(
                         "Possible duplicate saved site (\(matchingSites.count) match\(matchingSites.count == 1 ? "" : "es"))",
                         systemImage: "rectangle.on.rectangle"
                     )
                     .foregroundStyle(.orange)
 
-                    Text("Another saved site uses this protocol, server, port and username. Review the entries before saving. Ghost FTP will not merge, overwrite or delete either site.")
+                    Text(L10n.text("Another saved site uses this protocol, server, port and username. Review the entries before saving. Ghost FTP will not merge, overwrite or delete either site."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Section("Connection reliability") {
+            Section(L10n.text("Connection reliability")) {
                 if draft.protocolKind == .sftp {
                     Stepper(
                         "Keep-alive every \(draft.keepAliveSeconds) seconds",
@@ -246,7 +245,7 @@ private struct ConnectionEditor: View {
                         step: 5
                     )
                 } else {
-                    Text("Per-profile keep-alive is currently available for SFTP. FTP/FTPS will expose this only when protocol-level NOOP scheduling is implemented.")
+                    Text(L10n.text("Per-profile keep-alive is currently available for SFTP. FTP/FTPS will expose this only when protocol-level NOOP scheduling is implemented."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -257,12 +256,12 @@ private struct ConnectionEditor: View {
                     in: 0...3
                 )
 
-                Text("Reconnect attempts apply only after a transport failure. Authentication, certificate and host-key failures are never retried silently.")
+                Text(L10n.text("Reconnect attempts apply only after a transport failure. Authentication, certificate and host-key failures are never retried silently."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
 
-            Section("Transport security") {
+            Section(L10n.text("Transport security")) {
                 Label {
                     Text(draft.protocolKind.securitySummary)
                 } icon: {
@@ -271,11 +270,11 @@ private struct ConnectionEditor: View {
                 .foregroundStyle(draft.protocolKind == .ftp ? .orange : .secondary)
 
                 if draft.protocolKind == .ftps {
-                    Text("Endpoint check verifies TCP reachability only. A full FTPS session must complete AUTH TLS and certificate/hostname validation before file operations.")
+                    Text(L10n.text("Endpoint check verifies TCP reachability only. A full FTPS session must complete AUTH TLS and certificate/hostname validation before file operations."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 } else if draft.protocolKind == .sftp {
-                    Text("Endpoint check verifies TCP reachability only. A full SFTP session must verify the SSH host key before authentication.")
+                    Text(L10n.text("Endpoint check verifies TCP reachability only. A full SFTP session must verify the SSH host key before authentication."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -296,7 +295,7 @@ private struct ConnectionEditor: View {
                 }
             }
 
-            Section("Endpoint") {
+            Section(L10n.text("Endpoint")) {
                 HStack {
                     Button {
                         checkEndpoint()
@@ -304,9 +303,9 @@ private struct ConnectionEditor: View {
                         if probe.state == .checking {
                             ProgressView()
                                 .controlSize(.small)
-                            Text("Checking…")
+                            Text(L10n.text("Checking…"))
                         } else {
-                            Label("Check endpoint", systemImage: "network")
+                            Label(L10n.text("Check endpoint"), systemImage: "network")
                         }
                     }
                     .disabled(probe.state == .checking)
@@ -316,10 +315,10 @@ private struct ConnectionEditor: View {
             }
 
             if !isNewSite && draft.protocolKind == .ftp {
-                Section("FTP session") {
+                Section(L10n.text("FTP session")) {
                     HStack {
                         if ftpSession.isConnected {
-                            Button("Disconnect") {
+                            Button(L10n.text("Disconnect")) {
                                 ftpSession.disconnect()
                             }
                         } else {
@@ -329,9 +328,9 @@ private struct ConnectionEditor: View {
                                 if ftpSession.state == .connecting {
                                     ProgressView()
                                         .controlSize(.small)
-                                    Text("Connecting…")
+                                    Text(L10n.text("Connecting…"))
                                 } else {
-                                    Label("Open FTP session", systemImage: "bolt.horizontal.circle")
+                                    Label(L10n.text("Open FTP session"), systemImage: "bolt.horizontal.circle")
                                 }
                             }
                             .disabled(ftpSession.state == .connecting)
@@ -342,10 +341,10 @@ private struct ConnectionEditor: View {
 
                     if ftpSession.isConnected {
                         HStack {
-                            TextField("Remote directory", text: $remoteDirectory)
+                            TextField(L10n.text("Remote directory"), text: $remoteDirectory)
                                 .textFieldStyle(.roundedBorder)
 
-                            Button("Change directory") {
+                            Button(L10n.text("Change directory")) {
                                 ftpSession.changeDirectory(to: remoteDirectory)
                             }
                             .disabled(remoteDirectory.isEmpty || ftpSession.isTransferring || ftpSession.isListing)
@@ -353,7 +352,7 @@ private struct ConnectionEditor: View {
                             Button {
                                 ftpSession.refreshWorkingDirectory()
                             } label: {
-                                Label("Refresh PWD", systemImage: "arrow.clockwise")
+                                Label(L10n.text("Refresh PWD"), systemImage: "arrow.clockwise")
                             }
                         }
 
@@ -361,7 +360,7 @@ private struct ConnectionEditor: View {
                             Button {
                                 ftpSession.verifyConnection()
                             } label: {
-                                Label("Check session with NOOP", systemImage: "checkmark.shield")
+                                Label(L10n.text("Check session with NOOP"), systemImage: "checkmark.shield")
                             }
                             .disabled(ftpSession.isTransferring || ftpSession.isListing)
 
@@ -371,9 +370,9 @@ private struct ConnectionEditor: View {
                                 if ftpSession.isListing {
                                     ProgressView()
                                         .controlSize(.small)
-                                    Text("Refreshing…")
+                                    Text(L10n.text("Refreshing…"))
                                 } else {
-                                    Label("Refresh listing", systemImage: "arrow.clockwise")
+                                    Label(L10n.text("Refresh listing"), systemImage: "arrow.clockwise")
                                 }
                             }
                             .disabled(ftpSession.isListing || ftpSession.isTransferring)
@@ -381,13 +380,13 @@ private struct ConnectionEditor: View {
                             Button {
                                 chooseUpload()
                             } label: {
-                                Label("Upload file", systemImage: "arrow.up.doc")
+                                Label(L10n.text("Upload file"), systemImage: "arrow.up.doc")
                             }
                             .disabled(ftpSession.isTransferring || ftpSession.isListing)
                         }
 
                         HStack {
-                            TextField("New folder name", text: $newRemoteFolderName)
+                            TextField(L10n.text("New folder name"), text: $newRemoteFolderName)
                                 .textFieldStyle(.roundedBorder)
                             Button {
                                 let name = newRemoteFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -395,7 +394,7 @@ private struct ConnectionEditor: View {
                                 ftpSession.createDirectory(named: name)
                                 newRemoteFolderName = ""
                             } label: {
-                                Label("Create folder", systemImage: "folder.badge.plus")
+                                Label(L10n.text("Create folder"), systemImage: "folder.badge.plus")
                             }
                             .disabled(
                                 newRemoteFolderName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
@@ -405,14 +404,14 @@ private struct ConnectionEditor: View {
 
                         transferStatus
                         if ftpSession.isTransferring || ftpSession.isListing {
-                            Text("File actions are temporarily unavailable while a transfer or directory listing is in progress.")
+                            Text(L10n.text("File actions are temporarily unavailable while a transfer or directory listing is in progress."))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .accessibilityAddTraits(.updatesFrequently)
                         }
 
                         if ftpSession.entries.isEmpty && !ftpSession.isListing {
-                            Text("The current directory is empty or the FTP server returned no listable entries.")
+                            Text(L10n.text("The current directory is empty or the FTP server returned no listable entries."))
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
                         } else {
@@ -467,7 +466,7 @@ private struct ConnectionEditor: View {
                         }
                     }
 
-                    Text("FTP session: passive EPSV + MLSD (or validated Unix LIST fallback), directory navigation, folder creation, confirmed file/empty-folder deletion, upload and download. FTPS/SFTP engines are not yet available on macOS.")
+                    Text(L10n.text("FTP session: passive EPSV + MLSD (or validated Unix LIST fallback), directory navigation, folder creation, confirmed file/empty-folder deletion, upload and download. FTPS/SFTP engines are not yet available on macOS."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -499,13 +498,13 @@ private struct ConnectionEditor: View {
             isPresented: $showRemoteDeleteConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Delete file", role: .destructive) {
+            Button(L10n.text("Delete file"), role: .destructive) {
                 if let entry = pendingRemoteDelete {
                     ftpSession.deleteEntry(entry)
                 }
                 pendingRemoteDelete = nil
             }
-            Button("Cancel", role: .cancel) {
+            Button(L10n.text("Cancel"), role: .cancel) {
                 pendingRemoteDelete = nil
             }
         } message: {
@@ -539,10 +538,10 @@ private struct ConnectionEditor: View {
         case .idle:
             EmptyView()
         case .checking:
-            Text("Opening TCP connection…")
+            Text(L10n.text("Opening TCP connection…"))
                 .foregroundStyle(.secondary)
         case .reachable:
-            Label("Endpoint reachable", systemImage: "checkmark.circle.fill")
+            Label(L10n.text("Endpoint reachable"), systemImage: "checkmark.circle.fill")
                 .foregroundStyle(.green)
         case .failed(let message):
             Label(message, systemImage: "xmark.circle.fill")
@@ -574,10 +573,10 @@ private struct ConnectionEditor: View {
     private var ftpSessionStatus: some View {
         switch ftpSession.state {
         case .idle:
-            Text("Not connected")
+            Text(L10n.text("Not connected"))
                 .foregroundStyle(.secondary)
         case .connecting:
-            Text("Authenticating…")
+            Text(L10n.text("Authenticating…"))
                 .foregroundStyle(.secondary)
         case .connected(let path):
             Label("Connected · \(path)", systemImage: "checkmark.circle.fill")

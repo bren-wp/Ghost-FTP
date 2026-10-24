@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_saved_profiles">Kayıtlı profiller</string>
+    <string name="ui_search_files">Dosya ara</string>
+    <string name="ui_search_sites">Site ara</string>
+    <string name="ui_text_editor">Metin düzenleyici</string>
+    <string name="ui_batch_rename">Toplu yeniden adlandırma</string>
+    <string name="ui_transfer_details">Aktarım ayrıntıları</string>
+    <string name="ui_backup_settings">Ayarları yedekle</string>
+    <string name="ui_restore_settings">Ayarları geri yükle</string>
+    <string name="ui_file_actions">Dosya işlemleri</string>
+    <string name="ui_more">Diğer</string>
+</resources>

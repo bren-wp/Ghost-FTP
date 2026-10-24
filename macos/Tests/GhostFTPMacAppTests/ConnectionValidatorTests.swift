@@ -2,6 +2,18 @@ import XCTest
 @testable import GhostFTPMacApp
 
 final class ConnectionValidatorTests: XCTestCase {
+    func testAllNativeMacLanguagesHaveNavigationTranslations() {
+        XCTAssertEqual(L10n.supportedLanguages.count, 24)
+        for language in L10n.supportedLanguages where language != "en" {
+            for key in ["Files", "Sites", "Cloud storage", "Sync & Backup", "Help & About", "Connect", "Settings"] {
+                XCTAssertTrue(L10n.hasTranslation(key, language: language), "\(language): \(key)")
+            }
+        }
+        XCTAssertEqual(L10n.text("Files", language: "hr"), "Datoteke")
+        XCTAssertEqual(L10n.text("Files", language: "de"), "Dateien")
+        XCTAssertEqual(L10n.text("Unsupported key", language: "hr"), "Unsupported key")
+    }
+
     func testDefaultPortsMatchProtocols() {
         XCTAssertEqual(ConnectionProtocol.ftp.defaultPort, 21)
         XCTAssertEqual(ConnectionProtocol.ftps.defaultPort, 21)
@@ -72,6 +84,21 @@ final class ConnectionValidatorTests: XCTestCase {
                 username: "deploy"
             )
             XCTAssertNoThrow(try ConnectionValidator.validate(profile))
+        }
+    }
+
+    func testMalformedIPv6AndBracketsFailBeforeConnection() {
+        for host in [
+            "[not-ipv6]", "abc:def:ghi", "2001:db8::gggg", "[2001:db8::1",
+            "2001:db8::1]", "[[2001:db8::1]]", "[::1]trailer",
+            "2001:db8::1%en0", "example.com:22"
+        ] {
+            let profile = ConnectionProfile(
+                name: "Production", host: host, username: "deploy"
+            )
+            XCTAssertThrowsError(try ConnectionValidator.validate(profile), host) { error in
+                XCTAssertEqual(error as? ConnectionValidationError, .invalidHost)
+            }
         }
     }
 

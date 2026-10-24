@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_saved_profiles">Αποθηκευμένα προφίλ</string>
+    <string name="ui_search_files">Αναζήτηση αρχείων</string>
+    <string name="ui_search_sites">Αναζήτηση τοποθεσιών</string>
+    <string name="ui_text_editor">Επεξεργαστής κειμένου</string>
+    <string name="ui_batch_rename">Μαζική μετονομασία</string>
+    <string name="ui_transfer_details">Λεπτομέρειες μεταφοράς</string>
+    <string name="ui_backup_settings">Αντίγραφο ασφαλείας ρυθμίσεων</string>
+    <string name="ui_restore_settings">Επαναφορά ρυθμίσεων</string>
+    <string name="ui_file_actions">Ενέργειες αρχείων</string>
+    <string name="ui_more">Περισσότερα</string>
+</resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_saved_profiles">Uložené profily</string>
+    <string name="ui_search_files">Hľadať súbory</string>
+    <string name="ui_search_sites">Hľadať lokality</string>
+    <string name="ui_text_editor">Textový editor</string>
+    <string name="ui_batch_rename">Hromadné premenovanie</string>
+    <string name="ui_transfer_details">Podrobnosti prenosu</string>
+    <string name="ui_backup_settings">Zálohovať nastavenia</string>
+    <string name="ui_restore_settings">Obnoviť nastavenia</string>
+    <string name="ui_file_actions">Akcie so súbormi</string>
+    <string name="ui_more">Viac</string>
+</resources>

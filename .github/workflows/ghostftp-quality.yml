@@ -167,6 +167,13 @@ jobs:
           grep -Fq 'https://github.com/bren-wp/Ghost-FTP/releases' README.md
           grep -Fq 'sha256sum -c' .github/scripts/publish-release.sh
 
+      - name: Verify Android multilingual UI and native macOS catalog
+        shell: bash
+        run: |
+          node android/scripts/check-multilingual-ui.mjs
+          node ghostftp-desktop/scripts/check-i18n-parity.mjs
+          node tools/audits/check-localization-inventory.mjs
+
       - name: Cross-platform premium branding integration contract
         shell: bash
         run: |

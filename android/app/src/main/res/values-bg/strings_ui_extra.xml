@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_saved_profiles">Запазени профили</string>
+    <string name="ui_search_files">Търсене на файлове</string>
+    <string name="ui_search_sites">Търсене на сайтове</string>
+    <string name="ui_text_editor">Текстов редактор</string>
+    <string name="ui_batch_rename">Масово преименуване</string>
+    <string name="ui_transfer_details">Подробности за прехвърлянето</string>
+    <string name="ui_backup_settings">Архивиране на настройките</string>
+    <string name="ui_restore_settings">Възстановяване на настройките</string>
+    <string name="ui_file_actions">Действия с файлове</string>
+    <string name="ui_more">Още</string>
+</resources>

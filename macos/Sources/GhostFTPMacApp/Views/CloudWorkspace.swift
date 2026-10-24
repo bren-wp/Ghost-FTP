@@ -16,19 +16,19 @@ struct CloudWorkspace: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Cloud storage").font(.largeTitle.bold())
-                    Text("Secure, direct object transfers for S3 / R2 / B2, Google Cloud Storage and Azure SAS. No account credentials or cloud links are saved.")
+                    Text(L10n.text("Cloud storage")).font(.largeTitle.bold())
+                    Text(L10n.text("Secure, direct object transfers for S3 / R2 / B2, Google Cloud Storage and Azure SAS. No account credentials or cloud links are saved."))
                         .foregroundStyle(.secondary)
                 }
                 GroupBox("Upload to a signed cloud link") {
                     VStack(alignment: .leading, spacing: 12) {
-                        SecureField("Paste signed HTTPS PUT URL", text: $uploadLink)
+                        SecureField(L10n.text("Paste signed HTTPS PUT URL"), text: $uploadLink)
                             .textFieldStyle(.roundedBorder)
                             .privacySensitive()
-                        Button("Choose file and upload") { chooseUpload() }
+                        Button(L10n.text("Choose file and upload")) { chooseUpload() }
                             .buttonStyle(.borderedProminent)
                             .disabled(busy || uploadLink.isEmpty)
-                        Text("Generate a short-lived PUT URL for the exact object in your provider console. This sends the selected file directly to the signed destination.")
+                        Text(L10n.text("Generate a short-lived PUT URL for the exact object in your provider console. This sends the selected file directly to the signed destination."))
                             .font(.caption).foregroundStyle(.secondary)
                     }.padding(10)
                 }
@@ -36,13 +36,13 @@ struct CloudWorkspace: View {
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(premiumLine.opacity(0.23)))
                 GroupBox("Download from a signed cloud link") {
                     VStack(alignment: .leading, spacing: 12) {
-                        SecureField("Paste signed HTTPS GET URL", text: $downloadLink)
+                        SecureField(L10n.text("Paste signed HTTPS GET URL"), text: $downloadLink)
                             .textFieldStyle(.roundedBorder)
                             .privacySensitive()
-                        Button("Choose destination and download") { chooseDownload() }
+                        Button(L10n.text("Choose destination and download")) { chooseDownload() }
                             .buttonStyle(.borderedProminent)
                             .disabled(busy || downloadLink.isEmpty)
-                        Text("The download is staged and only replaces the chosen file after the provider returns success.")
+                        Text(L10n.text("The download is staged and only replaces the chosen file after the provider returns success."))
                             .font(.caption).foregroundStyle(.secondary)
                     }.padding(10)
                 }
@@ -53,14 +53,14 @@ struct CloudWorkspace: View {
                         .font(.callout)
                         .accessibilityLabel("Cloud transfer status: \(status)")
                     Spacer(minLength: 8)
-                    Button("Cancel transfer") {
+                    Button(L10n.text("Cancel transfer")) {
                         activeTask?.cancel()
                         status = "Canceling cloud transfer…"
                     }
                     .disabled(!busy)
                     .accessibilityIdentifier("ghostftp.cloud.cancel")
                 }
-                Text("Google Drive account browsing requires a separate OAuth authorization flow. Sharing a Drive page link is not a signed object URL.")
+                Text(L10n.text("Google Drive account browsing requires a separate OAuth authorization flow. Sharing a Drive page link is not a signed object URL."))
                     .font(.caption).foregroundStyle(.secondary)
             }
             .frame(maxWidth: 760, alignment: .leading)

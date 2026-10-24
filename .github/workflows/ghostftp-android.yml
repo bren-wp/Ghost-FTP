@@ -37,6 +37,10 @@ jobs:
         run: |
           sdkmanager "platforms;android-35" "platforms;android-36" "build-tools;35.0.0"
 
+      - name: Enforce Android 24-language UI resource parity
+        shell: bash
+        run: node android/scripts/check-multilingual-ui.mjs
+
       - name: Android private storage and premium navigation regression
         shell: bash
         run: node android/scripts/check-premium-mobile-safety.mjs

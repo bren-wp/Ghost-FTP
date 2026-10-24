@@ -73,7 +73,7 @@ assert.ok(
   "Clearing macOS history must retain running transfer records"
 );
 assert.ok(
-  mac.includes('Button("Clear finished", role: .destructive)'),
+  mac.includes('Button(L10n.text("Clear finished"), role: .destructive)'),
   "macOS history action must clearly describe its safe scope"
 );
 assert.ok(

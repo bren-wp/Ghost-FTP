@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_saved_profiles">Profili salvati</string>
+    <string name="ui_search_files">Cerca file</string>
+    <string name="ui_search_sites">Cerca siti</string>
+    <string name="ui_text_editor">Editor di testo</string>
+    <string name="ui_batch_rename">Rinomina multipla</string>
+    <string name="ui_transfer_details">Dettagli trasferimento</string>
+    <string name="ui_backup_settings">Esegui backup impostazioni</string>
+    <string name="ui_restore_settings">Ripristina impostazioni</string>
+    <string name="ui_file_actions">Azioni sui file</string>
+    <string name="ui_more">Altro</string>
+</resources>

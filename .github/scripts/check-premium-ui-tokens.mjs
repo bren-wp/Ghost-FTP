@@ -80,7 +80,7 @@ for (const name of ["files","sites","transfers","sync","cloud","settings","about
   requireSource(android, `R.drawable.ic_premium_nav_${name}`, `Android ${name} workspace does not use approved navigation icon`);
 }
 requireSource(mac, ".listRowBackground(", "macOS workspace selection brand surface absent");
-requireSource(macCloud, 'Button("Cancel transfer")', "macOS cloud cancellation control missing");
+requireSource(macCloud, 'Button(L10n.text("Cancel transfer"))', "macOS cloud cancellation control missing");
 requireSource(macCloud, ".buttonStyle(.borderedProminent)", "macOS premium cloud primary actions absent");
 for (const [platform, count] of Object.entries(tokens.referenceCounts)) {
   if (screenContract.platforms?.[platform]?.length !== count) {
