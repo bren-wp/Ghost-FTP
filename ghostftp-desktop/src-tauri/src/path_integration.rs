@@ -191,16 +191,29 @@ mod platform {
         Ok(env)
     }
 
-    /// Read the per-user `Path` as `(value, type)`. A missing value reads as an
-    /// empty `REG_EXPAND_SZ` (the type Windows uses for Path), so a first write
-    /// creates it with the right, `%VAR%`-expanding type.
-    fn read_path(env: &RegKey) -> (String, RegType) {
+    /// Read the per-user `Path` as `(value, type)`. Only an actually
+    /// missing value may be treated as empty. A malformed or non-string
+    /// registry entry must never be silently replaced with an empty string.
+    fn read_path(env: &RegKey) -> Result<(String, RegType), String> {
         match env.get_raw_value("Path") {
             Ok(rv) => {
-                let s = String::from_reg_value(&rv).unwrap_or_default();
-                (s, rv.vtype)
+                if rv.vtype != RegType::REG_SZ && rv.vtype != RegType::REG_EXPAND_SZ {
+                    return Err(format!(
+                        "HKCU\\Environment\\Path has unexpected registry type {:?}; no changes made",
+                        rv.vtype
+                    ));
+                }
+                let value = String::from_reg_value(&rv).map_err(|e| {
+                    format!("read HKCU\\Environment\\Path as Unicode string: {e}; no changes made")
+                })?;
+                Ok((value, rv.vtype))
             }
-            Err(_) => (String::new(), RegType::REG_EXPAND_SZ),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Ok((String::new(), RegType::REG_EXPAND_SZ))
+            }
+            Err(error) => Err(format!(
+                "read HKCU\\Environment\\Path failed: {error}; no changes made"
+            )),
         }
     }
 
@@ -233,7 +246,9 @@ mod platform {
             Ok(e) => e,
             Err(_) => return false,
         };
-        let (value, _) = read_path(&env);
+        let Ok((value, _)) = read_path(&env) else {
+            return false;
+        };
         super::contains_dir(&value, &bin_dir.to_string_lossy())
     }
 
@@ -244,7 +259,7 @@ mod platform {
         let bin_str = bin_dir.to_string_lossy().to_string();
 
         let env = open_env()?;
-        let (current, vtype) = read_path(&env);
+        let (current, vtype) = read_path(&env)?;
 
         // Snapshot the true prior value ONCE, before we ever touch it, so a later
         // remove can restore it faithfully.
@@ -280,7 +295,7 @@ mod platform {
         let bin_str = bin_dir.to_string_lossy().to_string();
 
         let env = open_env()?;
-        let (current, vtype) = read_path(&env);
+        let (current, vtype) = read_path(&env)?;
         if super::contains_dir(&current, &bin_str) {
             // Surgically drop only our entry from the CURRENT value (preserving
             // any changes the user made elsewhere and the value's type), rather
@@ -327,6 +342,34 @@ mod platform {
         /// unexpanded through our encode/decode + add/remove, and that removal is
         /// byte-identical. Safe and self-cleaning.
         #[test]
+        fn malformed_or_nonstring_registry_path_is_preserved() {
+            let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+            let sub = "Software\\Ghost FTP\\PathIntegrationInvalidTypeTest";
+            let _ = hkcu.delete_subkey_all(sub);
+            let (key, _) = hkcu.create_subkey(sub).unwrap();
+            let binary = RegValue {
+                bytes: vec![0x41, 0x00, 0x42, 0x00],
+                vtype: RegType::REG_BINARY,
+            };
+            key.set_raw_value("Path", &binary).unwrap();
+            assert!(read_path(&key).is_err(), "binary data must fail closed");
+            assert_eq!(key.get_raw_value("Path").unwrap().bytes, binary.bytes);
+            key.delete_value("Path").unwrap();
+            let malformed = RegValue {
+                bytes: vec![0x41],
+                vtype: RegType::REG_EXPAND_SZ,
+            };
+            key.set_raw_value("Path", &malformed).unwrap();
+            assert!(read_path(&key).is_err(), "malformed UTF-16 must fail closed");
+            assert_eq!(key.get_raw_value("Path").unwrap().bytes, malformed.bytes);
+            key.delete_value("Path").unwrap();
+            let (missing, kind) = read_path(&key).unwrap();
+            assert!(missing.is_empty());
+            assert_eq!(kind, RegType::REG_EXPAND_SZ);
+            hkcu.delete_subkey_all(sub).unwrap();
+        }
+
+        #[test]
         fn scratch_key_preserves_type_and_round_trips() {
             let hkcu = RegKey::predef(HKEY_CURRENT_USER);
             let sub = "Software\\Ghost FTP\\PathIntegrationTest";
@@ -339,7 +382,7 @@ mod platform {
                 .unwrap();
 
             // Read it back through our decoder: value + type must survive.
-            let (read, vtype) = read_path(&key);
+            let (read, vtype) = read_path(&key).unwrap();
             assert_eq!(read, original);
             assert_eq!(
                 vtype,
@@ -352,7 +395,7 @@ mod platform {
             let added = super::super::add_dir(&read, bin);
             key.set_raw_value("Path", &make_value(&added, vtype))
                 .unwrap();
-            let (after_add, vtype2) = read_path(&key);
+            let (after_add, vtype2) = read_path(&key).unwrap();
             assert_eq!(after_add, format!("{original};{bin}"));
             assert_eq!(vtype2, RegType::REG_EXPAND_SZ, "type preserved after add");
             assert!(after_add.contains("%JAVA_HOME%"), "%VARS% stay unexpanded");
@@ -364,7 +407,7 @@ mod platform {
             let removed = super::super::remove_dir(&after_add, bin);
             key.set_raw_value("Path", &make_value(&removed, vtype2))
                 .unwrap();
-            let (after_remove, vtype3) = read_path(&key);
+            let (after_remove, vtype3) = read_path(&key).unwrap();
             assert_eq!(after_remove, original, "remove is byte-identical");
             assert_eq!(vtype3, RegType::REG_EXPAND_SZ);
 
@@ -382,7 +425,7 @@ mod platform {
         fn real_environment_add_remove() {
             let marker = r"C:\__ghostftp_path_integration_test__";
             let env = open_env().unwrap();
-            let (before, vtype_before) = read_path(&env);
+            let (before, vtype_before) = read_path(&env).unwrap();
             assert!(
                 !super::super::contains_dir(&before, marker),
                 "marker unexpectedly already present — aborting to protect PATH"
@@ -393,7 +436,7 @@ mod platform {
             env.set_raw_value("Path", &make_value(&added, vtype_before.clone()))
                 .unwrap();
             broadcast_environment_change();
-            let (after_add, vtype_add) = read_path(&env);
+            let (after_add, vtype_add) = read_path(&env).unwrap();
             eprintln!("after add: {after_add}");
             assert!(super::super::contains_dir(&after_add, marker));
             assert_eq!(
@@ -410,7 +453,7 @@ mod platform {
             env.set_raw_value("Path", &make_value(&removed, vtype_add))
                 .unwrap();
             broadcast_environment_change();
-            let (after_remove, _) = read_path(&env);
+            let (after_remove, _) = read_path(&env).unwrap();
             eprintln!("after remove: {after_remove}");
             assert_eq!(
                 after_remove, before,
