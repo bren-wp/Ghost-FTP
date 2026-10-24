@@ -45,7 +45,7 @@ All sixteen concept screens remain **not formally 1:1 certified** until every co
 
 A live v0.99.7 Android Files screenshot at 480x960 shows the More footer caption clipped below the visible bottom edge. The 0.99.8 code uses the same padding/geometry as the other four controls and adds instrumentation assertions against visible text baselines at responsive viewports. Remaining frames continue to need genuine source-to-installed-app visual comparison; no invented remote files or credentials may be inserted to imitate the design.
 
-## Unreleased Android batch rename safety regression
+## 0.99.9 Android batch rename safety regression
 
 The remote batch-rename preflight now rejects destination paths already occupied by **any** object in the current remote listing, including directories, ignoring case and Unicode NFC spelling differences for conservative interoperability. It also rejects duplicate/equivalent and noncanonical source paths before any FTP/SFTP mutation. JVM regression cases cover the reported aliases. CI and real-server acceptance are still required; this change does **not** establish 1:1 visual acceptance or absence of runtime crashes.
 
