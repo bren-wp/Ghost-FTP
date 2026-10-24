@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 enum ConnectionValidationError: LocalizedError, Equatable {
     case missingName
@@ -47,12 +48,25 @@ enum ConnectionValidator {
         if host.contains("://") || host.contains("/") || host.contains("@") {
             throw ConnectionValidationError.invalidHost
         }
-        if host.hasPrefix("[") {
-            guard host.hasSuffix("]"), host.count > 2 else {
+        // Bracketed and unbracketed literals must parse as real IPv6.
+        // Merely counting colons or checking brackets allowed malformed
+        // addresses through profile import and into native DNS routines.
+        if host.contains(":") || host.hasPrefix("[") || host.hasSuffix("]") {
+            let literal: String
+            if host.hasPrefix("[") && host.hasSuffix("]") {
+                literal = String(host.dropFirst().dropLast())
+            } else if !host.contains("[") && !host.contains("]") {
+                literal = host
+            } else {
                 throw ConnectionValidationError.invalidHost
             }
-        } else if host.filter({ $0 == ":" }).count == 1 {
-            throw ConnectionValidationError.invalidHost
+            var address = in6_addr()
+            let valid = literal.withCString { value in
+                inet_pton(AF_INET6, value, &address) == 1
+            }
+            guard valid else {
+                throw ConnectionValidationError.invalidHost
+            }
         }
 
         if profile.port == 0 {
