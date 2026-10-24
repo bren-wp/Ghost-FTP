@@ -1,4 +1,7 @@
 ## 0.99.9 — Android batch-rename collision hardening (development Preview; 24 October 2026)
+- Windows CLI PATH integration now fails closed on corrupt or non-string HKCU registry values to avoid overwriting user PATH content, with scratch-key regression tests.
+- Linux/macOS CLI PATH integration avoids replacing an existing managed link with a symlink to itself, with Unix regression tests.
+- Native macOS host validation rejects malformed IPv6 addresses before attempting a connection, with XCTest coverage.
 - Prevent remote batch renames from overwriting existing files or directories when the server ignores filename case or normalizes Unicode. Fresh-listing preflight now includes every remote object.
 - Reject duplicate/equivalent source selections and malformed relative/traversal-like path components before starting destructive operations.
 - Cover case-folded, NFC/NFD, directory and malformed-source regressions in Kotlin unit tests.
