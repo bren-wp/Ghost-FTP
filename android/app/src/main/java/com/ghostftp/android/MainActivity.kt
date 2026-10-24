@@ -3248,8 +3248,14 @@ class MainActivity : Activity() {
         addView(LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            addView(GhostMarkView(this@MainActivity),
-                LinearLayout.LayoutParams(dp(52), dp(52)))
+            // The reference About screen shows the large glowing purple
+            // Ghost mark, not the tiny white legacy mark inside a blue tile.
+            // Reuse the actual scalable Splash vector on every screen density.
+            addView(ImageView(this@MainActivity).apply {
+                setImageResource(R.drawable.ic_ghost_premium_splash)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                contentDescription = "Ghost FTP branded mark"
+            }, LinearLayout.LayoutParams(dp(72), dp(72)))
             addView(PremiumReferenceStyle.caption(this@MainActivity, "Ghost FTP", 15f).apply {
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
