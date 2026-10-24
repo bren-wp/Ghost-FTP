@@ -17,4 +17,8 @@ Do not advertise Albanian (`sq`), which has no approved dictionary.
 3. Test language switching/system-language restoration, persisted profile compatibility and narrow-screen content on installed app builds.
 4. Keep native macOS explicit FTPS/SFTP disabled pending verified protocol implementation and E2E tests in issue #223; translation of security warnings must **not** imply implementation.
 
+### Quantified source debt (regression baseline)
+
+The CI inventory counts **144** direct Android Activity UI literals, **0** directly hard-coded static SwiftUI view labels in the three migrated native view files, and **67** native Swift view keys not yet present in all translation dictionaries. The 24-language dictionaries themselves are not a substitute for translating 100% of runtime UI and errors. `tools/audits/check-localization-inventory.mjs` blocks increases in these baseline counts. Reduce these numbers to **zero**, then remove the temporary debt budgets before full-localization acceptance. SF Symbol identifiers, protocol commands, filenames, hostnames and URLs are intentionally not treated as translatable UI strings.
+
 **Status:** localization infrastructure and a targeted cross-platform tranche delivered; full all-platform zero-hardcoded-string acceptance is not yet complete.

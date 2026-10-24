@@ -172,6 +172,7 @@ jobs:
         run: |
           node android/scripts/check-multilingual-ui.mjs
           node ghostftp-desktop/scripts/check-i18n-parity.mjs
+          node tools/audits/check-localization-inventory.mjs
 
       - name: Cross-platform premium branding integration contract
         shell: bash
