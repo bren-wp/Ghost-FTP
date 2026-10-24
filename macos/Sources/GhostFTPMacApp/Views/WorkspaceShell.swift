@@ -31,25 +31,25 @@ private enum MacWorkspace: String, CaseIterable, Identifiable, Hashable {
 
     var title: String {
         switch self {
-        case .files: return "Files"
-        case .sites: return "Sites"
-        case .transfers: return "Transfers"
-        case .cloud: return "Cloud storage"
-        case .sync: return "Sync & Backup"
-        case .settings: return "Settings"
-        case .about: return "Help & About"
+        case .files: return L10n.text("Files")
+        case .sites: return L10n.text("Sites")
+        case .transfers: return L10n.text("Transfers")
+        case .cloud: return L10n.text("Cloud storage")
+        case .sync: return L10n.text("Sync & Backup")
+        case .settings: return L10n.text("Settings")
+        case .about: return L10n.text("Help & About")
         }
     }
 
     var symbol: String {
         switch self {
-        case .files: return "folder"
-        case .sites: return "server.rack"
-        case .transfers: return "arrow.up.arrow.down"
-        case .cloud: return "externaldrive.fill.badge.icloud"
-        case .sync: return "arrow.triangle.2.circlepath"
-        case .settings: return "gearshape"
-        case .about: return "questionmark.circle"
+        case .files: return L10n.text("folder")
+        case .sites: return L10n.text("server.rack")
+        case .transfers: return L10n.text("arrow.up.arrow.down")
+        case .cloud: return L10n.text("externaldrive.fill.badge.icloud")
+        case .sync: return L10n.text("arrow.triangle.2.circlepath")
+        case .settings: return L10n.text("gearshape")
+        case .about: return L10n.text("questionmark.circle")
         }
     }
 }
@@ -72,7 +72,7 @@ struct ContentView: View {
                     Button {
                         createConnection()
                     } label: {
-                        Label("New connection · Save profile", systemImage: "plus.circle.fill")
+                        Label(L10n.text("New connection · Save profile"), systemImage: "plus.circle.fill")
                     }
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(GhostPremiumPalette.text)
@@ -82,7 +82,7 @@ struct ContentView: View {
                     .buttonStyle(.plain)
                 }
 
-                Section("Workspace") {
+                Section(L10n.text("Workspace")) {
                     ForEach(MacWorkspace.allCases) { item in
                         Label(item.title, systemImage: item.symbol)
                             .tag(item)
@@ -106,9 +106,9 @@ struct ContentView: View {
                             .accessibilityHidden(true)
 
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("Ghost FTP")
+                            Text(L10n.text("Ghost FTP"))
                                 .font(.system(size: 16, weight: .bold))
-                            Text("TOTAL CONTROL")
+                            Text(L10n.text("TOTAL CONTROL"))
                                 .font(.system(size: 9, weight: .semibold))
                                 .tracking(1.7)
                                 .foregroundStyle(GhostPremiumPalette.accent)
@@ -235,7 +235,7 @@ private struct SitesWorkspace: View {
                 .accessibilityHint("Show only saved sites with matching protocol, server, port and username.")
 
                 if displayedProfiles.isEmpty {
-                    Text("No possible duplicate saved sites.")
+                    Text(L10n.text("No possible duplicate saved sites."))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -253,7 +253,7 @@ private struct SitesWorkspace: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 if duplicateIDs.contains(profile.id) {
-                                    Label("Possible duplicate", systemImage: "rectangle.on.rectangle")
+                                    Label(L10n.text("Possible duplicate"), systemImage: "rectangle.on.rectangle")
                                         .font(.caption2)
                                         .foregroundStyle(.orange)
                                 }
@@ -261,7 +261,7 @@ private struct SitesWorkspace: View {
 
                             Spacer()
 
-                            Button("Open") {
+                            Button(L10n.text("Open")) {
                                 onOpen(profile.id)
                             }
 
@@ -304,7 +304,7 @@ private struct TransfersWorkspace: View {
                     subtitle: "Credential-free FTP upload and download history from this Mac."
                 )
                 Spacer()
-                Button("Clear finished", role: .destructive) {
+                Button(L10n.text("Clear finished"), role: .destructive) {
                     history.clear()
                 }
                 .disabled(!history.records.contains { $0.status != .running })
@@ -409,7 +409,7 @@ private struct SyncBackupWorkspace: View {
 
             GroupBox("Profile backup") {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("The backup contains site names, hosts, ports, usernames and connection options. Passwords stay in macOS Keychain and are never written to the backup.")
+                    Text(L10n.text("The backup contains site names, hosts, ports, usernames and connection options. Passwords stay in macOS Keychain and are never written to the backup."))
                         .font(.callout)
                         .foregroundStyle(.secondary)
 
@@ -417,14 +417,14 @@ private struct SyncBackupWorkspace: View {
                         Button {
                             exportProfiles()
                         } label: {
-                            Label("Back up sites", systemImage: "square.and.arrow.up")
+                            Label(L10n.text("Back up sites"), systemImage: "square.and.arrow.up")
                         }
                         .disabled(profiles.profiles.isEmpty)
 
                         Button {
                             importProfiles()
                         } label: {
-                            Label("Restore sites", systemImage: "square.and.arrow.down")
+                            Label(L10n.text("Restore sites"), systemImage: "square.and.arrow.down")
                         }
                     }
 
@@ -516,28 +516,28 @@ private struct SettingsWorkspace: View {
 
     var body: some View {
         Form {
-            Section("Appearance") {
-                Toggle("Use dark appearance", isOn: $darkAppearance)
+            Section(L10n.text("Appearance")) {
+                Toggle(L10n.text("Use dark appearance"), isOn: $darkAppearance)
             }
 
-            Section("Startup") {
-                Toggle("Reopen the last workspace", isOn: $rememberWorkspace)
+            Section(L10n.text("Startup")) {
+                Toggle(L10n.text("Reopen the last workspace"), isOn: $rememberWorkspace)
             }
 
-            Section("Privacy") {
+            Section(L10n.text("Privacy")) {
                 LabeledContent("Telemetry") {
-                    Text("Disabled")
+                    Text(L10n.text("Disabled"))
                 }
                 LabeledContent("Saved passwords") {
-                    Text("macOS Keychain only")
+                    Text(L10n.text("macOS Keychain only"))
                 }
 
-                Button("Clear transfer history", role: .destructive) {
+                Button(L10n.text("Clear transfer history"), role: .destructive) {
                     history.clear()
                 }
                 .disabled(history.records.isEmpty)
 
-                Button("Remove all saved passwords", role: .destructive) {
+                Button(L10n.text("Remove all saved passwords"), role: .destructive) {
                     removeSavedPasswords()
                 }
                 .disabled(profiles.profiles.isEmpty)
@@ -549,8 +549,8 @@ private struct SettingsWorkspace: View {
                 }
             }
 
-            Section("Security") {
-                Text("FTP is unencrypted. FTPS and SFTP remain blocked from file operations until their certificate/hostname or SSH host-key verification engines are complete.")
+            Section(L10n.text("Security")) {
+                Text(L10n.text("FTP is unencrypted. FTPS and SFTP remain blocked from file operations until their certificate/hostname or SSH host-key verification engines are complete."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -620,10 +620,10 @@ private struct AboutWorkspace: View {
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 7) {
-                    Text("Ghost FTP")
+                    Text(L10n.text("Ghost FTP"))
                         .font(.system(size: 30, weight: .bold))
                         .foregroundStyle(GhostPremiumPalette.text)
-                    Text("MORE THAN TRANSFER. TOTAL CONTROL.")
+                    Text(L10n.text("MORE THAN TRANSFER. TOTAL CONTROL."))
                         .font(.system(size: 10, weight: .medium))
                         .tracking(1.5)
                         .foregroundStyle(GhostPremiumPalette.accent)
@@ -639,10 +639,10 @@ private struct AboutWorkspace: View {
 
             Divider()
 
-            Text("Designed for complete control")
+            Text(L10n.text("Designed for complete control"))
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(GhostPremiumPalette.text)
-            Text("Manage your FTP file operations and saved connections without mandatory analytics or a Ghost FTP account. FTPS and SFTP remain disabled for file operations until trusted certificate and SSH host-key verification is complete.")
+            Text(L10n.text("Manage your FTP file operations and saved connections without mandatory analytics or a Ghost FTP account. FTPS and SFTP remain disabled for file operations until trusted certificate and SSH host-key verification is complete."))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -678,7 +678,7 @@ private struct AboutWorkspace: View {
 
     private var resourcesCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("SUPPORT & RESOURCES")
+            Text(L10n.text("SUPPORT & RESOURCES"))
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(GhostPremiumPalette.text)
 

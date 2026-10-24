@@ -12,7 +12,8 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "GhostFTPMacApp",
-            path: "Sources/GhostFTPMacApp"
+            path: "Sources/GhostFTPMacApp",
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "GhostFTPMacAppTests",

@@ -2,6 +2,18 @@ import XCTest
 @testable import GhostFTPMacApp
 
 final class ConnectionValidatorTests: XCTestCase {
+    func testAllNativeMacLanguagesHaveNavigationTranslations() {
+        XCTAssertEqual(L10n.supportedLanguages.count, 24)
+        for language in L10n.supportedLanguages where language != "en" {
+            for key in ["Files", "Sites", "Cloud storage", "Sync & Backup", "Help & About", "Connect", "Settings"] {
+                XCTAssertTrue(L10n.hasTranslation(key, language: language), "\(language): \(key)")
+            }
+        }
+        XCTAssertEqual(L10n.text("Files", language: "hr"), "Datoteke")
+        XCTAssertEqual(L10n.text("Files", language: "de"), "Dateien")
+        XCTAssertEqual(L10n.text("Unsupported key", language: "hr"), "Unsupported key")
+    }
+
     func testDefaultPortsMatchProtocols() {
         XCTAssertEqual(ConnectionProtocol.ftp.defaultPort, 21)
         XCTAssertEqual(ConnectionProtocol.ftps.defaultPort, 21)
