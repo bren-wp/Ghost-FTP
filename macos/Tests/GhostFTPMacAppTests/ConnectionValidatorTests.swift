@@ -75,6 +75,21 @@ final class ConnectionValidatorTests: XCTestCase {
         }
     }
 
+    func testMalformedIPv6AndBracketsFailBeforeConnection() {
+        for host in [
+            "[not-ipv6]", "abc:def:ghi", "2001:db8::gggg", "[2001:db8::1",
+            "2001:db8::1]", "[[2001:db8::1]]", "[::1]trailer",
+            "2001:db8::1%en0", "example.com:22"
+        ] {
+            let profile = ConnectionProfile(
+                name: "Production", host: host, username: "deploy"
+            )
+            XCTAssertThrowsError(try ConnectionValidator.validate(profile), host) { error in
+                XCTAssertEqual(error as? ConnectionValidationError, .invalidHost)
+            }
+        }
+    }
+
     func testBlankUsernameIsRejected() {
         let profile = ConnectionProfile(
             name: "Production",
