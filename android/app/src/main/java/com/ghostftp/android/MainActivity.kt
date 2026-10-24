@@ -875,6 +875,14 @@ class MainActivity : Activity() {
                 setAllCaps(false)
                 textSize = if (compactLabels) 9f else 10f
                 gravity = Gravity.CENTER
+                maxLines = 2
+                minHeight = 0
+                minimumHeight = 0
+                // The More action previously retained the platform Button's
+                // larger default padding, which pushed its label below the
+                // 480x960 screenshot and clipped the last text baseline.
+                // Apply exactly the same insets as the four real file actions.
+                setPadding(dp(2), dp(3), dp(2), dp(3))
                 contentDescription = "More file actions"
                 background = PremiumReferenceStyle.surface(this@MainActivity,
                     PremiumReferenceStyle.raised, 5, PremiumReferenceStyle.raised)
