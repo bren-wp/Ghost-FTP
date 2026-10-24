@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Searching app-owned local files…</string>
+    <string name="ui_local_search_unavailable">Local files are temporarily unavailable.</string>
+    <string name="ui_local_search_completed">%1$d local search matches</string>
+    <string name="ui_local_search_limited">Showing first %1$d matches; narrow the search for more.</string>
+</resources>

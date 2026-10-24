@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Se caută în fișierele locale ale aplicației…</string>
+    <string name="ui_local_search_unavailable">Fișierele locale sunt temporar indisponibile.</string>
+    <string name="ui_local_search_completed">Rezultate locale: %1$d</string>
+    <string name="ui_local_search_limited">Sunt afișate primele %1$d rezultate; restrângeți căutarea.</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Søker i appens lokale filer…</string>
+    <string name="ui_local_search_unavailable">Lokale filer er midlertidig utilgjengelige.</string>
+    <string name="ui_local_search_completed">Lokale søkeresultater: %1$d</string>
+    <string name="ui_local_search_limited">Viser de første %1$d resultatene; avgrens søket.</string>
+</resources>

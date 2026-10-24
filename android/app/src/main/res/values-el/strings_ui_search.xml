@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Αναζήτηση στα τοπικά αρχεία της εφαρμογής…</string>
+    <string name="ui_local_search_unavailable">Τα τοπικά αρχεία δεν είναι προσωρινά διαθέσιμα.</string>
+    <string name="ui_local_search_completed">Τοπικά αποτελέσματα: %1$d</string>
+    <string name="ui_local_search_limited">Εμφανίζονται τα πρώτα %1$d αποτελέσματα· περιορίστε την αναζήτηση.</string>
+</resources>

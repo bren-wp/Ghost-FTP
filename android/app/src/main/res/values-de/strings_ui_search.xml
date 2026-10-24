@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Lokale App-Dateien werden durchsucht…</string>
+    <string name="ui_local_search_unavailable">Lokale Dateien sind vorübergehend nicht verfügbar.</string>
+    <string name="ui_local_search_completed">Lokale Suchergebnisse: %1$d</string>
+    <string name="ui_local_search_limited">Die ersten %1$d Treffer werden angezeigt; Suche eingrenzen.</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Търсене в локалните файлове на приложението…</string>
+    <string name="ui_local_search_unavailable">Локалните файлове временно не са достъпни.</string>
+    <string name="ui_local_search_completed">Резултати от локалното търсене: %1$d</string>
+    <string name="ui_local_search_limited">Показани са първите %1$d резултата; стеснете търсенето.</string>
+</resources>

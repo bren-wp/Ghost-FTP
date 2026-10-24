@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Wyszukiwanie lokalnych plików aplikacji…</string>
+    <string name="ui_local_search_unavailable">Pliki lokalne są tymczasowo niedostępne.</string>
+    <string name="ui_local_search_completed">Lokalne wyniki wyszukiwania: %1$d</string>
+    <string name="ui_local_search_limited">Pokazano pierwsze %1$d wyników; zawęź wyszukiwanie.</string>
+</resources>

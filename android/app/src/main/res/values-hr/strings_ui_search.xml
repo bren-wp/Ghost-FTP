@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Pretraživanje lokalnih datoteka aplikacije…</string>
+    <string name="ui_local_search_unavailable">Lokalne datoteke trenutačno nisu dostupne.</string>
+    <string name="ui_local_search_completed">Broj rezultata lokalne pretrage: %1$d</string>
+    <string name="ui_local_search_limited">Prikazano prvih %1$d rezultata; suzite pretragu za više.</string>
+</resources>

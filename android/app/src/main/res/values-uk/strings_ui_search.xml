@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_local_search_progress">Пошук локальних файлів застосунку…</string>
+    <string name="ui_local_search_unavailable">Локальні файли тимчасово недоступні.</string>
+    <string name="ui_local_search_completed">Результати локального пошуку: %1$d</string>
+    <string name="ui_local_search_limited">Показано перші %1$d результатів; уточніть пошук.</string>
+</resources>
