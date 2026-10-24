@@ -551,13 +551,30 @@ mod platform {
         Ok(local_bin()?.join("ghostftp-cli"))
     }
 
-    /// The `ghostftp-cli` we should link to: a copy on PATH first, else the app-owned
-    /// `bin/ghostftp-cli` that `install_missing` writes.
+    /// Prefer the application-owned binary. A PATH lookup can find the very
+    /// ~/.local/bin/ghostftp-cli symlink about to be replaced, which otherwise
+    /// creates a self-referencing link and breaks the CLI after re-adding PATH.
+    fn choose_link_target(
+        owned_binary: &Path,
+        managed_link: &Path,
+        from_path: Option<PathBuf>,
+    ) -> Option<PathBuf> {
+        let points_to_managed_link = |candidate: &Path| {
+            candidate == managed_link
+                || (candidate.file_name() == managed_link.file_name()
+                    && candidate.parent().and_then(|p| p.canonicalize().ok())
+                        == managed_link.parent().and_then(|p| p.canonicalize().ok()))
+        };
+        if owned_binary.is_file() && !points_to_managed_link(owned_binary) {
+            return Some(owned_binary.to_path_buf());
+        }
+        from_path.filter(|candidate| candidate.is_file() && !points_to_managed_link(candidate))
+    }
+
     fn link_target(app: &AppHandle) -> Option<PathBuf> {
-        which_ghostftp_cli().or_else(|| {
-            let p = app_bin_dir(app).ok()?.join("ghostftp-cli");
-            p.is_file().then_some(p)
-        })
+        let owned = app_bin_dir(app).ok()?.join("ghostftp-cli");
+        let managed = symlink_path().ok()?;
+        choose_link_target(&owned, &managed, which_ghostftp_cli())
     }
 
     /// Detect the user's shell profile to append the PATH export to.
@@ -791,6 +808,31 @@ pub async fn path_remove(app: AppHandle, state: State<'_, AppState>) -> Result<P
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn path_integrator_never_links_managed_cli_to_itself() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir()
+            .join(format!("ghostftp-cli-relink-{}", uuid::Uuid::new_v4()));
+        let bin = root.join("app").join("bin");
+        let user_bin = root.join(".local").join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::create_dir_all(&user_bin).unwrap();
+        let bundled = bin.join("ghostftp-cli");
+        let managed = user_bin.join("ghostftp-cli");
+        std::fs::write(&bundled, b"owned cli").unwrap();
+        symlink(&bundled, &managed).unwrap();
+
+        let selected = platform::choose_link_target(&bundled, &managed, Some(managed.clone()));
+        assert_eq!(selected, Some(bundled.clone()));
+        assert_ne!(selected.as_deref(), Some(managed.as_path()));
+
+        std::fs::remove_file(&bundled).unwrap();
+        assert!(platform::choose_link_target(&bundled, &managed, Some(managed.clone())).is_none());
+        std::fs::remove_file(&managed).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[cfg(unix)]
     #[test]
