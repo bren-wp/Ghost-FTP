@@ -554,7 +554,7 @@ mod platform {
     /// Prefer the application-owned binary. A PATH lookup can find the very
     /// ~/.local/bin/ghostftp-cli symlink about to be replaced, which otherwise
     /// creates a self-referencing link and breaks the CLI after re-adding PATH.
-    fn choose_link_target(
+    pub(super) fn choose_link_target(
         owned_binary: &Path,
         managed_link: &Path,
         from_path: Option<PathBuf>,
