@@ -190,41 +190,42 @@ mod platform {
         Ok(env)
     }
 
-    /// Read the per-user `Path` as `(value, type)`. Only an actually
-    /// missing value may be treated as empty. A malformed or non-string
-    /// registry entry must never be silently replaced with an empty string.
+    /// Validate the exact registry bytes independently from Win32 storage.
+    /// Windows may normalize an unterminated REG_SZ/REG_EXPAND_SZ when
+    /// writing it; never let that make a raw-decoder regression vacuous.
+    fn decode_path_value(rv: &RegValue) -> Result<(String, RegType), String> {
+        if rv.vtype != RegType::REG_SZ && rv.vtype != RegType::REG_EXPAND_SZ {
+            return Err(format!(
+                "HKCU\\Environment\\Path has unexpected registry type {:?}; no changes made",
+                rv.vtype
+            ));
+        }
+        if rv.bytes.len() < 2 || rv.bytes.len() % 2 != 0 || !rv.bytes.ends_with(&[0, 0]) {
+            return Err(
+                "HKCU\\Environment\\Path has malformed UTF-16; no changes made".into(),
+            );
+        }
+        let units: Vec<u16> = rv
+            .bytes
+            .chunks_exact(2)
+            .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+            .collect();
+        if units[..units.len() - 1].contains(&0) {
+            return Err(
+                "HKCU\\Environment\\Path contains embedded NUL; no changes made".into(),
+            );
+        }
+        let value = String::from_utf16(&units[..units.len() - 1]).map_err(|_| {
+            "HKCU\\Environment\\Path contains invalid UTF-16; no changes made".to_string()
+        })?;
+        Ok((value, rv.vtype))
+    }
+
+    /// Only an actually missing Path can be treated as empty. Reject
+    /// unreadable or non-string registry data before writing anything.
     fn read_path(env: &RegKey) -> Result<(String, RegType), String> {
         match env.get_raw_value("Path") {
-            Ok(rv) => {
-                if rv.vtype != RegType::REG_SZ && rv.vtype != RegType::REG_EXPAND_SZ {
-                    return Err(format!(
-                        "HKCU\\Environment\\Path has unexpected registry type {:?}; no changes made",
-                        rv.vtype
-                    ));
-                }
-                // winreg's generic string decoder may silently accept an odd
-                // byte count or truncate damaged UTF-16. Never rewrite an
-                // unreadable registry PATH: validate exact bytes first.
-                if rv.bytes.len() < 2 || rv.bytes.len() % 2 != 0 || !rv.bytes.ends_with(&[0, 0]) {
-                    return Err(
-                        "HKCU\\Environment\\Path has malformed UTF-16; no changes made".into(),
-                    );
-                }
-                let units: Vec<u16> = rv
-                    .bytes
-                    .chunks_exact(2)
-                    .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
-                    .collect();
-                if units[..units.len() - 1].contains(&0) {
-                    return Err(
-                        "HKCU\\Environment\\Path contains embedded NUL; no changes made".into(),
-                    );
-                }
-                let value = String::from_utf16(&units[..units.len() - 1]).map_err(|_| {
-                    "HKCU\\Environment\\Path contains invalid UTF-16; no changes made".to_string()
-                })?;
-                Ok((value, rv.vtype))
-            }
+            Ok(rv) => decode_path_value(&rv),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 Ok((String::new(), RegType::REG_EXPAND_SZ))
             }
@@ -383,8 +384,9 @@ mod platform {
             );
             assert_eq!(key.get_raw_value("Path").unwrap().bytes, malformed.bytes);
             key.delete_value("Path").unwrap();
-            // Valid REG_EXPAND_SZ type alone does not make an unpaired
-            // surrogate or embedded NUL safe to decode and rewrite.
+            // Test malformed raw bytes directly. Win32 may silently add a
+            // terminator when REG_EXPAND_SZ data are written to a registry key,
+            // so an in-registry round-trip is not a deterministic decoder test.
             for bytes in [
                 vec![0, 0xd8, 0, 0],
                 vec![0x41, 0, 0, 0, 0x42, 0, 0, 0],
@@ -394,9 +396,22 @@ mod platform {
                     bytes: bytes.clone(),
                     vtype: RegType::REG_EXPAND_SZ,
                 };
+                assert!(
+                    decode_path_value(&value).is_err(),
+                    "untrusted raw PATH bytes must be rejected before writing"
+                );
+
+                // The live read validates what Windows actually stores, not
+                // an assumption that malformed write bytes survive unchanged.
                 key.set_raw_value("Path", &value).unwrap();
-                assert!(read_path(&key).is_err());
-                assert_eq!(key.get_raw_value("Path").unwrap().bytes, bytes);
+                let stored = key.get_raw_value("Path").unwrap();
+                assert_eq!(
+                    read_path(&key).is_ok(),
+                    decode_path_value(&stored).is_ok()
+                );
+                // Even when raw input was normalized, reading must not
+                // change any bytes or attempt to repair user data.
+                assert_eq!(key.get_raw_value("Path").unwrap().bytes, stored.bytes);
                 key.delete_value("Path").unwrap();
             }
             let (missing, kind) = read_path(&key).unwrap();
