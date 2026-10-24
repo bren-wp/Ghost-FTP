@@ -1,7 +1,9 @@
 package com.ghostftp.android
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RemoteBatchRenamePlannerTest {
@@ -42,6 +44,39 @@ class RemoteBatchRenamePlannerTest {
             RemoteBatchRenamePlanner.plan(
                 listOf("/dir/caf\u00e9_01.txt", "/dir/z.txt"), "cafe\u0301_##", 1)
         }
+    }
+
+    @Test fun rejectsInvalidAndEquivalentRemoteSourcesBeforeRename() {
+        for (path in listOf("/dir/../secret.txt", "/dir/./file.txt",
+            "/dir//file.txt", "/dir/trailing/", "/dir/bad\\name.txt",
+            "/dir/bad\nname.txt")) {
+            assertThrows(IllegalArgumentException::class.java) {
+                RemoteBatchRenamePlanner.plan(listOf(path), "file_##", 1)
+            }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            RemoteBatchRenamePlanner.plan(
+                listOf("/dir/Résumé.txt", "/dir/Résumé.txt"), "new_##", 1)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            RemoteBatchRenamePlanner.plan(
+                listOf("/dir/same.txt", "/dir/same.txt"), "new_##", 1)
+        }
+    }
+
+    @Test fun preflightRejectsOccupiedNamesAcrossCaseUnicodeAndDirectories() {
+        val plan = RemoteBatchRenamePlanner.plan(listOf("/dir/source.txt"), "report_##", 1)
+        assertTrue(RemoteBatchRenamePlanner.hasExistingDestinationCollision(
+            plan, listOf("/dir/REPORT_01.txt")))
+        assertTrue(RemoteBatchRenamePlanner.hasExistingDestinationCollision(
+            plan, listOf("/dir/report_01.txt"))) // May be a directory rather than a file.
+        assertFalse(RemoteBatchRenamePlanner.hasExistingDestinationCollision(
+            plan, listOf("/dir/other.txt", "/dir/source.txt")))
+
+        val unicodePlan = RemoteBatchRenamePlanner.plan(
+            listOf("/dir/source.txt"), "café_##", 1)
+        assertTrue(RemoteBatchRenamePlanner.hasExistingDestinationCollision(
+            unicodePlan, listOf("/dir/café_01.txt")))
     }
 
     @Test fun rejectsOverlappingSourceDestinationAndOversizedBatch() {
