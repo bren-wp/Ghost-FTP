@@ -44,3 +44,7 @@ All sixteen concept screens remain **not formally 1:1 certified** until every co
 ## 0.99.8 screenshot-driven Files footer correction
 
 A live v0.99.7 Android Files screenshot at 480x960 shows the More footer caption clipped below the visible bottom edge. The 0.99.8 code uses the same padding/geometry as the other four controls and adds instrumentation assertions against visible text baselines at responsive viewports. Remaining frames continue to need genuine source-to-installed-app visual comparison; no invented remote files or credentials may be inserted to imitate the design.
+
+## 0.99.8 About reference improvement
+
+The v0.99.7 live Android About capture showed a small white Ghost mark inside a raised tile, while reference frame #16 uses a larger purple Ghost brand icon. The 0.99.8 About hierarchy now renders the existing scalable premium splash vector at 72dp and asserts its presence across responsive emulator sizes. This improves genuine design alignment; remaining exact screenshot acceptance is pending.

@@ -1,6 +1,6 @@
 ## 0.99.8 — Android UI clipping, batch safety and all-platform dead-code scanner (development Preview; 24 October 2026)
 
-- Fix clipped More action caption on live Android 480x960 Files screen with multi-viewport text-bound tests.
+- Fix clipped More action caption on live Android 480x960 Files screen with multi-viewport text-bound tests; replace the tiny white About glyph with the shared purple native Ghost vector.
 - Reject batch rename number placeholder overflow and NFC/case-insensitive source collisions before remote modifications.
 - Fix Rust `#[cfg(test)]` scoping in dead-code reports and extend advisory scan to TypeScript arrows and Go receiver methods.
 - Continue all-platform audits and safe 16-screen Android design convergence without fictional user data.

@@ -13,3 +13,21 @@ Published v0.99.7 at main commit `d7a24f1cb4e89ed2f2cd080e595ed6f528257bbc` has 
 
 ## Gates and open limitations
 Require successful Android Gradle lint/JVM/Android 16 emulator, Rust cargo/Clippy, Swift build/test, Go build/test/vet, TypeScript build/dead-code graph, security audit, FTP/FTPS/SFTP E2E, and signed Preview inventory. **All 16 Android screens are not certified 1:1**: no invented profiles, server files, cloud authorizations or synthetic transfer metrics may be inserted for design resemblance. Production certification and real-device crash reproduction remain open.
+
+## Actual 0.99.8 all-platform CI audit evidence
+
+GitHub Actions `Ghost FTP quality` run `40121765278`, audit artifact `GhostFTP-Full-Repository-Dead-Code-Audit` (artifact ID `12571456856`) produced the following validated machine-readable inventory on the amended 0.99.8 branch:
+
+| Source area | Count |
+| --- | ---: |
+| Total working-tree files | 732 |
+| TypeScript/TSX | 117 |
+| Rust | 87 |
+| Production Kotlin / Kotlin tests | 16 / 20 |
+| Android resources | 54 |
+| macOS Swift / Swift tests | 16 / 9 |
+| Go | 12 |
+| Operational scripts | 68 |
+
+There were **zero source-level orphan module candidates**, **zero unreferenced Android resource or operational script candidates**, **zero flagged nonpublic symbols** across the Kotlin/Swift/Rust/TypeScript/Go advisory analyses, and **zero missing entrypoint blockers**. This is a source-level report, not proof of zero unreachable code or runtime errors; no functions are deleted without compiler, runtime, reflection, registration, migration and build-tag evidence.
+
