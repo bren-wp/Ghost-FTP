@@ -38,7 +38,7 @@ if (accessibilityExpected.length !== 15 || new Set(accessibilityExpected).size !
 }
 for (const locale of locales) {
   const xml = fs.readFileSync(accessibilityPath(locale), "utf8");
-  const entries = [...xml.matchAll(/<string name="([^"]+)">([^<]*)<\\/string>/g)];
+  const entries = [...xml.matchAll(/<string name="([^"]+)">([^<]*)<\/string>/g)];
   const keys = entries.map(x => x[1]);
   if (keys.length !== accessibilityExpected.length || keys.some((x, i) => x !== accessibilityExpected[i])) {
     throw Error(`Android accessibility key parity mismatch for ${locale}`);
