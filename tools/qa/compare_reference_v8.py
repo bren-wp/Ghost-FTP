@@ -104,7 +104,7 @@ def main() -> int:
         with zipfile.ZipFile(args.reference_zip) as z:
             for screen in screens:
                 path = screen["path"]
-                capture = args.captures_dir / path if args.captures_dir else None
+                capture = (args.captures_dir / screen["platform"] / (screen["screen"] + ".png")) if args.captures_dir else None
                 result = dict(platform=screen["platform"], screen=screen["screen"],
                               reference=path, reference_size=list(screen["dimensions"]),
                               visual_acceptance="pending")
