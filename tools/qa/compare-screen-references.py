@@ -47,7 +47,7 @@ ZIP_ROOT = "GhostFTP-Premium-Brand-UI/screens/"
 
 
 def image_is_actual_png(blob: bytes, name: str) -> Image.Image:
-    if not blob.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+    if not blob.startswith(bytes.fromhex("89504e470d0a1a0a")):
         raise ValueError(f"{name}: not an authentic PNG file")
     with Image.open(io.BytesIO(blob)) as opened:
         opened.verify()
