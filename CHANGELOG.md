@@ -1,3 +1,9 @@
+## 0.99.14 — 75-screen real-capture pixel audit tooling (development Preview; 25 October 2026)
+- Add strict, offline, per-screen RGB pixel-comparison tooling for the existing v8 reference archive covering 30 Windows, 29 Linux and 16 Android concepts.
+- Reject unmatched dimensions, duplicate/missing screens and ungrounded screenshot comparisons rather than reporting fabricated 1:1 parity.
+- Document the reference archive, exact geometry, real installed capture requirements and the unresolved visual acceptance gaps. Illustrative mockup server names, passwords, connections and progress never become real application data.
+- Keep FTP, FTPS and SFTP security, native macOS platform limitations (#223), private user profiles and the published v0.99.13 assets unchanged; 0.99.14 remains a development Preview until all exact-source cross-platform CI and release gates pass.
+
 ## 0.99.13 — user-supplied 75-screen v8 reference and cyan Android UI (development Preview; 25 October 2026)
 - Adopt the exact newest GhostFTP-Premium-Brand-UI(8).zip with 30 Windows, 29 Linux and 16 Android references. This newer cyan-blue Android design supersedes the old violet mockups.
 - Match Android launcher, splash, actual app accent, selection and ripples to #38ABFF and #7EDEFF, preserving verified connection security and private data.
