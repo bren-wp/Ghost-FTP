@@ -711,7 +711,7 @@ class MainActivity : Activity() {
     // These live icons are real buttons, not a screenshot or duplicate
     // navigation state. The full drawer remains available for spoken labels.
     private fun buildCompactReferenceRail(): View = ScrollView(this).apply {
-        contentDescription = "Ghost FTP reference navigation"
+        tag = "ghostftp-reference-rail"
         isVerticalScrollBarEnabled = false
         setBackgroundColor(Brand.panelStrong)
         val column = LinearLayout(this@MainActivity).apply {

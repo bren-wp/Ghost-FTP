@@ -454,7 +454,7 @@ class PremiumVisualReferenceTest {
                 assertNotNull("Real scrollable navigation rail missing.", rail)
                 assertEquals("280dp drawer must match the supplied phone reference.", (280 * density + .5f).toInt(), rail!!.width)
                 val compactRail = findView(root) {
-                    it.contentDescription?.toString() == "Ghost FTP reference navigation"
+                    it.tag == "ghostftp-reference-rail"
                 }
                 assertNotNull("The latest 480dp reference requires a persistent icon rail", compactRail)
                 assertEquals((62 * density + .5f).toInt(), compactRail!!.width)
