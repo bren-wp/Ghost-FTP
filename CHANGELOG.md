@@ -1,3 +1,11 @@
+## 0.99.13 — user-supplied 75-screen v8 reference and cyan Android UI (development Preview; 25 October 2026)
+- Adopt the exact newest GhostFTP-Premium-Brand-UI(8).zip with 30 Windows, 29 Linux and 16 Android references. This newer cyan-blue Android design supersedes the old violet mockups.
+- Match Android launcher, splash, actual app accent, selection and ripples to #38ABFF and #7EDEFF, preserving verified connection security and private data.
+- Add a persistent real 62dp icon-only navigation at the 480dp Android reference width; retain the accessible full drawer and the responsive narrow-phone/tablet modes.
+- Add a verified 75-reference SHA256/geometry inventory and an honest per-screen RGB pixel-diff CLI for *real* installed screenshots; six authentic earlier Android captures show substantial remaining differences.
+- Preserve functional desktop React Windows/Linux blue tokens, 214px sidebar and 43px navigation rows. Native macOS has no approved visual screens and still has open security protocol issue #223.
+- Pixel exactness and production readiness remain unverified for all 75 screens; visual QA and real installed-state interaction tests are required. Preview does not imply macOS notarization or Android Play signing.
+
 ## 0.99.12 — Android responsive local search and locale-safe navigation (development Preview; 25 October 2026)
 - Correct the Android top Back/Menu control after leaving Site editing by deriving its icon and accessible label from current UI state instead of comparing an English string; this prevents non-English menu regressions.
 - Replace blocking main-thread local file enumeration with an asynchronous, bounded DirectoryStream search, with symlink and off-root exclusion, recursion/entry/result caps and cancellation when the user navigates or changes search options.

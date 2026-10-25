@@ -6,20 +6,20 @@
     android:viewportHeight="192">
     <group android:translateX="1" android:translateY="3">
         <path
-            android:fillColor="#16654BFF"
-            android:strokeColor="#2C806BFF"
+            android:fillColor="#1638ABFF"
+            android:strokeColor="#2C38ABFF"
             android:strokeWidth="11"
             android:strokeLineCap="round"
             android:strokeLineJoin="round"
             android:pathData="M24,155c16,-4 28,-17 30,-33l7,-57C65,24 78,8 96,8s31,16 35,57l7,57c2,16 14,29 30,33 -9,9 -22,15 -35,11 -10,-3 -19,-11 -24,-21 -6,13 -16,21 -29,21s-23,-8 -29,-21c-5,10 -14,18 -24,21 -13,4 -26,-2 -35,-11Z"/>
         <path
             android:fillColor="#12070E1A"
-            android:strokeColor="#A491FF"
+            android:strokeColor="#38ABFF"
             android:strokeWidth="4.5"
             android:strokeLineCap="round"
             android:strokeLineJoin="round"
             android:pathData="M24,155c16,-4 28,-17 30,-33l7,-57C65,24 78,8 96,8s31,16 35,57l7,57c2,16 14,29 30,33 -9,9 -22,15 -35,11 -10,-3 -19,-11 -24,-21 -6,13 -16,21 -29,21s-23,-8 -29,-21c-5,10 -14,18 -24,21 -13,4 -26,-2 -35,-11Z"/>
-        <path android:fillColor="#A491FF"
+        <path android:fillColor="#38ABFF"
             android:pathData="M78,77a5,8 0,1 0,0.01 0z M112,77a5,8 0,1 0,0.01 0z"/>
     </group>
 </vector>

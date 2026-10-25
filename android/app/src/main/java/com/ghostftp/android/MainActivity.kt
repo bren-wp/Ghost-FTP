@@ -173,6 +173,7 @@ class MainActivity : Activity() {
     private lateinit var inlineNameInput: EditText
     private var pendingConfirmation: (() -> Unit)? = null
     private val workspaceNavButtons = mutableMapOf<Workspace, TextView>()
+    private val compactRailNavButtons = mutableMapOf<Workspace, ImageView>()
     private var activeWorkspace = Workspace.FILES
     private lateinit var sitesSection: View
     private lateinit var sitesOverviewPanel: View
@@ -411,8 +412,9 @@ class MainActivity : Activity() {
             addView(aboutSection)
         }
 
-        // User-approved 16-screen reference: full-width phone content with a
-        // slide-over drawer; a persistent rail is reserved for tablets.
+        // The latest v8 Android 480x960 reference has an icon-only 62dp rail.
+        // Keep the accessible slide-over drawer on 320-393dp handsets and
+        // retain its full labels even when the compact rail is visible.
         val compactNavigation = usesOverlayNavigation()
         navigationOpen = !compactNavigation
         val railWidth = if (compactNavigation) {
@@ -475,11 +477,23 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
         )
+        val phoneContent: View = if (compactNavigation && usesReferenceIconRail()) {
+            LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setBackgroundColor(Brand.background)
+                addView(buildCompactReferenceRail(), LinearLayout.LayoutParams(
+                    dp(62), ViewGroup.LayoutParams.MATCH_PARENT
+                ))
+                addView(contentScroll, LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.MATCH_PARENT, 1f
+                ))
+            }
+        } else contentScroll
         val root: View = if (compactNavigation) {
             FrameLayout(this).apply {
                 setBackgroundColor(Brand.background)
                 addView(
-                    contentScroll,
+                    phoneContent,
                     FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
@@ -689,6 +703,64 @@ class MainActivity : Activity() {
                 phoneQuickButton.contentDescription = getString(R.string.ui_quick_navigation)
             }
         }
+    }
+
+    private fun usesReferenceIconRail(): Boolean =
+        usesOverlayNavigation() && resources.configuration.screenWidthDp >= 420
+
+    // These live icons are real buttons, not a screenshot or duplicate
+    // navigation state. The full drawer remains available for spoken labels.
+    private fun buildCompactReferenceRail(): View = ScrollView(this).apply {
+        tag = "ghostftp-reference-rail"
+        isVerticalScrollBarEnabled = false
+        setBackgroundColor(Brand.panelStrong)
+        val column = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            setPadding(dp(5), dp(8), dp(5), dp(8))
+        }
+        column.addView(ImageView(this@MainActivity).apply {
+            setImageResource(R.drawable.ic_ghost_ftp)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+        }, LinearLayout.LayoutParams(dp(52), dp(52)))
+        column.addView(space(14))
+        for (workspace in Workspace.entries) {
+            val icon = when (workspace) {
+                Workspace.FILES -> R.drawable.ic_premium_nav_files
+                Workspace.SITES -> R.drawable.ic_premium_nav_sites
+                Workspace.TRANSFERS -> R.drawable.ic_premium_nav_transfers
+                Workspace.SYNC -> R.drawable.ic_premium_nav_sync
+                Workspace.CLOUD -> R.drawable.ic_premium_nav_cloud
+                Workspace.BOOKMARKS -> R.drawable.ic_premium_nav_bookmarks
+                Workspace.SETTINGS -> R.drawable.ic_premium_nav_settings
+                Workspace.ABOUT -> R.drawable.ic_premium_nav_about
+            }
+            val action = ImageView(this@MainActivity).apply {
+                setImageResource(icon)
+                scaleType = ImageView.ScaleType.CENTER_INSIDE
+                setPadding(dp(14), dp(14), dp(14), dp(14))
+                contentDescription = getString(
+                    R.string.workspace_open, workspaceLabel(workspace))
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { setWorkspace(workspace) }
+            }
+            compactRailNavButtons[workspace] = action
+            styleCompactReferenceRailItem(action, workspace == activeWorkspace)
+            column.addView(action, LinearLayout.LayoutParams(dp(52), dp(52)))
+            column.addView(space(3))
+        }
+        addView(column)
+    }
+
+    private fun styleCompactReferenceRailItem(view: ImageView, selected: Boolean) {
+        view.imageTintList = android.content.res.ColorStateList.valueOf(
+            if (selected) Brand.accent else Brand.textSoft)
+        view.background = rounded(
+            if (selected) Brand.accentSurface else Brand.panelStrong,
+            dp(8), if (selected) Brand.accent else Brand.panelStrong
+        )
     }
 
     private fun buildNavigationRail(): View = ScrollView(this).apply {
@@ -1458,7 +1530,7 @@ class MainActivity : Activity() {
                 setOnClickListener { showConnectPreview(site) }
             }
             // Reference screen #3 uses protocol-colored server tiles, not
-            // the same purple symbol for every saved site.
+            // the same blue Ghost symbol for every saved site.
             item.addView(PremiumReferenceStyle.serverIcon(this, site.protocol),
                 LinearLayout.LayoutParams(dp(40), dp(40)))
             item.addView(gap(10))
@@ -1993,7 +2065,7 @@ class MainActivity : Activity() {
             isFocusable = true
             foreground = android.graphics.drawable.RippleDrawable(
                 android.content.res.ColorStateList.valueOf(
-                    Color.argb(68, 131, 96, 255)), null, null)
+                    Color.argb(68, 56, 171, 255)), null, null)
             contentDescription = (if (directory) "Open folder " else "File ") + name
             setOnClickListener { onClick() }
         }
@@ -2081,7 +2153,7 @@ class MainActivity : Activity() {
         addView(searchResults)
     }
 
-    /** Selected local/remote scope must be visible, not a static purple tab. */
+    /** Selected local/remote scope must be visible, not a static blue tab. */
     private fun updateSearchScopeButtons(scope: LinearLayout) {
         for (index in 0 until scope.childCount) {
             val button = scope.getChildAt(index) as? TextView ?: continue
@@ -3293,7 +3365,7 @@ class MainActivity : Activity() {
         addView(LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            // The reference About screen shows the large glowing purple
+            // The reference About screen shows the large glowing cyan-blue
             // Ghost mark, not the tiny white legacy mark inside a blue tile.
             // Reuse the actual scalable Splash vector on every screen density.
             addView(ImageView(this@MainActivity).apply {
@@ -3424,6 +3496,9 @@ class MainActivity : Activity() {
         workspaceNavButtons.forEach { (key, view) ->
             styleWorkspaceNavItem(view, selected = key == workspace)
         }
+        compactRailNavButtons.forEach { (key, view) ->
+            styleCompactReferenceRailItem(view, selected = key == workspace)
+        }
         if (workspace != Workspace.SITES && siteEditorVisible) {
             siteEditorVisible = false
             siteEditorPanel.visibility = View.GONE
@@ -3517,7 +3592,8 @@ class MainActivity : Activity() {
 
     /** Width left after tablet navigation rail and workspace gutters. */
     private fun availableFileContentWidthDp(): Int {
-        val rail = if (usesOverlayNavigation()) 0 else 184
+        val rail = if (usesReferenceIconRail()) 62
+            else if (usesOverlayNavigation()) 0 else 184
         val gutter = if (usesOverlayNavigation()) 20 else 28
         return (resources.configuration.screenWidthDp - rail - gutter).coerceAtLeast(0)
     }

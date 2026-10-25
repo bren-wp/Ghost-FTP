@@ -23,7 +23,7 @@ assert.ok(!navigation.includes("setCompoundDrawables(null, icon, null, null)"),
   "Tablet navigation cannot place icons on the trailing edge");
 assert.ok(source.includes("!chosen.path.startsWith(base.path + File.separator)"),
   "Local upload must stay inside app-owned storage");
-assert.ok(style.includes("val purple = Color.rgb(101, 75, 255)"),
+assert.ok(style.includes("val purple = Color.rgb(56, 171, 255)"),
   "Approved dark premium reference accent must remain stable");
 assert.ok(instrument.includes("captureNineReferenceScreensAt480x960"),
   "Real-view reference capture must be kept for screenshot comparison");

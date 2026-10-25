@@ -11,8 +11,8 @@ import android.widget.TextView
 import kotlin.math.roundToInt
 
 /**
- * Source-aligned, native Android primitives based on the two user-provided
- * sixteen-screen Ghost FTP premium Android visual references (2026-10-16).
+ * Native Android source primitives aligned with the most recent user-supplied
+ * 75-screen GhostFTP-Premium-Brand-UI(8).zip reference (2026-10-25).
  *
  * This is a style system, not image-backed UI or synthetic user content.
  * Screens display only real profile, filesystem and transfer information.
@@ -22,9 +22,9 @@ internal object PremiumReferenceStyle {
     val panel = Color.rgb(13, 25, 43)
     val raised = Color.rgb(17, 31, 52)
     val border = Color.rgb(37, 58, 83)
-    val purple = Color.rgb(101, 75, 255)
-    val purpleLight = Color.rgb(131, 96, 255)
-    val selected = Color.rgb(32, 40, 88)
+    val purple = Color.rgb(56, 171, 255)
+    val purpleLight = Color.rgb(126, 222, 255)
+    val selected = Color.rgb(19, 45, 82)
     val text = Color.rgb(234, 246, 255)
     val secondary = Color.rgb(171, 196, 220)
     val subtle = Color.rgb(117, 145, 178)
