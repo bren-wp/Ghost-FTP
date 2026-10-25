@@ -1458,7 +1458,7 @@ class MainActivity : Activity() {
                 setOnClickListener { showConnectPreview(site) }
             }
             // Reference screen #3 uses protocol-colored server tiles, not
-            // the same purple symbol for every saved site.
+            // the same blue Ghost symbol for every saved site.
             item.addView(PremiumReferenceStyle.serverIcon(this, site.protocol),
                 LinearLayout.LayoutParams(dp(40), dp(40)))
             item.addView(gap(10))
@@ -1993,7 +1993,7 @@ class MainActivity : Activity() {
             isFocusable = true
             foreground = android.graphics.drawable.RippleDrawable(
                 android.content.res.ColorStateList.valueOf(
-                    Color.argb(68, 131, 96, 255)), null, null)
+                    Color.argb(68, 56, 171, 255)), null, null)
             contentDescription = (if (directory) "Open folder " else "File ") + name
             setOnClickListener { onClick() }
         }
@@ -2081,7 +2081,7 @@ class MainActivity : Activity() {
         addView(searchResults)
     }
 
-    /** Selected local/remote scope must be visible, not a static purple tab. */
+    /** Selected local/remote scope must be visible, not a static blue tab. */
     private fun updateSearchScopeButtons(scope: LinearLayout) {
         for (index in 0 until scope.childCount) {
             val button = scope.getChildAt(index) as? TextView ?: continue
@@ -3293,7 +3293,7 @@ class MainActivity : Activity() {
         addView(LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            // The reference About screen shows the large glowing purple
+            // The reference About screen shows the large glowing cyan-blue
             // Ghost mark, not the tiny white legacy mark inside a blue tile.
             // Reuse the actual scalable Splash vector on every screen density.
             addView(ImageView(this@MainActivity).apply {

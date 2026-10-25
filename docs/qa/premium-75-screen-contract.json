@@ -1,7 +1,7 @@
 {
   "title": "Ghost FTP premium 75-screen reference traceability",
-  "referenceArchive": "GhostFTP-Premium-Brand-UI(2).zip",
-  "referenceKind": "visual concept, not actual app screenshot",
+  "referenceArchive": "GhostFTP-Premium-Brand-UI(8).zip",
+  "referenceKind": "Visual concepts, not installed app screenshots. Explicit user-supplied 2026-10-25 design supersedes older violet Android mockups.",
   "sizes": {
     "desktop": "1290x852",
     "android": "480x960"
@@ -468,5 +468,6 @@
   "macos": {
     "referenceCount": 0,
     "policy": "No standalone macOS reference supplied. Follow canonical design tokens and approved icon while preserving safe SwiftUI platform behaviour; remain Preview until FTPS/SFTP and signing verified."
-  }
+  },
+  "referenceArchiveSha256": "1cdaea3e60c0ec4b14c3e8fa515351ba0710ee9022060e7f107b8bb9fbf6e877"
 }

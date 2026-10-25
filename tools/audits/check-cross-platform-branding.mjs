@@ -24,7 +24,7 @@ for (const relative of [
   const xml = read(relative);
   const current = shape(xml);
   if (current.length !== 2 || current.some(p => p !== canonical[0]) ||
-      !xml.includes('android:fillColor="#A491FF"') ||
+      !xml.includes('android:fillColor="#38ABFF"') ||
       !xml.includes('android:viewportWidth="192"')) {
     throw Error("Android launcher/splash/app symbol geometry drift: " + relative);
   }
@@ -46,8 +46,8 @@ for (const api of ["v31", "v35"]) {
 }
 for (const [key, rgb] of [
   ["canvas", [7, 14, 26]], ["panel", [13, 25, 43]],
-  ["raised", [17, 31, 52]], ["purple", [101, 75, 255]],
-  ["purpleLight", [131, 96, 255]], ["text", [234, 246, 255]]
+  ["raised", [17, 31, 52]], ["purple", [56, 171, 255]],
+  ["purpleLight", [126, 222, 255]], ["text", [234, 246, 255]]
 ]) {
   if (!style.includes("val " + key + " = Color.rgb(" + rgb.join(", ") + ")")) {
     throw Error("Ghost FTP Android UI color drift: " + key);
