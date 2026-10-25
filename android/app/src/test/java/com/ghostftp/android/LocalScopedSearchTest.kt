@@ -15,7 +15,7 @@ class LocalScopedSearchTest {
             File(root, "other.jpg").writeText("b")
             File(root, "folder").mkdir()
             File(root, "folder/nested.txt").writeText("c")
-            val regex = Regex(".*\\.txt")
+            val regex = FilenameGlob("*.txt")
             val shallow = LocalScopedSearch.find(root, regex, recursive = false)
             assertFalse(shallow.unavailable)
             assertFalse(shallow.cancelled)
@@ -34,11 +34,11 @@ class LocalScopedSearchTest {
             File(outside, "private.txt").writeText("secret")
             File(root, "ok.txt").writeText("safe")
             Files.createSymbolicLink(File(root, "outside").toPath(), outside.toPath())
-            val result = LocalScopedSearch.find(root, Regex(".*\\.txt"), recursive = true)
+            val result = LocalScopedSearch.find(root, FilenameGlob("*.txt"), recursive = true)
             assertEquals(listOf("ok.txt"), result.matches.map { it.name })
             assertFalse(result.unavailable)
             assertTrue(LocalScopedSearch.find(File(root, "outside"),
-                Regex(".*"), recursive = true).unavailable)
+                FilenameGlob("*"), recursive = true).unavailable)
         } finally {
             root.deleteRecursively()
             outside.deleteRecursively()
@@ -49,7 +49,7 @@ class LocalScopedSearchTest {
         val root = Files.createTempDirectory("ghostftp-search-bounds").toFile()
         try {
             repeat(80) { File(root, "file-%03d.txt".format(it)).writeText("x") }
-            val result = LocalScopedSearch.find(root, Regex(".*\\.txt"),
+            val result = LocalScopedSearch.find(root, FilenameGlob("*.txt"),
                 recursive = true, maxVisited = 12, maxMatches = 8)
             assertTrue(result.truncated)
             assertTrue(result.visited <= 12)
@@ -64,8 +64,8 @@ class LocalScopedSearchTest {
         val root = Files.createTempDirectory("ghostftp-local-cancel").toFile()
         try {
             File(root, "test.txt").writeText("x")
-            assertTrue(LocalScopedSearch.find(root, Regex(".*"), recursive = true) { true }.cancelled)
-            val unavailable = LocalScopedSearch.find(File(root, "missing"), Regex(".*"),
+            assertTrue(LocalScopedSearch.find(root, FilenameGlob("*"), recursive = true) { true }.cancelled)
+            val unavailable = LocalScopedSearch.find(File(root, "missing"), FilenameGlob("*"),
                 recursive = true)
             assertTrue(unavailable.unavailable)
             assertTrue(unavailable.matches.isEmpty())
