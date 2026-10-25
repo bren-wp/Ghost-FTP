@@ -33,8 +33,8 @@ for (const [semantic, cssName, androidName] of colorAssertions) {
   const [r, g, b] = rgb(tokens.colors[semantic]);
   requireSource(css, `${cssName}: ${r} ${g} ${b};`, `desktop ${semantic} token drift`);
   if (semantic === "accent") {
-    // The October 16 mobile reference intentionally uses violet while the
-    // Windows/Linux/macOS brand palette remains the original blue. Check the
+    // The latest v8 mobile reference uses cyan-blue, matching other platforms. The
+    // shared brand palette is authoritative. Check the
     // Android token and actual runtime value, not a stale shared RGB literal.
     requireSource(android, "val accent: Int = PremiumReferenceStyle.purple", "Android reference accent token drift");
   } else {
@@ -46,11 +46,11 @@ for (const [semantic, cssName, androidName] of colorAssertions) {
 for (const semantic of ["navy", "slate", "cyan"]) {
   requireSource(css, `--ghost-premium-${semantic}: ${tokens.colors[semantic]};`, `desktop ${semantic} token drift`);
 }
-requireSource(android, "val accentSurface: Int = PremiumReferenceStyle.selected", "Android active surface differs from user-approved violet selection token");
+requireSource(android, "val accentSurface: Int = PremiumReferenceStyle.selected", "Android active surface differs from user-approved cyan selection token");
 const androidReference = read("android/app/src/main/java/com/ghostftp/android/PremiumReferenceStyle.kt");
-requireSource(androidReference, "val purple = Color.rgb(101, 75, 255)", "actual Android violet accent is not #654BFF");
-requireSource(androidReference, "val selected = Color.rgb(32, 40, 88)", "Android reference selected-row color drift");
-if (tokens.android?.accent !== "#654BFF") errors.push("Android mobile-only reference accent changed");
+requireSource(androidReference, "val purple = Color.rgb(56, 171, 255)", "actual Android cyan accent is not #38ABFF");
+requireSource(androidReference, "val selected = Color.rgb(19, 45, 82)", "Android reference selected-row color drift");
+if (tokens.android?.accent !== "#38ABFF") errors.push("Android mobile-only reference accent changed");
 requireSource(mac, "static let slate = Color(red: 19/255, green: 45/255, blue: 82/255)", "macOS active surface differs from slate token");
 requireSource(css, "width: 214px !important", "214px desktop sidebar reference not enforced");
 requireSource(css, "min-height: 43px", "43px desktop navigation reference not enforced");
