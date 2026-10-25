@@ -53,12 +53,24 @@ for (const [key, rgb] of [
     throw Error("Ghost FTP Android UI color drift: " + key);
   }
 }
-if (tokens.android.referenceWidthPx !== 480 ||
+if (tokens.android.compactRailWidthDp !== 62 ||
+    tokens.android.referenceWidthPx !== 480 ||
     tokens.android.referenceHeightPx !== 960 ||
     tokens.android.phoneTopChromeHeightDp !== 52 ||
     tokens.android.drawerWidthDp !== 280 ||
     tokens.android.overlayBelowDp !== 600) {
   throw Error("Android reference geometry differs from user's 16-screen design manifest");
+}
+for (const required of [
+  "private fun buildCompactReferenceRail()",
+  "LinearLayout.LayoutParams(dp(52), dp(52))",
+  "dp(62), ViewGroup.LayoutParams.MATCH_PARENT",
+  "if (usesReferenceIconRail()) 62",
+  "styleCompactReferenceRailItem(view, selected = key == workspace)"
+]) {
+  if (!main.includes(required)) {
+    throw Error("Android 480dp reference rail regression: " + required);
+  }
 }
 for (const required of [
   "setPadding(dp(8), dp(2), dp(10), dp(2))",

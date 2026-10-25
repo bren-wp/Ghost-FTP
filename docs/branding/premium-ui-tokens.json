@@ -27,7 +27,7 @@
   "android": {
     "referenceWidthPx": 480,
     "referenceHeightPx": 960,
-    "compactRailWidthDp": null,
+    "compactRailWidthDp": 62,
     "iconSizeDp": 20,
     "compactTextSp": 9,
     "overlayBelowDp": 600,
