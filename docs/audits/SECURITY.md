@@ -113,4 +113,4 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.14. Previous canonical release: 0.99.14. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.15. Previous canonical release: 0.99.14. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
