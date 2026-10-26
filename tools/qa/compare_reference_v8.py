@@ -82,7 +82,12 @@ def pixel_difference(reference: bytes, capture: Path, size: tuple[int, int]) -> 
     diff = ImageChops.difference(expected, actual)
     stats = ImageStat.Stat(diff)
     pixels = size[0] * size[1]
-    changed = pixels - diff.convert("L").histogram()[0]
+    # Grayscale conversion rounds low-intensity channel deltas to zero (e.g.
+    # RGB (0,0,0) -> (1,0,0)); it therefore undercounts changed pixels.
+    # Use per-channel maxima: a pixel differs if ANY RGB channel differs.
+    red, green, blue = diff.split()
+    changed_mask = ImageChops.lighter(ImageChops.lighter(red, green), blue)
+    changed = pixels - changed_mask.histogram()[0]
     return dict(status="compared", exact=diff.getbbox() is None,
                 mean_rgb_absolute_difference=round(sum(stats.mean) / 3, 4),
                 different_pixel_count=changed,

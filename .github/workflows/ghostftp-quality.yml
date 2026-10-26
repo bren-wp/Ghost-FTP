@@ -241,6 +241,13 @@ jobs:
         shell: bash
         run: node .github/scripts/check-premium-75-screens.mjs
 
+      - name: Verify exact RGB v8 screenshot difference accounting
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user --disable-pip-version-check "Pillow==11.3.0"
+          python3 -m unittest discover -s tools/qa -p 'test_compare_reference_v8.py' -v
+
       - name: Cross-platform 2026 premium UI token and icon regression
         shell: bash
         run: node .github/scripts/check-premium-ui-tokens.mjs

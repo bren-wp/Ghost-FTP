@@ -1,6 +1,6 @@
 # Ghost FTP Versioning
 
-Current development edition: **0.99.15 Preview**. Previous published canonical release: **v0.99.14**..
+Current development edition: **0.99.16 Preview**. Previous published canonical release: **v0.99.15**..
 
 Ghost FTP uses semantic versioning with a pre-1.0 development train.
 

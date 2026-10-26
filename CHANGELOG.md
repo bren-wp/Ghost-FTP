@@ -1,3 +1,9 @@
+## 0.99.16 — precise RGB screenshot diff counts and CI regression coverage (development Preview; 26 October 2026)
+- Correct v8 screenshot difference counts for even one RGB-channel value change: compare channel maxima without grayscale conversion/rounding.
+- Add synthetic red/green/blue, unchanged and wrong-size Python regression tests, and execute them in the exact-HEAD quality workflow with pinned Pillow dependency.
+- Keep the source reference v8 SHA, 30 Windows + 29 Linux + 16 Android design inventory, mock-data exclusion and installed-capture acceptance gates unchanged.
+- Synchronize 0.99.16 Preview metadata after verified public v0.99.15. No 75/75 pixel-perfect or production signing claims; native macOS FTPS/SFTP issue #223 remains open.
+
 ## 0.99.15 — Android safe filename search (development Preview; 26 October 2026)
 - Fix potentially excessive wildcard-regex backtracking in local/remote Android filename search with a bounded glob matcher.
 - Preserve filename case options, local-directory traversal bounds, symlink protections, and stale-query cancellation; add JVM security/stability regression tests.

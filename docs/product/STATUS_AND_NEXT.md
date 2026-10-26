@@ -1,3 +1,5 @@
+> **Authoritative current state (26 October 2026):** Ghost FTP **0.99.16 Preview**; latest published version **v0.99.15**. Versioned details below may describe older releases.
+
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
 
 > Ghost FTP **0.99.4** (release cycle), following published **v0.99.3**. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
@@ -12,7 +14,7 @@ Current development source: **0.99.4** (SQLite transactional synchronization saf
 
 Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.30** release notes.
 
-Previous canonical release: **0.99.14**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.99.15**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
@@ -167,4 +169,4 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Potvrđeni rezultati testova, a ne samo broj verzije, određuju spremnost izdanja.
 
 
-Current development line: 0.99.15. Previous canonical release: 0.99.14. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.16. Previous canonical release: 0.99.15. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
