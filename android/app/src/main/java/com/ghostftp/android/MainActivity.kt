@@ -2196,20 +2196,11 @@ class MainActivity : Activity() {
             searchFeedback.text = "Enter a filename (up to 80 characters)."
             return
         }
-        val expression = buildString {
-            append("^")
-            namePattern.forEach { ch ->
-                when (ch) {
-                    '*' -> append(".*")
-                    '?' -> append(".")
-                    else -> append(Regex.escape(ch.toString()))
-                }
-            }
-            append("$")
-        }
+        // Search text is a filename glob, never a user-controlled regex.
+        // This keeps both remote UI matching and background local scans
+        // bounded even for repeated '*' patterns and long filenames.
         val pattern = try {
-            Regex(expression, if (searchMatchCase) emptySet() else
-                setOf(RegexOption.IGNORE_CASE))
+            FilenameGlob(namePattern, ignoreCase = !searchMatchCase)
         } catch (_: IllegalArgumentException) {
             searchFeedback.text = "Invalid search pattern."
             return

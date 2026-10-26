@@ -1,3 +1,7 @@
+> **Authoritative current state (26 October 2026):** Ghost FTP **0.99.16 Preview**; latest published version **v0.99.15**. Versioned details below may describe older releases.
+
+> **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
+
 > Ghost FTP **0.99.4** (release cycle), following published v0.99.3. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
 
 > **Development cycle:** Ghost FTP 0.99.6 Preview. Previous verified public release: v0.99.5. Android responsive reference acceptance is pending.
@@ -8,7 +12,7 @@
 
 > Current development source: **0.99.4**; latest verified published release: **0.99.3**. Historical findings below retain their original version labels.
 
-This index retains historical 0.93.0 findings. Previous canonical release: **0.99.13**.
+This index retains historical 0.93.0 findings. Previous canonical release: **0.99.15**.
 
 - [Code audit](CODE.md)
 - [Security audit](SECURITY.md)
@@ -27,4 +31,4 @@ Implemented behavior, source inspection, automated CI and target-OS acceptance a
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.14. Previous canonical release: 0.99.13. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.16. Previous canonical release: 0.99.15. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
