@@ -3,10 +3,10 @@ package com.ghostftp.android
 object ReleaseInfo {
     const val PRODUCT_NAME = "Ghost FTP"
     const val BRAND = "Brendigo"
-    const val VERSION = "0.99.14"
-    const val VERSION_DISPLAY = "0.99.14"
-    const val VERSION_BADGE = "0.99.14"
-    const val BUILD = "2026.10.25.04"
-    const val RELEASE_DATE = "25 October 2026"
+    const val VERSION = "0.99.15"
+    const val VERSION_DISPLAY = "0.99.15"
+    const val VERSION_BADGE = "0.99.15"
+    const val BUILD = "2026.10.26.01"
+    const val RELEASE_DATE = "26 October 2026"
     const val WEBSITE = "https://ghostftp.com"
 }

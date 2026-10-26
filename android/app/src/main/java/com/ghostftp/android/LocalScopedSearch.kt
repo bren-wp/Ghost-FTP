@@ -22,7 +22,7 @@ internal data class LocalSearchResult(
 internal object LocalScopedSearch {
     fun find(
         base: File,
-        pattern: Regex,
+        pattern: FilenameGlob,
         recursive: Boolean,
         maxVisited: Int = 1000,
         maxMatches: Int = 150,

@@ -1,3 +1,5 @@
+> **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
+
 # Ghost FTP Documentation
 
 Ghost FTP documentation is organized around the current canonical product state, stable operational guidance and historical provenance.
@@ -6,10 +8,12 @@ Ghost FTP documentation is organized around the current canonical product state,
 
 [macOS shared desktop parity and migration acceptance](qa/MACOS_SHARED_PARITY.md) — separate Tauri app, security/Keychain, target-device requirements and preservation of the SwiftUI Preview.
 
+[Android filename search hardening audit](audits/ANDROID_FILENAME_SEARCH_2026_10_26.md).
+
 ## Current state
 
-- Active source/release cycle: **0.99.14 (in development, preview)**
-- Latest canonical release: **0.99.12**
+- Active source/release cycle: **0.99.15 (in development, preview)**
+- Latest canonical release: **0.99.14**
 - Live publication state: GitHub Releases is authoritative
 - Version source of truth: `/version.json`
 - Production desktop source: `/ghostftp-desktop`
