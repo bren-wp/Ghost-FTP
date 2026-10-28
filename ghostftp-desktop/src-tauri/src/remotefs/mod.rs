@@ -138,9 +138,19 @@ mod destructive_path_tests {
     #[test]
     fn protocol_mutations_reject_traversal_controls_and_windows_separators() {
         for path in [
-            "", " ", "/", ".", "..", "/safe/../secret", "safe/./config",
-            "logs\\..\\private", "dir\\file", "safe\0tail",
-            "safe\r\nDELE /", "safe\ttab", "safe\u{7f}del",
+            "",
+            " ",
+            "/",
+            ".",
+            "..",
+            "/safe/../secret",
+            "safe/./config",
+            "logs\\..\\private",
+            "dir\\file",
+            "safe\0tail",
+            "safe\r\nDELE /",
+            "safe\ttab",
+            "safe\u{7f}del",
         ] {
             assert!(
                 validate_protocol_mutation_path(path).is_err(),
@@ -148,6 +158,20 @@ mod destructive_path_tests {
             );
         }
         assert!(validate_protocol_mutation_path(&"x".repeat(4097)).is_err());
+
+        for path in [
+            "new folder",
+            "folder/child",
+            "/srv/site/index.html",
+            "/home/računi/čćž 文件 2026.pdf",
+            ".hidden",
+        ] {
+            assert!(
+                validate_protocol_mutation_path(path).is_ok(),
+                "valid FTP/SFTP mutation rejected: {path:?}"
+            );
+        }
+    }        assert!(validate_protocol_mutation_path(&"x".repeat(4097)).is_err());
 
         for path in [
             "new folder", "folder/child", "/srv/site/index.html",
