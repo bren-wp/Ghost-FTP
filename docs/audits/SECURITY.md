@@ -1,4 +1,4 @@
-> **Authoritative current state (28 October 2026):** Ghost FTP **0.99.17 Preview**; latest published version **v0.99.16**. Versioned details below may describe older releases.
+> **Authoritative current state (28 October 2026):** Ghost FTP **0.99.18 Preview**; latest published version **v0.99.17**. Versioned details below may describe older releases.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
 
@@ -12,7 +12,7 @@
 
 > Current development source: **0.99.4**; latest verified published release: **0.99.3**. Historical findings below retain their original version labels.
 
-Previous canonical release: **0.99.16**.
+Previous canonical release: **0.99.17**.
 
 0.93.0 cloud scope: custom S3/Azure desktop endpoints require HTTPS and forbid embedded credentials, query and fragments. Mobile/macOS signed-object transfers use ephemeral bearer URLs, OS TLS trust, no redirects, bounded file sizes and no stored signed links. This is targeted source hardening; penetration testing and complete provider/account parity are not claimed.
 
@@ -115,4 +115,4 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.17. Previous canonical release: 0.99.16. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.18. Previous canonical release: 0.99.17. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.

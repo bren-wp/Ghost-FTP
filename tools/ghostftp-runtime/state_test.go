@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -140,5 +143,211 @@ func TestFallbackStateRejectsSymlinkDestination(t *testing.T) {
 	data, err := os.ReadFile(sentinel)
 	if err != nil || string(data) != "keep me" {
 		t.Fatalf("state write followed unsafe symlink: %v", err)
+	}
+}
+
+// A corrupt backup on an otherwise missing primary must not masquerade as a
+// first launch. A user may have had valid sites before an interrupted update.
+func TestMissingFallbackPrimaryWithCorruptBackupFailsClosed(t *testing.T) {
+	path := isolatedFallbackPath(t)
+	broken := []byte("{truncated-backup")
+	if err := os.WriteFile(path+".bak", broken, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if state, err := readPersistedState(); err == nil {
+		t.Fatalf("silent empty-state reset with corrupt backup: %+v", state)
+	}
+	preserved, err := os.ReadFile(path + ".bak")
+	if err != nil || string(preserved) != string(broken) {
+		t.Fatalf("recovery failed to preserve original bytes: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("failed recovery unexpectedly created a primary state: %v", err)
+	}
+}
+
+func TestFreshFallbackInstallInitializesOnlyWhenBothFilesAbsent(t *testing.T) {
+	path := isolatedFallbackPath(t)
+	state, err := readPersistedState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Locale != "en" || string(state.Sites) != "[]" || string(state.Settings) != "{}" {
+		t.Fatalf("unexpected first-launch defaults: %+v", state)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("reading defaults should not create persisted data: %v", err)
+	}
+}
+
+func TestInvalidFallbackStateShapeRecoversBackupRatherThanClearingSites(t *testing.T) {
+	path := isolatedFallbackPath(t)
+	backup := []byte(`{"locale":"hr","sites":[{"name":"Existing Site"}],"settings":{"theme":"dark"}}`)
+	if err := os.WriteFile(path+".bak", backup, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, corrupted := range []string{
+		`{"locale":"en","sites":null,"settings":{}}`,
+		`{"locale":"en","sites":[],"settings":null}`,
+		`null`,
+	} {
+		if err := os.WriteFile(path, []byte(corrupted), 0600); err != nil {
+			t.Fatal(err)
+		}
+		recovered, err := readPersistedState()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if recovered.Locale != "hr" || !strings.Contains(string(recovered.Sites), "Existing Site") {
+			t.Fatalf("invalid state silently discarded saved sites: %+v", recovered)
+		}
+	}
+}
+
+func TestCorruptFallbackPrimaryNeverOverwritesPriorForensicCopy(t *testing.T) {
+	path := isolatedFallbackPath(t)
+	if err := os.WriteFile(path+".bak", []byte(`{"locale":"en","sites":[],"settings":{}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("broken-JSON"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readPersistedState(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readPersistedState(); err != nil {
+		t.Fatal(err)
+	}
+	copies, err := filepath.Glob(filepath.Join(filepath.Dir(path), "fallback-state.json.corrupt.*"))
+	if err != nil || len(copies) != 1 {
+		t.Fatalf("repeat recovery should retain just one identical snapshot, got %d: %v", len(copies), err)
+	}
+	if err := os.WriteFile(path, []byte("different-broken-JSON"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readPersistedState(); err != nil {
+		t.Fatal(err)
+	}
+	copies, err = filepath.Glob(filepath.Join(filepath.Dir(path), "fallback-state.json.corrupt.*"))
+	if err != nil || len(copies) != 2 {
+		t.Fatalf("distinct corruption should retain separate snapshots, got %d: %v", len(copies), err)
+	}
+	got := make(map[string]bool)
+	for _, copy := range copies {
+		data, err := os.ReadFile(copy)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got[string(data)] = true
+	}
+	if !got["broken-JSON"] || !got["different-broken-JSON"] {
+		t.Fatalf("forensic snapshots changed original bytes: %+v", got)
+	}
+}
+
+func TestFallbackRecoveryRefusesLinkedBackup(t *testing.T) {
+	path := isolatedFallbackPath(t)
+	sentinel := filepath.Join(t.TempDir(), "external-config")
+	original := []byte(`{"locale":"hr","sites":[{"name":"Other data"}],"settings":{}}`)
+	if err := os.WriteFile(sentinel, original, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(sentinel, path+".bak"); err != nil {
+		if runtime.GOOS == "windows" {
+			t.Skipf("Windows symlink privilege unavailable: %v", err)
+		}
+		t.Fatal(err)
+	}
+	if recovered, err := readPersistedState(); err == nil {
+		t.Fatalf("following an external backup link bypassed recovery restrictions: %+v", recovered)
+	}
+	after, err := os.ReadFile(sentinel)
+	if err != nil || string(after) != string(original) {
+		t.Fatalf("external state changed after rejected recovery: %v", err)
+	}
+}
+
+func TestFallbackReadRejectsLinkedPrimaryWithoutAccessingTarget(t *testing.T) {
+	path := isolatedFallbackPath(t)
+	sentinel := filepath.Join(t.TempDir(), "external-primary")
+	original := []byte(`{"locale":"hr","sites":[{"name":"Sensitive external file"}],"settings":{}}`)
+	if err := os.WriteFile(sentinel, original, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(sentinel, path); err != nil {
+		if runtime.GOOS == "windows" {
+			t.Skipf("Windows symlink privilege unavailable: %v", err)
+		}
+		t.Fatal(err)
+	}
+	if state, err := readPersistedState(); err == nil {
+		t.Fatalf("symlinked primary was accepted without independent backup: %+v", state)
+	}
+	got, err := os.ReadFile(sentinel)
+	if err != nil || string(got) != string(original) {
+		t.Fatalf("read-only rejection unexpectedly changed external data: %v", err)
+	}
+}
+
+func TestConcurrentFallbackSavesAndReadsRemainRecoverable(t *testing.T) {
+	// Reproduce HTTP-style concurrent saves and reads against the same local
+	// workspace. Without transaction-level locking the backup may be replaced
+	// by an unrelated in-flight writer's snapshot, or a read may observe a
+	// rotation mid-flight.
+	path := isolatedFallbackPath(t)
+	if err := writePersistedState(fallbackTestState("en")); err != nil {
+		t.Fatal(err)
+	}
+	const writers = 16
+	const readers = 4
+	errors := make(chan error, writers+readers)
+	var wg sync.WaitGroup
+	for i := 0; i < writers; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			sites := json.RawMessage(fmt.Sprintf(`[{"name":"site-%d"}]`, id))
+			settings := json.RawMessage(fmt.Sprintf(`{"revision":%d}`, id))
+			if err := writePersistedState(persistedState{Locale: "hr", Sites: sites, Settings: settings}); err != nil {
+				errors <- fmt.Errorf("writer %d: %w", id, err)
+			}
+		}(i)
+	}
+	for i := 0; i < readers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for n := 0; n < writers; n++ {
+				state, err := readPersistedState()
+				if err != nil {
+					errors <- fmt.Errorf("concurrent read: %w", err)
+					return
+				}
+				if !validJSONKind(state.Sites, '[') || !validJSONKind(state.Settings, '{') {
+					errors <- fmt.Errorf("inconsistent concurrent snapshot")
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(errors)
+	for err := range errors {
+		t.Error(err)
+	}
+	// Each commit must leave both the current file and its prior snapshot
+	// syntactically complete and independently recoverable.
+	for _, candidate := range []string{path, path + ".bak"} {
+		raw, err := os.ReadFile(candidate)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var state persistedState
+		if err := json.Unmarshal(raw, &state); err != nil {
+			t.Fatalf("invalid committed snapshot %s: %v", candidate, err)
+		}
+		if !validJSONKind(state.Sites, '[') || !validJSONKind(state.Settings, '{') {
+			t.Fatalf("invalid committed snapshot structure: %s", candidate)
+		}
 	}
 }

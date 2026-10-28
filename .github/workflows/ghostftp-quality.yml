@@ -316,6 +316,9 @@ jobs:
           set -euo pipefail
           cd tools/ghostftp-runtime
           go test ./...
+          # Concurrency is part of the saved-state data-integrity contract.
+          # Keep a real race-detector gate instead of only source-pattern QA.
+          go test -race ./...
           go vet ./...
           node --check site/app.js
 

@@ -1,14 +1,20 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
+	"sync"
 )
+
+// The compatibility HTTP API can receive concurrent writes and reads. Lock the
+// complete load/rotate transaction, not only the final rename, so one save
+// cannot interleave its backup snapshot with another save or recovery read.
+var fallbackStateMu sync.Mutex
 
 type persistedState struct {
 	Locale   string          `json:"locale"`
@@ -25,58 +31,95 @@ func fallbackStatePath() (string, error) {
 }
 
 func readPersistedState() (persistedState, error) {
+	fallbackStateMu.Lock()
+	defer fallbackStateMu.Unlock()
 	path, err := fallbackStatePath()
 	if err != nil {
 		return persistedState{}, err
 	}
 	load := func(candidate string) (persistedState, error) {
+		// Never follow a link to an unrelated file while recovering local data.
+		info, err := os.Lstat(candidate)
+		if err != nil {
+			return persistedState{}, err
+		}
+		if !info.Mode().IsRegular() {
+			return persistedState{}, fmt.Errorf("non-regular fallback state file: %s", candidate)
+		}
 		data, err := os.ReadFile(candidate)
 		if err != nil {
 			return persistedState{}, err
+		}
+		// A JSON null, missing profile list, or malformed settings is not a
+		// fresh install. Reject it and attempt recovery instead of silently
+		// replacing the user's saved sites with an empty list.
+		if !validJSONKind(json.RawMessage(data), '{') {
+			return persistedState{}, fmt.Errorf("invalid fallback state root object")
 		}
 		var state persistedState
 		if err := json.Unmarshal(data, &state); err != nil {
 			return persistedState{}, fmt.Errorf("corrupted fallback state: %w", err)
 		}
+		if !validJSONKind(state.Sites, '[') || !validJSONKind(state.Settings, '{') {
+			return persistedState{}, fmt.Errorf("invalid fallback state sites/settings shape")
+		}
 		if !validLocale(state.Locale) {
 			state.Locale = "en"
 		}
-		if !validJSONKind(state.Sites, '[') {
-			state.Sites = json.RawMessage(`[]`)
-		} else {
-			state.Sites = sanitizeSensitiveSiteFields(state.Sites)
-		}
-		if !validJSONKind(state.Settings, '{') {
-			state.Settings = json.RawMessage(`{}`)
-		}
+		state.Sites = sanitizeSensitiveSiteFields(state.Sites)
 		return state, nil
 	}
-	state, err := load(path)
-	if err == nil {
-		return state, nil
+
+	current, currentErr := load(path)
+	if currentErr == nil {
+		return current, nil
 	}
-	if errors.Is(err, os.ErrNotExist) {
-		if backup, backupErr := load(path + ".bak"); backupErr == nil {
-			return backup, nil
+	backup, backupErr := load(path + ".bak")
+	if backupErr == nil {
+		// Preserve a corrupted regular primary file for diagnostics without
+		// clobbering a same-second prior recovery artifact.
+		if !errors.Is(currentErr, os.ErrNotExist) {
+			preserveFallbackCorrupt(path)
 		}
-		return persistedState{Locale: "en", Sites: json.RawMessage(`[]`), Settings: json.RawMessage(`{}`)}, nil
-	}
-	// Recover from the last known-good atomic-write backup instead of failing
-	// startup because one JSON file was interrupted or externally corrupted.
-	if backup, backupErr := load(path + ".bak"); backupErr == nil {
-		preserveFallbackCorrupt(path)
 		return backup, nil
 	}
-	return persistedState{}, err
+	// Both files absent is the only valid first-launch empty-state scenario.
+	// Existing but broken backups must never be silently treated as new data.
+	if errors.Is(currentErr, os.ErrNotExist) && errors.Is(backupErr, os.ErrNotExist) {
+		return persistedState{Locale: "en", Sites: json.RawMessage(`[]`), Settings: json.RawMessage(`{}`)}, nil
+	}
+	return persistedState{}, fmt.Errorf("fallback state recovery unavailable (primary: %v; backup: %w)", currentErr, backupErr)
 }
 
 func preserveFallbackCorrupt(path string) {
+	info, err := os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return
 	}
-	stamp := time.Now().UTC().Format("20060102T150405Z")
-	_ = os.WriteFile(path+".corrupt."+stamp, data, 0600)
+	// A stable content digest prevents repeated launches from creating an
+	// unbounded number of identical forensic copies while retaining a separate
+	// private snapshot for each distinct corrupted primary.
+	digest := sha256.Sum256(data)
+	copyPath := fmt.Sprintf("%s.corrupt.%x", path, digest)
+	f, err := os.OpenFile(copyPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return // Existing digest snapshot or unavailable recovery directory.
+	}
+	_, err = f.Write(data)
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		_ = os.Remove(copyPath)
+	}
 }
 
 func sanitizeSensitiveSiteFields(raw json.RawMessage) json.RawMessage {
@@ -177,6 +220,8 @@ func writePrivateStagedFile(dir, pattern string, data []byte) (string, error) {
 }
 
 func writePersistedState(state persistedState) error {
+	fallbackStateMu.Lock()
+	defer fallbackStateMu.Unlock()
 	if !validLocale(state.Locale) {
 		return fmt.Errorf("unsupported locale")
 	}

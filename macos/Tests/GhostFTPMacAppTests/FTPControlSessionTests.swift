@@ -20,6 +20,28 @@ final class FTPControlSessionTests: XCTestCase {
         )
     }
 
+    func testHiddenMLSDInventoryRefusesExistingRemoteUpload() throws {
+        // MLSD includes entries that bare Unix LIST can hide. Preserve that
+        // evidence through the collision preflight before issuing STOR.
+        let payload = Data(
+            "type=file;size=3; .env\r\n".utf8
+        )
+        let entries = try FTPControlCodec.parseMLSD(payload)
+        XCTAssertTrue(entries.contains(where: { $0.name == ".env" }))
+        XCTAssertThrowsError(
+            try FTPControlCodec.validateUploadDestination(".env", within: entries)
+        ) { error in
+            guard let ftpError = error as? FTPControlError else {
+                return XCTFail("Unexpected preflight error: \\(error)")
+            }
+            if case .remoteFileAlreadyExists = ftpError {
+                // Existing hidden file was detected before STOR.
+            } else {
+                XCTFail("Existing hidden file was not protected")
+            }
+        }
+    }
+
     func testFTPSAndSFTPCannotDowngradeIntoPlaintextFTPWithoutAuthenticatedTransports() async throws {
         let session = FTPControlSession()
         for protocolKind in [ConnectionProtocol.ftps, .sftp] {
@@ -160,16 +182,51 @@ final class FTPControlSessionTests: XCTestCase {
 
     func testRemoteTransferNameRejectsTraversalAndCommandInjection() {
         for value in [
-            "", ".", "..", "nested/file.txt", "bad\r\nDELE target",
+            "", ".", "..", "nested/file.txt", "name\\with-backslash.txt",
+            "bad\r\nDELE target",
             "file\tname", "file\u{1B}name", "file\u{7F}name"
         ] {
             XCTAssertThrowsError(try FTPControlCodec.validateRemoteFileName(value))
         }
 
         XCTAssertNoThrow(try FTPControlCodec.validateRemoteFileName("archive 2026.zip"))
-        XCTAssertNoThrow(try FTPControlCodec.validateRemoteFileName("name\\with-backslash.txt"))
+        XCTAssertNoThrow(try FTPControlCodec.validateRemoteFileName("čćž invoice 2026.txt"))
     }
 
+
+    func testLegacyFTPListPreflightNeverUsesInvisibleDotfileInventory() {
+        // A plain LIST may hide .env/.htaccess and let STOR overwrite them
+        // without any warning. A server without MLSD must accept LIST -a;
+        // a rejected LIST -a is a fatal preflight error, never a fallback.
+        XCTAssertEqual(
+            FTPControlCodec.fallbackListingCommand(requiresHiddenEntries: true),
+            "LIST -a"
+        )
+        XCTAssertEqual(
+            FTPControlCodec.fallbackListingCommand(requiresHiddenEntries: false),
+            "LIST"
+        )
+    }
+
+    func testUnsafeWindowsFTPPathSeparatorsCannotEscapeAFileName() {
+        for name in [
+            "subfolder\\secrets.txt",
+            "..\\configuration.xml",
+            "C:\\secret.txt",
+            "archive\\",
+        ] {
+            XCTAssertThrowsError(
+                try FTPControlCodec.validateRemoteFileName(name),
+                "Backslash must never be interpreted as a directory separator: \(name)"
+            )
+            XCTAssertThrowsError(
+                try FTPControlCodec.transferCommand("STOR", remoteName: name)
+            )
+            XCTAssertThrowsError(
+                try FTPControlCodec.transferCommand("RETR", remoteName: name)
+            )
+        }
+    }
 
     func testFTPTransferCommandsIncludeRealRemoteName() throws {
         XCTAssertEqual(

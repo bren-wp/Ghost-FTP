@@ -336,6 +336,15 @@ fn list_lines(
     list_lines_with_dot_visibility(stream, target).map(|(lines, _)| lines)
 }
 
+/// A bare exact-string existence check would miss case-insensitive aliases
+/// on IIS and other FTP servers (for example, REPORT.txt vs report.TXT).
+/// Such a miss can overwrite an existing remote file during a transfer.
+/// This comparison is deliberately conservative and does not claim that
+/// Unicode canonical-equivalent names are detected on every server.
+fn ftp_names_may_alias(existing: &str, requested: &str) -> bool {
+    existing == requested || existing.to_lowercase() == requested.to_lowercase()
+}
+
 /// Prove whether an FTP path exists without turning protocol/listing failures
 /// into absence. A successful parent LIST is the proof source. When a server
 /// rejects `LIST -a`, absence of a dotfile cannot be proven and therefore
@@ -364,7 +373,7 @@ pub async fn path_exists_fail_closed(session: &Arc<FtpSession>, path: &str) -> R
             // or duplicate entries make an overwrite/conflict decision unsafe.
             let entries = parse_directory_listing(&parent, listing)
                 .with_context(|| format!("FTP existence inventory {parent}"))?;
-            if entries.iter().any(|entry| entry.name == name) {
+            if entries.iter().any(|entry| ftp_names_may_alias(&entry.name, &name)) {
                 return Ok(true);
             }
             if name.starts_with('.') && !includes_dotfiles {
@@ -402,6 +411,8 @@ impl RemoteFs for FtpFs {
     }
 
     async fn rename(&self, from: &str, to: &str) -> Result<()> {
+        super::validate_protocol_mutation_path(from)?;
+        super::validate_protocol_mutation_path(to)?;
         validate_ftp_command_path(from)?;
         validate_ftp_command_path(to)?;
         let from = from.to_string();
@@ -418,7 +429,7 @@ impl RemoteFs for FtpFs {
 
     async fn delete(&self, path: &str, recursive: bool) -> Result<()> {
         validate_ftp_command_path(path)?;
-        super::validate_remote_delete_path(path)?;
+        super::validate_protocol_mutation_path(path)?;
         // FTP distinguishes file deletion (DELE) from directory deletion
         // (RMD) and has no native recursive delete command. Recursive removal
         // therefore performs a guarded bottom-up traversal before removing root.
@@ -444,6 +455,7 @@ impl RemoteFs for FtpFs {
     }
 
     async fn create_dir(&self, path: &str) -> Result<()> {
+        super::validate_protocol_mutation_path(path)?;
         validate_ftp_command_path(path)?;
         let path = path.to_string();
         self.session
@@ -457,6 +469,7 @@ impl RemoteFs for FtpFs {
     }
 
     async fn chmod(&self, path: &str, mode: u32) -> Result<()> {
+        super::validate_protocol_mutation_path(path)?;
         validate_ftp_command_path(path)?;
         // Standard FTP has no permission command. Most Unix FTP servers
         // accept `SITE CHMOD <oct> <path>` as a server extension; we try it
@@ -719,6 +732,34 @@ mod ftp_recursive_delete_safety_tests {
         let error = require_complete_listing_for_recursive_delete(false)
             .expect_err("bare LIST is not a complete destructive inventory");
         assert!(error.to_string().contains("hidden entries may be omitted"));
+    }
+}
+
+#[cfg(test)]
+mod ftp_existence_collision_tests {
+    use super::ftp_names_may_alias;
+
+    #[test]
+    fn case_aliases_cannot_be_mistaken_for_remote_absence() {
+        for (existing, requested) in [
+            ("REPORT.txt", "report.txt"),
+            (".ENV", ".env"),
+            ("Photo.JPG", "PHOTO.jpg"),
+            ("RÉSUMÉ.pdf", "résumé.pdf"),
+        ] {
+            assert!(ftp_names_may_alias(existing, requested));
+        }
+    }
+
+    #[test]
+    fn unrelated_names_are_not_reported_as_conflicts() {
+        for (existing, requested) in [
+            ("report.txt", "report.csv"),
+            (".env.example", ".env"),
+            ("notes-1", "notes-2"),
+        ] {
+            assert!(!ftp_names_may_alias(existing, requested));
+        }
     }
 }
 

@@ -31,6 +31,19 @@ pub(crate) fn validate_remote_delete_path(path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// FTP and SFTP mutation operands are paths, not arbitrary filenames. A
+/// spelling with parent traversal, C0 controls or Windows path separators can
+/// reach an unexpected remote target, especially on IIS/Windows servers.
+/// Read-only navigation uses separate guards and can still list "/" or ".".
+pub(crate) fn validate_protocol_mutation_path(path: &str) -> anyhow::Result<()> {
+    validate_remote_delete_path(path)?;
+    anyhow::ensure!(
+        path.len() <= 4096 && !path.chars().any(|ch| ch.is_ascii_control() || ch == '\\'),
+        "refusing unsafe FTP/SFTP mutation path"
+    );
+    Ok(())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FileKind {
@@ -104,7 +117,7 @@ pub trait RemoteFs: Send + Sync {
 
 #[cfg(test)]
 mod destructive_path_tests {
-    use super::validate_remote_delete_path;
+    use super::{validate_protocol_mutation_path, validate_remote_delete_path};
 
     #[test]
     fn rejects_root_and_dot_segments() {
@@ -118,6 +131,44 @@ mod destructive_path_tests {
             assert!(
                 validate_remote_delete_path(path).is_ok(),
                 "{path:?} must be allowed"
+            );
+        }
+    }
+
+    #[test]
+    fn protocol_mutations_reject_traversal_controls_and_windows_separators() {
+        for path in [
+            "",
+            " ",
+            "/",
+            ".",
+            "..",
+            "/safe/../secret",
+            "safe/./config",
+            "logs\\..\\private",
+            "dir\\file",
+            "safe\0tail",
+            "safe\r\nDELE /",
+            "safe\ttab",
+            "safe\u{7f}del",
+        ] {
+            assert!(
+                validate_protocol_mutation_path(path).is_err(),
+                "unsafe FTP/SFTP mutation accepted: {path:?}"
+            );
+        }
+        assert!(validate_protocol_mutation_path(&"x".repeat(4097)).is_err());
+
+        for path in [
+            "new folder",
+            "folder/child",
+            "/srv/site/index.html",
+            "/home/računi/čćž 文件 2026.pdf",
+            ".hidden",
+        ] {
+            assert!(
+                validate_protocol_mutation_path(path).is_ok(),
+                "valid FTP/SFTP mutation rejected: {path:?}"
             );
         }
     }

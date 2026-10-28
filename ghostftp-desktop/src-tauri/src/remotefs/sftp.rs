@@ -174,6 +174,8 @@ impl RemoteFs for SftpFs {
     }
 
     async fn rename(&self, from: &str, to: &str) -> Result<()> {
+        super::validate_protocol_mutation_path(from)?;
+        super::validate_protocol_mutation_path(to)?;
         let sftp_cell = self.session.ensure_sftp().await?;
         let sftp = sftp_cell.lock().await;
         sftp.rename(from, to)
@@ -183,7 +185,7 @@ impl RemoteFs for SftpFs {
     }
 
     async fn delete(&self, path: &str, recursive: bool) -> Result<()> {
-        super::validate_remote_delete_path(path)?;
+        super::validate_protocol_mutation_path(path)?;
         anyhow::ensure!(
             !path.chars().any(|ch| matches!(ch, '\0' | '\r' | '\n')),
             "SFTP delete refused: unsafe target path"
@@ -276,6 +278,7 @@ impl RemoteFs for SftpFs {
     }
 
     async fn create_dir(&self, path: &str) -> Result<()> {
+        super::validate_protocol_mutation_path(path)?;
         let sftp_cell = self.session.ensure_sftp().await?;
         let sftp = sftp_cell.lock().await;
         sftp.create_dir(path)
@@ -285,6 +288,7 @@ impl RemoteFs for SftpFs {
     }
 
     async fn chmod(&self, path: &str, mode: u32) -> Result<()> {
+        super::validate_protocol_mutation_path(path)?;
         let sftp_cell = self.session.ensure_sftp().await?;
         let sftp = sftp_cell.lock().await;
         let attrs = FileAttributes {
