@@ -31,7 +31,14 @@ final class FTPControlSessionTests: XCTestCase {
         XCTAssertThrowsError(
             try FTPControlCodec.validateUploadDestination(".env", within: entries)
         ) { error in
-            XCTAssertEqual(error as? FTPControlError, .remoteFileAlreadyExists)
+            guard let ftpError = error as? FTPControlError else {
+                return XCTFail("Unexpected preflight error: \\(error)")
+            }
+            if case .remoteFileAlreadyExists = ftpError {
+                // Existing hidden file was detected before STOR.
+            } else {
+                XCTFail("Existing hidden file was not protected")
+            }
         }
     }
 
