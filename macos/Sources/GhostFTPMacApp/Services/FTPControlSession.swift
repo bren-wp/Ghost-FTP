@@ -229,7 +229,11 @@ enum FTPControlCodec {
 
     static func validateRemoteFileName(_ value: String) throws {
         try validateCommandArgument(value)
-        guard !value.isEmpty, value != ".", value != "..", !value.contains("/") else {
+        // A backslash is a path separator on IIS/Windows FTP servers even
+        // though it is an ordinary character on Unix. Treat both spellings
+        // as unsafe so a displayed basename cannot escape its directory.
+        guard !value.isEmpty, value != ".", value != "..",
+              !value.contains("/"), !value.contains("\\") else {
             throw FTPControlError.invalidRemoteFileName
         }
     }
@@ -256,6 +260,13 @@ enum FTPControlCodec {
         if entries.contains(where: { remoteNameIdentity($0.name) == identity }) {
             throw FTPControlError.remoteFileAlreadyExists
         }
+    }
+
+    /// An upload cannot use a bare LIST as evidence that a hidden target is
+    /// absent. MLSD inventories include hidden entries; legacy servers must
+    /// accept LIST -a or the caller must fail closed before issuing STOR.
+    static func fallbackListingCommand(requiresHiddenEntries: Bool) -> String {
+        requiresHiddenEntries ? "LIST -a" : "LIST"
     }
 
     static func transferCommand(_ verb: String, remoteName: String) throws -> String {
@@ -869,7 +880,10 @@ actor FTPControlSession {
 
         // Validate a complete server inventory before any mutating STOR.
         // Failed listings never mean "empty": fail closed instead.
-        let remoteEntries = try await listDirectory(timeoutSeconds: timeoutSeconds)
+        let remoteEntries = try await listDirectory(
+            timeoutSeconds: timeoutSeconds,
+            requiresHiddenEntries: true
+        )
         try FTPControlCodec.validateUploadDestination(remoteName, within: remoteEntries)
         let dataConnection = try await openPassiveDataConnection(timeoutSeconds: timeoutSeconds)
 
@@ -943,7 +957,10 @@ actor FTPControlSession {
         }
     }
 
-    func listDirectory(timeoutSeconds: TimeInterval = 8) async throws -> [FTPDirectoryEntry] {
+    func listDirectory(
+        timeoutSeconds: TimeInterval = 8,
+        requiresHiddenEntries: Bool = false
+    ) async throws -> [FTPDirectoryEntry] {
         let dataConnection = try await openPassiveDataConnection(
             timeoutSeconds: timeoutSeconds
         )
@@ -953,7 +970,10 @@ actor FTPControlSession {
             let preliminary = try await readReply(timeoutSeconds: timeoutSeconds)
             if FTPControlCodec.mlsdIsUnsupported(preliminary) {
                 dataConnection.cancel()
-                return try await listUnixDirectory(timeoutSeconds: timeoutSeconds)
+                return try await listUnixDirectory(
+                    timeoutSeconds: timeoutSeconds,
+                    requiresHiddenEntries: requiresHiddenEntries
+                )
             }
             try expect(
                 preliminary,
@@ -983,10 +1003,19 @@ actor FTPControlSession {
 
     /// Open a new passive data connection after an explicit MLSD rejection.
     /// The rejected transfer's data socket is never reused.
-    private func listUnixDirectory(timeoutSeconds: TimeInterval) async throws -> [FTPDirectoryEntry] {
+    private func listUnixDirectory(
+        timeoutSeconds: TimeInterval,
+        requiresHiddenEntries: Bool
+    ) async throws -> [FTPDirectoryEntry] {
         let dataConnection = try await openPassiveDataConnection(timeoutSeconds: timeoutSeconds)
         do {
-            try await sendLine("LIST", timeoutSeconds: timeoutSeconds)
+            // This is an upload preflight only when hidden entries are required.
+            // If the server rejects LIST -a, propagate the rejection: never
+            // fall back to a possibly incomplete bare LIST before STOR.
+            try await sendLine(
+                FTPControlCodec.fallbackListingCommand(requiresHiddenEntries: requiresHiddenEntries),
+                timeoutSeconds: timeoutSeconds
+            )
             let preliminary = try await readReply(timeoutSeconds: timeoutSeconds)
             try expect(
                 preliminary,
