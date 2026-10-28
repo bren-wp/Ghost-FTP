@@ -148,6 +148,34 @@ func rejectSensitiveSiteFields(raw json.RawMessage) error {
 	return walk(value)
 }
 
+// writePrivateStagedFile writes a fully synced, unpredictable temporary file
+// in the destination directory. It cannot truncate an attacker-chosen .tmp path.
+func writePrivateStagedFile(dir, pattern string, data []byte) (string, error) {
+	f, err := os.CreateTemp(dir, pattern)
+	if err != nil {
+		return "", err
+	}
+	name := f.Name()
+	if err := f.Chmod(0600); err != nil {
+		_ = f.Close()
+		_ = os.Remove(name)
+		return "", err
+	}
+	_, err = f.Write(data)
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		_ = os.Remove(name)
+		return "", err
+	}
+	return name, nil
+}
+
 func writePersistedState(state persistedState) error {
 	if !validLocale(state.Locale) {
 		return fmt.Errorf("unsupported locale")
@@ -173,37 +201,60 @@ func writePersistedState(state persistedState) error {
 	if err := os.Chmod(dir, 0700); err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	bak := path + ".bak"
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+
+	// Never follow a pre-existing state symlink. Validate both paths before
+	// writing anything; the backup must not be a directory or a symlink.
+	for _, candidate := range []string{path, path + ".bak"} {
+		info, statErr := os.Lstat(candidate)
+		if statErr == nil {
+			if !info.Mode().IsRegular() {
+				return fmt.Errorf("refusing non-regular fallback state path: %s", candidate)
+			}
+		} else if !errors.Is(statErr, os.ErrNotExist) {
+			return statErr
+		}
+	}
+
+	// Preserve the last known-good .bak until AFTER the replacement is
+	// committed. Do not replace a valid backup with corrupt former state.
+	var stagedBackup string
+	previous, readErr := os.ReadFile(path)
+	if readErr == nil {
+		var old persistedState
+		if json.Unmarshal(previous, &old) == nil &&
+			validJSONKind(old.Sites, '[') && validJSONKind(old.Settings, '{') {
+			stagedBackup, err = writePrivateStagedFile(dir, ".fallback-backup-*.tmp", previous)
+			if err != nil {
+				return err
+			}
+			defer os.Remove(stagedBackup)
+		}
+	} else if !errors.Is(readErr, os.ErrNotExist) {
+		return readErr
+	}
+
+	stagedState, err := writePrivateStagedFile(dir, ".fallback-state-*.tmp", data)
 	if err != nil {
 		return err
 	}
-	if _, err = f.Write(data); err == nil {
-		err = f.Sync()
+	defer os.Remove(stagedState)
+	// The destination is never removed or renamed out of the way first:
+	// failed replacements leave the previous current state and .bak intact.
+	if err := os.Rename(stagedState, path); err != nil {
+		return fmt.Errorf("failed to atomically replace fallback state: %w", err)
 	}
-	closeErr := f.Close()
-	if err == nil {
-		err = closeErr
-	}
-	if err != nil {
-		_ = os.Remove(tmp)
-		return err
-	}
-	_ = os.Remove(bak)
-	if _, statErr := os.Stat(path); statErr == nil {
-		if err := os.Rename(path, bak); err != nil {
-			_ = os.Remove(tmp)
-			return err
+	if stagedBackup != "" {
+		if err := os.Rename(stagedBackup, path+".bak"); err != nil {
+			// The new state is already committed, while the previous .bak
+			// remains intact. Never delete it to make rotation appear green.
+			return fmt.Errorf("state saved but backup rotation failed: %w", err)
 		}
 	}
-	if err := os.Rename(tmp, path); err != nil {
-		if _, statErr := os.Stat(bak); statErr == nil {
-			_ = os.Rename(bak, path)
-		}
-		return err
+	// Best-effort directory metadata flush on filesystems that support it.
+	if directory, err := os.Open(dir); err == nil {
+		_ = directory.Sync()
+		_ = directory.Close()
 	}
-	// Intentionally retain the previous known-good backup for startup recovery.
 	return nil
 }
 

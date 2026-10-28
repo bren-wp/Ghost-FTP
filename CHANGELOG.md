@@ -1,3 +1,10 @@
+## 0.99.17 — recoverable compatibility runtime state persistence (development Preview; 28 October 2026)
+- Stage fallback state writes using unpredictable, private, fsynced temporary files; reject non-regular current and backup paths instead of following symlinks.
+- Preserve the previous known-good backup until after a successful atomic current-state replacement; a corrupt former state cannot replace a valid backup.
+- Add regressions for recovery, failed writes, symlink destinations and the former predictable .tmp overwrite surface.
+- Confirm supplied GhostFTP-Premium-Brand-UI(10).zip is byte-identical to audited v8 reference (SHA-256 1cdaea3e60c0ec4b14c3e8fa515351ba0710ee9022060e7f107b8bb9fbf6e877); 75/75 pixel acceptance remains unverified.
+- Source remains Preview. Native macOS secure FTPS/SFTP (#223), real 75-screen installed screenshot evidence, Ghost FTP Server, platform signing and full client/server E2E remain unfinished release gates.
+
 ## 0.99.16 — precise RGB screenshot diff counts and CI regression coverage (development Preview; 26 October 2026)
 - Correct v8 screenshot difference counts for even one RGB-channel value change: compare channel maxima without grayscale conversion/rounding.
 - Add synthetic red/green/blue, unchanged and wrong-size Python regression tests, and execute them in the exact-HEAD quality workflow with pinned Pillow dependency.
