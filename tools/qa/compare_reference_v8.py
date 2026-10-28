@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Compare all 75 Ghost FTP v8 concepts to GENUINE installed-app captures.
 
+Pixel comparisons count changes to any RGB or alpha channel (RGBA).
+
 Usage:
  python tools/qa/compare_reference_v8.py \
    --reference-zip "GhostFTP-Premium-Brand-UI(8).zip" \
@@ -38,6 +40,9 @@ def size_of_png(data: bytes) -> tuple[int, int]:
 
 
 def verify(archive: Path, mapping: Path) -> list[dict]:
+    # Do not read an unbounded untrusted archive into memory just to hash it.
+    if archive.stat().st_size > 64 * 1024 * 1024:
+        raise ValueError("Reference ZIP exceeds 64 MiB compressed safety limit")
     if hashlib.sha256(archive.read_bytes()).hexdigest() != ARCHIVE_SHA256:
         raise ValueError("Reference ZIP SHA256 mismatch: v8 is the ONLY accepted reference")
     registry = json.loads(mapping.read_text(encoding="utf-8"))
@@ -73,23 +78,34 @@ def pixel_difference(reference: bytes, capture: Path, size: tuple[int, int]) -> 
         from PIL import Image, ImageChops, ImageStat
     except ImportError as e:
         raise RuntimeError("Install Pillow to measure PNG pixel differences") from e
+    # An RGB-only comparison falsely accepts screenshots where only opacity
+    # changed, including a fully invisible icon vs a visible one. Compare
+    # unpremultiplied RGBA channels, not just their three RGB projections.
+    if capture.is_symlink():
+        raise ValueError("real installed-app capture must not be a symlink")
     with Image.open(BytesIO(reference)) as opened:
-        expected = opened.convert("RGB")
+        if opened.format != "PNG":
+            raise ValueError("reference is not PNG")
+        expected = opened.convert("RGBA")
     with Image.open(capture) as opened:
-        actual = opened.convert("RGB")
+        if opened.format != "PNG":
+            raise ValueError("capture is not PNG")
+        actual = opened.convert("RGBA")
     if expected.size != size or actual.size != size:
         return dict(status="wrong_capture_size", capture_size=actual.size, exact=False)
     diff = ImageChops.difference(expected, actual)
     stats = ImageStat.Stat(diff)
     pixels = size[0] * size[1]
-    # Grayscale conversion rounds low-intensity channel deltas to zero (e.g.
-    # RGB (0,0,0) -> (1,0,0)); it therefore undercounts changed pixels.
-    # Use per-channel maxima: a pixel differs if ANY RGB channel differs.
-    red, green, blue = diff.split()
-    changed_mask = ImageChops.lighter(ImageChops.lighter(red, green), blue)
+    # One changed channel (including alpha) must change the exact-pixel count.
+    # Grayscale conversion rounds one-unit RGB/alpha deltas down to zero.
+    red, green, blue, alpha = diff.split()
+    changed_mask = ImageChops.lighter(
+        ImageChops.lighter(red, green), ImageChops.lighter(blue, alpha)
+    )
     changed = pixels - changed_mask.histogram()[0]
-    return dict(status="compared", exact=diff.getbbox() is None,
-                mean_rgb_absolute_difference=round(sum(stats.mean) / 3, 4),
+    return dict(status="compared", exact=changed == 0,
+                mean_rgb_absolute_difference=round(sum(stats.mean[:3]) / 3, 4),
+                mean_alpha_absolute_difference=round(stats.mean[3], 4),
                 different_pixel_count=changed,
                 different_pixel_fraction=round(changed / pixels, 6),
                 capture_sha256=hashlib.sha256(capture.read_bytes()).hexdigest())
