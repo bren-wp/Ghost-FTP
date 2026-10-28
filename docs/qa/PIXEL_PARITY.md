@@ -1,6 +1,6 @@
 # Ghost FTP — installed-build visual acceptance
 
-Visual reference authority: the user-supplied GhostFTP-Premium-Brand-UI(7).zip and the 75-entry source map in docs/qa/premium-75-screen-contract.json. The references are design **concepts**, never real file data or executable screens. Do not embed them as application backgrounds.
+Visual reference authority: the SHA-256-pinned `GhostFTP-Premium-Brand-UI(8).zip` reference, byte-identical to the user-supplied `(10).zip` (SHA-256 `1cdaea3e60c0ec4b14c3e8fa515351ba0710ee9022060e7f107b8bb9fbf6e877`), and the 75-entry source map in `docs/qa/premium-75-screen-contract.json`. Earlier v7 designs are historical only. The references are design **concepts**, never real file data or executable screens. Do not embed them as application backgrounds.
 
 ## What the 0.30.18 Help/About increment can verify
 
@@ -64,3 +64,26 @@ This is an improved reproducible **implementation baseline**, not a blanket 1:1 
 ## 0.99.13 — final v8 reference supersedes historical violet Android designs
 
 The new user-supplied `GhostFTP-Premium-Brand-UI(8).zip` is pinned by SHA-256 and exact 75-screen manifest. This includes 30 Windows, 29 Linux and 16 Android *concept images*, no macOS reference images. Cyan-blue `#38ABFF` with a persistent 62dp phone rail at 480dp is now the Android design target, superseding earlier violet references. Use `tools/qa/compare_reference_v8.py` and `docs/qa/REFERENCE_V8_PIXEL_AUDIT.md` to compare genuine installed captures. **Not one of the 75 screens is certified pixel-exact solely from these changes.**
+
+## 0.99.18 Phase 3 — exact RGBA comparisons and proof boundaries
+
+The canonical 75-entry visual audit is **30 Windows** and **29 Linux** references at **1290×852** plus **16 Android** references at **480×960**. It does not contain a native macOS screenshot set.
+
+The Phase 3 comparator `tools/qa/compare_reference_v8.py` now compares **RGBA**, not merely RGB. A one-unit change in any color or alpha channel is counted as a changed pixel; images with invisible icons due to different opacity can no longer receive a false `exact: true` result. Each wrong-size, symlinked, invalid PNG or unreadable real capture is recorded individually, allowing the remaining images to be audited. `--require-all-captures` fails on missing or invalid images and `--require-exact` additionally fails when any RGBA pixel differs. These are *measurement gates*, **not proofs of real runtime origin**.
+
+Example after collecting genuine target-OS screenshots:
+
+```bash
+python3 tools/qa/compare_reference_v8.py \
+  --reference-zip "GhostFTP-Premium-Brand-UI(10).zip" \
+  --captures-dir "build/qa/installed-captures" \
+  --output "build/qa/phase3-rgba.json" \
+  --require-all-captures
+```
+
+To check literal 1:1 RGBA equality as an additional diagnostic, append `--require-exact`. The comparison does **not** require that illustrative fake server/file values be reproduced in the real app. Legitimate data, accessibility, and platform-safe deviations may produce nonzero differences and require human review.
+
+Capture directory structure is `<platform>/<screen-id>.png`, with an externally traceable record of the exact Git commit, installed package SHA-256, OS/device, viewport size, display scaling, locale/theme, app state, and relevant click-through interactions. Treat debug-only Android capture as privacy-sensitive; preserve `FLAG_SECURE` in production. Never copy the supplied concept PNG into an installed capture folder or promote a design image to evidence.
+
+**Acceptance as of this phase:** 75 reference sources verified, 0/75 independently human-accepted installed screenshots. Any published README images must identify actual source captures and must not be described as newly verified 75/75 parity.
+
