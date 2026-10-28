@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -91,9 +92,26 @@ func preserveFallbackCorrupt(path string) {
 	if err != nil {
 		return
 	}
-	// Preserve evidence with a new private filename, not a timestamp-based
-	// path that can overwrite another recovery within the same second.
-	_, _ = writePrivateStagedFile(filepath.Dir(path), "fallback-state.corrupt.*", data)
+	// A stable content digest prevents repeated launches from creating an
+	// unbounded number of identical forensic copies while retaining a separate
+	// private snapshot for each distinct corrupted primary.
+	digest := sha256.Sum256(data)
+	copyPath := fmt.Sprintf("%s.corrupt.%x", path, digest)
+	f, err := os.OpenFile(copyPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return // Existing digest snapshot or unavailable recovery directory.
+	}
+	_, err = f.Write(data)
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		_ = os.Remove(copyPath)
+	}
 }
 
 func sanitizeSensitiveSiteFields(raw json.RawMessage) json.RawMessage {
