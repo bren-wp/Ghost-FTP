@@ -216,15 +216,30 @@ func TestCorruptFallbackPrimaryNeverOverwritesPriorForensicCopy(t *testing.T) {
 	if _, err := readPersistedState(); err != nil {
 		t.Fatal(err)
 	}
-	copies, err := filepath.Glob(filepath.Join(filepath.Dir(path), "fallback-state.corrupt.*"))
-	if err != nil || len(copies) != 2 {
-		t.Fatalf("expected two unique corruption snapshots, got %d: %v", len(copies), err)
+	copies, err := filepath.Glob(filepath.Join(filepath.Dir(path), "fallback-state.json.corrupt.*"))
+	if err != nil || len(copies) != 1 {
+		t.Fatalf("repeat recovery should retain just one identical snapshot, got %d: %v", len(copies), err)
 	}
+	if err := os.WriteFile(path, []byte("different-broken-JSON"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readPersistedState(); err != nil {
+		t.Fatal(err)
+	}
+	copies, err = filepath.Glob(filepath.Join(filepath.Dir(path), "fallback-state.json.corrupt.*"))
+	if err != nil || len(copies) != 2 {
+		t.Fatalf("distinct corruption should retain separate snapshots, got %d: %v", len(copies), err)
+	}
+	got := make(map[string]bool)
 	for _, copy := range copies {
 		data, err := os.ReadFile(copy)
-		if err != nil || string(data) != "broken-JSON" {
-			t.Fatalf("forensic snapshot lost original bytes: %v", err)
+		if err != nil {
+			t.Fatal(err)
 		}
+		got[string(data)] = true
+	}
+	if !got["broken-JSON"] || !got["different-broken-JSON"] {
+		t.Fatalf("forensic snapshots changed original bytes: %+v", got)
 	}
 }
 
