@@ -24,7 +24,7 @@ final class FTPControlSessionTests: XCTestCase {
         // MLSD includes entries that bare Unix LIST can hide. Preserve that
         // evidence through the collision preflight before issuing STOR.
         let payload = Data(
-            "type=file;size=3; .env\\r\\n".utf8
+            "type=file;size=3; .env\r\n".utf8
         )
         let entries = try FTPControlCodec.parseMLSD(payload)
         XCTAssertTrue(entries.contains(where: { $0.name == ".env" }))
