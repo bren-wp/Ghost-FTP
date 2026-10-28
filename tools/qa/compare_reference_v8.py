@@ -118,6 +118,8 @@ def main() -> int:
     parser.add_argument("--captures-dir", type=Path)
     parser.add_argument("--output", type=Path, default=Path("build/qa/ghostftp-pixel-diff.json"))
     parser.add_argument("--require-all-captures", action="store_true")
+    parser.add_argument("--require-exact", action="store_true",
+                        help="Fail if any real capture is missing, invalid, resized or differs by any RGBA channel")
     args = parser.parse_args()
     try:
         screens = verify(args.reference_zip, args.contract)
@@ -132,9 +134,15 @@ def main() -> int:
                 if capture is None or not capture.is_file():
                     result["status"] = "missing_real_capture"
                 else:
-                    result.update(pixel_difference(z.read(PREFIX + path), capture,
-                                                   screen["dimensions"]))
                     result["capture_path"] = str(capture)
+                    try:
+                        result.update(pixel_difference(z.read(PREFIX + path), capture,
+                                                       screen["dimensions"]))
+                    except (OSError, ValueError, RuntimeError) as error:
+                        # One broken screenshot must not hide the other 74
+                        # comparisons. Preserve a per-screen failure record.
+                        result["status"] = "invalid_capture"
+                        result["error"] = str(error)
                 records.append(result)
     except (KeyError, OSError, ValueError, RuntimeError, zipfile.BadZipFile) as error:
         print("Ghost FTP visual QA: " + str(error), file=sys.stderr)
@@ -153,6 +161,9 @@ def main() -> int:
                            encoding="utf-8")
     print("Reviewed 75 source images; compared",
           sum(x["status"] == "compared" for x in records), "real captures ->", args.output)
+    if args.require_exact:
+        return int(any(x["status"] != "compared" or x.get("exact") is not True
+                       for x in records))
     return int(args.require_all_captures and any(x["status"] != "compared" for x in records))
 
 
