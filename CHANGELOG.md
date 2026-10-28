@@ -1,3 +1,10 @@
+## 0.99.18 — fail-closed fallback recovery (development Preview; 28 October 2026)
+- Reject malformed saved-site/settings JSON and non-regular/symlinked state files; recover only from a validated backup.
+- Prevent silent empty-workspace resets when the primary is missing but a corrupt backup exists. Only a genuinely absent primary **and** backup gets first-launch defaults.
+- Retain unique content-addressed 0600 corruption snapshots without unbounded copies on repeated startups. Cover all recovery paths with five new Go regressions and document the residual filesystem/atomicity risks.
+- Preserve original 0.99.17 storage format, all existing platform clients and the exact v8/v10 75-screen concept inventory.
+- Keep this edition Preview pending exact-SHA CI, prior public 0.99.17 release, macOS issue #223, real visual evidence and separate Ghost FTP Server work.
+
 ## 0.99.17 — recoverable compatibility runtime state persistence (development Preview; 28 October 2026)
 - Stage fallback state writes using unpredictable, private, fsynced temporary files; reject non-regular current and backup paths instead of following symlinks.
 - Preserve the previous known-good backup until after a successful atomic current-state replacement; a corrupt former state cannot replace a valid backup.
