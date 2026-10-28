@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -140,5 +141,111 @@ func TestFallbackStateRejectsSymlinkDestination(t *testing.T) {
 	data, err := os.ReadFile(sentinel)
 	if err != nil || string(data) != "keep me" {
 		t.Fatalf("state write followed unsafe symlink: %v", err)
+	}
+}
+
+// A corrupt backup on an otherwise missing primary must not masquerade as a
+// first launch. A user may have had valid sites before an interrupted update.
+func TestMissingFallbackPrimaryWithCorruptBackupFailsClosed(t *testing.T) {
+	path := isolatedFallbackPath(t)
+	broken := []byte("{truncated-backup")
+	if err := os.WriteFile(path+".bak", broken, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if state, err := readPersistedState(); err == nil {
+		t.Fatalf("silent empty-state reset with corrupt backup: %+v", state)
+	}
+	preserved, err := os.ReadFile(path + ".bak")
+	if err != nil || string(preserved) != string(broken) {
+		t.Fatalf("recovery failed to preserve original bytes: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("failed recovery unexpectedly created a primary state: %v", err)
+	}
+}
+
+func TestFreshFallbackInstallInitializesOnlyWhenBothFilesAbsent(t *testing.T) {
+	path := isolatedFallbackPath(t)
+	state, err := readPersistedState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Locale != "en" || string(state.Sites) != "[]" || string(state.Settings) != "{}" {
+		t.Fatalf("unexpected first-launch defaults: %+v", state)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("reading defaults should not create persisted data: %v", err)
+	}
+}
+
+func TestInvalidFallbackStateShapeRecoversBackupRatherThanClearingSites(t *testing.T) {
+	path := isolatedFallbackPath(t)
+	backup := []byte(`{"locale":"hr","sites":[{"name":"Existing Site"}],"settings":{"theme":"dark"}}`)
+	if err := os.WriteFile(path+".bak", backup, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, corrupted := range []string{
+		`{"locale":"en","sites":null,"settings":{}}`,
+		`{"locale":"en","sites":[],"settings":null}`,
+		`null`,
+	} {
+		if err := os.WriteFile(path, []byte(corrupted), 0600); err != nil {
+			t.Fatal(err)
+		}
+		recovered, err := readPersistedState()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if recovered.Locale != "hr" || !strings.Contains(string(recovered.Sites), "Existing Site") {
+			t.Fatalf("invalid state silently discarded saved sites: %+v", recovered)
+		}
+	}
+}
+
+func TestCorruptFallbackPrimaryNeverOverwritesPriorForensicCopy(t *testing.T) {
+	path := isolatedFallbackPath(t)
+	if err := os.WriteFile(path+".bak", []byte(`{"locale":"en","sites":[],"settings":{}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("broken-JSON"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readPersistedState(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readPersistedState(); err != nil {
+		t.Fatal(err)
+	}
+	copies, err := filepath.Glob(filepath.Join(filepath.Dir(path), "fallback-state.corrupt.*"))
+	if err != nil || len(copies) != 2 {
+		t.Fatalf("expected two unique corruption snapshots, got %d: %v", len(copies), err)
+	}
+	for _, copy := range copies {
+		data, err := os.ReadFile(copy)
+		if err != nil || string(data) != "broken-JSON" {
+			t.Fatalf("forensic snapshot lost original bytes: %v", err)
+		}
+	}
+}
+
+func TestFallbackRecoveryRefusesLinkedBackup(t *testing.T) {
+	path := isolatedFallbackPath(t)
+	sentinel := filepath.Join(t.TempDir(), "external-config")
+	original := []byte(`{"locale":"hr","sites":[{"name":"Other data"}],"settings":{}}`)
+	if err := os.WriteFile(sentinel, original, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(sentinel, path+".bak"); err != nil {
+		if runtime.GOOS == "windows" {
+			t.Skipf("Windows symlink privilege unavailable: %v", err)
+		}
+		t.Fatal(err)
+	}
+	if recovered, err := readPersistedState(); err == nil {
+		t.Fatalf("following an external backup link bypassed recovery restrictions: %+v", recovered)
+	}
+	after, err := os.ReadFile(sentinel)
+	if err != nil || string(after) != string(original) {
+		t.Fatalf("external state changed after rejected recovery: %v", err)
 	}
 }
