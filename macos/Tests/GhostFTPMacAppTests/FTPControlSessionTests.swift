@@ -160,16 +160,51 @@ final class FTPControlSessionTests: XCTestCase {
 
     func testRemoteTransferNameRejectsTraversalAndCommandInjection() {
         for value in [
-            "", ".", "..", "nested/file.txt", "bad\r\nDELE target",
+            "", ".", "..", "nested/file.txt", "name\\with-backslash.txt",
+            "bad\r\nDELE target",
             "file\tname", "file\u{1B}name", "file\u{7F}name"
         ] {
             XCTAssertThrowsError(try FTPControlCodec.validateRemoteFileName(value))
         }
 
         XCTAssertNoThrow(try FTPControlCodec.validateRemoteFileName("archive 2026.zip"))
-        XCTAssertNoThrow(try FTPControlCodec.validateRemoteFileName("name\\with-backslash.txt"))
+        XCTAssertNoThrow(try FTPControlCodec.validateRemoteFileName("čćž invoice 2026.txt"))
     }
 
+
+    func testLegacyFTPListPreflightNeverUsesInvisibleDotfileInventory() {
+        // A plain LIST may hide .env/.htaccess and let STOR overwrite them
+        // without any warning. A server without MLSD must accept LIST -a;
+        // a rejected LIST -a is a fatal preflight error, never a fallback.
+        XCTAssertEqual(
+            FTPControlCodec.fallbackListingCommand(requiresHiddenEntries: true),
+            "LIST -a"
+        )
+        XCTAssertEqual(
+            FTPControlCodec.fallbackListingCommand(requiresHiddenEntries: false),
+            "LIST"
+        )
+    }
+
+    func testUnsafeWindowsFTPPathSeparatorsCannotEscapeAFileName() {
+        for name in [
+            "subfolder\\secrets.txt",
+            "..\\configuration.xml",
+            "C:\\secret.txt",
+            "archive\\",
+        ] {
+            XCTAssertThrowsError(
+                try FTPControlCodec.validateRemoteFileName(name),
+                "Backslash must never be interpreted as a directory separator: \(name)"
+            )
+            XCTAssertThrowsError(
+                try FTPControlCodec.transferCommand("STOR", remoteName: name)
+            )
+            XCTAssertThrowsError(
+                try FTPControlCodec.transferCommand("RETR", remoteName: name)
+            )
+        }
+    }
 
     func testFTPTransferCommandsIncludeRealRemoteName() throws {
         XCTAssertEqual(
