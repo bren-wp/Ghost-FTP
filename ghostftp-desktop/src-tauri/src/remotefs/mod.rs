@@ -171,17 +171,6 @@ mod destructive_path_tests {
                 "valid FTP/SFTP mutation rejected: {path:?}"
             );
         }
-    }        assert!(validate_protocol_mutation_path(&"x".repeat(4097)).is_err());
-
-        for path in [
-            "new folder", "folder/child", "/srv/site/index.html",
-            "/home/računi/čćž 文件 2026.pdf", ".hidden",
-        ] {
-            assert!(
-                validate_protocol_mutation_path(path).is_ok(),
-                "valid FTP/SFTP mutation rejected: {path:?}"
-            );
-        }
     }
 
 }
