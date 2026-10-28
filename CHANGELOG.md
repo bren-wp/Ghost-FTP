@@ -1,7 +1,9 @@
 ## 0.99.18 — fail-closed fallback recovery (development Preview; 28 October 2026)
 - Reject malformed saved-site/settings JSON and non-regular/symlinked state files; recover only from a validated backup.
 - Prevent silent empty-workspace resets when the primary is missing but a corrupt backup exists. Only a genuinely absent primary **and** backup gets first-launch defaults.
-- Retain unique content-addressed 0600 corruption snapshots without unbounded copies on repeated startups. Cover all recovery paths with five new Go regressions and document the residual filesystem/atomicity risks.
+- Retain unique content-addressed 0600 corruption snapshots without unbounded copies on repeated startups. Add corruption recovery, symlink, and concurrent writer/reader Go regressions; enforce `go test -race ./...` and document residual filesystem/atomicity risks.
+- Faza 2: validate FTP/SFTP mutation destinations against traversal, control bytes and Windows path separators; treat case-only FTP filename aliases as potential overwrite conflicts. Native macOS FTP upload refuses incomplete hidden-file inventory while retaining fail-closed FTPS/SFTP behavior.
+- Faza 3: upgrade 75-screen visual diff to exact RGBA channel accounting, including one-level opacity changes; record invalid PNG/symlink capture failures separately and support optional `--require-exact` test gate. Add independent Python regressions, preserve screenshot evidence as unverified until real installed-app capture review.
 - Preserve original 0.99.17 storage format, all existing platform clients and the exact v8/v10 75-screen concept inventory.
 - Keep this edition Preview pending exact-SHA CI, prior public 0.99.17 release, macOS issue #223, real visual evidence and separate Ghost FTP Server work.
 
