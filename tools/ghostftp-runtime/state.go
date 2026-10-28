@@ -8,7 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
+
+// The compatibility HTTP API can receive concurrent writes and reads. Lock the
+// complete load/rotate transaction, not only the final rename, so one save
+// cannot interleave its backup snapshot with another save or recovery read.
+var fallbackStateMu sync.Mutex
 
 type persistedState struct {
 	Locale   string          `json:"locale"`
@@ -25,6 +31,8 @@ func fallbackStatePath() (string, error) {
 }
 
 func readPersistedState() (persistedState, error) {
+	fallbackStateMu.Lock()
+	defer fallbackStateMu.Unlock()
 	path, err := fallbackStatePath()
 	if err != nil {
 		return persistedState{}, err
@@ -212,6 +220,8 @@ func writePrivateStagedFile(dir, pattern string, data []byte) (string, error) {
 }
 
 func writePersistedState(state persistedState) error {
+	fallbackStateMu.Lock()
+	defer fallbackStateMu.Unlock()
 	if !validLocale(state.Locale) {
 		return fmt.Errorf("unsupported locale")
 	}
