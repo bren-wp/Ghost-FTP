@@ -264,3 +264,25 @@ func TestFallbackRecoveryRefusesLinkedBackup(t *testing.T) {
 		t.Fatalf("external state changed after rejected recovery: %v", err)
 	}
 }
+
+func TestFallbackReadRejectsLinkedPrimaryWithoutAccessingTarget(t *testing.T) {
+	path := isolatedFallbackPath(t)
+	sentinel := filepath.Join(t.TempDir(), "external-primary")
+	original := []byte(`{"locale":"hr","sites":[{"name":"Sensitive external file"}],"settings":{}}`)
+	if err := os.WriteFile(sentinel, original, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(sentinel, path); err != nil {
+		if runtime.GOOS == "windows" {
+			t.Skipf("Windows symlink privilege unavailable: %v", err)
+		}
+		t.Fatal(err)
+	}
+	if state, err := readPersistedState(); err == nil {
+		t.Fatalf("symlinked primary was accepted without independent backup: %+v", state)
+	}
+	got, err := os.ReadFile(sentinel)
+	if err != nil || string(got) != string(original) {
+		t.Fatalf("read-only rejection unexpectedly changed external data: %v", err)
+	}
+}
