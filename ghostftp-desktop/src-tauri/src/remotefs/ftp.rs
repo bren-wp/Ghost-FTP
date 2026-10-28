@@ -402,6 +402,8 @@ impl RemoteFs for FtpFs {
     }
 
     async fn rename(&self, from: &str, to: &str) -> Result<()> {
+        super::validate_protocol_mutation_path(from)?;
+        super::validate_protocol_mutation_path(to)?;
         validate_ftp_command_path(from)?;
         validate_ftp_command_path(to)?;
         let from = from.to_string();
@@ -418,7 +420,7 @@ impl RemoteFs for FtpFs {
 
     async fn delete(&self, path: &str, recursive: bool) -> Result<()> {
         validate_ftp_command_path(path)?;
-        super::validate_remote_delete_path(path)?;
+        super::validate_protocol_mutation_path(path)?;
         // FTP distinguishes file deletion (DELE) from directory deletion
         // (RMD) and has no native recursive delete command. Recursive removal
         // therefore performs a guarded bottom-up traversal before removing root.
@@ -444,6 +446,7 @@ impl RemoteFs for FtpFs {
     }
 
     async fn create_dir(&self, path: &str) -> Result<()> {
+        super::validate_protocol_mutation_path(path)?;
         validate_ftp_command_path(path)?;
         let path = path.to_string();
         self.session
@@ -457,6 +460,7 @@ impl RemoteFs for FtpFs {
     }
 
     async fn chmod(&self, path: &str, mode: u32) -> Result<()> {
+        super::validate_protocol_mutation_path(path)?;
         validate_ftp_command_path(path)?;
         // Standard FTP has no permission command. Most Unix FTP servers
         // accept `SITE CHMOD <oct> <path>` as a server extension; we try it
