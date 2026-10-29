@@ -77,3 +77,19 @@ testing before public exposure.
 No production security certification is claimed. Do not merge or expose the
 service until integration, protocol fuzzing, Windows environment tests and
 independent security review are complete.
+
+## Windows unsigned setup.exe (developer artifact)
+
+The separate Windows server CI job now compiles a real NSIS installer and
+uploads it together with the portable Windows executable and SHA-256 checksums.
+The installer copies only the binary, documentation and explicit PowerShell
+SCM registration scripts. It **does not** automatically start a service,
+create login credentials, open firewall rules or rewrite existing data.
+The uninstaller refuses to remove program files while GhostFTPServer is still
+registered to prevent orphaned service entries. Service unregistering is an
+explicit, separately approved administrative action.
+
+This installer is **not code signed** and has not yet completed a full
+interactive installation/upgrade/uninstallation acceptance cycle on managed
+Windows versions. Do not deploy publicly until TLS identity, ACL isolation,
+least-privilege accounts and service lifecycle have been verified.
