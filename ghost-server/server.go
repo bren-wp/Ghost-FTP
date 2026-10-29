@@ -58,7 +58,7 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
   if err!=nil {if ctx.Err()!=nil{return nil};return err}
   select {
   case s.limit<-struct{}{}:
-   wg.Add(1);go func(){defer wg.Done();defer func(){<-s.limit}();s.session(conn)}()
+   wg.Add(1);go func(){defer wg.Done();defer func(){<-s.limit}();s.session(ctx,conn)}()
   default:
    _,_ = io.WriteString(conn,"421 Too many connections\r\n");_ = conn.Close()
   }
@@ -69,6 +69,7 @@ type client struct {
  r *bufio.Reader
  w *bufio.Writer
  secure, logged, pbsz, private bool
+ failures int
  user, cwd string
  passive net.Listener
 }
@@ -77,7 +78,10 @@ func (c *client) reply(code int, msg string) error {
  if err!=nil{return err};return c.w.Flush()
 }
 func (c *client) closePassive(){if c.passive!=nil{_ = c.passive.Close();c.passive=nil}}
-func (s *Server) session(conn net.Conn){
+func (s *Server) session(ctx context.Context,conn net.Conn){
+ ended:=make(chan struct{})
+ go func(){select{case <-ctx.Done():_ = conn.Close();case <-ended:}}()
+ defer close(ended)
  c:=&client{conn:conn,r:bufio.NewReader(conn),w:bufio.NewWriter(conn),cwd:"/"}
  defer func(){c.closePassive();_ = c.conn.Close()}()
  if c.reply(220,"Ghost FTP Server - explicit TLS required")!=nil{return}
@@ -104,7 +108,12 @@ func (s *Server) session(conn net.Conn){
   if verb=="USER"{c.logged=false;c.pbsz=false;c.private=false;c.user=arg;_ = c.reply(331,"Password required");continue}
   if verb=="PASS" {
    digest:=sha256.Sum256([]byte(arg))
-   if c.user==s.user&&subtle.ConstantTimeCompare(digest[:],s.password[:])==1{c.logged=true;_ = c.reply(230,"Authenticated")}else{c.logged=false;_ = c.reply(530,"Authentication failed")}
+   validPassword:=subtle.ConstantTimeCompare(digest[:],s.password[:])==1
+   if c.user==s.user&&validPassword{c.logged=true;c.failures=0;_ = c.reply(230,"Authenticated")}else{
+    c.logged=false;c.failures++
+    if c.failures>=3{_ = c.reply(421,"Too many failed logins");return}
+    _ = c.reply(530,"Authentication failed")
+   }
    continue
   }
   if !c.logged{_ = c.reply(530,"Login required");continue}
@@ -160,7 +169,7 @@ func (s *Server) session(conn net.Conn){
    }
    if e!=nil{_ = c.reply(550,"Listing unavailable");continue}
    if out.Len()>8<<20{_ = c.reply(552,"Listing too large");continue}
-   s.sendData(c,strings.NewReader(out.String()))
+   s.sendData(c,strings.NewReader(out.String()),int64(out.Len()))
   case "RETR":
    filename,_,e:=s.resolve(c.cwd,arg)
    if e!=nil{_ = c.reply(550,"File unavailable");continue}
@@ -169,14 +178,14 @@ func (s *Server) session(conn net.Conn){
    info,e:=f.Stat()
    if e!=nil||!info.Mode().IsRegular(){_ = f.Close();_ = c.reply(550,"File unavailable");continue}
    if info.Size()>1<<30 { _ = f.Close();_ = c.reply(552,"File exceeds Preview 1 GiB download limit");continue }
-   s.sendData(c,io.LimitReader(f,info.Size()));_ = f.Close()
+   s.sendData(c,io.LimitReader(f,info.Size()),info.Size());_ = f.Close()
   case "STOR","APPE","DELE","RMD","MKD","RNFR","RNTO","SITE","PORT","EPRT","REST","ALLO":
    _ = c.reply(550,"Mutation or active data mode disabled during read-only server Preview")
   default:_ = c.reply(502,"Command not implemented")
   }
  }
 }
-func (s *Server) sendData(c *client, source io.Reader){
+func (s *Server) sendData(c *client, source io.Reader, expectedBytes int64){
  if !c.private||c.passive==nil{_ = c.reply(425,"Private passive connection required");return}
  ln:=c.passive;c.passive=nil;defer ln.Close()
  _ = c.reply(150,"Opening protected data connection")
@@ -188,8 +197,8 @@ func (s *Server) sendData(c *client, source io.Reader){
  if !raw.RemoteAddr().(*net.TCPAddr).IP.Equal(c.conn.RemoteAddr().(*net.TCPAddr).IP){_ = c.reply(425,"Data peer mismatch");return}
  secure:=tls.Server(raw,s.tls);if err=secure.Handshake();err!=nil{_ = c.reply(425,"Data TLS handshake failed");return}
  defer secure.Close()
- _,err=io.Copy(secure,source)
- if err!=nil{_ = c.reply(451,"Data transfer failed")}else{_ = c.reply(226,"Transfer complete")}
+ transmitted,err:=io.Copy(secure,source)
+ if err!=nil||transmitted!=expectedBytes{_ = c.reply(451,"Data transfer incomplete")}else{_ = c.reply(226,"Transfer complete")}
 }
 func (s *Server) resolve(cwd,input string)(string,string,error){
  if len(input)>4096||strings.ContainsAny(input,"\\\x00\r\n"){return "","",errors.New("invalid path")}
