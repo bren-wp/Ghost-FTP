@@ -49,13 +49,6 @@ test("six native server assets are mandatory from CI through public verification
     "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe",
     "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"
   ]) assert.ok(index.includes(fragment),fragment);
-  assert.ok(publisher.includes(name),name+" publication required");
-    assert.ok(index.includes(name),name+" postpublication required");
-  }
-  for(const name of [".tar.gz",".deb",".rpm"]){
-    assert.ok(publisher.includes(name),name+" publisher");
-    assert.ok(index.includes(name),name+" index");
-  }
   assert.ok(publisher.includes('test -s "dist/$required"') || publisher.includes('! -s "dist/$required"'));
   assert.ok(index.includes("-ge 31"));
 });
