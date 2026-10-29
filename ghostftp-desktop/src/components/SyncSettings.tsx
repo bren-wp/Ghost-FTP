@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   Folder,
   FolderSync,
+  GitCompareArrows,
   Loader2,
   Cloud,
   CloudOff,
@@ -17,6 +18,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { ipc } from "@/lib/ipc";
 import { useSync } from "@/stores/syncStore";
 import { useConnections } from "@/stores/connectionsStore";
+import { useDiff } from "@/stores/diffStore";
+import { LOCAL_SESSION } from "@ghostftp/file-ui";
 import { relTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { toastError } from "@/lib/errors";
@@ -68,15 +71,25 @@ export function SyncSettings() {
             Watch local folders in the background and synchronize changes to or from your server. Each sync pair runs independently while Ghost FTP is open.
           </div>
         </div>
-        {!adding && (
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <button
             type="button"
-            onClick={() => setAdding(true)}
-            className="btn-accent flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-white"
+            onClick={() => useDiff.getState().openFor(LOCAL_SESSION, "")}
+            className="flex items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 py-1.5 text-sm text-text hover:bg-bg-hover"
+            title="Choose two real folders before comparing their contents"
           >
-            <Plus size={13} /> New sync pair
+            <GitCompareArrows size={13} /> Compare
           </button>
-        )}
+          {!adding && (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="btn-accent flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-white"
+            >
+              <Plus size={13} /> New sync pair
+            </button>
+          )}
+        </div>
       </div>
 
       {adding && <PairForm onDone={() => setAdding(false)} />}
