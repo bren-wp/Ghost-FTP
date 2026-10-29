@@ -68,7 +68,7 @@ jobs:
       - name: Validate service installation/uninstallation PowerShell syntax
         shell: pwsh
         run: |
-          $files = @('ghost-server/install/Install-GhostFTPServer.ps1','ghost-server/install/Uninstall-GhostFTPServer.ps1')
+          $files = @('ghost-server/install/Install-GhostFTPServer.ps1','ghost-server/install/Uninstall-GhostFTPServer.ps1','ghost-server/install/Smoke-GhostFTPServer-CI.ps1')
           foreach ($file in $files) {
             $tokens = $null
             $errors = $null
@@ -84,6 +84,13 @@ jobs:
           go build -trimpath -o 'dist/ghost-server-windows-amd64.exe' ./cmd/ghost-server
           if ($LASTEXITCODE -ne 0) { throw 'Windows portable build failed' }
           if (-not (Test-Path -LiteralPath 'dist/ghost-server-windows-amd64.exe')) { throw 'Windows setup payload missing' }
+      - name: Real Windows LocalService install, start, FTP greeting and stop
+        shell: pwsh
+        working-directory: ghost-server
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP 'GhostFTP-Server-QA-Private'
+          & ./install/Smoke-GhostFTPServer-CI.ps1 -Executable 'dist/ghost-server-windows-amd64.exe' -FixtureDir $fixture
+          if ($LASTEXITCODE -ne 0) { throw 'Windows Service Control Manager smoke failed' }
       - name: Build genuine unsigned NSIS setup executable
         shell: pwsh
         working-directory: ghost-server
