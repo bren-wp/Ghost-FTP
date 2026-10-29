@@ -9,6 +9,14 @@ panel, or repackaged desktop client. The initial vertical slice implements
 external runtime dependencies. It intentionally is **not** the completed
 Windows FTP/FTPS Server application.
 
+## Premium Control Center UI (shared Windows/Linux brand)
+
+The independent `ghost-server/admin-assets/` dashboard now uses **the same Ghost FTP symbol, canonical premium design tokens, 214px desktop sidebar, 43px navigation and 52px top chrome** as the Windows/Linux client reference. Five real read-only pages—Overview, Sessions, Security, Limits, Diagnostics—show effective server state without fictional account/traffic data. Narrow screens use a scrollable accessible navigation strip. The browser token lives in tab memory only; a lock action, inactivity-safe refresh and page closure prevent credential persistence.
+
+The server exposes a stable **loopback-only**, strong-token-protected `GET /api/v1/status` contract and retains `GET /api/status` for existing consumers. API contract version **1** includes actual compiled server version, active connections, uptime, TLS policy, upload permissions, destructive policy and upload size. Both Windows and Linux Go builds embed the same `version.json` value for CLI and API, ensuring honest version reporting.
+
+This work is **source/design contract parity**, not finished visual screenshot parity for every platform and screen. See [cross-platform synchronization and parity acceptance](../docs/architecture/CLIENT_SERVER_PARITY.md). No remote dashboard endpoint, user administration API, SFTP Server or multi-device synchronization of secrets is invented.
+
 ## Current protocol surface
 
 A real TCP listener accepts FTP greetings, AUTH TLS, USER/PASS under TLS,
