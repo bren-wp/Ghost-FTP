@@ -1,4 +1,4 @@
-> Active source/release cycle: **0.99.21 Preview**. Previous canonical release: **0.99.20**.
+> Active source/release cycle: **0.99.22 Preview**. Previous canonical release: **0.99.21**.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.16 Preview**; latest published version **v0.99.15**. Versioned details below may describe older releases.
 
@@ -154,7 +154,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.99.14 development source. Previous canonical release: **0.99.20**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.99.14 development source. Previous canonical release: **0.99.21**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
