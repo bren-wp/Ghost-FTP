@@ -176,6 +176,20 @@ impl RemoteFs for SftpFs {
     async fn rename(&self, from: &str, to: &str) -> Result<()> {
         super::validate_protocol_mutation_path(from)?;
         super::validate_protocol_mutation_path(to)?;
+        // Some SFTP servers replace destination contents on RENAME. Refuse
+        // a known collision without executing the mutating request. Do not
+        // interpret listing failures as proof of an empty directory.
+        let (parent, target_name) = super::remote_destination_parent_name(to)?;
+        let entries = self
+            .list_dir(parent)
+            .await
+            .with_context(|| format!("SFTP rename destination inventory {parent}"))?;
+        anyhow::ensure!(
+            !entries
+                .iter()
+                .any(|entry| super::remote_names_may_alias(&entry.name, target_name)),
+            "SFTP rename refused: destination already exists"
+        );
         let sftp_cell = self.session.ensure_sftp().await?;
         let sftp = sftp_cell.lock().await;
         sftp.rename(from, to)
