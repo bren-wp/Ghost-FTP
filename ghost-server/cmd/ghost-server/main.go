@@ -20,6 +20,8 @@ func main(){
  username:=flag.String("user","","FTP username")
  passfile:=flag.String("password-file","","Private file holding FTP password, never a CLI argument")
  serviceMode:=flag.Bool("service",false,"Run under Windows Service Control Manager (Windows only)")
+ adminTokenFile:=flag.String("admin-token-file","","Private file holding a separate random admin dashboard token; omitted disables admin HTTP")
+ adminListen:=flag.String("admin-listen","127.0.0.1:2821","Local-only admin HTTP address when enabled")
  allowUploads:=flag.Bool("allow-uploads",false,"Opt-in creation of new remote files (never overwrite); requires a sandboxed service account")
  maxUpload:=flag.Int64("max-upload-bytes",64<<20,"Per-transfer upload limit when uploads are explicitly enabled")
  flag.Parse()
@@ -30,7 +32,17 @@ func main(){
  raw,err:=os.ReadFile(*passfile);if err!=nil{log.Fatal(err)}
  if len(raw)>257{log.Fatal("password file too large")}
  secret:=strings.TrimSuffix(string(raw),"\n");secret=strings.TrimSuffix(secret,"\r")
- cfg:=server.Config{Listen:*listen,Root:*root,Username:*username,Password:secret,Certificate:*cert,PrivateKey:*key,AllowUploads:*allowUploads,MaxUploadBytes:*maxUpload}
+ adminToken:=""
+ if *adminTokenFile!="" {
+  tokenInfo,e:=os.Lstat(*adminTokenFile);if e!=nil{log.Fatal(e)}
+  if !tokenInfo.Mode().IsRegular()||tokenInfo.Mode()&os.ModeSymlink!=0{log.Fatal("admin token file must be regular and not symlinked")}
+  if runtime.GOOS!="windows"&&tokenInfo.Mode().Perm()&0077!=0{log.Fatal("admin token file must be owner-only (chmod 600)")}
+  tokenBytes,e:=os.ReadFile(*adminTokenFile);if e!=nil{log.Fatal(e)}
+  if len(tokenBytes)>257{log.Fatal("admin token file too large")}
+  adminToken=strings.TrimSuffix(strings.TrimSuffix(string(tokenBytes),"\n"),"\r")
+  for i:=range tokenBytes{tokenBytes[i]=0}
+ }
+ cfg:=server.Config{Listen:*listen,Root:*root,Username:*username,Password:secret,Certificate:*cert,PrivateKey:*key,AllowUploads:*allowUploads,MaxUploadBytes:*maxUpload,AdminToken:adminToken,AdminListen:*adminListen}
  srv,err:=server.New(cfg);if err!=nil{log.Fatal(err)}
  for i:=range raw{raw[i]=0}
  if *serviceMode {

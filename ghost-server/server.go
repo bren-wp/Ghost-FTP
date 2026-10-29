@@ -13,12 +13,14 @@ import (
  "fmt"
  "io"
  "net"
+ "net/http"
  "os"
  "path"
  "path/filepath"
  "strconv"
  "strings"
  "sync"
+ "sync/atomic"
  "time"
 )
 
@@ -27,6 +29,8 @@ type Config struct {
  // Writes are opt-in. The default server remains read-only.
  AllowUploads bool
  MaxUploadBytes int64
+ // Admin is disabled unless a strong, separately provisioned token exists.
+ AdminToken, AdminListen string
 }
 type Server struct {
  root, user string
@@ -38,6 +42,11 @@ type Server struct {
  // os.Root confines opt-in mutations within an open directory handle,
  // including against symlink swaps on Linux and Windows.
  uploadRoot *os.Root
+ adminEnabled bool
+ adminListen string
+ adminTokenHash [32]byte
+ startedAt time.Time
+ activeSessions atomic.Int64
 }
 func New(c Config) (*Server,error) {
  if c.Username=="" || len(c.Username)>128 || strings.ContainsAny(c.Username,"\r\n\x00") { return nil,errors.New("valid username required") }
@@ -51,6 +60,14 @@ func New(c Config) (*Server,error) {
   if c.MaxUploadBytes == 0 { c.MaxUploadBytes = 64 << 20 }
   if c.MaxUploadBytes < 1 || c.MaxUploadBytes > 1 << 30 { return nil,errors.New("max upload must be 1 to 1073741824 bytes") }
  }
+ if c.AdminToken!="" {
+  if len(c.AdminToken)<32||len(c.AdminToken)>256{return nil,errors.New("admin token must contain 32-256 bytes")}
+  if c.AdminListen==""{c.AdminListen="127.0.0.1:2821"}
+  host,_,err:=net.SplitHostPort(c.AdminListen)
+  if err!=nil || net.ParseIP(host)==nil || !net.ParseIP(host).IsLoopback(){
+   return nil,errors.New("admin UI must bind to an explicit loopback IP")
+  }
+ }
  if c.Certificate==""||c.PrivateKey=="" {return nil,errors.New("certificate and private key required; plaintext FTP disabled")}
  cert,err:=tls.LoadX509KeyPair(c.Certificate,c.PrivateKey);if err!=nil{return nil,fmt.Errorf("invalid TLS identity: %w",err)}
  var uploadRoot *os.Root
@@ -58,7 +75,8 @@ func New(c Config) (*Server,error) {
   uploadRoot,err=os.OpenRoot(root)
   if err!=nil{return nil,fmt.Errorf("cannot open traversal-resistant upload root: %w",err)}
  }
- return &Server{root:root,user:c.Username,password:sha256.Sum256([]byte(c.Password)),tls:&tls.Config{Certificates:[]tls.Certificate{cert},MinVersion:tls.VersionTLS12},limit:make(chan struct{},32),allowUploads:c.AllowUploads,maxUploadBytes:c.MaxUploadBytes,uploadRoot:uploadRoot},nil
+ return &Server{root:root,user:c.Username,password:sha256.Sum256([]byte(c.Password)),tls:&tls.Config{Certificates:[]tls.Certificate{cert},MinVersion:tls.VersionTLS12},limit:make(chan struct{},32),allowUploads:c.AllowUploads,maxUploadBytes:c.MaxUploadBytes,uploadRoot:uploadRoot,
+ adminEnabled:c.AdminToken!="",adminListen:c.AdminListen,adminTokenHash:sha256.Sum256([]byte(c.AdminToken)),startedAt:time.Now()},nil
 }
 func (s *Server) ListenAndServe(ctx context.Context, address string) error {
  if address=="" {address="127.0.0.1:2121"}
@@ -68,6 +86,13 @@ func (s *Server) ListenAndServe(ctx context.Context, address string) error {
 func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
  defer ln.Close()
  defer func(){if s.uploadRoot!=nil{_ = s.uploadRoot.Close()}}()
+ if s.adminEnabled {
+  adminLn,err:=net.Listen("tcp",s.adminListen)
+  if err!=nil{return fmt.Errorf("cannot bind local admin dashboard: %w",err)}
+  adminHTTP:=&http.Server{Handler:s.adminHandler(),ReadHeaderTimeout:3*time.Second,IdleTimeout:30*time.Second,MaxHeaderBytes:8192}
+  go func(){_ = adminHTTP.Serve(adminLn)}()
+  defer adminHTTP.Close()
+ }
  go func(){<-ctx.Done();_ = ln.Close()}()
  var wg sync.WaitGroup
  defer wg.Wait()
@@ -76,7 +101,8 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
   if err!=nil {if ctx.Err()!=nil{return nil};return err}
   select {
   case s.limit<-struct{}{}:
-   wg.Add(1);go func(){defer wg.Done();defer func(){<-s.limit}();s.session(ctx,conn)}()
+   s.activeSessions.Add(1)
+   wg.Add(1);go func(){defer wg.Done();defer s.activeSessions.Add(-1);defer func(){<-s.limit}();s.session(ctx,conn)}()
   default:
    _,_ = io.WriteString(conn,"421 Too many connections\r\n");_ = conn.Close()
   }
