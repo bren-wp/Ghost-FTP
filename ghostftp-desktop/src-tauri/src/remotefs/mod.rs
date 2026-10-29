@@ -31,6 +31,15 @@ pub(crate) fn validate_remote_delete_path(path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Defensive collision identity for remote endpoints. Case-insensitive servers
+/// may resolve two different visible names to the same file. This conservative
+/// comparison prevents known case-fold aliases from becoming silent overwrites.
+/// Some filesystems apply more complex Unicode normalization, so this is not
+/// an atomic create-if-absent guarantee.
+pub(crate) fn remote_names_may_alias(existing: &str, requested: &str) -> bool {
+    existing == requested || existing.to_lowercase() == requested.to_lowercase()
+}
+
 /// FTP and SFTP mutation operands are paths, not arbitrary filenames. A
 /// spelling with parent traversal, C0 controls or Windows path separators can
 /// reach an unexpected remote target, especially on IIS/Windows servers.
@@ -117,7 +126,7 @@ pub trait RemoteFs: Send + Sync {
 
 #[cfg(test)]
 mod destructive_path_tests {
-    use super::{validate_protocol_mutation_path, validate_remote_delete_path};
+    use super::{remote_names_may_alias, validate_protocol_mutation_path, validate_remote_delete_path};
 
     #[test]
     fn rejects_root_and_dot_segments() {
@@ -132,6 +141,24 @@ mod destructive_path_tests {
                 validate_remote_delete_path(path).is_ok(),
                 "{path:?} must be allowed"
             );
+        }
+    }
+
+    #[test]
+    fn cross_protocol_case_aliases_never_prove_a_remote_name_is_free() {
+        for (existing, requested) in [
+            ("REPORT.txt", "report.TXT"),
+            (".ENV", ".env"),
+            ("RÉSUMÉ.pdf", "résumé.pdf"),
+        ] {
+            assert!(remote_names_may_alias(existing, requested));
+        }
+        for (existing, requested) in [
+            ("report.txt", "report.csv"),
+            (".env.sample", ".env"),
+            ("file-one", "file-two"),
+        ] {
+            assert!(!remote_names_may_alias(existing, requested));
         }
     }
 
