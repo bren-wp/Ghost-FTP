@@ -31,6 +31,18 @@ Windows PowerShell:
 
 Builds require a Rust toolchain, C compiler and the native dependencies already documented for the desktop runtime. The release workflow produces and checks independent `GhostCLI-Windows-x64-v<version>.exe` and `GhostCLI-Linux-x86_64-v<version>` artifacts from the same source SHA.
 
+## Portable encrypted backup — explicit cross-device handoff
+
+The **existing** Ghost CLI also implements `backup export <path>` and `backup import <path>`. These call the same encrypted backup implementation as the native app. Export includes profiles, encrypted credentials and application state; importing **replaces or stages** existing local state, so first preserve a separate recovery backup, close the app if possible and verify the destination and trusted file. Transfer the encrypted backup file through a secure channel to another supported device, and restore it intentionally there.
+
+Commands (do not paste real credentials into public terminals or scripts):
+```sh
+ghostftp-cli backup export ./ghostftp-portable.ghostftpbak
+ghostftp-cli backup import ./ghostftp-portable.ghostftpbak
+```
+
+The current CLI uses `GHOSTFTP_BACKUP_PASSWORD` or `--password` for the backup encryption secret. **Avoid `--password`** because process arguments can be inspected or captured in shell history. Prefer an appropriately protected secret provider to populate the environment only for the intended process, and clear it afterward; environment variables can also be observable to privileged local processes. Ensure the password is strong, unique and not stored alongside the archive. This is **manual, user-approved encrypted portability**, **not** invisible automatic synchronization, a cloud account, or a claim of Android/macOS CLI package availability. Runtime and database compatibility must be verified by target-platform restoration tests before production reliance.
+
 ## Safety and synchronization
 
 Real network connections and transfer operations **only** run when explicitly invoked against an authorized profile. `--dry-run` must be used when previewing synchronization. Secrets should remain in the OS-backed credential store; do not put passwords or private keys on the command line. Profile handling shares the desktop's local store on the same OS user account; it does **not** imply automatic cloud synchronization of credentials between separate devices. Dangerous mutations remain operator-initiated and subject to backend authorization. The separately distributed Ghost FTP Server is a daemon; Ghost CLI is a client, never a replacement for server administration or the GUI.
