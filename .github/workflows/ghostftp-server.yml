@@ -76,6 +76,14 @@ jobs:
             if ($errors.Count -gt 0) { throw "$file has PowerShell syntax errors: $errors" }
           }
 
+      - name: Build Windows portable executable for NSIS payload
+        shell: pwsh
+        working-directory: ghost-server
+        run: |
+          New-Item -ItemType Directory -Path 'dist' -Force | Out-Null
+          go build -trimpath -o 'dist/ghost-server-windows-amd64.exe' ./cmd/ghost-server
+          if ($LASTEXITCODE -ne 0) { throw 'Windows portable build failed' }
+          if (-not (Test-Path -LiteralPath 'dist/ghost-server-windows-amd64.exe')) { throw 'Windows setup payload missing' }
       - name: Build genuine unsigned NSIS setup executable
         shell: pwsh
         working-directory: ghost-server
