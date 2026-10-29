@@ -264,6 +264,9 @@ jobs:
           gh run download "$RUN_ID" --name GhostFTP-Server-Linux-Package-Preview -D dist/server-linux
           gh run download "$RUN_ID" --name GhostFTP-Server-Windows-Package-Preview -D dist/server-windows
           (cd dist/server-linux && sha256sum -c Linux-SHA256SUMS.txt)
+          # Existing Windows artifact runners may supply CRLF: normalize text safely
+          # without changing any checksum bytes, file names or actual payloads.
+          sed -i 's/\r$//' dist/server-windows/Release-SHA256SUMS.txt
           (cd dist/server-windows && sha256sum -c Release-SHA256SUMS.txt)
           test "$(dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION -version)" = "Ghost FTP Server $VERSION Preview"
           tar -tzf "dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION.tar.gz" | grep -Fxq ghostftp-server.service
