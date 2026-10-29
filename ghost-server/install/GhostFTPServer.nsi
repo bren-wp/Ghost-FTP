@@ -1,6 +1,14 @@
 Unicode True
 !include "MUI2.nsh"
 
+; Reuse the exact Windows client installer artwork and app icon.
+!define MUI_ICON "..\..\ghostftp-desktop\src-tauri\icons\icon.ico"
+!define MUI_UNICON "..\..\ghostftp-desktop\src-tauri\icons\icon.ico"
+!define MUI_HEADERIMAGE
+!define MUI_HEADERIMAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-header.bmp"
+!define MUI_UNHEADERIMAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-header.bmp"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-sidebar.bmp"
+
 Name "Ghost FTP Server (Preview)"
 OutFile "..\dist\ghost-server-windows-x64-setup-unsigned.exe"
 InstallDir "$PROGRAMFILES64\Ghost FTP Server"
