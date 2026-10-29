@@ -37,7 +37,7 @@ jobs:
           VERSION="$(node -p "require('../version.json').version")"
           mkdir -p dist
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=$VERSION -X ghostftp/server.BuildVersion=$VERSION" -o dist/ghost-server-windows-amd64.exe ./cmd/ghost-server
-          CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=$VERSION" -o dist/ghost-server-linux-amd64 ./cmd/ghost-server
+          CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=$VERSION -X ghostftp/server.BuildVersion=$VERSION" -o dist/ghost-server-linux-amd64 ./cmd/ghost-server
           test "$(dist/ghost-server-linux-amd64 -version)" = "Ghost FTP Server $VERSION Preview"
       - name: Build and validate standalone Linux, tarball, DEB, RPM and systemd payload
         shell: bash
