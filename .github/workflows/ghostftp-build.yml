@@ -658,6 +658,9 @@ jobs:
             @{ key = 'newConnection'; label = 'New-Connection' },
             @{ key = 'settings'; label = 'Preferences' },
             @{ key = 'transferCenter'; label = 'Transfer-Center' },
+            # The real Sync & Backup workspace is an eighth distinct native
+            # capture; never substitute a design illustration or fake transfer.
+            @{ key = 'sync'; label = 'Sync-Backup' },
             @{ key = 'properties'; label = 'File-Properties' },
             @{ key = 'about'; label = 'About' }
           )
