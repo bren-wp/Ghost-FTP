@@ -1,3 +1,5 @@
+> Active source/release cycle: **0.99.19 Preview**. Previous canonical release: **0.99.18**.
+
 # Ghost FTP Versioning
 
 Current development edition: **0.99.18 Preview**. Previous published canonical release: **v0.99.17**..
