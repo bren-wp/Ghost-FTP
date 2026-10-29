@@ -135,6 +135,10 @@ test("all Preview releases remain immutable and cannot be classified stable", ()
   assert.ok(workflow.includes('workflows: ["Ghost FTP release"]'));
   assert.ok(workflow.includes("github.event.workflow_run.conclusion == 'success'"));
   assert.ok(workflow.includes("branches: [main]"));
+  assert.ok(workflow.includes("cron: '*/15 * * * *'"),"public release classification must be reverified after push events");
+  assert.ok(workflow.includes("github.event_name == 'schedule'"));
+  assert.ok(repair.includes("sort_by(.id)"),"metadata-only correction must verify unchanged public asset digests");
+  assert.ok(repair.includes("0.99.20") && repair.includes("0.99.21"));
   for (const [filename, source] of [["publisher", publishing], ["metadata corrector",repair],["metadata workflow",workflow]]) {
     assert.ok(!source.includes("--cleanup-tag"), filename);
     assert.ok(!source.includes("gh release delete"), filename);
