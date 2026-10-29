@@ -292,6 +292,8 @@ jobs:
           WIN_MSI="$(find dist/native -type f -iname '*.msi' | head -n1 || true)"
           WIN_SETUP_SIG="$(find dist/native -type f -iname '*setup*.exe.sig' | head -n1 || true)"
           LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
+          WINDOWS_CLI="$(find dist/native -type f -name 'ghostftp-cli.exe' | head -n1 || true)"
+          LINUX_CLI="$(find dist/native -type f -name 'ghostftp-cli' | head -n1 || true)"
           APPIMAGE="$(find dist/native -type f -iname '*.AppImage' ! -iname '*.sig' | head -n1 || true)"
           APPIMAGE_SIG="$(find dist/native -type f -iname '*.AppImage.sig' | head -n1 || true)"
           DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
@@ -306,6 +308,8 @@ jobs:
           MACOS_DMG_INTEL="dist/macos-shared/x86_64/GhostFTP-macOS-Shared-x86_64-v$VERSION-Installable-Preview.dmg"
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
+          test -n "$WINDOWS_CLI"; test -s "$WINDOWS_CLI"
+          test -n "$LINUX_CLI"; test -s "$LINUX_CLI"
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"
           test -n "$ANDROID_UNSIGNED_APK"; test -n "$ANDROID_PREVIEW_APK"; test -n "$ANDROID_UNSIGNED_AAB"; test -s "$ANDROID_UNSIGNED_AAB"
           test -n "$MACOS_PREVIEW"; test -s "$MACOS_PREVIEW"
@@ -322,6 +326,10 @@ jobs:
           fi
 
           cp "$WIN_EXE" "dist/GhostFTP-Windows-x64-Portable-v$VERSION.exe"
+          cp "$WINDOWS_CLI" "dist/GhostCLI-Windows-x64-v$VERSION.exe"
+          cp "$LINUX_CLI" "dist/GhostCLI-Linux-x86_64-v$VERSION"
+          chmod +x "dist/GhostCLI-Linux-x86_64-v$VERSION"
+          test "$(dist/GhostCLI-Linux-x86_64-v$VERSION --version | grep -Fc "$VERSION")" -ge 1
           cp "$WIN_SETUP" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe"
           cp "$WIN_MSI" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.msi"
           if [ -n "$WIN_SETUP_SIG" ]; then
