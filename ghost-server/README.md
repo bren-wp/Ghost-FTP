@@ -93,3 +93,35 @@ This installer is **not code signed** and has not yet completed a full
 interactive installation/upgrade/uninstallation acceptance cycle on managed
 Windows versions. Do not deploy publicly until TLS identity, ACL isolation,
 least-privilege accounts and service lifecycle have been verified.
+
+## Local administration dashboard
+
+The server now has an optional, **real read-only local administration UI**.
+The web listener stays disabled unless a separate administrator token of
+32–256 bytes is supplied from an owner-private file. Example:
+
+```sh
+umask 077
+openssl rand -hex 32 > /secure/ghostftp-admin-token
+chmod 600 /secure/ghostftp-admin-token
+./ghost-server -root /srv/ftps -cert /secure/ftps.crt \
+  -key /secure/ftps.key -user operator \
+  -password-file /secure/ftps-password \
+  -admin-token-file /secure/ghostftp-admin-token \
+  -admin-listen 127.0.0.1:2821
+```
+
+Open `http://127.0.0.1:2821/admin/` **on the server machine**.
+The interface displays real service state, active sessions, TLS policy,
+whether create-only uploads are enabled and uptime. No mock profiles or
+fake transfers are inserted. API status is protected by a separate
+constant-time bearer token check. The endpoint enforces loopback address,
+an exact Host header, restrictive CSP/no-store/no-frame headers, no
+cookies and no permissive CORS. The login token stays in tab memory;
+no browser storage is used. Management is intentionally read-only:
+configuring accounts, quotas, certificates or remote administration
+through the dashboard is **not implemented**.
+
+If `-admin-token-file` is omitted, **no HTTP admin listener is opened**.
+Windows deployments must explicitly restrict read access to the token
+file to their dedicated service identity; POSIX mode 0600 is mandatory.
