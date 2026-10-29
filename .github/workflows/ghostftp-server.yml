@@ -108,8 +108,10 @@ jobs:
         shell: pwsh
         working-directory: ghost-server
         run: |
+          # This PowerShell script throws on real failure and never sets the
+          # process-scoped $LASTEXITCODE. Checking that variable afterward
+          # reuses the exit code from a prior, unrelated sc.exe invocation.
           & ./install/Smoke-GhostFTPInstaller-CI.ps1 -Setup 'dist/ghost-server-windows-x64-setup-unsigned.exe'
-          if ($LASTEXITCODE -ne 0) { throw 'NSIS installation roundtrip failed' }
       - name: Hash unsigned Windows portable + setup
         shell: pwsh
         working-directory: ghost-server
