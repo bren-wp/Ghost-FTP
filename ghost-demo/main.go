@@ -151,7 +151,7 @@ func selfTest() error {
  req:=httptest.NewRequest("GET","http://127.0.0.1:28291/api/v1/state",nil)
  w:=httptest.NewRecorder();h.ServeHTTP(w,req)
  if w.Code!=200||!strings.Contains(w.Body.String(),`"demo":true`)||!strings.Contains(w.Body.String(),"Brand-Guidelines.pdf"){return fmt.Errorf("offline demo fixture failure: %d",w.Code)}
- req=httptest.NewRequest("GET","http://127.0.0.1:28291/app/index.html",nil)
+ req=httptest.NewRequest("GET","http://127.0.0.1:28291/app/",nil)
  w=httptest.NewRecorder();h.ServeHTTP(w,req)
  if w.Code!=200||!strings.Contains(w.Body.String(),"Ghost FTP Demo"){return fmt.Errorf("offline demo UI failure: %d",w.Code)}
  req=httptest.NewRequest("GET","http://malicious.test/api/v1/state",nil)
