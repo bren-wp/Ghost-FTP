@@ -75,32 +75,40 @@ func (s *Server) receiveFile(c *client, operand string) {
   if !os.IsExist(err){_=c.reply(451,"Unable to stage upload safely");return}
  }
  if staged==nil{_=c.reply(451,"Unable to reserve upload staging");return}
- defer parent.Remove(tmpName)
- defer staged.Close()
+ // Every terminal FTP reply must describe the visible filesystem state.
+ // Clean up the random staging file BEFORE sending a failure or success
+ // response; otherwise another client can observe a transient leaked file.
+ cleanup:=func(){
+  _=staged.Close()
+  _=parent.Remove(tmpName)
+ }
+ defer cleanup()
+ fail:=func(code int,msg string){cleanup();_=c.reply(code,msg)}
  ln:=c.passive;c.passive=nil
  defer ln.Close()
  if err=c.reply(150,"Opening protected upload connection");err!=nil{return}
  if tcp,ok:=ln.(*net.TCPListener);ok{_ =tcp.SetDeadline(time.Now().Add(15*time.Second))}
  raw,err:=ln.Accept()
- if err!=nil{_ = c.reply(425,"Data connection timeout");return}
+ if err!=nil{fail(425,"Data connection timeout");return}
  defer raw.Close()
  _=raw.SetDeadline(time.Now().Add(60*time.Second))
  remote,rok:=raw.RemoteAddr().(*net.TCPAddr)
  control,cok:=c.conn.RemoteAddr().(*net.TCPAddr)
- if !rok || !cok || !remote.IP.Equal(control.IP){_=c.reply(425,"Data peer mismatch");return}
+ if !rok || !cok || !remote.IP.Equal(control.IP){fail(425,"Data peer mismatch");return}
  secure:=tls.Server(raw,s.tls)
- if err=secure.Handshake();err!=nil{_=c.reply(425,"Data TLS handshake failed");return}
+ if err=secure.Handshake();err!=nil{fail(425,"Data TLS handshake failed");return}
  defer secure.Close()
  n,err:=io.Copy(staged,io.LimitReader(secure,s.maxUploadBytes+1))
- if err!=nil{_=c.reply(451,"Protected upload interrupted");return}
- if n>s.maxUploadBytes{_=c.reply(552,"Upload exceeds configured size limit");return}
- if err=staged.Sync();err!=nil{_=c.reply(451,"Unable to sync staged upload");return}
- if err=staged.Close();err!=nil{_=c.reply(451,"Unable to close staged upload");return}
+ if err!=nil{fail(451,"Protected upload interrupted");return}
+ if n>s.maxUploadBytes{fail(552,"Upload exceeds configured size limit");return}
+ if err=staged.Sync();err!=nil{fail(451,"Unable to sync staged upload");return}
+ if err=staged.Close();err!=nil{fail(451,"Unable to close staged upload");return}
  // Hard links never replace an already-existing destination. This is the
  // overwrite-prevention commit point even when another client wins the race.
  if err=parent.Link(tmpName,filepath.Base(dest));err!=nil{
-  _=c.reply(550,"Upload destination exists or filesystem cannot commit safely")
+  fail(550,"Upload destination exists or filesystem cannot commit safely")
   return
  }
+ cleanup()
  _=c.reply(226,"Protected upload committed without overwrite")
 }
