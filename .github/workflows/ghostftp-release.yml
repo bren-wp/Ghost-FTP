@@ -303,6 +303,10 @@ jobs:
           LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
           WINDOWS_CLI="$(find dist/native -type f -name 'ghostftp-cli.exe' | head -n1 || true)"
           LINUX_CLI="$(find dist/native -type f -name 'ghostftp-cli' | head -n1 || true)"
+          # Each Actions artifact is extracted beneath its own artifact-name folder.
+          # Do not assume that CLI installers are placed at dist/native's root.
+          WINDOWS_CLI_SETUP="$(find dist/native -type f -name 'GhostCLI-Windows-x64-Setup-Unsigned-Preview.exe' -print -quit)"
+          LINUX_CLI_PACKAGE_DIR="$(dirname "$LINUX_CLI")"
           APPIMAGE="$(find dist/native -type f -iname '*.AppImage' ! -iname '*.sig' | head -n1 || true)"
           APPIMAGE_SIG="$(find dist/native -type f -iname '*.AppImage.sig' | head -n1 || true)"
           DEB="$(find dist/native -type f -name 'GhostFTP-Linux-amd64.deb' | head -n1 || true)"
@@ -319,9 +323,16 @@ jobs:
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
           test -n "$WINDOWS_CLI"; test -s "$WINDOWS_CLI"
           test -n "$LINUX_CLI"; test -s "$LINUX_CLI"
-          test -s "dist/native/GhostCLI-Windows-x64-Setup-Unsigned-Preview.exe"
+          test -n "$WINDOWS_CLI_SETUP"; test -s "$WINDOWS_CLI_SETUP" || {
+            echo "::error::Missing standalone Windows CLI NSIS Setup in downloaded Windows native artifact" >&2
+            exit 1
+          }
+          test -d "$LINUX_CLI_PACKAGE_DIR"
           for name in "GhostCLI-Linux-x86_64-v$VERSION.tar.gz" "GhostCLI-Linux-amd64-v$VERSION.deb" "GhostCLI-Linux-x86_64-v$VERSION.rpm"; do
-            test -s "dist/native/$name"
+            test -s "$LINUX_CLI_PACKAGE_DIR/$name" || {
+              echo "::error::Missing $name in exact-SHA Linux native artifact: $LINUX_CLI_PACKAGE_DIR" >&2
+              exit 1
+            }
           done
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"
           test -n "$ANDROID_UNSIGNED_APK"; test -n "$ANDROID_PREVIEW_APK"; test -n "$ANDROID_UNSIGNED_AAB"; test -s "$ANDROID_UNSIGNED_AAB"
@@ -342,9 +353,9 @@ jobs:
           cp "$WINDOWS_CLI" "dist/GhostCLI-Windows-x64-v$VERSION.exe"
           cp "$LINUX_CLI" "dist/GhostCLI-Linux-x86_64-v$VERSION"
           chmod +x "dist/GhostCLI-Linux-x86_64-v$VERSION"
-          cp "dist/native/GhostCLI-Windows-x64-Setup-Unsigned-Preview.exe" "dist/GhostCLI-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"
+          cp "$WINDOWS_CLI_SETUP" "dist/GhostCLI-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"
           for name in "GhostCLI-Linux-x86_64-v$VERSION.tar.gz" "GhostCLI-Linux-amd64-v$VERSION.deb" "GhostCLI-Linux-x86_64-v$VERSION.rpm"; do
-            cp "dist/native/$name" "dist/$name"
+            cp "$LINUX_CLI_PACKAGE_DIR/$name" "dist/$name"
           done
           test "$(dist/GhostCLI-Linux-x86_64-v$VERSION --version | grep -Fc "$VERSION")" -ge 1
           cp "$WIN_SETUP" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe"
