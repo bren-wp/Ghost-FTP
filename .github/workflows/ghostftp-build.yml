@@ -338,6 +338,16 @@ jobs:
             ghostftp-desktop/src-tauri/target/release/ghostftp qa/linux
           test -s qa/linux/Linux-Files-1290x852.png
           test -s qa/linux/SHA256SUMS.txt
+          # Separate genuine Xvfb/WebKit session for the idle Sync & Backup
+          # workspace. This is a real application screenshot, not a concept
+          # image or a mock transfer. Do not count it as accepted until reviewed.
+          mkdir -p qa/linux/sync
+          dbus-run-session -- xvfb-run -a -w 2 -e qa/linux/sync/xvfb-stderr.log \
+            -s '-screen 0 1290x852x24' env GHOSTFTP_QA_VIEW=sync \
+            bash .github/scripts/capture-linux-premium.sh \
+            ghostftp-desktop/src-tauri/target/release/ghostftp qa/linux/sync
+          test -s qa/linux/sync/Linux-Sync-1290x852.png
+          test -s qa/linux/sync/SHA256SUMS.txt
 
       - name: Upload genuine Linux visual QA evidence
         if: runner.os == 'Linux' && always()
