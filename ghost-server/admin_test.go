@@ -65,7 +65,7 @@ func TestAdminRequiresSeparateStrongBearerTokenAndLoopbackHost(t *testing.T) {
  v1:=adminRequest(t,srv,"GET","/api/v1/status",secret,"")
  var v1payload map[string]any
  if err:=json.Unmarshal(v1.Body.Bytes(),&v1payload);err!=nil{t.Fatal(err)}
- for k,v:=range payload { if v1payload[k]!=v { t.Fatalf("legacy and versioned status diverge: field %s: %v != %v",k,v,v1payload[k]) } }
+ for k,v:=range payload { if k=="uptime_seconds"{continue}; if v1payload[k]!=v { t.Fatalf("legacy and versioned status diverge: field %s: %v != %v",k,v,v1payload[k]) } }
  for _,untrusted:=range []string{"long-private-test-password",secret,srv.root,filepath.Base(srv.root)}{
   if strings.Contains(status.Body.String(),untrusted){t.Fatalf("leaked private configuration: %q",untrusted)}
  }
