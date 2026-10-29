@@ -140,7 +140,9 @@ jobs:
           Copy-Item 'dist/ghost-server-windows-x64-setup-unsigned.exe' "dist/GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$version.exe"
           $names=@("GhostFTP-Server-Windows-x64-Portable-v$version.exe","GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$version.exe")
           $lines=foreach($name in $names) { $digest=(Get-FileHash -LiteralPath (Join-Path 'dist' $name) -Algorithm SHA256).Hash.ToLowerInvariant(); "$digest  $name" }
-          [IO.File]::WriteAllLines((Join-Path (Resolve-Path 'dist').Path 'Release-SHA256SUMS.txt'),[string[]]$lines)
+          # Linux sha256sum expects LF, not PowerShell's Windows CRLF output.
+          [IO.File]::WriteAllText((Join-Path (Resolve-Path 'dist').Path 'Release-SHA256SUMS.txt'),(($lines -join "`n") + "`n"),[Text.UTF8Encoding]::new($false))
+          if ([IO.File]::ReadAllText((Join-Path (Resolve-Path 'dist').Path 'Release-SHA256SUMS.txt')).Contains("`r")) { throw 'Checksum manifest must be LF-only' }
           foreach($name in $names) { if ((Get-Item (Join-Path 'dist' $name)).Length -le 0) { throw "Empty server asset $name" } }
       - name: Upload exact-SHA Windows portable and unsigned NSIS setup release candidates
         uses: actions/upload-artifact@v7
