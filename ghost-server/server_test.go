@@ -126,3 +126,33 @@ func TestBadConfigurationFailsClosed(t *testing.T){
  if _,err:=New(Config{Root:root,Username:"qa",Password:"weak"});err==nil{t.Fatal("weak password accepted")}
  if _,err:=New(Config{Root:root,Username:"qa",Password:"strong-password-123"});err==nil{t.Fatal("missing TLS cert accepted")}
 }
+
+func TestAuthenticationRateLimitFailsClosed(t *testing.T) {
+ _,addr,stop:=testServer(t);defer stop()
+ c:=connect(t,addr);defer c.conn.Close()
+ secure(t,c)
+ c.command(t,"331 ","USER qa")
+ c.command(t,"530 ","PASS wrong-one")
+ c.command(t,"530 ","PASS wrong-two")
+ c.command(t,"421 ","PASS wrong-three")
+ _ = c.conn.SetReadDeadline(time.Now().Add(2*time.Second))
+ if _,err:=c.r.ReadString('\n');err==nil{t.Fatal("session stayed open after third failed password")}
+}
+
+func TestClientWithoutTrustedTLSIdentityRefusesServer(t *testing.T) {
+ _,addr,stop:=testServer(t);defer stop()
+ c:=connect(t,addr);defer c.conn.Close()
+ c.command(t,"234 ","AUTH TLS")
+ strict:=tls.Client(c.conn,&tls.Config{ServerName:"localhost",MinVersion:tls.VersionTLS12})
+ if err:=strict.Handshake();err==nil{t.Fatal("client accepted self-signed untrusted server identity")}
+}
+
+func TestShutdownClosesIdleAuthenticatedControlSessions(t *testing.T) {
+ _,addr,stop:=testServer(t)
+ c:=connect(t,addr)
+ secure(t,c)
+ stop()
+ defer c.conn.Close()
+ _ = c.conn.SetReadDeadline(time.Now().Add(2*time.Second))
+ if _,err:=c.r.ReadString('\n');err==nil{t.Fatal("idle FTPS session survived server shutdown")}
+}
