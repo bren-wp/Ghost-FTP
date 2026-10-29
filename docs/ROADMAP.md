@@ -1,4 +1,4 @@
-> **Authoritative current state (28 October 2026):** Ghost FTP **0.99.18 Preview**; latest published version **v0.99.17**. Versioned details below may describe older releases.
+> **Authoritative current state (29 October 2026):** Ghost FTP **0.99.19 Preview**; latest verified public release **v0.99.18**. Historic notes below retain their original chronology.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
 
@@ -8,7 +8,7 @@
 
 # Ghost FTP Roadmap
 
-This roadmap separates the current **0.99.5 development/release** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.99.17**.
+This roadmap separates the current **0.99.5 development/release** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.99.18**.
 
 ## Implemented
 
@@ -66,4 +66,4 @@ This roadmap separates the current **0.99.5 development/release** state from fut
 For the detailed engineering backlog, see [product/ROADMAP.md](product/ROADMAP.md). For authoritative current source/build state, see [product/STATUS_AND_NEXT.md](product/STATUS_AND_NEXT.md) and [build/STATUS.md](build/STATUS.md).
 
 
-Current development line: 0.99.18. Previous canonical release: 0.99.17. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.19. Previous canonical release: 0.99.18. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.

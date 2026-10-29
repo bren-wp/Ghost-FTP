@@ -1,4 +1,4 @@
-> **Authoritative current state (28 October 2026):** Ghost FTP **0.99.18 Preview**; latest published version **v0.99.17**. Versioned details below may describe older releases.
+> **Authoritative current state (29 October 2026):** Ghost FTP **0.99.19 Preview**; latest verified public release **v0.99.18**. Historical context below is preserved.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
 
@@ -53,7 +53,7 @@ The Android Cloud storage workspace transfers one object at a time using short-l
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
 - Active source version: **0.95.18**
-- Previous canonical release: **0.99.17**
+- Previous canonical release: **0.99.18**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`
@@ -170,7 +170,7 @@ Stable/FINAL mobile status additionally requires device-level install/upgrade/st
 Native Kotlin layouts now adapt Files to a single pane under 420 dp of usable content width and keep dual-pane on wider phones and tablets. Six emulator viewports, font scale 1.4 and landscape route checks are in `ResponsiveViewportTest.kt`. The 16 source UI mockup screens are **not** declared pixel-identical. Signed cloud-provider account browsing and persisted multi-transfer queue remain independent feature gaps. See `docs/qa/ANDROID_RESPONSIVE_0.99.6.md` for the acceptance matrix.
 
 
-Current development line: 0.99.18. Previous canonical release: 0.99.17. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.19. Previous canonical release: 0.99.18. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
 
 ## v0.99.13 new design reference
 

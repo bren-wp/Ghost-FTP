@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   Folder,
   FolderSync,
+  GitCompareArrows,
   Loader2,
   Cloud,
   CloudOff,
@@ -17,6 +18,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { ipc } from "@/lib/ipc";
 import { useSync } from "@/stores/syncStore";
 import { useConnections } from "@/stores/connectionsStore";
+import { useDiff } from "@/stores/diffStore";
+import { LOCAL_SESSION } from "@ghostftp/file-ui";
 import { relTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { toastError } from "@/lib/errors";
@@ -38,6 +41,18 @@ import type {
 export function SyncSettings() {
   const pairs = useSync((s) => s.pairs);
   const [adding, setAdding] = useState(false);
+  // Only report values actually observed from the private live sync store.
+  // The premium concept depicts populated examples, but a fresh install must
+  // render zero/unknown values instead of fabricated jobs or backup history.
+  const syncedPairs = pairs.filter((pair) =>
+    typeof pair.lastSynced === "number" && pair.lastSynced > 0
+  ).length;
+  const activeTransfers = pairs.reduce((total, pair) =>
+    total + Math.max(0, pair.inFlight), 0
+  );
+  const lastSyncAt = pairs.reduce((latest, pair) =>
+    Math.max(latest, pair.lastSynced ?? 0), 0
+  );
 
   // Make sure the store is populated even if the pill/App init hasn't run yet.
   useEffect(() => {
@@ -56,19 +71,56 @@ export function SyncSettings() {
             Watch local folders in the background and synchronize changes to or from your server. Each sync pair runs independently while Ghost FTP is open.
           </div>
         </div>
-        {!adding && (
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <button
             type="button"
-            onClick={() => setAdding(true)}
-            className="btn-accent flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-white"
+            onClick={() => useDiff.getState().openFor(LOCAL_SESSION, "")}
+            className="flex items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 py-1.5 text-sm text-text hover:bg-bg-hover"
+            title="Choose two real folders before comparing their contents"
           >
-            <Plus size={13} /> New sync pair
+            <GitCompareArrows size={13} /> Compare
           </button>
-        )}
+          {!adding && (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="btn-accent flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-white"
+            >
+              <Plus size={13} /> New sync pair
+            </button>
+          )}
+        </div>
       </div>
 
       {adding && <PairForm onDone={() => setAdding(false)} />}
 
+      <div
+        className="grid grid-cols-2 gap-2.5 lg:grid-cols-4"
+        aria-label="Live sync overview"
+      >
+        {[
+          { label: "Configured pairs", value: String(pairs.length), detail: "Saved locally" },
+          { label: "Previously synced", value: String(syncedPairs), detail: "Pairs with real history" },
+          { label: "Transfers in progress", value: String(activeTransfers), detail: "Current operations" },
+          { label: "Last sync", value: lastSyncAt > 0 ? relTime(lastSyncAt) : "—", detail: lastSyncAt > 0 ? "Time since completion" : "No completed sync" },
+        ].map((metric) => (
+          <div
+            key={metric.label}
+            className="min-w-0 rounded-xl border border-border bg-bg-subtle px-4 py-3"
+          >
+            <div className="text-[11px] text-text-muted">{metric.label}</div>
+            <div className="mt-1 truncate text-[22px] font-semibold text-text" title={metric.value}>
+              {metric.value}
+            </div>
+            <div className="mt-0.5 text-[10px] text-text-dim">{metric.detail}</div>
+          </div>
+        ))}
+      </div>
+
+      <section aria-label="Actual sync jobs">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+          Sync jobs
+        </h3>
       <div className="space-y-1.5">
         {pairs.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border bg-bg-subtle/50 px-3 py-6 text-center text-xs text-text-dim">
@@ -78,6 +130,7 @@ export function SyncSettings() {
           pairs.map((p) => <PairRow key={p.id} pair={p} />)
         )}
       </div>
+      </section>
     </div>
   );
 }

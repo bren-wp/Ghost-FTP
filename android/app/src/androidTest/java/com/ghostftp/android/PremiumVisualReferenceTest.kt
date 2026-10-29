@@ -229,6 +229,45 @@ class PremiumVisualReferenceTest {
     }
 
     @Test
+    fun realSitesCreateActionOpensEmptyEditorWithoutFakeProfiles() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val drawer = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == activity.getString(R.string.nav_open)
+                }
+                assertTrue("Sites must be reachable from real navigation",
+                    drawer?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val sites = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() ==
+                        activity.getString(R.string.workspace_open,
+                            activity.getString(R.string.workspace_sites))
+                }
+                assertTrue("Sites navigation must remain tappable", sites?.performClick() == true)
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val create = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == activity.getString(R.string.ui_add_site) && it.isShown
+                }
+                assertNotNull("Prominent real Add Connection action is required", create)
+                assertTrue(create!!.isEnabled)
+                assertTrue(create.performClick())
+            }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity ->
+                val editor = findView(activity.window.decorView) {
+                    it.contentDescription?.toString() == "Site editor General tab" && it.isShown
+                }
+                assertNotNull("New connection action must open the real editable site form", editor)
+                assertNoUserInputInHierarchy(activity.window.decorView)
+            }
+        }
+    }
+
+    @Test
     fun savedSiteConnectScreenShowsRealMetadataAndRequestsSessionPassword() {
         val context = instrumentation.targetContext
         val name = "Visual Connect QA " + System.nanoTime()

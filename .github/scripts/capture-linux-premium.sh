@@ -9,6 +9,13 @@ if [ "$#" -ne 2 ]; then
 fi
 binary="$(realpath "$1")"
 output="$(realpath -m "$2")"
+# Whitelisted true application view; no fabricated data or user profiles.
+qa_view="${GHOSTFTP_QA_VIEW:-main}"
+case "$qa_view" in
+  main) qa_image="Linux-Files-1290x852.png" ;;
+  sync) qa_image="Linux-Sync-1290x852.png" ;;
+  *) echo "Unsupported native Linux QA screen: $qa_view" >&2; exit 2 ;;
+esac
 test -x "$binary"
 mkdir -p "$output"
 private_home="$(mktemp -d)"
@@ -139,9 +146,9 @@ test -s "$validator"
 valid_capture=0
 for attempt in $(seq 1 6); do
   sleep 5
-  scrot --silent --overwrite "$output/Linux-Files-1290x852.png"
+  scrot --silent --overwrite "$output/$qa_image"
   echo "Capture attempt $attempt at 1290x852:" >> "$output/capture-attempts.log"
-  if /usr/bin/python3 "$validator" "$output/Linux-Files-1290x852.png" >> "$output/capture-attempts.log" 2>&1; then
+  if /usr/bin/python3 "$validator" "$output/$qa_image" >> "$output/capture-attempts.log" 2>&1; then
     valid_capture=1
     echo "Validated real Linux app content on attempt $attempt"
     break
@@ -153,10 +160,11 @@ if [ "$valid_capture" -ne 1 ]; then
   echo "Openbox window evidence and the invalid PNG are preserved in the QA artifact." >&2
   exit 1
 fi
-sha256sum "$output/Linux-Files-1290x852.png" > "$output/SHA256SUMS.txt"
+sha256sum "$output/$qa_image" > "$output/SHA256SUMS.txt"
 cat > "$output/README.txt" <<'TEXT'
 Ghost FTP real Linux native QA screenshot at 1290 x 852 from Tauri/WebKit
 running in an isolated GitHub Actions Xvfb session with no user profiles.
+Files and Sync are captured only from real product navigation; no mock UI.
 This is evidence for comparison, not a claim of 1:1 pixel parity with the
 user-supplied premium 29-screen Linux concept. No fabricated server files,
 connections, transfer history, credentials or screenshots are injected.

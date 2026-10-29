@@ -99,6 +99,7 @@ fn build_settings_init_script(db: &db::Db) -> String {
                     | "siteManager"
                     | "settings"
                     | "transferCenter"
+                    | "sync"
                     | "about"
                     | "newConnection"
                     | "properties"
