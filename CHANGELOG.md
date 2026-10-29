@@ -1,3 +1,10 @@
+## 0.99.19 — FTP/SFTP overwrite protection and authentic Android visual QA (development Preview; 29 October 2026)
+- FTP, explicit FTPS and SFTP rename commands now refuse known existing destinations using a validated full parent inventory before sending a mutating remote request. Safety remains fail-closed when listing fails; server-side race windows still require an atomic rename-if-absent mechanism for complete guarantees.
+- Add live FTP/FTPS/OpenSSH SFTP integration regressions that seed an occupied target, verify both byte streams survive rejected overwrites, then complete a non-colliding rename.
+- Android Sites adds a functional full-width new-connection action and distinguishes genuinely empty local profiles from a search that returned no matches. Its instrumentation test opens the real editor and rejects nonempty user input in screenshots.
+- Audit seven additional genuine v0.99.18 Android debug-only 480×960 captures against the canonical user reference; total traceable comparison evidence spans 7 Windows, 1 Linux, and 7 Android reference states from prior released builds. **0 of 75 are visually accepted** without complete interaction/accessibility and installed-app evidence.
+- Preserve the legacy 0.99.18 release unchanged. Native Swift macOS identity-verified FTPS/SFTP (issue #223), production signing, fully operational Android mirror sync and 75-screen acceptance remain unfinished release gates; Phase 4 is not started.
+
 ## 0.99.18 — fail-closed fallback recovery (development Preview; 28 October 2026)
 - Reject malformed saved-site/settings JSON and non-regular/symlinked state files; recover only from a validated backup.
 - Prevent silent empty-workspace resets when the primary is missing but a corrupt backup exists. Only a genuinely absent primary **and** backup gets first-launch defaults.
