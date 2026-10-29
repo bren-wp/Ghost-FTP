@@ -1,8 +1,11 @@
 > **Authoritative current state (29 October 2026):** Ghost FTP **0.99.22 development Preview**; v0.99.21 is the latest publicly published source. The new Client + Server distribution is under exact-SHA CI acceptance, not yet production-certified. Older notes below are historical.
 
-> **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
-
 # Ghost FTP Documentation
+
+The current operational entry points are [Ghost FTP Client](../README.md), [Ghost FTP Server](../ghost-server/README.md), [Ghost CLI](../ghost-cli/README.md), [Ghost FTP Demo](../ghost-demo/README.md), [Client/Server compatibility](architecture/CLIENT_SERVER_PARITY.md), [Installation](guides/INSTALLATION.md), [security](../SECURITY.md), [privacy](legal/PRIVACY.md), [EULA](../EULA.txt), [license](../LICENSE.txt), and [v0.99.22 release acceptance](releases/0.99.22.md).
+
+**Publication distinction:** `docs/releases/` and `docs/audits/` contain historical release evidence. These records are retained for traceability even where they describe an older, incomplete development stage; use the current linked overview for feature/support claims. The demo simulates transfers; the Server Preview does not yet implement full multi-user RBAC or SFTP Server.
+
 
 Ghost FTP documentation is organized around the current canonical product state, stable operational guidance and historical provenance.
 
