@@ -29,7 +29,7 @@ Windows PowerShell:
 ./ghostftp-desktop/src-tauri/target/release/ghostftp-cli.exe --version
 ```
 
-Builds require a Rust toolchain, C compiler and the native dependencies already documented for the desktop runtime. The release workflow produces and checks independent `GhostCLI-Windows-x64-v<version>.exe` and `GhostCLI-Linux-x86_64-v<version>` artifacts from the same source SHA.
+Builds require a Rust toolchain, C compiler and the native dependencies already documented for the desktop runtime. Every release builds independent Windows **Portable EXE and unsigned NSIS Setup EXE**, plus Linux **executable, tar.gz, DEB and RPM** from the same source SHA. Ghost CLI remains a standalone console product, even if installed alongside Ghost FTP Client. Windows Setup has current-user install and EULA acceptance; Linux packages do not automatically run the CLI or change shell profiles.
 
 ## Portable encrypted backup — explicit cross-device handoff
 
