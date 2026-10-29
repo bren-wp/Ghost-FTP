@@ -276,7 +276,7 @@ async fn ftp_roundtrip(
             })
             .await
             .context("FTP verify no-overwrite contents")?;
-        if bytes != *expected {
+        if bytes.as_slice() != expected.as_slice() {
             return Err(anyhow!("{protocol} failed rename changed existing contents"));
         }
     }
@@ -804,6 +804,38 @@ async fn sftp_password_roundtrip(
     }
 
     fs.chmod(&upload, 0o640).await.context("SFTP chmod")?;
+    // A real OpenSSH SFTP server may replace existing files during rename.
+    // Seed a destination, assert the API refuses it, then verify neither file
+    // was changed before a normal non-colliding rename.
+    let sentinel = b"preserve existing SFTP destination".to_vec();
+    let cell = ssh.ensure_sftp().await?;
+    let mut conflict_file = {
+        let sftp = cell.lock().await;
+        sftp.create(&renamed)
+            .await
+            .context("SFTP seed rename conflict")?
+    };
+    conflict_file.write_all(&sentinel).await?;
+    conflict_file.flush().await?;
+    drop(conflict_file);
+    if fs.rename(&upload, &renamed).await.is_ok() {
+        return Err(anyhow!("SFTP rename overwrote an existing remote file"));
+    }
+    for (target, expected) in [(&upload, &payload), (&renamed, &sentinel)] {
+        let cell = ssh.ensure_sftp().await?;
+        let mut handle = {
+            let sftp = cell.lock().await;
+            sftp.open(target).await.context("SFTP open protected rename file")?
+        };
+        let mut bytes = Vec::new();
+        handle.read_to_end(&mut bytes).await?;
+        if bytes.as_slice() != expected.as_slice() {
+            return Err(anyhow!("SFTP collision mutated the original file bytes"));
+        }
+    }
+    fs.delete(&renamed, false)
+        .await
+        .context("SFTP cleanup collision fixture")?;
     fs.rename(&upload, &renamed).await.context("SFTP rename")?;
 
     let cell = ssh.ensure_sftp().await?;
