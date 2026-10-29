@@ -1,14 +1,14 @@
 Unicode True
 !include "MUI2.nsh"
 ; Shared Ghost FTP Client installer vector-derived artwork.
-!define MUI_ICON "ghostftp-desktop\src-tauri\icons\icon.ico"
-!define MUI_UNICON "ghostftp-desktop\src-tauri\icons\icon.ico"
+!define MUI_ICON "..\..\ghostftp-desktop\src-tauri\icons\icon.ico"
+!define MUI_UNICON "..\..\ghostftp-desktop\src-tauri\icons\icon.ico"
 !define MUI_HEADERIMAGE
-!define MUI_HEADERIMAGE_BITMAP "ghostftp-desktop\src-tauri\nsis\ghostftp-header.bmp"
-!define MUI_UNHEADERIMAGE_BITMAP "ghostftp-desktop\src-tauri\nsis\ghostftp-header.bmp"
-!define MUI_WELCOMEFINISHPAGE_BITMAP "ghostftp-desktop\src-tauri\nsis\ghostftp-sidebar.bmp"
+!define MUI_HEADERIMAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-header.bmp"
+!define MUI_UNHEADERIMAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-header.bmp"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-sidebar.bmp"
 Name "Ghost FTP Demo (Preview)"
-OutFile "dist-tools\GhostFTP-Demo-Setup-Unsigned-Preview.exe"
+OutFile "..\..\dist-tools\GhostFTP-Demo-Setup-Unsigned-Preview.exe"
 InstallDir "$LOCALAPPDATA\Programs\Ghost FTP Demo"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
@@ -19,7 +19,7 @@ ShowUninstDetails show
 !define MUI_WELCOMEPAGE_TEXT "Local interactive product demonstration. All accounts, transfers and files are simulated.$\\r$\\n$\\r$\\nGhost FTP by Brendigo. Separate unsigned Preview component."
 !define MUI_FINISHPAGE_TITLE "Ghost FTP Demo files installed"
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "EULA.txt"
+!insertmacro MUI_PAGE_LICENSE "..\..\EULA.txt"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -28,9 +28,9 @@ ShowUninstDetails show
 !insertmacro MUI_LANGUAGE "English"
 Section "Install Ghost FTP Demo"
  SetOutPath "$INSTDIR"
- File "/oname=ghostftp-demo.exe" "ghost-server\dist\GhostFTP-Demo-Windows-x64-Portable.exe"
- File "/oname=README.md" "ghost-demo\README.md"
- File "EULA.txt"
+ File "/oname=ghostftp-demo.exe" "..\..\ghost-server\dist\GhostFTP-Demo-Windows-x64-Portable.exe"
+ File "/oname=README.md" "..\..\ghost-demo\README.md"
+ File "..\..\EULA.txt"
  WriteUninstaller "$INSTDIR\Uninstall.exe"
  SetRegView 64
  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTPDemoPreview" "DisplayName" "Ghost FTP Demo (Preview)"
