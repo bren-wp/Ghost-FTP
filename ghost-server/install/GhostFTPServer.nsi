@@ -1,6 +1,14 @@
 Unicode True
 !include "MUI2.nsh"
 
+; Reuse the exact Windows client installer artwork and app icon.
+!define MUI_ICON "..\..\ghostftp-desktop\src-tauri\icons\icon.ico"
+!define MUI_UNICON "..\..\ghostftp-desktop\src-tauri\icons\icon.ico"
+!define MUI_HEADERIMAGE
+!define MUI_HEADERIMAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-header.bmp"
+!define MUI_UNHEADERIMAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-header.bmp"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-sidebar.bmp"
+
 Name "Ghost FTP Server (Preview)"
 OutFile "..\dist\ghost-server-windows-x64-setup-unsigned.exe"
 InstallDir "$PROGRAMFILES64\Ghost FTP Server"
@@ -10,7 +18,13 @@ ShowInstDetails show
 ShowUninstDetails show
 
 !define MUI_ABORTWARNING
+!define MUI_WELCOMEPAGE_TITLE "Welcome to Ghost FTP Server"
+!define MUI_WELCOMEPAGE_TEXT "Ghost FTP Server · More Than Transfer. Total Control.$\r$\n$\r$\nThis is an unsigned Preview installer for the standalone Ghost FTP Server. It installs files only: no default users, certificates, firewall rules, public listeners or automatically started services."
+!define MUI_FINISHPAGE_TITLE "Ghost FTP Server files installed"
+!define MUI_FINISHPAGE_TEXT "Manual service provisioning is required before use. Read the documentation and provide your own protected credentials and TLS identity. This installer does not start the server."
+!define MUI_LICENSEPAGE_TEXT_TOP "Please review the Ghost FTP commercial license and Preview component terms."
 !insertmacro MUI_PAGE_WELCOME
+!insertmacro MUI_PAGE_LICENSE "..\..\EULA.txt"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -32,6 +46,8 @@ Section "Ghost FTP Server (read-only default)"
  File "Install-GhostFTPServer.ps1"
  File "Uninstall-GhostFTPServer.ps1"
  File "..\README.md"
+ File "..\..\EULA.txt"
+ File "..\..\LICENSE.txt"
  WriteUninstaller "$INSTDIR\Uninstall.exe"
  SetRegView 64
  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTPServerPreview" "DisplayName" "Ghost FTP Server (Preview)"
@@ -60,6 +76,8 @@ Section "Uninstall"
  Delete "$INSTDIR\Install-GhostFTPServer.ps1"
  Delete "$INSTDIR\Uninstall-GhostFTPServer.ps1"
  Delete "$INSTDIR\README.md"
+ Delete "$INSTDIR\EULA.txt"
+ Delete "$INSTDIR\LICENSE.txt"
  Delete "$INSTDIR\Uninstall.exe"
  RMDir "$INSTDIR"
  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTPServerPreview"

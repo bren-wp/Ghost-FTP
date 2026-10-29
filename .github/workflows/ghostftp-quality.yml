@@ -39,10 +39,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test .github/scripts/check-release-channel.test.mjs .github/scripts/check-release-governance.test.mjs .github/scripts/check-release-index.test.mjs .github/scripts/check-server-release-contract.test.mjs .github/scripts/check-server-premium-parity.test.mjs
+          node --test .github/scripts/check-release-channel.test.mjs .github/scripts/check-release-governance.test.mjs .github/scripts/check-release-index.test.mjs .github/scripts/check-server-release-contract.test.mjs .github/scripts/check-server-premium-parity.test.mjs .github/scripts/check-cli-demo-release.test.mjs
           node .github/scripts/check-release-channel.mjs
 
       - name: Version consistency and progression
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -57,16 +59,31 @@ jobs:
             CURRENT_VERSION="$(node -p 'require("./version.json").version')"
             PREVIOUS_SOURCE_VERSION="$(node -p 'require("./version.json").previousVersion || ""')"
             PREVIOUS_PUBLISHED_VERSION="$(node -p 'require("./version.json").previousPublishedVersion || ""')"
-            if [ "$PREVIOUS_SOURCE_VERSION" != "$BASE_VERSION" ] ||
-               [ "$PREVIOUS_PUBLISHED_VERSION" != "$BASE_VERSION" ]; then
-              echo "::error::The previous main version v$BASE_VERSION must have a published release before the next PR can merge. Ensure previousVersion and previousPublishedVersion equal the base version; wait for its verified automatic release."
-              exit 1
-            fi
             if [ "$CURRENT_VERSION" = "$BASE_VERSION" ]; then
-              echo "::error::Every merged change requires a new version. Increment version.json, synchronize all platform metadata and add release notes before merging."
-              exit 1
+              # An earlier versioned merge may have failed its automatic release.
+              # Safely repair the SAME UNPUBLISHED version, never bump past it or
+              # allow rewriting a published/immutable version or skipping lineage.
+              test "$PREVIOUS_SOURCE_VERSION" = "$PREVIOUS_PUBLISHED_VERSION"
+              test "$PREVIOUS_PUBLISHED_VERSION" != "$CURRENT_VERSION"
+              if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$CURRENT_VERSION" >/dev/null 2>&1 ||
+                 gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$CURRENT_VERSION" >/dev/null 2>&1; then
+                echo "::error::Refusing another PR for an already tagged/published version."
+                exit 1
+              fi
+              LATEST_PUBLIC="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq 'map(select(.draft == false)) | sort_by(.tag_name | ltrimstr("v") | split(".") | map(tonumber)) | reverse | .[0].tag_name // empty')"
+              if [ "$LATEST_PUBLIC" != "v$PREVIOUS_PUBLISHED_VERSION" ]; then
+                echo "::error::Unpublished version repair cannot skip a canonical published predecessor."
+                exit 1
+              fi
+              echo "::notice::Permitting PR repair of unpublished v$CURRENT_VERSION only (source-to-release lineage intact)."
+            else
+              if [ "$PREVIOUS_SOURCE_VERSION" != "$BASE_VERSION" ] ||
+                 [ "$PREVIOUS_PUBLISHED_VERSION" != "$BASE_VERSION" ]; then
+                echo "::error::The previous main version v$BASE_VERSION must be publicly released before new-version PRs."
+                exit 1
+              fi
+              node .github/scripts/sync-version.mjs --check-next "$BASE_VERSION"
             fi
-            node .github/scripts/sync-version.mjs --check-next "$BASE_VERSION"
           fi
 
       - name: Documentation and release alignment

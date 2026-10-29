@@ -8,6 +8,16 @@ Where supported by the desktop build, secrets are stored through operating-syste
 
 Passwords, passphrases, SSH private-key contents, tokens and equivalent secrets must not be written to normal application, notification or crash logs.
 
+## Component-specific data boundaries (v0.99.22 Preview)
+
+**Ghost FTP Client and Ghost CLI:** Real transfers connect directly to user-selected, authorized endpoints using the shared protocol engine. Saved profiles may be accessible to the CLI within the same OS account; the client does **not** automatically synchronize private credentials, keys, bookmarks or transfer histories among different devices.
+
+**Ghost FTP Server:** Independently deployed file-transfer service. The operator determines storage, identities, certificates, firewall/network exposure, data-retention obligations and backups. Its optional administrative dashboard is local-only and returns authenticated live operational metrics, not customer files or passwords; the browser administrator token remains in volatile memory.
+
+**Ghost FTP Demo:** An offline product walkthrough using intentionally fictional site names and sample files. Demo transfer progress, upload, download, cancellation and sync planning are simulated **in process**, never sent to remote endpoints. The Demo has no customer credentials, telemetry requirement or persistent demonstration database. Closing the program clears demo operations.
+
+Distribution through GitHub Releases involves GitHub's own service and download processing subject to GitHub's separate privacy terms. Browser/websites that link to releases may have their own policies; these are separate from the application's local processing.
+
 ## Telemetry
 
 Ghost FTP does not require analytics or telemetry for core operation. The supplied production configuration does not silently enable usage tracking.

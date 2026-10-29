@@ -50,7 +50,7 @@ test("six native server assets are mandatory from CI through public verification
     "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"
   ]) assert.ok(index.includes(fragment),fragment);
   assert.ok(publisher.includes('test -s "dist/$required"') || publisher.includes('! -s "dist/$required"'));
-  assert.ok(index.includes("-ge 31"));
+  assert.ok(index.includes("-ge 43"));
 });
 
 test("Linux service never starts unprovisioned; credentials stay out of argv",()=>{

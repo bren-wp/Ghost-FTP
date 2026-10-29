@@ -181,7 +181,7 @@ jobs:
           zip -qr "dist/GhostFTP-v$VERSION-Android-Source.zip" android
           zip -qr "dist/GhostFTP-v$VERSION-macOS-Source.zip" macos
           zip -qr "dist/GhostFTP-v$VERSION-Updates.zip" updates
-          zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+          zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt ghost-cli/README.md ghost-demo/README.md
 
       - name: Download native build artifacts
         env:
@@ -264,17 +264,29 @@ jobs:
           gh run download "$RUN_ID" --name GhostFTP-Server-Linux-Package-Preview -D dist/server-linux
           gh run download "$RUN_ID" --name GhostFTP-Server-Windows-Package-Preview -D dist/server-windows
           (cd dist/server-linux && sha256sum -c Linux-SHA256SUMS.txt)
+          # Existing Windows artifact runners may supply CRLF: normalize text safely
+          # without changing any checksum bytes, file names or actual payloads.
+          sed -i 's/\r$//' dist/server-windows/Release-SHA256SUMS.txt
           (cd dist/server-windows && sha256sum -c Release-SHA256SUMS.txt)
           test "$(dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION -version)" = "Ghost FTP Server $VERSION Preview"
           tar -tzf "dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION.tar.gz" | grep -Fxq ghostftp-server.service
           dpkg-deb --contents "dist/server-linux/GhostFTP-Server-Linux-amd64-v$VERSION.deb" | grep -q ghostftp-server.service
+          for name in "GhostFTP-Demo-Linux-x86_64-v$VERSION" "GhostFTP-Demo-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Demo-Linux-amd64-v$VERSION.deb" "GhostFTP-Demo-Linux-x86_64-v$VERSION.rpm"; do
+            test -s "dist/server-linux/$name"
+            cp "dist/server-linux/$name" "dist/$name"
+          done
+          test "$(dist/GhostFTP-Demo-Linux-x86_64-v$VERSION -version)" = "Ghost FTP Demo $VERSION Preview"
+          test "$(dist/GhostFTP-Demo-Linux-x86_64-v$VERSION -self-test)" = "Ghost FTP Demo offline/self-test PASS"
+          file "dist/server-windows/GhostFTP-Demo-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
+          test -s "dist/server-windows/GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe"
+          file "dist/server-windows/GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
           file "dist/server-windows/GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
           file "dist/server-windows/GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
           for name in "GhostFTP-Server-Linux-x86_64-v$VERSION" "GhostFTP-Server-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Server-Linux-amd64-v$VERSION.deb" "GhostFTP-Server-Linux-x86_64-v$VERSION.rpm"; do
             test -s "dist/server-linux/$name"
             cp "dist/server-linux/$name" "dist/$name"
           done
-          for name in "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"; do
+          for name in "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" "GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Demo-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"; do
             test -s "dist/server-windows/$name"
             cp "dist/server-windows/$name" "dist/$name"
           done
@@ -285,14 +297,16 @@ jobs:
         run: |
           set -euo pipefail
           WIN_EXE="$(find dist/native -type f -iname 'ghostftp.exe' | head -n1 || true)"
-          WIN_SETUP="$(find dist/native -type f -iname '*setup*.exe' ! -iname '*.sig' | head -n1 || true)"
-          WIN_MSI="$(find dist/native -type f -iname '*.msi' | head -n1 || true)"
+          WIN_SETUP="$(find dist/native -type f -name 'GhostFTP-Windows-x64-Setup.exe' | head -n1 || true)"
+          WIN_MSI="$(find dist/native -type f -name 'GhostFTP-Windows-x64-Setup.msi' | head -n1 || true)"
           WIN_SETUP_SIG="$(find dist/native -type f -iname '*setup*.exe.sig' | head -n1 || true)"
           LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
+          WINDOWS_CLI="$(find dist/native -type f -name 'ghostftp-cli.exe' | head -n1 || true)"
+          LINUX_CLI="$(find dist/native -type f -name 'ghostftp-cli' | head -n1 || true)"
           APPIMAGE="$(find dist/native -type f -iname '*.AppImage' ! -iname '*.sig' | head -n1 || true)"
           APPIMAGE_SIG="$(find dist/native -type f -iname '*.AppImage.sig' | head -n1 || true)"
-          DEB="$(find dist/native -type f -iname '*.deb' | head -n1 || true)"
-          RPM="$(find dist/native -type f -iname '*.rpm' | head -n1 || true)"
+          DEB="$(find dist/native -type f -name 'GhostFTP-Linux-amd64.deb' | head -n1 || true)"
+          RPM="$(find dist/native -type f -name 'GhostFTP-Linux-x86_64.rpm' | head -n1 || true)"
           ANDROID_UNSIGNED_APK="$(find dist/android -type f -iname '*Release-Unsigned.apk.unsigned' | head -n1 || true)"
           ANDROID_PREVIEW_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
           ANDROID_UNSIGNED_AAB="$(find dist/android -type f -iname '*Release-Unsigned.aab.unsigned' | head -n1 || true)"
@@ -303,6 +317,12 @@ jobs:
           MACOS_DMG_INTEL="dist/macos-shared/x86_64/GhostFTP-macOS-Shared-x86_64-v$VERSION-Installable-Preview.dmg"
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
+          test -n "$WINDOWS_CLI"; test -s "$WINDOWS_CLI"
+          test -n "$LINUX_CLI"; test -s "$LINUX_CLI"
+          test -s "dist/native/GhostCLI-Windows-x64-Setup-Unsigned-Preview.exe"
+          for name in "GhostCLI-Linux-x86_64-v$VERSION.tar.gz" "GhostCLI-Linux-amd64-v$VERSION.deb" "GhostCLI-Linux-x86_64-v$VERSION.rpm"; do
+            test -s "dist/native/$name"
+          done
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"
           test -n "$ANDROID_UNSIGNED_APK"; test -n "$ANDROID_PREVIEW_APK"; test -n "$ANDROID_UNSIGNED_AAB"; test -s "$ANDROID_UNSIGNED_AAB"
           test -n "$MACOS_PREVIEW"; test -s "$MACOS_PREVIEW"
@@ -319,6 +339,14 @@ jobs:
           fi
 
           cp "$WIN_EXE" "dist/GhostFTP-Windows-x64-Portable-v$VERSION.exe"
+          cp "$WINDOWS_CLI" "dist/GhostCLI-Windows-x64-v$VERSION.exe"
+          cp "$LINUX_CLI" "dist/GhostCLI-Linux-x86_64-v$VERSION"
+          chmod +x "dist/GhostCLI-Linux-x86_64-v$VERSION"
+          cp "dist/native/GhostCLI-Windows-x64-Setup-Unsigned-Preview.exe" "dist/GhostCLI-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"
+          for name in "GhostCLI-Linux-x86_64-v$VERSION.tar.gz" "GhostCLI-Linux-amd64-v$VERSION.deb" "GhostCLI-Linux-x86_64-v$VERSION.rpm"; do
+            cp "dist/native/$name" "dist/$name"
+          done
+          test "$(dist/GhostCLI-Linux-x86_64-v$VERSION --version | grep -Fc "$VERSION")" -ge 1
           cp "$WIN_SETUP" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe"
           cp "$WIN_MSI" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.msi"
           if [ -n "$WIN_SETUP_SIG" ]; then

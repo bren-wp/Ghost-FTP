@@ -122,6 +122,51 @@ jobs:
         with:
           projectPath: ghostftp-desktop
           args: --config src-tauri/updater-release.conf.json ${{ matrix.args }}
+      - name: Build and smoke actual Ghost CLI with shared desktop FTP/FTPS/SFTP engine
+        shell: bash
+        working-directory: ghostftp-desktop/src-tauri
+        run: |
+          set -euo pipefail
+          cargo build --release --locked -p ghostftp-cli
+          if [ "$RUNNER_OS" = Windows ]; then
+            test -s target/release/ghostftp-cli.exe
+            target/release/ghostftp-cli.exe --version
+            target/release/ghostftp-cli.exe --help > "$RUNNER_TEMP/ghostcli-help.txt"
+          else
+            test -s target/release/ghostftp-cli
+            target/release/ghostftp-cli --version
+            target/release/ghostftp-cli --help > "$RUNNER_TEMP/ghostcli-help.txt"
+          fi
+          grep -Eq "ls|cp|sync" "$RUNNER_TEMP/ghostcli-help.txt"
+
+      - name: Build, install and uninstall separate Ghost CLI Windows Setup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $compiler = 'C:\Program Files (x86)\NSIS\makensis.exe'
+          if (-not (Test-Path $compiler)) {
+            choco install nsis --no-progress --yes
+            if ($LASTEXITCODE -ne 0) { throw 'NSIS compiler installation failed' }
+          }
+          New-Item -ItemType Directory -Force dist-tools | Out-Null
+          & $compiler /V2 ghost-cli/install/GhostCLI.nsi
+          if ($LASTEXITCODE -ne 0) { throw 'Ghost CLI standalone setup build failed' }
+          $setup = (Resolve-Path 'dist-tools/GhostCLI-Setup-Unsigned-Preview.exe').Path
+          $installDir = Join-Path $env:RUNNER_TEMP 'GhostCLI-Independent-Setup-Smoke'
+          if (Test-Path $installDir) { throw 'Refusing to overwrite a prior CLI installation fixture' }
+          $proc = Start-Process -FilePath $setup -ArgumentList @('/S',"/D=$installDir") -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { throw 'CLI setup installation failed' }
+          $installed = Join-Path $installDir 'ghostftp-cli.exe'
+          if (-not (Test-Path $installed)) { throw 'CLI setup installed no real executable' }
+          $version = (Get-Content version.json -Raw | ConvertFrom-Json).version
+          if (-not ((& $installed --version) -match [regex]::Escape($version))) { throw 'Installed CLI version mismatch' }
+          if (-not (Test-Path (Join-Path $installDir 'EULA.txt'))) { throw 'CLI setup missing license' }
+          $uninstaller = Join-Path $installDir 'Uninstall.exe'
+          $un = Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -PassThru
+          if ($un.ExitCode -ne 0 -or (Test-Path $installed)) { throw 'CLI uninstaller failed' }
+          Write-Output 'Standalone Ghost CLI NSIS Setup install/version/uninstall PASSED.'
+
       - name: Windows NSIS and MSI install/uninstall smoke
         if: runner.os == 'Windows'
         shell: pwsh
@@ -1016,6 +1061,10 @@ jobs:
           $portable = 'ghostftp-desktop/src-tauri/target/release/ghostftp.exe'
           if (-not (Test-Path $portable)) { throw "Missing portable executable: $portable" }
           Copy-Item $portable 'dist/native/ghostftp.exe'
+          if (-not (Test-Path 'ghostftp-desktop/src-tauri/target/release/ghostftp-cli.exe')) { throw 'Ghost CLI Windows executable was not built' }
+          Copy-Item 'ghostftp-desktop/src-tauri/target/release/ghostftp-cli.exe' 'dist/native/ghostftp-cli.exe'
+          if (-not (Test-Path 'dist-tools/GhostCLI-Setup-Unsigned-Preview.exe')) { throw 'Separate CLI setup is missing' }
+          Copy-Item 'dist-tools/GhostCLI-Setup-Unsigned-Preview.exe' 'dist/native/GhostCLI-Windows-x64-Setup-Unsigned-Preview.exe'
 
           $setup = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/nsis' -Filter '*.exe' -Recurse |
             Sort-Object Length -Descending |
@@ -1062,6 +1111,13 @@ jobs:
 
           test -s "$BIN"; test -s "$APPIMAGE"; test -s "$DEB"; test -s "$RPM"
           cp "$BIN" dist/native/ghostftp
+          test -s ghostftp-desktop/src-tauri/target/release/ghostftp-cli
+          cp ghostftp-desktop/src-tauri/target/release/ghostftp-cli dist/native/ghostftp-cli
+          chmod +x dist/native/ghostftp-cli
+          VERSION="$(node -p 'require("./version.json").version')"
+          bash packaging/linux/build-portable-packages.sh cli "$VERSION" \
+            dist/native/ghostftp-cli dist/native
+          test "$(dist/native/GhostCLI-Linux-x86_64-v$VERSION --version | grep -Fc "$VERSION")" -ge 1
           cp "$APPIMAGE" dist/native/GhostFTP-Linux-x86_64.AppImage
           cp "$DEB" dist/native/GhostFTP-Linux-amd64.deb
           cp "$RPM" dist/native/GhostFTP-Linux-x86_64.rpm

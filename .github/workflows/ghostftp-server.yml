@@ -25,6 +25,8 @@ jobs:
       - name: Run go vet
         working-directory: ghost-server
         run: go vet ./...
+      - name: Validate offline demo source and race-safety alongside server
+        run: go test -C ghost-demo -race ./...
       - name: Prepare RPM packaging tooling
         run: |
           sudo apt-get update -qq
@@ -45,8 +47,12 @@ jobs:
           set -euo pipefail
           VERSION="$(node -p "require('./version.json').version")"
           bash ghost-server/install/linux/build-packages.sh "$VERSION"
+          go build -C ghost-demo -trimpath -ldflags "-X main.version=$VERSION" -o "$PWD/ghost-server/dist/ghost-demo-linux-amd64" .
+          test "$(ghost-server/dist/ghost-demo-linux-amd64 -version)" = "Ghost FTP Demo $VERSION Preview"
+          test "$(ghost-server/dist/ghost-demo-linux-amd64 -self-test)" = "Ghost FTP Demo offline/self-test PASS"
+          bash packaging/linux/build-portable-packages.sh demo "$VERSION" ghost-server/dist/ghost-demo-linux-amd64 ghost-server/dist
           cd ghost-server/dist
-          sha256sum GhostFTP-Server-Linux-* > Linux-SHA256SUMS.txt
+          sha256sum GhostFTP-Server-Linux-* GhostFTP-Demo-Linux-* > Linux-SHA256SUMS.txt
           sha256sum -c Linux-SHA256SUMS.txt
       - name: Upload exact-SHA Linux server release candidates
         uses: actions/upload-artifact@v7
@@ -54,6 +60,7 @@ jobs:
           name: GhostFTP-Server-Linux-Package-Preview
           path: |
             ghost-server/dist/GhostFTP-Server-Linux-*
+            ghost-server/dist/GhostFTP-Demo-Linux-*
             ghost-server/dist/Linux-SHA256SUMS.txt
           retention-days: 14
           if-no-files-found: error
@@ -131,6 +138,49 @@ jobs:
             "$hash  $file"
           }
           [IO.File]::WriteAllLines((Join-Path (Resolve-Path 'dist').Path 'Windows-SHA256SUMS.txt'),[string[]]$lines)
+      - name: Build and self-test isolated Ghost FTP Demo Windows portable
+        shell: pwsh
+        working-directory: ghost-server
+        run: |
+          $ErrorActionPreference = 'Stop'
+          go test -C ../ghost-demo ./...
+          if ($LASTEXITCODE -ne 0) { throw 'Offline Ghost FTP Demo unit tests failed' }
+          $version=(Get-Content '../version.json' -Raw | ConvertFrom-Json).version
+          $demo=Join-Path (Resolve-Path 'dist').Path "GhostFTP-Demo-Windows-x64-Portable-v$version.exe"
+          go build -C ../ghost-demo -trimpath -ldflags "-X main.version=$version" -o $demo .
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $demo)) { throw 'Real Windows Demo EXE build failed' }
+          if ((& $demo -version) -ne "Ghost FTP Demo $version Preview") { throw 'Demo binary version mismatch' }
+          if ((& $demo -self-test) -ne "Ghost FTP Demo offline/self-test PASS") { throw 'Demo self-test failed' }
+          if ((Get-Item $demo).Length -le 0) { throw 'Empty Demo EXE' }
+      - name: Build and smoke independent Ghost FTP Demo Windows NSIS Setup
+        shell: pwsh
+        working-directory: ghost-server
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version=(Get-Content '../version.json' -Raw | ConvertFrom-Json).version
+          Copy-Item "dist/GhostFTP-Demo-Windows-x64-Portable-v$version.exe" 'dist/GhostFTP-Demo-Windows-x64-Portable.exe'
+          Push-Location '..'
+          try {
+            $compiler='C:\Program Files (x86)\NSIS\makensis.exe'
+            if (-not (Test-Path $compiler)) { throw 'NSIS compiler unavailable' }
+            New-Item -ItemType Directory -Force dist-tools | Out-Null
+            & $compiler /V2 ghost-demo/install/GhostDemo.nsi
+            if ($LASTEXITCODE -ne 0) { throw 'Demo NSIS failed' }
+            $setup=(Resolve-Path dist-tools/GhostFTP-Demo-Setup-Unsigned-Preview.exe).Path
+            $directory=Join-Path $env:RUNNER_TEMP 'GhostFTP-Demo-Standalone-Setup-Smoke'
+            if (Test-Path $directory) { throw 'Refusing overwrite of existing Demo fixture' }
+            $install=Start-Process $setup -ArgumentList @('/S',"/D=$directory") -Wait -PassThru
+            if ($install.ExitCode -ne 0) { throw 'Demo install failure' }
+            $binary=Join-Path $directory 'ghostftp-demo.exe'
+            if (-not (Test-Path $binary)) { throw 'Demo setup missing installed EXE' }
+            if ((& $binary -version) -ne "Ghost FTP Demo $version Preview") { throw 'Demo version mismatch' }
+            if ((& $binary -self-test) -ne 'Ghost FTP Demo offline/self-test PASS') { throw 'Installed Demo did not work' }
+            if (-not (Test-Path (Join-Path $directory 'EULA.txt'))) { throw 'Missing Demo license' }
+            $uninstall=Start-Process (Join-Path $directory 'Uninstall.exe') -ArgumentList '/S' -Wait -PassThru
+            if ($uninstall.ExitCode -ne 0 -or (Test-Path $binary)) { throw 'Demo uninstall failed' }
+            Copy-Item $setup "ghost-server/dist/GhostFTP-Demo-Windows-x64-Setup-Unsigned-Preview-v$version.exe"
+          } finally { Pop-Location }
+
       - name: Normalize exact-SHA Windows server release candidates and hashes
         shell: pwsh
         working-directory: ghost-server
@@ -138,9 +188,11 @@ jobs:
           $version=(Get-Content '../version.json' -Raw | ConvertFrom-Json).version
           Copy-Item 'dist/ghost-server-windows-amd64.exe' "dist/GhostFTP-Server-Windows-x64-Portable-v$version.exe"
           Copy-Item 'dist/ghost-server-windows-x64-setup-unsigned.exe' "dist/GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$version.exe"
-          $names=@("GhostFTP-Server-Windows-x64-Portable-v$version.exe","GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$version.exe")
+          $names=@("GhostFTP-Server-Windows-x64-Portable-v$version.exe","GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$version.exe","GhostFTP-Demo-Windows-x64-Portable-v$version.exe","GhostFTP-Demo-Windows-x64-Setup-Unsigned-Preview-v$version.exe")
           $lines=foreach($name in $names) { $digest=(Get-FileHash -LiteralPath (Join-Path 'dist' $name) -Algorithm SHA256).Hash.ToLowerInvariant(); "$digest  $name" }
-          [IO.File]::WriteAllLines((Join-Path (Resolve-Path 'dist').Path 'Release-SHA256SUMS.txt'),[string[]]$lines)
+          # Linux sha256sum expects LF, not PowerShell's Windows CRLF output.
+          [IO.File]::WriteAllText((Join-Path (Resolve-Path 'dist').Path 'Release-SHA256SUMS.txt'),(($lines -join "`n") + "`n"),[Text.UTF8Encoding]::new($false))
+          if ([IO.File]::ReadAllText((Join-Path (Resolve-Path 'dist').Path 'Release-SHA256SUMS.txt')).Contains("`r")) { throw 'Checksum manifest must be LF-only' }
           foreach($name in $names) { if ((Get-Item (Join-Path 'dist' $name)).Length -le 0) { throw "Empty server asset $name" } }
       - name: Upload exact-SHA Windows portable and unsigned NSIS setup release candidates
         uses: actions/upload-artifact@v7
@@ -148,6 +200,7 @@ jobs:
           name: GhostFTP-Server-Windows-Package-Preview
           path: |
             ghost-server/dist/GhostFTP-Server-Windows-*
+            ghost-server/dist/GhostFTP-Demo-Windows-*
             ghost-server/dist/Release-SHA256SUMS.txt
           retention-days: 14
           if-no-files-found: error
