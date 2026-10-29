@@ -115,7 +115,8 @@ test("Vite stays patched without a time-limited version-reuse exception", () => 
   assert.equal(pkg.devDependencies.vite, "8.3.4");
   assert.equal(lock.packages["node_modules/vite"].version, "8.3.4");
   assert.ok(!quality.includes("Recovering previously unpublished 0.95.53"));
-  assert.ok(quality.includes("Every merged change requires a new version"));
+  assert.ok(quality.includes("Refusing another PR for an already tagged/published version"));
+  assert.ok(quality.includes("Unpublished version repair cannot skip a canonical published predecessor"));
 });
 
 test("all Preview releases remain immutable and cannot be classified stable", () => {
