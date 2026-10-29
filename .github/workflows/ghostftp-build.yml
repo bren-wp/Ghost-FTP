@@ -122,6 +122,23 @@ jobs:
         with:
           projectPath: ghostftp-desktop
           args: --config src-tauri/updater-release.conf.json ${{ matrix.args }}
+      - name: Build and smoke actual Ghost CLI with shared desktop FTP/FTPS/SFTP engine
+        shell: bash
+        working-directory: ghostftp-desktop/src-tauri
+        run: |
+          set -euo pipefail
+          cargo build --release --locked -p ghostftp-cli
+          if [ "$RUNNER_OS" = Windows ]; then
+            test -s target/release/ghostftp-cli.exe
+            target/release/ghostftp-cli.exe --version
+            target/release/ghostftp-cli.exe --help > "$RUNNER_TEMP/ghostcli-help.txt"
+          else
+            test -s target/release/ghostftp-cli
+            target/release/ghostftp-cli --version
+            target/release/ghostftp-cli --help > "$RUNNER_TEMP/ghostcli-help.txt"
+          fi
+          grep -Eq "ls|cp|sync" "$RUNNER_TEMP/ghostcli-help.txt"
+
       - name: Windows NSIS and MSI install/uninstall smoke
         if: runner.os == 'Windows'
         shell: pwsh
@@ -1016,6 +1033,8 @@ jobs:
           $portable = 'ghostftp-desktop/src-tauri/target/release/ghostftp.exe'
           if (-not (Test-Path $portable)) { throw "Missing portable executable: $portable" }
           Copy-Item $portable 'dist/native/ghostftp.exe'
+          if (-not (Test-Path 'ghostftp-desktop/src-tauri/target/release/ghostftp-cli.exe')) { throw 'Ghost CLI Windows executable was not built' }
+          Copy-Item 'ghostftp-desktop/src-tauri/target/release/ghostftp-cli.exe' 'dist/native/ghostftp-cli.exe'
 
           $setup = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/nsis' -Filter '*.exe' -Recurse |
             Sort-Object Length -Descending |
@@ -1062,6 +1081,9 @@ jobs:
 
           test -s "$BIN"; test -s "$APPIMAGE"; test -s "$DEB"; test -s "$RPM"
           cp "$BIN" dist/native/ghostftp
+          test -s ghostftp-desktop/src-tauri/target/release/ghostftp-cli
+          cp ghostftp-desktop/src-tauri/target/release/ghostftp-cli dist/native/ghostftp-cli
+          chmod +x dist/native/ghostftp-cli
           cp "$APPIMAGE" dist/native/GhostFTP-Linux-x86_64.AppImage
           cp "$DEB" dist/native/GhostFTP-Linux-amd64.deb
           cp "$RPM" dist/native/GhostFTP-Linux-x86_64.rpm
