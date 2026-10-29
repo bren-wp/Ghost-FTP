@@ -18,6 +18,9 @@ func adminTestBackend(t *testing.T) *Server {
   AdminToken:strings.Repeat("Z",48),AdminListen:"127.0.0.1:2821",
  })
  if err!=nil{t.Fatal(err)}
+ // os.Root holds a real Windows directory handle. Release it before
+ // testing.TempDir cleanup or Windows cannot remove the fixture directory.
+ t.Cleanup(func(){ if srv.uploadRoot!=nil{_ = srv.uploadRoot.Close()} })
  return srv
 }
 
