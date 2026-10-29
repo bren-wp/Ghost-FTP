@@ -40,6 +40,23 @@ pub(crate) fn remote_names_may_alias(existing: &str, requested: &str) -> bool {
     existing == requested || existing.to_lowercase() == requested.to_lowercase()
 }
 
+/// Resolve the complete parent inventory that must be checked before a
+/// non-overwriting remote rename. Relative paths use ".", absolute-root
+/// children use "/"; trailing separators cannot masquerade as file targets.
+pub(crate) fn remote_destination_parent_name(path: &str) -> anyhow::Result<(&str, &str)> {
+    validate_protocol_mutation_path(path)?;
+    let (parent, name) = match path.rsplit_once('/') {
+        Some((parent, name)) if parent.is_empty() => ("/", name),
+        Some((parent, name)) => (parent, name),
+        None => (".", path),
+    };
+    anyhow::ensure!(
+        !name.is_empty() && name != "." && name != "..",
+        "remote rename requires a concrete destination filename"
+    );
+    Ok((parent, name))
+}
+
 /// FTP and SFTP mutation operands are paths, not arbitrary filenames. A
 /// spelling with parent traversal, C0 controls or Windows path separators can
 /// reach an unexpected remote target, especially on IIS/Windows servers.
@@ -126,7 +143,10 @@ pub trait RemoteFs: Send + Sync {
 
 #[cfg(test)]
 mod destructive_path_tests {
-    use super::{remote_names_may_alias, validate_protocol_mutation_path, validate_remote_delete_path};
+    use super::{
+        remote_names_may_alias, validate_protocol_mutation_path, validate_remote_delete_path,
+        remote_destination_parent_name,
+    };
 
     #[test]
     fn rejects_root_and_dot_segments() {
@@ -159,6 +179,20 @@ mod destructive_path_tests {
             ("file-one", "file-two"),
         ] {
             assert!(!remote_names_may_alias(existing, requested));
+        }
+    }
+
+    #[test]
+    fn rename_destination_parent_is_normalized_without_discarding_root() {
+        for (path, expected) in [
+            ("report.txt", (".", "report.txt")),
+            ("/report.txt", ("/", "report.txt")),
+            ("/srv/archive/report.txt", ("/srv/archive", "report.txt")),
+        ] {
+            assert_eq!(remote_destination_parent_name(path).unwrap(), expected);
+        }
+        for path in ["", "/", "../escape", "folder/", "file\\bad", "file\n"] {
+            assert!(remote_destination_parent_name(path).is_err());
         }
     }
 
