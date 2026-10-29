@@ -91,4 +91,4 @@ TypeScript `noUnusedLocals`, production reachability, Rust Clippy, Go vet and An
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.19. Previous canonical release: 0.99.17. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.19. Previous canonical release: 0.99.18. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
