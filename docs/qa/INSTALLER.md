@@ -1,5 +1,7 @@
 # Ghost FTP Installer QA
 
+The separate [four-product package matrix](../distribution/PLATFORM_PACKAGES.md) is authoritative for Ghost FTP Client, Ghost FTP Server, Ghost CLI and Ghost FTP Demo on Windows/Linux. All require actual build/install/uninstall and SHA-256 verification; Windows Server Setup does not automatically configure/start a daemon, and the Demo never performs real transfers.
+
 ## Production packaging
 
 Windows production packaging is generated from the authoritative Ghost FTP desktop build and publishes:
@@ -7,7 +9,7 @@ Windows production packaging is generated from the authoritative Ghost FTP deskt
 - `GhostFTP-Windows-x64-Portable-v<version>.exe`
 - `GhostFTP-Windows-x64-Setup-v<version>.exe`
 
-The current production Windows packaging path generates an NSIS Setup bundle. The active workflow does not publish MSI packages.
+The current verified Windows Client build produces **NSIS Setup and MSI** packages, plus a portable EXE. These are development Preview artifacts unless appropriate code signing and production gates are independently satisfied.
 
 The Setup contract requires:
 
