@@ -223,11 +223,54 @@ impl FtpStreamKind {
                 .map_err(into_anyhow),
         }
     }
+    /// Declare the exact number of bytes before a protected STOR when the
+    /// caller knows the size. The Ghost FTP Server uses ALLO as a single-use,
+    /// authenticated length assertion for native-TLS peers that do not emit
+    /// close_notify on their FTP data socket. Do not ignore an ALLO failure:
+    /// no protected upload has started and retry must remain explicit.
+    pub fn declare_upload_size(&mut self, bytes: u64) -> Result<()> {
+        let command = format!("ALLO {bytes}");
+        match self {
+            Self::Plain(s) => s
+                .custom_command(&command, &[Status::CommandOk])
+                .map(|_| ())
+                .map_err(into_anyhow),
+            Self::Tls(s) => s
+                .custom_command(&command, &[Status::CommandOk])
+                .map(|_| ())
+                .map_err(into_anyhow),
+        }
+    }
+
     pub fn put_from_reader<R: std::io::Read>(&mut self, path: &str, reader: &mut R) -> Result<u64> {
         validate_ftp_command_path(path)?;
+        // Explicitly flush each TLS data stream before finish() closes it.
+        // With short FTPS uploads, allowing the transfer wrapper to drop an
+        // unflushed native-TLS stream can reset the TCP data connection
+        // before the peer receives any authenticated application bytes.
+        // finish() still verifies the server's final 226 response.
         match self {
-            Self::Plain(s) => s.put_file(path, reader).map_err(into_anyhow),
-            Self::Tls(s) => s.put_file(path, reader).map_err(into_anyhow),
+            Self::Plain(s) => {
+                let mut data = s.put_with_stream(path).map_err(into_anyhow)?;
+                let count = std::io::copy(reader, &mut data).context("FTP upload data stream")?;
+                data.flush().context("flush FTP upload data stream")?;
+                data.finish().map_err(into_anyhow)?;
+                Ok(count)
+            }
+            Self::Tls(s) => {
+                let mut data = s.put_with_stream(path).map_err(into_anyhow)?;
+                let count = std::io::copy(reader, &mut data).context("FTPS upload data stream")?;
+                data.flush().context("flush FTPS upload data stream")?;
+                // OpenSSL/native-tls peers can abort a tiny data connection
+                // during immediate close, before the receiver consumes its
+                // authenticated TLS records. Allow the remote server to read
+                // the flushed payload before finalizing this data stream.
+                // The final 226 and the server's declared-byte verification
+                // remain mandatory: this is NOT a success-on-timeout bypass.
+                std::thread::sleep(Duration::from_millis(150));
+                data.finish().map_err(into_anyhow)?;
+                Ok(count)
+            }
         }
     }
 

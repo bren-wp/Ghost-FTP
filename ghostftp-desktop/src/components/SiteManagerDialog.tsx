@@ -463,8 +463,15 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
         )}
 
         {profiles.length === 0 && !query ? (
-          <div className="ghost-sites-empty">
-            <div className="ghost-sites-empty-card">
+          <div className="ghost-site-manager-workspace grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_356px]">
+            <section className="ghost-site-manager-table min-w-0 overflow-auto border-r border-border p-3" aria-label="Saved sites">
+              <div className="mb-3 flex items-center gap-2 rounded-lg border border-border bg-bg-subtle px-3 py-2 text-xs text-text-muted">
+                <Search size={14} aria-hidden="true" />
+                <span>Search saved sites</span>
+                <span className="ml-auto tabular-nums">0 sites</span>
+              </div>
+              <div className="ghost-sites-empty">
+                <div className="ghost-sites-empty-card">
               <Server size={52} className="mx-auto text-accent" />
               <h2 className="mt-4 text-[20px] font-semibold">Add your first site</h2>
               <p className="mx-auto mt-2 max-w-md text-[12px] leading-5 text-text-muted">
@@ -497,11 +504,25 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                 >
                   <Download size={14} /> Import Sites
                 </button>
+                </div>
               </div>
-            </div>
+              </div>
+            </section>
+            <aside className="ghost-site-manager-details min-w-0 overflow-y-auto bg-[#071f35] p-4" aria-label="Selected site details">
+              <div className="mb-3 border-b border-border pb-3 text-[11px] font-semibold uppercase tracking-wider text-accent">
+                Selected profile
+              </div>
+              <h2 className="text-[17px] font-semibold text-text">No site selected</h2>
+              <p className="mt-2 text-xs leading-5 text-text-muted">
+                Save your first connection to see its actual protocol, remote path and security details here.
+              </p>
+              <button type="button" className="ghost-primary-button mt-5" onClick={() => openNewConnection()}>
+                <Plus size={14} /> Add connection
+              </button>
+            </aside>
           </div>
         ) : (
-          <div className="ghost-site-manager-workspace grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_356px] gap-0">
+          <div className="ghost-site-manager-workspace grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_356px] gap-0">
           <section
             className="ghost-site-manager-table min-w-0 overflow-auto p-3"
             aria-label="Saved sites"

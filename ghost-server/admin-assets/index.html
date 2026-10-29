@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghost FTP Server — Administration</title><link rel="stylesheet" href="/admin/style.css">
+<script src="/admin/app.js" defer></script></head>
+<body><main class="shell">
+<header><div class="brand"><span class="mark" aria-hidden="true">G</span><div><h1>Ghost FTP <small>Server</small></h1><p>Local administration · explicit FTPS</p></div></div><span class="pill">Local-only</span></header>
+<section class="login" aria-label="Authenticate to local server">
+<label for="token">Administrator token</label><div class="auth"><input id="token" type="password" autocomplete="off" placeholder="Enter token from your private file"><button type="button" id="unlock">Unlock</button><button type="button" id="refresh" disabled>Refresh</button></div>
+<p id="message" role="status" aria-live="polite">The token stays in memory in this tab; it is never stored in a cookie or browser storage.</p>
+</section>
+<section class="metrics" aria-label="Live server state">
+<article><span class="label">Service</span><strong id="status">Locked</strong><span class="hint">Authenticated session only</span></article>
+<article><span class="label">Active clients</span><strong id="clients">—</strong><span class="hint">Live FTP/FTPS sessions</span></article>
+<article><span class="label">Create-only uploads</span><strong id="uploads">—</strong><span class="hint">Off unless explicitly enabled</span></article>
+<article><span class="label">Uptime</span><strong id="uptime">—</strong><span class="hint">Seconds since server start</span></article>
+</section>
+<section class="notice"><h2>Operational security</h2><p>Only explicit TLS is accepted. This dashboard is a local read-only monitoring interface: service identities, permissions, credentials and certificates are configured outside the browser. Remote administration is intentionally disabled.</p></section>
+<footer>Ghost FTP Server · Development Preview · No fake profiles or transfer statistics</footer>
+</main></body></html>
