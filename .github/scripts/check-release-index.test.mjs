@@ -36,5 +36,9 @@ test("README links to all public Previews, never stable-only /releases/latest",(
   assert.ok(!readme.includes("releases/latest"));
   const version = JSON.parse(read("version.json"));
   assert.ok(readme.includes(`Ghost FTP ${version.version} (development Preview)`));
-  assert.ok(readme.includes(`Previous verified edition: v${version.previousPublishedVersion}.`));
+  // The source may be ready for review before its predecessor is actually
+  // published. Never require README to call an unpublished tag "verified".
+  // Release promotion itself separately checks the real immutable tag.
+  assert.equal(version.previousPublishedVersion, version.previousVersion);
+  assert.ok(readme.includes(`Previous source edition: v${version.previousPublishedVersion}.`));
 });

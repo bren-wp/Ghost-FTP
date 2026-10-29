@@ -1,4 +1,4 @@
-> **Authoritative current state (29 October 2026):** Ghost FTP **0.99.20 Preview**; latest verified published release **v0.99.19**. Historical release records below are preserved.
+> **Authoritative current state (29 October 2026):** Ghost FTP **0.99.21 Preview**; prior source v0.99.20 is awaiting verified publication. Historical context below is preserved.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
 
@@ -16,7 +16,7 @@ Ghost FTP documentation is organized around the current canonical product state,
 
 ## Current state
 
-- Active source/release cycle: **0.99.20 (in development, preview)**
+- Active source/release cycle: **0.99.21 (in development, preview)**
 - Latest canonical release: **0.99.15**
 - Live publication state: GitHub Releases is authoritative
 - Version source of truth: `/version.json`

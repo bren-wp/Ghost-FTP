@@ -1,4 +1,4 @@
-> **Authoritative current state (29 October 2026):** Ghost FTP **0.99.20 Preview**; latest verified published release **v0.99.19**. Historical release records below are preserved.
+> **Authoritative current state (29 October 2026):** Ghost FTP **0.99.21 Preview**; predecessor v0.99.20 still awaiting exact-source publication.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
 
@@ -12,7 +12,7 @@
 
 > Earlier 0.94.0/0.93.0 sections remain historical. Current source is **0.99.4** and latest public release **0.99.3**.
 
-This prioritized improvement backlog covers Ghost FTP **0.99.5**. Previous canonical release: **0.99.19**. Items here are recommendations, not claims of completed functionality.
+This prioritized improvement backlog covers Ghost FTP **0.99.5**. Previous canonical release: **0.99.20**. Items here are recommendations, not claims of completed functionality.
 
 ## Release blockers before FINAL
 
@@ -138,4 +138,4 @@ User-facing and release-facing names should use:
 Framework-specific words such as Tauri should be kept only where technically required by the build ecosystem. Renaming `src-tauri` purely for appearance is not recommended because it increases maintenance/build risk without improving the user experience.
 
 
-Current development line: 0.99.20. Previous canonical release: 0.99.19. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.21. Previous canonical release: 0.99.20. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.

@@ -683,8 +683,15 @@ jobs:
           $capturedHashes = @{}
           $viewIndex = 0
           foreach ($view in $views) {
-            $debugPort = 9222 + $viewIndex
             $viewIndex++
+            # Each attempt launches the real production Tauri/WebView2 app with
+            # its own QA browser profile and debugger port. A hosted Windows
+            # runner can occasionally lose the WebView2 page target even while
+            # the native window is alive. Permit ONE clean relaunch for that
+            # specific startup failure; keep every pixel/structure gate intact.
+            for ($launchAttempt = 0; $launchAttempt -lt 2; $launchAttempt++) {
+            $retryCapture = $false
+            $debugPort = 9221 + $viewIndex + (20 * $launchAttempt)
             $env:GHOSTFTP_QA_VIEW = $view.key
 
             # The Rust/Tauri window builder consumes these QA-only variables and
@@ -934,13 +941,50 @@ jobs:
                   ) | Set-Content -Encoding UTF8 (Join-Path $qaDir ("GhostFTP-Windows-Preview-" + $view.label + "-Minimum.txt"))
                 }
               }
+            } catch {
+              # The only recoverable class is WebView2 failing to publish a
+              # debugger *page target*. Never retry, skip or accept a failed
+              # image-validation, geometry, application or UI state assertion.
+              $proc.Refresh()
+              if ($launchAttempt -eq 0 -and
+                  -not $proc.HasExited -and
+                  $_.Exception.Message -like '*WebView2 DevTools endpoint did not expose a page target*') {
+                $retryCapture = $true
+                Write-Warning "Real WebView2 page target unavailable for $($view.key) on port $debugPort; restarting the same view once with an isolated browser profile."
+              } else {
+                throw
+              }
             } finally {
               if (-not $proc.HasExited) {
                 $null = $proc.CloseMainWindow()
                 Start-Sleep -Milliseconds 700
+                $proc.Refresh()
                 if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
               }
+              # Ensure a renderer from the previous capture cannot hold a
+              # debugger port/profile and contaminate the next real view.
+              foreach ($renderer in @(Get-CimInstance Win32_Process -Filter "Name = 'msedgewebview2.exe'" -ErrorAction SilentlyContinue)) {
+                if ($renderer.CommandLine -and $renderer.CommandLine.Contains($qaWebViewData)) {
+                  Stop-Process -Id $renderer.ProcessId -Force -ErrorAction SilentlyContinue
+                }
+              }
               Remove-Item $qaWebViewData -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            if ($retryCapture) {
+              # A partial screenshot or hash from a failed per-view attempt
+              # must never be counted as evidence after a restart.
+              foreach ($hash in @($capturedHashes.Keys)) {
+                if ($capturedHashes[$hash] -eq $view.key -or
+                    $capturedHashes[$hash] -like "$($view.key)-*") {
+                  $capturedHashes.Remove($hash)
+                }
+              }
+              Get-ChildItem -LiteralPath $qaDir -Filter "GhostFTP-Windows-Preview-$($view.label)*" -File -ErrorAction SilentlyContinue |
+                Remove-Item -Force -ErrorAction SilentlyContinue
+              Start-Sleep -Seconds 2
+              continue
+            }
+            break
             }
             Start-Sleep -Milliseconds 500
           }

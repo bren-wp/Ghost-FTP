@@ -1,3 +1,7 @@
+## 0.99.21 — Windows WebView2 native QA target recovery (Preview; 29 October 2026)
+- Retry genuine Tauri/WebView2 capture once only when the page debugger target is temporarily missing; preserve all real visual, viewport, filesystem and SHA integrity gates.
+- Coordinate an immutable v0.99.20 release before this postmerge hotfix is allowed to merge. No new screen is falsely marked pixel-perfect or stable.
+
 ## 0.99.20 — Ghost FTP Server / Windows SCM and secure FTPS (development Preview; 29 October 2026)
 - Introduce independent `ghost-server/` Go 1.25 daemon: mandatory explicit FTPS, protected passive data channels, configured user/password and rooted real filesystem reads.
 - Create-only FTPS `STOR` with TLS, private staging, upload limits, fsync and an atomic no-overwrite hardlink commit; `MKD` requires explicit write opt-in.
