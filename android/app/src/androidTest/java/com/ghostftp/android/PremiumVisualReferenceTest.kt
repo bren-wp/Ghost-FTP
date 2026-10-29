@@ -250,7 +250,7 @@ class PremiumVisualReferenceTest {
             instrumentation.waitForIdleSync()
             scenario.onActivity { activity ->
                 val create = findView(activity.window.decorView) {
-                    it.contentDescription?.toString() == "Add new connection" && it.isShown
+                    it.contentDescription?.toString() == activity.getString(R.string.ui_add_site) && it.isShown
                 }
                 assertNotNull("Prominent real Add Connection action is required", create)
                 assertTrue(create!!.isEnabled)
