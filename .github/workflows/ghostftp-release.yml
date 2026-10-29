@@ -271,13 +271,15 @@ jobs:
           test "$(dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION -version)" = "Ghost FTP Server $VERSION Preview"
           tar -tzf "dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION.tar.gz" | grep -Fxq ghostftp-server.service
           dpkg-deb --contents "dist/server-linux/GhostFTP-Server-Linux-amd64-v$VERSION.deb" | grep -q ghostftp-server.service
+          test -s "dist/server-windows/GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe"
+          file "dist/server-windows/GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
           file "dist/server-windows/GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
           file "dist/server-windows/GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
           for name in "GhostFTP-Server-Linux-x86_64-v$VERSION" "GhostFTP-Server-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Server-Linux-amd64-v$VERSION.deb" "GhostFTP-Server-Linux-x86_64-v$VERSION.rpm"; do
             test -s "dist/server-linux/$name"
             cp "dist/server-linux/$name" "dist/$name"
           done
-          for name in "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"; do
+          for name in "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" "GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe"; do
             test -s "dist/server-windows/$name"
             cp "dist/server-windows/$name" "dist/$name"
           done
