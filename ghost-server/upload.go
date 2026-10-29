@@ -43,6 +43,23 @@ func (s *Server) createDestination(cwd, operand string) (string, error) {
  return dest,nil
 }
 
+// createDirectory is an explicitly enabled and root-scoped MKD operation.
+// It refuses existing entries and never creates missing parent directories.
+func (s *Server) createDirectory(c *client, operand string) {
+ if !s.allowUploads{_ = c.reply(550,"Directory creation disabled by server policy");return}
+ if !c.private{_ = c.reply(534,"Private TLS data protection must be negotiated");return}
+ dest,err:=s.createDestination(c.cwd,operand)
+ if err!=nil{_ = c.reply(550,"Directory destination unavailable or already exists");return}
+ relative,err:=filepath.Rel(s.root,dest)
+ if err!=nil || filepath.IsAbs(relative) || relative==".." || strings.HasPrefix(relative,".."+string(os.PathSeparator)){
+  _ = c.reply(550,"Directory outside served root");return
+ }
+ if err=s.uploadRoot.Mkdir(relative,0700);err!=nil{
+  _ = c.reply(550,"Directory already exists or could not be created");return
+ }
+ _ = c.reply(257,"Directory created securely")
+}
+
 // receiveFile implements a bounded, TLS-protected STOR of ONLY new files.
 // It stages to a random name in the destination directory and uses a hardlink
 // as the atomic create-if-absent commit. On filesystems without same-dir
