@@ -5,6 +5,7 @@ import (
  "crypto/tls"
  "encoding/hex"
  "errors"
+ "log"
  "io"
  "net"
  "os"
@@ -127,6 +128,9 @@ func (s *Server) receiveFile(c *client, operand string) {
  n,err:=io.Copy(staged,io.LimitReader(secure,s.maxUploadBytes+1))
  if n>s.maxUploadBytes{fail(552,"Upload exceeds configured size limit");return}
  if hasDeclaredSize && n!=declaredSize {
+  // Log only byte counts and a generic error category; never log remote
+  // filenames, authenticated usernames, passwords or uploaded contents.
+  log.Printf("FTPS integrity reject: declared_bytes=%d received_bytes=%d transport_error=%T",declaredSize,n,err)
   fail(451,"Protected upload length differs from authenticated ALLO");return
  }
  if err!=nil {

@@ -410,6 +410,8 @@ jobs:
           cat "$RUNNER_TEMP/ghostftp-ftp.log" 2>/dev/null || true
           echo "--- FTPS server log ---"
           cat "$RUNNER_TEMP/ghostftp-ftps.log" 2>/dev/null || true
+          echo "--- Ghost FTP Server interoperability (byte counts only, no payloads) ---"
+          grep -E 'FTPS integrity reject:|error|failed' "$RUNNER_TEMP/ghostftp-native-server.log" 2>/dev/null | tail -n 30 || true
           echo "--- DOS LIST FTP emulation logs ---"
           cat "$RUNNER_TEMP/ghostftp-dos-list.log" 2>/dev/null || true
           cat "$RUNNER_TEMP/ghostftp-dos-invalid.log" 2>/dev/null || true
