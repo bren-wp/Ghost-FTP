@@ -1486,10 +1486,10 @@ class MainActivity : Activity() {
         // The empty runtime never invents example servers to imitate concept
         // art; users can actually create their own profile from this CTA.
         addView(PremiumReferenceStyle.action(this@MainActivity,
-            "＋  Add new connection", true) {
+            getString(R.string.ui_add_site), true) {
             showSiteEditor(null)
         }.apply {
-            contentDescription = "Add new connection"
+            contentDescription = getString(R.string.ui_add_site)
         }, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, dp(48)
         ).apply { bottomMargin = dp(12) })
