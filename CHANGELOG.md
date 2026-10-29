@@ -1,8 +1,20 @@
+## 0.99.20 — Ghost FTP Server / Windows SCM and secure FTPS (development Preview; 29 October 2026)
+- Introduce independent `ghost-server/` Go 1.25 daemon: mandatory explicit FTPS, protected passive data channels, configured user/password and rooted real filesystem reads.
+- Create-only FTPS `STOR` with TLS, private staging, upload limits, fsync and an atomic no-overwrite hardlink commit; `MKD` requires explicit write opt-in.
+- Optional `-allow-destructive` (requires `-allow-uploads`) enables root-confined regular-file DELE, empty RMD and no-overwrite file-only RNFR/RNTO; default remains read-only and all unsupported operations fail closed.
+- Add local-only bearer-token-gated monitoring dashboard with live session, uptime, TLS and write-policy metrics, strict Host/CSP checks, and no persistent browser token storage.
+- Add real Windows Service Control Manager lifecycle, manual LocalService registration/unregistration, unsigned NSIS setup/uninstall and portable executable developer artifacts with SHA-256 checksums.
+- Test actual Windows service install/start/FTP greeting/stop/unregister and unsigned installer install/uninstall preserving external user data. Validate upload boundaries, traversal, symlinks, passphrase/login throttling, read-only failures and concurrent state.
+- Add direct Rust Ghost FTP desktop FTPS client ↔ Ghost FTP Server E2E suite alongside independent curl FTPS interoperability; the final exact-HEAD workflow must pass.
+- This remains an unsigned development Preview: complete multi-user ACL, certificate lifecycle, immutable audit retention, supported Windows deployment matrix and production signing are outstanding. Earlier Phase 2/3 gaps (#223 and 0/75 accepted screens) remain separate.
+
 ## 0.99.19 — FTP/SFTP overwrite protection and authentic Android visual QA (development Preview; 29 October 2026)
 - FTP, explicit FTPS and SFTP rename commands now refuse known existing destinations using a validated full parent inventory before sending a mutating remote request. Safety remains fail-closed when listing fails; server-side race windows still require an atomic rename-if-absent mechanism for complete guarantees.
 - Add live FTP/FTPS/OpenSSH SFTP integration regressions that seed an occupied target, verify both byte streams survive rejected overwrites, then complete a non-colliding rename.
 - Android Sites adds a functional full-width new-connection action and distinguishes genuinely empty local profiles from a search that returned no matches. Its instrumentation test opens the real editor and rejects nonempty user input in screenshots.
-- Audit 7 genuine v0.99.18 Android 480×960 captures and 2 new v0.99.19 native Sync & Backup Windows/Linux captures against the actual user reference. **17/75 source concepts compared, 0/75 independently accepted** pending same-state interaction/accessibility and design review. Native Sync QA archives are attached to the successful previous-head v0.99.19 native build.\n- Make real desktop Sync & Backup overview closer to the four-card premium hierarchy with metrics based solely on the existing private sync-store (no invented backups or transfers).\n- Fix Clippy `redundant_guards` quality workflow failure in remote destination path validation while preserving strict lint.
+- Audit 7 genuine v0.99.18 Android 480×960 captures and 2 new v0.99.19 native Sync & Backup Windows/Linux captures against the actual user reference. **17/75 source concepts compared, 0/75 independently accepted** pending same-state interaction/accessibility and design review. Native Sync QA archives are attached to the successful previous-head v0.99.19 native build.
+- Make real desktop Sync & Backup overview closer to the four-card premium hierarchy with metrics based solely on the existing private sync-store (no invented backups or transfers).
+- Fix Clippy `redundant_guards` quality workflow failure in remote destination path validation while preserving strict lint.
 - Preserve the legacy 0.99.18 release unchanged. Native Swift macOS identity-verified FTPS/SFTP (issue #223), production signing, fully operational Android mirror sync and 75-screen acceptance remain unfinished release gates; Phase 4 is not started.
 
 ## 0.99.18 — fail-closed fallback recovery (development Preview; 28 October 2026)
