@@ -1,6 +1,7 @@
 package ghostserver
 
 import (
+ "bytes"
  "context"
  "crypto/tls"
  "io"
@@ -148,3 +149,52 @@ func TestListDashAUsesRealInventoryWithoutLosingHiddenEntries(t *testing.T) {
  }
 }
 
+
+func uncleanFTPSUpload(t *testing.T, c *ftpc, address, name string, contents []byte, expectedReply string) {
+ t.Helper()
+ passive:=passivePort(t,c)
+ control,err:=net.ResolveTCPAddr("tcp",address)
+ if err!=nil{t.Fatal(err)}
+ raw,err:=net.DialTimeout("tcp",net.JoinHostPort(control.IP.String(),strconv.Itoa(passive)),3*time.Second)
+ if err!=nil{t.Fatal(err)}
+ c.command(t,"150 ","STOR "+name)
+ tlsData:=tls.Client(raw,&tls.Config{InsecureSkipVerify:true,MinVersion:tls.VersionTLS12}) // local self-signed fixture only
+ if err:=tlsData.Handshake();err!=nil{_ = raw.Close();t.Fatal(err)}
+ if _,err:=tlsData.Write(contents);err!=nil{_ = raw.Close();t.Fatal(err)}
+ // Close the bare TCP connection deliberately, without calling TLS Close.
+ // This models a native-TLS FTP upload which omits TLS close_notify.
+ if err:=raw.Close();err!=nil{t.Fatal(err)}
+ c.read(t,expectedReply)
+}
+
+func TestExplicitALLORejectsTLSDataTruncation(t *testing.T) {
+ srv,addr,stop:=writableServer(t,1024)
+ defer stop()
+ c:=connect(t,addr);defer c.conn.Close()
+ login(t,c)
+ contents:=[]byte("all records are authenticated even without close-notify")
+ c.command(t,"200 ","ALLO "+strconv.Itoa(len(contents)))
+ uncleanFTPSUpload(t,c,addr,"complete.txt",contents,"226 ")
+ actual,err:=os.ReadFile(filepath.Join(srv.root,"complete.txt"))
+ if err!=nil || !bytes.Equal(actual,contents){t.Fatalf("complete authenticated upload lost bytes: %v %q",err,actual)}
+
+ // A missing declaration must not silently promote an incomplete stream.
+ uncleanFTPSUpload(t,c,addr,"undeclared.txt",[]byte("no declaration"),"451 ")
+ if _,err:=os.Stat(filepath.Join(srv.root,"undeclared.txt"));!os.IsNotExist(err){
+  t.Fatalf("unexpected TLS EOF committed undeclared file: %v",err)
+ }
+ c.command(t,"200 ","ALLO 100")
+ uncleanFTPSUpload(t,c,addr,"short.txt",[]byte("truncated"),"451 ")
+ if _,err:=os.Stat(filepath.Join(srv.root,"short.txt"));!os.IsNotExist(err){
+  t.Fatalf("truncated upload committed: %v",err)
+ }
+ c.command(t,"501 ","ALLO -1")
+ c.command(t,"501 ","ALLO 1025")
+ c.command(t,"200 ","ALLO 5")
+ uncleanFTPSUpload(t,c,addr,"wrong-length.txt",[]byte("too long"),"451 ")
+ if _,err:=os.Stat(filepath.Join(srv.root,"wrong-length.txt"));!os.IsNotExist(err){
+  t.Fatalf("mismatched upload committed: %v",err)
+ }
+ stages,err:=filepath.Glob(filepath.Join(srv.root,".ghostftp-upload-*"))
+ if err!=nil || len(stages)!=0{t.Fatalf("TLS truncation left staged files: %v %v",stages,err)}
+}
