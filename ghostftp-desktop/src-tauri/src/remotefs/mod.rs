@@ -144,8 +144,8 @@ pub trait RemoteFs: Send + Sync {
 #[cfg(test)]
 mod destructive_path_tests {
     use super::{
-        remote_names_may_alias, validate_protocol_mutation_path, validate_remote_delete_path,
-        remote_destination_parent_name,
+        remote_destination_parent_name, remote_names_may_alias, validate_protocol_mutation_path,
+        validate_remote_delete_path,
     };
 
     #[test]
