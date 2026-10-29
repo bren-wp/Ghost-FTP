@@ -70,11 +70,10 @@ func New(c Config) (*Server,error) {
  }
  if c.Certificate==""||c.PrivateKey=="" {return nil,errors.New("certificate and private key required; plaintext FTP disabled")}
  cert,err:=tls.LoadX509KeyPair(c.Certificate,c.PrivateKey);if err!=nil{return nil,fmt.Errorf("invalid TLS identity: %w",err)}
- var uploadRoot *os.Root
- if c.AllowUploads {
-  uploadRoot,err=os.OpenRoot(root)
-  if err!=nil{return nil,fmt.Errorf("cannot open traversal-resistant upload root: %w",err)}
- }
+ // The same race-resistant handle confines both reads and optional
+ // create-only writes, even when local directory entries are swapped.
+ uploadRoot,err:=os.OpenRoot(root)
+ if err!=nil{return nil,fmt.Errorf("cannot open traversal-resistant server root: %w",err)}
  return &Server{root:root,user:c.Username,password:sha256.Sum256([]byte(c.Password)),tls:&tls.Config{Certificates:[]tls.Certificate{cert},MinVersion:tls.VersionTLS12},limit:make(chan struct{},32),allowUploads:c.AllowUploads,maxUploadBytes:c.MaxUploadBytes,uploadRoot:uploadRoot,
  adminEnabled:c.AdminToken!="",adminListen:c.AdminListen,adminTokenHash:sha256.Sum256([]byte(c.AdminToken)),startedAt:time.Now()},nil
 }
@@ -176,12 +175,23 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
   case "PWD": _ = c.reply(257,fmt.Sprintf("%q is current directory",c.cwd))
   case "CWD","CDUP":
    dest:=arg;if verb=="CDUP"{dest=path.Dir(c.cwd)}
-   resolved,virtual,e:=s.resolve(c.cwd,dest)
-   if e==nil {var fi os.FileInfo;fi,e=os.Stat(resolved);if e==nil&&!fi.IsDir(){e=errors.New("not a directory")}}
+   _,virtual,e:=s.resolve(c.cwd,dest)
+   if e==nil{
+    var handle *os.Root
+    handle,e=s.uploadRoot.OpenRoot(rootedPath(virtual))
+    if e==nil{_ = handle.Close()}
+   }
    if e!=nil{_ = c.reply(550,"Directory unavailable")}else{c.cwd=virtual;_ = c.reply(250,"Directory changed")}
   case "SIZE":
-   filename,_,e:=s.resolve(c.cwd,arg)
-   if e==nil{var f os.FileInfo;f,e=os.Stat(filename);if e==nil&&!f.Mode().IsRegular(){e=errors.New("not regular")};if e==nil{_ = c.reply(213,strconv.FormatInt(f.Size(),10));continue}}
+   _,virtual,e:=s.resolve(c.cwd,arg)
+   if e==nil{
+    file,openErr:=s.uploadRoot.Open(rootedPath(virtual))
+    if openErr==nil{
+     info,statErr:=file.Stat()
+     _ = file.Close()
+     if statErr==nil&&info.Mode().IsRegular(){_ = c.reply(213,strconv.FormatInt(info.Size(),10));continue}
+    }
+   }
    _ = c.reply(550,"File unavailable")
   case "EPSV","PASV":
    if !c.private{_ = c.reply(534,"PROT P required");continue}
@@ -215,16 +225,21 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
     }
    }
    if target==""{target="."}
-   directory,_,e:=s.resolve(c.cwd,target)
+   _,virtual,e:=s.resolve(c.cwd,target)
    if e!=nil{_ = c.reply(550,"Directory unavailable");continue}
-   ents,e:=os.ReadDir(directory)
+   directory,e:=s.uploadRoot.Open(rootedPath(virtual))
    if e!=nil{_ = c.reply(550,"Directory unavailable");continue}
+   ents,e:=directory.ReadDir(10001)
+   _ = directory.Close()
+   if e!=nil&&e!=io.EOF{_ = c.reply(550,"Directory unavailable");continue}
    if len(ents)>10000{_ = c.reply(552,"Directory exceeds Preview entry limit");continue}
    var out strings.Builder
    for _,ent:=range ents {
     if len(ent.Name())>255||strings.ContainsAny(ent.Name(),"\\\r\n\x00\x1b\x7f\t") {e=errors.New("unsafe listing entry");break}
     if ent.Type()&os.ModeSymlink!=0 {e=errors.New("symlink in directory");break}
-    info,er:=ent.Info();if er!=nil{e=er;break}
+    info,er:=s.uploadRoot.Lstat(filepath.Join(rootedPath(virtual),ent.Name()))
+    if er!=nil{e=er;break}
+    if !info.IsDir()&&!info.Mode().IsRegular(){e=errors.New("unsupported directory entry");break}
     if verb=="NLST"{out.WriteString(ent.Name()+"\r\n");if out.Len()>8<<20{e=errors.New("listing too large");break};continue}
     if verb=="MLSD"{kind:="file";if info.IsDir(){kind="dir"};fmt.Fprintf(&out,"type=%s;size=%d; %s\r\n",kind,info.Size(),ent.Name());if out.Len()>8<<20{e=errors.New("listing too large");break};continue}
     kind:="-";if info.IsDir(){kind="d"};fmt.Fprintf(&out,"%sr--r--r-- 1 ftp ftp %d Jan 01 00:00 %s\r\n",kind,info.Size(),ent.Name());if out.Len()>8<<20{e=errors.New("listing too large");break}
@@ -233,9 +248,9 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
    if out.Len()>8<<20{_ = c.reply(552,"Listing too large");continue}
    s.sendData(c,strings.NewReader(out.String()),int64(out.Len()))
   case "RETR":
-   filename,_,e:=s.resolve(c.cwd,arg)
+   _,virtual,e:=s.resolve(c.cwd,arg)
    if e!=nil{_ = c.reply(550,"File unavailable");continue}
-   f,e:=os.Open(filename)
+   f,e:=s.uploadRoot.Open(rootedPath(virtual))
    if e!=nil{_ = c.reply(550,"File unavailable");continue}
    info,e:=f.Stat()
    if e!=nil||!info.Mode().IsRegular(){_ = f.Close();_ = c.reply(550,"File unavailable");continue}
@@ -281,4 +296,12 @@ func (s *Server) resolve(cwd,input string)(string,string,error){
   p=filepath.Join(p,part);info,e:=os.Lstat(p);if e!=nil{return "","",e};if info.Mode()&os.ModeSymlink!=0{return "","",errors.New("symlink forbidden")}
  }
  return real,virtual,nil
+}
+
+// rootedPath converts a valid FTP virtual absolute path into an os.Root-
+// relative path. Root.Open does not accept absolute OS paths.
+func rootedPath(virtual string)string {
+ relative:=strings.TrimPrefix(virtual,"/")
+ if relative==""{return "."}
+ return filepath.FromSlash(relative)
 }
