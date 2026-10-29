@@ -271,6 +271,13 @@ jobs:
           test "$(dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION -version)" = "Ghost FTP Server $VERSION Preview"
           tar -tzf "dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION.tar.gz" | grep -Fxq ghostftp-server.service
           dpkg-deb --contents "dist/server-linux/GhostFTP-Server-Linux-amd64-v$VERSION.deb" | grep -q ghostftp-server.service
+          for name in "GhostFTP-Demo-Linux-x86_64-v$VERSION" "GhostFTP-Demo-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Demo-Linux-amd64-v$VERSION.deb" "GhostFTP-Demo-Linux-x86_64-v$VERSION.rpm"; do
+            test -s "dist/server-linux/$name"
+            cp "dist/server-linux/$name" "dist/$name"
+          done
+          test "$(dist/GhostFTP-Demo-Linux-x86_64-v$VERSION -version)" = "Ghost FTP Demo $VERSION Preview"
+          test "$(dist/GhostFTP-Demo-Linux-x86_64-v$VERSION -self-test)" = "Ghost FTP Demo offline/self-test PASS"
+          file "dist/server-windows/GhostFTP-Demo-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
           test -s "dist/server-windows/GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe"
           file "dist/server-windows/GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
           file "dist/server-windows/GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
@@ -279,7 +286,7 @@ jobs:
             test -s "dist/server-linux/$name"
             cp "dist/server-linux/$name" "dist/$name"
           done
-          for name in "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" "GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe"; do
+          for name in "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" "GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Demo-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"; do
             test -s "dist/server-windows/$name"
             cp "dist/server-windows/$name" "dist/$name"
           done
@@ -312,6 +319,10 @@ jobs:
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
           test -n "$WINDOWS_CLI"; test -s "$WINDOWS_CLI"
           test -n "$LINUX_CLI"; test -s "$LINUX_CLI"
+          test -s "dist/native/GhostCLI-Windows-x64-Setup-Unsigned-Preview.exe"
+          for name in "GhostCLI-Linux-x86_64-v$VERSION.tar.gz" "GhostCLI-Linux-amd64-v$VERSION.deb" "GhostCLI-Linux-x86_64-v$VERSION.rpm"; do
+            test -s "dist/native/$name"
+          done
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"
           test -n "$ANDROID_UNSIGNED_APK"; test -n "$ANDROID_PREVIEW_APK"; test -n "$ANDROID_UNSIGNED_AAB"; test -s "$ANDROID_UNSIGNED_AAB"
           test -n "$MACOS_PREVIEW"; test -s "$MACOS_PREVIEW"
@@ -331,6 +342,10 @@ jobs:
           cp "$WINDOWS_CLI" "dist/GhostCLI-Windows-x64-v$VERSION.exe"
           cp "$LINUX_CLI" "dist/GhostCLI-Linux-x86_64-v$VERSION"
           chmod +x "dist/GhostCLI-Linux-x86_64-v$VERSION"
+          cp "dist/native/GhostCLI-Windows-x64-Setup-Unsigned-Preview.exe" "dist/GhostCLI-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"
+          for name in "GhostCLI-Linux-x86_64-v$VERSION.tar.gz" "GhostCLI-Linux-amd64-v$VERSION.deb" "GhostCLI-Linux-x86_64-v$VERSION.rpm"; do
+            cp "dist/native/$name" "dist/$name"
+          done
           test "$(dist/GhostCLI-Linux-x86_64-v$VERSION --version | grep -Fc "$VERSION")" -ge 1
           cp "$WIN_SETUP" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe"
           cp "$WIN_MSI" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.msi"
