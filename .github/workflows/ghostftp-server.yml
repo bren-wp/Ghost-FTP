@@ -68,7 +68,7 @@ jobs:
       - name: Validate service installation/uninstallation PowerShell syntax
         shell: pwsh
         run: |
-          $files = @('ghost-server/install/Install-GhostFTPServer.ps1','ghost-server/install/Uninstall-GhostFTPServer.ps1','ghost-server/install/Smoke-GhostFTPServer-CI.ps1')
+          $files = @('ghost-server/install/Install-GhostFTPServer.ps1','ghost-server/install/Uninstall-GhostFTPServer.ps1','ghost-server/install/Smoke-GhostFTPServer-CI.ps1','ghost-server/install/Smoke-GhostFTPInstaller-CI.ps1')
           foreach ($file in $files) {
             $tokens = $null
             $errors = $null
@@ -104,6 +104,12 @@ jobs:
           & $compiler /V2 'install\GhostFTPServer.nsi'
           if ($LASTEXITCODE -ne 0) { throw "NSIS build failed: $LASTEXITCODE" }
           if (-not (Test-Path -LiteralPath 'dist\ghost-server-windows-x64-setup-unsigned.exe')) { throw 'NSIS setup file missing' }
+      - name: Exercise real NSIS install and uninstall without side effects
+        shell: pwsh
+        working-directory: ghost-server
+        run: |
+          & ./install/Smoke-GhostFTPInstaller-CI.ps1 -Setup 'dist/ghost-server-windows-x64-setup-unsigned.exe'
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS installation roundtrip failed' }
       - name: Hash unsigned Windows portable + setup
         shell: pwsh
         working-directory: ghost-server
