@@ -1,3 +1,28 @@
+GHOST FTP — CLIENT, SERVER, CLI AND DEMO ADDENDUM
+Version 1.1 (Preview component clarification) — 29 October 2026
+
+This addendum clarifies the scope of the existing Ghost FTP Commercial Software License Agreement below. It is intended for the public distribution of Ghost FTP Client, Ghost FTP Server, Ghost CLI and Ghost FTP Demo Preview builds. It does not independently set or modify prices, subscriptions, purchaser entitlements or governing law in the underlying agreement. Any conflict with mandatory consumer, commercial or privacy law is resolved in favour of that mandatory law.
+
+A. COVERED COMPONENTS
+The Software includes, where supplied under a licensed edition: Ghost FTP desktop clients for Windows, Linux and macOS, the Android client, the independent Ghost FTP Server daemon/Windows installer/Linux packages, the Ghost CLI command-line client, and the optional self-contained Ghost FTP Demo executable. Availability, functionality, support and platform coverage vary by release and are stated in the public release notes and documentation. A named component is not a promise that it is production-ready or included in every commercial entitlement.
+
+B. DEMONSTRATION EDITION
+Ghost FTP Demo displays fictional profiles and example folders and simulates upload, download, progress, cancellation and synchronization plans locally in memory. It is a product walkthrough only; its progress is not a measurement of real transfer performance. The demo does not connect to external servers, store real passwords or alter customer files. Any promotional copy must distinguish SIMULATION from actual client or server capabilities. The demo does not give the user rights to access any third-party server.
+
+C. SERVER OPERATIONS AND DATA
+The customer/operator controls server provisioning, user authorizations, certificates, private keys, storage roots, network exposure, firewall rules, backups, retention and applicable data-processing obligations. The Server Preview may provide only a subset of functions; multi-user authorization, SFTP server operation and remote administrative capabilities must not be advertised as present unless they are in the tested shipped binary. A service installed by the distributor is not automatically configured for public internet access. Uninstall/upgrade operations must respect documented data-preservation choices.
+
+D. GHOST CLI
+Ghost CLI invokes the same supported client protocol/session backends as the graphical app. Scripts and automation operate with the user's permissions and remain subject to the same license and applicable authorization requirements. Credentials must not be passed in command lines or publicly logged. Automated destructive commands should be preceded by appropriate dry-run/backup checks where supported.
+
+E. PREVIEW, SECURITY AND UPDATES
+Preview, unsigned and unnotarized artifacts are development builds and may have known limitations. Public SHA-256 checksums establish download integrity, not code-signing identity or a guarantee against vulnerabilities. No software product can be warranted entirely defect-free or attack-proof; existing contractual disclaimers and mandatory statutory protections remain applicable. Historical releases and their governing notices remain available for audit. Vulnerabilities should be reported privately following SECURITY.md rather than publishing exploit or customer-secret details.
+
+F. PRIVACY AND PUBLIC DOCUMENTATION
+The official SECURITY.md and docs/legal/PRIVACY.md describe the general privacy/security model without exposing credentials or sensitive deployment configurations. Demo fixtures are fictional. The purchaser's data rights and rights arising from mandatory law are not limited by this explanatory addendum.
+
+--- UNDERLYING COMMERCIAL SOFTWARE LICENSE AGREEMENT (CONTINUES UNMODIFIED) ---
+
 GHOST FTP COMMERCIAL SOFTWARE LICENSE AGREEMENT
 Version 1.0 — Effective 19 September 2026
 
