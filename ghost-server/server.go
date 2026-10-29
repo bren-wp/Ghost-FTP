@@ -77,6 +77,13 @@ func New(c Config) (*Server,error) {
  return &Server{root:root,user:c.Username,password:sha256.Sum256([]byte(c.Password)),tls:&tls.Config{Certificates:[]tls.Certificate{cert},MinVersion:tls.VersionTLS12},limit:make(chan struct{},32),allowUploads:c.AllowUploads,maxUploadBytes:c.MaxUploadBytes,uploadRoot:uploadRoot,
  adminEnabled:c.AdminToken!="",adminListen:c.AdminListen,adminTokenHash:sha256.Sum256([]byte(c.AdminToken)),startedAt:time.Now()},nil
 }
+// Close releases filesystem handles when the server is configured but never
+// started. Serve also closes these handles after stopping. Callers must not
+// use the server after Close.
+func (s *Server) Close() error {
+ if s.uploadRoot!=nil{return s.uploadRoot.Close()}
+ return nil
+}
 func (s *Server) ListenAndServe(ctx context.Context, address string) error {
  if address=="" {address="127.0.0.1:2121"}
  ln,err:=net.Listen("tcp",address);if err!=nil{return err}
@@ -84,7 +91,7 @@ func (s *Server) ListenAndServe(ctx context.Context, address string) error {
 }
 func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
  defer ln.Close()
- defer func(){if s.uploadRoot!=nil{_ = s.uploadRoot.Close()}}()
+ defer s.Close()
  if s.adminEnabled {
   adminLn,err:=net.Listen("tcp",s.adminListen)
   if err!=nil{return fmt.Errorf("cannot bind local admin dashboard: %w",err)}
