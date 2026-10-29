@@ -96,6 +96,7 @@ export default function App() {
       qaView === "siteManager" ||
       qaView === "settings" ||
       qaView === "transferCenter" ||
+      qaView === "sync" ||
       qaView === "about"
     ) {
       layout.openDialog(qaView);
