@@ -65,6 +65,16 @@ test("client release selectors cannot accidentally promote CLI/Demo packages as 
   assert.ok(!release.includes("-iname '*.deb' | head -n1"),"generic DEB selector is unsafe");
   assert.ok(!release.includes("-iname '*.rpm' | head -n1"),"generic RPM selector is unsafe");
 });
+test("release normalizes CLI installers from their real per-platform artifact folders",()=>{
+  assert.ok(release.includes("WINDOWS_CLI_SETUP=\"$(find dist/native -type f -name 'GhostCLI-Windows-x64-Setup-Unsigned-Preview.exe'"));
+  assert.ok(release.includes('LINUX_CLI_PACKAGE_DIR="$(dirname "$LINUX_CLI")"'));
+  assert.ok(release.includes('test -s "$WINDOWS_CLI_SETUP"'));
+  assert.ok(release.includes('test -s "$LINUX_CLI_PACKAGE_DIR/$name"'));
+  assert.ok(release.includes('cp "$WINDOWS_CLI_SETUP" "dist/GhostCLI-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"'));
+  assert.ok(release.includes('cp "$LINUX_CLI_PACKAGE_DIR/$name" "dist/$name"'));
+  assert.ok(!release.includes('test -s "dist/native/GhostCLI-Windows-x64-Setup-Unsigned-Preview.exe"'));
+  assert.ok(!release.includes('cp "dist/native/$name" "dist/$name"'));
+});
 test("combined release is checksum-complete and still an unsigned Preview",()=>{
   assert.ok(post.includes("-ge 43"));
   assert.ok(quality.includes("check-cli-demo-release.test.mjs"));
