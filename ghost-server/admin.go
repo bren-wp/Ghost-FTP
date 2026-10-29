@@ -11,6 +11,10 @@ import (
  "time"
 )
 
+// BuildVersion is set from the canonical version.json by both native server jobs.
+// The local status API never guesses the version or exposes build secrets.
+var BuildVersion = "dev"
+
 //go:embed admin-assets/*
 var adminAssets embed.FS
 
@@ -21,7 +25,7 @@ func (s *Server) adminHandler() http.Handler {
  if err!=nil{panic("embedded admin assets unavailable")}
  mux:=http.NewServeMux()
  mux.Handle("/admin/",http.StripPrefix("/admin/",http.FileServer(http.FS(assets))))
- mux.HandleFunc("/api/status",func(w http.ResponseWriter,r *http.Request){
+ statusHandler:=func(w http.ResponseWriter,r *http.Request){
   if r.Method!=http.MethodGet{w.Header().Set("Allow","GET");http.Error(w,"Method not allowed",http.StatusMethodNotAllowed);return}
   authorization:=r.Header.Get("Authorization")
   if !strings.HasPrefix(authorization,"Bearer ") {
@@ -35,6 +39,8 @@ func (s *Server) adminHandler() http.Handler {
   }
   w.Header().Set("Content-Type","application/json; charset=utf-8")
   _=json.NewEncoder(w).Encode(struct {
+   ContractVersion int `json:"contract_version"`
+   ServerVersion string `json:"server_version"`
    Status string `json:"status"`
    ExplicitTLS bool `json:"explicit_tls_required"`
    WriteEnabled bool `json:"create_only_uploads_enabled"`
@@ -43,11 +49,14 @@ func (s *Server) adminHandler() http.Handler {
    ActiveConnections int64 `json:"active_connections"`
    UptimeSeconds int64 `json:"uptime_seconds"`
   }{
-   Status:"running",ExplicitTLS:true,WriteEnabled:s.allowUploads,
+   ContractVersion:1,ServerVersion:BuildVersion,Status:"running",ExplicitTLS:true,WriteEnabled:s.allowUploads,
    DestructiveEnabled:s.allowDestructive,MaxUploadBytes:s.maxUploadBytes,ActiveConnections:s.activeSessions.Load(),
    UptimeSeconds:int64(time.Since(s.startedAt).Seconds()),
   })
- })
+ }
+ // Versioned wire contract for desktop/server convergence; old local clients remain supported.
+ mux.HandleFunc("/api/v1/status",statusHandler)
+ mux.HandleFunc("/api/status",statusHandler)
  mux.HandleFunc("/",func(w http.ResponseWriter,r *http.Request){
   if r.URL.Path!="/" {http.NotFound(w,r);return}
   http.Redirect(w,r,"/admin/",http.StatusFound)
@@ -59,7 +68,7 @@ func (s *Server) adminHandler() http.Handler {
   w.Header().Set("X-Content-Type-Options","nosniff")
   w.Header().Set("X-Frame-Options","DENY")
   w.Header().Set("Referrer-Policy","no-referrer")
-  w.Header().Set("Content-Security-Policy","default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+  w.Header().Set("Content-Security-Policy","default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
   mux.ServeHTTP(w,r)
  })
 }

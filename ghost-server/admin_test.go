@@ -43,6 +43,9 @@ func TestAdminRequiresSeparateStrongBearerTokenAndLoopbackHost(t *testing.T) {
   {"GET","/api/status",secret,"evil.example",http.StatusForbidden},
   {"POST","/api/status",secret,"",http.StatusMethodNotAllowed},
   {"GET","/api/status",secret,"",http.StatusOK},
+  {"GET","/api/v1/status",secret,"",http.StatusOK},
+  {"GET","/api/v1/status","","",http.StatusUnauthorized},
+  {"POST","/api/v1/status",secret,"",http.StatusMethodNotAllowed},
   {"GET","/admin/","","",http.StatusOK},
  } {
   response:=adminRequest(t,srv,tc.method,tc.path,tc.token,tc.host)
@@ -58,6 +61,11 @@ func TestAdminRequiresSeparateStrongBearerTokenAndLoopbackHost(t *testing.T) {
   t.Fatalf("inaccurate live admin state: %v",payload)
  }
  if payload["active_connections"]!=float64(0){t.Fatalf("unexpected active sessions: %v",payload)}
+ if payload["contract_version"]!=float64(1) || payload["server_version"]!=BuildVersion {t.Fatalf("status API contract out of sync: %v",payload)}
+ v1:=adminRequest(t,srv,"GET","/api/v1/status",secret,"")
+ var v1payload map[string]any
+ if err:=json.Unmarshal(v1.Body.Bytes(),&v1payload);err!=nil{t.Fatal(err)}
+ for k,v:=range payload { if k=="uptime_seconds"{continue}; if v1payload[k]!=v { t.Fatalf("legacy and versioned status diverge: field %s: %v != %v",k,v,v1payload[k]) } }
  for _,untrusted:=range []string{"long-private-test-password",secret,srv.root,filepath.Base(srv.root)}{
   if strings.Contains(status.Body.String(),untrusted){t.Fatalf("leaked private configuration: %q",untrusted)}
  }
@@ -86,5 +94,23 @@ func TestAdminStaticDashboardDoesNotEmbedCredentials(t *testing.T) {
  }
  if !strings.Contains(response.Header().Get("Content-Security-Policy"),"frame-ancestors 'none'"){
   t.Fatal("missing anti-clickjacking policy")
+ }
+}
+
+func TestAdminPremiumAssetsKeepLocalBrandAndRestrictiveCSP(t *testing.T) {
+ srv:=adminTestBackend(t)
+ for _,name:=range []string{"style.css","app.js","ghostftp-symbol.svg"}{
+  resp:=adminRequest(t,srv,"GET","/admin/"+name,"","")
+  if resp.Code!=http.StatusOK {t.Fatalf("%s status=%d",name,resp.Code)}
+  if resp.Body.Len()<200 {t.Fatalf("%s empty or placeholder",name)}
+  if strings.Contains(resp.Body.String(),strings.Repeat("Z",48)){t.Fatalf("%s leaked admin token",name)}
+  csp:=resp.Header().Get("Content-Security-Policy")
+  if !strings.Contains(csp,"img-src 'self'") || !strings.Contains(csp,"default-src 'none'") {
+   t.Fatalf("%s does not permit local-only logo under strict CSP: %s",name,csp)
+  }
+ }
+ resp:=adminRequest(t,srv,"GET","/admin/","","")
+ for _,needle:=range []string{"ghostftp-symbol.svg","data-page=\"overview\"","data-page=\"sessions\"","data-page=\"security\"","data-page=\"limits\"","data-page=\"diagnostics\"","aria-live=\"polite\""} {
+  if !strings.Contains(resp.Body.String(),needle){t.Fatalf("server workspace missing %s",needle)}
  }
 }

@@ -36,8 +36,8 @@ jobs:
           set -euo pipefail
           VERSION="$(node -p "require('../version.json').version")"
           mkdir -p dist
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=$VERSION" -o dist/ghost-server-windows-amd64.exe ./cmd/ghost-server
-          CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=$VERSION" -o dist/ghost-server-linux-amd64 ./cmd/ghost-server
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=$VERSION -X ghostftp/server.BuildVersion=$VERSION" -o dist/ghost-server-windows-amd64.exe ./cmd/ghost-server
+          CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=$VERSION -X ghostftp/server.BuildVersion=$VERSION" -o dist/ghost-server-linux-amd64 ./cmd/ghost-server
           test "$(dist/ghost-server-linux-amd64 -version)" = "Ghost FTP Server $VERSION Preview"
       - name: Build and validate standalone Linux, tarball, DEB, RPM and systemd payload
         shell: bash
@@ -89,7 +89,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path 'dist' -Force | Out-Null
           $version=(Get-Content '../version.json' -Raw | ConvertFrom-Json).version
-          go build -trimpath -ldflags "-X main.version=$version" -o 'dist/ghost-server-windows-amd64.exe' ./cmd/ghost-server
+          go build -trimpath -ldflags "-X main.version=$version -X ghostftp/server.BuildVersion=$version" -o 'dist/ghost-server-windows-amd64.exe' ./cmd/ghost-server
           if ((& './dist/ghost-server-windows-amd64.exe' -version) -ne "Ghost FTP Server $version Preview") { throw 'Wrong embedded server version' }
           if ($LASTEXITCODE -ne 0) { throw 'Windows portable build failed' }
           if (-not (Test-Path -LiteralPath 'dist/ghost-server-windows-amd64.exe')) { throw 'Windows setup payload missing' }
