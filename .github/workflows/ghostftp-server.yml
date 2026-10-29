@@ -25,6 +25,8 @@ jobs:
       - name: Run go vet
         working-directory: ghost-server
         run: go vet ./...
+      - name: Validate offline demo source and race-safety alongside server
+        run: go test -C ghost-demo -race ./...
       - name: Prepare RPM packaging tooling
         run: |
           sudo apt-get update -qq
@@ -131,6 +133,20 @@ jobs:
             "$hash  $file"
           }
           [IO.File]::WriteAllLines((Join-Path (Resolve-Path 'dist').Path 'Windows-SHA256SUMS.txt'),[string[]]$lines)
+      - name: Build and self-test isolated Ghost FTP Demo Windows portable
+        shell: pwsh
+        working-directory: ghost-server
+        run: |
+          $ErrorActionPreference = 'Stop'
+          go test -C ../ghost-demo ./...
+          if ($LASTEXITCODE -ne 0) { throw 'Offline Ghost FTP Demo unit tests failed' }
+          $version=(Get-Content '../version.json' -Raw | ConvertFrom-Json).version
+          $demo=Join-Path (Resolve-Path 'dist').Path "GhostFTP-Demo-Windows-x64-Portable-v$version.exe"
+          go build -C ../ghost-demo -trimpath -ldflags "-X main.version=$version" -o $demo .
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $demo)) { throw 'Real Windows Demo EXE build failed' }
+          if ((& $demo -version) -ne "Ghost FTP Demo $version Preview") { throw 'Demo binary version mismatch' }
+          if ((& $demo -self-test) -ne "Ghost FTP Demo offline/self-test PASS") { throw 'Demo self-test failed' }
+          if ((Get-Item $demo).Length -le 0) { throw 'Empty Demo EXE' }
       - name: Normalize exact-SHA Windows server release candidates and hashes
         shell: pwsh
         working-directory: ghost-server
@@ -138,7 +154,7 @@ jobs:
           $version=(Get-Content '../version.json' -Raw | ConvertFrom-Json).version
           Copy-Item 'dist/ghost-server-windows-amd64.exe' "dist/GhostFTP-Server-Windows-x64-Portable-v$version.exe"
           Copy-Item 'dist/ghost-server-windows-x64-setup-unsigned.exe' "dist/GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$version.exe"
-          $names=@("GhostFTP-Server-Windows-x64-Portable-v$version.exe","GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$version.exe")
+          $names=@("GhostFTP-Server-Windows-x64-Portable-v$version.exe","GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$version.exe","GhostFTP-Demo-Windows-x64-Portable-v$version.exe")
           $lines=foreach($name in $names) { $digest=(Get-FileHash -LiteralPath (Join-Path 'dist' $name) -Algorithm SHA256).Hash.ToLowerInvariant(); "$digest  $name" }
           # Linux sha256sum expects LF, not PowerShell's Windows CRLF output.
           [IO.File]::WriteAllText((Join-Path (Resolve-Path 'dist').Path 'Release-SHA256SUMS.txt'),(($lines -join "`n") + "`n"),[Text.UTF8Encoding]::new($false))
@@ -150,6 +166,7 @@ jobs:
           name: GhostFTP-Server-Windows-Package-Preview
           path: |
             ghost-server/dist/GhostFTP-Server-Windows-*
+            ghost-server/dist/GhostFTP-Demo-Windows-*
             ghost-server/dist/Release-SHA256SUMS.txt
           retention-days: 14
           if-no-files-found: error
