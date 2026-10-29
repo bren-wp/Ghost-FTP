@@ -25,18 +25,31 @@ test("server is a mandatory exact-SHA gate on every PR and every main release",(
 });
 
 test("six native server assets are mandatory from CI through public verification",()=>{
-  const names=[
+  const required=[
     "GhostFTP-Server-Windows-x64-Portable-v",
     "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v",
-    "GhostFTP-Server-Linux-x86_64-v",
-    "GhostFTP-Server-Linux-x86_64-v",
-    "GhostFTP-Server-Linux-amd64-v",
     "GhostFTP-Server-Linux-x86_64-v"
   ];
-  for(const name of ["GhostFTP-Server-Windows-x64-Portable-v","GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v",
-   "GhostFTP-Server-Linux-x86_64-v"]){
-    assert.ok(release.includes(name),name+" release staging");
-    assert.ok(publisher.includes(name),name+" publication required");
+  for(const prefix of required){
+    assert.ok(release.includes(prefix),prefix+" missing from release normalization");
+    assert.ok(publisher.includes(prefix),prefix+" missing from pre-publication hard gate");
+    assert.ok(index.includes(prefix),prefix+" missing from public inventory verification");
+  }
+  const linuxSuffixes=[".tar.gz",".deb",".rpm"];
+  for(const suffix of linuxSuffixes){
+    assert.ok(release.includes(suffix),suffix+" missing from combined release workflow");
+    assert.ok(publisher.includes(suffix),suffix+" missing from mandatory publisher inventory");
+    assert.ok(index.includes(suffix),suffix+" missing from public validation inventory");
+  }
+  // The published inventory must include four Linux and two Windows Server packages.
+  for(const fragment of [
+    "GhostFTP-Server-Linux-x86_64-v$VERSION.tar.gz",
+    "GhostFTP-Server-Linux-amd64-v$VERSION.deb",
+    "GhostFTP-Server-Linux-x86_64-v$VERSION.rpm",
+    "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe",
+    "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"
+  ]) assert.ok(index.includes(fragment),fragment);
+  assert.ok(publisher.includes(name),name+" publication required");
     assert.ok(index.includes(name),name+" postpublication required");
   }
   for(const name of [".tar.gz",".deb",".rpm"]){
