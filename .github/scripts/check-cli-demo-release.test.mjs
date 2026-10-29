@@ -43,9 +43,19 @@ test("offline Windows demo is built, locally hosted, tested and clearly labeled"
   assert.ok(release.includes("GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe"));
   assert.ok(pre.includes("GhostFTP-Demo-Windows-x64-Portable-v" + "$" + "{VERSION}.exe"));
   assert.ok(post.includes("GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe"));
+  for (const product of ["GhostCLI", "GhostFTP-Demo"]) {
+    assert.ok(pre.includes(product + "-Linux-x86_64-v"),product + " Linux portable");
+    assert.ok(pre.includes(product + "-Linux-amd64-v"),product + " Linux DEB");
+    assert.ok(pre.includes(product + "-Windows-x64-Setup-Unsigned-Preview-v"),product + " Windows Setup");
+    assert.ok(post.includes(product + "-Linux-x86_64-v"),product + " public Linux package");
+  }
+  assert.ok(native.includes("Build, install and uninstall separate Ghost CLI Windows Setup"));
+  assert.ok(server.includes("Build and smoke independent Ghost FTP Demo Windows NSIS Setup"));
+  assert.ok(server.includes("packaging/linux/build-portable-packages.sh demo"));
+  assert.ok(native.includes("packaging/linux/build-portable-packages.sh cli"));
 });
 test("combined release is checksum-complete and still an unsigned Preview",()=>{
-  assert.ok(post.includes("-ge 34"));
+  assert.ok(post.includes("-ge 43"));
   assert.ok(quality.includes("check-cli-demo-release.test.mjs"));
   assert.ok(release.includes("sha256sum -c Release-SHA256SUMS.txt"));
   assert.ok(release.includes("sha256sum -c Linux-SHA256SUMS.txt"));
