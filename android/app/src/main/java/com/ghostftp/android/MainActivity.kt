@@ -1482,6 +1482,17 @@ class MainActivity : Activity() {
             contentDescription = getString(R.string.ui_add_site)
         }, LinearLayout.LayoutParams(dp(44), dp(42)))
         if (!usesOverlayNavigation()) addView(heading)
+        // The reference has a prominent full-width New Connection action.
+        // The empty runtime never invents example servers to imitate concept
+        // art; users can actually create their own profile from this CTA.
+        addView(PremiumReferenceStyle.action(this@MainActivity,
+            "＋  Add new connection", true) {
+            showSiteEditor(null)
+        }.apply {
+            contentDescription = "Add new connection"
+        }, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(48)
+        ).apply { bottomMargin = dp(12) })
         sitesSearch = input("Search saved sites…", InputType.TYPE_CLASS_TEXT).apply {
             contentDescription = getString(R.string.ui_search_sites)
             addTextChangedListener(object : android.text.TextWatcher {
@@ -1508,13 +1519,19 @@ class MainActivity : Activity() {
         if (!::sitesListRows.isInitialized || closingOrDestroyed()) return
         sitesListRows.removeAllViews()
         val q = if (::sitesSearch.isInitialized) sitesSearch.text.toString().trim() else ""
-        val matches = SavedSiteProfiles.read(this).filter {
+        val saved = SavedSiteProfiles.read(this)
+        val matches = saved.filter {
             q.isBlank() || it.name.contains(q, ignoreCase = true) ||
                 it.host.contains(q, ignoreCase = true)
         }
         if (matches.isEmpty()) {
-            sitesListRows.addView(row("No matching saved sites",
-                "Tap + to add a real FTP, FTPS or SFTP server. Credentials are not saved."))
+            if (saved.isEmpty()) {
+                sitesListRows.addView(row("No saved sites yet",
+                    "Add your first FTP, FTPS or SFTP connection. Passwords are never stored with saved sites."))
+            } else {
+                sitesListRows.addView(row("No matching saved sites",
+                    "Try another search. Your saved connections have not been removed."))
+            }
             return
         }
         matches.forEach { site ->
