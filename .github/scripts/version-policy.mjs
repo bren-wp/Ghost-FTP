@@ -11,7 +11,9 @@ function parts(value) {
 /**
  * 0.30.21 -> 0.90.0: one authorized migration to the new train.
  * 0.95.53 -> 0.99.0: explicitly authorized jump to the final Preview series.
- * 0.99.0 -> 0.99.1 -> ... -> 0.99.20 -> 1.0.0.
+ * 0.99.0 -> ... -> 0.99.20 -> 0.99.21 -> ... until production
+ * acceptance is complete. Only then may the 0.99 series promote to 1.0.0.
+ * Preview patch hotfixes remain strictly sequential.
  * 1.0.0: production-stable only after separately verified release gates.
  * 1.x: next minor for features, next patch for fixes.
  */
@@ -29,8 +31,11 @@ export function validateVersionTrain(previous, next) {
   } else if (major === 0 && minor >= 90 && minor < 99) {
     valid = patchFix || minorFeature;
   } else if (major === 0 && minor === 99) {
-    valid = (patch < 20 && patchFix) ||
-      (patch === 20 && nextMajor === 1 && nextMinor === 0 && nextPatch === 0);
+    // Do not force unfinished Preview/security hotfixes to claim version
+    // 1.0.0. A patch can advance sequentially until stable signing and
+    // platform acceptance become mandatory release gates.
+    valid = patchFix ||
+      (patch >= 20 && nextMajor === 1 && nextMinor === 0 && nextPatch === 0);
   } else if (major >= 1) {
     valid = patchFix || minorFeature;
   }
@@ -39,7 +44,7 @@ export function validateVersionTrain(previous, next) {
     throw new Error(
       `Invalid Ghost FTP release train ${previous} -> ${next}; ` +
       "use the explicitly authorized 0.95.53 -> 0.99.0 migration, " +
-      "then patch sequentially through 0.99.20 before 1.0.0 and production acceptance.",
+      "then patch sequentially through the 0.99.x Preview line until production acceptance.",
     );
   }
 }
