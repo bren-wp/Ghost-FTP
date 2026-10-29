@@ -1,27 +1,33 @@
-# Ghost FTP Security
+# Ghost FTP — Security policy
 
-## Security model
+**Publisher:** Brendigo · **Product components:** Ghost FTP Client, Ghost FTP Server, Ghost CLI, Ghost FTP Demo.
 
-Ghost FTP's native desktop implementation uses real protocol/session backends rather than a screenshot or simulated transfer layer. FTP, FTPS and SFTP are distinct protocol paths; SFTP/SSH identity and key handling, TLS certificate validation, filesystem errors, permission failures, cancellation, retry and reconnect logic must fail closed and surface actionable errors.
+This is the public, non-sensitive security policy for supported Ghost FTP editions. It deliberately does **not** include private keys, internal deployment addresses, administrative secrets, exploit instructions, customer environment identifiers or unreleased vulnerability information. Security is enforced by the code, permissions and tests—not by relying on undocumented or hidden weaknesses.
 
-Credentials and private-key material must never be printed to routine logs. Native credential references should use OS-protected storage where supported. User-supplied remote paths and local paths must be treated as data, not command text. Any shell integration must quote paths defensively and avoid passing credentials through command lines.
+## Supported release and security status
 
-## Diagnostic and terminal privacy
+The latest public release and its support classification are recorded on the [official GitHub Releases page](https://github.com/bren-wp/Ghost-FTP/releases). A `Preview` label means an evaluation/development build, **not** a production security certification. No claim is made that any release is free of vulnerabilities. Only use a release in an environment suited to its documented maturity and update it when supported security fixes are published.
 
-Terminal inline suggestions use process-memory-only history. Shell commands are not persisted to WebView storage, and commands that look credential-bearing are excluded from suggestion history.
+Windows/Linux/macOS clients and the Android client, the standalone Go Ghost FTP Server, Ghost CLI and Ghost FTP Demo are distinct executables with distinct security boundaries. They can share the same brand, source-version policy and compatible protocol interfaces without automatically sharing device passwords or exposing remote administration.
 
-Notification-center history is also session-only. User-facing diagnostics are filtered through credential redaction before they are stored in UI state or shown to the user. Upgrade startup removes legacy terminal/notification history keys written by older release candidates.
+## Security principles
 
-## Updates
+- **Secure connections:** FTPS uses validated TLS identity; SFTP uses SSH host-key verification. Unsafe plaintext/downgrade paths must not be silently selected. Connection failures must be visible.
+- **Credentials and privacy:** Prefer OS-protected credential storage and strong, distinct secrets. No passwords, signing material, private keys or tokens in plain-text diagnostics, URLs, process arguments or release artifacts. File paths and user-provided names must not be executed as shell instructions.
+- **Server isolation:** Use a restricted service identity, filesystem permissions and a deliberately configured server root. Keep the local administrative interface bound to the local machine. Public network exposure, certificates, account policy, updates and backups require operator approval.
+- **Data integrity:** Preserve user data on upgrade/uninstall unless explicitly authorized otherwise. Treat destructive operations, atomic writes, conflict resolution, transfer retries and storage quotas as security-relevant.
+- **Release integrity:** Verify GitHub Release asset SHA-256 checksums and, where available, platform signatures/notarization separately. A checksum is not an Authenticode signature. Release gates must refuse missing or empty Client/Server/CLI/Demo artifacts; source tags and historical builds are immutable.
+- **Demo separation:** Ghost FTP Demo uses synthetic files and local in-memory progress, with no real credentials, remote connections or disk mutations. Never use demo behavior as proof of live throughput or production transfers.
+- **Cross-platform compatibility:** Shared protocol contracts and common source versions are not a license to synchronize secret material by plaintext replication. Any future cross-device credential transfer requires explicit consent, authenticated encryption, integrity validation, rollback and separate acceptance tests.
 
-Native update metadata is retrieved only from the configured official Ghost FTP update service. The Tauri updater verifies the configured signature before installing an artifact. Stable GitHub releases may be published without private updater keys; in that mode no in-app updater manifest or Update-Service package is produced. If updater signing is enabled, both desktop signatures, the exact-version manifest and matching Update-Service package must be present and consistent or publication fails closed. Package SHA-256 values are published with canonical releases. A failed download, checksum/signature verification or apply step must leave the currently installed version usable.
+## Reporting a security issue
 
-## Local runtime boundary
+Use the repository's **private vulnerability reporting** feature when it is enabled, or the publisher's established private support channel. If neither is available, open a non-sensitive public issue requesting a private reporting method **without** including exploit details, credentials, log tokens, private customer files or endpoint information.
 
-The Go compatibility runtime binds its local control server only to `127.0.0.1` on an ephemeral port, sets no-store/nosniff/referrer/CSP headers and exposes local filesystem utilities to its own embedded browser window. It is a fallback QA/runtime host, not the native protocol release.
+A useful private report contains the affected component, precise version, operating system, security impact, safely reproducible steps and a minimized sanitized sample. Do not access accounts or systems you do not own or have explicit permission to test. Do not disclose a working exploit publicly before coordination. Reports are assessed by severity and affected scope; a fix or disclosure date cannot be guaranteed in advance.
 
-## Reporting
+## Public notices and privacy
 
-Security reports should follow **SECURITY.md** in this repository and may be submitted through the repository's documented security/support route. Do not include production passwords, SSH private keys or customer data in a report. Include the Ghost FTP version, OS, reproducible steps and sanitized logs where possible.
+See [privacy policy](docs/legal/PRIVACY.md), [EULA](EULA.txt), [license](LICENSE.txt), [Ghost FTP Server guide](ghost-server/README.md) and [release history](CHANGELOG.md). Public release notes focus on user-visible security changes and limitations; vulnerability-specific technical details are shared responsibly when appropriate.
 
-No statement in this file claims that the software is vulnerability-free or that this package received an independent security certification.
+This policy is informational and does not replace the commercial licence, contractual support terms or applicable law.
