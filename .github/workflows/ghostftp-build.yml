@@ -945,7 +945,9 @@ jobs:
               # The only recoverable class is WebView2 failing to publish a
               # debugger *page target*. Never retry, skip or accept a failed
               # image-validation, geometry, application or UI state assertion.
+              $proc.Refresh()
               if ($launchAttempt -eq 0 -and
+                  -not $proc.HasExited -and
                   $_.Exception.Message -like '*WebView2 DevTools endpoint did not expose a page target*') {
                 $retryCapture = $true
                 Write-Warning "Real WebView2 page target unavailable for $($view.key) on port $debugPort; restarting the same view once with an isolated browser profile."
