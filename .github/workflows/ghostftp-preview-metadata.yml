@@ -32,7 +32,7 @@ jobs:
       - name: Verify and correct Preview classification without modifying release assets or tags
         env:
           GH_TOKEN: ${{ github.token }}
-          GHOSTFTP_METADATA_EVENT: ${{ github.event_name == 'workflow_run' && 'successful-release' || 'push' }}
+          GHOSTFTP_METADATA_EVENT: ${{ github.event_name == 'workflow_run' && 'successful-release' || github.event_name == 'schedule' && 'schedule' || 'push' }}
           GHOSTFTP_PUBLISHED_SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
