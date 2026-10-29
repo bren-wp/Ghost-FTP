@@ -244,9 +244,26 @@ impl FtpStreamKind {
 
     pub fn put_from_reader<R: std::io::Read>(&mut self, path: &str, reader: &mut R) -> Result<u64> {
         validate_ftp_command_path(path)?;
+        // Explicitly flush each TLS data stream before finish() closes it.
+        // With short FTPS uploads, allowing the transfer wrapper to drop an
+        // unflushed native-TLS stream can reset the TCP data connection
+        // before the peer receives any authenticated application bytes.
+        // finish() still verifies the server's final 226 response.
         match self {
-            Self::Plain(s) => s.put_file(path, reader).map_err(into_anyhow),
-            Self::Tls(s) => s.put_file(path, reader).map_err(into_anyhow),
+            Self::Plain(s) => {
+                let mut data = s.put_with_stream(path).map_err(into_anyhow)?;
+                let count = std::io::copy(reader, &mut data).context("FTP upload data stream")?;
+                data.flush().context("flush FTP upload data stream")?;
+                data.finish().map_err(into_anyhow)?;
+                Ok(count)
+            }
+            Self::Tls(s) => {
+                let mut data = s.put_with_stream(path).map_err(into_anyhow)?;
+                let count = std::io::copy(reader, &mut data).context("FTPS upload data stream")?;
+                data.flush().context("flush FTPS upload data stream")?;
+                data.finish().map_err(into_anyhow)?;
+                Ok(count)
+            }
         }
     }
 
