@@ -1,8 +1,15 @@
-## 0.99.22 — mandatory standalone Client + Server artefacts (Preview; 29 October 2026)
-- Require same-source Go server build and Windows/Linux server packages for public editions; incomplete server inventory blocks publication.
-- Include Windows Server portable and unsigned NSIS setup, Linux standalone and tarball, DEB/RPM, hardened manually provisioned systemd unit.
-- Verify server build version, local checksums and public artifact inventory; maintain read-only loopback FTPS defaults.
-- Tighten Preview-only classification for already published 0.99.20/0.99.21 without touching their immutable tags or files. No claim of signed production/managed SFTP server.
+## 0.99.22 — combined Ghost FTP Client + Server + CLI + Demo (development Preview; 29 October 2026)
+- Preserve a single sequential release version for all supported clients, the standalone Ghost FTP Server, the official Ghost CLI and the self-contained Ghost FTP Demo.
+- Package and verify six real Windows/Linux Ghost FTP Server artifacts in every release: Windows portable + unsigned setup, Linux standalone + tarball + DEB + RPM, with a hardened manually provisioned systemd unit and no default credentials.
+- Fix an actual Windows PowerShell CRLF-versus-Linux `sha256sum` incompatibility that blocked the v0.99.22 release despite passing native server tests. Produce LF-only Windows checksums and normalize legacy manifest line endings **without changing executable bytes or hashes**.
+- Add a fail-closed allowance for repairing an already-merged but **unpublished and untagged** source version, only with its canonical predecessor truly published; never rewrite a public tag or jump past a missing release.
+- Publish real standalone **Ghost CLI Windows and Linux** binaries from the existing shared Rust FTP/FTPS/SFTP/cloud engine rather than implementing an insecure duplicate. CLI uses desktop saved profiles where available locally.
+- Add a standalone portable **Windows Ghost FTP Demo EXE** with fictional connected-looking sites, files and responsive branded interface; upload/download/progress/cancel/sync previews execute only against in-memory demo fixtures and are visibly labeled simulated. No outgoing server connections or disk writes.
+- Extend release acceptance to at least **34 nonempty verified public assets**, including Server, CLI and Demo, with SHA-256 and exact-source CI checks. No fake file, skipped test or forced release promotion is acceptable.
+- Improve the local Ghost FTP Server dashboard with versioned authenticated status API, five responsive views, shared desktop palette/icons/navigation, local-only token isolation and accessibility controls.
+- Resolve #246: v0.99.20 and v0.99.21 public GitHub releases are correctly marked Preview; immutable source SHAs and each edition's 25 SHA-256 asset digests verified; do not label unsigned Preview builds stable.
+- Clarify Client/Server/CLI/Demo licensing and EULA, publish the security disclosure policy and distinguish real transfers from simulated demonstrations.
+- **Still open:** complete multi-user server authorization, an SFTP **server** implementation, release signing/notarization, independently accepted per-screen 1:1 UI comparisons, encrypted cross-device sync of credentials and hardware/production acceptance. Successful source CI is not 100% production certification.
 
 ## 0.99.21 — Windows WebView2 native QA target recovery (Preview; 29 October 2026)
 - Retry genuine Tauri/WebView2 capture once only when the page debugger target is temporarily missing; preserve all real visual, viewport, filesystem and SHA integrity gates.
