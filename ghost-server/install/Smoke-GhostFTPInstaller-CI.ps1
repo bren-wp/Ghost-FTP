@@ -21,6 +21,11 @@ try {
  if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {throw 'NSIS did not install real server binary'}
  if (-not (Test-Path -LiteralPath $uninstaller -PathType Leaf)) {throw 'NSIS did not install its real uninstaller'}
  if (Get-Service -Name 'GhostFTPServer' -ErrorAction SilentlyContinue) {throw 'Installer unexpectedly registered a service'}
+ foreach ($file in @('README.md','EULA.txt','LICENSE.txt')) {
+  if (-not (Test-Path -LiteralPath (Join-Path $installation $file) -PathType Leaf)) {
+   throw "NSIS install is missing required product/legal file $file"
+  }
+ }
  $installed=$true
  $uninstallProcess=Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -PassThru
  if ($uninstallProcess.ExitCode -ne 0) {throw "NSIS silent uninstall failed: $($uninstallProcess.ExitCode)"}
