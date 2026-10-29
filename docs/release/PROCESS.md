@@ -1,4 +1,4 @@
-> **Authoritative current state (29 October 2026):** Ghost FTP **0.99.21 Preview**; predecessor v0.99.20 still awaiting exact-source publication.
+> **Authoritative current state (29 October 2026):** Ghost FTP **0.99.22 development Preview**; previous published version v0.99.21. Windows/Linux Ghost Server distribution becomes mandatory.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
 
@@ -17,7 +17,7 @@ Every releasable source version **must use an explicit `preview` or `stable` cha
 1. Start from current `main`.
 2. Make meaningful product/code/documentation changes.
 3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
-4. Keep `previousVersion` pointing to the preceding merged source (currently `0.99.3`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.99.3`). Never call an unpublished merge a canonical release.
+4. Keep `previousVersion` pointing to the preceding merged source (currently `0.99.21`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.99.21`). Never call an unpublished merge a canonical release.
 5. Open a PR only after the preceding `main` version has been publicly released; the PR must set `previousVersion` and `previousPublishedVersion` to the base version. This prevents overlapping merges from skipping an edition.
 6. Require exact-head success for:
    - Ghost FTP quality
@@ -26,6 +26,7 @@ Every releasable source version **must use an explicit `preview` or `stable` cha
    - Ghost FTP Android
    - Validate Windows hardening
    - Ghost FTP macOS (development Preview gate)
+   - Ghost FTP Server: Linux and Windows package/installation QA
 7. Read and fix concrete workflow logs if any gate fails.
 8. Merge only the tested source.
 9. After any merge to `main` (including Android-only, macOS-only or documentation changes), the native build runs without path filtering; if successful, it automatically triggers **Ghost FTP release**, provided every exact-SHA gate passes. No manual dispatch is required.
@@ -78,6 +79,17 @@ The release workflow and final publication script fail closed if this optional u
 
 If no updater signatures are present, automatically triggered Preview releases may publish labeled development packages, checksums and QA evidence after the exact-SHA gates. In that mode no updater manifest or Update-Service bundle is emitted.
 
+### Mandatory standalone Ghost FTP Server (v0.99.22 onwards)
+
+- `GhostFTP-Server-Windows-x64-Portable-v<version>.exe`
+- `GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v<version>.exe`
+- `GhostFTP-Server-Linux-x86_64-v<version>`
+- `GhostFTP-Server-Linux-x86_64-v<version>.tar.gz`
+- `GhostFTP-Server-Linux-amd64-v<version>.deb`
+- `GhostFTP-Server-Linux-x86_64-v<version>.rpm`
+
+Exact-SHA server CI and package checks are release-blocking; post-publication SHA-256 validates all six packages. Developer-only Actions artifacts are not a public GitHub Release. Linux systemd stays disabled until secrets and TLS are provisioned; Windows server setup is unsigned and no default credentials/firewall exposure are created.
+
 ### Source/documentation
 
 - `GhostFTP-v<version>-Source.zip`
@@ -94,8 +106,8 @@ The previous one-time latest-ten cleanup has ended. **No scheduled or post-relea
 
 ## Current release cycle
 
-- Active source/release cycle: **0.99.21**
-- Previous canonical release: **0.99.20**
+- Active source/release cycle: **0.99.22**
+- Previous canonical release: **0.99.21**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Newest edition is always visible under Releases

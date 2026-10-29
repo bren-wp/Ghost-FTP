@@ -3,13 +3,7 @@ name: Ghost FTP Server Phase 4
 on:
   push:
     branches: [main]
-    paths:
-      - 'ghost-server/**'
-      - '.github/workflows/ghostftp-server.yml'
   pull_request:
-    paths:
-      - 'ghost-server/**'
-      - '.github/workflows/ghostftp-server.yml'
 
 permissions:
   contents: read
@@ -31,23 +25,36 @@ jobs:
       - name: Run go vet
         working-directory: ghost-server
         run: go vet ./...
-      - name: Cross compile the standalone Windows portable executable
-        working-directory: ghost-server
+      - name: Prepare RPM packaging tooling
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y rpm
+      - name: Cross compile standalone Windows binary and build Linux binary with canonical version
+        working-directory: ghost-server
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('../version.json').version")"
           mkdir -p dist
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/ghost-server-windows-amd64.exe ./cmd/ghost-server
-      - name: Build standalone Linux binary
-        working-directory: ghost-server
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=$VERSION" -o dist/ghost-server-windows-amd64.exe ./cmd/ghost-server
+          CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=$VERSION" -o dist/ghost-server-linux-amd64 ./cmd/ghost-server
+          test "$(dist/ghost-server-linux-amd64 -version)" = "Ghost FTP Server $VERSION Preview"
+      - name: Build and validate standalone Linux, tarball, DEB, RPM and systemd payload
+        shell: bash
         run: |
-          CGO_ENABLED=0 go build -trimpath -o dist/ghost-server-linux-amd64 ./cmd/ghost-server
-          cd dist
-          sha256sum ghost-server-windows-amd64.exe ghost-server-linux-amd64 > SHA256SUMS.txt
-          sha256sum -c SHA256SUMS.txt
-      - name: Upload unsigned Phase 4 developer artifacts (not a release)
+          set -euo pipefail
+          VERSION="$(node -p "require('./version.json').version")"
+          bash ghost-server/install/linux/build-packages.sh "$VERSION"
+          cd ghost-server/dist
+          sha256sum GhostFTP-Server-Linux-* > Linux-SHA256SUMS.txt
+          sha256sum -c Linux-SHA256SUMS.txt
+      - name: Upload exact-SHA Linux server release candidates
         uses: actions/upload-artifact@v7
         with:
-          name: GhostFTP-Server-ReadOnly-FTPS-Dev
-          path: ghost-server/dist/*
+          name: GhostFTP-Server-Linux-Package-Preview
+          path: |
+            ghost-server/dist/GhostFTP-Server-Linux-*
+            ghost-server/dist/Linux-SHA256SUMS.txt
           retention-days: 14
           if-no-files-found: error
 
@@ -81,7 +88,9 @@ jobs:
         working-directory: ghost-server
         run: |
           New-Item -ItemType Directory -Path 'dist' -Force | Out-Null
-          go build -trimpath -o 'dist/ghost-server-windows-amd64.exe' ./cmd/ghost-server
+          $version=(Get-Content '../version.json' -Raw | ConvertFrom-Json).version
+          go build -trimpath -ldflags "-X main.version=$version" -o 'dist/ghost-server-windows-amd64.exe' ./cmd/ghost-server
+          if ((& './dist/ghost-server-windows-amd64.exe' -version) -ne "Ghost FTP Server $version Preview") { throw 'Wrong embedded server version' }
           if ($LASTEXITCODE -ne 0) { throw 'Windows portable build failed' }
           if (-not (Test-Path -LiteralPath 'dist/ghost-server-windows-amd64.exe')) { throw 'Windows setup payload missing' }
       - name: Real Windows LocalService install, start, FTP greeting and stop
@@ -122,10 +131,23 @@ jobs:
             "$hash  $file"
           }
           [IO.File]::WriteAllLines((Join-Path (Resolve-Path 'dist').Path 'Windows-SHA256SUMS.txt'),[string[]]$lines)
-      - name: Upload unsigned Windows service + setup developer package
+      - name: Normalize exact-SHA Windows server release candidates and hashes
+        shell: pwsh
+        working-directory: ghost-server
+        run: |
+          $version=(Get-Content '../version.json' -Raw | ConvertFrom-Json).version
+          Copy-Item 'dist/ghost-server-windows-amd64.exe' "dist/GhostFTP-Server-Windows-x64-Portable-v$version.exe"
+          Copy-Item 'dist/ghost-server-windows-x64-setup-unsigned.exe' "dist/GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$version.exe"
+          $names=@("GhostFTP-Server-Windows-x64-Portable-v$version.exe","GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$version.exe")
+          $lines=foreach($name in $names) { $digest=(Get-FileHash -LiteralPath (Join-Path 'dist' $name) -Algorithm SHA256).Hash.ToLowerInvariant(); "$digest  $name" }
+          [IO.File]::WriteAllLines((Join-Path (Resolve-Path 'dist').Path 'Release-SHA256SUMS.txt'),[string[]]$lines)
+          foreach($name in $names) { if ((Get-Item (Join-Path 'dist' $name)).Length -le 0) { throw "Empty server asset $name" } }
+      - name: Upload exact-SHA Windows portable and unsigned NSIS setup release candidates
         uses: actions/upload-artifact@v7
         with:
-          name: GhostFTP-Server-Windows-Setup-Dev
-          path: ghost-server/dist/*
+          name: GhostFTP-Server-Windows-Package-Preview
+          path: |
+            ghost-server/dist/GhostFTP-Server-Windows-*
+            ghost-server/dist/Release-SHA256SUMS.txt
           retention-days: 14
           if-no-files-found: error

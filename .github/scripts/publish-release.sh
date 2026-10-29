@@ -15,6 +15,13 @@ test -s "dist/$CHECKSUM_FILE"
 (cd dist && sha256sum -c "$CHECKSUM_FILE")
 
 REQUIRED_CORE_FILES=(
+  # Both standalone Ghost Server platforms are mandatory, not optional Actions-only artifacts.
+  "GhostFTP-Server-Windows-x64-Portable-v${VERSION}.exe"
+  "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v${VERSION}.exe"
+  "GhostFTP-Server-Linux-x86_64-v${VERSION}"
+  "GhostFTP-Server-Linux-x86_64-v${VERSION}.tar.gz"
+  "GhostFTP-Server-Linux-amd64-v${VERSION}.deb"
+  "GhostFTP-Server-Linux-x86_64-v${VERSION}.rpm"
   "GhostFTP-Windows-x64-Portable-v${VERSION}.exe"
   "GhostFTP-Windows-x64-Setup-v${VERSION}.exe"
   "GhostFTP-Windows-x64-Setup-v${VERSION}.msi"

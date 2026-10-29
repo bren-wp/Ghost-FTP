@@ -1,0 +1,36 @@
+[Unit]
+Description=Ghost FTP Server (explicit FTPS Preview; manual provisioning required)
+Documentation=https://github.com/bren-wp/Ghost-FTP/tree/main/ghost-server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ghostftp
+Group=ghostftp
+UMask=0077
+# No default credentials, certificates or public listener are ever created.
+# Configure certificate/key/password as owner-private files; do not place passwords in this unit.
+ExecStart=/usr/bin/ghostftp-server -listen 127.0.0.1:2121 -root /var/lib/ghostftp-server/files -cert /etc/ghostftp-server/server.crt -key /etc/ghostftp-server/server.key -user operator -password-file /etc/ghostftp-server/password
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/var/lib/ghostftp-server
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,9 +1,9 @@
 {
-  "version": "0.99.21",
-  "previousVersion": "0.99.20",
-  "build": "2026.10.29.03",
+  "version": "0.99.22",
+  "previousVersion": "0.99.21",
+  "build": "2026.10.29.04",
   "releaseDate": "29 October 2026",
-  "androidVersionCode": 990021,
+  "androidVersionCode": 990022,
   "channel": "preview",
-  "previousPublishedVersion": "0.99.20"
+  "previousPublishedVersion": "0.99.21"
 }

@@ -33,9 +33,15 @@ test "$(jq -r '.draft' <<< "$RELEASE")" = false
 test "$(jq -r '.prerelease' <<< "$RELEASE")" = true
 test "$(jq -r '.target_commitish' <<< "$RELEASE")" = "$SOURCE_SHA"
 test "$(jq -r '.html_url' <<< "$RELEASE")" = "https://github.com/$REPO/releases/tag/$TAG"
-test "$(jq -r '.assets | length' <<< "$RELEASE")" -ge 21
+test "$(jq -r '.assets | length' <<< "$RELEASE")" -ge 31
 test "$(jq '[.assets[] | select(.size > 0 and (.digest | type == "string") and (.digest | test("^sha256:[a-f0-9]{64}$")))] | length' <<< "$RELEASE")" -eq "$(jq '.assets | length' <<< "$RELEASE")"
 for name in \
+  "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" \
+  "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" \
+  "GhostFTP-Server-Linux-x86_64-v$VERSION" \
+  "GhostFTP-Server-Linux-x86_64-v$VERSION.tar.gz" \
+  "GhostFTP-Server-Linux-amd64-v$VERSION.deb" \
+  "GhostFTP-Server-Linux-x86_64-v$VERSION.rpm" \
   "GhostFTP-Windows-x64-Portable-v$VERSION.exe" \
   "GhostFTP-Windows-x64-Setup-v$VERSION.exe" \
   "GhostFTP-Windows-x64-Setup-v$VERSION.msi" \

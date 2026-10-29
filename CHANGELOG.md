@@ -1,3 +1,9 @@
+## 0.99.22 — mandatory standalone Client + Server artefacts (Preview; 29 October 2026)
+- Require same-source Go server build and Windows/Linux server packages for public editions; incomplete server inventory blocks publication.
+- Include Windows Server portable and unsigned NSIS setup, Linux standalone and tarball, DEB/RPM, hardened manually provisioned systemd unit.
+- Verify server build version, local checksums and public artifact inventory; maintain read-only loopback FTPS defaults.
+- Tighten Preview-only classification for already published 0.99.20/0.99.21 without touching their immutable tags or files. No claim of signed production/managed SFTP server.
+
 ## 0.99.21 — Windows WebView2 native QA target recovery (Preview; 29 October 2026)
 - Retry genuine Tauri/WebView2 capture once only when the page debugger target is temporarily missing; preserve all real visual, viewport, filesystem and SHA integrity gates.
 - Coordinate an immutable v0.99.20 release before this postmerge hotfix is allowed to merge. No new screen is falsely marked pixel-perfect or stable.

@@ -12,6 +12,8 @@ import (
  "syscall"
  server "ghostftp/server"
 )
+var version = "dev" // set only by audited CI -ldflags; never changes protocol policy
+
 func main(){
  listen:=flag.String("listen","127.0.0.1:2121","FTP control listener (loopback by default)")
  root:=flag.String("root","","Existing directory to serve read-only")
@@ -25,7 +27,9 @@ func main(){
  allowUploads:=flag.Bool("allow-uploads",false,"Opt-in creation of new remote files (never overwrite); requires a sandboxed service account")
  allowDestructive:=flag.Bool("allow-destructive",false,"Additional opt-in to DELE, empty RMD and no-overwrite file rename; requires allow-uploads and isolated OS identity")
  maxUpload:=flag.Int64("max-upload-bytes",64<<20,"Per-transfer upload limit when uploads are explicitly enabled")
+ showVersion:=flag.Bool("version",false,"Print the compiled Ghost FTP Server version and exit")
  flag.Parse()
+ if *showVersion { fmt.Println("Ghost FTP Server "+version+" Preview"); return }
  if *passfile==""{log.Fatal("password-file is required")}
  info,err:=os.Lstat(*passfile);if err!=nil{log.Fatal(err)}
  if !info.Mode().IsRegular()||info.Mode()&os.ModeSymlink!=0{log.Fatal("password file must be regular, never symlink")}

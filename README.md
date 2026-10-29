@@ -12,7 +12,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.21 (development Preview) · Previous source edition: v0.99.20. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.22 (development Preview) · Previous source edition: v0.99.21. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -50,6 +50,12 @@ Move files, manage connections and keep important server work organized with an 
 ## Install Ghost FTP on macOS without paid Apple signing
 
 Ghost FTP Desktop is available as a separate **Apple Silicon ARM64** or **Intel x86_64** installable DMG Preview, as well as ZIP. No Apple Developer account or Developer ID signing certificate is required. Download the matching package from [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases), open its DMG in Finder, drag **Ghost FTP Desktop.app** to **Applications**, then open the installed app. Because this development Preview is not notarized, you may need **System Settings → Privacy & Security → Open Anyway** after the first launch attempt. Do not disable Gatekeeper. The embedded code uses only free ad-hoc signing for Apple Silicon integrity. Full [Croatian/English installation instructions](docs/guides/MACOS_INSTALLATION.md).
+
+## Ghost FTP Server — separate Windows and Linux Preview packages
+
+Starting with **v0.99.22**, the release contract requires the standalone Ghost FTP Server in the **same public release** as the clients: a real Windows portable EXE, an unsigned Windows NSIS setup EXE, Linux x86_64 standalone executable, tarball, DEB and RPM. Every candidate is subject to exact-source server CI and package/SHA-256 verification. Missing server assets must block publication.
+
+The server is independent of the client, uses explicit FTPS and a local, read-only default, and is **not yet a production-ready SFTP/multi-user management server**. Linux installs a hardened, disabled-by-default systemd unit. No installer provisions a default password, cert, auto-start or public firewall access. See [Ghost FTP Server](ghost-server/README.md) and [Linux installation](ghost-server/install/linux/README.md). Windows setup is not Authenticode signed; the full distribution remains a Preview.
 
 ## Designed for your workflow
 

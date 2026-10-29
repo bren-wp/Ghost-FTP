@@ -119,6 +119,7 @@ jobs:
           wait_for_gate "validate-win-hardening.yml" "Windows hardening"
           wait_for_gate "ghostftp-macos.yml" "macOS SwiftUI preview"
           wait_for_gate "ghostftp-macos-shared-desktop.yml" "macOS shared desktop parity"
+          wait_for_gate "ghostftp-server.yml" "Standalone Ghost FTP Server (Windows + Linux)"
 
           # The known empty v0.95.51 public release must be repaired from
           # its exact-source CI artifacts before a successor can publish.
@@ -251,6 +252,34 @@ jobs:
           done
           echo "Verified both Apple Silicon and Intel native macOS shared desktop packages."
 
+      - name: Download and verify exact-SHA standalone Ghost FTP Server packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID="$(gh run list --workflow ghostftp-server.yml --commit "$SOURCE_SHA" --limit 10 --json databaseId,status,conclusion --jq 'map(select(.status == "completed" and .conclusion == "success")) | .[0].databaseId // ""')"
+          test -n "$RUN_ID"
+          mkdir -p dist/server-linux dist/server-windows
+          gh run download "$RUN_ID" --name GhostFTP-Server-Linux-Package-Preview -D dist/server-linux
+          gh run download "$RUN_ID" --name GhostFTP-Server-Windows-Package-Preview -D dist/server-windows
+          (cd dist/server-linux && sha256sum -c Linux-SHA256SUMS.txt)
+          (cd dist/server-windows && sha256sum -c Release-SHA256SUMS.txt)
+          test "$(dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION -version)" = "Ghost FTP Server $VERSION Preview"
+          tar -tzf "dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION.tar.gz" | grep -Fxq ghostftp-server.service
+          dpkg-deb --contents "dist/server-linux/GhostFTP-Server-Linux-amd64-v$VERSION.deb" | grep -q ghostftp-server.service
+          file "dist/server-windows/GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
+          file "dist/server-windows/GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
+          for name in "GhostFTP-Server-Linux-x86_64-v$VERSION" "GhostFTP-Server-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Server-Linux-amd64-v$VERSION.deb" "GhostFTP-Server-Linux-x86_64-v$VERSION.rpm"; do
+            test -s "dist/server-linux/$name"
+            cp "dist/server-linux/$name" "dist/$name"
+          done
+          for name in "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"; do
+            test -s "dist/server-windows/$name"
+            cp "dist/server-windows/$name" "dist/$name"
+          done
+          echo "::notice::Verified six real Ghost FTP Server release payloads from server run $RUN_ID at source $SOURCE_SHA."
+
       - name: Normalize release artifacts
         shell: bash
         run: |
@@ -325,7 +354,7 @@ jobs:
 
           (cd dist && zip -q "GhostFTP-Windows-x64-v$VERSION.zip" "GhostFTP-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.msi")
           (cd dist && tar -czf "GhostFTP-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Linux-x86_64-v$VERSION" "GhostFTP-Linux-x86_64-v$VERSION.AppImage" "GhostFTP-Linux-amd64-v$VERSION.deb" "GhostFTP-Linux-x86_64-v$VERSION.rpm")
-          rm -rf dist/native dist/android dist/macos dist/macos-shared
+          rm -rf dist/native dist/android dist/macos dist/macos-shared dist/server-linux dist/server-windows
 
       - name: Build update-service deployment package
         if: ${{ hashFiles('dist/GhostFTP-Windows-x64-Setup-v*.exe.sig') != '' && hashFiles('dist/GhostFTP-Linux-x86_64-v*.AppImage.sig') != '' }}

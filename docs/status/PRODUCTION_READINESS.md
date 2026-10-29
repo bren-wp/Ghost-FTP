@@ -1,3 +1,5 @@
+> **29 October 2026 — current source v0.99.22 Preview; public predecessor v0.99.21.** Historical 0.95.51 observations below are preserved as an archive, not current certification. The new standalone Ghost Server release package inventory and exact-source CI remain pending on the current PR. Existing server lacks production multi-user RBAC/quotas and SFTP module; no production certification or physical-device acceptance is claimed. See [v0.99.22 release notes](../releases/0.99.22.md) and [Linux server packages](../../ghost-server/install/linux/README.md).
+
 # Ghost FTP 0.95.51 — production readiness and explicit blockers
 
 **Decision:** **NOT READY FOR PRODUCTION PROMOTION** on source inspection alone. GitHub CI, device validation and cloud provider acceptance decide readiness; this document is not a substitute for those checks. v0.95.50 was public on 20 October 2026, but its Android and macOS Preview/unsigned assets do not demonstrate stable release acceptance; 0.95.51 remains unpublished.

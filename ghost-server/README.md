@@ -1,5 +1,8 @@
 # Ghost FTP Server — Phase 4 security-first preview
 
+**Distribution plan for v0.99.22+:** Each combined Client + Server release requires the real Windows x64 portable EXE, unsigned NSIS installer, and Linux x86_64 standalone executable, tarball, DEB and RPM. Linux systemd unit is disabled-by-default and uses a restricted service account; see [Linux installation](install/linux/README.md). Packaging does not imply production certification or SFTP server support.
+
+
 This is a **new, standalone, real TCP server**, not a screenshot, mock admin
 panel, or repackaged desktop client. The initial vertical slice implements
 **read-only, authenticated explicit FTPS** with Go 1.25 (with pinned x/sys only for Windows SCM) and no
