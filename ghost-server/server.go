@@ -87,8 +87,10 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
  if c.reply(220,"Ghost FTP Server - explicit TLS required")!=nil{return}
  for {
   _ = c.conn.SetDeadline(time.Now().Add(90*time.Second))
-  line,err:=c.r.ReadString('\n');if err!=nil{return}
-  if len(line)>4096{return}
+  // ReadSlice has a fixed-size buffer. ReadString can allocate without
+  // bound when an unauthenticated peer never sends CRLF.
+  chunk,err:=c.r.ReadSlice('\n');if err!=nil||len(chunk)>4096{return}
+  line:=string(chunk)
   line=strings.TrimSuffix(strings.TrimSuffix(line,"\n"),"\r")
   verb,arg,_:=strings.Cut(line," ")
   verb=strings.ToUpper(verb)
@@ -159,13 +161,15 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
    if e!=nil{_ = c.reply(550,"Directory unavailable");continue}
    ents,e:=os.ReadDir(directory)
    if e!=nil{_ = c.reply(550,"Directory unavailable");continue}
+   if len(ents)>10000{_ = c.reply(552,"Directory exceeds Preview entry limit");continue}
    var out strings.Builder
    for _,ent:=range ents {
+    if len(ent.Name())>255||strings.ContainsAny(ent.Name(),"\\\r\n\x00\x1b\x7f\t") {e=errors.New("unsafe listing entry");break}
     if ent.Type()&os.ModeSymlink!=0 {e=errors.New("symlink in directory");break}
     info,er:=ent.Info();if er!=nil{e=er;break}
-    if verb=="NLST"{out.WriteString(ent.Name()+"\r\n");continue}
-    if verb=="MLSD"{kind:="file";if info.IsDir(){kind="dir"};fmt.Fprintf(&out,"type=%s;size=%d; %s\r\n",kind,info.Size(),ent.Name());continue}
-    kind:="-";if info.IsDir(){kind="d"};fmt.Fprintf(&out,"%sr--r--r-- 1 ftp ftp %d Jan 01 00:00 %s\r\n",kind,info.Size(),ent.Name())
+    if verb=="NLST"{out.WriteString(ent.Name()+"\r\n");if out.Len()>8<<20{e=errors.New("listing too large");break};continue}
+    if verb=="MLSD"{kind:="file";if info.IsDir(){kind="dir"};fmt.Fprintf(&out,"type=%s;size=%d; %s\r\n",kind,info.Size(),ent.Name());if out.Len()>8<<20{e=errors.New("listing too large");break};continue}
+    kind:="-";if info.IsDir(){kind="d"};fmt.Fprintf(&out,"%sr--r--r-- 1 ftp ftp %d Jan 01 00:00 %s\r\n",kind,info.Size(),ent.Name());if out.Len()>8<<20{e=errors.New("listing too large");break}
    }
    if e!=nil{_ = c.reply(550,"Listing unavailable");continue}
    if out.Len()>8<<20{_ = c.reply(552,"Listing too large");continue}
