@@ -16,7 +16,6 @@ import (
  "os"
  "path"
  "path/filepath"
- "runtime"
  "strconv"
  "strings"
  "sync"
@@ -121,7 +120,7 @@ func (s *Server) session(conn net.Conn){
    if strings.EqualFold(strings.TrimSpace(arg),"I"){_ = c.reply(200,"Binary type")}else{_ = c.reply(504,"Binary transfers only")}
   case "PWD": _ = c.reply(257,fmt.Sprintf("%q is current directory",c.cwd))
   case "CWD","CDUP":
-   dest:=arg;if verb=="CDUP"{dest=".."}
+   dest:=arg;if verb=="CDUP"{dest=path.Dir(c.cwd)}
    resolved,virtual,e:=s.resolve(c.cwd,dest)
    if e==nil {var fi os.FileInfo;fi,e=os.Stat(resolved);if e==nil&&!fi.IsDir(){e=errors.New("not a directory")}}
    if e!=nil{_ = c.reply(550,"Directory unavailable")}else{c.cwd=virtual;_ = c.reply(250,"Directory changed")}
@@ -138,9 +137,13 @@ func (s *Server) session(conn net.Conn){
    if e!=nil{_ = c.reply(425,"Cannot create data listener");continue}
    c.passive=ln
    port:=ln.Addr().(*net.TCPAddr).Port
-   if verb=="EPSV"{_ = c.reply(229,fmt.Sprintf("Entering Extended Passive Mode (|||%d|)",port))}
-   else if ip:=host.To4();ip!=nil{_ = c.reply(227,fmt.Sprintf("Entering Passive Mode (%d,%d,%d,%d,%d,%d)",ip[0],ip[1],ip[2],ip[3],port/256,port%256))}
-   else{c.closePassive();_ = c.reply(522,"Use EPSV for IPv6")}
+   if verb=="EPSV" {
+    _ = c.reply(229,fmt.Sprintf("Entering Extended Passive Mode (|||%d|)",port))
+   } else if ip:=host.To4();ip!=nil {
+    _ = c.reply(227,fmt.Sprintf("Entering Passive Mode (%d,%d,%d,%d,%d,%d)",ip[0],ip[1],ip[2],ip[3],port/256,port%256))
+   } else {
+    c.closePassive();_ = c.reply(522,"Use EPSV for IPv6")
+   }
   case "LIST","MLSD","NLST":
    target:=strings.TrimSpace(arg);if target==""{target="."}
    directory,_,e:=s.resolve(c.cwd,target)
@@ -165,7 +168,8 @@ func (s *Server) session(conn net.Conn){
    if e!=nil{_ = c.reply(550,"File unavailable");continue}
    info,e:=f.Stat()
    if e!=nil||!info.Mode().IsRegular(){_ = f.Close();_ = c.reply(550,"File unavailable");continue}
-   s.sendData(c,io.LimitReader(f,1<<30));_ = f.Close()
+   if info.Size()>1<<30 { _ = f.Close();_ = c.reply(552,"File exceeds Preview 1 GiB download limit");continue }
+   s.sendData(c,io.LimitReader(f,info.Size()));_ = f.Close()
   case "STOR","APPE","DELE","RMD","MKD","RNFR","RNTO","SITE","PORT","EPRT","REST","ALLO":
    _ = c.reply(550,"Mutation or active data mode disabled during read-only server Preview")
   default:_ = c.reply(502,"Command not implemented")
@@ -205,4 +209,3 @@ func (s *Server) resolve(cwd,input string)(string,string,error){
  }
  return real,virtual,nil
 }
-var _ = runtime.GOOS
