@@ -47,8 +47,9 @@ func passivePort(t *testing.T,c *ftpc) int {
  return port
 }
 
-func protectedUpload(t *testing.T,c *ftpc,addr,name string,data []byte,expectedReply string) {
+func protectedUpload(t *testing.T,c *ftpc,addr,name string,data []byte,expectedReply string, declaredBytes int64) {
  t.Helper()
+ c.command(t,"200 ","ALLO "+strconv.FormatInt(declaredBytes,10))
  port:=passivePort(t,c)
  control,err:=net.ResolveTCPAddr("tcp",addr)
  if err!=nil{t.Fatal(err)}
@@ -76,7 +77,7 @@ func TestCreateOnlyUploadPreservesExistingFileBytes(t *testing.T) {
  c.command(t,"550 ","STOR existing.bin")
  after,err:=os.ReadFile(original)
  if err!=nil||string(after)!="original-do-not-touch"{t.Fatalf("existing file changed %q: %v",after,err)}
- protectedUpload(t,c,addr,"new.bin",[]byte("secure-created-file"),"226 ")
+ protectedUpload(t,c,addr,"new.bin",[]byte("secure-created-file"),"226 ",int64(len("secure-created-file")))
  data,err:=os.ReadFile(filepath.Join(srv.root,"new.bin"))
  if err!=nil||string(data)!="secure-created-file"{t.Fatalf("upload mismatch %q: %v",data,err)}
  if info,err:=os.Lstat(filepath.Join(srv.root,"new.bin"));err!=nil||!info.Mode().IsRegular(){t.Fatalf("invalid output mode: %v %v",info,err)}
@@ -94,7 +95,7 @@ func TestUploadQuotaRefusesOversizedPayloadAndCleansStaging(t *testing.T) {
  c:=connect(t,addr)
  defer c.conn.Close()
  login(t,c)
- protectedUpload(t,c,addr,"too-big.txt",[]byte("123456789"),"552 ")
+ protectedUpload(t,c,addr,"too-big.txt",[]byte("123456789"),"552 ",8)
  if _,err:=os.Lstat(filepath.Join(srv.root,"too-big.txt"));!os.IsNotExist(err){t.Fatalf("oversized file committed: %v",err)}
  leftovers,_:=filepath.Glob(filepath.Join(srv.root,".ghostftp-upload-*"))
  if len(leftovers)!=0{t.Fatalf("oversized stage leaked: %v",leftovers)}
@@ -178,8 +179,9 @@ func TestExplicitALLORejectsTLSDataTruncation(t *testing.T) {
  actual,err:=os.ReadFile(filepath.Join(srv.root,"complete.txt"))
  if err!=nil || !bytes.Equal(actual,contents){t.Fatalf("complete authenticated upload lost bytes: %v %q",err,actual)}
 
- // A missing declaration must not silently promote an incomplete stream.
- uncleanFTPSUpload(t,c,addr,"undeclared.txt",[]byte("no declaration"),"451 ")
+ // Reject the missing authenticated byte declaration BEFORE STOR or
+ // its passive data TLS socket can begin.
+ c.command(t,"550 ","STOR undeclared.txt")
  if _,err:=os.Stat(filepath.Join(srv.root,"undeclared.txt"));!os.IsNotExist(err){
   t.Fatalf("unexpected TLS EOF committed undeclared file: %v",err)
  }

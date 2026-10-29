@@ -43,11 +43,11 @@ func TestCurlIndependentFTPSClientDownloadAndCreateOnlyUpload(t *testing.T) {
  if err!=nil||data!="baseline-existing-file"{t.Fatalf("curl real FTPS download failed: %v, %q",err,data)}
  source:=filepath.Join(t.TempDir(),"source.txt")
  if err:=os.WriteFile(source,[]byte("verified-new-upload"),0600);err!=nil{t.Fatal(err)}
- out,err:=run("--upload-file",source,url+"uploaded.txt")
+ out,err:=run("--quote","ALLO 19","--upload-file",source,url+"uploaded.txt")
  if err!=nil{t.Fatalf("curl real protected FTPS STOR failed: %v, %q",err,out)}
  saved,err:=os.ReadFile(filepath.Join(srv.root,"uploaded.txt"))
  if err!=nil||string(saved)!="verified-new-upload"{t.Fatalf("curl upload did not preserve bytes: %v %q",err,saved)}
- out,err=run("--upload-file",source,url+"existing.txt")
+ out,err=run("--quote","ALLO 19","--upload-file",source,url+"existing.txt")
  if err==nil{t.Fatalf("curl unexpectedly overwrote existing destination: %q",out)}
  bytes,err:=os.ReadFile(filepath.Join(srv.root,"existing.txt"))
  if err!=nil||string(bytes)!="baseline-existing-file"{t.Fatalf("curl conflict changed original bytes: %v %q",err,bytes)}

@@ -145,10 +145,19 @@ unattended public file-sharing service.
 ### Native FTPS data termination compatibility
 
 Some native-TLS clients close the data TCP connection without a TLS
-`close_notify` alert. The server **never** accepts an unexpected TLS EOF as
-successful unless the authenticated FTPS control channel first supplied an
-exact, single-use `ALLO <bytes>` length and the received TLS-authenticated
-payload matches that value. A missing declaration or a truncated transfer
-still fails with `451` and removes the staged file; no incomplete upload is
-committed. This protects the actual desktop client's FTPS interoperability
-without making ordinary unexpected EOF a success.
+`close_notify` alert. Even a bare TCP EOF may be reported as a normal end
+of stream, so accepting it without the original file length would risk a
+truncated upload.
+
+Every create-only `STOR` now requires a single-use `ALLO <bytes>`
+declaration made over the authenticated FTPS control channel **before STOR**.
+The server compares the complete stream against that byte count, even when
+TLS read returns a clean EOF. Undeclared uploads are rejected with `550`
+before data transfer. Declared lengths that do not match actual bytes are
+rejected with `451`; quota violations return `552`. Partial files are
+never promoted and the staged files are removed before a terminal reply.
+
+This is a deliberate Preview interoperability constraint: third-party FTP
+clients must support sending an explicit `ALLO` command before each upload.
+The Ghost FTP desktop client integration test and the independent curl FTPS
+test both exercise this authenticated length announcement.

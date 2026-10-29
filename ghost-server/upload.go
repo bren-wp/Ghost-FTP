@@ -74,6 +74,11 @@ func (s *Server) receiveFile(c *client, operand string) {
  c.hasExpectedUpload=false
  c.expectedUploadBytes=0
  if !s.allowUploads { _=c.reply(550,"Uploads disabled by server policy");return }
+ // A Go TLS reader can report a bare TCP FIN as EOF even without
+ // close_notify. A clean read result therefore does NOT prove the source
+ // file was complete. Every STOR must carry a single-use authenticated
+ // ALLO byte count before any data channel is opened.
+ if !hasDeclaredSize { _=c.reply(550,"Exact upload length required via ALLO before STOR");return }
  if !c.private || c.passive==nil { _=c.reply(425,"Private passive data connection required");return }
  dest,err:=s.createDestination(c.cwd,operand)
  if err!=nil {_=c.reply(550,"Upload destination unavailable or already exists");return}
