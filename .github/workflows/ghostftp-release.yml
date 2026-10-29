@@ -181,7 +181,7 @@ jobs:
           zip -qr "dist/GhostFTP-v$VERSION-Android-Source.zip" android
           zip -qr "dist/GhostFTP-v$VERSION-macOS-Source.zip" macos
           zip -qr "dist/GhostFTP-v$VERSION-Updates.zip" updates
-          zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
+          zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt ghost-cli/README.md ghost-demo/README.md
 
       - name: Download native build artifacts
         env:
