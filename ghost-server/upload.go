@@ -69,6 +69,10 @@ func (s *Server) createDirectory(c *client, operand string) {
 // privileged local actor that can move the entire served root, and it cannot
 // substitute for a dedicated OS identity and filesystem ACLs.
 func (s *Server) receiveFile(c *client, operand string) {
+ declaredSize,hasDeclaredSize:=c.expectedUploadBytes,c.hasExpectedUpload
+ // Never allow a previous ALLO command to authorize a later STOR.
+ c.hasExpectedUpload=false
+ c.expectedUploadBytes=0
  if !s.allowUploads { _=c.reply(550,"Uploads disabled by server policy");return }
  if !c.private || c.passive==nil { _=c.reply(425,"Private passive data connection required");return }
  dest,err:=s.createDestination(c.cwd,operand)
@@ -116,8 +120,21 @@ func (s *Server) receiveFile(c *client, operand string) {
  if err=secure.Handshake();err!=nil{fail(425,"Data TLS handshake failed");return}
  defer secure.Close()
  n,err:=io.Copy(staged,io.LimitReader(secure,s.maxUploadBytes+1))
- if err!=nil{fail(451,"Protected upload interrupted");return}
  if n>s.maxUploadBytes{fail(552,"Upload exceeds configured size limit");return}
+ if hasDeclaredSize && n!=declaredSize {
+  fail(451,"Protected upload length differs from authenticated ALLO");return
+ }
+ if err!=nil {
+  // Some native-TLS FTP clients close the encrypted data TCP stream without
+  // sending TLS close_notify. That produces io.ErrUnexpectedEOF in Go.
+  // NEVER treat it as successful by itself: the authenticated control
+  // channel must have declared an exact byte count with ALLO, and every
+  // byte must have arrived in authenticated TLS records. A missing byte,
+  // other transport error, or missing ALLO is still a hard failure.
+  if !(errors.Is(err,io.ErrUnexpectedEOF) && hasDeclaredSize && n==declaredSize) {
+   fail(451,"Protected upload interrupted or TLS truncation detected");return
+  }
+ }
  if err=staged.Sync();err!=nil{fail(451,"Unable to sync staged upload");return}
  if err=staged.Close();err!=nil{fail(451,"Unable to close staged upload");return}
  // Hard links never replace an already-existing destination. This is the

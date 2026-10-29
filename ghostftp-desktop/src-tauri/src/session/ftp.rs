@@ -223,6 +223,25 @@ impl FtpStreamKind {
                 .map_err(into_anyhow),
         }
     }
+    /// Declare the exact number of bytes before a protected STOR when the
+    /// caller knows the size. The Ghost FTP Server uses ALLO as a single-use,
+    /// authenticated length assertion for native-TLS peers that do not emit
+    /// close_notify on their FTP data socket. Do not ignore an ALLO failure:
+    /// no protected upload has started and retry must remain explicit.
+    pub fn declare_upload_size(&mut self, bytes: u64) -> Result<()> {
+        let command = format!("ALLO {bytes}");
+        match self {
+            Self::Plain(s) => s
+                .custom_command(&command, &[Status::CommandOkay])
+                .map(|_| ())
+                .map_err(into_anyhow),
+            Self::Tls(s) => s
+                .custom_command(&command, &[Status::CommandOkay])
+                .map(|_| ())
+                .map_err(into_anyhow),
+        }
+    }
+
     pub fn put_from_reader<R: std::io::Read>(&mut self, path: &str, reader: &mut R) -> Result<u64> {
         validate_ftp_command_path(path)?;
         match self {

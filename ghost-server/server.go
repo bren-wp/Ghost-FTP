@@ -133,6 +133,10 @@ type client struct {
  failures int
  user, cwd string
  renameSource string
+ // ALLO is an authenticated, single-use expected STOR length for clients
+ // that terminate the TLS data socket without a close_notify alert.
+ expectedUploadBytes int64
+ hasExpectedUpload bool
  passive net.Listener
 }
 func (c *client) reply(code int, msg string) error {
@@ -182,7 +186,7 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
   }
   // USER starts a new authentication attempt but must not reset the TLS
   // data-protection level negotiated after AUTH TLS.
-  if verb=="USER"{c.logged=false;c.renameSource="";c.user=arg;_ = c.reply(331,"Password required");continue}
+  if verb=="USER"{c.logged=false;c.renameSource="";c.hasExpectedUpload=false;c.user=arg;_ = c.reply(331,"Password required");continue}
   if verb=="PASS" {
    digest:=sha256.Sum256([]byte(arg))
    validPassword:=subtle.ConstantTimeCompare(digest[:],s.password[:])==1
@@ -292,6 +296,19 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
    if e!=nil||!info.Mode().IsRegular(){_ = f.Close();_ = c.reply(550,"File unavailable");continue}
    if info.Size()>1<<30 { _ = f.Close();_ = c.reply(552,"File exceeds Preview 1 GiB download limit");continue }
    s.sendData(c,io.LimitReader(f,info.Size()),info.Size());_ = f.Close()
+  case "ALLO":
+   // A length assertion enables safe interop with FTPS peers that close
+   // without TLS close_notify. It is single-use and scoped to this
+   // authenticated, protected control session. Invalid values fail closed.
+   c.hasExpectedUpload=false
+   expected,e:=strconv.ParseInt(strings.TrimSpace(arg),10,64)
+   if !s.allowUploads || !c.private || e!=nil || expected<0 || expected>s.maxUploadBytes {
+    _ = c.reply(501,"Invalid protected upload allocation")
+   } else {
+    c.expectedUploadBytes=expected
+    c.hasExpectedUpload=true
+    _ = c.reply(200,"Next STOR expected byte count recorded")
+   }
   case "STOR":
    s.receiveFile(c,arg)
   case "MKD":
@@ -304,7 +321,7 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
    s.startRename(c,arg)
   case "RNTO":
    s.finishRename(c,arg)
-  case "APPE","SITE","PORT","EPRT","REST","ALLO":
+  case "APPE","SITE","PORT","EPRT","REST":
    _ = c.reply(550,"Mutation or active data mode disabled during read-only server Preview")
   default:_ = c.reply(502,"Command not implemented")
   }

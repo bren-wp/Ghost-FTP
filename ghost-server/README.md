@@ -141,3 +141,14 @@ names and overwrite attempts are rejected. Directory rename, overwrite,
 append and recursive deletion are not supported. Operators must use
 dedicated accounts and protected on-disk ACLs; this Preview is not an
 unattended public file-sharing service.
+
+### Native FTPS data termination compatibility
+
+Some native-TLS clients close the data TCP connection without a TLS
+`close_notify` alert. The server **never** accepts an unexpected TLS EOF as
+successful unless the authenticated FTPS control channel first supplied an
+exact, single-use `ALLO <bytes>` length and the received TLS-authenticated
+payload matches that value. A missing declaration or a truncated transfer
+still fails with `451` and removes the staged file; no incomplete upload is
+committed. This protects the actual desktop client's FTPS interoperability
+without making ordinary unexpected EOF a success.

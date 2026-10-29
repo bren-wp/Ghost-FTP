@@ -1398,6 +1398,10 @@ async fn ghost_server_ftps_client_server_interoperability() -> Result<()> {
     let upload_path = original.clone();
     let upload_bytes = bytes.clone();
     ftp.with_stream(move |stream| {
+        // The native-TLS transport can close the data socket without an
+        // explicit TLS close_notify. Declare the exact byte count over the
+        // authenticated FTPS control channel before initiating STOR.
+        stream.declare_upload_size(upload_bytes.len() as u64)?;
         let mut reader = Cursor::new(upload_bytes);
         stream.put_from_reader(&upload_path, &mut reader)?;
         Ok(())
