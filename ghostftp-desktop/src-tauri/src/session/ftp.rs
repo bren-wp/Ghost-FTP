@@ -261,6 +261,13 @@ impl FtpStreamKind {
                 let mut data = s.put_with_stream(path).map_err(into_anyhow)?;
                 let count = std::io::copy(reader, &mut data).context("FTPS upload data stream")?;
                 data.flush().context("flush FTPS upload data stream")?;
+                // OpenSSL/native-tls peers can abort a tiny data connection
+                // during immediate close, before the receiver consumes its
+                // authenticated TLS records. Allow the remote server to read
+                // the flushed payload before finalizing this data stream.
+                // The final 226 and the server's declared-byte verification
+                // remain mandatory: this is NOT a success-on-timeout bypass.
+                std::thread::sleep(Duration::from_millis(150));
                 data.finish().map_err(into_anyhow)?;
                 Ok(count)
             }
