@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test .github/scripts/check-release-channel.test.mjs .github/scripts/check-release-governance.test.mjs .github/scripts/check-release-index.test.mjs .github/scripts/check-server-release-contract.test.mjs .github/scripts/check-server-premium-parity.test.mjs
+          node --test .github/scripts/check-release-channel.test.mjs .github/scripts/check-release-governance.test.mjs .github/scripts/check-release-index.test.mjs .github/scripts/check-server-release-contract.test.mjs .github/scripts/check-server-premium-parity.test.mjs .github/scripts/check-cli-demo-release.test.mjs
           node .github/scripts/check-release-channel.mjs
 
       - name: Version consistency and progression
