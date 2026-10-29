@@ -1,6 +1,6 @@
 # Ghost FTP Demo — isolated portable product walkthrough
 
-The Windows `GhostFTP-Demo-Windows-x64-Portable-v<version>.exe` is a **real self-contained demo executable**. It serves a native branded interface from its embedded assets on an ephemeral **127.0.0.1-only port**. No installer, remote host, credential, external service, browser plugin or network dependency is required.
+Ghost FTP Demo is separately available for **Windows (portable EXE and unsigned Setup EXE)** and **Linux (standalone binary, tar.gz, DEB and RPM)**. Every package uses the same Go-embedded UI and fictional data; it is a **real self-contained executable**, not an FTP/SFTP network demo. It serves a native branded interface from its embedded assets on an ephemeral **127.0.0.1-only port**. No installer, remote host, credential, external service, browser plugin or network dependency is required.
 
 Launch the EXE and open its local browser window. On remote/headless runners, use `-self-test`; the executable validates its own HTTP routes, fixtures and simulated lifecycle. `-version` reports the canonical CI-embedded version.
 
