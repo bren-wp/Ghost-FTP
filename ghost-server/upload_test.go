@@ -104,7 +104,7 @@ func TestUploadRejectsUnsafeParentsAndDoesNotEnableDestructiveCommands(t *testin
  defer stop()
  outside:=t.TempDir()
  if err:=os.Symlink(outside,filepath.Join(srv.root,"outside"));err!=nil{t.Skipf("symlink unsupported: %v",err)}
- for _,name:=range []string{"../escape",".","child/../escape","outside/file","existing/../../x","/../x","name/"} {
+ for _,name:=range []string{"../escape",".","child/../escape","outside/file","existing/../../x","/../x","name/",".ghostftp-upload-other",".GHOSTFTP-UPLOAD-case-alias"} {
   if _,err:=srv.createDestination("/",name);err==nil{t.Errorf("accepted unsafe upload %q",name)}
  }
  c:=connect(t,addr);defer c.conn.Close()
@@ -118,6 +118,8 @@ func TestListDashAUsesRealInventoryWithoutLosingHiddenEntries(t *testing.T) {
  srv,addr,stop:=testServer(t)
  defer stop()
  if err:=os.WriteFile(filepath.Join(srv.root,".env"),[]byte("hidden"),0600);err!=nil{t.Fatal(err)}
+ if err:=os.WriteFile(filepath.Join(srv.root,".ghostftp-upload-private-stage"),[]byte("incomplete-secret-data"),0600);err!=nil{t.Fatal(err)}
+ if _,_,err:=srv.resolve("/",".ghostftp-upload-private-stage");err==nil{t.Fatal("private staging data exposed by FTP read path")}
  c:=connect(t,addr);defer c.conn.Close()
  login(t,c)
  port:=passivePort(t,c)
@@ -132,5 +134,8 @@ func TestListDashAUsesRealInventoryWithoutLosingHiddenEntries(t *testing.T) {
  if err!=nil{t.Fatal(err)}
  c.read(t,"226 ")
  if !strings.Contains(string(listing),".env")||!strings.Contains(string(listing),"test.txt"){t.Fatalf("LIST -a lost real entries: %s",listing)}
+ if strings.Contains(string(listing),".ghostftp-upload-") || strings.Contains(string(listing),"incomplete-secret-data"){
+  t.Fatalf("in-flight staged upload exposed in FTP directory listing: %s",listing)
+ }
 }
 
