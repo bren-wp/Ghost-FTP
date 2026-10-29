@@ -2,7 +2,7 @@
 
 This is a **new, standalone, real TCP server**, not a screenshot, mock admin
 panel, or repackaged desktop client. The initial vertical slice implements
-**read-only, authenticated explicit FTPS** with standard-library Go and no
+**read-only, authenticated explicit FTPS** with Go 1.25 (with pinned x/sys only for Windows SCM) and no
 external runtime dependencies. It intentionally is **not** the completed
 Windows FTP/FTPS Server application.
 
@@ -67,9 +67,12 @@ STOR prototype. Full writable FTP semantics, deletion/rename authorization, expl
 administrator controls/UI, account management, rate limiting and lockout,
 auditing, fully accepted Windows SCM service provisioning, signed installer/update/uninstall,
 real client↔server E2E including negative TLS tests, TLS cert hot-reload and
-signed binaries **do not yet exist**. Symlink/path checks are non-atomic
-against an untrusted concurrent local filesystem modifier; production needs
-OS-level handle-relative traversal, ACL isolation and adversarial testing.
+signed binaries **do not yet exist**. Opt-in STOR now uses Go 1.25 \`os.Root\` handles to confine directory
+traversal, random O_EXCL staged files and \`Root.Link\` for atomic
+create-if-absent. Read-only listing and download currently retain legacy
+path checks, which are not a complete TOCTOU defense. The service still
+requires ACL isolation, quota/account design and independent adversarial
+testing before public exposure.
 
 No production security certification is claimed. Do not merge or expose the
 service until integration, protocol fuzzing, Windows environment tests and

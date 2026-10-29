@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.23.x'
+          go-version: '1.25.x'
           cache: false
       - name: Source formatting
         run: gofmt -w ghost-server
@@ -57,7 +57,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.23.x'
+          go-version: '1.25.x'
           cache: false
       - name: Run Windows-native FTP/TLS regression tests
         working-directory: ghost-server

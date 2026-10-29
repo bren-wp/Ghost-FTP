@@ -35,6 +35,9 @@ type Server struct {
  limit chan struct{}
  allowUploads bool
  maxUploadBytes int64
+ // os.Root confines opt-in mutations within an open directory handle,
+ // including against symlink swaps on Linux and Windows.
+ uploadRoot *os.Root
 }
 func New(c Config) (*Server,error) {
  if c.Username=="" || len(c.Username)>128 || strings.ContainsAny(c.Username,"\r\n\x00") { return nil,errors.New("valid username required") }
@@ -50,7 +53,12 @@ func New(c Config) (*Server,error) {
  }
  if c.Certificate==""||c.PrivateKey=="" {return nil,errors.New("certificate and private key required; plaintext FTP disabled")}
  cert,err:=tls.LoadX509KeyPair(c.Certificate,c.PrivateKey);if err!=nil{return nil,fmt.Errorf("invalid TLS identity: %w",err)}
- return &Server{root:root,user:c.Username,password:sha256.Sum256([]byte(c.Password)),tls:&tls.Config{Certificates:[]tls.Certificate{cert},MinVersion:tls.VersionTLS12},limit:make(chan struct{},32),allowUploads:c.AllowUploads,maxUploadBytes:c.MaxUploadBytes},nil
+ var uploadRoot *os.Root
+ if c.AllowUploads {
+  uploadRoot,err=os.OpenRoot(root)
+  if err!=nil{return nil,fmt.Errorf("cannot open traversal-resistant upload root: %w",err)}
+ }
+ return &Server{root:root,user:c.Username,password:sha256.Sum256([]byte(c.Password)),tls:&tls.Config{Certificates:[]tls.Certificate{cert},MinVersion:tls.VersionTLS12},limit:make(chan struct{},32),allowUploads:c.AllowUploads,maxUploadBytes:c.MaxUploadBytes,uploadRoot:uploadRoot},nil
 }
 func (s *Server) ListenAndServe(ctx context.Context, address string) error {
  if address=="" {address="127.0.0.1:2121"}
@@ -59,6 +67,7 @@ func (s *Server) ListenAndServe(ctx context.Context, address string) error {
 }
 func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
  defer ln.Close()
+ defer func(){if s.uploadRoot!=nil{_ = s.uploadRoot.Close()}}()
  go func(){<-ctx.Done();_ = ln.Close()}()
  var wg sync.WaitGroup
  defer wg.Wait()

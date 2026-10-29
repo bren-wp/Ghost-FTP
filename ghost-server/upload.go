@@ -1,7 +1,9 @@
 package ghostserver
 
 import (
+ "crypto/rand"
  "crypto/tls"
+ "encoding/hex"
  "errors"
  "io"
  "net"
@@ -45,18 +47,36 @@ func (s *Server) createDestination(cwd, operand string) (string, error) {
 // It stages to a random name in the destination directory and uses a hardlink
 // as the atomic create-if-absent commit. On filesystems without same-dir
 // hardlinks (or when the destination already exists), it fails closed.
-// This does NOT eliminate parent-directory replacement races by privileged
-// local processes. Deploy with a dedicated OS identity and a private root.
+// An os.Root directory handle prevents writes escaping the configured root
+// through symlink swaps. It is not a full authorization boundary against a
+// privileged local actor that can move the entire served root, and it cannot
+// substitute for a dedicated OS identity and filesystem ACLs.
 func (s *Server) receiveFile(c *client, operand string) {
  if !s.allowUploads { _=c.reply(550,"Uploads disabled by server policy");return }
  if !c.private || c.passive==nil { _=c.reply(425,"Private passive data connection required");return }
  dest,err:=s.createDestination(c.cwd,operand)
  if err!=nil {_=c.reply(550,"Upload destination unavailable or already exists");return}
- staged,err:=os.CreateTemp(filepath.Dir(dest),".ghostftp-upload-*")
- if err!=nil{_=c.reply(451,"Unable to stage upload");return}
- defer os.Remove(staged.Name())
+ if s.uploadRoot==nil{_=c.reply(451,"Upload root is unavailable");return}
+ parentRel,err:=filepath.Rel(s.root,filepath.Dir(dest))
+ if err!=nil{_=c.reply(451,"Cannot resolve upload parent");return}
+ parent,err:=s.uploadRoot.OpenRoot(parentRel)
+ if err!=nil{_=c.reply(550,"Upload parent is unavailable");return}
+ defer parent.Close()
+ // Securely create a random staging name relative to an open directory
+ // handle, NOT a path that a local attacker can replace with a symlink.
+ var staged *os.File
+ var tmpName string
+ for i:=0;i<8;i++ {
+  var randomBytes [16]byte
+  if _,err=rand.Read(randomBytes[:]);err!=nil{_=c.reply(451,"Unable to protect upload name");return}
+  tmpName=".ghostftp-upload-"+hex.EncodeToString(randomBytes[:])
+  staged,err=parent.OpenFile(tmpName,os.O_CREATE|os.O_EXCL|os.O_WRONLY,0600)
+  if err==nil{break}
+  if !os.IsExist(err){_=c.reply(451,"Unable to stage upload safely");return}
+ }
+ if staged==nil{_=c.reply(451,"Unable to reserve upload staging");return}
+ defer parent.Remove(tmpName)
  defer staged.Close()
- if err=staged.Chmod(0600);err!=nil {_=c.reply(451,"Cannot protect staged upload");return}
  ln:=c.passive;c.passive=nil
  defer ln.Close()
  if err=c.reply(150,"Opening protected upload connection");err!=nil{return}
@@ -78,7 +98,7 @@ func (s *Server) receiveFile(c *client, operand string) {
  if err=staged.Close();err!=nil{_=c.reply(451,"Unable to close staged upload");return}
  // Hard links never replace an already-existing destination. This is the
  // overwrite-prevention commit point even when another client wins the race.
- if err=os.Link(staged.Name(),dest);err!=nil{
+ if err=parent.Link(tmpName,filepath.Base(dest));err!=nil{
   _=c.reply(550,"Upload destination exists or filesystem cannot commit safely")
   return
  }
