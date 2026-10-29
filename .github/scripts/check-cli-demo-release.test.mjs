@@ -54,6 +54,17 @@ test("offline Windows demo is built, locally hosted, tested and clearly labeled"
   assert.ok(server.includes("packaging/linux/build-portable-packages.sh demo"));
   assert.ok(native.includes("packaging/linux/build-portable-packages.sh cli"));
 });
+test("client release selectors cannot accidentally promote CLI/Demo packages as Ghost FTP Client",()=>{
+  for(const literal of [
+    "GhostFTP-Windows-x64-Setup.exe",
+    "GhostFTP-Windows-x64-Setup.msi",
+    "GhostFTP-Linux-amd64.deb",
+    "GhostFTP-Linux-x86_64.rpm"
+  ]) assert.ok(release.includes(" -name '"+literal+"'"),"exact client package selector "+literal);
+  assert.ok(!release.includes("-iname '*setup*.exe' ! -iname '*.sig' | head -n1"),"generic Setup selector is unsafe");
+  assert.ok(!release.includes("-iname '*.deb' | head -n1"),"generic DEB selector is unsafe");
+  assert.ok(!release.includes("-iname '*.rpm' | head -n1"),"generic RPM selector is unsafe");
+});
 test("combined release is checksum-complete and still an unsigned Preview",()=>{
   assert.ok(post.includes("-ge 43"));
   assert.ok(quality.includes("check-cli-demo-release.test.mjs"));
