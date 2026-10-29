@@ -277,7 +277,9 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
    s.sendData(c,io.LimitReader(f,info.Size()),info.Size());_ = f.Close()
   case "STOR":
    s.receiveFile(c,arg)
-  case "APPE","DELE","RMD","MKD","RNFR","RNTO","SITE","PORT","EPRT","REST","ALLO":
+  case "MKD":
+   s.createDirectory(c,arg)
+  case "APPE","DELE","RMD","RNFR","RNTO","SITE","PORT","EPRT","REST","ALLO":
    _ = c.reply(550,"Mutation or active data mode disabled during read-only server Preview")
   default:_ = c.reply(502,"Command not implemented")
   }
