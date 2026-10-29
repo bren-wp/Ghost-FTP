@@ -45,16 +45,27 @@ Run in a dedicated OS account without write permission to the served root
 for the default read-only profile.
 Use a publicly trusted certificate with the hostname your client connects to.
 For Windows development, use `GOOS=windows GOARCH=amd64 go build
--o ghost-server.exe ./cmd/ghost-server`. This is a **portable executable
-prototype**, not a registered Windows service, production installer, or
-signed release. Do not expose this preview publicly.
+-o ghost-server.exe ./cmd/ghost-server`. The same executable now supports
+`-service` to register a **real Windows Service Control Manager lifecycle**:
+manual startup, running status, stop/shutdown and cancellation of the
+server context. PowerShell `ghost-server/install/Install-GhostFTPServer.ps1`
+and `Uninstall-GhostFTPServer.ps1` register/remove a **manual-start**
+`GhostFTPServer` service using the restricted `NT AUTHORITY\\LocalService`
+identity. Installation never starts a service with unconfigured credentials;
+the operator must set explicit ACLs for read access to TLS keys, password
+file and served root. No passwords are passed to the SCM command line.
+Uninstallation preserves data. These scripts are not a signed `setup.exe`.
+
+The Windows SCM integration is covered by native Windows compilation and
+PowerShell parsing in CI but still needs real service start/stop field testing
+with a correctly provisioned identity. Do not expose this Preview publicly.
 
 ## Honest blockers before Phase 4 acceptance
 
 The default increment is **read-only**, with an explicitly gated create-only
 STOR prototype. Full writable FTP semantics, deletion/rename authorization, explicit
 administrator controls/UI, account management, rate limiting and lockout,
-auditing, Windows Service Control Manager lifecycle, installer/update/uninstall,
+auditing, fully accepted Windows SCM service provisioning, signed installer/update/uninstall,
 real client↔server E2E including negative TLS tests, TLS cert hot-reload and
 signed binaries **do not yet exist**. Symlink/path checks are non-atomic
 against an untrusted concurrent local filesystem modifier; production needs

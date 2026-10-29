@@ -50,3 +50,28 @@ jobs:
           path: ghost-server/dist/*
           retention-days: 14
           if-no-files-found: error
+
+  windows-service-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.23.x'
+          cache: false
+      - name: Run Windows-native FTP/TLS regression tests
+        working-directory: ghost-server
+        run: go test -count=1 ./...
+      - name: Compile genuine Windows SCM service mode
+        working-directory: ghost-server
+        run: go build -trimpath -o "$env:RUNNER_TEMP\\ghost-server-scm.exe" ./cmd/ghost-server
+      - name: Validate service installation/uninstallation PowerShell syntax
+        shell: pwsh
+        run: |
+          $files = @('ghost-server/install/Install-GhostFTPServer.ps1','ghost-server/install/Uninstall-GhostFTPServer.ps1')
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file).Path,[ref]$tokens,[ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) { throw "$file has PowerShell syntax errors: $errors" }
+          }
