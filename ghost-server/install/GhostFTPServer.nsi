@@ -20,6 +20,13 @@ ShowUninstDetails show
 
 Section "Ghost FTP Server (read-only default)"
  SetShellVarContext all
+ ; Refuse to replace a binary while an SCM registration may still be using
+ ; it. Reinstallation is only allowed after an explicit service unregister.
+ nsExec::ExecToStack '"$SYSDIR\sc.exe" query GhostFTPServer'
+ Pop $0
+ StrCmp $0 0 0 +3
+ MessageBox MB_ICONSTOP "GhostFTPServer is registered. Stop and unregister the service before updating the Preview installer."
+ Abort
  SetOutPath "$INSTDIR"
  File "/oname=ghost-server.exe" "..\dist\ghost-server-windows-amd64.exe"
  File "Install-GhostFTPServer.ps1"
