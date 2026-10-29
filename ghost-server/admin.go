@@ -38,12 +38,13 @@ func (s *Server) adminHandler() http.Handler {
    Status string `json:"status"`
    ExplicitTLS bool `json:"explicit_tls_required"`
    WriteEnabled bool `json:"create_only_uploads_enabled"`
+   DestructiveEnabled bool `json:"destructive_mutations_enabled"`
    MaxUploadBytes int64 `json:"max_upload_bytes"`
    ActiveConnections int64 `json:"active_connections"`
    UptimeSeconds int64 `json:"uptime_seconds"`
   }{
    Status:"running",ExplicitTLS:true,WriteEnabled:s.allowUploads,
-   MaxUploadBytes:s.maxUploadBytes,ActiveConnections:s.activeSessions.Load(),
+   DestructiveEnabled:s.allowDestructive,MaxUploadBytes:s.maxUploadBytes,ActiveConnections:s.activeSessions.Load(),
    UptimeSeconds:int64(time.Since(s.startedAt).Seconds()),
   })
  })

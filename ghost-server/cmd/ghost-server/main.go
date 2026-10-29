@@ -23,6 +23,7 @@ func main(){
  adminTokenFile:=flag.String("admin-token-file","","Private file holding a separate random admin dashboard token; omitted disables admin HTTP")
  adminListen:=flag.String("admin-listen","127.0.0.1:2821","Local-only admin HTTP address when enabled")
  allowUploads:=flag.Bool("allow-uploads",false,"Opt-in creation of new remote files (never overwrite); requires a sandboxed service account")
+ allowDestructive:=flag.Bool("allow-destructive",false,"Additional opt-in to DELE, empty RMD and no-overwrite file rename; requires allow-uploads and isolated OS identity")
  maxUpload:=flag.Int64("max-upload-bytes",64<<20,"Per-transfer upload limit when uploads are explicitly enabled")
  flag.Parse()
  if *passfile==""{log.Fatal("password-file is required")}
@@ -42,7 +43,7 @@ func main(){
   adminToken=strings.TrimSuffix(strings.TrimSuffix(string(tokenBytes),"\n"),"\r")
   for i:=range tokenBytes{tokenBytes[i]=0}
  }
- cfg:=server.Config{Listen:*listen,Root:*root,Username:*username,Password:secret,Certificate:*cert,PrivateKey:*key,AllowUploads:*allowUploads,MaxUploadBytes:*maxUpload,AdminToken:adminToken,AdminListen:*adminListen}
+ cfg:=server.Config{Listen:*listen,Root:*root,Username:*username,Password:secret,Certificate:*cert,PrivateKey:*key,AllowUploads:*allowUploads,AllowDestructive:*allowDestructive,MaxUploadBytes:*maxUpload,AdminToken:adminToken,AdminListen:*adminListen}
  srv,err:=server.New(cfg);if err!=nil{log.Fatal(err)}
  for i:=range raw{raw[i]=0}
  if *serviceMode {

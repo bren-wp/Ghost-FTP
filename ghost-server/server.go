@@ -28,6 +28,9 @@ type Config struct {
  Listen, Root, Username, Password, Certificate, PrivateKey string
  // Writes are opt-in. The default server remains read-only.
  AllowUploads bool
+ // Destructive mutations require a separate explicit opt-in as well as
+ // create-only upload permission. The default remains deny-all writes.
+ AllowDestructive bool
  MaxUploadBytes int64
  // Admin is disabled unless a strong, separately provisioned token exists.
  AdminToken, AdminListen string
@@ -38,6 +41,7 @@ type Server struct {
  tls *tls.Config
  limit chan struct{}
  allowUploads bool
+ allowDestructive bool
  maxUploadBytes int64
  // os.Root confines opt-in mutations within an open directory handle,
  // including against symlink swaps on Linux and Windows.
@@ -60,6 +64,9 @@ func New(c Config) (*Server,error) {
  info,err:=os.Lstat(root);if err!=nil{return nil,err}
  if !info.IsDir() || info.Mode()&os.ModeSymlink!=0{return nil,errors.New("root must be a real directory")}
  root,err=filepath.EvalSymlinks(root);if err!=nil{return nil,err}
+ if c.AllowDestructive && !c.AllowUploads {
+  return nil,errors.New("destructive operations require explicitly enabled uploads")
+ }
  if c.AllowUploads {
   if c.MaxUploadBytes == 0 { c.MaxUploadBytes = 64 << 20 }
   if c.MaxUploadBytes < 1 || c.MaxUploadBytes > 1 << 30 { return nil,errors.New("max upload must be 1 to 1073741824 bytes") }
@@ -78,7 +85,7 @@ func New(c Config) (*Server,error) {
  // create-only writes, even when local directory entries are swapped.
  uploadRoot,err:=os.OpenRoot(root)
  if err!=nil{return nil,fmt.Errorf("cannot open traversal-resistant server root: %w",err)}
- return &Server{root:root,user:c.Username,password:sha256.Sum256([]byte(c.Password)),tls:&tls.Config{Certificates:[]tls.Certificate{cert},MinVersion:tls.VersionTLS12},limit:make(chan struct{},32),allowUploads:c.AllowUploads,maxUploadBytes:c.MaxUploadBytes,uploadRoot:uploadRoot,
+ return &Server{root:root,user:c.Username,password:sha256.Sum256([]byte(c.Password)),tls:&tls.Config{Certificates:[]tls.Certificate{cert},MinVersion:tls.VersionTLS12},limit:make(chan struct{},32),allowUploads:c.AllowUploads,allowDestructive:c.AllowDestructive,maxUploadBytes:c.MaxUploadBytes,uploadRoot:uploadRoot,
  adminEnabled:c.AdminToken!="",adminListen:c.AdminListen,adminTokenHash:sha256.Sum256([]byte(c.AdminToken)),startedAt:time.Now(),authFailures:make(map[string]authFailures)},nil
 }
 // Close releases filesystem handles when the server is configured but never
@@ -125,6 +132,7 @@ type client struct {
  secure, logged, pbsz, private bool
  failures int
  user, cwd string
+ renameSource string
  passive net.Listener
 }
 func (c *client) reply(code int, msg string) error {
@@ -161,7 +169,7 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
    continue
   }
   if !c.secure{_ = c.reply(534,"TLS required before authentication");continue}
-  if verb=="USER"{c.logged=false;c.pbsz=false;c.private=false;c.user=arg;_ = c.reply(331,"Password required");continue}
+  if verb=="USER"{c.logged=false;c.pbsz=false;c.private=false;c.renameSource="";c.user=arg;_ = c.reply(331,"Password required");continue}
   if verb=="PASS" {
    digest:=sha256.Sum256([]byte(arg))
    validPassword:=subtle.ConstantTimeCompare(digest[:],s.password[:])==1
@@ -279,7 +287,15 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
    s.receiveFile(c,arg)
   case "MKD":
    s.createDirectory(c,arg)
-  case "APPE","DELE","RMD","RNFR","RNTO","SITE","PORT","EPRT","REST","ALLO":
+  case "DELE":
+   s.deleteFile(c,arg)
+  case "RMD":
+   s.removeDirectory(c,arg)
+  case "RNFR":
+   s.startRename(c,arg)
+  case "RNTO":
+   s.finishRename(c,arg)
+  case "APPE","SITE","PORT","EPRT","REST","ALLO":
    _ = c.reply(550,"Mutation or active data mode disabled during read-only server Preview")
   default:_ = c.reply(502,"Command not implemented")
   }

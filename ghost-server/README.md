@@ -125,3 +125,19 @@ through the dashboard is **not implemented**.
 If `-admin-token-file` is omitted, **no HTTP admin listener is opened**.
 Windows deployments must explicitly restrict read access to the token
 file to their dedicated service identity; POSIX mode 0600 is mandatory.
+
+## Additional destructive FTP operations (explicit opt-in only)
+
+For a restricted local development account, both `-allow-uploads` and
+`-allow-destructive` must be present to allow **DELE of regular files**,
+**RMD of empty directories** and **RNFR/RNTO for regular files**. Renames
+are limited to same-filesystem hardlinks with a no-overwrite commit,
+followed by removal of the source. A failed source removal can leave both
+names intact and returns failure rather than risking data loss.
+
+Destructive operations are disabled unless **both** flags are set.
+`RNTO` without `RNFR`, root removal, symlink targets, internal staging
+names and overwrite attempts are rejected. Directory rename, overwrite,
+append and recursive deletion are not supported. Operators must use
+dedicated accounts and protected on-disk ACLs; this Preview is not an
+unattended public file-sharing service.
