@@ -16,6 +16,7 @@ test -s "dist/$CHECKSUM_FILE"
 
 REQUIRED_CORE_FILES=(
   # Both standalone Ghost Server platforms are mandatory, not optional Actions-only artifacts.
+  "GhostFTP-Demo-Windows-x64-Portable-v${VERSION}.exe"
   "GhostCLI-Windows-x64-v${VERSION}.exe"
   "GhostCLI-Linux-x86_64-v${VERSION}"
   "GhostFTP-Server-Windows-x64-Portable-v${VERSION}.exe"
