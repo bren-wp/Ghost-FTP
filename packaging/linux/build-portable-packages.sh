@@ -67,6 +67,8 @@ built="$(find "$rpmroot/RPMS" -type f -name '*.rpm' -print -quit)"
 test -n "$built" && test -s "$built"
 cp "$built" "$OUTPUT/$PREFIX-Linux-x86_64-v$VERSION.rpm"
 for item in "$OUTPUT/$BASE" "$OUTPUT/$BASE.tar.gz" "$OUTPUT/$PREFIX-Linux-amd64-v$VERSION.deb" "$OUTPUT/$PREFIX-Linux-x86_64-v$VERSION.rpm"; do test -s "$item"; done
-dpkg-deb -c "$OUTPUT/$PREFIX-Linux-amd64-v$VERSION.deb" | grep -Fq "./usr/bin/$PKG"
+# Never close dpkg-deb's large tar output early: grep -q in a pipe causes SIGPIPE.
+dpkg-deb --contents "$OUTPUT/$PREFIX-Linux-amd64-v$VERSION.deb" > "$work/deb-contents.txt"
+grep -Fq "./usr/bin/$PKG" "$work/deb-contents.txt"
 rpm -qpl "$OUTPUT/$PREFIX-Linux-x86_64-v$VERSION.rpm" | grep -Fxq "/usr/bin/$PKG"
 echo "Verified $COMPONENT Linux standalone, archive, DEB and RPM v$VERSION."
