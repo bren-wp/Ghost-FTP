@@ -1,8 +1,8 @@
-> Active source/release cycle: **0.99.21 Preview**. Previous canonical release: **0.99.20**.
+> Active source/release cycle: **0.99.22 Preview**. Previous canonical release: **0.99.21**. Server artifacts required.
 
 # Ghost FTP Versioning
 
-Current development edition: **0.99.20 Preview**. Previous published canonical release: **v0.99.19**.
+Current development edition: **0.99.22 Preview**. Previous published canonical release: **v0.99.21**.
 
 Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
@@ -22,15 +22,15 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
 - Latest verified public edition before development 0.99.4: **0.99.3** (Preview, 21 artifacts on GitHub Releases).
 - Authorized history: 0.95.53 → 0.99.0 → 0.99.1 → 0.99.2 → 0.99.3. **Next edition in this sequence: 0.99.9**.
-- Subsequent editions must advance consecutively: **0.99.4** through **0.99.20**. No skipped or repeated version number, no 0.99.21.
-- After **0.99.20**, the next allowed version is **1.0.0**. Production signing, notarization, device installation and security acceptance must pass independently before changing the channel from Preview to stable.
+- Subsequent editions must advance consecutively: **0.99.4** through **0.99.20**. No skipped or repeated versions; 0.99.21 is now public.
+- After **0.99.20**, subsequent sequential **0.99.x Preview** releases are authorized before production sign-off; only a separately accepted stable release may use **1.0.0**. Production signing, notarization, device installation and security acceptance must pass independently before changing the channel from Preview to stable.
 - Previously published editions and all existing Git tags are permanent. **Never delete a release or tag during normal builds and releases.**
 - Normal post-1.0 versioning uses sequential patches and minor feature releases; no immutable tag can be retargeted.
 
 ## Current cycle
 
-- Active source/release cycle: **0.99.14**
-- Previous canonical release: **0.99.13**
+- Active source/release cycle: **0.99.22**
+- Previous canonical release: **0.99.21**
 - Previous source version: **0.99.8** (verified prior published release).
 - Historical versions **0.30.11** and **0.30.12** had merged-but-unpublished source transitions; their provenance remains in the release history.
 - Live publication state: GitHub Releases is authoritative.
