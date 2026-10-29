@@ -277,7 +277,9 @@ async fn ftp_roundtrip(
             .await
             .context("FTP verify no-overwrite contents")?;
         if bytes.as_slice() != expected.as_slice() {
-            return Err(anyhow!("{protocol} failed rename changed existing contents"));
+            return Err(anyhow!(
+                "{protocol} failed rename changed existing contents"
+            ));
         }
     }
     fs.delete(&renamed, false)
@@ -825,7 +827,9 @@ async fn sftp_password_roundtrip(
         let cell = ssh.ensure_sftp().await?;
         let mut handle = {
             let sftp = cell.lock().await;
-            sftp.open(target).await.context("SFTP open protected rename file")?
+            sftp.open(target)
+                .await
+                .context("SFTP open protected rename file")?
         };
         let mut bytes = Vec::new();
         handle.read_to_end(&mut bytes).await?;
