@@ -1,14 +1,14 @@
 Unicode True
 !include "MUI2.nsh"
 ; Shared Ghost FTP Client installer vector-derived artwork.
-!define MUI_ICON "ghostftp-desktop\src-tauri\icons\icon.ico"
-!define MUI_UNICON "ghostftp-desktop\src-tauri\icons\icon.ico"
+!define MUI_ICON "..\..\ghostftp-desktop\src-tauri\icons\icon.ico"
+!define MUI_UNICON "..\..\ghostftp-desktop\src-tauri\icons\icon.ico"
 !define MUI_HEADERIMAGE
-!define MUI_HEADERIMAGE_BITMAP "ghostftp-desktop\src-tauri\nsis\ghostftp-header.bmp"
-!define MUI_UNHEADERIMAGE_BITMAP "ghostftp-desktop\src-tauri\nsis\ghostftp-header.bmp"
-!define MUI_WELCOMEFINISHPAGE_BITMAP "ghostftp-desktop\src-tauri\nsis\ghostftp-sidebar.bmp"
+!define MUI_HEADERIMAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-header.bmp"
+!define MUI_UNHEADERIMAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-header.bmp"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-sidebar.bmp"
 Name "Ghost CLI (Preview)"
-OutFile "dist-tools\GhostCLI-Setup-Unsigned-Preview.exe"
+OutFile "..\..\dist-tools\GhostCLI-Setup-Unsigned-Preview.exe"
 InstallDir "$LOCALAPPDATA\Programs\Ghost CLI"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
@@ -19,7 +19,7 @@ ShowUninstDetails show
 !define MUI_WELCOMEPAGE_TEXT "The genuine command-line FTP, FTPS and SFTP client. Uses the same transfer engine as Ghost FTP.$\\r$\\n$\\r$\\nGhost FTP by Brendigo. Separate unsigned Preview component."
 !define MUI_FINISHPAGE_TITLE "Ghost CLI files installed"
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "EULA.txt"
+!insertmacro MUI_PAGE_LICENSE "..\..\EULA.txt"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -28,9 +28,9 @@ ShowUninstDetails show
 !insertmacro MUI_LANGUAGE "English"
 Section "Install Ghost CLI"
  SetOutPath "$INSTDIR"
- File "/oname=ghostftp-cli.exe" "ghostftp-desktop\src-tauri\target\release\ghostftp-cli.exe"
- File "/oname=README.md" "ghost-cli\README.md"
- File "EULA.txt"
+ File "/oname=ghostftp-cli.exe" "..\..\ghostftp-desktop\src-tauri\target\release\ghostftp-cli.exe"
+ File "/oname=README.md" "..\..\ghost-cli\README.md"
+ File "..\..\EULA.txt"
  WriteUninstaller "$INSTDIR\Uninstall.exe"
  SetRegView 64
  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostCLIPreview" "DisplayName" "Ghost CLI (Preview)"
