@@ -33,7 +33,20 @@ jobs:
         run: go vet ./...
       - name: Cross compile the standalone Windows portable executable
         working-directory: ghost-server
-        run: GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o /tmp/ghost-server-windows-amd64.exe ./cmd/ghost-server
+        run: |
+          mkdir -p dist
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/ghost-server-windows-amd64.exe ./cmd/ghost-server
       - name: Build standalone Linux binary
         working-directory: ghost-server
-        run: CGO_ENABLED=0 go build -trimpath -o /tmp/ghost-server-linux-amd64 ./cmd/ghost-server
+        run: |
+          CGO_ENABLED=0 go build -trimpath -o dist/ghost-server-linux-amd64 ./cmd/ghost-server
+          cd dist
+          sha256sum ghost-server-windows-amd64.exe ghost-server-linux-amd64 > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+      - name: Upload unsigned Phase 4 developer artifacts (not a release)
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-Server-ReadOnly-FTPS-Dev
+          path: ghost-server/dist/*
+          retention-days: 14
+          if-no-files-found: error
