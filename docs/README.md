@@ -2,6 +2,8 @@
 
 # Ghost FTP Documentation
 
+**[Windows/Linux four-product package matrix](distribution/PLATFORM_PACKAGES.md)** — precise standalone portable, Setup, tar.gz, DEB and RPM names for Ghost FTP, Ghost Server, Ghost CLI and Ghost FTP Demo.
+
 The current operational entry points are [Ghost FTP Client](../README.md), [Ghost FTP Server](../ghost-server/README.md), [Ghost CLI](../ghost-cli/README.md), [Ghost FTP Demo](../ghost-demo/README.md), [Client/Server compatibility](architecture/CLIENT_SERVER_PARITY.md), [Installation](guides/INSTALLATION.md), [security](../SECURITY.md), [privacy](legal/PRIVACY.md), [EULA](../EULA.txt), [license](../LICENSE.txt), and [v0.99.22 release acceptance](releases/0.99.22.md).
 
 **Publication distinction:** `docs/releases/` and `docs/audits/` contain historical release evidence. These records are retained for traceability even where they describe an older, incomplete development stage; use the current linked overview for feature/support claims. The demo simulates transfers; the Server Preview does not yet implement full multi-user RBAC or SFTP Server.
