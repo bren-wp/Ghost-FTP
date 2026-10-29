@@ -249,6 +249,40 @@ async fn ftp_roundtrip(
         return Err(anyhow!("{protocol} LIST did not return upload.txt"));
     }
 
+    // On real FTP/FTPS servers, RNTO can silently overwrite an existing
+    // destination. Prove the production RemoteFs rejects that command, and
+    // that both original byte streams survive unchanged.
+    let sentinel = b"existing remote rename destination".to_vec();
+    let occupied = renamed.clone();
+    let sentinel_to_write = sentinel.clone();
+    ftp.with_stream(move |stream| {
+        let mut reader = Cursor::new(sentinel_to_write);
+        stream.put_from_reader(&occupied, &mut reader)?;
+        Ok(())
+    })
+    .await
+    .context("FTP seed existing rename destination")?;
+
+    if fs.rename(&upload, &renamed).await.is_ok() {
+        return Err(anyhow!("{protocol} rename overwrote existing destination"));
+    }
+    for (target, expected) in [(&upload, &payload), (&renamed, &sentinel)] {
+        let target = target.to_string();
+        let bytes = ftp
+            .with_stream(move |stream| {
+                let mut data = Vec::new();
+                stream.retr_to_writer(&target, &mut data)?;
+                Ok(data)
+            })
+            .await
+            .context("FTP verify no-overwrite contents")?;
+        if bytes != *expected {
+            return Err(anyhow!("{protocol} failed rename changed existing contents"));
+        }
+    }
+    fs.delete(&renamed, false)
+        .await
+        .context("FTP remove collision fixture")?;
     fs.rename(&upload, &renamed).await.context("FTP rename")?;
 
     let download_path = renamed.clone();
