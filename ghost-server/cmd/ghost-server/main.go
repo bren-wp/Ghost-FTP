@@ -19,6 +19,8 @@ func main(){
  key:=flag.String("key","","TLS private key PEM")
  username:=flag.String("user","","FTP username")
  passfile:=flag.String("password-file","","Private file holding FTP password, never a CLI argument")
+ allowUploads:=flag.Bool("allow-uploads",false,"Opt-in creation of new remote files (never overwrite); requires a sandboxed service account")
+ maxUpload:=flag.Int64("max-upload-bytes",64<<20,"Per-transfer upload limit when uploads are explicitly enabled")
  flag.Parse()
  if *passfile==""{log.Fatal("password-file is required")}
  info,err:=os.Lstat(*passfile);if err!=nil{log.Fatal(err)}
@@ -27,10 +29,10 @@ func main(){
  raw,err:=os.ReadFile(*passfile);if err!=nil{log.Fatal(err)}
  if len(raw)>257{log.Fatal("password file too large")}
  secret:=strings.TrimSuffix(string(raw),"\n");secret=strings.TrimSuffix(secret,"\r")
- cfg:=server.Config{Listen:*listen,Root:*root,Username:*username,Password:secret,Certificate:*cert,PrivateKey:*key}
+ cfg:=server.Config{Listen:*listen,Root:*root,Username:*username,Password:secret,Certificate:*cert,PrivateKey:*key,AllowUploads:*allowUploads,MaxUploadBytes:*maxUpload}
  srv,err:=server.New(cfg);if err!=nil{log.Fatal(err)}
  for i:=range raw{raw[i]=0}
  ctx,stop:=signal.NotifyContext(context.Background(),os.Interrupt,syscall.SIGTERM);defer stop()
- fmt.Printf("Ghost FTP Server Preview: explicit FTPS, read-only at %s\n",*listen)
+ if *allowUploads {fmt.Printf("Ghost FTP Server Preview: explicit FTPS, restricted create-only uploads at %s\n",*listen)} else {fmt.Printf("Ghost FTP Server Preview: explicit FTPS, read-only at %s\n",*listen)}
  if err:=srv.ListenAndServe(ctx,*listen);err!=nil{log.Fatal(err)}
 }

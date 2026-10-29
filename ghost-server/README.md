@@ -13,8 +13,12 @@ PBSZ 0, PROT P, PASV/EPSV, PWD/CWD/CDUP, TYPE I, SIZE, MLSD/LIST/NLST and
 RETR through separately authenticated TLS data sockets. The served filesystem
 root is bounded; symbolic links and parent-traversal operands fail closed.
 
-The preview rejects STOR, APPE, RNFR/RNTO, DELE, MKD, RMD, PORT/EPRT and
-other mutations. Passive TCP data connections require the same source IP as
+The default preview rejects STOR, APPE, RNFR/RNTO, DELE, MKD, RMD, PORT/EPRT and
+other mutations. An explicit \`-allow-uploads\` switch enables **new-file-only
+STOR** with private TLS, a bounded per-file limit, a random staged file
+(mode 0600), fsync and hardlink-based atomic create-if-absent commit.
+Uploads never replace an existing name; unsupported filesystems fail closed.
+Deletes, rename and directory creation remain unavailable. Passive TCP data connections require the same source IP as
 the authenticated control connection. Passive ports are ephemeral; configure
 local firewall rules accordingly. The default listener is **127.0.0.1:2121**
 and never silently enables plaintext login. TLS 1.2+ is mandatory.
@@ -32,7 +36,13 @@ go build -o ghost-server ./cmd/ghost-server
   -user operator -password-file /secure/ghost-server-password
 ```
 
-Run in a dedicated OS account without write permission to the served root.
+For an isolated local write-path test only, add \`-allow-uploads -max-upload-bytes 67108864\`
+and grant write permission **only to the intended subdirectory**. Never enable
+writes on shared or adversarially mutable directory trees: traversal checks
+are not yet race-free against privileged local filesystem modifications.
+
+Run in a dedicated OS account without write permission to the served root
+for the default read-only profile.
 Use a publicly trusted certificate with the hostname your client connects to.
 For Windows development, use `GOOS=windows GOARCH=amd64 go build
 -o ghost-server.exe ./cmd/ghost-server`. This is a **portable executable
@@ -41,8 +51,8 @@ signed release. Do not expose this preview publicly.
 
 ## Honest blockers before Phase 4 acceptance
 
-The first increment is **read-only**. FTP writes, secure uploads with
-temporary-file atomic promotion, deletion/rename authorization, explicit
+The default increment is **read-only**, with an explicitly gated create-only
+STOR prototype. Full writable FTP semantics, deletion/rename authorization, explicit
 administrator controls/UI, account management, rate limiting and lockout,
 auditing, Windows Service Control Manager lifecycle, installer/update/uninstall,
 real client↔server E2E including negative TLS tests, TLS cert hot-reload and

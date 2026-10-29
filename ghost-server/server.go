@@ -24,12 +24,17 @@ import (
 
 type Config struct {
  Listen, Root, Username, Password, Certificate, PrivateKey string
+ // Writes are opt-in. The default server remains read-only.
+ AllowUploads bool
+ MaxUploadBytes int64
 }
 type Server struct {
  root, user string
  password [32]byte
  tls *tls.Config
  limit chan struct{}
+ allowUploads bool
+ maxUploadBytes int64
 }
 func New(c Config) (*Server,error) {
  if c.Username=="" || len(c.Username)>128 || strings.ContainsAny(c.Username,"\r\n\x00") { return nil,errors.New("valid username required") }
@@ -39,9 +44,13 @@ func New(c Config) (*Server,error) {
  info,err:=os.Lstat(root);if err!=nil{return nil,err}
  if !info.IsDir() || info.Mode()&os.ModeSymlink!=0{return nil,errors.New("root must be a real directory")}
  root,err=filepath.EvalSymlinks(root);if err!=nil{return nil,err}
+ if c.AllowUploads {
+  if c.MaxUploadBytes == 0 { c.MaxUploadBytes = 64 << 20 }
+  if c.MaxUploadBytes < 1 || c.MaxUploadBytes > 1 << 30 { return nil,errors.New("max upload must be 1 to 1073741824 bytes") }
+ }
  if c.Certificate==""||c.PrivateKey=="" {return nil,errors.New("certificate and private key required; plaintext FTP disabled")}
  cert,err:=tls.LoadX509KeyPair(c.Certificate,c.PrivateKey);if err!=nil{return nil,fmt.Errorf("invalid TLS identity: %w",err)}
- return &Server{root:root,user:c.Username,password:sha256.Sum256([]byte(c.Password)),tls:&tls.Config{Certificates:[]tls.Certificate{cert},MinVersion:tls.VersionTLS12},limit:make(chan struct{},32)},nil
+ return &Server{root:root,user:c.Username,password:sha256.Sum256([]byte(c.Password)),tls:&tls.Config{Certificates:[]tls.Certificate{cert},MinVersion:tls.VersionTLS12},limit:make(chan struct{},32),allowUploads:c.AllowUploads,maxUploadBytes:c.MaxUploadBytes},nil
 }
 func (s *Server) ListenAndServe(ctx context.Context, address string) error {
  if address=="" {address="127.0.0.1:2121"}
@@ -156,7 +165,21 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
     c.closePassive();_ = c.reply(522,"Use EPSV for IPv6")
    }
   case "LIST","MLSD","NLST":
-   target:=strings.TrimSpace(arg);if target==""{target="."}
+   target:=strings.TrimSpace(arg)
+   if verb=="LIST" {
+    // Older FTP clients use LIST -a when MLSD is unavailable. Treat -a
+    // as a listing option, NOT a filesystem path (hidden entries included).
+    switch {
+    case target=="-a" || target=="-al" || target=="-la" || target=="-l":
+     target="."
+    case strings.HasPrefix(target,"-a ") || strings.HasPrefix(target,"-al ") || strings.HasPrefix(target,"-la ") || strings.HasPrefix(target,"-l "):
+     _,target,_=strings.Cut(target," ")
+     target=strings.TrimSpace(target)
+    case strings.HasPrefix(target,"-"):
+     _ = c.reply(501,"Unsupported LIST option");continue
+    }
+   }
+   if target==""{target="."}
    directory,_,e:=s.resolve(c.cwd,target)
    if e!=nil{_ = c.reply(550,"Directory unavailable");continue}
    ents,e:=os.ReadDir(directory)
@@ -183,7 +206,9 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
    if e!=nil||!info.Mode().IsRegular(){_ = f.Close();_ = c.reply(550,"File unavailable");continue}
    if info.Size()>1<<30 { _ = f.Close();_ = c.reply(552,"File exceeds Preview 1 GiB download limit");continue }
    s.sendData(c,io.LimitReader(f,info.Size()),info.Size());_ = f.Close()
-  case "STOR","APPE","DELE","RMD","MKD","RNFR","RNTO","SITE","PORT","EPRT","REST","ALLO":
+  case "STOR":
+   s.receiveFile(c,arg)
+  case "APPE","DELE","RMD","MKD","RNFR","RNTO","SITE","PORT","EPRT","REST","ALLO":
    _ = c.reply(550,"Mutation or active data mode disabled during read-only server Preview")
   default:_ = c.reply(502,"Command not implemented")
   }
