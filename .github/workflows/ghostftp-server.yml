@@ -1,0 +1,39 @@
+name: Ghost FTP Server Phase 4
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ghost-server/**'
+      - '.github/workflows/ghostftp-server.yml'
+  pull_request:
+    paths:
+      - 'ghost-server/**'
+      - '.github/workflows/ghostftp-server.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  standalone-ftps-server:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.23.x'
+          cache: false
+      - name: Source formatting
+        run: test -z "$(gofmt -l ghost-server)"
+      - name: Run real localhost TLS and filesystem tests with race detector
+        working-directory: ghost-server
+        run: go test -race -count=1 ./...
+      - name: Run go vet
+        working-directory: ghost-server
+        run: go vet ./...
+      - name: Cross compile the standalone Windows portable executable
+        working-directory: ghost-server
+        run: GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o /tmp/ghost-server-windows-amd64.exe ./cmd/ghost-server
+      - name: Build standalone Linux binary
+        working-directory: ghost-server
+        run: CGO_ENABLED=0 go build -trimpath -o /tmp/ghost-server-linux-amd64 ./cmd/ghost-server
