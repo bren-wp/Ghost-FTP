@@ -4,9 +4,9 @@ import (
  "context"
  "embed"
  "encoding/json"
- "errors"
- "flag"
+  "flag"
  "fmt"
+ "io"
  "io/fs"
  "net"
  "net/http"
@@ -15,7 +15,6 @@ import (
  "os/exec"
  "os/signal"
  "runtime"
- "strconv"
  "strings"
  "sync"
  "syscall"
@@ -105,11 +104,12 @@ func (d *demo) handler(host string) (http.Handler,error) {
   d.mu.Lock()
   if len(d.transfers)>=100 {d.mu.Unlock();http.Error(w,"Demo queue full",429);return}
   d.seq++
-  d.transfers=append(d.transfers,transfer{ID:d.seq,File:found.Name,Direction:input.Direction,Bytes:found.Bytes,State:"simulating",Started:time.Now()})
+  id:=d.seq
+  d.transfers=append(d.transfers,transfer{ID:id,File:found.Name,Direction:input.Direction,Bytes:found.Bytes,State:"simulating",Started:time.Now()})
   d.mu.Unlock()
   w.Header().Set("Content-Type","application/json")
   w.WriteHeader(http.StatusAccepted)
-  _=json.NewEncoder(w).Encode(map[string]any{"simulated":true,"id":d.seq})
+  _=json.NewEncoder(w).Encode(map[string]any{"simulated":true,"id":id})
  })
  mux.HandleFunc("/api/v1/cancel",func(w http.ResponseWriter,r *http.Request) {
   if !allowedDemoAction(w,r,host){return}
@@ -142,7 +142,7 @@ func decodeAction(w http.ResponseWriter,r *http.Request,d any) bool {
  dec:=json.NewDecoder(http.MaxBytesReader(w,r.Body,2048));dec.DisallowUnknownFields()
  if err:=dec.Decode(d);err!=nil {http.Error(w,"Invalid demo action",400);return false}
  var extra any
- if err:=dec.Decode(&extra);!errors.Is(err,os.ErrClosed)&&err==nil {http.Error(w,"Extra JSON values rejected",400);return false}
+ if err:=dec.Decode(&extra);err!=io.EOF {http.Error(w,"Extra JSON values rejected",400);return false}
  return true
 }
 func selfTest() error {
@@ -180,4 +180,3 @@ func main(){
  go func(){<-ctx.Done();c,cancel:=context.WithTimeout(context.Background(),5*time.Second);defer cancel();_=srv.Shutdown(c)}()
  if err:=srv.Serve(ln);err!=nil&&err!=http.ErrServerClosed {fmt.Fprintln(os.Stderr,err);os.Exit(1)}
 }
-func _ensureNoTransportSecrets() { _=strconv.IntSize }
