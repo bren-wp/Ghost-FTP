@@ -47,6 +47,10 @@ type Server struct {
  adminTokenHash [32]byte
  startedAt time.Time
  activeSessions atomic.Int64
+ // Authentication throttling follows the peer IP across short-lived
+ // reconnects, rather than resetting after every three failed logins.
+ authMu sync.Mutex
+ authFailures map[string]authFailures
 }
 func New(c Config) (*Server,error) {
  if c.Username=="" || len(c.Username)>128 || strings.ContainsAny(c.Username,"\r\n\x00") { return nil,errors.New("valid username required") }
@@ -75,7 +79,7 @@ func New(c Config) (*Server,error) {
  uploadRoot,err:=os.OpenRoot(root)
  if err!=nil{return nil,fmt.Errorf("cannot open traversal-resistant server root: %w",err)}
  return &Server{root:root,user:c.Username,password:sha256.Sum256([]byte(c.Password)),tls:&tls.Config{Certificates:[]tls.Certificate{cert},MinVersion:tls.VersionTLS12},limit:make(chan struct{},32),allowUploads:c.AllowUploads,maxUploadBytes:c.MaxUploadBytes,uploadRoot:uploadRoot,
- adminEnabled:c.AdminToken!="",adminListen:c.AdminListen,adminTokenHash:sha256.Sum256([]byte(c.AdminToken)),startedAt:time.Now()},nil
+ adminEnabled:c.AdminToken!="",adminListen:c.AdminListen,adminTokenHash:sha256.Sum256([]byte(c.AdminToken)),startedAt:time.Now(),authFailures:make(map[string]authFailures)},nil
 }
 // Close releases filesystem handles when the server is configured but never
 // started. Serve also closes these handles after stopping. Callers must not
@@ -161,7 +165,12 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
   if verb=="PASS" {
    digest:=sha256.Sum256([]byte(arg))
    validPassword:=subtle.ConstantTimeCompare(digest[:],s.password[:])==1
-   if c.user==s.user&&validPassword{c.logged=true;c.failures=0;_ = c.reply(230,"Authenticated")}else{
+   authorized:=c.user==s.user&&validPassword
+   // Global anti-bruteforce survives socket reconnects. Do not distinguish
+   // non-existent users from invalid passwords in any response.
+   allowed:=s.recordAuthAttempt(c.conn.RemoteAddr(),authorized)
+   if !allowed{c.logged=false;_=c.reply(421,"Login temporarily restricted");return}
+   if authorized{c.logged=true;c.failures=0;_ = c.reply(230,"Authenticated")}else{
     c.logged=false;c.failures++
     if c.failures>=3{_ = c.reply(421,"Too many failed logins");return}
     _ = c.reply(530,"Authentication failed")
