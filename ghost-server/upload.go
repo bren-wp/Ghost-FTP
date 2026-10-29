@@ -125,24 +125,25 @@ func (s *Server) receiveFile(c *client, operand string) {
  secure:=tls.Server(raw,s.tls)
  if err=secure.Handshake();err!=nil{fail(425,"Data TLS handshake failed");return}
  defer secure.Close()
- n,err:=io.Copy(staged,io.LimitReader(secure,s.maxUploadBytes+1))
- if n>s.maxUploadBytes{fail(552,"Upload exceeds configured size limit");return}
- if hasDeclaredSize && n!=declaredSize {
-  // Log only byte counts and a generic error category; never log remote
-  // filenames, authenticated usernames, passwords or uploaded contents.
+ // ALLO is an authenticated exact byte count. Read precisely that many
+ // application bytes rather than waiting for data-TLS close_notify: some
+ // native TLS FTP clients terminate the data socket with a TCP reset just
+ // after writing. A reset after the complete declared payload MUST NOT
+ // discard a successfully authenticated file, while a short stream must.
+ n,err:=io.CopyN(staged,secure,declaredSize)
+ if err!=nil || n!=declaredSize {
   log.Printf("FTPS integrity reject: declared_bytes=%d received_bytes=%d transport_error=%T",declaredSize,n,err)
-  fail(451,"Protected upload length differs from authenticated ALLO");return
+  fail(451,"Protected upload interrupted or incomplete authenticated payload");return
  }
- if err!=nil {
-  // Some native-TLS FTP clients close the encrypted data TCP stream without
-  // sending TLS close_notify. That produces io.ErrUnexpectedEOF in Go.
-  // NEVER treat it as successful by itself: the authenticated control
-  // channel must have declared an exact byte count with ALLO, and every
-  // byte must have arrived in authenticated TLS records. A missing byte,
-  // other transport error, or missing ALLO is still a hard failure.
-  if !(errors.Is(err,io.ErrUnexpectedEOF) && hasDeclaredSize && n==declaredSize) {
-   fail(451,"Protected upload interrupted or TLS truncation detected");return
-  }
+ // Probe for immediately available trailing application bytes. A client
+ // that sends more than its declared length violates the upload contract;
+ // never commit its staged file. The server stores ONLY the declared
+ // authenticated length, not any extra bytes arriving after the probe.
+ _ = secure.SetReadDeadline(time.Now().Add(250*time.Millisecond))
+ var extra [1]byte
+ extraN,_:=secure.Read(extra[:])
+ if extraN>0 {
+  fail(552,"Protected upload exceeds its declared ALLO length");return
  }
  if err=staged.Sync();err!=nil{fail(451,"Unable to sync staged upload");return}
  if err=staged.Close();err!=nil{fail(451,"Unable to close staged upload");return}
