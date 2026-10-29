@@ -232,11 +232,11 @@ impl FtpStreamKind {
         let command = format!("ALLO {bytes}");
         match self {
             Self::Plain(s) => s
-                .custom_command(&command, &[Status::CommandOkay])
+                .custom_command(&command, &[Status::CommandOk])
                 .map(|_| ())
                 .map_err(into_anyhow),
             Self::Tls(s) => s
-                .custom_command(&command, &[Status::CommandOkay])
+                .custom_command(&command, &[Status::CommandOk])
                 .map(|_| ())
                 .map_err(into_anyhow),
         }
