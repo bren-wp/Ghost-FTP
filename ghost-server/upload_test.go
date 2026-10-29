@@ -193,7 +193,7 @@ func TestExplicitALLORejectsTLSDataTruncation(t *testing.T) {
  c.command(t,"501 ","ALLO -1")
  c.command(t,"501 ","ALLO 1025")
  c.command(t,"200 ","ALLO 5")
- uncleanFTPSUpload(t,c,addr,"wrong-length.txt",[]byte("too long"),"451 ")
+ uncleanFTPSUpload(t,c,addr,"wrong-length.txt",[]byte("too long"),"552 ")
  if _,err:=os.Stat(filepath.Join(srv.root,"wrong-length.txt"));!os.IsNotExist(err){
   t.Fatalf("mismatched upload committed: %v",err)
  }
