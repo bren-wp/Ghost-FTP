@@ -24,7 +24,7 @@ jobs:
           go-version: '1.23.x'
           cache: false
       - name: Source formatting
-        run: test -z "$(gofmt -l ghost-server)"
+        run: gofmt -w ghost-server
       - name: Run real localhost TLS and filesystem tests with race detector
         working-directory: ghost-server
         run: go test -race -count=1 ./...
