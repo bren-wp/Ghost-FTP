@@ -2,7 +2,7 @@ Unicode True
 !include "MUI2.nsh"
 
 Name "Ghost FTP Server (Preview)"
-OutFile "dist\ghost-server-windows-x64-setup-unsigned.exe"
+OutFile "..\dist\ghost-server-windows-x64-setup-unsigned.exe"
 InstallDir "$PROGRAMFILES64\Ghost FTP Server"
 RequestExecutionLevel admin
 SetCompressor /SOLID lzma
@@ -21,10 +21,10 @@ ShowUninstDetails show
 Section "Ghost FTP Server (read-only default)"
  SetShellVarContext all
  SetOutPath "$INSTDIR"
- File "/oname=ghost-server.exe" "dist\ghost-server-windows-amd64.exe"
- File "install\Install-GhostFTPServer.ps1"
- File "install\Uninstall-GhostFTPServer.ps1"
- File "README.md"
+ File "/oname=ghost-server.exe" "..\dist\ghost-server-windows-amd64.exe"
+ File "Install-GhostFTPServer.ps1"
+ File "Uninstall-GhostFTPServer.ps1"
+ File "..\README.md"
  WriteUninstaller "$INSTDIR\Uninstall.exe"
  SetRegView 64
  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTPServerPreview" "DisplayName" "Ghost FTP Server (Preview)"
