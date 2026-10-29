@@ -29,7 +29,7 @@ Current comprehensive 0.95.50 source inventory: [Windows/Linux, Android, macOS a
 
 0.91.0 incremental review: the saved-sites identity-matching code reads protocol, normalized host, port and username without accessing auth secrets or modifying persisted profile data. The feature is Windows/Linux-only; cross-platform UI acceptance and a new full dead-code audit are not claimed.
 
-Historical 0.93.0 findings here covered the Ghost FTP source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.99.20**.
+Historical 0.93.0 findings here covered the Ghost FTP source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.99.21**.
 
 These findings build on the previously reviewed 0.30.15 code-audit baseline; the 0.30.16 changes are limited to live premium color surfaces and their CI contract. A complete new dead-code audit has not been claimed.
 
@@ -91,4 +91,4 @@ TypeScript `noUnusedLocals`, production reachability, Rust Clippy, Go vet and An
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.21. Previous canonical release: 0.99.20. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.22. Previous canonical release: 0.99.21. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
