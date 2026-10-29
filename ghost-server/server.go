@@ -242,6 +242,9 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
    if len(ents)>10000{_ = c.reply(552,"Directory exceeds Preview entry limit");continue}
    var out strings.Builder
    for _,ent:=range ents {
+    // Upload staging names are internal implementation details. Never
+    // advertise half-written content in LIST, NLST or MLSD.
+    if isReservedInternalName(ent.Name()){continue}
     if len(ent.Name())>255||strings.ContainsAny(ent.Name(),"\\\r\n\x00\x1b\x7f\t") {e=errors.New("unsafe listing entry");break}
     if ent.Type()&os.ModeSymlink!=0 {e=errors.New("symlink in directory");break}
     info,er:=s.uploadRoot.Lstat(filepath.Join(rootedPath(virtual),ent.Name()))
@@ -286,9 +289,18 @@ func (s *Server) sendData(c *client, source io.Reader, expectedBytes int64){
  transmitted,err:=io.Copy(secure,source)
  if err!=nil||transmitted!=expectedBytes{_ = c.reply(451,"Data transfer incomplete")}else{_ = c.reply(226,"Transfer complete")}
 }
+// Reserved staging files must never be addressable by FTP clients while a
+// protected upload is being streamed. Comparisons ignore case for NTFS.
+func isReservedInternalName(name string) bool {
+ return strings.HasPrefix(strings.ToLower(name),".ghostftp-upload-")
+}
 func (s *Server) resolve(cwd,input string)(string,string,error){
  if len(input)>4096||strings.ContainsAny(input,"\\\x00\r\n"){return "","",errors.New("invalid path")}
- for _,part:=range strings.Split(input,"/"){if part==".."||part=="." && input!="."{return "","",errors.New("traversal or ambiguous path")}}
+ for _,part:=range strings.Split(input,"/"){
+  if part==".."||part=="." && input!="."||isReservedInternalName(part){
+   return "","",errors.New("traversal, internal staging or ambiguous path")
+  }
+ }
  virtual:=input
  if !strings.HasPrefix(virtual,"/"){virtual=path.Join(cwd,virtual)}
  virtual=path.Clean("/"+strings.TrimPrefix(virtual,"/"))
