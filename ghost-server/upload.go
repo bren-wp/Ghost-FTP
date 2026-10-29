@@ -27,7 +27,7 @@ func (s *Server) createDestination(cwd, operand string) (string, error) {
  }
  name:=path.Base(operand)
  if name=="" || name=="." || name==".." || len(name)>255 ||
-    strings.ContainsAny(name,"\x00\r\n\x1b\x7f") {
+    isReservedInternalName(name) || strings.ContainsAny(name,"\x00\r\n\x1b\x7f") {
   return "",errors.New("invalid upload name")
  }
  parent,_,err:=s.resolve(cwd,path.Dir(operand))
