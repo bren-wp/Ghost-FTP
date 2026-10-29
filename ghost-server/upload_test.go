@@ -109,7 +109,16 @@ func TestUploadRejectsUnsafeParentsAndDoesNotEnableDestructiveCommands(t *testin
  }
  c:=connect(t,addr);defer c.conn.Close()
  login(t,c)
- for _,cmd:=range []string{"DELE test.txt","RNFR test.txt","RNTO renamed.txt","MKD folder","APPE test.txt","PORT 1,1,1,1,1,1"} {
+ // MKD is now an explicitly enabled, create-only operation. Assert
+ // its actual behavior rather than incorrectly expecting the old 550.
+ c.command(t,"257 ","MKD folder")
+ info,err:=os.Stat(filepath.Join(srv.root,"folder"))
+ if err!=nil||!info.IsDir(){t.Fatalf("MKD failed to create real directory: %v",err)}
+ c.command(t,"550 ","MKD folder")
+ if _,err:=srv.createDestination("/","folder/../escape");err==nil{
+  t.Fatal("MKD traversal path accepted")
+ }
+ for _,cmd:=range []string{"DELE test.txt","RNFR test.txt","RNTO renamed.txt","APPE test.txt","PORT 1,1,1,1,1,1"} {
   c.command(t,"550 ",cmd)
  }
 }
