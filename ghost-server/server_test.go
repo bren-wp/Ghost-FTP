@@ -87,6 +87,39 @@ func TestRejectPlaintextCredentialsAndAuthenticationFailures(t *testing.T){
  c.command(t,"534 ","PROT C")
  c.command(t,"200 ","PROT P")
 }
+// RFC 4217 explicitly permits PBSZ/PROT immediately after AUTH TLS and
+// before USER/PASS. The real desktop SuppaFTP transport uses this sequence.
+// Negotiating transport protection must never grant filesystem permissions.
+func TestFTPSProtectionBeforeLoginMatchesRealDesktopClient(t *testing.T) {
+ _,addr,stop:=testServer(t)
+ defer stop()
+ c:=connect(t,addr)
+ defer c.conn.Close()
+
+ // Plaintext and unauthenticated transfers must remain impossible.
+ c.command(t,"534 ","PBSZ 0")
+ c.command(t,"534 ","PROT P")
+ secure(t,c)
+ c.command(t,"534 ","PROT P")
+ c.command(t,"501 ","PBSZ 1")
+ c.command(t,"200 ","PBSZ 0")
+ c.command(t,"534 ","PROT C")
+ c.command(t,"200 ","PROT P")
+ c.command(t,"530 ","PWD")
+ c.command(t,"530 ","SIZE test.txt")
+ c.command(t,"530 ","LIST")
+ c.command(t,"331 ","USER qa")
+ c.command(t,"230 ","PASS long-private-test-password")
+ // USER/PASS does not undo already-negotiated private data protection.
+ c.command(t,"229 ","EPSV")
+ c.command(t,"213 13","SIZE test.txt")
+
+ // A second USER invalidates authorization, but does not lower PROT P.
+ c.command(t,"331 ","USER qa")
+ c.command(t,"530 ","PWD")
+ c.command(t,"230 ","PASS long-private-test-password")
+ c.command(t,"229 ","EPSV")
+}
 func TestRealFTPSDownloadReadOnlyAndPassiveDataTLS(t *testing.T){
  _,addr,stop:=testServer(t);defer stop()
  c:=connect(t,addr);defer c.conn.Close()
