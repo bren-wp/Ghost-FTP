@@ -86,7 +86,7 @@ func (d *demo) handler(host string) (http.Handler,error) {
  mux.Handle("/app/",http.StripPrefix("/app/",http.FileServer(http.FS(filesys))))
  mux.HandleFunc("/",func(w http.ResponseWriter,r *http.Request) {
   if r.URL.Path!="/" {http.NotFound(w,r);return}
-  http.Redirect(w,r,"/app/index.html",http.StatusSeeOther)
+  http.Redirect(w,r,"/app/",http.StatusSeeOther)
  })
  mux.HandleFunc("/api/v1/state",func(w http.ResponseWriter,r *http.Request) {
   if r.Method!=http.MethodGet {w.Header().Set("Allow","GET");http.Error(w,"Method not allowed",405);return}
@@ -172,7 +172,7 @@ func main(){
  h,err:=d.handler(host)
  if err!=nil{fmt.Fprintln(os.Stderr,err);os.Exit(1)}
  srv:=&http.Server{Handler:h,ReadHeaderTimeout:5*time.Second,ReadTimeout:15*time.Second,WriteTimeout:15*time.Second,IdleTimeout:30*time.Second}
- url:="http://"+host+"/app/index.html"
+ url:="http://"+host+"/app/"
  fmt.Println("Ghost FTP Demo — SIMULATION ONLY; all files/accounts and transfers are fictional.")
  fmt.Println("Open "+url)
  if runtime.GOOS=="windows"&&os.Getenv("GHOSTFTP_DEMO_HEADLESS")!="1" { _=exec.Command("rundll32","url.dll,FileProtocolHandler",url).Start() }
