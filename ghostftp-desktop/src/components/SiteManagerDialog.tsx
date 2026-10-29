@@ -506,6 +506,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                 </button>
                 </div>
               </div>
+              </div>
             </section>
             <aside className="ghost-site-manager-details min-w-0 overflow-y-auto bg-[#071f35] p-4" aria-label="Selected site details">
               <div className="mb-3 border-b border-border pb-3 text-[11px] font-semibold uppercase tracking-wider text-accent">
