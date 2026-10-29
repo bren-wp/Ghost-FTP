@@ -7,7 +7,7 @@ test -n "$GH_TOKEN"
 test "$(node -p 'require("./version.json").channel')" = "preview"
 CURRENT="$(node -p 'require("./version.json").version')"
 MODE="$GHOSTFTP_METADATA_EVENT"
-case "$MODE" in push|successful-release) ;; *) exit 1 ;; esac
+case "$MODE" in push|schedule|successful-release) ;; *) exit 1 ;; esac
 
 enforce_preview() {
   local version="$1" sha="$2" tag="v$1" release id name after
@@ -37,8 +37,12 @@ enforce_preview() {
        [ "$(jq -r '.name' <<< "$after")" = "$name" ] &&
        [ "$(jq -r '.draft' <<< "$after")" = false ]; then
       test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')" = "$sha"
-      test "$(jq -r '.assets | length' <<< "$after")" -eq "$(jq -r '.assets | length' <<< "$release")"
-      echo "Confirmed Preview classification for immutable $tag."
+      # Detect any unexpected artifact replacement, reordering or digest mutation.
+      # Sorting by immutable asset id permits harmless API list-order changes only.
+      test "$(jq -c '[.assets[] | {id,name,size,digest}] | sort_by(.id)' <<< "$after")" = \
+           "$(jq -c '[.assets[] | {id,name,size,digest}] | sort_by(.id)' <<< "$release")"
+      test "$(jq -r '.target_commitish' <<< "$after")" = "$sha"
+      echo "Confirmed Preview classification and unchanged SHA-256 asset inventory for immutable $tag."
       return 0
     fi
     sleep 5
