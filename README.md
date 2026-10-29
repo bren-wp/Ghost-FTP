@@ -53,6 +53,8 @@ Ghost FTP Desktop is available as a separate **Apple Silicon ARM64** or **Intel 
 
 ## Ghost CLI and Ghost FTP Demo (v0.99.22 Preview)
 
+[Standalone Windows/Linux installer and portable inventory](docs/distribution/PLATFORM_PACKAGES.md)
+
 **Ghost CLI** reuses the exact desktop Rust client engine, not a separate protocol implementation. The official [`/ghost-cli`](ghost-cli/README.md) entry point builds real Windows/Linux portable CLI binaries with access to supported FTP, FTPS, SFTP and cloud backends through authorized saved connections. Profiles are local to an OS account; cross-device credential synchronization is not silently enabled.
 
 **Ghost FTP Demo** is a self-contained Windows portable executable with embedded Ghost FTP-branded web UI, fictional connected-looking accounts, sample files, in-memory progress animation, simulated uploads/downloads/cancellation, and a read-only additive sync walkthrough. Every action is marked **DEMO / SIMULATION**. It cannot access a real remote host or change production files. See [demo documentation](ghost-demo/README.md).
