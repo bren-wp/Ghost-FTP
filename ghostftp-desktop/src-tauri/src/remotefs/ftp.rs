@@ -415,6 +415,15 @@ impl RemoteFs for FtpFs {
         super::validate_protocol_mutation_path(to)?;
         validate_ftp_command_path(from)?;
         validate_ftp_command_path(to)?;
+        // RNTO can replace an existing file on several FTP servers without
+        // explicit confirmation. A full parent inventory is mandatory before
+        // the destructive command, including hidden names where supported.
+        // FTP has no atomic rename-if-absent primitive; concurrency is still
+        // a server-side limitation, not a promise that the preflight solves.
+        anyhow::ensure!(
+            !path_exists_fail_closed(&self.session, to).await?,
+            "FTP rename refused: destination already exists"
+        );
         let from = from.to_string();
         let to = to.to_string();
         self.session
