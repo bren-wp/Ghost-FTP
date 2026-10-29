@@ -46,7 +46,7 @@ pub(crate) fn remote_names_may_alias(existing: &str, requested: &str) -> bool {
 pub(crate) fn remote_destination_parent_name(path: &str) -> anyhow::Result<(&str, &str)> {
     validate_protocol_mutation_path(path)?;
     let (parent, name) = match path.rsplit_once('/') {
-        Some((parent, name)) if parent.is_empty() => ("/", name),
+        Some(("", name)) => ("/", name),
         Some((parent, name)) => (parent, name),
         None => (".", path),
     };
