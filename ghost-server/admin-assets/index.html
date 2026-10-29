@@ -1,19 +1,52 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ghost FTP Server — Administration</title><link rel="stylesheet" href="/admin/style.css">
-<script src="/admin/app.js" defer></script></head>
-<body><main class="shell">
-<header><div class="brand"><span class="mark" aria-hidden="true">G</span><div><h1>Ghost FTP <small>Server</small></h1><p>Local administration · explicit FTPS</p></div></div><span class="pill">Local-only</span></header>
-<section class="login" aria-label="Authenticate to local server">
-<label for="token">Administrator token</label><div class="auth"><input id="token" type="password" autocomplete="off" placeholder="Enter token from your private file"><button type="button" id="unlock">Unlock</button><button type="button" id="refresh" disabled>Refresh</button></div>
-<p id="message" role="status" aria-live="polite">The token stays in memory in this tab; it is never stored in a cookie or browser storage.</p>
-</section>
-<section class="metrics" aria-label="Live server state">
-<article><span class="label">Service</span><strong id="status">Locked</strong><span class="hint">Authenticated session only</span></article>
-<article><span class="label">Active clients</span><strong id="clients">—</strong><span class="hint">Live FTP/FTPS sessions</span></article>
-<article><span class="label">Create-only uploads</span><strong id="uploads">—</strong><span class="hint">Off unless explicitly enabled</span></article>
-<article><span class="label">Uptime</span><strong id="uptime">—</strong><span class="hint">Seconds since server start</span></article>
-</section>
-<section class="notice"><h2>Operational security</h2><p>Only explicit TLS is accepted. This dashboard is a local read-only monitoring interface: service identities, permissions, credentials and certificates are configured outside the browser. Remote administration is intentionally disabled.</p></section>
-<footer>Ghost FTP Server · Development Preview · No fake profiles or transfer statistics</footer>
-</main></body></html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Ghost FTP Server · Control Center</title>
+  <link rel="icon" href="/admin/ghostftp-symbol.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/admin/style.css">
+  <script src="/admin/app.js" defer></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" aria-label="Server workspace">
+    <div class="sidebar-brand"><img src="/admin/ghostftp-symbol.svg" alt="" class="brand-logo"><div><strong>Ghost FTP</strong><small>SERVER</small></div></div>
+    <div class="sidebar-caption">WORKSPACE</div>
+    <nav class="nav" aria-label="Server sections">
+      <button type="button" class="nav-item selected" data-page="overview" aria-current="page"><span class="nav-icon" aria-hidden="true">◫</span> Overview</button>
+      <button type="button" class="nav-item" data-page="sessions"><span class="nav-icon" aria-hidden="true">⇄</span> Sessions</button>
+      <button type="button" class="nav-item" data-page="security"><span class="nav-icon" aria-hidden="true">◇</span> Security</button>
+      <button type="button" class="nav-item" data-page="limits"><span class="nav-icon" aria-hidden="true">▤</span> Limits</button>
+      <button type="button" class="nav-item" data-page="diagnostics"><span class="nav-icon" aria-hidden="true">⌁</span> Diagnostics</button>
+    </nav>
+    <div class="sidebar-footer"><span class="dot"></span><span>Local administration only</span></div>
+  </aside>
+  <main class="workspace" id="main-content">
+    <header class="topbar">
+      <div class="breadcrumbs">Ghost FTP <span>/</span> Server <span>/</span> <strong id="breadcrumb">Overview</strong></div>
+      <div class="topbar-actions"><span class="preview-tag">PREVIEW</span><span id="top-status" class="service-chip">LOCKED</span></div>
+    </header>
+    <div class="workspace-content">
+      <section class="heading-row"><div><p class="eyebrow">SERVER CONTROL CENTER</p><h1 id="page-title">Overview</h1><p id="page-description" class="subtitle">Live local status for this Ghost FTP Server instance.</p></div><button type="button" id="refresh" class="button secondary" disabled>↻ Refresh</button></section>
+      <section class="auth-panel" aria-label="Authenticate to local server"><div class="auth-heading"><div><h2>Administrator token</h2><p>Authenticate locally to view live server information.</p></div><span class="private-chip">LOCAL ONLY</span></div><div class="auth"><label class="sr-only" for="token">Administrator token</label><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Enter private administrator token" minlength="32"><button type="button" id="unlock" class="button primary">Unlock</button><button type="button" id="lock" class="button secondary" disabled>Lock</button></div><p class="message" id="message" role="status" aria-live="polite">Token remains only in tab memory, never in cookies or browser storage.</p></section>
+      <section class="page active" id="page-overview" data-view="overview" aria-label="Overview">
+        <div class="metric-grid">
+          <article class="metric"><span class="metric-label">Service status</span><strong id="status">Locked</strong><span class="metric-hint">Current local server state</span></article>
+          <article class="metric"><span class="metric-label">Active sessions</span><strong id="clients">—</strong><span class="metric-hint">Connected FTP / FTPS clients</span></article>
+          <article class="metric"><span class="metric-label">Create-only uploads</span><strong id="uploads">—</strong><span class="metric-hint">Disabled by default</span></article>
+          <article class="metric"><span class="metric-label">Uptime</span><strong id="uptime">—</strong><span class="metric-hint">Measured by server</span></article>
+        </div>
+        <div class="content-grid"><article class="panel"><div class="panel-heading"><h2>Protection overview</h2><span class="panel-meta">LIVE CONFIGURATION</span></div><div class="details"><div><span>Explicit TLS</span><strong id="overview-tls">—</strong></div><div><span>Destructive operations</span><strong id="overview-destructive">—</strong></div><div><span>Server contract</span><strong id="overview-contract">—</strong></div></div></article><article class="panel"><div class="panel-heading"><h2>Platform parity</h2><span class="panel-meta">SHARED IDENTITY</span></div><p>Windows, Linux, macOS and Android clients connect to the same FTPS server. This dashboard shows live server telemetry only; it does not impersonate unsupported server-management functions.</p><p class="muted">A consistent Ghost FTP visual language is shared across client and server workspaces.</p></article></div>
+      </section>
+      <section class="page" id="page-sessions" data-view="sessions" aria-label="Sessions" hidden><article class="panel"><div class="panel-heading"><h2>Connected clients</h2><span class="panel-meta">READ-ONLY</span></div><div class="metric-inline"><strong id="session-count">—</strong><span>active connections</span></div><p>Actual session count is reported by the FTP server. Per-client inspection, session termination and traffic history are not yet available; this screen does not display fabricated session rows.</p></article></section>
+      <section class="page" id="page-security" data-view="security" aria-label="Security" hidden><article class="panel"><div class="panel-heading"><h2>Security policy</h2><span class="panel-meta">EFFECTIVE STATE</span></div><div class="details"><div><span>Encrypted control and data channels</span><strong id="security-tls">—</strong></div><div><span>Create-only uploads</span><strong id="security-uploads">—</strong></div><div><span>Destructive mutations</span><strong id="security-destructive">—</strong></div><div><span>Local administration</span><strong>Loopback only</strong></div></div><p>Certificates, users and permissions remain controlled by protected local files and the operating system. No remote administration or write operations are exposed by this page.</p></article></section>
+      <section class="page" id="page-limits" data-view="limits" aria-label="Limits" hidden><article class="panel"><div class="panel-heading"><h2>Transfer limits</h2><span class="panel-meta">EFFECTIVE STATE</span></div><div class="details"><div><span>Maximum single upload</span><strong id="limit-upload">—</strong></div><div><span>Upload mode</span><strong id="limit-mode">—</strong></div></div><p>Editing these limits in the dashboard is not supported. Adjust the local server configuration and restart through the platform's approved service controls.</p></article></section>
+      <section class="page" id="page-diagnostics" data-view="diagnostics" aria-label="Diagnostics" hidden><article class="panel"><div class="panel-heading"><h2>Live diagnostics</h2><span class="panel-meta">READ-ONLY</span></div><div class="details"><div><span>API contract</span><strong id="diagnostic-contract">—</strong></div><div><span>Server version</span><strong id="diagnostic-version">—</strong></div><div><span>Last successful update</span><strong id="diagnostic-refresh">—</strong></div></div><p>Live data is fetched from the local server. This interface does not reveal filesystem roots, account names, passwords or TLS private keys.</p></article></section>
+      <section class="bottom-notice"><strong>Operational security</strong><p>Explicit FTPS is required. Server administration is loopback-only and read-only; credentials, certificates and filesystem controls are managed outside the browser.</p></section>
+    </div>
+    <footer class="statusbar"><span><i class="dot"></i> Ghost FTP Server</span><span id="footer-state">Local status · Locked</span><span>Preview · Read-only administration</span></footer>
+  </main>
+</div>
+</body></html>
