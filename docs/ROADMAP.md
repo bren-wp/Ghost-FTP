@@ -8,7 +8,7 @@
 
 # Ghost FTP Roadmap
 
-This roadmap separates the current **0.99.5 development/release** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.99.20**.
+This roadmap separates the current **0.99.5 development/release** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.99.21**.
 
 ## Implemented
 
@@ -66,4 +66,4 @@ This roadmap separates the current **0.99.5 development/release** state from fut
 For the detailed engineering backlog, see [product/ROADMAP.md](product/ROADMAP.md). For authoritative current source/build state, see [product/STATUS_AND_NEXT.md](product/STATUS_AND_NEXT.md) and [build/STATUS.md](build/STATUS.md).
 
 
-Current development line: 0.99.21. Previous canonical release: 0.99.20. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.22. Previous canonical release: 0.99.21. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
