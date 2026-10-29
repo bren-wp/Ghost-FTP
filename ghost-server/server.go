@@ -169,7 +169,20 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
    continue
   }
   if !c.secure{_ = c.reply(534,"TLS required before authentication");continue}
-  if verb=="USER"{c.logged=false;c.pbsz=false;c.private=false;c.renameSource="";c.user=arg;_ = c.reply(331,"Password required");continue}
+  // RFC 4217 permits PBSZ/PROT immediately after AUTH TLS, before USER/PASS.
+  // SuppaFTP follows this order. These commands configure transport
+  // protection only; login remains mandatory for filesystem operations.
+  if verb=="PBSZ" {
+   if strings.TrimSpace(arg)!="0"{_ = c.reply(501,"PBSZ must be 0")}else{c.pbsz=true;_ = c.reply(200,"PBSZ 0")}
+   continue
+  }
+  if verb=="PROT" {
+   if !c.pbsz||strings.ToUpper(strings.TrimSpace(arg))!="P"{_ = c.reply(534,"Private data TLS required")}else{c.private=true;_ = c.reply(200,"PROT P")}
+   continue
+  }
+  // USER starts a new authentication attempt but must not reset the TLS
+  // data-protection level negotiated after AUTH TLS.
+  if verb=="USER"{c.logged=false;c.renameSource="";c.user=arg;_ = c.reply(331,"Password required");continue}
   if verb=="PASS" {
    digest:=sha256.Sum256([]byte(arg))
    validPassword:=subtle.ConstantTimeCompare(digest[:],s.password[:])==1
@@ -187,10 +200,6 @@ func (s *Server) session(ctx context.Context,conn net.Conn){
   }
   if !c.logged{_ = c.reply(530,"Login required");continue}
   switch verb {
-  case "PBSZ":
-   if strings.TrimSpace(arg)!="0"{_ = c.reply(501,"PBSZ must be 0")}else{c.pbsz=true;_ = c.reply(200,"PBSZ 0")}
-  case "PROT":
-   if !c.pbsz||strings.ToUpper(strings.TrimSpace(arg))!="P"{_ = c.reply(534,"Private data TLS required")}else{c.private=true;_ = c.reply(200,"PROT P")}
   case "SYST": _ = c.reply(215,"UNIX Type: L8")
   case "OPTS":
    if strings.EqualFold(strings.TrimSpace(arg),"UTF8 ON"){_ = c.reply(200,"UTF8 enabled")}else{_ = c.reply(501,"Unsupported option")}
