@@ -3,6 +3,9 @@ name: Enforce immutable Ghost FTP Preview release metadata
 on:
   push:
     branches: [main]
+  # Detect and correct external metadata drift, including changes made after a push.
+  schedule:
+    - cron: '*/15 * * * *'
   workflow_run:
     workflows: ["Ghost FTP release"]
     types: [completed]
@@ -17,7 +20,7 @@ concurrency:
 
 jobs:
   metadata:
-    if: ${{ github.repository == 'bren-wp/Ghost-FTP' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository)) }}
+    if: ${{ github.repository == 'bren-wp/Ghost-FTP' && (((github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository)) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
