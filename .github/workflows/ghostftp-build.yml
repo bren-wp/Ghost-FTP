@@ -144,10 +144,9 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $compiler = 'C:\Program Files (x86)\NSIS\makensis.exe'
-          if (-not (Test-Path $compiler)) {
-            choco install nsis --no-progress --yes
-            if ($LASTEXITCODE -ne 0) { throw 'NSIS compiler installation failed' }
+          $compiler = & ./scripts/ci/resolve-nsis.ps1
+          if (-not $compiler -or -not (Test-Path -LiteralPath $compiler -PathType Leaf)) {
+            throw 'Verified NSIS compiler is not available; refusing to build the CLI installer'
           }
           New-Item -ItemType Directory -Force dist-tools | Out-Null
           & $compiler /V2 ghost-cli/install/GhostCLI.nsi
