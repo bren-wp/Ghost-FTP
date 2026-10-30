@@ -1,16 +1,14 @@
 [package]
 name = "ghostftp"
-version = "0.99.23"
+version = "0.99.24"
 edition = "2021"
 description = "Ghost FTP — secure modern FTP, FTPS, SFTP and SSH file transfer client."
 authors = ["Brendigo LTD", "Brendigo, obrt za programiranje"]
 license-file = "../../LICENSE.txt"
 # This package builds the Ghost FTP GUI only (`src/main.rs` → the `ghostftp` binary).
-# The standalone CLI lives in its own workspace member, `ghostftp-cli/`, so the
-# Tauri bundler only ever sees ONE binary in this package. A second `[[bin]]`
-# here breaks the desktop bundle because the bundler expects one GUI binary.
+# The Tauri package builds the graphical Ghost FTP client only.
 [workspace]
-members = ["ghostftp-cli", "ghostftp-agent-proto", "ghostftp-agentd"]
+members = ["ghostftp-agent-proto", "ghostftp-agentd"]
 resolver = "2"
 
 [lib]
@@ -150,11 +148,6 @@ libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
-# One-click "Add ghostftp-cli to PATH" (Plan 16 Phase 4). After writing the per-user
-# Path under HKCU\Environment we broadcast WM_SETTINGCHANGE("Environment") so new
-# terminals pick it up without a logoff — that's the only Win32 call we need, so
-# the lightweight `windows-sys` FFI crate (already in the tree transitively) is
-# enough; no need for the heavier `windows` wrapper.
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging",

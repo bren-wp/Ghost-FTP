@@ -1,40 +1,23 @@
-# Ghost FTP 0.99.23 Preview — independent Windows and Linux packages
+# Ghost FTP 0.99.24 — client-only Preview package inventory
 
-**Product separation is intentional.** These four brands are distinct executables, installers, repositories *within the same source tree*, runtime data boundaries and use cases. Shared protocol libraries, graphics and semantic versioning do not imply sharing credentials or an unsafe automatically enabled server.
+The **Ghost FTP graphical client** is the only shipped product starting with 0.99.24. The independent Server, Demo and CLI packages have been retired from the current source and release workflow. Previously published versions are historical and remain available; removal from source does not uninstall historical installations from user machines or delete their data.
 
-| Product | Windows portable | Windows installer | Linux portable | Linux installer |
-| --- | --- | --- | --- | --- |
-| **Ghost FTP** graphical client | `GhostFTP-Windows-x64-Portable-v0.99.23.exe` | `GhostFTP-Windows-x64-Setup-v0.99.23.exe` and `.msi` | `GhostFTP-Linux-x86_64-v0.99.23`, `.AppImage`, `.tar.gz` | `.deb`, `.rpm` |
-| **Ghost FTP Server** explicit FTPS daemon | `GhostFTP-Server-Windows-x64-Portable-v0.99.23.exe` | `GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v0.99.23.exe` | `GhostFTP-Server-Linux-x86_64-v0.99.23`, `.tar.gz` | `.deb`, `.rpm` |
-| **Ghost CLI** real command-line client | `GhostCLI-Windows-x64-v0.99.23.exe` | `GhostCLI-Windows-x64-Setup-Unsigned-Preview-v0.99.23.exe` | `GhostCLI-Linux-x86_64-v0.99.23`, `.tar.gz` | `.deb`, `.rpm` |
-| **Ghost FTP Demo** (simulated walkthrough) | `GhostFTP-Demo-Windows-x64-Portable-v0.99.23.exe` **only** | Not distributed | Not distributed | Not distributed |
+| Platform | Client packages |
+| --- | --- |
+| Windows x64 | `GhostFTP-Windows-x64-Portable-v0.99.24.exe`, `GhostFTP-Windows-x64-Setup-v0.99.24.exe`, `GhostFTP-Windows-x64-Setup-v0.99.24.msi`, ZIP bundle |
+| Linux x86_64 | Native ELF, AppImage, tar.gz, DEB and RPM |
+| macOS ARM64 / Intel | Per-architecture installable Preview DMGs and ZIPs; separate source-oriented macOS preview ZIP |
+| Android | Installable Preview APK, unsigned release APK and unsigned AAB |
 
-**Linux binaries are native ELF files, not Windows `.exe` files.** AppImage is available for the GUI Client; CLI and Server have independent native executables and tarballs. Windows CLI and Server installers are separate NSIS installers using Ghost FTP desktop branding and EULA notices. All Linux CLI packages install files only, never start a service, change shell configuration or create network credentials. Ghost Server installers do not create users/passwords, expose network interfaces or auto-start a public daemon.
+## Release inventory and security
 
-## Real function versus simulation
+This cycle requires **25 nonempty SHA-256-verified release assets**, including client OS packages, native Windows QA ZIP, source/documentation archives and `GhostFTP-v0.99.24-SHA256SUMS.txt`. Signed desktop updater files, when configured, must be complete and verified as a set; they are optional Preview assets and are not represented as Authenticode/Apple notarization/Play Store signing. A checksum is **not** a publisher signature.
 
-- **Ghost FTP Client:** graphical transfer and saved-site experience. Uses real protocol backends and platform-specific credentials when supported.
-- **Ghost FTP Server:** serves a configured local root using protected explicit FTPS, manual credentials and TLS certificates, with an authenticated loopback-only read-only dashboard. Full RBAC and SFTP *server* are not implemented.
-- **Ghost CLI:** authenticates using the *same* client engine as the graphical Windows/Linux app. Commands perform real operations on user-authorized configured endpoints. Supports manual encrypted profile backup export/import. It does **not** silently pair devices or upload secrets to a Brendigo cloud.
-- **Ghost FTP Demo:** all listed sites, files, queued upload/download progress and sync planning are simulated locally with no real transfer. Never use demo fixtures to measure network speed or test actual remote permissions.
+The client supports FTP/FTPS/SFTP where the relevant platform implements and tests those protocols; do not claim uniform platform parity. In particular, the separately implemented macOS SwiftUI transport may still restrict FTPS and SFTP while its trusted-identity path is unverified. Plain FTP is unencrypted. Check the actual CI and installed-device results before declaring production readiness.
 
-## Release acceptance, checksum and version
+## Compatibility
 
-The immutable `version.json` specifies `0.99.23`; public `v0.99.23` must be a Preview (not stable). Every edition must have at least **39 nonempty assets**, including all independent packages shown in the table. The final CI flow validates Windows/Linux native binaries and both branded CLI/Demo installers, standalone Server binary and NSIS install/service lifecycles, Linux tar/DEB/RPM contents, and Demo self-tests. The publisher then independently verifies all staged package SHA-256 digests and public remote digest entries before publishing.
-
-Portable builds do **not** install a system service automatically. Optional code signing, notarization and Android production signing are separate readiness requirements. A published checksum alone is *not* equivalent to a publisher signature.
-
-## Safe usage
-
-1. Choose the correct application and operating-system package, verify the official GitHub release and its SHA-256 file, and review the EULA and release limitations.
-2. With **Server**, provide valid own TLS identity and password/admin token files, a restricted OS account, a limited filesystem root, firewall policy and backups **before** enabling service operations. Do not expose the local dashboard publicly.
-3. With **Client/CLI**, use only endpoints you are authorized to access. Prefer FTPS/SFTP with certificate/host-key validation; use dry-run before sync and back up before bulk destructive changes.
-4. With **Demo**, run the portable binary or installer without credentials. On Windows it opens the local interface automatically; on Linux it prints its local URL, which can be opened in a browser. All progress and accounts are fictional.
-
-See the [Server guide](../../ghost-server/README.md), [Ghost CLI manual](../../ghost-cli/README.md), [Ghost FTP Demo manual](../../ghost-demo/README.md), [privacy notice](../legal/PRIVACY.md), [release notes](../releases/0.99.23.md) and [public security policy](../../SECURITY.md).
-
-**Status:** publication, packaging QA, independent visual sign-off and production certification must be checked from actual current CI/release results. Presence in this document is not proof that an artifact was already published.
-
-## v0.99.23 Control Center implementation
-
-The Windows Server installer now includes a **native Windows Forms Control Center** with actual Windows Service Control Manager status, responsive bounded resizable layout, and service Start/Stop operations (only if the administrator configured the service). A separate Win32 GUI-subsystem EXE is also shipped for standalone access, avoiding the console and any WebView. The Linux Server remains a headless native Go daemon managed by systemd; there is no accepted 1:1 graphical Linux Control Center yet. The main Ghost FTP Client still uses Tauri/system WebView. The Demo remains a separate browser-hosted simulated UI and **is not 1:1 with the client**. Do not confuse matching color tokens with complete visual parity.
+- Retired standalone product source trees and release jobs are removed. Previous editions are immutable and can still be downloaded from [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases).
+- This change does **not** automatically delete historical Server/CLI installations, credentials, service registrations, user files or backups.
+- The GUI's own credential storage, session management and authenticated client protocol engines remain. Do not substitute simulated transfers for real integration tests.
+- Installers, upgrade and rollback flows must preserve existing user data; installation sign-off requires a real device, not compilation alone.

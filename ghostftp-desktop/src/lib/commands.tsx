@@ -12,7 +12,6 @@ import {
   Keyboard,
   Palette,
   SunMoon,
-  Radio,
   Wand2,
   Braces,
   SplitSquareHorizontal,
@@ -96,14 +95,6 @@ export function useCommands(): Command[] {
       icon: <Keyboard size={14} />,
       combo: "mod+/",
       run: () => setShortcutsOpen(true),
-    },
-    {
-      id: "agent-bridge",
-      title: "Agent Bridge…",
-      group: "General",
-      icon: <Radio size={14} />,
-      keywords: "agent bridge mcp claude code remote exec",
-      run: () => openDialog("agentBridge"),
     },
     {
       id: "fleet-skills",

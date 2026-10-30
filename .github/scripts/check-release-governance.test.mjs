@@ -32,7 +32,7 @@ test("every passing main native build can automatically trigger a release", () =
   assert.ok(workflow.includes('wait_for_gate "validate-win-hardening.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-macos.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-macos-shared-desktop.yml"'));
-  assert.ok(workflow.includes('wait_for_gate "ghostftp-server.yml"'));
+  assert.ok(!workflow.includes('ghostftp-server.yml'), "retired standalone server must not be a release gate");
   assert.ok(workflow.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"));
   assert.ok(workflow.includes("GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"));
   assert.ok(workflow.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Installable-Preview.dmg"));
@@ -97,7 +97,7 @@ test("released editions and tags must never be automatically pruned", () => {
 test("version synchronization updates only local Cargo workspace package records", () => {
   const script = read(".github/scripts/sync-version.mjs");
   const verifier = read(".github/scripts/refresh-cargo-lock.sh");
-  for (const name of ["ghostftp", "ghostftp-cli", "ghostftp-agent-proto", "ghostftp-agentd"]) {
+  for (const name of ["ghostftp", "ghostftp-agent-proto", "ghostftp-agentd"]) {
     assert.ok(script.includes(`"${name}"`));
   }
   assert.ok(script.includes('const rel = "ghostftp-desktop/src-tauri/Cargo.lock"'));

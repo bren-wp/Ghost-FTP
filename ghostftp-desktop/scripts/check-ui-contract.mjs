@@ -620,23 +620,8 @@ for (const [label, source] of [
   }
 }
 
-const cliMain = read("src-tauri/ghostftp-cli/src/main.rs");
-for (const required of [
-  "automatic ghostftp-cli replacement is disabled until signed package verification is available",
-  "if check {",
-]) {
-  if (!cliMain.includes(required)) {
-    failures.push(`ghostftp-cli self-update must remain read-only/fail-closed: ${required}`);
-  }
-}
-for (const forbidden of [
-  "fn download_bytes(",
-  "fn swap_binary_at(",
-  "Downloading {asset}",
-]) {
-  if (cliMain.includes(forbidden)) {
-    failures.push(`ghostftp-cli must not restore unsigned executable replacement: ${forbidden}`);
-  }
+if (fs.existsSync("src-tauri/ghostftp-cli")) {
+  failures.push("Retired standalone CLI workspace must not be reintroduced.");
 }
 
 const appErrorBoundary = read("src/components/AppErrorBoundary.tsx");
@@ -799,7 +784,7 @@ const notificationToggleCount = (settings.match(/<DesktopNotificationsToggle\b/g
 if (notificationToggleCount !== 1) {
   failures.push(`Settings must expose desktop notifications in exactly one section; found ${notificationToggleCount}`);
 }
-if (!settings.includes('advanced: "Terminal, system integrations and keyboard shortcuts."')) {
+if (!settings.includes('advanced: "Terminal options and keyboard shortcuts."')) {
   failures.push("Advanced Settings description must match its Terminal/Integrations/Shortcuts grouping.");
 }
 if (!settings.includes('<div className="xl:col-span-2"><TerminalCard/></div>')) {

@@ -1,3 +1,5 @@
+> **Active source v0.99.24 Preview (30 October 2026):** This document contains historical readiness evaluations. Only the graphical client remains supported in new builds; Server, Demo and CLI are retired. No production certification is claimed. For the current acceptance status consult [0.99.24 security/dead-code audit](../audits/CLIENT_ONLY_0.99.24.md) and [release notes](../releases/0.99.24.md).
+
 > **29 October 2026 — current source v0.99.22 Preview; public predecessor v0.99.21.** Historical 0.95.51 observations below are preserved as an archive, not current certification. The new standalone Ghost Server release package inventory and exact-source CI remain pending on the current PR. Existing server lacks production multi-user RBAC/quotas and SFTP module; no production certification or physical-device acceptance is claimed. See [v0.99.22 release notes](../releases/0.99.22.md) and [Linux server packages](../../ghost-server/install/linux/README.md).
 
 # Ghost FTP 0.95.51 — production readiness and explicit blockers

@@ -24,7 +24,7 @@ import { Toaster } from "./components/ui/Toaster";
 import { OverwriteDialogHost } from "./components/OverwriteModal";
 import { CommandPalette } from "./components/CommandPalette";
 import { KeyboardShortcutsDialog } from "./components/KeyboardShortcutsDialog";
-import { AgentBridge, AgentBridgeHost } from "./components/AgentBridge";
+import { AgentBridgeHost } from "./components/AgentBridge";
 import { AgentConsoleDock } from "./components/AgentConsole";
 import { DiskUsageHost } from "./components/DiskUsage";
 import { DirectoryDiffHost } from "./components/DirectoryDiff";
@@ -255,7 +255,6 @@ export default function App() {
       )}
       {dialog === "import" && <ImportDialog onClose={closeDialog} />}
       {dialog === "grant" && <GrantDialog onClose={closeDialog} />}
-      {dialog === "agentBridge" && <AgentBridge onClose={closeDialog} />}
 
       <HostKeyModal />
       <AuthPromptModal />

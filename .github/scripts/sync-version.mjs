@@ -62,7 +62,6 @@ updateJson("ghostftp-desktop/package-lock.json", (j) => {
 });
 for (const rel of [
   "ghostftp-desktop/src-tauri/Cargo.toml",
-  "ghostftp-desktop/src-tauri/ghostftp-cli/Cargo.toml",
   "ghostftp-desktop/src-tauri/ghostftp-agent-proto/Cargo.toml",
   "ghostftp-desktop/src-tauri/ghostftp-agentd/Cargo.toml",
 ]) {
@@ -75,7 +74,7 @@ for (const rel of [
 {
   const rel = "ghostftp-desktop/src-tauri/Cargo.lock";
   const workspacePackages = new Set([
-    "ghostftp", "ghostftp-cli", "ghostftp-agent-proto", "ghostftp-agentd",
+    "ghostftp", "ghostftp-agent-proto", "ghostftp-agentd",
   ]);
   let found = 0;
   const lock = read(rel).replace(
@@ -90,7 +89,7 @@ for (const rel of [
     },
   );
   if (found !== workspacePackages.size) {
-    throw new Error(`${rel}: expected four local workspace package records, found ${found}`);
+    throw new Error(`${rel}: expected three local workspace package records, found ${found}`);
   }
   apply(rel, lock);
 }

@@ -49,9 +49,7 @@ From `ghostftp-desktop/src-tauri/`:
 cargo fmt --all -- --check
 cargo metadata --locked --format-version 1 >/dev/null
 cargo check --workspace --all-targets --locked
-cargo test --workspace --exclude ghostftp-cli --locked
-cargo test -p ghostftp-cli --no-default-features --lib --locked
-cargo check -p ghostftp-cli --locked
+cargo test --workspace --locked
 cargo clippy --workspace --all-targets --locked -- -D warnings
 ```
 

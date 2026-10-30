@@ -341,43 +341,6 @@ jobs:
             echo "GHOSTFTP_E2E_KEY_PASSPHRASE=$KEYPASS"
           } >> "$GITHUB_ENV"
 
-      - uses: actions/setup-go@v7
-        with:
-          go-version: '1.25.x'
-          cache: false
-
-      - name: Start real standalone Ghost FTP Server for desktop FTPS interoperability
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s "$RUNNER_TEMP/ghostftp-e2e-server.crt"
-          test -s "$RUNNER_TEMP/ghostftp-e2e-server.key"
-          test -n "$GHOSTFTP_E2E_USERNAME"
-          test -n "$GHOSTFTP_E2E_PASSWORD"
-          mkdir -m 0700 "$RUNNER_TEMP/ghostftp-native-server-root"
-          (umask 077; printf '%s' "$GHOSTFTP_E2E_PASSWORD" > "$RUNNER_TEMP/ghostftp-native-server-password")
-          (cd ghost-server && go build -trimpath -o "$RUNNER_TEMP/ghostftp-native-server" ./cmd/ghost-server)
-          "$RUNNER_TEMP/ghostftp-native-server" \
-            -listen 127.0.0.1:2126 \
-            -root "$RUNNER_TEMP/ghostftp-native-server-root" \
-            -cert "$RUNNER_TEMP/ghostftp-e2e-server.crt" \
-            -key "$RUNNER_TEMP/ghostftp-e2e-server.key" \
-            -user "$GHOSTFTP_E2E_USERNAME" \
-            -password-file "$RUNNER_TEMP/ghostftp-native-server-password" \
-            -allow-uploads -max-upload-bytes 1048576 \
-            >"$RUNNER_TEMP/ghostftp-native-server.log" 2>&1 &
-          for _ in $(seq 1 30); do
-            if nc -z 127.0.0.1 2126; then
-              echo "GHOSTFTP_E2E_GHOST_PORT=2126" >> "$GITHUB_ENV"
-              echo "Genuine Ghost FTP Server is listening on isolated loopback port 2126"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "The real Ghost FTP Server failed to listen" >&2
-          cat "$RUNNER_TEMP/ghostftp-native-server.log" >&2 || true
-          exit 1
-
       - name: Verify committed Rust dependency graph
         working-directory: ghostftp-desktop/src-tauri
         shell: bash
@@ -410,8 +373,6 @@ jobs:
           cat "$RUNNER_TEMP/ghostftp-ftp.log" 2>/dev/null || true
           echo "--- FTPS server log ---"
           cat "$RUNNER_TEMP/ghostftp-ftps.log" 2>/dev/null || true
-          echo "--- Ghost FTP Server interoperability (byte counts only, no payloads) ---"
-          grep -E 'FTPS integrity reject:|error|failed' "$RUNNER_TEMP/ghostftp-native-server.log" 2>/dev/null | tail -n 30 || true
           echo "--- DOS LIST FTP emulation logs ---"
           cat "$RUNNER_TEMP/ghostftp-dos-list.log" 2>/dev/null || true
           cat "$RUNNER_TEMP/ghostftp-dos-invalid.log" 2>/dev/null || true

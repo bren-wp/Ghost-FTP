@@ -418,7 +418,7 @@ for (const componentFile of [
 
 requireIncludes(
   "src/components/Settings.tsx",
-  ['import { messageOf, toastError } from "@/lib/errors";', "setShellDetail(messageOf(error))"],
+  ['import { messageOf, toastError } from "@/lib/errors";', "setError(messageOf(reason))"],
   "redacted Settings diagnostics"
 );
 requireExcludes(
@@ -466,7 +466,6 @@ requireIncludes(
     "if (asyncMutationInFlight.current) return;",
     'runSettingsAsyncMutation("reset"',
     'runMutation("notifications"',
-    'runMutation("shell"',
     "disabled={asyncMutation !== null}",
     "aria-busy={asyncMutation !== null}",
   ],
@@ -491,7 +490,6 @@ requireIncludes(
     "await enqueueSettingsPersistence(async () => {",
     "rememberDurableSetting(key, previous[key]);",
     "await applyTransferEngineSnapshot(previous);",
-    "await (previous.shellIntegration ? ipc.pathAdd() : ipc.pathRemove());",
     '"transferConcurrency",',
     '"maxRetryAttempts",',
     '"transferThrottleKbps",',
@@ -521,20 +519,8 @@ requireIncludes(
 
 requireIncludes(
   "src/components/AgentBridge.tsx",
-  [
-    'const [bridgeMutation, setBridgeMutation] = useState<',
-    "const bridgeMutationInFlight = useRef(false)",
-    "if (bridgeMutationInFlight.current) return;",
-    "bridgeMutationInFlight.current = true;",
-    "bridgeMutationInFlight.current = false;",
-    'runBridgeMutation("master"',
-    'runBridgeMutation("endpoint"',
-    'runBridgeMutation("session"',
-    'runBridgeMutation("policy"',
-    'disabled={bridgeMutation !== null}',
-    'aria-busy={bridgeMutation === "endpoint"}',
-  ],
-  "Agent Bridge mutation serialization"
+  ["export function AgentBridgeHost()", "const pending = approvals[0];", 'onDeny={() => respond(pending.requestId, "deny")}'],
+  "approval-only bridge host, without retired command-line helper UI"
 );
 
 requireIncludes(
@@ -558,15 +544,6 @@ requireExcludes(
   "credential-bearing child-process diagnostics"
 );
 
-requireIncludes(
-  "src-tauri/src/path_integration.rs",
-  [
-    "std::env::split_paths(&path)",
-    "fn cli_on_path(",
-    "cli_path_lookup_does_not_require_a_shell_process",
-  ],
-  "shell-free PATH status contract"
-);
 
 requireIncludes(
   "src/components/TransferCenterDialog.tsx",
