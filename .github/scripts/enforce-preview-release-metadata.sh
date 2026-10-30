@@ -25,7 +25,13 @@ enforce_preview() {
   test "$(jq '[.assets[] | select((.size > 0) and (.digest | type == "string") and (.digest | test("^sha256:[a-f0-9]{64}$")))] | length' <<< "$release")" -eq "$(jq '.assets | length' <<< "$release")"
   id="$(jq -r '.id' <<< "$release")"
   test "$id" -gt 0
-  name="Ghost FTP $version Preview"
+  # Keep the public title plain while preserving the honest GitHub prerelease
+  # classification. Historical release titles are immutable for audit.
+  if [ "$version" = "$CURRENT" ]; then
+    name="Ghost FTP $version"
+  else
+    name="Ghost FTP $version Preview"
+  fi
   if [ "$(jq -r '.prerelease' <<< "$release")" != true ] || [ "$(jq -r '.name' <<< "$release")" != "$name" ]; then
     echo "::notice::Correcting verified $tag Preview metadata; preserving all assets and immutable tags."
     jq -n --arg name "$name" '{prerelease:true,make_latest:"false",name:$name}' |

@@ -271,13 +271,8 @@ jobs:
           test "$(dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION -version)" = "Ghost FTP Server $VERSION Preview"
           tar -tzf "dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION.tar.gz" | grep -Fxq ghostftp-server.service
           dpkg-deb --contents "dist/server-linux/GhostFTP-Server-Linux-amd64-v$VERSION.deb" | grep -q ghostftp-server.service
-          for name in "GhostFTP-Demo-Linux-x86_64-v$VERSION" "GhostFTP-Demo-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Demo-Linux-amd64-v$VERSION.deb" "GhostFTP-Demo-Linux-x86_64-v$VERSION.rpm"; do
-            test -s "dist/server-linux/$name"
-            cp "dist/server-linux/$name" "dist/$name"
-          done
-          test "$(dist/GhostFTP-Demo-Linux-x86_64-v$VERSION -version)" = "Ghost FTP Demo $VERSION Preview"
-          test "$(dist/GhostFTP-Demo-Linux-x86_64-v$VERSION -self-test)" = "Ghost FTP Demo offline/self-test PASS"
-          file "dist/server-windows/GhostFTP-Demo-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
+          test -s "dist/server-windows/GhostFTP-Server-Windows-x64-ControlCenter-v$VERSION.exe"
+          file "dist/server-windows/GhostFTP-Server-Windows-x64-ControlCenter-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
           test -s "dist/server-windows/GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe"
           file "dist/server-windows/GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
           file "dist/server-windows/GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
@@ -286,7 +281,7 @@ jobs:
             test -s "dist/server-linux/$name"
             cp "dist/server-linux/$name" "dist/$name"
           done
-          for name in "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" "GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Demo-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"; do
+          for name in "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" "GhostFTP-Server-Windows-x64-ControlCenter-v$VERSION.exe" "GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe"; do
             test -s "dist/server-windows/$name"
             cp "dist/server-windows/$name" "dist/$name"
           done

@@ -1,4 +1,4 @@
-> **Authoritative current state (29 October 2026):** Ghost FTP **0.99.22 development Preview**; v0.99.21 is the latest publicly published source. The new Client + Server distribution is under exact-SHA CI acceptance, not yet production-certified. Older notes below are historical.
+> **Authoritative current state (30 October 2026):** Ghost FTP **0.99.23 development Preview**; v0.99.22 is the latest publicly published source. The updated native Server Control Center is under exact-SHA CI acceptance, not yet production-certified. Older notes below are historical.
 
 # Ghost FTP Documentation
 
@@ -21,7 +21,7 @@ Ghost FTP documentation is organized around the current canonical product state,
 
 ## Current state
 
-- Active source/release cycle: **0.99.22 (in development, preview)**
+- Active source/release cycle: **0.99.23 (in development, preview)**
 - Latest canonical release: **0.99.15**
 - Live publication state: GitHub Releases is authoritative
 - Version source of truth: `/version.json`

@@ -15,6 +15,16 @@ import (
 var version = "dev" // set only by audited CI -ldflags; never changes protocol policy
 
 func main(){
+ // A double-click without configuration must no longer immediately close
+ // after a cryptic missing-secret error. On Windows, launch the real native
+ // (non-WebView) Control Center. Linux remains an explicit daemon/CLI service.
+ if len(os.Args)==1 {
+  if runNativeControlCenter(){return}
+  fmt.Println("Ghost FTP Server requires a configured TLS identity and password file.")
+  fmt.Println("Use -help for secure daemon options; on Linux use systemctl for service management.")
+  return
+ }
+ controlCenter:=flag.Bool("control-center",false,"Open native local Windows Control Center (no browser/WebView)")
  listen:=flag.String("listen","127.0.0.1:2121","FTP control listener (loopback by default)")
  root:=flag.String("root","","Existing directory to serve read-only")
  cert:=flag.String("cert","","TLS server certificate PEM")
@@ -30,6 +40,10 @@ func main(){
  showVersion:=flag.Bool("version",false,"Print the compiled Ghost FTP Server version and exit")
  flag.Parse()
  if *showVersion { fmt.Println("Ghost FTP Server "+version+" Preview"); return }
+ if *controlCenter {
+  if !runNativeControlCenter(){log.Fatal("native Control Center unavailable; on Linux manage Ghost FTP Server with systemd or CLI")}
+  return
+ }
  if *passfile==""{log.Fatal("password-file is required")}
  info,err:=os.Lstat(*passfile);if err!=nil{log.Fatal(err)}
  if !info.Mode().IsRegular()||info.Mode()&os.ModeSymlink!=0{log.Fatal("password file must be regular, never symlink")}

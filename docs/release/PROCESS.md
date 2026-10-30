@@ -1,4 +1,4 @@
-> **Authoritative current state (29 October 2026):** Ghost FTP **0.99.22 development Preview**; previous published version v0.99.21. Windows/Linux Ghost Server distribution becomes mandatory.
+> **Authoritative current state (30 October 2026):** Ghost FTP **0.99.23 development Preview**; previous published version v0.99.22. Windows/Linux Ghost Server distribution becomes mandatory.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
 
@@ -106,8 +106,8 @@ The previous one-time latest-ten cleanup has ended. **No scheduled or post-relea
 
 ## Current release cycle
 
-- Active source/release cycle: **0.99.22**
-- Previous canonical release: **0.99.21**
+- Active source/release cycle: **0.99.23**
+- Previous canonical release: **0.99.22**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Newest edition is always visible under Releases

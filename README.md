@@ -1,3 +1,5 @@
+> **v0.99.23 distribution update:** Ghost FTP Server has a separate native Windows Forms Control Center and a console-free GUI EXE; Linux Server remains a native headless daemon. Ghost FTP Demo is **Windows portable EXE only**, without a setup or Linux package. Ghost FTP Client itself uses Tauri/system WebView, and current Demo screens are not accepted as 1:1. See [package matrix](docs/distribution/PLATFORM_PACKAGES.md).
+
 <div align="center">
 
 <img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="420" />
@@ -12,7 +14,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.22 (development Preview) · Previous source edition: v0.99.21. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.23 (development Preview) · Previous source edition: v0.99.22. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 

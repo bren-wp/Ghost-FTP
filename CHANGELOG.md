@@ -1,3 +1,11 @@
+## 0.99.23 — native Windows server launch and distribution cleanup (30 October 2026)
+- Add an embedded, real **Windows Forms Control Center** for Ghost FTP Server, launched by double-click/no-argument start or `-control-center`; real Start/Stop service management with no browser or WebView.
+- Include a separately compiled **native Windows GUI Control Center EXE** and Start Menu shortcut in the Server Setup, with installer smoke tests. Existing secure daemon behavior and Linux systemd packaging remain.
+- Restrict **Ghost FTP Demo** to one Windows portable EXE; remove the unsupported Demo Linux packages and the Demo Setup from future release requirements. Keep historical v0.99.22 artifacts immutable.
+- Keep Ghost CLI independently distributed as Windows portable/Setup EXEs and Linux standalone/tar.gz/DEB/RPM, sharing the real desktop transfer engine.
+- Update the fail-closed public artifact contract to **39 nonempty SHA-256 verified packages**, including the native server Control Center.
+- Record explicit incomplete areas: Linux Server GUI, Demo 1:1 production frontend parity, fully WebView-free desktop engine, RBAC, SFTP server, secret synchronization, production signing and visual approval. No false completion claims.
+
 ## 0.99.22 — combined Ghost FTP Client + Server + CLI + Demo (development Preview; 29 October 2026)
 - Preserve a single sequential release version for all supported clients, the standalone Ghost FTP Server, the official Ghost CLI and the self-contained Ghost FTP Demo.
 - Package and verify six real Windows/Linux Ghost FTP Server artifacts in every release: Windows portable + unsigned setup, Linux standalone + tarball + DEB + RPM, with a hardened manually provisioned systemd unit and no default credentials.

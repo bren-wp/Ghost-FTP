@@ -63,5 +63,5 @@ test("versioned server status contract remains local, authenticated, cross-platf
   assert.ok(app.includes("clearDisplayedState();"),"stale live metrics must clear on network error");
   assert.ok(app.includes('window.addEventListener("pagehide"'));
   assert.ok(app.includes("controller.abort()") || app.includes("activeRequest.abort()"));
-  assert.equal((workflow.match(/-X ghostftp\/server\.BuildVersion/g)||[]).length,3);
+  assert.equal((workflow.match(/-X ghostftp\/server\.BuildVersion/g)||[]).length,4);
 });

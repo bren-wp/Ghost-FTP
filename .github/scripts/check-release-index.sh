@@ -33,21 +33,17 @@ test "$(jq -r '.draft' <<< "$RELEASE")" = false
 test "$(jq -r '.prerelease' <<< "$RELEASE")" = true
 test "$(jq -r '.target_commitish' <<< "$RELEASE")" = "$SOURCE_SHA"
 test "$(jq -r '.html_url' <<< "$RELEASE")" = "https://github.com/$REPO/releases/tag/$TAG"
-test "$(jq -r '.assets | length' <<< "$RELEASE")" -ge 43
+test "$(jq -r '.assets | length' <<< "$RELEASE")" -ge 39
 test "$(jq '[.assets[] | select(.size > 0 and (.digest | type == "string") and (.digest | test("^sha256:[a-f0-9]{64}$")))] | length' <<< "$RELEASE")" -eq "$(jq '.assets | length' <<< "$RELEASE")"
 for name in \
   "GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe" \
-  "GhostFTP-Demo-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" \
-  "GhostFTP-Demo-Linux-x86_64-v$VERSION" \
-  "GhostFTP-Demo-Linux-x86_64-v$VERSION.tar.gz" \
-  "GhostFTP-Demo-Linux-amd64-v$VERSION.deb" \
-  "GhostFTP-Demo-Linux-x86_64-v$VERSION.rpm" \
   "GhostCLI-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" \
   "GhostCLI-Linux-x86_64-v$VERSION.tar.gz" \
   "GhostCLI-Linux-amd64-v$VERSION.deb" \
   "GhostCLI-Linux-x86_64-v$VERSION.rpm" \
   "GhostCLI-Windows-x64-v$VERSION.exe" \
   "GhostCLI-Linux-x86_64-v$VERSION" \
+  "GhostFTP-Server-Windows-x64-ControlCenter-v$VERSION.exe" \
   "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" \
   "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" \
   "GhostFTP-Server-Linux-x86_64-v$VERSION" \
