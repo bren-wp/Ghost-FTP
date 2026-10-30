@@ -9,7 +9,7 @@
 | **Ghost CLI** real command-line client | `GhostCLI-Windows-x64-v0.99.23.exe` | `GhostCLI-Windows-x64-Setup-Unsigned-Preview-v0.99.23.exe` | `GhostCLI-Linux-x86_64-v0.99.23`, `.tar.gz` | `.deb`, `.rpm` |
 | **Ghost FTP Demo** (simulated walkthrough) | `GhostFTP-Demo-Windows-x64-Portable-v0.99.23.exe` **only** | Not distributed | Not distributed | Not distributed |
 
-**Linux binaries are native ELF files, not Windows `.exe` files.** AppImage is available for the GUI Client; CLI/Demo/Server have independent native executables and tarballs. Windows CLI and Demo installers are separate NSIS installers using Ghost FTP desktop branding and EULA notices. All Linux CLI/Demo packages install files only, never start a service, change shell configuration or create network credentials. Ghost Server installers do not create users/passwords, expose network interfaces or auto-start a public daemon.
+**Linux binaries are native ELF files, not Windows `.exe` files.** AppImage is available for the GUI Client; CLI and Server have independent native executables and tarballs. Windows CLI and Server installers are separate NSIS installers using Ghost FTP desktop branding and EULA notices. All Linux CLI packages install files only, never start a service, change shell configuration or create network credentials. Ghost Server installers do not create users/passwords, expose network interfaces or auto-start a public daemon.
 
 ## Real function versus simulation
 
