@@ -1,4 +1,4 @@
-> **Authoritative current state (30 October 2026):** Ghost FTP **0.99.23 development Preview**; v0.99.22 is the latest publicly published source. The updated native Server Control Center is under exact-SHA CI acceptance, not yet production-certified. Older notes below are historical.
+> **Authoritative current state (30 October 2026):** Ghost FTP **0.99.24 development Preview**; v0.99.23 is the latest publicly published version. Standalone Ghost FTP Server, Demo and CLI are retired from current source and new release packages. Client protocol support remains platform-dependent; security and installed-device validation are not yet certified. Older entries below are historical.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
 
@@ -12,7 +12,7 @@
 
 > Current development source: **0.99.4**; latest verified published release: **0.99.3**. Historical findings below retain their original version labels.
 
-Previous canonical release: **0.99.22**.
+Previous canonical release: **0.99.23**.
 
 0.93.0 cloud scope: custom S3/Azure desktop endpoints require HTTPS and forbid embedded credentials, query and fragments. Mobile/macOS signed-object transfers use ephemeral bearer URLs, OS TLS trust, no redirects, bounded file sizes and no stored signed links. This is targeted source hardening; penetration testing and complete provider/account parity are not claimed.
 

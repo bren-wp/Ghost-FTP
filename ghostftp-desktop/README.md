@@ -1,4 +1,4 @@
-> **Authoritative current state (30 October 2026):** Ghost FTP **0.99.23 development Preview**; v0.99.22 is the latest publicly published source. The updated native Server Control Center is under exact-SHA CI acceptance, not yet production-certified. Older notes below are historical.
+> **Authoritative current state (30 October 2026):** Ghost FTP **0.99.24 development Preview**; v0.99.23 is the latest publicly published version. Standalone Ghost FTP Server, Demo and CLI are retired from current source and new release packages. Client protocol support remains platform-dependent; security and installed-device validation are not yet certified. Older entries below are historical.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
 
@@ -26,7 +26,7 @@ This directory contains the authoritative **Ghost FTP desktop application**.
 
 The release line opens as a real desktop window. It does not launch the production GUI through a localhost browser wrapper, and it must not expose a visible `127.0.0.1` address/origin bar.
 
-Current development line: **0.99.23**. Previous canonical release: **0.99.22**.
+Current development line: **0.99.23**. Previous canonical release: **0.99.23**.
 
 ## Platform deliverables
 
