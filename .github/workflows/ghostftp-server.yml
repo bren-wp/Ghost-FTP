@@ -109,6 +109,40 @@ jobs:
           [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $ui).Path,[ref]$tokens,[ref]$errors)|Out-Null
           if ($errors.Count -gt 0) { throw "Native GUI PowerShell syntax errors: $errors" }
           if ((Get-Item 'dist/ghost-server-controlcenter.exe').Length -le 0) { throw 'Empty native GUI executable' }
+      - name: Exercise actual native Windows Control Center startup and window closure
+        shell: pwsh
+        working-directory: ghost-server
+        run: |
+          $ErrorActionPreference='Stop'
+          $binary=(Resolve-Path 'dist/ghost-server-controlcenter.exe').Path
+          $gui=Start-Process -FilePath $binary -PassThru
+          $childPids=@()
+          try {
+            $visible=$false
+            for ($attempt=0; $attempt -lt 25; $attempt++) {
+              Start-Sleep -Milliseconds 500
+              if ($gui.HasExited) { throw 'Native server Control Center exited before showing a window' }
+              $children=@(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($gui.Id)" -ErrorAction SilentlyContinue)
+              foreach ($child in $children) {
+                if ($child.Name -ne 'powershell.exe') { continue }
+                $childPids+= $child.ProcessId
+                $process=Get-Process -Id $child.ProcessId -ErrorAction SilentlyContinue
+                if ($null -ne $process -and $process.MainWindowTitle -like 'Ghost FTP Server*Control Center*') {
+                  $visible=$true
+                  [void]$process.CloseMainWindow()
+                  break
+                }
+              }
+              if ($visible) { break }
+            }
+            if (-not $visible) { throw 'Real Windows Forms Control Center window never opened' }
+            Write-Output 'Real WebView-free native server window appeared and accepted close event.'
+          } finally {
+            foreach($pidToStop in ($childPids | Select-Object -Unique)) {
+              Stop-Process -Id $pidToStop -Force -ErrorAction SilentlyContinue
+            }
+            if (-not $gui.HasExited) { Stop-Process -Id $gui.Id -Force -ErrorAction SilentlyContinue }
+          }
       - name: Real Windows LocalService install, start, FTP greeting and stop
         shell: pwsh
         working-directory: ghost-server
