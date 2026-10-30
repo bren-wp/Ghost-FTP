@@ -39,6 +39,11 @@ function Find-NsisCompiler {
         Get-ChildItem -LiteralPath $ExtraRoot -Filter makensis.exe -Recurse -File -ErrorAction Stop |
             ForEach-Object { $candidates.Add($_.FullName) }
     }
+    # Tauri just created the desktop NSIS package and verifies its cached toolchain.
+    # Reuse it before downloading from SourceForge or contacting Chocolatey.
+    if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+        $candidates.Add((Join-Path $env:LOCALAPPDATA 'tauri\NSIS\makensis.exe'))
+    }
     $candidates.Add('C:\Program Files (x86)\NSIS\makensis.exe')
     $candidates.Add('C:\Program Files\NSIS\makensis.exe')
     $fromPath = Get-Command makensis.exe -ErrorAction SilentlyContinue
@@ -75,7 +80,7 @@ foreach ($url in $urls) {
             Invoke-WebRequest -Uri $url -OutFile $archive -TimeoutSec 90 -MaximumRedirection 10 -ErrorAction Stop
             $actualSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($actualSha256 -ne $expectedSha256) {
-                throw "NSIS ZIP SHA-256 mismatch; expected $expectedSha256, got $actualSha256"
+                throw "NSIS ZIP SHA-256 mismatch (mirror returned different content, possibly an HTML download page); expected $expectedSha256, got $actualSha256"
             }
             if (Test-Path -LiteralPath $unpacked) {
                 Remove-Item -LiteralPath $unpacked -Force -Recurse
@@ -102,7 +107,9 @@ foreach ($url in $urls) {
 if (Get-Command choco -ErrorAction SilentlyContinue) {
     try {
         Write-Host 'Official portable ZIP unavailable; trying Chocolatey with pinned NSIS 3.13.0.'
-        & choco install nsis --version=3.13.0 --no-progress --yes
+        # Chocolatey writes status lines to stdout. Never leak those lines into
+        # the command-substitution output consumed as the compiler path.
+        & choco install nsis --version=3.13.0 --no-progress --yes | Out-Host
         if ($LASTEXITCODE -ne 0) { throw "Chocolatey returned exit code $LASTEXITCODE" }
         $compiler = Find-NsisCompiler
         if (-not $compiler) { throw 'Chocolatey finished without a valid NSIS 3.13 makensis.exe' }
