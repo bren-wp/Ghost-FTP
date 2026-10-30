@@ -43,11 +43,15 @@ Version: $VERSION
 Section: net
 Priority: optional
 Architecture: amd64
-${DEB_DEPENDS:+Depends: $DEB_DEPENDS}
 Maintainer: Brendigo <noreply@github.com>
 Description: $DESC (Preview)
  Official Ghost FTP executable; no automatic services or credentials.
 EOF
+# An empty field or blank line splits a Debian control into two stanzas.
+# Insert Depends only for the CLI, before package assembly.
+if [ -n "$DEB_DEPENDS" ]; then
+  sed -i "/^Architecture: amd64$/a Depends: $DEB_DEPENDS" "$deb/DEBIAN/control"
+fi
 dpkg-deb --build --root-owner-group "$deb" "$OUTPUT/$PREFIX-Linux-amd64-v$VERSION.deb"
 rpmroot="$work/rpmbuild"
 mkdir -p "$rpmroot"/{SOURCES,SPECS,BUILD,RPMS,SRPMS}
