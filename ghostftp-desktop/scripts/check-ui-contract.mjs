@@ -784,7 +784,7 @@ const notificationToggleCount = (settings.match(/<DesktopNotificationsToggle\b/g
 if (notificationToggleCount !== 1) {
   failures.push(`Settings must expose desktop notifications in exactly one section; found ${notificationToggleCount}`);
 }
-if (!settings.includes('advanced: "Terminal, system integrations and keyboard shortcuts."')) {
+if (!settings.includes('advanced: "Terminal options and keyboard shortcuts."')) {
   failures.push("Advanced Settings description must match its Terminal/Integrations/Shortcuts grouping.");
 }
 if (!settings.includes('<div className="xl:col-span-2"><TerminalCard/></div>')) {

@@ -42,7 +42,7 @@ const SECTION_DESCRIPTION: Record<Section, string> = {
   transfers: "Transfer concurrency, speed limits, retries and resume behavior.",
   connection: "Reconnect, keep-alive and timeout behavior.",
   security: "Credentials, privacy and local history controls.",
-  advanced: "Terminal, system integrations and keyboard shortcuts.",
+  advanced: "Terminal options and keyboard shortcuts.",
   sync: "Create and manage real folder synchronization pairs.",
 };
 
