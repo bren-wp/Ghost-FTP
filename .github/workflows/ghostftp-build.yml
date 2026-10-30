@@ -144,10 +144,21 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $compiler = & ./scripts/ci/resolve-nsis.ps1
-          if (-not $compiler -or -not (Test-Path -LiteralPath $compiler -PathType Leaf)) {
-            throw 'Verified NSIS compiler is not available; refusing to build the CLI installer'
+          # Only one scalar compiler path may be emitted by the resolver. In
+          # particular, package-manager progress must not enter stdout.
+          $resolvedPaths = @(& ./scripts/ci/resolve-nsis.ps1)
+          if ($resolvedPaths.Count -ne 1 -or $resolvedPaths[0] -isnot [string]) {
+            throw "NSIS resolver must emit exactly one compiler path; got $($resolvedPaths.Count) stdout record(s)"
           }
+          $compiler = [string]$resolvedPaths[0]
+          if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) {
+            throw "Verified NSIS compiler was not found at '$compiler'"
+          }
+          $nsisVersion = (@(& $compiler /VERSION 2>&1) -join ' ').Trim()
+          if ($LASTEXITCODE -ne 0 -or $nsisVersion -notmatch '(^|[^\d])3\.13(?:\.0)?([^\d]|$)') {
+            throw "Expected a functional NSIS 3.13 compiler at '$compiler', got '$nsisVersion'"
+          }
+          Write-Host "Using NSIS $nsisVersion from $compiler"
           New-Item -ItemType Directory -Force dist-tools | Out-Null
           & $compiler /V2 ghost-cli/install/GhostCLI.nsi
           if ($LASTEXITCODE -ne 0) { throw 'Ghost CLI standalone setup build failed' }
