@@ -418,7 +418,7 @@ for (const componentFile of [
 
 requireIncludes(
   "src/components/Settings.tsx",
-  ['import { messageOf, toastError } from "@/lib/errors";', "setShellDetail(messageOf(error))"],
+  ['import { messageOf, toastError } from "@/lib/errors";', "setError(messageOf(reason))"],
   "redacted Settings diagnostics"
 );
 requireExcludes(
