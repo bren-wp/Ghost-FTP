@@ -28,31 +28,32 @@ test("Windows and Linux Ghost CLI binaries are mandatory public assets",()=>{
     assert.ok(post.includes(item),item+": public digest");
   }
 });
-test("offline Windows demo is built, locally hosted, tested and clearly labeled",()=>{
+test("Ghost FTP Demo is exclusively a Windows portable demo binary in release inventory",()=>{
   const demo=read("ghost-demo/main.go");
-  const web=read("ghost-demo/assets/index.html");
   assert.ok(demo.includes('net.Listen("tcp","127.0.0.1:0")'));
-  assert.ok(demo.includes('r.Host!=host'));
-  assert.ok(demo.includes("SIMULATION ONLY"));
-  assert.ok(demo.includes('func selfTest() error'));
-  assert.ok(web.includes("SIMULATION • OFFLINE"));
-  assert.ok(web.includes("No real file transfers"));
   assert.ok(server.includes("go test -C ../ghost-demo ./..."));
-  assert.ok(server.includes("go test -C ghost-demo -race ./..."));
   assert.ok(server.includes("GhostFTP-Demo-Windows-x64-Portable-v$version.exe"));
-  assert.ok(release.includes("GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe"));
   assert.ok(pre.includes("GhostFTP-Demo-Windows-x64-Portable-v" + "$" + "{VERSION}.exe"));
   assert.ok(post.includes("GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe"));
-  for (const product of ["GhostCLI", "GhostFTP-Demo"]) {
-    assert.ok(pre.includes(product + "-Linux-x86_64-v"),product + " Linux portable");
-    assert.ok(pre.includes(product + "-Linux-amd64-v"),product + " Linux DEB");
-    assert.ok(pre.includes(product + "-Windows-x64-Setup-Unsigned-Preview-v"),product + " Windows Setup");
-    assert.ok(post.includes(product + "-Linux-x86_64-v"),product + " public Linux package");
+  for(const source of [server,release,pre,post]){
+    assert.ok(!source.includes("GhostFTP-Demo-Linux-"),"Linux demo must not be packaged");
+    assert.ok(!source.includes("GhostFTP-Demo-Windows-x64-Setup-"),"Demo setup must not be packaged");
   }
-  assert.ok(native.includes("Build, install and uninstall separate Ghost CLI Windows Setup"));
-  assert.ok(server.includes("Build and smoke independent Ghost FTP Demo Windows NSIS Setup"));
-  assert.ok(server.includes("packaging/linux/build-portable-packages.sh demo"));
-  assert.ok(native.includes("packaging/linux/build-portable-packages.sh cli"));
+  assert.ok(!server.includes("build-portable-packages.sh demo"));
+  assert.ok(!server.includes("Build and smoke independent Ghost FTP Demo Windows NSIS Setup"));
+});
+test("Native Windows Server Control Center has independent executable, is not WebView, and is actually installed",()=>{
+  const entry=read("ghost-server/cmd/ghost-server/main.go");
+  const launcher=read("ghost-server/cmd/ghost-server/controlcenter_windows.go");
+  const desktop=read("ghost-server/cmd/ghost-server/control_center.ps1");
+  const installer=read("ghost-server/install/GhostFTPServer.nsi");
+  assert.ok(entry.includes("runNativeControlCenter()"));
+  assert.ok(launcher.includes("go:embed control_center.ps1"));
+  assert.ok(desktop.includes("System.Windows.Forms") && desktop.includes("Start-Service"));
+  assert.ok(!desktop.includes("WebView2") && !desktop.includes("WebBrowser"));
+  assert.ok(installer.includes("GhostFTPServer-ControlCenter.exe"));
+  for(const source of [server,release,pre,post])
+    assert.ok(source.includes("GhostFTP-Server-Windows-x64-ControlCenter-v") || source.includes("ghost-server-controlcenter.exe"));
 });
 test("client release selectors cannot accidentally promote CLI/Demo packages as Ghost FTP Client",()=>{
   for(const literal of [
@@ -92,7 +93,7 @@ test("Release title is plain product name and version; security classification s
   assert.ok(pre.includes('draft:false,prerelease:true'));
 });
 test("combined release is checksum-complete and still an unsigned Preview",()=>{
-  assert.ok(post.includes("-ge 43"));
+  assert.ok(post.includes("-ge 39"));
   assert.ok(quality.includes("check-cli-demo-release.test.mjs"));
   assert.ok(release.includes("sha256sum -c Release-SHA256SUMS.txt"));
   assert.ok(release.includes("sha256sum -c Linux-SHA256SUMS.txt"));
