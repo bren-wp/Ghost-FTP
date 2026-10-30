@@ -127,8 +127,7 @@ ghostftp-desktop/
 │   └── styles.css            visual and responsive rules
 ├── src-tauri/                internal native Rust/framework build area
 │   ├── ghostftp-agent-proto/
-│   ├── ghostftp-agentd/
-│   └── ghostftp-cli/
+│   └── ghostftp-agentd/
 └── web/                      static companion/loading surface
 ```
 

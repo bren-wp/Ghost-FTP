@@ -1,3 +1,5 @@
+> **Historical architecture note only (v0.99.22):** This file describes the discontinued standalone Ghost FTP Server. Beginning with v0.99.24, the Server, Demo and standalone CLI have been removed from active source and current release packages. All paths, workflows and packaging requirements below are archival, **not current instructions**. For current supported products consult [client-only packaging](../distribution/PLATFORM_PACKAGES.md), [security policy](../../SECURITY.md) and [release notes](../releases/0.99.24.md).
+
 # Ghost FTP Client + Server — cross-platform parity and synchronization contract
 
 **Development scope:** v0.99.22 Preview, 29 October 2026. This record is evidence of source alignment and real feature availability, **not** a claim of fully approved 1:1 visual parity or production readiness.
