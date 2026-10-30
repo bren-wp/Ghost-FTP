@@ -480,6 +480,14 @@ jobs:
         run: |
           set -euo pipefail
           test -s Cargo.lock
+          # Diagnose an out-of-sync lock graph without weakening the release gate:
+          # Cargo may resolve locally to show the exact diff, but the build fails
+          # until that generated diff is committed to the PR.
+          cargo metadata --format-version 1 >/dev/null
+          if ! git diff --exit-code -- Cargo.lock; then
+            echo "::error::Cargo.lock is stale. Commit the exact Cargo-generated diff; never bypass --locked."
+            exit 1
+          fi
           cargo metadata --locked --format-version 1 >/dev/null
 
       - name: Rust workspace check

@@ -31,4 +31,4 @@ Implemented behavior, source inspection, automated CI and target-OS acceptance a
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.23. Previous canonical release: 0.99.22. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.24. Previous canonical release: 0.99.23. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
