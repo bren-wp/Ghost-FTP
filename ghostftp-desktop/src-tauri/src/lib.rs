@@ -1,10 +1,7 @@
 use std::sync::Arc;
 use tauri::Manager;
 
-// The CLI crate (ghostftp-cli/src/main.rs) imports from these via the `ghostftp_lib`
-// crate, so they need to be `pub` rather than `mod`. None of them expose
-// secrets directly — credentials live in profiles::ConnectionProfile, which
-// the CLI deliberately redacts in `profiles show`.
+// Native shared libraries expose the authenticated client functionality to the GUI.
 mod agent_host;
 pub mod backup;
 pub mod bridge;
@@ -24,7 +21,6 @@ pub mod keys;
 mod known_hosts;
 mod network_diagnostics;
 pub mod oauth;
-mod path_integration;
 mod preview;
 pub mod profiles;
 pub mod remotefs;
@@ -376,7 +372,7 @@ original user data and staged restore were preserved for repair"
             }
 
             // Bring the Agent Bridge back up if the user left its master switch
-            // on, so the `ghostftp-cli agent …` path keeps working across restarts.
+            // on, so the integrated agent bridge resumes after application restart.
             // Spawned off the async runtime so the sync setup() returns at once.
             let bridge = app.state::<AppState>().bridge.clone();
             let bridge_handle = app.handle().clone();
@@ -456,9 +452,6 @@ original user data and staged restore were preserved for repair"
             agent_host::agent_host_set_policy,
             agent_host::agent_host_set_peer_permissions,
             agent_host::agent_host_revoke_peer,
-            path_integration::path_status,
-            path_integration::path_add,
-            path_integration::path_remove,
             foldersync::foldersync_list,
             foldersync::foldersync_upsert,
             foldersync::foldersync_remove,

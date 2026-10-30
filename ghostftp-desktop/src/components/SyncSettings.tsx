@@ -24,7 +24,6 @@ import { relTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { toastError } from "@/lib/errors";
 import { toast } from "@/stores/toastStore";
-import { generateSyncScript, type SyncScriptFormat } from "@/lib/syncScripts";
 import type {
   PairView,
   SyncDirection,
@@ -142,7 +141,6 @@ function PairRow({ pair }: { pair: PairView }) {
   const syncNow = useSync((s) => s.syncNow);
   const [freeing, setFreeing] = useState(false);
   const [mutating, setMutating] = useState<"toggle" | "sync" | "remove" | null>(null);
-  const [copyingScript, setCopyingScript] = useState(false);
   const mutationInFlight = useRef(false);
 
   const profile = profiles.find((p) => p.id === pair.profileId);
@@ -170,19 +168,6 @@ function PairRow({ pair }: { pair: PairView }) {
     } finally {
       mutationInFlight.current = false;
       setMutating(null);
-    }
-  };
-
-  const copyScript = async (format: SyncScriptFormat) => {
-    if (copyingScript) return;
-    setCopyingScript(true);
-    try {
-      await navigator.clipboard.writeText(generateSyncScript(pair, format));
-      toast.success("Script copied", "No credentials included. Review before running.");
-    } catch (error) {
-      toastError(error, "Couldn't generate a safe sync script");
-    } finally {
-      setCopyingScript(false);
     }
   };
 
@@ -253,22 +238,6 @@ function PairRow({ pair }: { pair: PairView }) {
           )}
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-          {!isOnDemand && (
-            <>
-              {(["powershell", "cmd", "dotnet-watcher"] as const).map((format) => (
-                <button
-                  key={format}
-                  type="button"
-                  disabled={mutating !== null || copyingScript}
-                  onClick={() => void copyScript(format)}
-                  title={"Copy credential-free " + format + " sync script"}
-                  className="rounded-md border border-border px-2 py-1 text-[11px] text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
-                >
-                  {format === "powershell" ? "PS" : format === "cmd" ? "CMD" : ".NET watch"}
-                </button>
-              ))}
-            </>
-          )}
           {isOnDemand ? (
             <button
               type="button"

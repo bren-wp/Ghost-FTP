@@ -130,8 +130,6 @@ interface SettingsState {
   // Connections
   defaultPort: number;
 
-  // Integrations
-  shellIntegration: boolean;
 
   // Notifications
   notifications: NotificationSettings;
@@ -160,7 +158,6 @@ interface SettingsState {
   setTerminalCopyOnSelect: (v: boolean) => void;
   setTerminalSuggestions: (v: boolean) => void;
   setDefaultPort: (n: number) => void;
-  setShellIntegration: (v: boolean) => void;
   setNotifications: (v: NotificationSettings) => void;
 }
 
@@ -190,7 +187,6 @@ export type PersistedSettings = Omit<
   | "setTerminalCopyOnSelect"
   | "setTerminalSuggestions"
   | "setDefaultPort"
-  | "setShellIntegration"
   | "setNotifications"
 >;
 
@@ -223,7 +219,6 @@ const DEFAULTS: PersistedSettings = {
   terminalCopyOnSelect: true,
   terminalSuggestions: true,
   defaultPort: 22,
-  shellIntegration: false,
   notifications: { enabled: false, unfocusedOnly: true },
 };
 
@@ -492,7 +487,6 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setTerminalSuggestions: (v) =>
     mutate(set, get, "terminalSuggestions", v),
   setDefaultPort: (n) => mutate(set, get, "defaultPort", Math.max(1, Math.min(65535, Math.round(finiteNumber(n, DEFAULTS.defaultPort))))),
-  setShellIntegration: (v) => mutate(set, get, "shellIntegration", v),
   setNotifications: (v) => mutate(set, get, "notifications", v),
 }));
 
@@ -573,7 +567,6 @@ export function restoreSettingsSnapshot(snapshot: PersistedSettings): void {
     void persistKey(key, snapshot[key]);
   }
   void applyTransferEngineSnapshot(snapshot).catch((error) => toastError(error, "Couldn't restore transfer-engine preferences"));
-  (snapshot.shellIntegration ? ipc.pathAdd() : ipc.pathRemove()).catch((error) => toastError(error, "Couldn't restore shell integration"));
 }
 
 export const TERMINAL_THEMES: Record<
@@ -635,7 +628,6 @@ export async function resetSettingsToDefaults(): Promise<void> {
     }
     useSettings.setState({ ...DEFAULTS } as Partial<SettingsState>);
     await applyTransferEngineSnapshot(DEFAULTS);
-    await (DEFAULTS.shellIntegration ? ipc.pathAdd() : ipc.pathRemove());
   } catch (error) {
     useSettings.setState({ ...previous } as Partial<SettingsState>);
 
@@ -661,7 +653,6 @@ export async function resetSettingsToDefaults(): Promise<void> {
     }
 
     try {
-      await (previous.shellIntegration ? ipc.pathAdd() : ipc.pathRemove());
     } catch (rollbackError) {
       console.warn("Ghost FTP shell-integration rollback failed", rollbackError);
     }

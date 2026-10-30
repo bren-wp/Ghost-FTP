@@ -241,23 +241,6 @@ export interface AgentHostStatus {
   pairing: AgentHostPairing | null;
 }
 
-/** One-click "Add ghostftp-cli to PATH" status (mirrors Rust's
- *  PathStatus). Per-user only — never needs admin. */
-export interface PathStatus {
-  /** The app-owned bin dir Ghost FTP uses for an explicitly installed CLI. */
-  binDir: string;
-  /** Whether a ghostftp-cli binary actually exists in binDir. */
-  binHasCli: boolean;
-  /** Whether ghostftp-cli resolves on PATH right now, and where. */
-  onPath: boolean;
-  cliLocation: string | null;
-  /** Whether Ghost FTP's own managed entry is present (its bin dir on the Windows
-   *  per-user Path, or the ~/.local/bin symlink on Linux). */
-  managed: boolean;
-  /** Short platform note after an add/remove ("Open a new terminal…"). */
-  detail: string | null;
-}
-
 /** A parsed ghostftp:// deep link forwarded from Rust (mirrors DeepLink there).
  *  Every field optional; never carries a password. */
 export interface DeepLink {

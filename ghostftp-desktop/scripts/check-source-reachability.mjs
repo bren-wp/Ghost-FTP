@@ -91,7 +91,6 @@ const unreachableTs = [...tsFileSet]
 // crate root includes, so prove source-file reachability before those checks.
 const rustCrates = [
   path.join(desktopRoot, "src-tauri", "src"),
-  path.join(desktopRoot, "src-tauri", "ghostftp-cli", "src"),
   path.join(desktopRoot, "src-tauri", "ghostftp-agent-proto", "src"),
   path.join(desktopRoot, "src-tauri", "ghostftp-agentd", "src"),
 ];

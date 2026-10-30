@@ -42,7 +42,6 @@ import type {
   DiscoveredAgent,
   AgentPairResult,
   AgentHostStatus,
-  PathStatus,
   DeepLink,
   GrantManifest,
   GrantImportResult,
@@ -198,11 +197,6 @@ export const ipc = {
 
   agentHostRevokePeer: (publicKey: string) =>
     invoke<AgentHostStatus>("agent_host_revoke_peer", { publicKey }),
-
-  // ---- One-click "Add ghostftp-cli to PATH" (Plan 16 Phase 4): per-user, no admin.
-  pathStatus: () => invoke<PathStatus>("path_status"),
-  pathAdd: () => invoke<PathStatus>("path_add"),
-  pathRemove: () => invoke<PathStatus>("path_remove"),
 
   listDirectory: (sessionId: SessionId, path: string) =>
     invoke<DirEntry[]>("list_directory", { sessionId, path }),

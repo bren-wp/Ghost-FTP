@@ -117,7 +117,7 @@ export function Settings({ onClose, initialSection = "appearance" }: Props) {
             {section === "transfers" && <TransfersPanel/>}
             {section === "connection" && <ConnectionPanel mutation={asyncMutation} runMutation={runSettingsAsyncMutation}/>} 
             {section === "security" && <SecurityPanel/>}
-            {section === "advanced" && <AdvancedPanel mutation={asyncMutation} runMutation={runSettingsAsyncMutation}/>} 
+            {section === "advanced" && <AdvancedPanel/>} 
             {section === "sync" && <div className="mx-auto w-full max-w-5xl"><SyncSettings/></div>}
           </div>
           <div className="ghost-preferences-actions flex h-[58px] shrink-0 items-center border-t border-border bg-[#061a2d] px-4">
@@ -541,53 +541,6 @@ function SecurityCard() {
   );
 }
 
-function IntegrationsCard({
-  mutation,
-  runMutation,
-}: {
-  mutation: SettingsAsyncMutation | null;
-  runMutation: RunSettingsAsyncMutation;
-}) {
-  const s=useSettings();
-  const [shellDetail,setShellDetail]=useState<string>("Adds Ghost FTP's managed CLI directory to your user PATH.");
-  useEffect(()=>{
-    let active=true;
-    void ipc.pathStatus().then((status)=>{
-      if(!active)return;
-      // Reflect the OS state without persisting it again. pathStatus() is the
-      // source of truth and opening Settings must never mutate preferences.
-      useSettings.setState({ shellIntegration: status.managed });
-      if(status.detail)setShellDetail(status.detail);
-    }).catch((error)=>{
-      if(active){
-        const detail=messageOf(error);
-        setShellDetail(detail);
-        toastError(error, "Couldn't read shell integration status");
-      }
-    });
-    return()=>{active=false};
-  },[]);
-  const setShell=async(enabled:boolean)=>{
-    if(mutation !== null)return;
-    await runMutation("shell", async () => {
-      try{
-        const status=enabled?await ipc.pathAdd():await ipc.pathRemove();
-        if(status.managed !== enabled){
-          throw new Error(status.detail ?? `Shell integration did not ${enabled ? "enable" : "disable"} as requested.`);
-        }
-        s.setShellIntegration(status.managed);
-        setShellDetail(status.detail ?? (status.managed?'Shell integration enabled.':'Shell integration disabled.'));
-      }catch(error){
-        setShellDetail(messageOf(error));
-      }
-    });
-  };
-  return <Card icon={<Plug size={20}/>} title="Integrations" subtitle="Extend Ghost FTP with system integrations.">
-    <ToggleRow label="Shell integration" checked={s.shellIntegration} onChange={(v)=>void setShell(v)} locked={mutation !== null}/>
-    <div className="-mt-1 text-[10px] leading-4 text-text-dim">{shellDetail}</div>
-  </Card>
-}
-
 function StatusRow({ label }: { label: string }){return <div className="flex min-h-8 items-center gap-3 rounded-md border border-border-subtle bg-[#051929] px-3 text-[12px]"><span className="h-2 w-2 shrink-0 rounded-full bg-success"/><span>{label}</span></div>}
 
 function AppearancePanel(){return <div className="mx-auto w-full max-w-4xl"><AppearanceCard/></div>}
@@ -708,7 +661,7 @@ function RemoteAgentSecurityCard() {
 
 function SecurityPanel(){return <div className="mx-auto w-full max-w-4xl space-y-4"><SecurityCard/><RemoteAgentSecurityCard/></div>}
 function ShortcutsCard(){return <Card icon={<Keyboard size={20}/>} title="Keyboard Shortcuts" subtitle="Core Ghost FTP shortcuts."><div className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-[12px]"><span>New connection</span><kbd>Ctrl + N</kbd><span>Settings</span><kbd>Ctrl + ,</kbd><span>Open Transfers</span><kbd>Ctrl + T</kbd><span>Command palette</span><kbd>Ctrl + K</kbd></div></Card>}
-function AdvancedPanel({ mutation, runMutation }: { mutation: SettingsAsyncMutation | null; runMutation: RunSettingsAsyncMutation }){return <div className="mx-auto grid w-full max-w-5xl gap-4 xl:grid-cols-2"><IntegrationsCard mutation={mutation} runMutation={runMutation}/><ShortcutsCard/><div className="xl:col-span-2"><TerminalCard/></div></div>}
+function AdvancedPanel(){return <div className="mx-auto grid w-full max-w-5xl gap-4 xl:grid-cols-2"><ShortcutsCard/><div className="xl:col-span-2"><TerminalCard/></div></div>}
 
 function Nav({
   section,

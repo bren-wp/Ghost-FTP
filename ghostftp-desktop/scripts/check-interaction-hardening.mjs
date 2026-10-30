@@ -491,7 +491,6 @@ requireIncludes(
     "await enqueueSettingsPersistence(async () => {",
     "rememberDurableSetting(key, previous[key]);",
     "await applyTransferEngineSnapshot(previous);",
-    "await (previous.shellIntegration ? ipc.pathAdd() : ipc.pathRemove());",
     '"transferConcurrency",',
     '"maxRetryAttempts",',
     '"transferThrottleKbps",',
@@ -558,15 +557,6 @@ requireExcludes(
   "credential-bearing child-process diagnostics"
 );
 
-requireIncludes(
-  "src-tauri/src/path_integration.rs",
-  [
-    "std::env::split_paths(&path)",
-    "fn cli_on_path(",
-    "cli_path_lookup_does_not_require_a_shell_process",
-  ],
-  "shell-free PATH status contract"
-);
 
 requireIncludes(
   "src/components/TransferCenterDialog.tsx",
