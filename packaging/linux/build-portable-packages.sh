@@ -4,8 +4,15 @@ set -euo pipefail
 COMPONENT="$1"; VERSION="$2"; SOURCE="$3"; OUTPUT="$4"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 2
 case "$COMPONENT" in
- cli) PKG=ghostftp-cli; PREFIX=GhostCLI; README=ghost-cli/README.md; DESC="Ghost FTP command-line client"; LICENSE=MIT ;;
- demo) PKG=ghostftp-demo; PREFIX=GhostFTP-Demo; README=ghost-demo/README.md; DESC="Ghost FTP offline simulated product demo"; LICENSE=Proprietary ;;
+ cli) PKG=ghostftp-cli; PREFIX=GhostCLI; README=ghost-cli/README.md; DESC="Ghost FTP command-line client"; LICENSE=MIT
+      # Rust CLI currently reuses the desktop Tauri session crate and is
+      # dynamically linked to WebKitGTK on Linux. Explicit package dependencies
+      # prevent installing a runnable-looking but broken CLI.
+      DEB_DEPENDS="libwebkit2gtk-4.1-0, libgtk-3-0, libayatana-appindicator3-1"
+      RPM_REQUIRES='Requires: libwebkit2gtk-4.1.so.0()(64bit)'
+      ;;
+
+ demo) PKG=ghostftp-demo; PREFIX=GhostFTP-Demo; README=ghost-demo/README.md; DESC="Ghost FTP offline simulated product demo"; LICENSE=Proprietary; DEB_DEPENDS=""; RPM_REQUIRES="" ;;
  *) echo "Unsupported component $COMPONENT" >&2; exit 2 ;;
 esac
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -36,6 +43,7 @@ Version: $VERSION
 Section: net
 Priority: optional
 Architecture: amd64
+${DEB_DEPENDS:+Depends: $DEB_DEPENDS}
 Maintainer: Brendigo <noreply@github.com>
 Description: $DESC (Preview)
  Official Ghost FTP executable; no automatic services or credentials.
@@ -53,6 +61,7 @@ Summary: $DESC (Preview)
 License: $LICENSE
 BuildArch: x86_64
 AutoReqProv: no
+$RPM_REQUIRES
 %description
 Official standalone Ghost FTP $COMPONENT package.
 %install
