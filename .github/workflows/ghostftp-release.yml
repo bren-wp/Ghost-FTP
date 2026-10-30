@@ -119,7 +119,6 @@ jobs:
           wait_for_gate "validate-win-hardening.yml" "Windows hardening"
           wait_for_gate "ghostftp-macos.yml" "macOS SwiftUI preview"
           wait_for_gate "ghostftp-macos-shared-desktop.yml" "macOS shared desktop parity"
-          wait_for_gate "ghostftp-server.yml" "Standalone Ghost FTP Server (Windows + Linux)"
 
           # The known empty v0.95.51 public release must be repaired from
           # its exact-source CI artifacts before a successor can publish.
@@ -181,7 +180,7 @@ jobs:
           zip -qr "dist/GhostFTP-v$VERSION-Android-Source.zip" android
           zip -qr "dist/GhostFTP-v$VERSION-macOS-Source.zip" macos
           zip -qr "dist/GhostFTP-v$VERSION-Updates.zip" updates
-          zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt ghost-cli/README.md ghost-demo/README.md
+          zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
 
       - name: Download native build artifacts
         env:
@@ -252,55 +251,6 @@ jobs:
           done
           echo "Verified both Apple Silicon and Intel native macOS shared desktop packages."
 
-      - name: Download and verify exact-SHA standalone Ghost FTP Server packages
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          RUN_ID="$(gh run list --workflow ghostftp-server.yml --commit "$SOURCE_SHA" --limit 10 --json databaseId,status,conclusion --jq 'map(select(.status == "completed" and .conclusion == "success")) | .[0].databaseId // ""')"
-          test -n "$RUN_ID"
-          mkdir -p dist/server-linux dist/server-windows
-          gh run download "$RUN_ID" --name GhostFTP-Server-Linux-Package-Preview -D dist/server-linux
-          gh run download "$RUN_ID" --name GhostFTP-Server-Windows-Package-Preview -D dist/server-windows
-          (cd dist/server-linux && sha256sum -c Linux-SHA256SUMS.txt)
-          # Existing Windows artifact runners may supply CRLF: normalize text safely
-          # without changing any checksum bytes, file names or actual payloads.
-          sed -i 's/\r$//' dist/server-windows/Release-SHA256SUMS.txt
-          (cd dist/server-windows && sha256sum -c Release-SHA256SUMS.txt)
-          test "$(dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION -version)" = "Ghost FTP Server $VERSION Preview"
-          tar -tzf "dist/server-linux/GhostFTP-Server-Linux-x86_64-v$VERSION.tar.gz" | grep -Fxq ghostftp-server.service
-          dpkg-deb --contents "dist/server-linux/GhostFTP-Server-Linux-amd64-v$VERSION.deb" | grep -q ghostftp-server.service
-          test -s "dist/server-windows/GhostFTP-Server-Windows-x64-ControlCenter-v$VERSION.exe"
-          file "dist/server-windows/GhostFTP-Server-Windows-x64-ControlCenter-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
-          test -s "dist/server-windows/GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe"
-          file "dist/server-windows/GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
-          file "dist/server-windows/GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
-          file "dist/server-windows/GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" | grep -Eq 'PE32|MS Windows'
-          for name in "GhostFTP-Server-Linux-x86_64-v$VERSION" "GhostFTP-Server-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Server-Linux-amd64-v$VERSION.deb" "GhostFTP-Server-Linux-x86_64-v$VERSION.rpm"; do
-            test -s "dist/server-linux/$name"
-            cp "dist/server-linux/$name" "dist/$name"
-          done
-          for name in "GhostFTP-Server-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Server-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe" "GhostFTP-Server-Windows-x64-ControlCenter-v$VERSION.exe" "GhostFTP-Demo-Windows-x64-Portable-v$VERSION.exe"; do
-            test -s "dist/server-windows/$name"
-            cp "dist/server-windows/$name" "dist/$name"
-          done
-          echo "::notice::Verified six real Ghost FTP Server release payloads from server run $RUN_ID at source $SOURCE_SHA."
-
-      # Ghost CLI deliberately reuses the desktop client Rust engine, which
-      # links WebKitGTK on Linux. This publisher runs on a clean Ubuntu runner,
-      # unlike the native build runner (which installs these dependencies).
-      # Reconstruct the same vetted runtime libraries before actually executing
-      # the Linux CLI binary; do not skip the CLI --version smoke test.
-      - name: Install genuine Linux Ghost CLI runtime dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-0 libayatana-appindicator3-1 librsvg2-2 libgtk-3-0
-          ldconfig -p | grep -F 'libwebkit2gtk-4.1.so.0'
-          ldconfig -p | grep -F 'libgtk-3.so.0'
-
       - name: Normalize release artifacts
         shell: bash
         run: |
@@ -310,12 +260,6 @@ jobs:
           WIN_MSI="$(find dist/native -type f -name 'GhostFTP-Windows-x64-Setup.msi' | head -n1 || true)"
           WIN_SETUP_SIG="$(find dist/native -type f -iname '*setup*.exe.sig' | head -n1 || true)"
           LINUX_BIN="$(find dist/native -type f -name 'ghostftp' | head -n1 || true)"
-          WINDOWS_CLI="$(find dist/native -type f -name 'ghostftp-cli.exe' | head -n1 || true)"
-          LINUX_CLI="$(find dist/native -type f -name 'ghostftp-cli' | head -n1 || true)"
-          # Each Actions artifact is extracted beneath its own artifact-name folder.
-          # Do not assume that CLI installers are placed at dist/native's root.
-          WINDOWS_CLI_SETUP="$(find dist/native -type f -name 'GhostCLI-Windows-x64-Setup-Unsigned-Preview.exe' -print -quit)"
-          LINUX_CLI_PACKAGE_DIR="$(dirname "$LINUX_CLI")"
           APPIMAGE="$(find dist/native -type f -iname '*.AppImage' ! -iname '*.sig' | head -n1 || true)"
           APPIMAGE_SIG="$(find dist/native -type f -iname '*.AppImage.sig' | head -n1 || true)"
           DEB="$(find dist/native -type f -name 'GhostFTP-Linux-amd64.deb' | head -n1 || true)"
@@ -330,19 +274,6 @@ jobs:
           MACOS_DMG_INTEL="dist/macos-shared/x86_64/GhostFTP-macOS-Shared-x86_64-v$VERSION-Installable-Preview.dmg"
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
-          test -n "$WINDOWS_CLI"; test -s "$WINDOWS_CLI"
-          test -n "$LINUX_CLI"; test -s "$LINUX_CLI"
-          test -n "$WINDOWS_CLI_SETUP"; test -s "$WINDOWS_CLI_SETUP" || {
-            echo "::error::Missing standalone Windows CLI NSIS Setup in downloaded Windows native artifact" >&2
-            exit 1
-          }
-          test -d "$LINUX_CLI_PACKAGE_DIR"
-          for name in "GhostCLI-Linux-x86_64-v$VERSION.tar.gz" "GhostCLI-Linux-amd64-v$VERSION.deb" "GhostCLI-Linux-x86_64-v$VERSION.rpm"; do
-            test -s "$LINUX_CLI_PACKAGE_DIR/$name" || {
-              echo "::error::Missing $name in exact-SHA Linux native artifact: $LINUX_CLI_PACKAGE_DIR" >&2
-              exit 1
-            }
-          done
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"
           test -n "$ANDROID_UNSIGNED_APK"; test -n "$ANDROID_PREVIEW_APK"; test -n "$ANDROID_UNSIGNED_AAB"; test -s "$ANDROID_UNSIGNED_AAB"
           test -n "$MACOS_PREVIEW"; test -s "$MACOS_PREVIEW"
@@ -359,14 +290,6 @@ jobs:
           fi
 
           cp "$WIN_EXE" "dist/GhostFTP-Windows-x64-Portable-v$VERSION.exe"
-          cp "$WINDOWS_CLI" "dist/GhostCLI-Windows-x64-v$VERSION.exe"
-          cp "$LINUX_CLI" "dist/GhostCLI-Linux-x86_64-v$VERSION"
-          chmod +x "dist/GhostCLI-Linux-x86_64-v$VERSION"
-          cp "$WINDOWS_CLI_SETUP" "dist/GhostCLI-Windows-x64-Setup-Unsigned-Preview-v$VERSION.exe"
-          for name in "GhostCLI-Linux-x86_64-v$VERSION.tar.gz" "GhostCLI-Linux-amd64-v$VERSION.deb" "GhostCLI-Linux-x86_64-v$VERSION.rpm"; do
-            cp "$LINUX_CLI_PACKAGE_DIR/$name" "dist/$name"
-          done
-          test "$(dist/GhostCLI-Linux-x86_64-v$VERSION --version | grep -Fc "$VERSION")" -ge 1
           cp "$WIN_SETUP" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe"
           cp "$WIN_MSI" "dist/GhostFTP-Windows-x64-Setup-v$VERSION.msi"
           if [ -n "$WIN_SETUP_SIG" ]; then
@@ -402,7 +325,7 @@ jobs:
 
           (cd dist && zip -q "GhostFTP-Windows-x64-v$VERSION.zip" "GhostFTP-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.msi")
           (cd dist && tar -czf "GhostFTP-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Linux-x86_64-v$VERSION" "GhostFTP-Linux-x86_64-v$VERSION.AppImage" "GhostFTP-Linux-amd64-v$VERSION.deb" "GhostFTP-Linux-x86_64-v$VERSION.rpm")
-          rm -rf dist/native dist/android dist/macos dist/macos-shared dist/server-linux dist/server-windows
+          rm -rf dist/native dist/android dist/macos dist/macos-shared
 
       - name: Build update-service deployment package
         if: ${{ hashFiles('dist/GhostFTP-Windows-x64-Setup-v*.exe.sig') != '' && hashFiles('dist/GhostFTP-Linux-x86_64-v*.AppImage.sig') != '' }}
