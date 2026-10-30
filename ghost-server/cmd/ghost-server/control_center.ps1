@@ -58,7 +58,7 @@ $workArea=New-Object System.Windows.Forms.Panel
 $workArea.Dock='Fill'
 $workArea.BackColor=$bg
 $form.Controls.Add($workArea)
-$workArea.BringToFront()
+$side.BringToFront()
 $header=New-Object System.Windows.Forms.Panel
 $header.Dock='Top'
 $header.Height=52
@@ -74,7 +74,7 @@ $page.Dock='Fill'
 $page.Padding=New-Object System.Windows.Forms.Padding(22)
 $page.BackColor=$bg
 $workArea.Controls.Add($page)
-$page.BringToFront()
+$header.BringToFront()
 $heading=Txt 'Overview' 23 $true
 $heading.Dock='Top'
 $heading.Height=49
@@ -113,7 +113,7 @@ $details.ForeColor=$white
 $details.Font=New-Object System.Drawing.Font('Consolas',10)
 $details.DetectUrls=$false
 $page.Controls.Add($details)
-$details.BringToFront()
+$heading.BringToFront();$subtitle.BringToFront();$toolbar.BringToFront()
 
 $script:current='Overview';$script:serviceStatus='Not installed'
 function GetActualStatus {
