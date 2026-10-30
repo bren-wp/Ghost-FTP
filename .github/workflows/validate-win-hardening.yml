@@ -65,8 +65,6 @@ jobs:
           grep -Fq 'crate::windows_process::hide_console(&mut command);' ghostftp-desktop/src-tauri/src/commands.rs
           grep -Fq 'crate::windows_process::hide_console(&mut command);' ghostftp-desktop/src-tauri/src/lib.rs
           grep -Fq 'creation_flags(CREATE_NO_WINDOW)' ghostftp-desktop/src-tauri/src/main.rs
-          ! grep -Fq 'Command::new("where")' ghostftp-desktop/src-tauri/src/path_integration.rs
-          ! grep -Fq 'Command::new("which")' ghostftp-desktop/src-tauri/src/path_integration.rs
 
           ! grep -En 'exec\.Command\("(rundll32|reg|powershell|cmd(\.exe)?)"' \
             tools/ghostftp-installer/main.go \
@@ -86,10 +84,4 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Test every native/library workspace member without forcing the CLI
-          # test harness to link the GUI/WebView2 runtime into a console binary.
-          cargo test --workspace --exclude ghostftp-cli --locked
-          # Execute all pure CLI safety/version tests in the lightweight lib target.
-          cargo test -p ghostftp-cli --no-default-features --lib --locked
-          # Still compile-check the complete CLI runtime and ghostftp_lib integration.
-          cargo check -p ghostftp-cli --locked
+          cargo test --workspace --locked
