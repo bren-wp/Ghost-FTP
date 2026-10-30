@@ -32,7 +32,7 @@ test("every passing main native build can automatically trigger a release", () =
   assert.ok(workflow.includes('wait_for_gate "validate-win-hardening.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-macos.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-macos-shared-desktop.yml"'));
-  assert.ok(workflow.includes('wait_for_gate "ghostftp-server.yml"'));
+  assert.ok(!workflow.includes('ghostftp-server.yml'), "retired standalone server must not be a release gate");
   assert.ok(workflow.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"));
   assert.ok(workflow.includes("GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"));
   assert.ok(workflow.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Installable-Preview.dmg"));
