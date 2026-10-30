@@ -8,7 +8,6 @@ export type AppDialog =
   | "newConnection"
   | "import"
   | "about"
-  | "agentBridge"
   | "grant"
   | "siteManager"
   | "transferCenter"
@@ -86,7 +85,7 @@ export const useLayout = create<LayoutState>((set) => ({
   returnDialog: null,
   openDialog: (d) =>
     set((state) => {
-      const transient = d === "import" || d === "agentBridge";
+      const transient = d === "import";
       return {
         dialog: d,
         returnDialog:
@@ -104,8 +103,7 @@ export const useLayout = create<LayoutState>((set) => ({
       const transient =
         state.dialog === "newConnection" ||
         state.dialog === "import" ||
-        state.dialog === "grant" ||
-        state.dialog === "agentBridge";
+        state.dialog === "grant";
       return {
         dialog: transient ? state.returnDialog : null,
         returnDialog: null,

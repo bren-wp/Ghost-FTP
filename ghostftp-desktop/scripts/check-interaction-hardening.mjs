@@ -520,20 +520,8 @@ requireIncludes(
 
 requireIncludes(
   "src/components/AgentBridge.tsx",
-  [
-    'const [bridgeMutation, setBridgeMutation] = useState<',
-    "const bridgeMutationInFlight = useRef(false)",
-    "if (bridgeMutationInFlight.current) return;",
-    "bridgeMutationInFlight.current = true;",
-    "bridgeMutationInFlight.current = false;",
-    'runBridgeMutation("master"',
-    'runBridgeMutation("endpoint"',
-    'runBridgeMutation("session"',
-    'runBridgeMutation("policy"',
-    'disabled={bridgeMutation !== null}',
-    'aria-busy={bridgeMutation === "endpoint"}',
-  ],
-  "Agent Bridge mutation serialization"
+  ["export function AgentBridgeHost()", "const pending = approvals[0];", 'onDeny={() => respond(pending.requestId, "deny")}'],
+  "approval-only bridge host, without retired command-line helper UI"
 );
 
 requireIncludes(
