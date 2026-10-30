@@ -169,4 +169,4 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Potvrđeni rezultati testova, a ne samo broj verzije, određuju spremnost izdanja.
 
 
-Current development line: 0.99.23. Previous canonical release: 0.99.22. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.24. Previous canonical release: 0.99.23. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.

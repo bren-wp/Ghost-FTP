@@ -23,7 +23,6 @@ import { LOCAL_SESSION } from "@ghostftp/file-ui";
 import { relTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { toastError } from "@/lib/errors";
-import { toast } from "@/stores/toastStore";
 import type {
   PairView,
   SyncDirection,

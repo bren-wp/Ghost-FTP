@@ -466,7 +466,6 @@ requireIncludes(
     "if (asyncMutationInFlight.current) return;",
     'runSettingsAsyncMutation("reset"',
     'runMutation("notifications"',
-    'runMutation("shell"',
     "disabled={asyncMutation !== null}",
     "aria-busy={asyncMutation !== null}",
   ],
