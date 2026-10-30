@@ -75,6 +75,22 @@ test("release normalizes CLI installers from their real per-platform artifact fo
   assert.ok(!release.includes('test -s "dist/native/GhostCLI-Windows-x64-Setup-Unsigned-Preview.exe"'));
   assert.ok(!release.includes('cp "dist/native/$name" "dist/$name"'));
 });
+test("Linux Ghost CLI is smoke-tested with real shared-desktop GTK runtime rather than silently skipped",()=>{
+  const pkg=read("packaging/linux/build-portable-packages.sh");
+  assert.ok(release.includes("Install genuine Linux Ghost CLI runtime dependencies"));
+  assert.ok(release.includes("sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-0"));
+  assert.ok(release.includes('test "$(dist/GhostCLI-Linux-x86_64-v$VERSION --version | grep -Fc "$VERSION")" -ge 1'));
+  assert.ok(pkg.includes('DEB_DEPENDS="libwebkit2gtk-4.1-0, libgtk-3-0, libayatana-appindicator3-1"'));
+  assert.ok(pkg.includes("RPM_REQUIRES='Requires: libwebkit2gtk-4.1.so.0()(64bit)'"));
+  assert.ok(pkg.includes('if [ -n "$DEB_DEPENDS" ]; then'));
+  assert.ok(pkg.includes('sed -i "/^Architecture: amd64$/a Depends: $DEB_DEPENDS"'));
+  assert.ok(pkg.includes("$RPM_REQUIRES"));
+});
+test("Release title is plain product name and version; security classification stays truthful",()=>{
+  assert.ok(pre.includes('RELEASE_NAME="Ghost FTP ${VERSION}"'));
+  assert.ok(!pre.includes('RELEASE_NAME="Ghost FTP ${VERSION} Preview"'));
+  assert.ok(pre.includes('draft:false,prerelease:true'));
+});
 test("combined release is checksum-complete and still an unsigned Preview",()=>{
   assert.ok(post.includes("-ge 43"));
   assert.ok(quality.includes("check-cli-demo-release.test.mjs"));

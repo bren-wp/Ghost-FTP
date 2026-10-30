@@ -292,6 +292,20 @@ jobs:
           done
           echo "::notice::Verified six real Ghost FTP Server release payloads from server run $RUN_ID at source $SOURCE_SHA."
 
+      # Ghost CLI deliberately reuses the desktop client Rust engine, which
+      # links WebKitGTK on Linux. This publisher runs on a clean Ubuntu runner,
+      # unlike the native build runner (which installs these dependencies).
+      # Reconstruct the same vetted runtime libraries before actually executing
+      # the Linux CLI binary; do not skip the CLI --version smoke test.
+      - name: Install genuine Linux Ghost CLI runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-0 libayatana-appindicator3-1 librsvg2-2 libgtk-3-0
+          ldconfig -p | grep -F 'libwebkit2gtk-4.1.so.0'
+          ldconfig -p | grep -F 'libgtk-3.so.0'
+
       - name: Normalize release artifacts
         shell: bash
         run: |
