@@ -26,7 +26,11 @@ func runNativeControlCenter() bool {
  encoded:=encodeWindowsPowerShell(nativeControlCenter)
  cmd:=exec.Command("powershell.exe","-NoLogo","-NoProfile","-NonInteractive","-EncodedCommand",encoded)
  cmd.Env=append(os.Environ(),"GHOSTFTP_SERVER_EXE="+exe)
- cmd.SysProcAttr=&syscall.SysProcAttr{HideWindow:true}
+ // CREATE_NO_WINDOW suppresses only an unwanted PowerShell console.
+ // HideWindow:true would set STARTF_USESHOWWINDOW/SW_HIDE and could also hide
+ // the first WinForms window, making the Control Center look broken.
+ const createNoWindow=0x08000000
+ cmd.SysProcAttr=&syscall.SysProcAttr{CreationFlags:createNoWindow}
  cmd.Stdout=os.Stdout
  cmd.Stderr=os.Stderr
  if err:=cmd.Run();err!=nil{
