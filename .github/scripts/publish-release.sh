@@ -5,7 +5,7 @@ SOURCE_SHA="${1:?source SHA is required}"
 node .github/scripts/check-release-channel.mjs
 VERSION="$(node -p 'require("./version.json").version')"
 TAG="v${VERSION}"
-RELEASE_NAME="Ghost FTP ${VERSION} Preview"
+RELEASE_NAME="Ghost FTP ${VERSION}"
 NOTES_FILE="docs/releases/${VERSION}.md"
 CHECKSUM_FILE="GhostFTP-v${VERSION}-SHA256SUMS.txt"
 
