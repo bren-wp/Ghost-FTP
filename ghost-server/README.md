@@ -1,7 +1,9 @@
-# Ghost FTP Server — Phase 4 security-first preview
+# Ghost FTP Server — protected FTPS daemon and native Windows Control Center
 
 **Distribution plan for v0.99.22+:** Each combined Client + Server release requires the real Windows x64 portable EXE, unsigned NSIS installer, and Linux x86_64 standalone executable, tarball, DEB and RPM. Linux systemd unit is disabled-by-default and uses a restricted service account; see [Linux installation](install/linux/README.md). Packaging does not imply production certification or SFTP server support.
 
+
+**Startup change (v0.99.23):** Double-clicking the Windows daemon executable without flags opens a real Windows Forms control window instead of immediately exiting because configuration is missing. The separate native GUI Control Center executable and Start Menu shortcut provide a console-free window. Its dimensions are centered, resizable, scaled to the available desktop, and not full-screen. Start/Stop operate only on an installed and explicitly configured Windows SCM service. No browser or WebView is used for the new native window, although the older, optional loopback HTTP dashboard remains a separate feature. On Linux, the server remains a native headless Go daemon managed by systemd/CLI; no identical GTK desktop is claimed.
 
 This is a **new, standalone, real TCP server**, not a screenshot, mock admin
 panel, or repackaged desktop client. The initial vertical slice implements

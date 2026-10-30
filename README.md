@@ -1,3 +1,5 @@
+> **v0.99.23 distribution update:** Ghost FTP Server has a separate native Windows Forms Control Center and a console-free GUI EXE; Linux Server remains a native headless daemon. Ghost FTP Demo is **Windows portable EXE only**, without a setup or Linux package. Ghost FTP Client itself uses Tauri/system WebView, and current Demo screens are not accepted as 1:1. See [package matrix](docs/distribution/PLATFORM_PACKAGES.md).
+
 <div align="center">
 
 <img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="420" />
