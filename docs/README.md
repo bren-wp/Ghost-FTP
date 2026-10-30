@@ -1,12 +1,11 @@
-> **Authoritative current state (30 October 2026):** Ghost FTP **0.99.23 development Preview**; v0.99.22 is the latest publicly published source. The updated native Server Control Center is under exact-SHA CI acceptance, not yet production-certified. Older notes below are historical.
+> **Current development (30 October 2026): Ghost FTP 0.99.24 Preview.** The only supported product in this release train is the Ghost FTP client for Windows, Linux, Android and macOS. The standalone Ghost FTP Server, Demo and CLI are retired and are excluded from new builds, source and release assets. v0.99.23 remains the immutable previously published edition. Production signing/notarization and complete installed-device acceptance are outstanding; do not label this release Stable.
 
 # Ghost FTP Documentation
 
-**[Windows/Linux four-product package matrix](distribution/PLATFORM_PACKAGES.md)** — precise standalone portable, Setup, tar.gz, DEB and RPM names for Ghost FTP, Ghost Server, Ghost CLI and Ghost FTP Demo.
+**[Client-only platform package matrix](distribution/PLATFORM_PACKAGES.md)** — Windows, Linux, Android and macOS distributions; retired Server, Demo and CLI are not part of new releases.
 
 The current operational entry points are [Ghost FTP Client](../README.md), [Ghost FTP Server](../ghost-server/README.md), [Ghost CLI](../ghost-cli/README.md), [Ghost FTP Demo](../ghost-demo/README.md), [Client/Server compatibility](architecture/CLIENT_SERVER_PARITY.md), [Installation](guides/INSTALLATION.md), [security](../SECURITY.md), [privacy](legal/PRIVACY.md), [EULA](../EULA.txt), [license](../LICENSE.txt), and [v0.99.22 release acceptance](releases/0.99.22.md).
 
-**Publication distinction:** `docs/releases/` and `docs/audits/` contain historical release evidence. These records are retained for traceability even where they describe an older, incomplete development stage; use the current linked overview for feature/support claims. The demo simulates transfers; the Server Preview does not yet implement full multi-user RBAC or SFTP Server.
 
 
 Ghost FTP documentation is organized around the current canonical product state, stable operational guidance and historical provenance.
@@ -21,7 +20,7 @@ Ghost FTP documentation is organized around the current canonical product state,
 
 ## Current state
 
-- Active source/release cycle: **0.99.23 (in development, preview)**
+- Active source/release cycle: **0.99.24 (in development, preview)**
 - Latest canonical release: **0.99.15**
 - Live publication state: GitHub Releases is authoritative
 - Version source of truth: `/version.json`

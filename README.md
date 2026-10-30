@@ -1,4 +1,4 @@
-> **v0.99.23 distribution update:** Ghost FTP Server has a separate native Windows Forms Control Center and a console-free GUI EXE; Linux Server remains a native headless daemon. Ghost FTP Demo is **Windows portable EXE only**, without a setup or Linux package. Ghost FTP Client itself uses Tauri/system WebView, and current Demo screens are not accepted as 1:1. See [package matrix](docs/distribution/PLATFORM_PACKAGES.md).
+> **Current development (30 October 2026): Ghost FTP 0.99.24 Preview.** The only supported product in this release train is the Ghost FTP client for Windows, Linux, Android and macOS. The standalone Ghost FTP Server, Demo and CLI are retired and are excluded from new builds, source and release assets. v0.99.23 remains the immutable previously published edition. Production signing/notarization and complete installed-device acceptance are outstanding; do not label this release Stable.
 
 <div align="center">
 
@@ -14,7 +14,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.23 (development Preview) · Previous source edition: v0.99.22. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.24 (development Preview) · Previous source edition: v0.99.23. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -53,21 +53,11 @@ Move files, manage connections and keep important server work organized with an 
 
 Ghost FTP Desktop is available as a separate **Apple Silicon ARM64** or **Intel x86_64** installable DMG Preview, as well as ZIP. No Apple Developer account or Developer ID signing certificate is required. Download the matching package from [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases), open its DMG in Finder, drag **Ghost FTP Desktop.app** to **Applications**, then open the installed app. Because this development Preview is not notarized, you may need **System Settings → Privacy & Security → Open Anyway** after the first launch attempt. Do not disable Gatekeeper. The embedded code uses only free ad-hoc signing for Apple Silicon integrity. Full [Croatian/English installation instructions](docs/guides/MACOS_INSTALLATION.md).
 
-## Ghost CLI and Ghost FTP Demo (v0.99.22 Preview)
+## Client-only distribution (0.99.24 Preview)
 
-[Standalone Windows/Linux installer and portable inventory](docs/distribution/PLATFORM_PACKAGES.md)
+Only the **Ghost FTP graphical client** is distributed for Windows, Linux, macOS and Android. Installers, binaries and source packages for the previously separate Server, Demo and CLI have been removed from this source train. FTP, FTPS, SFTP and the existing client-side transfer engines are retained where supported by each platform.
 
-**Ghost CLI** reuses the exact desktop Rust client engine, not a separate protocol implementation. The official [`/ghost-cli`](ghost-cli/README.md) entry point builds real Windows/Linux portable CLI binaries with access to supported FTP, FTPS, SFTP and cloud backends through authorized saved connections. Profiles are local to an OS account; cross-device credential synchronization is not silently enabled.
-
-**Ghost FTP Demo** is a self-contained Windows portable executable with embedded Ghost FTP-branded web UI, fictional connected-looking accounts, sample files, in-memory progress animation, simulated uploads/downloads/cancellation, and a read-only additive sync walkthrough. Every action is marked **DEMO / SIMULATION**. It cannot access a real remote host or change production files. See [demo documentation](ghost-demo/README.md).
-
-Both are mandatory independently checksum-verified public release assets from v0.99.22 onwards; the release remains a development Preview until its exact-source gates and all platform packages are verified.
-
-## Ghost FTP Server — separate Windows and Linux Preview packages
-
-Starting with **v0.99.22**, the release contract requires the standalone Ghost FTP Server in the **same public release** as the clients: a real Windows portable EXE, an unsigned Windows NSIS setup EXE, Linux x86_64 standalone executable, tarball, DEB and RPM. Every candidate is subject to exact-source server CI and package/SHA-256 verification. Missing server assets must block publication.
-
-The server is independent of the client, uses explicit FTPS and a local, read-only default, and is **not yet a production-ready SFTP/multi-user management server**. Linux installs a hardened, disabled-by-default systemd unit. No installer provisions a default password, cert, auto-start or public firewall access. See [Ghost FTP Server](ghost-server/README.md) and [Linux installation](ghost-server/install/linux/README.md). Windows setup is not Authenticode signed; the full distribution remains a Preview.
+The existing v0.99.23 release and older published downloads are historical and have **not** been deleted or silently updated. See [current platform packages](docs/distribution/PLATFORM_PACKAGES.md) and [0.99.24 release notes](docs/releases/0.99.24.md).
 
 ## Designed for your workflow
 

@@ -1,3 +1,9 @@
+## 0.99.24 — client-only distribution and retired-component cleanup (30 October 2026)
+- Remove the standalone Ghost FTP Server, Demo and CLI source trees, service installers, CLI workspace member and retired Windows/Linux packaging steps.
+- Remove CLI shell integration and external CLI sync-script controls from the graphical desktop application; retain core client FTP/FTPS/SFTP transfer engines and installed user settings without destructive migrations.
+- Narrow the release contract from 39 artifacts to 25 required client, Android/macOS and source/QA assets; keep checksums and immutable source provenance.
+- Preserve v0.99.23 and older published releases. Production signing, notarization, real hardware tests, and any remaining macOS transport limitations are NOT asserted complete; version 0.99.24 remains Preview pending exact-head CI and release publication.
+
 ## 0.99.23 — native Windows server launch and distribution cleanup (30 October 2026)
 - Add an embedded, real **Windows Forms Control Center** for Ghost FTP Server, launched by double-click/no-argument start or `-control-center`; real Start/Stop service management with no browser or WebView.
 - Include a separately compiled **native Windows GUI Control Center EXE** and Start Menu shortcut in the Server Setup, with installer smoke tests. Existing secure daemon behavior and Linux systemd packaging remain.
