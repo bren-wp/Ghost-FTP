@@ -9,7 +9,7 @@ Unicode True
 !define MUI_UNHEADERIMAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-header.bmp"
 !define MUI_WELCOMEFINISHPAGE_BITMAP "..\..\ghostftp-desktop\src-tauri\nsis\ghostftp-sidebar.bmp"
 
-Name "Ghost FTP Server (Preview)"
+Name "Ghost FTP Server"
 OutFile "..\dist\ghost-server-windows-x64-setup-unsigned.exe"
 InstallDir "$PROGRAMFILES64\Ghost FTP Server"
 RequestExecutionLevel admin
@@ -20,8 +20,8 @@ ShowUninstDetails show
 !define MUI_ABORTWARNING
 !define MUI_WELCOMEPAGE_TITLE "Welcome to Ghost FTP Server"
 !define MUI_WELCOMEPAGE_TEXT "Ghost FTP Server · More Than Transfer. Total Control.$\r$\n$\r$\nThis is an unsigned Preview installer for the standalone Ghost FTP Server. It installs files only: no default users, certificates, firewall rules, public listeners or automatically started services."
-!define MUI_FINISHPAGE_TITLE "Ghost FTP Server files installed"
-!define MUI_FINISHPAGE_TEXT "Manual service provisioning is required before use. Read the documentation and provide your own protected credentials and TLS identity. This installer does not start the server."
+!define MUI_FINISHPAGE_TITLE "Ghost FTP Server Control Center installed"
+!define MUI_FINISHPAGE_TEXT "Open Ghost FTP Server Control Center from the Start Menu. It displays actual service status and runs without WebView. Administrator provisioning of TLS identity, protected credentials and storage root remains required before starting the daemon."
 !define MUI_LICENSEPAGE_TEXT_TOP "Please review the Ghost FTP commercial license and Preview component terms."
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "..\..\EULA.txt"
@@ -43,6 +43,7 @@ Section "Ghost FTP Server (read-only default)"
  Abort
  SetOutPath "$INSTDIR"
  File "/oname=ghost-server.exe" "..\dist\ghost-server-windows-amd64.exe"
+ File "/oname=GhostFTPServer-ControlCenter.exe" "..\dist\ghost-server-controlcenter.exe"
  File "Install-GhostFTPServer.ps1"
  File "Uninstall-GhostFTPServer.ps1"
  File "..\README.md"
@@ -55,6 +56,7 @@ Section "Ghost FTP Server (read-only default)"
  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTPServerPreview" "InstallLocation" "$INSTDIR"
  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTPServerPreview" "NoModify" 1
  CreateDirectory "$SMPROGRAMS\Ghost FTP Server"
+ CreateShortcut "$SMPROGRAMS\Ghost FTP Server\Ghost FTP Server Control Center.lnk" "$INSTDIR\GhostFTPServer-ControlCenter.exe"
  CreateShortcut "$SMPROGRAMS\Ghost FTP Server\Uninstall Ghost FTP Server.lnk" "$INSTDIR\Uninstall.exe"
  DetailPrint "Files installed. No service registered, no credentials created, no firewall ports opened."
 SectionEnd
@@ -70,9 +72,11 @@ Section "Uninstall"
  MessageBox MB_ICONSTOP "GhostFTPServer remains registered. Unregister it using Uninstall-GhostFTPServer.ps1 before uninstalling."
  Abort
  service_absent:
+ Delete "$SMPROGRAMS\Ghost FTP Server\Ghost FTP Server Control Center.lnk"
  Delete "$SMPROGRAMS\Ghost FTP Server\Uninstall Ghost FTP Server.lnk"
  RMDir "$SMPROGRAMS\Ghost FTP Server"
  Delete "$INSTDIR\ghost-server.exe"
+ Delete "$INSTDIR\GhostFTPServer-ControlCenter.exe"
  Delete "$INSTDIR\Install-GhostFTPServer.ps1"
  Delete "$INSTDIR\Uninstall-GhostFTPServer.ps1"
  Delete "$INSTDIR\README.md"
