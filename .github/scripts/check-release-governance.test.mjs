@@ -26,6 +26,8 @@ test("every passing main native build can automatically trigger a release", () =
   const pushBlock = native.split("  push:")[1].split("  pull_request:")[0];
   assert.ok(pushBlock.includes("branches: [main]"));
   assert.ok(!pushBlock.includes("paths:"));
+  assert.ok(workflow.includes('wait_for_gate "ghostftp-preview-metadata.yml"'),
+    "publication must fail closed when source-matched historical release metadata audit fails");
   assert.ok(workflow.includes('wait_for_gate "ghostftp-quality.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-protocol-e2e.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-android.yml"'));
