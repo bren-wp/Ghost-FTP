@@ -136,6 +136,12 @@ impl VirtualFs {
 
     /// Whether on-demand virtual folders are available in this build/OS.
     pub fn supported(&self) -> bool {
+        Self::platform_supported()
+    }
+
+    /// This probe is safe before AppState exists, and keeps imported Folder
+    /// Sync status honest on Windows installations lacking the Cloud Filter API.
+    pub fn platform_supported() -> bool {
         platform::supported()
     }
 

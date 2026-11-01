@@ -1,6 +1,6 @@
 # Ghost FTP for Linux — complete source feature and acceptance guide
 
-**Candidate:** 0.93.0 · **Platform:** Linux x86_64; tested packaging targets AppImage, DEB and RPM · **Stack:** React/TypeScript, Tauri 2, Rust, system WebKitGTK. This shares much of the desktop feature source with Windows but has different OS credential storage, package lifecycle, file permissions and runtime dependencies. Passing a Windows test does not certify Linux.
+**Current development:** 0.99.28 Preview · published predecessor v0.99.27 · **Platform:** Linux x86_64; tested packaging targets AppImage, DEB and RPM · **Stack:** React/TypeScript, Tauri 2, Rust, system WebKitGTK. This shares much of the desktop feature source with Windows but has different OS credential storage, package lifecycle, file permissions and runtime dependencies. Passing a Windows test does not certify Linux.
 
 ## 1. Surface and capability inventory
 
@@ -81,3 +81,11 @@ Linux PR and merged-main must pass source format, Rust check/tests/clippy, share
 - ghostftp-desktop/src-tauri/src/profiles for saved site model and recovery.
 - .github/workflows/ghostftp-build.yml for DEB/RPM/AppImage package and launch checks.
 - docs/qa and docs/product/CLOUD_STORAGE.md for acceptance scope.
+
+## 0.99.28 Linux vault and folder-sync reliability (1 November 2026)
+
+Linux Secret Service subprocess calls (lookup, write, removal) now have a 30-second wall-clock deadline and kill/wait cleanup on timeout or subprocess failure. A locked or unresponsive GNOME Keyring/KWallet backend therefore reports an explicit error rather than indefinitely blocking the operation. The credential stays in the same OS vault; no plaintext fallback, new dependency or logging of secrets is introduced. Regression tests cover a deliberately stalled child process and exact newline-preserving stdout.
+
+On-demand virtual folders remain a Windows-only feature requiring the Cloud Filter build. Existing Linux profiles cannot be silently marked as synchronized using an unsupported on-demand mode; the backend rejects configuration and reactivation, while imported enabled pairs display an error. Normal Linux mirror sync continues unchanged.
+
+Linux AppImage, DEB and RPM artifacts require distro-specific install/open, Linux desktop session keyring and transfer recovery acceptance beyond generic CI. GNOME, KDE, Wayland/X11, mounted drives and portal behavior remain part of target-machine QA.

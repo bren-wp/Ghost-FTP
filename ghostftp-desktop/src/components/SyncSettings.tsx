@@ -216,7 +216,9 @@ function PairRow({ pair }: { pair: PairView }) {
               </span>
             )}
             {isOnDemand ? (
-              <span>Hydrates on open</span>
+              <span className={pair.state === "error" ? "text-danger" : undefined}>
+                {pair.state === "error" ? "On-demand unavailable" : "Hydrates on open"}
+              </span>
             ) : syncing ? (
               <span className="flex items-center gap-1 text-warning">
                 <Loader2 size={10} className="animate-spin" />

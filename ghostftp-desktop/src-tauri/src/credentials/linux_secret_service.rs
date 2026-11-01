@@ -10,11 +10,42 @@
 
 use anyhow::{anyhow, Result};
 use std::io::Write;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Output, Stdio};
+use std::time::{Duration, Instant};
 
 // GNOME libsecret's secret-tool currently reads at most 8192 bytes from a
 // piped password; reject larger values instead of truncating private material.
 const MAX_SECRET_BYTES: usize = 8191;
+// A locked/unresponsive Secret Service must not indefinitely park a desktop
+// command or leave a dangling credential helper on Windows/Linux clients.
+const SECRET_TOOL_TIMEOUT: Duration = Duration::from_secs(30);
+const CHILD_POLL_INTERVAL: Duration = Duration::from_millis(20);
+
+fn wait_bounded(mut child: Child, timeout: Duration) -> Result<Output> {
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => {
+                return child
+                    .wait_with_output()
+                    .map_err(|_| anyhow!("Linux Secret Service response could not be read"));
+            }
+            Ok(None) if started.elapsed() >= timeout => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(anyhow!(
+                    "Linux Secret Service timed out; unlock the keyring"
+                ));
+            }
+            Ok(None) => std::thread::sleep(CHILD_POLL_INTERVAL),
+            Err(_) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(anyhow!("Linux Secret Service process failed"));
+            }
+        }
+    }
+}
 
 fn command(operation: &str, service: &str, account: &str) -> Command {
     let mut command = Command::new("secret-tool");
@@ -36,9 +67,10 @@ fn command(operation: &str, service: &str, account: &str) -> Command {
 }
 
 pub fn lookup(service: &str, account: &str) -> Result<Option<String>> {
-    let output = command("lookup", service, account)
-        .output()
+    let child = command("lookup", service, account)
+        .spawn()
         .map_err(|_| anyhow!("Linux Secret Service client not installed or unavailable"))?;
+    let output = wait_bounded(child, SECRET_TOOL_TIMEOUT)?;
     if output.status.success() {
         if output.stdout.len() > MAX_SECRET_BYTES {
             return Err(anyhow!(
@@ -92,11 +124,7 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
         let _ = child.wait();
         return Err(anyhow!("Linux Secret Service refused the credential input"));
     }
-    if !child
-        .wait()
-        .map_err(|_| anyhow!("Linux Secret Service write interrupted"))?
-        .success()
-    {
+    if !wait_bounded(child, SECRET_TOOL_TIMEOUT)?.status.success() {
         return Err(anyhow!(
             "Linux Secret Service refused to save the credential"
         ));
@@ -108,9 +136,10 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
 }
 
 pub fn remove(service: &str, account: &str) -> Result<()> {
-    let output = command("clear", service, account)
-        .output()
+    let child = command("clear", service, account)
+        .spawn()
         .map_err(|_| anyhow!("Linux Secret Service client unavailable during deletion"))?;
+    let output = wait_bounded(child, SECRET_TOOL_TIMEOUT)?;
     if !output.status.success() {
         return Err(anyhow!("Linux Secret Service refused credential deletion"));
     }
@@ -130,5 +159,32 @@ mod tests {
         assert!(store("service", "account", "").is_err());
         assert!(store("service", "account", &"x".repeat(MAX_SECRET_BYTES + 1)).is_err());
         assert!(store("service", "account", &"x".repeat(MAX_SECRET_BYTES + 200)).is_err());
+    }
+
+    #[test]
+    fn blocked_credential_helper_times_out_without_hanging() {
+        let mut helper = Command::new("sh");
+        helper
+            .args(["-c", "exec sleep 2"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        let started = Instant::now();
+        let child = helper.spawn().expect("launch temporary blocked command");
+        let err = wait_bounded(child, Duration::from_millis(80)).unwrap_err();
+        assert!(err.to_string().contains("timed out"));
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[test]
+    fn completed_credential_helper_retains_exact_stdout_bytes() {
+        let mut helper = Command::new("sh");
+        helper
+            .args(["-c", "printf 'secret-with-newline\\n'"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null());
+        let child = helper.spawn().expect("launch local output fixture");
+        let output = wait_bounded(child, Duration::from_secs(2)).unwrap();
+        assert!(output.status.success());
+        assert_eq!(output.stdout, b"secret-with-newline\n");
     }
 }
