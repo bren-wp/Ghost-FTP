@@ -1,3 +1,10 @@
+## 0.99.26 — whole-repository security, dead-code and documentation review (development Preview; 1 November 2026)
+
+- Reject ambiguous or truncated Agent Bridge HTTP request bodies, browser-origin calls and unbounded read delays.
+- Extend whole-repository security code scanner and improve Kotlin/Swift dead-code candidate precision.
+- Consolidate active documentation and remove 11 obsolete audit/phase reports, preserving canonical release notes and signed/hashed artifact history.
+- See [release notes](docs/releases/0.99.26.md) and [audit report](docs/audits/REPOSITORY_AUDIT_0.99.26.md). Source-level tests are not production certification.
+
 ## 0.99.24 — client-only distribution and retired-component cleanup (30 October 2026)
 - Remove the standalone Ghost FTP Server, Demo and CLI source trees, service installers, CLI workspace member and retired Windows/Linux packaging steps.
 - Remove CLI shell integration and external CLI sync-script controls from the graphical desktop application; retain core client FTP/FTPS/SFTP transfer engines and installed user settings without destructive migrations.

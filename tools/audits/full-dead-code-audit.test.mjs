@@ -171,3 +171,12 @@ test("Cross-platform inventory includes unexported TypeScript arrows and Go rece
     ["src/exported.ts", "export const keep = () => 123;\nexport function other() {}"]
   ], "typescript"), []);
 });
+
+test("Kotlin/Swift extension-only files are never automatically flagged as dead modules", () => {
+  assert.deepEqual(candidateModules([
+    ["android/Extensions.kt", "fun String.sanitize() = trim()"],
+  ], "kotlin"), []);
+  assert.deepEqual(candidateModules([
+    ["macos/Extensions.swift", "extension String { var sanitized: String { self } }"],
+  ], "swift"), []);
+});

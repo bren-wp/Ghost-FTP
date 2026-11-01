@@ -46,6 +46,10 @@ export function candidateModules(entries, language, external = []) {
     if (language === "swift" && /@main\b/.test(source)) return [];
     // Activity and service classes may be referenced by AndroidManifest.xml.
     const names = declaredTypes(source, language);
+    // Top-level helpers, extensions, property-only modules and build-generated
+    // declarations have no class-like name; absence of a type is not evidence
+    // that the source file is dead.
+    if (names.length === 0) return [];
     if (names.some((name) => identifierUsedOutside(name, file, others))) return [];
     return [{
       file, declarations: names,
