@@ -454,6 +454,11 @@ impl FolderSync {
             let p = s.pairs.iter_mut().find(|p| p.id == id);
             let pair = match p {
                 Some(p) => {
+                    // Validate before touching the stored snapshot; a failed
+                    // re-enable must not leave an inert pair marked enabled.
+                    if enabled {
+                        Self::validate_pair(p)?;
+                    }
                     p.enabled = enabled;
                     p.clone()
                 }
@@ -466,7 +471,6 @@ impl FolderSync {
             pair
         };
         if enabled {
-            Self::validate_pair(&pair)?;
             self.stop_pair(app, id).await;
             self.start_pair(app, &pair).await?;
         } else {
