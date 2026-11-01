@@ -6902,8 +6902,8 @@ mod tests {
     #[test]
     fn discovery_file_token_is_private_on_creation() {
         use std::os::unix::fs::PermissionsExt;
-        let path = std::env::temp_dir()
-            .join(format!("ghostftp-agent-discovery-{}.json", Uuid::new_v4()));
+        let path =
+            std::env::temp_dir().join(format!("ghostftp-agent-discovery-{}.json", Uuid::new_v4()));
         write_discovery_file(&path, 41235, "test-token").expect("write private discovery");
         let mode = std::fs::metadata(&path)
             .expect("read discovery metadata")
@@ -6916,7 +6916,6 @@ mod tests {
         assert_eq!(body["token"], "test-token");
         std::fs::remove_file(path).expect("cleanup discovery");
     }
-
 
     #[tokio::test]
     async fn revoke_all_access_clears_runtime_profiles_and_approval_policy() {
