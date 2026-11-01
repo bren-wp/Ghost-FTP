@@ -316,7 +316,7 @@ fn activity(kind: &str, session_id: &str, detail: String, ok: bool) -> ActivityE
 /// On Unix the file is locked down to the owner (0600); on Windows it inherits
 /// the per-user `%APPDATA%` ACL — the same trust boundary `profiles.json`
 /// already relies on (any process running as this user can read it).
-fn write_discovery_file(path: &PathBuf, port: u16, token: &str) {
+fn write_discovery_file(path: &PathBuf, port: u16, token: &str) -> Result<()> {
     let body = json!({
         "url": format!("http://127.0.0.1:{port}"),
         "port": port,
@@ -324,16 +324,30 @@ fn write_discovery_file(path: &PathBuf, port: u16, token: &str) {
         "pid": std::process::id(),
         "version": env!("CARGO_PKG_VERSION"),
     });
-    let Ok(bytes) = serde_json::to_vec_pretty(&body) else {
-        return;
-    };
-    if std::fs::write(path, &bytes).is_ok() {
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+    let bytes = serde_json::to_vec_pretty(&body)?;
+
+    #[cfg(unix)]
+    {
+        use std::io::{ErrorKind, Write};
+        use std::os::unix::fs::OpenOptionsExt;
+        // Never write a bearer token into a world-readable file and chmod it
+        // afterward: the old write-then-chmod sequence exposed a race window.
+        if let Err(error) = std::fs::remove_file(path) {
+            if error.kind() != ErrorKind::NotFound {
+                return Err(error.into());
+            }
         }
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(path)?;
+        file.write_all(&bytes)?;
+        file.sync_all()?;
     }
+    #[cfg(not(unix))]
+    std::fs::write(path, &bytes)?;
+    Ok(())
 }
 
 /// Best-effort classifier: is this shell command read-only? Conservative by
@@ -603,7 +617,7 @@ impl BridgeState {
             .unwrap_or_else(|_| PathBuf::from("."));
         std::fs::create_dir_all(&dir).ok();
         let endpoint_path = dir.join(DISCOVERY_FILE);
-        write_discovery_file(&endpoint_path, port, &token);
+        write_discovery_file(&endpoint_path, port, &token)?;
 
         let (tx, rx) = oneshot::channel();
 
@@ -625,8 +639,8 @@ impl BridgeState {
 
     pub async fn stop(&self) {
         if let Some(mut r) = self.running.lock().await.take() {
-            // Pull the published endpoint so the CLI immediately sees "not
-            // running" instead of a stale URL/token.
+            // Pull the published endpoint so local integrations no longer
+            // discover a stale URL/token.
             let _ = std::fs::remove_file(&r.endpoint_path);
             if let Some(tx) = r.shutdown.take() {
                 let _ = tx.send(());
@@ -6883,6 +6897,26 @@ async fn write_jsonrpc_error(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn discovery_file_token_is_private_on_creation() {
+        use std::os::unix::fs::PermissionsExt;
+        let path = std::env::temp_dir()
+            .join(format!("ghostftp-agent-discovery-{}.json", Uuid::new_v4()));
+        write_discovery_file(&path, 41235, "test-token").expect("write private discovery");
+        let mode = std::fs::metadata(&path)
+            .expect("read discovery metadata")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o600);
+        let body: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("read file"))
+                .expect("parse discovery");
+        assert_eq!(body["token"], "test-token");
+        std::fs::remove_file(path).expect("cleanup discovery");
+    }
+
 
     #[tokio::test]
     async fn revoke_all_access_clears_runtime_profiles_and_approval_policy() {
