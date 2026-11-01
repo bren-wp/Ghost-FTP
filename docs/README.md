@@ -1,93 +1,20 @@
-> **Current development (1 November 2026): Ghost FTP 0.99.25 Preview.** The only supported product in this release train is the Ghost FTP client for Windows, Linux, Android and macOS. The standalone Ghost FTP Server, Demo and CLI are retired and are excluded from new builds, source and release assets. v0.99.24 remains the immutable previously published edition. Production signing/notarization and complete installed-device acceptance are outstanding; do not label this release Stable.
+# Ghost FTP documentation
 
-# Ghost FTP Documentation
+> Current development: **0.99.26 Preview** · latest verified public release: **v0.99.25**. The standalone Server, CLI and Demo have been retired from current builds. Documentation is deliberately restricted to supported client operations and essential verification records.
 
-**[Client-only platform package matrix](distribution/PLATFORM_PACKAGES.md)** — Windows, Linux, Android and macOS distributions; retired Server, Demo and CLI are not part of new releases.
+## Start here
 
-The current operational entry points are [Ghost FTP Client](../README.md), [Ghost FTP Server](../ghost-server/README.md), [Ghost CLI](../ghost-cli/README.md), [Ghost FTP Demo](../ghost-demo/README.md), [Client/Server compatibility](architecture/CLIENT_SERVER_PARITY.md), [Installation](guides/INSTALLATION.md), [security](../SECURITY.md), [privacy](legal/PRIVACY.md), [EULA](../EULA.txt), [license](../LICENSE.txt), and [v0.99.22 release acceptance](releases/0.99.22.md).
-
-
-
-Ghost FTP documentation is organized around the current canonical product state, stable operational guidance and historical provenance.
-
-[Full repository dead-code audit](audits/FULL_REPOSITORY_DEAD_CODE_2026_10_19.md) — advisory candidates and CI verification.
-
-[macOS shared desktop parity and migration acceptance](qa/MACOS_SHARED_PARITY.md) — separate Tauri app, security/Keychain, target-device requirements and preservation of the SwiftUI Preview.
-
-[Android filename search hardening audit](audits/ANDROID_FILENAME_SEARCH_2026_10_26.md).
-
-[v8 pixel-difference precision audit](qa/V8_RGB_PIXEL_PRECISION_2026_10_26.md).
-
-## Current state
-
-- Active source/release cycle: **0.99.25 (in development, preview)**
-- Latest canonical release: **0.99.15**
-- Live publication state: GitHub Releases is authoritative
-- Version source of truth: `/version.json`
-- Production desktop source: `/ghostftp-desktop`
-- Production Android source: `/android`
-
-Current status documents use the canonical `0.x` version train. Historical release-candidate identifiers remain only in explicitly historical release records under `docs/releases/`; active audit documents describe the current source line.
-
-All local README/documentation images are checked against the newest non-draft GitHub Release tag. A documentation image that is missing from or differs from that release fails CI.
-
-## Complete platform manuals, current status and security review
-
-- [Full product handbook and status rules](handbook/README.md)
-- [Windows app — all source features, settings, cloud connectors and QA](handbook/WINDOWS.md)
-- [Linux app — capabilities, packaging, keyring and protocol testing](handbook/LINUX.md)
-- [macOS app — SwiftUI workspaces, actual protocol limits and Keychain](handbook/MACOS.md)
-- [Android app — Kotlin workspaces, transfers, SAF and mobile privacy](handbook/ANDROID.md)
-- [Cross-platform feature-by-feature status matrix](handbook/FEATURE_MATRIX.md)
-- [Security/privacy architecture and threat model](handbook/SECURITY_PRIVACY.md)
-- [Detailed implementation backlog, dependencies and release criteria](handbook/DELIVERY_ROADMAP.md)
-- [Cloud storage provider and security scope](product/CLOUD_STORAGE.md)
-- [Cloud storage provider compatibility and verified status criteria](cloud/PROVIDERS.md)
-- [OAuth, object credentials and signed URL authentication](cloud/AUTHENTICATION.md)
-- [Signed cloud URL threat model and mitigations](security/CLOUD_SIGNED_URL_THREAT_MODEL.md)
-- [Release blockers and production readiness](status/PRODUCTION_READINESS.md)
-
-## Product
-
-- [Features](product/FEATURES.md)
-- [Project status & recommended next work](product/STATUS_AND_NEXT.md)
-- [Roadmap](ROADMAP.md)
-- [Detailed product backlog](product/ROADMAP.md)
-- [UI / UX principles](product/UI_UX.md)
-
-## Development and release
-
+- [Product overview and downloads](../README.md)
+- [Installation and supported platforms](guides/INSTALLATION.md)
+- [macOS installation limits](guides/MACOS_INSTALLATION.md)
 - [Building from source](development/BUILDING.md)
-- [Build status](build/STATUS.md)
-- [Release process](release/PROCESS.md)
-- [Versioning](releases/VERSIONING.md)
-- [QA evidence index](qa/README.md)
-- [Cloud live E2E test matrix and evidence requirements](qa/CLOUD_E2E.md)
+- [Security policy](../SECURITY.md) and [privacy](legal/PRIVACY.md)
+- [Updates and rollback](guides/UPDATES.md)
+- [Platform packages and signing state](distribution/PLATFORM_PACKAGES.md)
+- [Android and cross-platform feature status](handbook/FEATURE_MATRIX.md)
+- [Protocol E2E test methodology](qa/PROTOCOL_E2E.md)
+- [Release process and immutable evidence](release/PROCESS.md)
+- [Full-repository source and security audit (0.99.26)](audits/REPOSITORY_AUDIT_0.99.26.md)
+- [Canonical version history](releases/README.md)
 
-## Guides
-
-- [Installation](guides/INSTALLATION.md)
-- [Uninstall](guides/UNINSTALL.md)
-- [Updates](guides/UPDATES.md)
-- [Support](guides/SUPPORT.md)
-
-## Legal
-
-- [Privacy](legal/PRIVACY.md)
-- [Third-party notices](legal/THIRD_PARTY_NOTICES.md)
-- Commercial licence/EULA: `LICENSE.txt` and `EULA.txt`
-- Security reporting: `SECURITY.md`
-
-## Releases and historical records
-
-- Canonical release notes live in [releases](releases/).
-- [Version mapping/provenance](releases/version-map.json) records the verified legacy-to-canonical migration.
-- Files named `2.1.1-rc.*` under `docs/releases/` are historical snapshots only.
-- `docs/audits/` contains point-in-time audit records whose labels describe the audited snapshot, not the active version.
-
-## Product guides and release QA
-
-- [0.94.0 Android transport and cancellation changes](releases/0.94.0.md)
-- [Cloud signed URL threat model](security/CLOUD_SIGNED_URL_THREAT_MODEL.md)
-- [Android DNS/cancellation/SAF unit and integration acceptance](qa/CLOUD_E2E.md)
-- [Production readiness and explicit blockers](status/PRODUCTION_READINESS.md)
+Historical release notes and signed/hashed artifact provenance are retained for traceability, not treated as current operating instructions. Compiled screenshots and 75-screen concepts remain unverified as exact pixel parity unless actual device evidence exists.
