@@ -33,7 +33,9 @@ fn wait_bounded(mut child: Child, timeout: Duration) -> Result<Output> {
             Ok(None) if started.elapsed() >= timeout => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return Err(anyhow!("Linux Secret Service timed out; unlock the keyring"));
+                return Err(anyhow!(
+                    "Linux Secret Service timed out; unlock the keyring"
+                ));
             }
             Ok(None) => std::thread::sleep(CHILD_POLL_INTERVAL),
             Err(_) => {
@@ -44,7 +46,6 @@ fn wait_bounded(mut child: Child, timeout: Duration) -> Result<Output> {
         }
     }
 }
-
 
 fn command(operation: &str, service: &str, account: &str) -> Command {
     let mut command = Command::new("secret-tool");

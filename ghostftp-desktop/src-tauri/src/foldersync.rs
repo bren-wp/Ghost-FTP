@@ -309,7 +309,10 @@ impl FolderSync {
                 Some(r) => (true, r.status.lock().await.clone()),
                 None => (false, RuntimeStatus::default()),
             };
-            if pair.enabled && pair.mode == SyncMode::OnDemand && !cfg!(all(windows, feature = "virtualfs")) {
+            if pair.enabled
+                && pair.mode == SyncMode::OnDemand
+                && !cfg!(all(windows, feature = "virtualfs"))
+            {
                 rt.state = PairState::Error;
                 rt.last_error = Some(
                     "On-demand folders need a Windows build with VirtualFs enabled".to_string(),
