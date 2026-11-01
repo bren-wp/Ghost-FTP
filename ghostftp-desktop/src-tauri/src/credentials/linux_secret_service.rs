@@ -178,12 +178,12 @@ mod tests {
     fn completed_credential_helper_retains_exact_stdout_bytes() {
         let mut helper = Command::new("sh");
         helper
-            .args(["-c", "printf \'secret-with-newline\\n\'"])
+            .args(["-c", "printf 'secret-with-newline\\n'"])
             .stdout(Stdio::piped())
             .stderr(Stdio::null());
         let child = helper.spawn().expect("launch local output fixture");
         let output = wait_bounded(child, Duration::from_secs(2)).unwrap();
         assert!(output.status.success());
-        assert_eq!(output.stdout, b"secret-with-newline\\n");
+        assert_eq!(output.stdout, b"secret-with-newline\n");
     }
 }
