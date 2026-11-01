@@ -1,3 +1,10 @@
+## 0.99.27 — post-merge release integrity fix (development Preview; 1 November 2026)
+
+- Pin the 13 currently visible v0.99.24 historical release assets as an explicit unresolved integrity incident without mutating or relabeling the incomplete edition.
+- Reclassify the fully source-verified v0.99.25 release as Preview, requiring unchanged SHA-256 asset inventories.
+- Block new public releases on a failed release-metadata integrity workflow and exercise the fix with simulated GitHub API regression tests.
+- See [release notes](docs/releases/0.99.27.md) and [audit incident](docs/audits/REPOSITORY_AUDIT_0.99.26.md).
+
 ## 0.99.26 — whole-repository security, dead-code and documentation review (development Preview; 1 November 2026)
 
 - Reject ambiguous or truncated Agent Bridge HTTP request bodies, browser-origin calls and unbounded read delays.

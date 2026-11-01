@@ -52,8 +52,8 @@ test("GUI has no inoperative CLI settings or external sync script buttons", () =
 
 test("current client-only development candidate remains Preview until mandatory production checks exist", () => {
   const config = JSON.parse(read("version.json"));
-  assert.equal(config.version, "0.99.26");
-  assert.equal(config.previousPublishedVersion, "0.99.25");
+  assert.equal(config.version, "0.99.27");
+  assert.equal(config.previousPublishedVersion, "0.99.26");
   assert.equal(config.channel, "preview");
   assert.ok(read(".github/scripts/check-release-channel.mjs").includes('channel === "stable"'));
 });
