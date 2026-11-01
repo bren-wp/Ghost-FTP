@@ -1,4 +1,4 @@
-> **Authoritative current state (1 November 2026):** Ghost FTP **0.99.26 development Preview**; v0.99.25 is the latest publicly published version. Standalone Ghost FTP Server, Demo and CLI are retired from current source and new release packages. Client protocol support remains platform-dependent; security and installed-device validation are not yet certified. Older entries below are historical.
+> **Authoritative current state (1 November 2026):** Ghost FTP **0.99.27 development Preview**; v0.99.26 is the latest publicly published version. Standalone Ghost FTP Server, Demo and CLI are retired from current source and new release packages. Client protocol support remains platform-dependent; security and installed-device validation are not yet certified. Older entries below are historical.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
 
@@ -8,7 +8,7 @@
 
 # Ghost FTP Roadmap
 
-This roadmap separates the current **0.99.26 development Preview** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.99.25**.
+This roadmap separates the current **0.99.27 development Preview** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.99.26**.
 
 ## Implemented
 
@@ -66,4 +66,4 @@ This roadmap separates the current **0.99.26 development Preview** state from fu
 For the detailed engineering backlog, see [product/ROADMAP.md](product/ROADMAP.md). For authoritative current source/build state, see [product/STATUS_AND_NEXT.md](product/STATUS_AND_NEXT.md) and [build/STATUS.md](build/STATUS.md).
 
 
-Current development line: 0.99.26. Previous canonical release: 0.99.25. See `docs/releases/0.99.13.md` for the latest published Android hardening and localization work.
+Current development line: 0.99.27. Previous canonical release: 0.99.26. See `docs/releases/0.99.26.md` for the latest published Ghost FTP Preview and its acceptance limits.

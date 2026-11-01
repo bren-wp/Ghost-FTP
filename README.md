@@ -1,4 +1,4 @@
-> **Current development (1 November 2026): Ghost FTP 0.99.26 Preview.** The only supported product in this release train is the Ghost FTP client for Windows, Linux, Android and macOS. The standalone Ghost FTP Server, Demo and CLI are retired and are excluded from new builds, source and release assets. v0.99.25 is the immutable previously published edition. Production signing/notarization and complete installed-device acceptance are outstanding; do not label this release Stable.
+> **Current development (1 November 2026): Ghost FTP 0.99.27 Preview.** The only supported product in this release train is the Ghost FTP client for Windows, Linux, Android and macOS. The standalone Ghost FTP Server, Demo and CLI are retired and are excluded from new builds, source and release assets. v0.99.26 is the immutable previously published edition. Production signing/notarization and complete installed-device acceptance are outstanding; do not label this release Stable.
 
 <div align="center">
 
@@ -14,7 +14,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.26 (development Preview) · Previous source edition: v0.99.25. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.27 (development Preview) · Previous source edition: v0.99.26. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -53,11 +53,11 @@ Move files, manage connections and keep important server work organized with an 
 
 Ghost FTP Desktop is available as a separate **Apple Silicon ARM64** or **Intel x86_64** installable DMG Preview, as well as ZIP. No Apple Developer account or Developer ID signing certificate is required. Download the matching package from [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases), open its DMG in Finder, drag **Ghost FTP Desktop.app** to **Applications**, then open the installed app. Because this development Preview is not notarized, you may need **System Settings → Privacy & Security → Open Anyway** after the first launch attempt. Do not disable Gatekeeper. The embedded code uses only free ad-hoc signing for Apple Silicon integrity. Full [Croatian/English installation instructions](docs/guides/MACOS_INSTALLATION.md).
 
-## Client-only distribution (0.99.26 development Preview)
+## Client-only distribution (0.99.27 development Preview)
 
 Only the **Ghost FTP graphical client** is distributed for Windows, Linux, macOS and Android. Installers, binaries and source packages for the previously separate Server, Demo and CLI have been removed from this source train. FTP, FTPS, SFTP and the existing client-side transfer engines are retained where supported by each platform.
 
-The existing v0.99.25 release and older downloads are retained. See [platform packages](docs/distribution/PLATFORM_PACKAGES.md), [published v0.99.25 release notes](docs/releases/0.99.25.md), and [0.99.26 security/audit changes](docs/releases/0.99.26.md).
+The existing v0.99.26 release and older downloads remain immutable. See [platform packages](docs/distribution/PLATFORM_PACKAGES.md), [published v0.99.26 release notes](docs/releases/0.99.26.md), and [0.99.27 post-merge release-integrity fix](docs/releases/0.99.27.md).
 
 ## Designed for your workflow
 

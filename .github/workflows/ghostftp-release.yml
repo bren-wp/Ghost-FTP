@@ -113,6 +113,7 @@ jobs:
             return 1
           }
 
+          wait_for_gate "ghostftp-preview-metadata.yml" "immutable Preview metadata and historical asset provenance"
           wait_for_gate "ghostftp-quality.yml" "source audit"
           wait_for_gate "ghostftp-protocol-e2e.yml" "FTP/FTPS/SFTP E2E"
           wait_for_gate "ghostftp-android.yml" "Android"

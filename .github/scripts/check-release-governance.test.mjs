@@ -26,6 +26,8 @@ test("every passing main native build can automatically trigger a release", () =
   const pushBlock = native.split("  push:")[1].split("  pull_request:")[0];
   assert.ok(pushBlock.includes("branches: [main]"));
   assert.ok(!pushBlock.includes("paths:"));
+  assert.ok(workflow.includes('wait_for_gate "ghostftp-preview-metadata.yml"'),
+    "publication must fail closed when source-matched historical release metadata audit fails");
   assert.ok(workflow.includes('wait_for_gate "ghostftp-quality.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-protocol-e2e.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-android.yml"'));
@@ -139,8 +141,13 @@ test("all Preview releases remain immutable and cannot be classified stable", ()
   assert.ok(workflow.includes("github.event_name == 'schedule'"));
   assert.ok(repair.includes("sort_by(.id)"),"metadata-only correction must verify unchanged public asset digests");
   assert.ok(repair.includes("0.99.20") && repair.includes("0.99.21"));
-  assert.ok(repair.includes('enforce_preview "0.99.24" "f36026188b3defedb9464ad04e4c234afb8a399b"'),
-    "immutable v0.99.24 must be reclassified as Preview");
+  assert.ok(repair.includes("audit_incomplete_v09924"), "missing 0.99.24 integrity quarantine");
+  assert.ok(repair.includes('sort_by(.id)'), "quarantined assets must use immutable IDs");
+  assert.ok(repair.includes("v0.99.24-observed-assets.json"), "quarantine must use pinned incident evidence");
+  assert.ok(repair.includes("asset inventory changed"), "quarantine must fail on unexpected historical mutation");
+  assert.ok(!repair.includes('enforce_preview "0.99.24"'), "never reclassify a release with missing assets");
+  assert.ok(repair.includes('enforce_preview "0.99.25" "2e00a640c65dcd4d73c0401071703c9312eb7881"'),
+    "complete v0.99.25 Preview must be verified and classified correctly");
   for (const [filename, source] of [["publisher", publishing], ["metadata corrector",repair],["metadata workflow",workflow]]) {
     assert.ok(!source.includes("--cleanup-tag"), filename);
     assert.ok(!source.includes("gh release delete"), filename);
@@ -155,4 +162,22 @@ test("canonical latest release is determined by numeric immutable version, never
     assert.ok(yaml.includes('sort_by(.tag_name | ltrimstr("v") | split(".") | map(tonumber))'),name);
     assert.ok(!yaml.includes('sort_by(.published_at)'),name);
   }
+});
+
+test("incomplete historical v0.99.24 snapshot is explicit, pinned and fail-closed", () => {
+  const pinned = JSON.parse(read(".github/scripts/v0.99.24-observed-assets.json"));
+  const allIDs = pinned.map(x => x.id);
+  const allNames = pinned.map(x => x.name);
+  assert.equal(pinned.length, 13);
+  assert.equal(new Set(allIDs).size, pinned.length);
+  assert.equal(new Set(allNames).size, pinned.length);
+  assert.deepEqual([...allIDs].sort((a,b)=>a-b), allIDs);
+  assert.ok(pinned.every(x => Number.isSafeInteger(x.id) && x.id>0 &&
+    Number.isSafeInteger(x.size) && x.size>0 &&
+    /^sha256:[0-9a-f]{64}$/.test(x.digest) &&
+    x.name.includes("0.99.24")));
+  const script=read(".github/scripts/enforce-preview-release-metadata.sh");
+  assert.ok(script.includes('if [ "$actual" != "$expected" ]; then'));
+  assert.ok(script.includes("manual provenance review required"));
+  assert.ok(script.includes("Metadata was not modified"));
 });

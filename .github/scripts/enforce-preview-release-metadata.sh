@@ -67,9 +67,33 @@ enforce_preview "0.99.1" "eb2e1899f0bb953b731e7b41e0109ba4decb324a"
 # Repair metadata only; preserve tag SHA and every original asset digest.
 enforce_preview "0.99.20" "567c324213e20f1b87a4b6444a65b8150f747966"
 enforce_preview "0.99.21" "8b68b7bb7ae2a1ac35779ac4f7f965597fcc114d"
-# The immutable 0.99.24 client-only Preview was published with stable GitHub
-# metadata. Verify the exact tag, target SHA and all asset digests before PATCH.
-enforce_preview "0.99.24" "f36026188b3defedb9464ad04e4c234afb8a399b"
+# v0.99.24 has a live inventory of only 13 release assets; the original
+# manifest required >=21. Those 13 assets are OBSERVED after the incident,
+# not an attestation that the missing assets were never published. Fail if
+# even this observed subset changes. Never patch incomplete release metadata,
+# invent digests, silently upload replacements, or remove the immutable tag.
+audit_incomplete_v09924() {
+  local tag="v0.99.24" sha="f36026188b3defedb9464ad04e4c234afb8a399b"
+  local release expected actual observed
+  test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')" = "$sha"
+  release="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag")"
+  test "$(jq -r '.draft' <<< "$release")" = false
+  test "$(jq -r '.tag_name' <<< "$release")" = "$tag"
+  test "$(jq -r '.target_commitish' <<< "$release")" = "$sha"
+  expected="$(jq -c 'sort_by(.id)' .github/scripts/v0.99.24-observed-assets.json)"
+  actual="$(jq -c '[.assets[] | {id,name,size,digest}] | sort_by(.id)' <<< "$release")"
+  test "$(jq 'length' .github/scripts/v0.99.24-observed-assets.json)" -eq 13
+  if [ "$actual" != "$expected" ]; then
+    echo "::error::Quarantined $tag asset inventory changed; manual provenance review required." >&2
+    exit 1
+  fi
+  echo "::warning::Historical $tag remains INCOMPLETE (13 observed assets, at least 21 required). Existing IDs, sizes and SHA-256 digests match the incident snapshot. Metadata was not modified; restore only from authenticated original evidence."
+}
+
+audit_incomplete_v09924
+# v0.99.25 contains all 25 source-pinned assets but was observed with
+# stable GitHub metadata. Reclassify only after the normal immutable gates.
+enforce_preview "0.99.25" "2e00a640c65dcd4d73c0401071703c9312eb7881"
 
 if [ "$MODE" = successful-release ]; then
   SOURCE_SHA="$GHOSTFTP_PUBLISHED_SOURCE_SHA"
