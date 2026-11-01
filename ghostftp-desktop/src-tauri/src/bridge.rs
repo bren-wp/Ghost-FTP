@@ -43,6 +43,7 @@ const APPROVAL_TIMEOUT: Duration = Duration::from_secs(120);
 const MAX_ACTIVITY: usize = 200;
 const MAX_BODY: usize = 1024 * 1024; // 1 MiB request bodies
 const MAX_HEADERS: usize = 64 * 1024;
+const HTTP_READ_TIMEOUT: Duration = Duration::from_secs(15);
 const MAX_READ_FILE: usize = 256 * 1024; // cap ghostftp_read_file output at 256 KiB
 const MAX_EXEC_BYTES: usize = 512 * 1024; // cap exec output at 512 KiB
 const EXEC_TIMEOUT: Duration = Duration::from_secs(60); // default; kill a hung/streaming command
@@ -1047,6 +1048,7 @@ struct Request {
     method: String,
     path: String,
     auth: Option<String>,
+    has_origin: bool,
     body: Vec<u8>,
 }
 
@@ -1059,6 +1061,9 @@ async fn read_request(stream: &mut TcpStream) -> Result<Request> {
     let mut tmp = [0u8; 4096];
     let header_end = loop {
         if let Some(pos) = find_subslice(&buf, b"\r\n\r\n") {
+            if pos + 4 > MAX_HEADERS {
+                return Err(anyhow!("request headers too large"));
+            }
             break pos + 4;
         }
         if buf.len() > MAX_HEADERS {
@@ -1078,19 +1083,40 @@ async fn read_request(stream: &mut TcpStream) -> Result<Request> {
     let method = parts.next().unwrap_or("").to_string();
     let path = parts.next().unwrap_or("").to_string();
 
-    let mut content_length = 0usize;
+    let mut content_length: Option<usize> = None;
     let mut auth = None;
+    let mut has_origin = false;
     for line in lines {
         if let Some((k, v)) = line.split_once(':') {
             let key = k.trim().to_ascii_lowercase();
             let val = v.trim();
-            if key == "content-length" {
-                content_length = val.parse().unwrap_or(0);
-            } else if key == "authorization" {
-                auth = Some(val.to_string());
+            match key.as_str() {
+                "content-length" => {
+                    if content_length.is_some() {
+                        return Err(anyhow!("duplicate Content-Length"));
+                    }
+                    content_length = Some(val.parse().context("invalid Content-Length")?);
+                }
+                "transfer-encoding" => {
+                    // Chunked requests are not implemented. Reject rather than
+                    // disagreeing with HTTP intermediaries on the body length.
+                    return Err(anyhow!("Transfer-Encoding is not supported"));
+                }
+                "origin" => has_origin = true,
+                "authorization" => {
+                    if auth.is_some() {
+                        return Err(anyhow!("duplicate Authorization"));
+                    }
+                    auth = Some(val.to_string());
+                }
+                _ => {}
             }
         }
     }
+    if method == "POST" && content_length.is_none() {
+        return Err(anyhow!("POST requires Content-Length"));
+    }
+    let content_length = content_length.unwrap_or(0);
     if content_length > MAX_BODY {
         return Err(anyhow!("request body too large"));
     }
@@ -1109,6 +1135,7 @@ async fn read_request(stream: &mut TcpStream) -> Result<Request> {
         method,
         path,
         auth,
+        has_origin,
         body,
     })
 }
@@ -1124,7 +1151,7 @@ async fn write_response(stream: &mut TcpStream, status: u16, body: &Value) -> Re
     };
     let payload = serde_json::to_vec(body)?;
     let head = format!(
-        "HTTP/1.1 {status} {reason}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 {status} {reason}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
         payload.len()
     );
     stream.write_all(head.as_bytes()).await?;
@@ -1139,12 +1166,19 @@ async fn handle_conn(
     mut stream: TcpStream,
     token: String,
 ) -> Result<()> {
-    let req = match read_request(&mut stream).await {
-        Ok(r) => r,
-        Err(_) => {
+    // A single deadline bounds the entire request, not just idle gaps between
+    // reads; malformed and slow local clients must not park unbounded tasks.
+    let req = match tokio::time::timeout(HTTP_READ_TIMEOUT, read_request(&mut stream)).await {
+        Ok(Ok(r)) => r,
+        _ => {
             return write_response(&mut stream, 400, &json!({"error": "bad request"})).await;
         }
     };
+    // REST/MCP is for native localhost clients, never an arbitrary website.
+    // No permissive CORS response and no Origin-bearing browser requests.
+    if req.has_origin {
+        return write_response(&mut stream, 403, &json!({"error": "browser origin not permitted"})).await;
+    }
 
     let authed = req
         .auth
@@ -6897,6 +6931,43 @@ async fn write_jsonrpc_error(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    async fn parse_wire_request(wire: &[u8]) -> Result<Request> {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
+        let addr = listener.local_addr()?;
+        let mut client = TcpStream::connect(addr).await?;
+        let (mut server, _) = listener.accept().await?;
+        client.write_all(wire).await?;
+        client.shutdown().await?;
+        read_request(&mut server).await
+    }
+
+    #[tokio::test]
+    async fn http_parser_rejects_ambiguous_body_framing() {
+        for raw in [
+            "POST /exec HTTP/1.1\r\nContent-Length: invalid\r\n\r\n",
+            "POST /exec HTTP/1.1\r\nContent-Length: 0\r\nContent-Length: 0\r\n\r\n",
+            "POST /exec HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n",
+            "POST /exec HTTP/1.1\r\n\r\n",
+            "GET /health HTTP/1.1\r\nAuthorization: Bearer a\r\nAuthorization: Bearer b\r\n\r\n",
+        ] {
+            assert!(parse_wire_request(raw.as_bytes()).await.is_err(), "{raw}");
+        }
+    }
+
+    #[tokio::test]
+    async fn http_parser_tracks_web_origin_and_accepts_valid_local_request() {
+        let wire = b"POST /exec HTTP/1.1\r\nAuthorization: Bearer private\r\nContent-Length: 2\r\nOrigin: https://example.invalid\r\n\r\n{}";
+        let parsed = parse_wire_request(wire).await.expect("parse request");
+        assert_eq!(parsed.body, b"{}");
+        assert!(parsed.has_origin);
+        let local = parse_wire_request(
+            b"GET /health HTTP/1.1\r\nAuthorization: Bearer private\r\n\r\n",
+        )
+        .await
+        .expect("parse native local client");
+        assert!(!local.has_origin);
+    }
 
     #[cfg(unix)]
     #[test]
