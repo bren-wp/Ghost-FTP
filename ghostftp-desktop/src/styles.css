@@ -1383,8 +1383,7 @@ body,
   overflow: hidden;
   background: #041526 !important;
 }
-.ghost-transfer-box,
-.ghost-server-log {
+.ghost-transfer-box {
   display: flex;
   min-width: 0;
   min-height: 0;
@@ -1564,7 +1563,6 @@ body,
   .ghost-main-workspace { min-height: 0 !important; }
   .ghost-toolbar-row { overflow-x: auto !important; overflow-y: hidden !important; scrollbar-width: thin; }
   .ghost-bottom-band { grid-template-columns: 1fr !important; grid-template-rows: minmax(0,1fr) minmax(92px,.72fr); overflow: auto !important; }
-  .ghost-bottom-band .ghost-server-log { min-height: 92px; }
   .fixed.inset-0.z-modal { padding: 8px !important; }
   .fixed.inset-0.z-modal > [role="dialog"] { width: calc(100vw - 16px) !important; max-width: none !important; max-height: calc(100dvh - 16px) !important; overflow: auto !important; }
 }
@@ -1929,7 +1927,7 @@ body,
   background: #071a2e !important;
   border-bottom-color: rgba(56,171,255,.22) !important;
 }
-.ghost-file-pane,.ghost-transfer-box,.ghost-server-log,
+.ghost-file-pane,.ghost-transfer-box,
 .ghost-site-manager-nav,.ghost-site-manager-table,.ghost-site-manager-details,
 .ghost-settings-card,.ghost-about-card {
   border-color: rgba(56,171,255,.35) !important;
@@ -5204,7 +5202,6 @@ input.ghost-pane-address:focus-visible {
 }
 [data-theme="dark"] .ghost-file-pane,
 [data-theme="dark"] .ghost-transfer-box,
-[data-theme="dark"] .ghost-server-log,
 [data-theme="dark"] .ghost-settings-card,
 [data-theme="dark"] .ghost-about-card,
 [data-theme="dark"] .ghost-site-manager-nav,

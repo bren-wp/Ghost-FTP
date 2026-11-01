@@ -18,8 +18,8 @@
 //!
 //! Deletion is never implicit: the engine only *reports* groups plus a
 //! suggested keeper (the unsuffixed name, else the oldest copy); each surface
-//! (GUI panel, `ghostftp-cli dedupe --delete`, the `ghostftp_dedupe` bridge tool's
-//! caller) decides which paths to delete and issues the deletes itself.
+//! (GUI panel or `ghostftp_dedupe` bridge caller) decides which paths to delete
+//! and issues the deletes itself.
 
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -330,8 +330,8 @@ pub async fn group_by_hash(
 }
 
 /// Walk `root` and group its duplicates. The one-shot entry point for
-/// `ghostftp-cli dedupe` and the `ghostftp_dedupe` bridge tool; the GUI drives its own
-/// cancellable run via [`DedupeManager`].
+/// the `ghostftp_dedupe` bridge tool; the GUI drives its own cancellable run
+/// via [`DedupeManager`].
 pub async fn find_duplicates(
     fs: &dyn RemoteFs,
     root: &str,

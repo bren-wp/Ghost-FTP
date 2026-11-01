@@ -57,8 +57,8 @@ const SEARCH_MAX_RESULTS: usize = 200;
 const SEARCH_MAX_DEPTH: usize = 6;
 
 /// Filename of the endpoint discovery file written next to `bridge.json` while
-/// the bridge is running. `ghostftp-cli agent …` reads the URL + token from it, so
-/// the AI never has to handle either. Deleted when the bridge stops.
+/// the bridge is running. Local integrations can discover the URL and token;
+/// the file is deleted when the bridge stops.
 const DISCOVERY_FILE: &str = "agent-endpoint.json";
 
 /// How much approval friction the user has opted to remove. Every field
@@ -316,7 +316,7 @@ fn activity(kind: &str, session_id: &str, detail: String, ok: bool) -> ActivityE
 /// On Unix the file is locked down to the owner (0600); on Windows it inherits
 /// the per-user `%APPDATA%` ACL — the same trust boundary `profiles.json`
 /// already relies on (any process running as this user can read it).
-fn write_discovery_file(path: &PathBuf, port: u16, token: &str) {
+fn write_discovery_file(path: &PathBuf, port: u16, token: &str) -> Result<()> {
     let body = json!({
         "url": format!("http://127.0.0.1:{port}"),
         "port": port,
@@ -324,16 +324,30 @@ fn write_discovery_file(path: &PathBuf, port: u16, token: &str) {
         "pid": std::process::id(),
         "version": env!("CARGO_PKG_VERSION"),
     });
-    let Ok(bytes) = serde_json::to_vec_pretty(&body) else {
-        return;
-    };
-    if std::fs::write(path, &bytes).is_ok() {
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+    let bytes = serde_json::to_vec_pretty(&body)?;
+
+    #[cfg(unix)]
+    {
+        use std::io::{ErrorKind, Write};
+        use std::os::unix::fs::OpenOptionsExt;
+        // Never write a bearer token into a world-readable file and chmod it
+        // afterward: the old write-then-chmod sequence exposed a race window.
+        if let Err(error) = std::fs::remove_file(path) {
+            if error.kind() != ErrorKind::NotFound {
+                return Err(error.into());
+            }
         }
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(path)?;
+        file.write_all(&bytes)?;
+        file.sync_all()?;
     }
+    #[cfg(not(unix))]
+    std::fs::write(path, &bytes)?;
+    Ok(())
 }
 
 /// Best-effort classifier: is this shell command read-only? Conservative by
@@ -593,8 +607,8 @@ impl BridgeState {
         let port = listener.local_addr()?.port();
         let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
 
-        // Publish the live endpoint so `ghostftp-cli agent …` can find it with no
-        // URL/token handling by the user or the agent. Re-resolve the data dir
+        // Publish the live endpoint for opt-in local integrations without
+        // requiring the user to manually copy the token. Re-resolve the data dir
         // from `app` here (not from config_path) so it works even on the
         // load_or_create default-fallback path where config_path is None.
         let dir = app
@@ -603,7 +617,7 @@ impl BridgeState {
             .unwrap_or_else(|_| PathBuf::from("."));
         std::fs::create_dir_all(&dir).ok();
         let endpoint_path = dir.join(DISCOVERY_FILE);
-        write_discovery_file(&endpoint_path, port, &token);
+        write_discovery_file(&endpoint_path, port, &token)?;
 
         let (tx, rx) = oneshot::channel();
 
@@ -625,13 +639,37 @@ impl BridgeState {
 
     pub async fn stop(&self) {
         if let Some(mut r) = self.running.lock().await.take() {
-            // Pull the published endpoint so the CLI immediately sees "not
-            // running" instead of a stale URL/token.
+            // Pull the published endpoint so local integrations no longer
+            // discover a stale URL/token.
             let _ = std::fs::remove_file(&r.endpoint_path);
             if let Some(tx) = r.shutdown.take() {
                 let _ = tx.send(());
             }
         }
+    }
+
+    /// Revoke active/persisted profile access, reset approvals, and stop the
+    /// localhost endpoint while preserving saved connections and credentials.
+    /// A failed persistence write must never be reported as successful revocation.
+    pub async fn revoke_all_access(&self) -> Result<BridgeStatus> {
+        *self.enabled_master.lock().await = false;
+        self.enabled.lock().await.clear();
+        self.enabled_profiles.lock().await.clear();
+        *self.policy.lock().await = ApprovalPolicy::default();
+        self.stop().await;
+        self.persist().await;
+        if let Some(path) = &self.config_path {
+            let bytes = std::fs::read(path).context("reading revoked bridge configuration")?;
+            let config: PersistedConfig =
+                serde_json::from_slice(&bytes).context("parsing revoked bridge configuration")?;
+            if config.enabled
+                || !config.enabled_profiles.is_empty()
+                || config.policy != ApprovalPolicy::default()
+            {
+                return Err(anyhow!("Agent Bridge revocation did not persist"));
+            }
+        }
+        Ok(self.status().await)
     }
 
     /// The master on/off switch the UI exposes (persisted, default off). Turning
@@ -3668,8 +3706,8 @@ async fn write_via_upload(
 /// agent (`WriteChunk`), or any other backend (staged in-place upload).
 /// Gated as a Write — never auto-approved except by
 /// allow-all. Refuses to clobber an existing file unless `overwrite`. This is the
-/// engine behind `/write`, `ghostftp_write` and `ghostftp-cli agent write` (Plan 10
-/// Phase 2). Content is bounded by the bridge's 1 MiB request-body cap — for
+/// engine behind `/write` and `ghostftp_write`. Content is bounded by
+/// the bridge's 1 MiB request-body cap — for
 /// large files use `upload`.
 async fn op_write(
     app: &AppHandle,
@@ -4510,12 +4548,12 @@ async fn op_diff(
     };
 
     // Need a server side to authorize against — a purely local↔local diff has no
-    // session, and that's what `ghostftp-cli diff` is for.
+    // session, so the bridge must reject the request.
     let gate_side = side_a.as_ref().or(side_b.as_ref());
     let Some((gate_id, gate_name, _)) = gate_side else {
         return (
             400,
-            json!({"error": "ghostftp_diff needs at least one connected server side (a local↔local diff has no session to authorize); use the `ghostftp-cli diff` command for two local folders."}),
+            json!({"error": "ghostftp_diff needs at least one connected server side (a local↔local diff has no session to authorize); local-only comparisons are not supported by this endpoint."}),
         );
     };
     let gate_id = gate_id.clone();
@@ -4652,7 +4690,7 @@ async fn op_dedupe(
     let Some((gate_id, gate_name, sess)) = side else {
         return (
             400,
-            json!({"error": "ghostftp_dedupe needs a connected server (a local-only scan has no session to authorize); use the `ghostftp-cli dedupe` command for local folders."}),
+            json!({"error": "ghostftp_dedupe needs a connected server (a local-only scan has no session to authorize); local-only scans are not supported by this endpoint."}),
         );
     };
     let summary_text = format!(
@@ -6859,6 +6897,52 @@ async fn write_jsonrpc_error(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn discovery_file_token_is_private_on_creation() {
+        use std::os::unix::fs::PermissionsExt;
+        let path =
+            std::env::temp_dir().join(format!("ghostftp-agent-discovery-{}.json", Uuid::new_v4()));
+        write_discovery_file(&path, 41235, "test-token").expect("write private discovery");
+        let mode = std::fs::metadata(&path)
+            .expect("read discovery metadata")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o600);
+        let body: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("read file"))
+                .expect("parse discovery");
+        assert_eq!(body["token"], "test-token");
+        std::fs::remove_file(path).expect("cleanup discovery");
+    }
+
+    #[tokio::test]
+    async fn revoke_all_access_clears_runtime_profiles_and_approval_policy() {
+        let bridge = BridgeState::new();
+        *bridge.enabled_master.lock().await = true;
+        bridge.enabled.lock().await.insert("session-1".to_string());
+        bridge
+            .enabled_profiles
+            .lock()
+            .await
+            .insert("profile-1".to_string());
+        *bridge.policy.lock().await = ApprovalPolicy {
+            allow_all: true,
+            auto_read: true,
+            auto_safe_exec: true,
+            allow_sudo: true,
+        };
+        let status = bridge
+            .revoke_all_access()
+            .await
+            .expect("revocation succeeds");
+        assert!(!status.running);
+        assert!(!status.enabled);
+        assert!(status.enabled_sessions.is_empty());
+        assert!(bridge.enabled_profiles.lock().await.is_empty());
+        assert_eq!(*bridge.policy.lock().await, ApprovalPolicy::default());
+    }
 
     // Plan 10 Phase 1: the CLI base64-encodes a script's raw bytes; the bridge
     // decodes them back. Prove that hop is byte-exact for a heredoc + nested

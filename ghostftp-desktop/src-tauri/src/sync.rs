@@ -75,8 +75,8 @@ fn join(base: &str, rel: &str) -> String {
     }
 }
 
-/// Stateless one-shot diff (size + mtime), used by the manual Sync dialog and
-/// `ghostftp-cli`. No persistent memory — a same-size in-place edit whose mtime the
+/// Stateless one-shot diff (size + mtime), used by the manual Sync dialog.
+/// No persistent memory — a same-size in-place edit whose mtime the
 /// destination doesn't reflect can be missed. Folder-sync uses [`plan_indexed`]
 /// to close that gap.
 pub async fn plan(

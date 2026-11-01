@@ -50,10 +50,23 @@ test("GUI has no inoperative CLI settings or external sync script buttons", () =
   assert.ok(!read("ghostftp-desktop/src/lib/commands.tsx").includes('id: "agent-bridge"'));
 });
 
-test("0.99.24 remains a Preview until mandatory production signers and platform tests exist", () => {
+test("current client-only development candidate remains Preview until mandatory production checks exist", () => {
   const config = JSON.parse(read("version.json"));
-  assert.equal(config.version, "0.99.24");
-  assert.equal(config.previousPublishedVersion, "0.99.23");
+  assert.equal(config.version, "0.99.25");
+  assert.equal(config.previousPublishedVersion, "0.99.24");
   assert.equal(config.channel, "preview");
   assert.ok(read(".github/scripts/check-release-channel.mjs").includes('channel === "stable"'));
+});
+
+test("active client never advertises the retired standalone CLI or its server-log styles", () => {
+  for (const file of [
+    "ghostftp-desktop/src-tauri/src/bridge.rs",
+    "ghostftp-desktop/src-tauri/src/sync.rs",
+    "ghostftp-desktop/src-tauri/src/diff.rs",
+    "ghostftp-desktop/src-tauri/src/dedupe.rs",
+  ]) {
+    assert.ok(!read(file).includes("ghostftp-cli"), file + ": retired CLI reference");
+  }
+  assert.ok(!read("ghostftp-desktop/src/styles.css").includes(".ghost-server-log"),
+    "retired standalone server CSS must not remain in client");
 });

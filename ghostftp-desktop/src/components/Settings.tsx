@@ -20,6 +20,8 @@ import {
 } from "@/stores/settingsStore";
 import { APP_LANGUAGE_OPTIONS, getLocale, setLocale, type AppLocale } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
+import { useBridge } from "@/stores/bridgeStore";
+import { useConnections } from "@/stores/connectionsStore";
 import type { AgentHostStatus, AgentPeerPermissions, ConnectionProfile, FtpNetworkDiagnostic } from "@/lib/types";
 import { useDialog } from "@/hooks/useDialog";
 import { requestDesktopNotificationPermission } from "@/lib/notifications";
@@ -658,7 +660,106 @@ function RemoteAgentSecurityCard() {
   );
 }
 
-function SecurityPanel(){return <div className="mx-auto w-full max-w-4xl space-y-4"><SecurityCard/><RemoteAgentSecurityCard/></div>}
+function AgentBridgeSecurityCard() {
+  const status = useBridge((state) => state.status);
+  const loaded = useBridge((state) => state.loaded);
+  const refresh = useBridge((state) => state.refresh);
+  const start = useBridge((state) => state.start);
+  const setEnabled = useBridge((state) => state.setEnabled);
+  const setPolicy = useBridge((state) => state.setPolicy);
+  const setSessionAccess = useBridge((state) => state.setSessionAccess);
+  const revokeAllAccess = useBridge((state) => state.revokeAllAccess);
+  const sessions = useConnections((state) => state.sessions);
+  const profiles = useConnections((state) => state.profiles);
+  const [busy, setBusy] = useState(false);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
+
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  const mutate = async (work: () => Promise<void>) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await work();
+    } catch (error) {
+      // The store reports the backend error to the user. Keep the confirmation
+      // visible, and never log a potentially sensitive backend error payload.
+      console.warn("Agent Bridge settings action was not confirmed", typeof error);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card icon={<ShieldCheck size={20}/>} title="Agent Bridge · Local AI access"
+      subtitle="Control local automation separately from the Remote Agent device service.">
+      <p className="text-xs text-text-muted">
+        This localhost endpoint can use authenticated remote sessions.
+        Profile grants and auto-approval can survive restarts: review before enabling.
+      </p>
+      {!loaded && <p role="status" className="text-xs text-text-muted">Loading Agent Bridge controls…</p>}
+      <ToggleRow label="Enable Agent Bridge (starts local listener)"
+        checked={status.enabled} locked={!loaded || busy}
+        onChange={(enabled) => void mutate(() => setEnabled(enabled))}/>
+      <p role="status" className="text-xs text-text-muted">
+        {status.running ? "Local Agent Bridge is listening." : "Local Agent Bridge is stopped."}
+      </p>
+      {status.enabled && !status.running && (
+        <button type="button" className="ghost-mini-button" disabled={busy || !loaded}
+          onClick={() => void mutate(start)}>Start local bridge now</button>
+      )}
+      <div className="space-y-2 border-t border-border pt-3">
+        <p className="text-xs font-semibold">Approval policy</p>
+        <ToggleRow label="Auto-approve every operation (high risk)"
+          checked={status.policy.allowAll} locked={!loaded || busy}
+          onChange={(allowAll) => void mutate(() => setPolicy({ ...status.policy, allowAll }))}/>
+        <ToggleRow label="Auto-approve read-only operations"
+          checked={status.policy.autoRead} locked={!loaded || busy}
+          onChange={(autoRead) => void mutate(() => setPolicy({ ...status.policy, autoRead }))}/>
+        <ToggleRow label="Auto-approve safe-looking SSH commands"
+          checked={status.policy.autoSafeExec} locked={!loaded || busy}
+          onChange={(autoSafeExec) => void mutate(() => setPolicy({ ...status.policy, autoSafeExec }))}/>
+        <ToggleRow label="Allow sudo password reuse (high risk)"
+          checked={status.policy.allowSudo} locked={!loaded || busy}
+          onChange={(allowSudo) => void mutate(() => setPolicy({ ...status.policy, allowSudo }))}/>
+      </div>
+      <div className="space-y-2 border-t border-border pt-3">
+        <p className="text-xs font-semibold">Connected session permissions</p>
+        {sessions.length === 0 && <p className="text-xs text-text-muted">
+          No connected sessions. Use Revoke all to remove stored grants for disconnected sites.
+        </p>}
+        {sessions.map((session) => (
+          <ToggleRow key={session.sessionId}
+            label={`Agent access: ${profiles.find((profile) => profile.id === session.profileId)?.name ?? session.sessionId}`}
+            checked={status.enabledSessions.includes(session.sessionId)}
+            locked={!loaded || busy || !status.enabled}
+            onChange={(enabled) => void mutate(() => setSessionAccess(session.sessionId, enabled))}/>
+        ))}
+      </div>
+      <div className="space-y-2 border-t border-border pt-3">
+        <p className="text-xs text-text-muted">
+          Revoke all stops listening, resets automatic approvals and removes persisted
+          profile grants. It retains sites, passwords, saved commands and Skills.
+        </p>
+        {!confirmRevoke ? (
+          <button type="button" className="ghost-mini-button" disabled={!loaded || busy}
+            onClick={() => setConfirmRevoke(true)}>Revoke all Agent Bridge access…</button>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="ghost-mini-button" disabled={busy}
+              onClick={() => setConfirmRevoke(false)}>Cancel</button>
+            <button type="button" className="ghost-mini-button" disabled={busy}
+              onClick={() => void mutate(async () => {
+                await revokeAllAccess();
+                setConfirmRevoke(false);
+              })}>Confirm revoke all access</button>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+function SecurityPanel(){return <div className="mx-auto w-full max-w-4xl space-y-4"><SecurityCard/><AgentBridgeSecurityCard/><RemoteAgentSecurityCard/></div>}
 function ShortcutsCard(){return <Card icon={<Keyboard size={20}/>} title="Keyboard Shortcuts" subtitle="Core Ghost FTP shortcuts."><div className="grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 text-[12px]"><span>New connection</span><kbd>Ctrl + N</kbd><span>Settings</span><kbd>Ctrl + ,</kbd><span>Open Transfers</span><kbd>Ctrl + T</kbd><span>Command palette</span><kbd>Ctrl + K</kbd></div></Card>}
 function AdvancedPanel(){return <div className="mx-auto grid w-full max-w-5xl gap-4 xl:grid-cols-2"><ShortcutsCard/><div className="xl:col-span-2"><TerminalCard/></div></div>}
 

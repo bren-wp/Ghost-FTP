@@ -67,6 +67,9 @@ enforce_preview "0.99.1" "eb2e1899f0bb953b731e7b41e0109ba4decb324a"
 # Repair metadata only; preserve tag SHA and every original asset digest.
 enforce_preview "0.99.20" "567c324213e20f1b87a4b6444a65b8150f747966"
 enforce_preview "0.99.21" "8b68b7bb7ae2a1ac35779ac4f7f965597fcc114d"
+# The immutable 0.99.24 client-only Preview was published with stable GitHub
+# metadata. Verify the exact tag, target SHA and all asset digests before PATCH.
+enforce_preview "0.99.24" "f36026188b3defedb9464ad04e4c234afb8a399b"
 
 if [ "$MODE" = successful-release ]; then
   SOURCE_SHA="$GHOSTFTP_PUBLISHED_SOURCE_SHA"

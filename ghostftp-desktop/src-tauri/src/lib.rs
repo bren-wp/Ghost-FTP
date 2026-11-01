@@ -539,6 +539,7 @@ original user data and staged restore were preserved for repair"
             commands::bridge_set_enabled,
             commands::bridge_status,
             commands::bridge_set_session_access,
+            commands::bridge_revoke_all_access,
             commands::bridge_set_policy,
             commands::bridge_set_active_session,
             commands::bridge_register_mcp,
