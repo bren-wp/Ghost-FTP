@@ -1279,6 +1279,7 @@ mod tests {
     #[cfg(not(all(windows, feature = "virtualfs")))]
     #[test]
     fn unsupported_on_demand_pair_is_rejected_before_persistence() {
+        use super::FolderSync;
         let mut candidate = pair(&[], 100);
         candidate.local_root = std::env::temp_dir()
             .join("ghostftp-virtualfs-disabled")
