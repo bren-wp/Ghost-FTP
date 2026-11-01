@@ -19,11 +19,10 @@
 //! lowercase-hex sha256, so a hash computed on one side is comparable to the
 //! other regardless of protocol.
 //!
-//! Three surfaces consume this one engine — `ghostftp-cli diff`, the `ghostftp_diff`
-//! Agent-Bridge/MCP tool, and the GUI two-tree view — so the classification
-//! lives here once. The pure [`classify`]/[`summarize`] halves are I/O-free and
-//! unit-tested; [`hash_pass`] refines them for `--hash`; [`diff`] wires the two
-//! walks together for the CLI and bridge (the GUI drives its own cancellable
+//! The `ghostftp_diff` Agent-Bridge/MCP tool and GUI two-tree view share this
+//! classification engine. The pure [`classify`]/[`summarize`] halves are I/O-free
+//! and unit-tested; [`hash_pass`] adds content-hash comparison; [`diff`] wires
+//! the two walks together for the bridge (the GUI drives its own cancellable
 //! walks and reuses the pure halves). Symlinks are skipped, exactly as the walk
 //! already skips them.
 
@@ -259,8 +258,8 @@ pub async fn hash_pass(
 }
 
 /// Walk both sides, classify, and (optionally) content-hash. The convenience
-/// entry point for `ghostftp-cli diff` and the `ghostftp_diff` bridge tool — both hold a
-/// concrete [`Session`] per remote side (and pass `None` for a local side). The
+/// entry point for the `ghostftp_diff` bridge tool — it holds a concrete
+/// [`Session`] per remote side (and passes `None` for a local side). The
 /// GUI drives its own cancellable walks instead and reuses [`classify`] /
 /// [`hash_pass`] / [`summarize`] directly.
 #[allow(clippy::too_many_arguments)]

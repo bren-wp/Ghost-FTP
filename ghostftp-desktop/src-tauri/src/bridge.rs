@@ -57,8 +57,8 @@ const SEARCH_MAX_RESULTS: usize = 200;
 const SEARCH_MAX_DEPTH: usize = 6;
 
 /// Filename of the endpoint discovery file written next to `bridge.json` while
-/// the bridge is running. `ghostftp-cli agent …` reads the URL + token from it, so
-/// the AI never has to handle either. Deleted when the bridge stops.
+/// the bridge is running. Local integrations can discover the URL and token;
+/// the file is deleted when the bridge stops.
 const DISCOVERY_FILE: &str = "agent-endpoint.json";
 
 /// How much approval friction the user has opted to remove. Every field
@@ -593,8 +593,8 @@ impl BridgeState {
         let port = listener.local_addr()?.port();
         let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
 
-        // Publish the live endpoint so `ghostftp-cli agent …` can find it with no
-        // URL/token handling by the user or the agent. Re-resolve the data dir
+        // Publish the live endpoint for opt-in local integrations without
+        // requiring the user to manually copy the token. Re-resolve the data dir
         // from `app` here (not from config_path) so it works even on the
         // load_or_create default-fallback path where config_path is None.
         let dir = app
@@ -3692,8 +3692,8 @@ async fn write_via_upload(
 /// agent (`WriteChunk`), or any other backend (staged in-place upload).
 /// Gated as a Write — never auto-approved except by
 /// allow-all. Refuses to clobber an existing file unless `overwrite`. This is the
-/// engine behind `/write`, `ghostftp_write` and `ghostftp-cli agent write` (Plan 10
-/// Phase 2). Content is bounded by the bridge's 1 MiB request-body cap — for
+/// engine behind `/write` and `ghostftp_write`. Content is bounded by
+/// the bridge's 1 MiB request-body cap — for
 /// large files use `upload`.
 async fn op_write(
     app: &AppHandle,
@@ -4534,12 +4534,12 @@ async fn op_diff(
     };
 
     // Need a server side to authorize against — a purely local↔local diff has no
-    // session, and that's what `ghostftp-cli diff` is for.
+    // session, so the bridge must reject the request.
     let gate_side = side_a.as_ref().or(side_b.as_ref());
     let Some((gate_id, gate_name, _)) = gate_side else {
         return (
             400,
-            json!({"error": "ghostftp_diff needs at least one connected server side (a local↔local diff has no session to authorize); use the `ghostftp-cli diff` command for two local folders."}),
+            json!({"error": "ghostftp_diff needs at least one connected server side (a local↔local diff has no session to authorize); local-only comparisons are not supported by this endpoint."}),
         );
     };
     let gate_id = gate_id.clone();
@@ -4676,7 +4676,7 @@ async fn op_dedupe(
     let Some((gate_id, gate_name, sess)) = side else {
         return (
             400,
-            json!({"error": "ghostftp_dedupe needs a connected server (a local-only scan has no session to authorize); use the `ghostftp-cli dedupe` command for local folders."}),
+            json!({"error": "ghostftp_dedupe needs a connected server (a local-only scan has no session to authorize); local-only scans are not supported by this endpoint."}),
         );
     };
     let summary_text = format!(
