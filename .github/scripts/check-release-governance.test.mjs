@@ -139,6 +139,8 @@ test("all Preview releases remain immutable and cannot be classified stable", ()
   assert.ok(workflow.includes("github.event_name == 'schedule'"));
   assert.ok(repair.includes("sort_by(.id)"),"metadata-only correction must verify unchanged public asset digests");
   assert.ok(repair.includes("0.99.20") && repair.includes("0.99.21"));
+  assert.ok(repair.includes('enforce_preview "0.99.24" "f36026188b3defedb9464ad04e4c234afb8a399b"'),
+    "immutable v0.99.24 must be reclassified as Preview");
   for (const [filename, source] of [["publisher", publishing], ["metadata corrector",repair],["metadata workflow",workflow]]) {
     assert.ok(!source.includes("--cleanup-tag"), filename);
     assert.ok(!source.includes("gh release delete"), filename);

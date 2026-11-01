@@ -211,6 +211,8 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
     } catch (error) {
       toastError(error, "Couldn't persist Agent Bridge revocation");
       void get().refresh();
+      // Keep the explicit confirmation visible when revocation did not persist.
+      throw error;
     }
   },
 

@@ -679,7 +679,13 @@ function AgentBridgeSecurityCard() {
   const mutate = async (work: () => Promise<void>) => {
     if (busy) return;
     setBusy(true);
-    try { await work(); } finally { setBusy(false); }
+    try {
+      await work();
+    } catch {
+      // Store actions show the exact backend failure; keep revocation confirmation open.
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
