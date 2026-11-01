@@ -2472,9 +2472,7 @@ pub async fn bridge_set_session_access(
 
 /// Stop the bridge and revoke every persisted and live agent grant.
 #[tauri::command]
-pub async fn bridge_revoke_all_access(
-    state: State<'_, AppState>,
-) -> Result<BridgeStatus, String> {
+pub async fn bridge_revoke_all_access(state: State<'_, AppState>) -> Result<BridgeStatus, String> {
     state.bridge.revoke_all_access().await.map_err(err)
 }
 

@@ -648,7 +648,8 @@ impl BridgeState {
             let bytes = std::fs::read(path).context("reading revoked bridge configuration")?;
             let config: PersistedConfig =
                 serde_json::from_slice(&bytes).context("parsing revoked bridge configuration")?;
-            if config.enabled || !config.enabled_profiles.is_empty()
+            if config.enabled
+                || !config.enabled_profiles.is_empty()
                 || config.policy != ApprovalPolicy::default()
             {
                 return Err(anyhow!("Agent Bridge revocation did not persist"));
@@ -6888,18 +6889,27 @@ mod tests {
         let bridge = BridgeState::new();
         *bridge.enabled_master.lock().await = true;
         bridge.enabled.lock().await.insert("session-1".to_string());
-        bridge.enabled_profiles.lock().await.insert("profile-1".to_string());
+        bridge
+            .enabled_profiles
+            .lock()
+            .await
+            .insert("profile-1".to_string());
         *bridge.policy.lock().await = ApprovalPolicy {
-            allow_all: true, auto_read: true, auto_safe_exec: true, allow_sudo: true,
+            allow_all: true,
+            auto_read: true,
+            auto_safe_exec: true,
+            allow_sudo: true,
         };
-        let status = bridge.revoke_all_access().await.expect("revocation succeeds");
+        let status = bridge
+            .revoke_all_access()
+            .await
+            .expect("revocation succeeds");
         assert!(!status.running);
         assert!(!status.enabled);
         assert!(status.enabled_sessions.is_empty());
         assert!(bridge.enabled_profiles.lock().await.is_empty());
         assert_eq!(*bridge.policy.lock().await, ApprovalPolicy::default());
     }
-
 
     // Plan 10 Phase 1: the CLI base64-encodes a script's raw bytes; the bridge
     // decodes them back. Prove that hop is byte-exact for a heredoc + nested
