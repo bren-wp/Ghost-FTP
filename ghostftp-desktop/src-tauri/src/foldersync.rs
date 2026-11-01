@@ -290,10 +290,12 @@ impl FolderSync {
     async fn reconcile_virtualfs(&self, app: &AppHandle) {
         let pairs = self.enabled_ondemand_pairs().await;
         let vfs = app.state::<AppState>().virtualfs.clone();
-        // An unsupported build must never mark a Windows Cloud Filter root as
-        // registered. Preserve imported pair records but expose their error.
+        // An unsupported OS/build must not register fake virtual roots.
+        // Crucially, do NOT reconcile with an empty set here: on Windows a
+        // feature-disabled build cannot unregister previously registered
+        // Cloud Filter roots, and clearing virtualfs.json would lose the
+        // orphan-cleanup inventory for a later supported upgrade.
         if !vfs.supported() {
-            vfs.reconcile(app, Vec::new()).await;
             return;
         }
         vfs.reconcile(app, pairs).await;
