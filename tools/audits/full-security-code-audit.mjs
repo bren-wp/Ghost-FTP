@@ -36,7 +36,7 @@ export const dangerousPatterns = [
   { id: "unsafe-curl-tls", pattern: /\bcurl\b[^\n]*(?:\s-k\b|\s--insecure\b)/i },
   { id: "password-logging", pattern: /(?:console\.log|println!|print|Log\.[diwe]|NSLog)\s*\(\s*(?:password|secret|accessToken|privateKey)(?:\b|[)\s,])/i },
   { id: "unsafe-local-cors", pattern: /Access-Control-Allow-Origin:\s*\*/i },
-  { id: "private-key-literal", pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/i },
+  { id: "private-key-literal", pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----\r?\n(?:[A-Za-z0-9+/=]{32,}\r?\n)+-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/i },
   { id: "curl-pipe-shell", pattern: /\bcurl\b[^\n|]{0,300}\|\s*(?:ba)?sh\b/i },
 ];
 export function isRuntimeCode(file) {
