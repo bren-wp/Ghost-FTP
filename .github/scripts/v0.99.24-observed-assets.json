@@ -1,0 +1,80 @@
+[
+  {
+    "id": 693763871,
+    "name": "GhostFTP-Android-v0.99.24.apk",
+    "size": 628434,
+    "digest": "sha256:a6486491ebe5310c85cfc4f0aa73fec975a4f10691bea3b35d395ca119b5847b"
+  },
+  {
+    "id": 693763914,
+    "name": "GhostFTP-Android-v0.99.24.aab",
+    "size": 731905,
+    "digest": "sha256:72eac934b56f95e6b44f942205fca7ce91fb05e3dbeaed7513ff4295cbcc1416"
+  },
+  {
+    "id": 693764038,
+    "name": "GhostFTP-Linux-amd64-v0.99.24.deb",
+    "size": 8588148,
+    "digest": "sha256:889f843711e86727aa7ffb0f4e9509d405e4cd6ef83b87708e235e11c01ccc4b"
+  },
+  {
+    "id": 693764077,
+    "name": "GhostFTP-Linux-x86_64-v0.99.24",
+    "size": 18967384,
+    "digest": "sha256:83c9a1f72e74615473965c6aa50ac35aa0ae3a55bbbe1517cc1e20cef2ff3022"
+  },
+  {
+    "id": 693764151,
+    "name": "GhostFTP-Linux-x86_64-v0.99.24.AppImage",
+    "size": 88394232,
+    "digest": "sha256:ff39aaea0bb4d79a8664732a15e0e11110da26e2577802bfb22fbc7bec110e4d"
+  },
+  {
+    "id": 693764273,
+    "name": "GhostFTP-Linux-x86_64-v0.99.24.rpm",
+    "size": 8589516,
+    "digest": "sha256:e0ab0faea99ec5092097b4d1d34a232666778aaa551b882b2ab89619349f8bea"
+  },
+  {
+    "id": 693764506,
+    "name": "GhostFTP-Windows-x64-Portable-v0.99.24.exe",
+    "size": 16807424,
+    "digest": "sha256:05ebd8717569dff8e9a52ea10ba84c60f9e1e2d2f6f7d332726a7ca614aa721c"
+  },
+  {
+    "id": 693764605,
+    "name": "GhostFTP-Windows-x64-Setup-v0.99.24.exe",
+    "size": 6000463,
+    "digest": "sha256:4ee35bf60f97b8225a6da387070e2155ff0b535055262962f69e52acedd20c92"
+  },
+  {
+    "id": 693764649,
+    "name": "GhostFTP-Windows-x64-Setup-v0.99.24.msi",
+    "size": 8146944,
+    "digest": "sha256:775711e1a5d8315cff8b0e7a99d993b815e75be54c2df43c99f88ca26a5720ab"
+  },
+  {
+    "id": 693764736,
+    "name": "GhostFTP-Windows-x64-v0.99.24.zip",
+    "size": 21722545,
+    "digest": "sha256:28319c4f3ae517f2d23272bd8cd924174edab9cfe8ad1091f44d497dce1a49a9"
+  },
+  {
+    "id": 693764794,
+    "name": "GhostFTP-macOS-Shared-arm64-v0.99.24-Installable.dmg",
+    "size": 9144357,
+    "digest": "sha256:6f0bf74f21c23e9eb02c7b9664247b84606e5f73325e66ef113450d5426e801d"
+  },
+  {
+    "id": 693764918,
+    "name": "GhostFTP-macOS-Shared-x86_64-v0.99.24-Installable.dmg",
+    "size": 10172999,
+    "digest": "sha256:6c5ea7eaae2e16ec165a68ce548835dc3ffe146686cc102f1d004315f29c18eb"
+  },
+  {
+    "id": 693765142,
+    "name": "GhostFTP-v0.99.24-Source.zip",
+    "size": 4332883,
+    "digest": "sha256:d137dd4b1cedcde874982a00ba840eb2ef72f8d15b90727a1c4a1c5bda71ae74"
+  }
+]

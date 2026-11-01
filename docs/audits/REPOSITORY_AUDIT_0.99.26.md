@@ -27,3 +27,11 @@ The repository's `tools/audits/full-dead-code-audit.mjs` and `tools/audits/full-
 ## Documentation retention policy
 
 Retain current user guides, legal/security notices, platform/build/release procedures, canonical release notes, reference evidence consumed by CI and a small current audit index. Historical obsolete analyses with no inbound references may be removed from the active tree; commit history preserves provenance. Never delete released asset/tag history or CI-critical resources to reduce documentation counts.
+
+## Post-merge historical release integrity incident (1 November 2026)
+
+The metadata workflow on main SHA `8f055c82a5524c586fd27d60fbe323b9da9251fe` failed because `v0.99.24` exposes **13 assets** in the GitHub Releases API, whereas its published client-only artifact contract requires at least 21 (an earlier release manifest referenced 25). The 13 observable assets retain API-provided IDs, sizes and SHA-256 digest values; this **does not validate the missing assets** and cannot establish who or what removed them. The published metadata still marks the incomplete release as `prerelease=false`.
+
+The reproducible incident snapshot is `/.github/scripts/v0.99.24-observed-assets.json`. CI validates the *exact present subset*, keeps the issue visible with a workflow warning, and refuses modifications or automatic reclassification of `v0.99.24` while its original complete inventory cannot be verified. Any drift from the observed subset is a blocking failure. Its historical tag is not moved, no old assets are overwritten, and the original disappearance remains an open investigation requiring independent original artifact and checksum evidence.
+
+Separately, `v0.99.25` retains all 25 artifacts but was observed with `prerelease=false`. The metadata corrector now verifies its exact source tag and 25 digested assets and restores its proper Preview classification. This does not excuse the separate incident affecting `v0.99.24`.
