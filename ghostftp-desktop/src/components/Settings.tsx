@@ -681,8 +681,10 @@ function AgentBridgeSecurityCard() {
     setBusy(true);
     try {
       await work();
-    } catch {
-      // Store actions show the exact backend failure; keep revocation confirmation open.
+    } catch (error) {
+      // The store reports the backend error to the user. Keep the confirmation
+      // visible, and never log a potentially sensitive backend error payload.
+      console.warn("Agent Bridge settings action was not confirmed", typeof error);
     } finally {
       setBusy(false);
     }

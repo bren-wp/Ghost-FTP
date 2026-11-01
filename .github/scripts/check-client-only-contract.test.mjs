@@ -50,10 +50,10 @@ test("GUI has no inoperative CLI settings or external sync script buttons", () =
   assert.ok(!read("ghostftp-desktop/src/lib/commands.tsx").includes('id: "agent-bridge"'));
 });
 
-test("0.99.24 remains a Preview until mandatory production signers and platform tests exist", () => {
+test("current client-only development candidate remains Preview until mandatory production checks exist", () => {
   const config = JSON.parse(read("version.json"));
-  assert.equal(config.version, "0.99.24");
-  assert.equal(config.previousPublishedVersion, "0.99.23");
+  assert.equal(config.version, "0.99.25");
+  assert.equal(config.previousPublishedVersion, "0.99.24");
   assert.equal(config.channel, "preview");
   assert.ok(read(".github/scripts/check-release-channel.mjs").includes('channel === "stable"'));
 });
