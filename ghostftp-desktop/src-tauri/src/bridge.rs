@@ -1180,7 +1180,12 @@ async fn handle_conn(
     // REST/MCP is for native localhost clients, never an arbitrary website.
     // No permissive CORS response and no Origin-bearing browser requests.
     if req.has_origin {
-        return write_response(&mut stream, 403, &json!({"error": "browser origin not permitted"})).await;
+        return write_response(
+            &mut stream,
+            403,
+            &json!({"error": "browser origin not permitted"}),
+        )
+        .await;
     }
 
     let authed = req
@@ -6965,11 +6970,10 @@ mod tests {
         let parsed = parse_wire_request(wire).await.expect("parse request");
         assert_eq!(parsed.body, b"{}");
         assert!(parsed.has_origin);
-        let local = parse_wire_request(
-            b"GET /health HTTP/1.1\r\nAuthorization: Bearer private\r\n\r\n",
-        )
-        .await
-        .expect("parse native local client");
+        let local =
+            parse_wire_request(b"GET /health HTTP/1.1\r\nAuthorization: Bearer private\r\n\r\n")
+                .await
+                .expect("parse native local client");
         assert!(!local.has_origin);
     }
 
