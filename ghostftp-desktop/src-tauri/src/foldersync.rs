@@ -290,6 +290,12 @@ impl FolderSync {
     async fn reconcile_virtualfs(&self, app: &AppHandle) {
         let pairs = self.enabled_ondemand_pairs().await;
         let vfs = app.state::<AppState>().virtualfs.clone();
+        // An unsupported build must never mark a Windows Cloud Filter root as
+        // registered. Preserve imported pair records but expose their error.
+        if !vfs.supported() {
+            vfs.reconcile(app, Vec::new()).await;
+            return;
+        }
         vfs.reconcile(app, pairs).await;
     }
 
@@ -299,10 +305,16 @@ impl FolderSync {
         let running = self.running.lock().await;
         let mut out = Vec::with_capacity(pairs.len());
         for pair in pairs {
-            let (is_running, rt) = match running.get(&pair.id) {
+            let (is_running, mut rt) = match running.get(&pair.id) {
                 Some(r) => (true, r.status.lock().await.clone()),
                 None => (false, RuntimeStatus::default()),
             };
+            if pair.enabled && pair.mode == SyncMode::OnDemand && !cfg!(all(windows, feature = "virtualfs")) {
+                rt.state = PairState::Error;
+                rt.last_error = Some(
+                    "On-demand folders need a Windows build with VirtualFs enabled".to_string(),
+                );
+            }
             out.push(PairView {
                 running: is_running,
                 state: rt.state,
@@ -344,6 +356,11 @@ impl FolderSync {
     }
 
     fn validate_pair(pair: &SyncPair) -> Result<()> {
+        // The UI hides unsupported modes, but imported config and IPC callers
+        // must also be rejected before any enabled pair is persisted.
+        if pair.mode == SyncMode::OnDemand && !cfg!(all(windows, feature = "virtualfs")) {
+            anyhow::bail!("On-demand folders require Windows with VirtualFs enabled");
+        }
         if pair.name.trim().is_empty() {
             anyhow::bail!("sync pair name must not be empty");
         }
@@ -449,6 +466,7 @@ impl FolderSync {
             pair
         };
         if enabled {
+            Self::validate_pair(&pair)?;
             self.stop_pair(app, id).await;
             self.start_pair(app, &pair).await?;
         } else {
@@ -491,6 +509,10 @@ impl FolderSync {
         // hydration on access), not this eager reconcile loop. `reconcile_virtualfs`
         // stands them up; nothing to spawn here.
         if pair.mode == SyncMode::OnDemand {
+            anyhow::ensure!(
+                cfg!(all(windows, feature = "virtualfs")),
+                "On-demand folders require Windows with VirtualFs enabled"
+            );
             return Ok(());
         }
 
@@ -1233,6 +1255,29 @@ mod tests {
         assert!(glob_match("**/report*.pdf", "računi/report čćž.pdf"));
         assert!(!glob_match("files/*.txt", "files/nested/notes.txt"));
         assert!(glob_match("files/?otes.txt", "files/notes.txt"));
+    }
+
+    #[cfg(not(all(windows, feature = "virtualfs")))]
+    #[test]
+    fn unsupported_on_demand_pair_is_rejected_before_persistence() {
+        let mut candidate = pair(&[], 100);
+        candidate.local_root = std::env::temp_dir()
+            .join("ghostftp-virtualfs-disabled")
+            .to_string_lossy()
+            .into_owned();
+        candidate.profile_id = "saved-profile".into();
+        candidate.remote_root = "/remote".into();
+        candidate.strategy = SyncStrategy::Additive;
+        candidate.mode = SyncMode::OnDemand;
+        assert!(
+            FolderSync::validate_pair(&candidate).is_err(),
+            "Linux and feature-disabled Windows must not accept inert placeholders"
+        );
+        candidate.mode = SyncMode::Mirror;
+        assert!(
+            FolderSync::validate_pair(&candidate).is_ok(),
+            "ordinary folder sync must remain available"
+        );
     }
 
     #[test]
