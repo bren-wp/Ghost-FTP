@@ -6,8 +6,8 @@ Native Android application for Ghost FTP.
 
 - Product: Ghost FTP
 - Brand: Brendigo
-- Active source/release cycle: 0.99.6
-- Previous canonical release: 0.99.5
+- Active development edition: 0.99.26 Preview
+- Previous verified published release: 0.99.25
 - Version source of truth: ../version.json
 - Release identity is rendered from `ReleaseInfo.kt`; this document does not carry an independent version badge.
 
