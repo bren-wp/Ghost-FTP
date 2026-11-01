@@ -35,6 +35,9 @@ export const dangerousPatterns = [
   { id: "ssh-host-key-bypass", pattern: /\bStrictHostKeyChecking\s*=\s*no\b|setHostKeyVerifier\s*\(\s*\{\s*true\s*\}\s*\)/i },
   { id: "unsafe-curl-tls", pattern: /\bcurl\b[^\n]*(?:\s-k\b|\s--insecure\b)/i },
   { id: "password-logging", pattern: /(?:console\.log|println!|print|Log\.[diwe]|NSLog)\s*\(\s*(?:password|secret|accessToken|privateKey)(?:\b|[)\s,])/i },
+  { id: "unsafe-local-cors", pattern: /Access-Control-Allow-Origin:\s*\*/i },
+  { id: "private-key-literal", pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/i },
+  { id: "curl-pipe-shell", pattern: /\bcurl\b[^\n|]{0,300}\|\s*(?:ba)?sh\b/i },
 ];
 export function isRuntimeCode(file) {
   const production = [
@@ -49,9 +52,12 @@ export function isRuntimeCode(file) {
 export function scanDangerous(file, content) {
   if (!isRuntimeCode(file)) return [];
   return dangerousPatterns.flatMap(({id,pattern}) => {
-    const hit = pattern.exec(content);
-    if (!hit) return [];
-    return [{ id, path: file, line: content.slice(0, hit.index).split("\n").length }];
+    const global = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : pattern.flags + "g");
+    return [...content.matchAll(global)].map((hit) => ({
+      id,
+      path: file,
+      line: content.slice(0, hit.index).split("\n").length,
+    }));
   });
 }
 const REQUIRED = [
@@ -62,7 +68,13 @@ const REQUIRED = [
   [".github/scripts/check-release-governance.test.mjs", ["released editions and tags must never be automatically pruned"]],
   [".github/scripts/enforce-preview-release-metadata.sh", ["0.99.0", "0.95.53", "make_latest", "enforce_preview", "sha256:"]],
   [".github/workflows/ghostftp-preview-metadata.yml", ["workflow_run:", "Ghost FTP release", "contents: write"]],
-  ["android/app/src/main/java/com/ghostftp/android/CloudNetworkSafety.kt", [".dns(PublicCloudDns())", ".proxy(Proxy.NO_PROXY)", ".followRedirects(false)"]]
+  ["android/app/src/main/java/com/ghostftp/android/CloudNetworkSafety.kt", [".dns(PublicCloudDns())", ".proxy(Proxy.NO_PROXY)", ".followRedirects(false)"]],
+  ["ghostftp-desktop/src-tauri/src/bridge.rs", [
+    "HTTP_READ_TIMEOUT", "tokio::time::timeout(HTTP_READ_TIMEOUT",
+    "duplicate Content-Length", "Transfer-Encoding is not supported",
+    "POST requires Content-Length", "truncated request body",
+    "if req.has_origin", "create_new(true)", ".mode(0o600)",
+  ]]
 ];
 export function audit(root = ROOT) {
   const sourceFiles = trackedSourceFiles(root);

@@ -1129,6 +1129,9 @@ async fn read_request(stream: &mut TcpStream) -> Result<Request> {
         }
         body.extend_from_slice(&tmp[..n]);
     }
+    if body.len() < content_length {
+        return Err(anyhow!("truncated request body"));
+    }
     body.truncate(content_length);
 
     Ok(Request {
@@ -6949,6 +6952,7 @@ mod tests {
             "POST /exec HTTP/1.1\r\nContent-Length: 0\r\nContent-Length: 0\r\n\r\n",
             "POST /exec HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n",
             "POST /exec HTTP/1.1\r\n\r\n",
+            "POST /exec HTTP/1.1\r\nContent-Length: 5\r\n\r\n{}",
             "GET /health HTTP/1.1\r\nAuthorization: Bearer a\r\nAuthorization: Bearer b\r\n\r\n",
         ] {
             assert!(parse_wire_request(raw.as_bytes()).await.is_err(), "{raw}");
