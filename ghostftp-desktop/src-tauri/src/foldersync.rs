@@ -311,7 +311,7 @@ impl FolderSync {
             };
             if pair.enabled
                 && pair.mode == SyncMode::OnDemand
-                && !cfg!(all(windows, feature = "virtualfs"))
+                && !crate::virtualfs::VirtualFs::platform_supported()
             {
                 rt.state = PairState::Error;
                 rt.last_error = Some(
@@ -361,7 +361,7 @@ impl FolderSync {
     fn validate_pair(pair: &SyncPair) -> Result<()> {
         // The UI hides unsupported modes, but imported config and IPC callers
         // must also be rejected before any enabled pair is persisted.
-        if pair.mode == SyncMode::OnDemand && !cfg!(all(windows, feature = "virtualfs")) {
+        if pair.mode == SyncMode::OnDemand && !crate::virtualfs::VirtualFs::platform_supported() {
             anyhow::bail!("On-demand folders require Windows with VirtualFs enabled");
         }
         if pair.name.trim().is_empty() {
