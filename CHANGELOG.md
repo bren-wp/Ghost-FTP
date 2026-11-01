@@ -1,3 +1,10 @@
+## 0.99.28 — Windows/Linux Folder Sync and credential-service reliability (development Preview; 1 November 2026)
+
+- Reject unsupported Windows/Linux on-demand sync in the backend and prevent enabling inert imported configurations.
+- Surface unsupported imported on-demand pairs as errors and never register unsupported virtual filesystem roots.
+- Bound Linux Secret Service helper processes to 30 seconds; clean up and report stalled credential-vault operations, with regression tests.
+- See [0.99.28 release notes](docs/releases/0.99.28.md) and the [Windows](docs/handbook/WINDOWS.md)/[Linux](docs/handbook/LINUX.md) acceptance guides.
+
 ## 0.99.27 — post-merge release integrity fix (development Preview; 1 November 2026)
 
 - Pin the 13 currently visible v0.99.24 historical release assets as an explicit unresolved integrity incident without mutating or relabeling the incomplete edition.

@@ -1,6 +1,6 @@
 # Ghost FTP for Windows — complete source feature and acceptance guide
 
-**Candidate:** 0.93.0 · **Platform:** Windows 10/11 x64 · **Stack:** React, TypeScript, Tauri 2, Rust, system WebView · **Release basis:** verified v0.92.2. This document describes available source implementations, not a blanket guarantee that every path works on every Windows installation. Consult the exact commit's six CI gates, real installer smoke artifacts and manual QA.
+**Current development:** 0.99.28 Preview · published predecessor v0.99.27 · **Platform:** Windows 10/11 x64 · **Stack:** React, TypeScript, Tauri 2, Rust, system WebView · **Release basis:** verified v0.92.2. This document describes available source implementations, not a blanket guarantee that every path works on every Windows installation. Consult the exact commit's six CI gates, real installer smoke artifacts and manual QA.
 
 ## 1. What the application is
 
@@ -85,3 +85,9 @@ Must pass Rust fmt/check/clippy/test; TypeScript check/build/lint/i18n/interacti
 - ghostftp-desktop/src/lib/types.ts — connection protocols, cloud provider presets and transfer domain models.
 - .github/workflows/ghostftp-build.yml — Windows install, launch, uninstall and bundle QA.
 - docs/product/CLOUD_STORAGE.md — cloud security boundaries and cross-platform parity.
+
+## 0.99.28 desktop state and acceptance (1 November 2026)
+
+The Windows/Linux shared desktop now validates Folder Sync on-demand support **in Rust**, not only in the React selector. Without a compiled and supported Windows Cloud Filter provider, attempts to import or enable on-demand virtual folders return an actionable error rather than storing an apparently active but inert sync pair. Previously imported enabled configurations show an error in Folder Sync, and unsupported virtual roots are not registered. Normal mirrored folder synchronization remains available.
+
+Windows release builds include NSIS, MSI and portable distributions. Automated CI is evidence of buildability, not physical-device installation, certificate signing, full UI reference fidelity or every cloud account flow. The Windows Cloud Filter provider must still be enabled and validated with real placeholder/hydration operations before On-demand is advertised as functional.

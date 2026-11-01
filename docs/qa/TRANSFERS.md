@@ -63,3 +63,10 @@ Status: **production transfer implementation exists; real FTP/FTPS/SFTP end-to-e
 ## 0.95.18 remote FTP listing integrity
 
 Desktop FTP/FTPS directory operations now reject an unknown or malformed LIST record rather than return a falsely complete partial directory. This protects against accidentally skipping remote files in sync, remote search or recursive delete and against incorrect absence-based conflict decisions. Unix and IIS-style DOS listing formats have deterministic parser regressions, and a real FTP data-channel fixture must prove both acceptance and rejection. Unsupported formatting may result in a visible listing error; that is safer than pretending the directory is empty. Cross-server interoperability remains to be tested, including Microsoft IIS directly.
+
+## Windows/Linux reliability regression matrix (0.99.28 Preview)
+
+- Unsupported VirtualFs mode must be rejected *before* changing a saved sync pair; imported enabled on-demand pairs must show an error rather than false successful synchronization.
+- Supported ordinary Mirror/Additive pairs must remain valid on Linux and Windows builds without the optional VirtualFs feature.
+- Linux Secret Service lookup/store/remove must terminate with a controlled error if its helper is unresponsive, without putting a secret in argv, environment variables or diagnostic output.
+- These checks must pass on the exact commit together with Windows hardening, Linux/Windows native build, Rust tests and real FTP/FTPS/SFTP E2E. Runtime device acceptance and per-distribution behavior remain separate.
